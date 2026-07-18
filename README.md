@@ -55,8 +55,11 @@ home from birth — never a lift-and-shift.
 
 *Provenance:* a plain file import of the V1 repo's **working tree** (taken 2026-07-18, including
 changes uncommitted there at the time), not a history-carrying subtree split. Its git history
-stays in the original repo (`Krealsion/Zen`). Dropped at import: the Python virtualenv, the
-derived `all_code.txt` concatenation, and editor/agent cruft.
+stays in that original working copy (`G:\dev\BloodRush\Zen`) and is deliberately not carried
+here — note its `origin` points at the *same* GitHub project as the Loom's, which is a further
+reason the import drops `.git` rather than nesting a second repo under `reference/`. Dropped at
+import: the 206 MB Python virtualenv, the derived `all_code.txt` concatenation, and
+editor/agent cruft. No CMake `CompilerId` junk existed to drop.
 
 ## Test discipline
 
