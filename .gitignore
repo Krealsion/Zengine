@@ -1,0 +1,22 @@
+# Build trees
+/build/
+/build-*/
+/out/
+cmake-build-*/
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.claude/
+*.sw?
+*~
+.DS_Store
+
+# Compiled artifacts
+*.o
+*.a
+*.so
+
+# The quarry's own tooling regenerates these if it is ever run in place
+reference/.venv/
+reference/all_code.txt

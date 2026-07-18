@@ -1,0 +1,9 @@
+Make a random number generator class
+Chamfered boxes
+Lil' icons
+Import free stuff based on license. lol
+Drag to resize elements, or move them
+Start work on config file (and different profiles)
+Allow for multi-window
+    BuildState - Build root into its own window
+Images

@@ -1,0 +1,5 @@
+# Normalize line endings, for the same reason the Loom does: this tree is edited on Windows and
+# built under WSL, and a CRLF working tree makes shell scripts fail under WSL bash. `text=auto`
+# lets git treat files as text and normalize on commit; `eol=lf` forces LF on checkout whatever
+# a user's core.autocrlf says.
+* text=auto eol=lf

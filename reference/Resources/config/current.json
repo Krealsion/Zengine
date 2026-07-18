@@ -1,0 +1,11 @@
+{
+  "ui": {
+    "enable_animations": true,
+    "base_padding": 12,
+    "font_size": 16.0
+  },
+  "graphics": {
+    "ui_scale": 1.0,
+    "vsync": true
+  }
+}

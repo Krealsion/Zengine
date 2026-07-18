@@ -1,0 +1,14 @@
+{
+  "ui": {
+    "enable_animations": true,
+    "base_padding": 12,
+    "font_size": 16.0,
+    "button": {
+      "default_text": "Button"
+    }
+  },
+  "graphics": {
+    "ui_scale": 1.25,
+    "vsync": true
+  }
+}
