@@ -71,9 +71,35 @@ states *which repo's green was proven*; "green" must never silently mean "green 
 delegated-scope suite still runs there, per phase. The don't-re-prove economy arrives as the
 Loom stabilizes; the structure is ready for it now.
 
-Today Zengine's green is one smoke test: link the Loom's exported surface, drive a value through
-the real gate, and confirm the gate **refuses** a malformed candidate. That refusal is what makes
-it a proof instead of a greeting.
+Zengine's green is two tests: the **smoke** (link the Loom's exported surface, drive a value
+through the real gate, confirm the gate **refuses** a malformed candidate — the refusal is what
+makes it a proof instead of a greeting) and the **snake suite** (`tests/test_snake.cpp`) — the
+Stage 2 vertical slice proven headless: the locked contract pinned by content-id, the simulation
+and the v1→v2 migration as pure math, and the three live-evolution moments driven end to end
+through real `.so` weaves, the real kernel, and the real Weave Manager.
+
+## `snake/` — the first game panel
+
+The Stage 2 vertical slice: a playable snake whose parts are genuinely separate weaves.
+
+- **World** (`snake-world-v1`/`-v2`, one source) owns the simulation and holds
+  `SnakeWorldState`; it publishes `SnakeVisual`/`FoodEaten`/`SnakeDied` and never knows its
+  consumers. Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an
+  heir — it claims by role on first wake and folds a v1 inheritance through `migrate()`.
+- **Drawers** (`snake-drawer-classic`, `snake-drawer-block`) accept only `SnakeVisual` —
+  deliberately different code, swappable mid-game.
+- **Score** (`snake-score`) accepts only `FoodEaten` and counts what it *witnesses* — loaded
+  late into a live game, its count honestly differs from the world's.
+- **Host** (`zengine-snake`) owns the terminal, clock, and pen; every lifecycle gesture is a
+  gated message through the Weave Manager, sent as a granted operator weave. Run it under WSL
+  from the build tree; keys: wasd steer, `1` swap drawer, `2` load score, `3` grow the world
+  (graceful v1→v2 migration), `r` reload in place, `n` new game, `l` list, `q` quit.
+
+This package is the **hosting consumer** that pulled `loom::kernel` onto the Loom's export
+surface, and whose nested shapes surfaced (and pulled the completion of) the manifest's
+documented-but-unbuilt `referenced` section (`zen.Manifest` v3). The snake targets gate on
+`if(TARGET loom::kernel)`, so a Windows Loom install still configures — the package simply
+skips.
 
 ## Working in this tree
 

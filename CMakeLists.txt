@@ -45,10 +45,26 @@ else()
     message(STATUS "zengine: Loom from installed package at ${loom_DIR}")
 endif()
 
-# ---- The smoke consumer ---------------------------------------------------------------
+# ---- House warnings for Zengine's own sources ------------------------------------------
 #
-# One test proving the consumption works is this repo's whole green today. No ports live here
-# yet; the atlas's port-sort lands them in later phases, in the right home from birth.
+# The Loom's exported loom::warnings is deliberately $<LINK_ONLY:> so its -Werror never
+# leaks onto a consumer's sources; a consumer that wants the same discipline declares its
+# own. Zengine does — the same list, the same -Werror, applied to every target this repo
+# authors. (GNU/Clang only: those are the lanes that exist here — WSL/GCC and MinGW.)
+add_library(zengine-warnings INTERFACE)
+target_compile_options(zengine-warnings INTERFACE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
+    -Wsign-conversion -Werror>)
+
+# ---- The consumers --------------------------------------------------------------------
+#
+# smoke: the minimal stranger (links only the exported surface; its refusal test is the
+# proof it is real). snake: the first game panel — the Stage 2 vertical slice, and the
+# hosting consumer that pulled loom::kernel onto the Loom's export surface. tests: the
+# Zengine suite (the smoke test stays its own tiny proof; the snake suite drives the real
+# .so weaves through the real kernel).
 
 enable_testing()
 add_subdirectory(smoke)
+add_subdirectory(snake)
+add_subdirectory(tests)
