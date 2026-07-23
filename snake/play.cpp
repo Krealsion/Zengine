@@ -80,6 +80,11 @@ public:
         }
         ::SetConsoleMode(in_, ENABLE_EXTENDED_FLAGS);
         ::SetConsoleMode(out_, saved_out_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        // Opt the console into UTF-8 output — held and restored like the modes.
+        // The host's OWN strings are ASCII by rule (see status()), so the demo
+        // never depends on this; the lever exists for what makers' weaves emit.
+        saved_cp_ = ::GetConsoleOutputCP();
+        ::SetConsoleOutputCP(CP_UTF8);
         enter();
     }
     ~RawTerminal() {
@@ -87,6 +92,9 @@ public:
             return;
         }
         leave();
+        if (saved_cp_ != 0) {
+            ::SetConsoleOutputCP(saved_cp_);
+        }
         ::SetConsoleMode(in_, saved_in_);
         ::SetConsoleMode(out_, saved_out_);
     }
@@ -168,6 +176,7 @@ private:
     HANDLE out_ = nullptr;
     DWORD saved_in_ = 0;
     DWORD saved_out_ = 0;
+    UINT saved_cp_ = 0;
 #else
     termios saved_{};
 #endif
@@ -175,9 +184,13 @@ private:
 };
 
 void status(const std::string& text) {
+    // ASCII only in everything this host prints (and the drawers follow the
+    // same rule): a demo's first impression must not depend on the console's
+    // codepage or font. The terminal layer still opts the console INTO UTF-8
+    // (see RawTerminal) so a maker's weave may emit what it likes.
     std::string out = "\x1b[1;1H\x1b[2K \x1b[36m[zen]\x1b[0m " + text +
-                      "   \x1b[2m(wasd steer · 1 drawer · 2 score · 3 grow · r reload · "
-                      "n new · l list · q quit)\x1b[0m";
+                      "   \x1b[2m(wasd steer | 1 drawer | 2 score | 3 grow | r reload | "
+                      "n new | l list | q quit)\x1b[0m";
     std::fwrite(out.data(), 1, out.size(), stdout);
     std::fflush(stdout);
 }
@@ -216,11 +229,11 @@ public:
     explicit OperatorWeave(OperatorContext& ctx) : ctx_(&ctx) {}
 
     void on(const loom::Result& r, loom::Mail& mail) {
-        answered(mail, "\x1b[32m→\x1b[0m " + r.value);
+        answered(mail, "\x1b[32m->\x1b[0m " + r.value);
     }
-    void on(const loom::Ack&, loom::Mail& mail) { answered(mail, "\x1b[32m→ done\x1b[0m"); }
+    void on(const loom::Ack&, loom::Mail& mail) { answered(mail, "\x1b[32m-> done\x1b[0m"); }
     void on(const loom::Refused& r, loom::Mail& mail) {
-        answered(mail, "\x1b[31m→ refused:\x1b[0m " + r.reason);
+        answered(mail, "\x1b[31m-> refused:\x1b[0m " + r.reason);
     }
 
 private:
@@ -298,7 +311,7 @@ int main() {
     // The honest line, before the alternate screen (it stays in scrollback):
     // this host isolates nothing anywhere, and on Windows it is the explicit
     // development/demo backend.
-    std::printf("zengine-snake — containment: %s\n", loom::Kernel::containment_note());
+    std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
     std::fflush(stdout);
 
     const std::string dir = exe_dir();
@@ -322,7 +335,7 @@ int main() {
         const std::uint64_t corr = next_corr++;
         ctx.pending[corr] = Pending{label, action};
         bus.send_as(op, manager, loom::Message(loom::to_value(cmd), op, op, corr));
-        status(label + " …");
+        status(label + " ...");
     };
     const auto to_world = [&](const auto& msg, loom::WeaveId reply_to = {},
                               std::uint64_t corr = 0) {
@@ -331,7 +344,7 @@ int main() {
     };
 
     RawTerminal term;
-    status("assembling the game …");
+    status("assembling the game ...");
 
     // Birth of the game: the same gesture as everything else — ask the steward.
     command("load world v1", 0, loom::LoadWeave{"snake-world-v1", so("snake-world-v1"), kWorldRole});
@@ -371,7 +384,7 @@ int main() {
                 break;
             case '1': {
                 const char* stem = block_drawer_in ? "snake-drawer-classic" : "snake-drawer-block";
-                command(std::string("swap drawer → ") + (block_drawer_in ? "classic" : "block"),
+                command(std::string("swap drawer -> ") + (block_drawer_in ? "classic" : "block"),
                         1, loom::SwapWeave{kDrawerRole, stem, so(stem), /*graceful=*/false});
                 break;
             }
@@ -380,7 +393,7 @@ int main() {
                         loom::LoadWeave{"snake-score", so("snake-score"), ""});
                 break;
             case '3':
-                command("grow the world (graceful v1→v2)", 2,
+                command("grow the world (graceful v1->v2)", 2,
                         loom::SwapWeave{kWorldRole, "snake-world-v2", so("snake-world-v2"),
                                         /*graceful=*/true});
                 break;

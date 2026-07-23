@@ -49,8 +49,8 @@ public:
         out += "+";
         out.append(static_cast<std::size_t>(v.width), '-');
         out += "+\r\n";
-        out += "\x1b[2K  classic drawer · score " + std::to_string(v.score);
-        out += v.alive ? " · alive" : " · DEAD (n = new game)";
+        out += "\x1b[2K  classic drawer - score " + std::to_string(v.score);
+        out += v.alive ? " - alive" : " - DEAD (n = new game)";
         out += "\r\n";
         std::fwrite(out.data(), 1, out.size(), stdout);
         std::fflush(stdout);

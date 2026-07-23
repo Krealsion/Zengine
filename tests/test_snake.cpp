@@ -439,7 +439,7 @@ TEST_CASE("logic: walls kill; the corpse stays where it stood") {
     CHECK(!again.died);
 }
 
-TEST_CASE("logic: the tail cell vacates — unless this step eats it solid") {
+TEST_CASE("logic: the tail cell vacates - unless this step eats it solid") {
     // A 2×2 loop of snake: head may chase its own tail forever…
     v1::SnakeWorldState s;
     s.snake = {Pos{2, 2}, Pos{3, 2}, Pos{3, 3}, Pos{2, 3}};
@@ -600,7 +600,7 @@ TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
     CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1"); // joined late, counted once
 }
 
-TEST_CASE("moment 3: the world grows — graceful swap, the letter, the migration") {
+TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration") {
     Rig r;
     const loom::WeaveId world_v1 = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
     r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);

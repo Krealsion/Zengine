@@ -38,7 +38,7 @@ public:
         out += "\x1b[2K\x1b[7m BLOCK DRAWER \x1b[0m  score ";
         out += std::to_string(v.score);
         if (!v.alive) {
-            out += "  \x1b[31;7m DEAD — n starts over \x1b[0m";
+            out += "  \x1b[31;7m DEAD - n starts over \x1b[0m";
         }
         out += "\r\n\x1b[36m";
         out.append(cols, '=');
