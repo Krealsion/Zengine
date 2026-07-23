@@ -17,7 +17,25 @@ Loom's build cannot see Zengine.
 
 ## How this consumes the Loom
 
-**Default — the stranger's path.** `find_package(loom)` against an installed, exported Loom:
+**Default — the sibling path** (`ZEN_LOOM_DEV=ON`): `add_subdirectory(../Loom)`. The
+working-tree default, and the turnkey path everywhere:
+
+```sh
+# Linux / WSL
+cmake -S . -B build-dev
+cmake --build build-dev -j"$(nproc)"
+ctest --test-dir build-dev
+```
+
+On **Windows** (MinGW), the same configure is all it takes: dev mode defaults
+`LOOM_ENABLE_WINDOWS_KERNEL=ON` — the Loom's explicit development/demo backend (**no
+isolation**; the Loom prints its banner and `Kernel::containment_note()` says so) — so the
+snake package and its suite build and run natively. Pass
+`-DLOOM_ENABLE_WINDOWS_KERNEL=OFF` to decline. The MinGW runtime DLLs must be on `PATH`
+(or beside the binaries) to run.
+
+**The stranger's path** (`-DZEN_LOOM_DEV=OFF`): `find_package(loom)` against an installed,
+exported Loom, consumed exactly as a third party would:
 
 ```sh
 # in Zen/Loom — build and install the Loom
@@ -26,26 +44,21 @@ cmake --build build -j"$(nproc)"
 cmake --install build --prefix "$PWD/build/_install"
 
 # in Zen/Zengine — consume it
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
+cmake -S . -B build -DZEN_LOOM_DEV=OFF -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
 cmake --build build -j"$(nproc)"
 ctest --test-dir build
 ```
 
-**Dev override — the sibling path.** For when the Loom and Zengine are edited together:
+Both paths expose the **same target names** (`loom::core`, `loom::switchboard`,
+`loom::kernel`) — the Loom's export sets `EXPORT_NAME` to match its in-tree aliases — so the
+override is a genuine drop-in and the two paths cannot silently come to mean different things.
 
-```sh
-cmake -S . -B build-dev -DZEN_LOOM_DEV=ON   # add_subdirectory(../Loom)
-```
-
-Both paths expose the **same target names** (`loom::core`, `loom::switchboard`) — the Loom's
-export sets `EXPORT_NAME` to match its in-tree aliases — so the override is a genuine drop-in
-and the two paths cannot silently come to mean different things.
-
-The default is deliberately the less convenient one. In dev mode the *whole* Loom build tree is
-reachable, including targets left out of the exported surface on purpose (the UI trio, the
-console, the TUI, the bridge, the SDL skin — all Zengine-destined, each moving in its own port
-phase). A mistaken dependency on one of those compiles happily in dev mode and breaks for a real
-consumer. Defaulting to the exported path means that mistake surfaces here, in the house.
+The stranger's path is no longer the default, but it remains the **proof lane**: the WSL
+verification lanes (`build`, `build-san`) are configured with it deliberately, so a mistaken
+dependency on an unexported target (the UI trio, the console, the TUI, the bridge, the SDL
+skin — all Zengine-destined, each moving in its own port phase) still surfaces here, in the
+house, before it hits a guest. Dev mode reaches the whole Loom build tree and is silent about
+that class of mistake — which is exactly why the proof lanes stay on the other path.
 
 ## `reference/` — the read-only quarry
 

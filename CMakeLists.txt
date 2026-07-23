@@ -11,25 +11,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---- How this repo gets the Loom ------------------------------------------------------
 #
-# The DEFAULT is the STRANGER'S path: find_package() against an installed, exported Loom.
-# That is the entire point of the split — Zengine consumes the Loom exactly as a third party
-# would, so every rough edge in the public surface hits the house before it hits a guest, and
-# the dependency arrow stays structurally un-invertible (the Loom's build cannot see Zengine).
+# Two paths, same target names either way (the Loom's export sets EXPORT_NAME to match its
+# in-tree ALIASes — loom::core, loom::switchboard, loom::kernel — so the override is a
+# genuine drop-in and the two paths cannot silently come to mean different things):
 #
-# ZEN_LOOM_DEV is the explicit opt-in for the sibling-source workflow, for when the Loom and
-# Zengine are being edited together. Both paths expose the SAME target names (loom::core,
-# loom::switchboard), because the Loom's export sets EXPORT_NAME to match its in-tree ALIASes
-# — so the override is a genuine drop-in and the two paths cannot silently come to mean
-# different things.
+#   ZEN_LOOM_DEV=ON  (the default) — the SIBLING path: add_subdirectory(../Loom). The
+#       working-tree default, and the turnkey Windows path: configure, press play.
+#   ZEN_LOOM_DEV=OFF — the STRANGER'S path: find_package() against an installed, exported
+#       Loom, consuming it exactly as a third party would.
 #
-# Why the default is NOT the convenient one: in dev mode the WHOLE Loom build tree is
-# reachable, including targets deliberately left out of the exported surface. A mistaken
-# dependency on one of those compiles happily in dev mode and breaks for a real consumer.
-# Defaulting to the exported path means that mistake surfaces here, in the house.
+# The stranger's path remains the PROOF lane even though it is no longer the default: the
+# WSL verification lanes (`build`, `build-san`) are configured with it deliberately, so a
+# mistaken dependency on an unexported target still breaks here, in the house, before it
+# breaks for a guest. Dev mode makes the WHOLE Loom build tree reachable — convenient for
+# editing the two together, silent about export mistakes — which is exactly why the proof
+# lanes stay on the other path. (The default was flipped from OFF once the exported surface
+# had a real consumer suite pinning it; the discipline moved from the default into the lanes.)
 
 option(ZEN_LOOM_DEV
        "Consume the Loom from the sibling ../Loom source tree instead of an installed package"
-       OFF)
+       ON)
 
 if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
@@ -39,6 +40,15 @@ if(ZEN_LOOM_DEV)
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(ZEN_SDL            OFF CACHE BOOL "" FORCE)
+    if(WIN32)
+        # The demos need the kernel, and on Windows the kernel exists only as the Loom's
+        # explicit development/demo backend (no isolation — the Loom prints its banner and
+        # Kernel::containment_note() says so at every surface). Dev mode on Windows IS the
+        # demo workflow, so default the option ON here — a plain CACHE set, so an explicit
+        # -DLOOM_ENABLE_WINDOWS_KERNEL=OFF on the command line still wins.
+        set(LOOM_ENABLE_WINDOWS_KERNEL ON CACHE BOOL
+            "Build the Windows kernel backend (LoadLibrary). Development/demo only — no isolation.")
+    endif()
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Loom ${CMAKE_CURRENT_BINARY_DIR}/_loom)
 else()
     find_package(loom 0.1 REQUIRED)

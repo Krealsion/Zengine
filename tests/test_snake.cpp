@@ -33,8 +33,13 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#else
 #include <fcntl.h>
 #include <unistd.h>
+#endif
 
 #include <cstdint>
 #include <map>
@@ -105,23 +110,39 @@ private:
 };
 
 /// fd-1 silencer: the real drawers paint stdout; the suite's own output must
-/// stay legible. Scoped exactly around pumps.
+/// stay legible. Scoped exactly around pumps. The null device and the dup
+/// spellings are the only platform seam (Windows: `NUL`, the _-prefixed CRT
+/// forms).
 class Hush {
 public:
     Hush() {
         std::fflush(stdout);
+#if defined(_WIN32)
+        saved_ = ::_dup(1);
+        const int nul = ::_open("NUL", _O_WRONLY);
+        if (nul >= 0) {
+            ::_dup2(nul, 1);
+            ::_close(nul);
+        }
+#else
         saved_ = ::dup(STDOUT_FILENO);
         const int nul = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
         if (nul >= 0) {
             ::dup2(nul, STDOUT_FILENO);
             ::close(nul);
         }
+#endif
     }
     ~Hush() {
         std::fflush(stdout);
         if (saved_ >= 0) {
+#if defined(_WIN32)
+            ::_dup2(saved_, 1);
+            ::_close(saved_);
+#else
             ::dup2(saved_, STDOUT_FILENO);
             ::close(saved_);
+#endif
         }
     }
     Hush(const Hush&) = delete;

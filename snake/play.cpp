@@ -33,10 +33,21 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#endif
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <map>
@@ -49,9 +60,70 @@ using namespace zengine::snake;
 // ---- terminal ----------------------------------------------------------------
 
 /// Raw mode, alternate screen, hidden cursor — restored whole on destruction.
-/// VMIN=0/VTIME=0 makes read() a poll: the loop owns its own cadence.
+/// Both backends degrade gracefully with NO console (stdin/stdout redirected):
+/// the game still runs and draws; there is simply no key input to read.
+///
+/// POSIX: VMIN=0/VTIME=0 makes read() a poll — the loop owns its own cadence.
+/// Win32: ENABLE_EXTENDED_FLAGS alone on input kills line-input/echo/processed
+/// input AND quick-edit (whose text-selection would otherwise freeze output);
+/// ENABLE_VIRTUAL_TERMINAL_PROCESSING on output makes the drawers' ANSI real.
 class RawTerminal {
 public:
+#if defined(_WIN32)
+    RawTerminal() {
+        in_ = ::GetStdHandle(STD_INPUT_HANDLE);
+        out_ = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        ok_ = in_ != INVALID_HANDLE_VALUE && out_ != INVALID_HANDLE_VALUE &&
+              ::GetConsoleMode(in_, &saved_in_) != 0 && ::GetConsoleMode(out_, &saved_out_) != 0;
+        if (!ok_) {
+            return;
+        }
+        ::SetConsoleMode(in_, ENABLE_EXTENDED_FLAGS);
+        ::SetConsoleMode(out_, saved_out_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        enter();
+    }
+    ~RawTerminal() {
+        if (!ok_) {
+            return;
+        }
+        leave();
+        ::SetConsoleMode(in_, saved_in_);
+        ::SetConsoleMode(out_, saved_out_);
+    }
+
+    /// Drain pending console key-DOWN events into the same byte vocabulary the
+    /// POSIX path reads: arrows arrive as virtual keys here (no escape
+    /// sequences), so they translate straight to wasd.
+    std::size_t read_keys(unsigned char* keys, std::size_t cap) const {
+        if (!ok_) {
+            return 0;
+        }
+        std::size_t n = 0;
+        DWORD pending = 0;
+        while (n < cap && ::GetNumberOfConsoleInputEvents(in_, &pending) != 0 && pending > 0) {
+            INPUT_RECORD rec;
+            DWORD got = 0;
+            if (::ReadConsoleInputA(in_, &rec, 1, &got) == 0 || got == 0) {
+                break;
+            }
+            if (rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown) {
+                continue;
+            }
+            unsigned char out = 0;
+            switch (rec.Event.KeyEvent.wVirtualKeyCode) {
+            case VK_UP: out = 'w'; break;
+            case VK_DOWN: out = 's'; break;
+            case VK_LEFT: out = 'a'; break;
+            case VK_RIGHT: out = 'd'; break;
+            default: out = static_cast<unsigned char>(rec.Event.KeyEvent.uChar.AsciiChar); break;
+            }
+            if (out != 0) {
+                keys[n++] = out;
+            }
+        }
+        return n;
+    }
+#else
     RawTerminal() {
         ok_ = ::tcgetattr(STDIN_FILENO, &saved_) == 0;
         if (!ok_) {
@@ -63,22 +135,42 @@ public:
         raw.c_cc[VMIN] = 0;
         raw.c_cc[VTIME] = 0;
         ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-        std::fputs("\x1b[?1049h\x1b[?25l\x1b[2J", stdout);
-        std::fflush(stdout);
+        enter();
     }
     ~RawTerminal() {
         if (!ok_) {
             return;
         }
-        std::fputs("\x1b[?25h\x1b[?1049l", stdout);
-        std::fflush(stdout);
+        leave();
         ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_);
     }
+
+    std::size_t read_keys(unsigned char* keys, std::size_t cap) const {
+        const ssize_t n = ::read(STDIN_FILENO, keys, cap);
+        return n > 0 ? static_cast<std::size_t>(n) : 0;
+    }
+#endif
     RawTerminal(const RawTerminal&) = delete;
     RawTerminal& operator=(const RawTerminal&) = delete;
 
 private:
+    static void enter() {
+        std::fputs("\x1b[?1049h\x1b[?25l\x1b[2J", stdout);
+        std::fflush(stdout);
+    }
+    static void leave() {
+        std::fputs("\x1b[?25h\x1b[?1049l", stdout);
+        std::fflush(stdout);
+    }
+
+#if defined(_WIN32)
+    HANDLE in_ = nullptr;
+    HANDLE out_ = nullptr;
+    DWORD saved_in_ = 0;
+    DWORD saved_out_ = 0;
+#else
     termios saved_{};
+#endif
     bool ok_ = false;
 };
 
@@ -151,12 +243,35 @@ private:
 };
 
 std::int64_t monotonic_ms() {
+#if defined(_WIN32)
+    return static_cast<std::int64_t>(::GetTickCount64());
+#else
     timespec ts{};
     ::clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+#endif
+}
+
+void nap_10ms() {
+#if defined(_WIN32)
+    ::Sleep(10);
+#else
+    timespec nap{0, 10 * 1000000};
+    ::nanosleep(&nap, nullptr);
+#endif
 }
 
 std::string exe_dir() {
+#if defined(_WIN32)
+    char buf[MAX_PATH];
+    const DWORD n = ::GetModuleFileNameA(nullptr, buf, MAX_PATH);
+    if (n == 0 || n >= MAX_PATH) {
+        return ".";
+    }
+    std::string path(buf, n);
+    const std::size_t slash = path.find_last_of("\\/");
+    return slash == std::string::npos ? "." : path.substr(0, slash);
+#else
     char buf[4096];
     const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
     if (n <= 0) {
@@ -166,13 +281,28 @@ std::string exe_dir() {
     std::string path(buf);
     const std::size_t slash = path.find_last_of('/');
     return slash == std::string::npos ? "." : path.substr(0, slash);
+#endif
 }
+
+/// The platform's loadable-weave suffix. One spelling, used for every stem.
+constexpr const char* kWeaveSuffix =
+#if defined(_WIN32)
+    ".dll";
+#else
+    ".so";
+#endif
 
 } // namespace
 
 int main() {
+    // The honest line, before the alternate screen (it stays in scrollback):
+    // this host isolates nothing anywhere, and on Windows it is the explicit
+    // development/demo backend.
+    std::printf("zengine-snake — containment: %s\n", loom::Kernel::containment_note());
+    std::fflush(stdout);
+
     const std::string dir = exe_dir();
-    const auto so = [&dir](const char* stem) { return dir + "/" + stem + ".so"; };
+    const auto so = [&dir](const char* stem) { return dir + "/" + stem + kWeaveSuffix; };
 
     loom::Switchboard bus;
     loom::Kernel kernel(bus);
@@ -217,8 +347,8 @@ int main() {
     while (running) {
         // -- input ------------------------------------------------------------
         unsigned char keys[64];
-        const ssize_t n = ::read(STDIN_FILENO, keys, sizeof(keys));
-        for (ssize_t i = 0; i < n; ++i) {
+        const std::size_t n = term.read_keys(keys, sizeof(keys));
+        for (std::size_t i = 0; i < n; ++i) {
             std::int64_t steer = -1;
             switch (keys[i]) {
             case 'w': steer = kUp; break;
@@ -298,8 +428,7 @@ int main() {
         }
         ctx.last_action = 0;
 
-        timespec nap{0, 10 * 1000000};
-        ::nanosleep(&nap, nullptr);
+        nap_10ms();
     }
     return 0;
 }
