@@ -1,16 +1,22 @@
 // zengine-snake — the playable host.
 //
-// The host is deliberately THIN: it owns the terminal, the clock, and the pen —
-// nothing else. It draws no board, knows no snake rules, and performs no
-// lifecycle itself. Everything interesting crosses the bus:
+// The host is deliberately THIN: it owns the screen, the clock, and the pen —
+// nothing else. It draws no board, knows no snake rules, performs no lifecycle
+// itself, and — since the Input package arrived — reads no keys. Everything
+// interesting crosses the bus:
 //
-//   time      → SnakeTick,  root-sent to whoever holds the snake.world role
-//   keys      → SnakeTurn,  the same way (the host is the input hardware)
+//   keys      → the zengine-input weave (the Input package's producer, loaded
+//               like any other weave) owns the platform's input side and
+//               publishes KeyPressed/KeyReleased/Mouse*; the snake-controls
+//               adapter turns steering keys into SnakeTurn; the host's own
+//               operator weave accepts KeyPressed for the command keys. The
+//               host merely root-sends PumpInput each lap so the producer has
+//               execution time (the substrate has no timers yet).
+//   time      → SnakeTick, root-sent to whoever holds the snake.world role
 //   operating → zen.LoadWeave / zen.SwapWeave / zen.ReloadWeave / zen.ListLoaded,
-//               sent AS a mounted operator weave whose grant reaches exactly the
-//               Weave Manager (send_as: the bus stamps the operator and checks
-//               ITS grant — the host holds root but spends a real capability),
-//               with every answer arriving back at the operator and printed.
+//               sent by the operator weave whose grant reaches exactly the
+//               Weave Manager, with every answer arriving back at it and
+//               printed.
 //
 // The three phase moments are three keys:
 //   1  swap the drawer (hard swap — the drawing code is unloaded, dlclosed,
@@ -27,6 +33,8 @@
 
 #include "vocabulary.hpp"
 
+#include "input/vocabulary.hpp"
+
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
@@ -42,7 +50,6 @@
 #endif
 #include <windows.h>
 #else
-#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #endif
@@ -56,38 +63,35 @@
 namespace {
 
 using namespace zengine::snake;
+namespace input = zengine::input;
+namespace scan = zengine::input::scan;
 
-// ---- terminal ----------------------------------------------------------------
+// ---- the screen --------------------------------------------------------------
 
-/// Raw mode, alternate screen, hidden cursor — restored whole on destruction.
-/// Both backends degrade gracefully with NO console (stdin/stdout redirected):
-/// the game still runs and draws; there is simply no key input to read.
-///
-/// POSIX: VMIN=0/VTIME=0 makes read() a poll — the loop owns its own cadence.
-/// Win32: ENABLE_EXTENDED_FLAGS alone on input kills line-input/echo/processed
-/// input AND quick-edit (whose text-selection would otherwise freeze output);
-/// ENABLE_VIRTUAL_TERMINAL_PROCESSING on output makes the drawers' ANSI real.
-class RawTerminal {
+/// The OUTPUT side of the terminal — alternate screen, hidden cursor, and (on
+/// Windows) VT processing so the drawers' ANSI is real — restored whole on
+/// destruction. The INPUT side (raw mode, key events) is deliberately not
+/// here: it belongs to the Input weave now, engaged when it loads and restored
+/// when it unloads. Degrades gracefully with no console (stdout redirected):
+/// the game still runs; there is simply nothing to dress up.
+class Screen {
 public:
 #if defined(_WIN32)
-    RawTerminal() {
-        in_ = ::GetStdHandle(STD_INPUT_HANDLE);
+    Screen() {
         out_ = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        ok_ = in_ != INVALID_HANDLE_VALUE && out_ != INVALID_HANDLE_VALUE &&
-              ::GetConsoleMode(in_, &saved_in_) != 0 && ::GetConsoleMode(out_, &saved_out_) != 0;
+        ok_ = out_ != INVALID_HANDLE_VALUE && ::GetConsoleMode(out_, &saved_out_) != 0;
         if (!ok_) {
             return;
         }
-        ::SetConsoleMode(in_, ENABLE_EXTENDED_FLAGS);
         ::SetConsoleMode(out_, saved_out_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-        // Opt the console into UTF-8 output — held and restored like the modes.
+        // Opt the console into UTF-8 output — held and restored like the mode.
         // The host's OWN strings are ASCII by rule (see status()), so the demo
         // never depends on this; the lever exists for what makers' weaves emit.
         saved_cp_ = ::GetConsoleOutputCP();
         ::SetConsoleOutputCP(CP_UTF8);
         enter();
     }
-    ~RawTerminal() {
+    ~Screen() {
         if (!ok_) {
             return;
         }
@@ -95,71 +99,23 @@ public:
         if (saved_cp_ != 0) {
             ::SetConsoleOutputCP(saved_cp_);
         }
-        ::SetConsoleMode(in_, saved_in_);
         ::SetConsoleMode(out_, saved_out_);
     }
-
-    /// Drain pending console key-DOWN events into the same byte vocabulary the
-    /// POSIX path reads: arrows arrive as virtual keys here (no escape
-    /// sequences), so they translate straight to wasd.
-    std::size_t read_keys(unsigned char* keys, std::size_t cap) const {
-        if (!ok_) {
-            return 0;
-        }
-        std::size_t n = 0;
-        DWORD pending = 0;
-        while (n < cap && ::GetNumberOfConsoleInputEvents(in_, &pending) != 0 && pending > 0) {
-            INPUT_RECORD rec;
-            DWORD got = 0;
-            if (::ReadConsoleInputA(in_, &rec, 1, &got) == 0 || got == 0) {
-                break;
-            }
-            if (rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown) {
-                continue;
-            }
-            unsigned char out = 0;
-            switch (rec.Event.KeyEvent.wVirtualKeyCode) {
-            case VK_UP: out = 'w'; break;
-            case VK_DOWN: out = 's'; break;
-            case VK_LEFT: out = 'a'; break;
-            case VK_RIGHT: out = 'd'; break;
-            default: out = static_cast<unsigned char>(rec.Event.KeyEvent.uChar.AsciiChar); break;
-            }
-            if (out != 0) {
-                keys[n++] = out;
-            }
-        }
-        return n;
-    }
 #else
-    RawTerminal() {
-        ok_ = ::tcgetattr(STDIN_FILENO, &saved_) == 0;
-        if (!ok_) {
-            return;
+    Screen() {
+        ok_ = ::isatty(STDOUT_FILENO) == 1;
+        if (ok_) {
+            enter();
         }
-        termios raw = saved_;
-        raw.c_lflag &= static_cast<tcflag_t>(~(ICANON | ECHO | ISIG));
-        raw.c_iflag &= static_cast<tcflag_t>(~(IXON | ICRNL));
-        raw.c_cc[VMIN] = 0;
-        raw.c_cc[VTIME] = 0;
-        ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-        enter();
     }
-    ~RawTerminal() {
-        if (!ok_) {
-            return;
+    ~Screen() {
+        if (ok_) {
+            leave();
         }
-        leave();
-        ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_);
-    }
-
-    std::size_t read_keys(unsigned char* keys, std::size_t cap) const {
-        const ssize_t n = ::read(STDIN_FILENO, keys, cap);
-        return n > 0 ? static_cast<std::size_t>(n) : 0;
     }
 #endif
-    RawTerminal(const RawTerminal&) = delete;
-    RawTerminal& operator=(const RawTerminal&) = delete;
+    Screen(const Screen&) = delete;
+    Screen& operator=(const Screen&) = delete;
 
 private:
     static void enter() {
@@ -172,13 +128,9 @@ private:
     }
 
 #if defined(_WIN32)
-    HANDLE in_ = nullptr;
     HANDLE out_ = nullptr;
-    DWORD saved_in_ = 0;
     DWORD saved_out_ = 0;
     UINT saved_cp_ = 0;
-#else
-    termios saved_{};
 #endif
     bool ok_ = false;
 };
@@ -186,8 +138,8 @@ private:
 void status(const std::string& text) {
     // ASCII only in everything this host prints (and the drawers follow the
     // same rule): a demo's first impression must not depend on the console's
-    // codepage or font. The terminal layer still opts the console INTO UTF-8
-    // (see RawTerminal) so a maker's weave may emit what it likes.
+    // codepage or font. The screen layer still opts the console INTO UTF-8
+    // (see Screen) so a maker's weave may emit what it likes.
     std::string out = "\x1b[1;1H\x1b[2K \x1b[36m[zen]\x1b[0m " + text +
                       "   \x1b[2m(wasd steer | 1 drawer | 2 score | 3 grow | r reload | "
                       "n new | l list | q quit)\x1b[0m";
@@ -207,15 +159,25 @@ struct Pending {
 
 struct OperatorContext {
     std::map<std::uint64_t, Pending> pending;
+    std::uint64_t next_corr = 1;
     int last_action = 0; ///< consumed by the loop after each pump
+    bool quit = false;   ///< the q key, consumed by the loop
+    bool block_drawer_in = false; ///< which skin holds the role right now
+    bool world_is_v2 = false;     ///< which world generation holds it
+    loom::WeaveId manager{};
+    std::string dir; ///< where the host resolves loadable weaves (beside itself)
+
+    std::string so(const char* stem) const;
 };
 
-/// The host's hand on the bus: every lifecycle command is sent AS this weave
-/// (send_as stamps it and authorizes against its grant — reaching the Manager
-/// is a real, target-scoped capability, not host magic), and every answer
-/// lands here and is printed. Consumer obligation: answers are matched against
-/// our own outstanding correlations; anything else is reported as noise, acted
-/// on never.
+/// The host's hand on the bus: it holds the reach (the manager, target-scoped
+/// — the dangerous grant — plus the world's poke-reset door by role), issues
+/// every lifecycle command, and hears every answer. Since the migration it is
+/// also how the host LISTENS: the command keys arrive as published KeyPressed
+/// messages from the Input weave — the host consumes input the same way snake
+/// does, instead of reading the platform. Consumer obligation: answers are
+/// matched against our own outstanding correlations; anything else is reported
+/// as noise, acted on never.
 struct OperatorState {
     std::int64_t answers = 0;
     ZEN_EXPOSE();
@@ -224,7 +186,10 @@ struct OperatorState {
 
 class OperatorWeave
     : public loom::WeaveBase<OperatorWeave, OperatorState,
-                             loom::Accept<loom::Result, loom::Ack, loom::Refused>, loom::Emit<>> {
+                             loom::Accept<loom::Result, loom::Ack, loom::Refused,
+                                          input::KeyPressed>,
+                             loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave,
+                                        loom::ListLoaded, loom::PokeResetState>> {
 public:
     explicit OperatorWeave(OperatorContext& ctx) : ctx_(&ctx) {}
 
@@ -236,7 +201,68 @@ public:
         answered(mail, "\x1b[31m-> refused:\x1b[0m " + r.reason);
     }
 
+    /// The command keys. Steering is not here — the snake-controls adapter
+    /// owns it — and unknown keys are nobody's error.
+    void on(const input::KeyPressed& k, loom::Mail& mail) {
+        switch (k.scancode) {
+        case scan::k1: {
+            const char* stem =
+                ctx_->block_drawer_in ? "snake-drawer-classic" : "snake-drawer-block";
+            command(mail,
+                    std::string("swap drawer -> ") +
+                        (ctx_->block_drawer_in ? "classic" : "block"),
+                    1, loom::SwapWeave{kDrawerRole, stem, ctx_->so(stem), /*graceful=*/false});
+            break;
+        }
+        case scan::k2:
+            command(mail, "load score weave (late)", 0,
+                    loom::LoadWeave{"snake-score", ctx_->so("snake-score"), ""});
+            break;
+        case scan::k3:
+            command(mail, "grow the world (graceful v1->v2)", 2,
+                    loom::SwapWeave{kWorldRole, "snake-world-v2", ctx_->so("snake-world-v2"),
+                                    /*graceful=*/true});
+            break;
+        case scan::kR: {
+            const char* stem = ctx_->world_is_v2 ? "snake-world-v2" : "snake-world-v1";
+            command(mail, "reload world in place (state rides the gate)", 0,
+                    loom::ReloadWeave{stem, ctx_->so(stem)});
+            break;
+        }
+        case scan::kL:
+            command(mail, "loaded", 0, loom::ListLoaded{});
+            break;
+        case scan::kN: {
+            const std::uint64_t corr = ctx_->next_corr++;
+            ctx_->pending[corr] = Pending{"new game (poke reset)", 0};
+            mail.send_to_role(kWorldRole, loom::PokeResetState{}, corr);
+            status("new game (poke reset) ...");
+            break;
+        }
+        case scan::kQ:
+            ctx_->quit = true;
+            break;
+        case scan::kC:
+            // V1 carries no modifiers, so Ctrl+C survives only as the backends'
+            // dressed convenience name. Quitting on it is a courtesy the host
+            // chooses to trust; the scancode stays the authority for the key.
+            if (k.name == "Ctrl+C") {
+                ctx_->quit = true;
+            }
+            break;
+        default: break;
+        }
+    }
+
 private:
+    template <class Cmd>
+    void command(loom::Mail& mail, std::string label, int action, const Cmd& cmd) {
+        const std::uint64_t corr = ctx_->next_corr++;
+        ctx_->pending[corr] = Pending{label, action};
+        mail.send(ctx_->manager, cmd, corr);
+        status(label + " ...");
+    }
+
     void answered(loom::Mail& mail, const std::string& outcome) {
         ++state_.answers;
         const auto it = ctx_->pending.find(mail.correlation());
@@ -305,6 +331,8 @@ constexpr const char* kWeaveSuffix =
     ".so";
 #endif
 
+std::string OperatorContext::so(const char* stem) const { return dir + "/" + stem + kWeaveSuffix; }
+
 } // namespace
 
 int main() {
@@ -314,120 +342,61 @@ int main() {
     std::printf("zengine-snake - containment: %s\n", loom::Kernel::containment_note());
     std::fflush(stdout);
 
-    const std::string dir = exe_dir();
-    const auto so = [&dir](const char* stem) { return dir + "/" + stem + kWeaveSuffix; };
-
     loom::Switchboard bus;
     loom::Kernel kernel(bus);
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
 
     OperatorContext ctx;
-    loom::Grant reach; // the manager, and nothing else — the dangerous grant, target-scoped
+    ctx.manager = manager;
+    ctx.dir = exe_dir();
+    loom::Grant reach; // the manager (the dangerous grant, target-scoped)...
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
     reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
     reach.allow(loom::ListLoaded::zen_name, loom::ListLoaded::zen_version, manager);
+    // ...plus the world's reset door, by role (the n key), and nothing else.
+    reach.allow_to_role(loom::PokeResetState::zen_name, loom::PokeResetState::zen_version,
+                        kWorldRole);
     const loom::WeaveId op = loom::mount_granted<OperatorWeave>(bus, std::move(reach), ctx);
 
-    std::uint64_t next_corr = 1;
-    const auto command = [&](std::string label, int action, const auto& cmd) {
-        const std::uint64_t corr = next_corr++;
-        ctx.pending[corr] = Pending{label, action};
+    // Startup commands are sent AS the operator (send_as stamps it and
+    // authorizes against ITS grant — the host holds root but spends a real
+    // capability), with the same in-flight bookkeeping its key commands use.
+    const auto boot = [&](std::string label, const auto& cmd) {
+        const std::uint64_t corr = ctx.next_corr++;
+        ctx.pending[corr] = Pending{std::move(label), 0};
         bus.send_as(op, manager, loom::Message(loom::to_value(cmd), op, op, corr));
-        status(label + " ...");
-    };
-    const auto to_world = [&](const auto& msg, loom::WeaveId reply_to = {},
-                              std::uint64_t corr = 0) {
-        bus.send_to_role(kWorldRole,
-                         loom::Message(loom::to_value(msg), loom::WeaveId{}, reply_to, corr));
     };
 
-    RawTerminal term;
+    Screen screen;
     status("assembling the game ...");
 
     // Birth of the game: the same gesture as everything else — ask the steward.
-    command("load world v1", 0, loom::LoadWeave{"snake-world-v1", so("snake-world-v1"), kWorldRole});
-    command("load classic drawer", 0,
-            loom::LoadWeave{"snake-drawer-classic", so("snake-drawer-classic"), kDrawerRole});
+    // The Input package's producer is loaded last, into its role: from that
+    // moment the platform's keys belong to it, and everyone else just listens.
+    boot("load world v1", loom::LoadWeave{"snake-world-v1", ctx.so("snake-world-v1"), kWorldRole});
+    boot("load classic drawer",
+         loom::LoadWeave{"snake-drawer-classic", ctx.so("snake-drawer-classic"), kDrawerRole});
+    boot("load snake controls", loom::LoadWeave{"snake-controls", ctx.so("snake-controls"), ""});
+    boot("load input weave",
+         loom::LoadWeave{"zengine-input", ctx.so("zengine-input"), input::kInputRole});
     bus.pump();
 
-    bool block_drawer_in = false; // which skin holds the role right now
-    bool world_is_v2 = false;     // which world generation holds it
     std::int64_t last_tick = monotonic_ms();
-    bool running = true;
 
-    while (running) {
-        // -- input ------------------------------------------------------------
-        unsigned char keys[64];
-        const std::size_t n = term.read_keys(keys, sizeof(keys));
-        for (std::size_t i = 0; i < n; ++i) {
-            std::int64_t steer = -1;
-            switch (keys[i]) {
-            case 'w': steer = kUp; break;
-            case 'd': steer = kRight; break;
-            case 's': steer = kDown; break;
-            case 'a': steer = kLeft; break;
-            case '\x1b': // arrow keys: ESC [ A/B/C/D
-                if (i + 2 < n && keys[i + 1] == '[') {
-                    switch (keys[i + 2]) {
-                    case 'A': steer = kUp; break;
-                    case 'B': steer = kDown; break;
-                    case 'C': steer = kRight; break;
-                    case 'D': steer = kLeft; break;
-                    default: break;
-                    }
-                    if (steer >= 0) {
-                        i += 2;
-                    }
-                }
-                break;
-            case '1': {
-                const char* stem = block_drawer_in ? "snake-drawer-classic" : "snake-drawer-block";
-                command(std::string("swap drawer -> ") + (block_drawer_in ? "classic" : "block"),
-                        1, loom::SwapWeave{kDrawerRole, stem, so(stem), /*graceful=*/false});
-                break;
-            }
-            case '2':
-                command("load score weave (late)", 0,
-                        loom::LoadWeave{"snake-score", so("snake-score"), ""});
-                break;
-            case '3':
-                command("grow the world (graceful v1->v2)", 2,
-                        loom::SwapWeave{kWorldRole, "snake-world-v2", so("snake-world-v2"),
-                                        /*graceful=*/true});
-                break;
-            case 'r': {
-                const char* stem = world_is_v2 ? "snake-world-v2" : "snake-world-v1";
-                command("reload world in place (state rides the gate)", 0,
-                        loom::ReloadWeave{stem, so(stem)});
-                break;
-            }
-            case 'l':
-                command("loaded", 0, loom::ListLoaded{});
-                break;
-            case 'n': {
-                const std::uint64_t corr = next_corr++;
-                ctx.pending[corr] = Pending{"new game (poke reset)", 0};
-                to_world(loom::PokeResetState{}, op, corr);
-                break;
-            }
-            case 'q':
-            case '\x03': // Ctrl-C (ISIG is off; quitting is ours to do cleanly)
-                running = false;
-                break;
-            default: break;
-            }
-            if (steer >= 0) {
-                to_world(SnakeTurn{steer});
-            }
-        }
+    while (!ctx.quit) {
+        // -- input: give the producer its hands, deliver everything it said ----
+        // (A missing producer refuses the send cleanly; the game runs keyless.)
+        bus.send_to_role(input::kInputRole,
+                         loom::Message(loom::to_value(input::PumpInput{})));
+        bus.pump();
 
         // -- time -------------------------------------------------------------
         const std::int64_t now = monotonic_ms();
         if (now - last_tick >= 120) {
             last_tick = now;
-            to_world(SnakeTick{});
+            bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
         }
 
         bus.pump();
@@ -435,9 +404,9 @@ int main() {
         // A successful moment flips the host's own trackers (applied after the
         // pump so the answer, not the wish, is what flips them).
         if (ctx.last_action == 1) {
-            block_drawer_in = !block_drawer_in;
+            ctx.block_drawer_in = !ctx.block_drawer_in;
         } else if (ctx.last_action == 2) {
-            world_is_v2 = true;
+            ctx.world_is_v2 = true;
         }
         ctx.last_action = 0;
 

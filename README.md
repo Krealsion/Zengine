@@ -84,12 +84,27 @@ states *which repo's green was proven*; "green" must never silently mean "green 
 delegated-scope suite still runs there, per phase. The don't-re-prove economy arrives as the
 Loom stabilizes; the structure is ready for it now.
 
-Zengine's green is two tests: the **smoke** (link the Loom's exported surface, drive a value
+Zengine's green is three tests: the **smoke** (link the Loom's exported surface, drive a value
 through the real gate, confirm the gate **refuses** a malformed candidate — the refusal is what
-makes it a proof instead of a greeting) and the **snake suite** (`tests/test_snake.cpp`) — the
+makes it a proof instead of a greeting), the **snake suite** (`tests/test_snake.cpp`) — the
 Stage 2 vertical slice proven headless: the locked contract pinned by content-id, the simulation
 and the v1→v2 migration as pure math, and the three live-evolution moments driven end to end
-through real `.so` weaves, the real kernel, and the real Weave Manager.
+through real `.so` weaves, the real kernel, and the real Weave Manager — and the **input suite**
+(`tests/test_input.cpp`): the Input package's locked contract and SDL-scancode identity pinned
+by content-id and literal value, both backends' translations as pure math on every lane, the
+weave's publish path through a real bus, and the keys-become-turns chain through the real
+libraries.
+
+## `input/` — the Input package
+
+The floor games sit on: exactly one Input weave (`zengine-input`, holding the `zengine.input`
+role) is the sole producer of the five locked shapes — `KeyPressed`/`KeyReleased` (SDL scancodes
+as the wire identity of a key; `name` is convenience, never authority), `MouseButton`,
+`MouseMoved`, `MouseWheel` — and the only code that talks to the platform. Consumers only
+accept; there is no polling API. Backends today are the ones snake runs on: the POSIX terminal
+(raw mode; strokes synthesize press+release) and the Win32 console (real key transitions, mouse
+records); an SDL backend belongs to the surface phase. `PumpInput` is the drive message — the
+host loop opens the weave's hands each lap until timers exist.
 
 ## `snake/` — the first game panel
 
@@ -103,7 +118,13 @@ The Stage 2 vertical slice: a playable snake whose parts are genuinely separate 
   deliberately different code, swappable mid-game.
 - **Score** (`snake-score`) accepts only `FoodEaten` and counts what it *witnesses* — loaded
   late into a live game, its count honestly differs from the world's.
-- **Host** (`zengine-snake`) owns the terminal, clock, and pen; every lifecycle gesture is a
+- **Controls** (`snake-controls`) is snake's input binding: it accepts the Input package's
+  `KeyPressed` and turns WASD/arrows into `SnakeTurn`, sent to the world **by role** so
+  steering survives the world being swapped mid-game. The binding is a weave, so it is
+  replaceable like everything else (a remap, an AI pilot, a replay feeder).
+- **Host** (`zengine-snake`) owns the screen, clock, and pen — and, since the Input package,
+  reads no keys: it loads `zengine-input` like any other weave and consumes messages (its
+  operator weave accepts `KeyPressed` for the command keys). Every lifecycle gesture is a
   gated message through the Weave Manager, sent as a granted operator weave. Run it under WSL
   from the build tree; keys: wasd steer, `1` swap drawer, `2` load score, `3` grow the world
   (graceful v1→v2 migration), `r` reload in place, `n` new game, `l` list, `q` quit.

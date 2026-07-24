@@ -16,8 +16,10 @@
 // the phase's report-back rule, never silently):
 //   - SnakeTick v1, SnakeTurn v1 — the contract has no time or input vocabulary
 //     at all, and a world nobody can tick or steer is not playable. Both are
-//     world-owned shapes: the world accepts them; who produces them (a host
-//     loop today, an input weave later) is deliberately unspecified.
+//     world-owned shapes: the world accepts them; who produces them is
+//     deliberately unspecified (today: the host clock ticks, and the
+//     snake-controls adapter turns the Input package's KeyPressed into
+//     SnakeTurn — the "an input weave later" this note used to promise).
 //   - SnakeWorldState v2 — the prompt says migration *will introduce* v2 but
 //     does not lock its fields. v2 = v1 + `growths` (how many map-growths this
 //     world has lived through), so the version change is a real shape change,

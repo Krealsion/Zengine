@@ -66,15 +66,46 @@ target_compile_options(zengine-warnings INTERFACE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
     -Wsign-conversion -Werror>)
 
+# ---- The loadable-weave pattern --------------------------------------------------------
+#
+# A loadable weave: PIC shared library, exact filename (no 'lib' prefix), linked against
+# the exported substrate. export.hpp is header-only, so a weave library needs only core +
+# switchboard — the kernel target is the HOST'S dependency. Every package's weaves are
+# built through this one function so the flag below is a law, not a convention.
+#
+# -fno-gnu-unique is LOAD-BEARING, not hygiene. The maker path (ZEN_SHAPE + WeaveBase)
+# instantiates loom's inline templates — schema_of<T>'s function-local statics — with
+# vague linkage, which GCC emits as STB_GNU_UNIQUE symbols. glibc resolves unique symbols
+# through a PROGRAM-WIDE table that ignores RTLD_LOCAL and can outlive a dlclose'd
+# library, so the second .so sharing a vocabulary header silently aliased the FIRST one's
+# destroyed statics: swapping the classic drawer for the block drawer crashed in
+# describe() with a use-after-free into the unloaded library's heap (ASan: freed by the
+# dlclose'd .so's static destructors). The Loom's own fixtures never hit this because
+# their schemas are hand-built in anonymous namespaces (internal linkage is never
+# unique); snake's were the first weave libraries built the maker way. -fno-gnu-unique
+# demotes the statics to ordinary vague linkage, restoring what RTLD_LOCAL already
+# promises: each library owns its own statics, whole lives, no sharing. GCC-only flag;
+# pinned by the unload-reload regression cases in the snake suite.
+function(zengine_weave target source)
+    add_library(${target} SHARED ${source})
+    target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings)
+    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
+endfunction()
+
 # ---- The consumers --------------------------------------------------------------------
 #
 # smoke: the minimal stranger (links only the exported surface; its refusal test is the
-# proof it is real). snake: the first game panel — the Stage 2 vertical slice, and the
-# hosting consumer that pulled loom::kernel onto the Loom's export surface. tests: the
-# Zengine suite (the smoke test stays its own tiny proof; the snake suite drives the real
-# .so weaves through the real kernel).
+# proof it is real). input: the Input package — the floor games sit on (the sole producer
+# of the locked input shapes). snake: the first game panel — the Stage 2 vertical slice,
+# and the hosting consumer that pulled loom::kernel onto the Loom's export surface; now
+# also the Input package's first consumer. tests: the Zengine suites (the smoke test
+# stays its own tiny proof; the snake and input suites drive the real .so weaves through
+# the real kernel). Order matters only where vocabulary flows: input's interface target
+# must exist before snake consumes it.
 
 enable_testing()
 add_subdirectory(smoke)
+add_subdirectory(input)
 add_subdirectory(snake)
 add_subdirectory(tests)
