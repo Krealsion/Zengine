@@ -1,18 +1,23 @@
 // zengine-snake — the playable host.
 //
-// The host is deliberately THIN: it owns the clock and the boot list —
-// nothing else. It draws nothing, owns no screen, knows no snake rules,
-// performs no lifecycle itself, and reads no keys. Everything crosses the bus:
+// The host is deliberately THIN: it owns the boot list — nothing else. It
+// draws nothing, owns no screen, knows no snake rules, performs no lifecycle
+// itself, reads no keys, and — since the Timer package — keeps no clock,
+// never sleeps, and pumps nobody. Everything crosses the bus:
 //
 //   keys      → the zengine-input weave (the Input package's producer) owns
 //               the platform's input side and publishes KeyPressed/…; the
 //               snake-controls adapter turns steering keys into SnakeTurn;
 //               the host's own operator weave accepts KeyPressed for the
-//               command keys. The host merely root-sends PumpInput each lap
-//               so the producer has execution time (no timers yet), and
-//               PumpSurface likewise so a window-owning skin can service its
-//               OS event queue even while the world has nothing to publish.
-//   time      → SnakeTick, root-sent to whoever holds the snake.world role.
+//               command keys.
+//   time      → the Timer package: the zengine-timer weave (holding
+//               zengine.timer) owns the monotonic clock and the one nap in
+//               the system, and delivers TimerFired beats. The snake-clock
+//               adapter turns its 120ms ask into SnakeTick for whoever holds
+//               snake.world; the input weave and the active skin keep
+//               themselves serviced on role-addressed beats of their own.
+//               The host's whole contribution is the WIND: one Drive message
+//               at boot; the service re-winds itself every beat after.
 //   drawing   → the Surface package: the world publishes SnakeVisual, the
 //               operator and the score weave publish SurfaceText, and the
 //               active SKIN — a replaceable weave holding the zengine.skin
@@ -39,6 +44,7 @@
 
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "timer/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -55,15 +61,16 @@
 #endif
 #include <windows.h>
 #else
-#include <time.h>
 #include <unistd.h>
 #endif
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -71,6 +78,7 @@ using namespace zengine::snake;
 namespace input = zengine::input;
 namespace scan = zengine::input::scan;
 namespace surface = zengine::surface;
+namespace timer = zengine::timer;
 
 // ---- the operator ------------------------------------------------------------
 
@@ -91,7 +99,7 @@ constexpr int kSkinSdl = 2;
 
 /// What the host remembers about a command in flight, so an answer can be
 /// reported in the words of the question, and so a success can flip the
-/// host's own trackers (which skin paints, which world generation runs).
+/// operator's own trackers (which skin paints, which world generation runs).
 struct Pending {
     std::string label;
     int action = 0; // 0 none, 2 world-migrated, 10+i skin i swapped in
@@ -100,13 +108,18 @@ struct Pending {
 struct OperatorContext {
     std::map<std::uint64_t, Pending> pending;
     std::uint64_t next_corr = 1;
-    int last_action = 0; ///< consumed by the loop after each pump
-    bool quit = false;   ///< the q key, consumed by the loop
+    bool quit = false;        ///< the q key; the loop reads it after the pump returns
     int skin = kSkinClassic;  ///< which skin holds the surface right now
     bool world_is_v2 = false; ///< which world generation holds the role
     std::string last_status;  ///< re-published whenever a skin says hello
     loom::WeaveId manager{};
     std::string dir; ///< where the host resolves loadable weaves (beside itself)
+
+    /// The host's stop lever, handed to the operator: with time inside the
+    /// bus, pump() runs the whole game and returns only when told to stop —
+    /// so the quit key must stop the bus, not just set a flag for a loop
+    /// body that would otherwise never come around.
+    std::function<void()> request_stop;
 
     std::string so(const char* stem) const;
 };
@@ -189,14 +202,14 @@ public:
             break;
         }
         case scan::kQ:
-            ctx_->quit = true;
+            quit();
             break;
         case scan::kC:
             // V1 carries no modifiers, so Ctrl+C survives only as the backends'
             // dressed convenience name. Quitting on it is a courtesy the host
             // chooses to trust; the scancode stays the authority for the key.
             if (k.name == "Ctrl+C") {
-                ctx_->quit = true;
+                quit();
             }
             break;
         default: break;
@@ -236,34 +249,31 @@ private:
                              " " + outcome);
             return;
         }
+        // A successful moment flips the trackers here, in the answer's own
+        // handler — the answer, not the wish, is what flips them.
         if (outcome.find("refused") == std::string::npos) {
-            ctx_->last_action = it->second.action;
+            const int action = it->second.action;
+            if (action >= 10) {
+                ctx_->skin = action - 10;
+            } else if (action == 2) {
+                ctx_->world_is_v2 = true;
+            }
         }
         status(mail, it->second.label + " " + outcome);
         ctx_->pending.erase(it);
     }
 
+    /// The one exit: mark the wish for the loop and stop the bus so the loop
+    /// gets to read it.
+    void quit() {
+        ctx_->quit = true;
+        if (ctx_->request_stop) {
+            ctx_->request_stop();
+        }
+    }
+
     OperatorContext* ctx_;
 };
-
-std::int64_t monotonic_ms() {
-#if defined(_WIN32)
-    return static_cast<std::int64_t>(::GetTickCount64());
-#else
-    timespec ts{};
-    ::clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-#endif
-}
-
-void nap_10ms() {
-#if defined(_WIN32)
-    ::Sleep(10);
-#else
-    timespec nap{0, 10 * 1000000};
-    ::nanosleep(&nap, nullptr);
-#endif
-}
 
 std::string exe_dir() {
 #if defined(_WIN32)
@@ -316,6 +326,7 @@ int main() {
     OperatorContext ctx;
     ctx.manager = manager;
     ctx.dir = exe_dir();
+    ctx.request_stop = [&bus] { bus.stop(); };
     loom::Grant reach; // the manager (the dangerous grant, target-scoped)...
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
@@ -344,8 +355,9 @@ int main() {
 
     // Birth of the game: the same gesture as everything else — ask the steward.
     // The SKIN is first (loading it claims the screen; everything after paints
-    // through it), the Input package's producer last (from that moment the
-    // platform's keys belong to it, and everyone else just listens).
+    // through it). Everything time-hungry is loaded BEFORE the wind below, so
+    // the TimerService's hello reaches a fully assembled cast and every
+    // package asks for its beat on the first breath.
     boot("claim surface (classic skin)",
          loom::LoadWeave{kSkins[kSkinClassic].stem, ctx.so(kSkins[kSkinClassic].stem),
                          surface::kSkinRole});
@@ -353,43 +365,36 @@ int main() {
     boot("load snake controls", loom::LoadWeave{"snake-controls", ctx.so("snake-controls"), ""});
     boot("load input weave",
          loom::LoadWeave{"zengine-input", ctx.so("zengine-input"), input::kInputRole});
+    boot("load timer service",
+         loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
+    boot("load snake clock", loom::LoadWeave{"snake-clock", ctx.so("snake-clock"), ""});
+
+    // The boot breath: deliver the boot list to completion BEFORE winding.
+    // Loading is a conversation, not a call — the Manager answers LoadWeave
+    // by asking the kernel door, one delivery later — so a wind queued behind
+    // the boot sends would resolve the timer role before any load ran and
+    // refuse into the vacancy (found live: the pilot's very first run).
     bus.pump();
 
-    std::int64_t last_tick = monotonic_ms();
+    // Wind the clock: the one breath the host gives time — the first Drive.
+    // The TimerService re-winds itself every beat after this; its hello wakes
+    // the clock adapter (120ms -> SnakeTick), the input weave, and the skin
+    // into asking for their own beats. The host owes nothing per lap.
+    bus.send_to_role(timer::kTimerRole, loom::Message(loom::to_value(timer::Drive{})));
 
+    // The whole game runs inside pump(): the beat chain keeps the queue alive,
+    // the TimerService's nap paces it, and the operator's quit stops the bus.
+    // A pump that instead returns QUIESCENT — an empty queue — means nothing
+    // in this process will ever speak again (there is no clock outside it):
+    // say so honestly and leave, rather than spin on a dead bus. That is also
+    // where a deployment with no timer service lands, right after boot.
     while (!ctx.quit) {
-        // -- input: give the producer its hands, deliver everything it said ----
-        // (A missing producer refuses the send cleanly; the game runs keyless.)
-        bus.send_to_role(input::kInputRole,
-                         loom::Message(loom::to_value(input::PumpInput{})));
-        // -- surface: give the painter its heartbeat -- a window medium must
-        // service its OS event queue even when the world has nothing to say
-        // (a dead world publishes no frames, and an unserviced window is what
-        // the OS calls "not responding"). Same posture as the input pump:
-        // no skin, clean refusal, nothing owed.
-        bus.send_to_role(surface::kSkinRole,
-                         loom::Message(loom::to_value(surface::PumpSurface{})));
         bus.pump();
-
-        // -- time -------------------------------------------------------------
-        const std::int64_t now = monotonic_ms();
-        if (now - last_tick >= 120) {
-            last_tick = now;
-            bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+        if (!ctx.quit && bus.pending() == 0) {
+            std::printf("zengine-snake - the bus went quiet without a quit "
+                        "(no timer service deployed?): time is gone, exiting.\n");
+            break;
         }
-
-        bus.pump();
-
-        // A successful moment flips the host's own trackers (applied after the
-        // pump so the answer, not the wish, is what flips them).
-        if (ctx.last_action >= 10) {
-            ctx.skin = ctx.last_action - 10;
-        } else if (ctx.last_action == 2) {
-            ctx.world_is_v2 = true;
-        }
-        ctx.last_action = 0;
-
-        nap_10ms();
     }
     return 0;
 }

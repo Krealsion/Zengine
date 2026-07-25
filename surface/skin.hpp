@@ -23,6 +23,7 @@
 #include "vocabulary.hpp"
 
 #include "snake/vocabulary.hpp" // the V1 canvas payload — see vocabulary.hpp on the coupling
+#include "timer/vocabulary.hpp" // the skin asks for its own beat now
 
 #include <zen/weave.hpp>
 
@@ -45,8 +46,9 @@ struct SkinState {
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                      loom::Accept<zengine::snake::SnakeVisual, SurfaceText,
-                                                  PumpSurface>,
-                                     loom::Emit<SurfaceReady>> {
+                                                  PumpSurface, zengine::timer::TimerReady,
+                                                  zengine::timer::TimerFired>,
+                                     loom::Emit<SurfaceReady, zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
     explicit SkinT(Medium medium) : medium_(std::move(medium)) {}
@@ -63,11 +65,27 @@ public:
         ++this->state_.texts;
     }
 
-    /// Execution time, not intent: service the medium's OS surface. On a
-    /// pumped host this is also the skin's earliest first message, so the
-    /// hello (and the text rows it re-summons) no longer waits for a frame.
+    /// Execution time, not intent: service the medium's OS surface, on
+    /// direct request (suites, diagnostics, timer-less hosts).
     void on(const PumpSurface&, loom::Mail& mail) {
         hello_once(mail);
+        medium_.pump();
+        ++this->state_.pumps;
+    }
+
+    /// The TimerService woke with this skin already on the surface: a first
+    /// breath like any other (the boot path — a swapped-in successor instead
+    /// inherits the standing role beat, or wakes on the operator's status
+    /// republish, and its hello_once asks then).
+    void on(const zengine::timer::TimerReady&, loom::Mail& mail) { hello_once(mail); }
+
+    /// The beat: the same hands PumpSurface opens, on the clock's schedule.
+    /// Counted on the same honest counter — it is the same act.
+    void on(const zengine::timer::TimerFired& f, loom::Mail& mail) {
+        hello_once(mail);
+        if (f.id != kPumpTimerId) {
+            return; // someone else's ask aimed at this role: data, not a drive
+        }
         medium_.pump();
         ++this->state_.pumps;
     }
@@ -78,13 +96,21 @@ private:
     /// One hello per INCARNATION, not per identity: a deliberate plain member
     /// (the v2 world's `asked_` stance), never state — a successor or a
     /// reloaded instance re-claims its surface, so it must re-announce even
-    /// where state rides across.
+    /// where state rides across. The BEAT ask rides the same moment: claiming
+    /// the surface means keeping its medium serviced, so the skin's first
+    /// breath both says hello and asks the Timer package for kPumpTimerId
+    /// (role-addressed — an upsert against whatever beat already stands, so
+    /// successors replace the schedule, never double it; with no TimerService
+    /// loaded the ask refuses cleanly and the PumpSurface door still works).
     void hello_once(loom::Mail& mail) {
         if (announced_) {
             return;
         }
         announced_ = true;
         mail.publish(SurfaceReady{});
+        mail.send_to_role(zengine::timer::kTimerRole,
+                          zengine::timer::StartRoleTimer{kPumpTimerId, kPumpBeatMs,
+                                                         /*repeat=*/true, kSkinRole});
     }
 
     bool announced_ = false;

@@ -65,9 +65,10 @@ struct SurfaceReady {
 /// is a real OS window must service that window's event queue even when no
 /// intent is flowing (a dead-quiet world starves a frame-driven pump, and an
 /// unpumped Windows window is flagged unresponsive — found live: the busy
-/// cursor). The host root-sends this by role each lap; terminal media no-op
-/// it. Producer deliberately unspecified; the shape retires the day timers
-/// arrive, alongside PumpInput.
+/// cursor). The day this shape's note promised has arrived: a Skin now
+/// arranges its OWN beat (kPumpTimerId below, asked of the Timer package on
+/// its first breath), so no host owes it laps. PumpSurface stays as the same
+/// hands on direct request — for suites, diagnostics, and timer-less hosts.
 struct PumpSurface {
     ZEN_SHAPE(PumpSurface, 1);
 };
@@ -83,6 +84,16 @@ inline constexpr const char* kSkinRole = "zengine.skin";
 /// name — but spelling them once keeps the two sides from drifting.
 inline constexpr const char* kSlotStatus = "status";
 inline constexpr const char* kSlotScore = "score";
+
+/// The Skin's heartbeat, asked of the Timer package on its first breath: a
+/// repeating role-addressed timer. Role-addressed is the load-bearing half —
+/// the beat belongs to kSkinRole, so a swapped-in successor inherits it
+/// without asking (on a dead-quiet bus a fresh window-owning skin would
+/// otherwise never get its queue serviced — the exact wedge the old
+/// host-sent PumpSurface existed to prevent, now dead by construction).
+/// Terminal media no-op the firing, exactly as they no-op'd the pump.
+inline constexpr const char* kPumpTimerId = "zengine.skin.pump";
+inline constexpr std::int64_t kPumpBeatMs = 10;
 
 } // namespace zengine::surface
 

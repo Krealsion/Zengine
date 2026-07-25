@@ -17,9 +17,10 @@
 //   - SnakeTick v1, SnakeTurn v1 — the contract has no time or input vocabulary
 //     at all, and a world nobody can tick or steer is not playable. Both are
 //     world-owned shapes: the world accepts them; who produces them is
-//     deliberately unspecified (today: the host clock ticks, and the
-//     snake-controls adapter turns the Input package's KeyPressed into
-//     SnakeTurn — the "an input weave later" this note used to promise).
+//     deliberately unspecified (today: the snake-clock adapter turns the Timer
+//     package's TimerFired into SnakeTick — the "a timer weave later" the old
+//     host-clock note used to promise — and the snake-controls adapter turns
+//     the Input package's KeyPressed into SnakeTurn).
 //   - SnakeWorldState v2 — the prompt says migration *will introduce* v2 but
 //     does not lock its fields. v2 = v1 + `growths` (how many map-growths this
 //     world has lived through), so the version change is a real shape change,
@@ -142,6 +143,14 @@ struct SnakeWorldState {
 /// that. (The old snake.drawer role retired with the drawers: painting is the
 /// Surface package's ground now, addressed as zengine.skin.)
 inline constexpr const char* kWorldRole = "snake.world";
+
+/// The world's pace — the host's old hard-coded 120ms cadence, moved home.
+/// Owned and asked for by the snake-clock adapter (clock.cpp): it starts a
+/// repeating Timer-package timer under this id and relays each TimerFired
+/// into a SnakeTick for whoever holds snake.world. The world itself never
+/// learns where ticks come from; only the SOURCE of time moved.
+inline constexpr const char* kTickTimerId = "snake.tick";
+inline constexpr std::int64_t kTickMs = 120;
 
 } // namespace zengine::snake
 

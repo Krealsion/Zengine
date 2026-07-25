@@ -84,21 +84,50 @@ states *which repo's green was proven*; "green" must never silently mean "green 
 delegated-scope suite still runs there, per phase. The don't-re-prove economy arrives as the
 Loom stabilizes; the structure is ready for it now.
 
-Zengine's green is four tests: the **smoke** (link the Loom's exported surface, drive a value
+Zengine's green is five tests: the **smoke** (link the Loom's exported surface, drive a value
 through the real gate, confirm the gate **refuses** a malformed candidate — the refusal is what
 makes it a proof instead of a greeting), the **snake suite** (`tests/test_snake.cpp`) — the
 Stage 2 vertical slice proven headless: the locked contract pinned by content-id, the simulation
 and the v1→v2 migration as pure math, the three live-evolution moments driven end to end
 through real `.so` weaves, the real kernel, and the real Weave Manager, and the phase's negative
 space (a skinless game writes **zero bytes** to stdout, with a painted-bytes negative control) —
-the **input suite** (`tests/test_input.cpp`): the Input package's locked contract and
-SDL-scancode identity pinned by content-id and literal value, both backends' translations as
-pure math on every lane, the weave's publish path through a real bus, and the keys-become-turns
+the **timer suite** (`tests/test_timer.cpp`): the Timer package's contract by content-id, every
+schedule (one-shot, repeat, upsert, clamps, cancels, role succession, honest vacancy, the
+dead-requester floor) over a fake clock through a real bus, the real `.so` re-winding itself on
+the real clock, and the migration chains — the world ticking, the input weave polling, and the
+skin servicing its medium with nobody pumping them — the **input suite**
+(`tests/test_input.cpp`): the Input package's locked contract and SDL-scancode identity pinned
+by content-id and literal value, both backends' translations as pure math on every lane, the
+weave's publish path and its self-arranged beat through a real bus, and the keys-become-turns
 chain through the real libraries — and the **surface suite** (`tests/test_surface.cpp`): the
 Surface package's contract by content-id, the terminal skins as golden bytes, the SDL skin's
-frame plan as pure math on every lane, the hello handshake and the one-owner rule through the
-real kernel, the granted-operator speaking recipe, and (where built) the SDL skin driven by the
-same intent under SDL's dummy video driver.
+frame plan as pure math on every lane, the hello handshake (which now also asks for the skin's
+beat) and the one-owner rule through the real kernel, the granted-operator speaking recipe, and
+(where built) the SDL skin driven by the same intent under SDL's dummy video driver.
+
+## `timer/` — the Timer package
+
+Time, message-shaped. Games and packages do not read the OS clock and do not sleep: a weave
+that wants time ASKS — `StartTimer{id, delay_ms, repeat}` (fired back to the asker) or
+`StartRoleTimer{…, role}` (fired to whoever holds the role at each firing — the beat that
+survives its starter being swapped) — and time ARRIVES as `TimerFired{id}`, delivered by the
+**TimerService** (`zengine-timer`, holding `zengine.timer`). `CancelTimer`/`CancelAllMyTimers`
+cancel; re-asking with the same id **replaces** the schedule (an upsert — also how a cadence
+changes, and how a successor takes over a role beat instead of doubling it).
+
+The service is the one place in the running system that owns a monotonic clock and the one
+nap. It runs on its own **beat chain**: the host sends the first `Drive` (the wind, once, at
+boot — after the boot list has actually loaded), and the service re-sends Drive to its own
+role forever after — nap to the soonest deadline (capped at 10ms), fire what came due, re-wind.
+Pumping the bus IS running the world, paced by the one legal sleep. On its first beat it
+publishes `TimerReady` (the hello): weaves loaded before the wind hear it and ask for their
+beats — which is how anything gets standing execution in a system whose host pumps nobody.
+
+Honest V1 edges, pinned in the suite: the service cannot SEE a requester die (a weave gets no
+delivery outcomes and the bus broadcasts no unloads), so a dead requester's directed timer
+fires into clean `NoSuchTarget` refusals until cancelled or the service is replaced — weave
+ids are never reused, so it can never hit a stranger; the standing heartbeats that must
+survive replacement are role-addressed instead, where requester death is a non-event.
 
 ## `input/` — the Input package
 
@@ -109,8 +138,10 @@ as the wire identity of a key; `name` is convenience, never authority), `MouseBu
 accept; there is no polling API. Backends today are the ones snake runs on: the POSIX terminal
 (raw mode; strokes synthesize press+release) and the Win32 console (real key transitions, mouse
 records); an SDL **Reader** (the window's own input, including its close box) is the named
-follow-on now that the Surface package gives it a window to read. `PumpInput` is the drive
-message — the host loop opens the weave's hands each lap until timers exist.
+follow-on now that the Surface package gives it a window to read. The weave arranges its own
+execution: on the TimerService's hello it asks for a repeating role-addressed beat
+(`zengine.input.pump`, 10ms — the package owns its own pace now) and polls on each firing;
+`PumpInput` stays as the same hands on direct request, for suites and timer-less hosts.
 
 ## `surface/` — the Surface package
 
@@ -139,11 +170,13 @@ suite drives it under SDL's dummy driver, and the window title carries the text 
 
 The SDL window is **output-only in V1, structurally**: it is created not-focusable (a window
 that cannot hear must not take the keys — the terminal stays the game's one ear until the SDL
-Reader phase makes the window an ear too), and it is kept answering its OS through
-`PumpSurface`, the PumpInput-precedent drive message the host root-sends by role each lap —
-a window medium must service its event queue even when the world publishes nothing (a dead
-world starves a frame-driven pump; the OS calls the result "not responding"). Terminal media
-no-op the pump; the shape retires with PumpInput the day timers arrive.
+Reader phase makes the window an ear too), and it keeps itself answering its OS: a skin's
+first breath asks the Timer package for the `zengine.skin.pump` role beat (10ms), and the
+beat services the window's event queue even when the world publishes nothing (a dead world
+starves a frame-driven pump; the OS calls the result "not responding"). Role-addressed is the
+load-bearing half: the beat belongs to the SLOT, so a swapped-in skin inherits it without
+asking. Terminal media no-op the beat, exactly as they no-op'd the old host-sent pump;
+`PumpSurface` stays as the same hands on direct request, for suites and timer-less hosts.
 
 ## `snake/` — the first game panel
 
@@ -163,13 +196,21 @@ skinless game at zero stdout bytes.
   `KeyPressed` and turns WASD/arrows into `SnakeTurn`, sent to the world **by role** so
   steering survives the world being swapped mid-game. The binding is a weave, so it is
   replaceable like everything else (a remap, an AI pilot, a replay feeder).
-- **Host** (`zengine-snake`) owns the clock and the boot list — nothing else. It reads no
-  keys (the Input weave produces them) and owns no screen (the skin claims it at load); its
-  status line is published intent like everything else, spoken by the granted operator weave
-  that also sends every lifecycle command through the Weave Manager. Run it under WSL from
-  the build tree; keys: wasd steer, `1` swap the TUI skin, `2` load score, `3` grow the world
-  (graceful v1→v2 migration), `4` swap to the SDL skin (where deployed), `r` reload in place,
-  `n` new game, `l` list, `q` quit.
+- **Clock** (`snake-clock`) is snake's time binding — the controls move, pointed at time: it
+  asks the Timer package for the 120ms repeating beat (`snake.tick`, the cadence the host
+  used to hard-code, now living where the pace belongs) and turns each `TimerFired` into
+  `SnakeTick`, sent to the world **by role** so time survives the world being swapped. The
+  world never learns where ticks come from; only the source of time moved.
+- **Host** (`zengine-snake`) owns the boot list — nothing else. It reads no keys (the Input
+  weave produces them), owns no screen (the skin claims it at load), and since the Timer
+  package keeps no clock, never sleeps, and pumps nobody: it boots the cast, winds the clock
+  with one `Drive`, and then `pump()` IS the game — the loop ends when the operator's quit
+  key stops the bus (or, honestly, when the bus goes quiet because no clock is deployed).
+  Its status line is published intent like everything else, spoken by the granted operator
+  weave that also sends every lifecycle command through the Weave Manager. Run it under WSL
+  from the build tree; keys: wasd steer, `1` swap the TUI skin, `2` load score, `3` grow the
+  world (graceful v1→v2 migration), `4` swap to the SDL skin (where deployed), `r` reload in
+  place, `n` new game, `l` list, `q` quit.
 
 This package is the **hosting consumer** that pulled `loom::kernel` onto the Loom's export
 surface, and whose nested shapes surfaced (and pulled the completion of) the manifest's

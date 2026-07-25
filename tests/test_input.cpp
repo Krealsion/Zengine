@@ -31,7 +31,8 @@
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 
-#include "vocabulary.hpp" // snake's — the chain lane speaks both packages
+#include "timer/vocabulary.hpp" // the weave's own beat is part of its contract now
+#include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -41,8 +42,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -150,6 +153,50 @@ struct WitnessState {
     std::int64_t noted = 0;
     ZEN_SHAPE(WitnessState, 1, ZEN_FIELD(noted));
 };
+
+/// What the weave asked the Timer package for, field by field.
+struct BeatAsk {
+    std::string id;
+    std::int64_t delay_ms = 0;
+    bool repeat = false;
+    std::string role;
+};
+
+struct CatcherState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(CatcherState, 1, ZEN_FIELD(asks));
+};
+
+/// A stand-in TimerService: holds the timer role and records the exact asks.
+/// It never beats — the case that uses it delivers the firings by hand, so
+/// the weave's side of the contract is pinned without a clock in sight.
+class BeatCatcher
+    : public loom::WeaveBase<BeatCatcher, CatcherState,
+                             loom::Accept<zengine::timer::StartRoleTimer>, loom::Emit<>> {
+public:
+    explicit BeatCatcher(std::vector<BeatAsk>& asks) : asks_(&asks) {}
+    void on(const zengine::timer::StartRoleTimer& s, loom::Mail&) {
+        ++state_.asks;
+        asks_->push_back(BeatAsk{s.id, s.delay_ms, s.repeat, s.role});
+    }
+
+private:
+    std::vector<BeatAsk>* asks_;
+};
+
+/// mount(), plus a role binding (the weave sugar has no role parameter; the
+/// catcher must HOLD zengine.timer so the weave's role-addressed ask lands).
+template <class W, class... Args>
+loom::WeaveId mount_into_role(loom::Switchboard& bus, std::string role, Args&&... args) {
+    auto weave = std::make_unique<W>(std::forward<Args>(args)...);
+    W* raw = weave.get();
+    loom::Grant grant = loom::emit_default_grant(*raw);
+    loom::allow_poke_answers(grant);
+    const loom::WeaveId id =
+        bus.register_weave(std::move(weave), std::move(grant), std::move(role));
+    raw->zen_set_self(id);
+    return id;
+}
 
 /// The kernel lane's hand and ears: holds the manager reach, hears the
 /// standard answers, and accepts SnakeVisual so the world's motion is
@@ -528,6 +575,42 @@ TEST_CASE("the weave publishes what its reader hears, in order, all five shapes"
     // A quiet platform: the pump costs nothing and says nothing.
     pump_input();
     CHECK(heard.size() == 5);
+}
+
+TEST_CASE("the weave arranges its own beat: the hello asks, the beat polls, alien ids do not") {
+    loom::Switchboard bus;
+    std::vector<std::vector<InputEvent>> feed;
+    feed.push_back({KeyPressed{scan::kD, "D"}});
+
+    const loom::WeaveId weave = loom::mount<InputWeaveT<FakeReader>>(bus, FakeReader{&feed});
+    std::vector<InputEvent> heard;
+    (void)loom::mount<Ears>(bus, heard);
+    std::vector<BeatAsk> asks;
+    (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
+
+    // The TimerService's hello arrives (root-published, as the fanout would
+    // deliver it — and the recipient count pins that in this rig the input
+    // weave is the ONLY listener): the weave asks for ITS beat, wire content
+    // pinned field by field.
+    CHECK(bus.publish(loom::Message(loom::to_value(zengine::timer::TimerReady{}))) == 1);
+    bus.pump();
+    REQUIRE(asks.size() == 1);
+    CHECK(asks[0].id == kPumpTimerId);
+    CHECK(asks[0].delay_ms == kPumpBeatMs);
+    CHECK(asks[0].repeat);
+    CHECK(asks[0].role == kInputRole);
+
+    // The beat opens the same hands the pump does...
+    bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
+    bus.pump();
+    REQUIRE(heard.size() == 1);
+    CHECK(as<KeyPressed>(heard, 0).scancode == scan::kD);
+
+    // ...and someone else's timer aimed at this role opens nothing.
+    feed.push_back({KeyPressed{scan::kW, "W"}});
+    bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
+    bus.pump();
+    CHECK(heard.size() == 1); // the alien id did not poll the reader
 }
 
 // ============================================================================

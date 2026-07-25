@@ -17,4 +17,7 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
+# The weave arranges its own heartbeat now: it accepts the Timer package's
+# hello and beat, so it speaks that vocabulary too.
 zengine_weave(zengine-input input.cpp)
+target_link_libraries(zengine-input PRIVATE zengine-timer-vocabulary)

@@ -25,13 +25,16 @@
 //
 // NAMED ADDITION (the contract proved insufficient here; recorded face-up per
 // the phase's report-back rule, never silently):
-//   - PumpInput v1 — the drive message. A weave runs only when a message
-//     arrives, and the substrate has no timers yet, so something must give the
-//     Input weave execution time to drain the platform. Who produces it (the
-//     host loop today, a timer weave later) is deliberately unspecified — the
-//     exact stance SnakeTick took, for the exact reason. It is not a polling
-//     API: no consumer can ask the Input weave anything with it; it only opens
-//     the weave's hands.
+//   - PumpInput v1 — the direct drive message. A weave runs only when a
+//     message arrives, so something must give the Input weave execution time
+//     to drain the platform. The "timer weave later" this note used to
+//     promise has arrived: the weave now arranges its OWN beat — on the
+//     TimerService's hello it asks for a repeating role-addressed timer
+//     (kPumpTimerId below) and polls on each firing, so no host owes it
+//     laps. PumpInput stays as the door it always was — the same hands, on
+//     direct request — for suites, diagnostics, and hosts running without a
+//     timer service. It is not a polling API: no consumer can ask the Input
+//     weave anything with it; it only opens the weave's hands.
 
 #include <zen/weave/shape.hpp>
 
@@ -156,6 +159,14 @@ struct PumpInput {
 /// The role slot the Input weave holds: the address "whoever provides input",
 /// which outlives any particular implementation being swapped in or out.
 inline constexpr const char* kInputRole = "zengine.input";
+
+/// The weave's own heartbeat, asked of the Timer package on its hello: a
+/// repeating role-addressed timer — the beat belongs to kInputRole, not to
+/// one incarnation, so a swapped-in successor inherits it without asking.
+/// 10ms is the poll cadence the old pumped host loop gave this weave; the
+/// package owns its own pace now.
+inline constexpr const char* kPumpTimerId = "zengine.input.pump";
+inline constexpr std::int64_t kPumpBeatMs = 10;
 
 } // namespace zengine::input
 

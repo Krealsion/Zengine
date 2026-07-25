@@ -29,11 +29,34 @@ target_compile_definitions(zengine-tests PRIVATE
 
 add_test(NAME snake COMMAND zengine-tests)
 
+# The Timer suite: time message-shaped — the contract pins, every schedule
+# over a fake clock (deterministic, no wall waits), the real .so re-winding
+# itself on the real clock, and the migration chains: the world ticking, the
+# input weave polling, and the skin servicing its medium with nobody pumping
+# them (the three obligations the host used to carry).
+add_executable(zengine-timer-tests test_timer.cpp)
+target_link_libraries(zengine-timer-tests
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings)
+target_include_directories(zengine-timer-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+target_compile_definitions(zengine-timer-tests PRIVATE
+    "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+    "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
+    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
+    "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
+    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\"")
+
+add_test(NAME timer COMMAND zengine-timer-tests)
+
 # The Input suite: its own executable so each package's green stays its own
-# count (the snake suite's numbers must not move when input's do).
+# count (the snake suite's numbers must not move when input's do). It speaks
+# the timer vocabulary now: the weave's own beat is part of its contract.
 add_executable(zengine-input-tests test_input.cpp)
 target_link_libraries(zengine-input-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary zengine-warnings)
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
+            zengine-timer-vocabulary zengine-warnings)
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/snake)
@@ -53,7 +76,7 @@ add_test(NAME input COMMAND zengine-input-tests)
 add_executable(zengine-surface-tests test_surface.cpp)
 target_link_libraries(zengine-surface-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
-            zengine-warnings)
+            zengine-timer-vocabulary zengine-warnings)
 target_include_directories(zengine-surface-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 

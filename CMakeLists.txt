@@ -97,18 +97,20 @@ endfunction()
 # ---- The consumers --------------------------------------------------------------------
 #
 # smoke: the minimal stranger (links only the exported surface; its refusal test is the
-# proof it is real). input: the Input package — the floor games sit on (the sole producer
-# of the locked input shapes). surface: the Surface package — visual intent in, output
-# out (the skins own every terminal row and window pixel; consumers only publish).
-# snake: the first game panel — the Stage 2 vertical slice, and the hosting consumer
-# that pulled loom::kernel onto the Loom's export surface; consumer of both floors, owner
-# of neither platform edge. tests: the Zengine suites (the smoke test stays its own tiny
-# proof; the snake, input, and surface suites drive the real .so weaves through the real
-# kernel). Order matters only where vocabulary flows: input's and surface's interface
-# targets must exist before snake consumes them.
+# proof it is real). timer: the Timer package — time, message-shaped (the one weave that
+# owns a clock and a nap; everyone else hears beats). input: the Input package — the
+# floor games sit on (the sole producer of the locked input shapes). surface: the
+# Surface package — visual intent in, output out (the skins own every terminal row and
+# window pixel; consumers only publish). snake: the first game panel — the Stage 2
+# vertical slice, and the hosting consumer that pulled loom::kernel onto the Loom's
+# export surface; consumer of the floors, owner of no platform edge. tests: the Zengine
+# suites (the smoke test stays its own tiny proof; the others drive the real .so weaves
+# through the real kernel). Order matters only where vocabulary flows: timer's interface
+# target must exist before input/surface consume it, and theirs before snake.
 
 enable_testing()
 add_subdirectory(smoke)
+add_subdirectory(timer)
 add_subdirectory(input)
 add_subdirectory(surface)
 add_subdirectory(snake)

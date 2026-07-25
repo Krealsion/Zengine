@@ -56,8 +56,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace zengine::surface;
@@ -116,6 +118,50 @@ public:
 private:
     int* count_;
 };
+
+/// What a skin asked the Timer package for, field by field.
+struct BeatAsk {
+    std::string id;
+    std::int64_t delay_ms = 0;
+    bool repeat = false;
+    std::string role;
+};
+
+struct CatcherState {
+    std::int64_t asks = 0;
+    ZEN_SHAPE(CatcherState, 1, ZEN_FIELD(asks));
+};
+
+/// A stand-in TimerService: holds the timer role and records the exact asks.
+/// It never beats — the case below delivers the firings by hand, so the
+/// skin's side of the contract is pinned without a clock in sight.
+class BeatCatcher
+    : public loom::WeaveBase<BeatCatcher, CatcherState,
+                             loom::Accept<zengine::timer::StartRoleTimer>, loom::Emit<>> {
+public:
+    explicit BeatCatcher(std::vector<BeatAsk>& asks) : asks_(&asks) {}
+    void on(const zengine::timer::StartRoleTimer& s, loom::Mail&) {
+        ++state_.asks;
+        asks_->push_back(BeatAsk{s.id, s.delay_ms, s.repeat, s.role});
+    }
+
+private:
+    std::vector<BeatAsk>* asks_;
+};
+
+/// mount(), plus a role binding (the weave sugar has no role parameter; the
+/// catcher must HOLD zengine.timer so the skins' role-addressed asks land).
+template <class W, class... Args>
+loom::WeaveId mount_into_role(loom::Switchboard& bus, std::string role, Args&&... args) {
+    auto weave = std::make_unique<W>(std::forward<Args>(args)...);
+    W* raw = weave.get();
+    loom::Grant grant = loom::emit_default_grant(*raw);
+    loom::allow_poke_answers(grant);
+    const loom::WeaveId id =
+        bus.register_weave(std::move(weave), std::move(grant), std::move(role));
+    raw->zen_set_self(id);
+    return id;
+}
 
 // ---- tier 4 rig (the test_snake rig, minus the lockstep pilot) ------------------
 
@@ -462,6 +508,44 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
     CHECK(log.size() == 2);
     CHECK(log[1] == "pump");
     CHECK(hellos == 1); // once per incarnation, still
+}
+
+TEST_CASE("the skin arranges its own beat: the first breath asks, the beat services") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    int hellos = 0;
+    const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    (void)loom::mount<ReadyEars>(bus, hellos);
+    std::vector<BeatAsk> asks;
+    (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
+
+    // ANY first message is the skin's first breath — here a status line, the
+    // exact wake a swapped-in skin gets from the operator's republish. The
+    // hello and the beat ask ride the same moment; the ask's wire content is
+    // pinned field by field.
+    bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
+    bus.pump();
+    CHECK(hellos == 1);
+    REQUIRE(asks.size() == 1);
+    CHECK(asks[0].id == kPumpTimerId);
+    CHECK(asks[0].delay_ms == kPumpBeatMs);
+    CHECK(asks[0].repeat);
+    CHECK(asks[0].role == kSkinRole);
+
+    // The beat is the pump's twin: serviced and counted the same...
+    bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
+    bus.pump();
+    REQUIRE(log.size() == 2);
+    CHECK(log[0] == "note status=up");
+    CHECK(log[1] == "pump");
+
+    // ...an alien id aimed at this role is data, not a drive — and there is
+    // never a second hello or a second ask.
+    bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
+    bus.pump();
+    CHECK(log.size() == 2);
+    CHECK(hellos == 1);
+    CHECK(asks.size() == 1);
 }
 
 // ============================================================================
