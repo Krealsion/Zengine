@@ -97,6 +97,7 @@ struct FakeMedium {
     void note(std::string_view slot, std::string_view text) {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
     }
+    void pump() { log->push_back("pump"); }
 };
 
 struct ReadyState {
@@ -278,6 +279,8 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
     CHECK(schema_of<SurfaceText>()->content_id() == text->content_id());
     CHECK(schema_of<SurfaceReady>()->content_id() ==
           SchemaBuilder("SurfaceReady", 1).build()->content_id());
+    CHECK(schema_of<PumpSurface>()->content_id() ==
+          SchemaBuilder("PumpSurface", 1).build()->content_id());
 }
 
 // ============================================================================
@@ -439,6 +442,28 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     CHECK(hellos == 1); // once per incarnation, not per message
 }
 
+TEST_CASE("the pump is execution time: serviced, counted, and an honest first hello") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    int hellos = 0;
+    const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    (void)loom::mount<ReadyEars>(bus, hellos);
+
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    REQUIRE(log.size() == 1);
+    CHECK(log[0] == "pump");
+    // On a pumped host the pump is the skin's earliest first message, so the
+    // hello — and the text rows it re-summons — no longer waits for a frame.
+    CHECK(hellos == 1);
+
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    CHECK(log.size() == 2);
+    CHECK(log[1] == "pump");
+    CHECK(hellos == 1); // once per incarnation, still
+}
+
 // ============================================================================
 // Tier 4 — the real libraries through the real kernel
 // ============================================================================
@@ -455,6 +480,11 @@ TEST_CASE("a skin .so claims the role and paints the world's real intent") {
 
     r.intent(skin, SurfaceText{kSlotStatus, "operator says hi"});
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");
+
+    // The host's heartbeat reaches the role-holder like any other drive.
+    r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
+    r.pump();
+    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 
 TEST_CASE("the tally survives the painter being replaced (the hello handshake)") {
@@ -617,6 +647,13 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
 
     r.intent(skin, SurfaceText{kSlotScore, "eaten: 1"});
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");
+
+    // The heartbeat that keeps a real window answering its OS even when the
+    // world goes quiet — under the dummy driver the queue is real, the
+    // servicing is real, only the photons are missing.
+    r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
+    r.pump();
+    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 
 #endif // SURFACE_HAS_SDL

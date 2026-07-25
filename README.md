@@ -137,6 +137,14 @@ target that sees SDL: it fetches a **pinned static SDL3** where none is installe
 (`skin_sdl_plan.hpp`, pinned on every lane), and degrades gracefully with no display — the
 suite drives it under SDL's dummy driver, and the window title carries the text slots.
 
+The SDL window is **output-only in V1, structurally**: it is created not-focusable (a window
+that cannot hear must not take the keys — the terminal stays the game's one ear until the SDL
+Reader phase makes the window an ear too), and it is kept answering its OS through
+`PumpSurface`, the PumpInput-precedent drive message the host root-sends by role each lap —
+a window medium must service its event queue even when the world publishes nothing (a dead
+world starves a frame-driven pump; the OS calls the result "not responding"). Terminal media
+no-op the pump; the shape retires with PumpInput the day timers arrive.
+
 ## `snake/` — the first game panel
 
 The Stage 2 vertical slice: a playable snake whose parts are genuinely separate weaves.

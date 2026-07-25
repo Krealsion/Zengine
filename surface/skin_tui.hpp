@@ -170,6 +170,10 @@ public:
         sink_.write(out);
     }
 
+    /// A terminal needs no servicing between writes; the pump is the window
+    /// media's lifeline (see vocabulary.hpp), honestly idle here.
+    void pump() {}
+
     Sink& sink() { return sink_; }
 
 private:

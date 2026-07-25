@@ -60,6 +60,18 @@ struct SurfaceReady {
     ZEN_SHAPE(SurfaceReady, 1);
 };
 
+/// Give the active Skin execution time — the PumpInput precedent, pointed at
+/// output: a weave runs only when a message arrives, and a Skin whose medium
+/// is a real OS window must service that window's event queue even when no
+/// intent is flowing (a dead-quiet world starves a frame-driven pump, and an
+/// unpumped Windows window is flagged unresponsive — found live: the busy
+/// cursor). The host root-sends this by role each lap; terminal media no-op
+/// it. Producer deliberately unspecified; the shape retires the day timers
+/// arrive, alongside PumpInput.
+struct PumpSurface {
+    ZEN_SHAPE(PumpSurface, 1);
+};
+
 /// The role that IS surface ownership. Singleton by the Loom's role rules, so
 /// "exactly one active Skin owns the primary surface" is enforced ground, not
 /// convention. Address the Skin by role, never by id — the successor after a

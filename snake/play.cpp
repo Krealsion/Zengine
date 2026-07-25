@@ -9,7 +9,9 @@
 //               snake-controls adapter turns steering keys into SnakeTurn;
 //               the host's own operator weave accepts KeyPressed for the
 //               command keys. The host merely root-sends PumpInput each lap
-//               so the producer has execution time (no timers yet).
+//               so the producer has execution time (no timers yet), and
+//               PumpSurface likewise so a window-owning skin can service its
+//               OS event queue even while the world has nothing to publish.
 //   time      → SnakeTick, root-sent to whoever holds the snake.world role.
 //   drawing   → the Surface package: the world publishes SnakeVisual, the
 //               operator and the score weave publish SurfaceText, and the
@@ -360,6 +362,13 @@ int main() {
         // (A missing producer refuses the send cleanly; the game runs keyless.)
         bus.send_to_role(input::kInputRole,
                          loom::Message(loom::to_value(input::PumpInput{})));
+        // -- surface: give the painter its heartbeat -- a window medium must
+        // service its OS event queue even when the world has nothing to say
+        // (a dead world publishes no frames, and an unserviced window is what
+        // the OS calls "not responding"). Same posture as the input pump:
+        // no skin, clean refusal, nothing owed.
+        bus.send_to_role(surface::kSkinRole,
+                         loom::Message(loom::to_value(surface::PumpSurface{})));
         bus.pump();
 
         // -- time -------------------------------------------------------------

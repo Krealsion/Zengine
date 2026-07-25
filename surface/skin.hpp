@@ -16,6 +16,9 @@
 //
 // The shell is deliberately dumb: count, delegate, and say hello exactly once.
 // Everything visual lives in the Medium; everything wire-shaped lives here.
+// A Medium also provides `void pump()` — service your OS surface, nothing
+// else — driven by the host's PumpSurface lap message (see vocabulary.hpp);
+// media with nothing to service keep it empty.
 
 #include "vocabulary.hpp"
 
@@ -34,13 +37,15 @@ namespace zengine::surface {
 struct SkinState {
     std::int64_t frames = 0;
     std::int64_t texts = 0;
+    std::int64_t pumps = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(SkinState, 1, ZEN_FIELD(frames), ZEN_FIELD(texts));
+    ZEN_SHAPE(SkinState, 1, ZEN_FIELD(frames), ZEN_FIELD(texts), ZEN_FIELD(pumps));
 };
 
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
-                                     loom::Accept<zengine::snake::SnakeVisual, SurfaceText>,
+                                     loom::Accept<zengine::snake::SnakeVisual, SurfaceText,
+                                                  PumpSurface>,
                                      loom::Emit<SurfaceReady>> {
 public:
     SkinT() = default;
@@ -56,6 +61,15 @@ public:
         hello_once(mail);
         medium_.note(t.slot, t.text);
         ++this->state_.texts;
+    }
+
+    /// Execution time, not intent: service the medium's OS surface. On a
+    /// pumped host this is also the skin's earliest first message, so the
+    /// hello (and the text rows it re-summons) no longer waits for a frame.
+    void on(const PumpSurface&, loom::Mail& mail) {
+        hello_once(mail);
+        medium_.pump();
+        ++this->state_.pumps;
     }
 
     Medium& medium() { return medium_; }

@@ -16,11 +16,21 @@
 // (the Input reader's posture, pointed at output). Under SDL's dummy driver
 // (the headless suite) everything below runs for real except photons.
 //
-// V1 is OUTPUT-ONLY: the event queue is drained and dropped. The window's
-// own input — including its close button — is the SDL Reader's ground (the
-// Input package names that follow-on), not a drawing package's; wiring a
-// close box to "quit" belongs to whoever owns lifecycle, reached by input
-// vocabulary, never by a skin deciding to die on its own.
+// V1 is OUTPUT-ONLY, and the window is shaped to tell that truth twice:
+//   - the event queue is drained and dropped — on the host's PumpSurface lap
+//     message, not only per frame, because a dead-quiet world publishes no
+//     frames and an unserviced Windows window is flagged unresponsive (the
+//     live busy-cursor find). Execution time and intent are different
+//     things; the pump carries the first.
+//   - the window is created NOT_FOCUSABLE (WS_EX_NOACTIVATE on Windows): a
+//     window that cannot hear must not take the keys. The terminal remains
+//     the game's one ear — keys kept dying in the focused SDL window until
+//     it refused focus. The flag comes off the day the SDL Reader makes the
+//     window an ear too.
+// The window's own input — including its close button — is the SDL Reader's
+// ground (the Input package names that follow-on), not a drawing package's;
+// wiring a close box to "quit" belongs to whoever owns lifecycle, reached by
+// input vocabulary, never by a skin deciding to die on its own.
 
 #include "skin.hpp"
 #include "skin_sdl_plan.hpp"
@@ -59,10 +69,7 @@ public:
         if (!ensure_window(v)) {
             return;
         }
-        // Keep the OS talking to the window; say nothing back (see header).
-        SDL_Event ev;
-        while (SDL_PollEvent(&ev)) {
-        }
+        pump();
         for (const PlanRect& r : plan_frame(v)) {
             SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
             const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
@@ -85,12 +92,24 @@ public:
         }
     }
 
+    /// Keep the OS talking to the window; say nothing back (see header).
+    /// Runs on every PumpSurface lap — frames or no frames.
+    void pump() {
+        if (!ok_ || window_ == nullptr) {
+            return;
+        }
+        SDL_Event ev;
+        while (SDL_PollEvent(&ev)) {
+        }
+    }
+
 private:
     bool ensure_window(const zengine::snake::SnakeVisual& v) {
         const PlanSize want = window_size_of(v);
         if (window_ == nullptr) {
             window_ = SDL_CreateWindow(title_of(status_, score_).c_str(),
-                                       static_cast<int>(want.w), static_cast<int>(want.h), 0);
+                                       static_cast<int>(want.w), static_cast<int>(want.h),
+                                       SDL_WINDOW_NOT_FOCUSABLE);
             if (window_ == nullptr) {
                 return false;
             }
