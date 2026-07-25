@@ -29,7 +29,10 @@
 // SnakeWorldState; a Drawer accepts only SnakeVisual; a Score weave accepts
 // FoodEaten. SnakeVisual deliberately stays v1 across the world's v1→v2 state
 // migration — the drawer contract does not feel the world grow, which is the
-// point of the visual/world split.
+// point of the visual/world split. (Since the Surface package, the contract's
+// "Drawer" seat is held by the active SKIN — surface/vocabulary.hpp — which
+// accepts the same single shape; snake itself no longer contains drawing code,
+// and the score weave publishes its tally as SurfaceText instead of painting.)
 
 #include <zen/weave/shape.hpp>
 
@@ -134,10 +137,11 @@ struct SnakeWorldState {
 
 } // namespace v2
 
-/// The two role slots this package binds. Roles are the addresses that survive
-/// replacement — the whole phase is three demonstrations of exactly that.
+/// The one role slot this package still binds. Roles are the addresses that
+/// survive replacement — the Stage 2 phase was three demonstrations of exactly
+/// that. (The old snake.drawer role retired with the drawers: painting is the
+/// Surface package's ground now, addressed as zengine.skin.)
 inline constexpr const char* kWorldRole = "snake.world";
-inline constexpr const char* kDrawerRole = "snake.drawer";
 
 } // namespace zengine::snake
 

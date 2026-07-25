@@ -84,16 +84,21 @@ states *which repo's green was proven*; "green" must never silently mean "green 
 delegated-scope suite still runs there, per phase. The don't-re-prove economy arrives as the
 Loom stabilizes; the structure is ready for it now.
 
-Zengine's green is three tests: the **smoke** (link the Loom's exported surface, drive a value
+Zengine's green is four tests: the **smoke** (link the Loom's exported surface, drive a value
 through the real gate, confirm the gate **refuses** a malformed candidate — the refusal is what
 makes it a proof instead of a greeting), the **snake suite** (`tests/test_snake.cpp`) — the
 Stage 2 vertical slice proven headless: the locked contract pinned by content-id, the simulation
-and the v1→v2 migration as pure math, and the three live-evolution moments driven end to end
-through real `.so` weaves, the real kernel, and the real Weave Manager — and the **input suite**
-(`tests/test_input.cpp`): the Input package's locked contract and SDL-scancode identity pinned
-by content-id and literal value, both backends' translations as pure math on every lane, the
-weave's publish path through a real bus, and the keys-become-turns chain through the real
-libraries.
+and the v1→v2 migration as pure math, the three live-evolution moments driven end to end
+through real `.so` weaves, the real kernel, and the real Weave Manager, and the phase's negative
+space (a skinless game writes **zero bytes** to stdout, with a painted-bytes negative control) —
+the **input suite** (`tests/test_input.cpp`): the Input package's locked contract and
+SDL-scancode identity pinned by content-id and literal value, both backends' translations as
+pure math on every lane, the weave's publish path through a real bus, and the keys-become-turns
+chain through the real libraries — and the **surface suite** (`tests/test_surface.cpp`): the
+Surface package's contract by content-id, the terminal skins as golden bytes, the SDL skin's
+frame plan as pure math on every lane, the hello handshake and the one-owner rule through the
+real kernel, the granted-operator speaking recipe, and (where built) the SDL skin driven by the
+same intent under SDL's dummy video driver.
 
 ## `input/` — the Input package
 
@@ -103,31 +108,60 @@ as the wire identity of a key; `name` is convenience, never authority), `MouseBu
 `MouseMoved`, `MouseWheel` — and the only code that talks to the platform. Consumers only
 accept; there is no polling API. Backends today are the ones snake runs on: the POSIX terminal
 (raw mode; strokes synthesize press+release) and the Win32 console (real key transitions, mouse
-records); an SDL backend belongs to the surface phase. `PumpInput` is the drive message — the
-host loop opens the weave's hands each lap until timers exist.
+records); an SDL **Reader** (the window's own input, including its close box) is the named
+follow-on now that the Surface package gives it a window to read. `PumpInput` is the drive
+message — the host loop opens the weave's hands each lap until timers exist.
+
+## `surface/` — the Surface package
+
+Visual intent in, output out. No game, world, or panel weave talks to the terminal, a window,
+or a renderer: they **publish** intent, and a **Skin** — a replaceable loadable weave holding
+the singleton `zengine.skin` role — claims the actual surface and paints. Claiming is RAII
+(the constructor takes the medium, the destructor gives it back; a swap is release-then-claim
+because the Manager delivers the unload first), and ownership is enforced ground: loading a
+second skin into the held role is a clean refusal.
+
+The vocabulary is deliberately tiny: `SurfaceText{slot, text}` (a line of **plain** text for a
+named slot — "status", "score"; styling is the skin's business) and `SurfaceReady` (the active
+skin's hello, published once per incarnation on its first message; text publishers re-publish
+their current line on hearing it, so a fresh painter starts complete — the tally line survives
+the painter being replaced mid-game). `SnakeVisual` is the V1 canvas payload, accepted by the
+skins directly — a named coupling; the general canvas vocabulary is a later phase.
+
+Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`** (the old
+snake drawers' looks, now living where drawing lives — the terminal medium is one header,
+golden-byte tested), and **`zengine-skin-sdl`** — a real window, same intent, zero
+medium-specific fields added anywhere (the agnosticism proof). The SDL skin is the only
+target that sees SDL: it fetches a **pinned static SDL3** where none is installed
+(checksum in the build; `-DZENGINE_SDL_SKIN=OFF` declines), plans every frame as pure math
+(`skin_sdl_plan.hpp`, pinned on every lane), and degrades gracefully with no display — the
+suite drives it under SDL's dummy driver, and the window title carries the text slots.
 
 ## `snake/` — the first game panel
 
 The Stage 2 vertical slice: a playable snake whose parts are genuinely separate weaves.
+Since the Surface migration, **snake contains no drawing code at all** — the suite pins a
+skinless game at zero stdout bytes.
 
 - **World** (`snake-world-v1`/`-v2`, one source) owns the simulation and holds
   `SnakeWorldState`; it publishes `SnakeVisual`/`FoodEaten`/`SnakeDied` and never knows its
   consumers. Both versions converse (`zen.PrepareShutdown` → a letter); v2 is additionally an
   heir — it claims by role on first wake and folds a v1 inheritance through `migrate()`.
-- **Drawers** (`snake-drawer-classic`, `snake-drawer-block`) accept only `SnakeVisual` —
-  deliberately different code, swappable mid-game.
+  Untouched by the Surface migration — the whole ceremony reduction was consumer-side.
 - **Score** (`snake-score`) accepts only `FoodEaten` and counts what it *witnesses* — loaded
-  late into a live game, its count honestly differs from the world's.
+  late into a live game, its count honestly differs from the world's. It publishes its tally
+  as `SurfaceText` (and re-publishes on a skin's hello) instead of painting a row.
 - **Controls** (`snake-controls`) is snake's input binding: it accepts the Input package's
   `KeyPressed` and turns WASD/arrows into `SnakeTurn`, sent to the world **by role** so
   steering survives the world being swapped mid-game. The binding is a weave, so it is
   replaceable like everything else (a remap, an AI pilot, a replay feeder).
-- **Host** (`zengine-snake`) owns the screen, clock, and pen — and, since the Input package,
-  reads no keys: it loads `zengine-input` like any other weave and consumes messages (its
-  operator weave accepts `KeyPressed` for the command keys). Every lifecycle gesture is a
-  gated message through the Weave Manager, sent as a granted operator weave. Run it under WSL
-  from the build tree; keys: wasd steer, `1` swap drawer, `2` load score, `3` grow the world
-  (graceful v1→v2 migration), `r` reload in place, `n` new game, `l` list, `q` quit.
+- **Host** (`zengine-snake`) owns the clock and the boot list — nothing else. It reads no
+  keys (the Input weave produces them) and owns no screen (the skin claims it at load); its
+  status line is published intent like everything else, spoken by the granted operator weave
+  that also sends every lifecycle command through the Weave Manager. Run it under WSL from
+  the build tree; keys: wasd steer, `1` swap the TUI skin, `2` load score, `3` grow the world
+  (graceful v1→v2 migration), `4` swap to the SDL skin (where deployed), `r` reload in place,
+  `n` new game, `l` list, `q` quit.
 
 This package is the **hosting consumer** that pulled `loom::kernel` onto the Loom's export
 surface, and whose nested shapes surfaced (and pulled the completion of) the manifest's

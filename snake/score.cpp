@@ -1,24 +1,29 @@
-// The score weave — the late arrival. It accepts ONLY FoodEaten (the locked
+// The score weave — the late arrival. It accepts FoodEaten (the locked
 // contract) and maintains its own count, independent of the score field the
 // world happens to put in SnakeVisual. That independence is what makes the
 // late-addition moment REAL and visible: loaded after the game has eaten
 // twice, its count reads 0 while the world's reads 2 — it counts what it has
 // *witnessed*, which is exactly what "began participating" means.
 //
-// It owns terminal row 2 (by the shared convention) and repaints it on every
-// event it hears.
+// Since the Surface migration it draws nothing: the tally is PUBLISHED as
+// SurfaceText on the "score" slot, and whichever skin holds the surface
+// decides where (and whether) a score line lives. It also accepts the skins'
+// SurfaceReady hello and answers by re-publishing its current tally, so the
+// line survives the painter being replaced mid-game.
 
 #include "vocabulary.hpp"
+
+#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
 
-#include <cstdio>
 #include <string>
 
 namespace {
 
 using namespace zengine::snake;
+namespace surface = zengine::surface;
 
 struct ScoreState {
     std::int64_t eaten = 0;
@@ -27,14 +32,22 @@ struct ScoreState {
 };
 
 class ScoreWeave
-    : public loom::WeaveBase<ScoreWeave, ScoreState, loom::Accept<FoodEaten>, loom::Emit<>> {
+    : public loom::WeaveBase<ScoreWeave, ScoreState,
+                             loom::Accept<FoodEaten, surface::SurfaceReady>,
+                             loom::Emit<surface::SurfaceText>> {
 public:
-    void on(const FoodEaten&, loom::Mail&) {
+    void on(const FoodEaten&, loom::Mail& mail) {
         ++state_.eaten;
-        std::string out = "\x1b[2;1H\x1b[2K  \x1b[33m[score weave]\x1b[0m eaten since I joined: ";
-        out += std::to_string(state_.eaten);
-        std::fwrite(out.data(), 1, out.size(), stdout);
-        std::fflush(stdout);
+        speak(mail);
+    }
+
+    void on(const surface::SurfaceReady&, loom::Mail& mail) { speak(mail); }
+
+private:
+    void speak(loom::Mail& mail) {
+        mail.publish(surface::SurfaceText{
+            surface::kSlotScore,
+            "[score weave] eaten since I joined: " + std::to_string(state_.eaten)});
     }
 };
 

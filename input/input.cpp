@@ -14,8 +14,9 @@
 // output-freezing text selection; mouse input turns the pointer into real
 // records). Construction engages it, destruction restores it — so loading the
 // weave takes the terminal's hand and unloading gives it back, with no cleanup
-// protocol to forget. The OUTPUT side (alternate screen, VT processing) stays
-// the host's: this weave produces input, it does not draw.
+// protocol to forget. The OUTPUT side (alternate screen, VT processing) is the
+// Surface package's ground — the active Skin claims it the same RAII way: this
+// weave produces input, it does not draw.
 //
 // Both readers degrade gracefully with NO console (stdin redirected, headless
 // ctest, a pipe): the mode setup fails, the reader stays disabled, poll()

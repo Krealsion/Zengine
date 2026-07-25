@@ -7,25 +7,32 @@
 //   2. LOGIC pins — the simulation and THE MIGRATION as pure math (no bus).
 //   3. THE THREE MOMENTS, end to end — real .so libraries through the real
 //      Kernel, orchestrated by the real Weave Manager over the real bus:
-//      drawing replaced mid-game, a score weave arriving late, and the world
-//      growing v1 → v2 through the letter. Plus the doors that must NOT open:
-//      reload across a state-schema version change refuses cleanly.
+//      drawing replaced mid-game (since the Surface migration that means the
+//      SKIN — the painting code still leaves the process and different code
+//      takes the surface), a score weave arriving late, and the world growing
+//      v1 → v2 through the letter. Plus the doors that must NOT open: reload
+//      across a state-schema version change refuses cleanly. And the phase's
+//      own negative space: a skinless game writes ZERO bytes to stdout —
+//      snake publishes intent, it does not paint (with a painted-bytes
+//      negative control so the zero is a measurement, not a broken meter).
 //
 // The e2e tier steers the real world by LOCKSTEP: the test runs its own local
 // State through the same pure logic.hpp functions and asserts the published
 // SnakeVisual equals its local projection after every tick — so determinism
 // is not assumed by the steering, it is pinned by it.
 //
-// The real drawer .so's paint stdout when they receive a frame; the suite
-// redirects fd 1 around each pump so the proof stays readable. Their
-// participation is asserted through their own poked frame counters, not their
-// pixels.
+// The real skin .so's paint stdout when frames arrive; the suite redirects
+// fd 1 around each pump so the proof stays readable. Their participation is
+// asserted through their own poked frame counters, not their pixels (the
+// pixels' own suite is test_surface.cpp, golden bytes and all).
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
 #include "logic.hpp"
 #include "vocabulary.hpp"
+
+#include "surface/vocabulary.hpp" // the skin role: drawing's address since the migration
 
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
@@ -538,33 +545,34 @@ TEST_CASE("migration: a dead world migrates dead, and the food sentinel is prese
 TEST_CASE("moment 1: the drawing code is replaced while the game continues") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    const loom::WeaveId classic = r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC,
-                                         kDrawerRole);
+    const loom::WeaveId classic = r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
+                                         zengine::surface::kSkinRole);
 
-    r.tick(); // seeds, and both the classic drawer and the probe hear the frame
+    r.tick(); // seeds, and both the classic skin and the probe hear the frame
     v1::SnakeWorldState local;
     seed(local);
     CHECK(r.poke(classic, loom::PokeRead{"frames"}).text == "1");
     REQUIRE(r.rec.visuals.size() == 1);
     REQUIRE(same_visual(r.rec.visuals.back(), visual_of(local)));
 
-    // The swap: hard, mid-game. The classic drawer is unloaded (its code
-    // leaves the process); different drawing code takes the role.
+    // The swap: hard, mid-game. The classic skin is unloaded (its code leaves
+    // the process, its claim on the surface released in its destructor);
+    // different painting code takes the surface.
     const Recorded::Answer swapped =
-        r.command(loom::SwapWeave{kDrawerRole, "snake-drawer-block", SNAKE_SO_DRAWER_BLOCK,
-                                  /*graceful=*/false});
+        r.command(loom::SwapWeave{zengine::surface::kSkinRole, "zengine-skin-tui-block",
+                                  SKIN_SO_TUI_BLOCK, /*graceful=*/false});
     REQUIRE(swapped.kind == 0);
     const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
     CHECK(block.value != classic.value);
 
     const Recorded::Answer listed = r.command(loom::ListLoaded{});
-    CHECK(listed.text.find("snake-drawer-block@snake.drawer") != std::string::npos);
+    CHECK(listed.text.find("zengine-skin-tui-block@zengine.skin") != std::string::npos);
     CHECK(listed.text.find("classic") == std::string::npos);
     CHECK(listed.text.find("snake-world-v1@snake.world") != std::string::npos);
 
     // The world never stopped: the next tick advances the SAME run (the
     // lockstep mirror is the proof — whatever this tick did, eat or move, the
-    // world did it too), and the NEW drawer receives the frame.
+    // world did it too), and the NEW skin receives the frame.
     r.tick();
     (void)step(local);
     CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
@@ -575,7 +583,7 @@ TEST_CASE("moment 1: the drawing code is replaced while the game continues") {
 TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
 
     r.tick(); // seed
     v1::SnakeWorldState local;
@@ -603,7 +611,7 @@ TEST_CASE("moment 2: a score weave loaded late counts only what it witnesses") {
 TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration") {
     Rig r;
     const loom::WeaveId world_v1 = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
 
     r.tick();
     v1::SnakeWorldState local;
@@ -669,7 +677,7 @@ TEST_CASE("moment 3: the world grows - graceful swap, the letter, the migration"
 TEST_CASE("snapshot/revive: an in-place reload carries the state through the gate") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -692,7 +700,7 @@ TEST_CASE("snapshot/revive: an in-place reload carries the state through the gat
 TEST_CASE("the closed door: reload across a state-schema version change refuses cleanly") {
     Rig r;
     r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -710,45 +718,14 @@ TEST_CASE("the closed door: reload across a state-schema version change refuses 
     CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));
 }
 
-// The unload-reload linkage pins. Two libraries built from the SAME vocabulary
-// headers, one unloaded before the other loads: without -fno-gnu-unique on the
-// weave targets, the second library's schema statics silently alias the first
-// one's DESTROYED statics through glibc's program-wide unique-symbol table
-// (STB_GNU_UNIQUE ignores RTLD_LOCAL), and describe() reads freed memory —
-// found as a segfault/ASan use-after-free the first time the drawer was
-// swapped. These three cases hold the property that a weave library's statics
-// live and die with THAT library, across every load-after-unload shape the
-// slice uses.
-
-TEST_CASE("linkage pin: a later library is whole when its sibling never loaded") {
-    Rig r;
-    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    const loom::WeaveId block = r.load("snake-drawer-block", SNAKE_SO_DRAWER_BLOCK, kDrawerRole);
-    r.tick();
-    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
-}
-
-TEST_CASE("linkage pin: load-unload-load across shared vocabulary, third library resident") {
-    Rig r;
-    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
-    const Recorded::Answer u = r.command(loom::SwapWeave{kDrawerRole, "snake-drawer-block",
-                                                         SNAKE_SO_DRAWER_BLOCK, false});
-    CHECK_MESSAGE(u.kind == 0, u.text);
-}
-
-TEST_CASE("linkage pin: load-unload-load across shared vocabulary, no other library") {
-    Rig r;
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
-    const Recorded::Answer u = r.command(loom::SwapWeave{kDrawerRole, "snake-drawer-block",
-                                                         SNAKE_SO_DRAWER_BLOCK, false});
-    CHECK_MESSAGE(u.kind == 0, u.text);
-}
+// (The -fno-gnu-unique linkage pins that used to ride the drawer pair moved to
+// the Surface suite with the drawers' successors: the skins are now the weave
+// libraries sharing vocabulary headers across every load-unload-load shape.)
 
 TEST_CASE("the substrate's own reset door starts a new game") {
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
-    r.load("snake-drawer-classic", SNAKE_SO_DRAWER_CLASSIC, kDrawerRole);
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
     r.tick();
     v1::SnakeWorldState local;
     seed(local);
@@ -762,4 +739,96 @@ TEST_CASE("the substrate's own reset door starts a new game") {
     CHECK(fresh.snake.size() == 3);
     CHECK(fresh.width == 24);
     CHECK(fresh.alive);
+}
+
+// ============================================================================
+// The phase's negative space: snake publishes, it does not paint
+// ============================================================================
+
+namespace {
+
+/// fd-1 catcher: like Hush, but the bytes land in a file the test can weigh.
+/// The zero it measures is only a measurement because the same catcher then
+/// weighs a SKINNED run and finds paint — a meter proven live, not assumed.
+class CatchStdout {
+public:
+    explicit CatchStdout(const char* path) {
+        std::fflush(stdout);
+#if defined(_WIN32)
+        saved_ = ::_dup(1);
+        const int fd = ::_open(path, _O_WRONLY | _O_CREAT | _O_TRUNC, 0600);
+        if (fd >= 0) {
+            ::_dup2(fd, 1);
+            ::_close(fd);
+        }
+#else
+        saved_ = ::dup(STDOUT_FILENO);
+        const int fd = ::open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+        if (fd >= 0) {
+            ::dup2(fd, STDOUT_FILENO);
+            ::close(fd);
+        }
+#endif
+    }
+    ~CatchStdout() {
+        std::fflush(stdout);
+        if (saved_ >= 0) {
+#if defined(_WIN32)
+            ::_dup2(saved_, 1);
+            ::_close(saved_);
+#else
+            ::dup2(saved_, STDOUT_FILENO);
+            ::close(saved_);
+#endif
+        }
+    }
+    CatchStdout(const CatchStdout&) = delete;
+    CatchStdout& operator=(const CatchStdout&) = delete;
+
+private:
+    int saved_ = -1;
+};
+
+long file_size_then_remove(const char* path) {
+    long size = -1;
+    if (std::FILE* f = std::fopen(path, "rb")) {
+        std::fseek(f, 0, SEEK_END);
+        size = std::ftell(f);
+        std::fclose(f);
+    }
+    std::remove(path);
+    return size;
+}
+
+} // namespace
+
+TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to stdout") {
+    Rig r;
+    const loom::WeaveId score = r.load("snake-score", SNAKE_SO_SCORE, "");
+    r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole);
+
+    // A stretch of real life with NO skin anywhere in the process: ticks,
+    // a witnessed meal, a spoken tally — every one of them intent on the bus,
+    // none of them bytes on stdout. Raw pumps on purpose: the catcher, not
+    // the Hush, must be the observer.
+    {
+        CatchStdout catcher("snake_no_paint.tmp");
+        for (int i = 0; i < 6; ++i) {
+            r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+            r.bus.pump();
+        }
+        r.bus.send(score, loom::Message(loom::to_value(FoodEaten{})));
+        r.bus.pump();
+    }
+    CHECK(file_size_then_remove("snake_no_paint.tmp") == 0);
+    CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1"); // the game DID run
+
+    // The negative control: the same meter, a skin on the surface — paint.
+    r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
+    {
+        CatchStdout catcher("snake_painted.tmp");
+        r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
+        r.bus.pump();
+    }
+    CHECK(file_size_then_remove("snake_painted.tmp") > 0);
 }

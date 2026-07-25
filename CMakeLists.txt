@@ -36,7 +36,8 @@ if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
     # A dependency's proof rides its version: Zengine's lane does not re-run the Loom's suite,
     # so the sibling build contributes its libraries and nothing else. ZEN_SDL is silenced for
-    # the same reason — the SDL skin is Zengine-destined, not something this build needs today.
+    # the same reason — that option builds the Loom's SDL2 UI-tree renderer (zen-ui-sdl, a
+    # port still to come); Zengine's own SDL skin lives in surface/ and fetches its own SDL3.
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(ZEN_SDL            OFF CACHE BOOL "" FORCE)
@@ -97,15 +98,18 @@ endfunction()
 #
 # smoke: the minimal stranger (links only the exported surface; its refusal test is the
 # proof it is real). input: the Input package — the floor games sit on (the sole producer
-# of the locked input shapes). snake: the first game panel — the Stage 2 vertical slice,
-# and the hosting consumer that pulled loom::kernel onto the Loom's export surface; now
-# also the Input package's first consumer. tests: the Zengine suites (the smoke test
-# stays its own tiny proof; the snake and input suites drive the real .so weaves through
-# the real kernel). Order matters only where vocabulary flows: input's interface target
-# must exist before snake consumes it.
+# of the locked input shapes). surface: the Surface package — visual intent in, output
+# out (the skins own every terminal row and window pixel; consumers only publish).
+# snake: the first game panel — the Stage 2 vertical slice, and the hosting consumer
+# that pulled loom::kernel onto the Loom's export surface; consumer of both floors, owner
+# of neither platform edge. tests: the Zengine suites (the smoke test stays its own tiny
+# proof; the snake, input, and surface suites drive the real .so weaves through the real
+# kernel). Order matters only where vocabulary flows: input's and surface's interface
+# targets must exist before snake consumes them.
 
 enable_testing()
 add_subdirectory(smoke)
 add_subdirectory(input)
+add_subdirectory(surface)
 add_subdirectory(snake)
 add_subdirectory(tests)
