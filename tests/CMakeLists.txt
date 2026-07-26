@@ -96,3 +96,21 @@ if(TARGET zengine-skin-sdl)
     set_tests_properties(surface PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
 endif()
+
+# The Trust-Gate liveness probes (audit branch): what the substrate actually
+# does when the TIMER SERVICE ITSELF is swapped / reloaded / double-wound /
+# joined late. The durable deliverable of the audit phase's Stage 5.
+add_executable(zengine-audit-probes test_audit_probes.cpp)
+target_link_libraries(zengine-audit-probes
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
+            zengine-warnings)
+target_include_directories(zengine-audit-probes PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_SOURCE_DIR}/snake)
+
+target_compile_definitions(zengine-audit-probes PRIVATE
+    "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+    "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
+    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
+
+add_test(NAME audit_probes COMMAND zengine-audit-probes)
