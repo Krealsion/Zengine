@@ -122,7 +122,11 @@ inline std::vector<InputEvent> terminal_bytes_to_events(const unsigned char* byt
         const unsigned char b = bytes[i];
         if (b == 0x03) { // ETX is uniquely Ctrl+C on a terminal; the modifier
                          // survives only in the convenience name (V1 has no
-                         // modifier vocabulary — the phase's named edge).
+                         // modifier vocabulary — the phase's named edge). The
+                         // spelling is a TEMPORARY cross-backend contract the
+                         // snake host branches on, pinned as an expiring debt
+                         // in the input suite; keep it identical to the win32
+                         // path below until modifiers retire both.
             detail::emit_stroke(out, scan::kC, "Ctrl+C");
             continue;
         }
@@ -210,7 +214,9 @@ inline std::vector<InputEvent> win32_key_to_events(std::uint16_t vk, bool down, 
     }
     std::string name = scancode_name(sc);
     if (ctrl && sc == scan::kC) {
-        name = "Ctrl+C"; // the one dressed name the snake host relies on
+        name = "Ctrl+C"; // the one dressed name the snake host relies on —
+                         // byte-identical to the terminal path above, pinned
+                         // as a temporary contract in the input suite
     }
     if (down) {
         out.push_back(KeyPressed{sc, std::move(name)});

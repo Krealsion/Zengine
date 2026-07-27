@@ -434,6 +434,32 @@ TEST_CASE("terminal: Ctrl+C keeps its key identity; the modifier rides the name"
     CHECK(i == ev.size());
 }
 
+TEST_CASE("contract, EXPLICITLY TEMPORARY: \"Ctrl+C\" is the one name the host may branch on") {
+    // A debt, pinned as a debt. This package's own rule is that `name` is
+    // convenience and never authority — and the snake host's quit path
+    // nonetheless reads `k.name == "Ctrl+C"`, because V1 has no modifier
+    // vocabulary and a scancode alone cannot say "with Ctrl held". Both sides
+    // confess it in their comments; neither can fix it alone.
+    //
+    // So this pin is not an endorsement, it is a contract with an expiry: as
+    // long as the debt exists, the two backends must agree on the spelling
+    // BYTE FOR BYTE, and it must be the spelling the host matches. When the
+    // modifier-vocabulary phase gives KeyPressed real modifiers, the host
+    // branches on those instead and THIS CASE IS DELETED — not loosened.
+    const std::string terminal_name = as<KeyPressed>(term("\x03"), 0).name;
+    const std::string win32_name =
+        as<KeyPressed>(win32_key_to_events('C', true, /*ctrl=*/true), 0).name;
+
+    CHECK(terminal_name == win32_name); // the two backends agree...
+    CHECK(terminal_name == "Ctrl+C");   // ...on exactly the string play.cpp tests
+    // And the same key without the modifier must NOT wear the name — the host
+    // quits on it, so a plain 'c' dressed as Ctrl+C would end the game.
+    CHECK(as<KeyPressed>(win32_key_to_events('C', true, /*ctrl=*/false), 0).name != "Ctrl+C");
+    // The scancode stays the authority either way: same key, both paths.
+    CHECK(as<KeyPressed>(term("\x03"), 0).scancode == scan::kC);
+    CHECK(as<KeyPressed>(win32_key_to_events('C', true, true), 0).scancode == scan::kC);
+}
+
 TEST_CASE("terminal: untranslatable bytes are dropped, order is preserved") {
     CHECK(term("\x01").empty()); // Ctrl+A: no modifier vocabulary in V1
     std::size_t i = 0;

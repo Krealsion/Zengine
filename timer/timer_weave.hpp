@@ -21,13 +21,41 @@
 //   kBeatCapMs) -> fire everything due -> re-send Drive to self.
 //
 // The nap comes BEFORE the firing so a firing is delivered the moment it is
-// due, not one nap later; the re-send comes last so the fired messages (and
-// everything their consumers say) are delivered before the next beat starts.
+// due, not one nap later; the re-send comes last, which buys exactly one
+// thing — the beat's own firings are delivered before the next beat begins.
+// It does NOT buy what an earlier version of this comment claimed. Dispatch
+// is FIFO, so anything a CONSUMER says in response to a firing is enqueued
+// BEHIND the next Drive that was already sitting there: the response is
+// handled only after that beat's nap. A reply to a firing therefore waits out
+// up to one nap (kBeatCapMs when nothing is due sooner) before anyone hears
+// it. That is a known V1 property, not a bug being hidden — the fix is
+// delivery on the idle/deadline side of the nap rather than behind it, and
+// that is a deferred Loom question, not designed here.
+//
 // The host's whole obligation is the first Drive (the wind) — after that,
 // pumping the bus IS running the world, and the pump breathes at this weave's
-// pace because the nap lives inside the beat. When the service is unloaded,
-// its in-flight Drive dies with it (a gated send is authorized at delivery),
-// and the chain — deliberately — dies too: time stops when the clock is gone.
+// pace because the nap lives inside the beat.
+//
+// WHEN THE SERVICE GOES AWAY (measured — the trust-gate audit of 2026-07-26,
+// probes A/B in tests/test_audit_probes.cpp; the summary lives on Drive in
+// vocabulary.hpp):
+//   - unloaded or SWAPPED: the in-flight Drive dies with it, and the chain
+//     dies too. The mechanism is precise and worth stating exactly, because
+//     the obvious guess is wrong: a gated send is authorized by looking its
+//     SENDER up at delivery time, so the parked re-wind fails on a dead
+//     sender (CapabilityDenied) — NOT on a vacant target. On a swap the
+//     successor already holds the role by the time that Drive is delivered;
+//     it is simply never allowed to arrive. So the successor gets no first
+//     message, never announces, and never beats: time stops when the clock is
+//     gone, and stays stopped until something winds it again.
+//   - RELOADED: the chain lives. Reload rebinds the new library behind the
+//     same adapter and WeaveId, so the sender lookup keeps succeeding and the
+//     beat rides straight through. Note what a reload does and does not carry:
+//     it constructs a NEW instance and transplants only the ZEN_SHAPE state
+//     (TimerState) through the gate, so `beats`/`fired` continue while
+//     `entries_` and `announced_` below start fresh. That is why a reloaded
+//     service re-announces — and why it must: the standing timers are gone
+//     with the old instance, and the hello is what gets them re-asked.
 //
 // CLEANUP, honestly. "Cancel a dead requester's timers" wants the service to
 // SEE death, and a weave cannot: the bus shows a sender no delivery outcomes
@@ -88,10 +116,15 @@ public:
         ++this->state_.beats;
         // Re-wind BY ROLE, not by id: a loaded weave does not know its own
         // bus-side id (self-sends die at delivery), and the role is the more
-        // honest address anyway — the beat belongs to "whoever provides
-        // time", so a replacement service inherits the LIVE CHAIN the moment
-        // it takes the role. The service without its role does not beat;
-        // the role is the contract, not a convenience.
+        // honest address anyway — the beat belongs to "whoever provides time",
+        // not to one incarnation of it. A service without its role does not
+        // beat; the role is the contract, not a convenience.
+        //
+        // What role addressing does NOT do is carry the chain across a SWAP:
+        // this send is authorized against its SENDER at delivery, so once this
+        // incarnation is unregistered the parked Drive is refused and the
+        // chain ends there. Reload keeps it (same WeaveId); swap does not.
+        // See the header's "WHEN THE SERVICE GOES AWAY".
         mail.send_to_role(kTimerRole, Drive{});
     }
 
@@ -132,9 +165,14 @@ private:
     };
 
     /// One hello per INCARNATION (the skin's `announced_` stance): a plain
-    /// member, never state — a replacement service must re-announce so the
-    /// standing-beat owners re-ask, which is how the system self-heals across
-    /// a clock replacement (every ask is an upsert; re-asking is idempotent).
+    /// member, never state — so a fresh incarnation announces again and the
+    /// standing-beat owners re-ask, which is what refills the table a new
+    /// instance starts empty (every ask is an upsert; re-asking is idempotent).
+    /// Measured: that cascade runs on a RELOAD, which re-announces on the beat
+    /// it rides through. It does not run on a swap — a swapped-in service
+    /// never gets a first message to announce on, so there is nothing to
+    /// re-ask into. Announcing is necessary for succession here; it is not
+    /// sufficient, and the missing half is liveness (see the header).
     void announce_once(loom::Mail& mail) {
         if (announced_) {
             return;

@@ -97,9 +97,11 @@ if(TARGET zengine-skin-sdl)
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
 endif()
 
-# The Trust-Gate liveness probes (audit branch): what the substrate actually
-# does when the TIMER SERVICE ITSELF is swapped / reloaded / double-wound /
-# joined late. The durable deliverable of the audit phase's Stage 5.
+# The Trust-Gate liveness probes: what the substrate actually does when the
+# TIMER SERVICE ITSELF is swapped / reloaded / double-wound / joined late. The
+# durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —
+# read the suite's own header for why a file that pins UNWANTED behavior lives
+# here, and what R2 is expected to flip.
 add_executable(zengine-audit-probes test_audit_probes.cpp)
 target_link_libraries(zengine-audit-probes
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary

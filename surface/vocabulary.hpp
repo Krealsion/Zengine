@@ -90,8 +90,14 @@ inline constexpr const char* kSlotScore = "score";
 /// the beat belongs to kSkinRole, so a swapped-in successor inherits it
 /// without asking (on a dead-quiet bus a fresh window-owning skin would
 /// otherwise never get its queue serviced — the exact wedge the old
-/// host-sent PumpSurface existed to prevent, now dead by construction).
-/// Terminal media no-op the firing, exactly as they no-op'd the pump.
+/// host-sent PumpSurface existed to prevent, dead by construction for a SKIN
+/// swap). Terminal media no-op the firing, exactly as they no-op'd the pump.
+///
+/// The succession that holds here is the standing timer's, across holders of
+/// kSkinRole. It is not the Timer service's own: swapping `zengine.timer`
+/// ends every beat in the system, this one with it, and today nothing
+/// re-lights them — the window would go unserviced again for the same reason
+/// the world would stop. See Drive in timer/vocabulary.hpp.
 inline constexpr const char* kPumpTimerId = "zengine.skin.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
 
