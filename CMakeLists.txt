@@ -15,22 +15,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # in-tree ALIASes — loom::core, loom::switchboard, loom::kernel — so the override is a
 # genuine drop-in and the two paths cannot silently come to mean different things):
 #
-#   ZEN_LOOM_DEV=ON  (the default) — the SIBLING path: add_subdirectory(../Loom). The
-#       working-tree default, and the turnkey Windows path: configure, press play.
-#   ZEN_LOOM_DEV=OFF — the STRANGER'S path: find_package() against an installed, exported
-#       Loom, consuming it exactly as a third party would.
+#   ZEN_LOOM_DEV=OFF (the default) — the STRANGER'S path: find_package() against an
+#       installed, exported Loom, consuming it exactly as a third party would.
+#   ZEN_LOOM_DEV=ON  — the SIBLING path: add_subdirectory(../Loom). For editing the two
+#       trees together, and the turnkey Windows path: one flag, configure, press play.
 #
-# The stranger's path remains the PROOF lane even though it is no longer the default: the
-# WSL verification lanes (`build`, `build-san`) are configured with it deliberately, so a
-# mistaken dependency on an unexported target still breaks here, in the house, before it
-# breaks for a guest. Dev mode makes the WHOLE Loom build tree reachable — convenient for
-# editing the two together, silent about export mistakes — which is exactly why the proof
-# lanes stay on the other path. (The default was flipped from OFF once the exported surface
-# had a real consumer suite pinning it; the discipline moved from the default into the lanes.)
+# WHY THE STRANGER'S PATH IS THE DEFAULT (re-affirmed deliberately, 2026-07-27). Because
+# it is what makes an unexported-surface mistake fail on EVERY developer's machine instead
+# of only in the verification lanes. Dev mode reaches the whole Loom build tree, so a
+# target that was never exported still links — the build stays green here and breaks for
+# the first guest who tries it. That is precisely the class of error this repo exists to
+# catch first, and a default that hides it moves the discipline from "always on" to
+# "on wherever someone remembered". It was ON for one lane-length experiment; the trust
+# gate found the choice had drifted in without a decision, so it is now a decision:
+# stranger by default, dev one flag away. (Between the two, target names are identical —
+# the Loom's export sets EXPORT_NAME to match its in-tree ALIASes — so the override is a
+# genuine drop-in and the two paths cannot silently come to mean different things.)
 
 option(ZEN_LOOM_DEV
        "Consume the Loom from the sibling ../Loom source tree instead of an installed package"
-       ON)
+       OFF)
 
 if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
@@ -44,9 +48,11 @@ if(ZEN_LOOM_DEV)
     if(WIN32)
         # The demos need the kernel, and on Windows the kernel exists only as the Loom's
         # explicit development/demo backend (no isolation — the Loom prints its banner and
-        # Kernel::containment_note() says so at every surface). Dev mode on Windows IS the
-        # demo workflow, so default the option ON here — a plain CACHE set, so an explicit
-        # -DLOOM_ENABLE_WINDOWS_KERNEL=OFF on the command line still wins.
+        # Kernel::containment_note() says so at every surface). Asking for dev mode on
+        # Windows IS asking for the demo workflow, so default the option ON here — and note
+        # this now sits downstream of an explicit -DZEN_LOOM_DEV=ON, so no default implies
+        # another. A plain CACHE set, so an explicit -DLOOM_ENABLE_WINDOWS_KERNEL=OFF on the
+        # command line still wins.
         set(LOOM_ENABLE_WINDOWS_KERNEL ON CACHE BOOL
             "Build the Windows kernel backend (LoadLibrary). Development/demo only — no isolation.")
     endif()

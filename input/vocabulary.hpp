@@ -165,6 +165,14 @@ inline constexpr const char* kInputRole = "zengine.input";
 /// one incarnation, so a swapped-in successor inherits it without asking.
 /// 10ms is the poll cadence the old pumped host loop gave this weave; the
 /// package owns its own pace now.
+///
+/// That inheritance is the STANDING TIMER's, and it holds (measured: a role
+/// beat follows its role across holders). What it rests on is the Timer
+/// service's own liveness, which is a separate question with a less happy
+/// answer today: a swap of `zengine.timer` ends every beat in the system,
+/// this one included, and nothing re-lights them. See Drive in
+/// timer/vocabulary.hpp — the two successions are different, and only one of
+/// them works.
 inline constexpr const char* kPumpTimerId = "zengine.input.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
 

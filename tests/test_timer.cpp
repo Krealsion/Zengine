@@ -404,6 +404,66 @@ TEST_CASE("a repeating timer holds its lattice") {
     CHECK(r.heard.fired_at[2] == 30);
 }
 
+TEST_CASE("a LATE repeating timer gets one firing, never a burst (the catch-up clamp)") {
+    // The no-burst claim was double-claimed and never pinned — the trust gate
+    // removed the clamp and this suite stayed green (its M2b). This is the
+    // missing pin. The stall is the test's hand on the virtual clock: exactly
+    // what a host wedged past several periods does to the lattice.
+    FakeRig r;
+    r.ask_as(r.ear, StartTimer{"beat", 10, true});
+    r.heard.stop_on_id = "beat";
+    r.run_beats(8, /*wind=*/true); // stops as the first firing arrives (t=10)
+    r.heard.stop_on_id.clear();
+    REQUIRE(r.heard.fired.size() == 1);
+    CHECK(r.heard.fired_at[0] == 10); // the lattice's second rung is due at 20
+
+    // ...and now the world stalls until t=75: rungs 20 through 70 are all in
+    // the past when the chain resumes. SIX deadlines missed, by construction.
+    const std::int64_t resumed = 75;
+    r.hooks.now = resumed;
+    r.run_beats(4);
+
+    // What arrives is ONE firing at the resuming instant, then a lattice
+    // re-anchored to the stall — not six stale rungs delivered back to back.
+    // Without the clamp every one of these arrives at t=75 (each beat naps 0
+    // because the next rung is still in the past), so the burst is exactly
+    // what these stamps refuse.
+    REQUIRE(r.heard.fired.size() == 4);
+    CHECK(r.heard.fired_at[1] == resumed);                  // the one catch-up firing
+    CHECK(r.heard.fired_at[2] == resumed + 10);             // re-anchored to NOW...
+    CHECK(r.heard.fired_at[3] == resumed + 20);             // ...and cadence restored
+    CHECK(r.heard.fired_at[2] != 80);                       // not the pre-stall lattice
+    CHECK(r.hooks.now >= resumed + 20);                     // virtual time MOVED again
+}
+
+TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadline shortens it") {
+    // kBeatCapMs is pinned as a constant in tier 1; this pins the BEHAVIOR it
+    // names — the two halves of the vocabulary's claim that the cap is "the
+    // worst-case lateness of a firing and the arrival bound on a StartTimer
+    // being considered".
+    FakeRig r;
+    r.run_beats(3, /*wind=*/true);
+    CHECK(r.hooks.now == 3 * kBeatCapMs); // nothing standing: each beat naps the cap
+
+    // An ask queued behind a parked beat waits out that beat's whole nap
+    // before it is even seen. With an empty table that nap is a full cap — so
+    // a 1ms timer asked at t=30 fires at t=41, not t=31. That gap IS the bound.
+    r.ask_as(r.ear, StartTimer{"late", 1, false});
+    r.run_beats(3);
+    REQUIRE(r.heard.fired.size() == 1);
+    CHECK(r.heard.fired_at[0] == 4 * kBeatCapMs + 1);
+
+    // The other half: a deadline nearer than the cap shortens the nap to it,
+    // and a farther one is walked there in capped steps, landing exactly on it.
+    FakeRig s;
+    s.ask_as(s.ear, StartTimer{"soon", 4, false});
+    s.ask_as(s.ear, StartTimer{"far", 25, false});
+    s.run_beats(5, /*wind=*/true);
+    REQUIRE(s.heard.fired.size() == 2);
+    CHECK(s.heard.fired_at[0] == 4);  // the deadline, not the cap
+    CHECK(s.heard.fired_at[1] == 25); // reached in capped naps, no overshoot
+}
+
 TEST_CASE("cancel before the wind: the timer never fires at all") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"gone", 10, true});
@@ -468,6 +528,44 @@ TEST_CASE("CancelAllMyTimers kills mine and nobody else's") {
     REQUIRE(other_heard.fired.size() == 1);
     CHECK(other_heard.fired[0] == "theirs"); // theirs lived
     CHECK(other_heard.fired_at[0] == 40);
+}
+
+TEST_CASE("CancelAllMyTimers is TOTAL — role beats die with the rest, chosen not accidental") {
+    // The shape's doc teaches WHEN to send this (a weave being replaced should
+    // leave its role beats standing for its successor; one retiring with no
+    // heir should cancel) — but the mechanism itself stays total and neutral,
+    // because succession here is AUTHORED, never guessed by a shape. This pins
+    // the totality as a decision, so it cannot erode into an accident.
+    const char* kRole = "suite.pulse.holder";
+
+    // The positive control first: without the cancel, that role beat fires.
+    // (An all-empty assertion is only meaningful next to a rig where the same
+    // asks DO produce firings.)
+    {
+        FakeRig c;
+        Heard pulse;
+        pulse.hooks = &c.hooks;
+        pulse.bus = &c.bus;
+        (void)mount_role<Ear>(c.bus, kRole, pulse);
+        c.ask_as(c.ear, StartTimer{"mine", 20, false});
+        c.ask_as(c.ear, StartRoleTimer{"pulse", 10, true, kRole});
+        c.run_beats(6, /*wind=*/true);
+        CHECK(c.heard.fired.size() == 1);  // the requester timer fired...
+        CHECK(pulse.fired.size() >= 2);    // ...and the role beat was beating
+    }
+
+    FakeRig r;
+    Heard pulse;
+    pulse.hooks = &r.hooks;
+    pulse.bus = &r.bus;
+    (void)mount_role<Ear>(r.bus, kRole, pulse);
+    r.ask_as(r.ear, StartTimer{"mine", 20, false});
+    r.ask_as(r.ear, StartRoleTimer{"pulse", 10, true, kRole});
+    r.ask_as(r.ear, CancelAllMyTimers{});
+    r.run_beats(6, /*wind=*/true);
+
+    CHECK(r.heard.fired.empty()); // the requester-addressed timer: gone
+    CHECK(pulse.fired.empty());   // and the ROLE beat with it — that is the point
 }
 
 TEST_CASE("a role timer follows the role: holder, successor, and honest vacancy") {

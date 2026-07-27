@@ -150,10 +150,16 @@ class OperatorWeave
 public:
     explicit OperatorWeave(OperatorContext& ctx) : ctx_(&ctx) {}
 
-    void on(const loom::Result& r, loom::Mail& mail) { answered(mail, "-> " + r.value); }
-    void on(const loom::Ack&, loom::Mail& mail) { answered(mail, "-> done"); }
+    // The three standard answers. Refusal-ness is carried as a FLAG from the
+    // handler that knows it by TYPE — the shape is the fact, and re-deriving
+    // it downstream by looking for "refused" in prose would be inventing a
+    // second, weaker authority for something already certain here.
+    void on(const loom::Result& r, loom::Mail& mail) {
+        answered(mail, "-> " + r.value, /*refused=*/false);
+    }
+    void on(const loom::Ack&, loom::Mail& mail) { answered(mail, "-> done", /*refused=*/false); }
     void on(const loom::Refused& r, loom::Mail& mail) {
-        answered(mail, "-> refused: " + r.reason);
+        answered(mail, "-> refused: " + r.reason, /*refused=*/true);
     }
 
     /// A skin claimed the surface and said hello: give it the current status
@@ -208,6 +214,11 @@ public:
             // V1 carries no modifiers, so Ctrl+C survives only as the backends'
             // dressed convenience name. Quitting on it is a courtesy the host
             // chooses to trust; the scancode stays the authority for the key.
+            // A DEBT, and pinned as one: the input suite's "contract,
+            // EXPLICITLY TEMPORARY" case locks both backends to this exact
+            // spelling for exactly as long as this branch exists. When the
+            // modifier-vocabulary phase lands, this reads a modifier and that
+            // case is deleted.
             if (k.name == "Ctrl+C") {
                 quit();
             }
@@ -241,7 +252,7 @@ private:
         mail.publish(surface::SurfaceText{surface::kSlotStatus, ctx_->last_status});
     }
 
-    void answered(loom::Mail& mail, const std::string& outcome) {
+    void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
         ++state_.answers;
         const auto it = ctx_->pending.find(mail.correlation());
         if (it == ctx_->pending.end()) {
@@ -251,7 +262,7 @@ private:
         }
         // A successful moment flips the trackers here, in the answer's own
         // handler — the answer, not the wish, is what flips them.
-        if (outcome.find("refused") == std::string::npos) {
+        if (!refused) {
             const int action = it->second.action;
             if (action >= 10) {
                 ctx_->skin = action - 10;

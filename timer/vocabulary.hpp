@@ -25,7 +25,9 @@
 //     SURVIVE its starter being swapped (the input pump, the skin pump) is
 //     addressed to the ROLE: whoever holds the slot at each firing hears the
 //     beat. That is also what heals a freshly swapped-in skin on a dead-quiet
-//     bus: the beat belongs to the role, so the successor inherits it.
+//     bus: the beat belongs to the role, so the successor inherits it. (What
+//     a standing timer does NOT survive is the TIMER SERVICE itself being
+//     replaced — the table lives in the service. See Drive.)
 //   - TimerReady v1 — the service's hello (the SurfaceReady precedent),
 //     published once per incarnation on its first beat. It is the system's
 //     first breath: a weave loaded before the wind hears it and starts its
@@ -37,7 +39,9 @@
 //     one sleep in the system) and fires what came due. The HOST winds the
 //     clock exactly once at boot by sending the first Drive; it owes nothing
 //     per lap. Not a pump: nobody owes the service execution time after the
-//     wind, and a stray extra Drive is a harmless extra beat, not a lever.
+//     wind, and a Drive is not a lever — it carries no authority and can
+//     change nothing about the lattice. It is not free, either: a stray
+//     extra Drive seeds a permanent SECOND chain. See Drive below.
 
 #include <zen/weave/shape.hpp>
 
@@ -64,12 +68,20 @@ struct StartTimer {
 };
 
 /// Ask for time, delivered to a ROLE: TimerFired{id} goes to whoever holds
-/// `role` at each firing. The beat outlives any particular holder — a swap's
-/// successor inherits it without asking — and an unheld role refuses the
-/// delivery cleanly (the beat waits for the next holder; it is the slot's
-/// pulse, not a weave's). Upsert key is (role, id), ACROSS requesters: a
-/// successor re-asking replaces its predecessor's schedule instead of
-/// doubling the beat. Same clamps as StartTimer.
+/// `role` at each firing. The beat outlives any particular holder of THAT
+/// role — a swap's successor inherits it without asking — and an unheld role
+/// refuses the delivery cleanly (the beat waits for the next holder; it is
+/// the slot's pulse, not a weave's). It also outlives its own starter: the
+/// entry stays, and only cancel rights are stranded (see CancelTimer).
+/// Upsert key is (role, id), ACROSS requesters: a successor re-asking
+/// replaces its predecessor's schedule instead of doubling the beat. Same
+/// clamps as StartTimer.
+///
+/// The one succession it does NOT survive is the TimerService's own: the
+/// standing-timer table is the service instance's private state, not
+/// gate-carried state, so a replaced or reloaded service starts with an
+/// empty table. A reload re-announces and the hello-listeners re-ask (the
+/// table refills); a swap does not (see Drive).
 struct StartRoleTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -90,6 +102,37 @@ struct CancelTimer {
 
 /// The convenience for a weave that is going away politely: every timer the
 /// sender started — requester-addressed and role-addressed alike — dies.
+///
+/// TOTAL AND NEUTRAL, CHOSEN (decided 2026-07-27, and pinned as chosen in the
+/// suite so the choice cannot erode into an accident). It would be easy to
+/// make this shape spare role timers on the theory that a role beat was
+/// "meant" to outlive its starter. It deliberately does not: succession here
+/// is AUTHORED, never system-guessed, and a shape that guessed would be
+/// deciding, on the weave's behalf, which of its beats were bequests. The
+/// mechanism stays a plain "everything I started"; the policy lives with the
+/// author, taught here:
+///
+///   - being REPLACED? Leave your role beats standing. They are addressed to
+///     the slot, not to you, and your successor inherits them without asking
+///     — cancelling them would make the swap a gap in the pulse for no
+///     reason. `zen.PrepareShutdown` is exactly the signal that a replacement
+///     is coming, so it is the right place to make this decision knowingly.
+///   - RETIRING with no heir? Cancel. Nothing is coming to claim the beat.
+///
+/// The honest consequence of the retiring-weave case done wrong: an unclaimed
+/// role beat is a LEAKED TIMER. It keeps firing into an unheld role, each
+/// delivery a clean refusal (the same bounded floor a dead requester's timer
+/// rides, with the consumer obligation covering anyone who does hold the role
+/// later). Sad, benign — and NOT collectable, which is the part worth being
+/// clear-eyed about: a role beat is never provably garbage, because being
+/// reachable by a future holder is the whole point of it. Only a current
+/// holder can declare one unwanted, by re-asking to take ownership and then
+/// cancelling.
+///
+/// Forward: when the steward speaks about shutdown (the lifecycle session,
+/// R2), its notice must distinguish REPLACEMENT from RETIREMENT — that is
+/// what turns this convention from a taught default into a mechanically
+/// informed one.
 struct CancelAllMyTimers {
     ZEN_SHAPE(CancelAllMyTimers, 1);
 };
@@ -105,20 +148,53 @@ struct TimerFired {
 /// The service's hello: published once per incarnation, on its first beat.
 /// Weaves that need standing time listen for it and start their timers when
 /// they hear it — the first breath of a system whose host pumps nobody. (A
-/// weave loaded LATER than the wind never hears it; it either receives an
-/// already-standing role beat, or starts its timers on its own first message
-/// — the swapped-in skin does exactly that.)
+/// weave loaded LATER than the wind never hears it — the hello was spent
+/// before it existed. Two things save a latecomer: an already-standing role
+/// beat addressed to a role it now holds (the swapped-in skin), or any other
+/// first message it can start its timers on. A latecomer with neither is
+/// DEAF, permanently: measured on a `snake-clock` loaded after the wind,
+/// whose tick count stays 0 forever. Load time-hungry weaves before the wind,
+/// or give them a role that is already beating. A birth notice from the
+/// steward is the named fix — the lifecycle session, R2.)
 struct TimerReady {
     ZEN_SHAPE(TimerReady, 1);
 };
 
 /// The service's own beat (the named addition — see the header comment). The
 /// host sends the FIRST one (the wind); the service re-sends it to its own
-/// ROLE forever after — so the chain itself survives the service being
-/// replaced (the successor inherits the live beat with the role), and a
-/// service loaded without the role simply does not beat: the role is the
-/// contract. Empty by design: it carries no question, no answer, and no
-/// authority — a spurious one costs one extra beat and nothing else.
+/// ROLE forever after, and a service loaded without the role simply does not
+/// beat: the role is the contract.
+///
+/// WHAT THE CHAIN SURVIVES — measured, not assumed (the trust-gate audit of
+/// 2026-07-26; probes A/B/C in tests/test_audit_probes.cpp):
+///   - `zen.ReloadWeave` of the service: the chain LIVES. Reload rebinds the
+///     new library behind the SAME adapter and WeaveId and never vacates the
+///     role, so the in-flight Drive still finds its sender at delivery. The
+///     fresh incarnation re-announces, hello-listeners re-ask, and the
+///     standing timers refill. Same-shape succession works today, here.
+///   - `zen.SwapWeave` of the service: the chain DIES. The incumbent's
+///     re-wind is already queued when the incumbent is unregistered, and a
+///     gated send is authorized by looking its SENDER up at delivery — so
+///     the beat is refused CapabilityDenied. (Sender-death, not vacancy: by
+///     delivery time the successor already holds the role.) The successor
+///     never receives a first message, so it never announces, nobody
+///     re-asks, and it never beats. The bus drains — which in the playable
+///     host is exactly the "time is gone, exiting." path.
+///   - a fresh root wind re-lights a dead chain (hello again, beats resume).
+///     Today that is the only re-ignition there is.
+/// Role addressing is what makes reload-succession possible at all, and it
+/// is the hook any future re-ignition would use — but "the successor inherits
+/// the live beat" is not true of a swap today. Re-lighting liveness after a
+/// swap (a steward that re-winds, a Drive serial, role-sends that outlive
+/// their sender) is a deliberately open Loom design question — the lifecycle
+/// session (R2) that also brings the steward's shutdown notice.
+///
+/// Empty by design: it carries no question, no answer, and no authority, so a
+/// spurious Drive can change nothing about the lattice. It is not free,
+/// though: a second wind seeds a SECOND chain, and that chain is permanent
+/// and conserved — both re-wind themselves forever and nothing coalesces
+/// them. Beat throughput stays nap-bound rather than doubling, so the cost
+/// shows up as a halved per-chain cadence, not as a faster clock.
 struct Drive {
     ZEN_SHAPE(Drive, 1);
 };

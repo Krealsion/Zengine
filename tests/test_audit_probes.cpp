@@ -1,11 +1,29 @@
-// The Trust-Gate liveness probes (audit branch; Stage 5 of the audit phase).
+// The Trust-Gate liveness probes (Stage 5 of the audit phase, 2026-07-26;
+// ratified onto main by the R1 repair phase, 2026-07-27).
+//
+// THIS SUITE'S STATUS IS DELIBERATE, and a reader should know which kind of
+// test file this is. It does NOT pin behavior anyone designed and wants kept.
+// It pins what the substrate MEASURABLY DOES today, including where that is
+// unwanted: probe A asserts that swapping the timer service KILLS the beat
+// chain. That is a description, not an endorsement — and it is here on main on
+// purpose, for two reasons. First, an undocumented behavior that a repair
+// phase corrected the prose about should not be free to drift again silently;
+// today these cases are the guard on the corrected comments. Second, when the
+// open lifecycle question is answered (R2 — re-lighting liveness after a swap,
+// a steward that re-winds, a Drive serial), probe A is exactly the case that
+// FLIPS: it becomes the guard on the new promise. A red probe A after an R2
+// change is expected and good; rewrite it to the new truth rather than
+// deleting it, and keep the measured half (which refusal, whose sender) —
+// that is the part the comments now depend on.
 //
 // These settle, by execution, the questions the lane's prose left open — above
-// all the timer vocabulary's central survival claim ("the service re-sends
-// [Drive] to its own ROLE forever after — so the chain itself survives the
-// service being replaced"). Each probe pins what the substrate ACTUALLY does
-// at the audited tips; where a probe contradicts a comment, the comment is the
-// thing under judgment, not the probe.
+// all the timer vocabulary's central survival claim, as it read at the audited
+// tips: "the service re-sends [Drive] to its own ROLE forever after — so the
+// chain itself survives the service being replaced". Measured FALSE for a
+// swap, TRUE for a reload; the vocabulary now says so (see Drive in
+// timer/vocabulary.hpp, corrected in R1). Each probe pins what the substrate
+// ACTUALLY does; where a probe contradicts a comment, the comment is the thing
+// under judgment, not the probe.
 //
 // Probe map:
 //   A. SwapWeave on the live timer role  — does the beat chain survive? Which
