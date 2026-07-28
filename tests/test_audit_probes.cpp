@@ -372,8 +372,14 @@ TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTI
     const std::int64_t beats_before = r.poke_int(old_service, old_service, "beats");
     CHECK(beats_before > 0);
 
-    // The swap. Hard on purpose (the service declares no PrepareShutdown, so
-    // graceful would auto-degrade to this anyway).
+    // The swap. HARD on purpose, and since R2B-0 that is a real choice rather
+    // than the only available one: the service now declares zen.PrepareShutdown,
+    // so a graceful swap would run the letter ceremony and the successor would
+    // inherit the standing schedule. This probe deliberately measures the
+    // letterless path — what the SUBSTRATE does to an in-flight beat when its
+    // sender goes away — which is exactly the fact the audit recorded and which
+    // no amount of authored inheritance changes. (The graceful path, and the
+    // continuity it buys, is the timer suite's.)
     const std::uint64_t corr = r.command(loom::SwapWeave{kTimerRole, "zengine-timer", TIMER_SO,
                                                          /*graceful=*/false});
     r.pump_beats(40);

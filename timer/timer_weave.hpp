@@ -96,6 +96,78 @@
 //     standing timers went with the old instance and the notice is what gets
 //     them re-asked.
 //
+// ---------------------------------------------------------------------------
+// R2B-0 — WHAT SURVIVES, AND WHO DECIDED. Death is universal; inheritance is
+// AUTHORED. The Loom hands this weave the replacement moment (zen.PrepareShutdown)
+// and carries the envelope (zen.Bequest / zen.ClaimBequest, weave/lifecycle.hpp);
+// everything about WHAT crosses is this package's own decision, said in this
+// package's own words.
+//
+// THE PREDECESSOR, asked to write. It reads its clock ONCE, converts every
+// active entry's absolute due time into a REMAINING DURATION, and hands that
+// over as one bequest item. It fires nothing, cancels nothing and advances
+// nothing: being asked to write a letter is not an event in a schedule's life,
+// and a predecessor that mutated itself while describing itself would be
+// describing something else.
+//
+// THE SUCCESSOR, deciding what it inherited. Ordering is the whole of it:
+//
+//     zen.Activated -> accept a lineage
+//                   -> ask the steward, by role, for a letter (ClaimBequest)
+//                   -> seed Drive serial 0                 [BOOTSTRAP]
+//     bootstrap beat 0 -> nothing is known yet; seed the next beat
+//     the answer (Bequest | Refused) -> restore or start fresh
+//                   -> replay whatever arrived while we were deciding
+//                   -> publish TimerReady
+//                   -> the chain continues as ordinary beats
+//     bootstrap beat 1 with no answer -> there was no steward; start fresh,
+//                   the same way, and continue
+//
+// TimerReady MAY NOT BE PUBLISHED BEFORE THAT DECISION, and the reason is
+// mechanical rather than aesthetic: TimerReady is what makes every standing
+// consumer re-ask, and a consumer that re-asks before restoration finds nothing
+// to preserve and re-anchors its schedule — silently converting "two seconds
+// left" into "five seconds from now". Announcing early does not merely look
+// untidy; it destroys the very progress the letter carried.
+//
+// WHY THE BOOTSTRAP IS EXACTLY TWO BEATS, derived from the bus's own ordering
+// rather than tuned. Dispatch is single-threaded FIFO and every send enqueues at
+// the TAIL, so a graceful replacement's queue reads (Q1 first):
+//
+//   Q1 zen.Activated  -> successor      (the door sends this BEFORE it answers
+//   Q2 zen.Result     -> steward         the operator, so the activation is
+//   Q3 ClaimBequest   -> steward         already queued when "loaded" is heard)
+//   Q4 Drive serial 0 -> successor      | Q3/Q4 are enqueued by Q1's handler
+//   Q5 Bequest        -> successor      | Q5 by Q3's; the steward learned the
+//   Q6 Drive serial 1 -> successor      | heir's id at Q2, one turn earlier
+//
+// The claim's answer therefore lands at Q5 — AFTER the first beat and BEFORE the
+// second. One beat would resolve fresh while the letter was still in flight;
+// three would cost a queue turn that can never carry news. Two is the count the
+// ordering produces, and it is a count of QUEUE TURNS, not milliseconds: there
+// is no wall-clock timeout, no spin, and no permanent dependency on a steward
+// existing at all (a direct control-door load with no Manager simply reaches
+// beat 1 unanswered and starts fresh). A bootstrap beat naps for nothing and
+// fires nothing — it exists to spend a turn — but it IS a beat of the one chain
+// and is counted as one.
+//
+// ONCE RESOLVED, ALWAYS RESOLVED. A late, duplicated or forged letter arriving
+// after the decision changes nothing. The consumer obligation here is
+// correlation plus one-shot; the stamped-sender half is honestly WAIVED for the
+// same reason snake's heir waives it — an heir reaches the steward BY ROLE
+// precisely because it cannot know the steward's id, so it cannot pre-bind the
+// answer's sender. In-process peers are trusted-by-declaration at this tier
+// (B1 ground); that is named here, not hidden.
+//
+// WHAT RELOAD DOES *NOT* DO, said before anyone assumes otherwise. Reload-in-
+// place does not run the graceful ceremony at all — no PrepareShutdown, no
+// letter — and the schedule table is deliberately not part of TimerState, so a
+// reload starts with an empty table exactly as a replacement does. For
+// continuity purposes RELOAD IS A FRESH SERVICE: the default order falls back to
+// restart, a required preservation refuses, and nothing here claims otherwise.
+// Moving schedule progress into reload-transplanted state is a possible future
+// design and is recorded as one, never as an accidental promise.
+//
 // CLEANUP, honestly. "Cancel a dead requester's timers" wants the service to
 // SEE death, and a weave cannot: the bus shows a sender no delivery outcomes
 // and broadcasts no unloads. So V1 tells the truth instead of pretending:
@@ -115,12 +187,16 @@
 #include "activation/activation.hpp"
 
 #include <zen/weave.hpp>
+#include <zen/weave/lifecycle.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -145,32 +221,52 @@ inline constexpr bool can_advance_serial(std::int64_t serial) {
     return serial >= 0 && serial < std::numeric_limits<std::int64_t>::max();
 }
 
-/// Four honest counters, poke-inspectable like any state: beats lived,
-/// firings delivered, timers currently standing, and asks dropped for having
-/// no one to answer (a root-sent StartTimer has no requester to fire at).
+/// Six honest counters, poke-inspectable like any state: beats lived, firings
+/// delivered, timers currently standing, asks dropped for having no one to
+/// answer (a root-sent StartTimer has no requester to fire at), operations
+/// dropped for arriving during bootstrap with the hold already full, and
+/// entries actually restored from a predecessor's letter.
+///
+/// `inherited` is the one number that says what crossed death, and it is here
+/// rather than in a log because "what actually survived" is a question a
+/// console, a suite, or a curious operator must be able to ask a running
+/// service. It counts entries adopted at the LAST bootstrap, not a running
+/// total: a service that started fresh reads 0 and means it.
+///
+/// v2: `deferred_dropped` and `inherited` joined the shape. `zen.TimerState` v1
+/// meant the four counters and still does, forever — the immutable-published-
+/// schema rule, paid as usual. (Crossing from a v1 artifact to this one is
+/// REPLACEMENT, not reload, for this reason and for the accept-set change; see
+/// the vocabulary header.)
 struct TimerState {
     std::int64_t beats = 0;
     std::int64_t fired = 0;
     std::int64_t active = 0;
     std::int64_t dropped = 0;
+    std::int64_t deferred_dropped = 0;
+    std::int64_t inherited = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(TimerState, 1, ZEN_FIELD(beats), ZEN_FIELD(fired), ZEN_FIELD(active),
-              ZEN_FIELD(dropped));
+    ZEN_SHAPE(TimerState, 2, ZEN_FIELD(beats), ZEN_FIELD(fired), ZEN_FIELD(active),
+              ZEN_FIELD(dropped), ZEN_FIELD(deferred_dropped), ZEN_FIELD(inherited));
 };
 
 template <class Clock>
 class TimerServiceT
-    : public loom::WeaveBase<TimerServiceT<Clock>, TimerState,
-                             loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer,
-                                          CancelTimer, CancelAllMyTimers>,
-                             loom::Emit<TimerFired, TimerReady, Drive>> {
+    : public loom::WeaveBase<
+          TimerServiceT<Clock>, TimerState,
+          loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer, EnsureTimer,
+                       EnsureRoleTimer, CancelTimer, CancelAllMyTimers, loom::PrepareShutdown,
+                       loom::Bequest, loom::Refused>,
+          loom::Emit<TimerFired, TimerReady, Drive, TimerResolution, loom::Bequest,
+                     loom::ClaimBequest>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
 
     /// The Loom's control door says this incarnation is committed and live.
     /// That is the whole of what it says — so this is where the service decides
-    /// what to DO about it, which is: become available, and author one chain.
+    /// what to DO about it, which since R2B-0 is: find out what it inherited,
+    /// and only then become available.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail.sender(), a.sequence)) {
             return; // invalid, duplicate or replayed: no notice, no chain, nothing
@@ -181,7 +277,17 @@ public:
         // incarnation's is empty, but activation is not state migration and has
         // no business clearing one that legitimately holds entries.
         this->state_.active = static_cast<std::int64_t>(entries_.size());
-        mail.publish(TimerReady{});
+        // The bootstrap opens here and closes at the continuity decision. No
+        // TimerReady yet — see the header: announcing before restoring is what
+        // makes a consumer re-anchor the very schedule the letter carried.
+        bootstrap_ = Bootstrap::Awaiting;
+        bootstrap_beats_ = 0;
+        claim_open_ = true;
+        this->state_.inherited = 0;
+        // Anything already held stays held: an operation that arrived before the
+        // activation was still sent after the fork point, and it deserves to
+        // land after the inheritance rather than under it.
+        mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kTimerRole}, kClaimCorrelation);
         seed_chain(mail);
     }
 
@@ -195,46 +301,98 @@ public:
             // loaded weave — and every later beat must carry it.
             chain_sender_ = mail.sender();
         }
+        if (bootstrap_ == Bootstrap::Awaiting) {
+            // A bootstrap beat spends a queue turn and nothing else: no nap, no
+            // firing, no schedule touched. It is a real beat of the one chain
+            // and is counted as one.
+            ++this->state_.beats;
+            if (++bootstrap_beats_ >= kBootstrapBeats) {
+                resolve_bootstrap(mail, /*letter=*/nullptr); // nobody answered: fresh
+            }
+            advance_chain(mail);
+            return;
+        }
         std::int64_t now = clock_.now_ms();
         clock_.nap_ms(nap_until_next(now));
         now = clock_.now_ms();
         fire_due(now, mail);
         ++this->state_.beats;
-        // Guard BEFORE the arithmetic, never after: a wrapped serial would
-        // re-issue one this chain has already spent, and a duplicated serial is
-        // indistinguishable from a replay. At the boundary the chain simply
-        // ends — the beat it is in was real and did its work.
-        if (!can_advance_serial(expected_serial_)) {
-            return;
-        }
-        ++expected_serial_;
-        // Seeded BY ROLE because a loaded weave cannot address itself; ownership
-        // is carried by the key and the serial, not by the addressing.
-        mail.send_to_role(kTimerRole,
-                          Drive{activation_.sender_text(), activation_.sequence(),
-                                expected_serial_});
+        advance_chain(mail);
     }
 
     void on(const StartTimer& s, loom::Mail& mail) {
-        if (!mail.sender().valid()) {
-            // No weave asked, so there is no one to fire at. Dropped, counted.
-            ++this->state_.dropped;
-            return;
-        }
-        upsert(s.id, /*role=*/"", mail.sender(), s.delay_ms, s.repeat);
+        schedule(mail, Op{Op::Kind::Start, mail.sender(), s.id, s.delay_ms, s.repeat, {}, {}, {}});
     }
 
     void on(const StartRoleTimer& s, loom::Mail& mail) {
-        if (s.role.empty()) {
-            ++this->state_.dropped; // a role beat with no role is no ask at all
-            return;
-        }
-        upsert(s.id, s.role, mail.sender(), s.delay_ms, s.repeat);
+        schedule(mail, Op{Op::Kind::StartRole, mail.sender(), s.id, s.delay_ms, s.repeat, s.role,
+                          {}, {}});
     }
 
-    void on(const CancelTimer& c, loom::Mail& mail) { remove_mine(mail.sender(), &c.id); }
+    /// The ordered form: a preference, a fallback, and a receipt.
+    void on(const EnsureTimer& e, loom::Mail& mail) {
+        schedule(mail, Op{Op::Kind::Ensure, mail.sender(), e.id, e.delay_ms, e.repeat, {},
+                          e.preferred, e.fallback});
+    }
 
-    void on(const CancelAllMyTimers&, loom::Mail& mail) { remove_mine(mail.sender(), nullptr); }
+    void on(const EnsureRoleTimer& e, loom::Mail& mail) {
+        schedule(mail, Op{Op::Kind::EnsureRole, mail.sender(), e.id, e.delay_ms, e.repeat, e.role,
+                          e.preferred, e.fallback});
+    }
+
+    void on(const CancelTimer& c, loom::Mail& mail) {
+        schedule(mail, Op{Op::Kind::Cancel, mail.sender(), c.id, 0, false, {}, {}, {}});
+    }
+
+    void on(const CancelAllMyTimers&, loom::Mail& mail) {
+        schedule(mail, Op{Op::Kind::CancelAll, mail.sender(), {}, 0, false, {}, {}, {}});
+    }
+
+    /// "You are being replaced. Say what you want your heir to know."
+    ///
+    /// This service says the one thing a successor cannot reconstruct by being
+    /// asked again: HOW FAR EACH SCHEDULE HAS GOT. Intent comes back on its own
+    /// (every consumer re-declares what it wants); progress does not.
+    ///
+    /// The clock is read ONCE, so every entry in one letter is described
+    /// against one instant — two reads would let a slow letter drift against
+    /// itself. Nothing is fired, cancelled or advanced: being asked to describe
+    /// a schedule is not an event in that schedule's life. The answer goes to
+    /// the STAMPED SENDER (the steward that asked) echoing the correlation;
+    /// PrepareShutdown arrives via send, so reply_to is deliberately unset.
+    void on(const loom::PrepareShutdown&, loom::Mail& mail) {
+        const std::int64_t now = clock_.now_ms();
+        TimerHandoff handoff;
+        for (const Entry& e : entries_) {
+            if (handoff.entries.size() >= kMaxHandoffEntries) {
+                break; // the published bound, from the writing side
+            }
+            handoff.entries.push_back(TimerHandoffEntry{std::to_string(e.requester.value), e.id,
+                                                        e.role, e.delay_ms, e.repeat,
+                                                        remaining_from(e.next_due, now)});
+        }
+        loom::Bequest letter;
+        letter.role = kTimerRole;
+        letter.items.push_back(loom::bequeath_item(handoff));
+        mail.send(mail.sender(), letter, mail.correlation());
+    }
+
+    /// The steward's answer to our claim: a letter.
+    void on(const loom::Bequest& letter, loom::Mail& mail) {
+        if (!answers_our_claim(mail)) {
+            return; // unsolicited, stale, or arriving after the decision was made
+        }
+        resolve_bootstrap(mail, &letter);
+    }
+
+    /// The steward's other answer: "no bequest is held for you." A real answer,
+    /// and the fastest honest way to a fresh start.
+    void on(const loom::Refused&, loom::Mail& mail) {
+        if (!answers_our_claim(mail)) {
+            return;
+        }
+        resolve_bootstrap(mail, /*letter=*/nullptr);
+    }
 
     Clock& clock() { return clock_; }
 
@@ -250,6 +408,39 @@ private:
         std::int64_t next_due = 0;
         bool spent = false;
     };
+
+    /// ONE internal spelling for every schedule operation, whatever shape
+    /// carried it and whenever it is performed.
+    ///
+    /// That single representation is the point rather than a convenience: a
+    /// held-and-replayed operation goes through EXACTLY the code a live one
+    /// does, so "an operation that waited out the bootstrap means the same
+    /// thing" is structural instead of a claim two code paths have to keep
+    /// agreeing on.
+    struct Op {
+        enum class Kind { Start, StartRole, Ensure, EnsureRole, Cancel, CancelAll };
+        Kind kind = Kind::Start;
+        loom::WeaveId sender{};
+        std::string id;
+        std::int64_t delay_ms = 0;
+        bool repeat = false;
+        std::string role;
+        std::string preferred;
+        std::string fallback;
+    };
+
+    /// Where this incarnation is in deciding what it inherited. It begins
+    /// AWAITING at construction — not at activation — so an operation that
+    /// arrives before the activation is delivered is held too. Such an
+    /// operation was still sent after the fork point, and the phase's rule is
+    /// that a fresh request beats inherited state for the same key; applying it
+    /// early would let the letter overwrite it.
+    enum class Bootstrap { Awaiting, Resolved };
+
+    /// The claim's correlation. This service makes exactly one claim per
+    /// activation, so one constant distinguishes that conversation from
+    /// everything else it will ever be told.
+    static constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 
     /// Is this beat the one this chain is waiting for? All four terms, and any
     /// one of them failing means the Drive is ignored entirely.
@@ -286,6 +477,277 @@ private:
     void seed_chain(loom::Mail& mail) {
         mail.send_to_role(kTimerRole,
                           Drive{activation_.sender_text(), activation_.sequence(), 0});
+    }
+
+    /// Seed exactly this beat's one successor.
+    ///
+    /// Guard BEFORE the arithmetic, never after: a wrapped serial would re-issue
+    /// one this chain has already spent, and a duplicated serial is
+    /// indistinguishable from a replay. At the boundary the chain simply ends —
+    /// the beat it is in was real and did its work.
+    void advance_chain(loom::Mail& mail) {
+        if (!can_advance_serial(expected_serial_)) {
+            return;
+        }
+        ++expected_serial_;
+        // Seeded BY ROLE because a loaded weave cannot address itself; ownership
+        // is carried by the key and the serial, not by the addressing.
+        mail.send_to_role(kTimerRole, Drive{activation_.sender_text(), activation_.sequence(),
+                                            expected_serial_});
+    }
+
+    // ---- the bootstrap: deciding what this incarnation inherited -------------
+
+    /// Does this standard answer answer OUR claim? Correlation plus one-shot;
+    /// `claim_open_` closes at the decision, which is what makes a late,
+    /// duplicated or forged reply unable to replace a resolved bootstrap.
+    bool answers_our_claim(const loom::Mail& mail) const {
+        return claim_open_ && mail.correlation() == kClaimCorrelation;
+    }
+
+    /// The decision, and the only place it is made. Restore (or don't), then
+    /// apply everything that arrived while we were deciding, and only then say
+    /// the service is available.
+    void resolve_bootstrap(loom::Mail& mail, const loom::Bequest* letter) {
+        bootstrap_ = Bootstrap::Resolved;
+        claim_open_ = false;
+        if (letter != nullptr) {
+            restore_from(*letter);
+        }
+        replay_deferred(mail);
+        this->state_.active = static_cast<std::int64_t>(entries_.size());
+        mail.publish(TimerReady{});
+    }
+
+    /// Read the letter. Every item is re-admitted through the real gate before a
+    /// field is touched (loom::claim_item), so an item that is malformed,
+    /// truncated, or simply somebody else's shape is a clean nothing rather than
+    /// a misread — and a handoff written to a DIFFERENT VERSION of the shape is
+    /// exactly that case, answered by the one validator instead of by a label
+    /// this weave chose to trust.
+    void restore_from(const loom::Bequest& letter) {
+        for (const loom::Bytes& item : letter.items) {
+            if (const std::optional<TimerHandoff> handoff = loom::claim_item<TimerHandoff>(item)) {
+                adopt(*handoff);
+                return; // one Timer handoff per letter; the rest is not ours
+            }
+        }
+    }
+
+    /// A LETTER IS ADOPTED WHOLE OR NOT AT ALL, and that is the single explicit
+    /// rule this side of the gap runs on.
+    ///
+    /// Over the published bound, or carrying one entry whose requester is not a
+    /// lossless decimal weave id, and nothing is taken. The reasoning is the
+    /// gate's own: an honest predecessor cannot produce either, so such a letter
+    /// is untrusted input rather than a large truth — and adopting the half of
+    /// an untrusted letter that happens to parse is worse than starting fresh,
+    /// because it produces a schedule nobody authored.
+    void adopt(const TimerHandoff& handoff) {
+        if (handoff.entries.size() > kMaxHandoffEntries) {
+            return;
+        }
+        const std::int64_t now = clock_.now_ms();
+        std::vector<Entry> restored;
+        restored.reserve(handoff.entries.size());
+        for (const TimerHandoffEntry& t : handoff.entries) {
+            const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
+            if (!who) {
+                return; // malformed: adopt nothing
+            }
+            const std::int64_t remaining = std::max<std::int64_t>(t.remaining_ms, 0);
+            restored.push_back(Entry{t.id, t.role, *who, clamp_delay(t.delay_ms, t.repeat),
+                                     t.repeat, add_clamped(now, remaining), false});
+        }
+        this->state_.inherited = static_cast<std::int64_t>(restored.size());
+        for (Entry& e : restored) {
+            install(std::move(e));
+        }
+    }
+
+    /// Put a restored entry in the table under its own key — replacing rather
+    /// than doubling, exactly as an upsert would.
+    void install(Entry e) {
+        if (Entry* existing = find_entry(e.id, e.role, e.requester)) {
+            *existing = std::move(e);
+            return;
+        }
+        entries_.push_back(std::move(e));
+    }
+
+    /// Every schedule operation, whatever shape carried it, enters here: hold it
+    /// if the continuity decision is still pending, otherwise perform it.
+    void schedule(loom::Mail& mail, Op op) {
+        if (defer(mail, op)) {
+            return;
+        }
+        apply(mail, op);
+    }
+
+    /// Hold an operation while the continuity decision is pending. Returns true
+    /// iff the caller must stop here (held, or refused for overflow).
+    ///
+    /// Overflow is VISIBLE both ways it can be: counted on `deferred_dropped`
+    /// for anyone inspecting the service, and answered with a `refused` receipt
+    /// for an ORDERED request, which by definition has somewhere to hear one.
+    bool defer(loom::Mail& mail, const Op& op) {
+        if (bootstrap_ == Bootstrap::Resolved) {
+            return false;
+        }
+        if (deferred_.size() >= kMaxDeferredOps) {
+            ++this->state_.deferred_dropped;
+            if (ordered(op.kind) && op.sender.valid()) {
+                answer_order(mail, op, kResolutionRefused,
+                             "the timer service is still restoring its schedule and its bounded "
+                             "hold of pending operations is full; no schedule was created or "
+                             "changed");
+            }
+            return true;
+        }
+        deferred_.push_back(op);
+        return true;
+    }
+
+    /// Everything that waited, in ARRIVAL ORDER, after the inheritance and
+    /// before the availability notice. Arrival order is what makes a later
+    /// request beat an earlier one for the same key, and running it after the
+    /// restore is what makes any request beat inherited state.
+    void replay_deferred(loom::Mail& mail) {
+        std::vector<Op> ops;
+        ops.swap(deferred_);
+        for (const Op& op : ops) {
+            apply(mail, op);
+        }
+    }
+
+    static bool ordered(typename Op::Kind k) {
+        return k == Op::Kind::Ensure || k == Op::Kind::EnsureRole;
+    }
+
+    // ---- performing an operation --------------------------------------------
+
+    void apply(loom::Mail& mail, const Op& op) {
+        switch (op.kind) {
+        case Op::Kind::Start:
+            if (!op.sender.valid()) {
+                // No weave asked, so there is no one to fire at. Dropped, counted.
+                ++this->state_.dropped;
+                return;
+            }
+            upsert(op.id, /*role=*/"", op.sender, op.delay_ms, op.repeat);
+            return;
+        case Op::Kind::StartRole:
+            if (op.role.empty()) {
+                ++this->state_.dropped; // a role beat with no role is no ask at all
+                return;
+            }
+            upsert(op.id, op.role, op.sender, op.delay_ms, op.repeat);
+            return;
+        case Op::Kind::Ensure:
+        case Op::Kind::EnsureRole:
+            apply_ensure(mail, op);
+            return;
+        case Op::Kind::Cancel:
+            remove_mine(op.sender, &op.id);
+            return;
+        case Op::Kind::CancelAll:
+            remove_mine(op.sender, nullptr);
+            return;
+        }
+    }
+
+    /// The order model, resolved: request -> available menu -> chosen -> receipt.
+    ///
+    /// MATCHING, DEFINED ONCE AND PINNED. A standing entry matches an order when
+    /// it has the same UPSERT KEY — (requester, id) for the requester form,
+    /// (role, id) for the role form — AND the same schedule meaning: the same
+    /// repeat mode and the same clamped delay. The key is what makes it the same
+    /// timer; the meaning is what makes preserving it honest. An order that
+    /// changes the addressing mode has a different key by construction and so
+    /// finds nothing, and an order that changes the delay or the repeat mode
+    /// finds the entry but not a match — both resolve as UNAVAILABLE and go to
+    /// the fallback, because calling either of them "preserved" would be
+    /// describing a schedule nobody asked for.
+    void apply_ensure(loom::Mail& mail, const Op& op) {
+        if (!op.sender.valid()) {
+            // An order with no stamped requester has nowhere to send its
+            // receipt, and an unreported resolution is the exact thing the
+            // ordered form exists to prevent. The raw shapes remain the
+            // fire-and-forget door for a caller that truly wants no answer.
+            ++this->state_.dropped;
+            return;
+        }
+        if (op.kind == Op::Kind::EnsureRole && op.role.empty()) {
+            answer_order(mail, op, kResolutionRefused,
+                         "a role beat with no role is no ask at all; no schedule was created or "
+                         "changed");
+            return;
+        }
+        const std::optional<Continuity> preferred = continuity_from(op.preferred);
+        if (!preferred) {
+            answer_order(mail, op, kResolutionRefused,
+                         "unknown continuity preference '" + op.preferred +
+                             "'; no schedule was created or changed");
+            return;
+        }
+        const std::int64_t delay = clamp_delay(op.delay_ms, op.repeat);
+        Entry* existing = find_entry(op.id, op.role, op.sender);
+        const bool can_preserve =
+            existing != nullptr && existing->repeat == op.repeat && existing->delay_ms == delay;
+
+        Continuity choice = *preferred;
+        std::string why = "'" + op.preferred + "' was available: ";
+        if (choice == Continuity::PreserveRemaining && !can_preserve) {
+            const std::string unavailable =
+                existing == nullptr
+                    ? "'preserve_remaining' was unavailable (no matching schedule to preserve)"
+                    : "'preserve_remaining' was unavailable (the declared schedule differs from "
+                      "the standing one)";
+            if (op.fallback.empty()) {
+                answer_order(mail, op, kResolutionRefused,
+                             unavailable + " and no fallback was acceptable; no schedule was "
+                                           "created or changed");
+                return;
+            }
+            const std::optional<Continuity> fallback = continuity_from(op.fallback);
+            if (!fallback || (*fallback == Continuity::PreserveRemaining && !can_preserve)) {
+                answer_order(mail, op, kResolutionRefused,
+                             unavailable + " and the declared fallback '" + op.fallback +
+                                 "' could not be used; no schedule was created or changed");
+                return;
+            }
+            choice = *fallback;
+            why = unavailable + "; fell back to '" + op.fallback + "': ";
+        }
+        switch (choice) {
+        case Continuity::PreserveRemaining:
+            // Ownership moves exactly as an upsert moves it (a successor
+            // re-asking takes cancel rights); the ONE thing preservation does
+            // not do is re-anchor the schedule.
+            existing->requester = op.sender;
+            answer_order(mail, op, kResolutionPreserved,
+                         why + "the standing schedule kept its remaining time and was not "
+                               "re-anchored");
+            return;
+        case Continuity::RestartDelay:
+            upsert(op.id, op.role, op.sender, delay, op.repeat);
+            answer_order(mail, op, kResolutionRestarted,
+                         why + "the next firing is the declared delay from now");
+            return;
+        case Continuity::Drop:
+            erase_entry(op.id, op.role, op.sender);
+            answer_order(mail, op, kResolutionDropped,
+                         why + "no schedule is kept or created for this id");
+            return;
+        }
+    }
+
+    /// The receipt, to the stamped requester. Correlation 0: a resolution is an
+    /// ANSWER to an order, and the ordered shapes are sent, not forwarded, so
+    /// there is no asker's correlation to echo. The consumer obligation covers
+    /// it — a binding matches on the timer id it declared.
+    void answer_order(loom::Mail& mail, const Op& op, const char* resolved, std::string reason) {
+        mail.send(op.sender, TimerResolution{op.id, resolved, std::move(reason)});
     }
 
     std::int64_t nap_until_next(std::int64_t now) const {
@@ -329,29 +791,47 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    /// The one write path for asks. Requester timers key by (requester, id);
+    /// THE UPSERT KEY, in one place. Requester timers key by (requester, id);
     /// role timers by (role, id) ACROSS requesters — a successor replaces its
     /// predecessor's beat instead of doubling it, and takes cancel rights.
-    void upsert(const std::string& id, const std::string& role, loom::WeaveId requester,
-                std::int64_t delay_ms, bool repeat) {
-        delay_ms = std::max<std::int64_t>(delay_ms, 0);
-        if (repeat) {
-            delay_ms = std::max<std::int64_t>(delay_ms, 1);
-        }
-        const std::int64_t due = clock_.now_ms() + delay_ms;
+    ///
+    /// Extracted so that "matching" means exactly one thing: the ordered form's
+    /// availability question and the raw form's replace-or-insert question are
+    /// the same question, asked once.
+    Entry* find_entry(const std::string& id, const std::string& role, loom::WeaveId requester) {
         for (Entry& e : entries_) {
-            const bool same = role.empty() ? (e.role.empty() && e.requester == requester &&
-                                              e.id == id)
-                                           : (e.role == role && e.id == id);
+            const bool same = role.empty()
+                                  ? (e.role.empty() && e.requester == requester && e.id == id)
+                                  : (e.role == role && e.id == id);
             if (same) {
-                e.requester = requester;
-                e.delay_ms = delay_ms;
-                e.repeat = repeat;
-                e.next_due = due;
-                return;
+                return &e;
             }
         }
-        entries_.push_back(Entry{id, role, requester, delay_ms, repeat, due, false});
+        return nullptr;
+    }
+
+    void erase_entry(const std::string& id, const std::string& role, loom::WeaveId requester) {
+        Entry* e = find_entry(id, role, requester);
+        if (e == nullptr) {
+            return;
+        }
+        entries_.erase(entries_.begin() + (e - entries_.data()));
+        this->state_.active = static_cast<std::int64_t>(entries_.size());
+    }
+
+    /// The one write path for asks.
+    void upsert(const std::string& id, const std::string& role, loom::WeaveId requester,
+                std::int64_t delay_ms, bool repeat) {
+        const std::int64_t delay = clamp_delay(delay_ms, repeat);
+        const std::int64_t due = add_clamped(clock_.now_ms(), delay);
+        if (Entry* e = find_entry(id, role, requester)) {
+            e->requester = requester;
+            e->delay_ms = delay;
+            e->repeat = repeat;
+            e->next_due = due;
+            return;
+        }
+        entries_.push_back(Entry{id, role, requester, delay, repeat, due, false});
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
@@ -368,12 +848,70 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
+    // ---- small total arithmetic ---------------------------------------------
+
+    /// A repeating delay below 1ms is a hot spin wearing a timer's clothes; a
+    /// negative delay fires on the next beat.
+    static std::int64_t clamp_delay(std::int64_t delay_ms, bool repeat) {
+        delay_ms = std::max<std::int64_t>(delay_ms, 0);
+        return repeat ? std::max<std::int64_t>(delay_ms, 1) : delay_ms;
+    }
+
+    /// now + duration, saturating rather than wrapping. A wrapped deadline would
+    /// read as permanently overdue and fire forever.
+    static std::int64_t add_clamped(std::int64_t now, std::int64_t duration) {
+        constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
+        if (duration > 0 && now > kMax - duration) {
+            return kMax;
+        }
+        return now + duration;
+    }
+
+    /// How long until this deadline, WITHOUT UNDERFLOW. A due or overdue entry
+    /// transfers with zero remaining — it is due, and the successor should treat
+    /// it as due rather than inherit a negative number that means nothing. The
+    /// subtraction is done in unsigned arithmetic (defined, modular) so that even
+    /// an absurd clock cannot produce undefined behaviour, and the result is
+    /// saturated into the signed range the wire carries.
+    static std::int64_t remaining_from(std::int64_t next_due, std::int64_t now) {
+        if (next_due <= now) {
+            return 0;
+        }
+        const std::uint64_t diff =
+            static_cast<std::uint64_t>(next_due) - static_cast<std::uint64_t>(now);
+        constexpr std::uint64_t kMax =
+            static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
+        return static_cast<std::int64_t>(diff > kMax ? kMax : diff);
+    }
+
+    /// A weave id, off the wire, losslessly or not at all. Canonical decimal
+    /// only: no sign, no whitespace, no trailing characters.
+    static std::optional<loom::WeaveId> parse_weave_id(const std::string& text) {
+        if (text.empty()) {
+            return std::nullopt;
+        }
+        std::uint64_t value = 0;
+        const char* first = text.data();
+        const char* last = first + text.size();
+        const std::from_chars_result r = std::from_chars(first, last, value);
+        if (r.ec != std::errc{} || r.ptr != last) {
+            return std::nullopt;
+        }
+        return loom::WeaveId{value};
+    }
+
     // Per-INCARNATION, never TimerState, and that is the design rather than an
     // omission: nothing about a chain may transplant through a reload, or a new
-    // instance would inherit liveness it did not author.
+    // instance would inherit liveness it did not author. The same is true of the
+    // bootstrap: a new incarnation begins not knowing what it inherited, and
+    // finds out by asking.
     zengine::ActivationCursor activation_; ///< which activation this incarnation lives under
     std::int64_t expected_serial_ = 0;     ///< the one beat this chain will accept next
     loom::WeaveId chain_sender_{};         ///< learned from the seed; the id a beat must carry
+    Bootstrap bootstrap_ = Bootstrap::Awaiting; ///< open from construction; closed by the decision
+    std::int64_t bootstrap_beats_ = 0;          ///< beats spent waiting for the claim's answer
+    bool claim_open_ = false;                   ///< a claim is outstanding (opens at activation)
+    std::vector<Op> deferred_;                  ///< held while the decision is pending
 
     Clock clock_{};
     std::vector<Entry> entries_;
