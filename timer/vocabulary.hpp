@@ -168,11 +168,25 @@ struct TimerFired {
 /// order and the service's own succession:
 ///   - consumer loaded AFTER the Timer — its own activation makes it ask; it
 ///     needs nothing from here;
-///   - consumer loaded BEFORE the Timer — its activation-time ask refused into
-///     a vacant role, and this is what tells it to try again;
+///   - consumer loaded BEFORE the Timer — its activation-time ask went nowhere,
+///     and this is what tells it to try again. WHERE it went is worth being
+///     exact about: a loaded weave's send crosses the library seam as bytes and
+///     the host resolves the claimed schema against the bus registry BEFORE
+///     routing, so with no service present nobody accepts StartTimer /
+///     StartRoleTimer, the shape is unregistered, and the send is rejected AT
+///     THE SEAM — earlier than role resolution, with no envelope and no refusal
+///     event. The asker cannot tell, which is exactly why this notice exists;
 ///   - Timer reloaded or swapped — the new incarnation's private schedule table
 ///     is empty, and this is what gets standing consumers to refill it.
-/// Re-asking is always harmless: every ask is an upsert.
+///
+/// RE-ASKING IS CARDINALITY-IDEMPOTENT, NOT TIMING-NEUTRAL, and the difference
+/// is worth the extra words. The upsert keys guarantee a re-ask never produces
+/// a second entry or a doubled beat. They do NOT make it free: a re-ask
+/// REPLACES the schedule and RE-ANCHORS it, so the next firing is a full delay
+/// from now rather than from the original ask, and a timer reconciled mid-cycle
+/// loses the remainder of that cycle. That is the right trade for a service
+/// that may just have come back with an empty table — and it is a real cost,
+/// not a no-op.
 ///
 /// Published on the ACTIVATION, not on the first beat — a consumer should not
 /// have to wait a nap to learn the service exists. A duplicate or non-newer

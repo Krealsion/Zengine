@@ -512,11 +512,12 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
 
 TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on TimerReady") {
     // THE BUG THIS EXISTS FOR (R2A-2). These two used to share `hello_once`, so
-    // a skin whose ask refused into a vacant timer role could never retry: the
-    // hello was already spent, and every later trigger returned early from it.
-    // A skin loaded before the Timer would have been serviced by nothing,
-    // forever, on a bus that was working perfectly. Announcing is ONCE; asking
-    // is idempotent and must stay repeatable.
+    // a skin whose ask went nowhere (rejected at the library/schema seam, since
+    // with no Timer present nobody accepts StartRoleTimer and the shape is
+    // never registered) could never retry: the hello was already spent, and
+    // every later trigger returned early from it. A skin loaded before the
+    // Timer would have been serviced by nothing, forever, on a bus that was
+    // working perfectly. Announcing is ONCE; asking must stay REPEATABLE.
     loom::Switchboard bus;
     std::vector<std::string> log;
     int hellos = 0;

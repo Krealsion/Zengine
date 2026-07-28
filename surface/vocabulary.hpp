@@ -87,10 +87,11 @@ inline constexpr const char* kSlotScore = "score";
 
 /// The Skin's heartbeat, asked of the Timer package on its own ACTIVATION —
 /// and asked AGAIN on TimerReady, because a skin loaded before any timer
-/// service exists asks into a vacant role and must be able to retry (R2A-2:
-/// announcing is once, asking is idempotent, and they are deliberately not the
-/// same call any more). A repeating role-addressed timer. Role-addressed is
-/// the load-bearing half —
+/// service exists sends an ask that goes nowhere (rejected at the library/
+/// schema seam — see TimerReady in timer/vocabulary.hpp) and must be able to
+/// retry: announcing is ONCE, asking is REPEATABLE, and they are deliberately
+/// not the same call any more. A repeating role-addressed timer. Role-addressed
+/// is the load-bearing half —
 /// the beat belongs to kSkinRole, so a swapped-in successor inherits it
 /// without asking (on a dead-quiet bus a fresh window-owning skin would
 /// otherwise never get its queue serviced — the exact wedge the old
