@@ -35,6 +35,7 @@
 #include "timer/vocabulary.hpp"
 
 #include "input/vocabulary.hpp"
+#include "probe_vocabulary.hpp"
 #include "snake/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -42,7 +43,9 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -90,6 +93,7 @@ using FakeService = TimerServiceT<FakeClock>;
 struct Heard {
     std::vector<std::string> fired;     ///< TimerFired ids, in arrival order
     std::vector<std::int64_t> fired_at; ///< virtual now at each arrival
+    std::vector<TimerResolution> resolutions; ///< receipts, in arrival order
     std::int64_t ready = 0;             ///< TimerReady hellos
     const FakeHooks* hooks = nullptr;
     loom::Switchboard* bus = nullptr;
@@ -111,11 +115,14 @@ struct EarState {
 /// the honest API, or the pin would be testing the grant model rather than the
 /// service's ownership check. An ordinary weave really can emit a Drive here;
 /// what it cannot do is make one count.
-class Ear : public loom::WeaveBase<Ear, EarState, loom::Accept<TimerFired, TimerReady>,
-                                   loom::Emit<StartTimer, StartRoleTimer, CancelTimer,
-                                              CancelAllMyTimers, Drive>> {
+class Ear
+    : public loom::WeaveBase<Ear, EarState,
+                             loom::Accept<TimerFired, TimerReady, TimerResolution>,
+                             loom::Emit<StartTimer, StartRoleTimer, EnsureTimer, EnsureRoleTimer,
+                                        CancelTimer, CancelAllMyTimers, Drive>> {
 public:
     explicit Ear(Heard& heard) : heard_(&heard) {}
+    void on(const TimerResolution& t, loom::Mail&) { heard_->resolutions.push_back(t); }
     void on(const TimerFired& f, loom::Mail&) {
         ++state_.count;
         heard_->fired.push_back(f.id);
@@ -156,16 +163,94 @@ struct DoorState {
 class Door : public loom::WeaveBase<Door, DoorState, loom::Accept<>,
                                     loom::Emit<loom::Activated>> {};
 
+/// A letter written to a DIFFERENT VERSION of the handoff shape.
+///
+/// Hand-written registration so the wire name is `TimerHandoff` with version 2
+/// — the whole point is that it is the same NAME and a different VERSION, which
+/// is the case a label-trusting reader would wave through and the gate does not.
+/// No honest predecessor in this tree can produce one, so the test forges it.
+struct HandoffV2 {
+    std::vector<TimerHandoffEntry> entries;
+    using ZenSelf = HandoffV2;
+    static constexpr const char* zen_name = "TimerHandoff";
+    static constexpr std::uint32_t zen_version = 2;
+    static auto zen_fields() { return std::make_tuple(ZEN_FIELD(entries)); }
+};
+
+/// A stand-in steward: holds `zen.manager`, answers a claim however the test
+/// tells it to, and keeps whatever letter it is handed.
+///
+/// It exists so the tier-2 pins can drive BOTH ends of the handoff without a
+/// kernel — and, more usefully, so they can drive the ends a real steward never
+/// would: a silence that never answers, a letter written to the wrong version, a
+/// letter carrying more entries than the published bound. Those are the frames
+/// an honest predecessor cannot produce, so a test that only used the honest
+/// path would be pinning nothing.
+struct Letters {
+    enum class Answer { Letter, Refuse, Silence };
+    Answer answer = Answer::Refuse;
+    std::vector<loom::Bytes> items; ///< what a Letter answer hands over
+    std::int64_t claims = 0;        ///< how many claims arrived
+    std::vector<loom::Bytes> received; ///< letters the steward was given
+    std::uint64_t last_claim_corr = 0;
+};
+
+struct StewardState {
+    std::int64_t claims = 0;
+    ZEN_SHAPE(StewardState, 1, ZEN_FIELD(claims));
+};
+
+class FakeSteward
+    : public loom::WeaveBase<FakeSteward, StewardState,
+                             loom::Accept<loom::ClaimBequest, loom::Bequest>,
+                             loom::Emit<loom::PrepareShutdown, loom::Bequest, loom::Refused>> {
+public:
+    explicit FakeSteward(Letters& box) : box_(&box) {}
+
+    void on(const loom::ClaimBequest& c, loom::Mail& mail) {
+        ++state_.claims;
+        ++box_->claims;
+        box_->last_claim_corr = mail.correlation();
+        switch (box_->answer) {
+        case Letters::Answer::Silence:
+            return; // the steward that never speaks: the bootstrap must not hang
+        case Letters::Answer::Refuse:
+            mail.send(mail.sender(), loom::Refused{"no bequest is held for you"},
+                      mail.correlation());
+            return;
+        case Letters::Answer::Letter:
+            loom::Bequest b;
+            b.role = c.role;
+            b.items = box_->items;
+            mail.send(mail.sender(), b, mail.correlation());
+            return;
+        }
+    }
+
+    /// The predecessor's answer to PrepareShutdown lands here.
+    void on(const loom::Bequest& letter, loom::Mail&) {
+        for (const loom::Bytes& item : letter.items) {
+            box_->received.push_back(item);
+        }
+    }
+
+private:
+    Letters* box_;
+};
+
 /// The tier-2 world: a real bus, the service on a fake clock, one ear, and a
 /// stand-in door to activate from.
 struct FakeRig {
     loom::Switchboard bus;
     FakeHooks hooks;
     Heard heard;
+    Letters letters;
+    std::vector<std::string> tape; ///< delivered schema names, in order
     loom::WeaveId service{};
     loom::WeaveId ear{};
     loom::WeaveId door{};
     loom::WeaveId other_door{}; ///< a SECOND lifecycle operator: a different lineage
+    loom::WeaveId steward{};    ///< mounted only where a test wants one
     std::int64_t next_sequence = 1;
 
     FakeRig() {
@@ -177,6 +262,79 @@ struct FakeRig {
         ear = loom::mount<Ear>(bus, heard);
         door = loom::mount<Door>(bus);
         other_door = loom::mount<Door>(bus);
+        bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            tape.push_back(ev.schema_name);
+            if (ev.schema_name == "StartTimer") {
+                ask_now = hooks.now; // the instant a schedule was anchored
+            }
+            if (ev.schema_name == loom::PrepareShutdown::zen_name) {
+                // The instant the predecessor reads its clock. Nothing naps
+                // inside that handler, so this IS the letter's `now`.
+                letter_now = hooks.now;
+            }
+            if (ev.schema_name == "Drive") {
+                ++drives;
+                if (stop_after_drives >= 0 && drives >= stop_after_drives) {
+                    bus.stop();
+                }
+            }
+        });
+    }
+
+    std::int64_t drives = 0;
+    std::int64_t stop_after_drives = -1;
+    std::int64_t letter_now = -1; ///< virtual now when the predecessor was asked to write
+    std::int64_t ask_now = -1;    ///< virtual now when a StartTimer was last applied
+
+    /// Bounded by BEATS DELIVERED rather than by naps: a bootstrap beat spends a
+    /// queue turn without napping, so a nap-counting bound would not see one.
+    void pump_drives(std::int64_t n) {
+        stop_after_drives = drives + n;
+        bus.pump();
+        stop_after_drives = -1;
+    }
+
+    /// Put a steward in the `zen.manager` slot. Deliberately NOT part of the
+    /// default world: most tier-2 pins are about a service with no steward at
+    /// all, which is also the direct-load case.
+    void mount_steward(Letters::Answer answer) {
+        letters.answer = answer;
+        steward = mount_role<FakeSteward>(bus, loom::kManagerRole, letters);
+    }
+
+    /// Where a schema first appears on the tape (or -1).
+    std::int64_t first(const std::string& schema) const {
+        for (std::size_t i = 0; i < tape.size(); ++i) {
+            if (tape[i] == schema) {
+                return static_cast<std::int64_t>(i);
+            }
+        }
+        return -1;
+    }
+
+    /// One of the service's own counters, off its real snapshot.
+    std::int64_t count(const char* field) {
+        loom::Unverified u = loom::parse(bus.snapshot_bytes(service));
+        loom::Admission a = loom::admit(u, loom::schema_of<TimerState>());
+        REQUIRE(a.ok());
+        return a.value().get(field)->as_int();
+    }
+
+    /// Ask the service to write its letter, as the steward would, and decode it.
+    std::vector<TimerHandoffEntry> prepare_shutdown() {
+        REQUIRE(steward.valid());
+        const std::size_t before = letters.received.size();
+        bus.send_as(steward, service,
+                    loom::Message(loom::to_value(loom::PrepareShutdown{}), steward, steward, 77));
+        pump_drives(4); // the ask, the letter, and the beats they queue behind
+        REQUIRE(letters.received.size() == before + 1);
+        const std::optional<TimerHandoff> h =
+            loom::claim_item<TimerHandoff>(letters.received.back());
+        REQUIRE(h.has_value());
+        return h->entries;
     }
 
     /// Speak AS a weave (stamped sender, authorized against ITS grant) — how
@@ -219,11 +377,18 @@ struct FakeRig {
     /// parks; the next call resumes it — the host's own stop/quit mechanics.
     void run_beats(std::int64_t n, bool start = false) {
         hooks.stop_after = hooks.beats + n;
+        // A HANG GUARD, not a schedule. This bound counts BEATS DELIVERED while
+        // the one above counts naps, and the two differ exactly where a chain
+        // beats without napping — a bootstrap that never resolves would spin
+        // forever under the nap bound alone. A test that fails should fail with
+        // an assertion, never by being killed.
+        stop_after_drives = drives + n + 8;
         if (start) {
             activate();
         }
         bus.pump();
         hooks.stop_after = -1;
+        stop_after_drives = -1;
     }
 };
 
@@ -242,6 +407,7 @@ struct Seen {
     std::int64_t ready = 0;
     std::int64_t hellos = 0; ///< SurfaceReady (the skin lane)
     std::vector<zengine::snake::SnakeVisual> visuals;
+    std::vector<zengine::probe::ProbeReport> reports; ///< the continuity lane's answers
     loom::Switchboard* bus = nullptr;
     std::string stop_id;           ///< stop once this TimerFired id has arrived...
     std::int64_t stop_count = 1;   ///< ...this many times
@@ -270,10 +436,12 @@ class Witness
     : public loom::WeaveBase<Witness, WitnessState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, TimerFired,
                                           TimerReady, zengine::surface::SurfaceReady,
-                                          zengine::snake::SnakeVisual>,
+                                          zengine::snake::SnakeVisual,
+                                          zengine::probe::ProbeReport>,
                              loom::Emit<>> {
 public:
     explicit Witness(Seen& seen) : seen_(&seen) {}
+    void on(const zengine::probe::ProbeReport& p, loom::Mail&) { seen_->reports.push_back(p); }
     void on(const loom::Result& r, loom::Mail& mail) { note(mail, 0, r.value); }
     void on(const loom::Ack&, loom::Mail& mail) { note(mail, 1, ""); }
     void on(const loom::Refused& r, loom::Mail& mail) { note(mail, 2, r.reason); }
@@ -296,6 +464,20 @@ private:
     Seen* seen_;
 };
 
+/// One letter, caught on the wire.
+///
+/// `zen.Bequest` crosses this bus twice in a graceful succession — predecessor
+/// to steward, steward to heir — and a tap sees both, payload included. That is
+/// how the continuity lane proves what the predecessor OFFERED without reaching
+/// inside either weave: the claim "two seconds remaining" is read off the actual
+/// message, decoded through the actual gate.
+struct CaughtLetter {
+    loom::WeaveId target{};
+    loom::WeaveId sender{};
+    loom::Value payload;
+    std::int64_t drives = 0; ///< beats delivered when it landed — the lane's clock
+};
+
 struct Rig {
     loom::Switchboard bus;
     loom::Kernel kernel{bus};
@@ -304,6 +486,7 @@ struct Rig {
     Seen seen;
     loom::WeaveId witness = mount_witness();
     std::uint64_t next_corr = 1;
+    std::vector<CaughtLetter> letters;
 
     Rig() { watch_drives(); }
 
@@ -314,8 +497,16 @@ struct Rig {
         reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
         reach.allow_to_any(StartTimer::zen_name, StartTimer::zen_version);
         reach.allow_to_any(StartRoleTimer::zen_name, StartRoleTimer::zen_version);
+        reach.allow_to_any(EnsureTimer::zen_name, EnsureTimer::zen_version);
+        reach.allow_to_any(EnsureRoleTimer::zen_name, EnsureRoleTimer::zen_version);
         reach.allow_to_any(CancelTimer::zen_name, CancelTimer::zen_version);
         reach.allow_to_any(CancelAllMyTimers::zen_name, CancelAllMyTimers::zen_version);
+        reach.allow_to_any(zengine::probe::AskProbe::zen_name,
+                           zengine::probe::AskProbe::zen_version);
+        reach.allow_to_any(zengine::probe::RestartProbe::zen_name,
+                           zengine::probe::RestartProbe::zen_version);
+        reach.allow_to_any(zengine::probe::CancelProbe::zen_name,
+                           zengine::probe::CancelProbe::zen_version);
         return loom::mount_granted<Witness>(bus, std::move(reach), seen);
     }
 
@@ -329,13 +520,24 @@ struct Rig {
     std::int64_t drives = 0;
     std::int64_t stop_after_drives = -1;
 
+    std::string stop_on_schema; ///< stop the moment a message of this shape is handled
+
     void watch_drives() {
         bus.add_observer([this](const loom::BusEvent& ev) {
-            if (ev.schema_name == "Drive" && ev.kind == loom::EventKind::Delivered) {
+            if (ev.kind != loom::EventKind::Delivered) {
+                return;
+            }
+            if (ev.schema_name == "Drive") {
                 ++drives;
                 if (stop_after_drives >= 0 && drives >= stop_after_drives) {
                     bus.stop();
                 }
+            }
+            if (ev.schema_name == loom::Bequest::zen_name && ev.payload != nullptr) {
+                letters.push_back(CaughtLetter{ev.target, ev.sender, *ev.payload, drives});
+            }
+            if (!stop_on_schema.empty() && ev.schema_name == stop_on_schema) {
+                bus.stop();
             }
         });
     }
@@ -344,6 +546,48 @@ struct Rig {
         stop_after_drives = drives + n;
         bus.pump();
         stop_after_drives = -1;
+    }
+
+    /// Pump until one message of `schema` has been handled, then stop.
+    ///
+    /// The continuity lane's ruler. Virtual time only moves inside a beat's nap,
+    /// so stopping at a named message puts the clock at a known instant and
+    /// makes every duration after it exactly `kBeatCapMs` per delivered beat.
+    /// The beat budget is a hang guard, not a schedule: the chain never
+    /// quiesces, so a message that never arrives would otherwise pump forever.
+    void pump_until(std::string schema, std::int64_t max_beats = 400) {
+        stop_on_schema = std::move(schema);
+        stop_after_drives = drives + max_beats;
+        bus.pump();
+        stop_after_drives = -1;
+        stop_on_schema.clear();
+    }
+
+    /// Read one integer field, WITHOUT the stopwatch. `poke_timed` bounds its
+    /// pump by asking the service for a one-shot, which is exactly what the
+    /// continuity lane must not do — the instrument would appear in the table
+    /// it is measuring, and in the letter it is measuring it with.
+    std::int64_t poke_int(loom::WeaveId target, const char* field) {
+        const std::uint64_t corr = next_corr++;
+        bus.send(target, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
+                                       witness, corr));
+        for (int i = 0; i < 8 && seen.find(corr) == nullptr; ++i) {
+            pump_beats(1);
+        }
+        const Seen::Answer* a = seen.find(corr);
+        REQUIRE(a != nullptr);
+        REQUIRE_MESSAGE(a->kind == 0, "poke refused: ", a->text);
+        return std::stoll(a->text);
+    }
+
+    /// Drive the steward, as an operator would: one command, its own
+    /// correlation, answered on the witness's ledger.
+    template <class Command>
+    std::uint64_t command(const Command& c) {
+        const std::uint64_t corr = next_corr++;
+        bus.send_as(witness, manager,
+                    loom::Message(loom::to_value(c), witness, witness, corr));
+        return corr;
     }
 
     loom::WeaveId load(const char* name, const char* path, const char* role) {
@@ -364,6 +608,34 @@ struct Rig {
     template <class T>
     void ask(loom::WeaveId service, const T& msg) {
         bus.send_as(witness, service, loom::Message(loom::to_value(msg), witness, witness, 0));
+    }
+
+    /// Speak AS another weave — the host's root authority, used here only to put
+    /// on the wire exactly the message that weave's own binding sends, at an
+    /// instant the test chooses. Nothing unsayable is said.
+    template <class T>
+    void ask_as(loom::WeaveId who, loom::WeaveId target, const T& msg) {
+        bus.send_as(who, target, loom::Message(loom::to_value(msg), who, who, 0));
+    }
+
+    /// "Where do you stand?" — one message out, one report back.
+    zengine::probe::ProbeReport ask_probe(loom::WeaveId probe) {
+        const std::size_t before = seen.reports.size();
+        ask(probe, zengine::probe::AskProbe{});
+        pump_until(zengine::probe::ProbeReport::zen_name);
+        REQUIRE(seen.reports.size() == before + 1);
+        return seen.reports.back();
+    }
+
+    /// The one entry a Timer letter carries, decoded through the real gate.
+    static std::vector<TimerHandoffEntry> handoff_of(const CaughtLetter& l) {
+        const loom::Bequest letter = loom::from_value<loom::Bequest>(l.payload);
+        for (const loom::Bytes& item : letter.items) {
+            if (const std::optional<TimerHandoff> h = loom::claim_item<TimerHandoff>(item)) {
+                return h->entries;
+            }
+        }
+        return {};
     }
 
     /// Run the LIVE chain for about `ms` of real time: upsert the stopwatch
@@ -443,6 +715,110 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
     // The address and the beat cap are contract too.
     CHECK(std::string(kTimerRole) == "zengine.timer");
     CHECK(kBeatCapMs == 10);
+}
+
+TEST_CASE("contract: the R2B-0 continuity shapes are frozen the same way, and their Text "
+          "fields are contract rather than taste") {
+    using loom::Kind;
+    using loom::SchemaBuilder;
+
+    // The ORDERED forms. New shapes rather than fields on StartTimer: a frozen
+    // (name, version) keeps meaning exactly what it meant, and the raw
+    // fire-and-forget vocabulary keeps its own promise unchanged.
+    CHECK(schema_of<EnsureTimer>()->content_id() == SchemaBuilder("EnsureTimer", 1)
+                                                        .field("id", Kind::Text)
+                                                        .field("delay_ms", Kind::Int)
+                                                        .field("repeat", Kind::Bool)
+                                                        .field("preferred", Kind::Text)
+                                                        .field("fallback", Kind::Text)
+                                                        .build()
+                                                        ->content_id());
+    CHECK(schema_of<EnsureRoleTimer>()->content_id() == SchemaBuilder("EnsureRoleTimer", 1)
+                                                            .field("id", Kind::Text)
+                                                            .field("delay_ms", Kind::Int)
+                                                            .field("repeat", Kind::Bool)
+                                                            .field("role", Kind::Text)
+                                                            .field("preferred", Kind::Text)
+                                                            .field("fallback", Kind::Text)
+                                                            .build()
+                                                            ->content_id());
+    // The receipt. `resolved` and `reason` are Text because a receipt is read by
+    // people and consoles as well as by code — a numeric code would need this
+    // header to be readable.
+    CHECK(schema_of<TimerResolution>()->content_id() == SchemaBuilder("TimerResolution", 1)
+                                                            .field("id", Kind::Text)
+                                                            .field("resolved", Kind::Text)
+                                                            .field("reason", Kind::Text)
+                                                            .build()
+                                                            ->content_id());
+
+    // The letter. `requester` is TEXT and that is contract, not taste: a WeaveId
+    // is unsigned 64-bit and the wire's Int is signed, so an Int field would
+    // silently narrow the top half of the range — and this field is what a
+    // firing is addressed to. `remaining_ms` and NOT a due time is the other
+    // contract: an absolute deadline from the predecessor's clock epoch would be
+    // a number with no meaning in the successor's.
+    CHECK(schema_of<TimerHandoffEntry>()->content_id() ==
+          SchemaBuilder("TimerHandoffEntry", 1)
+              .field("requester", Kind::Text)
+              .field("id", Kind::Text)
+              .field("role", Kind::Text)
+              .field("delay_ms", Kind::Int)
+              .field("repeat", Kind::Bool)
+              .field("remaining_ms", Kind::Int)
+              .build()
+              ->content_id());
+    CHECK(schema_of<TimerHandoff>()->version() == 1);
+
+    // The service's counters grew, honestly: v1 meant four and still does.
+    CHECK(schema_of<TimerState>()->version() == 2);
+    CHECK(schema_of<TimerState>()->content_id() == SchemaBuilder("TimerState", 2)
+                                                       .field("beats", Kind::Int)
+                                                       .field("fired", Kind::Int)
+                                                       .field("active", Kind::Int)
+                                                       .field("dropped", Kind::Int)
+                                                       .field("deferred_dropped", Kind::Int)
+                                                       .field("inherited", Kind::Int)
+                                                       .build()
+                                                       ->content_id());
+
+    // The stable spellings. These travel on the wire and appear in receipts a
+    // stranger reads, so a rename is a contract change and a red test.
+    CHECK(std::string(kPreserveRemaining) == "preserve_remaining");
+    CHECK(std::string(kRestartDelay) == "restart_delay");
+    CHECK(std::string(kDrop) == "drop");
+    CHECK(std::string(kResolutionPreserved) == "preserved_remaining");
+    CHECK(std::string(kResolutionRestarted) == "restarted_delay");
+    CHECK(std::string(kResolutionDropped) == "dropped");
+    CHECK(std::string(kResolutionRefused) == "refused");
+
+    // Round-tripping the menu: every choice has exactly one spelling and every
+    // spelling exactly one choice, and nothing else parses.
+    CHECK(continuity_from(kPreserveRemaining) == Continuity::PreserveRemaining);
+    CHECK(continuity_from(kRestartDelay) == Continuity::RestartDelay);
+    CHECK(continuity_from(kDrop) == Continuity::Drop);
+    CHECK_FALSE(continuity_from("").has_value());
+    CHECK_FALSE(continuity_from("preserved_remaining").has_value()); // a receipt is not an order
+
+    // The DEFAULT ORDER is contract: prefer keeping the remaining time, accept
+    // restarting. It is what makes a graceful replacement continuous and an
+    // initial load honest, and a drift either way is a behaviour change.
+    const ContinuityOrder fallback_default;
+    CHECK(fallback_default.preferred == Continuity::PreserveRemaining);
+    REQUIRE(fallback_default.fallback.has_value());
+    CHECK(*fallback_default.fallback == Continuity::RestartDelay);
+    CHECK(fallback_spelling(fallback_default) == kRestartDelay);
+
+    // A REQUIRED preference travels as an empty fallback — the one spelling that
+    // means "nothing else will do".
+    ContinuityOrder required;
+    required.fallback = std::nullopt;
+    CHECK(fallback_spelling(required).empty());
+
+    // The bounds are published, not discovered as leaks.
+    CHECK(kMaxHandoffEntries == 32);
+    CHECK(kMaxDeferredOps == 32);
+    CHECK(kBootstrapBeats == 2);
 }
 
 // ============================================================================
@@ -1171,12 +1547,18 @@ struct CancelTick {
 struct RestartTick {
     ZEN_SHAPE(RestartTick, 1);
 };
+/// "Restart yourself from inside your own firing" — the deliberate re-arm the
+/// spent-before-callback ordering exists to make possible.
+struct ArmFromCallback {
+    ZEN_SHAPE(ArmFromCallback, 1);
+};
 
 struct BoundState {
     std::int64_t beats = 0;
     std::int64_t role_beats = 0;
+    std::int64_t shots = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(BoundState, 1, ZEN_FIELD(beats), ZEN_FIELD(role_beats));
+    ZEN_SHAPE(BoundState, 1, ZEN_FIELD(beats), ZEN_FIELD(role_beats), ZEN_FIELD(shots));
 };
 
 /// A weave that uses the binding for everything, with handlers of its own so
@@ -1206,6 +1588,54 @@ public:
     Handle role_;
 };
 
+/// One declared one-shot, and a callback that can re-arm itself from inside its
+/// own firing. Its own fixture so the multi-binding pins above keep their
+/// counts — a boring diff is a feature.
+class Shooter : public TimedWeave<Shooter, BoundState, loom::Accept<ArmFromCallback>,
+                                  loom::Emit<>> {
+public:
+    Shooter() : shot_(timers().once("shooter.shot", std::chrono::milliseconds(5),
+                                    &Shooter::on_shot)) {}
+
+    using TimedWeave::on;
+
+    void on(const ArmFromCallback&, loom::Mail&) { rearm_ = true; }
+
+    /// This only works because the binding is marked Spent BEFORE the callback
+    /// runs: marking afterwards would overwrite the callback's deliberate
+    /// restart with a stale Spent.
+    void on_shot(const TimerFired&, loom::Mail& mail) {
+        ++state_.shots;
+        if (rearm_) {
+            shot_.restart(mail);
+        }
+    }
+
+    Handle shot_;
+    bool rearm_ = false;
+};
+
+/// A role beat with no role: the OTHER programmer error the binding must refuse,
+/// because the alternative is a silent degradation into the addressing mode the
+/// author deliberately did not choose.
+class EmptyRoleRepeat : public TimedWeave<EmptyRoleRepeat, BoundState, loom::Accept<>,
+                                          loom::Emit<>> {
+public:
+    EmptyRoleRepeat()
+        : h_(timers().repeat_to_role("no.role", std::chrono::milliseconds(5), "",
+                                     &EmptyRoleRepeat::beat)) {}
+    void beat(const TimerFired&, loom::Mail&) { ++state_.beats; }
+    Handle h_;
+};
+class EmptyRoleOnce : public TimedWeave<EmptyRoleOnce, BoundState, loom::Accept<>, loom::Emit<>> {
+public:
+    EmptyRoleOnce()
+        : h_(timers().once_to_role("no.role", std::chrono::milliseconds(5), "",
+                                   &EmptyRoleOnce::beat)) {}
+    void beat(const TimerFired&, loom::Mail&) { ++state_.beats; }
+    Handle h_;
+};
+
 /// Two declarations, one id: the programmer error the binding must refuse.
 class Aliased : public TimedWeave<Aliased, BoundState, loom::Accept<>, loom::Emit<>> {
 public:
@@ -1218,26 +1648,42 @@ public:
     Handle b_;
 };
 
-/// Catches what a bound weave asks the service for, wire-exact.
+/// Catches what a bound weave asks the service for, wire-exact — and answers
+/// with whatever receipt the test wants, so the handle's own view of "what
+/// actually happened" is exercised through the real message rather than poked in.
 struct AskSeen {
-    std::vector<StartTimer> asks;
-    std::vector<StartRoleTimer> role_asks;
+    std::vector<EnsureTimer> asks;
+    std::vector<EnsureRoleTimer> role_asks;
     std::vector<CancelTimer> cancels;
+    std::string answer_with;       ///< resolution spelling to reply with ("" = stay silent)
+    std::string answer_reason = "because the stand-in service said so";
 };
 struct CatcherState {
     std::int64_t n = 0;
     ZEN_SHAPE(CatcherState, 1, ZEN_FIELD(n));
 };
 class AskCatcher : public loom::WeaveBase<AskCatcher, CatcherState,
-                                          loom::Accept<StartTimer, StartRoleTimer, CancelTimer>,
-                                          loom::Emit<TimerFired, TimerReady>> {
+                                          loom::Accept<EnsureTimer, EnsureRoleTimer, CancelTimer>,
+                                          loom::Emit<TimerFired, TimerReady, TimerResolution>> {
 public:
     explicit AskCatcher(AskSeen& seen) : seen_(&seen) {}
-    void on(const StartTimer& s, loom::Mail&) { seen_->asks.push_back(s); }
-    void on(const StartRoleTimer& s, loom::Mail&) { seen_->role_asks.push_back(s); }
+    void on(const EnsureTimer& s, loom::Mail& mail) {
+        seen_->asks.push_back(s);
+        receipt(mail, s.id);
+    }
+    void on(const EnsureRoleTimer& s, loom::Mail& mail) {
+        seen_->role_asks.push_back(s);
+        receipt(mail, s.id);
+    }
     void on(const CancelTimer& c, loom::Mail&) { seen_->cancels.push_back(c); }
 
 private:
+    void receipt(loom::Mail& mail, const std::string& id) {
+        if (seen_->answer_with.empty()) {
+            return;
+        }
+        mail.send(mail.sender(), TimerResolution{id, seen_->answer_with, seen_->answer_reason});
+    }
     AskSeen* seen_;
 };
 
@@ -1348,18 +1794,23 @@ TEST_CASE("binding: an accepted activation reconciles every desired binding exac
 
     r.activate(); // sequence 1
 
-    // Each binding asked exactly once, and the WIRE CONTENT is the raw
-    // protocol: the convenience composed the same message the author used to
-    // hand-write, field for field.
+    // Each binding asked exactly once, and the WIRE CONTENT is the ORDERED
+    // protocol carrying the binding's declared order: the convenience composed
+    // the message the author would otherwise hand-write, field for field —
+    // including the default preference and its accepted fallback.
     REQUIRE(r.seen.asks.size() == 1);
     CHECK(r.seen.asks[0].id == "bound.tick");
     CHECK(r.seen.asks[0].delay_ms == 5);
     CHECK(r.seen.asks[0].repeat);
+    CHECK(r.seen.asks[0].preferred == kPreserveRemaining);
+    CHECK(r.seen.asks[0].fallback == kRestartDelay);
     REQUIRE(r.seen.role_asks.size() == 1);
     CHECK(r.seen.role_asks[0].id == "bound.role");
     CHECK(r.seen.role_asks[0].delay_ms == 5);
     CHECK(r.seen.role_asks[0].repeat);
     CHECK(r.seen.role_asks[0].role == "bound.slot"); // the role really travels
+    CHECK(r.seen.role_asks[0].preferred == kPreserveRemaining);
+    CHECK(r.seen.role_asks[0].fallback == kRestartDelay);
 
     // THE SAME activation again. The binding layer owns deduplication so that
     // consumers do not each carry a cursor — and nothing is re-asked.
@@ -1427,7 +1878,7 @@ TEST_CASE("binding: cancellation is BOTH halves — the service is told, and a l
     r.tell(CancelTick{});
     REQUIRE(r.seen.cancels.size() == 1);
     CHECK(r.seen.cancels[0].id == "bound.tick"); // the remote half: the real CancelTimer
-    CHECK_FALSE(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.desired());
+    CHECK(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.canceled());
 
     // THE LOCAL HALF, and it is the one a naive implementation forgets: the
     // binding is no longer wanted, so reconciliation must not bring it back.
@@ -1438,7 +1889,7 @@ TEST_CASE("binding: cancellation is BOTH halves — the service is told, and a l
     // An explicit restart wants it again, and asks once.
     r.tell(RestartTick{});
     CHECK(r.seen.asks.size() == 2);
-    CHECK(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.desired());
+    CHECK(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.waiting());
 
     // ...and it reconciles like any other desired binding from then on.
     r.ready();
@@ -1477,16 +1928,22 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
         }
         return false;
     };
-    // The three the binding accepts on the author's behalf...
+    // The four the binding accepts on the author's behalf — the receipt joined
+    // them in R2B-0, because an order that could not be answered would be a
+    // conversation the manifest lied about.
     CHECK(accepts(loom::Activated::zen_name, loom::Activated::zen_version));
     CHECK(accepts("TimerReady", 1));
     CHECK(accepts("TimerFired", 1));
+    CHECK(accepts("TimerResolution", 1));
     // ...and the author's own doors, unharmed.
     CHECK(accepts("CancelTick", 1));
     CHECK(accepts("RestartTick", 1));
 
     // The emitted set is the composed truth too — the three the binding may
-    // send, plus the author's own.
+    // send, plus the author's own. It says ORDERED now, and says ONLY ordered:
+    // the binding stopped speaking the raw start shapes, so its manifest stopped
+    // claiming it could. (The raw vocabulary is still public and unchanged; this
+    // weave simply does not use it.)
     Bound probe;
     const auto emits = [&](const char* name) {
         for (const auto& s : probe.emitted_schemas()) {
@@ -1496,10 +1953,12 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
         }
         return false;
     };
-    CHECK(emits("StartTimer"));
-    CHECK(emits("StartRoleTimer"));
+    CHECK(emits("EnsureTimer"));
+    CHECK(emits("EnsureRoleTimer"));
     CHECK(emits("CancelTimer"));
     CHECK(emits("Woke"));
+    CHECK_FALSE(emits("StartTimer"));
+    CHECK_FALSE(emits("StartRoleTimer"));
 
     // AND NOT BY WIDENING. The grant a mounted weave gets is derived from that
     // declared emit set — nothing here is `allow_any`, and acceptance is the
@@ -1507,8 +1966,760 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
     // that a shape the weave never declared is NOT permitted: Nudge-shaped
     // authority does not come free with the convenience.
     const loom::Grant g = loom::emit_default_grant(probe);
-    CHECK(g.permits("StartTimer", 1, loom::WeaveId{1}));
-    CHECK(g.permits("StartRoleTimer", 1, loom::WeaveId{1}));
+    CHECK(g.permits("EnsureTimer", 1, loom::WeaveId{1}));
+    CHECK(g.permits("EnsureRoleTimer", 1, loom::WeaveId{1}));
+    CHECK_FALSE(g.permits("StartTimer", 1, loom::WeaveId{1}));
     CHECK_FALSE(g.permits("SnakeTick", 1, loom::WeaveId{1}));
     CHECK_FALSE(g.permits("TimerFired", 1, loom::WeaveId{1})); // it receives these, never sends
+}
+
+// ============================================================================
+// Tier 5 — CONTINUITY, end to end: real libraries, real kernel, real steward, a
+// real graceful replacement, a real letter through the real gate, and virtual
+// time so the semantics are exact instead of slept for (R2B-0)
+// ============================================================================
+//
+// Everything here runs through `zengine-timer-virtual` — TimerServiceT exactly
+// as shipped, over a clock whose nap books the requested duration and returns.
+// One delivered beat is therefore exactly kBeatCapMs of virtual time, and every
+// duration in the scenario is an integer nobody waited for.
+
+namespace {
+
+/// The one thing this lane knows about the Loom's ceremony: SwapWeave ->
+/// QueryRole -> RoleInfo -> PrepareShutdown is four queue turns, and the beat
+/// chain always has exactly one parked beat ahead of whatever is enqueued next,
+/// so four napping beats pass between the command and the predecessor reading
+/// its clock. Counted rather than absorbed — that is what lets "three seconds
+/// elapsed" mean three seconds, and keeps the exact-2000 assertion a real pin.
+constexpr std::int64_t kGracefulCeremonyBeats = 4;
+
+/// Establish the probe's five-second one-shot at a KNOWN instant. The message is
+/// the very one the probe's own binding sends; `restart_delay` re-anchors it
+/// from now, and stopping the pump the moment it is handled puts the virtual
+/// clock exactly at the anchor.
+void anchor_probe(Rig& r, loom::WeaveId probe, loom::WeaveId timer) {
+    r.ask_as(probe, timer,
+             EnsureTimer{zengine::probe::kProbeTimerId, 5000, false, kRestartDelay, ""});
+    r.pump_until(EnsureTimer::zen_name);
+}
+
+} // namespace
+
+TEST_CASE("continuity, graceful: a five-second one-shot with two seconds left crosses a real "
+          "Timer replacement, and the consumer is told exactly what happened") {
+    Rig r;
+    const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
+    const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
+
+    // 1 + 2. A five-second one-shot, declared with the binding's DEFAULT order
+    // and established on this incarnation's own activation. On an initial load
+    // there is nothing to preserve, and the receipt says exactly that instead of
+    // reporting a bland success.
+    zengine::probe::ProbeReport rep = r.ask_probe(probe);
+    CHECK(rep.resolved == kResolutionRestarted);
+    CHECK(rep.lifecycle == "waiting");
+    CHECK(rep.fires == 0);
+    CHECK(rep.reason.find("no matching schedule to preserve") != std::string::npos);
+
+    anchor_probe(r, probe, timer);
+
+    // 3. Three seconds of virtual time, the ceremony's own beats counted in, so
+    // that when the predecessor reads its clock exactly 3000ms have passed.
+    r.pump_beats(3000 / kBeatCapMs - kGracefulCeremonyBeats);
+
+    // 4. The graceful replacement. Same library, a genuinely new incarnation.
+    const std::uint64_t corr = r.command(loom::SwapWeave{
+        kTimerRole, "zengine-timer-virtual", TIMER_VIRTUAL_SO, /*graceful=*/true});
+    r.pump_until(TimerResolution::zen_name); // stops once the heir has answered the probe
+
+    const Seen::Answer* swapped = r.seen.find(corr);
+    REQUIRE(swapped != nullptr);
+    REQUIRE_MESSAGE(swapped->kind == 0, "swap refused: ", swapped->text);
+    const loom::WeaveId successor{static_cast<std::uint64_t>(std::stoll(swapped->text))};
+    CHECK(successor.value != timer.value);
+
+    // 5. THE PREDECESSOR OFFERED TWO SECONDS REMAINING — read off the letter
+    // itself, on the wire, decoded through the real gate. Two letters cross: the
+    // predecessor's to the steward, and the steward's to the heir.
+    REQUIRE(r.letters.size() == 2);
+    CHECK(r.letters[0].sender.value == timer.value);     // written by the incumbent
+    CHECK(r.letters[0].target.value == r.manager.value); // to the steward
+    CHECK(r.letters[1].target.value == successor.value); // and pulled by the heir
+
+    const std::vector<TimerHandoffEntry> offered = Rig::handoff_of(r.letters[0]);
+    REQUIRE(offered.size() == 1);
+    CHECK(offered[0].id == zengine::probe::kProbeTimerId);
+    CHECK(offered[0].remaining_ms == 2000); // five declared, three elapsed
+    CHECK(offered[0].delay_ms == 5000);     // the intent travels beside the progress
+    CHECK_FALSE(offered[0].repeat);
+    CHECK(offered[0].role.empty());
+    CHECK(offered[0].requester == std::to_string(probe.value)); // lossless, and the real id
+
+    // ...and the heir was handed the same bytes.
+    const std::vector<TimerHandoffEntry> inherited = Rig::handoff_of(r.letters[1]);
+    REQUIRE(inherited.size() == 1);
+    CHECK(inherited[0].remaining_ms == 2000);
+
+    // 6. THE SUCCESSOR RESTORED BEFORE ANNOUNCING. `inherited` counts what was
+    // adopted at this incarnation's bootstrap; `active` is the standing table.
+    CHECK(r.poke_int(successor, "inherited") == 1);
+    CHECK(r.poke_int(successor, "active") == 1);
+
+    // 7. THE CONSUMER ASKED TO PRESERVE, AND WAS TOLD THE TIMER DID.
+    rep = r.ask_probe(probe);
+    CHECK(rep.resolved == kResolutionPreserved);
+    CHECK(rep.reason.find("kept its remaining time") != std::string::npos);
+    CHECK(rep.fires == 0);
+    CHECK(rep.lifecycle == "waiting");
+
+    // 8. LESS THAN THE REMAINING TIME: NOTHING FIRES. The boundary is derived,
+    // not guessed — the heir's clock began at zero and only napping beats have
+    // moved it since the letter landed, so the beats left are exactly countable.
+    const std::int64_t napped = r.drives - r.letters[1].drives;
+    const std::int64_t to_boundary = 2000 / kBeatCapMs - napped;
+    REQUIRE(to_boundary > 1);
+    r.pump_beats(to_boundary - 1); // one beat short of two seconds
+    CHECK(r.ask_probe(probe).fires == 0);
+
+    // 9. THE BOUNDARY BEAT: exactly once. Note what did NOT happen — it did not
+    // wait a fresh five seconds, which is what a re-anchored schedule would have
+    // done and what every earlier version of this system did.
+    r.pump_beats(1);
+    rep = r.ask_probe(probe);
+    CHECK(rep.fires == 1);
+
+    // 10. AND IT IS SPENT — an honest lifecycle state, not a bool that could
+    // only say "wanted".
+    CHECK(rep.lifecycle == "spent");
+    CHECK(r.poke_int(successor, "active") == 0);
+
+    // 11. ANOTHER AVAILABILITY NOTICE RECREATES NOTHING. This is exactly the
+    // resurrection a single `desired` flag could not prevent.
+    r.bus.publish(loom::Message(loom::to_value(TimerReady{})));
+    r.pump_beats(4);
+    rep = r.ask_probe(probe);
+    CHECK(rep.fires == 1);
+    CHECK(rep.lifecycle == "spent");
+    CHECK(r.poke_int(successor, "active") == 0);
+
+    // 12. AN EXPLICIT RESTART ARMS IT AGAIN — once, from the full declared
+    // delay, and the receipt says restarted rather than preserved.
+    r.ask(probe, zengine::probe::RestartProbe{});
+    r.pump_until(TimerResolution::zen_name);
+    rep = r.ask_probe(probe);
+    CHECK(rep.lifecycle == "waiting");
+    CHECK(rep.resolved == kResolutionRestarted);
+    CHECK(r.poke_int(successor, "active") == 1);
+
+    r.pump_beats(5000 / kBeatCapMs + 4);
+    rep = r.ask_probe(probe);
+    CHECK(rep.fires == 2); // once more, and only once more
+    CHECK(rep.lifecycle == "spent");
+}
+
+TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts the delay — "
+          "and says so instead of pretending") {
+    Rig r;
+    const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
+    const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
+    anchor_probe(r, probe, timer);
+    r.pump_beats(3000 / kBeatCapMs);
+
+    // A HARD replacement: the incumbent is never asked, so nothing is offered.
+    const std::uint64_t corr = r.command(loom::SwapWeave{
+        kTimerRole, "zengine-timer-virtual", TIMER_VIRTUAL_SO, /*graceful=*/false});
+    r.pump_until(TimerResolution::zen_name);
+    const Seen::Answer* swapped = r.seen.find(corr);
+    REQUIRE(swapped != nullptr);
+    REQUIRE_MESSAGE(swapped->kind == 0, "swap refused: ", swapped->text);
+    const loom::WeaveId successor{static_cast<std::uint64_t>(std::stoll(swapped->text))};
+
+    // No letter crossed at all — not an empty one, none.
+    CHECK(r.letters.empty());
+    CHECK(r.poke_int(successor, "inherited") == 0);
+
+    // The default order resolves through its FALLBACK, and the reason names both
+    // halves: what was unavailable, and what was done instead.
+    zengine::probe::ProbeReport rep = r.ask_probe(probe);
+    CHECK(rep.resolved == kResolutionRestarted);
+    CHECK(rep.reason.find("was unavailable") != std::string::npos);
+    CHECK(rep.reason.find("fell back to 'restart_delay'") != std::string::npos);
+    CHECK(rep.fires == 0);
+
+    // AND IT DOES NOT FIRE AT THE OLD BOUNDARY. Two seconds of virtual time was
+    // the whole remaining schedule a moment ago; from a full restart it is not
+    // even half of one.
+    r.pump_beats(2000 / kBeatCapMs + 10);
+    CHECK(r.ask_probe(probe).fires == 0);
+
+    // It fires at the FULL declared delay instead, which is the honest meaning
+    // of "restarted".
+    r.pump_beats(3000 / kBeatCapMs + 10);
+    CHECK(r.ask_probe(probe).fires == 1);
+}
+
+TEST_CASE("continuity, required preservation: an order with no acceptable fallback is REFUSED, "
+          "and creates no schedule at all") {
+    Rig r;
+    const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
+    const loom::WeaveId probe = r.load("zengine-probe-required", PROBE_REQUIRED_SO, "");
+
+    // Same source, same declaration, one difference: preservation is REQUIRED.
+    // On an initial load there is nothing to preserve, so the order is refused —
+    // and refusal here means nothing happened, not "something else did".
+    const zengine::probe::ProbeReport rep = r.ask_probe(probe);
+    CHECK(rep.resolved == kResolutionRefused);
+    CHECK(rep.reason.find("no fallback was acceptable") != std::string::npos);
+    CHECK(rep.reason.find("no schedule was created or changed") != std::string::npos);
+    CHECK(rep.fires == 0);
+    CHECK(r.poke_int(timer, "active") == 0); // no entry, not a silently-restarted one
+
+    // And it stays that way: a refused order is not a deferred one.
+    r.pump_beats(5000 / kBeatCapMs + 20);
+    CHECK(r.ask_probe(probe).fires == 0);
+    CHECK(r.poke_int(timer, "active") == 0);
+}
+
+// ============================================================================
+// Tier 2 continuity — the unit pins, over the fake clock (R2B-0)
+// ============================================================================
+//
+// The end-to-end lane (tier 5) proves the whole sentence through real
+// libraries. These prove the pieces, including the ones an honest predecessor
+// could never produce: a letter written to another version, a letter over the
+// published bound, a steward that never answers at all.
+
+TEST_CASE("letter: the predecessor describes every standing entry as a REMAINING duration, "
+          "reads its clock once, and changes nothing by being asked") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_beats(3, /*start=*/true);
+
+    r.ask_as(r.ear, StartTimer{"mine.oneshot", 5000, false});
+    r.ask_as(r.ear, StartRoleTimer{"slot.beat", 9000, true, "some.slot"});
+    r.run_beats(3);
+
+    // Nothing here is anywhere near due, so the beats the letter's own pump
+    // spends provably change nothing — which is what makes the no-movement
+    // assertion at the end mean something.
+    const std::int64_t fired_before = r.count("fired");
+    const std::int64_t active_before = r.count("active");
+    REQUIRE(active_before == 2);
+    REQUIRE(fired_before == 0);
+
+    const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
+    REQUIRE(offered.size() == 2);
+
+    // A REQUESTER entry round-trips whole: the id, the mode (no role), the
+    // declared delay, the repeat flag, and the requester as lossless decimal.
+    CHECK(offered[0].id == "mine.oneshot");
+    CHECK(offered[0].role.empty());
+    CHECK(offered[0].delay_ms == 5000);
+    CHECK_FALSE(offered[0].repeat);
+    CHECK(offered[0].requester == std::to_string(r.ear.value));
+    // The whole arithmetic claim, exactly: what is left is what was declared
+    // minus what has elapsed since the schedule was anchored — measured from the
+    // bus's own view of both instants, not from a hoped-for constant.
+    REQUIRE(r.ask_now >= 0);
+    REQUIRE(r.letter_now >= r.ask_now);
+    CHECK(offered[0].remaining_ms == 5000 - (r.letter_now - r.ask_now));
+
+    // A ROLE entry round-trips too, carrying the role it belongs to — the two
+    // addressing modes are different promises, and a letter that dropped the
+    // role would silently convert one into the other.
+    CHECK(offered[1].id == "slot.beat");
+    CHECK(offered[1].role == "some.slot");
+    CHECK(offered[1].repeat);
+    CHECK(offered[1].delay_ms == 9000);
+
+    // AND THE PREDECESSOR DID NOT MOVE. Being asked to describe a schedule is
+    // not an event in that schedule's life: nothing fired, nothing was
+    // cancelled, nothing advanced.
+    CHECK(r.count("fired") == fired_before);
+    CHECK(r.count("active") == active_before);
+}
+
+TEST_CASE("letter: a due or overdue entry transfers with ZERO remaining, never a negative "
+          "number") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_beats(3, /*start=*/true);
+
+    // Queued so the letter is written in the SAME pump, before any beat can
+    // fire it: a schedule that is due right now is exactly the case an
+    // unguarded subtraction gets wrong.
+    r.ask_as(r.ear, StartTimer{"due.now", 0, false});
+    const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
+    REQUIRE(offered.size() == 1);
+    CHECK(offered[0].id == "due.now");
+    CHECK(offered[0].remaining_ms == 0);
+}
+
+TEST_CASE("letter: the published bound is the same number on both sides — the writer carries "
+          "at most it, and the reader refuses more than it, whole") {
+    // The writing side. Every entry over the bound is simply not carried; the
+    // bound is published (kMaxHandoffEntries) rather than discovered as a leak.
+    FakeRig w;
+    w.mount_steward(Letters::Answer::Refuse);
+    w.run_beats(3, /*start=*/true);
+    for (std::size_t i = 0; i < kMaxHandoffEntries + 5; ++i) {
+        w.ask_as(w.ear, StartTimer{"t" + std::to_string(i), 1000, true});
+    }
+    w.run_beats(4);
+    CHECK(w.count("active") == static_cast<std::int64_t>(kMaxHandoffEntries + 5));
+    CHECK(w.prepare_shutdown().size() == kMaxHandoffEntries);
+
+    // The reading side. A letter claiming MORE than the bound is untrusted
+    // input — an honest predecessor cannot produce one — so nothing is adopted
+    // rather than the parseable half of it.
+    FakeRig r;
+    TimerHandoff huge;
+    for (std::size_t i = 0; i < kMaxHandoffEntries + 1; ++i) {
+        huge.entries.push_back(
+            TimerHandoffEntry{"1", "t" + std::to_string(i), "", 1000, true, 500});
+    }
+    r.mount_steward(Letters::Answer::Letter);
+    r.letters.items.push_back(loom::bequeath_item(huge));
+    r.run_beats(4, /*start=*/true);
+    CHECK(r.count("inherited") == 0);
+    CHECK(r.count("active") == 0);
+    CHECK(r.heard.ready == 1); // and it still became available: refusing a letter is not a hang
+}
+
+TEST_CASE("letter: bytes the gate refuses, a shape from another version, and a requester that "
+          "is not a lossless id are each adopted as NOTHING") {
+    // Garbage that is not a Zen value at all.
+    {
+        FakeRig r;
+        r.mount_steward(Letters::Answer::Letter);
+        r.letters.items.push_back(loom::Bytes{0x00, 0x01, 0x02, 0x03});
+        r.run_beats(4, /*start=*/true);
+        CHECK(r.count("inherited") == 0);
+        CHECK(r.heard.ready == 1);
+    }
+    // A perfectly well-formed message of a DIFFERENT shape. The version
+    // detection is the gate's verdict, never a label this weave chose to trust:
+    // claim_item re-admits the bytes against TimerHandoff's own schema, and a
+    // v2 handoff simply is not that shape.
+    {
+        FakeRig r;
+        r.mount_steward(Letters::Answer::Letter);
+        r.letters.items.push_back(loom::bequeath_item(HandoffV2{{}}));
+        r.run_beats(4, /*start=*/true);
+        CHECK(r.count("inherited") == 0);
+        CHECK(r.count("active") == 0);
+        CHECK(r.heard.ready == 1);
+    }
+    // The right shape, one entry whose requester is not canonical decimal. A
+    // letter is adopted WHOLE or not at all, so the good entry beside it does
+    // not come across either.
+    {
+        FakeRig r;
+        TimerHandoff mixed;
+        mixed.entries.push_back(TimerHandoffEntry{"7", "fine", "", 1000, true, 400});
+        mixed.entries.push_back(TimerHandoffEntry{"-3", "bad", "", 1000, true, 400});
+        r.mount_steward(Letters::Answer::Letter);
+        r.letters.items.push_back(loom::bequeath_item(mixed));
+        r.run_beats(4, /*start=*/true);
+        CHECK(r.count("inherited") == 0);
+        CHECK(r.count("active") == 0);
+    }
+}
+
+TEST_CASE("bootstrap: the claim is made once per activation, restoration happens BEFORE the "
+          "availability notice, and a late or duplicate letter changes nothing") {
+    FakeRig r;
+    TimerHandoff handoff;
+    handoff.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "inherited.tick", "", 1000, true, 250});
+    r.mount_steward(Letters::Answer::Letter);
+    r.letters.items.push_back(loom::bequeath_item(handoff));
+
+    r.run_beats(3, /*start=*/true);
+
+    // Exactly one claim, and it inherited exactly one entry.
+    CHECK(r.letters.claims == 1);
+    CHECK(r.count("inherited") == 1);
+    CHECK(r.count("active") == 1);
+
+    // ORDER, off the bus's own tape: the letter was delivered here BEFORE the
+    // service told anyone it was available. That is the whole ordering rule —
+    // a consumer that heard TimerReady first would re-ask and re-anchor the
+    // very schedule the letter carried.
+    const std::int64_t letter_at = r.first(loom::Bequest::zen_name);
+    const std::int64_t ready_at = r.first("TimerReady");
+    REQUIRE(letter_at >= 0);
+    REQUIRE(ready_at >= 0);
+    CHECK(letter_at < ready_at);
+
+    // ...and the claim went out before either.
+    const std::int64_t claim_at = r.first(loom::ClaimBequest::zen_name);
+    REQUIRE(claim_at >= 0);
+    CHECK(claim_at < letter_at);
+
+    // A SECOND letter, correctly correlated, arriving after the decision. It is
+    // ignored: once resolved, always resolved. (Forged or merely late, the
+    // answer is the same, which is the point.)
+    loom::Bequest second;
+    second.role = kTimerRole;
+    TimerHandoff other;
+    other.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "sneaky", "", 9000, true, 9000});
+    second.items.push_back(loom::bequeath_item(other));
+    r.bus.send_as(r.steward, r.service,
+                  loom::Message(loom::to_value(second), r.steward, r.steward,
+                                r.letters.last_claim_corr));
+    r.run_beats(4);
+    CHECK(r.count("inherited") == 1); // unchanged
+    CHECK(r.count("active") == 1);    // "sneaky" never joined the table
+    CHECK(r.heard.ready == 1);        // and nothing re-announced
+}
+
+TEST_CASE("bootstrap: a steward that never answers does not hang the service — it resolves "
+          "fresh after its own bounded beats, with no wall clock and no spin") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Silence);
+    r.ask_as(r.ear, StartTimer{"pre.activation", 100, true});
+
+    r.run_beats(3, /*start=*/true);
+    CHECK(r.letters.claims == 1); // it did ask
+    CHECK(r.heard.ready == 1);    // and it became available anyway
+    CHECK(r.count("inherited") == 0);
+
+    // It became LIVE, not merely resolved: the entry it was holding is standing
+    // and the chain is beating.
+    CHECK(r.count("active") == 1);
+    const std::int64_t beats = r.count("beats");
+    r.run_beats(3);
+    CHECK(r.count("beats") > beats);
+
+    // Exactly one chain: the bus holds one parked beat, not two.
+    CHECK(r.bus.pending() == 1);
+}
+
+TEST_CASE("bootstrap: operations that arrive while the decision is pending are applied AFTER "
+          "the inheritance, so a fresh request beats inherited state for the same key") {
+    FakeRig r;
+    TimerHandoff handoff;
+    handoff.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "contested", "", 5000, false, 4000});
+    r.mount_steward(Letters::Answer::Letter);
+    r.letters.items.push_back(loom::bequeath_item(handoff));
+
+    // The activation and a competing order, enqueued back to back. The order
+    // arrives while the claim is still out.
+    r.activate();
+    r.ask_as(r.ear, EnsureTimer{"contested", 5000, false, kRestartDelay, ""});
+    r.run_beats(4);
+
+    // The inheritance happened AND the later request won: one entry, and its
+    // schedule is the requested restart rather than the inherited 4000ms
+    // remainder. (Applied under the inheritance instead, the entry would still
+    // be due 4000ms after restoration.)
+    CHECK(r.count("inherited") == 1);
+    CHECK(r.count("active") == 1);
+    REQUIRE(r.heard.resolutions.size() == 1);
+    CHECK(r.heard.resolutions[0].id == "contested");
+    CHECK(r.heard.resolutions[0].resolved == kResolutionRestarted);
+
+    // And it is timed as a restart: nothing at the inherited boundary...
+    r.run_beats(410); // 4100ms of virtual time, well past the inherited 4000
+    CHECK(r.heard.fired.empty());
+    // ...and a firing at the declared delay from when the order landed.
+    r.run_beats(100);
+    REQUIRE(r.heard.fired.size() == 1);
+    CHECK(r.heard.fired[0] == "contested");
+}
+
+TEST_CASE("bootstrap: the hold is bounded, and overflowing it is visible both ways it can be") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Silence);
+    r.activate();
+    // One more than the hold can take, all ordered so each has somewhere to
+    // hear an answer.
+    for (std::size_t i = 0; i < kMaxDeferredOps + 1; ++i) {
+        r.ask_as(r.ear,
+                 EnsureTimer{"held" + std::to_string(i), 1000, true, kRestartDelay, ""});
+    }
+    r.run_beats(4);
+
+    // The bound held: the last one did not join the table...
+    CHECK(r.count("active") == static_cast<std::int64_t>(kMaxDeferredOps));
+    // ...it was counted...
+    CHECK(r.count("deferred_dropped") == 1);
+    // ...and its requester was TOLD, which is the half a counter alone cannot do.
+    bool refused_one = false;
+    for (const TimerResolution& t : r.heard.resolutions) {
+        if (t.resolved == kResolutionRefused &&
+            t.reason.find("still restoring") != std::string::npos) {
+            refused_one = true;
+        }
+    }
+    CHECK(refused_one);
+}
+
+TEST_CASE("order: the menu resolves by MATCHING, and a changed schedule meaning can never "
+          "masquerade as preserved") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_beats(3, /*start=*/true);
+
+    // Nothing standing: preservation is unavailable, the fallback restarts.
+    r.ask_as(r.ear, EnsureTimer{"m", 1000, true, kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    REQUIRE(r.heard.resolutions.size() == 1);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
+
+    // The SAME declaration now matches: same key, same repeat mode, same delay.
+    r.ask_as(r.ear, EnsureTimer{"m", 1000, true, kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionPreserved);
+
+    // A DIFFERENT DELAY under the same id is a different schedule. The entry is
+    // found, but preserving it would be describing a schedule nobody asked for.
+    r.ask_as(r.ear, EnsureTimer{"m", 2000, true, kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
+    CHECK(r.heard.resolutions.back().reason.find("differs from the standing one") !=
+          std::string::npos);
+
+    // A DIFFERENT REPEAT MODE likewise: "every two seconds" and "once, in two
+    // seconds" are not the same timer wearing different clothes.
+    r.ask_as(r.ear, EnsureTimer{"m", 2000, false, kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
+
+    // A DIFFERENT ADDRESSING MODE has a different key by construction, so it
+    // finds nothing at all — and the requester-addressed entry it did not match
+    // is left exactly where it was.
+    const std::int64_t active_before = r.count("active");
+    r.ask_as(r.ear,
+             EnsureRoleTimer{"m", 2000, false, "some.slot", kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRestarted);
+    CHECK(r.count("active") == active_before + 1);
+}
+
+TEST_CASE("order: drop removes a standing schedule and declines to create one, and an unknown "
+          "preference is refused rather than guessed at") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_beats(3, /*start=*/true);
+
+    r.ask_as(r.ear, StartTimer{"d", 1000, true});
+    r.run_beats(3);
+    REQUIRE(r.count("active") == 1);
+
+    // Drop removes it.
+    r.ask_as(r.ear, EnsureTimer{"d", 1000, true, kDrop, ""});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionDropped);
+    CHECK(r.count("active") == 0);
+
+    // Drop with nothing to drop declines to create one — same word, and it is
+    // the truthful one either way.
+    r.ask_as(r.ear, EnsureTimer{"never.existed", 1000, true, kDrop, ""});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionDropped);
+    CHECK(r.count("active") == 0);
+
+    // A spelling this package does not know is REFUSED. Nothing is guessed at,
+    // and the reason quotes the word back so a stranger can see the typo.
+    r.ask_as(r.ear, EnsureTimer{"x", 1000, true, "preserve-remaining", kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRefused);
+    CHECK(r.heard.resolutions.back().reason.find("preserve-remaining") != std::string::npos);
+    CHECK(r.count("active") == 0);
+
+    // An ordered ROLE request with no role is refused too — the raw shape drops
+    // it silently, but an order has somewhere to hear why.
+    r.ask_as(r.ear, EnsureRoleTimer{"y", 1000, true, "", kPreserveRemaining, kRestartDelay});
+    r.run_beats(3);
+    CHECK(r.heard.resolutions.back().resolved == kResolutionRefused);
+    CHECK(r.heard.resolutions.back().reason.find("no role") != std::string::npos);
+    CHECK(r.count("active") == 0);
+}
+
+TEST_CASE("binding lifecycle: a one-shot is SPENT before its callback runs, does not reconcile "
+          "afterwards, and re-arms only when something deliberately says so") {
+    loom::Switchboard bus;
+    AskSeen seen;
+    const loom::WeaveId weave = loom::mount<Shooter>(bus);
+    const loom::WeaveId service = mount_role<AskCatcher>(bus, kTimerRole, seen);
+    const loom::WeaveId door = loom::mount<Door>(bus);
+
+    const auto activate = [&](std::int64_t sequence) {
+        bus.send_as(door, weave,
+                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+        bus.pump();
+    };
+    const auto fire = [&] {
+        bus.send_as(service, weave,
+                    loom::Message(loom::to_value(TimerFired{"shooter.shot"}), service, service, 0));
+        bus.pump();
+    };
+    const auto ready = [&] {
+        bus.publish(loom::Message(loom::to_value(TimerReady{})));
+        bus.pump();
+    };
+    const auto shooter = [&] { return static_cast<Shooter*>(bus.weave(weave)); };
+
+    activate(1);
+    REQUIRE(seen.asks.size() == 1);
+    CHECK(shooter()->shot_.waiting());
+
+    // It fires. `once` means once per binding incarnation.
+    fire();
+    CHECK(shooter()->shot_.spent());
+
+    // A SPENT binding does not reconcile — not on an availability notice, not
+    // on a fresh activation. Nothing resurrects it, which is precisely what the
+    // old single `desired` flag could not express.
+    ready();
+    CHECK(seen.asks.size() == 1);
+    activate(2);
+    CHECK(seen.asks.size() == 1);
+    CHECK(shooter()->shot_.spent());
+
+    // An explicit restart arms it again, ONCE, and it reconciles normally from
+    // then on.
+    loom::Bus& root = bus;
+    (void)root;
+    bus.send(weave, loom::Message(loom::to_value(ArmFromCallback{})));
+    bus.pump();
+
+    // ...and now the ordering pin itself: the callback re-arms from INSIDE the
+    // firing. That can only work if Spent was written before the callback ran —
+    // otherwise the mark would land on top of the restart and the binding would
+    // end up spent with an ask already sent, i.e. permanently out of step.
+    const std::size_t asks_before = seen.asks.size();
+    fire();
+    CHECK(shooter()->shot_.waiting());        // the callback's word was the last one
+    CHECK(seen.asks.size() == asks_before + 1); // and the restart really asked
+}
+
+TEST_CASE("binding: a receipt updates the binding it names, and only that one; an id nobody "
+          "declared is ignored") {
+    BindRig r;
+    r.seen.answer_with = kResolutionPreserved;
+    r.activate();
+
+    Bound* w = static_cast<Bound*>(r.bus.weave(r.weave));
+    REQUIRE(w->tick_.resolution() == kResolutionPreserved);
+    REQUIRE(w->role_.resolution() == kResolutionPreserved);
+
+    // A receipt naming exactly one binding moves exactly that one.
+    r.bus.send_as(r.service, r.weave,
+                  loom::Message(loom::to_value(TimerResolution{"bound.tick", kResolutionDropped,
+                                                               "because the test said so"}),
+                                r.service, r.service, 0));
+    r.bus.pump();
+    CHECK(w->tick_.resolution() == kResolutionDropped);
+    CHECK(w->tick_.resolution_reason() == "because the test said so");
+    CHECK(w->role_.resolution() == kResolutionPreserved); // the neighbour is untouched
+
+    // A receipt for an id this weave never declared is data, not news. (A role
+    // beat can be aimed at by anyone, so this is the ordinary case rather than
+    // the hostile one — the same consumer obligation a firing carries.)
+    r.bus.send_as(r.service, r.weave,
+                  loom::Message(loom::to_value(TimerResolution{"somebody.elses", kResolutionRefused,
+                                                               "not yours"}),
+                                r.service, r.service, 0));
+    r.bus.pump();
+    CHECK(w->tick_.resolution() == kResolutionDropped);
+    CHECK(w->role_.resolution() == kResolutionPreserved);
+}
+
+TEST_CASE("binding edges: an empty role is refused at declaration, and an invalid handle fails "
+          "loudly rather than dereferencing nothing") {
+    // AN EMPTY ROLE cannot mean "the beat belongs to a slot", and the service
+    // treats a role-addressed ask with no role as no ask at all — so accepting
+    // one here would leave the author with a binding that quietly behaves like
+    // the requester-addressed mode they deliberately did not choose.
+    loom::Switchboard bus;
+    CHECK_THROWS_AS(loom::mount<EmptyRoleRepeat>(bus), std::invalid_argument);
+    CHECK_THROWS_AS(loom::mount<EmptyRoleOnce>(bus), std::invalid_argument);
+
+    // A DEFAULT HANDLE is part of the public surface, because valid() exists.
+    // Asking one about the binding it does not name is a programmer error and
+    // takes the project's path for one: loud, and never a null dereference.
+    TimerHandle<Bound> nowhere;
+    CHECK_FALSE(nowhere.valid());
+    CHECK_THROWS_AS((void)nowhere.id(), std::logic_error);
+    CHECK_THROWS_AS((void)nowhere.resolution(), std::logic_error);
+    CHECK_THROWS_AS((void)nowhere.resolution_reason(), std::logic_error);
+
+    // The safe questions stay safe and answerable: an invalid handle wants
+    // nothing and cancels nothing.
+    CHECK(nowhere.state() == BindingState::Canceled);
+    CHECK_FALSE(nowhere.waiting());
+}
+
+TEST_CASE("direct load: a Timer loaded straight through the control door, with NO steward in "
+          "the process at all, still becomes live — and authors exactly one chain") {
+    // The whole point of this case is what is MISSING. There is no Weave
+    // Manager, so `zen.manager` is unheld and `zen.ClaimBequest` is a shape
+    // nobody in this process accepts — the service's claim is rejected at the
+    // library seam and no answer can ever come. A bootstrap that waited on one
+    // would wait forever, on a working bus, and the operator would see a load
+    // that succeeded and a service that never spoke.
+    loom::Switchboard bus;
+    loom::Kernel kernel{bus};
+    const loom::WeaveId control = loom::mount_control(kernel, bus);
+
+    Seen seen;
+    seen.bus = &bus;
+    loom::Grant reach = loom::load_capability(control); // the dangerous half, target-scoped
+    reach.allow_to_any(StartTimer::zen_name, StartTimer::zen_version); // and one ordinary ask
+    const loom::WeaveId witness = loom::mount_granted<Witness>(bus, std::move(reach), seen);
+
+    std::int64_t drives = 0;
+    std::int64_t stop_at = -1;
+    bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.schema_name == "Drive") {
+            ++drives;
+            if (stop_at >= 0 && drives >= stop_at) {
+                bus.stop();
+            }
+        }
+    });
+    const auto pump_beats = [&](std::int64_t n) {
+        stop_at = drives + n;
+        bus.pump();
+        stop_at = -1;
+    };
+
+    const std::uint64_t corr = 1;
+    bus.send_as(witness, control,
+                loom::Message(loom::to_value(loom::LoadLibrary{"zengine-timer-virtual",
+                                                               TIMER_VIRTUAL_SO, kTimerRole}),
+                              witness, witness, corr));
+    pump_beats(6);
+
+    const Seen::Answer* a = seen.find(corr);
+    REQUIRE(a != nullptr);
+    REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
+
+    // AVAILABLE: the claim went unanswered and the bootstrap resolved itself
+    // after its own bounded beats — no wall clock, no timeout, no steward.
+    CHECK(seen.ready == 1);
+
+    // LIVE: the chain is beating, with nobody winding anything.
+    CHECK(drives >= 3);
+
+    // And it does real work, which is the difference between "resolved" and
+    // "alive": a timer asked for here fires.
+    const loom::WeaveId service{static_cast<std::uint64_t>(std::stoll(a->text))};
+    bus.send_as(witness, service,
+                loom::Message(loom::to_value(StartTimer{"direct.tick", 20, false}), witness,
+                              witness, 0));
+    pump_beats(6);
+    REQUIRE(seen.fired.size() >= 1);
+    CHECK(seen.fired[0] == "direct.tick");
+
+    // EXACTLY ONE CHAIN. With the queue quiet the only thing pending is the one
+    // parked beat: a second chain would leave a second.
+    pump_beats(1);
+    CHECK(bus.pending() == 1);
 }

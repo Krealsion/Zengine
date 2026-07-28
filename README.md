@@ -105,8 +105,12 @@ schedule (one-shot, repeat, upsert, clamps, cancels, role succession, honest vac
 dead-requester floor) over a fake clock through a real bus, the activation law (a chain authored
 from an activation; premature, duplicate, foreign, stale and replayed beats establishing
 nothing), the real `.so` authoring and re-seeding its chain on the real clock, the load-order
-matrix, and the migration chains — the world ticking, the input weave polling, and the
-skin servicing its medium with nobody pumping them — the **input suite**
+matrix, the migration chains — the world ticking, the input weave polling, and the skin
+servicing its medium with nobody pumping them — and (R2B-0) the **continuity lane**: the letter
+and the order model pinned as units, then proven end to end through real libraries, the real
+kernel, the real steward and a real graceful replacement, over a *virtual* clock so that "a
+five-second one-shot had two seconds remaining, and the successor fired it two seconds later"
+is an exact integer nobody had to sleep for — the **input suite**
 (`tests/test_input.cpp`): the Input package's locked contract and SDL-scancode identity pinned
 by content-id and literal value, both backends' translations as pure math on every lane, the
 weave's publish path and its self-arranged beat through a real bus, and the keys-become-turns
@@ -117,9 +121,13 @@ beat) and the one-owner rule through the real kernel, the granted-operator speak
 (where built) the SDL skin driven by the same intent under SDL's dummy video driver — and the
 **trust-gate probes** (`tests/test_audit_probes.cpp`): a different KIND of suite, kept
 deliberately. It pins what the substrate measurably does to a live beat chain when the timer
-service itself is swapped, reloaded, double-wound, or joined late — *including where that is
-unwanted*. Read its header before changing it: probe A asserts today's swap kills the chain,
-and is expected to flip when the lifecycle question (R2) is answered.
+service itself is swapped, reloaded, double-wound, or joined late — *including where that was
+unwanted*. Read its header before changing it. All four probes were flipped by R2A-2 into
+witnesses of the earned promise while keeping every measured half: probe A still asserts that a
+swap kills the incumbent's parked beat (`CapabilityDenied`, sender-death), and now also that the
+activated successor authors a new chain. It deliberately measures the **hard** path; since
+R2B-0 the service converses about its own succession, so the graceful path — and the continuity
+it buys — is the timer suite's.
 
 ## `timer/` — the Timer package
 
@@ -207,10 +215,13 @@ private:
 **A binding is desired local state.** `timers().repeat(...)` records what this incarnation
 wants; it sends nothing. There is no `Mail` during construction and there may be no Timer in
 the process at all. The binding is *reconciled* later, while handling an ordinary message — on
-an accepted activation, and again on every `TimerReady`. Reconciliation is
-**cardinality-idempotent, not timing-neutral**: the upsert keys mean a re-ask never doubles a
-beat, but it does replace and re-anchor the schedule, so a binding reconciled mid-cycle loses
-the remainder of that cycle.
+an accepted activation, and again on every `TimerReady`. Reconciliation was
+**cardinality-idempotent but never timing-neutral**: the upsert keys mean a re-ask never doubles
+a beat, but the raw asks replaced and *re-anchored* the schedule, so a binding reconciled
+mid-cycle silently lost the remainder of that cycle. R2B-0 is what lets a binding say it would
+rather not — it re-asks with an **order** (see *Continuity* below), so where there is a matching
+schedule to preserve a re-ask now costs nothing at all, and where there is not it restarts and
+*says so* in a receipt.
 
 **Both addressing modes stay visible**, as different names rather than an inferred overload:
 `repeat`/`once` are requester-addressed (`StartTimer`), `repeat_to_role`/`once_to_role` are
@@ -222,10 +233,11 @@ established path for one).
 
 **The convenience hides ceremony from the author, never the conversation from Loom.** A bound
 weave's manifest carries the whole Timer protocol it speaks — `zen.Activated`/`TimerReady`/
-`TimerFired` accepted, `StartTimer`/`StartRoleTimer`/`CancelTimer` emitted — and its grant is
-derived from exactly that. No wildcard acceptance, no `allow_any`, no undeclared emission, no
-host-root send, no Switchboard reach. The raw protocol also stays public: a weave that wants to
-write the ceremony itself still can.
+`TimerFired`/`TimerResolution` accepted, `EnsureTimer`/`EnsureRoleTimer`/`CancelTimer` emitted —
+and its grant is derived from exactly that. No wildcard acceptance, no `allow_any`, no
+undeclared emission, no host-root send, no Switchboard reach. Since R2B-0 the binding speaks the
+**ordered** forms, so its manifest says so and stops claiming the raw ones; the raw protocol
+stays public and unchanged for a weave that wants restart/upsert with no negotiation.
 
 **Cancellation is both halves** — the binding stops being wanted locally *and* `CancelTimer` is
 sent — so a later `TimerReady` does not resurrect it; `restart(mail)` wants it again. A handle's
@@ -236,11 +248,129 @@ Adapter weaves remain the right answer where time-to-domain translation is repla
 `snake-clock` is still a weave (a pause driver, slow-motion clock or replay feeder can take its
 slot) — only its ceremony left.
 
-Still open, and named rather than implied: the Timer's private schedule table is not persisted,
-there is no dead-requester cleanup, the Skin is not migrated to the binding (its `SurfaceReady`
-concerns are separate and it was left as the next consumer), and activation carries **no trust
-anchor** — sender plus sequence gives lineage and deduplication, not proof that the sender is
-the one true operator.
+### Continuity — what survives when the Timer dies (R2B-0)
+
+> **Death is universal. Inheritance is authored.**
+
+The Loom supplies the replacement moment and carries the envelope. What crosses is this
+package's own decision, and making it required naming the three different kinds of state a
+Timer holds:
+
+| | what it is | who owns it | does it cross? |
+|---|---|---|---|
+| **Intent** | which timer a consumer wants (id, delay, repeat, addressing) | the consumer | no — it is re-declared on the consumer's own activation |
+| **Progress** | how far a schedule has advanced: the remaining duration | the service | **yes** — this is what the letter is for |
+| **Binding lifecycle** | waiting / spent / canceled | the consumer incarnation | no — see the boundary below |
+
+Progress is the only one a re-ask cannot reconstruct, so it is the only one that travels.
+
+**The first package-local order model.** A consumer now says what it would *prefer* and what it
+will *settle for*, and the Timer answers with what it actually did:
+
+```text
+request  ->  available menu  ->  resolved choice  ->  receipt
+```
+
+`EnsureTimer{id, delay_ms, repeat, preferred, fallback}` and `EnsureRoleTimer{…, role, …}` are
+**new** shapes rather than fields on `StartTimer` — a frozen `(name, version)` keeps meaning
+exactly what it meant, and the raw fire-and-forget vocabulary keeps its explicit restart/upsert
+promise, unreinterpreted. The menu is three words: `preserve_remaining`, `restart_delay`,
+`drop`. **Refusal is an outcome, not a menu choice** — an empty `fallback` means the preference
+is required, and if it is unavailable the order is refused and *nothing* is created or changed.
+
+`TimerResolution{id, resolved, reason}` goes to the stamped requester and states the RESULT, not
+merely success: `preserved_remaining` / `restarted_delay` / `dropped` / `refused`, with a
+self-contained reason a stranger or a console can read. It is an ordinary declared message, so a
+tap sees both halves of every order; the binding consumes it and exposes it on the handle
+(`resolution()`, `resolution_reason()`).
+
+**Matching is defined and pinned.** A standing entry matches an order when it has the same
+upsert key *and* the same schedule meaning — same repeat mode, same clamped delay. A changed
+addressing mode has a different key by construction; a changed delay or repeat mode finds the
+entry but not a match. Both resolve as *unavailable* and go to the fallback, because calling
+either "preserved" would describe a schedule nobody asked for.
+
+**The letter.** `TimerHandoff{entries}` — one bequest item, one shape, at most
+`kMaxHandoffEntries` entries, through the ordinary `bequeath_item` / `claim_item` gate. Each
+entry carries the requester as lossless decimal Text, the id, the role (empty = requester-
+addressed), the declared delay, the repeat flag, and **`remaining_ms` rather than a due time**:
+the successor's clock is a different monotonic epoch, so an absolute deadline would be a number
+with no meaning there. The consequence, said plainly: **replacement downtime is paused.** Two
+seconds left before the swap is two seconds left after it, whatever happened in between. That
+is continuity of a *delay* and must never be described as preservation of a deadline.
+
+A letter is **adopted whole or not at all**: over the bound, or one entry whose requester is not
+canonical decimal, and nothing is taken. An honest predecessor cannot produce either, so such a
+letter is untrusted input rather than a large truth. A handoff written to a *different version*
+of the shape is answered by the gate itself, never by a label the reader trusted.
+
+**Successor bootstrap — the ordering is the whole thing.**
+
+```text
+zen.Activated -> claim, by role, from the steward
+              -> seed Drive 0                        [bootstrap]
+   answer (Bequest | Refused) -> restore, or start fresh
+              -> replay whatever arrived while deciding
+              -> publish TimerReady
+   two bootstrap beats with no answer -> there was no steward: start fresh, the same way
+```
+
+`TimerReady` **may not be published before that decision**, and the reason is mechanical: it is
+what makes every standing consumer re-ask, and a consumer that re-asks before restoration finds
+nothing to preserve and re-anchors — silently converting "two seconds left" into "five seconds
+from now". The bootstrap is exactly **two queue turns**, derived from the bus's own FIFO
+ordering rather than tuned, and it is a count of turns and not milliseconds: no wall-clock
+timeout, no spin, and **no permanent dependency on a steward existing at all** (a direct
+control-door load with no Manager reaches beat two unanswered and starts fresh — pinned).
+Operations arriving during the window are held in a bounded list and replayed in arrival order
+*after* the inheritance, so a fresh request always beats inherited state for the same key;
+overflow is counted (`deferred_dropped`) *and* answered with a `refused` receipt.
+
+**Binding lifecycle, honestly.** The old single `desired` bool answered two questions at once:
+"should this be re-established?" and "has this already happened?". It is now `Waiting` / `Spent`
+/ `Canceled`. A one-shot means **once per binding incarnation, unless explicitly restarted** —
+and it is marked `Spent` *before* its callback runs, so a callback may deliberately
+`restart(mail)` and have the last word. A spent or canceled binding does not reconcile, and no
+Timer reload, replacement or availability notice resurrects it.
+
+**The binding-incarnation boundary, stated directly:** the lifecycle state is local to the
+CONSUMER incarnation. A Timer replacement does not reset a spent binding; a consumer reload or
+replacement constructs a *new* binding incarnation which may declare the timer again.
+Preserving binding lifecycle across consumer death is a future generated/package-authored
+handoff seam, not something silently delivered here.
+
+**What the three replacement paths actually do**, with nothing rounded up:
+
+- **graceful swap** — the letter crosses; a matching re-ask resolves `preserved_remaining` and
+  is not re-anchored; `TimerReady` comes only after restoration.
+- **hard swap** — no letter exists. `preserve_remaining` is unavailable, the default order falls
+  back to `restarted_delay` and says so; a required-preservation order is refused and creates
+  nothing.
+- **reload** — reload does **not** run the graceful ceremony, and the schedule table is
+  deliberately not part of `TimerState`. For continuity purposes reload is a *fresh service*:
+  the default order falls back to restart, required preservation refuses, and nothing here
+  claims remaining-duration preservation. (Moving schedule progress into reload-transplanted
+  state is a possible future design, recorded as one — never an accidental promise.)
+- **initial load** — nothing to preserve; the default order resolves `restarted_delay`. Not an
+  error: the first preparation of the timer.
+
+The general pattern, worth naming and **not** worth promoting to Loom law:
+
+> Every package meets the same common lifecycle moments, but authors its own menu of survivable
+> state and acceptable degradation.
+
+Still open, and named rather than implied: the Timer's private schedule table is not persisted
+across a process restart, there is no dead-requester cleanup, the Skin is not migrated to the
+binding (its `SurfaceReady` concerns are separate and it was left as the next consumer), and
+activation carries **no trust anchor** — sender plus sequence gives lineage and deduplication,
+not proof that the sender is the one true operator. **An absolute alarm is a distinct future
+timer kind** whose intent is a *deadline*, not a delay; every shape here is relative, and an
+alarm must not be approximated with relative-one-shot semantics (which pause across downtime by
+construction — exactly what a deadline must not do).
+
+Banked, not built: absolute deadline timers; generated binding-state handoff; a reusable
+cross-package order vocabulary (the trigger is a *third* package wanting this same menu);
+fork-time continuity using the same intent/progress distinction.
 
 **Banked, not built — a future concurrency direction:** *many threads may think; one weave
 speaks.* A future thought worker may read immutable snapshots, compute proposals, and queue

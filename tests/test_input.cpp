@@ -160,6 +160,8 @@ struct BeatAsk {
     std::int64_t delay_ms = 0;
     bool repeat = false;
     std::string role;
+    std::string preferred;
+    std::string fallback;
 };
 
 struct CatcherState {
@@ -172,12 +174,12 @@ struct CatcherState {
 /// the weave's side of the contract is pinned without a clock in sight.
 class BeatCatcher
     : public loom::WeaveBase<BeatCatcher, CatcherState,
-                             loom::Accept<zengine::timer::StartRoleTimer>, loom::Emit<>> {
+                             loom::Accept<zengine::timer::EnsureRoleTimer>, loom::Emit<>> {
 public:
     explicit BeatCatcher(std::vector<BeatAsk>& asks) : asks_(&asks) {}
-    void on(const zengine::timer::StartRoleTimer& s, loom::Mail&) {
+    void on(const zengine::timer::EnsureRoleTimer& s, loom::Mail&) {
         ++state_.asks;
-        asks_->push_back(BeatAsk{s.id, s.delay_ms, s.repeat, s.role});
+        asks_->push_back(BeatAsk{s.id, s.delay_ms, s.repeat, s.role, s.preferred, s.fallback});
     }
 
 private:
@@ -625,6 +627,11 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     CHECK(asks[0].delay_ms == kPumpBeatMs);
     CHECK(asks[0].repeat);
     CHECK(asks[0].role == kInputRole);
+    // The ORDER travels with the ask (R2B-0): this weave prefers to keep the
+    // remaining time across a Timer succession, and accepts a restart when there
+    // is nothing to keep.
+    CHECK(asks[0].preferred == zengine::timer::kPreserveRemaining);
+    CHECK(asks[0].fallback == zengine::timer::kRestartDelay);
 
     // A duplicate activation asks for nothing — the cursor's whole job, and
     // what keeps a re-delivered stimulus from doing non-idempotent work.

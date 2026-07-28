@@ -9,6 +9,33 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
+# ---- the suite's own weave libraries (R2B-0) ------------------------------------------
+#
+# Fixtures, built exactly the way every other weave in this repo is (zengine_weave, so
+# the -fno-gnu-unique law applies to them too), and loaded through the REAL kernel.
+#
+#   zengine-timer-virtual   the shipped TimerServiceT over a clock whose nap advances
+#                           virtual time instead of sleeping. The continuity proof is a
+#                           claim about DURATIONS, and proving it on a wall clock would
+#                           mean sleeping five real seconds to learn less.
+#   zengine-probe-oneshot   an ordinary binding consumer: one declared five-second
+#                           one-shot, the binding API's DEFAULT order.
+#   zengine-probe-required  the same source, one flag apart: preservation REQUIRED, no
+#                           fallback. One source, two libraries — the world weavelib
+#                           pattern, for the same reason (the difference under test is
+#                           one declaration, so everything else must be identical).
+zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp)
+target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation)
+
+zengine_weave(zengine-probe-oneshot weavelib/oneshot_probe.cpp)
+target_link_libraries(zengine-probe-oneshot PRIVATE zengine-timer-vocabulary zengine-activation)
+target_include_directories(zengine-probe-oneshot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
+
+zengine_weave(zengine-probe-required weavelib/oneshot_probe.cpp)
+target_link_libraries(zengine-probe-required PRIVATE zengine-timer-vocabulary zengine-activation)
+target_include_directories(zengine-probe-required PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
+target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVATION=1)
+
 add_executable(zengine-tests test_snake.cpp)
 target_link_libraries(zengine-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
@@ -49,7 +76,8 @@ target_link_libraries(zengine-timer-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings)
 target_include_directories(zengine-timer-tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
 
 target_compile_definitions(zengine-timer-tests PRIVATE
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
@@ -57,7 +85,11 @@ target_compile_definitions(zengine-timer-tests PRIVATE
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
-    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
+    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\""
+    # The R2B-0 continuity lane: virtual time, real everything else.
+    "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
+    "PROBE_ONESHOT_SO=\"$<TARGET_FILE:zengine-probe-oneshot>\""
+    "PROBE_REQUIRED_SO=\"$<TARGET_FILE:zengine-probe-required>\"")
 
 add_test(NAME timer COMMAND zengine-timer-tests)
 
