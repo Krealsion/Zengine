@@ -56,6 +56,8 @@
 
 #include "snake/vocabulary.hpp"
 
+#include "lifecycle_door.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -308,8 +310,7 @@ struct FakeDoorState {
     std::int64_t nothing = 0;
     ZEN_SHAPE(FakeDoorState, 1, ZEN_FIELD(nothing));
 };
-class FakeDoor : public loom::WeaveBase<FakeDoor, FakeDoorState, loom::Accept<>,
-                                        loom::Emit<loom::Activated>> {};
+using zengine::testing::TestDoor;
 
 struct FakeRig {
     loom::Switchboard bus;
@@ -329,7 +330,7 @@ struct FakeRig {
         service = bus.register_weave(std::move(weave), std::move(grant), kTimerRole);
         raw->zen_set_self(service);
         ear = loom::mount<FakeEar>(bus, heard);
-        door = loom::mount<FakeDoor>(bus);
+        door = zengine::testing::mount_door(bus);
     }
 
     /// The activation key's two halves, as a consumer of the wire would see it.
@@ -337,8 +338,7 @@ struct FakeRig {
     std::int64_t current_sequence() const { return next_sequence - 1; }
 
     void activate(std::int64_t sequence) {
-        bus.send_as(door, service,
-                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+        zengine::testing::order_activation(bus, door, service, sequence);
     }
     void activate() { activate(next_sequence++); }
 

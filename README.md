@@ -154,6 +154,36 @@ and seeding `Drive` serial 0. Each valid beat naps to the soonest deadline (capp
 fires what came due, and seeds exactly its one successor. Pumping the bus IS running the world,
 paced by the one legal sleep.
 
+### Activation is now ATTESTED, not merely stamped (R2B-1)
+
+> Activation identity is no longer inferred from an arbitrary stamped sender. The activation
+> cursor accepts only **Loom-attested** activation, and then applies sequence replay protection.
+
+Every Zengine package that arranges its own time does so on `zen.Activated`. R2A-1 gave that
+fact a narrow meaning and a stamped sender; it could not answer the next question — *was that
+sender authorized to announce a lifecycle commit at all?* Any weave granted the public shape
+could manufacture a first breath for someone else's incarnation, and a consumer had no way to
+tell. `zengine::ActivationCursor::accept(mail, activated)` now owns both halves, once, so no
+author rediscovers the rule:
+
+1. **Provenance** — `mail.lifecycle_attested()` is a *delivery fact* the bus sets and no payload
+   can carry, bound by Loom to the incarnation being delivered to; and the sequence Loom
+   attested must equal the one the payload states, so a proof minted for one activation cannot
+   authenticate another.
+2. **Lineage** — then the old rules, unchanged: positive, and newer-per-sender, so a duplicate
+   or replay makes nothing happen twice.
+
+An unattested `zen.Activated` is not a weaker lineage — it is **not a lineage at all**, and is
+ignored entirely. All four consumers (Timer, Input, Skin, SnakeClock, plus the suites' probes)
+go through this one call; replacing the cursor's signature rather than adding an overload is
+what made the compiler enumerate the audit instead of a human trying to remember it.
+
+Honest limits, kept out loud: this proves *Loom* authorized the commit, not that a particular
+host wiring is the right one — the host decides who holds the lifecycle authority, and a host
+that hands it to two operators has two lineages by its own choice. And it does not cross a
+process boundary: an out-of-process weave receives no attestation and therefore accepts no
+activation, failing closed at the seam.
+
 `Drive` is **v2** and carries its own ownership — `{activation_sender, activation_sequence,
 serial}` — so a beat is acted on only when the service is activated, the key names the
 activation it is living under, the serial is the one expected, and the stamped sender is the
@@ -303,6 +333,25 @@ A letter is **adopted whole or not at all**: over the bound, or one entry whose 
 canonical decimal, and nothing is taken. An honest predecessor cannot produce either, so such a
 letter is untrusted input rather than a large truth. A handoff written to a *different version*
 of the shape is answered by the gate itself, never by a label the reader trusted.
+
+**"Whole" means the whole letter, and the letter is a bounded subset of the table.** A service
+standing more than `kMaxHandoffEntries` timers offers continuity for the first
+`kMaxHandoffEntries` in table order; **the rest are not offered continuity at all** — not
+preserved, not restored, and not reported as missing. Their consumers meet an unavailable
+preservation on their next ordered re-ask and fall back exactly as they would after a hard
+replacement. Nothing here claims an arbitrarily large active table crosses completely.
+
+**The claim is authenticated (R2B-1).** The heir reaches the steward BY ROLE — precisely because
+it cannot know the steward's `WeaveId` — so it cannot pre-bind the answer's sender, and a shape
+plus the (published) `kClaimCorrelation` is exactly what any weave holding the same grant can
+also produce. For *this* letter that gap was load-bearing: a forged handoff names the identities
+future firings are addressed to. So the Timer now requires three things of an answer: Loom's
+word that this is the one authorized answer to the request it actually sent
+(`Mail::answers_ask()`), its own correlation, and an open claim. The Manager answers through
+`mail.answer(...)`, which only the incarnation the claim was delivered to can do, once. An
+ordinary weave that knows the shape, the correlation, the role name and the handoff byte format
+is pinned in the suite doing its best and inheriting nothing — before the genuine answer, after
+it, and with the legitimate steward's own bytes replayed the ordinary way.
 
 **Successor bootstrap — the ordering is the whole thing.**
 

@@ -268,8 +268,10 @@ public:
     /// what to DO about it, which since R2B-0 is: find out what it inherited,
     /// and only then become available.
     void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail.sender(), a.sequence)) {
-            return; // invalid, duplicate or replayed: no notice, no chain, nothing
+        if (!activation_.accept(mail, a)) {
+            // Unattested, forged, duplicate or replayed: no notice, no chain,
+            // nothing. A first breath is Loom's to grant, not a shape's to claim.
+            return;
         }
         // A new activation owns a new chain, from serial 0.
         expected_serial_ = 0;
@@ -437,11 +439,6 @@ private:
     /// early would let the letter overwrite it.
     enum class Bootstrap { Awaiting, Resolved };
 
-    /// The claim's correlation. This service makes exactly one claim per
-    /// activation, so one constant distinguishes that conversation from
-    /// everything else it will ever be told.
-    static constexpr std::uint64_t kClaimCorrelation = 0x71E5;
-
     /// Is this beat the one this chain is waiting for? All four terms, and any
     /// one of them failing means the Drive is ignored entirely.
     bool owns_beat(const Drive& d, const loom::Mail& mail) const {
@@ -498,11 +495,24 @@ private:
 
     // ---- the bootstrap: deciding what this incarnation inherited -------------
 
-    /// Does this standard answer answer OUR claim? Correlation plus one-shot;
-    /// `claim_open_` closes at the decision, which is what makes a late,
-    /// duplicated or forged reply unable to replace a resolved bootstrap.
+    /// Does this answer OUR claim? Three terms, and R2B-1 added the first —
+    /// which is the one that turns "probably the steward" into "the steward".
+    ///
+    ///   1. LOOM'S WORD. `answers_ask()` is a delivery fact the bus sets on the
+    ///      one authorized answer to a request this incarnation actually sent.
+    ///      Only the weave that received our ClaimBequest can produce it, and
+    ///      only once. This is what the heir could not have before: it reaches
+    ///      the steward BY ROLE precisely because it cannot know the steward's
+    ///      id, so it could not pre-bind the answer's sender — and a shape plus
+    ///      a public correlation is exactly what any weave holding the same
+    ///      grant can also produce. For THIS letter the gap was load-bearing: a
+    ///      forged handoff names the identities future firings are addressed to.
+    ///   2. OUR CONVERSATION. The correlation Loom copied from our own claim.
+    ///   3. ONE-SHOT. `claim_open_` closes at the decision, so a late or
+    ///      duplicated answer — even a genuine one — cannot reopen or replace a
+    ///      resolved bootstrap.
     bool answers_our_claim(const loom::Mail& mail) const {
-        return claim_open_ && mail.correlation() == kClaimCorrelation;
+        return claim_open_ && mail.answers_ask() && mail.correlation() == kClaimCorrelation;
     }
 
     /// The decision, and the only place it is made. Restore (or don't), then

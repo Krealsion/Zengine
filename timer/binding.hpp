@@ -449,12 +449,13 @@ public:
 
     /// This incarnation is live: establish everything it declared.
     ///
-    /// Activation deduplication lives HERE, once, so consumers do not each
-    /// carry a cursor. The cursor's caveat travels with it: sender plus
-    /// sequence gives lineage and deduplication, NOT authentication.
+    /// Activation trust AND deduplication live HERE, once, so no author has to
+    /// rediscover the rule. Since R2B-1 the cursor requires Loom's attestation
+    /// before it considers lineage at all — so a bound weave cannot be made to
+    /// re-establish its timers by any weave that merely knows the public shape.
     void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail.sender(), a.sequence)) {
-            return; // duplicate or replayed: nothing is re-established
+        if (!activation_.accept(mail, a)) {
+            return; // unattested, duplicate or replayed: nothing is re-established
         }
         bindings_.reconcile(mail);
     }
