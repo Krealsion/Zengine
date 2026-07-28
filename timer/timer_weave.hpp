@@ -13,12 +13,32 @@
 // the test count beats, so every schedule below is pinned without a single
 // wall-clock wait.
 //
-// HOW THE SERVICE RUNS — the beat chain. Dispatch on this bus is
-// single-threaded FIFO and a weave runs only when a message arrives, so the
-// service keeps itself alive: each Drive beat is
+// HOW THE SERVICE RUNS — the beat chain, AUTHORED FROM ITS ACTIVATION.
 //
-//   announce (first beat only) -> nap to the soonest deadline (capped at
-//   kBeatCapMs) -> fire everything due -> re-send Drive to self.
+// The law (R2A-2): every successfully activated incarnation establishes exactly
+// ONE beat chain. A new activation owns a new chain; stale, duplicate, replayed,
+// inherited or foreign Drives cannot establish another.
+//
+//   zen.Activated -> accept a new activation lineage
+//                 -> publish TimerReady (the service is available)
+//                 -> seed Drive serial 0
+//   each valid Drive -> nap, fire, and seed exactly its one successor
+//
+// The host does not wind the clock and owes the service nothing, ever. Loading
+// the service is what starts time, because the Loom's control door activates a
+// freshly committed incarnation and the service authors its chain from that.
+//
+// A NEW INCARNATION BEGINS UNACTIVATED, and that is load-bearing rather than
+// incidental: the activation cursor and the expected serial are plain members,
+// never TimerState, so nothing about a chain transplants through a reload. A
+// predecessor's queued Drive that reaches the new instance first finds a weave
+// that is not activated at all, and is inert.
+//
+// Dispatch on this bus is single-threaded FIFO and a weave runs only when a
+// message arrives, so the service keeps itself alive: each Drive beat is
+//
+//   nap to the soonest deadline (capped at kBeatCapMs) -> fire everything due
+//   -> seed the one successor Drive.
 //
 // The nap comes BEFORE the firing so a firing is delivered the moment it is
 // due, not one nap later; the re-send comes last, which buys exactly one
@@ -32,30 +52,49 @@
 // delivery on the idle/deadline side of the nap rather than behind it, and
 // that is a deferred Loom question, not designed here.
 //
-// The host's whole obligation is the first Drive (the wind) — after that,
-// pumping the bus IS running the world, and the pump breathes at this weave's
+// Pumping the bus IS running the world, and the pump breathes at this weave's
 // pace because the nap lives inside the beat.
 //
-// WHEN THE SERVICE GOES AWAY (measured — the trust-gate audit of 2026-07-26,
-// probes A/B in tests/test_audit_probes.cpp; the summary lives on Drive in
-// vocabulary.hpp):
-//   - unloaded or SWAPPED: the in-flight Drive dies with it, and the chain
-//     dies too. The mechanism is precise and worth stating exactly, because
-//     the obvious guess is wrong: a gated send is authorized by looking its
-//     SENDER up at delivery time, so the parked re-wind fails on a dead
-//     sender (CapabilityDenied) — NOT on a vacant target. On a swap the
-//     successor already holds the role by the time that Drive is delivered;
-//     it is simply never allowed to arrive. So the successor gets no first
-//     message, never announces, and never beats: time stops when the clock is
-//     gone, and stays stopped until something winds it again.
-//   - RELOADED: the chain lives. Reload rebinds the new library behind the
-//     same adapter and WeaveId, so the sender lookup keeps succeeding and the
-//     beat rides straight through. Note what a reload does and does not carry:
-//     it constructs a NEW instance and transplants only the ZEN_SHAPE state
+// KNOWING ITS OWN BEAT — how a Drive is recognised as ours. A loaded weave has
+// no usable `self_`: nothing ever calls `zen_set_self` on the instance inside a
+// `.so` (the kernel sets it on the host-side adapter), so this service cannot
+// simply compare a stamped sender against its own id. It LEARNS that id instead,
+// from the first Drive of a chain it authored, and requires every later beat to
+// carry it.
+//
+// That is sound rather than merely convenient, and the reason is the bus's own
+// ordering guarantee: dispatch is single-threaded, FIFO and non-reentrant. The
+// activation key does not exist for anyone until the activation is DELIVERED
+// here, and this handler enqueues its seed before any other weave can run — so
+// the first Drive bearing the current key is necessarily our own. Anything a
+// third party queued earlier arrives before the activation (when we are not
+// activated, or still on the old key) and is ignored; anything it queues later
+// is behind our seed and fails the serial check.
+//
+// It is NOT authentication, and the distinction is worth keeping sharp: it
+// establishes which sender owns this chain, not that that sender is trustworthy.
+// Every weave in this process is trusted code today.
+//
+// WHEN THE SERVICE GOES AWAY. The substrate behaviour here is unchanged and
+// still measured (the trust-gate audit of 2026-07-26, probes A/B) — what changed
+// in R2A-2 is that its consequences are no longer the whole story:
+//   - unloaded or SWAPPED: the in-flight Drive still dies with its sender. The
+//     mechanism is precise and the obvious guess is wrong: a gated send is
+//     authorized by looking its SENDER up at delivery, so the parked beat fails
+//     on a dead sender (CapabilityDenied) — NOT on a vacant target; on a swap
+//     the successor already holds the role by then. The old chain therefore ends
+//     honestly. What is new is that the successor does not need it: it is
+//     activated, and authors a chain of its own.
+//   - RELOADED: the same WeaveId survives, so the predecessor's parked Drive is
+//     still deliverable — and it is now INERT anyway, because the new instance
+//     begins unactivated and the old serial is not one it expects. Liveness
+//     comes from the reload's own activation, not from an inherited beat.
+//     Reload constructs a NEW instance and transplants only the ZEN_SHAPE state
 //     (TimerState) through the gate, so `beats`/`fired` continue while
-//     `entries_` and `announced_` below start fresh. That is why a reloaded
-//     service re-announces — and why it must: the standing timers are gone
-//     with the old instance, and the hello is what gets them re-asked.
+//     `entries_`, the activation cursor and the expected serial start fresh —
+//     which is exactly why the new activation republishes TimerReady: the
+//     standing timers went with the old instance and the notice is what gets
+//     them re-asked.
 //
 // CLEANUP, honestly. "Cancel a dead requester's timers" wants the service to
 // SEE death, and a weave cannot: the bus shows a sender no delivery outcomes
@@ -73,16 +112,38 @@
 
 #include "vocabulary.hpp"
 
+#include "activation/activation.hpp"
+
 #include <zen/weave.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace zengine::timer {
+
+/// May a chain advance from `serial` to its successor?
+///
+/// A serial is a finite signed integer, so a chain has a last representable
+/// beat. At that beat the chain STOPS rather than wrapping or re-issuing one it
+/// has already spent — a duplicated serial would be indistinguishable from a
+/// replay and would fork time, which is precisely what this phase exists to
+/// prevent.
+///
+/// PROOF LEVEL, stated honestly: this predicate is pinned DIRECTLY, and the
+/// behavioural path through it is **true by construction, not reachable by any
+/// test** — arriving at the boundary would take 2^63 beats. The serial is a
+/// per-incarnation plain member by design (nothing about a chain transplants),
+/// so unlike the Loom's activation sequence there is no revival path a test
+/// could use to place a chain near its end. Extracting the guard is what makes
+/// the boundary assertable at all.
+inline constexpr bool can_advance_serial(std::int64_t serial) {
+    return serial >= 0 && serial < std::numeric_limits<std::int64_t>::max();
+}
 
 /// Four honest counters, poke-inspectable like any state: beats lived,
 /// firings delivered, timers currently standing, and asks dropped for having
@@ -100,32 +161,58 @@ struct TimerState {
 template <class Clock>
 class TimerServiceT
     : public loom::WeaveBase<TimerServiceT<Clock>, TimerState,
-                             loom::Accept<Drive, StartTimer, StartRoleTimer, CancelTimer,
-                                          CancelAllMyTimers>,
+                             loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer,
+                                          CancelTimer, CancelAllMyTimers>,
                              loom::Emit<TimerFired, TimerReady, Drive>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
 
-    void on(const Drive&, loom::Mail& mail) {
-        announce_once(mail);
+    /// The Loom's control door says this incarnation is committed and live.
+    /// That is the whole of what it says — so this is where the service decides
+    /// what to DO about it, which is: become available, and author one chain.
+    void on(const loom::Activated& a, loom::Mail& mail) {
+        if (!activation_.accept(mail.sender(), a.sequence)) {
+            return; // invalid, duplicate or replayed: no notice, no chain, nothing
+        }
+        // A new activation owns a new chain, from serial 0.
+        expected_serial_ = 0;
+        // Tell the truth about the table rather than assuming: a fresh
+        // incarnation's is empty, but activation is not state migration and has
+        // no business clearing one that legitimately holds entries.
+        this->state_.active = static_cast<std::int64_t>(entries_.size());
+        mail.publish(TimerReady{});
+        seed_chain(mail);
+    }
+
+    void on(const Drive& d, loom::Mail& mail) {
+        if (!owns_beat(d, mail)) {
+            return; // stale, duplicate, replayed, foreign or premature: nothing at all
+        }
+        if (!chain_sender_.valid()) {
+            // The seed came home. Whatever the bus stamped on it is this
+            // incarnation's own id — the only self-knowledge available to a
+            // loaded weave — and every later beat must carry it.
+            chain_sender_ = mail.sender();
+        }
         std::int64_t now = clock_.now_ms();
         clock_.nap_ms(nap_until_next(now));
         now = clock_.now_ms();
         fire_due(now, mail);
         ++this->state_.beats;
-        // Re-wind BY ROLE, not by id: a loaded weave does not know its own
-        // bus-side id (self-sends die at delivery), and the role is the more
-        // honest address anyway — the beat belongs to "whoever provides time",
-        // not to one incarnation of it. A service without its role does not
-        // beat; the role is the contract, not a convenience.
-        //
-        // What role addressing does NOT do is carry the chain across a SWAP:
-        // this send is authorized against its SENDER at delivery, so once this
-        // incarnation is unregistered the parked Drive is refused and the
-        // chain ends there. Reload keeps it (same WeaveId); swap does not.
-        // See the header's "WHEN THE SERVICE GOES AWAY".
-        mail.send_to_role(kTimerRole, Drive{});
+        // Guard BEFORE the arithmetic, never after: a wrapped serial would
+        // re-issue one this chain has already spent, and a duplicated serial is
+        // indistinguishable from a replay. At the boundary the chain simply
+        // ends — the beat it is in was real and did its work.
+        if (!can_advance_serial(expected_serial_)) {
+            return;
+        }
+        ++expected_serial_;
+        // Seeded BY ROLE because a loaded weave cannot address itself; ownership
+        // is carried by the key and the serial, not by the addressing.
+        mail.send_to_role(kTimerRole,
+                          Drive{activation_.sender_text(), activation_.sequence(),
+                                expected_serial_});
     }
 
     void on(const StartTimer& s, loom::Mail& mail) {
@@ -164,21 +251,41 @@ private:
         bool spent = false;
     };
 
-    /// One hello per INCARNATION (the skin's `announced_` stance): a plain
-    /// member, never state — so a fresh incarnation announces again and the
-    /// standing-beat owners re-ask, which is what refills the table a new
-    /// instance starts empty (every ask is an upsert; re-asking is idempotent).
-    /// Measured: that cascade runs on a RELOAD, which re-announces on the beat
-    /// it rides through. It does not run on a swap — a swapped-in service
-    /// never gets a first message to announce on, so there is nothing to
-    /// re-ask into. Announcing is necessary for succession here; it is not
-    /// sufficient, and the missing half is liveness (see the header).
-    void announce_once(loom::Mail& mail) {
-        if (announced_) {
-            return;
+    /// Is this beat the one this chain is waiting for? All four terms, and any
+    /// one of them failing means the Drive is ignored entirely.
+    bool owns_beat(const Drive& d, const loom::Mail& mail) const {
+        if (!activation_.activated()) {
+            return false; // premature: nothing has told this incarnation it is live
         }
-        announced_ = true;
-        mail.publish(TimerReady{});
+        if (!activation_.matches(d.activation_sender, d.activation_sequence)) {
+            return false; // a different activation's beat — inherited, stale, or forged
+        }
+        if (d.serial != expected_serial_) {
+            return false; // an old serial (replayed) or a future one (fabricated)
+        }
+        // The chain's sender, learned from its own seed (see the header). Until
+        // it is learned, the seed itself is the only Drive that can pass the
+        // three checks above, and FIFO dispatch makes that seed necessarily ours.
+        //
+        // PROOF LEVEL, measured and stated rather than assumed: this term is
+        // DEFENSE IN DEPTH and is **true by construction, not pinned**. Removing
+        // it was mutated and the suite stayed green — deliberately reported
+        // rather than papered over. The reason is instructive: the serial is a
+        // single counter, so an honoured foreign beat does not FORK the chain,
+        // it DISPLACES the real one (the genuine next beat then fails the serial
+        // check and is dropped). Chain count, beat count and virtual time all
+        // read identically, so no instrument here can tell the two apart. The
+        // three checks above are what make the chain single and correct; this
+        // one closes a seizure vector that is currently benign, and it stays
+        // because it is cheap, correct, and the thing that would matter first if
+        // a beat ever carried authority.
+        return !chain_sender_.valid() || mail.sender() == chain_sender_;
+    }
+
+    /// Send the chain's first beat and adopt the identity it comes back with.
+    void seed_chain(loom::Mail& mail) {
+        mail.send_to_role(kTimerRole,
+                          Drive{activation_.sender_text(), activation_.sequence(), 0});
     }
 
     std::int64_t nap_until_next(std::int64_t now) const {
@@ -261,7 +368,13 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    bool announced_ = false;
+    // Per-INCARNATION, never TimerState, and that is the design rather than an
+    // omission: nothing about a chain may transplant through a reload, or a new
+    // instance would inherit liveness it did not author.
+    zengine::ActivationCursor activation_; ///< which activation this incarnation lives under
+    std::int64_t expected_serial_ = 0;     ///< the one beat this chain will accept next
+    loom::WeaveId chain_sender_{};         ///< learned from the seed; the id a beat must carry
+
     Clock clock_{};
     std::vector<Entry> entries_;
 };

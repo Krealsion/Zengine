@@ -17,3 +17,5 @@ if(NOT TARGET loom::kernel)
 endif()
 
 zengine_weave(zengine-timer timer.cpp)
+# The service authors its beat chain from its own activation, so it reads one.
+target_link_libraries(zengine-timer PRIVATE zengine-activation)

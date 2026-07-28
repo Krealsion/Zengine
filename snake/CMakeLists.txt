@@ -33,7 +33,7 @@ target_link_libraries(snake-controls PRIVATE zengine-input-vocabulary)
 # SnakeTick; the one place where "how fast the world runs" lives, and the
 # world stays a clock-ignorant rule machine.
 zengine_weave(snake-clock clock.cpp)
-target_link_libraries(snake-clock PRIVATE zengine-timer-vocabulary)
+target_link_libraries(snake-clock PRIVATE zengine-timer-vocabulary zengine-activation)
 
 # The playable host. It resolves the .so files beside its own binary, so every
 # weave it loads — the package's own, the Input producer, and the Surface

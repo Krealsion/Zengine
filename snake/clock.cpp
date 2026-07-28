@@ -14,16 +14,20 @@
 // tick goes to whoever holds snake.world at delivery, so time survives the
 // world being swapped mid-game (moment 3 does exactly that). Its OWN timer
 // is requester-addressed (the prompt's V1 default) — this adapter is never
-// swapped mid-game, and if it ever is, its successor re-asks on the next
-// TimerReady; the predecessor's beat dies against a never-reused WeaveId.
+// swapped mid-game, and if it ever is, its successor asks on its own
+// activation; the predecessor's beat dies against a never-reused WeaveId.
 //
-// Its first breath is the TimerService's hello: the host loads it before the
-// wind, TimerReady reaches it, and it asks for the beat. Re-hearing the
-// hello (a replaced TimerService re-announces) re-asks — an upsert, so the
-// schedule is replaced, never doubled.
+// Its first breath is its OWN ACTIVATION (R2A-2): the Loom's control door tells
+// this incarnation it is live, and it asks for the beat then. That is what makes
+// load order stop mattering — loaded before the Timer or long after it, the
+// adapter arranges its own time either way. `TimerReady` covers the one case its
+// activation cannot: being loaded first, so that the activation-time ask refused
+// into a role nothing held yet. Both paths ask the same thing, and asking twice
+// is free — every ask is an upsert.
 
 #include "vocabulary.hpp"
 
+#include "activation/activation.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -45,13 +49,21 @@ struct ClockState {
 
 class SnakeClock
     : public loom::WeaveBase<SnakeClock, ClockState,
-                             loom::Accept<timer::TimerReady, timer::TimerFired>,
+                             loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired>,
                              loom::Emit<timer::StartTimer, SnakeTick>> {
 public:
-    void on(const timer::TimerReady&, loom::Mail& mail) {
-        mail.send_to_role(timer::kTimerRole,
-                          timer::StartTimer{kTickTimerId, kTickMs, /*repeat=*/true});
+    /// This incarnation is live: ask for world time. A duplicate or replayed
+    /// activation asks for nothing.
+    void on(const loom::Activated& a, loom::Mail& mail) {
+        if (!activation_.accept(mail.sender(), a.sequence)) {
+            return;
+        }
+        ask(mail);
     }
+
+    /// The Timer became available — the load-order case our own activation
+    /// cannot cover, and the one a replaced service needs.
+    void on(const timer::TimerReady&, loom::Mail& mail) { ask(mail); }
 
     void on(const timer::TimerFired& f, loom::Mail& mail) {
         if (f.id != kTickTimerId) {
@@ -60,6 +72,14 @@ public:
         ++state_.ticks;
         mail.send_to_role(kWorldRole, SnakeTick{});
     }
+
+private:
+    void ask(loom::Mail& mail) {
+        mail.send_to_role(timer::kTimerRole,
+                          timer::StartTimer{kTickTimerId, kTickMs, /*repeat=*/true});
+    }
+
+    zengine::ActivationCursor activation_; ///< per-incarnation, never state
 };
 
 } // namespace

@@ -28,20 +28,31 @@
 //     bus: the beat belongs to the role, so the successor inherits it. (What
 //     a standing timer does NOT survive is the TIMER SERVICE itself being
 //     replaced — the table lives in the service. See Drive.)
-//   - TimerReady v1 — the service's hello (the SurfaceReady precedent),
-//     published once per incarnation on its first beat. It is the system's
-//     first breath: a weave loaded before the wind hears it and starts its
-//     own timers in response — which is how anything gets execution time at
-//     all in a world where the host no longer pumps anyone.
-//   - Drive v1 — the beat itself. A weave runs only when a message arrives,
-//     so the service keeps itself alive by re-sending Drive to itself at the
-//     end of every beat; inside the beat it naps to the next deadline (the
-//     one sleep in the system) and fires what came due. The HOST winds the
-//     clock exactly once at boot by sending the first Drive; it owes nothing
-//     per lap. Not a pump: nobody owes the service execution time after the
-//     wind, and a Drive is not a lever — it carries no authority and can
-//     change nothing about the lattice. It is not free, either: a stray
-//     extra Drive seeds a permanent SECOND chain. See Drive below.
+//   - TimerReady v1 — the service's availability notice, published once per
+//     ACCEPTED ACTIVATION. Since R2A-2 it is no longer the system's only
+//     first breath (every weave gets its own `zen.Activated`); its remaining
+//     job is the opposite load order and the service's own succession. See
+//     TimerReady below.
+//   - Drive v2 — the beat itself, and since R2A-2 a claim of ownership. A
+//     weave runs only when a message arrives, so the service keeps itself
+//     alive by re-sending Drive to its role at the end of every beat; inside
+//     the beat it naps to the next deadline (the one sleep in the system) and
+//     fires what came due. **The host does not wind the clock.** The service
+//     seeds its own chain when the Loom's control door activates it, and each
+//     valid beat seeds exactly its one successor. A Drive now carries the
+//     activation it belongs to and its serial, so a stale, duplicated,
+//     replayed, inherited or foreign one establishes nothing. See Drive below.
+
+// CROSSING INTO THIS CONTRACT IS REPLACEMENT, NOT RELOAD — recorded so nobody
+// reads the refusal as a regression. R2A-2 changed accepted-message contracts:
+// the Timer now accepts `zen.Activated` and `Drive v2`, and the official
+// consumers accept `zen.Activated`. The Loom enforces EXACT accepted-contract
+// equality on reload-in-place (R2A-1), so `zen.ReloadWeave` from a pre-R2A-2
+// artifact to one of these refuses cleanly with "accepted schema contract
+// mismatch; reload refused". That is the substrate telling the truth: a weave
+// whose doors changed is a REPLACEMENT (`zen.SwapWeave`), not a reload. Within
+// this contract, reloading in place works and stays live — probe B pins exactly
+// that.
 
 #include <zen/weave/shape.hpp>
 
@@ -80,8 +91,9 @@ struct StartTimer {
 /// The one succession it does NOT survive is the TimerService's own: the
 /// standing-timer table is the service instance's private state, not
 /// gate-carried state, so a replaced or reloaded service starts with an
-/// empty table. A reload re-announces and the hello-listeners re-ask (the
-/// table refills); a swap does not (see Drive).
+/// empty table. Since R2A-2 that heals the same way for BOTH reload and
+/// swap: the new incarnation is activated, publishes TimerReady, and
+/// standing consumers refill the table by re-asking (see Drive).
 struct StartRoleTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -145,58 +157,93 @@ struct TimerFired {
     ZEN_SHAPE(TimerFired, 1, ZEN_FIELD(id));
 };
 
-/// The service's hello: published once per incarnation, on its first beat.
-/// Weaves that need standing time listen for it and start their timers when
-/// they hear it — the first breath of a system whose host pumps nobody. (A
-/// weave loaded LATER than the wind never hears it — the hello was spent
-/// before it existed. Two things save a latecomer: an already-standing role
-/// beat addressed to a role it now holds (the swapped-in skin), or any other
-/// first message it can start its timers on. A latecomer with neither is
-/// DEAF, permanently: measured on a `snake-clock` loaded after the wind,
-/// whose tick count stays 0 forever. Load time-hungry weaves before the wind,
-/// or give them a role that is already beating. A birth notice from the
-/// steward is the named fix — the lifecycle session, R2.)
+/// The service's availability notice, published once per ACCEPTED ACTIVATION:
+///
+///   "The Timer service has accepted an activation and is available;
+///    re-establish the timers you require."
+///
+/// It is no longer the only first breath available to a consumer, and that
+/// changes what it is FOR. Since R2A-2 a consumer arranges its own time on its
+/// OWN `zen.Activated`, so this shape's remaining job is the opposite load
+/// order and the service's own succession:
+///   - consumer loaded AFTER the Timer — its own activation makes it ask; it
+///     needs nothing from here;
+///   - consumer loaded BEFORE the Timer — its activation-time ask refused into
+///     a vacant role, and this is what tells it to try again;
+///   - Timer reloaded or swapped — the new incarnation's private schedule table
+///     is empty, and this is what gets standing consumers to refill it.
+/// Re-asking is always harmless: every ask is an upsert.
+///
+/// Published on the ACTIVATION, not on the first beat — a consumer should not
+/// have to wait a nap to learn the service exists. A duplicate or non-newer
+/// activation republishes nothing.
+///
+/// HISTORICAL: before R2A-2 this was published on the service's first beat and
+/// was the system's only first breath, which made a weave loaded after the wind
+/// permanently deaf (measured: probe D — a late `snake-clock` whose tick count
+/// stayed 0 forever). That is fixed at the source now: the latecomer gets its
+/// own activation.
 struct TimerReady {
     ZEN_SHAPE(TimerReady, 1);
 };
 
-/// The service's own beat (the named addition — see the header comment). The
-/// host sends the FIRST one (the wind); the service re-sends it to its own
-/// ROLE forever after, and a service loaded without the role simply does not
-/// beat: the role is the contract.
+/// The service's own beat — and, since R2A-2, a CLAIM OF OWNERSHIP rather than
+/// a bare nudge. A beat now carries the activation it belongs to and its place
+/// in that chain, so the service can tell its own next breath from everything
+/// else that might arrive wearing the same shape.
 ///
-/// WHAT THE CHAIN SURVIVES — measured, not assumed (the trust-gate audit of
-/// 2026-07-26; probes A/B/C in tests/test_audit_probes.cpp):
-///   - `zen.ReloadWeave` of the service: the chain LIVES. Reload rebinds the
-///     new library behind the SAME adapter and WeaveId and never vacates the
-///     role, so the in-flight Drive still finds its sender at delivery. The
-///     fresh incarnation re-announces, hello-listeners re-ask, and the
-///     standing timers refill. Same-shape succession works today, here.
-///   - `zen.SwapWeave` of the service: the chain DIES. The incumbent's
-///     re-wind is already queued when the incumbent is unregistered, and a
-///     gated send is authorized by looking its SENDER up at delivery — so
-///     the beat is refused CapabilityDenied. (Sender-death, not vacancy: by
-///     delivery time the successor already holds the role.) The successor
-///     never receives a first message, so it never announces, nobody
-///     re-asks, and it never beats. The bus drains — which in the playable
-///     host is exactly the "time is gone, exiting." path.
-///   - a fresh root wind re-lights a dead chain (hello again, beats resume).
-///     Today that is the only re-ignition there is.
-/// Role addressing is what makes reload-succession possible at all, and it
-/// is the hook any future re-ignition would use — but "the successor inherits
-/// the live beat" is not true of a swap today. Re-lighting liveness after a
-/// swap (a steward that re-winds, a Drive serial, role-sends that outlive
-/// their sender) is a deliberately open Loom design question — the lifecycle
-/// session (R2) that also brings the steward's shutdown notice.
+/// THE LAW THIS ENFORCES:
 ///
-/// Empty by design: it carries no question, no answer, and no authority, so a
-/// spurious Drive can change nothing about the lattice. It is not free,
-/// though: a second wind seeds a SECOND chain, and that chain is permanent
-/// and conserved — both re-wind themselves forever and nothing coalesces
-/// them. Beat throughput stays nap-bound rather than doubling, so the cost
-/// shows up as a halved per-chain cadence, not as a faster clock.
+///   Every successfully activated Timer incarnation establishes exactly ONE
+///   beat chain. A new activation owns a new chain; stale, duplicate,
+///   replayed, inherited, or foreign Drives cannot establish another.
+///
+/// A Drive is acted on only when ALL of these hold — anything else is ignored
+/// completely (no nap, no firing, no beat count, no re-wind):
+///   - the service is activated at all (a fresh incarnation is not, which is
+///     what makes a predecessor's queued Drive inert even if it arrives first);
+///   - its bus-stamped sender is the service's own chain sender;
+///   - `activation_sender` + `activation_sequence` name the activation the
+///     service is currently living under;
+///   - `serial` is exactly the one expected next.
+///
+/// `activation_sender` is TEXT, and deliberately: a `WeaveId` is unsigned
+/// 64-bit while the wire's `Int` is signed, so an Int field would silently
+/// narrow the top half of the range. Canonical decimal Text is lossless and is
+/// already the house spelling for a WeaveId on the wire — the kernel's control
+/// door answers a load with `zen.Result{std::to_string(id.value)}` and the
+/// Weave Manager parses it back.
+///
+/// It stays ROLE-addressed (a loaded weave cannot address itself — see the
+/// service header), but role addressing is no longer what establishes
+/// ownership. The activation key, the serial, and the stamped sender are.
+///
+/// v2: the three fields joined the shape. `Drive v1` was empty — it carried no
+/// question, no answer and no authority, which was elegant and was also exactly
+/// the problem: an empty beat is indistinguishable from any other empty beat,
+/// so a second one seeded a permanent second chain and a predecessor's parked
+/// beat could drive a successor. The version bump is the immutable-published-
+/// schema rule paid honestly: `(Drive, 1)` meant "an anonymous nudge" and still
+/// does, forever.
+///
+/// HISTORICAL, and kept because the audit record depends on it: before R2A-2
+/// the HOST sent the first Drive (the wind) and liveness was accidental —
+/// `zen.ReloadWeave` happened to preserve the chain because the WeaveId
+/// survived, `zen.SwapWeave` killed it because the parked beat's sender was
+/// gone (CapabilityDenied at delivery, sender-death rather than role vacancy),
+/// a stray second Drive seeded a permanent conserved second chain, and a
+/// consumer loaded after the hello was permanently deaf. All four were measured
+/// (the trust-gate audit of 2026-07-26; probes A–D). R2A-2 replaced the
+/// mechanism rather than patching it: **there is no host wind**, and the
+/// substrate behaviour those probes measured has not changed — the old parked
+/// beat is still refused CapabilityDenied on a swap. What changed is that the
+/// successor is ACTIVATED, and authors a new chain of its own.
 struct Drive {
-    ZEN_SHAPE(Drive, 1);
+    std::string activation_sender;      ///< canonical decimal of the activating sender's WeaveId
+    std::int64_t activation_sequence = 0;
+    std::int64_t serial = 0;
+    ZEN_SHAPE(Drive, 2, ZEN_FIELD(activation_sender), ZEN_FIELD(activation_sequence),
+              ZEN_FIELD(serial));
 };
 
 /// The role slot the TimerService holds: the address "whoever provides

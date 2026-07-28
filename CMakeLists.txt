@@ -111,11 +111,13 @@ endfunction()
 # vertical slice, and the hosting consumer that pulled loom::kernel onto the Loom's
 # export surface; consumer of the floors, owner of no platform edge. tests: the Zengine
 # suites (the smoke test stays its own tiny proof; the others drive the real .so weaves
-# through the real kernel). Order matters only where vocabulary flows: timer's interface
-# target must exist before input/surface consume it, and theirs before snake.
+# through the real kernel). Order matters only where vocabulary flows: activation's
+# interface target must exist before the packages that read an activation, timer's before
+# input/surface consume it, and theirs before snake.
 
 enable_testing()
 add_subdirectory(smoke)
+add_subdirectory(activation)
 add_subdirectory(timer)
 add_subdirectory(input)
 add_subdirectory(surface)

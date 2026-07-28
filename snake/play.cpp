@@ -16,8 +16,12 @@
 //               adapter turns its 120ms ask into SnakeTick for whoever holds
 //               snake.world; the input weave and the active skin keep
 //               themselves serviced on role-addressed beats of their own.
-//               The host's whole contribution is the WIND: one Drive message
-//               at boot; the service re-winds itself every beat after.
+//               The host contributes NOTHING to time — not even a first
+//               breath. Loading the service is what starts it: the Loom's
+//               control door activates the fresh incarnation, and the service
+//               authors one beat chain from that activation and re-seeds it
+//               every beat. Every package arranges its own timers on its own
+//               activation, so load order decides nothing.
 //   drawing   → the Surface package: the world publishes SnakeVisual, the
 //               operator and the score weave publish SurfaceText, and the
 //               active SKIN — a replaceable weave holding the zengine.skin
@@ -366,9 +370,10 @@ int main() {
 
     // Birth of the game: the same gesture as everything else — ask the steward.
     // The SKIN is first (loading it claims the screen; everything after paints
-    // through it). Everything time-hungry is loaded BEFORE the wind below, so
-    // the TimerService's hello reaches a fully assembled cast and every
-    // package asks for its beat on the first breath.
+    // through it). The ORDER of the rest is now taste, not necessity: each
+    // weave arranges its own time on its own activation, and the ones loaded
+    // before the timer service retry on its TimerReady. Nothing here is timed
+    // against a wind, because there is no wind.
     boot("claim surface (classic skin)",
          loom::LoadWeave{kSkins[kSkinClassic].stem, ctx.so(kSkins[kSkinClassic].stem),
                          surface::kSkinRole});
@@ -380,25 +385,24 @@ int main() {
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
     boot("load snake clock", loom::LoadWeave{"snake-clock", ctx.so("snake-clock"), ""});
 
-    // The boot breath: deliver the boot list to completion BEFORE winding.
-    // Loading is a conversation, not a call — the Manager answers LoadWeave
-    // by asking the kernel door, one delivery later — so a wind queued behind
-    // the boot sends would resolve the timer role before any load ran and
-    // refuse into the vacancy (found live: the pilot's very first run).
-    bus.pump();
-
-    // Wind the clock: the one breath the host gives time — the first Drive.
-    // The TimerService re-winds itself every beat after this; its hello wakes
-    // the clock adapter (120ms -> SnakeTick), the input weave, and the skin
-    // into asking for their own beats. The host owes nothing per lap.
-    bus.send_to_role(timer::kTimerRole, loom::Message(loom::to_value(timer::Drive{})));
-
+    // THE HOST DOES NOT WIND THE CLOCK. There is no boot-pump-then-wind
+    // ceremony any more, and no ordering hazard to tiptoe around: the boot
+    // commands are queued above, and pump() below both delivers them and runs
+    // the game. Loading the timer service is what starts time — the Loom's
+    // control door activates a freshly committed incarnation, and the service
+    // authors its own beat chain from that activation. Every other package
+    // arranges its own time the same way, on its own activation, so load order
+    // no longer decides who gets to breathe.
+    //
     // The whole game runs inside pump(): the beat chain keeps the queue alive,
     // the TimerService's nap paces it, and the operator's quit stops the bus.
-    // A pump that instead returns QUIESCENT — an empty queue — means nothing
-    // in this process will ever speak again (there is no clock outside it):
-    // say so honestly and leave, rather than spin on a dead bus. That is also
-    // where a deployment with no timer service lands, right after boot.
+    // Note that this FIRST pump no longer returns merely because boot finished
+    // — with the chain alive it returns only on quit. A pump that instead
+    // returns QUIESCENT — an empty queue — means nothing in this process will
+    // ever speak again (there is no clock outside it): say so honestly and
+    // leave, rather than spin on a dead bus. That is where a deployment with no
+    // timer service lands, and where one whose activation could not establish
+    // time lands too.
     while (!ctx.quit) {
         bus.pump();
         if (!ctx.quit && bus.pending() == 0) {

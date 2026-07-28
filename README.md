@@ -102,8 +102,10 @@ through real `.so` weaves, the real kernel, and the real Weave Manager, and the 
 space (a skinless game writes **zero bytes** to stdout, with a painted-bytes negative control) —
 the **timer suite** (`tests/test_timer.cpp`): the Timer package's contract by content-id, every
 schedule (one-shot, repeat, upsert, clamps, cancels, role succession, honest vacancy, the
-dead-requester floor) over a fake clock through a real bus, the real `.so` re-winding itself on
-the real clock, and the migration chains — the world ticking, the input weave polling, and the
+dead-requester floor) over a fake clock through a real bus, the activation law (a chain authored
+from an activation; premature, duplicate, foreign, stale and replayed beats establishing
+nothing), the real `.so` authoring and re-seeding its chain on the real clock, the load-order
+matrix, and the migration chains — the world ticking, the input weave polling, and the
 skin servicing its medium with nobody pumping them — the **input suite**
 (`tests/test_input.cpp`): the Input package's locked contract and SDL-scancode identity pinned
 by content-id and literal value, both backends' translations as pure math on every lane, the
@@ -130,12 +132,33 @@ cancel; re-asking with the same id **replaces** the schedule (an upsert — also
 changes, and how a successor takes over a role beat instead of doubling it).
 
 The service is the one place in the running system that owns a monotonic clock and the one
-nap. It runs on its own **beat chain**: the host sends the first `Drive` (the wind, once, at
-boot — after the boot list has actually loaded), and the service re-sends Drive to its own
-role forever after — nap to the soonest deadline (capped at 10ms), fire what came due, re-wind.
-Pumping the bus IS running the world, paced by the one legal sleep. On its first beat it
-publishes `TimerReady` (the hello): weaves loaded before the wind hear it and ask for their
-beats — which is how anything gets standing execution in a system whose host pumps nobody.
+nap. It runs on its own **beat chain**, and since R2A-2 that chain is **authored, not
+inherited**:
+
+> Every successfully activated Timer incarnation establishes exactly **one** beat chain. A new
+> activation owns a new chain; stale, duplicate, replayed, inherited or foreign `Drive`s cannot
+> establish another.
+
+**The host does not wind the clock** — it contributes nothing to time, not even a first breath.
+Loading the service is what starts it: the Loom's control door sends the freshly committed
+incarnation one `zen.Activated{sequence}`, and the service answers by publishing `TimerReady`
+and seeding `Drive` serial 0. Each valid beat naps to the soonest deadline (capped at 10ms),
+fires what came due, and seeds exactly its one successor. Pumping the bus IS running the world,
+paced by the one legal sleep.
+
+`Drive` is **v2** and carries its own ownership — `{activation_sender, activation_sequence,
+serial}` — so a beat is acted on only when the service is activated, the key names the
+activation it is living under, the serial is the one expected, and the stamped sender is the
+chain's own. The sender travels as canonical decimal **Text**: a `WeaveId` is unsigned 64-bit
+and the wire's `Int` is signed, so an Int field would silently narrow it (the same spelling the
+kernel's control door already uses to answer a load).
+
+`TimerReady` remains, with a changed job: *"the Timer service has accepted an activation and is
+available; re-establish the timers you require."* It is published **once per accepted
+activation**, and it is no longer anyone's only first breath — every package arranges its own
+time on its own `zen.Activated`. What it still covers is the opposite load order (a consumer
+loaded *before* the service, whose ask refused into a vacant role) and the service's own
+succession (a new incarnation's private schedule table is empty, and this is what refills it).
 
 Honest V1 edges, pinned in the suite: the service cannot SEE a requester die (a weave gets no
 delivery outcomes and the bus broadcasts no unloads), so a dead requester's directed timer
@@ -143,17 +166,23 @@ fires into clean `NoSuchTarget` refusals until cancelled or the service is repla
 ids are never reused, so it can never hit a stranger; the standing heartbeats that must
 survive replacement are role-addressed instead, where requester death is a non-event.
 
-**The service's own succession, measured** (the trust-gate audit, 2026-07-26; pinned in
-`tests/test_audit_probes.cpp`): `zen.ReloadWeave` of the timer service **keeps** the beat chain
-— reload rebinds behind the same WeaveId, so the in-flight `Drive` still finds its sender at
-delivery, and the fresh incarnation re-announces so every standing timer gets re-asked.
-`zen.SwapWeave` of it **kills** the chain: the incumbent's parked re-wind is refused
-`CapabilityDenied` once the incumbent is unregistered (sender-death, not role vacancy), and the
-successor never gets a first message to announce on. Only a fresh wind re-lights it. Two other
-measured edges: a second wind is a permanent second chain (conserved, never coalesced — the
-cost is a halved per-chain cadence, not a faster clock), and a time-hungry weave loaded *after*
-the wind never hears the spent hello and stays deaf. Re-lighting liveness after a swap, and a
-birth notice for latecomers, are the open lifecycle questions (R2), not solved here.
+**The service's own succession** (`tests/test_audit_probes.cpp`, the four Trust-Gate probes —
+written in the 2026-07-26 audit as measurements of unwanted behaviour, and flipped by R2A-2 into
+witnesses of the earned promise). The substrate behaviour they measured has **not changed**:
+`zen.SwapWeave` still kills the incumbent's parked beat, refused `CapabilityDenied` once the
+incumbent is unregistered (sender-death, not role vacancy), and the probe still asserts exactly
+that. What changed is that it no longer matters — the successor is *activated* on the way in and
+authors a chain of its own, so the old chain dies honestly and time continues. `zen.ReloadWeave`
+likewise no longer *inherits*: the predecessor's parked beat reaches the new instance and is
+inert (a fresh incarnation begins unactivated, and the serial is not one it expects), and the
+reload's own activation publishes the next `TimerReady` and seeds a fresh chain. A replayed
+`Drive` — even from the real stamped Timer sender, with the live key — and a replayed activation
+both establish nothing. A consumer loaded long after time started is no longer deaf: its own
+activation makes it ask.
+
+Still open, and named rather than implied: the Timer's private schedule table is not persisted,
+there is no dead-requester cleanup, and activation carries **no trust anchor** — sender plus
+sequence gives lineage and deduplication, not proof that the sender is the one true operator.
 
 ## `input/` — the Input package
 
@@ -197,7 +226,7 @@ suite drives it under SDL's dummy driver, and the window title carries the text 
 The SDL window is **output-only in V1, structurally**: it is created not-focusable (a window
 that cannot hear must not take the keys — the terminal stays the game's one ear until the SDL
 Reader phase makes the window an ear too), and it keeps itself answering its OS: a skin's
-first breath asks the Timer package for the `zengine.skin.pump` role beat (10ms), and the
+own activation asks the Timer package for the `zengine.skin.pump` role beat (10ms), and the
 beat services the window's event queue even when the world publishes nothing (a dead world
 starves a frame-driven pump; the OS calls the result "not responding"). Role-addressed is the
 load-bearing half: the beat belongs to the SLOT, so a swapped-in skin inherits it without
@@ -229,9 +258,12 @@ skinless game at zero stdout bytes.
   world never learns where ticks come from; only the source of time moved.
 - **Host** (`zengine-snake`) owns the boot list — nothing else. It reads no keys (the Input
   weave produces them), owns no screen (the skin claims it at load), and since the Timer
-  package keeps no clock, never sleeps, and pumps nobody: it boots the cast, winds the clock
-  with one `Drive`, and then `pump()` IS the game — the loop ends when the operator's quit
-  key stops the bus (or, honestly, when the bus goes quiet because no clock is deployed).
+  package keeps no clock, never sleeps, and pumps nobody. It contributes nothing to time
+  either: it queues the boot list and `pump()` IS the game. Loading the timer service is what
+  starts the clock — the control door activates it and it authors its own chain — so there is
+  no wind, and no boot-pump-then-wind ceremony to order correctly. The loop ends when the
+  operator's quit key stops the bus (or, honestly, when the bus goes quiet because no clock is
+  deployed, or because activation could not establish time).
   Its status line is published intent like everything else, spoken by the granted operator
   weave that also sends every lifecycle command through the Weave Manager. Run it under WSL
   from the build tree; keys: wasd steer, `1` swap the TUI skin, `2` load score, `3` grow the
