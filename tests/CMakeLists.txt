@@ -31,7 +31,11 @@ target_compile_definitions(zengine-tests PRIVATE
     # reading the file. Same shape as the console's geometry-name tripwire:
     # defense in depth against a claim quietly becoming false, not a proof of
     # unrepresentability.
-    "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/snake/play.cpp\"")
+    "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/snake/play.cpp\""
+    # The clock adapter's SOURCE, for the binding tripwire (R2A-3). Hand-written
+    # ceremony and the binding are behaviourally identical, so only reading the
+    # file can tell which one is there. Defense in depth, same as above.
+    "CLOCK_CPP=\"${CMAKE_SOURCE_DIR}/snake/clock.cpp\"")
 
 add_test(NAME snake COMMAND zengine-tests)
 

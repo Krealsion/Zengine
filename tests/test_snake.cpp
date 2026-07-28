@@ -866,3 +866,38 @@ TEST_CASE("the playable host sends no Drive: time is the composition's, not the 
     // about the host having stopped speaking timer at all.
     CHECK(source.find("timer::kTimerRole") != std::string::npos);
 }
+
+TEST_CASE("the clock adapter uses the timer binding, not hand-written ceremony") {
+    // WHY THIS READS THE SOURCE. The binding and the ceremony it replaced are
+    // behaviourally IDENTICAL — that equivalence is the whole point, and it is
+    // also why no black-box test can tell them apart. The claim at risk is not
+    // "the clock works" but "ordinary authors no longer write Timer lifecycle",
+    // and only the file can witness that. Defense in depth, exactly like the
+    // host's no-wind tripwire above: it stops the claim quietly becoming false,
+    // it does not make the ceremony unwritable.
+    std::ifstream clock(CLOCK_CPP);
+    REQUIRE_MESSAGE(clock.is_open(), "cannot read the clock source: " CLOCK_CPP);
+    const std::string source((std::istreambuf_iterator<char>(clock)),
+                             std::istreambuf_iterator<char>());
+    REQUIRE(source.size() > 500); // we really read the adapter, not an empty path
+
+    // It declares a binding...
+    CHECK(source.find("TimedWeave") != std::string::npos);
+    CHECK(source.find("timers().repeat") != std::string::npos);
+
+    // ...and authors none of the three ceremony handlers the binding owns.
+    // Matched on the HANDLER SIGNATURE, not the bare shape name: the file is
+    // allowed to say "TimerReady" in a comment explaining what left, and a
+    // tripwire that could not tell prose from code would be training authors to
+    // stop explaining themselves.
+    CHECK(source.find("on(const loom::Activated") == std::string::npos);
+    CHECK(source.find("on(const timer::TimerReady") == std::string::npos);
+    CHECK(source.find("on(const timer::TimerFired") == std::string::npos);
+    CHECK(source.find("ActivationCursor") == std::string::npos);
+
+    // The adapter itself REMAINS a weave, and that is not an accident: the
+    // time-to-world policy is replaceable (a pause driver, a slow-motion clock,
+    // a replay feeder). Only the ceremony left.
+    CHECK(source.find("SnakeTick") != std::string::npos);
+    CHECK(source.find("ZEN_EXPORT_WEAVE") != std::string::npos);
+}

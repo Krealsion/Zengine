@@ -157,7 +157,9 @@ kernel's control door already uses to answer a load).
 available; re-establish the timers you require."* It is published **once per accepted
 activation**, and it is no longer anyone's only first breath — every package arranges its own
 time on its own `zen.Activated`. What it still covers is the opposite load order (a consumer
-loaded *before* the service, whose ask refused into a vacant role) and the service's own
+loaded *before* the service, whose ask went nowhere — rejected at the library/schema seam,
+since with no service present nobody accepts the shape and it is never registered, so it does
+not even reach role resolution) and the service's own
 succession (a new incarnation's private schedule table is empty, and this is what refills it).
 
 Honest V1 edges, pinned in the suite: the service cannot SEE a requester die (a weave gets no
@@ -180,9 +182,71 @@ reload's own activation publishes the next `TimerReady` and seeds a fresh chain.
 both establish nothing. A consumer loaded long after time started is no longer deaf: its own
 activation makes it ask.
 
+### The timer binding — one word for a sentence everybody was writing
+
+R2A-2 made the raw Timer conversation correct and, in doing so, made its ceremony visible.
+Every consumer that wanted a heartbeat wrote the same seven steps: accept `zen.Activated`,
+deduplicate it, accept `TimerReady`, send the ask, accept `TimerFired`, filter by id, and re-ask
+whenever the service appeared or came back. None of that is a domain decision, so it is package
+vocabulary now (`timer/binding.hpp`):
+
+```cpp
+class SnakeClock : public timer::TimedWeave<SnakeClock, ClockState,
+                                            loom::Accept<>, loom::Emit<SnakeTick>> {
+public:
+    SnakeClock() : tick_(timers().repeat("snake.tick", 120ms, &SnakeClock::on_tick)) {}
+private:
+    void on_tick(const timer::TimerFired&, loom::Mail& mail) {
+        ++state_.ticks;
+        mail.send_to_role(kWorldRole, SnakeTick{});
+    }
+    Handle tick_;
+};
+```
+
+**A binding is desired local state.** `timers().repeat(...)` records what this incarnation
+wants; it sends nothing. There is no `Mail` during construction and there may be no Timer in
+the process at all. The binding is *reconciled* later, while handling an ordinary message — on
+an accepted activation, and again on every `TimerReady`. Reconciliation is
+**cardinality-idempotent, not timing-neutral**: the upsert keys mean a re-ask never doubles a
+beat, but it does replace and re-anchor the schedule, so a binding reconciled mid-cycle loses
+the remainder of that cycle.
+
+**Both addressing modes stay visible**, as different names rather than an inferred overload:
+`repeat`/`once` are requester-addressed (`StartTimer`), `repeat_to_role`/`once_to_role` are
+role-addressed (`StartRoleTimer`) — different promises about who hears the beat and who may
+cancel it. Dispatch is by exact id to exactly one callback; an id nobody declared is data, not
+a drive. Duplicate local ids are **refused at declaration** (a firing carries only an id, so
+two bindings sharing one could not be told apart — a programmer error, taking the project's
+established path for one).
+
+**The convenience hides ceremony from the author, never the conversation from Loom.** A bound
+weave's manifest carries the whole Timer protocol it speaks — `zen.Activated`/`TimerReady`/
+`TimerFired` accepted, `StartTimer`/`StartRoleTimer`/`CancelTimer` emitted — and its grant is
+derived from exactly that. No wildcard acceptance, no `allow_any`, no undeclared emission, no
+host-root send, no Switchboard reach. The raw protocol also stays public: a weave that wants to
+write the ceremony itself still can.
+
+**Cancellation is both halves** — the binding stops being wanted locally *and* `CancelTimer` is
+sent — so a later `TimerReady` does not resurrect it; `restart(mail)` wants it again. A handle's
+**destructor claims nothing remote**: during teardown there may be no valid `Mail`, and
+dead-requester cleanup is still open. It clears local bookkeeping only, and says so.
+
+Adapter weaves remain the right answer where time-to-domain translation is replaceable policy:
+`snake-clock` is still a weave (a pause driver, slow-motion clock or replay feeder can take its
+slot) — only its ceremony left.
+
 Still open, and named rather than implied: the Timer's private schedule table is not persisted,
-there is no dead-requester cleanup, and activation carries **no trust anchor** — sender plus
-sequence gives lineage and deduplication, not proof that the sender is the one true operator.
+there is no dead-requester cleanup, the Skin is not migrated to the binding (its `SurfaceReady`
+concerns are separate and it was left as the next consumer), and activation carries **no trust
+anchor** — sender plus sequence gives lineage and deduplication, not proof that the sender is
+the one true operator.
+
+**Banked, not built — a future concurrency direction:** *many threads may think; one weave
+speaks.* A future thought worker may read immutable snapshots, compute proposals, and queue
+private message intents. Only the normal weave execution thread may stamp the sender, use
+`Mail`, enter Loom, or mutate ordinary weave state. Nothing in this phase implements or
+depends on that; it is recorded so the boundary is chosen deliberately when it arrives.
 
 ## `input/` — the Input package
 

@@ -30,6 +30,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#include "timer/binding.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -1143,4 +1144,371 @@ TEST_CASE("the skin keeps itself serviced: hello and beats with nobody pumping")
     const Seen::Answer a = r.poke_timed(timer_so, skin_so, loom::PokeRead{"pumps"});
     CHECK(a.kind == 0);
     CHECK(std::stoll(a.text) >= 3);
+}
+
+// ============================================================================
+// Tier 5 — the timer BINDING (R2A-3): the word that replaced the ceremony
+// ============================================================================
+//
+// The binding declares desire and owns the Timer protocol. These cases prove
+// what that makes true — declaration is not execution, activation and
+// TimerReady both reconcile, dispatch is exact, cancellation is both halves,
+// and the convenience buys nothing by widening authority — over a real bus.
+
+namespace {
+
+/// A domain shape a callback emits, to prove a callback can speak ordinary
+/// domain messages through the Mail it is handed.
+struct Woke {
+    std::int64_t n;
+    ZEN_SHAPE(Woke, 1, ZEN_FIELD(n));
+};
+/// The bound weave's own door — and the only place a Mail exists, which is why
+/// cancellation is expressed as a message rather than a free function.
+struct CancelTick {
+    ZEN_SHAPE(CancelTick, 1);
+};
+struct RestartTick {
+    ZEN_SHAPE(RestartTick, 1);
+};
+
+struct BoundState {
+    std::int64_t beats = 0;
+    std::int64_t role_beats = 0;
+    ZEN_EXPOSE();
+    ZEN_SHAPE(BoundState, 1, ZEN_FIELD(beats), ZEN_FIELD(role_beats));
+};
+
+/// A weave that uses the binding for everything, with handlers of its own so
+/// the `using` requirement is exercised rather than assumed.
+class Bound : public TimedWeave<Bound, BoundState, loom::Accept<CancelTick, RestartTick>,
+                                loom::Emit<Woke>> {
+public:
+    Bound()
+        : tick_(timers().repeat("bound.tick", std::chrono::milliseconds(5), &Bound::on_tick)),
+          role_(timers().repeat_to_role("bound.role", std::chrono::milliseconds(5), "bound.slot",
+                                        &Bound::on_role)) {}
+
+    /// The one line of ceremony. Without it this class does not compile: a
+    /// derived `on` hides every base `on`, and WeaveBase dispatches on Self.
+    using TimedWeave::on;
+
+    void on(const CancelTick&, loom::Mail& mail) { tick_.cancel(mail); }
+    void on(const RestartTick&, loom::Mail& mail) { tick_.restart(mail); }
+
+    void on_tick(const TimerFired&, loom::Mail& mail) {
+        ++state_.beats;
+        mail.publish(Woke{state_.beats}); // a callback speaking domain, through its Mail
+    }
+    void on_role(const TimerFired&, loom::Mail&) { ++state_.role_beats; }
+
+    Handle tick_;
+    Handle role_;
+};
+
+/// Two declarations, one id: the programmer error the binding must refuse.
+class Aliased : public TimedWeave<Aliased, BoundState, loom::Accept<>, loom::Emit<>> {
+public:
+    Aliased()
+        : a_(timers().repeat("same.id", std::chrono::milliseconds(5), &Aliased::first)),
+          b_(timers().repeat("same.id", std::chrono::milliseconds(5), &Aliased::second)) {}
+    void first(const TimerFired&, loom::Mail&) { ++state_.beats; }
+    void second(const TimerFired&, loom::Mail&) { ++state_.role_beats; }
+    Handle a_;
+    Handle b_;
+};
+
+/// Catches what a bound weave asks the service for, wire-exact.
+struct AskSeen {
+    std::vector<StartTimer> asks;
+    std::vector<StartRoleTimer> role_asks;
+    std::vector<CancelTimer> cancels;
+};
+struct CatcherState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(CatcherState, 1, ZEN_FIELD(n));
+};
+class AskCatcher : public loom::WeaveBase<AskCatcher, CatcherState,
+                                          loom::Accept<StartTimer, StartRoleTimer, CancelTimer>,
+                                          loom::Emit<TimerFired, TimerReady>> {
+public:
+    explicit AskCatcher(AskSeen& seen) : seen_(&seen) {}
+    void on(const StartTimer& s, loom::Mail&) { seen_->asks.push_back(s); }
+    void on(const StartRoleTimer& s, loom::Mail&) { seen_->role_asks.push_back(s); }
+    void on(const CancelTimer& c, loom::Mail&) { seen_->cancels.push_back(c); }
+
+private:
+    AskSeen* seen_;
+};
+
+struct WokeState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(WokeState, 1, ZEN_FIELD(n));
+};
+class WokeEar : public loom::WeaveBase<WokeEar, WokeState, loom::Accept<Woke>, loom::Emit<>> {
+public:
+    explicit WokeEar(std::vector<std::int64_t>& heard) : heard_(&heard) {}
+    void on(const Woke& w, loom::Mail&) { heard_->push_back(w.n); }
+
+private:
+    std::vector<std::int64_t>* heard_;
+};
+
+/// A real bus with a bound weave and a stand-in service that only RECORDS
+/// asks — so what the binding SAYS is inspected wire-exactly, with no real
+/// scheduling in the way.
+struct BindRig {
+    loom::Switchboard bus;
+    AskSeen seen;
+    std::vector<std::int64_t> woke;
+    loom::WeaveId weave{};
+    loom::WeaveId service{};
+    loom::WeaveId door{};
+    loom::WeaveId ear{};
+    std::int64_t next_sequence = 1;
+
+    BindRig() {
+        weave = loom::mount<Bound>(bus);
+        service = mount_role<AskCatcher>(bus, kTimerRole, seen);
+        door = loom::mount<Door>(bus);
+        ear = loom::mount<WokeEar>(bus, woke);
+    }
+
+    void activate(std::int64_t sequence) {
+        bus.send_as(door, weave,
+                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+        bus.pump();
+    }
+    void activate() { activate(next_sequence++); }
+
+    /// The service says it is available (root-published, as the real one does).
+    void ready() {
+        bus.publish(loom::Message(loom::to_value(TimerReady{})));
+        bus.pump();
+    }
+
+    /// A firing, stamped as the service — the honest wire path.
+    void fire(const char* id) {
+        bus.send_as(service, weave,
+                    loom::Message(loom::to_value(TimerFired{id}), service, service, 0));
+        bus.pump();
+    }
+
+    template <class T>
+    void tell(const T& msg) {
+        bus.send(weave, loom::Message(loom::to_value(msg)));
+        bus.pump();
+    }
+
+    std::int64_t count(const char* field) {
+        loom::Unverified u = loom::parse(bus.snapshot_bytes(weave));
+        loom::Admission a = loom::admit(u, loom::schema_of<BoundState>());
+        REQUIRE(a.ok());
+        return a.value().get(field)->as_int();
+    }
+};
+
+} // namespace
+
+TEST_CASE("binding: declaration is not execution — constructing sends nothing, and happens "
+          "quite happily with no Timer in the process at all") {
+    loom::Switchboard bus;
+    std::int64_t events = 0;
+    bus.add_observer([&](const loom::BusEvent&) { ++events; });
+
+    // No timer service, no role holder, nothing. Declaring two bindings is a
+    // purely local act: `timers().repeat(...)` records DESIRE. There is no Mail
+    // during construction, and a weave that reached out from its constructor
+    // would be speaking outside the one place a weave is allowed to speak.
+    const loom::WeaveId w = loom::mount<Bound>(bus);
+    bus.pump();
+    CHECK(events == 0);
+    CHECK(bus.pending() == 0);
+
+    // And no callback ran: a declaration is not a firing either.
+    loom::Unverified u = loom::parse(bus.snapshot_bytes(w));
+    loom::Admission a = loom::admit(u, loom::schema_of<BoundState>());
+    REQUIRE(a.ok());
+    CHECK(a.value().get("beats")->as_int() == 0);
+    CHECK(a.value().get("role_beats")->as_int() == 0);
+
+    // THE POSITIVE CONTROL. Everything above is an assertion of ABSENCE, which
+    // a blind observer would satisfy exactly as happily as real silence. So
+    // prove the meter reads: one ordinary message, and the count moves.
+    bus.send(w, loom::Message(loom::to_value(CancelTick{})));
+    bus.pump();
+    CHECK(events > 0);
+}
+
+TEST_CASE("binding: an accepted activation reconciles every desired binding exactly once — "
+          "and a duplicate reconciles nothing") {
+    BindRig r;
+    CHECK(r.seen.asks.empty());
+    CHECK(r.seen.role_asks.empty());
+
+    r.activate(); // sequence 1
+
+    // Each binding asked exactly once, and the WIRE CONTENT is the raw
+    // protocol: the convenience composed the same message the author used to
+    // hand-write, field for field.
+    REQUIRE(r.seen.asks.size() == 1);
+    CHECK(r.seen.asks[0].id == "bound.tick");
+    CHECK(r.seen.asks[0].delay_ms == 5);
+    CHECK(r.seen.asks[0].repeat);
+    REQUIRE(r.seen.role_asks.size() == 1);
+    CHECK(r.seen.role_asks[0].id == "bound.role");
+    CHECK(r.seen.role_asks[0].delay_ms == 5);
+    CHECK(r.seen.role_asks[0].repeat);
+    CHECK(r.seen.role_asks[0].role == "bound.slot"); // the role really travels
+
+    // THE SAME activation again. The binding layer owns deduplication so that
+    // consumers do not each carry a cursor — and nothing is re-asked.
+    r.activate(1);
+    CHECK(r.seen.asks.size() == 1);
+    CHECK(r.seen.role_asks.size() == 1);
+
+    // A NEWER one is a new lineage point, and does reconcile again.
+    r.activate(); // sequence 2
+    CHECK(r.seen.asks.size() == 2);
+    CHECK(r.seen.role_asks.size() == 2);
+}
+
+TEST_CASE("binding: TimerReady reconciles too — the path that rescues a consumer whose "
+          "declarations were made before any service existed") {
+    BindRig r;
+    // The consumer is live and its bindings are declared; the service turns up
+    // afterwards and says so. That notice alone establishes everything.
+    r.ready();
+    CHECK(r.seen.asks.size() == 1);
+    CHECK(r.seen.role_asks.size() == 1);
+
+    // And it keeps working: a reloaded or swapped service publishes again with
+    // an empty table, and the standing bindings refill it. (Cardinality-
+    // idempotent, not timing-neutral — each re-ask replaces and re-anchors.)
+    r.ready();
+    CHECK(r.seen.asks.size() == 2);
+    CHECK(r.seen.role_asks.size() == 2);
+}
+
+TEST_CASE("binding: dispatch is exact — the right callback, never a neighbour, never on an "
+          "id nobody declared") {
+    BindRig r;
+    r.activate();
+
+    r.fire("bound.tick");
+    CHECK(r.count("beats") == 1);
+    CHECK(r.count("role_beats") == 0); // no cross-dispatch
+
+    r.fire("bound.role");
+    CHECK(r.count("beats") == 1);
+    CHECK(r.count("role_beats") == 1);
+
+    // An id this weave never declared is data, not a drive — a role beat can be
+    // aimed at by anyone, so this is the ordinary case, not the hostile one.
+    r.fire("somebody.elses.timer");
+    CHECK(r.count("beats") == 1);
+    CHECK(r.count("role_beats") == 1);
+
+    // A callback speaks ordinary domain messages through the Mail it is handed:
+    // it is an ordinary handler on the ordinary Loom execution thread, not a
+    // callback smuggled in from somewhere else.
+    REQUIRE(r.woke.size() == 1);
+    CHECK(r.woke[0] == 1);
+}
+
+TEST_CASE("binding: cancellation is BOTH halves — the service is told, and a later "
+          "TimerReady does not resurrect it") {
+    BindRig r;
+    r.activate();
+    REQUIRE(r.seen.asks.size() == 1);
+    REQUIRE(r.seen.role_asks.size() == 1);
+
+    // Cancelled from inside a handler, which is the only place a Mail exists.
+    r.tell(CancelTick{});
+    REQUIRE(r.seen.cancels.size() == 1);
+    CHECK(r.seen.cancels[0].id == "bound.tick"); // the remote half: the real CancelTimer
+    CHECK_FALSE(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.desired());
+
+    // THE LOCAL HALF, and it is the one a naive implementation forgets: the
+    // binding is no longer wanted, so reconciliation must not bring it back.
+    r.ready();
+    CHECK(r.seen.asks.size() == 1);      // the cancelled one stayed cancelled...
+    CHECK(r.seen.role_asks.size() == 2); // ...and its neighbour reconciled normally
+
+    // An explicit restart wants it again, and asks once.
+    r.tell(RestartTick{});
+    CHECK(r.seen.asks.size() == 2);
+    CHECK(static_cast<Bound*>(r.bus.weave(r.weave))->tick_.desired());
+
+    // ...and it reconciles like any other desired binding from then on.
+    r.ready();
+    CHECK(r.seen.asks.size() == 3);
+}
+
+TEST_CASE("binding: duplicate local ids are refused at declaration, never silently aliased") {
+    // A timer id is the ONLY thing a firing carries, so two bindings sharing
+    // one could not be told apart and dispatch would have to pick. Picking
+    // silently is how a weave runs the wrong behaviour forever — so this is a
+    // programmer error, and it takes the project's established path for one.
+    loom::Switchboard bus;
+    CHECK_THROWS_AS(loom::mount<Aliased>(bus), std::invalid_argument);
+
+    // For a weave loaded through the KERNEL the same throw becomes a clean
+    // "library create() returned null" load refusal — the ABI's create thunk
+    // catches everything — which is the path every construction failure
+    // already takes. True by construction; not separately pinned here because
+    // it would need a fixture .so that exists only to be broken.
+}
+
+TEST_CASE("binding: the convenience hides ceremony from the author, never the conversation "
+          "from Loom") {
+    // THE CONTRACT-HONESTY PIN. A bound weave's manifest must carry the whole
+    // Timer protocol it actually speaks — accepted and emitted — because the
+    // point of the binding is to stop authors retyping ceremony, not to let a
+    // weave converse off the books.
+    loom::Switchboard bus;
+    const loom::WeaveId w = loom::mount<Bound>(bus);
+
+    const auto accepts = [&](const char* name, std::uint32_t version) {
+        for (const auto& s : bus.accepted_schemas(w)) {
+            if (s && s->name() == name && s->version() == version) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // The three the binding accepts on the author's behalf...
+    CHECK(accepts(loom::Activated::zen_name, loom::Activated::zen_version));
+    CHECK(accepts("TimerReady", 1));
+    CHECK(accepts("TimerFired", 1));
+    // ...and the author's own doors, unharmed.
+    CHECK(accepts("CancelTick", 1));
+    CHECK(accepts("RestartTick", 1));
+
+    // The emitted set is the composed truth too — the three the binding may
+    // send, plus the author's own.
+    Bound probe;
+    const auto emits = [&](const char* name) {
+        for (const auto& s : probe.emitted_schemas()) {
+            if (s && s->name() == name) {
+                return true;
+            }
+        }
+        return false;
+    };
+    CHECK(emits("StartTimer"));
+    CHECK(emits("StartRoleTimer"));
+    CHECK(emits("CancelTimer"));
+    CHECK(emits("Woke"));
+
+    // AND NOT BY WIDENING. The grant a mounted weave gets is derived from that
+    // declared emit set — nothing here is `allow_any`, and acceptance is the
+    // listed set, not AcceptMode::AnyRegistered. The proof that it is narrow is
+    // that a shape the weave never declared is NOT permitted: Nudge-shaped
+    // authority does not come free with the convenience.
+    const loom::Grant g = loom::emit_default_grant(probe);
+    CHECK(g.permits("StartTimer", 1, loom::WeaveId{1}));
+    CHECK(g.permits("StartRoleTimer", 1, loom::WeaveId{1}));
+    CHECK_FALSE(g.permits("SnakeTick", 1, loom::WeaveId{1}));
+    CHECK_FALSE(g.permits("TimerFired", 1, loom::WeaveId{1})); // it receives these, never sends
 }

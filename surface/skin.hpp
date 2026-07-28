@@ -131,11 +131,13 @@ private:
     ///
     /// SEPARATE FROM THE HELLO ON PURPOSE (R2A-2), and the bug that forced it is
     /// worth keeping named: these two used to share `hello_once`, so a skin that
-    /// activated BEFORE any Timer existed said hello, asked into a vacant role,
-    /// and then — when the Timer finally appeared and published TimerReady —
-    /// returned early from the already-spent hello and never retried. It would
-    /// have been serviced by nothing, forever, on a bus that was working fine.
-    /// Announcing is once; asking is idempotent and must stay repeatable.
+    /// activated BEFORE any Timer existed said hello, sent an ask that went
+    /// nowhere, and then — when the Timer finally appeared and published
+    /// TimerReady — returned early from the already-spent hello and never
+    /// retried. It would have been serviced by nothing, forever, on a bus that
+    /// was working fine. Announcing is ONCE; asking must stay REPEATABLE (and
+    /// a re-ask replaces and re-anchors the schedule rather than costing
+    /// nothing — see TimerReady in timer/vocabulary.hpp).
     void ask_for_pump_timer(loom::Mail& mail) {
         mail.send_to_role(zengine::timer::kTimerRole,
                           zengine::timer::StartRoleTimer{kPumpTimerId, kPumpBeatMs,

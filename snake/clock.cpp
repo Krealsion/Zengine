@@ -17,22 +17,24 @@
 // swapped mid-game, and if it ever is, its successor asks on its own
 // activation; the predecessor's beat dies against a never-reused WeaveId.
 //
-// Its first breath is its OWN ACTIVATION (R2A-2): the Loom's control door tells
-// this incarnation it is live, and it asks for the beat then. That is what makes
-// load order stop mattering — loaded before the Timer or long after it, the
-// adapter arranges its own time either way. `TimerReady` covers the one case its
-// activation cannot: being loaded first, so that the activation-time ask refused
-// into a role nothing held yet. Both paths ask the same thing, and asking twice
-// is free — every ask is an upsert.
+// WHAT STAYED AND WHAT LEFT (R2A-3). The adapter weave REMAINS, because the
+// time-to-world policy is genuinely replaceable: a pause driver, a slow-motion
+// clock, a replay feeder or a turn-based driver can take this slot without the
+// world or the Timer package changing a line. What left is the Timer protocol
+// CEREMONY — accepting an activation, deduplicating it, accepting TimerReady,
+// sending the ask, filtering firing ids — because none of that was ever this
+// weave's policy. It was common package vocabulary being retyped, and it now
+// lives in timer/binding.hpp. The whole adapter is one declaration and one
+// callback.
 
 #include "vocabulary.hpp"
 
-#include "activation/activation.hpp"
-#include "timer/vocabulary.hpp"
+#include "timer/binding.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
 
+#include <chrono>
 #include <cstdint>
 
 namespace {
@@ -47,39 +49,27 @@ struct ClockState {
     ZEN_SHAPE(ClockState, 1, ZEN_FIELD(ticks));
 };
 
-class SnakeClock
-    : public loom::WeaveBase<SnakeClock, ClockState,
-                             loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired>,
-                             loom::Emit<timer::StartTimer, SnakeTick>> {
+class SnakeClock : public timer::TimedWeave<SnakeClock, ClockState, loom::Accept<>,
+                                            loom::Emit<SnakeTick>> {
 public:
-    /// This incarnation is live: ask for world time. A duplicate or replayed
-    /// activation asks for nothing.
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail.sender(), a.sequence)) {
-            return;
-        }
-        ask(mail);
-    }
+    /// The whole binding: a repeating beat delivered back to this weave, which
+    /// this weave turns into world time. Declaring it sends nothing — the
+    /// binding is desired local state, reconciled when this incarnation is
+    /// activated and again whenever the Timer service says it is available.
+    SnakeClock()
+        : tick_(timers().repeat(kTickTimerId, std::chrono::milliseconds(kTickMs),
+                                &SnakeClock::on_tick)) {}
 
-    /// The Timer became available — the load-order case our own activation
-    /// cannot cover, and the one a replaced service needs.
-    void on(const timer::TimerReady&, loom::Mail& mail) { ask(mail); }
-
-    void on(const timer::TimerFired& f, loom::Mail& mail) {
-        if (f.id != kTickTimerId) {
-            return; // not our ask; someone else's time is not our business
-        }
+private:
+    /// The policy this weave exists for, and now the only thing in it: a real
+    /// firing becomes world time, addressed BY ROLE so it survives the world
+    /// being swapped mid-game.
+    void on_tick(const timer::TimerFired&, loom::Mail& mail) {
         ++state_.ticks;
         mail.send_to_role(kWorldRole, SnakeTick{});
     }
 
-private:
-    void ask(loom::Mail& mail) {
-        mail.send_to_role(timer::kTimerRole,
-                          timer::StartTimer{kTickTimerId, kTickMs, /*repeat=*/true});
-    }
-
-    zengine::ActivationCursor activation_; ///< per-incarnation, never state
+    Handle tick_;
 };
 
 } // namespace
