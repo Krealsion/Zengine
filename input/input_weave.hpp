@@ -8,16 +8,23 @@
 // weave's whole message contract is pinned without a console in sight.
 //
 // The weave is DEAF until driven and says nothing on its own: a weave runs
-// only when a message arrives. It arranges its own drive — on the Timer
-// package's hello it asks for the kPumpTimerId role beat and polls on each
-// firing — and PumpInput (vocabulary.hpp's named addition) stays as the same
-// hands on direct request, for suites and timer-less hosts. Everything it
-// hears from the platform it publishes — by shape, to whoever accepts; it
-// neither knows nor chooses its consumers.
+// only when a message arrives. It arranges its own drive — on its ACTIVATION
+// it asks for the kPumpTimerId role beat and polls on each firing — and
+// PumpInput (vocabulary.hpp's named addition) stays as the same hands on
+// direct request, for suites and timer-less hosts. Everything it hears from
+// the platform it publishes — by shape, to whoever accepts; it neither knows
+// nor chooses its consumers.
+//
+// TWO TRIGGERS, ONE ASK (R2A-2), because load order is not knowable from here:
+// its own `zen.Activated` is its first breath and covers being loaded after
+// the Timer already runs; `TimerReady` covers the opposite order, where the
+// activation-time ask refused into a role nothing held yet. Asking twice is
+// free — every ask is an upsert on the service's side.
 
 #include "translate.hpp"
 #include "vocabulary.hpp"
 
+#include "activation/activation.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -40,7 +47,8 @@ struct InputState {
 template <class Reader>
 class InputWeaveT
     : public loom::WeaveBase<InputWeaveT<Reader>, InputState,
-                             loom::Accept<PumpInput, zengine::timer::TimerReady,
+                             loom::Accept<PumpInput, loom::Activated,
+                                          zengine::timer::TimerReady,
                                           zengine::timer::TimerFired>,
                              loom::Emit<KeyPressed, KeyReleased, MouseButton, MouseMoved,
                                         MouseWheel, zengine::timer::StartRoleTimer>> {
@@ -50,14 +58,19 @@ public:
 
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
 
-    /// The TimerService woke: ask for our beat. Role-addressed — the beat is
-    /// kInputRole's pulse, not this incarnation's — and an upsert on the
-    /// service's side, so re-hearing the hello re-asks harmlessly.
-    void on(const zengine::timer::TimerReady&, loom::Mail& mail) {
-        mail.send_to_role(zengine::timer::kTimerRole,
-                          zengine::timer::StartRoleTimer{kPumpTimerId, kPumpBeatMs,
-                                                         /*repeat=*/true, kInputRole});
+    /// This incarnation is live: arrange the time it needs. A duplicate or
+    /// replayed activation does nothing — the cursor's whole job.
+    void on(const loom::Activated& a, loom::Mail& mail) {
+        if (!activation_.accept(mail.sender(), a.sequence)) {
+            return;
+        }
+        ask_for_pump_timer(mail);
     }
+
+    /// The Timer service became available — possibly only now, after our own
+    /// activation-time ask refused into a vacant role. Ask again; it is an
+    /// upsert, so this never doubles the beat.
+    void on(const zengine::timer::TimerReady&, loom::Mail& mail) { ask_for_pump_timer(mail); }
 
     /// The beat: the same hands PumpInput opens, on the clock's schedule. Any
     /// other id aimed at this role is someone else's ask — data, not a drive.
@@ -69,6 +82,14 @@ public:
     }
 
 private:
+    /// Role-addressed: the beat is kInputRole's pulse, not this incarnation's,
+    /// so a successor inherits it rather than doubling it.
+    void ask_for_pump_timer(loom::Mail& mail) {
+        mail.send_to_role(zengine::timer::kTimerRole,
+                          zengine::timer::StartRoleTimer{kPumpTimerId, kPumpBeatMs,
+                                                         /*repeat=*/true, kInputRole});
+    }
+
     void pump(loom::Mail& mail) {
         ++this->state_.pumped;
         for (const InputEvent& ev : reader_.poll()) {
@@ -77,6 +98,7 @@ private:
         }
     }
 
+    zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Reader reader_;
 };
 

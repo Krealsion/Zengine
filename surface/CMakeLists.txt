@@ -22,10 +22,12 @@ endif()
 # speaks that vocabulary alongside its own.
 zengine_weave(zengine-skin-tui-classic skin_tui_classic.cpp)
 target_link_libraries(zengine-skin-tui-classic PRIVATE zengine-surface-vocabulary
-                                                       zengine-timer-vocabulary)
+                                                       zengine-timer-vocabulary
+                                                       zengine-activation)
 zengine_weave(zengine-skin-tui-block skin_tui_block.cpp)
 target_link_libraries(zengine-skin-tui-block PRIVATE zengine-surface-vocabulary
-                                                     zengine-timer-vocabulary)
+                                                     zengine-timer-vocabulary
+                                                     zengine-activation)
 
 # ---- The SDL skin (a real window; the agnosticism proof) --------------------------------
 #
@@ -95,5 +97,6 @@ if(ZENGINE_SDL_SKIN)
 
     zengine_weave(zengine-skin-sdl skin_sdl.cpp)
     target_link_libraries(zengine-skin-sdl PRIVATE zengine-surface-vocabulary
-                                                   zengine-timer-vocabulary ${zengine_sdl3_lib})
+                                                   zengine-timer-vocabulary zengine-activation
+                                                   ${zengine_sdl3_lib})
 endif()

@@ -11,9 +11,10 @@
 //      advances virtual time and counts beats, so not one tier-2 assertion
 //      waits on a wall clock.
 //   3. THE REAL LIBRARY through the real Kernel — zengine-timer.so loads into
-//      its role, the root winds it once, and the chain runs on a REAL
-//      monotonic clock. The suite's stop lever is a one-shot STOPWATCH timer
-//      it asks for itself: the package is its own test harness.
+//      its role, the control door ACTIVATES it, and the chain it authors from
+//      that runs on a REAL monotonic clock. Nothing winds anything. The
+//      suite's stop levers are a one-shot STOPWATCH timer it asks for itself
+//      and a delivered-Drive budget: the package is its own test harness.
 //   4. THE MIGRATION chains — the world ticks, the input weave polls, and the
 //      skin services its medium with NOBODY pumping them: the three
 //      obligations the host used to carry, each proven moved into an ask.
@@ -38,6 +39,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -101,9 +103,16 @@ struct EarState {
 /// An ordinary timer consumer. Its Emit list is what lets the test speak AS
 /// it: send_as authorizes against the mounted grant, and mount() derives
 /// that grant from exactly this list.
+///
+/// `Drive` is in its Emit list ON PURPOSE, and it is not a convenience: the
+/// hostile frames this suite must forge — a beat from a FOREIGN stamped sender,
+/// a beat carrying someone else's activation key — have to be SAYABLE through
+/// the honest API, or the pin would be testing the grant model rather than the
+/// service's ownership check. An ordinary weave really can emit a Drive here;
+/// what it cannot do is make one count.
 class Ear : public loom::WeaveBase<Ear, EarState, loom::Accept<TimerFired, TimerReady>,
                                    loom::Emit<StartTimer, StartRoleTimer, CancelTimer,
-                                              CancelAllMyTimers>> {
+                                              CancelAllMyTimers, Drive>> {
 public:
     explicit Ear(Heard& heard) : heard_(&heard) {}
     void on(const TimerFired& f, loom::Mail&) {
@@ -135,21 +144,38 @@ loom::WeaveId mount_role(loom::Switchboard& bus, std::string role, Args&&... arg
     return id;
 }
 
-/// The tier-2 world: a real bus, the service on a fake clock, one ear.
+/// A stand-in for the Loom's control door: the thing whose stamped sender and
+/// sequence make up an activation key. It sends nothing on its own — the rig
+/// speaks AS it — but mounting it is what gives those sends a real, gated,
+/// bus-stamped identity instead of a root injection.
+struct DoorState {
+    std::int64_t nothing = 0;
+    ZEN_SHAPE(DoorState, 1, ZEN_FIELD(nothing));
+};
+class Door : public loom::WeaveBase<Door, DoorState, loom::Accept<>,
+                                    loom::Emit<loom::Activated>> {};
+
+/// The tier-2 world: a real bus, the service on a fake clock, one ear, and a
+/// stand-in door to activate from.
 struct FakeRig {
     loom::Switchboard bus;
     FakeHooks hooks;
     Heard heard;
     loom::WeaveId service{};
     loom::WeaveId ear{};
+    loom::WeaveId door{};
+    loom::WeaveId other_door{}; ///< a SECOND lifecycle operator: a different lineage
+    std::int64_t next_sequence = 1;
 
     FakeRig() {
         hooks.bus = &bus;
         heard.hooks = &hooks;
         heard.bus = &bus;
-        // Into its ROLE — the wind is role-addressed, exactly as the host's is.
+        // Into its ROLE — the beat is role-addressed, exactly as the .so's is.
         service = mount_role<FakeService>(bus, kTimerRole, FakeClock{&hooks});
         ear = loom::mount<Ear>(bus, heard);
+        door = loom::mount<Door>(bus);
+        other_door = loom::mount<Door>(bus);
     }
 
     /// Speak AS a weave (stamped sender, authorized against ITS grant) — how
@@ -159,13 +185,41 @@ struct FakeRig {
         bus.send_as(who, service, loom::Message(loom::to_value(msg), who, who, 0));
     }
 
-    /// Wind (or resume) the chain and let it run at most `n` more beats
+    /// Activate the service the way the control door does: a directed,
+    /// stamped `zen.Activated` carrying the next sequence of this lineage.
+    /// This — not a wind — is what starts time.
+    void activate(std::int64_t sequence) {
+        activate_as(door, sequence);
+    }
+    void activate() { activate(next_sequence++); }
+
+    /// Activate from an arbitrary stamped sender — how a "different lineage"
+    /// is expressed, and how an invalid one is forged.
+    void activate_as(loom::WeaveId who, std::int64_t sequence) {
+        bus.send_as(who, service,
+                    loom::Message(loom::to_value(loom::Activated{sequence}), who, who, 0));
+    }
+
+    /// The activation key's two halves, as they travel on a Drive.
+    std::string door_text() const { return std::to_string(door.value); }
+    std::int64_t current_sequence() const { return next_sequence - 1; }
+
+    /// Send a Drive AS `who`. The forged-frame door: everything a hostile or
+    /// confused participant could actually put on the wire.
+    void drive_as(loom::WeaveId who, const std::string& sender_text, std::int64_t sequence,
+                  std::int64_t serial) {
+        bus.send_as(who, service,
+                    loom::Message(loom::to_value(Drive{sender_text, sequence, serial}), who, who,
+                                  0));
+    }
+
+    /// Start (or resume) the chain and let it run at most `n` more beats
     /// (fewer if a stop_on_id fires first). The interrupted beat's tail
     /// parks; the next call resumes it — the host's own stop/quit mechanics.
-    void run_beats(std::int64_t n, bool wind = false) {
+    void run_beats(std::int64_t n, bool start = false) {
         hooks.stop_after = hooks.beats + n;
-        if (wind) {
-            bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{})));
+        if (start) {
+            activate();
         }
         bus.pump();
         hooks.stop_after = -1;
@@ -250,10 +304,13 @@ struct Rig {
     loom::WeaveId witness = mount_witness();
     std::uint64_t next_corr = 1;
 
+    Rig() { watch_drives(); }
+
     loom::WeaveId mount_witness() {
         seen.bus = &bus;
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+        reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
         reach.allow_to_any(StartTimer::zen_name, StartTimer::zen_version);
         reach.allow_to_any(StartRoleTimer::zen_name, StartRoleTimer::zen_version);
         reach.allow_to_any(CancelTimer::zen_name, CancelTimer::zen_version);
@@ -261,12 +318,41 @@ struct Rig {
         return loom::mount_granted<Witness>(bus, std::move(reach), seen);
     }
 
+    /// The beat watchdog: the one pump lever that works on BOTH sides of the
+    /// clock's existence. Before any timer is loaded no Drive is ever
+    /// delivered, so it never trips and the pump simply drains; once a chain is
+    /// alive it bounds an otherwise endless pump. Since R2A-2 that dual nature
+    /// is required rather than convenient — loading the timer service is what
+    /// starts time, so even `load()` runs under a live chain from its own
+    /// second half onward.
+    std::int64_t drives = 0;
+    std::int64_t stop_after_drives = -1;
+
+    void watch_drives() {
+        bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.schema_name == "Drive" && ev.kind == loom::EventKind::Delivered) {
+                ++drives;
+                if (stop_after_drives >= 0 && drives >= stop_after_drives) {
+                    bus.stop();
+                }
+            }
+        });
+    }
+
+    void pump_beats(std::int64_t n) {
+        stop_after_drives = drives + n;
+        bus.pump();
+        stop_after_drives = -1;
+    }
+
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(witness, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
                                   witness, corr));
-        bus.pump(); // pre-wind only: with no chain alive this pump drains
+        // Bounded either way: drains when no clock exists yet, and stops after a
+        // few beats when loading the timer itself has just started one.
+        pump_beats(6);
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
@@ -278,8 +364,6 @@ struct Rig {
     void ask(loom::WeaveId service, const T& msg) {
         bus.send_as(witness, service, loom::Message(loom::to_value(msg), witness, witness, 0));
     }
-
-    void wind() { bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{}))); }
 
     /// Run the LIVE chain for about `ms` of real time: upsert the stopwatch
     /// one-shot, pump, and return when it fires. Every post-wind pump in
@@ -343,7 +427,17 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                                                            ->content_id());
     CHECK(schema_of<TimerReady>()->content_id() ==
           SchemaBuilder("TimerReady", 1).build()->content_id());
-    CHECK(schema_of<Drive>()->content_id() == SchemaBuilder("Drive", 1).build()->content_id());
+    // Drive v2 — the beat that carries its own ownership (R2A-2). The sender is
+    // TEXT and that is contract, not taste: a WeaveId is unsigned 64-bit and the
+    // wire's Int is signed, so an Int field would silently narrow the top half
+    // of the range. A drift back to Int is a red test.
+    CHECK(schema_of<Drive>()->content_id() == SchemaBuilder("Drive", 2)
+                                                  .field("activation_sender", Kind::Text)
+                                                  .field("activation_sequence", Kind::Int)
+                                                  .field("serial", Kind::Int)
+                                                  .build()
+                                                  ->content_id());
+    CHECK(schema_of<Drive>()->version() == 2);
 
     // The address and the beat cap are contract too.
     CHECK(std::string(kTimerRole) == "zengine.timer");
@@ -354,9 +448,160 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
 // Tier 2 — the service over a fake clock, through a real bus
 // ============================================================================
 
-TEST_CASE("the wind announces once per incarnation, and the chain lives") {
+// ---- R2A-2: the activation law ----------------------------------------------
+// "Every successfully activated incarnation establishes exactly ONE beat chain.
+//  A new activation owns a new chain; stale, duplicate, replayed, inherited or
+//  foreign Drives cannot establish another."
+//
+// With no timers standing, every beat naps the cap and a parked pump leaves
+// exactly the in-flight Drives in the queue — so `pending()` IS the chain count,
+// and `hooks.beats` is the work actually done. Those two instruments prove every
+// case below.
+
+TEST_CASE("nothing drives an unactivated incarnation: a Drive before activation is inert") {
     FakeRig r;
-    r.run_beats(3, /*wind=*/true);
+    // A perfectly well-formed beat, correctly stamped, arriving at a service
+    // that has not been told it is live. THIS is what makes a predecessor's
+    // queued Drive harmless after a reload — the new instance begins
+    // unactivated, so an inherited beat has nothing to own.
+    r.drive_as(r.service, "1", 1, 0);
+    r.run_beats(4); // no activation
+    CHECK(r.hooks.beats == 0);      // no nap, no work
+    CHECK(r.heard.ready == 0);      // and no availability notice
+    CHECK(r.bus.pending() == 0);    // it established no chain: the bus drained
+
+    // Then activate for real, and exactly one chain appears.
+    r.run_beats(4, /*start=*/true);
+    CHECK(r.hooks.beats == 4);
+    CHECK(r.heard.ready == 1);
+    CHECK(r.bus.pending() == 1);
+}
+
+TEST_CASE("an invalid, duplicate, or non-newer activation changes nothing") {
+    FakeRig r;
+
+    // Sequence 0 and negatives are not activations — the contract says the
+    // sequence is positive, and a service that accepted one would be inventing
+    // a lineage the operator never authored.
+    r.activate(0);
+    r.activate(-7);
+    r.run_beats(4);
+    CHECK(r.hooks.beats == 0);
+    CHECK(r.heard.ready == 0);
+    CHECK(r.bus.pending() == 0);
+
+    // A real one starts the chain.
+    r.run_beats(4, /*start=*/true); // sequence 1
+    CHECK(r.heard.ready == 1);
+    CHECK(r.bus.pending() == 1);
+    const std::int64_t beats_after_start = r.hooks.beats;
+
+    // THE SAME activation again: a duplicate. It does not republish
+    // availability, does not reset the serial, and above all does not seed a
+    // second chain.
+    r.activate(1);
+    r.run_beats(4);
+    CHECK(r.heard.ready == 1);   // no second notice
+    CHECK(r.bus.pending() == 1); // no second chain
+    CHECK(r.hooks.beats > beats_after_start); // the real chain kept working
+
+    // An OLDER sequence from the same sender is a replay: same answer.
+    r.activate(1);
+    r.run_beats(4);
+    CHECK(r.heard.ready == 1);
+    CHECK(r.bus.pending() == 1);
+}
+
+TEST_CASE("a newer activation replaces the chain; a different sender begins a new lineage — "
+          "either way, exactly one chain") {
+    FakeRig r;
+    r.run_beats(4, /*start=*/true); // sequence 1
+    REQUIRE(r.heard.ready == 1);
+    REQUIRE(r.bus.pending() == 1);
+
+    // A NEWER activation from the same lineage. It republishes availability
+    // (the notice is once per ACCEPTED activation) and re-seeds from serial 0 —
+    // and the old chain's parked beat, now carrying a stale key, is ignored
+    // when it lands. One chain in, one chain out.
+    r.activate(); // sequence 2
+    r.run_beats(6);
+    CHECK(r.heard.ready == 2);
+    CHECK(r.bus.pending() == 1);
+
+    // A DIFFERENT SENDER — a second lifecycle operator — is a new lineage. It
+    // is accepted (at this altitude every weave in the process is trusted code;
+    // see ActivationCursor on why this is lineage and not authentication), and
+    // note its sequence is 1: LOWER than the current one, which is exactly the
+    // point. Sequences are only comparable WITHIN a lineage, so a new sender's
+    // 1 is not a replay of the old sender's 2. It too leaves one chain.
+    r.activate_as(r.other_door, /*sequence=*/1);
+    r.run_beats(6);
+    CHECK(r.heard.ready == 3);
+    CHECK(r.bus.pending() == 1);
+}
+
+TEST_CASE("only the current chain's next beat advances time: foreign sender, wrong key, "
+          "and old/future/replayed serials are all ignored") {
+    FakeRig r;
+    r.run_beats(5, /*start=*/true);
+    REQUIRE(r.bus.pending() == 1);
+    const std::int64_t beats_before = r.hooks.beats;
+    const std::string key = r.door_text();
+    const std::int64_t seq = r.current_sequence();
+
+    // EACH FORGERY MUST ISOLATE ITS OWN DEFECT, or the case proves less than it
+    // says. The chain is parked with one real Drive ahead of these in the
+    // queue, and that beat advances the expected serial by one before any of
+    // them is delivered — so a forgery built with today's serial would be
+    // rejected for being STALE, and would tell us nothing about the check it
+    // was written for. They therefore carry the serial the chain will actually
+    // be expecting when they arrive; the only thing wrong with each is the one
+    // thing it is testing. (The two that ARE about serials carry deliberately
+    // wrong ones.)
+    const std::int64_t next_serial = r.hooks.beats + 1;
+    r.drive_as(r.ear, key, seq, next_serial);            // FOREIGN stamped sender, else valid
+    r.drive_as(r.service, "999999", seq, next_serial);   // wrong activation sender, else valid
+    r.drive_as(r.service, key, seq + 5, next_serial);    // wrong activation sequence
+    r.drive_as(r.service, key, seq, 0);                  // a REPLAYED consumed serial
+    r.drive_as(r.service, key, seq, next_serial + 99);   // a fabricated future serial
+    r.run_beats(5);
+
+    // HONEST SCOPE OF THIS CASE. Four of those five are DISCRIMINATED here —
+    // removing the key check or the serial check makes this case red. The
+    // FOREIGN-SENDER one is not: an honoured foreign beat displaces the real
+    // one rather than forking the chain, so every instrument below reads the
+    // same either way. It is asserted as behaviour, not claimed as proof; the
+    // service header states its true-by-construction status and why the term
+    // stays anyway.
+
+    // Still one chain, and the work done is the chain's own: five more beats,
+    // not ten. (Every valid Drive produces exactly one beat; these produced
+    // none.)
+    CHECK(r.bus.pending() == 1);
+    CHECK(r.hooks.beats == beats_before + 5);
+    CHECK(r.heard.ready == 1); // and nothing re-announced
+}
+
+TEST_CASE("the chain's arithmetic boundary refuses to wrap") {
+    // PROOF LEVEL, stated: this is a DIRECT pin on the guard, and the
+    // behavioural path through it is true-by-construction — reaching the
+    // boundary would take 2^63 beats, and the serial is a per-incarnation plain
+    // member by design, so no revival path can place a chain near its end. The
+    // guard is extracted precisely so the boundary is assertable at all.
+    CHECK(can_advance_serial(0));
+    CHECK(can_advance_serial(1));
+    CHECK(can_advance_serial(std::numeric_limits<std::int64_t>::max() - 1));
+    // At the last representable serial the chain STOPS rather than wrapping: a
+    // wrapped serial would re-issue one already spent, and a duplicated serial
+    // is indistinguishable from a replay — which would fork time.
+    CHECK_FALSE(can_advance_serial(std::numeric_limits<std::int64_t>::max()));
+    // A negative serial has no valid continuation either; it is not normalized.
+    CHECK_FALSE(can_advance_serial(-1));
+}
+
+TEST_CASE("an activation announces availability and authors exactly one chain") {
+    FakeRig r;
+    r.run_beats(3, /*start=*/true);
     CHECK(r.heard.ready == 1); // hello on the first beat...
     CHECK(r.hooks.beats == 3); // ...and the service kept itself alive after it
     r.run_beats(2);
@@ -367,7 +612,7 @@ TEST_CASE("the wind announces once per incarnation, and the chain lives") {
 TEST_CASE("a one-shot fires once, on time, and is gone") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"once", 25, false});
-    r.run_beats(6, /*wind=*/true);
+    r.run_beats(6, /*start=*/true);
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired[0] == "once");
     CHECK(r.heard.fired_at[0] == 25); // nap-to-deadline, not nap-past-it
@@ -379,7 +624,7 @@ TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clampe
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"asap", -5, false}); // negative: next beat, now
     r.ask_as(r.ear, StartTimer{"fast", 0, true});   // 0ms repeat: clamped to 1ms
-    r.run_beats(4, /*wind=*/true);
+    r.run_beats(4, /*start=*/true);
     REQUIRE(r.heard.fired.size() >= 3);
     CHECK(r.heard.fired[0] == "asap");
     CHECK(r.heard.fired_at[0] == 0); // due already: the beat naps 0 and fires
@@ -395,7 +640,7 @@ TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clampe
 TEST_CASE("a repeating timer holds its lattice") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
-    r.run_beats(4, /*wind=*/true);
+    r.run_beats(4, /*start=*/true);
     // Beat n naps to t=10n and fires; the interrupted 4th beat's firing is
     // parked, so exactly three have ARRIVED.
     REQUIRE(r.heard.fired.size() == 3);
@@ -412,7 +657,7 @@ TEST_CASE("a LATE repeating timer gets one firing, never a burst (the catch-up c
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
     r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*wind=*/true); // stops as the first firing arrives (t=10)
+    r.run_beats(8, /*start=*/true); // stops as the first firing arrives (t=10)
     r.heard.stop_on_id.clear();
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired_at[0] == 10); // the lattice's second rung is due at 20
@@ -442,7 +687,7 @@ TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadl
     // worst-case lateness of a firing and the arrival bound on a StartTimer
     // being considered".
     FakeRig r;
-    r.run_beats(3, /*wind=*/true);
+    r.run_beats(3, /*start=*/true);
     CHECK(r.hooks.now == 3 * kBeatCapMs); // nothing standing: each beat naps the cap
 
     // An ask queued behind a parked beat waits out that beat's whole nap
@@ -458,17 +703,17 @@ TEST_CASE("the beat cap IS the lateness bound: idle naps the cap, a nearer deadl
     FakeRig s;
     s.ask_as(s.ear, StartTimer{"soon", 4, false});
     s.ask_as(s.ear, StartTimer{"far", 25, false});
-    s.run_beats(5, /*wind=*/true);
+    s.run_beats(5, /*start=*/true);
     REQUIRE(s.heard.fired.size() == 2);
     CHECK(s.heard.fired_at[0] == 4);  // the deadline, not the cap
     CHECK(s.heard.fired_at[1] == 25); // reached in capped naps, no overshoot
 }
 
-TEST_CASE("cancel before the wind: the timer never fires at all") {
+TEST_CASE("cancel before the chain starts: the timer never fires at all") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"gone", 10, true});
     r.ask_as(r.ear, CancelTimer{"gone"});
-    r.run_beats(5, /*wind=*/true);
+    r.run_beats(5, /*start=*/true);
     CHECK(r.heard.fired.empty());
 }
 
@@ -476,7 +721,7 @@ TEST_CASE("cancel under a live chain: at most the in-flight firing lands, then s
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
     r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*wind=*/true); // stops as the first firing arrives
+    r.run_beats(8, /*start=*/true); // stops as the first firing arrives
     r.heard.stop_on_id.clear();
     REQUIRE(r.heard.fired.size() == 1);
 
@@ -494,7 +739,7 @@ TEST_CASE("asking again with the same id REPLACES the schedule (upsert)") {
     FakeRig r;
     r.ask_as(r.ear, StartTimer{"beat", 10, true});
     r.heard.stop_on_id = "beat";
-    r.run_beats(8, /*wind=*/true);
+    r.run_beats(8, /*start=*/true);
     r.heard.stop_on_id.clear();
     REQUIRE(r.heard.fired.size() == 1);
     CHECK(r.heard.fired_at[0] == 10);
@@ -522,7 +767,7 @@ TEST_CASE("CancelAllMyTimers kills mine and nobody else's") {
     r.ask_as(r.ear, StartTimer{"mine.b", 30, false});
     r.ask_as(other, StartTimer{"theirs", 40, false});
     r.ask_as(r.ear, CancelAllMyTimers{});
-    r.run_beats(8, /*wind=*/true);
+    r.run_beats(8, /*start=*/true);
 
     CHECK(r.heard.fired.empty()); // both of mine died before firing
     REQUIRE(other_heard.fired.size() == 1);
@@ -549,7 +794,7 @@ TEST_CASE("CancelAllMyTimers is TOTAL — role beats die with the rest, chosen n
         (void)mount_role<Ear>(c.bus, kRole, pulse);
         c.ask_as(c.ear, StartTimer{"mine", 20, false});
         c.ask_as(c.ear, StartRoleTimer{"pulse", 10, true, kRole});
-        c.run_beats(6, /*wind=*/true);
+        c.run_beats(6, /*start=*/true);
         CHECK(c.heard.fired.size() == 1);  // the requester timer fired...
         CHECK(pulse.fired.size() >= 2);    // ...and the role beat was beating
     }
@@ -562,7 +807,7 @@ TEST_CASE("CancelAllMyTimers is TOTAL — role beats die with the rest, chosen n
     r.ask_as(r.ear, StartTimer{"mine", 20, false});
     r.ask_as(r.ear, StartRoleTimer{"pulse", 10, true, kRole});
     r.ask_as(r.ear, CancelAllMyTimers{});
-    r.run_beats(6, /*wind=*/true);
+    r.run_beats(6, /*start=*/true);
 
     CHECK(r.heard.fired.empty()); // the requester-addressed timer: gone
     CHECK(pulse.fired.empty());   // and the ROLE beat with it — that is the point
@@ -584,7 +829,7 @@ TEST_CASE("a role timer follows the role: holder, successor, and honest vacancy"
     const loom::WeaveId holder_a = mount_role<Ear>(r.bus, "suite.pulse.holder", heard_a);
     r.ask_as(r.ear, StartRoleTimer{"pulse", 10, true, "suite.pulse.holder"});
 
-    r.run_beats(3, /*wind=*/true);
+    r.run_beats(3, /*start=*/true);
     CHECK(heard_a.fired.size() == 2); // t=10, t=20 (the 3rd beat's firing is parked)
 
     // The holder dies; the beat keeps its address and refuses cleanly into
@@ -614,7 +859,7 @@ TEST_CASE("a successor's re-ask upserts the ROLE beat instead of doubling it") {
     // holder hears ONE lattice, not an interleaving of two.
     r.ask_as(r.ear, StartRoleTimer{"pulse", 7, true, "suite.pulse.holder"});
     r.ask_as(holder, StartRoleTimer{"pulse", 10, true, "suite.pulse.holder"});
-    r.run_beats(4, /*wind=*/true);
+    r.run_beats(4, /*start=*/true);
     REQUIRE(heard_a.fired.size() == 3);
     CHECK(heard_a.fired_at[0] == 10);
     CHECK(heard_a.fired_at[1] == 20);
@@ -643,7 +888,7 @@ TEST_CASE("a dead requester's timer fires into clean refusals — the pinned V1 
     const loom::WeaveId orphan = loom::mount<Ear>(r.bus, orphan_heard);
     r.ask_as(orphan, StartTimer{"orphan.beat", 10, true});
 
-    r.run_beats(2, /*wind=*/true);
+    r.run_beats(2, /*start=*/true);
     CHECK(orphan_heard.fired.size() == 1); // alive: it hears its beat
 
     (void)r.bus.unregister_weave(orphan);
@@ -658,7 +903,7 @@ TEST_CASE("a root ask has no one to answer: dropped, not misdelivered") {
     // requester to fire at. The service drops it (counted on its poke
     // counter — pinned through the .so lane) rather than inventing a target.
     r.bus.send(r.service, loom::Message(loom::to_value(StartTimer{"nobody", 5, true})));
-    r.run_beats(6, /*wind=*/true);
+    r.run_beats(6, /*start=*/true);
     CHECK(r.heard.fired.empty());
 }
 
@@ -666,21 +911,26 @@ TEST_CASE("a root ask has no one to answer: dropped, not misdelivered") {
 // Tier 3 — the real library through the real Kernel, on the real clock
 // ============================================================================
 
-TEST_CASE("the timer .so loads into its role, winds once, and re-winds itself") {
+TEST_CASE("the timer .so authors its chain from its own activation — no wind, ever") {
     Rig r;
+    // NOTHING here winds anything. Loading the service is the whole gesture:
+    // the control door activates the freshly committed incarnation and the
+    // service seeds its own chain from that.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    CHECK(r.seen.ready == 1);   // available, announced on the activation itself
+    CHECK(r.drives > 0);        // and already beating
+    CHECK(r.bus.pending() > 0); // on a chain that is alive and parked
 
-    // A root ask first: dropped, and honestly counted (the tier-2 pin's
-    // poke-visible half lives here, where pokes exist).
+    // A root ask: dropped, and honestly counted (the tier-2 pin's poke-visible
+    // half lives here, where pokes exist).
     r.bus.send(timer_so, loom::Message(loom::to_value(StartTimer{"nobody", 5, true})));
 
-    // The witness asks for a repeating beat, then winds. Everything after
-    // runs on the REAL monotonic clock; the third firing stops the bus.
+    // The witness asks for a repeating beat. Everything runs on the REAL
+    // monotonic clock; the third firing stops the bus.
     r.ask(timer_so, StartTimer{"suite.tick", 15, true});
     r.seen.stop_id = "suite.tick";
     r.seen.stop_count = 3;
     r.seen.stop_seen = 0;
-    r.wind();
     r.bus.pump();
     r.seen.stop_id.clear();
 
@@ -721,33 +971,38 @@ TEST_CASE("the timer .so loads into its role, winds once, and re-winds itself") 
     CHECK(late_ticks <= 1); // at most the in-flight firing (the tier-2 pin, live)
 }
 
-TEST_CASE("a wind into a vacant role refuses cleanly; a later wind still starts the clock") {
-    // Found live, pinned here: loading is a CONVERSATION (the Manager answers
-    // LoadWeave by asking the kernel door, one delivery later), so a wind
-    // queued behind un-pumped boot sends resolves the role before any load
-    // ran — and dies into the vacancy. The host boot-pumps before winding
-    // now; this pins both halves: the early wind refuses cleanly (nothing
-    // wedges, nothing leaks), and a wind AFTER the load starts the clock.
+TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone with the wind") {
+    // HISTORICAL NOTE, kept because it is why this case exists. Under the old
+    // mechanism the host wound the clock with a root Drive, and loading is a
+    // CONVERSATION (the Manager answers LoadWeave by asking the kernel door,
+    // one delivery later) — so a wind queued behind un-pumped boot sends
+    // resolved the timer role before any load had run and died into the
+    // vacancy. Found live, on the pilot's very first run; the host had to
+    // boot-pump before winding to avoid it.
+    //
+    // R2A-2 removed the hazard by removing the wind. What is pinned now is the
+    // stronger property that replaced it: a root Drive is not a lever at all.
     Rig r;
-    std::int64_t refused_winds = 0;
-    r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.kind == loom::EventKind::Refused && ev.schema_name == "Drive") {
-            CHECK(ev.refusal.reason == loom::RefusalReason::NoSuchTarget);
-            ++refused_winds;
-        }
-    });
-
-    r.wind(); // nobody holds zengine.timer yet
-    r.bus.pump();
-    CHECK(refused_winds == 1);
-    CHECK(r.bus.pending() == 0); // refused into the vacancy, no chain, no wedge
-
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    r.wind();
+    CHECK(r.seen.ready == 1);
+    const std::int64_t beats_before = std::stoll(
+        r.poke_timed(timer_so, timer_so, loom::PokeRead{"beats"}).text);
+
+    // A root Drive — no stamped sender, no activation key, serial 0 — into the
+    // live role. It is DELIVERED (the role is held) and does nothing: it names
+    // no activation this incarnation is living under.
+    const std::int64_t delivered_before = r.drives;
+    r.bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{"", 0, 0})));
     r.pump_for(timer_so, 30);
-    CHECK(r.seen.ready == 1);    // the clock announced...
-    CHECK(r.bus.pending() > 0);  // ...and the chain is alive and parked
-    CHECK(refused_winds == 1);   // the recovery cost nothing further
+    CHECK(r.drives > delivered_before); // it really did arrive...
+
+    // ...and it forked nothing. One chain still, and the beat count advanced
+    // only by the chain's own beats.
+    CHECK(r.bus.pending() > 0);
+    const std::int64_t beats_after = std::stoll(
+        r.poke_timed(timer_so, timer_so, loom::PokeRead{"beats"}).text);
+    CHECK(beats_after > beats_before); // the real chain kept running
+    CHECK(r.seen.ready == 1);          // and nothing re-announced
 }
 
 // ============================================================================
@@ -760,7 +1015,6 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
     (void)r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
     const loom::WeaveId clock_so = r.load("snake-clock", SNAKE_CLOCK_SO, "");
 
-    r.wind();
     r.pump_for(timer_so, 400); // ~3 ticks of the adapter's 120ms ask
 
     // The world seeded and MOVED — and no test code ever sent a SnakeTick.
@@ -774,13 +1028,94 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
     CHECK(std::stoll(a.text) >= 2);
 }
 
+// ---- R2A-2: the load-order matrix -------------------------------------------
+// Load order used to decide who got to breathe. It decides nothing now, and
+// these two cases are the halves that prove it: a consumer AFTER the timer is
+// served by its own activation; a consumer BEFORE it is served by the retry.
+
+TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
+          "is what rescues it") {
+    Rig r;
+    // The skin is loaded into a world with NO timer service. Its activation
+    // fires, it announces, and it asks for its pump beat — and the ask goes
+    // NOWHERE.
+    //
+    // WHERE IT DIES IS WORTH KNOWING, and it is earlier than "refused by an
+    // unheld role": a loaded weave's send crosses the library seam as bytes,
+    // and the host resolves the claimed schema against the bus registry before
+    // routing anything. With no timer service present, NOBODY accepts
+    // StartRoleTimer, so the shape is not registered at all and the send is
+    // rejected at the seam — no envelope, no delivery, no refusal event. The
+    // skin cannot tell, and could not retry on its own if it wanted to. That is
+    // precisely why TimerReady is still load-bearing.
+    const loom::WeaveId skin_so =
+        r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
+               zengine::surface::kSkinRole);
+    r.bus.pump(); // nothing is alive; this drains
+    CHECK(r.bus.pending() == 0);
+
+    // Measured, not assumed: it is being serviced by nothing.
+    const std::uint64_t before_corr = r.next_corr++;
+    r.bus.send(skin_so, loom::Message(loom::to_value(loom::PokeRead{"pumps"}), loom::WeaveId{},
+                                      r.witness, before_corr));
+    r.bus.pump();
+    const Seen::Answer* before = r.seen.find(before_corr);
+    REQUIRE(before != nullptr);
+    CHECK(before->text == "0");
+
+    // Now the timer arrives. Its activation publishes TimerReady, the skin asks
+    // AGAIN — the separated ask, which the old `hello_once` made impossible —
+    // and from then on it is serviced.
+    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    r.pump_for(timer_so, 60);
+    CHECK(r.seen.ready >= 1);
+    const Seen::Answer pumps = r.poke_timed(timer_so, skin_so, loom::PokeRead{"pumps"});
+    CHECK(pumps.kind == 0);
+    CHECK(std::stoll(pumps.text) > 0); // it is being serviced, with nobody pumping it
+}
+
+TEST_CASE("a swapped-in skin asks from its own activation and does NOT double the role beat") {
+    Rig r;
+    const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
+    (void)r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
+                 zengine::surface::kSkinRole);
+    r.pump_for(timer_so, 60);
+    const std::int64_t standing_before =
+        std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
+    CHECK(standing_before >= 1); // the skin's beat is standing
+
+    // Replace the painter. The successor's own activation makes it ask.
+    const std::uint64_t corr = r.next_corr++;
+    r.bus.send_as(r.witness, r.manager,
+                  loom::Message(loom::to_value(loom::SwapWeave{
+                                    zengine::surface::kSkinRole, "zengine-skin-tui-block",
+                                    SKIN_SO_TUI_BLOCK, /*graceful=*/false}),
+                                r.witness, r.witness, corr));
+    r.pump_for(timer_so, 80);
+    const Seen::Answer* swapped = r.seen.find(corr);
+    REQUIRE(swapped != nullptr);
+    REQUIRE_MESSAGE(swapped->kind == 0, "skin swap refused: ", swapped->text);
+    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped->text))};
+
+    // The successor is serviced...
+    const Seen::Answer pumps = r.poke_timed(timer_so, block, loom::PokeRead{"pumps"});
+    CHECK(std::stoll(pumps.text) > 0);
+    // ...and the beat was REPLACED, not added: the role-timer upsert keys on
+    // (role, id) ACROSS requesters, so the successor's ask takes the incumbent's
+    // schedule instead of standing a second one beside it.
+    const std::int64_t standing_after =
+        std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
+    CHECK(standing_after == standing_before);
+}
+
 TEST_CASE("the input package arranges its own execution: it polls with nobody pumping") {
     Rig r;
+    // Loaded AFTER the timer is already running — the load order that used to
+    // make a consumer permanently deaf. Its own activation is its first breath.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     const loom::WeaveId input_so =
         r.load("zengine-input", INPUT_SO, zengine::input::kInputRole);
 
-    r.wind();
     r.pump_for(timer_so, 80); // ~8 beats of the weave's own 10ms ask
 
     // Headless, so it heard nothing — but it RAN, repeatedly, and not one
@@ -799,7 +1134,6 @@ TEST_CASE("the skin keeps itself serviced: hello and beats with nobody pumping")
     const loom::WeaveId skin_so =
         r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
 
-    r.wind();
     r.pump_for(timer_so, 80);
 
     // The service's hello was the skin's first breath: it said ITS hello and

@@ -67,7 +67,7 @@ struct SurfaceReady {
 /// unpumped Windows window is flagged unresponsive — found live: the busy
 /// cursor). The day this shape's note promised has arrived: a Skin now
 /// arranges its OWN beat (kPumpTimerId below, asked of the Timer package on
-/// its first breath), so no host owes it laps. PumpSurface stays as the same
+/// its own ACTIVATION), so no host owes it laps. PumpSurface stays as the same
 /// hands on direct request — for suites, diagnostics, and timer-less hosts.
 struct PumpSurface {
     ZEN_SHAPE(PumpSurface, 1);
@@ -85,8 +85,12 @@ inline constexpr const char* kSkinRole = "zengine.skin";
 inline constexpr const char* kSlotStatus = "status";
 inline constexpr const char* kSlotScore = "score";
 
-/// The Skin's heartbeat, asked of the Timer package on its first breath: a
-/// repeating role-addressed timer. Role-addressed is the load-bearing half —
+/// The Skin's heartbeat, asked of the Timer package on its own ACTIVATION —
+/// and asked AGAIN on TimerReady, because a skin loaded before any timer
+/// service exists asks into a vacant role and must be able to retry (R2A-2:
+/// announcing is once, asking is idempotent, and they are deliberately not the
+/// same call any more). A repeating role-addressed timer. Role-addressed is
+/// the load-bearing half —
 /// the beat belongs to kSkinRole, so a swapped-in successor inherits it
 /// without asking (on a dead-quiet bus a fresh window-owning skin would
 /// otherwise never get its queue serviced — the exact wedge the old

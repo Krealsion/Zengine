@@ -25,7 +25,13 @@ target_compile_definitions(zengine-tests PRIVATE
     "SNAKE_SO_WORLD_V2=\"$<TARGET_FILE:snake-world-v2>\""
     "SNAKE_SO_SCORE=\"$<TARGET_FILE:snake-score>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
-    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
+    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\""
+    # The host's SOURCE, for the no-privileged-wind tripwire (R2A-2). A root
+    # Drive is inert now, so its return cannot be caught by behaviour — only by
+    # reading the file. Same shape as the console's geometry-name tripwire:
+    # defense in depth against a claim quietly becoming false, not a proof of
+    # unrepresentability.
+    "HOST_PLAY_CPP=\"${CMAKE_SOURCE_DIR}/snake/play.cpp\"")
 
 add_test(NAME snake COMMAND zengine-tests)
 
@@ -46,7 +52,8 @@ target_compile_definitions(zengine-timer-tests PRIVATE
     "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
-    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\"")
+    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
+    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
 
 add_test(NAME timer COMMAND zengine-timer-tests)
 

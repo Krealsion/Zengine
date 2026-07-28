@@ -34,6 +34,9 @@
 
 #include "surface/vocabulary.hpp" // the skin role: drawing's address since the migration
 
+#include <fstream>
+#include <iterator>
+
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
@@ -831,4 +834,35 @@ TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to s
         r.bus.pump();
     }
     CHECK(file_size_then_remove("snake_painted.tmp") > 0);
+}
+
+// ============================================================================
+// R2A-2 — the host holds no privileged wind
+// ============================================================================
+
+TEST_CASE("the playable host sends no Drive: time is the composition's, not the host's") {
+    // WHY THIS READS THE SOURCE, said plainly. Since R2A-2 a root Drive is
+    // INERT — it carries no activation key, so the service ignores it — which
+    // means a wind left behind in the host cannot be caught by behaviour: the
+    // game would run identically with one. The claim at risk is therefore not
+    // "the game works" but "the host contributes nothing to time", and the only
+    // thing that can guard it is the file itself.
+    //
+    // The precedent is the console's geometry-name tripwire, and so is the
+    // honesty about what it is: defense in depth against a claim quietly
+    // becoming false again, NOT a proof of unrepresentability. Someone
+    // determined can still write a wind by another spelling; nobody will do it
+    // by accident.
+    std::ifstream host(HOST_PLAY_CPP);
+    REQUIRE_MESSAGE(host.is_open(), "cannot read the host source: " HOST_PLAY_CPP);
+    const std::string source((std::istreambuf_iterator<char>(host)),
+                             std::istreambuf_iterator<char>());
+    REQUIRE(source.size() > 1000); // we really did read the host, not an empty path
+
+    // No Drive is constructed, sent, or named anywhere in the playable host.
+    CHECK(source.find("Drive") == std::string::npos);
+    // And the timer vocabulary is still reached for — the host names the role
+    // it loads the service into — so the absence above is about the WIND, not
+    // about the host having stopped speaking timer at all.
+    CHECK(source.find("timer::kTimerRole") != std::string::npos);
 }

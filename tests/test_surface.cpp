@@ -510,7 +510,13 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
     CHECK(hellos == 1); // once per incarnation, still
 }
 
-TEST_CASE("the skin arranges its own beat: the first breath asks, the beat services") {
+TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on TimerReady") {
+    // THE BUG THIS EXISTS FOR (R2A-2). These two used to share `hello_once`, so
+    // a skin whose ask refused into a vacant timer role could never retry: the
+    // hello was already spent, and every later trigger returned early from it.
+    // A skin loaded before the Timer would have been serviced by nothing,
+    // forever, on a bus that was working perfectly. Announcing is ONCE; asking
+    // is idempotent and must stay repeatable.
     loom::Switchboard bus;
     std::vector<std::string> log;
     int hellos = 0;
@@ -519,18 +525,38 @@ TEST_CASE("the skin arranges its own beat: the first breath asks, the beat servi
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
 
-    // ANY first message is the skin's first breath — here a status line, the
-    // exact wake a swapped-in skin gets from the operator's republish. The
-    // hello and the beat ask ride the same moment; the ask's wire content is
-    // pinned field by field.
+    // An ordinary message ANNOUNCES and does not ask. (Before the split it did
+    // both, which is what made the ask unrepeatable.)
     bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
     bus.pump();
     CHECK(hellos == 1);
+    CHECK(asks.empty());
+
+    // The skin's own activation is its first breath: announce (already done)
+    // AND ask. The ask's wire content is pinned field by field.
+    bus.send(skin, loom::Message(loom::to_value(loom::Activated{1}), skin, skin));
+    bus.pump();
+    CHECK(hellos == 1); // still once per incarnation
     REQUIRE(asks.size() == 1);
     CHECK(asks[0].id == kPumpTimerId);
     CHECK(asks[0].delay_ms == kPumpBeatMs);
     CHECK(asks[0].repeat);
     CHECK(asks[0].role == kSkinRole);
+
+    // THE RETRY. TimerReady asks AGAIN — the path that rescues a skin whose
+    // activation-time ask found no timer. It is an upsert on the service's
+    // side, so this never doubles the beat.
+    bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerReady{})));
+    bus.pump();
+    REQUIRE(asks.size() == 2);
+    CHECK(asks[1].id == kPumpTimerId);
+    CHECK(asks[1].role == kSkinRole);
+    CHECK(hellos == 1); // and the retry is not a second hello
+
+    // A duplicate activation does nothing at all — the cursor's whole job.
+    bus.send(skin, loom::Message(loom::to_value(loom::Activated{1}), skin, skin));
+    bus.pump();
+    CHECK(asks.size() == 2);
 
     // The beat is the pump's twin: serviced and counted the same...
     bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
@@ -539,13 +565,12 @@ TEST_CASE("the skin arranges its own beat: the first breath asks, the beat servi
     CHECK(log[0] == "note status=up");
     CHECK(log[1] == "pump");
 
-    // ...an alien id aimed at this role is data, not a drive — and there is
-    // never a second hello or a second ask.
+    // ...and an alien id aimed at this role is data, not a drive.
     bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
     bus.pump();
     CHECK(log.size() == 2);
     CHECK(hellos == 1);
-    CHECK(asks.size() == 1);
+    CHECK(asks.size() == 2);
 }
 
 // ============================================================================
@@ -586,11 +611,17 @@ TEST_CASE("the tally survives the painter being replaced (the hello handshake)")
         kSkinRole, "zengine-skin-tui-block", SKIN_SO_TUI_BLOCK, /*graceful=*/false});
     REQUIRE(swapped.kind == 0);
     const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
-    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0");
-    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "0");
+    CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0"); // nothing painted yet
 
-    // The next real frame wakes the new skin; its hello gets the tally
-    // re-published — the score line is back on screen with NO new meal.
+    // AND THE TALLY IS ALREADY THERE (R2A-2). The successor does not have to
+    // wait for a frame to wake it: its own activation is its first breath, so
+    // it announced at load, the score weave heard the hello and re-published,
+    // and the line was on screen before anything was drawn. Under the old
+    // mechanism this read 0 here and only became 1 after the next tick.
+    CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
+
+    // The next real frame paints — and the tally is still one meal, because no
+    // meal happened; the line survived the painter, not the score.
     r.tick();
     CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "1");
     CHECK(r.poke(block, loom::PokeRead{"texts"}).text == "1");
@@ -642,11 +673,15 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     const loom::WeaveId speaking = loom::mount_granted<Speaker>(r.bus, std::move(reach), spoke);
     r.bus.send(speaking, loom::Message(loom::to_value(SurfaceReady{})));
     r.pump();
-    // The full live round: the line lands (texts 1) — and since it was the
-    // fresh skin's FIRST message, the skin hellos, the speaker re-speaks
-    // (exactly what the host's operator does), and the line lands again.
-    CHECK(spoke == 2);
-    CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "2");
+    // The line lands. It lands ONCE, not twice: since R2A-2 the skin said its
+    // hello at its own activation, back when it was loaded — so this text is
+    // not its first message and does not trigger a second hello, and the
+    // speaker has nothing to re-speak to. (Under the old mechanism this read 2
+    // for both, because the skin's hello was still pending here.) The property
+    // under test is unchanged and is the whole point: the line lands at all,
+    // because the grant carries an any-target SurfaceText rule.
+    CHECK(spoke == 1);
+    CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");
 
     int mute_spoke = 0;
     loom::Grant mute;
@@ -655,7 +690,7 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     r.bus.send(muted, loom::Message(loom::to_value(SurfaceReady{})));
     r.pump();
     CHECK(mute_spoke == 1);                                   // it DID speak...
-    CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "2"); // ...into a closed door
+    CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1"); // ...into a closed door
 }
 
 TEST_CASE("the surface has one owner: a second skin is refused the held role") {

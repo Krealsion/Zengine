@@ -603,7 +603,8 @@ TEST_CASE("the weave publishes what its reader hears, in order, all five shapes"
     CHECK(heard.size() == 5);
 }
 
-TEST_CASE("the weave arranges its own beat: the hello asks, the beat polls, alien ids do not") {
+TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks again, "
+          "the beat polls, alien ids do not") {
     loom::Switchboard bus;
     std::vector<std::vector<InputEvent>> feed;
     feed.push_back({KeyPressed{scan::kD, "D"}});
@@ -614,17 +615,32 @@ TEST_CASE("the weave arranges its own beat: the hello asks, the beat polls, alie
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
 
-    // The TimerService's hello arrives (root-published, as the fanout would
-    // deliver it — and the recipient count pins that in this rig the input
-    // weave is the ONLY listener): the weave asks for ITS beat, wire content
-    // pinned field by field.
-    CHECK(bus.publish(loom::Message(loom::to_value(zengine::timer::TimerReady{}))) == 1);
+    // ITS OWN ACTIVATION is its first breath (R2A-2): the weave asks for ITS
+    // beat, wire content pinned field by field. This is the trigger that makes
+    // load order stop mattering — loaded long after the Timer, it still asks.
+    bus.send(weave, loom::Message(loom::to_value(loom::Activated{1}), weave, weave));
     bus.pump();
     REQUIRE(asks.size() == 1);
     CHECK(asks[0].id == kPumpTimerId);
     CHECK(asks[0].delay_ms == kPumpBeatMs);
     CHECK(asks[0].repeat);
     CHECK(asks[0].role == kInputRole);
+
+    // A duplicate activation asks for nothing — the cursor's whole job, and
+    // what keeps a re-delivered stimulus from doing non-idempotent work.
+    bus.send(weave, loom::Message(loom::to_value(loom::Activated{1}), weave, weave));
+    bus.pump();
+    CHECK(asks.size() == 1);
+
+    // The TimerService's availability notice arrives (root-published, as the
+    // fanout would deliver it — and the recipient count pins that in this rig
+    // the input weave is the ONLY listener): the weave asks AGAIN. That is the
+    // opposite load order's rescue, and it is an upsert, never a doubling.
+    CHECK(bus.publish(loom::Message(loom::to_value(zengine::timer::TimerReady{}))) == 1);
+    bus.pump();
+    REQUIRE(asks.size() == 2);
+    CHECK(asks[1].id == kPumpTimerId);
+    CHECK(asks[1].role == kInputRole);
 
     // The beat opens the same hands the pump does...
     bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));

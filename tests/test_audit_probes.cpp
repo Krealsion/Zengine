@@ -1,46 +1,52 @@
-// The Trust-Gate liveness probes (Stage 5 of the audit phase, 2026-07-26;
-// ratified onto main by the R1 repair phase, 2026-07-27).
+// The Trust-Gate liveness probes — WHAT THEY MEASURED, AND WHAT THEY NOW
+// WITNESS. (Born Stage 5 of the audit phase, 2026-07-26; ratified onto main by
+// the R1 repair phase, 2026-07-27; FLIPPED by R2A-2, 2026-07-28.)
 //
-// THIS SUITE'S STATUS IS DELIBERATE, and a reader should know which kind of
-// test file this is. It does NOT pin behavior anyone designed and wants kept.
-// It pins what the substrate MEASURABLY DOES today, including where that is
-// unwanted: probe A asserts that swapping the timer service KILLS the beat
-// chain. That is a description, not an endorsement — and it is here on main on
-// purpose, for two reasons. First, an undocumented behavior that a repair
-// phase corrected the prose about should not be free to drift again silently;
-// today these cases are the guard on the corrected comments. Second, when the
-// open lifecycle question is answered (R2 — re-lighting liveness after a swap,
-// a steward that re-winds, a Drive serial), probe A is exactly the case that
-// FLIPS: it becomes the guard on the new promise. A red probe A after an R2
-// change is expected and good; rewrite it to the new truth rather than
-// deleting it, and keep the measured half (which refusal, whose sender) —
-// that is the part the comments now depend on.
+// These four cases were written as descriptions, not endorsements. They pinned
+// what the substrate measurably DID, including where that was unwanted — probe
+// A asserted that swapping the timer service KILLED the beat chain — and the
+// file said, in as many words, that when the open lifecycle question was
+// answered probe A was "exactly the case that FLIPS: it becomes the guard on
+// the new promise. A red probe A after an R2 change is expected and good;
+// rewrite it to the new truth rather than deleting it, and keep the measured
+// half (which refusal, whose sender)."
 //
-// These settle, by execution, the questions the lane's prose left open — above
-// all the timer vocabulary's central survival claim, as it read at the audited
-// tips: "the service re-sends [Drive] to its own ROLE forever after — so the
-// chain itself survives the service being replaced". Measured FALSE for a
-// swap, TRUE for a reload; the vocabulary now says so (see Drive in
-// timer/vocabulary.hpp, corrected in R1). Each probe pins what the substrate
-// ACTUALLY does; where a probe contradicts a comment, the comment is the thing
-// under judgment, not the probe.
+// R2A-2 answered it. Each probe below is now the witness to the earned promise,
+// and each keeps its measured half — because the substrate behaviour has not
+// changed at all. What changed is the mechanism built on top of it:
 //
-// Probe map:
-//   A. SwapWeave on the live timer role  — does the beat chain survive? Which
-//      refusal kills it (CapabilityDenied = sender-death, NoSuchTarget =
-//      vacancy)? Does the successor announce? Does a fresh root wind heal?
-//   B. ReloadWeave of the live service   — same-id rebind: does the chain
-//      survive THAT, and does the reloaded incarnation re-announce?
-//   C. Double wind                       — is a stray extra Drive "a harmless
-//      extra beat" (vocabulary) or a permanent second chain (conserved)?
-//   D. Late load                         — a consumer loaded after the wind:
-//      does it ever hear TimerReady / tick at all?
+//   THE LAW: every successfully activated Timer incarnation establishes exactly
+//   ONE beat chain. A new activation owns a new chain; stale, duplicate,
+//   replayed, inherited or foreign Drives cannot establish another.
 //
-// The chain never quiesces while alive, so every open-ended pump carries BOTH
-// levers: a stopwatch timer (stops the bus when the chain is alive to fire it)
-// and a delivered-Drive watchdog via a bus observer (stops the bus if a chain
-// outlives the probe's expectation). A pump that returns with an empty queue
-// and no watchdog trip IS the chain-death observation.
+// Probe map — old truth -> new proof:
+//   A. SwapWeave on the live timer role
+//        was: the chain dies (CapabilityDenied, sender-death); only a fresh
+//             root wind heals it.
+//        now: the old chain STILL dies exactly that way — the measurement is
+//             preserved and re-asserted — and the successor's own activation
+//             authors a new one. No wind, and exactly one chain at the end.
+//   B. ReloadWeave of the live service
+//        was: the chain survives because the WeaveId does, and the reloaded
+//             incarnation re-announces on the beat it rides through.
+//        now: the predecessor's parked Drive is INERT (a new instance begins
+//             unactivated, and the serial is not one it expects); the reload's
+//             own activation publishes TimerReady and authors a fresh chain.
+//             The test no longer praises accidental inheritance.
+//   C. Duplicate / replay
+//        was: a stray second Drive seeds a permanent, conserved second chain.
+//        now: neither a replayed already-consumed Drive from the REAL stamped
+//             Timer sender, nor a replayed activation, can fork time.
+//   D. Late load
+//        was: a consumer loaded after the wind never hears TimerReady and is
+//             permanently deaf.
+//        now: its own activation makes it ask, and it runs — with no new
+//             TimerReady published to rescue it.
+//
+// The chain never quiesces while alive, so every open-ended pump carries a
+// lever: a stopwatch timer (stops the bus when the chain is alive to fire it)
+// and/or a delivered-Drive watchdog via a bus observer. A pump that returns
+// with an empty queue and no watchdog trip IS a chain-death observation.
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
@@ -170,6 +176,8 @@ struct Rig {
     loom::WeaveId witness = mount_witness();
     std::uint64_t next_corr = 1;
 
+    Rig() { watch_drives(); }
+
     loom::WeaveId mount_witness() {
         seen.bus = &bus;
         loom::Grant reach;
@@ -193,16 +201,39 @@ struct Rig {
         bus.send_as(witness, service, loom::Message(loom::to_value(msg), witness, witness, 0));
     }
 
+    /// The beat watchdog — the one pump lever that works on both sides of the
+    /// clock's existence. Before a timer is loaded no Drive is ever delivered,
+    /// so it never trips and the pump drains; once a chain is alive it bounds
+    /// an otherwise endless pump. Required since R2A-2, because loading the
+    /// service is itself what starts time.
+    std::int64_t drives = 0;
+    std::int64_t stop_after_drives = -1;
+
+    void watch_drives() {
+        bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.schema_name == "Drive" && ev.kind == loom::EventKind::Delivered) {
+                ++drives;
+                if (stop_after_drives >= 0 && drives >= stop_after_drives) {
+                    bus.stop();
+                }
+            }
+        });
+    }
+
+    void pump_beats(std::int64_t n) {
+        stop_after_drives = drives + n;
+        bus.pump();
+        stop_after_drives = -1;
+    }
+
     loom::WeaveId load(const char* name, const char* path, const char* role) {
         const std::uint64_t corr = command(loom::LoadWeave{name, path, role});
-        bus.pump(); // pre-wind only: with no chain alive this pump drains
+        pump_beats(6); // drains when no clock exists; bounded once one does
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
         return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(a->text))};
     }
-
-    void wind() { bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{}))); }
 
     /// Run the live chain ~ms of real time: stopwatch one-shot as the lever.
     void pump_for(loom::WeaveId service, std::int64_t ms) {
@@ -251,10 +282,43 @@ struct FakeClock {
 
 using FakeService = TimerServiceT<FakeClock>;
 
+/// What the fake lane's ear heard.
+struct FakeHeard {
+    std::int64_t ready = 0;
+};
+
+struct FakeEarState {
+    std::int64_t count = 0;
+    ZEN_SHAPE(FakeEarState, 1, ZEN_FIELD(count));
+};
+class FakeEar : public loom::WeaveBase<FakeEar, FakeEarState, loom::Accept<TimerReady>,
+                                       loom::Emit<>> {
+public:
+    explicit FakeEar(FakeHeard& h) : h_(&h) {}
+    void on(const TimerReady&, loom::Mail&) { ++h_->ready; }
+
+private:
+    FakeHeard* h_;
+};
+
+/// A stand-in for the Loom's control door: the identity an activation key is
+/// made of. The rig speaks AS it, so those sends carry a real bus-stamped
+/// sender rather than being root injections.
+struct FakeDoorState {
+    std::int64_t nothing = 0;
+    ZEN_SHAPE(FakeDoorState, 1, ZEN_FIELD(nothing));
+};
+class FakeDoor : public loom::WeaveBase<FakeDoor, FakeDoorState, loom::Accept<>,
+                                        loom::Emit<loom::Activated>> {};
+
 struct FakeRig {
     loom::Switchboard bus;
     FakeHooks hooks;
+    FakeHeard heard;
     loom::WeaveId service{};
+    loom::WeaveId ear{};
+    loom::WeaveId door{};
+    std::int64_t next_sequence = 1;
 
     FakeRig() {
         hooks.bus = &bus;
@@ -264,12 +328,24 @@ struct FakeRig {
         loom::allow_poke_answers(grant);
         service = bus.register_weave(std::move(weave), std::move(grant), kTimerRole);
         raw->zen_set_self(service);
+        ear = loom::mount<FakeEar>(bus, heard);
+        door = loom::mount<FakeDoor>(bus);
     }
 
-    void run_beats(std::int64_t n, bool wind = false) {
+    /// The activation key's two halves, as a consumer of the wire would see it.
+    std::string door_text() const { return std::to_string(door.value); }
+    std::int64_t current_sequence() const { return next_sequence - 1; }
+
+    void activate(std::int64_t sequence) {
+        bus.send_as(door, service,
+                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+    }
+    void activate() { activate(next_sequence++); }
+
+    void run_beats(std::int64_t n, bool start = false) {
         hooks.stop_after = hooks.beats + n;
-        if (wind) {
-            bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{})));
+        if (start) {
+            activate();
         }
         bus.pump();
         hooks.stop_after = -1;
@@ -282,29 +358,25 @@ struct FakeRig {
 // Probe A — the primary: SwapWeave on the live timer role
 // ============================================================================
 
-TEST_CASE("probe A: a SwapWeave on the live timer role KILLS the beat chain "
-          "(sender-death, CapabilityDenied), and only a fresh root wind heals it") {
+TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTIVATED "
+          "successor authors a new one, with no wind") {
     Rig r;
     DriveForensics f;
     f.arm(r.bus);
 
+    // No wind anywhere in this probe. Loading the service activates it.
     const loom::WeaveId old_service = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    r.wind();
     r.pump_for(old_service, 40);
-    CHECK(r.seen.ready == 1);        // the incumbent announced
-    CHECK(r.bus.pending() > 0);      // the chain is alive and parked
+    CHECK(r.seen.ready == 1);   // the incumbent announced, on its activation
+    CHECK(r.bus.pending() > 0); // the chain is alive and parked
     const std::int64_t beats_before = r.poke_int(old_service, old_service, "beats");
     CHECK(beats_before > 0);
 
     // The swap. Hard on purpose (the service declares no PrepareShutdown, so
-    // graceful would auto-degrade to this anyway). Watchdog: if the chain
-    // somehow survives, stop after a bounded number of further beats instead
-    // of pumping forever.
-    f.stop_after_delivered = f.delivered + 50;
+    // graceful would auto-degrade to this anyway).
     const std::uint64_t corr = r.command(loom::SwapWeave{kTimerRole, "zengine-timer", TIMER_SO,
                                                          /*graceful=*/false});
-    r.bus.pump();
-    f.stop_after_delivered = -1;
+    r.pump_beats(40);
 
     const Seen::Answer* swapped = r.seen.find(corr);
     REQUIRE(swapped != nullptr);
@@ -312,133 +384,183 @@ TEST_CASE("probe A: a SwapWeave on the live timer role KILLS the beat chain "
     const loom::WeaveId successor{static_cast<std::uint64_t>(std::stoll(swapped->text))};
     CHECK(successor.value != old_service.value);
 
-    // THE OBSERVATION. The pump returned by QUIESCENCE, not by watchdog: the
-    // bus drained — the chain is dead. The kill was the old incarnation's
-    // in-flight re-wind failing sender lookup at delivery: CapabilityDenied,
-    // not role vacancy (the successor already held the role by then).
-    CHECK(r.bus.pending() == 0);
+    // THE MEASURED HALF, PRESERVED. The substrate has not changed and this is
+    // still exactly how the old chain ends: the incumbent's parked re-seed
+    // fails its SENDER lookup at delivery — CapabilityDenied, sender-death, not
+    // role vacancy (the successor already held the role by then). Keeping this
+    // assertion is the point of rewriting rather than replacing the probe.
     CHECK(f.refused_capability == 1);
     CHECK(f.refused_no_target == 0);
     CHECK(f.refused_other == 0);
-    MESSAGE("post-swap: pending=", r.bus.pending(), " drive refusals: capability=",
-            f.refused_capability, " no_target=", f.refused_no_target);
+    MESSAGE("post-swap drive refusals: capability=", f.refused_capability,
+            " no_target=", f.refused_no_target);
 
-    // The successor never got a first message: no hello, no beats. The
-    // vocabulary's "the successor inherits the live beat with the role" did
-    // not happen; the self-heal cascade (re-announce -> consumers re-ask) is
-    // unreachable from here.
-    CHECK(r.seen.ready == 1); // still only the incumbent's hello
-    const std::int64_t successor_beats = r.poke_int(old_service, successor, "beats");
-    CHECK(successor_beats == 0);
-
-    // A fresh ROOT wind heals everything: the successor announces (hello #2)
-    // and beats. Nothing automatic does this today — the host would have
-    // already exited on pending()==0 ("time is gone").
-    r.wind();
-    r.pump_for(successor, 40);
+    // THE NEW PROMISE. The old chain died — and the bus did NOT drain, because
+    // the successor was activated by the control door on the way in and
+    // authored a chain of its own. It announced (hello #2) and it is beating.
+    CHECK(r.bus.pending() > 0);
     CHECK(r.seen.ready == 2);
-    CHECK(r.poke_int(successor, successor, "beats") > 0);
-    CHECK(r.bus.pending() > 0); // a live chain again
+    const std::int64_t successor_beats = r.poke_int(successor, successor, "beats");
+    CHECK(successor_beats > 0);
+
+    // EXACTLY ONE CHAIN, measured live. Every VALID delivered Drive produces
+    // exactly one beat, and an invalid one produces none — so over a window,
+    // "Drives delivered" and "beats lived" move together iff there is a single
+    // chain. A second chain would deliver roughly twice as many Drives as it
+    // produced beats, because one of each pair would be refused ownership.
+    // (Probe C proves the same law deterministically on the fake clock; this is
+    // its live corollary, tolerant by one for the beat in flight at each read.)
+    const std::int64_t beats_a = r.poke_int(successor, successor, "beats");
+    const std::int64_t drives_a = f.delivered;
+    r.pump_for(successor, 60);
+    const std::int64_t beats_b = r.poke_int(successor, successor, "beats");
+    const std::int64_t drives_b = f.delivered;
+    CHECK(beats_b > beats_a); // time is genuinely running, unattended
+    const std::int64_t beat_delta = beats_b - beats_a;
+    const std::int64_t drive_delta = drives_b - drives_a;
+    REQUIRE(beat_delta >= 3); // enough window for the comparison to mean something
+    CHECK(drive_delta <= beat_delta + 1);
+    CHECK(drive_delta >= beat_delta - 1);
+    MESSAGE("one chain: beats +", beat_delta, " drives delivered +", drive_delta);
 }
 
 // ============================================================================
 // Probe B — the corollary: ReloadWeave is the succession that DOES work
 // ============================================================================
 
-TEST_CASE("probe B: a ReloadWeave of the live timer service PRESERVES the chain "
-          "(same WeaveId), and the reloaded incarnation re-announces") {
+TEST_CASE("probe B: a reload does not INHERIT the old chain — the predecessor's parked "
+          "beat is inert, and the reload's activation authors a fresh one") {
     Rig r;
     DriveForensics f;
     f.arm(r.bus);
 
     const loom::WeaveId service = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    r.wind();
     r.pump_for(service, 40);
     CHECK(r.seen.ready == 1);
     const std::int64_t beats_before = r.poke_int(service, service, "beats");
     CHECK(beats_before > 0);
+    const std::int64_t drives_before = f.delivered;
 
-    // Reload in place. The chain's parked Drive was sent by THIS WeaveId, and
-    // reload rebinds the new library behind the SAME adapter/WeaveId — the
-    // sender lookup keeps succeeding, the role is never vacated, the chain
-    // rides straight through. Watchdog-stop after a few more beats (the chain
-    // surviving means this pump would otherwise never return).
-    f.stop_after_delivered = f.delivered + 5;
+    // Reload in place. The measured substrate half is unchanged and still
+    // true: reload rebinds the new library behind the SAME adapter/WeaveId, so
+    // the predecessor's parked Drive is still DELIVERABLE — its sender lookup
+    // keeps succeeding and the role is never vacated. What R2A-2 changed is
+    // that being deliverable is no longer enough to own anything.
     const std::uint64_t corr = r.command(loom::ReloadWeave{"zengine-timer", TIMER_SO});
-    r.bus.pump();
-    f.stop_after_delivered = -1;
+    r.pump_beats(8);
 
     const Seen::Answer* reloaded = r.seen.find(corr);
     REQUIRE(reloaded != nullptr);
-    CHECK(reloaded->kind == 1); // Ack
-    CHECK(r.bus.pending() > 0); // ALIVE: the watchdog stopped a live chain
-    CHECK(f.refused_capability == 0);
+    CHECK(reloaded->kind == 1);                    // Ack
+    CHECK(r.kernel.weave_id("zengine-timer") == service); // SAME WeaveId
+    CHECK(f.refused_capability == 0);              // nothing died: no sender was lost
     CHECK(f.refused_no_target == 0);
 
-    // The reloaded incarnation re-announced on its first beat (announced_ is
-    // a plain member, reset by reload) — so the self-heal story (hello #2 ->
-    // standing-beat owners re-ask) actually runs HERE, where the chain lives.
+    // THE FLIP. The old queued Drive reached the new instance and did NOTHING:
+    // a fresh incarnation begins unactivated, and even once activated the
+    // predecessor's serial is not the one this chain expects. Liveness here is
+    // NOT inherited — it comes from the reload's own activation, which
+    // republished TimerReady (hello #2) and seeded serial 0.
     CHECK(r.seen.ready == 2);
+    CHECK(r.bus.pending() > 0); // and a chain is alive and parked
 
-    // The beats counter is TimerState — it rode the reload transplant; the
-    // schedule table (plain members) did not, which is reload's documented
-    // shape (state carries, non-state resets).
+    // State transplanted (TimerState rides the gate); the chain did not (the
+    // cursor and serial are plain members, by design).
     const std::int64_t beats_after = r.poke_int(service, service, "beats");
     CHECK(beats_after > beats_before);
-    MESSAGE("reload: beats ", beats_before, " -> ", beats_after, ", hellos=", r.seen.ready);
+
+    // EXACTLY ONE CHAIN across the reload — the inherited beat did not become a
+    // second one. Same live method as probe A: valid Drives and beats move
+    // together; a surviving old chain plus a new one would not.
+    const std::int64_t beats_a = r.poke_int(service, service, "beats");
+    const std::int64_t drives_a = f.delivered;
+    r.pump_for(service, 60);
+    const std::int64_t beat_delta = r.poke_int(service, service, "beats") - beats_a;
+    const std::int64_t drive_delta = f.delivered - drives_a;
+    REQUIRE(beat_delta >= 3);
+    CHECK(drive_delta <= beat_delta + 1);
+    CHECK(drive_delta >= beat_delta - 1);
+    MESSAGE("reload: beats ", beats_before, " -> ", beats_after, ", hellos=", r.seen.ready,
+            ", drives since load=", f.delivered - drives_before);
 }
 
 // ============================================================================
 // Probe C — double wind: conserved second chain, not "a harmless extra beat"
 // ============================================================================
 
-TEST_CASE("probe C: a second Drive is a PERMANENT second chain — conserved, "
-          "never coalesced (though beat throughput stays nap-bound)") {
+TEST_CASE("probe C: neither a replayed Drive nor a replayed activation can fork time — "
+          "one chain, whatever is re-delivered") {
     // Deterministic fake-clock form. With no timers standing, every beat naps
     // kBeatCapMs, and a parked pump leaves exactly the in-flight Drives in the
-    // queue: pending() IS the chain count.
-    FakeRig single;
-    single.run_beats(6, /*wind=*/true);
-    CHECK(single.hooks.beats == 6);
-    CHECK(single.bus.pending() == 1); // one chain: one parked Drive
+    // queue: pending() IS the chain count. That is the same instrument the old
+    // probe used to MEASURE a second chain being created; here it is what
+    // proves one cannot be.
+    FakeRig baseline;
+    baseline.run_beats(6, /*start=*/true);
+    CHECK(baseline.hooks.beats == 6);
+    CHECK(baseline.bus.pending() == 1); // one chain: one parked Drive
 
-    FakeRig dual;
-    dual.bus.send_to_role(kTimerRole, loom::Message(loom::to_value(Drive{}))); // stray extra
-    dual.run_beats(6, /*wind=*/true);                                          // + the wind
-    CHECK(dual.hooks.beats == 6);
-    CHECK(dual.bus.pending() == 2); // TWO parked Drives: the second chain is real
+    // ---- (1) replaying a valid, already-consumed Drive -----------------------
+    //
+    // The replay is sent AS THE TIMER ITSELF, with the live activation key and
+    // a serial the chain really did consume. A root or alien sender being
+    // ignored is necessary but NOT sufficient proof — this is the hostile frame
+    // that actually matters, and it is fully sayable through the honest API.
+    FakeRig replay;
+    replay.run_beats(6, /*start=*/true);
+    REQUIRE(replay.bus.pending() == 1);
+    const std::int64_t consumed_serial = replay.hooks.beats - 1; // one already spent
+    replay.bus.send_as(replay.service, replay.service,
+                       loom::Message(loom::to_value(Drive{replay.door_text(),
+                                                          replay.current_sequence(),
+                                                          consumed_serial}),
+                                     replay.service, replay.service, 0));
+    replay.run_beats(6);
+    // The replay was DELIVERED (the role is held, the sender is real) and it
+    // established nothing: still one parked Drive, and the beat count advanced
+    // only by the chain's own beats.
+    CHECK(replay.bus.pending() == 1);
+    CHECK(replay.hooks.beats == 12);
 
-    // The nuance the vocabulary missed in BOTH directions: the extra chain is
-    // not "one extra beat" (it never goes away) — but it also does not double
-    // the beat rate (each beat naps, so the two chains SHARE the nap-bound
-    // throughput: same virtual time for the same beat count, halved cadence
-    // per chain).
-    CHECK(dual.hooks.now == single.hooks.now); // 6 beats -> 60ms, chains or no
+    // ---- (2) replaying the same activation -----------------------------------
+    //
+    // The old mechanism had no way to tell a second stimulus from a first. The
+    // cursor does: same sender, non-newer sequence is a duplicate.
+    FakeRig again;
+    again.run_beats(6, /*start=*/true);
+    REQUIRE(again.bus.pending() == 1);
+    const std::int64_t ready_before = again.heard.ready;
+    again.activate(again.current_sequence()); // the very same activation, again
+    again.run_beats(6);
+    CHECK(again.bus.pending() == 1);          // still ONE chain
+    CHECK(again.heard.ready == ready_before); // and no second availability notice
 
-    // And it is permanent: many beats later the queue still carries two, and
-    // the beat rate is still nap-bound (14 beats -> 140ms).
-    dual.run_beats(8);
-    CHECK(dual.bus.pending() == 2);
-    CHECK(dual.hooks.now == 140);
+    // A NEWER activation is a different matter: it REPLACES the chain rather
+    // than adding one. Still exactly one parked Drive afterwards.
+    again.activate();
+    again.run_beats(6);
+    CHECK(again.bus.pending() == 1);
+    CHECK(again.heard.ready == ready_before + 1); // it did republish
 }
 
 // ============================================================================
 // Probe D — late-load deafness
 // ============================================================================
 
-TEST_CASE("probe D: a consumer loaded AFTER the wind never hears TimerReady and "
-          "never ticks — the hello is once per incarnation, not a standing offer") {
+TEST_CASE("probe D: a consumer loaded LONG AFTER time started begins anyway — its own "
+          "activation is its first breath, and nothing was republished to rescue it") {
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     (void)r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
 
-    r.wind();
-    r.pump_for(timer_so, 60); // the hello happened here, before the clock existed
+    r.pump_for(timer_so, 60); // time has been running for a while already
     CHECK(r.seen.ready == 1);
+    const std::int64_t hellos_before = r.seen.ready;
 
-    // Load the latecomer WITHOUT load()'s bare pump: the chain is live now, so
-    // the pump must carry the stopwatch lever (the probe-harness lesson — an
-    // unlevered pump under a live chain never returns).
+    // The latecomer. Under the old mechanism this weave was permanently deaf:
+    // TimerReady was the only first breath and it had been spent before this
+    // weave existed, so it never asked for a tick timer and the world never
+    // moved. Its ticks stayed 0 forever, measured.
     const std::uint64_t corr = r.command(loom::LoadWeave{"snake-clock", SNAKE_CLOCK_SO, ""});
     r.pump_for(timer_so, 400); // load answers within the first beats; then ~3 tick periods
     const Seen::Answer* loaded = r.seen.find(corr);
@@ -446,10 +568,15 @@ TEST_CASE("probe D: a consumer loaded AFTER the wind never hears TimerReady and 
     REQUIRE_MESSAGE(loaded->kind == 0, "late load refused: ", loaded->text);
     const loom::WeaveId clock_so{static_cast<std::uint64_t>(std::stoll(loaded->text))};
 
-    // The latecomer is deaf: it never heard the (already-spent) hello, so it
-    // never asked for the tick timer, so the world never moved — visuals would
-    // have arrived at the witness if it had (test_timer's early-load twin case
-    // proves >=2 by 400ms).
-    CHECK(r.poke_int(timer_so, clock_so, "ticks") == 0);
-    CHECK(r.seen.visuals.empty());
+    // IT BEGAN. Its own activation made it ask, the ticks are positive, and the
+    // world moved — visuals arrived at the witness with nobody sending a
+    // SnakeTick.
+    CHECK(r.poke_int(timer_so, clock_so, "ticks") > 0);
+    CHECK_FALSE(r.seen.visuals.empty());
+
+    // AND NOTHING WAS REPUBLISHED TO RESCUE IT. This is the half that makes the
+    // proof about activation rather than about a lucky notice: the Timer's
+    // TimerReady count did not move, so the latecomer was not saved by hearing
+    // an availability broadcast — it was saved by being told it was live.
+    CHECK(r.seen.ready == hellos_before);
 }
