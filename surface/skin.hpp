@@ -78,8 +78,8 @@ public:
     /// This incarnation is live and holds the surface: say so, and arrange the
     /// servicing it needs.
     void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail.sender(), a.sequence)) {
-            return;
+        if (!activation_.accept(mail, a)) {
+            return; // unattested or already acted on
         }
         announce_surface_once(mail);
         ask_for_pump_timer(mail);

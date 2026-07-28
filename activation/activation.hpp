@@ -15,21 +15,41 @@
 // plus the comparison rule, kept here so Timer, Input, Skin and SnakeClock read
 // an activation the same way instead of four subtly different ways.
 //
-// WHAT IT IS NOT: authentication. The pair (bus-stamped sender, sequence) gives
-// LINEAGE and DEDUPLICATION — it tells a weave whether this activation is one it
-// has already acted on, and whether it comes from the same operator lineage as
-// the last one. It does not prove the sender is the one true lifecycle operator.
-// At Zengine's current altitude every weave in the process is trusted code, so a
-// different sender is treated as a new lineage rather than an intruder. **There
-// is no activation trust anchor yet**, and nothing here should be read as one;
-// when one is wanted it is a Loom-tier question (an operator role, a signed
-// identity), not something a consumer can invent for itself.
+// WHAT IT NOW IS, and what it still is not (R2B-1). It answers TWO questions,
+// in this order, and keeping them apart is the whole of the design:
 //
-// The sender half is load-bearing and stays load-bearing: a bare sequence is a
-// small integer, and treating one as an identity would make a replayed number
-// indistinguishable from a real succession.
+//   PROVENANCE  "did Loom itself authorize a lifecycle commit for me?"
+//               Answered by Loom, not by this file: `mail.lifecycle_attested()`
+//               is a delivery fact the bus sets and no payload can carry. The
+//               attested sequence is compared against the payload's own, so an
+//               attestation minted for one activation cannot authenticate
+//               another.
+//   LINEAGE     "have I already acted on this one?"
+//               Answered here, as before: positive, newer, per-sender.
+//
+// The trust anchor that was missing is now present, and the sentence it replaces
+// is worth quoting so nobody re-derives it: activation identity is NO LONGER
+// inferred from an arbitrary stamped sender. Before R2B-1 any weave granted the
+// public shape could manufacture a first breath for someone else's incarnation
+// and a consumer had no way to tell; a different sender was simply read as a new
+// lineage. Now an unattested activation is not a lineage at all — it is an
+// ordinary message wearing a lifecycle costume, and is ignored entirely.
+//
+// The sender half is still load-bearing, and its meaning is now sharper: among
+// ATTESTED activations, a different sender is a different authorized operator's
+// lineage. A bare sequence remains a small integer, and treating one as an
+// identity would still make a replayed number indistinguishable from a real
+// succession.
+//
+// WHAT IS STILL NOT CLAIMED, said plainly: this proves Loom authorized the
+// commit, not that any particular host wiring is the "right" one — the host
+// decides who holds the lifecycle authority, and a host that hands it to two
+// operators has two lineages by its own choice. Nor does it reach across a
+// process boundary: an out-of-process weave receives no attestation at all and
+// therefore accepts no activation (Loom's weave_host_main says so at the seam).
 
 #include <zen/switchboard/message.hpp>
+#include <zen/weave.hpp>
 #include <zen/weave/lifecycle.hpp>
 
 #include <cstdint>
@@ -48,12 +68,34 @@ public:
     /// Offer an arriving activation; true iff it becomes the current one — i.e.
     /// iff the weave should do its once-per-activation work now.
     ///
-    /// Accepted when the stamped sender is real, the sequence is positive, and
-    /// it is either from a DIFFERENT sender (a new lineage replaces the current
-    /// one) or NEWER than the last sequence seen from the current sender. A
-    /// same-sender, non-newer sequence is a duplicate or a replay: ignored
-    /// entirely, so re-delivery cannot make anything happen twice.
-    bool accept(loom::WeaveId sender, std::int64_t sequence) {
+    /// ONE CALL OWNS BOTH HALVES, deliberately: a consumer should not have to
+    /// rediscover the trust rule, and four packages each writing their own
+    /// version of it is four chances to write it slightly wrong.
+    ///
+    ///   1. PROVENANCE. Loom must attest a lifecycle commit for THIS incarnation,
+    ///      and the sequence it attested must be the one the payload states. An
+    ///      unattested `zen.Activated` — however well-formed, however plausible
+    ///      its sequence, whoever sent it — is refused here and goes no further.
+    ///   2. LINEAGE. Then the old rules, unchanged: the sequence must be
+    ///      positive, and either from a DIFFERENT (attested) sender — a new
+    ///      operator lineage replacing the current one — or NEWER than the last
+    ///      seen from the current sender. A same-sender, non-newer sequence is a
+    ///      duplicate or a replay: ignored entirely, so re-delivery cannot make
+    ///      anything happen twice.
+    ///
+    /// It takes the whole `Mail` rather than a sender and a number because the
+    /// deciding facts are DELIVERY facts. A signature of loose integers would
+    /// invite a caller to pass values it read off a payload, which is precisely
+    /// the mistake this phase exists to make unrepresentable.
+    bool accept(const loom::Mail& mail, const loom::Activated& activated) {
+        if (!mail.lifecycle_attested()) {
+            return false; // not Loom's word: an ordinary message wearing a costume
+        }
+        if (mail.attested_sequence() != activated.sequence) {
+            return false; // a proof for one activation is not a proof for another
+        }
+        const loom::WeaveId sender = mail.sender();
+        const std::int64_t sequence = activated.sequence;
         if (!sender.valid() || sequence <= 0) {
             return false;
         }

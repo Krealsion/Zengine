@@ -36,6 +36,8 @@
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
 
+#include "lifecycle_door.hpp"
+
 #include "snake/vocabulary.hpp"
 
 #include <zen/kernel/control.hpp>
@@ -522,6 +524,7 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
     std::vector<std::string> log;
     int hellos = 0;
     const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    const loom::WeaveId door = zengine::testing::mount_door(bus);
     (void)loom::mount<ReadyEars>(bus, hellos);
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
@@ -535,7 +538,7 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
 
     // The skin's own activation is its first breath: announce (already done)
     // AND ask. The ask's wire content is pinned field by field.
-    bus.send(skin, loom::Message(loom::to_value(loom::Activated{1}), skin, skin));
+    zengine::testing::order_activation(bus, door, skin, 1);
     bus.pump();
     CHECK(hellos == 1); // still once per incarnation
     REQUIRE(asks.size() == 1);
@@ -555,7 +558,7 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
     CHECK(hellos == 1); // and the retry is not a second hello
 
     // A duplicate activation does nothing at all — the cursor's whole job.
-    bus.send(skin, loom::Message(loom::to_value(loom::Activated{1}), skin, skin));
+    zengine::testing::order_activation(bus, door, skin, 1);
     bus.pump();
     CHECK(asks.size() == 2);
 

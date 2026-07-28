@@ -524,6 +524,18 @@ struct TimerHandoff {
 ///     untrusted input, not a large truth — and adopting half of an untrusted
 ///     letter is worse than starting fresh.
 ///
+/// SAY THE CONSEQUENCE PLAINLY, because "adopted whole or not at all" is easy
+/// to over-read: WHOLE means the whole LETTER, and the letter holds at most the
+/// published bounded subset of the table — not the table. A service standing
+/// more than `kMaxHandoffEntries` timers offers continuity for the first
+/// `kMaxHandoffEntries` of them in table order, **and the rest are not offered
+/// continuity at all**. They are not preserved, not restored, and not reported
+/// as missing to anyone: their consumers simply meet an unavailable
+/// preservation on their next ordered re-ask and fall back exactly as they
+/// would after a hard replacement. Nothing here claims that an arbitrarily
+/// large active table crosses completely, and nothing should be written that
+/// implies it.
+///
 /// Bounded and published, like the Loom's own kMaxBequestItems: a bound
 /// discovered as a leak is a bound that was never really chosen.
 inline constexpr std::size_t kMaxHandoffEntries = 32;
@@ -540,6 +552,19 @@ inline constexpr std::size_t kMaxHandoffEntries = 32;
 /// request additionally gets a `refused` receipt, because it has somewhere to
 /// hear one.
 inline constexpr std::size_t kMaxDeferredOps = 32;
+
+/// The correlation the service puts on its one claim per activation.
+///
+/// PUBLISHED ON PURPOSE, and the reason is the whole shape of R2B-1. This number
+/// is not a secret and was never capable of being one: any weave can watch it on
+/// the bus, and before R2B-1 knowing it was most of what an impersonator needed
+/// to answer a claim the heir could not otherwise authenticate. It is a
+/// CONVERSATION LABEL — it says which of this weave's asks an answer belongs to
+/// — and nothing else. What makes an answer trustworthy is Loom's attestation
+/// (`Mail::answers_ask()`), which no payload, correlation or role name can
+/// produce. Writing the number down here keeps that division honest, and lets
+/// the suite forge with everything the threat model grants.
+inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 
 /// The bootstrap length: how many of its own beats a fresh incarnation spends
 /// waiting for an answer to its claim before deciding it inherited nothing.

@@ -31,6 +31,8 @@
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 
+#include "lifecycle_door.hpp"
+
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract now
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
@@ -616,11 +618,16 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     (void)loom::mount<Ears>(bus, heard);
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
+    // R2B-1: a first breath is Loom's to grant. The suite activates through a
+    // real lifecycle operator holding a real authority, because that is the only
+    // way a weave can be activated at all now — hand-posting the public shape
+    // is exactly the forgery the attestation refuses.
+    const loom::WeaveId door = zengine::testing::mount_door(bus);
 
     // ITS OWN ACTIVATION is its first breath (R2A-2): the weave asks for ITS
     // beat, wire content pinned field by field. This is the trigger that makes
     // load order stop mattering — loaded long after the Timer, it still asks.
-    bus.send(weave, loom::Message(loom::to_value(loom::Activated{1}), weave, weave));
+    zengine::testing::order_activation(bus, door, weave, 1);
     bus.pump();
     REQUIRE(asks.size() == 1);
     CHECK(asks[0].id == kPumpTimerId);
@@ -635,7 +642,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
 
     // A duplicate activation asks for nothing — the cursor's whole job, and
     // what keeps a re-delivered stimulus from doing non-idempotent work.
-    bus.send(weave, loom::Message(loom::to_value(loom::Activated{1}), weave, weave));
+    zengine::testing::order_activation(bus, door, weave, 1);
     bus.pump();
     CHECK(asks.size() == 1);
 

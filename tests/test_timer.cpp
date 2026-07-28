@@ -36,6 +36,7 @@
 
 #include "input/vocabulary.hpp"
 #include "probe_vocabulary.hpp"
+#include "lifecycle_door.hpp"
 #include "snake/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -160,8 +161,8 @@ struct DoorState {
     std::int64_t nothing = 0;
     ZEN_SHAPE(DoorState, 1, ZEN_FIELD(nothing));
 };
-class Door : public loom::WeaveBase<Door, DoorState, loom::Accept<>,
-                                    loom::Emit<loom::Activated>> {};
+using zengine::testing::Impostor;
+using zengine::testing::TestDoor;
 
 /// A letter written to a DIFFERENT VERSION of the handoff shape.
 ///
@@ -187,7 +188,7 @@ struct HandoffV2 {
 /// an honest predecessor cannot produce, so a test that only used the honest
 /// path would be pinning nothing.
 struct Letters {
-    enum class Answer { Letter, Refuse, Silence };
+    enum class Answer { Letter, Refuse, Silence, UnattestedLetter };
     Answer answer = Answer::Refuse;
     std::vector<loom::Bytes> items; ///< what a Letter answer hands over
     std::int64_t claims = 0;        ///< how many claims arrived
@@ -215,15 +216,29 @@ public:
         case Letters::Answer::Silence:
             return; // the steward that never speaks: the bootstrap must not hang
         case Letters::Answer::Refuse:
-            mail.send(mail.sender(), loom::Refused{"no bequest is held for you"},
-                      mail.correlation());
+            // ANSWERED, not merely sent (R2B-1). "There is nothing for you" is
+            // exactly as load-bearing as a letter — it is what ends the heir's
+            // bounded wait — so it carries Loom's word too.
+            mail.answer(loom::Refused{"no bequest is held for you"});
             return;
-        case Letters::Answer::Letter:
+        case Letters::Answer::Letter: {
             loom::Bequest b;
             b.role = c.role;
             b.items = box_->items;
-            mail.send(mail.sender(), b, mail.correlation());
+            mail.answer(b);
             return;
+        }
+        case Letters::Answer::UnattestedLetter: {
+            // The same bytes, the same correlation, the same sender — sent the
+            // ordinary way. This is what an impersonator can produce, and what
+            // the legitimate steward looks like if it ever answers OUTSIDE the
+            // delivery that asked. Either way the heir must not adopt it.
+            loom::Bequest plain;
+            plain.role = c.role;
+            plain.items = box_->items;
+            mail.send(mail.sender(), plain, mail.correlation());
+            return;
+        }
         }
     }
 
@@ -250,6 +265,7 @@ struct FakeRig {
     loom::WeaveId ear{};
     loom::WeaveId door{};
     loom::WeaveId other_door{}; ///< a SECOND lifecycle operator: a different lineage
+    loom::WeaveId impostor{};   ///< an ordinary weave that merely knows the shape
     loom::WeaveId steward{};    ///< mounted only where a test wants one
     std::int64_t next_sequence = 1;
 
@@ -260,8 +276,9 @@ struct FakeRig {
         // Into its ROLE — the beat is role-addressed, exactly as the .so's is.
         service = mount_role<FakeService>(bus, kTimerRole, FakeClock{&hooks});
         ear = loom::mount<Ear>(bus, heard);
-        door = loom::mount<Door>(bus);
-        other_door = loom::mount<Door>(bus);
+        door = zengine::testing::mount_door(bus);
+        other_door = zengine::testing::mount_door(bus);
+        impostor = loom::mount<Impostor>(bus);
         bus.add_observer([this](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered) {
                 return;
@@ -355,8 +372,19 @@ struct FakeRig {
     /// Activate from an arbitrary stamped sender — how a "different lineage"
     /// is expressed, and how an invalid one is forged.
     void activate_as(loom::WeaveId who, std::int64_t sequence) {
-        bus.send_as(who, service,
-                    loom::Message(loom::to_value(loom::Activated{sequence}), who, who, 0));
+        zengine::testing::order_activation(bus, who, service, sequence);
+    }
+
+    /// The same gesture with the two sequences DISAGREEING: Loom is asked to
+    /// attest one number while the payload states another.
+    void activate_mismatched(std::int64_t announce, std::int64_t claim) {
+        zengine::testing::order_activation(bus, door, service, announce, claim);
+    }
+
+    /// A perfectly-shaped activation from an ordinary weave holding nothing but
+    /// the grant — the forgery the attestation exists to refuse.
+    void forge_activation(std::int64_t sequence) {
+        zengine::testing::order_activation(bus, impostor, service, sequence);
     }
 
     /// The activation key's two halves, as they travel on a Drive.
@@ -1716,13 +1744,12 @@ struct BindRig {
     BindRig() {
         weave = loom::mount<Bound>(bus);
         service = mount_role<AskCatcher>(bus, kTimerRole, seen);
-        door = loom::mount<Door>(bus);
+        door = zengine::testing::mount_door(bus);
         ear = loom::mount<WokeEar>(bus, woke);
     }
 
     void activate(std::int64_t sequence) {
-        bus.send_as(door, weave,
-                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+        zengine::testing::order_activation(bus, door, weave, sequence);
         bus.pump();
     }
     void activate() { activate(next_sequence++); }
@@ -2547,11 +2574,10 @@ TEST_CASE("binding lifecycle: a one-shot is SPENT before its callback runs, does
     AskSeen seen;
     const loom::WeaveId weave = loom::mount<Shooter>(bus);
     const loom::WeaveId service = mount_role<AskCatcher>(bus, kTimerRole, seen);
-    const loom::WeaveId door = loom::mount<Door>(bus);
+    const loom::WeaveId door = zengine::testing::mount_door(bus);
 
     const auto activate = [&](std::int64_t sequence) {
-        bus.send_as(door, weave,
-                    loom::Message(loom::to_value(loom::Activated{sequence}), door, door, 0));
+        zengine::testing::order_activation(bus, door, weave, sequence);
         bus.pump();
     };
     const auto fire = [&] {
@@ -2722,4 +2748,196 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
     // parked beat: a second chain would leave a second.
     pump_beats(1);
     CHECK(bus.pending() == 1);
+}
+
+// ============================================================================
+// R2B-1 — the hostile half: an ordinary weave, with everything the threat model
+// grants it, trying to be the steward
+// ============================================================================
+//
+// The impersonator below is an ORDINARY REGISTERED WEAVE. It knows every public
+// schema, it knows `kClaimCorrelation` (published, precisely so this test can
+// use it), it knows the Timer's role and its handoff format well enough to build
+// bytes that pass the gate, and it holds an ordinary grant to send `zen.Bequest`
+// and `zen.Refused` to anyone. It reaches around nothing.
+//
+// What it does not have is the one thing that is not a value: Loom's word that
+// it is the weave the Timer's claim was actually delivered to.
+
+namespace {
+
+/// The impersonator's order: what to send, and with which correlation.
+struct ForgeLetter {
+    bool refused = false;   ///< send zen.Refused instead of a letter
+    std::int64_t remaining = 0; ///< the remaining time the forged handoff claims
+    std::int64_t correlation = 0;
+    ZEN_SHAPE(ForgeLetter, 1, ZEN_FIELD(refused), ZEN_FIELD(remaining),
+              ZEN_FIELD(correlation));
+};
+
+struct ForgerState {
+    std::int64_t sent = 0;
+    ZEN_SHAPE(ForgerState, 1, ZEN_FIELD(sent));
+};
+
+/// A weave that forges a steward's answer. Everything it sends is legal, gated,
+/// stamped, and shaped exactly right.
+class LetterForger : public loom::WeaveBase<LetterForger, ForgerState, loom::Accept<ForgeLetter>,
+                                            loom::Emit<loom::Bequest, loom::Refused>> {
+public:
+    LetterForger(loom::WeaveId victim, loom::WeaveId requester)
+        : victim_(victim), requester_(requester) {}
+
+    void on(const ForgeLetter& f, loom::Mail& mail) {
+        ++state_.sent;
+        const auto corr = static_cast<std::uint64_t>(f.correlation);
+        if (f.refused) {
+            mail.send(victim_, loom::Refused{"no bequest is held for you"}, corr);
+            return;
+        }
+        // A handoff that would PASS THE GATE and, if adopted, would aim this
+        // service's future firings at a weave of the forger's choosing. That is
+        // the concrete harm, and why this letter's provenance is load-bearing
+        // rather than tidy.
+        TimerHandoff handoff;
+        handoff.entries.push_back(TimerHandoffEntry{std::to_string(requester_.value), "forged.tick",
+                                                    "", 1000, true, f.remaining});
+        loom::Bequest letter;
+        letter.role = kTimerRole;
+        letter.items.push_back(loom::bequeath_item(handoff));
+        mail.send(victim_, letter, corr);
+    }
+
+private:
+    loom::WeaveId victim_;
+    loom::WeaveId requester_;
+};
+
+} // namespace
+
+TEST_CASE("hostile: a forged letter with the right shape, the right correlation and gate-valid "
+          "handoff bytes inherits NOTHING — and does not close the claim either") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Silence); // no genuine answer will ever come
+    const loom::WeaveId forger = loom::mount<LetterForger>(r.bus, r.service, r.ear);
+
+    // The claim goes out on activation; the forgery is queued right behind it,
+    // squarely inside the window the heir is waiting in.
+    r.activate();
+    r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
+                           false, 4000, static_cast<std::int64_t>(kClaimCorrelation)})));
+    r.run_beats(4);
+
+    // It really was sent and really was delivered — this is a rejection by
+    // PROVENANCE, not by routing, not by a grant, and not by the gate.
+    CHECK(static_cast<LetterForger*>(r.bus.weave(forger))->snapshot().get("sent")->as_int() == 1);
+    CHECK(r.first(loom::Bequest::zen_name) >= 0);
+
+    // And it changed nothing: nothing inherited, nothing standing.
+    CHECK(r.count("inherited") == 0);
+    CHECK(r.count("active") == 0);
+
+    // The claim was not closed by it either — the service still resolved through
+    // its own bounded fallback, which is what keeps a forgery from being a
+    // denial-of-service as well as an impersonation.
+    CHECK(r.heard.ready == 1);
+    CHECK(r.bus.pending() == 1); // one chain, beating
+}
+
+TEST_CASE("hostile: a forged REFUSAL cannot end the heir's wait early either") {
+    FakeRig r;
+    TimerHandoff handoff;
+    handoff.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "real.tick", "", 1000, true, 250});
+    r.mount_steward(Letters::Answer::Letter);
+    r.letters.items.push_back(loom::bequeath_item(handoff));
+    const loom::WeaveId forger = loom::mount<LetterForger>(r.bus, r.service, r.ear);
+
+    // The forgery races ahead of the genuine answer, claiming there is nothing
+    // to inherit. If it were believed, the real letter would arrive at a
+    // service that had already resolved — and the schedule would be lost.
+    r.activate();
+    r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
+                           true, 0, static_cast<std::int64_t>(kClaimCorrelation)})));
+    r.run_beats(4);
+
+    // The genuine letter won, because the forged refusal was never an answer.
+    CHECK(r.count("inherited") == 1);
+    CHECK(r.count("active") == 1);
+    CHECK(r.heard.ready == 1);
+}
+
+TEST_CASE("hostile: a forgery AFTER the legitimate answer cannot overwrite what was inherited") {
+    FakeRig r;
+    TimerHandoff handoff;
+    handoff.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "real.tick", "", 1000, true, 250});
+    r.mount_steward(Letters::Answer::Letter);
+    r.letters.items.push_back(loom::bequeath_item(handoff));
+    const loom::WeaveId forger = loom::mount<LetterForger>(r.bus, r.service, r.ear);
+
+    r.activate();
+    r.run_beats(4);
+    REQUIRE(r.count("inherited") == 1);
+    REQUIRE(r.count("active") == 1);
+
+    // Late, correlated, gate-valid, and describing a completely different world.
+    r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
+                           false, 9000, static_cast<std::int64_t>(kClaimCorrelation)})));
+    r.run_beats(4);
+
+    CHECK(r.count("inherited") == 1); // the count is of the LAST bootstrap, unchanged
+    CHECK(r.count("active") == 1);    // and "forged.tick" never joined the table
+    CHECK(r.heard.ready == 1);        // nothing re-announced
+}
+
+TEST_CASE("hostile: even the legitimate steward's own bytes, replayed ordinarily, are not an "
+          "answer — the word does not travel with the message") {
+    FakeRig r;
+    TimerHandoff handoff;
+    handoff.entries.push_back(
+        TimerHandoffEntry{std::to_string(r.ear.value), "real.tick", "", 1000, true, 250});
+    // The steward answers with the RIGHT bytes the WRONG way: an ordinary send,
+    // which is exactly what it would have to do if it ever answered outside the
+    // delivery that asked — and exactly what an impersonator can produce.
+    r.mount_steward(Letters::Answer::UnattestedLetter);
+    r.letters.items.push_back(loom::bequeath_item(handoff));
+
+    r.activate();
+    r.run_beats(4);
+
+    // The steward really was asked, and really did reply.
+    CHECK(r.letters.claims == 1);
+    CHECK(r.first(loom::Bequest::zen_name) >= 0);
+    // And the heir inherited nothing, falling back through its bounded path.
+    CHECK(r.count("inherited") == 0);
+    CHECK(r.count("active") == 0);
+    CHECK(r.heard.ready == 1);
+}
+
+TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and a genuine "
+          "attestation for the wrong sequence cannot either") {
+    FakeRig r;
+    r.mount_steward(Letters::Answer::Refuse);
+
+    // An ordinary weave, holding only the grant for the public shape, announces
+    // a perfectly plausible activation.
+    r.forge_activation(1);
+    r.run_beats(4);
+    CHECK(r.heard.ready == 0);      // never became available
+    CHECK(r.count("beats") == 0);   // never authored a chain
+    CHECK(r.bus.pending() == 0);    // and left nothing behind
+
+    // A REAL authority, used dishonestly: Loom attests sequence 5 while the
+    // payload claims 6. A proof for one activation is not a proof for another.
+    r.activate_mismatched(5, 6);
+    r.run_beats(4);
+    CHECK(r.heard.ready == 0);
+    CHECK(r.count("beats") == 0);
+
+    // THE POSITIVE CONTROL. The same door, the same service, the two halves
+    // agreeing — so the silence above is refusal, not a broken rig.
+    r.run_beats(4, /*start=*/true);
+    CHECK(r.heard.ready == 1);
+    CHECK(r.count("beats") > 0);
 }
