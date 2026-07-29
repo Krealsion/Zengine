@@ -10,9 +10,12 @@
 // root shortcut: the suites must activate the way the real door does, or they
 // would be proving something the running system does not do.
 //
-// A HOST hands out the authority (`Switchboard::lifecycle_authority()`); a weave
-// cannot mint one. These fixtures mount a door holding one, and the test drives
-// it by message — the same shape of thing `mount_control` does for real.
+// A HOST hands out the authority; a weave cannot mint one. Since R2B-1a the only
+// expression that yields one is `loom::host_lifecycle_authority(bus)`, declared
+// in `zen/host/lifecycle_wiring.hpp` — a host-wiring header no weave-authoring
+// header includes — and it requires the `Switchboard` itself, which a weave
+// never holds. This suite may call it because a test harness IS a host: it owns
+// the bus. That is being inside the boundary by construction, not by exemption.
 //
 // It is also the FORGE. `announce`/`claim` are separate on purpose so a test can
 // ask for an attestation that disagrees with its own payload, and `Impostor` is
@@ -20,6 +23,7 @@
 // — the whole threat model in one class. An honest API that could not express
 // the attack would make the pin worthless.
 
+#include <zen/host/lifecycle_wiring.hpp> // host wiring — the harness is the host
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/lifecycle.hpp>
@@ -75,7 +79,7 @@ public:
 
 /// Mount a door and hand it the authority — the host's gesture, in one line.
 inline loom::WeaveId mount_door(loom::Switchboard& bus) {
-    return loom::mount<TestDoor>(bus, loom::Switchboard::lifecycle_authority());
+    return loom::mount<TestDoor>(bus, loom::host_lifecycle_authority(bus));
 }
 
 /// Ask `door` to announce, by an ordinary ROOT send: the trigger is the test's,
