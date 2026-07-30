@@ -141,6 +141,10 @@ struct DriveForensics {
     std::int64_t delivered = 0;
     std::int64_t refused_capability = 0;
     std::int64_t refused_no_target = 0;
+    /// The author's life ended before delivery (Loom R2B-2b). This bucket used to
+    /// be part of `refused_capability`, because a vanished sender has no grant to
+    /// check and the authorization term was what failed. Same event, real name.
+    std::int64_t refused_sender_life = 0;
     std::int64_t refused_other = 0;
     std::int64_t stop_after_delivered = -1; ///< watchdog: stop the bus here
     loom::Switchboard* bus = nullptr;
@@ -159,6 +163,8 @@ struct DriveForensics {
             } else if (ev.kind == loom::EventKind::Refused) {
                 if (ev.refusal.reason == loom::RefusalReason::CapabilityDenied) {
                     ++refused_capability;
+                } else if (ev.refusal.reason == loom::RefusalReason::SenderLifeEnded) {
+                    ++refused_sender_life;
                 } else if (ev.refusal.reason == loom::RefusalReason::NoSuchTarget) {
                     ++refused_no_target;
                 } else {
@@ -390,16 +396,22 @@ TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTI
     const loom::WeaveId successor{static_cast<std::uint64_t>(std::stoll(swapped->text))};
     CHECK(successor.value != old_service.value);
 
-    // THE MEASURED HALF, PRESERVED. The substrate has not changed and this is
-    // still exactly how the old chain ends: the incumbent's parked re-seed
-    // fails its SENDER lookup at delivery — CapabilityDenied, sender-death, not
-    // role vacancy (the successor already held the role by then). Keeping this
-    // assertion is the point of rewriting rather than replacing the probe.
-    CHECK(f.refused_capability == 1);
+    // THE MEASURED HALF, PRESERVED. The substrate's BEHAVIOUR has not changed and
+    // this is still exactly how the old chain ends: the incumbent's parked re-seed
+    // fails at delivery because its SENDER is gone — sender-death, not role vacancy
+    // (the successor already held the role by then). Keeping this assertion is the
+    // point of rewriting rather than replacing the probe.
+    //
+    // Loom's R2B-2b renamed the reason to match what this comment always said. It
+    // was `CapabilityDenied` because a vanished sender has no grant to check, so the
+    // authorization term was the one that failed — the right outcome down the wrong
+    // road, and an operator reading that reason would have gone hunting a grant.
+    CHECK(f.refused_sender_life == 1);
+    CHECK(f.refused_capability == 0);
     CHECK(f.refused_no_target == 0);
     CHECK(f.refused_other == 0);
-    MESSAGE("post-swap drive refusals: capability=", f.refused_capability,
-            " no_target=", f.refused_no_target);
+    MESSAGE("post-swap drive refusals: sender_life=", f.refused_sender_life,
+            " capability=", f.refused_capability, " no_target=", f.refused_no_target);
 
     // THE NEW PROMISE. The old chain died — and the bus did NOT drain, because
     // the successor was activated by the control door on the way in and
