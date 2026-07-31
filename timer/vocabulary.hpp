@@ -53,6 +53,13 @@
 //     (R2B-0). The Loom supplies the replacement moment and carries the
 //     envelope; what crosses death is the Timer's decision, said in the
 //     Timer's own vocabulary. See the handoff block.
+//   - PrepareTimerHandover v1 / TimerCandidatePrepared v1 /
+//     TimerCandidateDeclined v1 — the PREPARED-REPLACEMENT preparation
+//     conversation (R2B-3c). Three shapes a sealed candidate speaks with the
+//     coordinator preparing it, and with nobody else. They add no second way to
+//     describe a schedule: the letter stays `TimerHandoff`, written by the
+//     incumbent in answer to the same `zen.PrepareShutdown` as always. See the
+//     prepared-replacement block.
 //
 // R2B-0 — THE THREE KINDS OF STATE THIS PACKAGE HOLDS, named so that a
 // continuity decision can be about one of them rather than about "the timer":
@@ -78,7 +85,11 @@
 // CROSSING INTO THIS CONTRACT IS REPLACEMENT, NOT RELOAD — recorded so nobody
 // reads the refusal as a regression. R2A-2 changed accepted-message contracts:
 // the Timer now accepts `zen.Activated` and `Drive v2`, and the official
-// consumers accept `zen.Activated`. The Loom enforces EXACT accepted-contract
+// consumers accept `zen.Activated`. R2B-3c did it once more: the Timer also
+// accepts `PrepareTimerHandover`, so a pre-R2B-3c artifact and this one are
+// again REPLACEMENT rather than reload. That is the rule working, not a
+// regression — and prepared replacement is now the way to make such a crossing
+// without the service going away first. The Loom enforces EXACT accepted-contract
 // equality on reload-in-place (R2A-1), so `zen.ReloadWeave` from a pre-R2A-2
 // artifact to one of these refuses cleanly with "accepted schema contract
 // mismatch; reload refused". That is the substrate telling the truth: a weave
@@ -574,6 +585,125 @@ inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 /// QUEUE TURNS, never of milliseconds: there is no wall-clock timeout here, no
 /// spin, and no permanent dependency on a steward existing at all.
 inline constexpr std::int64_t kBootstrapBeats = 2;
+
+// ---- prepared replacement: the preparation conversation (R2B-3c) ------------
+//
+// THE PROBLEM THIS SOLVES, and it is the one an ordinary graceful handoff does
+// not have. A graceful replacement is a single ceremony: the incumbent is asked
+// to write, the heir is loaded, and the heir claims — all inside a few queue
+// turns during which nobody meant to keep serving. A PREPARED replacement is the
+// opposite by design: the candidate is loaded, validated and readied while the
+// incumbent stays completely live, so between "the candidate could take over"
+// and "the candidate does take over" the incumbent's clock advances, timers fire,
+// repeats re-arm, and consumers start and cancel schedules.
+//
+// So a Timer candidate cannot be handed a schedule at preparation time. Whatever
+// it was handed would be stale by the time it went live, and a successor that
+// restored a stale snapshot would be lying about where the clock was.
+//
+// THE ANSWER, stated once here and proven in the suite:
+//
+//     The boundary is the ADMISSION ITSELF. The incumbent owns time right up to
+//     it; the substrate is what stops it owning time (the beat chain rides the
+//     role, and the role moves); and the letter is written afterwards, by a
+//     service the seal has already made incapable of changing.
+//
+// Nothing in this vocabulary asks the incumbent for anything before that moment,
+// and nothing here is said to the incumbent at all — the letter it eventually
+// writes is the SAME `zen.PrepareShutdown` -> `TimerHandoff` exchange R2B-0
+// defined, unchanged, so there is exactly one interpretation of schedule
+// progress in this package. What is new is only what a CANDIDATE is told before
+// it is admitted, and where it looks for its letter afterwards.
+
+/// What a candidate is asked to be ready for.
+///
+///   "inherit"  a letter is coming from the incumbent this replaces; hold every
+///              operation and publish nothing until it lands.
+///   "fresh"    no continuity is being carried; start clean, and do not wait.
+///
+/// DECLARED, NEVER INFERRED. A prepared candidate must not decide it is
+/// restoring because entries happened to arrive, and must not decide it is fresh
+/// because none did — either inference would make the ordinary bootstrap and the
+/// prepared one the same code path wearing two names, and the day they diverged
+/// nobody would be able to say which one had run.
+inline constexpr const char* kInheritFromIncumbent = "inherit";
+inline constexpr const char* kStartFresh = "fresh";
+
+/// The coordinator's preparation ask, delivered to a SEALED candidate through
+/// the coordinator-only door.
+///
+/// `transaction` names the prepared replacement this belongs to. It is echoed
+/// back so an operator reading the wire can pair the two halves — it is NOT
+/// authority and cannot become authority: what makes the answer count is Loom's
+/// attestation that it answers this exact ask (`Envelope::preparation`), and the
+/// coordinator keys its own transaction from its own record, never from a field.
+struct PrepareTimerHandover {
+    std::int64_t transaction = 0;
+    std::string continuity; ///< kInheritFromIncumbent | kStartFresh
+    ZEN_SHAPE(PrepareTimerHandover, 1, ZEN_FIELD(transaction), ZEN_FIELD(continuity));
+};
+
+/// "Every fallible step is done." The candidate's authentic answer, and its
+/// meaning is exact:
+///
+///   - the artifact loaded, its contracts validated and its clock initialised
+///     (all of that already happened, or this weave would not exist);
+///   - the bounded capacity a full letter could ever need is RESERVED;
+///   - this incarnation knows which startup mode it is in and whose letter it is
+///     waiting for;
+///   - and admission requires no further fallible semantic decision from it.
+///
+/// It deliberately does NOT mean "the final schedule is already restored". It
+/// cannot: the final schedule does not exist until the boundary, and the boundary
+/// is the admission. What makes that honest rather than premature is that
+/// everything left after this point is bounded and deterministic, and cannot fail
+/// for want of room this weave could have arranged in advance — see
+/// `kMaxHandoffEntries`, and the service header's prepared-restoration block for
+/// what "reserved" does and does not claim.
+struct TimerCandidatePrepared {
+    std::int64_t transaction = 0;
+    ZEN_SHAPE(TimerCandidatePrepared, 1, ZEN_FIELD(transaction));
+};
+
+/// "I will not become the Timer, and here is why." The same one answer right,
+/// spent the other way. A decline is a real outcome, not a failure of the
+/// mechanism: the coordinator ends the transaction, the candidate is discarded,
+/// and the incumbent — which was never told any of this was happening — keeps
+/// serving without a beat's interruption.
+struct TimerCandidateDeclined {
+    std::int64_t transaction = 0;
+    std::string reason;
+    ZEN_SHAPE(TimerCandidateDeclined, 1, ZEN_FIELD(transaction), ZEN_FIELD(reason));
+};
+
+/// How many of its own beats a PREPARED incarnation spends waiting for the letter
+/// its preparer promised, before deciding the promise was not kept.
+///
+/// A published bound and not a tuned one, and the two halves are different
+/// questions. What it must EXCEED is the round trip the coordinator needs after
+/// the admission, which for the shape this package proves is two beats:
+///
+///   Q1 zen.Activated    -> candidate    the admission's own attested fact
+///   Q2 ClaimBequest     -> preparer     | enqueued by Q1's handler, alongside
+///   Q3 Drive serial 0   -> candidate    | the chain's first beat
+///   Q4 PrepareShutdown  -> incumbent    the coordinator's ask for the letter
+///   Q5 Drive serial 1   -> candidate    BEAT 1
+///   Q6 Bequest          -> preparer     the retired incumbent's letter
+///   Q7 Drive serial 2   -> candidate    BEAT 2
+///   Q8 Bequest          -> candidate    the deferred claim answer, spent
+///
+/// so the letter lands after beat 2 and a bound of 2 would have resolved fresh
+/// one turn early. What it must NOT be is unbounded: a preparer that dies, or
+/// an incumbent that cannot write, would otherwise leave a publicly admitted
+/// Timer holding every operation forever. Eight leaves room for a coordinator
+/// that takes a different number of hops than this one, and still ends in a
+/// service that is ALIVE and honest — it starts fresh, every held operation is
+/// replayed, and a consumer that required preservation is REFUSED rather than
+/// quietly restarted.
+///
+/// It is a count of QUEUE TURNS, never of milliseconds, exactly like
+/// `kBootstrapBeats`.
+inline constexpr std::int64_t kPreparedClaimBeats = 8;
 
 /// The role slot the TimerService holds: the address "whoever provides
 /// time", which outlives any particular implementation being swapped in.

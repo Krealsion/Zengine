@@ -30,15 +30,24 @@ struct AskProbe {
 };
 
 /// The probe's whole visible truth: how many times its callback ran, what the
-/// Timer last said it did about the binding (and why), and where the binding
-/// stands in its own lifecycle.
+/// Timer last said it did about the binding (and why), where the binding stands
+/// in its own lifecycle, and how many times its OWN activation hook ran.
+///
+/// v2 added `activations` (R2B-3c). It is the domain-visible observation
+/// `on_timed_activation` makes, and it exists to answer two questions the other
+/// fields cannot: that the hook ran on this consumer's own activation, AFTER its
+/// timer bindings were reconciled — and that replacing the TIMER SERVICE, which
+/// republishes `TimerReady` to every consumer, does NOT run it again. A consumer
+/// whose domain activation work re-ran every time some other weave was replaced
+/// would be a badly broken thing, and nothing but a counter can say it didn't.
 struct ProbeReport {
     std::int64_t fires = 0;
     std::string resolved;  ///< the last TimerResolution's outcome ("" if none yet)
     std::string reason;    ///< and its self-contained why
     std::string lifecycle; ///< "waiting" | "spent" | "canceled"
-    ZEN_SHAPE(ProbeReport, 1, ZEN_FIELD(fires), ZEN_FIELD(resolved), ZEN_FIELD(reason),
-              ZEN_FIELD(lifecycle));
+    std::int64_t activations = 0; ///< how many times on_timed_activation ran
+    ZEN_SHAPE(ProbeReport, 2, ZEN_FIELD(fires), ZEN_FIELD(resolved), ZEN_FIELD(reason),
+              ZEN_FIELD(lifecycle), ZEN_FIELD(activations));
 };
 
 /// "Arm it again." The deliberate restart a spent one-shot needs.
