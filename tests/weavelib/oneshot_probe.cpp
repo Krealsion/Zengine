@@ -41,8 +41,12 @@ constexpr std::int64_t kProbeDelayMs = 5000;
 
 struct ProbeState {
     std::int64_t fires = 0;
+    /// v2 (R2B-3c): how many times this consumer's own activation hook ran. In
+    /// the state as well as in the report, so it can be read through the poke
+    /// door of a weave that is mid-conversation.
+    std::int64_t activations = 0;
     ZEN_EXPOSE();
-    ZEN_SHAPE(ProbeState, 1, ZEN_FIELD(fires));
+    ZEN_SHAPE(ProbeState, 2, ZEN_FIELD(fires), ZEN_FIELD(activations));
 };
 
 timer::ContinuityOrder probe_order() {
@@ -71,9 +75,17 @@ public:
     /// The one line of ceremony: a derived `on` hides every base `on`.
     using TimedWeave::on;
 
+    /// THE AUTHOR'S OWN ACTIVATION WORK, extended rather than replacing the
+    /// binding's (R2A-3's wall, R2B-3c's use of it). It runs after every desired
+    /// timer was reconciled, only for an activation the cursor accepted, and —
+    /// the part this phase watches — NOT when some other weave's replacement
+    /// republishes `TimerReady`.
+    void on_timed_activation(const loom::Activated&, loom::Mail&) { ++state_.activations; }
+
     void on(const AskProbe&, loom::Mail& mail) {
         mail.send(mail.sender(), ProbeReport{state_.fires, shot_.resolution(),
-                                             shot_.resolution_reason(), lifecycle()});
+                                             shot_.resolution_reason(), lifecycle(),
+                                             state_.activations});
     }
 
     void on(const RestartProbe&, loom::Mail& mail) { shot_.restart(mail); }

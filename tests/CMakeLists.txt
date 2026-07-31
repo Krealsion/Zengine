@@ -24,8 +24,20 @@ endif()
 #                           fallback. One source, two libraries — the world weavelib
 #                           pattern, for the same reason (the difference under test is
 #                           one declaration, so everything else must be identical).
+#   zengine-timer-virtual-v2  the same service, a second REAL library — the prepared
+#                             candidate of the R2B-3c keystone. One source, because the
+#                             artifact that prepares must be the artifact that goes live.
+#   zengine-timer-declines    a real artifact that loads, seals and is asked, and then
+#                             refuses to become the Timer. The negative proof of R2B-3.
 zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp)
 target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation)
+
+zengine_weave(zengine-timer-virtual-v2 weavelib/timer_virtual.cpp)
+target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation)
+
+zengine_weave(zengine-timer-declines weavelib/timer_virtual.cpp)
+target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation)
+target_compile_definitions(zengine-timer-declines PRIVATE ZENGINE_TIMER_DECLINES=1)
 
 zengine_weave(zengine-probe-oneshot weavelib/oneshot_probe.cpp)
 target_link_libraries(zengine-probe-oneshot PRIVATE zengine-timer-vocabulary zengine-activation)
@@ -89,7 +101,10 @@ target_compile_definitions(zengine-timer-tests PRIVATE
     # The R2B-0 continuity lane: virtual time, real everything else.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     "PROBE_ONESHOT_SO=\"$<TARGET_FILE:zengine-probe-oneshot>\""
-    "PROBE_REQUIRED_SO=\"$<TARGET_FILE:zengine-probe-required>\"")
+    "PROBE_REQUIRED_SO=\"$<TARGET_FILE:zengine-probe-required>\""
+    # The R2B-3c keystone: the prepared candidate, and the one that refuses.
+    "TIMER_VIRTUAL_V2_SO=\"$<TARGET_FILE:zengine-timer-virtual-v2>\""
+    "TIMER_DECLINES_SO=\"$<TARGET_FILE:zengine-timer-declines>\"")
 
 add_test(NAME timer COMMAND zengine-timer-tests)
 

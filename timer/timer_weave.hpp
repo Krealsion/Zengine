@@ -168,6 +168,101 @@
 // Moving schedule progress into reload-transplanted state is a possible future
 // design and is recorded as one, never as an accidental promise.
 //
+// ---------------------------------------------------------------------------
+// R2B-3c — CROSSING A PREPARED REPLACEMENT. The moving-state problem, and where
+// this package put the boundary.
+//
+// A graceful replacement is one ceremony a few queue turns long, and R2B-0's
+// letter describes the schedule at the instant the incumbent is asked. A
+// PREPARED replacement is deliberately not like that: the candidate is loaded,
+// contract-checked and readied while the incumbent stays COMPLETELY LIVE, so
+// between "the candidate could serve" and "the candidate does serve" the
+// incumbent's clock advances, timers fire, repeats re-arm, and consumers start
+// and cancel schedules. Any snapshot taken during preparation is stale before it
+// is used, and a successor restoring one would be lying about where time was.
+//
+// THE BOUNDARY IS THE ADMISSION ITSELF, and the reason is that it is the only
+// instant that is simultaneously the last moment the incumbent owns anything and
+// the first moment the candidate owns everything. Two facts make it work, and
+// NEITHER of them is a Timer mechanism — both are the substrate's:
+//
+//   1. THE BEAT CHAIN RIDES THE ROLE. Every Drive is `send_to_role(kTimerRole)`,
+//      resolved at delivery. The instant admission moves the role, the
+//      incumbent's parked beat resolves to the CANDIDATE, which refuses it (a
+//      different activation key), and the incumbent never beats again. Its clock
+//      stops advancing, nothing more fires, and no old TimerReady or TimerFired
+//      can leak as new production — not because anything parked it, but because
+//      a chain addressed to a slot ends when the slot moves.
+//   2. THE INCUMBENT IS SEALED FOR RETIREMENT IN THE SAME BREATH. Ordinary sends
+//      to it become NoSuchTarget and role traffic goes elsewhere, so the only
+//      weave that can still reach it is the coordinator. Its schedule table is
+//      therefore FROZEN at the boundary — structurally, by the Loom.
+//
+// So the letter is written AFTER the admission, by a service that has already
+// been made incapable of changing, and it describes exactly the boundary state:
+// every operation ordered before the admission was applied by the incumbent
+// (FIFO), and every operation ordered after it reaches the candidate. Nothing is
+// lost, nothing applies twice, and the exchange that produces the letter is the
+// unchanged R2B-0 one — `zen.PrepareShutdown` -> `TimerHandoff` — so this
+// package still has exactly ONE interpretation of schedule progress.
+//
+// THE INCUMBENT IS NEVER TOLD, and that is the whole abort story. No preparation
+// message reaches it, no state is parked, nothing is reserved on its behalf. A
+// candidate that dies, refuses, or exhausts its budget therefore cannot reset,
+// duplicate or orphan the incumbent's clock: a failed attempt leaves untouched a
+// service it never touched. There is no "resume" to get wrong.
+//
+// WHAT THE CANDIDATE DOES, and it is a THIRD startup mode, declared and never
+// inferred (`Startup`):
+//
+//   Activated -> claim by ID from the PREPARER (not by role from the steward)
+//             -> seed Drive serial 0                    [PREPARED BOOTSTRAP]
+//   ...beats spend turns, holding every operation...
+//   the answer (Bequest) -> restore -> replay held ops -> publish TimerReady
+//   kPreparedClaimBeats with no answer -> the promise was not kept; start fresh,
+//             replay everything held, and let a required preservation be
+//             REFUSED rather than quietly restarted
+//
+// The claim goes to a KNOWN ID because the candidate learned its preparer from
+// the ask's bus-stamped sender, which makes this strictly stronger than the
+// graceful claim: there, the heir must reach the steward BY ROLE because it
+// cannot know the steward's id, and the answer is trusted purely on Loom's
+// attestation. Here the ask itself names its recipient, and the attestation
+// confirms it.
+//
+// WHAT READINESS MEANS HERE, said before anyone reads more into it. It means
+// every FALLIBLE step is complete and the bounded capacity a full letter could
+// ever need is reserved — not that the schedule is already restored, which is
+// impossible before the boundary exists. What is left after readiness is
+// bounded (`kMaxHandoffEntries`), deterministic (the same `adopt` every other
+// path uses), and incapable of making a committed Timer unavailable: if the
+// letter never comes the service starts fresh and says so, rather than holding
+// forever.
+//
+// SAID EXACTLY, because "preallocated" is easy to over-read: what preparation
+// reserves is the CAPACITY of the table, the restore buffer and the hold, so
+// none of them has to grow when the letter lands. It does not make restoration
+// allocation-free — an entry's id and role are strings, and copying them
+// allocates. The claim is that restoration cannot fail for want of room this
+// weave could have arranged in advance, not that it touches no allocator.
+//
+// WHAT THE PREPARATION DOOR'S AUTHORITY ACTUALLY IS, named rather than implied.
+// It is THE SEAL, and the seal is the Loom's: a sealed candidate can be reached
+// only by the coordinator preparing it, so the `mail.sender()` this weave writes
+// down as its preparer is a coordinator BECAUSE THE BUS SAID SO. This weave
+// cannot ask whether it is sealed, and so cannot verify that itself. Refusing an
+// ask once an activation has been accepted is what closes the ordinary road: a
+// freshly loaded Timer's `zen.Activated` is enqueued by the control door inside
+// the delivery that registered it, so nothing a third party sends afterwards can
+// arrive first, and its WeaveId did not exist to be addressed before that. What
+// remains is a host that REGISTERS a Timer and never activates it — there is no
+// such path in this tree — and the day a coordinator is itself an untrusted
+// loaded weave. The harm if it were reachable is exactly the one R2B-0 already
+// named for a forged bequest: a letter names the requesters future firings are
+// addressed to. Same B1-tier trusted-in-process ground, same real answer (a
+// Loom-tier authenticated claim), and no wider than before — the prepared claim
+// is addressed to a KNOWN id, where the graceful one must ask a role.
+//
 // CLEANUP, honestly. "Cancel a dead requester's timers" wants the service to
 // SEE death, and a weave cannot: the bus shows a sender no delivery outcomes
 // and broadcasts no unloads. So V1 tells the truth instead of pretending:
@@ -256,9 +351,9 @@ class TimerServiceT
           TimerServiceT<Clock>, TimerState,
           loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer, EnsureTimer,
                        EnsureRoleTimer, CancelTimer, CancelAllMyTimers, loom::PrepareShutdown,
-                       loom::Bequest, loom::Refused>,
+                       loom::Bequest, loom::Refused, PrepareTimerHandover>,
           loom::Emit<TimerFired, TimerReady, Drive, TimerResolution, loom::Bequest,
-                     loom::ClaimBequest>> {
+                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
@@ -284,13 +379,94 @@ public:
         // makes a consumer re-anchor the very schedule the letter carried.
         bootstrap_ = Bootstrap::Awaiting;
         bootstrap_beats_ = 0;
-        claim_open_ = true;
         this->state_.inherited = 0;
-        // Anything already held stays held: an operation that arrived before the
-        // activation was still sent after the fork point, and it deserves to
-        // land after the inheritance rather than under it.
-        mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kTimerRole}, kClaimCorrelation);
-        seed_chain(mail);
+        // WHERE THIS INCARNATION LOOKS FOR ITS LETTER, decided by what it was
+        // TOLD before it was admitted and never by what it can see. Anything
+        // already held stays held in every mode: an operation that arrived
+        // before the activation was still sent after the fork point, and it
+        // deserves to land after the inheritance rather than under it.
+        switch (startup_) {
+        case Startup::PreparedRestoration:
+            // A prepared candidate knows exactly whose letter it is waiting for
+            // — it read the preparer off its ask's bus-stamped sender — so it
+            // asks that weave by id rather than asking a role who is standing
+            // there. The answer is still trusted only on Loom's attestation.
+            claim_open_ = true;
+            claim_budget_ = kPreparedClaimBeats;
+            mail.send(preparer_, loom::ClaimBequest{kTimerRole}, kClaimCorrelation);
+            seed_chain(mail);
+            return;
+        case Startup::Fresh:
+            // Told plainly that nothing is being carried. No claim goes out at
+            // all, so there is no answer to wait for and nothing a late letter
+            // could reopen: decide now, replay what was held, and announce.
+            claim_open_ = false;
+            claim_budget_ = 0;
+            resolve_bootstrap(mail, /*letter=*/nullptr);
+            seed_chain(mail);
+            return;
+        case Startup::GracefulClaim:
+            claim_open_ = true;
+            claim_budget_ = kBootstrapBeats;
+            mail.send_to_role(loom::kManagerRole, loom::ClaimBequest{kTimerRole},
+                              kClaimCorrelation);
+            seed_chain(mail);
+            return;
+        }
+    }
+
+    /// "Be ready to become the Timer." The preparation ask, which only ever
+    /// arrives through the coordinator-only door of a SEALED candidate.
+    ///
+    /// Everything fallible about becoming this role happens here, while the
+    /// incumbent is still completely live and nothing in the world can be
+    /// disturbed by a refusal: the plan is validated, the startup mode is
+    /// chosen, the preparer is remembered, and the bounded capacity a full
+    /// letter could ever need is RESERVED so that restoration after admission
+    /// allocates nothing.
+    ///
+    /// TWO REFUSALS THAT ARE NOT ABOUT THE PLAN, and both are about identity
+    /// rather than content:
+    ///   - a LIVE incarnation is not a candidate. Once an activation has been
+    ///     accepted this weave is somebody's Timer, and a stray preparation ask
+    ///     must not be able to re-point its bootstrap or reserve on its behalf.
+    ///   - ONE ASK, ONE ANSWER. A transaction has exactly one preparation
+    ///     conversation; a second ask to the same incarnation is answered as the
+    ///     mistake it is rather than silently re-preparing.
+    void on(const PrepareTimerHandover& p, loom::Mail& mail) {
+        if (activation_.activated()) {
+            decline(mail, p, "this Timer is already live under an accepted activation; a "
+                             "serving service is not a candidate");
+            return;
+        }
+        if (prepared_ != Preparation::None) {
+            decline(mail, p, "this incarnation has already answered a preparation ask; one "
+                             "transaction opens one preparation conversation");
+            return;
+        }
+        const bool inherit = p.continuity == kInheritFromIncumbent;
+        if (!inherit && p.continuity != kStartFresh) {
+            decline(mail, p,
+                    "unknown continuity plan '" + p.continuity +
+                        "'; this Timer prepares for '" + kInheritFromIncumbent + "' or '" +
+                        kStartFresh + "' and guesses at neither");
+            return;
+        }
+        // The reservation, and it is what makes readiness honest: a letter can
+        // never carry more than kMaxHandoffEntries, so a table with room for
+        // that many never has to GROW when the letter finally lands. The hold is
+        // reserved for the same reason — everything between admission and
+        // restoration is held, and running out of room there would be a fallible
+        // step happening after readiness was claimed. It does not make
+        // restoration allocation-free; copying an entry's id and role does
+        // allocate. See the header.
+        entries_.reserve(kMaxHandoffEntries);
+        restoring_.reserve(kMaxHandoffEntries);
+        deferred_.reserve(kMaxDeferredOps);
+        startup_ = inherit ? Startup::PreparedRestoration : Startup::Fresh;
+        preparer_ = mail.sender();
+        prepared_ = Preparation::Accepted;
+        mail.answer(TimerCandidatePrepared{p.transaction});
     }
 
     void on(const Drive& d, loom::Mail& mail) {
@@ -308,7 +484,7 @@ public:
             // firing, no schedule touched. It is a real beat of the one chain
             // and is counted as one.
             ++this->state_.beats;
-            if (++bootstrap_beats_ >= kBootstrapBeats) {
+            if (++bootstrap_beats_ >= claim_budget_) {
                 resolve_bootstrap(mail, /*letter=*/nullptr); // nobody answered: fresh
             }
             advance_chain(mail);
@@ -439,6 +615,29 @@ private:
     /// early would let the letter overwrite it.
     enum class Bootstrap { Awaiting, Resolved };
 
+    /// WHERE THIS INCARNATION EXPECTS ITS PAST TO COME FROM, and it is a
+    /// DECLARED fact rather than one inferred from what happens to arrive.
+    ///
+    ///   GracefulClaim       the default and the unchanged one: ask the steward,
+    ///                       by role, and start fresh if nobody answers. Every
+    ///                       ordinary load, hard swap and reload takes this.
+    ///   PreparedRestoration a coordinator told this candidate, before it was
+    ///                       admitted, that a letter is coming from the service
+    ///                       it replaces — and which weave will hand it over.
+    ///   Fresh               a coordinator told this candidate that nothing is
+    ///                       being carried. It waits for no letter and refuses a
+    ///                       late one, so "prepared" never silently means
+    ///                       "restoring".
+    ///
+    /// Inferring the middle one from a nonempty table would collapse three
+    /// different promises into one code path, and the day they diverged nobody
+    /// could say which had run.
+    enum class Startup { GracefulClaim, PreparedRestoration, Fresh };
+
+    /// Whether this incarnation has answered a preparation ask, and how. One ask
+    /// gets one answer; a second is answered as the mistake it is.
+    enum class Preparation { None, Accepted, Declined };
+
     /// Is this beat the one this chain is waiting for? All four terms, and any
     /// one of them failing means the Drive is ignored entirely.
     bool owns_beat(const Drive& d, const loom::Mail& mail) const {
@@ -515,6 +714,15 @@ private:
         return claim_open_ && mail.answers_ask() && mail.correlation() == kClaimCorrelation;
     }
 
+    /// Say no, authentically — spending the same one answer right a readiness
+    /// would have spent, so a coordinator hears a verdict rather than a silence
+    /// it has to time out. The reason is self-contained: a stranger reading it
+    /// off the wire must be able to tell what was refused and why.
+    void decline(loom::Mail& mail, const PrepareTimerHandover& p, std::string why) {
+        prepared_ = Preparation::Declined;
+        mail.answer(TimerCandidateDeclined{p.transaction, std::move(why)});
+    }
+
     /// The decision, and the only place it is made. Restore (or don't), then
     /// apply everything that arrived while we were deciding, and only then say
     /// the service is available.
@@ -558,21 +766,27 @@ private:
             return;
         }
         const std::int64_t now = clock_.now_ms();
-        std::vector<Entry> restored;
-        restored.reserve(handoff.entries.size());
+        // A MEMBER BUFFER, NOT A LOCAL, and only because of prepared
+        // replacement: a candidate reserves it during preparation, so the one
+        // step that happens AFTER it answered "ready" allocates nothing. Every
+        // other path reaches this with an empty unreserved buffer and behaves
+        // exactly as it did with a local — the bound is the same either way.
+        restoring_.clear();
         for (const TimerHandoffEntry& t : handoff.entries) {
             const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
             if (!who) {
+                restoring_.clear();
                 return; // malformed: adopt nothing
             }
             const std::int64_t remaining = std::max<std::int64_t>(t.remaining_ms, 0);
-            restored.push_back(Entry{t.id, t.role, *who, clamp_delay(t.delay_ms, t.repeat),
-                                     t.repeat, add_clamped(now, remaining), false});
+            restoring_.push_back(Entry{t.id, t.role, *who, clamp_delay(t.delay_ms, t.repeat),
+                                       t.repeat, add_clamped(now, remaining), false});
         }
-        this->state_.inherited = static_cast<std::int64_t>(restored.size());
-        for (Entry& e : restored) {
+        this->state_.inherited = static_cast<std::int64_t>(restoring_.size());
+        for (Entry& e : restoring_) {
             install(std::move(e));
         }
+        restoring_.clear();
     }
 
     /// Put a restored entry in the table under its own key — replacing rather
@@ -920,8 +1134,15 @@ private:
     loom::WeaveId chain_sender_{};         ///< learned from the seed; the id a beat must carry
     Bootstrap bootstrap_ = Bootstrap::Awaiting; ///< open from construction; closed by the decision
     std::int64_t bootstrap_beats_ = 0;          ///< beats spent waiting for the claim's answer
+    std::int64_t claim_budget_ = kBootstrapBeats; ///< how many that mode allows before it gives up
     bool claim_open_ = false;                   ///< a claim is outstanding (opens at activation)
     std::vector<Op> deferred_;                  ///< held while the decision is pending
+    /// The prepared-replacement half, all per-incarnation for the same reason
+    /// everything else here is: nothing about a preparation may transplant.
+    Startup startup_ = Startup::GracefulClaim; ///< told, before admission, never inferred
+    Preparation prepared_ = Preparation::None; ///< one ask, one answer
+    loom::WeaveId preparer_{};                 ///< read off the ask; whose letter to claim
+    std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
 
     Clock clock_{};
     std::vector<Entry> entries_;
