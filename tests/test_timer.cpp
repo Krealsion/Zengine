@@ -3391,8 +3391,8 @@ class Preparer
     : public loom::WeaveBase<Preparer, PreparerState,
                              loom::Accept<TimerCandidatePrepared, TimerCandidateDeclined,
                                           loom::ClaimBequest, loom::Bequest>,
-                             loom::Emit<PrepareTimerHandover, loom::PrepareShutdown, loom::Bequest,
-                                        loom::Activated>> {
+                             loom::Emit<PrepareTimerHandover, loom::PrepareShutdown,
+                                        loom::Bequest>> {
 public:
     Preparer(Prep& p, loom::LifecycleAuthority authority) : p_(&p), authority_(authority) {}
 
@@ -3505,17 +3505,22 @@ struct Keystone {
         reach.allow_to_any(PrepareTimerHandover::zen_name, PrepareTimerHandover::zen_version);
         reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
         reach.allow_to_any(loom::Bequest::zen_name, loom::Bequest::zen_version);
-        // AND `zen.Activated` — WHICH IS NOT OBVIOUS AND COST A DEBUGGING PASS,
-        // so it is written down rather than left as a line somebody copies.
-        // `admit_candidate` enqueues the activation as an ORDINARY GATED SEND
-        // stamped with the coordinator's identity, so a coordinator that cannot
-        // send `zen.Activated` commits perfectly successfully — the role moves,
-        // the candidate is unsealed, `commit_prepared_replacement` returns ok —
-        // and the activation is then refused at delivery as CapabilityDenied.
-        // The result is a candidate that is publicly the service and has never
-        // been told it is alive. Named in the report-back as a real edge of the
-        // substrate, not papered over here.
-        reach.allow_to_any(loom::Activated::zen_name, loom::Activated::zen_version);
+        // AND DELIBERATELY *NOT* `zen.Activated` (R2B-3d).
+        //
+        // R2B-3c had to grant it, and said so at length: `admit_candidate` used to
+        // enqueue the activation as an ordinary gated send stamped with the
+        // coordinator's identity, so a coordinator that could not emit the shape
+        // committed perfectly successfully — the role moved, the candidate was
+        // unsealed, `commit_prepared_replacement` returned ok — and the activation
+        // was then refused at delivery as `CapabilityDenied`. A candidate that was
+        // publicly the service and had never been told it was alive.
+        //
+        // A committed activation is Loom's own act now, authorized by the
+        // lifecycle authority this coordinator holds and performed as part of the
+        // admission. So the ordinary grant is gone from this line, and the whole
+        // keystone below — a real dynamic Timer crossing a real replacement —
+        // runs without it. That absence is the end-to-end proof, across the
+        // library seam, that the ordinary grant was never what made it true.
         coordinator = loom::mount_granted<Preparer>(r.bus, std::move(reach), prep,
                                                     loom::host_lifecycle_authority(r.bus));
         incumbent = r.load("zengine-timer-v1", timer_path, kTimerRole);
@@ -3691,7 +3696,17 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     REQUIRE(k.prep.readiness.size() == 1);
     CHECK(k.prep.readiness.back().ok);
     REQUIRE(k.prep.commits.size() == 1);
-    CHECK(k.prep.commits.back().ok);
+    CHECK(k.prep.commits.back().ok); // the commit call SCHEDULED the admission...
+    // ...AND THE REAL COMMITTED OUTCOME IS THE ONE THAT COUNTS (R2B-3d). The
+    // coordinator's `ok` says the admission is on its way; what says it happened
+    // is the transaction's own terminal result, written inside the dispatch that
+    // moved the role and told the successor. The operator collects it once.
+    loom::TxnOutcome outcome{};
+    REQUIRE(k.r.bus.take_outcome(k.r.witness, outcome));
+    CHECK(outcome.state == loom::TxnState::Committed);
+    CHECK(outcome.reason == loom::TxnReason::None);
+    CHECK_FALSE(k.r.bus.take_outcome(k.r.witness, outcome)); // consumed
+    CHECK(k.r.bus.active_transactions() == 0);
     // The ceremony cost exactly the beats the constant claims.
     CHECK(k.field(k.incumbent, "beats") - beats_before == kPreparedCeremonyBeats);
 
@@ -3998,8 +4013,23 @@ TEST_CASE("keystone: a candidate artifact that cannot load never becomes a candi
     incumbent_never_stopped_being_the_timer(k, loom::WeaveId{});
 }
 
-TEST_CASE("keystone: an operation addressed to the retiring Timer BY ID across the boundary is "
-          "refused visibly — the package promises the ROLE, and says so") {
+TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operation ahead of it "
+          "reaches the incumbent and crosses in the letter; one behind it is refused visibly") {
+    // CHANGED BY R2B-3d, and the change is the whole reason the new model is
+    // coherent. Admission used to jump ahead of the queue: it moved topology
+    // inside the commit call, so a message enqueued while the incumbent was
+    // public was judged against a world that only came into being afterwards, and
+    // a by-id operation queued BEFORE the boundary was refused as `NoSuchTarget`.
+    //
+    // Now the admission occupies a position in the queue like everything else.
+    // Ahead of it is the old world; behind it is the new one. That is the same
+    // rule that makes role-addressed traffic land correctly, applied once instead
+    // of twice — and it loses nothing: an operation the incumbent accepts before
+    // the boundary is in the incumbent's table when the letter is written, so it
+    // CROSSES rather than dying.
+    //
+    // The package's promise is unchanged and is still about the ROLE. What this
+    // pins is that both sides of the boundary are truthful, and neither is silent.
     Keystone k;
     anchor_required_probe(k);
     k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
@@ -4016,19 +4046,26 @@ TEST_CASE("keystone: an operation addressed to the retiring Timer BY ID across t
 
     k.ask(kInheritFromIncumbent);
     k.r.pump_until(PrepareTimerHandover::zen_name);
-    // Addressed to the incumbent's ID, queued before the admission, delivered
-    // after it. Direct addressing names a WEAVE, and that weave is retiring.
+    // AHEAD of the admission: queued while the incumbent is still the public
+    // service, and delivered into that world.
     k.r.ask(k.incumbent, EnsureTimer{"by.id", 60000, false, kRestartDelay, ""});
     k.r.pump_until(TimerReady::zen_name);
+    CHECK(refusals.empty()); // it was accepted, not dropped and not refused
 
-    // NOT SILENTLY DROPPED — refused, and refused as the seal refuses: the world
-    // may not learn that a retiring service is still there. The consumer sees a
-    // refusal it can act on; what it does NOT see is a schedule it never got.
+    // BEHIND the admission: the incumbent is sealed for retirement now, and a
+    // direct approach is refused exactly as the seal refuses — the world may not
+    // learn that a retiring service is still there. The consumer sees a refusal
+    // it can act on; what it does NOT see is a schedule it never got.
+    k.r.ask(k.incumbent, EnsureTimer{"by.id.after", 60000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerResolution::zen_name);
     REQUIRE(refusals.size() == 1);
     CHECK(refusals[0] == loom::RefusalReason::NoSuchTarget);
-    k.r.pump_until(TimerResolution::zen_name);
-    CHECK(k.field(candidate, "active") == 1); // only the probe's, as the letter said
-    CHECK(k.field(k.incumbent, "active") == 1);
+
+    // ...and the one that got through crossed in the letter: the successor holds
+    // the probe's schedule AND the by-id one, and the retired incumbent's table
+    // is the frozen record of what it handed over.
+    CHECK(k.field(candidate, "active") == 2);
+    CHECK(k.field(k.incumbent, "active") == 2);
 }
 
 TEST_CASE("keystone: on commit the incumbent's chain simply ends — because the chain rides the "
