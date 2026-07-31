@@ -436,6 +436,9 @@ struct Seen {
     std::int64_t hellos = 0; ///< SurfaceReady (the skin lane)
     std::vector<zengine::snake::SnakeVisual> visuals;
     std::vector<zengine::probe::ProbeReport> reports; ///< the continuity lane's answers
+    std::vector<TimerResolution> receipts; ///< the keystone lane's own order receipts
+    std::vector<std::string> declines;     ///< preparation asks a Timer refused
+    std::int64_t letters_to_me = 0;        ///< clock reads the ruler took
     loom::Switchboard* bus = nullptr;
     std::string stop_id;           ///< stop once this TimerFired id has arrived...
     std::int64_t stop_count = 1;   ///< ...this many times
@@ -465,10 +468,24 @@ class Witness
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, TimerFired,
                                           TimerReady, zengine::surface::SurfaceReady,
                                           zengine::snake::SnakeVisual,
-                                          zengine::probe::ProbeReport>,
+                                          zengine::probe::ProbeReport, loom::Bequest,
+                                          TimerResolution, TimerCandidateDeclined>,
                              loom::Emit<>> {
 public:
     explicit Witness(Seen& seen) : seen_(&seen) {}
+    /// THE RULER (R2B-3c). Asking a Timer to describe itself changes nothing in
+    /// its schedule — R2B-0 made that a law of `on(PrepareShutdown)` — so the
+    /// suite uses it as an exact clock read: send one, catch the letter, and
+    /// know precisely how much of a standing schedule is left at that instant.
+    /// The letter has to be ACCEPTED to be seen, because the tap carries a
+    /// payload only for a delivery.
+    void on(const loom::Bequest&, loom::Mail&) { ++seen_->letters_to_me; }
+    /// Receipts for the orders the suite itself places, kept in arrival order so
+    /// "applied exactly once" is a count and not an impression.
+    void on(const TimerResolution& t, loom::Mail&) { seen_->receipts.push_back(t); }
+    /// What a Timer says when the suite offers it a preparation it should not
+    /// accept — a live one, or a second ask.
+    void on(const TimerCandidateDeclined& d, loom::Mail&) { seen_->declines.push_back(d.reason); }
     void on(const zengine::probe::ProbeReport& p, loom::Mail&) { seen_->reports.push_back(p); }
     void on(const loom::Result& r, loom::Mail& mail) { note(mail, 0, r.value); }
     void on(const loom::Ack&, loom::Mail& mail) { note(mail, 1, ""); }
@@ -529,6 +546,8 @@ struct Rig {
         reach.allow_to_any(EnsureRoleTimer::zen_name, EnsureRoleTimer::zen_version);
         reach.allow_to_any(CancelTimer::zen_name, CancelTimer::zen_version);
         reach.allow_to_any(CancelAllMyTimers::zen_name, CancelAllMyTimers::zen_version);
+        reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
+        reach.allow_to_any(PrepareTimerHandover::zen_name, PrepareTimerHandover::zen_version);
         reach.allow_to_any(zengine::probe::AskProbe::zen_name,
                            zengine::probe::AskProbe::zen_version);
         reach.allow_to_any(zengine::probe::RestartProbe::zen_name,
@@ -636,6 +655,17 @@ struct Rig {
     template <class T>
     void ask(loom::WeaveId service, const T& msg) {
         bus.send_as(witness, service, loom::Message(loom::to_value(msg), witness, witness, 0));
+    }
+
+    /// The same, addressed to the TIMER ROLE — which is how every production
+    /// consumer reaches the Timer, and therefore the only addressing whose
+    /// behaviour across a replacement boundary the package promises anything
+    /// about. Resolved at delivery, so where it lands is decided by the topology
+    /// at that instant rather than at this one.
+    template <class T>
+    void ask_role(const T& msg) {
+        bus.send_as_to_role(witness, kTimerRole,
+                            loom::Message(loom::to_value(msg), witness, witness, 0));
     }
 
     /// Speak AS another weave — the host's root authority, used here only to put
@@ -847,6 +877,43 @@ TEST_CASE("contract: the R2B-0 continuity shapes are frozen the same way, and th
     CHECK(kMaxHandoffEntries == 32);
     CHECK(kMaxDeferredOps == 32);
     CHECK(kBootstrapBeats == 2);
+}
+
+TEST_CASE("contract: the R2B-3c preparation conversation is frozen too, and it adds no second "
+          "way to describe a schedule") {
+    using loom::Kind;
+    using loom::SchemaBuilder;
+
+    CHECK(schema_of<PrepareTimerHandover>()->content_id() ==
+          SchemaBuilder("PrepareTimerHandover", 1)
+              .field("transaction", Kind::Int)
+              .field("continuity", Kind::Text)
+              .build()
+              ->content_id());
+    CHECK(schema_of<TimerCandidatePrepared>()->content_id() ==
+          SchemaBuilder("TimerCandidatePrepared", 1).field("transaction", Kind::Int).build()
+              ->content_id());
+    // A decline carries its own self-contained reason, for the same reason a
+    // TimerResolution does: an operator reading it must not need this header.
+    CHECK(schema_of<TimerCandidateDeclined>()->content_id() ==
+          SchemaBuilder("TimerCandidateDeclined", 1)
+              .field("transaction", Kind::Int)
+              .field("reason", Kind::Text)
+              .build()
+              ->content_id());
+
+    // The two plans, spelled as they travel.
+    CHECK(std::string(kInheritFromIncumbent) == "inherit");
+    CHECK(std::string(kStartFresh) == "fresh");
+    CHECK(kPreparedClaimBeats == 8);
+
+    // THE LETTER DID NOT CHANGE, and that is the contract this phase most needed
+    // to keep: prepared replacement reuses `TimerHandoff` exactly, so there is
+    // one interpretation of schedule progress in this package and not two.
+    CHECK(schema_of<TimerHandoff>()->version() == 1);
+    CHECK(schema_of<TimerHandoffEntry>()->version() == 1);
+    // ...and the service's own state did not have to grow to carry a preparation.
+    CHECK(schema_of<TimerState>()->version() == 2);
 }
 
 // ============================================================================
@@ -3214,4 +3281,1091 @@ TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and 
     r.run_beats(4, /*start=*/true);
     CHECK(r.heard.ready == 1);
     CHECK(r.count("beats") > 0);
+}
+
+// ============================================================================
+// Tier 6 — THE KEYSTONE: a LIVE Timer crosses a prepared replacement (R2B-3c)
+// ============================================================================
+//
+// Everything below runs through real dynamic artifacts, the real Kernel, the
+// real prepared-replacement transaction, and virtual time — so a claim about
+// where the clock was is an exact integer nobody slept for.
+//
+// THE MOVING-STATE PROBLEM, and where this package put the boundary. While a
+// candidate prepares, the incumbent keeps serving: its clock advances, timers
+// fire, repeats re-arm, consumers start and cancel schedules. So a snapshot
+// taken at transaction begin is stale at commit, and one taken after commit
+// would leave semantic restoration until after the world had already changed.
+//
+// The boundary is THE ADMISSION ITSELF, and two substrate facts (not Timer
+// mechanisms) are what make it exact:
+//
+//   * the beat chain rides the ROLE, so moving the role ends the incumbent's
+//     chain — it never beats again, never fires again, and its clock stops;
+//   * admission seals the incumbent in the same breath, so nothing but the
+//     coordinator can reach it and its table is frozen.
+//
+// The letter is therefore written AFTER the admission by a service that has
+// already been made incapable of changing, through the UNCHANGED R2B-0 exchange
+// (`zen.PrepareShutdown` -> `TimerHandoff`). One interpretation of schedule
+// progress, and no state is parked anywhere that an abort would have to release.
+//
+// THE RULER. `on(PrepareShutdown)` fires nothing, cancels nothing and advances
+// nothing — R2B-0's law — so the suite uses it as an exact clock read: ask the
+// live incumbent to describe itself, catch the letter on the tap, and know how
+// much of the probe's schedule is left at that instant. That is what lets every
+// number below be derived from a measurement rather than predicted.
+
+namespace {
+
+/// The keystone's correlation, so a reader can tell the ceremony's letter apart
+/// from the suite's ruler reads on the wire.
+constexpr std::uint64_t kFinalizeCorrelation = 0x3C0DE;
+
+/// How many NAPPING incumbent beats pass between resuming the pump with the
+/// preparation ask enqueued and the admission that closes the boundary.
+///
+/// Counted rather than absorbed, exactly as the graceful lane counts its
+/// ceremony: the queue reads [parked Drive, ask], the ask is answered on the
+/// turn after the beat it sits behind, and the coordinator admits on the turn
+/// after that — one beat later again. Two, and the exact-2000 assertion below is
+/// what keeps it honest.
+constexpr std::int64_t kPreparedCeremonyBeats = 2;
+
+/// THE RULER'S OWN COST. Reading the clock costs queue turns, and the beat that
+/// was already parked when the read was asked for runs inside one of them — so
+/// the number a read hands back is exactly one beat old by the time the pump
+/// stops. Named rather than absorbed into the arithmetic, because an instrument
+/// that quietly perturbs what it measures is how a suite starts proving the
+/// wrong thing.
+constexpr std::int64_t kRulerTrailingBeats = 1;
+
+/// Everything the coordinator has done and been told, in one place the test can
+/// read without reaching inside a weave.
+struct Prep {
+    loom::Switchboard* bus = nullptr;
+    loom::WeaveId incumbent{};
+    loom::TxnId txn{};
+    std::int64_t sequence = 7; ///< the activation sequence the admission carries
+    bool commit_on_ready = true;
+    bool finalize = true; ///< ask the retired incumbent for its letter
+    /// FIXTURE CONTROL, in the tradition of `storage::DoForge`: an honest
+    /// incumbent cannot write a letter the gate refuses, so a suite that wants
+    /// to prove the candidate refuses one has to manufacture it. The coordinator
+    /// is trusted infrastructure and this is what a BUGGY or HOSTILE one would
+    /// hand over — authentically, through the real answer door.
+    enum class Corrupt { None, OverBound, MalformedRequester };
+    Corrupt corrupt = Corrupt::None;
+
+    std::int64_t prepared = 0; ///< preparation answers consumed as Ready
+    std::int64_t declined = 0; ///< ...and as Refused
+    std::int64_t claims = 0;   ///< prepared claims deferred
+    std::int64_t relayed = 0;  ///< letters spent into a prepared claim
+    std::string decline_reason;
+    std::vector<loom::TxnResult> readiness;
+    std::vector<loom::TxnResult> commits;
+};
+
+struct PreparerState {
+    std::int64_t acted = 0;
+    ZEN_SHAPE(PreparerState, 1, ZEN_FIELD(acted));
+};
+
+/// THE COORDINATOR — trusted host-tier infrastructure, exactly the tier the Weave
+/// Manager occupies, and the only party in the keystone that holds a Switchboard.
+///
+/// It is deliberately CREDULOUS about payloads: it never reads a transaction id
+/// off a message to decide anything, because the one it began is the one it
+/// remembers. Everything that authorizes a transition is read by the bus from the
+/// delivery itself, so a green here is never "the coordinator was careful".
+///
+/// It does four things, and the ORDER of the first two is the whole phase:
+///   1. consume the candidate's authentic preparation answer;
+///   2. admit INSIDE THAT SAME DELIVERY — no ordinary delivery runs between
+///      readiness and admission, so there is no unaccounted window;
+///   3. ask the now-retired incumbent for its letter (the ordinary R2B-0 ask);
+///   4. hand that letter to the candidate as the authenticated answer to the
+///      candidate's OWN claim — which is why it defers the claim rather than
+///      inventing a second way to deliver a bequest.
+class Preparer
+    : public loom::WeaveBase<Preparer, PreparerState,
+                             loom::Accept<TimerCandidatePrepared, TimerCandidateDeclined,
+                                          loom::ClaimBequest, loom::Bequest>,
+                             loom::Emit<PrepareTimerHandover, loom::PrepareShutdown, loom::Bequest,
+                                        loom::Activated>> {
+public:
+    Preparer(Prep& p, loom::LifecycleAuthority authority) : p_(&p), authority_(authority) {}
+
+    void on(const TimerCandidatePrepared&, loom::Mail& mail) {
+        ++state_.acted;
+        ++p_->prepared;
+        p_->readiness.push_back(
+            p_->bus->accept_preparation_answer(p_->txn, loom::PreparationAnswer::Ready));
+        if (!p_->commit_on_ready) {
+            return;
+        }
+        admit(mail);
+    }
+
+    void on(const TimerCandidateDeclined& d, loom::Mail&) {
+        ++state_.acted;
+        ++p_->declined;
+        p_->decline_reason = d.reason;
+        p_->readiness.push_back(
+            p_->bus->accept_preparation_answer(p_->txn, loom::PreparationAnswer::Refused));
+    }
+
+    /// The prepared candidate's claim, asked of THIS weave by id because it read
+    /// its preparer off the ask. The answer is not available yet — the incumbent
+    /// has not written it — so the right is taken away and spent later.
+    void on(const loom::ClaimBequest&, loom::Mail& mail) {
+        ++state_.acted;
+        ++p_->claims;
+        claim_ = mail.defer_answer();
+    }
+
+    /// The retired incumbent's letter. It becomes the candidate's inheritance by
+    /// being spent into the claim it already made — so what the candidate finally
+    /// sees is an authenticated answer to its own ask, through exactly the code
+    /// R2B-0 wrote for a graceful succession.
+    void on(const loom::Bequest& letter, loom::Mail& mail) {
+        ++state_.acted;
+        if (!(mail.sender() == p_->incumbent) || !claim_.valid()) {
+            return;
+        }
+        if (loom::answer_deferred(claim_, mail, doctored(letter)).valid()) {
+            ++p_->relayed;
+        }
+        claim_ = loom::DeferredAnswer{};
+    }
+
+    /// Commit, and then — and only then — ask the retired incumbent to describe
+    /// itself. Both inside one delivery.
+    void admit(loom::Mail& mail) {
+        loom::Activated fact{p_->sequence};
+        p_->commits.push_back(p_->bus->commit_prepared_replacement(
+            p_->txn, authority_, loom::Message(loom::to_value(fact)), p_->sequence));
+        if (!p_->commits.back().ok || !p_->finalize) {
+            return;
+        }
+        // THE ONLY THING EVER SAID TO THE INCUMBENT, and it is said after the
+        // role has already left it: describe yourself. It is the same ask a
+        // graceful ceremony makes, answered by the same unchanged handler.
+        mail.send(p_->incumbent, loom::PrepareShutdown{}, kFinalizeCorrelation);
+    }
+
+private:
+    /// The letter as the coordinator chooses to hand it over. Untouched unless
+    /// the fixture is playing the buggy preparer.
+    loom::Bequest doctored(const loom::Bequest& letter) const {
+        if (p_->corrupt == Prep::Corrupt::None) {
+            return letter;
+        }
+        TimerHandoff bad;
+        const std::size_t n = p_->corrupt == Prep::Corrupt::OverBound
+                                  ? kMaxHandoffEntries + 1
+                                  : std::size_t{2};
+        for (std::size_t i = 0; i < n; ++i) {
+            bad.entries.push_back(TimerHandoffEntry{"1", "doctored." + std::to_string(i), "", 1000,
+                                                    true, 500});
+        }
+        if (p_->corrupt == Prep::Corrupt::MalformedRequester) {
+            // ONE entry whose requester is not a lossless decimal weave id. An
+            // honest predecessor cannot produce this, so the whole letter is
+            // untrusted input rather than a large truth.
+            bad.entries.back().requester = "0x2a";
+        }
+        loom::Bequest out;
+        out.role = kTimerRole;
+        out.items.push_back(loom::bequeath_item(bad));
+        return out;
+    }
+
+    Prep* p_;
+    loom::LifecycleAuthority authority_;
+    loom::DeferredAnswer claim_{};
+};
+
+/// The keystone rig: the R2B-0 lane plus a coordinator, a Kernel-sealed
+/// candidate, and the transaction that binds them.
+struct Keystone {
+    Rig r;
+    Prep prep;
+    loom::WeaveId coordinator{};
+    loom::WeaveId incumbent{};
+    loom::WeaveId probe{};
+
+    /// `timer_path` is the incumbent artifact — the virtual-clock build for the
+    /// deterministic proofs, the SHIPPED real-clock one for the pilot. `probe`
+    /// is loaded only where a five-second one-shot is a sensible thing to wait
+    /// for, which on a real clock it is not.
+    explicit Keystone(const char* timer_path = TIMER_VIRTUAL_SO, bool with_probe = true) {
+        prep.bus = &r.bus;
+        loom::Grant reach;
+        reach.allow_to_any(PrepareTimerHandover::zen_name, PrepareTimerHandover::zen_version);
+        reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
+        reach.allow_to_any(loom::Bequest::zen_name, loom::Bequest::zen_version);
+        // AND `zen.Activated` — WHICH IS NOT OBVIOUS AND COST A DEBUGGING PASS,
+        // so it is written down rather than left as a line somebody copies.
+        // `admit_candidate` enqueues the activation as an ORDINARY GATED SEND
+        // stamped with the coordinator's identity, so a coordinator that cannot
+        // send `zen.Activated` commits perfectly successfully — the role moves,
+        // the candidate is unsealed, `commit_prepared_replacement` returns ok —
+        // and the activation is then refused at delivery as CapabilityDenied.
+        // The result is a candidate that is publicly the service and has never
+        // been told it is alive. Named in the report-back as a real edge of the
+        // substrate, not papered over here.
+        reach.allow_to_any(loom::Activated::zen_name, loom::Activated::zen_version);
+        coordinator = loom::mount_granted<Preparer>(r.bus, std::move(reach), prep,
+                                                    loom::host_lifecycle_authority(r.bus));
+        incumbent = r.load("zengine-timer-v1", timer_path, kTimerRole);
+        prep.incumbent = incumbent;
+        if (with_probe) {
+            // The consumer of the phase: one requester-addressed five-second
+            // one-shot whose preservation is REQUIRED — no fallback will do.
+            probe = r.load("zengine-probe-required", PROBE_REQUIRED_SO, "");
+        }
+    }
+
+    /// Load a candidate through the Kernel and seal it to the coordinator. Every
+    /// artifact-level refusal an ordinary load can produce happens here, before
+    /// the live world has been touched at all.
+    loom::WeaveId seal(const char* name, const char* path) {
+        const loom::LoadResult lr = r.kernel.load_candidate(name, path, coordinator);
+        REQUIRE_MESSAGE(lr.ok, "candidate load refused: ", lr.error);
+        return lr.id;
+    }
+
+    loom::TxnResult begin(loom::WeaveId candidate, std::uint32_t budget = 16) {
+        const loom::TxnResult t = r.bus.begin_prepared_replacement(
+            r.witness, coordinator, incumbent, candidate, kTimerRole, budget);
+        prep.txn = t.id;
+        return t;
+    }
+
+    /// Enqueue the preparation ask. Nothing is pumped: the caller decides where
+    /// the boundary falls by deciding when to resume.
+    void ask(const char* continuity) {
+        PrepareTimerHandover p;
+        p.transaction = static_cast<std::int64_t>(prep.txn.value);
+        p.continuity = continuity;
+        REQUIRE(r.bus.ask_candidate_to_prepare(prep.txn, loom::Message(loom::to_value(p))).ok);
+    }
+
+    /// A weave's own state, read synchronously off the host call every weave
+    /// answers — the only door that still works on a SEALED weave, which a
+    /// retired incumbent is.
+    std::int64_t field(loom::WeaveId who, const char* name) const {
+        const loom::Weave* w = r.bus.weave(who);
+        REQUIRE(w != nullptr);
+        const loom::Value v = w->snapshot();
+        const loom::Cell* c = v.get(name);
+        REQUIRE(c != nullptr);
+        return c->as_int();
+    }
+
+    /// THE RULER: how much of `id` is left on the live Timer, right now, read by
+    /// asking it to describe itself. Changes nothing it describes.
+    ///
+    /// Addressed to the ROLE, deliberately, so the same call is the right one on
+    /// both sides of a replacement: before the boundary it reaches the incumbent,
+    /// after it the admitted candidate, and the caller never has to know which.
+    std::int64_t remaining_now(const char* id) {
+        const std::size_t before = r.letters.size();
+        r.ask_role(loom::PrepareShutdown{});
+        r.pump_until(loom::Bequest::zen_name);
+        REQUIRE(r.letters.size() > before);
+        for (const TimerHandoffEntry& e : Rig::handoff_of(r.letters.back())) {
+            if (e.id == id) {
+                return e.remaining_ms;
+            }
+        }
+        return -1;
+    }
+
+    /// What is left of the probe's one-shot RIGHT NOW — the ruler's read, with
+    /// the ruler's own cost taken back off it.
+    std::int64_t probe_remaining() {
+        return remaining_now(zengine::probe::kProbeTimerId) -
+               kRulerTrailingBeats * kBeatCapMs;
+    }
+
+    /// Advance the live Timer until exactly `want` milliseconds of the probe's
+    /// one-shot are left — measured, never assumed.
+    void advance_until_remaining(std::int64_t want) {
+        const std::int64_t now = probe_remaining();
+        REQUIRE(now >= want);
+        REQUIRE((now - want) % kBeatCapMs == 0);
+        r.pump_beats((now - want) / kBeatCapMs);
+    }
+
+    /// The last letter that crossed the wire, decoded through the real gate.
+    ///
+    /// REQUIREs one to exist rather than trusting that it does: what it returns
+    /// is indexed and iterated, and a mutation that produces NO letter must stop
+    /// the case rather than detonate an unguarded `.back()` and take every later
+    /// verdict in the run with it. (M18b did exactly that, once.)
+    std::vector<TimerHandoffEntry> last_handoff() {
+        REQUIRE_FALSE(r.letters.empty());
+        return Rig::handoff_of(r.letters.back());
+    }
+
+    /// The one entry of the last letter that names `id`.
+    const TimerHandoffEntry* crossed(const std::vector<TimerHandoffEntry>& entries,
+                                     const char* id) const {
+        for (const TimerHandoffEntry& e : entries) {
+            if (e.id == id) {
+                return &e;
+            }
+        }
+        return nullptr;
+    }
+};
+
+/// Establish the probe's five-second one-shot at a known instant, as the probe's
+/// own binding would if preservation were available.
+void anchor_required_probe(Keystone& k) {
+    k.r.ask_as(k.probe, k.incumbent,
+               EnsureTimer{zengine::probe::kProbeTimerId, 5000, false, kRestartDelay, ""});
+    k.r.pump_until(EnsureTimer::zen_name);
+}
+
+} // namespace
+
+TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepares, and the "
+          "candidate crosses the boundary with the progress that existed AT it") {
+    Keystone k;
+
+    // 1-4. The consumer's own binding requires preservation, so on an initial
+    // load its order is REFUSED — there is nothing to preserve and no honest way
+    // to pretend otherwise. The suite then anchors the five-second one-shot as
+    // the binding would have, and THAT receipt is `restarted_delay`.
+    zengine::probe::ProbeReport rep = k.r.ask_probe(k.probe);
+    CHECK(rep.resolved == kResolutionRefused);
+    CHECK(rep.activations == 1); // its own activation hook ran, once
+    anchor_required_probe(k);
+    rep = k.r.ask_probe(k.probe);
+    CHECK(rep.resolved == kResolutionRestarted);
+    CHECK(rep.lifecycle == "waiting");
+    CHECK(rep.fires == 0);
+
+    // 5-6. Three seconds of virtual time, and the one-shot has not fired. (The
+    // exact ruler read that makes "two seconds" exact comes just before the
+    // boundary; everything between here and there costs beats of its own, and
+    // measuring last is what keeps the number honest rather than predicted.)
+    k.advance_until_remaining(2500);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+
+    // 7-8. A sealed candidate, a transaction naming all four participants, and
+    // all of the fallible preflight: the artifact loads, its contracts validate,
+    // its clock exists, and it reserves the bounded capacity a full letter could
+    // ever need.
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    CHECK(k.r.bus.sealed(candidate));
+    CHECK(k.r.bus.candidate_owner(candidate).who == k.coordinator);
+    REQUIRE(k.begin(candidate).ok);
+
+    // 9-10. PRODUCTION TOPOLOGY IS UNTOUCHED, and the incumbent is still serving:
+    // an order addressed to the ROLE is answered by it, right now, mid-preflight.
+    CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
+    const std::size_t receipts_before = k.r.seen.receipts.size();
+    k.r.ask_role(EnsureTimer{"preflight.control", 60000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE(k.r.seen.receipts.size() == receipts_before + 1); // guards the index below
+    CHECK(k.r.seen.receipts.back().id == "preflight.control");
+    CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
+    CHECK(k.field(k.incumbent, "active") == 2); // the probe's, and the control
+    CHECK(k.field(candidate, "beats") == 0);    // the candidate has no time at all
+    CHECK(k.field(candidate, "active") == 0);
+
+    // 11-14. THE BOUNDARY. Wind to exactly two seconds plus the ceremony's own
+    // beats, then let it run: the ask goes through the coordinator-only door,
+    // the candidate answers for itself, and the coordinator admits it inside
+    // that same delivery.
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const std::int64_t beats_before = k.field(k.incumbent, "beats");
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name); // ...and the consumer's re-ask answered
+    CHECK(k.prep.prepared == 1);
+    REQUIRE(k.prep.readiness.size() == 1);
+    CHECK(k.prep.readiness.back().ok);
+    REQUIRE(k.prep.commits.size() == 1);
+    CHECK(k.prep.commits.back().ok);
+    // The ceremony cost exactly the beats the constant claims.
+    CHECK(k.field(k.incumbent, "beats") - beats_before == kPreparedCeremonyBeats);
+
+    // 15-17. The role moved; the incumbent is retirement-private, not merely
+    // renamed; the candidate is the service, in the Kernel's books as well.
+    CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
+    CHECK(k.r.bus.sealed(k.incumbent));
+    CHECK_FALSE(k.r.bus.sealed(candidate));
+    CHECK(k.r.kernel.role_of("zengine-timer-v2") == kTimerRole);
+    CHECK(k.r.kernel.role_of("zengine-timer-v1").empty());
+
+    // THE NUMBER THAT IS THE PHASE. Exactly two seconds remained at the boundary
+    // — read off the letter the retired incumbent actually wrote, decoded through
+    // the real gate.
+    CHECK(k.prep.claims == 1); // the candidate asked its PREPARER, not the steward
+    REQUIRE(k.prep.relayed == 1);
+    const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
+    REQUIRE(crossed.size() == 2);
+    const TimerHandoffEntry* one_shot = k.crossed(crossed, zengine::probe::kProbeTimerId);
+    REQUIRE(one_shot != nullptr);
+    CHECK(one_shot->remaining_ms == 2000);
+    CHECK(one_shot->delay_ms == 5000); // the intent travels beside the progress
+    CHECK(one_shot->requester == std::to_string(k.probe.value));
+
+    // 18-20. The candidate restored before it announced anything, and published
+    // exactly one availability notice.
+    CHECK(k.field(candidate, "inherited") == 2);
+    CHECK(k.field(candidate, "active") == 2);
+    CHECK(k.r.seen.ready == 2); // one for the incumbent's load, one for this
+    CHECK(k.field(k.incumbent, "inherited") == 0);
+
+    // 21-23. THE CONSUMER'S RECEIPT. It required preservation, and it got it —
+    // and its own domain activation hook did NOT run a second time.
+    rep = k.r.ask_probe(k.probe);
+    CHECK(rep.resolved == kResolutionPreserved);
+    CHECK(rep.reason.find("kept its remaining time") != std::string::npos);
+    CHECK(rep.fires == 0);
+    CHECK(rep.lifecycle == "waiting");
+    CHECK(rep.activations == 1);
+
+    // 25-28. AND THE CLOCK DID NOT RESTART. One millisecond short of the
+    // remaining time: nothing. The next beat: exactly one firing — not five
+    // seconds from the commit, which is what every re-anchoring design would
+    // have done and what a stale snapshot would have produced.
+    //
+    // The ruler now reads the CANDIDATE (it is addressed to the role), which is
+    // itself the proof that the schedule it inherited is the schedule it holds.
+    k.advance_until_remaining(kBeatCapMs);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+    k.r.pump_beats(1);
+    rep = k.r.ask_probe(k.probe);
+    CHECK(rep.fires == 1);
+    CHECK(rep.lifecycle == "spent");
+
+    // ...and only once. A full five seconds later there is still one firing.
+    k.r.pump_beats(5000 / kBeatCapMs);
+    CHECK(k.r.ask_probe(k.probe).fires == 1);
+}
+
+TEST_CASE("keystone: the incumbent moved DURING preparation, and what crossed was where it "
+          "actually was — one second, not the stale two") {
+    Keystone k;
+    anchor_required_probe(k);
+
+    // Three seconds gone: two remain, and a design that snapshotted at
+    // transaction begin would carry exactly this number to the end.
+    k.advance_until_remaining(2000);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    // ONE MORE FULL SECOND, with the candidate sealed and the transaction live.
+    // The transaction is stepped through part of its budget while it passes, so
+    // this is a preparation genuinely in progress rather than a paused one — and
+    // the incumbent's OWN beat counter says the second really elapsed on it.
+    const std::int64_t beats_at_begin = k.field(k.incumbent, "beats");
+    REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
+    k.advance_until_remaining(1000 + kPreparedCeremonyBeats * kBeatCapMs);
+    REQUIRE(k.r.bus.tick_preparation(k.prep.txn).ok);
+    CHECK(k.r.bus.transaction_state(k.prep.txn) == loom::TxnState::Preparing);
+    CHECK(k.field(k.incumbent, "beats") - beats_at_begin ==
+          1000 / kBeatCapMs - kPreparedCeremonyBeats);
+
+    // ...and THE INCUMBENT WAS THE ONE SERVING THROUGH IT. Not "the role still
+    // pointed at it" — it answered.
+    CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
+    CHECK(k.field(candidate, "beats") == 0);
+
+    // Only now the boundary.
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    REQUIRE(k.prep.relayed == 1);
+
+    // ONE SECOND. The letter carries where the clock actually was at the
+    // replacement boundary, not where it was when the transaction began.
+    const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
+    const TimerHandoffEntry* one_shot = k.crossed(crossed, zengine::probe::kProbeTimerId);
+    REQUIRE(one_shot != nullptr);
+    CHECK(one_shot->remaining_ms == 1000);
+    CHECK(k.field(candidate, "inherited") == 1);
+    CHECK(k.r.ask_probe(k.probe).resolved == kResolutionPreserved);
+
+    // And it fires after THAT second — not after the two the earlier snapshot
+    // would have carried, which is a full second of daylight between the honest
+    // answer and the plausible one.
+    k.advance_until_remaining(kBeatCapMs);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+    k.r.pump_beats(1);
+    CHECK(k.r.ask_probe(k.probe).fires == 1);
+}
+
+TEST_CASE("keystone: the queue boundary — an operation ordered before the admission is in the "
+          "letter, one ordered after it is held and replayed, and neither happens twice") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    // A AND B ARE THE SAME TIMER, ordered differently. Same id, different
+    // declared delay, so the final table says which one landed LAST — a proof
+    // that ordering survived, which two unrelated ids could never give.
+    // Role-addressed, because that is how every production consumer reaches the
+    // Timer and therefore the only addressing the package promises about.
+    const std::size_t receipts_before = k.r.seen.receipts.size();
+    k.r.ask_role(EnsureTimer{"boundary", 60000, false, kRestartDelay, ""});
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(PrepareTimerHandover::zen_name); // the candidate has answered; nobody has committed
+
+    // B is queued HERE: after the candidate said it was ready, and before the
+    // coordinator's next delivery — which is the one that admits it.
+    k.r.ask_role(EnsureTimer{"boundary", 70000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerReady::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    REQUIRE(k.prep.relayed == 1);
+
+    // A IS IN THE CAPTURED INCUMBENT STATE, and B is not: the letter describes
+    // the boundary, and B was ordered after it.
+    const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
+    const TimerHandoffEntry* a = k.crossed(crossed, "boundary");
+    REQUIRE(a != nullptr);
+    CHECK(a->delay_ms == 60000);
+    CHECK(k.crossed(crossed, zengine::probe::kProbeTimerId) != nullptr);
+    CHECK(crossed.size() == 2); // exactly the two that existed at the boundary
+
+    // B WAS NOT LOST. It reached the admitted candidate, was HELD through the
+    // restoration, and was replayed after it — so the standing schedule is B's,
+    // over the top of the A the letter carried. Nothing was dropped to buy
+    // atomicity, and nothing applied twice.
+    k.r.pump_until(TimerResolution::zen_name);
+    CHECK(k.remaining_now("boundary") > 0); // a ruler read against the CANDIDATE now
+    const std::vector<TimerHandoffEntry> live = k.last_handoff();
+    const TimerHandoffEntry* b = k.crossed(live, "boundary");
+    REQUIRE(b != nullptr);
+    CHECK(b->delay_ms == 70000); // B landed after A, and last writer won
+    CHECK(k.field(candidate, "active") == 2);
+    CHECK(k.field(candidate, "inherited") == 2);
+
+    // EXACTLY ONE RECEIPT EACH, in order: A answered by the incumbent, B by the
+    // candidate. Two operations, two receipts, no repeats and no silence.
+    std::vector<std::string> boundary_receipts;
+    for (std::size_t i = receipts_before; i < k.r.seen.receipts.size(); ++i) {
+        if (k.r.seen.receipts[i].id == "boundary") {
+            boundary_receipts.push_back(k.r.seen.receipts[i].resolved);
+        }
+    }
+    // REQUIRE, not CHECK: the two lines below index it, and an assertion that
+    // guards an index has to stop the case rather than merely note it — a bare
+    // CHECK here would let a mutation that empties the list crash the run and
+    // take every later verdict with it.
+    REQUIRE(boundary_receipts.size() == 2);
+    CHECK(boundary_receipts[0] == kResolutionRestarted);
+    CHECK(boundary_receipts[1] == kResolutionRestarted);
+
+    // ...and the probe's own schedule crossed untouched by any of it.
+    CHECK(k.r.ask_probe(k.probe).resolved == kResolutionPreserved);
+}
+
+namespace {
+
+/// NOTHING ABOUT THE INCUMBENT MOVED. The shape of every failure proof in this
+/// lane, asked of the bus and of the service rather than of any object a failing
+/// case might already have destroyed.
+///
+/// The last check is the one that matters most and is easiest to omit: the
+/// one-shot is not merely still listed, it still fires WHERE IT WAS GOING TO —
+/// once, at the boundary the incumbent has been counting toward all along.
+void incumbent_never_stopped_being_the_timer(Keystone& k, loom::WeaveId candidate) {
+    CHECK(k.r.bus.alive(k.incumbent));
+    CHECK_FALSE(k.r.bus.sealed(k.incumbent));
+    CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
+    CHECK_FALSE(k.r.bus.role_holder(kTimerRole) == candidate);
+    CHECK(k.field(k.incumbent, "active") == 1); // the probe's one-shot, still standing
+    CHECK(k.field(k.incumbent, "inherited") == 0);
+    CHECK(k.r.seen.ready == 1); // no candidate ever announced itself
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+
+    // EXACTLY ONE CHAIN. With the queue otherwise quiet the only pending
+    // envelope is the incumbent's one parked beat; a forked or duplicated chain
+    // would leave two.
+    k.r.pump_beats(1);
+    CHECK(k.r.bus.pending() == 1);
+
+    // ...and the schedule was not reset: it runs out where it always would have,
+    // and fires exactly once.
+    k.advance_until_remaining(kBeatCapMs);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+    k.r.pump_beats(1);
+    CHECK(k.r.ask_probe(k.probe).fires == 1);
+    k.r.pump_beats(200);
+    CHECK(k.r.ask_probe(k.probe).fires == 1); // and only once
+}
+
+} // namespace
+
+TEST_CASE("keystone: every way a candidate can fail leaves the incumbent's clock exactly where "
+          "it was — the negative proof of prepared replacement") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000);
+
+    enum class Route { Declines, UnknownPlan, Dies, BudgetExhausted, OperatorAborts };
+    Route route = Route::Declines;
+    const char* artifact = TIMER_VIRTUAL_V2_SO;
+    SUBCASE("the candidate is a build that refuses to become the Timer") {
+        route = Route::Declines;
+        artifact = TIMER_DECLINES_SO;
+    }
+    SUBCASE("the candidate is asked for a continuity plan it does not understand") {
+        route = Route::UnknownPlan;
+    }
+    SUBCASE("the candidate dies while it is preparing") { route = Route::Dies; }
+    SUBCASE("the preparation budget runs out") { route = Route::BudgetExhausted; }
+    SUBCASE("the operator changes its mind") { route = Route::OperatorAborts; }
+
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", artifact);
+    REQUIRE(k.begin(candidate, /*budget=*/2).ok);
+    const loom::TxnId txn = k.prep.txn;
+
+    switch (route) {
+    case Route::Declines:
+        k.ask(kInheritFromIncumbent);
+        k.r.pump_until(TimerCandidateDeclined::zen_name);
+        CHECK(k.prep.declined == 1);
+        CHECK(k.prep.decline_reason.find("cannot become the Timer") != std::string::npos);
+        break;
+    case Route::UnknownPlan:
+        k.ask("keep-the-absolute-deadlines");
+        k.r.pump_until(TimerCandidateDeclined::zen_name);
+        CHECK(k.prep.declined == 1);
+        CHECK(k.prep.decline_reason.find("unknown continuity plan") != std::string::npos);
+        break;
+    case Route::Dies:
+        k.ask(kInheritFromIncumbent);
+        k.r.pump_until(PrepareTimerHandover::zen_name);
+        k.r.bus.kill(candidate); // a lifecycle change invalidates the transaction
+        break;
+    case Route::BudgetExhausted:
+        // A budget of two spends one step and ends on the next: the step that
+        // takes it to zero IS the exhaustion, not the one after.
+        REQUIRE(k.r.bus.tick_preparation(txn).ok);
+        CHECK_FALSE(k.r.bus.tick_preparation(txn).ok);
+        break;
+    case Route::OperatorAborts:
+        REQUIRE(k.r.bus.abort_prepared_replacement(txn, k.r.witness).ok);
+        break;
+    }
+
+    // THE TRANSACTION ENDED ONCE, and its one result is collectable by the exact
+    // operator exactly once.
+    CHECK_FALSE(k.r.bus.transaction_active(txn));
+    CHECK(k.r.bus.active_transactions() == 0);
+    loom::TxnOutcome out;
+    REQUIRE(k.r.bus.take_outcome(k.r.witness, out));
+    CHECK(out.id == txn);
+    CHECK(out.state == loom::TxnState::Aborted);
+    CHECK_FALSE(k.r.bus.take_outcome(k.r.witness, out));
+
+    // The candidate never became production, and no commit was even attempted.
+    CHECK(k.prep.commits.empty());
+    CHECK_FALSE(k.r.bus.role_holder(kTimerRole) == candidate);
+    // ...and the Kernel's books followed the discard without anyone calling it.
+    CHECK_FALSE(k.r.kernel.is_loaded("zengine-timer-v2"));
+
+    incumbent_never_stopped_being_the_timer(k, candidate);
+}
+
+TEST_CASE("keystone: a candidate artifact that cannot load never becomes a candidate, and the "
+          "live world is not touched to find that out") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000);
+
+    const loom::LoadResult bad =
+        k.r.kernel.load_candidate("zengine-timer-v2", "/nonexistent/not-a-timer.so", k.coordinator);
+    CHECK_FALSE(bad.ok);
+    CHECK_FALSE(bad.error.empty());
+    CHECK_FALSE(k.r.kernel.is_loaded("zengine-timer-v2"));
+    CHECK(k.r.bus.active_transactions() == 0);
+
+    incumbent_never_stopped_being_the_timer(k, loom::WeaveId{});
+}
+
+TEST_CASE("keystone: an operation addressed to the retiring Timer BY ID across the boundary is "
+          "refused visibly — the package promises the ROLE, and says so") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    std::vector<loom::RefusalReason> refusals;
+    k.r.bus.add_observer([&refusals](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Refused &&
+            e.schema_name == std::string(EnsureTimer::zen_name)) {
+            refusals.push_back(e.refusal.reason);
+        }
+    });
+
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(PrepareTimerHandover::zen_name);
+    // Addressed to the incumbent's ID, queued before the admission, delivered
+    // after it. Direct addressing names a WEAVE, and that weave is retiring.
+    k.r.ask(k.incumbent, EnsureTimer{"by.id", 60000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerReady::zen_name);
+
+    // NOT SILENTLY DROPPED — refused, and refused as the seal refuses: the world
+    // may not learn that a retiring service is still there. The consumer sees a
+    // refusal it can act on; what it does NOT see is a schedule it never got.
+    REQUIRE(refusals.size() == 1);
+    CHECK(refusals[0] == loom::RefusalReason::NoSuchTarget);
+    k.r.pump_until(TimerResolution::zen_name);
+    CHECK(k.field(candidate, "active") == 1); // only the probe's, as the letter said
+    CHECK(k.field(k.incumbent, "active") == 1);
+}
+
+TEST_CASE("keystone: on commit the incumbent's chain simply ends — because the chain rides the "
+          "role — and exactly one new chain begins") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+
+    // NOTHING THE OLD SERVICE HAD QUEUED ADVANCED ANYTHING. Its beats and its
+    // firings are frozen at the boundary and stay frozen through hundreds more
+    // of the successor's — because a beat addressed to the role now reaches the
+    // successor, which refuses it as a different activation's.
+    const std::int64_t beats = k.field(k.incumbent, "beats");
+    const std::int64_t fired = k.field(k.incumbent, "fired");
+    const std::int64_t candidate_beats = k.field(candidate, "beats");
+    k.r.pump_beats(100);
+    CHECK(k.field(k.incumbent, "beats") == beats);
+    CHECK(k.field(k.incumbent, "fired") == fired);
+    CHECK(k.field(candidate, "beats") == candidate_beats + 100);
+
+    // ...and the retired service's clock stopped with it, so the letter it wrote
+    // described the boundary and not some later instant.
+    CHECK(k.field(k.incumbent, "active") == 1); // its table is frozen too
+
+    // EXACTLY ONE CHAIN, the successor's. Two would leave two parked beats.
+    k.r.pump_beats(1);
+    CHECK(k.r.bus.pending() == 1);
+}
+
+TEST_CASE("keystone: a prepared candidate told to start FRESH waits for no letter, asks nobody, "
+          "and refuses a required preservation instead of inventing one") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    // The same door, the other plan. Prepared restoration is DECLARED, so a
+    // candidate that was not told to inherit does not — no matter what arrives.
+    k.ask(kStartFresh);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
+
+    // IT ASKED NOBODY — not its preparer, and not the steward.
+    CHECK(k.prep.claims == 0);
+    CHECK(k.prep.relayed == 0);
+    CHECK(k.field(candidate, "inherited") == 0);
+
+    // The letter the coordinator DID collect from the retired incumbent had
+    // nowhere to go, and the candidate would not have taken it: a late letter
+    // meets a bootstrap that resolved at activation.
+    CHECK(k.field(candidate, "active") == 0);
+
+    // AND THE CONSUMER IS TOLD THE TRUTH. It required preservation, there was
+    // none, and the receipt says refused rather than quietly restarting a
+    // five-second schedule that had two seconds left.
+    const zengine::probe::ProbeReport rep = k.r.ask_probe(k.probe);
+    CHECK(rep.resolved == kResolutionRefused);
+    CHECK(rep.reason.find("no fallback was acceptable") != std::string::npos);
+    CHECK(rep.fires == 0);
+    CHECK(rep.activations == 1); // and its domain hook still did not re-run
+}
+
+TEST_CASE("keystone: a prepared candidate whose promised letter never arrives starts fresh at a "
+          "published bound — alive and honest, never holding forever") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    // The coordinator admits it and then never collects the letter. This is the
+    // failure the whole two-stage design has to survive: readiness was answered
+    // before the state crossed, so a design that could wedge here would have had
+    // no business calling itself ready.
+    k.prep.finalize = false;
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    CHECK(k.prep.claims == 1);  // it did ask
+    CHECK(k.prep.relayed == 0); // and was never answered
+
+    // IT IS THE TIMER, AND IT WORKS. The bound is a count of its own beats, and
+    // it spent exactly them before deciding the promise was not kept.
+    CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
+    CHECK(k.field(candidate, "inherited") == 0);
+    CHECK(k.field(candidate, "beats") == kPreparedClaimBeats);
+    CHECK(k.r.seen.ready == 2);
+
+    // The consumer is refused rather than silently restarted — the difference
+    // between "your two seconds are gone" and "here are five fresh ones".
+    k.r.pump_until(TimerResolution::zen_name);
+    const zengine::probe::ProbeReport rep = k.r.ask_probe(k.probe);
+    CHECK(rep.resolved == kResolutionRefused);
+    CHECK(rep.fires == 0);
+
+    // ...and it goes on serving: a new order is taken and kept.
+    k.r.ask_role(EnsureTimer{"after.the.gap", 1000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE_FALSE(k.r.seen.receipts.empty());
+    CHECK(k.r.seen.receipts.back().id == "after.the.gap");
+    CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
+}
+
+TEST_CASE("keystone: a preparation ask reaches a LIVE Timer and is declined, and a second ask to "
+          "the same candidate is declined too") {
+    Keystone k;
+    anchor_required_probe(k);
+
+    // A live service is not a candidate. A stray ask must not be able to
+    // re-point its bootstrap, reserve on its behalf, or make it wait for a
+    // letter nobody is writing.
+    k.r.ask(k.incumbent, PrepareTimerHandover{0, kInheritFromIncumbent});
+    k.r.pump_beats(3);
+    REQUIRE(k.r.seen.declines.size() == 1);
+    CHECK(k.r.seen.declines[0].find("already live") != std::string::npos);
+    CHECK(k.field(k.incumbent, "active") == 1);
+    CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
+
+    // ONE ASK, ONE ANSWER. A sealed candidate that has already answered a
+    // preparation refuses the next one rather than silently re-preparing.
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerCandidatePrepared::zen_name);
+    CHECK(k.prep.prepared == 1);
+    // The transaction's one conversation is spent, so the SECOND ask cannot use
+    // that door either — the bus refuses it before the candidate is reached.
+    CHECK_FALSE(k.r.bus
+                    .ask_candidate_to_prepare(
+                        k.prep.txn, loom::Message(loom::to_value(PrepareTimerHandover{
+                                        0, kInheritFromIncumbent})))
+                    .ok);
+    // ...and the coordinator's own ordinary send, which the seal DOES deliver,
+    // is answered with a decline rather than a second preparation.
+    k.r.ask_as(k.coordinator, candidate, PrepareTimerHandover{0, kStartFresh});
+    k.r.pump_beats(3);
+    CHECK(k.prep.prepared == 1);
+}
+
+TEST_CASE("keystone: a forged letter cannot be inherited by a prepared candidate, cannot end its "
+          "wait early, and cannot overwrite what it did inherit") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    // The impersonator of the R2B-1 lane, pointed at the prepared candidate. It
+    // knows the published claim correlation, it builds handoff bytes the gate
+    // accepts, and it holds an ordinary grant to send `zen.Bequest` to anyone.
+    // The one thing it cannot have is Loom's word that it received the claim.
+    const loom::WeaveId forger = loom::mount<LetterForger>(k.r.bus, candidate, k.r.witness);
+
+    bool refused = false;
+    SUBCASE("a forged letter") { refused = false; }
+    SUBCASE("a forged refusal, to end the wait early") { refused = true; }
+
+    k.ask(kInheritFromIncumbent);
+    // Stop the moment the candidate's own claim has been delivered: from here to
+    // the real answer is precisely the window a forgery would have to win.
+    k.r.pump_until(loom::ClaimBequest::zen_name);
+    CHECK(k.prep.claims == 1);
+    k.r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
+                             refused, 90000, static_cast<std::int64_t>(kClaimCorrelation)})));
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+
+    // THE FORGERY CHANGED NOTHING, and — the half that is easy to miss — it did
+    // not close the claim either. The genuine letter still landed.
+    REQUIRE(k.prep.relayed == 1);
+    CHECK(k.field(candidate, "inherited") == 1);
+    CHECK(k.field(candidate, "active") == 1);
+    CHECK(k.remaining_now("forged.tick") == -1); // no such schedule exists
+    CHECK(k.r.ask_probe(k.probe).resolved == kResolutionPreserved);
+
+    // AND A FORGERY AFTER THE DECISION cannot overwrite what was inherited.
+    // Once resolved, always resolved.
+    k.r.bus.send(forger, loom::Message(loom::to_value(ForgeLetter{
+                             false, 90000, static_cast<std::int64_t>(kClaimCorrelation)})));
+    k.r.pump_beats(3);
+    CHECK(k.field(candidate, "inherited") == 1);
+    CHECK(k.field(candidate, "active") == 1);
+}
+
+TEST_CASE("keystone: an AUTHENTIC letter the gate refuses, or one over the published bound, is "
+          "adopted whole or not at all — the candidate starts fresh and says so") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+
+    SUBCASE("more entries than the published bound") { k.prep.corrupt = Prep::Corrupt::OverBound; }
+    SUBCASE("one entry whose requester is not a lossless weave id") {
+        k.prep.corrupt = Prep::Corrupt::MalformedRequester;
+    }
+
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+
+    // The answer WAS authentic — it went through the real answer door, spent the
+    // candidate's own claim, and closed the bootstrap. What it carried was not
+    // adoptable, and half of an untrusted letter is worse than none of it.
+    REQUIRE(k.prep.relayed == 1);
+    CHECK(k.field(candidate, "inherited") == 0);
+    CHECK(k.field(candidate, "active") == 0);
+    CHECK(k.r.ask_probe(k.probe).resolved == kResolutionRefused);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+
+    // ...and it is a working Timer regardless.
+    k.r.ask_role(EnsureTimer{"after.the.bad.letter", 1000, false, kRestartDelay, ""});
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE_FALSE(k.r.seen.receipts.empty());
+    CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
+}
+
+TEST_CASE("keystone: retirement is private and finite — the old artifact unloads exactly once, "
+          "and the new service never notices") {
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    k.r.pump_until(TimerResolution::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+
+    // The Kernel's books agree with the Switchboard's reality without anyone
+    // reconciling them: the retiring artifact is SEALED, the new one is LIVE.
+    CHECK(k.r.kernel.status("zengine-timer-v1") == loom::ArtifactStatus::Sealed);
+    CHECK(k.r.kernel.status("zengine-timer-v2") == loom::ArtifactStatus::Live);
+    CHECK(k.r.kernel.role_of("zengine-timer-v2") == kTimerRole);
+
+    // RETIREMENT PUBLISHED NOTHING. The only thing the old service said after
+    // the boundary was its letter, to its coordinator — no availability notice,
+    // no firing, nothing a consumer could mistake for production.
+    const std::int64_t ready_before = k.r.seen.ready;
+    const std::size_t fired_before = k.r.seen.fired.size();
+
+    // Unload it, and count: one instance destroyed, one library closed.
+    const loom::KernelLifetimeCounts before = loom::kernel_lifetime_counts();
+    CHECK(k.r.kernel.unload("zengine-timer-v1"));
+    const loom::KernelLifetimeCounts after = loom::kernel_lifetime_counts();
+    CHECK(after.instances_destroyed - before.instances_destroyed == 1);
+    CHECK(after.libraries_closed - before.libraries_closed == 1);
+    CHECK(k.r.kernel.status("zengine-timer-v1") == loom::ArtifactStatus::NotLoaded);
+    CHECK_FALSE(k.r.kernel.unload("zengine-timer-v1")); // and not a second time
+
+    // THE NEW SERVICE NEVER NOTICED: same role, same chain, same schedule, and
+    // the one-shot still fires where the letter said it would.
+    CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
+    CHECK(k.r.seen.ready == ready_before);
+    CHECK(k.r.seen.fired.size() == fired_before);
+    k.advance_until_remaining(kBeatCapMs);
+    CHECK(k.r.ask_probe(k.probe).fires == 0);
+    k.r.pump_beats(1);
+    CHECK(k.r.ask_probe(k.probe).fires == 1);
+    k.r.pump_beats(1);
+    CHECK(k.r.bus.pending() == 1); // exactly one chain, still
+}
+
+// ---- the pilot: the same crossing, on the REAL monotonic clock --------------
+//
+// Everything above runs on virtual time so a claim about milliseconds is an
+// exact integer. That is the right instrument for a semantic proof and the wrong
+// one for the question this case asks, which is whether the whole thing works
+// when the clock is the OS's and the nap is a real sleep: the shipped artifact,
+// the real `timer.cpp` clock, real deliveries, and durations nobody controls.
+//
+// It is deliberately loose about numbers and strict about MEANING. A real clock
+// cannot promise "exactly 200ms remained", so it does not pretend to — what it
+// pins is that the schedule was PRESERVED rather than restarted, which the two
+// answers put a whole declared delay apart.
+
+TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared replacement, and the "
+          "schedule it hands over is measured in real milliseconds") {
+    Keystone k(TIMER_SO, /*with_probe=*/false);
+
+    // A 400ms one-shot, then roughly half of it spent on the real clock.
+    k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kRestartDelay, ""});
+    k.r.pump_for(k.incumbent, 20);
+    REQUIRE_FALSE(k.r.seen.receipts.empty());
+    CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
+    CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
+    k.r.pump_for(k.incumbent, 200);
+    CHECK(k.r.seen.fired.size() ==
+          std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "suite.stopwatch"));
+
+    // The same crossing, through the same coordinator: a second real artifact
+    // from the same shipped library, sealed, prepared, and admitted.
+    const loom::WeaveId candidate = k.seal("zengine-timer-real-v2", TIMER_SO);
+    REQUIRE(k.begin(candidate).ok);
+    k.ask(kInheritFromIncumbent);
+    k.r.pump_until(TimerReady::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    REQUIRE(k.prep.relayed == 1);
+    CHECK(k.r.bus.role_holder(kTimerRole) == candidate);
+
+    // WHAT CROSSED IS A REAL MEASUREMENT: some of the 400ms is gone, and what is
+    // left is neither zero nor the whole delay. A restarted schedule would read
+    // 400; a stale snapshot taken at transaction begin would read more than what
+    // the clock actually had left.
+    const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
+    const TimerHandoffEntry* shot = k.crossed(crossed, "pilot.oneshot");
+    REQUIRE(shot != nullptr);
+    CHECK(shot->delay_ms == 400);
+    CHECK(shot->remaining_ms > 0);
+    CHECK(shot->remaining_ms < 400);
+
+    // AND THE NEW SERVICE KEPT IT. An ordered re-ask preferring preservation is
+    // answered `preserved_remaining` — the receipt, not an inference.
+    k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kPreserveRemaining, ""});
+    k.r.pump_for(candidate, 20);
+    REQUIRE_FALSE(k.r.seen.receipts.empty());
+    CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
+    CHECK(k.r.seen.receipts.back().resolved == kResolutionPreserved);
+
+    // ...and it fires ONCE, inside the time that was actually left, which a
+    // schedule re-anchored at the commit would still be waiting out.
+    k.r.pump_for(candidate, shot->remaining_ms + 100);
+    CHECK(std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot") == 1);
+    k.r.pump_for(candidate, 100);
+    CHECK(std::count(k.r.seen.fired.begin(), k.r.seen.fired.end(), "pilot.oneshot") == 1);
 }

@@ -452,6 +452,74 @@ handoff seam, not something silently delivered here.
   state is a possible future design, recorded as one — never an accidental promise.)
 - **initial load** — nothing to preserve; the default order resolves `restarted_delay`. Not an
   error: the first preparation of the timer.
+- **prepared replacement (R2B-3c)** — the incumbent never stops serving while its successor is
+  prepared, and the letter still crosses. See below.
+
+### Crossing a prepared replacement — the moving-state problem (R2B-3c)
+
+Every path above replaces a Timer that is *going away*. Prepared replacement is the opposite by
+design: the candidate is loaded, contract-checked and readied while the incumbent stays
+**completely live**. So between "the candidate could serve" and "the candidate does serve" the
+incumbent's clock advances, timers fire, repeats re-arm, and consumers start and cancel
+schedules — and any snapshot taken during preparation is stale before it is used.
+
+> **The incumbent owns time until the replacement boundary. The candidate crosses that boundary
+> with the incumbent's final schedule progress — not an earlier approximation of it.**
+
+**The boundary is the admission itself**, because it is the only instant that is simultaneously
+the last moment the incumbent owns anything and the first moment the candidate owns everything.
+Two facts make it exact, and **neither is a Timer mechanism** — both are the substrate's:
+
+1. **The beat chain rides the role.** Every `Drive` is `send_to_role(zengine.timer)`, resolved at
+   delivery. The instant admission moves the role, the incumbent's parked beat resolves to the
+   *candidate*, which refuses it as a different activation's — so the incumbent never beats
+   again, never fires again, and its clock stops. Nothing had to park it.
+2. **Admission seals the incumbent in the same breath.** Ordinary sends to it become
+   `NoSuchTarget` and role traffic goes elsewhere, so only the coordinator can still reach it and
+   its schedule table is frozen.
+
+The letter is therefore written **after** the admission, by a service the Loom has already made
+incapable of changing — through the *unchanged* `zen.PrepareShutdown` → `TimerHandoff` exchange,
+so this package still has exactly one interpretation of schedule progress.
+
+**The incumbent is never told, and that is the whole abort story.** No preparation message
+reaches it, nothing is parked, nothing is reserved on its behalf. A candidate that dies, refuses,
+or exhausts its budget cannot reset, duplicate or orphan the incumbent's clock: a failed attempt
+leaves untouched a service it never touched. There is no "resume" to get wrong.
+
+**The candidate's side** is a preparation conversation with the coordinator that sealed it —
+`PrepareTimerHandover{transaction, continuity}` answered by `TimerCandidatePrepared` or
+`TimerCandidateDeclined{reason}` — and a **third startup mode**, declared and never inferred:
+
+```text
+zen.Activated -> claim, BY ID, from the PREPARER (not by role from the steward)
+              -> seed Drive 0                        [prepared bootstrap]
+   the answer (Bequest) -> restore -> replay held ops -> publish TimerReady
+   kPreparedClaimBeats with no answer -> the promise was not kept: start fresh,
+                                         replay everything held, and let a required
+                                         preservation be REFUSED, not quietly restarted
+```
+
+`Startup` is `GracefulClaim` (the unchanged default) / `PreparedRestoration` / `Fresh`. Inferring
+the middle from "entries happen to be nonempty" would collapse three different promises into one
+code path; a coordinator says which.
+
+**What readiness means, exactly.** Every *fallible* step is complete — the artifact loaded, its
+contracts validated, its clock initialised, the startup mode chosen, and the bounded capacity a
+full letter could ever need reserved. It does **not** mean the schedule is restored: that is
+impossible before the boundary exists. What is left is bounded, deterministic, and cannot fail
+for want of room — and if the letter never comes, the service starts fresh and *says so* rather
+than holding forever. ("Reserved" means the table, the restore buffer and the hold never have to
+grow; it does not mean restoration touches no allocator — copying an entry's id and role does.)
+
+**Where the authority comes from, named rather than implied:** the preparation door's authority
+is **the seal**, which is the Loom's — a sealed candidate can be reached only by its coordinator,
+so the `mail.sender()` the Timer writes down as its preparer is a coordinator *because the bus
+said so*. A live incarnation refuses a preparation ask outright, which closes the ordinary road
+(a freshly loaded Timer's `zen.Activated` is enqueued inside the delivery that registered it, so
+nothing sent afterwards can arrive first, and its id did not exist to be addressed before that).
+Same B1-tier trusted-in-process ground as the rest of the letter, and no wider than R2B-0 already
+named.
 
 The general pattern, worth naming and **not** worth promoting to Loom law:
 
