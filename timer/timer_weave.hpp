@@ -422,8 +422,10 @@ public:
     /// incumbent is still completely live and nothing in the world can be
     /// disturbed by a refusal: the plan is validated, the startup mode is
     /// chosen, the preparer is remembered, and the bounded capacity a full
-    /// letter could ever need is RESERVED so that restoration after admission
-    /// allocates nothing.
+    /// letter could ever need is RESERVED — so restoration after admission does
+    /// not have to GROW any container. It is not allocation-free: copying an
+    /// entry's id and role strings may still allocate. The claim is about the
+    /// bounded, fallible part being paid while a refusal is still harmless.
     ///
     /// TWO REFUSALS THAT ARE NOT ABOUT THE PLAN, and both are about identity
     /// rather than content:
@@ -768,9 +770,11 @@ private:
         const std::int64_t now = clock_.now_ms();
         // A MEMBER BUFFER, NOT A LOCAL, and only because of prepared
         // replacement: a candidate reserves it during preparation, so the one
-        // step that happens AFTER it answered "ready" allocates nothing. Every
-        // other path reaches this with an empty unreserved buffer and behaves
-        // exactly as it did with a local — the bound is the same either way.
+        // step that happens AFTER it answered "ready" does not have to grow it.
+        // Not allocation-free — copying each entry's id and role still may
+        // allocate; what is reserved is the container capacity. Every other path
+        // reaches this with an empty unreserved buffer and behaves exactly as it
+        // did with a local — the bound is the same either way.
         restoring_.clear();
         for (const TimerHandoffEntry& t : handoff.entries) {
             const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
