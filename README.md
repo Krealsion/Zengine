@@ -278,6 +278,56 @@ Adapter weaves remain the right answer where time-to-domain translation is repla
 `snake-clock` is still a weave (a pause driver, slow-motion clock or replay feeder can take its
 slot) — only its ceremony left.
 
+**The one line of ceremony, and the hole it did not cover.** `WeaveBase` dispatches by calling
+`self->on(shape, mail)` on the *derived* type, and a derived `on` hides every base one — so an
+author with handlers of their own writes `using TimedWeave::on;`. Forgetting it is a hard
+compile error, and that much was always true. What it did **not** cover is a derived handler
+with the *same signature*:
+
+```cpp
+using TimedWeave::on;
+void on(const loom::Activated&, loom::Mail&) { /* domain work */ }   // NO
+```
+
+The language excludes a base declaration from a using-declaration's set when the derived class
+declares the same parameter list, so this did not even ambiguate — it silently became the
+dispatch target. The bindings were never reconciled, no Timer order was ever sent, and nothing
+complained at compile time or run time. The weave activated, the author's code ran, and time
+never started.
+
+> **A derived weave may extend Timer activation. It may never accidentally replace it.**
+
+So the raw `on(zen.Activated)` handler is the binding's alone, and redefining it is now a
+**compile-time refusal that names the alternative** — checked by asking which class owns the
+activation handler dispatch would select, not whether one is callable (a derived one is
+perfectly callable, which is exactly the danger). The alternative is one optional hook:
+
+```cpp
+class ActivationAware : public timer::TimedWeave<ActivationAware, State,
+                                                 loom::Accept<>, loom::Emit<Ready>> {
+public:
+    ActivationAware() : tick_(timers().repeat("aware.tick", 10ms, &ActivationAware::on_tick)) {}
+
+    /// Runs AFTER the bindings reconciled, and only for an accepted activation.
+    void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
+        mail.publish(Ready{});          // ordinary domain work, ordinary Mail
+    }
+private:
+    void on_tick(const timer::TimerFired&, loom::Mail&) { ++state_.ticks; }
+    Handle tick_;
+};
+```
+
+The rules, all pinned: the hook runs **after** every waiting binding was reconciled, so it may
+assume its timers are ordered; it does **not** run for an unattested, duplicate, replayed, stale
+or foreign activation, because the cursor decided that once, above it; `TimerReady` reconciles
+the bindings and **never** invokes the hook, because the service becoming available is not this
+weave's activation; and it adds **nothing** to the manifest — every shape it sends must already
+be in the weave's own `Emit<...>`. A weave that defines no hook is untouched: the call is
+`if constexpr`-guarded, so it is not compiled at all, and there is no virtual, no stored
+callback and no cost. The hook must be **public** — a private one cannot be told apart from an
+absent one, so it would be silently skipped; a wrong *signature* is caught and named.
+
 ### Continuity — what survives when the Timer dies (R2B-0)
 
 > **Death is universal. Inheritance is authored.**

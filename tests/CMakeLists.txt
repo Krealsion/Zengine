@@ -93,6 +93,56 @@ target_compile_definitions(zengine-timer-tests PRIVATE
 
 add_test(NAME timer COMMAND zengine-timer-tests)
 
+# ---- The compile-negative lane (owned by the Timer suite) --------------------
+#
+# The activation wall is a COMPILE-TIME refusal, so a runtime suite cannot prove
+# it: the whole point is that the offending weave never becomes an artifact. The
+# smallest honest proof is to try to build it and read the diagnostic.
+#
+# EXCLUDE_FROM_ALL, so the ordinary build never trips over the case that must
+# fail; each test drives `cmake --build --target` itself. And each asserts the
+# DIAGNOSTIC, not merely the exit code — a build that broke for an unrelated
+# reason must not read as evidence. PASS_REGULAR_EXPRESSION is what does that:
+# CTest then judges the output, so a target that started compiling cleanly would
+# fail the test for producing no diagnostic at all.
+#
+# The positive control is the same source with the collision replaced by the
+# supported hook, and it must BUILD — without it, "the build refused" would be
+# satisfied by a fixture that never compiled for any reason.
+set(ZENGINE_CN_NAMES collision hook missing-using cursor)
+set(ZENGINE_CN_IDS 1 2 3 4)
+foreach(case_name case_id IN ZIP_LISTS ZENGINE_CN_NAMES ZENGINE_CN_IDS)
+    add_executable(zengine-cn-${case_name} EXCLUDE_FROM_ALL
+        compile_negative/activation_collision.cpp)
+    target_link_libraries(zengine-cn-${case_name}
+        PRIVATE loom::switchboard loom::core zengine-timer-vocabulary zengine-warnings)
+    target_include_directories(zengine-cn-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_compile_definitions(zengine-cn-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
+endforeach()
+
+add_test(NAME timer_raw_activation_refused
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-collision)
+set_tests_properties(timer_raw_activation_refused PROPERTIES
+    PASS_REGULAR_EXPRESSION "on_timed_activation")
+
+add_test(NAME timer_activation_hook_compiles
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-hook)
+
+add_test(NAME timer_missing_using_refused
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-missing-using)
+set_tests_properties(timer_missing_using_refused PROPERTIES
+    PASS_REGULAR_EXPRESSION "using TimedWeave::on")
+
+# The hook runs INSIDE an accepted activation, so it must not be able to accept
+# again. `activation()` hands back a const& and `accept` is non-const, so the
+# attempt cannot compile — and this is what keeps that true, since a mutation
+# widening the accessor to a mutable reference is otherwise invisible: no
+# runtime case can produce an input the language refuses to express.
+add_test(NAME timer_cursor_bypass_refused
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-cursor)
+set_tests_properties(timer_cursor_bypass_refused PROPERTIES
+    PASS_REGULAR_EXPRESSION "discards qualifiers")
+
 # The Input suite: its own executable so each package's green stays its own
 # count (the snake suite's numbers must not move when input's do). It speaks
 # the timer vocabulary now: the weave's own beat is part of its contract.
