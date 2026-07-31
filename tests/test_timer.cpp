@@ -4013,6 +4013,48 @@ TEST_CASE("keystone: a candidate artifact that cannot load never becomes a candi
     incumbent_never_stopped_being_the_timer(k, loom::WeaveId{});
 }
 
+TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent Timer's chain "
+          "and schedule exactly as they were") {
+    // THE INPUT THE PACKAGE COULD NOT PRODUCE BEFORE R2B-3d, and a mutation is
+    // what found that out: every other failure route in this lane ends the
+    // transaction BEFORE an admission is ever scheduled, so "a failed admission
+    // disturbs the incumbent" had no Timer-tier road at all. It has one now,
+    // because scheduling and dispatch are two moments and the world may change
+    // between them.
+    Keystone k;
+    anchor_required_probe(k);
+    k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
+    const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
+    REQUIRE(k.begin(candidate).ok);
+    k.ask(kInheritFromIncumbent);
+
+    // Stop the instant the coordinator has consumed the readiness and SCHEDULED
+    // the admission. Nothing has moved: the incumbent still holds the role.
+    k.r.pump_until(TimerCandidatePrepared::zen_name);
+    REQUIRE(k.prep.commits.size() == 1);
+    REQUIRE(k.prep.commits.back().ok);
+    CHECK(k.r.bus.transaction_state(k.prep.txn) == loom::TxnState::AdmissionPending);
+    CHECK(k.r.bus.role_holder(kTimerRole) == k.incumbent);
+    CHECK_FALSE(k.r.bus.sealed(k.incumbent));
+
+    // Then the successor dies before it can be admitted.
+    k.r.bus.kill(candidate);
+    k.r.pump_beats(4);
+
+    // The admission refused; the transaction ended once, naming what happened;
+    // no letter was ever written, because nothing ever froze the incumbent.
+    loom::TxnOutcome out{};
+    REQUIRE(k.r.bus.take_outcome(k.r.witness, out));
+    CHECK(out.state == loom::TxnState::Aborted);
+    CHECK(out.reason == loom::TxnReason::CandidateChanged);
+    CHECK(k.prep.relayed == 0);
+    CHECK(k.r.bus.active_transactions() == 0);
+
+    // ...and the Timer that was serving is exactly the Timer that is serving:
+    // same role, one chain, and a schedule that runs out where it always would.
+    incumbent_never_stopped_being_the_timer(k, candidate);
+}
+
 TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operation ahead of it "
           "reaches the incumbent and crosses in the letter; one behind it is refused visibly") {
     // CHANGED BY R2B-3d, and the change is the whole reason the new model is
