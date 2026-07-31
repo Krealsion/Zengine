@@ -42,6 +42,29 @@
 // static_assert below that says so in words instead of template soup. Removing
 // even that line would need a Loom change to how handlers are discovered, which
 // this phase deliberately did not take.
+//
+// ...AND THE HOLE THAT LEFT, closed here. `using TimedWeave::on;` protects
+// against ordinary name hiding — a derived handler for a DIFFERENT shape. It
+// does nothing about a derived handler with the SAME signature:
+//
+//     using TimedWeave::on;
+//     void on(const loom::Activated&, loom::Mail&) { /* domain work */ }
+//
+// [namespace.udecl] says a derived member with the same name and parameter list
+// as one introduced by a using-declaration EXCLUDES the base declaration from
+// the set. So this does not even ambiguate — it silently becomes the dispatch
+// target, the bindings are never reconciled, no Timer order is ever sent, and
+// nothing complains at compile time or at run time. The weave activates, the
+// author's code runs, and time never starts.
+//
+//     A derived weave may EXTEND Timer activation. It may never accidentally
+//     REPLACE it.
+//
+// Two things enforce that. The raw `on(zen.Activated)` handler stays the
+// binding's alone and a derived redefinition is a compile-time refusal that
+// names the alternative (see `activation_is_the_bindings` below). The
+// alternative is one optional hook, `on_timed_activation`, which runs AFTER the
+// bindings reconciled and only for an activation the cursor accepted.
 
 #include "vocabulary.hpp"
 
@@ -54,6 +77,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -61,6 +85,33 @@ namespace zengine::timer {
 
 template <class Self>
 class TimerBindings;
+
+namespace detail {
+
+/// WHICH CLASS OWNS THE ACTIVATION HANDLER DISPATCH WOULD SELECT.
+///
+/// Declared, never defined: it exists only to be deduced from inside `decltype`.
+/// Passing `&Self::on` — an overload SET — is legal here precisely because the
+/// parameter pattern matches exactly one of its members, so the compiler picks
+/// that one and hands back the class that declared it. That is the whole trick:
+/// "is this handler callable?" is the wrong question (a derived one is perfectly
+/// callable), and "who does it belong to?" is the right one.
+///
+/// Returns `C*` rather than `C` so no weave type ever has to be returnable by
+/// value for this to compile.
+///
+/// ⚠ THE PARAMETER TYPES MUST BE CONCRETE, AND ONLY `C` DEDUCED. Writing this
+/// with a deduced `Activated`/`Mail` makes the pattern match EVERY
+/// `on(const X&, loom::Mail&)` in the weave's overload set — the domain
+/// handlers, `TimerReady`, `TimerFired`, all of them — so deduction goes
+/// ambiguous, the requires-expression reports "not addressable", and the whole
+/// check quietly abstains on exactly the classes it exists to refuse. The first
+/// cut of this file did that and the collision fixture compiled clean; the
+/// canary is what found it.
+template <class C>
+C* activation_owner(void (C::*)(const loom::Activated&, loom::Mail&));
+
+} // namespace detail
 
 /// Where one binding stands in this incarnation's life.
 ///
@@ -429,6 +480,34 @@ public:
     using Bindings = TimerBindings<Self>;
     using Handle = TimerHandle<Self>;
 
+    /// THE COLLISION WALL, checked for EVERY bound weave.
+    ///
+    /// Anchored in the constructor rather than in `timers()`, deliberately. The
+    /// visibility assert below lives in `timers()` because that is where an
+    /// author who declared a binding necessarily is — but a weave can define the
+    /// forbidden raw activation handler and never call `timers()` in the same
+    /// translation unit path, and a check the author may never instantiate is a
+    /// check that is not there. Every `TimedWeave` runs its own constructor, and
+    /// `Self` is complete by the time this body is instantiated (it is
+    /// instantiated from `Self`'s constructor, after `Self`'s definition closed).
+    TimedWeave() {
+        static_assert(
+            activation_is_the_bindings(),
+            "zengine::timer::TimedWeave: this weave defines its own "
+            "on(const loom::Activated&, loom::Mail&), which REPLACES the binding layer's "
+            "instead of extending it — the Timer bindings would never be reconciled and no "
+            "timer would ever be ordered. That handler belongs to TimedWeave. To do domain "
+            "work on activation, implement `void on_timed_activation(const loom::Activated&, "
+            "loom::Mail&)` instead; it runs after the bindings reconciled, and only for an "
+            "activation this weave accepted.");
+        static_assert(
+            !names_activation_hook() || has_activation_hook(),
+            "zengine::timer::TimedWeave: this weave declares `on_timed_activation` with a "
+            "signature the binding layer cannot call, so it would be silently ignored. The "
+            "hook is exactly: void on_timed_activation(const loom::Activated&, loom::Mail&) "
+            "— and it must be reachable from the binding layer (public).");
+    }
+
     /// The declared-bindings table. Call the factories on it during
     /// construction; they record desire and send nothing.
     Bindings& timers() {
@@ -458,6 +537,14 @@ public:
             return; // unattested, duplicate or replayed: nothing is re-established
         }
         bindings_.reconcile(mail);
+        // ...AND ONLY THEN THE AUTHOR'S CLAUSE. The order is the contract: an
+        // author's activation work may assume its timers are already ordered,
+        // which is the whole reason the hook exists rather than a raw handler.
+        // It is not reached at all by an activation the cursor refused, so
+        // "unattested, duplicate or replayed" means nothing happened, still.
+        if constexpr (has_activation_hook()) {
+            static_cast<Self*>(this)->on_timed_activation(a, mail);
+        }
     }
 
     /// The Timer service is available — possibly for the first time, possibly
@@ -480,12 +567,79 @@ public:
     /// that the author CAN read it, from the handle, without writing protocol.
     void on(const TimerResolution& r, loom::Mail&) { bindings_.record(r); }
 
+    // ---- THE AUTHOR'S EXTENSION POINT --------------------------------------
+    //
+    // Optional. A weave that defines nothing behaves exactly as it always did —
+    // `if constexpr` means the call is not merely skipped at run time, it is not
+    // compiled, so there is no virtual, no std::function, no stored callback and
+    // no cost of any kind for the weaves that do not want it.
+    //
+    //     void on_timed_activation(const loom::Activated&, loom::Mail&);
+    //
+    // WHEN IT RUNS: after this weave accepted an activation AND after every
+    // waiting binding was reconciled. Never for an unattested, duplicate,
+    // replayed, stale or foreign activation — the cursor decided that already,
+    // once, above. Never for `TimerReady`, which is the Timer service becoming
+    // available and is not this weave's activation. Never for an ordinary
+    // message.
+    //
+    // WHAT IT MAY DO: ordinary domain work through the ordinary live `Mail` —
+    // and nothing more. It receives no additional authority, and every shape it
+    // sends must already be in this weave's own `Emit<...>`, because the
+    // manifest is composed from that list and the hook adds nothing to it.
+    //
+    // IT IS ALREADY INSIDE AN ACCEPTED ACTIVATION. Do not call
+    // `activation().accept(...)` again — there is one cursor, it belongs to the
+    // binding layer, and it has already spoken.
+    //
+    // IT MUST BE REACHABLE FROM HERE (public). A private hook cannot be
+    // distinguished from an absent one — an access failure inside a
+    // requires-expression is simply an unsatisfied requirement — so a private
+    // one would be silently skipped. That is the one hazard here the compiler
+    // cannot name for us, which is why it is named here.
+
 protected:
-    /// Visible to the author only so a subclass can read its own activation
-    /// state if it genuinely needs to; the binding layer already acts on it.
+    /// Visible to the author only so a subclass can READ its own activation
+    /// state if it genuinely needs to; the binding layer already acts on it, and
+    /// `on_timed_activation` already runs inside an accepted activation.
     const zengine::ActivationCursor& activation() const { return activation_; }
 
 private:
+    /// Is an activation handler of the dispatch signature addressable on `Self`?
+    /// False when the derived class hid every base `on` — which is the OTHER
+    /// diagnostic's case, so the collision check abstains and lets `timers()`
+    /// say the thing that is actually wrong.
+    static constexpr bool activation_addressable() {
+        return requires { detail::activation_owner(&Self::on); };
+    }
+
+    /// Would `WeaveBase`'s `self->on(...)` select the binding's own activation
+    /// handler? Identity, not callability: a derived one is perfectly callable,
+    /// which is exactly why it is dangerous.
+    static constexpr bool activation_is_the_bindings() {
+        if constexpr (!activation_addressable()) {
+            return true; // hidden entirely; `timers()` owns that diagnostic
+        } else {
+            return std::is_same_v<decltype(detail::activation_owner(&Self::on)), TimedWeave*>;
+        }
+    }
+
+    /// Does `Self` provide the hook, exactly as the binding layer will call it?
+    static constexpr bool has_activation_hook() {
+        return requires(Self& s, const loom::Activated& a, loom::Mail& m) {
+            s.on_timed_activation(a, m);
+        };
+    }
+
+    /// Does `Self` have a member of that name at all? Used only to turn a
+    /// near-miss signature into a diagnostic instead of a silent no-op. It
+    /// cannot see through an overload SET (taking the address of one is
+    /// ill-formed), so an author who overloads the hook wrongly is not caught —
+    /// named here rather than implied to be covered.
+    static constexpr bool names_activation_hook() {
+        return requires { &Self::on_timed_activation; };
+    }
+
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Bindings bindings_;
 };

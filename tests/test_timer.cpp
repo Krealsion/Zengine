@@ -1715,6 +1715,72 @@ private:
     AskSeen* seen_;
 };
 
+/// What the activation hook says out loud, so its RUNNING is a wire fact and
+/// not merely a counter the test trusts.
+struct ActivationObserved {
+    std::int64_t sequence = 0;
+    ZEN_SHAPE(ActivationObserved, 1, ZEN_FIELD(sequence));
+};
+
+struct AwareState {
+    std::int64_t beats = 0;
+    std::int64_t hooks = 0;
+    std::int64_t last_activation = 0;
+    ZEN_EXPOSE();
+    ZEN_SHAPE(AwareState, 1, ZEN_FIELD(beats), ZEN_FIELD(hooks), ZEN_FIELD(last_activation));
+};
+
+/// A bound weave that ALSO wants domain work on activation — the case that used
+/// to be written as a raw `on(const loom::Activated&, loom::Mail&)` and silently
+/// cost the author every timer they had declared.
+///
+/// It carries all three things at once on purpose: Timer handlers it inherits, a
+/// domain handler of its own (so the `using` requirement is exercised, not
+/// assumed), and the activation extension. All three must stay reachable.
+class ActivationAware
+    : public TimedWeave<ActivationAware, AwareState, loom::Accept<CancelTick>,
+                        loom::Emit<ActivationObserved>> {
+public:
+    ActivationAware()
+        : tick_(timers().repeat("aware.tick", std::chrono::milliseconds(5),
+                                &ActivationAware::on_tick)) {}
+
+    using TimedWeave::on;
+
+    void on(const CancelTick&, loom::Mail& mail) { tick_.cancel(mail); }
+
+    /// THE EXTENSION POINT — public, because the binding layer has to be able to
+    /// reach it, and a private one would be indistinguishable from none.
+    ///
+    /// By the time this runs the activation has been accepted once and every
+    /// binding has already been reconciled, so it may assume its timers are
+    /// ordered. It speaks only a shape this weave declared in its own Emit list.
+    void on_timed_activation(const loom::Activated& a, loom::Mail& mail) {
+        ++state_.hooks;
+        state_.last_activation = a.sequence;
+        mail.publish(ActivationObserved{a.sequence});
+    }
+
+    void on_tick(const TimerFired&, loom::Mail&) { ++state_.beats; }
+
+    Handle tick_;
+};
+
+/// Hears what the hook said, so ordering can be read off the bus.
+struct HookEarState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(HookEarState, 1, ZEN_FIELD(n));
+};
+class HookEar : public loom::WeaveBase<HookEar, HookEarState, loom::Accept<ActivationObserved>,
+                                       loom::Emit<>> {
+public:
+    explicit HookEar(std::vector<std::int64_t>& heard) : heard_(&heard) {}
+    void on(const ActivationObserved& o, loom::Mail&) { heard_->push_back(o.sequence); }
+
+private:
+    std::vector<std::int64_t>* heard_;
+};
+
 struct WokeState {
     std::int64_t n = 0;
     ZEN_SHAPE(WokeState, 1, ZEN_FIELD(n));
@@ -1781,6 +1847,75 @@ struct BindRig {
     }
 };
 
+/// The same rig for the weave that carries an activation hook, plus a TAP that
+/// records the ORDER shapes were actually delivered in. Order is read off the
+/// bus rather than inferred from final counters, because "both happened" and
+/// "they happened in this order" are different claims and only one of them is
+/// the phase law.
+struct HookRig {
+    loom::Switchboard bus;
+    AskSeen seen;
+    std::vector<std::int64_t> observed;
+    std::vector<std::string> delivered; ///< every shape, in delivery order
+    loom::WeaveId weave{};
+    loom::WeaveId service{};
+    loom::WeaveId door{};
+    loom::WeaveId ear{};
+    std::int64_t next_sequence = 1;
+
+    HookRig() {
+        weave = loom::mount<ActivationAware>(bus);
+        service = mount_role<AskCatcher>(bus, kTimerRole, seen);
+        door = zengine::testing::mount_door(bus);
+        ear = loom::mount<HookEar>(bus, observed);
+        bus.add_observer([this](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered) {
+                delivered.push_back(e.schema_name);
+            }
+        });
+    }
+
+    void activate(std::int64_t sequence) {
+        zengine::testing::order_activation(bus, door, weave, sequence);
+        bus.pump();
+    }
+    void activate() { activate(next_sequence++); }
+
+    /// An activation nobody attested — an ordinary root send of the right shape.
+    void activate_unattested(std::int64_t sequence) {
+        bus.send(weave, loom::Message(loom::to_value(loom::Activated{sequence})));
+        bus.pump();
+    }
+
+    void ready() {
+        bus.publish(loom::Message(loom::to_value(TimerReady{})));
+        bus.pump();
+    }
+
+    void fire(const char* id) {
+        bus.send_as(service, weave,
+                    loom::Message(loom::to_value(TimerFired{id}), service, service, 0));
+        bus.pump();
+    }
+
+    /// Where a shape first appears in the delivery order, or -1.
+    std::ptrdiff_t first(const char* shape) const {
+        for (std::size_t i = 0; i < delivered.size(); ++i) {
+            if (delivered[i] == shape) {
+                return static_cast<std::ptrdiff_t>(i);
+            }
+        }
+        return -1;
+    }
+
+    std::int64_t count(const char* field) {
+        loom::Unverified u = loom::parse(bus.snapshot_bytes(weave));
+        loom::Admission a = loom::admit(u, loom::schema_of<AwareState>());
+        REQUIRE(a.ok());
+        return a.value().get(field)->as_int();
+    }
+};
+
 } // namespace
 
 TEST_CASE("binding: declaration is not execution — constructing sends nothing, and happens "
@@ -1811,6 +1946,145 @@ TEST_CASE("binding: declaration is not execution — constructing sends nothing,
     bus.send(w, loom::Message(loom::to_value(CancelTick{})));
     bus.pump();
     CHECK(events > 0);
+}
+
+// ---- the activation extension hook ------------------------------------------
+//
+//   A derived weave may EXTEND Timer activation. It may never REPLACE it.
+//
+// The raw `on(zen.Activated)` handler is the binding's, and a derived
+// redefinition is refused at build time (see the compile-negative lane, which
+// is where that half is proven — an offending weave never becomes an artifact,
+// so no runtime suite can watch it). What runs here is the other half: the
+// supported hook, and exactly when it does and does not run.
+
+TEST_CASE("binding: the activation hook runs AFTER the timers were ordered, once, and only for "
+          "an activation this weave accepted") {
+    HookRig r;
+    CHECK(r.seen.asks.empty());
+    CHECK(r.count("hooks") == 0);
+
+    r.activate(7);
+
+    // 1-3. The binding did its work: exactly one order, for the declared timer.
+    REQUIRE(r.seen.asks.size() == 1);
+    CHECK(r.seen.asks[0].id == "aware.tick");
+    CHECK(r.seen.asks[0].delay_ms == 5);
+
+    // 4. The hook ran exactly once, and saw the real activation.
+    CHECK(r.count("hooks") == 1);
+    CHECK(r.count("last_activation") == 7);
+    REQUIRE(r.observed.size() == 1);
+    CHECK(r.observed[0] == 7);
+
+    // 5. THE ORDER, READ OFF THE BUS. `reconcile` enqueued the order first and
+    //    the hook enqueued its own message second, so FIFO delivery puts
+    //    EnsureTimer strictly before ActivationObserved. Two counters both
+    //    reading 1 would be satisfied by either order; this is not.
+    const std::ptrdiff_t order = r.first(EnsureTimer::zen_name);
+    const std::ptrdiff_t hook = r.first(ActivationObserved::zen_name);
+    REQUIRE(order >= 0);
+    REQUIRE(hook >= 0);
+    CHECK(order < hook);
+
+    // 6-7. The receipt reaches the binding, and a firing reaches the callback —
+    //      the hook did not displace any of the ordinary machinery.
+    r.seen.answer_with = "restart_delay";
+    r.ready();
+    CHECK(r.count("beats") == 0);
+    r.fire("aware.tick");
+    CHECK(r.count("beats") == 1);
+}
+
+TEST_CASE("binding: a refused activation reaches neither the bindings nor the hook") {
+    int route = 0;
+    SUBCASE("a duplicate of the accepted sequence") { route = 0; }
+    SUBCASE("a replay of an older sequence") { route = 1; }
+    SUBCASE("an activation nobody attested") { route = 2; }
+
+    HookRig r;
+    r.activate(4);
+    REQUIRE(r.seen.asks.size() == 1);
+    REQUIRE(r.count("hooks") == 1);
+    const std::size_t hooks_said = r.observed.size();
+
+    if (route == 0) {
+        r.activate(4);
+    } else if (route == 1) {
+        r.activate(1);
+    } else {
+        r.activate_unattested(99);
+    }
+
+    // Nothing moved: not the orders, not the hook, not the hook's speech. The
+    // cursor decided ONCE, above the hook, which is the whole reason the hook is
+    // not a raw handler — an author cannot get this wrong by forgetting a check.
+    CHECK(r.seen.asks.size() == 1);
+    CHECK(r.count("hooks") == 1);
+    CHECK(r.count("last_activation") == 4);
+    CHECK(r.observed.size() == hooks_said);
+}
+
+TEST_CASE("binding: TimerReady reconciles the bindings and does NOT invoke the activation hook") {
+    HookRig r;
+    r.activate(2);
+    REQUIRE(r.seen.asks.size() == 1);
+    REQUIRE(r.count("hooks") == 1);
+
+    // The Timer service becoming available is not this weave's activation. It
+    // must re-establish what the weave declared — that is the whole point of the
+    // path — and it must not run domain activation work a second time.
+    r.ready();
+    CHECK(r.seen.asks.size() == 2); // reconciled again
+    CHECK(r.count("hooks") == 1);   // and the hook did not run again
+    CHECK(r.observed.size() == 1);
+
+    // ...and a second TimerReady is still reconcile-only.
+    r.ready();
+    CHECK(r.seen.asks.size() == 3);
+    CHECK(r.count("hooks") == 1);
+}
+
+TEST_CASE("binding: a weave with no activation hook is untouched — the extension is absent, not "
+          "merely unused") {
+    // `Bound` declares no hook. Its activation must do exactly what it always
+    // did, and nothing about the hook may become a requirement: no extra shape
+    // in its manifest, no extra message on the bus, no second reconciliation.
+    BindRig r;
+    std::vector<std::string> delivered;
+    r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered) {
+            delivered.push_back(e.schema_name);
+        }
+    });
+
+    r.activate();
+    CHECK(r.seen.asks.size() == 1);
+    CHECK(r.seen.role_asks.size() == 1);
+
+    // The hook's shape never appears, because this weave never declared it.
+    CHECK(std::find(delivered.begin(), delivered.end(),
+                    std::string(ActivationObserved::zen_name)) == delivered.end());
+
+    // And its composed contract is the Timer protocol plus its OWN shapes only —
+    // the hook adds nothing to a manifest, for anybody.
+    std::vector<std::string> accepted;
+    for (const auto& s : r.bus.accepted_schemas(r.weave)) {
+        accepted.push_back(s->name());
+    }
+    std::sort(accepted.begin(), accepted.end());
+    std::string joined;
+    for (const std::string& n : accepted) {
+        joined += n + ";";
+    }
+    INFO("accepted: " << joined);
+    // The Timer protocol, this weave's own two doors, and the four substrate
+    // poke doors its ZEN_EXPOSE'd state earns — and nothing else. In particular
+    // no trace of the hook's shape, which belongs to a different weave entirely.
+    CHECK(accepted == std::vector<std::string>{
+                          "CancelTick", "RestartTick", "TimerFired", "TimerReady",
+                          "TimerResolution", "zen.Activated", "zen.PokeDescribe", "zen.PokeRead",
+                          "zen.PokeResetState", "zen.PokeWrite"});
 }
 
 TEST_CASE("binding: an accepted activation reconciles every desired binding exactly once — "
