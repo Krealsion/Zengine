@@ -3721,6 +3721,14 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     // THE NUMBER THAT IS THE PHASE. Exactly two seconds remained at the boundary
     // — read off the letter the retired incumbent actually wrote, decoded through
     // the real gate.
+    // ⭐ AND THIS IS ALSO THE R2B-3d-1 POSITIVE CONTROL AT THE PACKAGE TIER.
+    // That claim is ORDINARY DOMAIN SPEECH sent from inside a COMMITTED
+    // ADMISSION ACTIVATION — `mail.send(preparer_, ClaimBequest{...})`, the
+    // first thing the successor does on its first breath. An activation that
+    // grants no answer authority must still leave a weave able to speak, and
+    // the entire handoff below is the proof that it does: no claim, no letter,
+    // no continuity. (That the activation is not ANSWERABLE is a Loom-tier law
+    // — the shipped Timer never tries, so only the Loom suite can pin it.)
     CHECK(k.prep.claims == 1); // the candidate asked its PREPARER, not the steward
     REQUIRE(k.prep.relayed == 1);
     const std::vector<TimerHandoffEntry> crossed = k.last_handoff();
