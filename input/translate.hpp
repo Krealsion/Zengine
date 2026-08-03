@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
 #ifndef ZENGINE_INPUT_TRANSLATE_HPP
 #define ZENGINE_INPUT_TRANSLATE_HPP
 

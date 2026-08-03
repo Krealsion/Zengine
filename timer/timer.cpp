@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
 // The TimerService weave library — time's only door to the OS.
 //
 // Everything scheduled lives in timer_weave.hpp (pinned by the suite over a

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
 // zengine-snake — the playable host.
 //
 // The host is deliberately THIN: it owns the boot list — nothing else. It

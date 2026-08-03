@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Zengine smoke consumer.
 //
 // This proves ONE thing, and proves it by the stranger's path: a separate repository can take

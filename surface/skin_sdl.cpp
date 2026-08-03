@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Joshua DeMoss
+
 // The SDL Skin — the same intent, a real window. This file is deliberately
 // nothing but the SDL edge: the frame is planned by skin_sdl_plan.hpp as pure
 // math (pinned on every lane, SDL or not); here the plan is executed against
