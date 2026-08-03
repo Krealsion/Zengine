@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Trust-Gate liveness probes — WHAT THEY MEASURED, AND WHAT THEY NOW
 // WITNESS. (Born Stage 5 of the audit phase, 2026-07-26; ratified onto main by
 // the R1 repair phase, 2026-07-27; FLIPPED by R2A-2, 2026-07-28.)

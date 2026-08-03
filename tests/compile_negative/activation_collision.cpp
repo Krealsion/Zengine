@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // THE COMPILE-NEGATIVE FIXTURE for the TimedWeave activation wall.
 //
 // ONE SOURCE, THREE TARGETS, so the negative and its positive control cannot

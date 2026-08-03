@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The TimerService, over a VIRTUAL clock — the suite's own loadable Timer.
 //
 // Identical to the shipped `zengine-timer` in every respect but one: the Clock.

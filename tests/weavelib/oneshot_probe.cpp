@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The continuity probe — a real consumer of the timer binding, in a real
 // dynamic library, whose whole job is to be watched across a Timer succession.
 //

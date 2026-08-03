@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The snake suite — the Stage 2 vertical slice, proven headless.
 //
 // Three tiers, deliberately ordered:

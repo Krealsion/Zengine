@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 #ifndef ZENGINE_SURFACE_VOCABULARY_HPP
 #define ZENGINE_SURFACE_VOCABULARY_HPP
 

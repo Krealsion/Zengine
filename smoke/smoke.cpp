@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Zengine smoke consumer.
 //
 // This proves ONE thing, and proves it by the stranger's path: a separate repository can take

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The clock adapter — snake's own time binding, as a weave.
 //
 // The Timer package speaks timers (StartTimer, TimerFired); the world speaks

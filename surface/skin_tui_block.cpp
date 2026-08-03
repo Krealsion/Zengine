@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The block TUI Skin — the terminal medium wearing the block style. A
 // different library on purpose: swapping it in mid-game is the phase's
 // drawing-replaced moment, and the difference must be unmistakable.

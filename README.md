@@ -260,3 +260,12 @@ Zen/
 Assistant sessions are launched from the **`Zen/` root**, never from inside a sub-repo: the
 memory graph is keyed to that path, so launching from `Zen/Zengine/` silently cold-starts
 without it. Run git per-repo (`git -C Loom …`, `git -C Zengine …`).
+
+## License
+
+Zengine is licensed under MPL-2.0.
+See [LICENSING.md](LICENSING.md) for the plain-language boundary
+and [LICENSE](LICENSE) for the legal terms. The standing principle —
+the Loom is everyone's, Zengine is the default set, your weaves are
+yours — is exactly what the license implements: what you create with
+Zen is yours.

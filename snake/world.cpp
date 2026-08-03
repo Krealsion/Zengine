@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The snake World weave — owns the simulation, emits the locked shapes, holds
 // SnakeWorldState. One source, two libraries (the Loom weavelib pattern):
 //

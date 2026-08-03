@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Input weave library — the sole producer of the five locked input
 // shapes, and the only place in the whole game that talks to the platform.
 //

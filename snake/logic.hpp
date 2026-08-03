@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 #ifndef ZENGINE_SNAKE_LOGIC_HPP
 #define ZENGINE_SNAKE_LOGIC_HPP
 

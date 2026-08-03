@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // zengine-snake — the playable host.
 //
 // The host is deliberately THIN: it owns the boot list — nothing else. It

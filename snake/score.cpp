@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The score weave — the late arrival. It accepts FoodEaten (the locked
 // contract) and maintains its own count, independent of the score field the
 // world happens to put in SnakeVisual. That independence is what makes the

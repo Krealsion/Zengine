@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The controls adapter — snake's own input binding, as a weave.
 //
 // The Input package speaks keyboards (KeyPressed, SDL scancodes); the world

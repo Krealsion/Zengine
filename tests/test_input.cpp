@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Input suite — the Input package V1, proven headless.
 //
 // Four tiers, deliberately ordered:

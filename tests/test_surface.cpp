@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
 // The Surface suite — the Skin pattern, proven headless.
 //
 // Four tiers, deliberately ordered:
