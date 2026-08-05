@@ -4,9 +4,37 @@
 # third_party/doctest.h is the same single-header doctest the Loom's suite
 # vendors (MIT; https://github.com/doctest/doctest) — copied, not shared, so
 # this repo builds as the stranger it is.
+#
+# THIS DIRECTORY REFUSES A LOOM IT CANNOT TEST AGAINST (R2F-D / POP-03, closing COLD-1 F-25).
+#
+# It used to say STATUS + return() here, which meant: testing was requested, the entire test
+# tree quietly vanished, configure reported success, and `ctest` printed "100% tests passed"
+# over the single surviving smoke test. The audit reached that state through the SUPPORTED
+# DEFAULT Windows Loom package, so it was not a typo's fault and nothing would ever have
+# noticed. An unsupported testability is now declared, not disguised.
 if(NOT TARGET loom::kernel)
-    message(STATUS "zengine: snake/input/surface suites skipped — this Loom cannot host .so weaves (no loom::kernel)")
-    return()
+    message(FATAL_ERROR
+"zengine: testing is enabled, but this Loom package cannot host loadable weaves.\n"
+"WHAT IS MISSING\n"
+"  The installed/consumed Loom does not export loom::kernel, so nothing here can load a\n"
+"  weave. Every Zengine suite but the smoke test drives real weave libraries through the\n"
+"  real kernel: snake, timer (plus its four compile-negative cases), input, surface and\n"
+"  the audit probes. None of them can be built.\n"
+"WHY THIS IS AN ERROR AND NOT A SKIP\n"
+"  Configuring anyway would leave one CTest entry standing in for the whole suite, and\n"
+"  `ctest` would then report '100% tests passed' over a test project whose tests had been\n"
+"  deleted at configure time. A green that names a population which never existed is worse\n"
+"  than no run at all, so the configuration is refused instead of quietly emptied.\n"
+"HOW TO GET A LOOM THAT CAN HOST WEAVES\n"
+"  Linux : the kernel is always built and exported. Install a normal Loom build and point\n"
+"          CMAKE_PREFIX_PATH at the prefix.\n"
+"  Windows: the kernel is the opt-in development/demo backend and carries NO isolation.\n"
+"          Build and install the Loom with -DLOOM_ENABLE_WINDOWS_KERNEL=ON, or configure\n"
+"          Zengine with -DZEN_LOOM_DEV=ON, which turns it on for you.\n"
+"IF YOU ONLY WANT THE LIBRARY\n"
+"  Configure with -DBUILD_TESTING=OFF. Zengine's kernel-independent surface (the activation\n"
+"  cursor and the timer/input/surface vocabularies) builds fine against a kernel-less Loom.\n"
+"  The kernel is a requirement of the TESTS, not of the package.")
 endif()
 
 # ---- the suite's own weave libraries (R2B-0) ------------------------------------------

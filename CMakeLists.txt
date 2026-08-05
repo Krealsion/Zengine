@@ -100,6 +100,26 @@ function(zengine_weave target source)
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
 
+# ---- Testing is a real switch, and it is a real requirement -----------------------------
+#
+# BUILD_TESTING is CMake's conventional name, and here it draws a line that used to be
+# missing entirely (R2F-D / POP-03, closing COLD-1 F-25).
+#
+# Zengine's suites need a Loom that can HOST loadable weaves. Before this, tests/ answered a
+# kernel-less Loom with `message(STATUS ...)` + `return()`: configure succeeded, the whole
+# test tree silently evaporated, and `ctest` then printed "100% tests passed, 0 tests failed
+# out of 1" over the one surviving smoke test. That is reachable from the SUPPORTED DEFAULT
+# Windows Loom package — not from a typo — so the most-advertised green in this repo could be
+# produced by a configuration that had deleted its own evidence. tests/CMakeLists.txt now
+# refuses that configuration out loud.
+#
+# The switch is what keeps the refusal honest and narrow: the requirement belongs to the
+# TESTS, not to the package. A consumer that wants only Zengine's kernel-independent surface
+# — the activation cursor and the timer/input/surface vocabularies, all header-only — can
+# still configure and build against a kernel-less Loom with -DBUILD_TESTING=OFF. R2F-D proves
+# both halves: tests-on refuses, tests-off builds.
+option(BUILD_TESTING "Build Zengine's test suites (they require a Loom exporting loom::kernel)" ON)
+
 # ---- The consumers --------------------------------------------------------------------
 #
 # smoke: the minimal stranger (links only the exported surface; its refusal test is the
@@ -114,12 +134,20 @@ endfunction()
 # through the real kernel). Order matters only where vocabulary flows: activation's
 # interface target must exist before the packages that read an activation, timer's before
 # input/surface consume it, and theirs before snake.
+#
+# smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
+# themselves do not, and each still makes its own honest kernel decision.
 
-enable_testing()
-add_subdirectory(smoke)
 add_subdirectory(activation)
 add_subdirectory(timer)
 add_subdirectory(input)
 add_subdirectory(surface)
 add_subdirectory(snake)
-add_subdirectory(tests)
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(smoke)
+    add_subdirectory(tests)
+else()
+    message(STATUS "zengine: BUILD_TESTING=OFF — library targets only, no suites registered")
+endif()
