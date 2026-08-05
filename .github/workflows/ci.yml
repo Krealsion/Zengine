@@ -80,7 +80,21 @@ jobs:
         run: cmake --build build --parallel "$(nproc)"
 
       - name: Verify Zengine
-        run: ctest --test-dir build --no-tests=error --output-on-failure
+        run: |
+          set +e
+          ctest --test-dir build --no-tests=error --output-on-failure 2>&1 | tee verify.log
+          verify_rc="${PIPESTATUS[0]}"
+          verify_outcome=failed
+          if (( verify_rc == 0 )); then verify_outcome=passed; fi
+          {
+            printf '## Zengine / Linux / canonical Loom stranger\n\n'
+            printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
+            printf 'Selected lines from the current CTest output:\n\n'
+            printf '```text\n'
+            grep -E '[0-9]+% tests passed|test cases:|assertions:|Total Test time' verify.log || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$verify_rc"
 
   zengine-windows-stranger:
     name: Zengine / Windows / canonical Loom stranger (advisory)
