@@ -16,7 +16,9 @@ cmake --build build -j"$(nproc)" && ctest --test-dir build --no-tests=error
   mistake must fail on every machine, not only in CI.
 - Per-repo green: Zengine's lane never re-runs Loom's suite — state which
   repo's green you proved.
-- Weave libraries build with `-fno-gnu-unique` (keeps `dlclose` real).
+- Weave libraries go through `zengine_weave()`, which delegates the reloadable
+  lifetime to the Loom's `loom_weave_build_contract()` (KERN-05). Do not
+  reintroduce a private compiler flag for it here.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them
   all, plus compile-negative targets judged on their diagnostics.
 
