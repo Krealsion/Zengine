@@ -14,8 +14,9 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# The weave-library pattern (and the load-bearing -fno-gnu-unique law) lives in
-# the top-level zengine_weave() — one definition for every package.
+# The weave-library pattern lives in the top-level zengine_weave() — one definition
+# for every package — and the reloadable-lifetime law it applies is the Loom's
+# (loom_weave_build_contract, KERN-05), not this repo's to reimplement.
 zengine_weave(snake-world-v1 world.cpp)
 zengine_weave(snake-world-v2 world.cpp)
 target_compile_definitions(snake-world-v2 PRIVATE SNAKE_WORLD_V2)

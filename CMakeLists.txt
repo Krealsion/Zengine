@@ -62,6 +62,19 @@ else()
     message(STATUS "zengine: Loom from installed package at ${loom_DIR}")
 endif()
 
+# Either path must hand over the weave-authoring surface. Checked here, out loud, rather
+# than left to surface as "Unknown CMake command" from inside zengine_weave() a hundred
+# lines later: a Loom too old to own the reloadable-weave contract is a Loom against
+# which this repo's weaves cannot be built safely, and the honest answer is to say which
+# thing is missing and why it matters — not to quietly build them without it.
+if(NOT COMMAND loom_weave_build_contract)
+    message(FATAL_ERROR
+        "zengine: this Loom does not export loom_weave_build_contract(). That function "
+        "carries the reloadable-weave build contract (KERN-05) — without it a weave's "
+        "statics can outlive the image they belong to, and unload/reload aliases freed "
+        "memory. Zengine will not build weaves against a Loom that cannot state it.")
+endif()
+
 # ---- House warnings for Zengine's own sources ------------------------------------------
 #
 # The Loom's exported loom::warnings is deliberately $<LINK_ONLY:> so its -Werror never
@@ -80,23 +93,31 @@ target_compile_options(zengine-warnings INTERFACE
 # switchboard — the kernel target is the HOST'S dependency. Every package's weaves are
 # built through this one function so the flag below is a law, not a convention.
 #
-# -fno-gnu-unique is LOAD-BEARING, not hygiene. The maker path (ZEN_SHAPE + WeaveBase)
-# instantiates loom's inline templates — schema_of<T>'s function-local statics — with
-# vague linkage, which GCC emits as STB_GNU_UNIQUE symbols. glibc resolves unique symbols
-# through a PROGRAM-WIDE table that ignores RTLD_LOCAL and can outlive a dlclose'd
-# library, so the second .so sharing a vocabulary header silently aliased the FIRST one's
-# destroyed statics: swapping the classic drawer for the block drawer crashed in
-# describe() with a use-after-free into the unloaded library's heap (ASan: freed by the
-# dlclose'd .so's static destructors). The Loom's own fixtures never hit this because
-# their schemas are hand-built in anonymous namespaces (internal linkage is never
-# unique); snake's were the first weave libraries built the maker way. -fno-gnu-unique
-# demotes the statics to ordinary vague linkage, restoring what RTLD_LOCAL already
-# promises: each library owns its own statics, whole lives, no sharing. GCC-only flag;
-# pinned by the unload-reload regression cases in the snake suite.
+# THE RELOADABLE LIFETIME IS THE LOOM'S LAW, AND IT IS THE LOOM THAT APPLIES IT.
+# loom_weave_build_contract() arrives with the package (KERN-05), and this helper
+# delegates to it. Zengine keeps only what is genuinely Zengine's: which target, which
+# source, this repo's warnings, and the no-prefix filename its hosts resolve by.
+#
+# This repo used to carry its own literal -fno-gnu-unique, because this repo is where
+# the failure was FOUND. The maker path (ZEN_SHAPE + WeaveBase) instantiates loom's
+# schema_of<T> function-local statics with vague linkage; GCC emits those as
+# STB_GNU_UNIQUE on ELF; glibc resolves unique symbols through a PROGRAM-WIDE table that
+# ignores RTLD_LOCAL and outlives dlclose — so the second .so sharing a vocabulary
+# header silently aliased the FIRST one's destroyed statics, and swapping the classic
+# drawer for the block drawer crashed in describe() with an ASan-confirmed
+# use-after-free into the unloaded library's heap. The Loom's own fixtures never hit it
+# because their schemas sit in anonymous namespaces (internal linkage is never unique);
+# snake's were the first weave libraries built the maker way.
+#
+# Finding it here was right. KEEPING it here was not: a private second implementation of
+# someone else's law means the guest who has not read this file gets nothing (COLD-1
+# F-22), and it drifts — this copy had no platform guard, so it was injecting an
+# ELF-only option into MinGW weave DLLs purely because that compiler accepts the
+# spelling. The Loom's function asks the semantic question instead.
 function(zengine_weave target source)
     add_library(${target} SHARED ${source})
     target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings)
-    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-fno-gnu-unique>)
+    loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
 

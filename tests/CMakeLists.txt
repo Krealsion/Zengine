@@ -40,7 +40,8 @@ endif()
 # ---- the suite's own weave libraries (R2B-0) ------------------------------------------
 #
 # Fixtures, built exactly the way every other weave in this repo is (zengine_weave, so
-# the -fno-gnu-unique law applies to them too), and loaded through the REAL kernel.
+# the Loom's reloadable-weave contract reaches them too), and loaded through the REAL
+# kernel.
 #
 #   zengine-timer-virtual   the shipped TimerServiceT over a clock whose nap advances
 #                           virtual time instead of sleeping. The continuity proof is a
