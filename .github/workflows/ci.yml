@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  resolve-loom:
+    name: Resolve canonical Loom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.loom.outputs.sha }}
+    steps:
+      - name: Resolve Loom main once for this run
+        id: loom
+        run: |
+          loom_sha="$(git ls-remote https://github.com/Krealsion/Loom.git refs/heads/main | awk 'NR == 1 { print $1 }')"
+          if [[ ! "$loom_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve canonical Loom main" >&2
+            exit 1
+          fi
+          echo "Canonical Loom: $loom_sha"
+          echo "sha=$loom_sha" >> "$GITHUB_OUTPUT"
+
+  zengine-linux-stranger:
+    name: Zengine / Linux / canonical Loom stranger
+    needs: resolve-loom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record toolchain
+        run: |
+          g++ --version
+          cmake --version
+          nm --version
+
+      - name: Fetch pinned canonical Loom
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          loom_source="$RUNNER_TEMP/loom-src"
+          git init "$loom_source"
+          git -C "$loom_source" remote add origin https://github.com/Krealsion/Loom.git
+          git -C "$loom_source" fetch --depth=1 origin "$LOOM_SHA"
+          git -C "$loom_source" checkout --detach FETCH_HEAD
+          test "$(git -C "$loom_source" rev-parse HEAD)" = "$LOOM_SHA"
+
+      - name: Build and install Loom to a fresh prefix
+        run: |
+          loom_prefix="$RUNNER_TEMP/loom-prefix"
+          test ! -e "$loom_prefix"
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug
+          cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
+
+      - name: Configure Zengine as a stranger
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DZEN_LOOM_DEV=OFF \
+            -DBUILD_TESTING=ON
+
+      - name: Build Zengine
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Verify Zengine
+        run: ctest --test-dir build --no-tests=error --output-on-failure
+
+  zengine-windows-stranger:
+    name: Zengine / Windows / canonical Loom stranger (advisory)
+    needs: resolve-loom
+    runs-on: windows-2025
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record selected MinGW-w64 toolchain
+        shell: pwsh
+        run: |
+          & 'C:\mingw64\bin\g++.exe' --version
+          cmake --version
+          & 'C:\mingw64\bin\nm.exe' --version
+          ninja --version
+
+      - name: Fetch pinned canonical Loom
+        shell: pwsh
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          $loomSource = Join-Path $env:RUNNER_TEMP 'loom-src'
+          git init $loomSource
+          git -C $loomSource remote add origin https://github.com/Krealsion/Loom.git
+          git -C $loomSource fetch --depth=1 origin $env:LOOM_SHA
+          git -C $loomSource checkout --detach FETCH_HEAD
+          $actual = git -C $loomSource rev-parse HEAD
+          if ($actual -ne $env:LOOM_SHA) {
+            throw "Expected Loom $env:LOOM_SHA, got $actual"
+          }
+
+      - name: Build and install kernel-full Loom to a fresh prefix
+        shell: pwsh
+        run: |
+          $loomSource = Join-Path $env:RUNNER_TEMP 'loom-src'
+          $loomBuild = Join-Path $env:RUNNER_TEMP 'loom-build'
+          $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix'
+          if (Test-Path -LiteralPath $loomPrefix) {
+            throw "Fresh Loom prefix already exists: $loomPrefix"
+          }
+          cmake -S $loomSource -B $loomBuild -G Ninja `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
+            -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
+            -DLOOM_ENABLE_WINDOWS_KERNEL=ON
+          cmake --build $loomBuild
+          cmake --install $loomBuild --prefix $loomPrefix
+
+      - name: Configure Zengine as a stranger with MinGW-w64
+        shell: pwsh
+        run: |
+          $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix'
+          cmake -S . -B build-win -G Ninja `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
+            -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
+            "-DCMAKE_PREFIX_PATH=$loomPrefix" `
+            -DZEN_LOOM_DEV=OFF `
+            -DBUILD_TESTING=ON `
+            -DZENGINE_SDL_SKIN=OFF
+
+      - name: Build Zengine
+        run: cmake --build build-win
+
+      - name: Verify Zengine
+        run: ctest --test-dir build-win --no-tests=error --output-on-failure
