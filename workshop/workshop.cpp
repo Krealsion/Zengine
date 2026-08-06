@@ -108,26 +108,6 @@ char character_of(std::int64_t scancode) {
     }
 }
 
-/// A pointer coordinate off the wire, as a cell.
-///
-/// `MouseMoved` carries doubles, and a double that does not fit an int64 makes
-/// the conversion undefined -- so the cast is BOUNDED rather than trusted. The
-/// values come from whichever weave holds the input role, and a backend is a
-/// weave like any other: this is the same widened-input-domain lesson W-1 learned
-/// one layer down, arriving here because W-2 made the pointer path load-bearing.
-/// Anything outside the clamp is far outside the canvas, which is already
-/// "nothing there" -- and NaN lands there too, deliberately, since neither
-/// comparison holds for it.
-std::int64_t cell_of(double v) {
-    if (!(v > -1000000.0)) {
-        return -1000000;
-    }
-    if (!(v < 1000000.0)) {
-        return 1000000;
-    }
-    return static_cast<std::int64_t>(v);
-}
-
 /// What the host needs from the weave and cannot get by message: the stop lever.
 struct HostContext {
     bool quit = false;
@@ -286,11 +266,10 @@ private:
     /// Two accessors and not a click object: the reconstruction is exactly what
     /// P6 costs (MouseButton carries no position, so a press's location comes
     /// from the last MouseMoved), and hiding it behind an invented "Click" type
-    /// would hide the one thing this phase is meant to measure. The offsets are
-    /// the Skin's layout convention -- the canvas starts at terminal row 3, and
-    /// the workspace one row into the canvas.
-    std::int64_t workspace_x() const { return pointer_x_ - kWorkspaceX; }
-    std::int64_t workspace_y() const { return pointer_y_ - 2 - kWorkspaceY; }
+    /// would hide the one thing this phase is meant to measure. The mapping
+    /// itself is screen.hpp's, where the suite can reach it.
+    std::int64_t workspace_x() const { return workspace_cell_x(pointer_x_); }
+    std::int64_t workspace_y() const { return workspace_cell_y(pointer_y_); }
 
     Row* editing_row() {
         for (Row& r : session_.rows) {

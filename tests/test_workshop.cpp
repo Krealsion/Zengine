@@ -994,6 +994,58 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
     CHECK(doc::find(d, id)->y == (std::numeric_limits<std::int64_t>::min)());
 }
 
+TEST_CASE("a reported pointer position survives every double the wire can carry") {
+    // MouseMoved's x/y are doubles off the bus, and `static_cast<int64_t>` of a
+    // double that does not fit is UNDEFINED -- not a wrong number, undefined. The
+    // producer is whichever weave holds the input role, so this is a value to
+    // survive rather than to trust.
+    CHECK(cell_of(12.0) == 12);
+    CHECK(cell_of(12.9) == 12); // toward zero, the cast's own rule, said out loud
+    CHECK(cell_of(-3.0) == -3);
+
+    const double inf = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    CHECK(cell_of(inf) == 1000000);
+    CHECK(cell_of(-inf) == -1000000);
+    CHECK(cell_of(1e300) == 1000000);
+    CHECK(cell_of(-1e300) == -1000000);
+    // NaN fails BOTH comparisons, so it must land somewhere by construction
+    // rather than by luck. It lands far outside any canvas, which already means
+    // "nothing there".
+    CHECK(cell_of(nan) == -1000000);
+
+    // And a clamped position is still just a cell: it hits nothing, and it
+    // cannot make the arithmetic downstream of it overflow either.
+    WorkshopDoc d;
+    doc::add(d, "one", 0, 0, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    CHECK(begin_drag(d, s, workspace_cell_x(cell_of(inf)), workspace_cell_y(cell_of(inf))) == 0);
+    CHECK(begin_drag(d, s, workspace_cell_x(cell_of(nan)), workspace_cell_y(cell_of(nan))) == 0);
+}
+
+TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
+    // The canvas starts at terminal row 3 and the workspace one row into the
+    // canvas, so a pointer on terminal row 3 is workspace row -1 and terminal row
+    // 4 is workspace row 0. An off-by-one here would select the object above the
+    // one a maker clicked, which is the kind of wrong that looks like a bug in
+    // the hit test.
+    CHECK(workspace_cell_x(0) == kWorkspaceX);
+    CHECK(workspace_cell_y(kCanvasTopRow + kWorkspaceY) == 0);
+    CHECK(workspace_cell_y(kCanvasTopRow) == -kWorkspaceY);
+
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    // The object's authored top-left (3,2) is terminal (3, 2+1+2) = (3, 5).
+    CHECK(begin_drag(d, s, workspace_cell_x(3), workspace_cell_y(5)) == id);
+    CHECK(s.drag.grab_dx == 0);
+    CHECK(s.drag.grab_dy == 0);
+    end_drag(s);
+    CHECK(begin_drag(d, s, workspace_cell_x(3), workspace_cell_y(4)) == 0); // one row above
+}
+
 TEST_CASE("canvas, object list and inspector agree after every gesture in a session") {
     // One maker's session, end to end, with the three views checked against each
     // other after each act. This is the case that would catch a gesture that
