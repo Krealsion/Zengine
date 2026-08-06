@@ -24,6 +24,17 @@
 //     plain text for a named slot. The host's status line and the score
 //     weave's tally are its first publishers.
 //
+// V2 adds the GENERAL canvas the note above promised — `SurfaceCanvas` — but
+// it does NOT dissolve the SnakeVisual coupling, and that restraint is
+// deliberate. Workshop (W-0) is the live consumer that pulled it: a maker tool
+// has to paint an authored rectangle somewhere, and the alternatives were a
+// second world beside the Skins (a Workshop-only painter) or teaching the
+// Skins a Workshop-only shape. Both are worse than one general canvas that any
+// Zengine app can publish. Re-expressing snake's own frame as a canvas is a
+// separate, evidence-carrying move (the golden frames ARE the old drawers) and
+// is not part of this addition — a general shape existing is not permission to
+// migrate a proven one through it.
+//
 // Claiming and releasing the surface are NOT messages. A Skin claims its
 // medium in its constructor and releases it in its destructor (the Input
 // package's reader move: load takes the terminal's hand, unload gives it
@@ -36,7 +47,9 @@
 
 #include <zen/weave/shape.hpp>
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::surface {
 
@@ -51,6 +64,85 @@ struct SurfaceText {
     std::string text;
     ZEN_SHAPE(SurfaceText, 1, ZEN_FIELD(slot), ZEN_FIELD(text));
 };
+
+/// The visual ROLE of a canvas element — semantic, never a colour. The Skin
+/// picks the actual ink, so one canvas reads correctly in a monochrome terminal
+/// and in a themed window and a publisher never learns which medium it landed
+/// on. (The Loom's PxRole stance, one layer down: this vocabulary DOES carry
+/// geometry, because a canvas is geometry — what it still refuses to carry is
+/// anything medium-specific. Cells, not pixels; roles, not RGB.) A role the
+/// active Skin does not know falls back to `kFill` rather than vanishing: an
+/// unknown role is still a rectangle somebody meant to be seen, and dropping it
+/// would be the silent-blank fate this house refuses. Same posture as an
+/// unknown text slot, opposite resolution — a slot has no place to go, a rect
+/// does.
+namespace role {
+inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
+inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
+inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
+inline constexpr std::int64_t kAlert = 3;  ///< something the maker must see
+} // namespace role
+
+/// One filled rectangle, in CANVAS CELLS — the canvas's own square unit, which
+/// each Skin resolves into its medium (one character column per cell in a
+/// terminal, `kCanvasCellPx` pixels in a window). A cell is the honest common
+/// unit: it is the coarsest thing a terminal can address, so a canvas authored
+/// in cells lands somewhere real in every medium instead of being pixel-exact
+/// in one and rounded into mush in the other.
+///
+/// Painter's order: `SurfaceCanvas::rects` is drawn front-to-back in list
+/// order, so a publisher expresses "behind" by publishing earlier. There is no
+/// z field and no explicit stacking policy — list order already says it, and a
+/// second way to say the same thing is how two orderings come to disagree.
+struct SurfaceRect {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+    std::int64_t role = role::kFill;
+    ZEN_SHAPE(SurfaceRect, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(role));
+};
+
+/// One run of PLAIN text anchored at a canvas cell, drawn over every rect.
+/// Plain means plain, exactly as in SurfaceText: no escapes, no markup. A Skin
+/// whose medium has no text stack simply cannot draw these, and says so in its
+/// own docs rather than pretending — the SDL skin today is that Skin.
+struct SurfaceLabel {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::string text;
+    std::int64_t role = role::kFill;
+    ZEN_SHAPE(SurfaceLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
+};
+
+/// A whole canvas: an extent in cells, filled rectangles, and text over them.
+/// The complete general drawing intent — and deliberately no more than that.
+/// It is not a layout system and not a widget tree: it carries no parent/child
+/// relationship, no anchors, no percentages, no policy. Whoever publishes it
+/// has already decided where things go; the Skin only resolves cells into its
+/// medium. That boundary is the whole reason this shape can stay this small,
+/// and the reason the Loom's geometry-free semantic tree (loom::Widget) remains
+/// a different, higher thing rather than something this competes with: that
+/// tree describes intent a renderer must LAY OUT, this describes a picture a
+/// medium must PAINT.
+///
+/// Elements outside the extent are the Skin's to clip. An empty canvas (no
+/// rects, no labels) is a legitimate picture — it means "nothing", not "no
+/// intent" — and clears whatever the previous canvas drew.
+struct SurfaceCanvas {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    std::vector<SurfaceRect> rects;
+    std::vector<SurfaceLabel> labels;
+    ZEN_SHAPE(SurfaceCanvas, 1, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
+              ZEN_FIELD(labels));
+};
+
+/// One canvas cell in a graphical medium. The terminal needs no such number —
+/// its cell IS a character — so this lives here as the one place a window-owning
+/// Skin gets the conversion, rather than each inventing its own scale.
+inline constexpr std::int64_t kCanvasCellPx = 12;
 
 /// The active Skin's hello: published exactly once per incarnation, on the
 /// first message it handles after claiming its surface (a weave runs only on

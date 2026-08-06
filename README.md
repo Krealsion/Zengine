@@ -98,7 +98,7 @@ states *which repo's green was proven*; "green" must never silently mean "green 
 delegated-scope suite still runs there, per phase. The don't-re-prove economy arrives as the
 Loom stabilizes; the structure is ready for it now.
 
-Zengine's green is six tests: the **smoke** (link the Loom's exported surface, drive a value
+Zengine's green is seven tests: the **smoke** (link the Loom's exported surface, drive a value
 through the real gate, confirm the gate **refuses** a malformed candidate — the refusal is what
 makes it a proof instead of a greeting), the **snake suite** (`tests/test_snake.cpp`) — the
 Stage 2 vertical slice proven headless: the locked contract pinned by content-id, the simulation
@@ -122,8 +122,16 @@ weave's publish path and its self-arranged beat through a real bus, and the keys
 chain through the real libraries — and the **surface suite** (`tests/test_surface.cpp`): the
 Surface package's contract by content-id, the terminal skins as golden bytes, the SDL skin's
 frame plan as pure math on every lane, the hello handshake (which now also asks for the skin's
-beat) and the one-owner rule through the real kernel, the granted-operator speaking recipe, and
-(where built) the SDL skin driven by the same intent under SDL's dummy video driver — and the
+beat) and the one-owner rule through the real kernel, the granted-operator speaking recipe, the
+general canvas as golden bytes (roles, paint order, labels over rects, clipping, the unknown-role
+fallback, and a canvas claiming the surface exactly as a board does), and (where built) the SDL
+skin driven by the same intent under SDL's dummy video driver — the **workshop suite**
+(`tests/test_workshop.cpp`): the authored shapes by content-id, identity-is-not-the-name, the
+typed property connection (a live read through the semantic surface, a commit that writes
+through it, and the two ways a commit can fail told apart with the property untouched by both),
+the one-call-per-property reuse pin, authored-versus-resolved as two facts only one of which
+moves, hit testing against the real authored objects, and whole screens asserted as
+`SurfaceCanvas` values including a live draft and a refusal — and the
 **trust-gate probes** (`tests/test_audit_probes.cpp`): a different KIND of suite, kept
 deliberately. It pins what the substrate measurably does to a live beat chain when the timer
 service itself is swapped, reloaded, double-wound, or joined late — *including where that was
@@ -181,8 +189,26 @@ The vocabulary is deliberately tiny: `SurfaceText{slot, text}` (a line of **plai
 named slot — "status", "score"; styling is the skin's business) and `SurfaceReady` (the active
 skin's hello, published once per incarnation on its first message; text publishers re-publish
 their current line on hearing it, so a fresh painter starts complete — the tally line survives
-the painter being replaced mid-game). `SnakeVisual` is the V1 canvas payload, accepted by the
-skins directly — a named coupling; the general canvas vocabulary is a later phase.
+the painter being replaced mid-game).
+
+`SurfaceCanvas{width, height, rects, labels}` is the **general** canvas: an extent in cells,
+filled `SurfaceRect`s in painter's (list) order, and `SurfaceLabel` text runs over them. Each
+element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert` — never a colour, so
+the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
+monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Cells, not
+pixels: a cell is the coarsest unit a terminal can address, so a canvas lands somewhere real in
+every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
+anchors, no percentages; whoever publishes has already decided where things go. A skin treats a
+canvas exactly as a board (same hello, same first-frame flag, same `frames` counter — it is the
+same act), an unknown role paints as `kFill` rather than vanishing, and elements outside the
+extent are the skin's to clip. The **SDL skin cannot draw labels at all** — it has no font
+stack, which is why `SurfaceText` lands in its window *title* — so a canvas whose meaning lives
+in its labels arrives there as rectangles alone.
+
+W-0 (the Workshop package) is the live consumer that pulled the canvas in. `SnakeVisual`
+remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
+re-expressing snake's proven frames through the canvas is its own evidence-carrying move, and a
+general shape existing is not permission to migrate a proven one through it.
 
 Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`** (the old
 snake drawers' looks, now living where drawing lives — the terminal medium is one header,
@@ -245,6 +271,54 @@ surface, and whose nested shapes surfaced (and pulled the completion of) the man
 documented-but-unbuilt `referenced` section (`zen.Manifest` v3). The snake targets gate on
 `if(TARGET loom::kernel)`, so a Windows Loom install still configures — the package simply
 skips.
+
+## `workshop/` — the maker-facing surface
+
+W-0's slice: a person opens Workshop, sees an ordinary authored rectangle, selects it, inspects
+a real property, changes it, and watches an invalid change refuse. It is an ordinary Zengine
+application holding no privilege snake does not — keys from the Input weave, time from the
+Timer service, painting by *publishing* a `SurfaceCanvas` to whichever skin holds
+`zengine.skin`. It touches no terminal and no window itself.
+
+- **The authored object** is a real `WorkshopRect` in the weave's own state (`vocabulary.hpp`):
+  gated, schema-carrying, `ZEN_EXPOSE`d. There is no shadow model — the rectangle a maker
+  selects *is* the one the canvas is painted from and the inspector reads through. `id` is the
+  identity and `name` is only a label, so two rectangles may share a name and stay distinct.
+- **Width and height are authored as a `WorkshopExtent`** — a mode plus an amount, `12` cells or
+  `70%` of the workspace — which is **one** property presented as one row even though it is two
+  stored fields. The **resolved** cell count is a separate, read-only row: narrowing the
+  workspace moves `Resolved` and never touches `Width`.
+- **The property connection** (`property.hpp`) is the phase's one new abstraction and is
+  deliberately Workshop-local: `Property<T>` holds a typed read and a typed write over the
+  document's *semantic* operations (`document.hpp`, where every setter can refuse), never a
+  member address; `TextForm<T>` is the text conversion written **once per type**, so `Width` and
+  `Height` share every line of it; `Row` is a type-erased inspector line carrying an editor
+  **draft** that the property never sees until commit. No reflection, no registry, no
+  persistence implication.
+- **A commit has three outcomes, not two:** accepted, *unparseable* (`banana` is not an extent),
+  and *refused* (`500%` is an extent the setter rejects, with its own reason). A maker fixes the
+  first by retyping and the second by wanting something else, so they are never collapsed. A
+  failed commit leaves the property untouched and keeps the draft, marked as a draft.
+- **The screen** (`screen.hpp`) is a pure function from document + session to `SurfaceCanvas`, so
+  the suite asserts whole screens as values. Session facts — selection, workspace extent, drafts
+  — live outside the authored state on purpose.
+- **The host** (`workshop.cpp`) owns the boot list. Its `BootWeave` holds the Manager grant and
+  **hears the answers**: a root `bus.send` of `zen.LoadWeave` has no asker, so the Manager's
+  relay forwards nothing and the load silently never happens
+  (`loom::forward_for`) — found by running it, and the reason boot answers have an addressee.
+
+Selection is by keyboard (`tab` cycles objects, `up`/`down` walks rows, `enter` edits, `esc`
+cancels, `[`/`]` resizes the workspace, `q` quits). Pointer selection is wired and
+`doc::pick` is pinned, but **the POSIX terminal backend emits no mouse events at all** and
+`MouseButton` carries no coordinates, so a click's position has to be reconstructed from the
+last `MouseMoved`. Text editing is likewise rebuilt from scancodes and is **lowercase-only**:
+the locked input vocabulary has no character and no modifier concept, and the terminal backend
+maps `A` and `a` to one scancode — so `%` cannot be typed, which is why the extent parser also
+accepts `70p`.
+
+Workshop's own weave is mounted **in-process**: nothing in W-0 asks to unload it, so the
+reloadable-weave machinery would be ceremony bought with nothing. The weaves it *loads* are
+other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
 
 ## Working in this tree
 

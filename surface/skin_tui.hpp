@@ -138,6 +138,114 @@ private:
     }
 };
 
+/// This medium's ink for each semantic canvas role. The mapping lives HERE and
+/// nowhere else — that is the whole point of shipping roles instead of colours:
+/// a publisher says "alert", the terminal says red, a themed window says
+/// whatever it likes, and neither has to agree with the other. An unknown role
+/// paints as `kFill` (vocabulary.hpp's stated fallback) rather than disappearing.
+inline const char* sgr_for_role(int role) noexcept {
+    switch (role) {
+    case 1: return "\x1b[36m";    // kAccent — cyan: the thing being pointed at
+    case 2: return "\x1b[90m";    // kMuted  — bright black: present, quiet
+    case 3: return "\x1b[31;1m";  // kAlert  — bold red: must be seen
+    default: return "\x1b[37m";   // kFill and anything unknown — plain ink
+    }
+}
+
+/// And this medium's GLYPH for each role — because colour alone would be a lie
+/// on a monochrome terminal, where four roles would paint four identical `#`s.
+/// A publisher ships intent; a medium is responsible for making that intent
+/// distinguishable in the medium it actually owns, and one character per cell is
+/// all the ink this one has. (This is the same authority the styles already
+/// exercise over snake's glyphs — it is why role is semantic and not RGB.)
+inline char glyph_for_role(int role) noexcept {
+    switch (role) {
+    case 1: return '*'; // kAccent
+    case 2: return '.'; // kMuted
+    case 3: return '!'; // kAlert
+    default: return '#'; // kFill and anything unknown
+    }
+}
+
+/// The general canvas, rasterized to the terminal: one cell = one character
+/// column, `role` = an SGR colour, labels drawn over the rects. PURE — a
+/// SurfaceCanvas in, the exact bytes out, no Sink and no terminal in sight —
+/// which is what lets the suite pin a whole Workshop screen as a golden string.
+///
+/// NOT part of a Style. The two styles are the old snake drawers' looks, ported
+/// byte-faithful, and a canvas has no drawer to be faithful to; giving it a
+/// per-style appearance now would be inventing two looks in order to have a
+/// choice nobody asked for. One canvas rasterizer, shared — and the day a
+/// canvas genuinely wants a style, THAT is when it becomes one.
+///
+/// Elements are clipped to the extent, per the vocabulary's contract: a rect
+/// hanging off the edge is drawn as much as fits, and a label is cut at the
+/// right edge on a BYTE boundary — this renderer is byte-per-cell, so a
+/// multi-byte codepoint would be split, which is why the house charset rule
+/// (plain ASCII intent) is the publisher's side of the same bargain.
+inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
+    const std::int64_t w = c.width > 0 ? c.width : 0;
+    const std::int64_t h = c.height > 0 ? c.height : 0;
+    if (w == 0 || h == 0) {
+        return {};
+    }
+    // Two parallel grids: what to draw, and in what role. Painter's order falls
+    // out of overwriting — later rects win, labels win over every rect.
+    const std::size_t cells = static_cast<std::size_t>(w * h);
+    std::string glyphs(cells, ' ');
+    std::string roles(cells, static_cast<char>(-1)); // -1 = untouched background
+
+    const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role) {
+        if (x < 0 || y < 0 || x >= w || y >= h) {
+            return;
+        }
+        const std::size_t i = static_cast<std::size_t>(y * w + x);
+        glyphs[i] = g;
+        roles[i] = static_cast<char>(role);
+    };
+
+    for (const zengine::surface::SurfaceRect& r : c.rects) {
+        const char g = glyph_for_role(static_cast<int>(r.role));
+        for (std::int64_t dy = 0; dy < r.h; ++dy) {
+            for (std::int64_t dx = 0; dx < r.w; ++dx) {
+                put(r.x + dx, r.y + dy, g, r.role);
+            }
+        }
+    }
+    for (const zengine::surface::SurfaceLabel& l : c.labels) {
+        for (std::size_t i = 0; i < l.text.size(); ++i) {
+            put(l.x + static_cast<std::int64_t>(i), l.y, l.text[i], l.role);
+        }
+    }
+
+    std::string out;
+    out.reserve(cells * 3);
+    for (std::int64_t y = 0; y < h; ++y) {
+        out += "\x1b[2K";
+        // The role whose SGR is in effect, starting at a value NO role and not
+        // even the background can equal -- so the first cell of every row always
+        // states its own ink. With -1 here (the background's own marker) a row
+        // that begins with untouched background emitted no SGR at all and drew in
+        // whatever the terminal happened to be wearing: the canvas would have
+        // been describing a picture it did not fully determine.
+        int open = -2;
+        for (std::int64_t x = 0; x < w; ++x) {
+            const std::size_t i = static_cast<std::size_t>(y * w + x);
+            const int role = static_cast<int>(roles[i]);
+            if (role != open) {
+                out += role < 0 ? "\x1b[0m" : sgr_for_role(role);
+                open = role;
+            }
+            out += glyphs[i];
+        }
+        if (open >= 0) {
+            out += "\x1b[0m";
+        }
+        out += "\r\n";
+    }
+    return out;
+}
+
 /// The terminal layout — the shared convention, now in exactly one place:
 /// rows 1 and 2 are the "status" and "score" slots, the canvas starts at row
 /// 3 and claims everything below it on the Skin's first frame. Slots the
@@ -154,6 +262,18 @@ public:
             out += "\x1b[0J";
         }
         out += Style::board(v);
+        sink_.write(out);
+    }
+
+    /// A canvas lands in exactly the same place a board does — the canvas rows
+    /// from row 3 down, claimed on the first frame. Same layout convention, one
+    /// different body.
+    void canvas(const zengine::surface::SurfaceCanvas& c, bool first) {
+        std::string out = "\x1b[3;1H";
+        if (first) {
+            out += "\x1b[0J";
+        }
+        out += canvas_body(c);
         sink_.write(out);
     }
 
