@@ -478,18 +478,40 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
 }
 
 TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a picture") {
+    // THE RIGHT-EDGE CLIP IS THE OBSERVABLE ONE, so this canvas is three rows
+    // tall on purpose. The grid is row-major, so an unclipped write past the
+    // right edge does not fall off the end -- it lands at the START OF THE NEXT
+    // ROW, which is visible. (The BOTTOM-edge clip cannot be shown this way: a
+    // write below the extent goes to cells nothing renders, so there the guard is
+    // memory safety rather than appearance. The sanitizer lane is what watches
+    // that one; a mutation to the y-bound alone is green here and says so.)
     SurfaceCanvas c;
-    c.width = 3;
-    c.height = 1;
-    // A rect and a label both hanging off every edge: what fits is drawn, the
-    // rest is the medium's to clip, and nothing writes out of bounds.
-    c.rects.push_back(SurfaceRect{-2, -2, 4, 4, role::kFill});
-    c.labels.push_back(SurfaceLabel{2, 0, "long", role::kAccent});
+    c.width = 4;
+    c.height = 3;
+    // A rect hanging off the LEFT and TOP, and one hanging off the RIGHT.
+    c.rects.push_back(SurfaceRect{-2, -1, 3, 2, role::kFill});
+    c.rects.push_back(SurfaceRect{2, 0, 4, 1, role::kMuted});
+    // A label running off the right edge, on its own row.
+    c.labels.push_back(SurfaceLabel{2, 1, "abcd", role::kAccent});
+    // And one hanging off the BOTTOM. It contributes nothing a reader can see --
+    // that is the point of it. It exists so that the bottom-edge guard has
+    // something to guard against in this suite's data at all: without an element
+    // down here, deleting that guard is not merely invisible, it is INERT, and a
+    // sanitizer lane would have nothing to catch either.
+    c.rects.push_back(SurfaceRect{0, 2, 2, 3, role::kAlert});
 
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(c, /*first=*/false);
-    CHECK(m.sink().out == "\x1b[3;1H"
-                          "\x1b[2K\x1b[37m##\x1b[36ml\x1b[0m\r\n");
+    CHECK(m.sink().out ==
+          "\x1b[3;1H"
+          // row 0: the first rect's surviving cell at x=0, then the second's two.
+          "\x1b[2K\x1b[37m#\x1b[0m \x1b[90m..\x1b[0m\r\n"
+          // row 1: NOTHING wrapped here from row 0's overflow -- two background
+          // cells, then the label's two surviving characters.
+          "\x1b[2K\x1b[0m  \x1b[36mab\x1b[0m\r\n"
+          // row 2: the bottom rect's ONE surviving row, and nothing wrapped from
+          // row 1's label.
+          "\x1b[2K\x1b[31;1m!!\x1b[0m  \r\n");
 
     // An extent of nothing produces no rows at all -- and does not crash, which
     // is the half of this case that matters.

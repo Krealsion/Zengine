@@ -227,6 +227,13 @@ TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with i
     CHECK(row.commit() == Commit::Refused);
     CHECK(row.refusal() == "a share is 1% to 100%");
     CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60});
+    // The draft survives a REFUSAL too, not only an unparseable draft -- both
+    // failures leave the maker looking at what they typed, so both are pinned.
+    // (A mutation that cleared the draft here was green until this line.)
+    CHECK(row.editing());
+    CHECK(row.draft() == "500%");
+    CHECK(row.display() == "500%_");
+    CHECK(row.value() == "60%");
 
     // Zero cells is the other half of the same invariant, through the same row.
     row.cancel();
@@ -238,6 +245,44 @@ TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with i
     CHECK(row.commit() == Commit::Refused);
     CHECK(row.refusal() == "at least 1 cell");
     CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60});
+}
+
+TEST_CASE("an unparseable draft writes nothing even where a default WOULD be accepted") {
+    // The sharp version of the previous case, and the one a mutation found
+    // missing. On Width, a commit that wrongly wrote a default-constructed value
+    // is INVISIBLE: the default extent is 0 cells, which set_width refuses
+    // anyway, so the setter masks the bug. X has no such luck -- 0 is a
+    // perfectly legal position -- so this is where "an unparseable draft does
+    // not write" is actually observable.
+    WorkshopDoc d = two_panels();
+    const std::int64_t id = d.rects[0].id;
+    REQUIRE(d.rects[0].x == 3);
+
+    Row row = Row::edit("X", doc::x_of(d, id));
+    row.begin();
+    row.backspace();
+    type_all(row, "banana");
+
+    CHECK(row.commit() == Commit::Unparseable);
+    CHECK(d.rects[0].x == 3); // not 0, and not anything else
+    CHECK(row.draft() == "banana");
+    CHECK(row.value() == "3");
+
+    // And the whole-number form's own edges, on the same row.
+    row.cancel();
+    row.begin();
+    row.backspace();
+    type_all(row, "-1");
+    CHECK(row.commit() == Commit::Refused); // parses; the setter refuses it
+    CHECK(row.refusal() == "the workspace starts at 0");
+    CHECK(d.rects[0].x == 3);
+
+    row.cancel();
+    row.begin();
+    row.backspace();
+    type_all(row, "0");
+    CHECK(row.commit() == Commit::Accepted); // 0 IS a legal position
+    CHECK(d.rects[0].x == 0);
 }
 
 TEST_CASE("cancel abandons the draft and never touched the property") {

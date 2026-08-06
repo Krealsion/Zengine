@@ -43,6 +43,7 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace zengine::surface {
 
@@ -191,9 +192,17 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     }
     // Two parallel grids: what to draw, and in what role. Painter's order falls
     // out of overwriting — later rects win, labels win over every rect.
+    // std::vector<char>, not std::string, and the reason is testability rather
+    // than taste. A below-extent write is invisible to the golden bytes by
+    // construction (the render loop reads only in-range cells), so the bottom-edge
+    // guard can only ever be watched by a sanitizer — and a std::string keeps
+    // spare capacity, so the slip landed inside its own allocation and ASan stayed
+    // green too (measured, with the guard deleted). A sized vector allocates what
+    // it was asked for, so the same slip becomes a real heap overflow. The guard
+    // below is the correctness; this is what lets anything prove it is still there.
     const std::size_t cells = static_cast<std::size_t>(w * h);
-    std::string glyphs(cells, ' ');
-    std::string roles(cells, static_cast<char>(-1)); // -1 = untouched background
+    std::vector<char> glyphs(cells, ' ');
+    std::vector<char> roles(cells, static_cast<char>(-1)); // -1 = untouched background
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
