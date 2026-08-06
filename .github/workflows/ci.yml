@@ -79,19 +79,24 @@ jobs:
       - name: Build Zengine
         run: cmake --build build --parallel "$(nproc)"
 
-      - name: Verify Zengine
+      # The repository-owned lane, not a bare ctest: it also requires that the CTest
+      # inventory match tests/test_population.txt, that every doctest surface clear
+      # its case floor, and that each of them still refuse an empty population. No
+      # expected counts live in this file -- they live in the manifest, which is what
+      # keeps them out of reach of an edit that deletes a registration (COLD-2 C-4).
+      - name: Verify the repository-owned population
         run: |
           set +e
-          ctest --test-dir build --no-tests=error --output-on-failure 2>&1 | tee verify.log
+          cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake 2>&1 | tee verify.log
           verify_rc="${PIPESTATUS[0]}"
           verify_outcome=failed
           if (( verify_rc == 0 )); then verify_outcome=passed; fi
           {
             printf '## Zengine / Linux / canonical Loom stranger\n\n'
             printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
-            printf 'Selected lines from the current CTest output:\n\n'
+            printf 'Selected lines from the repository verifier and CTest output:\n\n'
             printf '```text\n'
-            grep -E '[0-9]+% tests passed|test cases:|assertions:|Total Test time' verify.log || true
+            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time' verify.log || true
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
@@ -164,5 +169,9 @@ jobs:
       - name: Build Zengine
         run: cmake --build build-win
 
-      - name: Verify Zengine
-        run: ctest --test-dir build-win --no-tests=error --output-on-failure
+      # Advisory, and it verifies the same repository-owned population -- with the
+      # `sdl` gate off, so `surface` is contractually 16 cases here and 17 on Linux.
+      # That difference is declared in tests/test_population.txt, not absorbed into a
+      # slack floor, so advisory green means the same test-population thing.
+      - name: Verify the repository-owned population
+        run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake

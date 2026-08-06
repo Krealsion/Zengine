@@ -1,0 +1,83 @@
+# The Zengine test-population contract (C4, closing COLD-2 C-4).
+#
+# This file is the EXPECTATION half of "green means the population Zengine meant to run
+# actually ran". It is read by tests/check_population.cmake, which the official lane
+# tests/verify.cmake runs before it runs anything else.
+#
+# WHY IT IS A FILE AND NOT A DERIVATION. Everything else in a build knows what exists; only
+# a written expectation knows what is MISSING. Delete `zengine_doctest_test(input ...)` from
+# tests/CMakeLists.txt and CTest, the build tree, and every derived list agree instantly that
+# there are nine entries and all nine passed -- which is exactly what COLD-2 measured
+# (10/10 green after a whole TEST_CASE was deleted; exit 0 after a filter selected nothing).
+# A list that is generated from the registrations cannot notice a registration that is gone.
+# So this list is not generated from them, and removing one is a red.
+#
+# THE CONTRACT IS THREE CLAIMS, all fail-closed:
+#
+#   1. INVENTORY, exact.  For the gates active in this configuration, the set of entries
+#      named here must equal, exactly, the set `ctest -N` reports. A missing entry fails; an
+#      entry registered and never declared here fails too, and both are named. Adding or
+#      renaming a CTest entry is therefore a deliberate act with a line in this file.
+#
+#   2. KIND.  Each entry's declared kind must match what the registration recorded about
+#      itself, because the kind decides which population question is even meaningful. A
+#      compile-negative test has no test cases to count and no floor is invented for it.
+#
+#   3. THE PER-KIND CONTRACT.  Below.
+#
+# THE KINDS, and what `detail` means for each:
+#
+#   doctest           A runtime doctest binary. `detail` is a per-suite case FLOOR: the
+#                     binary must select at least that many test cases. Floors, never
+#                     assertion totals -- ~2,450 assertions is evidence to report, not a
+#                     population, and it is not coverage.
+#
+#   compile-negative  A compilation that MUST fail, judged on its diagnostic. `detail` is the
+#                     exact PASS_REGULAR_EXPRESSION the registration must carry. Pinned here
+#                     rather than merely observed, because "the compiler returned non-zero,
+#                     therefore PASS" is the degradation these tests exist to avoid, and it
+#                     is one deleted property away.
+#
+#   compile-positive  The control: the same fixture with the offence removed, which must
+#                     BUILD. `detail` is empty, and the registration must carry no
+#                     diagnostic pattern -- judging this one on output would let a fixture
+#                     that never compiled satisfy it.
+#
+#   program           An ordinary program with no doctest population (the smoke test). The
+#                     contract is that the entry exists, the binary exists, and CTest still
+#                     runs the real command. No case count is invented for it.
+#
+# FLOORS ARE MINIMUMS, and the numbers below are the C4 measured baseline, so they carry ZERO
+# downward slack -- deleting a single test case from any suite crosses its floor -- while
+# leaving healthy ADDITIONS free, which is the traffic this repository actually generates.
+# Raise a floor when a phase's new cases should become permanent. Do not lower one to make a
+# deletion green: a deliberate decrease in evidence is a reviewed edit to this file.
+#
+# `gate` says WHY a row may be legitimately inactive -- a conditional subpopulation stated
+# explicitly instead of hidden behind a slack floor:
+#
+#   always  every supported test configuration has it; absence is always a defect.
+#   sdl     rides `TARGET zengine-skin-sdl` (ZENGINE_SDL_SKIN=ON, the default; the Windows
+#           stranger lane turns it off). Absent => declared absent, never "passed".
+#
+# An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
+# is active: `surface` is 16 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
+# (test_surface.cpp:754-785, the SDL skin driven under the dummy video driver), so its
+# contract reads 17 where the skin is built and 16 where it is not, and neither number has
+# any give in it.
+#
+# Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
+# a string terminator and would silently split the line around it.
+#
+# entry                           kind              gate    detail
+smoke                             program           always
+snake                             doctest           always  22
+timer                             doctest           always  78
+input                             doctest           always  13
+surface                           doctest           always  16
+surface                           doctest           sdl     1
+audit_probes                      doctest           always  4
+timer_raw_activation_refused      compile-negative  always  on_timed_activation
+timer_activation_hook_compiles    compile-positive  always
+timer_missing_using_refused       compile-negative  always  using TimedWeave::on
+timer_cursor_bypass_refused       compile-negative  always  discards qualifiers

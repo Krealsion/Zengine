@@ -27,7 +27,8 @@
 // the whole chain through the real host — stated here so the suite's green
 // means exactly what it says.
 
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+// main() and the framework live in doctest_main.cpp -- the shared one that
+// refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "input/input_weave.hpp"

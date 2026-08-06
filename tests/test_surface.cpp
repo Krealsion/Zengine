@@ -31,7 +31,8 @@
 // and the real window in the live runs. Stated so this green means exactly
 // what it says.
 
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+// main() and the framework live in doctest_main.cpp -- the shared one that
+// refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "surface/skin.hpp"

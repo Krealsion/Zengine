@@ -35,7 +35,7 @@ cmake --install build --prefix "$PWD/build/_install"
 # in Zen/Zengine — consume it
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
 cmake --build build -j"$(nproc)"
-ctest --test-dir build
+cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake
 ```
 
 **The dev override — the sibling path** (`-DZEN_LOOM_DEV=ON`): `add_subdirectory(../Loom)`,
@@ -45,7 +45,7 @@ for editing the two trees together without an install round-trip:
 # Linux / WSL
 cmake -S . -B build-dev -DZEN_LOOM_DEV=ON
 cmake --build build-dev -j"$(nproc)"
-ctest --test-dir build-dev
+cmake -DZEN_BUILD_DIR=build-dev -P tests/verify.cmake
 ```
 
 On **Windows** (MinGW), the dev override is also the turnkey path, because it is the one that
@@ -59,7 +59,7 @@ on `PATH` (or beside the binaries) to run.
 # Windows / MinGW — one flag more than it used to be, on purpose
 cmake -S . -B build-win -G Ninja -DZEN_LOOM_DEV=ON
 cmake --build build-win
-ctest --test-dir build-win
+cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 ```
 
 Both paths expose the **same target names** (`loom::core`, `loom::switchboard`,

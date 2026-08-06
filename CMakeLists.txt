@@ -141,6 +141,90 @@ endfunction()
 # both halves: tests-on refuses, tests-off builds.
 option(BUILD_TESTING "Build Zengine's test suites (they require a Loom exporting loom::kernel)" ON)
 
+# ---- Every registered test says what kind of evidence it is (C4 / POP-01) ---------------
+#
+# Zengine's official verification lane is
+#
+#     cmake -DZEN_BUILD_DIR=<build> -P tests/verify.cmake
+#
+# and its first question is not "did the tests pass" but "is the population that ran the
+# population this repository meant to run". Answering that needs THREE independent sources,
+# and these helpers are one of them:
+#
+#   tests/test_population.txt   what MUST be registered. Source-owned, so deleting a
+#                               registration cannot delete the expectation with it.
+#   `ctest -N`                  what IS registered. CTest's own answer.
+#   the record written below    what each registration DECLARED ITSELF TO BE -- a doctest
+#                               binary with a case floor, a compile-negative test judged on
+#                               a diagnostic, its positive control, or a plain program.
+#
+# A CTest entry cannot be a semantic surface here without going through one of these, because
+# the verifier refuses an entry it finds registered and unrecorded. That is the point: the
+# kind is what decides which population question is even askable (a compile-negative test has
+# no test cases to count, and inventing a case floor for it would be a number that means
+# nothing). COLD-2 C-4 measured what the absence cost -- deleting a whole TEST_CASE from
+# test_input.cpp left `ctest --no-tests=error` reporting 10/10.
+#
+# The record is a build-tree file, written once after every subdirectory has registered, and
+# it is deliberately NOT the expectation. It describes; test_population.txt requires.
+
+function(zengine_record_test entry kind)
+    set_property(GLOBAL APPEND_STRING PROPERTY ZENGINE_TEST_RECORD
+                 "set(ZENGINE_KIND_${entry} \"${kind}\")\n")
+    foreach(line IN LISTS ARGN)
+        set_property(GLOBAL APPEND_STRING PROPERTY ZENGINE_TEST_RECORD "${line}\n")
+    endforeach()
+endfunction()
+
+# A doctest-bearing runtime binary: the population question is "how many cases did it
+# select", and the answer must clear the floor test_population.txt declares for it.
+function(zengine_doctest_test entry target)
+    add_test(NAME ${entry} COMMAND ${target})
+    zengine_record_test(${entry} doctest "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+endfunction()
+
+# A plain program with no doctest population -- today, the smoke test. The contract is that
+# the entry exists and CTest still runs the real command; there are no cases to count and
+# none are invented for it.
+function(zengine_program_test entry target)
+    add_test(NAME ${entry} COMMAND ${target})
+    zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+endfunction()
+
+# A compile-judged test: it builds an EXCLUDE_FROM_ALL fixture and reads the compiler.
+#
+#   zengine_compile_test(<entry> <target> <required diagnostic>)  the negative case
+#   zengine_compile_test(<entry> <target>)                        its positive control
+#
+# The diagnostic is what makes a compile-negative test evidence rather than an observation
+# that something failed to build: CTest's PASS_REGULAR_EXPRESSION judges the OUTPUT, so a
+# build that broke for an unrelated reason does not read as a proof, and a fixture that
+# started compiling cleanly fails for producing no diagnostic at all. This helper is the only
+# way to register one here, so "is the diagnostic still being judged" becomes a fact the
+# build records and the verifier can require -- COLD-2 credited these tests for judging the
+# diagnostic, and C4's job is to keep them from silently degrading into
+# `the compiler returned non-zero, therefore PASS`.
+function(zengine_compile_test entry target)
+    add_test(NAME ${entry}
+             COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${target})
+    set(diagnostic "")
+    if(ARGC GREATER 2)
+        set(diagnostic "${ARGV2}")
+    endif()
+    if(diagnostic STREQUAL "")
+        zengine_record_test(${entry} compile-positive)
+    else()
+        set_tests_properties(${entry} PROPERTIES PASS_REGULAR_EXPRESSION "${diagnostic}")
+        # The record is read back as CMake source, so a backslash or a quote inside a
+        # diagnostic pattern must survive the round trip intact.
+        string(REPLACE "\\" "\\\\" quoted "${diagnostic}")
+        string(REPLACE "\"" "\\\"" quoted "${quoted}")
+        zengine_record_test(${entry} compile-negative
+                            "set(ZENGINE_DIAGNOSTIC_${entry} \"${quoted}\")")
+    endif()
+endfunction()
+
+
 # ---- The consumers --------------------------------------------------------------------
 #
 # smoke: the minimal stranger (links only the exported surface; its refusal test is the
@@ -167,8 +251,27 @@ add_subdirectory(snake)
 
 if(BUILD_TESTING)
     enable_testing()
+
+    # `always` is the gate every supported test configuration carries; the subdirectories
+    # append the conditional ones (today: `sdl`). A gate is how a population that is
+    # legitimately absent gets DECLARED absent instead of quietly lowering a floor.
+    set_property(GLOBAL PROPERTY ZENGINE_ACTIVE_GATES "always")
+
     add_subdirectory(smoke)
     add_subdirectory(tests)
+
+    # The build tree's record of what it registered, for tests/verify.cmake. It is written
+    # here, once, after every subdirectory has had its say -- and it is a DESCRIPTION. The
+    # requirement lives in tests/test_population.txt, in the source tree, where deleting a
+    # registration cannot reach it.
+    get_property(zengine_active_gates GLOBAL PROPERTY ZENGINE_ACTIVE_GATES)
+    get_property(zengine_test_record GLOBAL PROPERTY ZENGINE_TEST_RECORD)
+    file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/zengine-test-population.cmake" CONTENT
+"# GENERATED AT CONFIGURE TIME by Zengine/CMakeLists.txt. Do not edit; do not commit.
+# What this build actually registered, and what each entry declared itself to be.
+# Read by tests/verify.cmake, which requires it to agree with tests/test_population.txt.
+set(ZENGINE_ACTIVE_GATES \"${zengine_active_gates}\")
+${zengine_test_record}")
 else()
     message(STATUS "zengine: BUILD_TESTING=OFF — library targets only, no suites registered")
 endif()
