@@ -102,6 +102,11 @@ struct FakeMedium {
     void frame(const SnakeVisual& v, bool first) {
         log->push_back("frame w=" + std::to_string(v.width) + " first=" + (first ? "1" : "0"));
     }
+    void canvas(const SurfaceCanvas& c, bool first) {
+        log->push_back("canvas w=" + std::to_string(c.width) + " rects=" +
+                       std::to_string(c.rects.size()) + " labels=" +
+                       std::to_string(c.labels.size()) + " first=" + (first ? "1" : "0"));
+    }
     void note(std::string_view slot, std::string_view text) {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
     }
@@ -335,6 +340,38 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
           SchemaBuilder("PumpSurface", 1).build()->content_id());
 }
 
+TEST_CASE("contract: the canvas shapes derive their declared spellings exactly") {
+    using loom::Kind;
+    using loom::SchemaBuilder;
+    const auto rect = SchemaBuilder("SurfaceRect", 1)
+                          .field("x", Kind::Int)
+                          .field("y", Kind::Int)
+                          .field("w", Kind::Int)
+                          .field("h", Kind::Int)
+                          .field("role", Kind::Int)
+                          .build();
+    CHECK(schema_of<SurfaceRect>()->content_id() == rect->content_id());
+
+    const auto label = SchemaBuilder("SurfaceLabel", 1)
+                           .field("x", Kind::Int)
+                           .field("y", Kind::Int)
+                           .field("text", Kind::Text)
+                           .field("role", Kind::Int)
+                           .build();
+    CHECK(schema_of<SurfaceLabel>()->content_id() == label->content_id());
+
+    // The canvas carries lists of the two above, so its identity depends on
+    // theirs -- which is the property that makes a drift anywhere in this
+    // vocabulary a red here rather than a surprise on a wire.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 1)
+                            .field("width", Kind::Int)
+                            .field("height", Kind::Int)
+                            .list("rects", loom::type_message(rect))
+                            .list("labels", loom::type_message(label))
+                            .build();
+    CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
+}
+
 // ============================================================================
 // Tier 2 — the terminal medium as golden bytes
 // ============================================================================
@@ -409,6 +446,80 @@ TEST_CASE("golden: text slots land on their rows; unknown slots are dropped") {
     m.sink().out.clear();
     m.note("weather", "sunny");
     CHECK(m.sink().out.empty());
+}
+
+TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, labels over rects") {
+    SurfaceCanvas c;
+    c.width = 6;
+    c.height = 3;
+    // Painter's order is list order: the muted backdrop first, the fill over it.
+    c.rects.push_back(SurfaceRect{0, 0, 6, 3, role::kMuted});
+    c.rects.push_back(SurfaceRect{1, 1, 3, 1, role::kFill});
+    // A label wins over every rect it crosses.
+    c.labels.push_back(SurfaceLabel{2, 1, "ab", role::kAlert});
+
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.canvas(c, /*first=*/true);
+    // One SGR per RUN, not per cell: the ink changes only where the role does
+    // (`ab` is one run of two characters), and a row ends by putting the terminal
+    // back where it found it.
+    CHECK(m.sink().out ==
+          "\x1b[3;1H\x1b[0J"
+          "\x1b[2K\x1b[90m......\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m.\x1b[37m#\x1b[31;1mab\x1b[90m..\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m......\x1b[0m\r\n");
+
+    // Steady state drops only the erase-below: the same layout convention a
+    // board follows, so a canvas and a frame claim the surface identically.
+    m.sink().out.clear();
+    m.canvas(c, /*first=*/false);
+    CHECK(m.sink().out.rfind("\x1b[3;1H\x1b[2K", 0) == 0);
+    CHECK(m.sink().out.find("\x1b[0J") == std::string::npos);
+}
+
+TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a picture") {
+    SurfaceCanvas c;
+    c.width = 3;
+    c.height = 1;
+    // A rect and a label both hanging off every edge: what fits is drawn, the
+    // rest is the medium's to clip, and nothing writes out of bounds.
+    c.rects.push_back(SurfaceRect{-2, -2, 4, 4, role::kFill});
+    c.labels.push_back(SurfaceLabel{2, 0, "long", role::kAccent});
+
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.canvas(c, /*first=*/false);
+    CHECK(m.sink().out == "\x1b[3;1H"
+                          "\x1b[2K\x1b[37m##\x1b[36ml\x1b[0m\r\n");
+
+    // An extent of nothing produces no rows at all -- and does not crash, which
+    // is the half of this case that matters.
+    SurfaceCanvas empty;
+    TuiMedium<ClassicStyle, StringSink> m2;
+    m2.canvas(empty, /*first=*/false);
+    CHECK(m2.sink().out == "\x1b[3;1H");
+
+    // An extent with nothing IN it clears its rows: "nothing" is a picture. The
+    // leading reset is load-bearing -- a background row states its own ink rather
+    // than drawing in whatever the terminal was already wearing.
+    SurfaceCanvas blank;
+    blank.width = 2;
+    blank.height = 1;
+    TuiMedium<ClassicStyle, StringSink> m3;
+    m3.canvas(blank, /*first=*/false);
+    CHECK(m3.sink().out == "\x1b[3;1H\x1b[2K\x1b[0m  \r\n");
+}
+
+TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
+    SurfaceCanvas c;
+    c.width = 2;
+    c.height = 1;
+    c.rects.push_back(SurfaceRect{0, 0, 2, 1, 99}); // a role no Skin knows
+
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.canvas(c, /*first=*/false);
+    // Drawn, in kFill's ink and glyph: vocabulary.hpp's stated fallback, and the
+    // opposite resolution from an unknown text slot (which has no row to go to).
+    CHECK(m.sink().out == "\x1b[3;1H\x1b[2K\x1b[37m##\x1b[0m\r\n");
 }
 
 // ============================================================================
@@ -492,6 +603,37 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     CHECK(log[1] == "note status=up");
     CHECK(log[2] == "frame w=4 first=0");
     CHECK(hellos == 1); // once per incarnation, not per message
+}
+
+TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    int hellos = 0;
+    const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    (void)loom::mount<ReadyEars>(bus, hellos);
+
+    SurfaceCanvas c;
+    c.width = 8;
+    c.height = 2;
+    c.rects.push_back(SurfaceRect{0, 0, 2, 2, role::kFill});
+    c.labels.push_back(SurfaceLabel{3, 0, "hi", role::kAccent});
+
+    bus.send(skin, loom::Message(loom::to_value(c)));
+    bus.pump();
+    REQUIRE(log.size() == 1);
+    CHECK(log[0] == "canvas w=8 rects=1 labels=1 first=1");
+    CHECK(hellos == 1); // a canvas claims the surface exactly as a board does
+
+    // The SAME counter: a second painted thing is not a first one, whichever
+    // intent produced it. This is what makes `frames == 0` a usable
+    // claim-the-surface signal for a medium that sees both.
+    bus.send(skin, loom::Message(loom::to_value(small_visual())));
+    bus.send(skin, loom::Message(loom::to_value(c)));
+    bus.pump();
+    REQUIRE(log.size() == 3);
+    CHECK(log[1] == "frame w=4 first=0");
+    CHECK(log[2] == "canvas w=8 rects=1 labels=1 first=0");
+    CHECK(hellos == 1);
 }
 
 TEST_CASE("the pump is execution time: serviced, counted, and an honest first hello") {

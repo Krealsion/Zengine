@@ -8,6 +8,7 @@
 // move, pointed at output). A Medium is anything with:
 //
 //   void frame(const zengine::snake::SnakeVisual&, bool first);
+//   void canvas(const SurfaceCanvas&, bool first);
 //   void note(std::string_view slot, std::string_view text);
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
@@ -39,6 +40,14 @@ namespace zengine::surface {
 /// Two honest counters, poke-inspectable like any state: frames painted and
 /// text notes delivered (delivered, not necessarily rendered — a slot the
 /// Medium doesn't know is dropped there, and the golden tests pin which).
+///
+/// `frames` counts EVERY painted frame, whether the intent behind it was a
+/// SnakeVisual or a SurfaceCanvas — it is the same act, so it gets the same
+/// counter, the argument `pumps` already makes for PumpSurface and TimerFired.
+/// It is also load-bearing rather than decorative: `frames == 0` is what tells
+/// a Medium that the frame it is being handed is the FIRST one and the surface
+/// still has to be claimed. No new field, so no shape version bump and no
+/// change to what a poke of a Skin returns.
 struct SkinState {
     std::int64_t frames = 0;
     std::int64_t texts = 0;
@@ -49,8 +58,8 @@ struct SkinState {
 
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
-                                     loom::Accept<zengine::snake::SnakeVisual, SurfaceText,
-                                                  PumpSurface, loom::Activated,
+                                     loom::Accept<zengine::snake::SnakeVisual, SurfaceCanvas,
+                                                  SurfaceText, PumpSurface, loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
                                      loom::Emit<SurfaceReady, zengine::timer::StartRoleTimer>> {
@@ -61,6 +70,17 @@ public:
     void on(const zengine::snake::SnakeVisual& v, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.frame(v, this->state_.frames == 0);
+        ++this->state_.frames;
+    }
+
+    /// The general canvas — the same act as a frame, from general intent
+    /// instead of snake's. Deliberately the identical three lines: announce,
+    /// delegate, count. Nothing about a canvas is more privileged than a
+    /// SnakeVisual, and the shell would be lying about that if it treated one
+    /// specially.
+    void on(const SurfaceCanvas& c, loom::Mail& mail) {
+        announce_surface_once(mail);
+        medium_.canvas(c, this->state_.frames == 0);
         ++this->state_.frames;
     }
 

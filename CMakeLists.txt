@@ -238,11 +238,15 @@ endfunction()
 # Surface package — visual intent in, output out (the skins own every terminal row and
 # window pixel; consumers only publish). snake: the first game panel — the Stage 2
 # vertical slice, and the hosting consumer that pulled loom::kernel onto the Loom's
-# export surface; consumer of the floors, owner of no platform edge. tests: the Zengine
+# export surface; consumer of the floors, owner of no platform edge. workshop: the
+# maker-facing surface — the second hosting consumer, and the one that pulled the
+# Surface package's general canvas; it authors real objects and paints them by
+# publishing intent, holding no privilege snake does not. tests: the Zengine
 # suites (the smoke test stays its own tiny proof; the others drive the real .so weaves
 # through the real kernel). Order matters only where vocabulary flows: activation's
 # interface target must exist before the packages that read an activation, timer's before
-# input/surface consume it, and theirs before snake.
+# input/surface consume it, theirs before snake, and snake's skins before workshop
+# stages copies of them.
 #
 # smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
 # themselves do not, and each still makes its own honest kernel decision.
@@ -252,6 +256,7 @@ add_subdirectory(timer)
 add_subdirectory(input)
 add_subdirectory(surface)
 add_subdirectory(snake)
+add_subdirectory(workshop)
 
 if(BUILD_TESTING)
     enable_testing()

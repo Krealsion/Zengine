@@ -246,6 +246,25 @@ if(TARGET zengine-skin-sdl)
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
+# The Workshop suite: the maker-facing surface, proven headless. The typed
+# property connection (read, commit, the two ways a commit fails), the document's
+# refusals, the authored-versus-resolved split, hit testing against the real
+# authored objects, and whole screens asserted as SurfaceCanvas values.
+#
+# It links no weave library and defines no _SO path, which is the honest shape of
+# what W-0 built: Workshop's own weave is mounted in-process, so there is no
+# artifact of Workshop's for the kernel to load. What it does need is the surface
+# vocabulary and the terminal rasterizer, because the last case runs a real
+# painted screen through the medium's own pure function.
+add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
+target_link_libraries(zengine-workshop-tests
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
+            zengine-surface-vocabulary zengine-warnings)
+target_include_directories(zengine-workshop-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(workshop zengine-workshop-tests)
+
 # The Trust-Gate liveness probes: what the substrate actually does when the
 # TIMER SERVICE ITSELF is swapped / reloaded / double-wound / joined late. The
 # durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —

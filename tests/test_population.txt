@@ -47,11 +47,12 @@
 #                     contract is that the entry exists, the binary exists, and CTest still
 #                     runs the real command. No case count is invented for it.
 #
-# FLOORS ARE MINIMUMS, and the numbers below are the C4 measured baseline, so they carry ZERO
-# downward slack -- deleting a single test case from any suite crosses its floor -- while
-# leaving healthy ADDITIONS free, which is the traffic this repository actually generates.
-# Raise a floor when a phase's new cases should become permanent. Do not lower one to make a
-# deletion green: a deliberate decrease in evidence is a reviewed edit to this file.
+# FLOORS ARE MINIMUMS, and the numbers below are a MEASURED baseline (C4's, raised by W-0
+# where that phase's cases should become permanent), so they carry ZERO downward slack --
+# deleting a single test case from any suite crosses its floor -- while leaving healthy
+# ADDITIONS free, which is the traffic this repository actually generates. Raise a floor when
+# a phase's new cases should become permanent. Do not lower one to make a deletion green: a
+# deliberate decrease in evidence is a reviewed edit to this file.
 #
 # `gate` says WHY a row may be legitimately inactive -- a conditional subpopulation stated
 # explicitly instead of hidden behind a slack floor:
@@ -61,9 +62,9 @@
 #           stranger lane turns it off). Absent => declared absent, never "passed".
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
-# is active: `surface` is 16 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
-# (test_surface.cpp:754-785, the SDL skin driven under the dummy video driver), so its
-# contract reads 17 where the skin is built and 16 where it is not, and neither number has
+# is active: `surface` is 21 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
+# (the last case in test_surface.cpp, the SDL skin driven under the dummy video driver), so its
+# contract reads 22 where the skin is built and 21 where it is not, and neither number has
 # any give in it.
 #
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
@@ -76,8 +77,9 @@ smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  13
-surface                           doctest           always  16
+surface                           doctest           always  21
 surface                           doctest           sdl     1
+workshop                          doctest           always  19
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

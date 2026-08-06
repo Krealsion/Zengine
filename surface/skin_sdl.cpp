@@ -82,6 +82,37 @@ public:
         SDL_RenderPresent(renderer_);
     }
 
+    /// The general canvas, in a window: cells become `kCanvasCellPx` pixels and
+    /// each role becomes ink.
+    ///
+    /// LABELS ARE DROPPED, and that is a real hole, not a policy: this medium
+    /// has no font stack at all (it is the reason SurfaceText lands in the
+    /// window TITLE — see title_of). A canvas whose meaning lives in its labels
+    /// therefore arrives here as its rectangles alone. Said out loud rather than
+    /// papered over: the fix is a font, which is a phase, not a line.
+    void canvas(const SurfaceCanvas& c, bool) {
+        if (!ok_) {
+            return;
+        }
+        const PlanSize want{c.width * kCanvasCellPx, c.height * kCanvasCellPx};
+        if (!ensure_sized_window(want)) {
+            return;
+        }
+        pump();
+        SDL_SetRenderDrawColor(renderer_, 18, 18, 24, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(renderer_);
+        for (const SurfaceRect& r : c.rects) {
+            const RGB ink = ink_for_role(r.role);
+            SDL_SetRenderDrawColor(renderer_, ink.r, ink.g, ink.b, SDL_ALPHA_OPAQUE);
+            const SDL_FRect fr{static_cast<float>(r.x * kCanvasCellPx),
+                               static_cast<float>(r.y * kCanvasCellPx),
+                               static_cast<float>(r.w * kCanvasCellPx),
+                               static_cast<float>(r.h * kCanvasCellPx)};
+            SDL_RenderFillRect(renderer_, &fr);
+        }
+        SDL_RenderPresent(renderer_);
+    }
+
     void note(std::string_view slot, std::string_view text) {
         if (slot == kSlotStatus) {
             status_ = std::string(text);
@@ -107,8 +138,33 @@ public:
     }
 
 private:
+    struct RGB {
+        Uint8 r;
+        Uint8 g;
+        Uint8 b;
+    };
+
+    /// This medium's ink per semantic canvas role — the counterpart of the TUI's
+    /// SGR table, and the proof the role vocabulary was worth having: two media,
+    /// two completely unrelated palettes, one unchanged publisher. Unknown roles
+    /// paint as kFill, per vocabulary.hpp.
+    static RGB ink_for_role(std::int64_t role) noexcept {
+        switch (role) {
+        case role::kAccent: return RGB{112, 232, 240};
+        case role::kMuted: return RGB{96, 96, 108};
+        case role::kAlert: return RGB{232, 72, 72};
+        default: return RGB{176, 176, 188};
+        }
+    }
+
     bool ensure_window(const zengine::snake::SnakeVisual& v) {
-        const PlanSize want = window_size_of(v);
+        return ensure_sized_window(window_size_of(v));
+    }
+
+    bool ensure_sized_window(const PlanSize& want) {
+        if (want.w <= 0 || want.h <= 0) {
+            return false;
+        }
         if (window_ == nullptr) {
             window_ = SDL_CreateWindow(title_of(status_, score_).c_str(),
                                        static_cast<int>(want.w), static_cast<int>(want.h),
