@@ -338,6 +338,48 @@ inline Written drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::i
 
 inline void end_drag(Session& s) { s.drag = Drag{}; }
 
+// ---- Where a pointer is, in workspace cells --------------------------------------------
+//
+// This lives here and not in the weave because it is the only NEW arithmetic on
+// the pointer path, it is the arithmetic a hostile value could break, and code in
+// workshop.cpp's anonymous namespace is code no suite can reach. (The weave's
+// message handlers themselves are still unreachable that way -- see the report;
+// what this relocation buys is that the part with an undefined-behaviour edge is
+// not among them.)
+
+/// The canvas's first row on the terminal, 0-based: the Skin puts a canvas at
+/// terminal row 3, and a pointer reports where it is on the terminal.
+inline constexpr std::int64_t kCanvasTopRow = 2;
+
+/// A pointer coordinate off the wire, as a cell.
+///
+/// `MouseMoved` carries doubles, and a double that does not fit an int64 makes
+/// the conversion UNDEFINED -- so the cast is bounded rather than trusted. The
+/// values come from whichever weave holds the input role, and a backend is a
+/// weave like any other; this is the same widened-input-domain lesson W-1 met one
+/// layer down, arriving here because W-2 made the pointer path load-bearing.
+/// Anything outside the clamp is far outside any canvas, which already means
+/// "nothing there" -- and NaN lands there too, deliberately, since neither
+/// comparison holds for it.
+inline std::int64_t cell_of(double v) noexcept {
+    constexpr double kFar = 1000000.0;
+    if (!(v > -kFar)) {
+        return -1000000;
+    }
+    if (!(v < kFar)) {
+        return 1000000;
+    }
+    return static_cast<std::int64_t>(v);
+}
+
+/// The workspace cell a reported pointer position lands on.
+inline std::int64_t workspace_cell_x(std::int64_t pointer_x) noexcept {
+    return pointer_x - kWorkspaceX;
+}
+inline std::int64_t workspace_cell_y(std::int64_t pointer_y) noexcept {
+    return pointer_y - kCanvasTopRow - kWorkspaceY;
+}
+
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
