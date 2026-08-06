@@ -246,10 +246,68 @@ if(TARGET zengine-skin-sdl)
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
+# The UI suite: the authored/resolved distinction, on its own, with no
+# application around it. The shapes' declared schemas, the compile-time fence
+# shown to DISCRIMINATE (not merely to be true of Element), resolution as a
+# function of a viewport — including for values no setter would have accepted,
+# because authored content arrives from the wire and from a poke — and hit
+# testing answering with the authored identity.
+#
+# Its own executable, so this package's green stays its own count: the Workshop
+# suite's numbers must not move when the vocabulary's do, which is the whole
+# reason the vocabulary is no longer inside Workshop.
+#
+# It needs no kernel and no weave library. This package is vocabulary and
+# arithmetic; loom::core is here for zen/weave/shape.hpp and the schema
+# derivation the contract case checks.
+add_executable(zengine-ui-tests test_ui.cpp doctest_main.cpp)
+target_link_libraries(zengine-ui-tests
+    PRIVATE loom::core zengine-ui-vocabulary zengine-warnings)
+target_include_directories(zengine-ui-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(ui zengine-ui-tests)
+
+# ---- The fence's compile-negative lane (owned by the UI suite) ---------------
+#
+# The authored/resolved fence is a COMPILE-TIME refusal, so a runtime suite
+# cannot prove it fires: the whole point is that the offending type never
+# becomes an object. The smallest honest proof is to try to build one and read
+# the diagnostic — the Timer suite's pattern, pointed at a different wall.
+#
+# EXCLUDE_FROM_ALL, so the ordinary build never trips over the cases that must
+# fail; each test drives `cmake --build --target` itself, and each asserts the
+# DIAGNOSTIC rather than the exit code. The positive control is the same source
+# with the violation removed, and it must BUILD.
+set(ZENGINE_UI_CN_NAMES extent resolved ok)
+set(ZENGINE_UI_CN_IDS 1 2 3)
+foreach(case_name case_id IN ZIP_LISTS ZENGINE_UI_CN_NAMES ZENGINE_UI_CN_IDS)
+    add_executable(zengine-cn-ui-${case_name} EXCLUDE_FROM_ALL
+        compile_negative/ui_fence.cpp)
+    target_link_libraries(zengine-cn-ui-${case_name}
+        PRIVATE loom::core zengine-ui-vocabulary zengine-warnings)
+    target_include_directories(zengine-cn-ui-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
+    target_compile_definitions(zengine-cn-ui-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
+endforeach()
+
+zengine_compile_test(ui_authored_extent_required zengine-cn-ui-extent
+                     "a resolvable dimension must be an authored Extent")
+
+zengine_compile_test(ui_resolved_geometry_refused zengine-cn-ui-resolved
+                     "no resolved rectangle may live on an authored element")
+
+zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
+
 # The Workshop suite: the maker-facing surface, proven headless. The typed
 # property connection (read, commit, the two ways a commit fails), the document's
-# refusals, the authored-versus-resolved split, hit testing against the real
-# authored objects, and whole screens asserted as SurfaceCanvas values.
+# refusals, and whole screens asserted as SurfaceCanvas values.
+#
+# After W-1 it also proves the INTEGRATION the relocation created: that the
+# geometry a maker sees comes from the UI package and from nowhere else — the
+# painted rectangle, the inspector's resolved reading and the answer to a click
+# are all derived from one ui::Scene, so they cannot come to disagree. What
+# resolution and hit testing DO is the ui suite's claim; that Workshop gets its
+# answers from there is this one's.
 #
 # It links no weave library and defines no _SO path, which is the honest shape of
 # what W-0 built: Workshop's own weave is mounted in-process, so there is no
@@ -259,7 +317,7 @@ endif()
 add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
-            zengine-surface-vocabulary zengine-warnings)
+            zengine-surface-vocabulary zengine-ui-vocabulary zengine-warnings)
 target_include_directories(zengine-workshop-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 

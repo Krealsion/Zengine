@@ -272,6 +272,58 @@ documented-but-unbuilt `referenced` section (`zen.Manifest` v3). The snake targe
 `if(TARGET loom::kernel)`, so a Windows Loom install still configures — the package simply
 skips.
 
+## `ui/` — the authored/resolved vocabulary
+
+W-1's slice, and it owns exactly **one** distinction: what a maker *authored* is not what a
+viewport *makes of it*. Two headers keep the halves apart, and the second is only ever an
+observation of the first.
+
+```text
+ui/vocabulary.hpp   Extent{mode, amount}     an authored width or height, one property
+                    Element{id, label,       one authored element -- identity, label,
+                            x, y,            authored placement in cells...
+                            width, height}   ...and two authored extents
+                    authored_only_v<T>       the compile-time fence, as a question about
+                                             ANY type, so an application can ask it too
+
+ui/layout.hpp       Viewport{cells_w, cells_h}   what intent is resolved AGAINST
+                    Rect / Placed{id, rect}      the resolved observation
+                    Scene{viewport, items}       authored order == paint order
+                    resolve_extent / resolve     the ONE place intent becomes geometry
+                    hit / placed_for             what is under this cell -> the AUTHORED id
+```
+
+Three things are structural rather than promised:
+
+- **Resolution needs a viewport.** `resolve()` takes one, so "how big is this?" is not an
+  answerable question about an element alone.
+- **The result is a separate value, cached nowhere.** The authored side has no field able to
+  hold a resolved rectangle, and the fence makes adding one a compile error — proven *firing*
+  by `ui_authored_extent_required` and `ui_resolved_geometry_refused` (a bare `int64_t width`,
+  and a resolved `w`/`h` cached beside honest extents), with `ui_authored_element_compiles` as
+  the positive control.
+- **The resolved side has no wire form.** `Rect`/`Placed`/`Scene`/`Viewport` are deliberately
+  not `ZEN_SHAPE`s (asserted against `loom::Shape`), so an observation cannot be serialized,
+  poked, or published as though it were content. The authored side *is* content and travels as
+  ordinary shapes.
+
+`resolve_extent` is **total for every value the type can hold**, not merely for validated ones:
+authored content is a shape, so it arrives from the wire and from a poke as well as from a
+checked edit. An out-of-range share is clamped and an absurd span divides before it multiplies
+(`span * amount` on unvalidated `int64` is signed overflow — undefined behaviour produced by
+data). *What* a legal extent is stays with whoever accepts one; see Workshop's `check_extent`.
+
+What it is **not**: no widget kinds, no stacks, no relational arrangement, no parent/child (the
+named seam — it grows when an application authors a child), no colour, no z, and nothing about
+painting. `SurfaceCanvas` is the drawing vocabulary; a resolved scene is what you paint *from*.
+The Loom's `loom::Widget` + `px_layout` is the *other* model — intent plus **relationship**,
+resolved by a renderer — and W-1 measured that it is neither relocatable (the Loom console,
+TUI and bridge consume it in-tree) nor able to express an authored placement or an absolute
+extent. The two are not competitors and neither replaces the other.
+
+No kernel, no weave, no bus: this package is vocabulary and arithmetic, so it exists on every
+configuration.
+
 ## `workshop/` — the maker-facing surface
 
 W-0's slice: a person opens Workshop, sees an ordinary authored rectangle, selects it, inspects
@@ -280,14 +332,23 @@ application holding no privilege snake does not — keys from the Input weave, t
 Timer service, painting by *publishing* a `SurfaceCanvas` to whichever skin holds
 `zengine.skin`. It touches no terminal and no window itself.
 
-- **The authored object** is a real `WorkshopRect` in the weave's own state (`vocabulary.hpp`):
-  gated, schema-carrying, `ZEN_EXPOSE`d. There is no shadow model — the rectangle a maker
-  selects *is* the one the canvas is painted from and the inspector reads through. `id` is the
-  identity and `name` is only a label, so two rectangles may share a name and stay distinct.
-- **Width and height are authored as a `WorkshopExtent`** — a mode plus an amount, `12` cells or
+- **The authored object** is a real `zengine::ui::Element` in the weave's own state
+  (`vocabulary.hpp`): gated, schema-carrying, `ZEN_EXPOSE`d. There is no shadow model — the
+  element a maker selects *is* the one the canvas is painted from and the inspector reads
+  through. `id` is the identity and `label` is only a label, so two elements may share a name
+  and stay distinct. W-1 moved the *type* out to the `ui/` package; the object is no less
+  Workshop's state for being spelled in a shared vocabulary, and there is no alias or wrapper
+  left behind to suggest otherwise.
+- **Width and height are authored as a `ui::Extent`** — a mode plus an amount, `12` cells or
   `70%` of the workspace — which is **one** property presented as one row even though it is two
   stored fields. The **resolved** cell count is a separate, read-only row: narrowing the
   workspace moves `Resolved` and never touches `Width`.
+- **Workshop keeps no geometry.** Since W-1 the painted rectangle, the inspector's `Resolved`
+  reading and the answer to a click are all derived from one `ui::Scene` (`workspace_scene()`),
+  so they cannot come to disagree. W-0 had three call sites doing their own extent arithmetic
+  and agreeing only because one person wrote all three. What *is* still Workshop's: the screen's
+  furniture (where the object list sits beside the workspace) and every refusal — `check_extent`
+  is this document's policy, not the vocabulary's law.
 - **The property connection** (`property.hpp`) is the phase's one new abstraction and is
   deliberately Workshop-local: `Property<T>` holds a typed read and a typed write over the
   document's *semantic* operations (`document.hpp`, where every setter can refuse), never a

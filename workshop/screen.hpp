@@ -15,20 +15,30 @@
 // bus and the Skin carry it, which is a different claim from "the screen is
 // right".
 //
-// It is also where Workshop DECIDES WHERE THINGS GO, and that is not a gap in
-// the canvas vocabulary being papered over -- it is the boundary. SurfaceCanvas
-// paints a picture; whoever publishes one has already done the layout. W-0 does
-// its layout in constants, on purpose: a layout ENGINE is what the Loom's
-// geometry-free semantic tree is for (loom::Widget + px_layout), and that tree is
-// not reachable from a Zengine consumer today (the report's Loom pressure). One
-// screen's worth of constants is the honest amount of layout to invent while
-// that is true.
+// THE AUTHORED MATERIAL IS RESOLVED IN EXACTLY ONE PLACE, and after W-1 that
+// place is not this file. `workspace_scene()` below builds the viewport and calls
+// `ui::resolve` once; the canvas, the inspector's resolved reading and the hit
+// test all read the Scene it returns. W-0 had three separate call sites doing
+// their own extent arithmetic and agreeing only because one person wrote all
+// three -- which is a coincidence, not a guarantee, and it is the coincidence
+// this phase removed.
+//
+// The SCREEN'S OWN FURNITURE is still constants, and that is a different thing
+// from the authored material and stays a Workshop decision: where the object
+// list sits beside the workspace is this application's composition, not
+// something a maker authors and not something a package should decide for it.
+// SurfaceCanvas paints a picture; whoever publishes one has already decided what
+// the picture is. A relational layout engine (stacks, weights, "beside") is the
+// Loom's loom::Widget + px_layout, a different model that stays where it is --
+// see W-1-RB for why the assumed relocation did not happen.
 
 #include "document.hpp"
 #include "property.hpp"
 #include "vocabulary.hpp"
 
 #include "surface/vocabulary.hpp"
+#include "ui/layout.hpp"
+#include "ui/vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -69,6 +79,19 @@ struct Session {
     bool notice_is_bad = false; ///< whether that thing was a refusal
 };
 
+/// The workspace as a viewport, and the document resolved against it — the ONE
+/// call that turns authored intent into geometry in this application.
+///
+/// It is a function rather than a cached member of Session on purpose. A
+/// resolved scene that outlived the workspace it was resolved against is exactly
+/// the stale-number lie the authored/resolved split exists to prevent, so the
+/// answer is recomputed wherever it is wanted and stored nowhere. It is three
+/// integers and a loop over a handful of elements; the cost of being right is
+/// nothing.
+inline ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
+    return ui::resolve(d.elements, ui::Viewport{s.workspace_w, s.workspace_h});
+}
+
 /// The inspector for one authored object: the properties, plus the facts that
 /// are not properties.
 ///
@@ -83,6 +106,11 @@ struct Session {
 /// makes of `Width` and `Height`. A maker looking at `70%` and `33 x 8 cells` is
 /// looking at two true things, and the inspector says which is which by what it
 /// will let them touch.
+///
+/// After W-1 that row reads THE SCENE -- the same resolved scene the canvas is
+/// painted from and the same one a click is tested against. Before, it did its
+/// own extent arithmetic, and "the inspector agrees with the picture" was a
+/// property of two functions happening to say the same thing.
 inline std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
     std::vector<Row> rows;
     const std::int64_t id = s.selected;
@@ -99,12 +127,12 @@ inline std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
     rows.push_back(Row::edit("Width", doc::width_of(d, id)));
     rows.push_back(Row::edit("Height", doc::height_of(d, id)));
     rows.push_back(Row::show("Resolved", [&d, id, ww, wh] {
-        const WorkshopRect* r = doc::find(d, id);
-        if (r == nullptr) {
+        const ui::Scene scene = ui::resolve(d.elements, ui::Viewport{ww, wh});
+        const ui::Placed* placed = ui::placed_for(scene, id);
+        if (placed == nullptr) {
             return std::string("-");
         }
-        return std::to_string(doc::resolve(r->width, ww)) + " x " +
-               std::to_string(doc::resolve(r->height, wh)) + " cells";
+        return std::to_string(placed->rect.w) + " x " + std::to_string(placed->rect.h) + " cells";
     }));
     return rows;
 }
@@ -148,9 +176,13 @@ inline std::string pad(std::string text, std::size_t width) {
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
-/// authored rectangle (with the selected one's ring UNDER it, so the ring reads
-/// as a ring rather than a border the object grew), then every label over
-/// everything.
+/// authored element as the scene placed it (with the selected one's ring UNDER
+/// it, so the ring reads as a ring rather than a border the object grew), then
+/// every label over everything.
+///
+/// The picture is derived from `workspace_scene()` and from nothing else, which
+/// is what makes "what you see is what the hit test answers about" structural
+/// rather than a claim: the two read one value.
 inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     surface::SurfaceCanvas c;
     c.width = kScreenW;
@@ -169,20 +201,24 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // while changing no authored value at all.
     rect(kWorkspaceX, kWorkspaceY, s.workspace_w, s.workspace_h, surface::role::kMuted);
 
-    for (const WorkshopRect& r : d.rects) {
-        const std::int64_t w = doc::resolve(r.width, s.workspace_w);
-        const std::int64_t h = doc::resolve(r.height, s.workspace_h);
-        const std::int64_t x = kWorkspaceX + r.x;
-        const std::int64_t y = kWorkspaceY + r.y;
-        if (r.id == s.selected) {
-            rect(x - 1, y - 1, w + 2, h + 2, surface::role::kAccent);
+    // The scene: the authored elements, as this workspace places them. Painting
+    // walks the SCENE, not the document -- so a rectangle on screen is by
+    // construction a rectangle the hit test can find.
+    const ui::Scene scene = workspace_scene(d, s);
+    for (const ui::Placed& p : scene.items) {
+        const std::int64_t x = kWorkspaceX + p.rect.x;
+        const std::int64_t y = kWorkspaceY + p.rect.y;
+        if (p.id == s.selected) {
+            rect(x - 1, y - 1, p.rect.w + 2, p.rect.h + 2, surface::role::kAccent);
         }
-        rect(x, y, w, h, surface::role::kFill);
-        // The name, written on the object, clipped to the workspace rather than
-        // allowed to run into the panel beside it.
-        const std::int64_t room = s.workspace_w - r.x;
-        if (room > 0) {
-            std::string shown = r.name;
+        rect(x, y, p.rect.w, p.rect.h, surface::role::kFill);
+        // The label, written on the object, clipped to the workspace rather than
+        // allowed to run into the panel beside it. The label is authored, so it
+        // is read from the element and not from the observation of it.
+        const ui::Element* authored = doc::find(d, p.id);
+        const std::int64_t room = s.workspace_w - p.rect.x;
+        if (authored != nullptr && room > 0) {
+            std::string shown = authored->label;
             if (static_cast<std::int64_t>(shown.size()) > room) {
                 shown.resize(static_cast<std::size_t>(room));
             }
@@ -199,13 +235,13 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // selection the ring in the workspace does.
     label(kPanelX, kListY - 1, "OBJECTS", surface::role::kAccent);
     std::int64_t line = 0;
-    for (const WorkshopRect& r : d.rects) {
+    for (const ui::Element& e : d.elements) {
         if (line >= kListRows) {
             break;
         }
-        const bool chosen = r.id == s.selected;
+        const bool chosen = e.id == s.selected;
         label(kPanelX, kListY + line,
-              std::string(chosen ? "> " : "  ") + "#" + std::to_string(r.id) + " " + r.name,
+              std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label,
               chosen ? surface::role::kAccent : surface::role::kFill);
         ++line;
     }
