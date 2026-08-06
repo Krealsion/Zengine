@@ -636,6 +636,7 @@ TEST_CASE("delete removes exactly one identity, and the other duplicate label su
 
     REQUIRE(delete_selected(d, s).accepted);
     REQUIRE(d.elements.size() == 1);
+    REQUIRE(s.rows.size() == 7); // a selection survived, so the inspector has a subject
     CHECK(doc::find(d, kept) != nullptr);
     CHECK(doc::find(d, kept)->label == "panel"); // the twin is untouched
     CHECK(doc::find(d, 1) == nullptr);
@@ -799,6 +800,7 @@ TEST_CASE("a nudge authors placement, and every reading of the object follows") 
     CHECK(placed->rect == ui::Rect{4, 3, 24, 4});
     CHECK(has_rect(paint(d, s), kWorkspaceX + 4, kWorkspaceY + 3, 24, 4, surface::role::kFill));
     refocus(d, s);
+    REQUIRE(s.rows.size() == 7);
     CHECK(s.rows[2].value() == "4"); // X
     CHECK(s.rows[3].value() == "3"); // Y
     CHECK(s.rows[6].value() == "24 x 4 cells"); // resolved size unchanged by a move
@@ -850,6 +852,7 @@ TEST_CASE("the inspector and the maker's hand write through ONE position operati
     Session s;
     s.selected = id;
     refocus(d, s);
+    REQUIRE(s.rows.size() == 7);
 
     // A typed X of -1, through the Row the inspector actually holds.
     Row& x_row = s.rows[2];
@@ -909,7 +912,14 @@ TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point fo
     REQUIRE(drag_to(d, s, 20, 9).accepted);
     CHECK(doc::find(d, front)->x == 19);
     CHECK(doc::find(d, front)->y == 8);
-    const ui::Placed* placed = ui::placed_for(workspace_scene(d, s), front);
+    // The scene is NAMED, and that is not style: `placed_for` answers with a
+    // pointer INTO the scene, so binding it to a variable while the scene was a
+    // temporary is a use-after-free the plain lane cannot see. It shipped in this
+    // file's first draft and a sanitizer found it -- the same dangling-observation
+    // hazard W-1 designed `Placed` to carry an id against, one phase later, in the
+    // test that proves the design.
+    const ui::Scene moved = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(moved, front);
     REQUIRE(placed != nullptr);
     CHECK(placed->rect.x + s.drag.grab_dx == 20);
     CHECK(placed->rect.y + s.drag.grab_dy == 9);
@@ -997,6 +1007,11 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
         const ui::Scene scene = workspace_scene(d, s);
         const ui::Placed* placed = ui::placed_for(scene, id);
         REQUIRE(placed != nullptr);
+        // REQUIRE before indexing, and not CHECK: a mutation that loses the
+        // selection would otherwise walk off an empty vector and take the whole
+        // binary down, and a crashed run is not a red -- it is a run that
+        // stopped reporting. (Found by the mutation harness doing exactly that.)
+        REQUIRE(s.rows.size() == 7);
         // canvas: the fill and the ring are where the scene put it
         CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
                        placed->rect.w, placed->rect.h, surface::role::kFill));
