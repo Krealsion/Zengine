@@ -49,6 +49,7 @@
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -540,6 +541,503 @@ TEST_CASE("a share's hit area follows the workspace, because both read one scene
 }
 
 // ============================================================================
+// Tier 2d — the maker's own hands: create, move, delete  (W-2)
+// ============================================================================
+//
+// Every case here drives the SAME functions workshop.cpp binds keys and pointer
+// events to. Nothing in this tier reaches into the document behind a gesture's
+// back, which is what makes it evidence about what a maker can do rather than
+// about what the data permits.
+
+TEST_CASE("creating mints a fresh identity, and the identity is not the label or the index") {
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+
+    const std::int64_t made = create(d, s);
+    REQUIRE(d.elements.size() == 3);
+
+    // A NEW identity: not any existing one, and not derived from where it landed
+    // in the vector (index 2) or from what it is called.
+    CHECK(made != d.elements[0].id);
+    CHECK(made != d.elements[1].id);
+    CHECK(made != 2);
+    CHECK(d.elements[2].id == made);
+
+    // Duplicate labels remain legal, and the default IS a duplicate -- so a maker
+    // meets "the name is not the identity" by making something, which is the
+    // cheapest moment to learn it.
+    CHECK(d.elements[2].label == doc::kNewLabel);
+    CHECK(d.elements[0].label == d.elements[2].label);
+    CHECK(doc::find(d, made) != nullptr);
+    CHECK(doc::find(d, made) != doc::find(d, d.elements[0].id));
+
+    // The new object is immediately the selected one, and the whole screen agrees
+    // about it: canvas ring, list marker, inspector Identity row.
+    CHECK(s.selected == made);
+    REQUIRE_FALSE(s.rows.empty());
+    CHECK(s.rows[0].value() == "#" + std::to_string(made));
+    CHECK(s.cursor == first_editable(s.rows));
+
+    const surface::SurfaceCanvas c = paint(d, s);
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(scene, made);
+    REQUIRE(placed != nullptr);
+    CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y, placed->rect.w,
+                   placed->rect.h, surface::role::kFill));
+    CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
+                   placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
+    CHECK(label_at(c, kPanelX, kListY + 2) == "> #" + std::to_string(made) + " panel");
+}
+
+TEST_CASE("creation cannot author a state this document would refuse") {
+    // The defaults are values somebody chose, and the document's own checks are
+    // the only thing that can say whether they were chosen well. Without this,
+    // `add` -- which deliberately cannot refuse -- would be the one door through
+    // which an illegal object enters.
+    WorkshopDoc d;
+    Session s;
+    const std::int64_t made = create(d, s);
+    const ui::Element* e = doc::find(d, made);
+    REQUIRE(e != nullptr);
+
+    CHECK(doc::check_coord(e->x).accepted);
+    CHECK(doc::check_coord(e->y).accepted);
+    CHECK(doc::check_extent(e->width).accepted);
+    CHECK(doc::check_extent(e->height).accepted);
+    CHECK(doc::rename(d, made, e->label).accepted);
+}
+
+TEST_CASE("an identity is never handed out twice, even after its object is deleted") {
+    WorkshopDoc d;
+    Session s;
+
+    const std::int64_t first = create(d, s);
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(d.elements.empty());
+
+    const std::int64_t second = create(d, s);
+    // The mint does not rewind. A notice, a selection, or a half-finished thought
+    // that still says "#1" can therefore never come to mean a different object --
+    // which is what an id being an IDENTITY rather than a slot number means.
+    CHECK(second != first);
+    CHECK(second > first);
+    CHECK(s.selected == second);
+}
+
+TEST_CASE("delete removes exactly one identity, and the other duplicate label survives") {
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+    const std::int64_t kept = d.elements[1].id;
+    REQUIRE(d.elements[0].label == d.elements[1].label); // the fixture's whole point
+
+    REQUIRE(delete_selected(d, s).accepted);
+    REQUIRE(d.elements.size() == 1);
+    CHECK(doc::find(d, kept) != nullptr);
+    CHECK(doc::find(d, kept)->label == "panel"); // the twin is untouched
+    CHECK(doc::find(d, 1) == nullptr);
+
+    // No stale geometry, no stale list row, no stale inspector subject.
+    CHECK(ui::placed_for(workspace_scene(d, s), 1) == nullptr);
+    CHECK(workspace_scene(d, s).items.size() == 1);
+    const surface::SurfaceCanvas c = paint(d, s);
+    CHECK(label_at(c, kPanelX, kListY) == "> #" + std::to_string(kept) + " panel");
+    CHECK(label_at(c, kPanelX, kListY + 1).empty());
+    CHECK(s.rows[0].value() == "#" + std::to_string(kept));
+}
+
+TEST_CASE("the post-delete selection rule: the one that took its place, then the last, then none") {
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+    const std::int64_t third = create(d, s);
+    REQUIRE(d.elements.size() == 3);
+    const std::int64_t first = d.elements[0].id;
+    const std::int64_t second = d.elements[1].id;
+
+    // Deleting from the middle: the selection goes to whatever took that place.
+    s.selected = second;
+    refocus(d, s);
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(s.selected == third);
+
+    // Deleting the LAST one: there is no successor, so the selection falls back.
+    REQUIRE(s.selected == d.elements.back().id);
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(s.selected == first);
+
+    // Deleting the only one: the selection becomes NONE, explicitly, and the
+    // inspector has nothing to show rather than something stale to show.
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(s.selected == 0);
+    CHECK(s.rows.empty());
+    CHECK(doc::find(d, s.selected) == nullptr);
+}
+
+TEST_CASE("deleting nothing is a refusal a maker can read, not a crash or a silence") {
+    WorkshopDoc empty;
+    Session s;
+    refocus(empty, s);
+    const Written on_empty = delete_selected(empty, s);
+    CHECK_FALSE(on_empty.accepted);
+    CHECK(on_empty.refusal == "no such object");
+    CHECK(empty.elements.empty());
+    CHECK(s.selected == 0);
+
+    // A selection can outlive its object; deleting it again must not take a
+    // second one with it.
+    WorkshopDoc d = two_panels();
+    Session stale;
+    stale.selected = 9999;
+    refocus(d, stale);
+    CHECK_FALSE(delete_selected(d, stale).accepted);
+    CHECK(d.elements.size() == 2);
+    CHECK(stale.selected == 9999); // a refusal changes neither the document nor the session
+}
+
+TEST_CASE("create after empty: the document comes back, and the tool never left") {
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+
+    while (!d.elements.empty()) {
+        REQUIRE(delete_selected(d, s).accepted);
+    }
+    REQUIRE(s.selected == 0);
+
+    const std::int64_t made = create(d, s);
+    REQUIRE(d.elements.size() == 1);
+    CHECK(s.selected == made);
+    CHECK(doc::find(d, made) != nullptr);
+    REQUIRE_FALSE(s.rows.empty());
+    CHECK(s.rows[0].value() == "#" + std::to_string(made));
+
+    // It resolves, it paints, and it can be hit -- a created-from-empty object is
+    // not a lesser object.
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(scene, made);
+    REQUIRE(placed != nullptr);
+    CHECK(ui::hit(scene, placed->rect.x, placed->rect.y)->id == made);
+    CHECK(has_rect(paint(d, s), kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
+                   placed->rect.w, placed->rect.h, surface::role::kFill));
+}
+
+TEST_CASE("a newly created object works with the existing property machinery, unchanged") {
+    WorkshopDoc d;
+    Session s;
+    const std::int64_t made = create(d, s);
+
+    // No per-object registration, no reflection, no inspector framework: the
+    // rows for a created object are built by exactly the call that builds them
+    // for a seeded one, and they write through exactly the same setters.
+    REQUIRE(s.rows.size() == 7);
+    CHECK(s.rows[1].label() == "Name");
+    CHECK(s.rows[4].label() == "Width");
+
+    Row& name = s.rows[1];
+    name.begin();
+    while (!name.draft().empty()) {
+        name.backspace();
+    }
+    type_all(name, "mine");
+    CHECK(name.commit() == Commit::Accepted);
+    CHECK(doc::find(d, made)->label == "mine");
+
+    Row& width = s.rows[4];
+    width.begin();
+    while (!width.draft().empty()) {
+        width.backspace();
+    }
+    type_all(width, "70p");
+    CHECK(width.commit() == Commit::Accepted);
+    CHECK(doc::find(d, made)->width == ui::Extent{ui::kExtentPercent, 70});
+
+    // And the refusals are the same refusals, in the same words.
+    width.begin();
+    while (!width.draft().empty()) {
+        width.backspace();
+    }
+    type_all(width, "500p");
+    CHECK(width.commit() == Commit::Refused);
+    CHECK(width.refusal() == "a share is 1% to 100%");
+}
+
+TEST_CASE("a nudge authors placement, and every reading of the object follows") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentPercent, 50},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    refocus(d, s);
+
+    const ui::Scene before = workspace_scene(d, s);
+    REQUIRE(ui::hit(before, 3, 2) != nullptr);
+    CHECK(ui::hit(before, 3, 2)->id == id);
+
+    REQUIRE(nudge(d, s, +1, 0).accepted);
+    CHECK(doc::find(d, id)->x == 4);
+    CHECK(doc::find(d, id)->y == 2); // the other coordinate did NOT move
+    REQUIRE(nudge(d, s, 0, +1).accepted);
+    CHECK(doc::find(d, id)->x == 4);
+    CHECK(doc::find(d, id)->y == 3);
+    CHECK(s.selected == id); // moving is not selecting
+
+    // The authored EXTENT is untouched: a move moves, it does not resize.
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 50});
+
+    // The resolved scene, the canvas, the inspector and the hit test all followed,
+    // because all four are derived from the one authored value that changed.
+    const ui::Scene after = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(after, id);
+    REQUIRE(placed != nullptr);
+    CHECK(placed->rect == ui::Rect{4, 3, 24, 4});
+    CHECK(has_rect(paint(d, s), kWorkspaceX + 4, kWorkspaceY + 3, 24, 4, surface::role::kFill));
+    refocus(d, s);
+    CHECK(s.rows[2].value() == "4"); // X
+    CHECK(s.rows[3].value() == "3"); // Y
+    CHECK(s.rows[6].value() == "24 x 4 cells"); // resolved size unchanged by a move
+
+    REQUIRE(ui::hit(after, 4, 3) != nullptr);
+    CHECK(ui::hit(after, 4, 3)->id == id);
+    // And the cell it used to occupy is no longer it -- the old position stopped
+    // being true rather than merely stopping being painted.
+    CHECK(ui::hit(after, 3, 2) == nullptr);
+}
+
+TEST_CASE("a move is ONE authored change: a refused move writes neither coordinate") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 0, 5, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+
+    // A diagonal gesture toward the top-left corner: y is legal, x is not. With
+    // two independent setters this would slide the object DOWN the left edge and
+    // report a refusal at the same time -- a refusal message beside a successful
+    // write.
+    const Written refused = doc::move(d, id, -1, 6);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "the workspace starts at 0");
+    CHECK(doc::find(d, id)->x == 0);
+    CHECK(doc::find(d, id)->y == 5); // NOT 6
+
+    // The same, with the illegal coordinate second.
+    CHECK_FALSE(doc::move(d, id, 7, -1).accepted);
+    CHECK(doc::find(d, id)->x == 0); // NOT 7
+    CHECK(doc::find(d, id)->y == 5);
+
+    // A nudge is the same operation, so it refuses the same way and leaves both.
+    CHECK_FALSE(nudge(d, s, -1, +1).accepted);
+    CHECK(doc::find(d, id)->x == 0);
+    CHECK(doc::find(d, id)->y == 5);
+
+    // And a legal move still writes both at once.
+    REQUIRE(doc::move(d, id, 7, 6).accepted);
+    CHECK(doc::find(d, id)->x == 7);
+    CHECK(doc::find(d, id)->y == 6);
+}
+
+TEST_CASE("the inspector and the maker's hand write through ONE position operation") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 4, 4, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    refocus(d, s);
+
+    // A typed X of -1, through the Row the inspector actually holds.
+    Row& x_row = s.rows[2];
+    x_row.begin();
+    while (!x_row.draft().empty()) {
+        x_row.backspace();
+    }
+    type_all(x_row, "-1");
+    CHECK(x_row.commit() == Commit::Refused);
+    const std::string typed_refusal = x_row.refusal();
+
+    // The same illegal position, proposed by a gesture instead.
+    const Written dragged = doc::move(d, id, -1, 4);
+    const Written nudged = nudge(d, s, -1, 0) /* 4 -> 3, legal */;
+    CHECK(nudged.accepted);
+    REQUIRE(doc::set_x(d, id, 4).accepted); // put it back
+
+    // Identical wording, because it is not two rules that agree -- set_x IS
+    // doc::move holding y still, so there is no second place a gesture could
+    // acquire its own opinion about what a legal position is.
+    CHECK(typed_refusal == dragged.refusal);
+    CHECK(typed_refusal == doc::set_x(d, id, -1).refusal);
+    CHECK(typed_refusal == doc::set_y(d, id, -1).refusal);
+    CHECK(typed_refusal == "the workspace starts at 0");
+
+    // set_x moves only x; set_y moves only y. Delegating to a two-coordinate
+    // operation did not quietly make them move both.
+    REQUIRE(doc::set_x(d, id, 9).accepted);
+    CHECK(doc::find(d, id)->x == 9);
+    CHECK(doc::find(d, id)->y == 4);
+    REQUIRE(doc::set_y(d, id, 7).accepted);
+    CHECK(doc::find(d, id)->x == 9);
+    CHECK(doc::find(d, id)->y == 7);
+}
+
+TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point follows") {
+    WorkshopDoc d;
+    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 10},
+                                       ui::Extent{ui::kExtentCells, 6});
+    const std::int64_t front = doc::add(d, "front", 4, 2, ui::Extent{ui::kExtentCells, 4},
+                                        ui::Extent{ui::kExtentCells, 2});
+    Session s;
+    s.selected = back;
+    refocus(d, s);
+
+    // Press inside the overlap: the drag takes the TOPMOST object, because it
+    // asks the same ui::hit the click path asks, over the same painted scene.
+    CHECK(begin_drag(d, s, 5, 3) == front);
+    CHECK(s.drag.active);
+    CHECK(s.drag.id == front);
+    CHECK(s.drag.grab_dx == 1); // 5 - 4
+    CHECK(s.drag.grab_dy == 1); // 3 - 2
+
+    // Drag to a new cell. The grabbed point ends up under the pointer, which is
+    // the whole behavioural claim of a drag, and it is checked against the
+    // RESOLVED scene rather than against the arithmetic that produced it.
+    REQUIRE(drag_to(d, s, 20, 9).accepted);
+    CHECK(doc::find(d, front)->x == 19);
+    CHECK(doc::find(d, front)->y == 8);
+    const ui::Placed* placed = ui::placed_for(workspace_scene(d, s), front);
+    REQUIRE(placed != nullptr);
+    CHECK(placed->rect.x + s.drag.grab_dx == 20);
+    CHECK(placed->rect.y + s.drag.grab_dy == 9);
+    REQUIRE(ui::hit(workspace_scene(d, s), 20, 9) != nullptr);
+    CHECK(ui::hit(workspace_scene(d, s), 20, 9)->id == front);
+
+    // The object that was NOT grabbed did not move, and the drag holds no
+    // position of its own to have gone stale.
+    CHECK(doc::find(d, back)->x == 0);
+    CHECK(doc::find(d, back)->y == 0);
+
+    end_drag(s);
+    CHECK_FALSE(s.drag.active);
+    CHECK_FALSE(drag_to(d, s, 30, 9).accepted); // and nothing moves after release
+    CHECK(doc::find(d, front)->x == 19);
+}
+
+TEST_CASE("a press on empty space grabs nothing, and a refused drag leaves the object put") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 5, 5, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+
+    CHECK(begin_drag(d, s, 40, 12) == 0);
+    CHECK_FALSE(s.drag.active);
+    CHECK_FALSE(drag_to(d, s, 41, 12).accepted);
+
+    // Grab the top-left cell, then drag off the left edge of the workspace. The
+    // document refuses, and the object stays exactly where it was rather than
+    // being silently clamped to the edge: a corrected position is a position the
+    // maker did not author and cannot see they did not author.
+    REQUIRE(begin_drag(d, s, 5, 5) == id);
+    CHECK(s.drag.grab_dx == 0);
+    const Written refused = drag_to(d, s, -1, 5);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "the workspace starts at 0");
+    CHECK(doc::find(d, id)->x == 5);
+    CHECK(doc::find(d, id)->y == 5);
+
+    // The drag is still live afterwards, so the maker can keep going without
+    // re-pressing -- a refusal ends a proposal, not a gesture.
+    CHECK(s.drag.active);
+    REQUIRE(drag_to(d, s, 2, 5).accepted);
+    CHECK(doc::find(d, id)->x == 2);
+}
+
+TEST_CASE("a nudge survives an authored coordinate no setter would have produced") {
+    // WorkshopDoc is ZEN_EXPOSE()d, so a poke writes x directly, past every
+    // refusal in document.hpp. A nudge COMPUTES its proposal, so it meets values
+    // a typed edit never could -- and the neighbour of the largest representable
+    // cell is not representable. (The same widening W-1 found one layer down.)
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "poked", 0, 0, ui::Extent{ui::kExtentCells, 2},
+                                     ui::Extent{ui::kExtentCells, 2});
+    Session s;
+    s.selected = id;
+
+    doc::find_mut(d, id)->x = kMax; // the poke
+    CHECK(nudge(d, s, +1, 0).accepted);
+    CHECK(doc::find(d, id)->x == kMax); // saturated: it went nowhere, and legally
+    CHECK(nudge(d, s, -1, 0).accepted);
+    CHECK(doc::find(d, id)->x == kMax - 1);
+
+    // The other end is only reachable by a poke at all, and it must not wrap
+    // either -- a nudge left from the most negative cell would otherwise become
+    // the most positive one.
+    doc::find_mut(d, id)->y = (std::numeric_limits<std::int64_t>::min)();
+    const Written down = nudge(d, s, 0, -1);
+    CHECK_FALSE(down.accepted); // still a negative coordinate, refused as always
+    CHECK(doc::find(d, id)->y == (std::numeric_limits<std::int64_t>::min)());
+}
+
+TEST_CASE("canvas, object list and inspector agree after every gesture in a session") {
+    // One maker's session, end to end, with the three views checked against each
+    // other after each act. This is the case that would catch a gesture that
+    // updated the document but left one of the three reading something else.
+    WorkshopDoc d;
+    Session s;
+    refocus(d, s);
+
+    const auto agree = [&](std::int64_t id, std::int64_t row) {
+        const surface::SurfaceCanvas c = paint(d, s);
+        const ui::Scene scene = workspace_scene(d, s);
+        const ui::Placed* placed = ui::placed_for(scene, id);
+        REQUIRE(placed != nullptr);
+        // canvas: the fill and the ring are where the scene put it
+        CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
+                       placed->rect.w, placed->rect.h, surface::role::kFill));
+        CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
+                       placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
+        // list: the marker is on this identity
+        CHECK(label_at(c, kPanelX, kListY + row).rfind("> #" + std::to_string(id), 0) == 0);
+        // inspector: the same identity, and the authored position it is drawn at
+        CHECK(s.rows[0].value() == "#" + std::to_string(id));
+        CHECK(s.rows[2].value() == std::to_string(placed->rect.x));
+        CHECK(s.rows[3].value() == std::to_string(placed->rect.y));
+        // and the hit test answers with it at its own top-left cell
+        REQUIRE(ui::hit(scene, placed->rect.x, placed->rect.y) != nullptr);
+        CHECK(ui::hit(scene, placed->rect.x, placed->rect.y)->id == id);
+    };
+
+    const std::int64_t a = create(d, s);
+    agree(a, 0);
+
+    REQUIRE(nudge(d, s, +2, +3).accepted); // hjkl arrives as repeated single steps;
+    REQUIRE(nudge(d, s, +1, 0).accepted);  // the operation is the same either way
+    refocus(d, s);
+    agree(a, 0);
+
+    const std::int64_t b = create(d, s);
+    refocus(d, s);
+    agree(b, 1);
+
+    REQUIRE(begin_drag(d, s, doc::find(d, b)->x, doc::find(d, b)->y) == b);
+    REQUIRE(drag_to(d, s, 22, 11).accepted);
+    end_drag(s);
+    refocus(d, s);
+    agree(b, 1);
+
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(s.selected == a);
+    refocus(d, s);
+    agree(a, 0);
+}
+
+// ============================================================================
 // Tier 3 — the whole screen, as a value
 // ============================================================================
 
@@ -663,7 +1161,7 @@ TEST_CASE("a name longer than the workspace is clipped by Workshop, not spilled"
     CHECK(label_at(c, 44, kWorkspaceY) == "a-na");
 }
 
-TEST_CASE("the whole screen survives an empty document without inventing anything") {
+TEST_CASE("the whole screen survives an empty document, and SAYS it is empty") {
     WorkshopDoc d;
     Session s;
     refocus(d, s);
@@ -671,13 +1169,20 @@ TEST_CASE("the whole screen survives an empty document without inventing anythin
 
     const surface::SurfaceCanvas c = paint(d, s);
     CHECK(c.width == kScreenW);
-    CHECK(label_at(c, kPanelX, kListY).empty());
-    CHECK(label_at(c, kPanelX, kRowsY).empty());
+    // W-0 asserted that nothing was INVENTED here, and nothing is: no row, no
+    // object, no identity. What W-2 added is that emptiness now announces
+    // itself, because W-2 is the phase in which a maker can reach this state by
+    // deleting their own work -- and a panel that merely goes blank is
+    // indistinguishable from a tool that has broken.
+    CHECK(label_at(c, kPanelX, kListY) == "(none) -- n makes one");
+    CHECK(label_at(c, kPanelX, kRowsY) == "(nothing selected)");
     // The workspace and the two headings are still there: an empty document is a
     // document, and the tool does not disappear with it.
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, kWorkspaceW, kWorkspaceH, surface::role::kMuted));
     CHECK(label_at(c, kPanelX, kListY - 1) == "OBJECTS");
     CHECK(label_at(c, kPanelX, kRowsY - 1) == "PROPERTIES");
+    // And nothing was authored to make the message: the document is still empty.
+    CHECK(d.elements.empty());
 }
 
 TEST_CASE("the screen a maker actually sees: one canvas, through the real rasterizer") {

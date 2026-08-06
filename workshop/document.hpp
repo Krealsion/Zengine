@@ -30,6 +30,14 @@
 //                           different opinion and still resolve identically.
 //
 // So Workshop still owns every refusal, and owns no geometry at all.
+//
+// W-2 ADDED THE OPERATIONS A MAKER'S HANDS NEED -- create, move, delete -- and
+// the arrangement that came out of it is the useful part. There is now exactly
+// ONE operation in this package that writes a position (`move`), and `set_x` /
+// `set_y` are that operation holding one coordinate still. A typed edit in the
+// inspector and a drag on the canvas are therefore not two write paths that
+// happen to validate alike; they are one write path reached two ways, which is
+// the only version of "shared policy" a mutation cannot quietly separate.
 
 #include "property.hpp"
 #include "vocabulary.hpp"
@@ -37,6 +45,7 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -52,6 +61,25 @@ namespace zengine::workshop::doc {
 /// disagree.
 inline constexpr std::int64_t kMaxCells = 4096; ///< an authored size, not a workspace size
 inline constexpr std::size_t kMaxNameLen = 32;  ///< a label, not a document
+
+/// What a new object is, before a maker has said anything about it.
+///
+/// These live here, beside the limits, because creation must not be able to
+/// author a state this document's own setters would refuse -- and the suite
+/// checks exactly that rather than trusting that whoever picked the numbers
+/// looked. One default and not a palette: the create gesture is "make me one of
+/// these", and a component palette is a product decision with no evidence
+/// behind it yet.
+///
+/// The label is deliberately the SAME word the opening document already uses
+/// twice. Two objects called `panel` was W-0's fixture for "a name is not an
+/// identity"; making it the default means a maker meets that fact by creating,
+/// which is the moment it is cheapest to learn.
+inline constexpr const char* kNewLabel = "panel";
+inline constexpr std::int64_t kNewX = 1; ///< inside the workspace, with room for the ring
+inline constexpr std::int64_t kNewY = 1;
+inline constexpr std::int64_t kNewWidthCells = 12;
+inline constexpr std::int64_t kNewHeightCells = 4;
 
 /// Find an authored object by identity. Null when nothing carries that id --
 /// which is a normal answer, not an error: a selection can outlive its object.
@@ -91,6 +119,42 @@ inline std::int64_t add(WorkshopDoc& d, std::string label, std::int64_t x, std::
     e.height = height;
     d.elements.push_back(std::move(e));
     return d.elements.back().id;
+}
+
+/// Mint one new authored object with this document's defaults. Returns its
+/// identity.
+///
+/// The mint is still `WorkshopDoc::next_id` -- W-1 left it with the document and
+/// W-2 deliberately did not move it, because interactive creation is exactly the
+/// pressure that would have shown it to be in the wrong place. What that pressure
+/// actually surfaced is one property worth naming: the counter NEVER REWINDS. A
+/// deleted object's id is not handed out again, so a maker who deletes #3 and
+/// creates another gets #4, and a selection, a notice or a half-finished thought
+/// that still says "#3" can never quietly come to mean a different object.
+inline std::int64_t add_default(WorkshopDoc& d) {
+    return add(d, kNewLabel, kNewX, kNewY, ui::Extent{ui::kExtentCells, kNewWidthCells},
+               ui::Extent{ui::kExtentCells, kNewHeightCells});
+}
+
+/// Remove one authored object BY IDENTITY.
+///
+/// By identity and never by position in the vector: an index is a fact about the
+/// storage that changes under every other operation, while the id is the one
+/// thing the selection, the list marker, the ring and the hit test already agree
+/// about. A delete addressed by index would be correct exactly until something
+/// was inserted before it.
+///
+/// It refuses rather than quietly doing nothing, because "there is no such
+/// object" is a thing a maker did (pressed delete with nothing selected) and not
+/// a no-op worth hiding.
+inline Written remove(WorkshopDoc& d, std::int64_t id) {
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        if (d.elements[i].id == id) {
+            d.elements.erase(d.elements.begin() + static_cast<std::ptrdiff_t>(i));
+            return Written::ok();
+        }
+    }
+    return Written::no("no such object");
 }
 
 /// Rename: a label may be anything a maker can type, except nothing, and except
@@ -171,28 +235,63 @@ inline Written set_height(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
 /// half out of view has not made a mistake). Negative is refused, because the
 /// workspace has no cells there at all -- the object would be authored somewhere
 /// that does not exist.
-inline Written set_x(WorkshopDoc& d, std::int64_t id, std::int64_t x) {
-    ui::Element* e = find_mut(d, id);
-    if (e == nullptr) {
-        return Written::no("no such object");
-    }
-    if (x < 0) {
+///
+/// One check, shared by every operation that writes a coordinate, for the same
+/// reason `check_extent` is shared by width and height: two spellings of one rule
+/// is how a typed edit and a dragged one come to disagree about what is legal.
+inline Written check_coord(std::int64_t v) {
+    if (v < 0) {
         return Written::no("the workspace starts at 0");
     }
-    e->x = x;
     return Written::ok();
 }
 
-inline Written set_y(WorkshopDoc& d, std::int64_t id, std::int64_t y) {
+/// Author a position. THE ONE PLACE a position is written in this package.
+///
+/// It is ONE operation and not two, and that is a semantic finding rather than a
+/// convenience. A maker performs one gesture: a drag proposes a PLACE, not an x
+/// and then a y. Written as two independent setters, a diagonal drag into the
+/// top-left corner would slide the object down the edge while reporting a
+/// refusal -- a refusal message beside a successful write, which is the one thing
+/// a refusal must never be. So both coordinates are checked before either is
+/// written, and a refused move leaves the object exactly where it was.
+///
+/// `set_x`/`set_y` below are this operation holding one coordinate still. That is
+/// what makes "the inspector and the maker's hand author through the same rules"
+/// STRUCTURAL rather than a promise: there is no second place to change, so a
+/// gesture cannot acquire its own opinion about what a legal position is.
+inline Written move(WorkshopDoc& d, std::int64_t id, std::int64_t x, std::int64_t y) {
     ui::Element* e = find_mut(d, id);
     if (e == nullptr) {
         return Written::no("no such object");
     }
-    if (y < 0) {
-        return Written::no("the workspace starts at 0");
+    const Written cx = check_coord(x);
+    if (!cx.accepted) {
+        return cx;
     }
+    const Written cy = check_coord(y);
+    if (!cy.accepted) {
+        return cy;
+    }
+    e->x = x;
     e->y = y;
     return Written::ok();
+}
+
+inline Written set_x(WorkshopDoc& d, std::int64_t id, std::int64_t x) {
+    const ui::Element* e = find(d, id);
+    if (e == nullptr) {
+        return Written::no("no such object");
+    }
+    return move(d, id, x, e->y);
+}
+
+inline Written set_y(WorkshopDoc& d, std::int64_t id, std::int64_t y) {
+    const ui::Element* e = find(d, id);
+    if (e == nullptr) {
+        return Written::no("no such object");
+    }
+    return move(d, id, e->x, y);
 }
 
 // ---- The properties of one authored object -------------------------------------------
