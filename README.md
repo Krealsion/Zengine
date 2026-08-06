@@ -130,8 +130,12 @@ skin driven by the same intent under SDL's dummy video driver — the **workshop
 typed property connection (a live read through the semantic surface, a commit that writes
 through it, and the two ways a commit can fail told apart with the property untouched by both),
 the one-call-per-property reuse pin, authored-versus-resolved as two facts only one of which
-moves, hit testing against the real authored objects, and whole screens asserted as
-`SurfaceCanvas` values including a live draft and a refusal — and the
+moves, hit testing against the real authored objects, the maker's own gestures (a fresh identity
+that is neither the label nor the index and is never handed out twice, the post-delete selection
+rule, an empty document reached by deleting and left by creating, a nudge and a drag authoring
+placement through the one operation a typed edit also goes through, and a refused move writing
+neither coordinate), and whole screens asserted as `SurfaceCanvas` values including a live draft
+and a refusal — and the
 **trust-gate probes** (`tests/test_audit_probes.cpp`): a different KIND of suite, kept
 deliberately. It pins what the substrate measurably does to a live beat chain when the timer
 service itself is swapped, reloaded, double-wound, or joined late — *including where that was
@@ -326,11 +330,12 @@ configuration.
 
 ## `workshop/` — the maker-facing surface
 
-W-0's slice: a person opens Workshop, sees an ordinary authored rectangle, selects it, inspects
-a real property, changes it, and watches an invalid change refuse. It is an ordinary Zengine
-application holding no privilege snake does not — keys from the Input weave, time from the
-Timer service, painting by *publishing* a `SurfaceCanvas` to whichever skin holds
-`zengine.skin`. It touches no terminal and no window itself.
+A person opens Workshop, **makes** an ordinary authored rectangle, selects it, **moves** it,
+inspects a real property, changes it, watches an invalid change refuse, and **deletes** it —
+down to an empty document and back. It is an ordinary Zengine application holding no privilege
+snake does not — keys from the Input weave, time from the Timer service, painting by
+*publishing* a `SurfaceCanvas` to whichever skin holds `zengine.skin`. It touches no terminal
+and no window itself.
 
 - **The authored object** is a real `zengine::ui::Element` in the weave's own state
   (`vocabulary.hpp`): gated, schema-carrying, `ZEN_EXPOSE`d. There is no shadow model — the
@@ -360,22 +365,48 @@ Timer service, painting by *publishing* a `SurfaceCanvas` to whichever skin hold
   and *refused* (`500%` is an extent the setter rejects, with its own reason). A maker fixes the
   first by retyping and the second by wanting something else, so they are never collapsed. A
   failed commit leaves the property untouched and keeps the draft, marked as a draft.
+- **There is exactly one operation that writes a position** (`doc::move`), and `set_x`/`set_y`
+  are that operation holding one coordinate still. So a typed `X` in the inspector and a drag on
+  the canvas are not two write paths that validate alike; they are one path reached two ways —
+  which is the only version of "shared policy" that a change to one cannot separate from the
+  other. A move is also **atomic**: both coordinates are checked before either is written, so a
+  diagonal drag into the corner refuses rather than sliding down the edge *and* reporting a
+  refusal.
+- **The maker's gestures live in `screen.hpp`, not in the weave.** `create`, `delete_selected`,
+  `nudge`, `begin_drag`/`drag_to`/`end_drag` are pure-ish functions over document + session;
+  `workshop.cpp` binds keys and pointer events to them and reaches the document through nothing
+  else. A gesture whose only witness is a keystroke is a gesture no suite can pin.
+- **Identity survives creation and deletion.** The mint is still `WorkshopDoc::next_id`, it never
+  rewinds, and a new object's default label is deliberately the same word the others carry — so
+  making one teaches "the name is not the identity" at the moment it is cheapest to learn. The
+  post-delete selection rule is stated once and tested: the object that took the deleted one's
+  place, else the new last, else **none**.
 - **The screen** (`screen.hpp`) is a pure function from document + session to `SurfaceCanvas`, so
-  the suite asserts whole screens as values. Session facts — selection, workspace extent, drafts
-  — live outside the authored state on purpose.
+  the suite asserts whole screens as values. Session facts — selection, workspace extent, drafts,
+  a drag in flight — live outside the authored state on purpose. An empty document *says* it is
+  empty rather than going blank, because a maker can now reach that state by deleting their own
+  work.
 - **The host** (`workshop.cpp`) owns the boot list. Its `BootWeave` holds the Manager grant and
   **hears the answers**: a root `bus.send` of `zen.LoadWeave` has no asker, so the Manager's
   relay forwards nothing and the load silently never happens
   (`loom::forward_for`) — found by running it, and the reason boot answers have an addressee.
 
-Selection is by keyboard (`tab` cycles objects, `up`/`down` walks rows, `enter` edits, `esc`
-cancels, `[`/`]` resizes the workspace, `q` quits). Pointer selection is wired and
-`doc::pick` is pinned, but **the POSIX terminal backend emits no mouse events at all** and
-`MouseButton` carries no coordinates, so a click's position has to be reconstructed from the
-last `MouseMoved`. Text editing is likewise rebuilt from scancodes and is **lowercase-only**:
-the locked input vocabulary has no character and no modifier concept, and the terminal backend
-maps `A` and `a` to one scancode — so `%` cannot be typed, which is why the extent parser also
-accepts `70p`.
+Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell at a time, `tab`
+cycles objects, `up`/`down` walks inspector rows, `enter` edits, `esc` cancels, `[`/`]` resizes
+the workspace, `q` quits. The move gesture is `hjkl` and not the arrows because the arrows
+already step the rows and Workshop has no focus concept that would let one pair of keys mean two
+things — inventing one to free the arrows would be a focus system built to serve a keybinding.
+
+**On a backend with a pointer, press-drag-release is the real gesture** and the keyboard nudge is
+the fallback; both end at `doc::move`. The catch is that **the POSIX terminal backend emits no
+mouse events at all**, and nothing asks a terminal to report one — so on the canonical Linux lane
+the pointer path is unreachable and only the nudge is live. Where a pointer does exist (the Win32
+console), `MouseButton` still carries no coordinates, so a press's position is reconstructed from
+the last `MouseMoved`; the input suite pins both halves of that loss, including that the Win32
+translator is *handed* the press position and drops it. Text editing is likewise rebuilt from
+scancodes and is **lowercase-only**: the locked input vocabulary has no character and no modifier
+concept, and the terminal backend maps `A` and `a` to one scancode — so `%` cannot be typed,
+which is why the extent parser also accepts `70p`.
 
 Workshop's own weave is mounted **in-process**: nothing in W-0 asks to unload it, so the
 reloadable-weave machinery would be ceremony bought with nothing. The weaves it *loads* are

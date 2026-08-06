@@ -25,9 +25,14 @@
 //                         is under a cell; this file computes neither, and the
 //                         canvas, the inspector and the pointer all read one
 //                         scene.
-//   the session           selection, workspace extent, drafts. Plain members,
-//                         never state (the Skin's `announced_` stance).
-//   the screen            screen.hpp, pure, pinned by the suite.
+//   the session           selection, workspace extent, drafts, a drag in flight.
+//                         Plain members, never state (the Skin's `announced_`
+//                         stance).
+//   the screen            screen.hpp, pure, pinned by the suite -- and since W-2
+//                         that header owns the GESTURES too. This file binds keys
+//                         and pointer events to them and reaches the document
+//                         through nothing else, so every maker action the suite
+//                         drives is the same one a maker's hand drives.
 //
 // THE INPUT REALITY, named where a reader will hit it. The locked input
 // vocabulary carries a SCANCODE -- a physical key -- with no modifier and no
@@ -101,6 +106,26 @@ char character_of(std::int64_t scancode) {
     case scan::kRightBracket: return ']';
     default: return 0;
     }
+}
+
+/// A pointer coordinate off the wire, as a cell.
+///
+/// `MouseMoved` carries doubles, and a double that does not fit an int64 makes
+/// the conversion undefined -- so the cast is BOUNDED rather than trusted. The
+/// values come from whichever weave holds the input role, and a backend is a
+/// weave like any other: this is the same widened-input-domain lesson W-1 learned
+/// one layer down, arriving here because W-2 made the pointer path load-bearing.
+/// Anything outside the clamp is far outside the canvas, which is already
+/// "nothing there" -- and NaN lands there too, deliberately, since neither
+/// comparison holds for it.
+std::int64_t cell_of(double v) {
+    if (!(v > -1000000.0)) {
+        return -1000000;
+    }
+    if (!(v < 1000000.0)) {
+        return 1000000;
+    }
+    return static_cast<std::int64_t>(v);
 }
 
 /// What the host needs from the weave and cannot get by message: the stop lever.
@@ -203,35 +228,70 @@ public:
     /// to say one thing, and the reason this weave keeps `pointer_`.
     ///
     /// Nothing on the canonical Linux lane sends either message: the POSIX
-    /// terminal backend produces keystrokes only (input/input.cpp), so pointer
-    /// selection is live only where a pointer exists at all. The keyboard path is
-    /// the portable one, and the part that answers WHICH object -- now
-    /// `ui::hit` over the same scene the canvas was painted from -- is pinned by
-    /// the suite rather than left to a medium that may not report.
-    void on(const input::MouseMoved& m, loom::Mail&) {
-        pointer_x_ = static_cast<std::int64_t>(m.x);
-        pointer_y_ = static_cast<std::int64_t>(m.y);
+    /// terminal backend produces keystrokes only (input/input.cpp), and nothing
+    /// asks the terminal to report a mouse at all. So the pointer path is live
+    /// only on a backend that has one -- the Win32 console does -- and the
+    /// keyboard nudge below is the portable gesture. Both end at the same
+    /// document operation, which is the point: the suite drives one of them and
+    /// proves the write path for both.
+    void on(const input::MouseMoved& m, loom::Mail& mail) {
+        pointer_x_ = cell_of(m.x);
+        pointer_y_ = cell_of(m.y);
+        if (!session_.drag.active) {
+            return; // not dragging: remember where the pointer is, say nothing
+        }
+        const Written moved = drag_to(state_, session_, workspace_x(), workspace_y());
+        if (!moved.accepted) {
+            // A drag can propose a place the document refuses, and it must say so
+            // rather than clamp: a silently corrected position is a position the
+            // maker did not author and cannot see they did not author.
+            say(moved.refusal, true);
+        } else {
+            const ui::Element* e = doc::find(state_, session_.drag.id);
+            if (e != nullptr) {
+                say("moving #" + std::to_string(e->id) + " to " + std::to_string(e->x) + "," +
+                        std::to_string(e->y),
+                    false);
+            }
+        }
+        repaint(mail);
     }
 
+    /// Press: take hold of whatever is under the pointer, and select it.
+    /// Release: let go. Between them, every MouseMoved authors a new position.
     void on(const input::MouseButton& b, loom::Mail& mail) {
-        if (b.button != 1 || !b.pressed) {
+        if (b.button != 1) {
             return;
         }
-        // Canvas cells, from the terminal cell the pointer is over: the canvas
-        // starts at terminal row 3 (the Skin's layout convention), and the
-        // workspace starts one row into the canvas.
-        const std::int64_t cx = pointer_x_ - kWorkspaceX;
-        const std::int64_t cy = pointer_y_ - 2 - kWorkspaceY;
-        const ui::Scene scene = workspace_scene(state_, session_);
-        const ui::Placed* hit = ui::hit(scene, cx, cy);
-        if (hit != nullptr) {
-            select(hit->id);
-            say("selected #" + std::to_string(hit->id) + " by pointer", false);
+        if (b.pressed) {
+            const std::int64_t id =
+                begin_drag(state_, session_, workspace_x(), workspace_y());
+            if (id != 0) {
+                select(id);
+                say("holding #" + std::to_string(id) + " -- drag to move it", false);
+            } else {
+                say("nothing there", false);
+            }
+        } else if (session_.drag.active) {
+            const std::int64_t id = session_.drag.id;
+            end_drag(session_);
+            say("released #" + std::to_string(id), false);
         }
         repaint(mail);
     }
 
 private:
+    /// The workspace cell the pointer is over.
+    ///
+    /// Two accessors and not a click object: the reconstruction is exactly what
+    /// P6 costs (MouseButton carries no position, so a press's location comes
+    /// from the last MouseMoved), and hiding it behind an invented "Click" type
+    /// would hide the one thing this phase is meant to measure. The offsets are
+    /// the Skin's layout convention -- the canvas starts at terminal row 3, and
+    /// the workspace one row into the canvas.
+    std::int64_t workspace_x() const { return pointer_x_ - kWorkspaceX; }
+    std::int64_t workspace_y() const { return pointer_y_ - 2 - kWorkspaceY; }
+
     Row* editing_row() {
         for (Row& r : session_.rows) {
             if (r.editing()) {
@@ -279,6 +339,14 @@ private:
     }
 
     /// Command mode.
+    ///
+    /// The move gesture is `hjkl` and not the arrows, and that is a real
+    /// collision resolved rather than a preference: the arrows already step the
+    /// inspector's rows, Workshop has no focus concept that would let one pair of
+    /// keys mean two things, and inventing one to free the arrows would be a
+    /// focus system built to serve a keybinding. The arrows keep the job they
+    /// had; the four free letters take the new one. On a backend with a pointer
+    /// this is the fallback, not the gesture -- see on(MouseButton).
     void command(const input::KeyPressed& k, loom::Mail&) {
         switch (k.scancode) {
         case scan::kTab: select_next(); break;
@@ -293,10 +361,56 @@ private:
             }
             break;
         case scan::kReturn: begin_edit(); break;
+        case scan::kN: create_object(); break;
+        case scan::kD: delete_object(); break;
+        case scan::kH: move_by(-1, 0); break;
+        case scan::kJ: move_by(0, +1); break;
+        case scan::kK: move_by(0, -1); break;
+        case scan::kL: move_by(+1, 0); break;
         case scan::kLeftBracket: resize_workspace(-4); break;
         case scan::kRightBracket: resize_workspace(+4); break;
         case scan::kQ: quit(); break;
         default: break;
+        }
+    }
+
+    /// Make one. The notice names the IDENTITY and not the label, because the
+    /// default label is the same word the other objects already carry -- which is
+    /// the lesson, arriving at the moment a maker can see it is not a problem.
+    void create_object() {
+        const std::int64_t id = create(state_, session_);
+        say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
+    }
+
+    /// Delete the selected one, and say where the selection went. "Deleted, and
+    /// you are now on #2" is one fact; leaving a maker to work out which object
+    /// the inspector is suddenly showing is two.
+    void delete_object() {
+        const std::int64_t was = session_.selected;
+        const Written gone = delete_selected(state_, session_);
+        if (!gone.accepted) {
+            say(gone.refusal, true);
+            return;
+        }
+        say(session_.selected == 0
+                ? "deleted #" + std::to_string(was) + " -- the document is empty"
+                : "deleted #" + std::to_string(was) + " -- now on #" +
+                      std::to_string(session_.selected),
+            false);
+    }
+
+    /// One cell, through the same document operation a typed X or Y goes through.
+    void move_by(std::int64_t ddx, std::int64_t ddy) {
+        const Written moved = nudge(state_, session_, ddx, ddy);
+        if (!moved.accepted) {
+            say(moved.refusal, true);
+            return;
+        }
+        const ui::Element* e = doc::find(state_, session_.selected);
+        if (e != nullptr) {
+            say("moved #" + std::to_string(e->id) + " to " + std::to_string(e->x) + "," +
+                    std::to_string(e->y),
+                false);
         }
     }
 
@@ -370,8 +484,10 @@ private:
         mail.publish(paint(state_, session_));
         mail.publish(surface::SurfaceText{
             surface::kSlotStatus,
-            "[workshop] " + std::to_string(state_.elements.size()) + " objects | selected #" +
-                std::to_string(session_.selected)});
+            "[workshop] " + std::to_string(state_.elements.size()) + " objects | " +
+                (session_.selected == 0
+                     ? std::string("nothing selected")
+                     : "selected #" + std::to_string(session_.selected))});
     }
 
     void quit() {

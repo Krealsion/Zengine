@@ -574,6 +574,86 @@ TEST_CASE("win32 mouse: moves carry deltas, buttons are transitions, wheels are 
     CHECK(as<MouseWheel>(ev, 0).dy == 0.0);
 }
 
+// ---- What a drag asks of this vocabulary, and does not get  (W-2 probes) ----------------
+//
+// These two cases pin CURRENT behaviour, not desired behaviour. Workshop's W-2
+// drag gesture is the first consumer that has to reconstruct a pointer position,
+// and the reconstruction is only safe under assumptions nothing states. Pinning
+// them here means the Input phase that fixes either one has to come and delete a
+// test on purpose, rather than discovering afterwards that something depended on
+// the loss.
+
+TEST_CASE("win32 mouse, EXPIRING: a button record KNOWS where it happened; the wire does not") {
+    // The Win32 console hands the reader dwMousePosition on EVERY mouse record,
+    // including a pure button transition (dwEventFlags == 0). The position is
+    // therefore present at the platform boundary and is dropped by the
+    // translation, because MouseButton v1 has nowhere to put it -- which is
+    // exactly the information loss W-0 recorded as P6 and W-2 had to build
+    // around.
+    MouseTrack track;
+
+    auto ev = win32_mouse_to_events(track, 10, 5, 0, win32::kMouseMoved);
+    REQUIRE(ev.size() == 1);
+    CHECK(as<MouseMoved>(ev, 0).x == 10.0);
+
+    // A press 32 cells away, with no intervening move record. Everything the
+    // platform said about WHERE is gone.
+    ev = win32_mouse_to_events(track, 42, 7, win32::kButtonLeft, 0);
+    REQUIRE(ev.size() == 1);
+    const MouseButton& press = as<MouseButton>(ev, 0);
+    CHECK(press.button == 1);
+    CHECK(press.pressed);
+    CHECK(schema_of<MouseButton>()->fields().size() == 2); // button, pressed -- no position
+
+    // Worse than absent: STALE. The tracker is not advanced by a button-only
+    // record either, so the next move reports a delta measured from the position
+    // before the press, and a consumer reconstructing "where was the click" from
+    // the last MouseMoved answers 10,5 for a click at 42,7. Reachable in
+    // practice: a console generates no move records while it does not have
+    // focus, so the first click after refocusing lands wherever the pointer
+    // silently went.
+    ev = win32_mouse_to_events(track, 43, 7, win32::kButtonLeft, win32::kMouseMoved);
+    REQUIRE(ev.size() == 1);
+    CHECK(as<MouseMoved>(ev, 0).dx == 33.0); // 43 - 10, not 43 - 42
+    CHECK(as<MouseMoved>(ev, 0).dy == 2.0);
+}
+
+TEST_CASE("terminal, EXPIRING: the canonical lane has no pointer, and a mouse report is keystrokes") {
+    // The POSIX backend translates bytes, and no byte sequence it recognises is a
+    // pointer event -- so Workshop's click-and-drag path is simply not live on
+    // the lane every suite runs on. That is a product limitation, and it is the
+    // less interesting half.
+    //
+    // The interesting half: the absence is in the PARSER, not only in the
+    // terminal's configuration. Nothing today asks a terminal to report the mouse
+    // (the Skin emits alternate-screen and cursor-hiding and nothing else), but
+    // if anything ever did, an SGR mouse report would not be ignored -- it would
+    // be translated, byte by byte, into ordinary keystrokes.
+    const auto ev = term("\x1b[<0;10;5M"); // "left button pressed at column 10, row 5"
+
+    for (const InputEvent& e : ev) {
+        CHECK_FALSE(std::holds_alternative<MouseButton>(e));
+        CHECK_FALSE(std::holds_alternative<MouseMoved>(e));
+        CHECK_FALSE(std::holds_alternative<MouseWheel>(e));
+    }
+
+    std::vector<std::int64_t> pressed;
+    for (const InputEvent& e : ev) {
+        if (const KeyPressed* k = std::get_if<KeyPressed>(&e)) {
+            pressed.push_back(k->scancode);
+        }
+    }
+    // Escape, then every remaining byte on its own: the report becomes nine keys.
+    REQUIRE(pressed.size() == 9);
+    CHECK(pressed[0] == scan::kEscape);
+    CHECK(pressed[1] == scan::kLeftBracket);
+    CHECK(pressed[8] == scan::kM);
+    // `[` is a key Workshop binds -- it narrows the workspace. So a single click,
+    // on a terminal that had been asked to report one, would silently resize a
+    // maker's workspace. Nothing enables that today; nothing refuses it either.
+    CHECK(pressed[1] == scan::kLeftBracket);
+}
+
 // ============================================================================
 // Tier 3 — the weave through a real bus (injected reader)
 // ============================================================================
