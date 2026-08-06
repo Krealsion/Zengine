@@ -183,9 +183,16 @@ TEST_CASE("resolution is TOTAL for values no setter would have accepted") {
     CHECK(resolve_extent(Extent{kExtentPercent, 50}, kMax) > 0);
     CHECK(resolve_extent(Extent{kExtentPercent, 50}, kMax) < kMax);
 
-    // A viewport with no span has no share to give.
+    // A viewport with no span has no share to give. The most negative span is
+    // the one that matters and the one a value check cannot see: without the
+    // early return, `span * pct` on it overflows -- and on this compiler it
+    // wraps to exactly 0, which floors to kMinCells, so the RIGHT answer comes
+    // out of undefined behaviour. Only a sanitizer can tell the two apart; the
+    // report records the ad-hoc UBSan run that does.
     CHECK(resolve_extent(Extent{kExtentPercent, 50}, 0) == kMinCells);
     CHECK(resolve_extent(Extent{kExtentPercent, 50}, -10) == kMinCells);
+    CHECK(resolve_extent(Extent{kExtentPercent, 100},
+                         (std::numeric_limits<std::int64_t>::min)()) == kMinCells);
 
     // An unknown mode is not a percent, so it resolves as the number it carries.
     // (What a legal mode IS belongs to whoever accepts an extent; resolution
