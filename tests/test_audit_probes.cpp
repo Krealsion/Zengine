@@ -51,7 +51,8 @@
 // and/or a delivered-Drive watchdog via a bus observer. A pump that returns
 // with an empty queue and no watchdog trip IS a chain-death observation.
 
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+// main() and the framework live in doctest_main.cpp -- the shared one that
+// refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "timer/timer_weave.hpp"

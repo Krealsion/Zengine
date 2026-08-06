@@ -9,9 +9,15 @@ substrate truth lives in `../Loom/docs/`, machine router
 ```bash
 # once, in ../Loom:  cmake --build build -j && cmake --install build --prefix build/_install
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
-cmake --build build -j"$(nproc)" && ctest --test-dir build --no-tests=error
+cmake --build build -j"$(nproc)"
+cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake        # the official lane
 ```
 
+- **Run `tests/verify.cmake`, not a bare `ctest`**, whenever a result is going
+  to be quoted. A bare `ctest` still works and still runs the tests; what it
+  cannot tell you is whether the population that ran is the population this
+  repository meant to run (see below). Pass extra CTest flags with
+  `-DZEN_CTEST_ARGS=-V`.
 - Stranger-by-default is deliberate (`ZEN_LOOM_DEV=OFF`): an unexported-surface
   mistake must fail on every machine, not only in CI.
 - Per-repo green: Zengine's lane never re-runs Loom's suite — state which
@@ -21,6 +27,43 @@ cmake --build build -j"$(nproc)" && ctest --test-dir build --no-tests=error
   reintroduce a private compiler flag for it here.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them
   all, plus compile-negative targets judged on their diagnostics.
+
+## The population contract (C4, POP-01/POP-02)
+
+A green here means the intended test population existed and ran. Four things
+have to hold, and `tests/verify.cmake` requires all four:
+
+```text
+the declared CTest entries exist, exactly — no more, no fewer
+each doctest surface selects at least its declared case floor
+a doctest run that selects zero cases is a FAILURE
+the tests themselves pass
+```
+
+- `tests/test_population.txt` is the **expectation** — entry, kind, gate, and
+  either a case floor or the diagnostic a compile-negative test must be judged
+  on. It lives in the source tree precisely so that deleting a registration
+  cannot delete the expectation with it. Adding, renaming or removing a CTest
+  entry is a deliberate edit to that file.
+- Register tests through `zengine_doctest_test()` / `zengine_compile_test()` /
+  `zengine_program_test()` (top-level `CMakeLists.txt`), never a bare
+  `add_test()`. The helpers record what kind of evidence the entry is; the
+  verifier refuses an entry it finds registered and unrecorded.
+- `tests/doctest_main.cpp` is the one `main()` every runtime suite links.
+  Stock doctest exits **0** on `--test-case=<no match>` ("Status: SUCCESS!");
+  this one exits **70** and says `EMPTY TEST POPULATION`. The verifier
+  re-proves that on every run, per binary, with a filter that matches nothing.
+- Floors are **minimums** anchored to the C4 measured baseline (`snake` 22,
+  `timer` 78, `input` 13, `surface` 16 + 1 `sdl`, `audit_probes` 4). Additions
+  are free; a deletion is a red. Do not lower a floor to make a deletion pass.
+- Assertion totals (~2,450) are evidence to report. They are **not** a
+  population, never an acceptance oracle, and not coverage.
+- Configuration-dependent populations are **declared**, not absorbed: the one
+  SDL-gated case in `test_surface.cpp` is its own manifest row, so the Windows
+  lane's `-DZENGINE_SDL_SKIN=OFF` reads 16 and Linux reads 17 with no slack in
+  either.
+- The verifier verifies the **configured build tree it is handed**; producing a
+  current one is the job of whoever configures and builds.
 
 ## The suites need a Loom that can host weaves (POP-03)
 

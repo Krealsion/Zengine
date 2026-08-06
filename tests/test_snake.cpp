@@ -29,7 +29,8 @@
 // asserted through their own poked frame counters, not their pixels (the
 // pixels' own suite is test_surface.cpp, golden bytes and all).
 
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+// main() and the framework live in doctest_main.cpp -- the shared one that
+// refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
 #include "logic.hpp"

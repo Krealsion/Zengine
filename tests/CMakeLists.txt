@@ -77,7 +77,9 @@ target_link_libraries(zengine-probe-required PRIVATE zengine-timer-vocabulary ze
 target_include_directories(zengine-probe-required PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
 target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVATION=1)
 
-add_executable(zengine-tests test_snake.cpp)
+# doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
+# selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
+add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
             zengine-warnings)
@@ -105,14 +107,14 @@ target_compile_definitions(zengine-tests PRIVATE
     # file can tell which one is there. Defense in depth, same as above.
     "CLOCK_CPP=\"${CMAKE_SOURCE_DIR}/snake/clock.cpp\"")
 
-add_test(NAME snake COMMAND zengine-tests)
+zengine_doctest_test(snake zengine-tests)
 
 # The Timer suite: time message-shaped — the contract pins, every schedule
 # over a fake clock (deterministic, no wall waits), the real .so re-winding
 # itself on the real clock, and the migration chains: the world ticking, the
 # input weave polling, and the skin servicing its medium with nobody pumping
 # them (the three obligations the host used to carry).
-add_executable(zengine-timer-tests test_timer.cpp)
+add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings)
@@ -135,7 +137,7 @@ target_compile_definitions(zengine-timer-tests PRIVATE
     "TIMER_VIRTUAL_V2_SO=\"$<TARGET_FILE:zengine-timer-virtual-v2>\""
     "TIMER_DECLINES_SO=\"$<TARGET_FILE:zengine-timer-declines>\"")
 
-add_test(NAME timer COMMAND zengine-timer-tests)
+zengine_doctest_test(timer zengine-timer-tests)
 
 # ---- The compile-negative lane (owned by the Timer suite) --------------------
 #
@@ -164,33 +166,29 @@ foreach(case_name case_id IN ZIP_LISTS ZENGINE_CN_NAMES ZENGINE_CN_IDS)
     target_compile_definitions(zengine-cn-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
 endforeach()
 
-add_test(NAME timer_raw_activation_refused
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-collision)
-set_tests_properties(timer_raw_activation_refused PROPERTIES
-    PASS_REGULAR_EXPRESSION "on_timed_activation")
+# zengine_compile_test() is the single registration path for this lane: it adds the entry,
+# attaches the PASS_REGULAR_EXPRESSION that does the judging, and records in the build tree
+# that this entry is a diagnostic-judged one. tests/test_population.txt then requires
+# exactly that -- so a case whose diagnostic quietly went away is a red, not a test that
+# has become "the compiler returned non-zero, therefore PASS" (C4).
+zengine_compile_test(timer_raw_activation_refused zengine-cn-collision "on_timed_activation")
 
-add_test(NAME timer_activation_hook_compiles
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-hook)
+zengine_compile_test(timer_activation_hook_compiles zengine-cn-hook)
 
-add_test(NAME timer_missing_using_refused
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-missing-using)
-set_tests_properties(timer_missing_using_refused PROPERTIES
-    PASS_REGULAR_EXPRESSION "using TimedWeave::on")
+zengine_compile_test(timer_missing_using_refused zengine-cn-missing-using
+                     "using TimedWeave::on")
 
 # The hook runs INSIDE an accepted activation, so it must not be able to accept
 # again. `activation()` hands back a const& and `accept` is non-const, so the
 # attempt cannot compile — and this is what keeps that true, since a mutation
 # widening the accessor to a mutable reference is otherwise invisible: no
 # runtime case can produce an input the language refuses to express.
-add_test(NAME timer_cursor_bypass_refused
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-cn-cursor)
-set_tests_properties(timer_cursor_bypass_refused PROPERTIES
-    PASS_REGULAR_EXPRESSION "discards qualifiers")
+zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor "discards qualifiers")
 
 # The Input suite: its own executable so each package's green stays its own
 # count (the snake suite's numbers must not move when input's do). It speaks
 # the timer vocabulary now: the weave's own beat is part of its contract.
-add_executable(zengine-input-tests test_input.cpp)
+add_executable(zengine-input-tests test_input.cpp doctest_main.cpp)
 target_link_libraries(zengine-input-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
             zengine-timer-vocabulary zengine-warnings)
@@ -203,14 +201,14 @@ target_compile_definitions(zengine-input-tests PRIVATE
     "CONTROLS_SO=\"$<TARGET_FILE:snake-controls>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
 
-add_test(NAME input COMMAND zengine-input-tests)
+zengine_doctest_test(input zengine-input-tests)
 
 # The Surface suite: the skin pattern — golden terminal bytes, the pure SDL
 # plan (pinned on every lane, SDL built or not), the hello handshake, surface
 # ownership, and the linkage pins riding the skin pair. Where the SDL skin is
 # built, the same intent drives it under SDL's dummy video driver (set both
 # here and in the process, belt to braces).
-add_executable(zengine-surface-tests test_surface.cpp)
+add_executable(zengine-surface-tests test_surface.cpp doctest_main.cpp)
 target_link_libraries(zengine-surface-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
             zengine-timer-vocabulary zengine-warnings)
@@ -222,16 +220,30 @@ target_compile_definitions(zengine-surface-tests PRIVATE
     "SCORE_SO=\"$<TARGET_FILE:snake-score>\""
     "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
     "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
+zengine_doctest_test(surface zengine-surface-tests)
+
+# THE SDL SKIN IS A CONDITIONAL SUBPOPULATION, AND IT IS DECLARED, NOT ABSORBED.
+#
+# One TEST_CASE in test_surface.cpp lives behind `#if defined(SURFACE_HAS_SDL)`, so this
+# suite is 16 cases where the SDL skin was not built and 17 where it was -- and the Windows
+# stranger lane builds it with -DZENGINE_SDL_SKIN=OFF, so both numbers are real. A single
+# floor of 16 everywhere would have bought that portability by giving the Linux lane a case
+# of downward slack; the `sdl` gate states the difference instead, and
+# tests/test_population.txt sums the rows whose gates are active (16 always + 1 sdl).
+#
+# ONE `if`, THREE CONSEQUENCES, on purpose. The compile definition that admits the case, the
+# environment the case needs, and the gate the floor is derived from all hang off the same
+# condition, so they cannot come to disagree about whether SDL is here. C3 paid for the
+# general form of this: moving a check's gate from a name to a derivation moves the
+# blindness onto the derivation -- a second, independent way of asking "is SDL built?" would
+# be a second thing that can be wrong, and the way it would be wrong is silently downward.
 if(TARGET zengine-skin-sdl)
     target_compile_definitions(zengine-surface-tests PRIVATE
         SURFACE_HAS_SDL=1
         "SKIN_SO_SDL=\"$<TARGET_FILE:zengine-skin-sdl>\"")
-endif()
-
-add_test(NAME surface COMMAND zengine-surface-tests)
-if(TARGET zengine-skin-sdl)
     set_tests_properties(surface PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
 # The Trust-Gate liveness probes: what the substrate actually does when the
@@ -239,7 +251,7 @@ endif()
 # durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —
 # read the suite's own header for why a file that pins UNWANTED behavior lives
 # here, and what R2 is expected to flip.
-add_executable(zengine-audit-probes test_audit_probes.cpp)
+add_executable(zengine-audit-probes test_audit_probes.cpp doctest_main.cpp)
 target_link_libraries(zengine-audit-probes
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
             zengine-warnings)
@@ -252,4 +264,4 @@ target_compile_definitions(zengine-audit-probes PRIVATE
     "SNAKE_CLOCK_SO=\"$<TARGET_FILE:snake-clock>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
 
-add_test(NAME audit_probes COMMAND zengine-audit-probes)
+zengine_doctest_test(audit_probes zengine-audit-probes)
