@@ -119,6 +119,15 @@ function(zengine_check_population manifest build_dir registered)
         set(gate "${CMAKE_MATCH_3}")
         string(STRIP "${CMAKE_MATCH_4}" detail)
 
+        # A semicolon would be eaten by CMake's own list expansion somewhere downstream --
+        # quietly, and in the direction of a weaker check. Refused at the door instead.
+        if(detail MATCHES ";")
+            message(FATAL_ERROR
+                "population: '${entry}' has a semicolon in its detail field. CMake treats "
+                "that as a list separator, so the value would not survive intact to the "
+                "comparison. Spell the pattern without one.")
+        endif()
+
         if(NOT kind MATCHES "^(doctest|compile-negative|compile-positive|program)$")
             message(FATAL_ERROR
                 "population: '${entry}' declares an unknown kind '${kind}'. The kinds are "

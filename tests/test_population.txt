@@ -67,7 +67,9 @@
 # any give in it.
 #
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
-# a string terminator and would silently split the line around it.
+# a string terminator and would silently split the line around it. Two more characters the
+# parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
+# CMake's list separator and is refused outright rather than being eaten halfway through.
 #
 # entry                           kind              gate    detail
 smoke                             program           always

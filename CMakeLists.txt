@@ -168,12 +168,16 @@ option(BUILD_TESTING "Build Zengine's test suites (they require a Loom exporting
 # The record is a build-tree file, written once after every subdirectory has registered, and
 # it is deliberately NOT the expectation. It describes; test_population.txt requires.
 
+# zengine_record_test(<entry> <kind> [<one extra line>]). The optional third argument is
+# taken whole rather than as a list: a semicolon inside a recorded value would otherwise be
+# eaten by CMake's own list expansion before it reached the file, which is a real and quiet
+# failure mode this project has already paid for once next door (C3).
 function(zengine_record_test entry kind)
-    set_property(GLOBAL APPEND_STRING PROPERTY ZENGINE_TEST_RECORD
-                 "set(ZENGINE_KIND_${entry} \"${kind}\")\n")
-    foreach(line IN LISTS ARGN)
-        set_property(GLOBAL APPEND_STRING PROPERTY ZENGINE_TEST_RECORD "${line}\n")
-    endforeach()
+    set(lines "set(ZENGINE_KIND_${entry} \"${kind}\")\n")
+    if(ARGC GREATER 2)
+        string(APPEND lines "${ARGV2}\n")
+    endif()
+    set_property(GLOBAL APPEND_STRING PROPERTY ZENGINE_TEST_RECORD "${lines}")
 endfunction()
 
 # A doctest-bearing runtime binary: the population question is "how many cases did it
