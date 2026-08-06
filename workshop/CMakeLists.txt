@@ -12,9 +12,15 @@
 # pattern input/ and surface/ already use: the suite includes the same headers the
 # host does, so what the tests pin is what ships. Portable — it exists even where
 # no kernel does.
+#
+# It consumes two package vocabularies and the split between them is the W-1
+# result: `ui` owns what a maker AUTHORS and what a viewport MAKES of it;
+# `surface` owns what gets PAINTED. Workshop is the application that joins them,
+# and it is the only one of the three that knows about both.
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary)
+target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
+                                                            zengine-ui-vocabulary)
 
 # The host needs a Loom that can host .so weaves, for the same honest reason
 # snake's does: it loads a Skin and an Input producer.
@@ -26,8 +32,8 @@ endif()
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
-            zengine-warnings)
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
+            zengine-timer-vocabulary zengine-warnings)
 
 # The weaves this host loads must sit beside its binary — the host resolves them
 # from its own directory (workshop.cpp's exe_dir), exactly as snake's does.

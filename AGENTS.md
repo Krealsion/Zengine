@@ -54,10 +54,16 @@ the tests themselves pass
   this one exits **70** and says `EMPTY TEST POPULATION`. The verifier
   re-proves that on every run, per binary, with a filter that matches nothing.
 - Floors are **minimums** anchored to a measured baseline (`snake` 22,
-  `timer` 78, `input` 13, `surface` 21 + 1 `sdl`, `workshop` 20,
+  `timer` 78, `input` 13, `surface` 21 + 1 `sdl`, `ui` 11, `workshop` 22,
   `audit_probes` 4). Additions are free; a deletion is a red. Do not lower a
   floor to make a deletion pass. Read them from `tests/test_population.txt`,
   which is the contract; this list is a convenience and can go stale.
+- **Moving evidence between suites does not lower the source suite's floor.**
+  W-1 relocated the authored/resolved vocabulary out of Workshop into `ui/` and
+  Workshop's floor went **up**, 20 → 22: what `resolve`/`hit` DO became the
+  `ui` suite's claim, and Workshop kept a case for each proving its own answers
+  come from there. A relocation that made the old floor fall would have moved
+  the guarantee out of watch, not out of the file.
 - Assertion totals (~2,450) are evidence to report. They are **not** a
   population, never an acceptance oracle, and not coverage.
 - Configuration-dependent populations are **declared**, not absorbed: the one

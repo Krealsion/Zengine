@@ -236,17 +236,22 @@ endfunction()
 # owns a clock and a nap; everyone else hears beats). input: the Input package — the
 # floor games sit on (the sole producer of the locked input shapes). surface: the
 # Surface package — visual intent in, output out (the skins own every terminal row and
-# window pixel; consumers only publish). snake: the first game panel — the Stage 2
-# vertical slice, and the hosting consumer that pulled loom::kernel onto the Loom's
-# export surface; consumer of the floors, owner of no platform edge. workshop: the
-# maker-facing surface — the second hosting consumer, and the one that pulled the
-# Surface package's general canvas; it authors real objects and paints them by
-# publishing intent, holding no privilege snake does not. tests: the Zengine
-# suites (the smoke test stays its own tiny proof; the others drive the real .so weaves
-# through the real kernel). Order matters only where vocabulary flows: activation's
-# interface target must exist before the packages that read an activation, timer's before
-# input/surface consume it, theirs before snake, and snake's skins before workshop
-# stages copies of them.
+# window pixel; consumers only publish). ui: the UI package — authored intent in,
+# resolved geometry out, plus "which authored object is under this cell"; the one
+# distinction it owns is authored-versus-resolved, and it owns nothing else (no widgets,
+# no relational layout, no drawing — a resolved scene is what you paint FROM). snake: the
+# first game panel — the Stage 2 vertical slice, and the hosting consumer that pulled
+# loom::kernel onto the Loom's export surface; consumer of the floors, owner of no
+# platform edge. workshop: the maker-facing surface — the second hosting consumer, the
+# one that pulled the Surface package's general canvas (W-0) and then the UI package's
+# authored/resolved vocabulary out of its own private headers (W-1); it authors real
+# objects and paints them by publishing intent, holding no privilege snake does not.
+# tests: the Zengine suites (the smoke test stays its own tiny proof; the others drive
+# the real .so weaves through the real kernel). Order matters only where vocabulary
+# flows: activation's interface target must exist before the packages that read an
+# activation, timer's before input/surface consume it, theirs before snake, surface's and
+# ui's before workshop consumes both, and snake's skins before workshop stages copies of
+# them.
 #
 # smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
 # themselves do not, and each still makes its own honest kernel decision.
@@ -255,6 +260,7 @@ add_subdirectory(activation)
 add_subdirectory(timer)
 add_subdirectory(input)
 add_subdirectory(surface)
+add_subdirectory(ui)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

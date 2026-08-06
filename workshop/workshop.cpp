@@ -13,11 +13,18 @@
 //
 // WHAT IS AND IS NOT WORKSHOP'S HERE, because the whole phase turns on it:
 //
-//   the authored object   a real WorkshopRect in the weave's own state: gated,
-//                         schema-carrying, poke-inspectable. There is no shadow
-//                         model -- the rectangle the maker selects IS the
-//                         rectangle the canvas is painted from and the
-//                         inspector reads through.
+//   the authored object   a real zengine::ui::Element in the weave's own state:
+//                         gated, schema-carrying, poke-inspectable. There is no
+//                         shadow model -- the element the maker selects IS the
+//                         element the canvas is painted from and the inspector
+//                         reads through. W-1 moved the TYPE out to the UI
+//                         package; the object is no less Workshop's state for
+//                         being spelled in a shared vocabulary.
+//   the geometry          NOT Workshop's, since W-1. `ui::resolve` turns the
+//                         authored extents into a scene and `ui::hit` says what
+//                         is under a cell; this file computes neither, and the
+//                         canvas, the inspector and the pointer all read one
+//                         scene.
 //   the session           selection, workspace extent, drafts. Plain members,
 //                         never state (the Skin's `announced_` stance).
 //   the screen            screen.hpp, pure, pinned by the suite.
@@ -68,6 +75,7 @@ namespace input = zengine::input;
 namespace scan = zengine::input::scan;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
+namespace ui = zengine::ui;
 
 /// One scancode back to the character it stood for, or 0 for "not a character".
 ///
@@ -160,11 +168,11 @@ public:
         // `panel` would be the same object in the old builder, and here they are
         // #1 and #2. The wide one is authored as a SHARE so the very first screen
         // already shows an authored intent and its resolved value side by side.
-        doc::add(state_, "panel", 3, 2, WorkshopExtent{kExtentPercent, 60},
-                 WorkshopExtent{kExtentCells, 6});
-        doc::add(state_, "panel", 6, 10, WorkshopExtent{kExtentCells, 14},
-                 WorkshopExtent{kExtentCells, 4});
-        session_.selected = state_.rects.empty() ? 0 : state_.rects.front().id;
+        doc::add(state_, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60},
+                 ui::Extent{ui::kExtentCells, 6});
+        doc::add(state_, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
+                 ui::Extent{ui::kExtentCells, 4});
+        session_.selected = state_.elements.empty() ? 0 : state_.elements.front().id;
         rebuild_rows();
     }
 
@@ -197,8 +205,9 @@ public:
     /// Nothing on the canonical Linux lane sends either message: the POSIX
     /// terminal backend produces keystrokes only (input/input.cpp), so pointer
     /// selection is live only where a pointer exists at all. The keyboard path is
-    /// the portable one, and `doc::pick` -- the part that answers WHICH object --
-    /// is pinned by the suite rather than left to a medium that may not report.
+    /// the portable one, and the part that answers WHICH object -- now
+    /// `ui::hit` over the same scene the canvas was painted from -- is pinned by
+    /// the suite rather than left to a medium that may not report.
     void on(const input::MouseMoved& m, loom::Mail&) {
         pointer_x_ = static_cast<std::int64_t>(m.x);
         pointer_y_ = static_cast<std::int64_t>(m.y);
@@ -213,11 +222,11 @@ public:
         // workspace starts one row into the canvas.
         const std::int64_t cx = pointer_x_ - kWorkspaceX;
         const std::int64_t cy = pointer_y_ - 2 - kWorkspaceY;
-        const std::int64_t hit =
-            doc::pick(state_, cx, cy, session_.workspace_w, session_.workspace_h);
-        if (hit != 0) {
-            select(hit);
-            say("selected #" + std::to_string(hit) + " by pointer", false);
+        const ui::Scene scene = workspace_scene(state_, session_);
+        const ui::Placed* hit = ui::hit(scene, cx, cy);
+        if (hit != nullptr) {
+            select(hit->id);
+            say("selected #" + std::to_string(hit->id) + " by pointer", false);
         }
         repaint(mail);
     }
@@ -325,17 +334,17 @@ private:
     }
 
     void select_next() {
-        if (state_.rects.empty()) {
+        if (state_.elements.empty()) {
             return;
         }
         std::size_t at = 0;
-        for (std::size_t i = 0; i < state_.rects.size(); ++i) {
-            if (state_.rects[i].id == session_.selected) {
+        for (std::size_t i = 0; i < state_.elements.size(); ++i) {
+            if (state_.elements[i].id == session_.selected) {
                 at = i;
                 break;
             }
         }
-        select(state_.rects[(at + 1) % state_.rects.size()].id);
+        select(state_.elements[(at + 1) % state_.elements.size()].id);
     }
 
     void select(std::int64_t id) {
@@ -361,7 +370,7 @@ private:
         mail.publish(paint(state_, session_));
         mail.publish(surface::SurfaceText{
             surface::kSlotStatus,
-            "[workshop] " + std::to_string(state_.rects.size()) + " objects | selected #" +
+            "[workshop] " + std::to_string(state_.elements.size()) + " objects | selected #" +
                 std::to_string(session_.selected)});
     }
 

@@ -79,9 +79,13 @@ timer                             doctest           always  78
 input                             doctest           always  13
 surface                           doctest           always  21
 surface                           doctest           sdl     1
-workshop                          doctest           always  20
+ui                                doctest           always  11
+workshop                          doctest           always  22
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
 timer_missing_using_refused       compile-negative  always  using TimedWeave::on
 timer_cursor_bypass_refused       compile-negative  always  discards qualifiers
+ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Extent
+ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
+ui_authored_element_compiles      compile-positive  always

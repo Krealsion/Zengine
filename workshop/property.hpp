@@ -58,6 +58,8 @@
 
 #include "vocabulary.hpp"
 
+#include "ui/vocabulary.hpp"
+
 namespace zengine::workshop {
 
 /// The outcome of an attempted write. A refusal carries its reason, in words a
@@ -139,11 +141,11 @@ template <> struct TextForm<std::int64_t> {
     static const char* expected() { return "a whole number"; }
 };
 
-template <> struct TextForm<WorkshopExtent> {
+template <> struct TextForm<ui::Extent> {
     /// The canonical spelling: `12` for cells, `70%` for a share.
-    static std::string format(const WorkshopExtent& v) {
+    static std::string format(const ui::Extent& v) {
         std::string out = std::to_string(v.amount);
-        if (v.mode == kExtentPercent) {
+        if (v.mode == ui::kExtentPercent) {
             out += '%';
         }
         return out;
@@ -160,20 +162,20 @@ template <> struct TextForm<WorkshopExtent> {
     /// not reachable by the input that edits it. `p` is the smallest honest
     /// bridge, and it stays until modifiers exist, at which point this branch
     /// and this comment go together.
-    static std::optional<WorkshopExtent> parse(std::string_view text) {
+    static std::optional<ui::Extent> parse(std::string_view text) {
         if (text.empty()) {
             return std::nullopt;
         }
-        std::int64_t mode = kExtentCells;
+        std::int64_t mode = ui::kExtentCells;
         if (text.back() == '%' || text.back() == 'p') {
-            mode = kExtentPercent;
+            mode = ui::kExtentPercent;
             text.remove_suffix(1);
         }
         const std::optional<std::int64_t> amount = TextForm<std::int64_t>::parse(text);
         if (!amount) {
             return std::nullopt;
         }
-        return WorkshopExtent{mode, *amount};
+        return ui::Extent{mode, *amount};
     }
 
     static const char* expected() { return "cells (12) or a share (70% -- type 70p)"; }

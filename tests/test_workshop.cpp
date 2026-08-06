@@ -11,14 +11,21 @@
 // W-0's own logic needs a terminal, so nothing here has one.
 //
 // Three tiers:
-//   1. THE VOCABULARY — the authored shapes derive their declared schemas, and
-//      identity is not the name.
+//   1. THE VOCABULARY — the document is ordinary content, and identity is not
+//      the name.
 //   2. THE PROPERTY CONNECTION — read through the semantic surface, commit
 //      through it, and the two ways a commit can fail told apart. Includes the
 //      reuse pin: two properties of one type share every line of conversion.
 //   3. THE SCREEN — one canvas, asserted as a value: the rectangle, the ring,
 //      the object list, the inspector, the authored-versus-resolved split, and a
 //      refusal visible on it.
+//
+// AFTER W-1, THE GEOMETRY CLAIMS HERE ARE INTEGRATION CLAIMS. Resolution and hit
+// testing belong to the UI package and are proven in the `ui` suite; what these
+// cases prove is that Workshop's answers COME from there — that the painted
+// rectangle, the inspector's resolved reading and the reply to a click are all
+// derived from one ui::Scene. That is the property W-0 could only get by having
+// one person write all three call sites.
 //
 // What headless cannot prove is that a Skin carries the canvas to a human's
 // eyes. That is the Surface suite's job (a canvas is a frame: same hello, same
@@ -35,6 +42,8 @@
 
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
+#include "ui/layout.hpp"
+#include "ui/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/weave.hpp>
@@ -46,6 +55,7 @@
 using namespace zengine::workshop;
 using loom::schema_of;
 namespace surface = zengine::surface;
+namespace ui = zengine::ui;
 
 namespace {
 
@@ -53,8 +63,8 @@ namespace {
 /// identity, this document could not exist.
 WorkshopDoc two_panels() {
     WorkshopDoc d;
-    doc::add(d, "panel", 3, 2, WorkshopExtent{kExtentPercent, 60}, WorkshopExtent{kExtentCells, 6});
-    doc::add(d, "panel", 6, 10, WorkshopExtent{kExtentCells, 14}, WorkshopExtent{kExtentCells, 4});
+    doc::add(d, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60}, ui::Extent{ui::kExtentCells, 6});
+    doc::add(d, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14}, ui::Extent{ui::kExtentCells, 4});
     return d;
 }
 
@@ -97,24 +107,25 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    const auto extent = SchemaBuilder("WorkshopExtent", 1)
+    // The element and its extents are the UI package's shapes now (their own
+    // contract case lives in the ui suite). What is asserted HERE is that
+    // Workshop's document is still ordinary content built out of them -- the
+    // relocation moved a vocabulary, not the weave state's nature.
+    const auto extent = SchemaBuilder("Extent", 1)
                             .field("mode", Kind::Int)
                             .field("amount", Kind::Int)
                             .build();
-    CHECK(schema_of<WorkshopExtent>()->content_id() == extent->content_id());
-
-    const auto rect = SchemaBuilder("WorkshopRect", 1)
-                          .field("id", Kind::Int)
-                          .field("name", Kind::Text)
-                          .field("x", Kind::Int)
-                          .field("y", Kind::Int)
-                          .message("width", extent)
-                          .message("height", extent)
-                          .build();
-    CHECK(schema_of<WorkshopRect>()->content_id() == rect->content_id());
+    const auto element = SchemaBuilder("Element", 1)
+                             .field("id", Kind::Int)
+                             .field("label", Kind::Text)
+                             .field("x", Kind::Int)
+                             .field("y", Kind::Int)
+                             .message("width", extent)
+                             .message("height", extent)
+                             .build();
 
     const auto document = SchemaBuilder("WorkshopDoc", 1)
-                              .list("rects", loom::type_message(rect))
+                              .list("elements", loom::type_message(element))
                               .field("next_id", Kind::Int)
                               .build();
     CHECK(schema_of<WorkshopDoc>()->content_id() == document->content_id());
@@ -122,17 +133,17 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
 
 TEST_CASE("identity is the id, not the name: two objects may be called the same thing") {
     WorkshopDoc d = two_panels();
-    REQUIRE(d.rects.size() == 2);
-    CHECK(d.rects[0].name == d.rects[1].name);
-    CHECK(d.rects[0].id != d.rects[1].id);
+    REQUIRE(d.elements.size() == 2);
+    CHECK(d.elements[0].label == d.elements[1].label);
+    CHECK(d.elements[0].id != d.elements[1].id);
 
     // Renaming does NOT refuse a duplicate -- refusing one would quietly make
     // the name an identifier, which is exactly the old builder's mistake.
-    CHECK(doc::rename(d, d.rects[1].id, "panel").accepted);
+    CHECK(doc::rename(d, d.elements[1].id, "panel").accepted);
 
     // And each is still separately reachable BY ID after the rename.
-    const WorkshopRect* first = doc::find(d, d.rects[0].id);
-    const WorkshopRect* second = doc::find(d, d.rects[1].id);
+    const ui::Element* first = doc::find(d, d.elements[0].id);
+    const ui::Element* second = doc::find(d, d.elements[1].id);
     REQUIRE(first != nullptr);
     REQUIRE(second != nullptr);
     CHECK(first->x == 3);
@@ -149,11 +160,11 @@ TEST_CASE("identity is the id, not the name: two objects may be called the same 
 
 TEST_CASE("a property reads the current typed value through the semantic surface") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     CHECK(doc::name_of(d, id).read() == "panel");
     CHECK(doc::x_of(d, id).read() == 3);
-    CHECK(doc::width_of(d, id).read() == WorkshopExtent{kExtentPercent, 60});
+    CHECK(doc::width_of(d, id).read() == ui::Extent{ui::kExtentPercent, 60});
 
     // A property is a LIVE connection, not a snapshot: a change made anywhere
     // else is what the next read returns. This is why no Row caches a value and
@@ -164,7 +175,7 @@ TEST_CASE("a property reads the current typed value through the semantic surface
 
 TEST_CASE("a successful commit writes through the semantic setter") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     Row row = Row::edit("Width", doc::width_of(d, id));
     row.begin();
@@ -173,7 +184,7 @@ TEST_CASE("a successful commit writes through the semantic setter") {
 
     // The draft alone changes nothing.
     type_all(row, "x");
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
 
     row.cancel();
     row.begin();
@@ -181,10 +192,10 @@ TEST_CASE("a successful commit writes through the semantic setter") {
         row.backspace();
     }
     type_all(row, "24");
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60}); // still nothing
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60}); // still nothing
 
     CHECK(row.commit() == Commit::Accepted);
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentCells, 24});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentCells, 24});
     CHECK_FALSE(row.editing());
     CHECK(row.refusal().empty());
     CHECK(row.value() == "24");
@@ -192,8 +203,8 @@ TEST_CASE("a successful commit writes through the semantic setter") {
 
 TEST_CASE("an unparseable draft leaves the property untouched and says so") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
-    const WorkshopExtent before = d.rects[0].width;
+    const std::int64_t id = d.elements[0].id;
+    const ui::Extent before = d.elements[0].width;
 
     Row row = Row::edit("Width", doc::width_of(d, id));
     row.begin();
@@ -203,7 +214,7 @@ TEST_CASE("an unparseable draft leaves the property untouched and says so") {
     type_all(row, "banana");
 
     CHECK(row.commit() == Commit::Unparseable);
-    CHECK(d.rects[0].width == before);       // the property never moved
+    CHECK(d.elements[0].width == before);       // the property never moved
     CHECK(row.editing());                    // still in the draft, so it can be fixed
     CHECK(row.draft() == "banana");           // and the draft was NOT thrown away
     CHECK_FALSE(row.refusal().empty());       // the refusal is observable
@@ -213,7 +224,7 @@ TEST_CASE("an unparseable draft leaves the property untouched and says so") {
 
 TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with its reason") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     Row row = Row::edit("Width", doc::width_of(d, id));
     row.begin();
@@ -226,7 +237,7 @@ TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with i
     type_all(row, "500%");
     CHECK(row.commit() == Commit::Refused);
     CHECK(row.refusal() == "a share is 1% to 100%");
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
     // The draft survives a REFUSAL too, not only an unparseable draft -- both
     // failures leave the maker looking at what they typed, so both are pinned.
     // (A mutation that cleared the draft here was green until this line.)
@@ -244,7 +255,7 @@ TEST_CASE("a parseable value the property refuses is a DIFFERENT outcome, with i
     type_all(row, "0");
     CHECK(row.commit() == Commit::Refused);
     CHECK(row.refusal() == "at least 1 cell");
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60});
 }
 
 TEST_CASE("an unparseable draft writes nothing even where a default WOULD be accepted") {
@@ -255,8 +266,8 @@ TEST_CASE("an unparseable draft writes nothing even where a default WOULD be acc
     // perfectly legal position -- so this is where "an unparseable draft does
     // not write" is actually observable.
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
-    REQUIRE(d.rects[0].x == 3);
+    const std::int64_t id = d.elements[0].id;
+    REQUIRE(d.elements[0].x == 3);
 
     Row row = Row::edit("X", doc::x_of(d, id));
     row.begin();
@@ -264,7 +275,7 @@ TEST_CASE("an unparseable draft writes nothing even where a default WOULD be acc
     type_all(row, "banana");
 
     CHECK(row.commit() == Commit::Unparseable);
-    CHECK(d.rects[0].x == 3); // not 0, and not anything else
+    CHECK(d.elements[0].x == 3); // not 0, and not anything else
     CHECK(row.draft() == "banana");
     CHECK(row.value() == "3");
 
@@ -275,19 +286,19 @@ TEST_CASE("an unparseable draft writes nothing even where a default WOULD be acc
     type_all(row, "-1");
     CHECK(row.commit() == Commit::Refused); // parses; the setter refuses it
     CHECK(row.refusal() == "the workspace starts at 0");
-    CHECK(d.rects[0].x == 3);
+    CHECK(d.elements[0].x == 3);
 
     row.cancel();
     row.begin();
     row.backspace();
     type_all(row, "0");
     CHECK(row.commit() == Commit::Accepted); // 0 IS a legal position
-    CHECK(d.rects[0].x == 0);
+    CHECK(d.elements[0].x == 0);
 }
 
 TEST_CASE("cancel abandons the draft and never touched the property") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     Row row = Row::edit("Name", doc::name_of(d, id));
     row.begin();
@@ -296,12 +307,12 @@ TEST_CASE("cancel abandons the draft and never touched the property") {
 
     CHECK_FALSE(row.editing());
     CHECK(row.display() == "panel");
-    CHECK(d.rects[0].name == "panel");
+    CHECK(d.elements[0].label == "panel");
 }
 
 TEST_CASE("the name property's own refusals: empty and too long") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     Row row = Row::edit("Name", doc::name_of(d, id));
     row.begin();
@@ -310,22 +321,22 @@ TEST_CASE("the name property's own refusals: empty and too long") {
     }
     CHECK(row.commit() == Commit::Refused); // any text parses; empty is REFUSED
     CHECK(row.refusal() == "a name cannot be empty");
-    CHECK(d.rects[0].name == "panel");
+    CHECK(d.elements[0].label == "panel");
 
     row.cancel();
     row.begin();
     type_all(row, std::string(doc::kMaxNameLen, 'x'));
     CHECK(row.commit() == Commit::Refused);
-    CHECK(d.rects[0].name == "panel");
+    CHECK(d.elements[0].label == "panel");
 }
 
 TEST_CASE("reuse: two properties of one type share every line of conversion") {
     WorkshopDoc d = two_panels();
-    const std::int64_t id = d.rects[0].id;
+    const std::int64_t id = d.elements[0].id;
 
     // Width and Height are both extents. Building rows for them is one call
     // each, and NEITHER call names a parse, a format, or a refusal wording --
-    // that is what TextForm<WorkshopExtent> already is. The old builder needed a
+    // that is what TextForm<ui::Extent> already is. The old builder needed a
     // whole row implementation per property; this pins that it no longer does.
     Row width = Row::edit("Width", doc::width_of(d, id));
     Row height = Row::edit("Height", doc::height_of(d, id));
@@ -339,8 +350,8 @@ TEST_CASE("reuse: two properties of one type share every line of conversion") {
         type_all(*row, "40%");
         CHECK(row->commit() == Commit::Accepted);
     }
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 40});
-    CHECK(d.rects[0].height == WorkshopExtent{kExtentPercent, 40});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(d.elements[0].height == ui::Extent{ui::kExtentPercent, 40});
 
     // ...and the same refusal, in the same words, from the shared check.
     for (Row* row : {&width, &height}) {
@@ -352,22 +363,22 @@ TEST_CASE("reuse: two properties of one type share every line of conversion") {
         CHECK(row->commit() == Commit::Refused);
         CHECK(row->refusal() == "a share is 1% to 100%");
     }
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 40});
-    CHECK(d.rects[0].height == WorkshopExtent{kExtentPercent, 40});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(d.elements[0].height == ui::Extent{ui::kExtentPercent, 40});
 }
 
 TEST_CASE("the extent text form: canonical out, and the typeable spelling in") {
-    using Form = TextForm<WorkshopExtent>;
-    CHECK(Form::format(WorkshopExtent{kExtentCells, 12}) == "12");
-    CHECK(Form::format(WorkshopExtent{kExtentPercent, 70}) == "70%");
+    using Form = TextForm<ui::Extent>;
+    CHECK(Form::format(ui::Extent{ui::kExtentCells, 12}) == "12");
+    CHECK(Form::format(ui::Extent{ui::kExtentPercent, 70}) == "70%");
 
     // Both spellings parse to the SAME value -- and `p` is not a convenience:
     // `%` is Shift+5, and the input vocabulary has no modifiers, so the
     // canonical display form is a form no maker can currently type.
-    CHECK(Form::parse("70%") == WorkshopExtent{kExtentPercent, 70});
-    CHECK(Form::parse("70p") == WorkshopExtent{kExtentPercent, 70});
-    CHECK(Form::parse("12") == WorkshopExtent{kExtentCells, 12});
-    CHECK(Form::parse("-3") == WorkshopExtent{kExtentCells, -3}); // parses; the setter refuses
+    CHECK(Form::parse("70%") == ui::Extent{ui::kExtentPercent, 70});
+    CHECK(Form::parse("70p") == ui::Extent{ui::kExtentPercent, 70});
+    CHECK(Form::parse("12") == ui::Extent{ui::kExtentCells, 12});
+    CHECK(Form::parse("-3") == ui::Extent{ui::kExtentCells, -3}); // parses; the setter refuses
 
     CHECK_FALSE(Form::parse("").has_value());
     CHECK_FALSE(Form::parse("%").has_value());
@@ -379,7 +390,7 @@ TEST_CASE("the extent text form: canonical out, and the typeable spelling in") {
 TEST_CASE("a resolved row cannot be edited, because it has nothing to write to") {
     WorkshopDoc d = two_panels();
     Session s;
-    s.selected = d.rects[0].id;
+    s.selected = d.elements[0].id;
     refocus(d, s);
     REQUIRE(s.rows.size() == 7);
 
@@ -399,24 +410,16 @@ TEST_CASE("a resolved row cannot be edited, because it has nothing to write to")
 }
 
 // ============================================================================
-// Tier 2b — authored intent versus resolved value
+// Tier 2b — authored intent versus resolved value, as a maker meets it
 // ============================================================================
+//
+// WHAT resolution does is the ui suite's claim. What these cases pin is that
+// Workshop's inspector reports the UI package's answer and never a second one.
 
 TEST_CASE("authored and resolved are different facts, and only one of them moves") {
     WorkshopDoc d;
     const std::int64_t id =
-        doc::add(d, "wide", 0, 0, WorkshopExtent{kExtentPercent, 50}, WorkshopExtent{kExtentCells, 4});
-
-    CHECK(doc::resolve(d.rects[0].width, 48) == 24);
-    CHECK(doc::resolve(d.rects[0].width, 24) == 12);
-
-    // A cells extent resolves to itself: the two facts COINCIDE, which is not
-    // the same as being one fact.
-    CHECK(doc::resolve(d.rects[0].height, 48) == 4);
-    CHECK(doc::resolve(d.rects[0].height, 12) == 4);
-
-    // A share never rounds a rectangle out of existence.
-    CHECK(doc::resolve(WorkshopExtent{kExtentPercent, 1}, 4) == doc::kMinCells);
+        doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 4});
 
     Session s;
     s.selected = id;
@@ -425,6 +428,14 @@ TEST_CASE("authored and resolved are different facts, and only one of them moves
     CHECK(s.rows[4].value() == "50%");       // the authored property
     CHECK(s.rows[6].value() == "24 x 4 cells"); // what this workspace makes of it
 
+    // The resolved row is the SCENE's reading, not a second calculation that
+    // happens to agree. Ask the package directly and the numbers are the same
+    // ones, because they are the same numbers.
+    const ui::Scene scene = workspace_scene(d, s);
+    REQUIRE(ui::placed_for(scene, id) != nullptr);
+    CHECK(ui::placed_for(scene, id)->rect.w == 24);
+    CHECK(ui::placed_for(scene, id)->rect.h == 4);
+
     // Narrow the workspace: the RESOLVED row changes, the AUTHORED row does not,
     // and no authored value was written. This is the whole distinction in four
     // lines, and it is the one the inspector must never collapse.
@@ -432,36 +443,100 @@ TEST_CASE("authored and resolved are different facts, and only one of them moves
     refocus(d, s);
     CHECK(s.rows[4].value() == "50%");
     CHECK(s.rows[6].value() == "12 x 4 cells");
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 50});
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 50});
+
+    // A cells extent's two facts COINCIDE, which is not the same as being one
+    // fact -- the inspector still reports them as two rows.
+    CHECK(s.rows[5].value() == "4");
+}
+
+TEST_CASE("the painted rectangle IS the resolved rectangle, and the panel is not") {
+    WorkshopDoc d;
+    const std::int64_t id =
+        doc::add(d, "wide", 3, 2, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 6});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+    refocus(d, s);
+
+    // Every authored element on the canvas comes from the scene, offset by the
+    // workspace's origin ON THE CANVAS and by nothing else. A rectangle a maker
+    // can see is therefore one ui::hit can find, by construction rather than by
+    // two functions agreeing.
+    const ui::Scene wide = workspace_scene(d, s);
+    REQUIRE(ui::placed_for(wide, id) != nullptr);
+    const ui::Rect r = ui::placed_for(wide, id)->rect;
+    CHECK(has_rect(paint(d, s), kWorkspaceX + r.x, kWorkspaceY + r.y, r.w, r.h,
+                   surface::role::kFill));
+
+    // Resize the workspace and the same derivation still holds -- the painted
+    // rectangle followed the resolved one without anyone telling it to.
+    s.workspace_w = 24;
+    refocus(d, s);
+    const ui::Scene narrow = workspace_scene(d, s);
+    const ui::Rect r2 = ui::placed_for(narrow, id)->rect;
+    CHECK(r2.w == 12);
+    CHECK(has_rect(paint(d, s), kWorkspaceX + r2.x, kWorkspaceY + r2.y, r2.w, r2.h,
+                   surface::role::kFill));
+
+    // The workspace backdrop is NOT an authored element: it is a session fact
+    // painted as furniture, and it must not appear in the scene.
+    CHECK(narrow.items.size() == 1);
 }
 
 // ============================================================================
 // Tier 2c — selection, against the real authored objects
 // ============================================================================
 
-TEST_CASE("hit testing picks the real authored object, topmost first") {
+TEST_CASE("a click selects the same authored object the maker can see") {
     WorkshopDoc d;
-    const std::int64_t back = doc::add(d, "back", 0, 0, WorkshopExtent{kExtentCells, 10},
-                                       WorkshopExtent{kExtentCells, 6});
-    const std::int64_t front = doc::add(d, "front", 4, 2, WorkshopExtent{kExtentCells, 4},
-                                        WorkshopExtent{kExtentCells, 2});
+    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 10},
+                                       ui::Extent{ui::kExtentCells, 6});
+    const std::int64_t front = doc::add(d, "front", 4, 2, ui::Extent{ui::kExtentCells, 4},
+                                        ui::Extent{ui::kExtentCells, 2});
+    Session s;
+    s.selected = back;
+    refocus(d, s);
 
-    CHECK(doc::pick(d, 0, 0, 48, 16) == back);
-    CHECK(doc::pick(d, 9, 5, 48, 16) == back);
-    CHECK(doc::pick(d, 5, 3, 48, 16) == front); // overlap: the last painted wins
-    CHECK(doc::pick(d, 10, 0, 48, 16) == 0);    // one cell past the edge is nothing
-    CHECK(doc::pick(d, 0, 6, 48, 16) == 0);
-    CHECK(doc::pick(d, -1, -1, 48, 16) == 0);
+    // Workshop asks the package, over the same scene it paints from, and gets
+    // back the AUTHORED IDENTITY -- not a rectangle index, not a label.
+    const ui::Scene scene = workspace_scene(d, s);
+    REQUIRE(ui::hit(scene, 0, 0) != nullptr);
+    CHECK(ui::hit(scene, 0, 0)->id == back);
+    REQUIRE(ui::hit(scene, 5, 3) != nullptr);
+    CHECK(ui::hit(scene, 5, 3)->id == front); // overlap: the last painted wins
+    CHECK(ui::hit(scene, 10, 0) == nullptr);  // one cell past the edge is nothing
 
-    // The geometry it tests is RESOLVED from the same authored extents the
-    // inspector shows -- so a share's hit area follows the workspace, with no
-    // second copy of the geometry to fall out of step.
-    WorkshopDoc share;
-    const std::int64_t id =
-        doc::add(share, "half", 0, 0, WorkshopExtent{kExtentPercent, 50},
-                 WorkshopExtent{kExtentCells, 2});
-    CHECK(doc::pick(share, 20, 0, 48, 16) == id); // 50% of 48 == 24 cells
-    CHECK(doc::pick(share, 20, 0, 24, 16) == 0);  // 50% of 24 == 12 cells
+    // And what it selects with that identity is the object the whole screen
+    // agrees about: the ring, the list marker and the inspector's Identity row.
+    s.selected = ui::hit(scene, 5, 3)->id;
+    refocus(d, s);
+    const surface::SurfaceCanvas c = paint(d, s);
+    CHECK(label_at(c, kPanelX, kListY + 1) == "> #" + std::to_string(front) + " front");
+    CHECK(s.rows[0].value() == "#" + std::to_string(front));
+    const ui::Rect fr = ui::placed_for(scene, front)->rect;
+    CHECK(has_rect(c, kWorkspaceX + fr.x - 1, kWorkspaceY + fr.y - 1, fr.w + 2, fr.h + 2,
+                   surface::role::kAccent));
+}
+
+TEST_CASE("a share's hit area follows the workspace, because both read one scene") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "half", 0, 0, ui::Extent{ui::kExtentPercent, 50},
+                                     ui::Extent{ui::kExtentCells, 2});
+    Session s;
+    s.selected = id;
+
+    // There is no second copy of the geometry to fall out of step, because
+    // Workshop keeps no copy at all.
+    s.workspace_w = 48;
+    REQUIRE(ui::hit(workspace_scene(d, s), 20, 0) != nullptr); // 50% of 48 == 24 cells
+    CHECK(ui::hit(workspace_scene(d, s), 20, 0)->id == id);
+
+    s.workspace_w = 24;
+    CHECK(ui::hit(workspace_scene(d, s), 20, 0) == nullptr); // 50% of 24 == 12 cells
+    REQUIRE(ui::hit(workspace_scene(d, s), 5, 0) != nullptr);
+    CHECK(ui::hit(workspace_scene(d, s), 5, 0)->id == id);
 }
 
 // ============================================================================
@@ -471,7 +546,7 @@ TEST_CASE("hit testing picks the real authored object, topmost first") {
 TEST_CASE("the screen shows the selected object, ringed, listed, and inspected") {
     WorkshopDoc d = two_panels();
     Session s;
-    s.selected = d.rects[0].id;
+    s.selected = d.elements[0].id;
     refocus(d, s);
 
     const surface::SurfaceCanvas c = paint(d, s);
@@ -519,7 +594,7 @@ TEST_CASE("the screen shows the selected object, ringed, listed, and inspected")
 TEST_CASE("selecting the other object moves the ring, the list marker, and the inspector") {
     WorkshopDoc d = two_panels();
     Session s;
-    s.selected = d.rects[1].id;
+    s.selected = d.elements[1].id;
     refocus(d, s);
 
     const surface::SurfaceCanvas c = paint(d, s);
@@ -538,7 +613,7 @@ TEST_CASE("selecting the other object moves the ring, the list marker, and the i
 TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen") {
     WorkshopDoc d = two_panels();
     Session s;
-    s.selected = d.rects[0].id;
+    s.selected = d.elements[0].id;
     refocus(d, s);
 
     s.cursor = 4; // Width
@@ -571,13 +646,13 @@ TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen"
             CHECK(l.role == surface::role::kAlert);
         }
     }
-    CHECK(d.rects[0].width == WorkshopExtent{kExtentPercent, 60}); // nothing was written
+    CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 60}); // nothing was written
 }
 
 TEST_CASE("a name longer than the workspace is clipped by Workshop, not spilled") {
     WorkshopDoc d;
     const std::int64_t id = doc::add(d, "a-name-far-too-long-for-here", 44, 0,
-                                     WorkshopExtent{kExtentCells, 2}, WorkshopExtent{kExtentCells, 1});
+                                     ui::Extent{ui::kExtentCells, 2}, ui::Extent{ui::kExtentCells, 1});
     Session s;
     s.selected = id;
     refocus(d, s);
@@ -613,7 +688,7 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     // object list, and an inspector, all on one surface.
     WorkshopDoc d = two_panels();
     Session s;
-    s.selected = d.rects[0].id;
+    s.selected = d.elements[0].id;
     refocus(d, s);
 
     const std::string body = surface::canvas_body(paint(d, s));
