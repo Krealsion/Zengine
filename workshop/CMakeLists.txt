@@ -33,7 +33,7 @@ add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
-            zengine-timer-vocabulary zengine-warnings)
+            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 
 # The weaves this host loads must sit beside its binary — the host resolves them
 # from its own directory (workshop.cpp's exe_dir), exactly as snake's does.
