@@ -74,19 +74,36 @@ inline constexpr std::int64_t kRowsY = 8;
 inline constexpr std::int64_t kNoticeY = 18;
 inline constexpr std::int64_t kHelpY = 20;
 
+/// What the size handle looks like. One character, because it occupies one cell,
+/// and one that none of the medium's role glyphs already use (`.` workspace,
+/// `#` body, `*` ring, `!` alert) -- an affordance a maker cannot tell from the
+/// furniture is not an affordance.
+inline constexpr const char* kHandleGlyph = "+";
+
 /// A drag in progress. Session, emphatically not content.
 ///
-/// It holds the IDENTITY being moved and where inside that object the maker took
-/// hold -- and deliberately not a position. The object's authored place is on the
-/// object; a second copy of it here would be the shadow model the whole Workshop
-/// arc is arranged to avoid, and it would be the copy that goes stale.
+/// It holds the IDENTITY being manipulated and where inside that object the
+/// maker took hold -- and deliberately not a position, and deliberately not a
+/// size. The object's authored place and extents are on the object; a second
+/// copy of either here would be the shadow model the whole Workshop arc is
+/// arranged to avoid, and it would be the copy that goes stale.
 ///
 /// `grab_dx/dy` are in AUTHORED cells, which costs nothing to convert because
 /// authored placement and resolved placement are the same number (`ui::resolve`
 /// copies x/y through untouched). See `begin_drag` -- that identity is the reason
 /// a drag is a subtraction here rather than an inverse of the resolver.
+///
+/// `resizing` is the whole of W-3's session cost: ONE bool, because there is one
+/// gesture in flight and it is either moving the object or sizing it. A resize
+/// stores no grab offset (the handle is one cell and the pointer names the new
+/// corner outright), no starting extent and no starting viewport -- the
+/// projection reads the CURRENT extent for its mode and the CURRENT workspace for
+/// its span, and a proposal computed from the pointer rather than from the
+/// previous proposal cannot drift. Nothing here is a Tool, a Manipulator or a
+/// TransformSession; one gesture does not earn an interaction framework.
 struct Drag {
     bool active = false;
+    bool resizing = false; ///< the maker took hold of the size handle, not the body
     std::int64_t id = 0;
     std::int64_t grab_dx = 0;
     std::int64_t grab_dy = 0;
@@ -222,7 +239,80 @@ inline std::int64_t step(std::int64_t v, std::int64_t by) noexcept {
     return v;
 }
 
+/// `a - b`, without leaving the number line — `step`'s partner, and needed for
+/// the same reason. A resize's proposal is a DIFFERENCE (`pointer - the object's
+/// own edge`), and both terms are values this weave does not own: the pointer
+/// comes off the wire and the edge comes off a poke-writable document. The
+/// saturated end is far outside any workspace, which already means "nothing
+/// reachable there".
+inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    if (b < 0) {
+        return a > kMax + b ? kMax : a - b;
+    }
+    return a < kMin + b ? kMin : a - b;
+}
+
 } // namespace detail
+
+// ---- Direct manipulation, and the boundary policy it needs -----------------------------
+//
+// W-2 left P15 open: a drag into the workspace's edge stopped dead and reported a
+// refusal, which is truthful and brusque, and W-2 declined to invent a clamping
+// policy from one sighting. W-3 has the second sighting -- a resize meets a wall
+// at BOTH ends of every extent -- so the policy is decided here, once, for both
+// gestures:
+//
+//     A HAND that reaches past what exists           stops at the boundary,
+//     (a drag, a nudge, a corner pulled)             authors the boundary value,
+//                                                    AND SAYS SO.
+//
+//     A VALUE a maker WROTE that is not allowed      is refused, the authored
+//     (`-1` in X, `500%` in Width)                   state is untouched, and the
+//                                                    draft survives so it can be
+//                                                    fixed.
+//
+// The two are different acts and deserve different answers. A hand did not
+// propose "-1"; it proposed "further left than there is", and the honest reading
+// of that is "as far left as there is". A typed `-1` is a specific claim, and
+// silently storing `0` instead would be the tool putting words in a maker's
+// mouth -- the exact silent correction the authored/resolved discipline exists to
+// prevent, and the reason `doc::` still refuses and never clamps.
+//
+// The clamp therefore lives HERE and the refusal lives THERE, and the boundary a
+// hand stops at is expressed in the document's OWN limits (`doc::kFirstCell`,
+// `doc::kMaxCells`, `ui::kMinCells`, and — for a share — whatever the resolver
+// says 1% and 100% of this workspace are). So the gesture is not permitted a
+// second opinion about what is legal; it is only permitted to stop.
+
+/// One boundary a hand can stop at, in words a maker can read. Separate
+/// sentences from the refusals in document.hpp on purpose: "stopped at the
+/// workspace edge" and "the workspace starts at 0" are different events, and a
+/// maker who cannot tell them apart cannot tell whether anything was written.
+inline constexpr const char* kAtWorkspaceStart = "stopped at the workspace edge";
+inline constexpr const char* kAtSmallest = "stopped at the smallest size";
+inline constexpr const char* kAtLargest = "stopped at the largest size";
+inline constexpr const char* kAtWholeWorkspace = "a share stops at the whole workspace";
+
+/// What one act of DIRECT MANIPULATION did — a hand's outcome, which is not the
+/// same shape as a value's outcome.
+///
+/// `written` is what the document said about the proposal the gesture finally
+/// made. `boundary` is empty unless the gesture had to REDUCE that proposal to
+/// reach something authorable at all. Both facts are needed because they are
+/// independent: a clamped gesture normally succeeds (something WAS written --
+/// the boundary value), and a refusal writes nothing, so "was anything written"
+/// and "did the hand hit a wall" cannot be read off one another.
+struct Handled {
+    Written written;
+    std::string boundary;
+
+    bool accepted() const { return written.accepted; }
+    bool clamped() const { return !boundary.empty(); }
+
+    static Handled of(Written w) { return Handled{std::move(w), {}}; }
+};
 
 // ---- The maker's gestures over one session ---------------------------------------------
 //
@@ -278,18 +368,212 @@ inline Written delete_selected(WorkshopDoc& d, Session& s) {
     return Written::ok();
 }
 
+/// Put an object where a HAND asked for it — the one place a proposed position
+/// meets the boundary policy, and the only door `nudge` and `drag_to` use.
+///
+/// The proposal is reduced to the first cell the workspace has and then handed,
+/// unclamped-further, to `doc::move`, which still judges it. So the document
+/// keeps its refusal (there is no path here that writes past it) while a hand
+/// that reached past the origin slides along it instead of stopping dead. A
+/// diagonal drag into the top-left corner therefore ends AT the corner, which is
+/// what a hand expects and what W-2's P15 recorded as missing.
+inline Handled place(WorkshopDoc& d, std::int64_t id, std::int64_t x, std::int64_t y) {
+    Handled done;
+    if (x < doc::kFirstCell) {
+        x = doc::kFirstCell;
+        done.boundary = kAtWorkspaceStart;
+    }
+    if (y < doc::kFirstCell) {
+        y = doc::kFirstCell;
+        done.boundary = kAtWorkspaceStart;
+    }
+    done.written = doc::move(d, id, x, y);
+    return done;
+}
+
 /// Step the selected object one cell — the keyboard's move gesture, and the only
 /// one the canonical POSIX lane can perform at all (that lane produces no pointer
 /// events; see workshop.cpp).
 ///
-/// It proposes a position and lets `doc::move` decide, exactly as a drag does.
-/// Two gestures, one write path.
-inline Written nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t ddy) {
+/// It proposes a position and lets `place` + `doc::move` decide, exactly as a
+/// drag does. Two gestures, one write path.
+inline Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t ddy) {
     const ui::Element* e = doc::find(d, s.selected);
     if (e == nullptr) {
-        return Written::no("no such object");
+        return Handled::of(Written::no("no such object"));
     }
-    return doc::move(d, s.selected, detail::step(e->x, ddx), detail::step(e->y, ddy));
+    return place(d, s.selected, detail::step(e->x, ddx), detail::step(e->y, ddy));
+}
+
+// ---- The size a hand asked for, as an authored extent ----------------------------------
+
+/// The authored extent a maker's HAND asks for, when it asks for a resolved size.
+///
+/// NOT AN INVERSE, and the name is the first line of the argument.
+/// `ui::resolve_extent` is many-to-one -- it floors a share and it clamps an
+/// out-of-range one -- so it has no inverse at all, which is precisely what W-2
+/// measured as the reason authored PLACEMENT stayed raw cells. This function does
+/// something different and weaker: it AUTHORS A NEW VALUE that this viewport
+/// resolves to what the maker asked for. It does not reconstruct the value that
+/// was there before and it cannot, because several percentages name the same cell
+/// count (at a 48-cell workspace, 58% through 60% are all 28 cells). A maker who
+/// drags a 60%-wide object out and back gets the same PICTURE and a different
+/// NUMBER, and that is a true fact about shares rather than a defect.
+///
+/// MODE IS PRESERVED. A resize is a direct manipulation of a property the maker
+/// already authored, so it writes that property in the spelling they authored it
+/// in: a share stays a share, cells stay cells. Converting 60% into 34 cells
+/// because cells are easier to compute would silently destroy the only part of
+/// the value that survives the next workspace change -- and §24's live evidence
+/// is exactly that: after resize the cells object holds its size and the share
+/// object still moves with the workspace.
+///
+/// THE ROUNDING RULE IS NOT A TASTE, IT IS FORCED. The resolver FLOORS, so the
+/// projection must take the SMALLEST share this viewport resolves to at least the
+/// asked-for size. Choosing the two rules independently is what makes a value
+/// walk: `nearest` sends 60% (28 cells at 48) to 58%, which resolves to 27, so
+/// merely grabbing an edge and letting go would shrink the object by a cell.
+/// `ceil` round-trips exactly wherever a percent is finer than a cell (any
+/// workspace of 100 cells or fewer, which is every workspace this tool has), and
+/// where it is not, it is still the smallest share that COVERS what was asked.
+///
+/// AND IT ASKS THE RESOLVER RATHER THAN RE-DERIVING ITS ARITHMETIC. A hundred
+/// candidates is nothing, and the payment is large: the projection cannot drift
+/// from the resolver, it inherits the resolver's totality over hostile values for
+/// free (no `100 * want` to overflow), and "the authored value resolves to what
+/// the maker asked for" is true by construction rather than by two functions
+/// agreeing. That is W-1's one-place-resolves lesson, spent.
+///
+/// The clamp is the gesture layer's, per this header's boundary policy: `want` is
+/// first reduced to the reachable band, and `boundary` says which wall it met.
+/// The band is asked of the document's own limits and of the resolver -- never
+/// invented here -- so the extent this returns is always one `doc::check_extent`
+/// accepts, and `doc::resize` still gets to judge it.
+inline ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
+                                   std::int64_t span, std::string& boundary) {
+    if (current.mode == ui::kExtentPercent) {
+        const std::int64_t least = ui::resolve_extent(ui::Extent{ui::kExtentPercent, 1}, span);
+        const std::int64_t most = ui::resolve_extent(ui::Extent{ui::kExtentPercent, 100}, span);
+        if (want < least) {
+            want = least;
+            boundary = kAtSmallest;
+        } else if (want > most) {
+            want = most;
+            // The wall a share meets at the far end is not the workspace being a
+            // wall -- placement has no such limit and a cells extent has none
+            // either. It is the vocabulary: a share OF the viewport cannot be
+            // more than the whole of it, so 100% is where this mode stops.
+            boundary = kAtWholeWorkspace;
+        }
+        if (ui::resolve_extent(current, span) == want) {
+            return current; // this share already says exactly that: do not re-author it
+        }
+        for (std::int64_t pct = 1; pct <= 100; ++pct) {
+            const ui::Extent candidate{ui::kExtentPercent, pct};
+            if (ui::resolve_extent(candidate, span) >= want) {
+                return candidate;
+            }
+        }
+        return ui::Extent{ui::kExtentPercent, 100};
+    }
+    // Cells, and anything a poke wrote that is neither: an absolute size, whose
+    // limits are the document's and have nothing to do with the workspace. An
+    // object may be authored WIDER than the workspace for the same reason W-2 let
+    // one be positioned past its right edge -- the canvas clips, and a maker who
+    // did that has not made a mistake.
+    if (want < ui::kMinCells) {
+        want = ui::kMinCells;
+        boundary = kAtSmallest;
+    } else if (want > doc::kMaxCells) {
+        want = doc::kMaxCells;
+        boundary = kAtLargest;
+    }
+    return ui::Extent{ui::kExtentCells, want};
+}
+
+/// Author a new size from a proposal in RESOLVED cells — the shape both the
+/// pointer and the keyboard arrive in, and the one place either of them becomes
+/// an authored extent.
+///
+/// Both extents are projected, then written by ONE `doc::resize`, so the
+/// atomicity the document promises is not undone by the gesture proposing twice.
+inline Handled size_to(WorkshopDoc& d, const Session& s, std::int64_t id, std::int64_t want_w,
+                       std::int64_t want_h) {
+    const ui::Element* e = doc::find(d, id);
+    if (e == nullptr) {
+        return Handled::of(Written::no("no such object"));
+    }
+    Handled done;
+    const ui::Extent w = extent_from_drag(e->width, want_w, s.workspace_w, done.boundary);
+    const ui::Extent h = extent_from_drag(e->height, want_h, s.workspace_h, done.boundary);
+    done.written = doc::resize(d, id, w, h);
+    return done;
+}
+
+/// Grow or shrink the selected object by whole RESOLVED cells — the keyboard's
+/// resize gesture, and the canonical lane's only one.
+///
+/// It asks for "one more cell than I can see", which is the same question the
+/// pointer asks by landing one cell further out, and it goes through the same
+/// projection and the same document operation. A maker who grows and shrinks
+/// returns to the same size; on a share they may not return to the same NUMBER,
+/// because the projection authors the one canonical share for a given cell count.
+inline Handled grow(WorkshopDoc& d, Session& s, std::int64_t dw, std::int64_t dh) {
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(scene, s.selected);
+    if (placed == nullptr) {
+        return Handled::of(Written::no("no such object"));
+    }
+    return size_to(d, s, s.selected, detail::step(placed->rect.w, dw),
+                   detail::step(placed->rect.h, dh));
+}
+
+// ---- The one resize affordance ---------------------------------------------------------
+
+/// Where the selected object's size handle is, in WORKSPACE cells.
+///
+/// WORKSHOP PRESENTATION, not authored content. It is not a ui::Element, has no
+/// identity of its own, is not a child of anything, and nothing persists it -- it
+/// is DERIVED from the selected object's resolved `Placed::rect` every time it is
+/// wanted, exactly as the canvas and the hit test are. `zengine::ui` never learns
+/// that handles exist; the generic vocabulary already carried this without
+/// changing, which is the third phase in a row it has.
+///
+/// It sits on the selection ring's bottom-right corner cell -- one past the
+/// object's own last cell -- so it steals no content cell, it lands where a hand
+/// expects a corner grip, and the arithmetic is exact: a pointer AT the handle
+/// proposes the size the object already has.
+///
+/// `shown` is false when it would fall outside the workspace, and that is one
+/// fact rather than two: what a maker cannot see, a maker cannot grab. An object
+/// authored wider than the workspace is therefore resizable through the inspector
+/// and the keyboard but not by hand, which is honest -- the grip is off-screen.
+struct Handle {
+    bool shown = false;
+    std::int64_t id = 0;
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+};
+
+inline Handle size_handle(const WorkshopDoc& d, const Session& s) {
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(scene, s.selected);
+    if (placed == nullptr) {
+        return Handle{};
+    }
+    // Asked without performing the addition: `rect.x + rect.w` is not
+    // representable for every rect a poked extent can produce, and an overflow
+    // here would put the grip somewhere the object is not.
+    const std::int64_t back = detail::minus(0, placed->rect.x);
+    const std::int64_t room = detail::minus(s.workspace_w, placed->rect.x);
+    const std::int64_t up = detail::minus(0, placed->rect.y);
+    const std::int64_t down = detail::minus(s.workspace_h, placed->rect.y);
+    if (placed->rect.w < back || placed->rect.w >= room || placed->rect.h < up ||
+        placed->rect.h >= down) {
+        return Handle{};
+    }
+    return Handle{true, s.selected, placed->rect.x + placed->rect.w,
+                  placed->rect.y + placed->rect.h};
 }
 
 /// Take hold of whatever authored object is under a workspace cell. Returns the
@@ -318,22 +602,59 @@ inline std::int64_t begin_drag(const WorkshopDoc& d, Session& s, std::int64_t cx
         s.drag = Drag{};
         return 0;
     }
-    s.drag = Drag{true, under->id, cx - under->rect.x, cy - under->rect.y};
+    s.drag = Drag{true, false, under->id, detail::minus(cx, under->rect.x),
+                  detail::minus(cy, under->rect.y)};
     return under->id;
 }
 
-/// Where the drag now proposes the object should be, committed through the
-/// document's one position-writing operation.
+/// What a press takes hold of: the selected object's SIZE HANDLE if the press
+/// landed on it, otherwise whatever object's body is under the cell. Returns the
+/// identity taken hold of, or 0.
 ///
-/// It writes AUTHORED placement. Nothing here touches a Rect, a Placed or a
-/// Scene: those are the observation, they are rebuilt from the authored state on
-/// the next paint, and a drag that moved them would have moved the picture
-/// without moving the thing.
-inline Written drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::int64_t cy) {
-    if (!s.drag.active) {
-        return Written::no("nothing is being dragged");
+/// THE PRIORITY LIVES HERE, and that is the point of the function existing. The
+/// handle sits one cell outside its own object, so it can sit on top of a
+/// neighbour, and something has to say which one a press means. `ui::hit` must
+/// not: it answers "which authored element is under this cell", and a handle is
+/// not an authored element -- teaching the package about affordances would be
+/// teaching a shared vocabulary one application's furniture. So the package still
+/// gives the whole answer about the DOCUMENT and Workshop simply consults its own
+/// affordance first, in Workshop's own gesture, where a suite can drive it.
+inline std::int64_t take_hold(WorkshopDoc& d, Session& s, std::int64_t cx, std::int64_t cy) {
+    const Handle handle = size_handle(d, s);
+    if (handle.shown && handle.x == cx && handle.y == cy) {
+        s.drag = Drag{true, true, handle.id, 0, 0};
+        return handle.id;
     }
-    return doc::move(d, s.drag.id, cx - s.drag.grab_dx, cy - s.drag.grab_dy);
+    return begin_drag(d, s, cx, cy);
+}
+
+/// Where the gesture in flight now proposes the object should BE, or how big it
+/// should be — committed through the document's one position operation or its one
+/// size operation.
+///
+/// It writes AUTHORED state, and only ever that. Nothing here touches a Rect, a
+/// Placed or a Scene: those are the observation, they are rebuilt from the
+/// authored state on the next paint, and a gesture that moved or stretched them
+/// would have changed the picture without changing the thing.
+///
+/// The resize arm reads the object's own left/top edge and asks for
+/// `pointer - edge` cells, which is exact because the handle sits one cell past
+/// the object: a pointer resting ON the handle proposes the size it already has.
+/// The subtraction saturates for the same reason `begin_drag`'s does -- both
+/// terms are values this weave does not own.
+inline Handled drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::int64_t cy) {
+    if (!s.drag.active) {
+        return Handled::of(Written::no("nothing is being dragged"));
+    }
+    if (s.drag.resizing) {
+        const ui::Element* e = doc::find(d, s.drag.id);
+        if (e == nullptr) {
+            return Handled::of(Written::no("no such object"));
+        }
+        return size_to(d, s, s.drag.id, detail::minus(cx, e->x), detail::minus(cy, e->y));
+    }
+    return place(d, s.drag.id, detail::minus(cx, s.drag.grab_dx),
+                 detail::minus(cy, s.drag.grab_dy));
 }
 
 inline void end_drag(Session& s) { s.drag = Drag{}; }
@@ -433,6 +754,21 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         }
     }
 
+    // The size handle, over everything in the workspace, as a GLYPH rather than
+    // as another rectangle. That is not decoration: the ring already paints this
+    // exact cell in the accent role, so a rect here would be invisible, and the
+    // affordance has to be distinguishable from the ring, from the object's body
+    // and from the workspace at a glance. `SurfaceLabel` carries arbitrary text
+    // over the rects, so the generic canvas vocabulary already had what this
+    // needed -- no role was added, and nothing in surface/ or ui/ changed.
+    // (Honest cost: a Skin with no text stack draws no handle. The SDL skin is
+    // that Skin today -- P8, unchanged by this phase.)
+    const Handle handle = size_handle(d, s);
+    if (handle.shown) {
+        label(kWorkspaceX + handle.x, kWorkspaceY + handle.y, kHandleGlyph,
+              surface::role::kAccent);
+    }
+
     label(0, 0,
           "WORKSPACE " + std::to_string(s.workspace_w) + "x" + std::to_string(s.workspace_h) +
               " cells",
@@ -486,9 +822,11 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // Two lines, because the canvas clips at its own width and a help line that
     // silently loses its last hint is worse than no hint. The maker's gestures
     // come first; the tool's own furniture second.
-    label(0, kHelpY, "n new | d delete | hjkl move | tab object | enter edit | esc cancel",
+    label(0, kHelpY, "n new | d delete | hjkl move | ,. width | -= height | tab object",
           surface::role::kMuted);
-    label(0, kHelpY + 1, "up/down row | [ ] workspace | q quit", surface::role::kMuted);
+    label(0, kHelpY + 1,
+          "enter edit | esc cancel | up/down row | [ ] workspace | q quit",
+          surface::role::kMuted);
 
     return c;
 }

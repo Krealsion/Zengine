@@ -220,35 +220,39 @@ public:
         if (!session_.drag.active) {
             return; // not dragging: remember where the pointer is, say nothing
         }
-        const Written moved = drag_to(state_, session_, workspace_x(), workspace_y());
-        if (!moved.accepted) {
-            // A drag can propose a place the document refuses, and it must say so
-            // rather than clamp: a silently corrected position is a position the
-            // maker did not author and cannot see they did not author.
-            say(moved.refusal, true);
+        const bool sizing = session_.drag.resizing;
+        const Handled done = drag_to(state_, session_, workspace_x(), workspace_y());
+        if (!done.accepted()) {
+            // A gesture can still propose something the document refuses, and it
+            // must say so rather than have the setter quietly correct it. What it
+            // may do -- and now does -- is STOP at a boundary before proposing;
+            // that is a different event and it is reported below, in different
+            // words, with the object actually changed.
+            say(done.written.refusal, true);
         } else {
             const ui::Element* e = doc::find(state_, session_.drag.id);
             if (e != nullptr) {
-                say("moving #" + std::to_string(e->id) + " to " + std::to_string(e->x) + "," +
-                        std::to_string(e->y),
-                    false);
+                say(sizing ? size_notice(*e, done) : move_notice(*e, done), false);
             }
         }
         repaint(mail);
     }
 
-    /// Press: take hold of whatever is under the pointer, and select it.
-    /// Release: let go. Between them, every MouseMoved authors a new position.
+    /// Press: take hold of the size handle if the pointer is on it, otherwise of
+    /// whatever object is under it, and select that object. Release: let go.
+    /// Between them, every MouseMoved authors a new position or a new size.
     void on(const input::MouseButton& b, loom::Mail& mail) {
         if (b.button != 1) {
             return;
         }
         if (b.pressed) {
-            const std::int64_t id =
-                begin_drag(state_, session_, workspace_x(), workspace_y());
+            const std::int64_t id = take_hold(state_, session_, workspace_x(), workspace_y());
             if (id != 0) {
+                const bool sizing = session_.drag.resizing;
                 select(id);
-                say("holding #" + std::to_string(id) + " -- drag to move it", false);
+                say("holding #" + std::to_string(id) +
+                        (sizing ? " -- drag to resize it" : " -- drag to move it"),
+                    false);
             } else {
                 say("nothing there", false);
             }
@@ -346,6 +350,10 @@ private:
         case scan::kJ: move_by(0, +1); break;
         case scan::kK: move_by(0, -1); break;
         case scan::kL: move_by(+1, 0); break;
+        case scan::kComma: size_by(-1, 0); break;
+        case scan::kPeriod: size_by(+1, 0); break;
+        case scan::kMinus: size_by(0, -1); break;
+        case scan::kEquals: size_by(0, +1); break;
         case scan::kLeftBracket: resize_workspace(-4); break;
         case scan::kRightBracket: resize_workspace(+4); break;
         case scan::kQ: quit(); break;
@@ -380,17 +388,61 @@ private:
 
     /// One cell, through the same document operation a typed X or Y goes through.
     void move_by(std::int64_t ddx, std::int64_t ddy) {
-        const Written moved = nudge(state_, session_, ddx, ddy);
-        if (!moved.accepted) {
-            say(moved.refusal, true);
+        const Handled moved = nudge(state_, session_, ddx, ddy);
+        if (!moved.accepted()) {
+            say(moved.written.refusal, true);
             return;
         }
         const ui::Element* e = doc::find(state_, session_.selected);
         if (e != nullptr) {
-            say("moved #" + std::to_string(e->id) + " to " + std::to_string(e->x) + "," +
-                    std::to_string(e->y),
-                false);
+            say(move_notice(*e, moved), false);
         }
+    }
+
+    /// One cell of SIZE, through the same document operation a typed Width or
+    /// Height goes through — and through the same projection the pointer uses, so
+    /// the two gestures cannot come to hold different opinions about what a
+    /// dragged share should become.
+    ///
+    /// The keyboard's four resize keys are `,` `.` for width and `-` `=` for
+    /// height, and that is a collision paid for rather than a preference: `hjkl`
+    /// already moves, the arrows already step the inspector's rows, and there are
+    /// no modifiers on this wire at all (input/vocabulary.hpp) -- so a second
+    /// direction gesture costs four more literal keys. That is P4's bill, arriving
+    /// a second time.
+    void size_by(std::int64_t dw, std::int64_t dh) {
+        const Handled done = grow(state_, session_, dw, dh);
+        if (!done.accepted()) {
+            say(done.written.refusal, true);
+            return;
+        }
+        const ui::Element* e = doc::find(state_, session_.selected);
+        if (e != nullptr) {
+            say(size_notice(*e, done), false);
+        }
+    }
+
+    /// The two notices a direct manipulation produces, in one place so the
+    /// pointer and the keyboard cannot describe the same act differently.
+    ///
+    /// A size notice reports the AUTHORED extents, not the resolved ones: the
+    /// whole question this phase exists to answer is what a maker's hand wrote,
+    /// and `71%` is the answer -- `34 x 6 cells` is what the inspector's Resolved
+    /// row already says. A boundary is appended in its own words and the notice
+    /// stays in the ordinary role, because in this tool the alert role means
+    /// exactly one thing: NOTHING WAS WRITTEN. A clamped gesture did write --
+    /// the boundary value -- so colouring it as a refusal would erase the
+    /// distinction the boundary policy was built to make.
+    static std::string edge_of(const Handled& done) {
+        return done.clamped() ? " -- " + done.boundary : std::string();
+    }
+    static std::string move_notice(const ui::Element& e, const Handled& done) {
+        return "#" + std::to_string(e.id) + " is at " + std::to_string(e.x) + "," +
+               std::to_string(e.y) + edge_of(done);
+    }
+    static std::string size_notice(const ui::Element& e, const Handled& done) {
+        return "#" + std::to_string(e.id) + " is now " + TextForm<ui::Extent>::format(e.width) +
+               " x " + TextForm<ui::Extent>::format(e.height) + edge_of(done);
     }
 
     void begin_edit() {

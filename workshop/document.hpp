@@ -38,6 +38,22 @@
 // inspector and a drag on the canvas are therefore not two write paths that
 // happen to validate alike; they are one write path reached two ways, which is
 // the only version of "shared policy" a mutation cannot quietly separate.
+//
+// W-3 PUT SIZE UNDER THE SAME HAND, and the arrangement repeated exactly:
+// `resize` is now the one operation that writes an extent, and `set_width` /
+// `set_height` are it holding one extent still. Two properties, one shape of
+// answer -- which is the second piece of evidence that the granularity of an
+// operation is decided by the GESTURE, not by how many fields it happens to
+// touch.
+//
+// WHAT DOES NOT LIVE HERE, and the distinction W-3 turns on: the CLAMP. These
+// operations judge an authored proposal and refuse the ones this document will
+// not accept. They never quietly correct one. A maker's HAND, on the other hand,
+// can ask for a place or a size that does not exist, and stopping it at the wall
+// is interaction policy -- so it lives with the gestures in screen.hpp, which
+// then hand a real proposal down to these functions. Refusal and clamping are
+// two different truths about two different acts, and keeping them in two files
+// is the cheapest reminder of which one is being told.
 
 #include "property.hpp"
 #include "vocabulary.hpp"
@@ -204,31 +220,61 @@ inline Written check_extent(const ui::Extent& e) {
     return Written::ok();
 }
 
-inline Written set_width(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
+/// Author a size. THE ONE PLACE an extent is written in this package.
+///
+/// One operation and not two, for exactly the reason `move` below is one. W-2
+/// found that a gesture and a property can disagree about the granularity of an
+/// operation, and a corner handle says it again at the other property: a maker
+/// pulling a corner proposes a SIZE, not a width and then a height. Written as
+/// two independent setters, a diagonal resize whose height is illegal would
+/// narrow the object AND report a refusal -- the refusal-beside-a-successful-write
+/// W-2 removed from placement, reappearing here. So both extents are checked
+/// before either is written, and a refused resize leaves the object exactly the
+/// size it was.
+///
+/// `set_width`/`set_height` below are this operation holding one extent still.
+/// That is what makes "the inspector and the maker's hand author through the same
+/// rules" structural for size as well as for position: there is no second place
+/// for a resize gesture to acquire its own opinion about what a legal extent is.
+inline Written resize(WorkshopDoc& d, std::int64_t id, ui::Extent width, ui::Extent height) {
     ui::Element* e = find_mut(d, id);
     if (e == nullptr) {
         return Written::no("no such object");
     }
-    const Written check = check_extent(value);
-    if (!check.accepted) {
-        return check;
+    const Written cw = check_extent(width);
+    if (!cw.accepted) {
+        return cw;
     }
-    e->width = value;
+    const Written ch = check_extent(height);
+    if (!ch.accepted) {
+        return ch;
+    }
+    e->width = width;
+    e->height = height;
     return Written::ok();
 }
 
-inline Written set_height(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
-    ui::Element* e = find_mut(d, id);
+inline Written set_width(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
+    const ui::Element* e = find(d, id);
     if (e == nullptr) {
         return Written::no("no such object");
     }
-    const Written check = check_extent(value);
-    if (!check.accepted) {
-        return check;
-    }
-    e->height = value;
-    return Written::ok();
+    return resize(d, id, value, e->height);
 }
+
+inline Written set_height(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
+    const ui::Element* e = find(d, id);
+    if (e == nullptr) {
+        return Written::no("no such object");
+    }
+    return resize(d, id, e->width, value);
+}
+
+/// The first cell the workspace has. Named rather than spelled `0` twice,
+/// because the check below REFUSES anything before it and a maker's hand STOPS
+/// at it (screen.hpp), and those two behaviours are only coherent while they are
+/// the same number.
+inline constexpr std::int64_t kFirstCell = 0;
 
 /// Position: a rectangle may sit anywhere in the workspace, including partly off
 /// its right or bottom edge (the canvas clips, and a maker dragging something
@@ -240,7 +286,7 @@ inline Written set_height(WorkshopDoc& d, std::int64_t id, ui::Extent value) {
 /// reason `check_extent` is shared by width and height: two spellings of one rule
 /// is how a typed edit and a dragged one come to disagree about what is legal.
 inline Written check_coord(std::int64_t v) {
-    if (v < 0) {
+    if (v < kFirstCell) {
         return Written::no("the workspace starts at 0");
     }
     return Written::ok();
