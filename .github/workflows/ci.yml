@@ -14,6 +14,28 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Cheap, first, and independent of any build or of Loom: the repository refuses to
+  # record an AI assistant as a commit co-author, and after HIST-2 that is true of all of
+  # main. The check self-tests before it answers, because a clean history and a broken
+  # detector look identical from here. Full history is required -- it states the invariant
+  # over everything reachable, not just today's push. Deliberately not `needs: resolve-loom`
+  # and deliberately not a step inside the stranger lane: it must answer in seconds even
+  # when the build lanes are red, and the stranger lane's whole claim is that it needs
+  # nothing but source and an installed Loom.
+  zengine-commit-attribution:
+    name: Zengine / commit attribution
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out Zengine with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Refuse AI co-authorship in reachable history
+        run: cmake -P tests/check_commit_attribution.cmake
+
   resolve-loom:
     name: Resolve canonical Loom
     runs-on: ubuntu-24.04
