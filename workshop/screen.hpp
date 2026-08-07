@@ -672,33 +672,22 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 /// terminal row 3, and a pointer reports where it is on the terminal.
 inline constexpr std::int64_t kCanvasTopRow = 2;
 
-/// A pointer coordinate off the wire, as a cell.
-///
-/// `MouseMoved` carries doubles, and a double that does not fit an int64 makes
-/// the conversion UNDEFINED -- so the cast is bounded rather than trusted. The
-/// values come from whichever weave holds the input role, and a backend is a
-/// weave like any other; this is the same widened-input-domain lesson W-1 met one
-/// layer down, arriving here because W-2 made the pointer path load-bearing.
-/// Anything outside the clamp is far outside any canvas, which already means
-/// "nothing there" -- and NaN lands there too, deliberately, since neither
-/// comparison holds for it.
-inline std::int64_t cell_of(double v) noexcept {
-    constexpr double kFar = 1000000.0;
-    if (!(v > -kFar)) {
-        return -1000000;
-    }
-    if (!(v < kFar)) {
-        return 1000000;
-    }
-    return static_cast<std::int64_t>(v);
-}
-
 /// The workspace cell a reported pointer position lands on.
+///
+/// W-4 deleted the conversion that used to stand in front of these. `PointerMoved`
+/// and `PointerButton` carry int64 cells and say so (`space`), so there is no
+/// double to narrow and no NaN to defend against -- the backend reports the unit
+/// it means, and this is a translation of origin and nothing else.
+///
+/// The saturation stays, and for the unchanged reason: the numbers come off the
+/// wire from whichever weave holds the input role, a backend is a weave like any
+/// other, and `INT64_MIN - 3` is undefined behaviour produced by data. The
+/// saturated end is far outside any canvas, which already means "nothing there".
 inline std::int64_t workspace_cell_x(std::int64_t pointer_x) noexcept {
-    return pointer_x - kWorkspaceX;
+    return detail::minus(pointer_x, kWorkspaceX);
 }
 inline std::int64_t workspace_cell_y(std::int64_t pointer_y) noexcept {
-    return pointer_y - kCanvasTopRow - kWorkspaceY;
+    return detail::minus(detail::minus(pointer_y, kCanvasTopRow), kWorkspaceY);
 }
 
 /// The whole screen as one published canvas.

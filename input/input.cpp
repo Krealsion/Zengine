@@ -71,6 +71,11 @@ public:
     ConsoleReader(const ConsoleReader&) = delete;
     ConsoleReader& operator=(const ConsoleReader&) = delete;
 
+    /// ReadConsoleInputW, not ...A: the W record's uChar.UnicodeChar is the
+    /// layout's own answer to "what did this keystroke type", and it is the only
+    /// reason `%` can reach an application without anyone deducing it from a key
+    /// identity. The A record would narrow that answer to the console codepage
+    /// before this process ever saw it.
     std::vector<InputEvent> poll() {
         std::vector<InputEvent> out;
         if (!ok_) {
@@ -80,21 +85,22 @@ public:
         while (::GetNumberOfConsoleInputEvents(in_, &pending) != 0 && pending > 0) {
             INPUT_RECORD rec;
             DWORD got = 0;
-            if (::ReadConsoleInputA(in_, &rec, 1, &got) == 0 || got == 0) {
+            if (::ReadConsoleInputW(in_, &rec, 1, &got) == 0 || got == 0) {
                 break;
             }
             std::vector<InputEvent> batch;
             if (rec.EventType == KEY_EVENT) {
                 const KEY_EVENT_RECORD& k = rec.Event.KeyEvent;
-                const bool ctrl =
-                    (k.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
-                batch = win32_key_to_events(static_cast<std::uint16_t>(k.wVirtualKeyCode),
-                                            k.bKeyDown != 0, ctrl);
+                batch = win32_key_to_events(keys_, static_cast<std::uint16_t>(k.wVirtualKeyCode),
+                                            static_cast<std::uint32_t>(k.uChar.UnicodeChar),
+                                            k.bKeyDown != 0,
+                                            static_cast<std::uint32_t>(k.dwControlKeyState));
             } else if (rec.EventType == MOUSE_EVENT) {
                 const MOUSE_EVENT_RECORD& m = rec.Event.MouseEvent;
                 batch = win32_mouse_to_events(track_, m.dwMousePosition.X, m.dwMousePosition.Y,
                                               static_cast<std::uint32_t>(m.dwButtonState),
-                                              static_cast<std::uint32_t>(m.dwEventFlags));
+                                              static_cast<std::uint32_t>(m.dwEventFlags),
+                                              static_cast<std::uint32_t>(m.dwControlKeyState));
             }
             out.insert(out.end(), batch.begin(), batch.end());
         }
@@ -104,7 +110,8 @@ public:
 private:
     HANDLE in_ = nullptr;
     DWORD saved_ = 0;
-    MouseTrack track_;
+    KeyTrack keys_;
+    PointerTrack track_;
     bool ok_ = false;
 };
 
@@ -134,6 +141,15 @@ public:
     TerminalReader(const TerminalReader&) = delete;
     TerminalReader& operator=(const TerminalReader&) = delete;
 
+    /// One read, into a parser that OUTLIVES it. The kernel splits an escape
+    /// sequence wherever it likes, so the parser is a member and not a local:
+    /// a mouse report cut in half is rejoined across two polls instead of being
+    /// translated into the keystrokes its bytes happen to spell.
+    ///
+    /// A read that yields nothing is not nothing — it is the parser's only
+    /// clock. `idle()` uses it to release a pending lone ESC as the Escape key,
+    /// which is why Escape still works while a sequence that has only begun
+    /// still waits (translate.hpp).
     std::vector<InputEvent> poll() {
         if (!ok_) {
             return {};
@@ -141,13 +157,14 @@ public:
         unsigned char buf[64];
         const ssize_t n = ::read(STDIN_FILENO, buf, sizeof(buf));
         if (n <= 0) {
-            return {};
+            return parser_.idle();
         }
-        return terminal_bytes_to_events(buf, static_cast<std::size_t>(n));
+        return parser_.feed(buf, static_cast<std::size_t>(n));
     }
 
 private:
     termios saved_{};
+    TerminalParser parser_;
     bool ok_ = false;
 };
 

@@ -78,16 +78,66 @@ const E& as(const std::vector<InputEvent>& events, std::size_t i) {
 }
 
 /// Assert events[i] and events[i+1] are the press/release pair a terminal
-/// stroke synthesizes, and step past them.
+/// stroke synthesizes AND THAT NOTHING WAS TYPED, then step past them. This is
+/// the shape of a key that is a control rather than a character: Escape, an
+/// arrow, Backspace, Ctrl+something.
 void expect_stroke(const std::vector<InputEvent>& events, std::size_t& i, std::int64_t sc,
-                   const std::string& name) {
+                   const std::string& name, std::int64_t mods = mod::kNone) {
     const KeyPressed& down = as<KeyPressed>(events, i);
     CHECK(down.scancode == sc);
     CHECK(down.name == name);
+    CHECK(down.modifiers == mods);
     const KeyReleased& up = as<KeyReleased>(events, i + 1);
     CHECK(up.scancode == sc);
     CHECK(up.name == name);
+    CHECK(up.modifiers == mods); // the moment is one moment: both halves agree
     i += 2;
+}
+
+/// Assert events[i..i+2] are one whole keystroke that PRODUCED TEXT: the
+/// transition, what it typed, and the transition back — in that order, because
+/// that is the order a consumer reads a moment in.
+void expect_typed(const std::vector<InputEvent>& events, std::size_t& i, std::int64_t sc,
+                  const std::string& name, const std::string& text,
+                  std::int64_t mods = mod::kNone) {
+    const KeyPressed& down = as<KeyPressed>(events, i);
+    CHECK(down.scancode == sc);
+    CHECK(down.name == name);
+    CHECK(down.modifiers == mods);
+    CHECK(as<TextEntered>(events, i + 1).text == text);
+    const KeyReleased& up = as<KeyReleased>(events, i + 2);
+    CHECK(up.scancode == sc);
+    CHECK(up.modifiers == mods);
+    i += 3;
+}
+
+/// The text of every TextEntered in order, joined — "what a maker would have
+/// seen appear", with the key traffic filtered out.
+std::string typed(const std::vector<InputEvent>& events) {
+    std::string s;
+    for (const InputEvent& e : events) {
+        if (const TextEntered* t = std::get_if<TextEntered>(&e)) {
+            s += t->text;
+        }
+    }
+    return s;
+}
+
+/// Every scancode a batch pressed, in order. Used to assert what a sequence
+/// did NOT leak as much as what it delivered.
+std::vector<std::int64_t> pressed_codes(const std::vector<InputEvent>& events) {
+    std::vector<std::int64_t> out;
+    for (const InputEvent& e : events) {
+        if (const KeyPressed* k = std::get_if<KeyPressed>(&e)) {
+            out.push_back(k->scancode);
+        }
+    }
+    return out;
+}
+
+/// Feed a parser one read's worth of bytes (the read boundary is the point).
+std::vector<InputEvent> feed(TerminalParser& p, std::string_view bytes) {
+    return p.feed(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size());
 }
 
 // ---- tier 3/4 rigs -----------------------------------------------------------
@@ -111,19 +161,20 @@ struct EarsState {
     ZEN_SHAPE(EarsState, 1, ZEN_FIELD(heard));
 };
 
-/// An ordinary accepter of all five shapes — what any consumer of the Input
+/// An ordinary accepter of every shape — what any consumer of the Input
 /// package looks like to the bus. Records exactly what it is delivered.
 class Ears : public loom::WeaveBase<Ears, EarsState,
-                                    loom::Accept<KeyPressed, KeyReleased, MouseButton,
-                                                 MouseMoved, MouseWheel>,
+                                    loom::Accept<KeyPressed, KeyReleased, TextEntered,
+                                                 PointerMoved, PointerButton, PointerWheel>,
                                     loom::Emit<>> {
 public:
     explicit Ears(std::vector<InputEvent>& heard) : heard_(&heard) {}
     void on(const KeyPressed& e, loom::Mail&) { note(e); }
     void on(const KeyReleased& e, loom::Mail&) { note(e); }
-    void on(const MouseButton& e, loom::Mail&) { note(e); }
-    void on(const MouseMoved& e, loom::Mail&) { note(e); }
-    void on(const MouseWheel& e, loom::Mail&) { note(e); }
+    void on(const TextEntered& e, loom::Mail&) { note(e); }
+    void on(const PointerMoved& e, loom::Mail&) { note(e); }
+    void on(const PointerButton& e, loom::Mail&) { note(e); }
+    void on(const PointerWheel& e, loom::Mail&) { note(e); }
 
 private:
     template <class E>
@@ -293,40 +344,90 @@ struct Rig {
 // Tier 1 — the locked contract, pinned by content-id
 // ============================================================================
 
-TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
+TEST_CASE("contract: ZEN_SHAPE spellings derive the intended schemas exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    CHECK(schema_of<KeyPressed>()->content_id() == SchemaBuilder("KeyPressed", 1)
+    // W-4 changed this contract deliberately and says so here rather than in a
+    // report only: the keys went to v2 (they gained `modifiers` — same concept,
+    // one more fact), and the three pointer shapes are NEW NAMES at v1 because
+    // they are not the old shapes with fields bolted on. `MouseButton` named a
+    // field; `PointerButton` names a moment. Renaming makes the break a compile
+    // error at every accept-list instead of a message that silently stops being
+    // delivered.
+    CHECK(schema_of<KeyPressed>()->content_id() == SchemaBuilder("KeyPressed", 2)
                                                        .field("scancode", Kind::Int)
                                                        .field("name", Kind::Text)
+                                                       .field("modifiers", Kind::Int)
                                                        .build()
                                                        ->content_id());
-    CHECK(schema_of<KeyReleased>()->content_id() == SchemaBuilder("KeyReleased", 1)
+    CHECK(schema_of<KeyReleased>()->content_id() == SchemaBuilder("KeyReleased", 2)
                                                         .field("scancode", Kind::Int)
                                                         .field("name", Kind::Text)
+                                                        .field("modifiers", Kind::Int)
                                                         .build()
                                                         ->content_id());
-    CHECK(schema_of<MouseButton>()->content_id() == SchemaBuilder("MouseButton", 1)
-                                                        .field("button", Kind::Int)
-                                                        .field("pressed", Kind::Bool)
+    CHECK(schema_of<TextEntered>()->content_id() ==
+          SchemaBuilder("TextEntered", 1).field("text", Kind::Text).build()->content_id());
+    CHECK(schema_of<PointerButton>()->content_id() == SchemaBuilder("PointerButton", 1)
+                                                          .field("button", Kind::Int)
+                                                          .field("pressed", Kind::Bool)
+                                                          .field("x", Kind::Int)
+                                                          .field("y", Kind::Int)
+                                                          .field("space", Kind::Int)
+                                                          .field("modifiers", Kind::Int)
+                                                          .build()
+                                                          ->content_id());
+    CHECK(schema_of<PointerMoved>()->content_id() == SchemaBuilder("PointerMoved", 1)
+                                                         .field("x", Kind::Int)
+                                                         .field("y", Kind::Int)
+                                                         .field("dx", Kind::Int)
+                                                         .field("dy", Kind::Int)
+                                                         .field("space", Kind::Int)
+                                                         .field("modifiers", Kind::Int)
+                                                         .build()
+                                                         ->content_id());
+    CHECK(schema_of<PointerWheel>()->content_id() == SchemaBuilder("PointerWheel", 1)
+                                                        .field("dx", Kind::Float)
+                                                        .field("dy", Kind::Float)
+                                                        .field("x", Kind::Int)
+                                                        .field("y", Kind::Int)
+                                                        .field("space", Kind::Int)
+                                                        .field("modifiers", Kind::Int)
                                                         .build()
                                                         ->content_id());
-    CHECK(schema_of<MouseMoved>()->content_id() == SchemaBuilder("MouseMoved", 1)
-                                                       .field("x", Kind::Float)
-                                                       .field("y", Kind::Float)
-                                                       .field("dx", Kind::Float)
-                                                       .field("dy", Kind::Float)
-                                                       .build()
-                                                       ->content_id());
-    CHECK(schema_of<MouseWheel>()->content_id() == SchemaBuilder("MouseWheel", 1)
-                                                       .field("dx", Kind::Float)
-                                                       .field("dy", Kind::Float)
-                                                       .build()
-                                                       ->content_id());
-    // The named addition is frozen the same way the locked five are.
+    // The named addition is frozen the same way the rest are.
     CHECK(schema_of<PumpInput>()->content_id() ==
           SchemaBuilder("PumpInput", 1).build()->content_id());
+
+    // A POSITION IS AN INTEGER, and that is a contract claim, not a detail. The
+    // old shapes carried doubles, which bought no precision either backend has
+    // and cost every consumer a bounded narrowing cast on the press path.
+    CHECK(schema_of<PointerButton>()->fields().size() == 6);
+    CHECK(schema_of<PointerMoved>()->fields().size() == 6);
+}
+
+TEST_CASE("contract: the modifier and coordinate-space vocabularies are disjoint flags") {
+    // A bitmask is only a bitmask if the bits do not collide.
+    CHECK(mod::kNone == 0);
+    CHECK((mod::kShift & mod::kCtrl) == 0);
+    CHECK((mod::kShift & mod::kAlt) == 0);
+    CHECK((mod::kShift & mod::kSuper) == 0);
+    CHECK((mod::kCtrl & mod::kAlt) == 0);
+    CHECK((mod::kCtrl & mod::kSuper) == 0);
+    CHECK((mod::kAlt & mod::kSuper) == 0);
+    CHECK((mod::kShift | mod::kCtrl | mod::kAlt | mod::kSuper) == 15);
+
+    // The space vocabulary is an ENUMERATION, not a mask: a coordinate is in
+    // one space or it is in none, and "none" is a distinct answer from "cells".
+    CHECK(space::kUnknown == 0);
+    CHECK(space::kCells != space::kPixels);
+    CHECK(space::kCells != space::kUnknown);
+    // The default a consumer sees if nobody stamps it is kUnknown, so an
+    // unstamped coordinate can never be mistaken for a stamped one.
+    CHECK(PointerButton{}.space == space::kUnknown);
+    CHECK(PointerMoved{}.space == space::kUnknown);
+    CHECK(PointerWheel{}.space == space::kUnknown);
 }
 
 TEST_CASE("contract: scan:: constants ARE the SDL scancode values") {
@@ -362,54 +463,48 @@ TEST_CASE("contract: scan:: constants ARE the SDL scancode values") {
 // Tier 2 — translation as pure math (both backends, every lane)
 // ============================================================================
 
-TEST_CASE("terminal: letters, digits, and specials become stroke pairs") {
+TEST_CASE("terminal: a printable key is a transition AND the text it produced") {
     std::size_t i = 0;
     auto ev = term("w");
-    expect_stroke(ev, i, scan::kW, "W");
+    expect_typed(ev, i, scan::kW, "W", "w");
     CHECK(i == ev.size());
 
     i = 0;
-    ev = term("W"); // shift survives only in the byte; same key identity
-    expect_stroke(ev, i, scan::kW, "W");
-
-    i = 0;
     ev = term("wasd"); // the snake controls, whole
-    expect_stroke(ev, i, scan::kW, "W");
-    expect_stroke(ev, i, scan::kA, "A");
-    expect_stroke(ev, i, scan::kS, "S");
-    expect_stroke(ev, i, scan::kD, "D");
+    expect_typed(ev, i, scan::kW, "W", "w");
+    expect_typed(ev, i, scan::kA, "A", "a");
+    expect_typed(ev, i, scan::kS, "S", "s");
+    expect_typed(ev, i, scan::kD, "D", "d");
     CHECK(i == ev.size());
 
     i = 0;
     ev = term("30");
-    expect_stroke(ev, i, scan::k3, "3");
-    expect_stroke(ev, i, scan::k0, "0");
+    expect_typed(ev, i, scan::k3, "3", "3");
+    expect_typed(ev, i, scan::k0, "0", "0");
+    CHECK(i == ev.size());
 
     i = 0;
-    ev = term(" \r\n\t");
-    expect_stroke(ev, i, scan::kSpace, "Space");
+    ev = term("/;");
+    expect_typed(ev, i, scan::kSlash, "/", "/");
+    expect_typed(ev, i, scan::kSemicolon, ";", ";");
+    CHECK(i == ev.size());
+}
+
+TEST_CASE("terminal: EDITING CONTROLS are keys and are never text") {
+    // The whole of the §10 distinction, in one case. A terminal delivers these
+    // as control bytes; they change a draft, they are not part of one, and
+    // Workshop owns what each of them MEANS.
+    std::size_t i = 0;
+    auto ev = term("\r\n\t");
     expect_stroke(ev, i, scan::kReturn, "Return");
     expect_stroke(ev, i, scan::kReturn, "Return");
     expect_stroke(ev, i, scan::kTab, "Tab");
+    CHECK(i == ev.size());
 
     i = 0;
     ev = term("\x7f\x08");
     expect_stroke(ev, i, scan::kBackspace, "Backspace");
     expect_stroke(ev, i, scan::kBackspace, "Backspace");
-
-    i = 0;
-    ev = term("/;");
-    expect_stroke(ev, i, scan::kSlash, "/");
-    expect_stroke(ev, i, scan::kSemicolon, ";");
-}
-
-TEST_CASE("terminal: the arrow sequences and the bare escape") {
-    std::size_t i = 0;
-    auto ev = term("\x1b[A\x1b[B\x1b[C\x1b[D");
-    expect_stroke(ev, i, scan::kUp, "Up");
-    expect_stroke(ev, i, scan::kDown, "Down");
-    expect_stroke(ev, i, scan::kRight, "Right");
-    expect_stroke(ev, i, scan::kLeft, "Left");
     CHECK(i == ev.size());
 
     i = 0;
@@ -417,254 +512,667 @@ TEST_CASE("terminal: the arrow sequences and the bare escape") {
     expect_stroke(ev, i, scan::kEscape, "Escape");
     CHECK(i == ev.size());
 
-    // Batch-local parse (the stance the host always took): an ESC that does
-    // not open a whole arrow sequence within the batch is the Escape key, and
-    // the leftover byte is itself.
-    i = 0;
-    ev = term("\x1b[");
-    expect_stroke(ev, i, scan::kEscape, "Escape");
-    expect_stroke(ev, i, scan::kLeftBracket, "[");
-    CHECK(i == ev.size());
+    // Not one byte of text came out of any of them.
+    CHECK(typed(term("\r\n\t\x7f\x08\x1b")).empty());
 
-    // An unknown CSI final: ESC stands alone, '[' and the final translate as
-    // themselves ('Z' is a real key).
+    // Space, by contrast, IS text — a space is a character a maker means to
+    // type — and it is a key as well.
     i = 0;
-    ev = term("\x1b[Z");
-    expect_stroke(ev, i, scan::kEscape, "Escape");
-    expect_stroke(ev, i, scan::kLeftBracket, "[");
-    expect_stroke(ev, i, scan::kZ, "Z");
+    ev = term(" ");
+    expect_typed(ev, i, scan::kSpace, "Space", " ");
+    CHECK(i == ev.size());
 }
 
-TEST_CASE("terminal: Ctrl+C keeps its key identity; the modifier rides the name") {
+TEST_CASE("terminal: `%` arrives as TEXT and nobody computes Shift+5") {
+    // P4's headline, and the reason Workshop had to commit `70p` for three
+    // phases. The terminal has already applied the layout: the byte IS the
+    // answer, and this package refuses to invent a key identity it cannot know.
+    auto ev = term("%");
+    CHECK(typed(ev) == "%");
+    // No key event at all: `%` is not a key this backend can name, and claiming
+    // scancode 5 would be a claim about a US keyboard rather than about a
+    // keyboard.
+    CHECK(pressed_codes(ev).empty());
+
+    CHECK(typed(term("70%")) == "70%");
+    // The whole Workshop value, and the digits kept their key identities while
+    // the `%` did not — two different truths, told separately.
+    const auto codes = pressed_codes(term("70%"));
+    REQUIRE(codes.size() == 2);
+    CHECK(codes[0] == scan::k7);
+    CHECK(codes[1] == scan::k0);
+
+    // The other characters W-0 listed as unreachable.
+    CHECK(typed(term("@")) == "@");
+    CHECK(typed(term("Panel")) == "Panel");
+    CHECK(typed(term("A")) == "A");
+}
+
+TEST_CASE("terminal: an uppercase letter is the SAME key, with Shift, and its own text") {
+    // The physical key and the entered text disagree here, and both are right.
+    // `H` is scancode H (there is one H key) with Shift held (the terminal
+    // delivered the shifted form), and it typed "H".
+    std::size_t i = 0;
+    auto ev = term("H");
+    expect_typed(ev, i, scan::kH, "H", "H", mod::kShift);
+    CHECK(i == ev.size());
+
+    i = 0;
+    ev = term("h");
+    expect_typed(ev, i, scan::kH, "H", "h", mod::kNone);
+    CHECK(i == ev.size());
+
+    // Workshop's whole new binding, on the canonical lane: hjkl and HJKL are
+    // one gesture family, told apart by a modifier rather than by four more
+    // unrelated keys.
+    i = 0;
+    ev = term("HJKL");
+    expect_typed(ev, i, scan::kH, "H", "H", mod::kShift);
+    expect_typed(ev, i, scan::kJ, "J", "J", mod::kShift);
+    expect_typed(ev, i, scan::kK, "K", "K", mod::kShift);
+    expect_typed(ev, i, scan::kL, "L", "L", mod::kShift);
+    CHECK(i == ev.size());
+
+    // THE LIMIT, asserted so it cannot be forgotten: this backend infers Shift
+    // from the byte's CASE, and CapsLock produces the same byte. A digit or a
+    // symbol carries no inferable Shift at all — `%` is a shifted `5` on a US
+    // layout and is not one anywhere else, so nothing is claimed.
+    CHECK(as<KeyPressed>(term("7"), 0).modifiers == mod::kNone);
+    for (const InputEvent& e : term("%")) {
+        CHECK_FALSE(std::holds_alternative<KeyPressed>(e));
+    }
+}
+
+TEST_CASE("terminal: Ctrl is a MEASURED modifier, and the dressed name is gone") {
+    // A terminal genuinely sends control byte N for Ctrl + the Nth letter, so
+    // this is not an inference like Shift — it is what arrived.
     std::size_t i = 0;
     auto ev = term("\x03");
-    expect_stroke(ev, i, scan::kC, "Ctrl+C");
+    expect_stroke(ev, i, scan::kC, "C", mod::kCtrl);
+    CHECK(i == ev.size());
+    CHECK(typed(ev).empty()); // Ctrl+C types nothing
+
+    i = 0;
+    ev = term("\x01"); // Ctrl+A — V1 dropped this entirely for want of a modifier
+    expect_stroke(ev, i, scan::kA, "A", mod::kCtrl);
+    CHECK(i == ev.size());
+
+    // THE DEBT IS PAID. V1 dressed the convenience NAME as "Ctrl+C" because
+    // there was nowhere else to put the modifier, and both snake and Workshop
+    // branched on that string. The name is a name again.
+    CHECK(as<KeyPressed>(term("\x03"), 0).name == "C");
+    CHECK(as<KeyPressed>(term("c"), 0).name == "C");
+    // ...and the two are still told apart, by the fact that actually differs.
+    CHECK(as<KeyPressed>(term("c"), 0).modifiers == mod::kNone);
+    CHECK(as<KeyPressed>(term("\x03"), 0).modifiers == mod::kCtrl);
+}
+
+TEST_CASE("terminal: the arrow sequences, and an unknown sequence leaks nothing") {
+    std::size_t i = 0;
+    auto ev = term("\x1b[A\x1b[B\x1b[C\x1b[D");
+    expect_stroke(ev, i, scan::kUp, "Up");
+    expect_stroke(ev, i, scan::kDown, "Down");
+    expect_stroke(ev, i, scan::kRight, "Right");
+    expect_stroke(ev, i, scan::kLeft, "Left");
+    CHECK(i == ev.size());
+    CHECK(typed(ev).empty()); // an arrow is not text
+
+    // An unknown CSI is CONSUMED WHOLE and dropped. V1 emitted Escape, then
+    // `[`, then the final byte as three keystrokes -- and `[` is a key Workshop
+    // binds. This is the same defect the mouse report has, in miniature.
+    TerminalParser p;
+    CHECK(feed(p, "\x1b[Z").empty());
+    CHECK(p.malformed() == 1);
+    CHECK_FALSE(p.mid_sequence());
+
+    // And an ESC that is genuinely followed by an ordinary key is still both.
+    i = 0;
+    ev = term("\x1b" "q");
+    expect_stroke(ev, i, scan::kEscape, "Escape");
+    expect_typed(ev, i, scan::kQ, "Q", "q");
     CHECK(i == ev.size());
 }
 
-TEST_CASE("contract, EXPLICITLY TEMPORARY: \"Ctrl+C\" is the one name the host may branch on") {
-    // A debt, pinned as a debt. This package's own rule is that `name` is
-    // convenience and never authority — and the snake host's quit path
-    // nonetheless reads `k.name == "Ctrl+C"`, because V1 has no modifier
-    // vocabulary and a scancode alone cannot say "with Ctrl held". Both sides
-    // confess it in their comments; neither can fix it alone.
-    //
-    // So this pin is not an endorsement, it is a contract with an expiry: as
-    // long as the debt exists, the two backends must agree on the spelling
-    // BYTE FOR BYTE, and it must be the spelling the host matches. When the
-    // modifier-vocabulary phase gives KeyPressed real modifiers, the host
-    // branches on those instead and THIS CASE IS DELETED — not loosened.
-    const std::string terminal_name = as<KeyPressed>(term("\x03"), 0).name;
-    const std::string win32_name =
-        as<KeyPressed>(win32_key_to_events('C', true, /*ctrl=*/true), 0).name;
-
-    CHECK(terminal_name == win32_name); // the two backends agree...
-    CHECK(terminal_name == "Ctrl+C");   // ...on exactly the string play.cpp tests
-    // And the same key without the modifier must NOT wear the name — the host
-    // quits on it, so a plain 'c' dressed as Ctrl+C would end the game.
-    CHECK(as<KeyPressed>(win32_key_to_events('C', true, /*ctrl=*/false), 0).name != "Ctrl+C");
-    // The scancode stays the authority either way: same key, both paths.
-    CHECK(as<KeyPressed>(term("\x03"), 0).scancode == scan::kC);
-    CHECK(as<KeyPressed>(win32_key_to_events('C', true, true), 0).scancode == scan::kC);
-}
-
-TEST_CASE("terminal: untranslatable bytes are dropped, order is preserved") {
-    CHECK(term("\x01").empty()); // Ctrl+A: no modifier vocabulary in V1
+TEST_CASE("terminal: order is preserved across keys, text, and sequences") {
     std::size_t i = 0;
     auto ev = term("wa\x1b[Cq");
-    expect_stroke(ev, i, scan::kW, "W");
-    expect_stroke(ev, i, scan::kA, "A");
+    expect_typed(ev, i, scan::kW, "W", "w");
+    expect_typed(ev, i, scan::kA, "A", "a");
     expect_stroke(ev, i, scan::kRight, "Right");
-    expect_stroke(ev, i, scan::kQ, "Q");
+    expect_typed(ev, i, scan::kQ, "Q", "q");
     CHECK(i == ev.size());
 }
 
-TEST_CASE("win32 keys: real transitions, VK identities, dropped modifiers") {
-    auto ev = win32_key_to_events(0x57 /*'W'*/, true, false);
-    REQUIRE(ev.size() == 1);
+TEST_CASE("terminal: multi-byte UTF-8 is one character, however the reads fall") {
+    // The backend can honestly produce this: a terminal in a UTF-8 locale sends
+    // the bytes and this parser assembles them. What is NOT claimed anywhere is
+    // grapheme clustering, normalisation, or display width.
+    CHECK(typed(term("\xc3\xa9")) == "\xc3\xa9");             // e-acute, 2 bytes
+    CHECK(typed(term("\xe2\x86\x92")) == "\xe2\x86\x92");     // an arrow, 3 bytes
+    CHECK(typed(term("\xf0\x9f\x8e\xb2")) == "\xf0\x9f\x8e\xb2"); // a die, 4 bytes
+    // One TextEntered per character, not one per byte.
+    CHECK(term("\xc3\xa9").size() == 1);
+    CHECK(term("\xf0\x9f\x8e\xb2").size() == 1);
+    // A multi-byte character produces no key event: there is no key to name.
+    CHECK(pressed_codes(term("\xc3\xa9")).empty());
+
+    // Split across reads, at every interior boundary.
+    for (std::size_t cut = 1; cut < 4; ++cut) {
+        TerminalParser p;
+        const std::string all = "\xf0\x9f\x8e\xb2";
+        auto first = feed(p, std::string_view(all).substr(0, cut));
+        CHECK(first.empty()); // half a character is not a character
+        CHECK(p.mid_sequence());
+        auto rest = feed(p, std::string_view(all).substr(cut));
+        CHECK(typed(rest) == all);
+    }
+
+    // A truncated character does not eat the key that follows it.
+    TerminalParser p;
+    auto ev = feed(p, "\xc3q"); // a lead byte, then something that cannot continue it
+    CHECK(p.malformed() == 1);
+    CHECK(typed(ev) == "q");
+    std::size_t i = 0;
+    expect_typed(ev, i, scan::kQ, "Q", "q");
+    CHECK(i == ev.size());
+}
+
+TEST_CASE("win32 keys: real transitions, VK identities, modifiers, and the layout's text") {
+    KeyTrack keys;
+    const auto key = [&keys](std::uint16_t vk, std::uint32_t ch, bool down, std::uint32_t cks) {
+        return win32_key_to_events(keys, vk, ch, down, cks);
+    };
+
+    auto ev = key(0x57 /*'W'*/, L'w', true, 0);
+    REQUIRE(ev.size() == 2);
     CHECK(as<KeyPressed>(ev, 0).scancode == scan::kW);
     CHECK(as<KeyPressed>(ev, 0).name == "W");
+    CHECK(as<KeyPressed>(ev, 0).modifiers == mod::kNone);
+    CHECK(as<TextEntered>(ev, 1).text == "w");
 
-    ev = win32_key_to_events(0x57, false, false); // a REAL release — nothing synthesized
+    ev = key(0x57, L'w', false, 0); // a REAL release — nothing synthesized, nothing typed
     REQUIRE(ev.size() == 1);
     CHECK(as<KeyReleased>(ev, 0).scancode == scan::kW);
 
-    ev = win32_key_to_events(win32::kVkUp, true, false);
-    REQUIRE(ev.size() == 1);
+    ev = key(win32::kVkUp, 0, true, 0);
+    REQUIRE(ev.size() == 1); // an arrow types nothing
     CHECK(as<KeyPressed>(ev, 0).scancode == scan::kUp);
 
-    ev = win32_key_to_events(win32::kVkEscape, true, false);
-    REQUIRE(ev.size() == 1);
+    ev = key(win32::kVkEscape, 0x1b, true, 0);
+    REQUIRE(ev.size() == 1); // a control character is never text
     CHECK(as<KeyPressed>(ev, 0).scancode == scan::kEscape);
     CHECK(as<KeyPressed>(ev, 0).name == "Escape");
 
-    ev = win32_key_to_events('3', true, false);
-    REQUIRE(ev.size() == 1);
-    CHECK(as<KeyPressed>(ev, 0).scancode == scan::k3);
-
-    ev = win32_key_to_events('C', true, /*ctrl=*/true);
+    // Ctrl+C: the key, with the modifier, and no text — uChar is 0x03.
+    ev = key('C', 0x03, true, win32::kLeftCtrl);
     REQUIRE(ev.size() == 1);
     CHECK(as<KeyPressed>(ev, 0).scancode == scan::kC);
-    CHECK(as<KeyPressed>(ev, 0).name == "Ctrl+C");
+    CHECK(as<KeyPressed>(ev, 0).name == "C"); // the dressed name is retired
+    CHECK(as<KeyPressed>(ev, 0).modifiers == mod::kCtrl);
 
-    ev = win32_key_to_events('C', true, /*ctrl=*/false);
-    REQUIRE(ev.size() == 1);
-    CHECK(as<KeyPressed>(ev, 0).name == "C");
+    // The RIGHT Ctrl is the same semantic modifier as the left one.
+    CHECK(as<KeyPressed>(key('C', 0x03, true, win32::kRightCtrl), 0).modifiers == mod::kCtrl);
+    // Alt, either side; Shift, its one bit; and combinations.
+    CHECK(as<KeyPressed>(key('A', 0, true, win32::kLeftAlt), 0).modifiers == mod::kAlt);
+    CHECK(as<KeyPressed>(key('A', 0, true, win32::kRightAlt), 0).modifiers == mod::kAlt);
+    CHECK(as<KeyPressed>(key('H', L'H', true, win32::kShift), 0).modifiers == mod::kShift);
+    CHECK(as<KeyPressed>(key('A', 0, true, win32::kShift | win32::kLeftCtrl), 0).modifiers ==
+          (mod::kShift | mod::kCtrl));
+    // Super is never claimed on this backend: dwControlKeyState has no such bit,
+    // and the lock/enhanced bits must not be mistaken for one.
+    CHECK((as<KeyPressed>(key('A', L'a', true, 0x0080u /*CAPSLOCK_ON*/), 0).modifiers &
+           mod::kSuper) == 0);
+    CHECK(as<KeyPressed>(key('A', L'a', true, 0x0020u | 0x0040u | 0x0080u | 0x0100u), 0)
+              .modifiers == mod::kNone);
 
-    CHECK(win32_key_to_events(0x10 /*VK_SHIFT*/, true, false).empty());
+    // A modifier key ITSELF is still not a key event: what a consumer wants is
+    // "Shift was held when H was pressed", and that is where it is reported.
+    CHECK(key(0x10 /*VK_SHIFT*/, 0, true, win32::kShift).empty());
+
+    // The OEM punctuation keys, which V1 dropped entirely -- `[` and `]` are the
+    // two keys Workshop binds to its workspace width, so they were simply not
+    // deliverable on this backend.
+    CHECK(as<KeyPressed>(key(win32::kVkOem4, L'[', true, 0), 0).scancode == scan::kLeftBracket);
+    CHECK(as<KeyPressed>(key(win32::kVkOem6, L']', true, 0), 0).scancode == scan::kRightBracket);
+    CHECK(as<KeyPressed>(key(win32::kVkOemComma, L',', true, 0), 0).scancode == scan::kComma);
+    CHECK(as<KeyPressed>(key(win32::kVkOemMinus, L'-', true, 0), 0).scancode == scan::kMinus);
+    CHECK(as<KeyPressed>(key(win32::kVkOemPlus, L'=', true, 0), 0).scancode == scan::kEquals);
 }
 
-TEST_CASE("win32 mouse: moves carry deltas, buttons are transitions, wheels are notches") {
-    MouseTrack track;
+TEST_CASE("win32 keys: `%` is the console's own answer, not a computation") {
+    KeyTrack keys;
+    // Shift+5 on a US layout. The console already resolved it; the VK is still
+    // '5', and the two facts are reported as the two facts they are.
+    auto ev = win32_key_to_events(keys, '5', L'%', true, win32::kShift);
+    REQUIRE(ev.size() == 2);
+    CHECK(as<KeyPressed>(ev, 0).scancode == scan::k5);
+    CHECK(as<KeyPressed>(ev, 0).modifiers == mod::kShift);
+    CHECK(as<TextEntered>(ev, 1).text == "%");
+
+    // A character outside ASCII, and one outside the BMP -- the console delivers
+    // the astral one as two surrogate records, and they are joined rather than
+    // emitted as two broken halves.
+    CHECK(typed(win32_key_to_events(keys, 0, 0x00E9 /*e-acute*/, true, 0)) == "\xc3\xa9");
+
+    auto high = win32_key_to_events(keys, 0, 0xD83C, true, 0);
+    CHECK(typed(high).empty()); // half a character is not a character
+    auto low = win32_key_to_events(keys, 0, 0xDFB2, true, 0);
+    CHECK(typed(low) == "\xf0\x9f\x8e\xb2");
+    // An orphan low surrogate produces nothing rather than garbage.
+    CHECK(typed(win32_key_to_events(keys, 0, 0xDFB2, true, 0)).empty());
+}
+
+TEST_CASE("win32 pointer: every record's own position and modifiers, deltas that follow") {
+    PointerTrack track;
+    const auto mouse = [&track](std::int64_t x, std::int64_t y, std::uint32_t buttons,
+                                std::uint32_t flags, std::uint32_t cks = 0) {
+        return win32_mouse_to_events(track, x, y, buttons, flags, cks);
+    };
 
     // First move: a position, no invented delta.
-    auto ev = win32_mouse_to_events(track, 10, 5, 0, win32::kMouseMoved);
+    auto ev = mouse(10, 5, 0, win32::kMouseMoved);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseMoved>(ev, 0).x == 10.0);
-    CHECK(as<MouseMoved>(ev, 0).y == 5.0);
-    CHECK(as<MouseMoved>(ev, 0).dx == 0.0);
-    CHECK(as<MouseMoved>(ev, 0).dy == 0.0);
+    CHECK(as<PointerMoved>(ev, 0).x == 10);
+    CHECK(as<PointerMoved>(ev, 0).y == 5);
+    CHECK(as<PointerMoved>(ev, 0).dx == 0);
+    CHECK(as<PointerMoved>(ev, 0).dy == 0);
+    CHECK(as<PointerMoved>(ev, 0).space == space::kCells);
 
-    ev = win32_mouse_to_events(track, 13, 4, 0, win32::kMouseMoved);
+    ev = mouse(13, 4, 0, win32::kMouseMoved);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseMoved>(ev, 0).dx == 3.0);
-    CHECK(as<MouseMoved>(ev, 0).dy == -1.0);
+    CHECK(as<PointerMoved>(ev, 0).dx == 3);
+    CHECK(as<PointerMoved>(ev, 0).dy == -1);
 
-    // Left press: a button event has no move flag.
-    ev = win32_mouse_to_events(track, 13, 4, win32::kButtonLeft, 0);
+    // Left press: a button event has no move flag, AND CARRIES ITS POSITION.
+    ev = mouse(13, 4, win32::kButtonLeft, 0);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseButton>(ev, 0).button == 1);
-    CHECK(as<MouseButton>(ev, 0).pressed);
+    CHECK(as<PointerButton>(ev, 0).button == 1);
+    CHECK(as<PointerButton>(ev, 0).pressed);
+    CHECK(as<PointerButton>(ev, 0).x == 13);
+    CHECK(as<PointerButton>(ev, 0).y == 4);
+    CHECK(as<PointerButton>(ev, 0).space == space::kCells);
 
     // A drag: the held button is unchanged, so only the move speaks.
-    ev = win32_mouse_to_events(track, 14, 4, win32::kButtonLeft, win32::kMouseMoved);
+    ev = mouse(14, 4, win32::kButtonLeft, win32::kMouseMoved);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseMoved>(ev, 0).dx == 1.0);
+    CHECK(as<PointerMoved>(ev, 0).dx == 1);
 
     // Left up + right down in one record: two transitions, locked numbering
-    // (1 left, 2 middle, 3 right).
-    ev = win32_mouse_to_events(track, 14, 4, win32::kButtonRight, 0);
+    // (1 left, 2 middle, 3 right), both carrying the same moment's position.
+    ev = mouse(14, 4, win32::kButtonRight, 0);
     REQUIRE(ev.size() == 2);
-    CHECK(as<MouseButton>(ev, 0).button == 1);
-    CHECK_FALSE(as<MouseButton>(ev, 0).pressed);
-    CHECK(as<MouseButton>(ev, 1).button == 3);
-    CHECK(as<MouseButton>(ev, 1).pressed);
+    CHECK(as<PointerButton>(ev, 0).button == 1);
+    CHECK_FALSE(as<PointerButton>(ev, 0).pressed);
+    CHECK(as<PointerButton>(ev, 0).x == 14);
+    CHECK(as<PointerButton>(ev, 1).button == 3);
+    CHECK(as<PointerButton>(ev, 1).pressed);
+    CHECK(as<PointerButton>(ev, 1).y == 4);
 
-    ev = win32_mouse_to_events(track, 14, 4, win32::kButtonRight | win32::kButtonMiddle, 0);
+    ev = mouse(14, 4, win32::kButtonRight | win32::kButtonMiddle, 0);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseButton>(ev, 0).button == 2);
-    CHECK(as<MouseButton>(ev, 0).pressed);
+    CHECK(as<PointerButton>(ev, 0).button == 2);
+    CHECK(as<PointerButton>(ev, 0).pressed);
 
-    // Wheel: +120 per notch in the high word; the wire speaks +1.0 per notch.
-    ev = win32_mouse_to_events(track, 0, 0, 120u << 16, win32::kMouseWheeled);
+    // Modifiers at pointer time: Shift+click and Ctrl+drag are one message, not
+    // a pointer event joined to keyboard state read later. (Both held buttons
+    // come up first -- a transition is a transition.)
+    ev = mouse(20, 9, 0, 0, win32::kShift);
+    REQUIRE(ev.size() == 2);
+    CHECK_FALSE(as<PointerButton>(ev, 0).pressed);
+    CHECK_FALSE(as<PointerButton>(ev, 1).pressed);
+    CHECK(as<PointerButton>(ev, 0).modifiers == mod::kShift);
+    ev = mouse(20, 9, 0, 0, win32::kShift);
+    CHECK(ev.empty()); // nothing changed: nothing happened
+    ev = mouse(20, 9, win32::kButtonLeft, 0, win32::kShift);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseWheel>(ev, 0).dx == 0.0);
-    CHECK(as<MouseWheel>(ev, 0).dy == 1.0);
+    CHECK(as<PointerButton>(ev, 0).modifiers == mod::kShift);
+    ev = mouse(21, 9, win32::kButtonLeft, win32::kMouseMoved, win32::kLeftCtrl);
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerMoved>(ev, 0).modifiers == mod::kCtrl);
+    ev = mouse(21, 9, 0, 0, win32::kShift | win32::kLeftAlt);
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerButton>(ev, 0).modifiers == (mod::kShift | mod::kAlt));
 
-    ev = win32_mouse_to_events(track, 0, 0,
-                               static_cast<std::uint32_t>(static_cast<std::uint16_t>(-120))
-                                   << 16,
-                               win32::kMouseWheeled);
+    // Wheel: +120 per notch in the high word; the wire speaks +1.0 per notch,
+    // and the wheel is a pointer moment too — it has a position.
+    ev = mouse(4, 7, 120u << 16, win32::kMouseWheeled);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseWheel>(ev, 0).dy == -1.0);
+    CHECK(as<PointerWheel>(ev, 0).dx == 0.0);
+    CHECK(as<PointerWheel>(ev, 0).dy == 1.0);
+    CHECK(as<PointerWheel>(ev, 0).x == 4);
+    CHECK(as<PointerWheel>(ev, 0).y == 7);
+    CHECK(as<PointerWheel>(ev, 0).space == space::kCells);
 
-    ev = win32_mouse_to_events(track, 0, 0, 240u << 16, win32::kMouseHWheeled);
+    ev = mouse(4, 7, static_cast<std::uint32_t>(static_cast<std::uint16_t>(-120)) << 16,
+               win32::kMouseWheeled);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseWheel>(ev, 0).dx == 2.0);
-    CHECK(as<MouseWheel>(ev, 0).dy == 0.0);
+    CHECK(as<PointerWheel>(ev, 0).dy == -1.0);
+
+    ev = mouse(4, 7, 240u << 16, win32::kMouseHWheeled);
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerWheel>(ev, 0).dx == 2.0);
+    CHECK(as<PointerWheel>(ev, 0).dy == 0.0);
 }
 
-// ---- What a drag asks of this vocabulary, and does not get  (W-2 probes) ----------------
+// ---- What a drag asks of this vocabulary, and now GETS  (the two W-2 probes, flipped) ----
 //
-// These two cases pin CURRENT behaviour, not desired behaviour. Workshop's W-2
-// drag gesture is the first consumer that has to reconstruct a pointer position,
-// and the reconstruction is only safe under assumptions nothing states. Pinning
-// them here means the Input phase that fixes either one has to come and delete a
-// test on purpose, rather than discovering afterwards that something depended on
-// the loss.
+// W-2 left two cases here that pinned CURRENT behaviour rather than desired
+// behaviour, so that "the Input phase that fixes either one has to come and
+// delete a test on purpose, rather than discovering afterwards that something
+// depended on the loss." This is that phase, and these are those two cases,
+// rewritten to assert the repair in the same words that described the defect.
 
-TEST_CASE("win32 mouse, EXPIRING: a button record KNOWS where it happened; the wire does not") {
+TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES THE WIRE") {
+    // Was: "a button record KNOWS where it happened; the wire does not."
+    //
     // The Win32 console hands the reader dwMousePosition on EVERY mouse record,
-    // including a pure button transition (dwEventFlags == 0). The position is
-    // therefore present at the platform boundary and is dropped by the
-    // translation, because MouseButton v1 has nowhere to put it -- which is
-    // exactly the information loss W-0 recorded as P6 and W-2 had to build
-    // around.
-    MouseTrack track;
+    // including a pure button transition (dwEventFlags == 0). V1 dropped it,
+    // because MouseButton had nowhere to put it. PointerButton has somewhere.
+    PointerTrack track;
 
-    auto ev = win32_mouse_to_events(track, 10, 5, 0, win32::kMouseMoved);
+    auto ev = win32_mouse_to_events(track, 10, 5, 0, win32::kMouseMoved, 0);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseMoved>(ev, 0).x == 10.0);
+    CHECK(as<PointerMoved>(ev, 0).x == 10);
 
-    // A press 32 cells away, with no intervening move record. Everything the
-    // platform said about WHERE is gone.
-    ev = win32_mouse_to_events(track, 42, 7, win32::kButtonLeft, 0);
+    // A press 32 cells away, with no intervening move record. W-2's consumer
+    // answered 10,5 for this click. The message answers 42,7 -- because that is
+    // what the platform said.
+    ev = win32_mouse_to_events(track, 42, 7, win32::kButtonLeft, 0, 0);
     REQUIRE(ev.size() == 1);
-    const MouseButton& press = as<MouseButton>(ev, 0);
+    const PointerButton& press = as<PointerButton>(ev, 0);
     CHECK(press.button == 1);
     CHECK(press.pressed);
-    CHECK(schema_of<MouseButton>()->fields().size() == 2); // button, pressed -- no position
+    CHECK(press.x == 42);
+    CHECK(press.y == 7);
 
-    // Worse than absent: STALE. The tracker is not advanced by a button-only
-    // record either, so the next move reports a delta measured from the position
-    // before the press, and a consumer reconstructing "where was the click" from
-    // the last MouseMoved answers 10,5 for a click at 42,7. Reachable in
-    // practice: a console generates no move records while it does not have
-    // focus, so the first click after refocusing lands wherever the pointer
-    // silently went.
-    ev = win32_mouse_to_events(track, 43, 7, win32::kButtonLeft, win32::kMouseMoved);
+    // And the STALENESS is gone at its root, not merely routed around: a
+    // button-only record advances the tracker too, so the next move's delta is
+    // measured from where the pointer actually was. W-2 measured 33 here (43-10,
+    // spanning right across the press); the honest answer is 1.
+    ev = win32_mouse_to_events(track, 43, 7, win32::kButtonLeft, win32::kMouseMoved, 0);
     REQUIRE(ev.size() == 1);
-    CHECK(as<MouseMoved>(ev, 0).dx == 33.0); // 43 - 10, not 43 - 42
-    CHECK(as<MouseMoved>(ev, 0).dy == 2.0);
+    CHECK(as<PointerMoved>(ev, 0).dx == 1); // 43 - 42, not 43 - 10
+    CHECK(as<PointerMoved>(ev, 0).dy == 0);
 }
 
-TEST_CASE("terminal, EXPIRING: the canonical lane has no pointer, and a mouse report is keystrokes") {
-    // The POSIX backend translates bytes, and no byte sequence it recognises is a
-    // pointer event -- so Workshop's click-and-drag path is simply not live on
-    // the lane every suite runs on. That is a product limitation, and it is the
-    // less interesting half.
+TEST_CASE("pointer moments: an event-time position is not the LAST position") {
+    // The failure W-2 had to live with, recreated explicitly (§33) and shown to
+    // be unreachable through the new messages: a press at A, motion afterwards
+    // to B, and the press event still says A. A consumer that reads the press
+    // cannot get B by accident, because the press is not asking anybody.
+    PointerTrack track;
+    auto press = win32_mouse_to_events(track, 12, 3, win32::kButtonLeft, 0, 0);
+    REQUIRE(press.size() == 1);
+    const PointerButton captured = as<PointerButton>(press, 0);
+
+    // Now the pointer travels a long way, several times.
+    for (std::int64_t x = 13; x < 40; ++x) {
+        (void)win32_mouse_to_events(track, x, 11, win32::kButtonLeft, win32::kMouseMoved, 0);
+    }
+    // The message is a value. It was true when it was made and it stays true.
+    CHECK(captured.x == 12);
+    CHECK(captured.y == 3);
+
+    // The same, on the terminal: a press, then motion, then a release
+    // somewhere else. Three moments, three positions, none of them borrowed.
+    TerminalParser p;
+    auto down = feed(p, "\x1b[<0;5;5M");
+    REQUIRE(down.size() == 1);
+    CHECK(as<PointerButton>(down, 0).x == 4);
+    CHECK(as<PointerButton>(down, 0).y == 4);
+    auto move = feed(p, "\x1b[<32;9;5M");
+    REQUIRE(move.size() == 1);
+    CHECK(as<PointerMoved>(move, 0).x == 8);
+    auto up = feed(p, "\x1b[<0;9;5m");
+    REQUIRE(up.size() == 1);
+    CHECK_FALSE(as<PointerButton>(up, 0).pressed);
+    CHECK(as<PointerButton>(up, 0).x == 8);
+    CHECK(as<PointerButton>(up, 0).y == 4);
+    // ...and the press we captured first is still where it was.
+    CHECK(as<PointerButton>(down, 0).x == 4);
+}
+
+TEST_CASE("terminal: THE CANONICAL LANE HAS A POINTER, and a report is not keystrokes") {
+    // Was: "the canonical lane has no pointer, and a mouse report is keystrokes."
     //
-    // The interesting half: the absence is in the PARSER, not only in the
-    // terminal's configuration. Nothing today asks a terminal to report the mouse
-    // (the Skin emits alternate-screen and cursor-hiding and nothing else), but
-    // if anything ever did, an SGR mouse report would not be ignored -- it would
-    // be translated, byte by byte, into ordinary keystrokes.
+    // W-2's version fed exactly these bytes and counted NINE keystrokes coming
+    // out, one of them `[` -- the key Workshop binds to "narrow the workspace".
+    // So a single click on a terminal that had been asked to report one would
+    // silently have resized a maker's workspace.
     const auto ev = term("\x1b[<0;10;5M"); // "left button pressed at column 10, row 5"
 
-    for (const InputEvent& e : ev) {
-        CHECK_FALSE(std::holds_alternative<MouseButton>(e));
-        CHECK_FALSE(std::holds_alternative<MouseMoved>(e));
-        CHECK_FALSE(std::holds_alternative<MouseWheel>(e));
+    // One message, and it is a pointer press.
+    REQUIRE(ev.size() == 1);
+    const PointerButton& b = as<PointerButton>(ev, 0);
+    CHECK(b.button == 1);
+    CHECK(b.pressed);
+    CHECK(b.x == 9); // the terminal counts from 1; the contract counts from 0
+    CHECK(b.y == 4);
+    CHECK(b.space == space::kCells);
+
+    // NOTHING LEAKED. Not the `[`, not the digits, not the `M`, not the Escape.
+    CHECK(pressed_codes(ev).empty());
+    CHECK(typed(ev).empty());
+}
+
+TEST_CASE("terminal SGR: presses, releases, motion, wheels, buttons, modifiers") {
+    TerminalParser p;
+
+    // Buttons: low two bits, and the final byte says which transition.
+    auto ev = feed(p, "\x1b[<0;3;4M");
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerButton>(ev, 0).button == 1);
+    CHECK(as<PointerButton>(ev, 0).pressed);
+    ev = feed(p, "\x1b[<0;3;4m");
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerButton>(ev, 0).button == 1);
+    CHECK_FALSE(as<PointerButton>(ev, 0).pressed);
+    ev = feed(p, "\x1b[<1;3;4M");
+    CHECK(as<PointerButton>(ev, 0).button == 2); // middle
+    ev = feed(p, "\x1b[<2;3;4M");
+    CHECK(as<PointerButton>(ev, 0).button == 3); // right
+
+    // Motion while a button is held (mode 1002's whole purpose): bit 32 set,
+    // and the delta is derived here rather than by every consumer.
+    ev = feed(p, "\x1b[<32;10;10M");
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerMoved>(ev, 0).x == 9);
+    CHECK(as<PointerMoved>(ev, 0).y == 9);
+    CHECK(as<PointerMoved>(ev, 0).dx == 7); // 9 - 2, from the last report's position
+    CHECK(as<PointerMoved>(ev, 0).dy == 6);
+    ev = feed(p, "\x1b[<32;12;10M");
+    CHECK(as<PointerMoved>(ev, 0).dx == 2);
+    CHECK(as<PointerMoved>(ev, 0).dy == 0);
+
+    // Wheels: bit 64, and the low bits pick the direction.
+    ev = feed(p, "\x1b[<64;5;5M");
+    REQUIRE(ev.size() == 1);
+    CHECK(as<PointerWheel>(ev, 0).dy == 1.0);
+    CHECK(as<PointerWheel>(ev, 0).x == 4);
+    ev = feed(p, "\x1b[<65;5;5M");
+    CHECK(as<PointerWheel>(ev, 0).dy == -1.0);
+
+    // Modifiers at pointer time, which the terminal genuinely reports: 4 Shift,
+    // 8 Alt, 16 Ctrl, added to the button number.
+    ev = feed(p, "\x1b[<4;3;4M");
+    CHECK(as<PointerButton>(ev, 0).modifiers == mod::kShift);
+    ev = feed(p, "\x1b[<16;3;4M");
+    CHECK(as<PointerButton>(ev, 0).modifiers == mod::kCtrl);
+    ev = feed(p, "\x1b[<8;3;4M");
+    CHECK(as<PointerButton>(ev, 0).modifiers == mod::kAlt);
+    ev = feed(p, "\x1b[<20;3;4M");
+    CHECK(as<PointerButton>(ev, 0).modifiers == (mod::kShift | mod::kCtrl));
+    ev = feed(p, "\x1b[<36;7;4M"); // 32 motion + 4 shift
+    CHECK(as<PointerMoved>(ev, 0).modifiers == mod::kShift);
+
+    // The 1-based to 0-based translation, at the origin where an off-by-one
+    // shows: the terminal's top-left cell is 1;1.
+    ev = feed(p, "\x1b[<0;1;1M");
+    CHECK(as<PointerButton>(ev, 0).x == 0);
+    CHECK(as<PointerButton>(ev, 0).y == 0);
+
+    CHECK(p.malformed() == 0); // every one of those was well-formed
+}
+
+TEST_CASE("terminal SGR: the parser survives read boundaries wherever they fall") {
+    // The §18 list, entry by entry. An OS read boundary is not an event
+    // boundary, and V1's batch-local parse assumed it was.
+    const std::string report = "\x1b[<0;10;5M";
+
+    // 1. complete report in one read.
+    {
+        TerminalParser p;
+        auto ev = feed(p, report);
+        REQUIRE(ev.size() == 1);
+        CHECK(as<PointerButton>(ev, 0).x == 9);
     }
 
-    std::vector<std::int64_t> pressed;
-    for (const InputEvent& e : ev) {
-        if (const KeyPressed* k = std::get_if<KeyPressed>(&e)) {
-            pressed.push_back(k->scancode);
-        }
+    // 2/3. split ANYWHERE -- after ESC, inside the numeric body, before the
+    // final byte. Every interior cut, not a chosen one.
+    for (std::size_t cut = 1; cut < report.size(); ++cut) {
+        TerminalParser p;
+        auto first = feed(p, std::string_view(report).substr(0, cut));
+        INFO("cut at ", cut);
+        CHECK(first.empty()); // emits nothing yet
+        CHECK(p.mid_sequence());
+        CHECK(p.malformed() == 0);
+        auto second = feed(p, std::string_view(report).substr(cut));
+        REQUIRE(second.size() == 1);
+        CHECK(as<PointerButton>(second, 0).x == 9);
+        CHECK(as<PointerButton>(second, 0).y == 4);
+        CHECK_FALSE(p.mid_sequence());
     }
-    // Escape, then every remaining byte on its own: the report becomes nine keys.
-    REQUIRE(pressed.size() == 9);
-    CHECK(pressed[0] == scan::kEscape);
-    CHECK(pressed[1] == scan::kLeftBracket);
-    CHECK(pressed[8] == scan::kM);
-    // `[` is a key Workshop binds -- it narrows the workspace. So a single click,
-    // on a terminal that had been asked to report one, would silently resize a
-    // maker's workspace. Nothing enables that today; nothing refuses it either.
-    CHECK(pressed[1] == scan::kLeftBracket);
+
+    // 4. multiple reports in one read.
+    {
+        TerminalParser p;
+        auto ev = feed(p, "\x1b[<0;1;1M\x1b[<32;2;1M\x1b[<0;2;1m");
+        REQUIRE(ev.size() == 3);
+        CHECK(as<PointerButton>(ev, 0).pressed);
+        CHECK(as<PointerMoved>(ev, 1).x == 1);
+        CHECK_FALSE(as<PointerButton>(ev, 2).pressed);
+    }
+
+    // 5. a report adjacent to ordinary input, both sides.
+    {
+        TerminalParser p;
+        auto ev = feed(p, "n\x1b[<0;4;4Mq");
+        CHECK(typed(ev) == "nq");
+        const auto codes = pressed_codes(ev);
+        REQUIRE(codes.size() == 2);
+        CHECK(codes[0] == scan::kN);
+        CHECK(codes[1] == scan::kQ);
+        bool saw_press = false;
+        for (const InputEvent& e : ev) {
+            saw_press = saw_press || std::holds_alternative<PointerButton>(e);
+        }
+        CHECK(saw_press);
+    }
+
+    // 6. an incomplete prefix emits nothing, and keeps waiting.
+    {
+        TerminalParser p;
+        CHECK(feed(p, "\x1b[<0;10").empty());
+        CHECK(p.mid_sequence());
+        CHECK(p.idle().empty()); // an unfinished sequence is NOT an Escape key
+        CHECK(p.malformed() == 0);
+    }
+
+    // 7. a lone ESC is the Escape key, and the pump's empty poll is what says
+    // so -- the parser's only clock.
+    {
+        TerminalParser p;
+        CHECK(feed(p, "\x1b").empty()); // cannot know yet
+        CHECK(p.mid_sequence());
+        auto ev = p.idle();
+        std::size_t i = 0;
+        expect_stroke(ev, i, scan::kEscape, "Escape");
+        CHECK(i == ev.size());
+        CHECK_FALSE(p.mid_sequence());
+        CHECK(p.idle().empty()); // and only once
+    }
+
+    // ...but a lone ESC whose tail arrives in the NEXT read is a sequence, not
+    // an Escape. This is the case that made the parser stateful.
+    {
+        TerminalParser p;
+        CHECK(feed(p, "\x1b").empty());
+        auto ev = feed(p, "[<0;10;5M");
+        REQUIRE(ev.size() == 1);
+        CHECK(as<PointerButton>(ev, 0).x == 9);
+        CHECK(pressed_codes(ev).empty()); // no Escape, no `[`
+    }
+}
+
+TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
+    const char* bad[] = {
+        "\x1b[<0;10M",        // two fields, not three
+        "\x1b[<0;10;5;7M",    // four fields
+        "\x1b[<;10;5M",       // an empty field
+        "\x1b[<0;10;M",       // a trailing empty field
+        "\x1b[<3;10;5M",      // "no button" is not a transition
+        "\x1b[<0;99999999;5M" // a coordinate that is not a coordinate
+    };
+    for (const char* s : bad) {
+        TerminalParser p;
+        INFO("report: ", s);
+        const auto ev = feed(p, s);
+        CHECK(ev.empty());              // nothing invented
+        CHECK(p.malformed() == 1);      // and the refusal is COUNTED, not silent
+        CHECK(pressed_codes(ev).empty());
+        CHECK(typed(ev).empty());
+        CHECK_FALSE(p.mid_sequence());  // the parser resynced
+    }
+
+    // Garbage that never terminates is bounded rather than accumulated for
+    // ever -- AND the tail of it does not become keystrokes. Measured before
+    // the resync existed: the parser gave up at 32 bytes, returned to ground,
+    // and typed the remaining thirty-odd `1`s into whatever had focus. Giving
+    // up in the middle of the garbage is the very defect this parser removes.
+    TerminalParser p;
+    std::string flood = "\x1b[<";
+    flood.append(64, '1');
+    const auto ev = feed(p, flood);
+    CHECK(ev.empty());
+    CHECK(pressed_codes(ev).empty());
+    CHECK(typed(ev).empty()); // not one `1`
+    CHECK(p.malformed() >= 1);
+    CHECK(p.mid_sequence()); // still swallowing: the sequence never ended
+    // A CSI ends at its final byte, and that is exactly where the stream is
+    // rejoined -- one byte later, ordinary input works again.
+    auto tail = feed(p, "M");
+    CHECK(tail.empty());
+    CHECK_FALSE(p.mid_sequence());
+    std::size_t j = 0;
+    auto resumed = feed(p, "n");
+    expect_typed(resumed, j, scan::kN, "N", "n");
+    CHECK(j == resumed.size());
+
+    // And after any of it, ordinary input still works -- a resync that ate the
+    // next keystroke would be its own defect.
+    TerminalParser q;
+    (void)feed(q, "\x1b[<0;10M");
+    auto after = feed(q, "n");
+    std::size_t i = 0;
+    expect_typed(after, i, scan::kN, "N", "n");
+    CHECK(i == after.size());
 }
 
 // ============================================================================
 // Tier 3 — the weave through a real bus (injected reader)
 // ============================================================================
 
-TEST_CASE("the weave publishes what its reader hears, in order, all five shapes") {
+TEST_CASE("the weave publishes what its reader hears, in order, every shape") {
     loom::Switchboard bus;
-    std::vector<std::vector<InputEvent>> feed;
-    feed.push_back({KeyPressed{scan::kW, "W"}, KeyReleased{scan::kW, "W"}, MouseButton{1, true},
-                    MouseMoved{3.0, 4.0, 1.0, -1.0}, MouseWheel{0.0, 1.0}});
+    std::vector<std::vector<InputEvent>> batches;
+    batches.push_back({KeyPressed{scan::kW, "W", mod::kShift},
+                       TextEntered{"W"},
+                       KeyReleased{scan::kW, "W", mod::kShift},
+                       PointerButton{1, true, 42, 7, space::kCells, mod::kCtrl},
+                       PointerMoved{3, 4, 1, -1, space::kCells, mod::kNone},
+                       PointerWheel{0.0, 1.0, 3, 4, space::kCells, mod::kNone}});
 
-    const loom::WeaveId weave = loom::mount<InputWeaveT<FakeReader>>(bus, FakeReader{&feed});
+    const loom::WeaveId weave = loom::mount<InputWeaveT<FakeReader>>(bus, FakeReader{&batches});
     std::vector<InputEvent> heard;
     (void)loom::mount<Ears>(bus, heard);
 
@@ -674,21 +1182,31 @@ TEST_CASE("the weave publishes what its reader hears, in order, all five shapes"
     };
 
     pump_input();
-    REQUIRE(heard.size() == 5);
+    REQUIRE(heard.size() == 6);
     CHECK(as<KeyPressed>(heard, 0).scancode == scan::kW);
     CHECK(as<KeyPressed>(heard, 0).name == "W");
-    CHECK(as<KeyReleased>(heard, 1).scancode == scan::kW);
-    CHECK(as<MouseButton>(heard, 2).button == 1);
-    CHECK(as<MouseButton>(heard, 2).pressed);
-    CHECK(as<MouseMoved>(heard, 3).x == 3.0);
-    CHECK(as<MouseMoved>(heard, 3).y == 4.0);
-    CHECK(as<MouseMoved>(heard, 3).dx == 1.0);
-    CHECK(as<MouseMoved>(heard, 3).dy == -1.0);
-    CHECK(as<MouseWheel>(heard, 4).dy == 1.0);
+    CHECK(as<KeyPressed>(heard, 0).modifiers == mod::kShift);
+    CHECK(as<TextEntered>(heard, 1).text == "W");
+    CHECK(as<KeyReleased>(heard, 2).scancode == scan::kW);
+    // Every fact of the press moment survived the wire, which is the point of
+    // the whole phase: a consumer reads WHERE and WITH WHAT off the message it
+    // was handed.
+    CHECK(as<PointerButton>(heard, 3).button == 1);
+    CHECK(as<PointerButton>(heard, 3).pressed);
+    CHECK(as<PointerButton>(heard, 3).x == 42);
+    CHECK(as<PointerButton>(heard, 3).y == 7);
+    CHECK(as<PointerButton>(heard, 3).space == space::kCells);
+    CHECK(as<PointerButton>(heard, 3).modifiers == mod::kCtrl);
+    CHECK(as<PointerMoved>(heard, 4).x == 3);
+    CHECK(as<PointerMoved>(heard, 4).y == 4);
+    CHECK(as<PointerMoved>(heard, 4).dx == 1);
+    CHECK(as<PointerMoved>(heard, 4).dy == -1);
+    CHECK(as<PointerWheel>(heard, 5).dy == 1.0);
+    CHECK(as<PointerWheel>(heard, 5).x == 3);
 
     // A quiet platform: the pump costs nothing and says nothing.
     pump_input();
-    CHECK(heard.size() == 5);
+    CHECK(heard.size() == 6);
 }
 
 TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks again, "
@@ -807,13 +1325,14 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().y == 6);
 
-    // The doors snake deliberately does not open: releases and the mouse
-    // have ZERO accepters in this game — published, delivered to nobody,
-    // and that is legal (the recipient count is the pin).
+    // The doors snake deliberately does not open: releases, text and the
+    // pointer have ZERO accepters in this game — published, delivered to
+    // nobody, and that is legal (the recipient count is the pin).
     CHECK(r.publish_root(loom::to_value(KeyReleased{scan::kW, "W"})) == 0);
-    CHECK(r.publish_root(loom::to_value(MouseMoved{1.0, 2.0, 1.0, 2.0})) == 0);
-    CHECK(r.publish_root(loom::to_value(MouseButton{1, true})) == 0);
-    CHECK(r.publish_root(loom::to_value(MouseWheel{0.0, 1.0})) == 0);
+    CHECK(r.publish_root(loom::to_value(TextEntered{"w"})) == 0);
+    CHECK(r.publish_root(loom::to_value(PointerMoved{1, 2, 1, 2, space::kCells})) == 0);
+    CHECK(r.publish_root(loom::to_value(PointerButton{1, true, 3, 4, space::kCells})) == 0);
+    CHECK(r.publish_root(loom::to_value(PointerWheel{0.0, 1.0, 3, 4, space::kCells})) == 0);
 
     // The adapter's own honest counter: one steering key became one turn.
     const Seen::Answer a = r.poke(controls, loom::PokeRead{"turns"});

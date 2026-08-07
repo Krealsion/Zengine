@@ -38,6 +38,7 @@
 #include "workshop/document.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
+#include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
 
 #include "surface/skin_tui.hpp"
@@ -49,6 +50,7 @@
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <limits>
 #include <string>
 #include <vector>
@@ -1022,33 +1024,32 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
     CHECK_FALSE(doc::move(d, id, 0, (std::numeric_limits<std::int64_t>::min)()).accepted);
 }
 
-TEST_CASE("a reported pointer position survives every double the wire can carry") {
-    // MouseMoved's x/y are doubles off the bus, and `static_cast<int64_t>` of a
-    // double that does not fit is UNDEFINED -- not a wrong number, undefined. The
-    // producer is whichever weave holds the input role, so this is a value to
-    // survive rather than to trust.
-    CHECK(cell_of(12.0) == 12);
-    CHECK(cell_of(12.9) == 12); // toward zero, the cast's own rule, said out loud
-    CHECK(cell_of(-3.0) == -3);
+TEST_CASE("a reported pointer position survives every integer the wire can carry") {
+    // W-4 replaced the double coordinates with int64 cells, so the old hazard --
+    // `static_cast<int64_t>` of a double that does not fit, which is UNDEFINED --
+    // is gone at the type. The REMAINING hazard is the one the type change cannot
+    // remove: the numbers still come from whichever weave holds the input role,
+    // and `INT64_MIN - 3` is undefined behaviour produced by data.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
 
-    const double inf = std::numeric_limits<double>::infinity();
-    const double nan = std::numeric_limits<double>::quiet_NaN();
-    CHECK(cell_of(inf) == 1000000);
-    CHECK(cell_of(-inf) == -1000000);
-    CHECK(cell_of(1e300) == 1000000);
-    CHECK(cell_of(-1e300) == -1000000);
-    // NaN fails BOTH comparisons, so it must land somewhere by construction
-    // rather than by luck. It lands far outside any canvas, which already means
-    // "nothing there".
-    CHECK(cell_of(nan) == -1000000);
+    CHECK(workspace_cell_x(12) == 12);
+    CHECK(workspace_cell_y(kCanvasTopRow + kWorkspaceY) == 0);
 
-    // And a clamped position is still just a cell: it hits nothing, and it
+    // The saturating ends, which is where a plain subtraction would be UB.
+    CHECK(workspace_cell_y(kMin) == kMin);
+    CHECK(workspace_cell_x(kMin) == kMin);
+    CHECK(workspace_cell_y(kMax) == kMax - kCanvasTopRow - kWorkspaceY);
+
+    // And a saturated position is still just a cell: it hits nothing, and it
     // cannot make the arithmetic downstream of it overflow either.
     WorkshopDoc d;
     doc::add(d, "one", 0, 0, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
     Session s;
-    CHECK(begin_drag(d, s, workspace_cell_x(cell_of(inf)), workspace_cell_y(cell_of(inf))) == 0);
-    CHECK(begin_drag(d, s, workspace_cell_x(cell_of(nan)), workspace_cell_y(cell_of(nan))) == 0);
+    CHECK(begin_drag(d, s, workspace_cell_x(kMin), workspace_cell_y(kMin)) == 0);
+    CHECK(begin_drag(d, s, workspace_cell_x(kMax), workspace_cell_y(kMax)) == 0);
+    CHECK(take_hold(d, s, workspace_cell_x(kMin), workspace_cell_y(kMin)) == 0);
+    CHECK(take_hold(d, s, workspace_cell_x(kMax), workspace_cell_y(kMax)) == 0);
 }
 
 TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
@@ -1714,10 +1715,8 @@ TEST_CASE("a resize survives every extent and pointer a poke or a wire can produ
     doc::find_mut(d, id)->x = kMax;
     doc::find_mut(d, id)->y = kMin;
     s.drag = Drag{true, true, id, 0, 0};
-    const double inf = std::numeric_limits<double>::infinity();
-    for (const double at : {inf, -inf, 0.0, 1e300}) {
-        const Handled done = drag_to(d, s, workspace_cell_x(cell_of(at)),
-                                     workspace_cell_y(cell_of(at)));
+    for (const std::int64_t at : std::initializer_list<std::int64_t>{kMin, kMax, 0, -1, 1}) {
+        const Handled done = drag_to(d, s, workspace_cell_x(at), workspace_cell_y(at));
         CHECK(done.accepted());
         CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
         CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
@@ -1931,4 +1930,482 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     CHECK(rows[8].find("Identity #1") != std::string::npos);
     CHECK(rows[12].find("Width    60%") != std::string::npos);
     CHECK(rows[14].find("Resolved 28 x 6 cells") != std::string::npos);
+}
+
+// ============================================================================
+// Tier 4 — the WEAVE, through a real bus: input moments become maker gestures
+// ============================================================================
+//
+// This tier exists because W-4 closed P16. `WorkshopWeave` used to live in
+// workshop.cpp's anonymous namespace, so every phase since W-0 could prove
+// `gesture -> document` and never `message -> gesture` -- and the binding was
+// the one part of the pointer path nothing witnessed. Moving the class into
+// workshop/weave.hpp is the whole change; there is no test hook, no framework,
+// and no seam that exists only for this file.
+//
+// What it buys is the phase's own headline, asserted rather than argued: a
+// press carries the position it happened at, so the chain from a published
+// message to a semantic document operation can be walked end to end WITHOUT the
+// weave ever being told where the pointer is by anything except the event it is
+// handling.
+
+namespace {
+
+struct SeenState {
+    std::int64_t frames = 0;
+    ZEN_SHAPE(SeenState, 1, ZEN_FIELD(frames));
+};
+
+/// An ordinary Skin's ears: whatever Workshop published, kept as values.
+class Painter : public loom::WeaveBase<Painter, SeenState,
+                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText>,
+                                       loom::Emit<>> {
+public:
+    Painter(std::vector<surface::SurfaceCanvas>& canvases,
+            std::vector<surface::SurfaceText>& notes)
+        : canvases_(&canvases), notes_(&notes) {}
+    void on(const surface::SurfaceCanvas& c, loom::Mail&) {
+        ++state_.frames;
+        canvases_->push_back(c);
+    }
+    void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
+
+private:
+    std::vector<surface::SurfaceCanvas>* canvases_;
+    std::vector<surface::SurfaceText>* notes_;
+};
+
+namespace input = zengine::input;
+
+/// A live Workshop: the real weave on a real bus, driven only by published
+/// input messages. Nothing here reaches past the message boundary except to
+/// READ the result.
+struct Live {
+    loom::Switchboard bus;
+    HostContext host;
+    std::vector<surface::SurfaceCanvas> canvases;
+    std::vector<surface::SurfaceText> notes;
+    WorkshopWeave* w = nullptr;
+
+    Live() {
+        auto weave = std::make_unique<WorkshopWeave>(host);
+        w = weave.get();
+        loom::Grant grant = loom::emit_default_grant(*w);
+        loom::allow_poke_answers(grant);
+        const loom::WeaveId id = bus.register_weave(std::move(weave), std::move(grant));
+        w->zen_set_self(id);
+        (void)loom::mount<Painter>(bus, canvases, notes);
+    }
+
+    void publish(const loom::Value& v) {
+        (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
+        bus.pump();
+    }
+
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
+        publish(loom::to_value(input::KeyPressed{sc, "", mods}));
+    }
+    void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
+
+    /// A pointer event AT A WORKSPACE CELL. The translation from workspace cell
+    /// to the terminal position a backend reports is the inverse of the weave's
+    /// own, done here so every case below reads in the coordinates a maker
+    /// thinks in.
+    static std::int64_t term_x(std::int64_t wx) { return wx + kWorkspaceX; }
+    static std::int64_t term_y(std::int64_t wy) { return wy + kWorkspaceY + kCanvasTopRow; }
+
+    void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
+        publish(loom::to_value(input::PointerButton{1, true, term_x(wx), term_y(wy),
+                                                    input::space::kCells, mods}));
+    }
+    void release(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerButton{1, false, term_x(wx), term_y(wy),
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    void motion(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
+                                                   input::space::kCells, input::mod::kNone}));
+    }
+
+    const WorkshopDoc& doc() const { return w->document(); }
+    const Session& session() const { return w->session(); }
+    std::string notice() const { return w->session().notice; }
+    const ui::Element* first() const { return &w->document().elements.front(); }
+    const ui::Element* second() const { return &w->document().elements[1]; }
+
+    /// The inspector row with this label, as a maker would read it.
+    const Row* row(const std::string& label) const {
+        for (const Row& r : w->session().rows) {
+            if (r.label() == label) {
+                return &r;
+            }
+        }
+        return nullptr;
+    }
+
+    /// Put the cursor on a named row and open it for editing, by keys only.
+    void begin_editing(const std::string& label) {
+        for (int guard = 0; guard < 32; ++guard) {
+            const Session& s = session();
+            REQUIRE(s.cursor < s.rows.size());
+            if (s.rows[s.cursor].label() == label) {
+                key(input::scan::kReturn);
+                return;
+            }
+            key(input::scan::kDown);
+        }
+        FAIL("no inspector row labelled ", label);
+    }
+};
+
+/// The selected object's RESOLVED width, read the way the canvas reads it.
+std::int64_t resolved_w(const Live& t) {
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* p = ui::placed_for(scene, t.session().selected);
+    REQUIRE(p != nullptr);
+    return p->rect.w;
+}
+
+} // namespace
+
+TEST_CASE("a maker types `70%` through the canonical text route, and 70p is history") {
+    // P4's headline, end to end. W-0 could not reach `%` at all, so W-2's live
+    // evidence had to commit `70p` and call it a workaround. The characters now
+    // arrive as text the platform produced, and Workshop appends them without
+    // owning one line of keyboard knowledge.
+    Live t;
+    t.begin_editing("Width");
+    REQUIRE(t.row("Width")->editing());
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+
+    t.text("7");
+    t.text("0");
+    t.text("%");
+    CHECK(t.row("Width")->draft() == "70%");
+
+    t.key(input::scan::kReturn);
+    CHECK(t.first()->width.mode == ui::kExtentPercent);
+    CHECK(t.first()->width.amount == 70);
+    CHECK(t.notice() == "committed Width = 70%");
+    CHECK(t.row("Width")->value() == "70%");
+}
+
+TEST_CASE("entered text is text; editing controls are keys; and the two never swap jobs") {
+    Live t;
+    t.begin_editing("Name");
+    REQUIRE(t.row("Name")->editing());
+    CHECK(t.row("Name")->draft() == "panel");
+
+    // Backspace is a KEY and it erases; it is never text.
+    for (int i = 0; i < 5; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    CHECK(t.row("Name")->draft().empty());
+
+    // Capitals and symbols -- both unreachable before W-4 -- and `q`, which is
+    // the quit command in the other mode and is simply a letter here.
+    t.text("Panel");
+    t.text("-");
+    t.text("q");
+    CHECK(t.row("Name")->draft() == "Panel-q");
+    CHECK_FALSE(t.host.quit); // the `q` typed, it did not quit
+
+    // Escape is a key and it cancels: nothing was written.
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.row("Name")->editing());
+    CHECK(t.first()->label == "panel");
+    CHECK(t.notice() == "edit cancelled -- nothing was written");
+
+    // And in COMMAND mode, text is not a command: `n` as text creates nothing.
+    const std::size_t before = t.doc().elements.size();
+    t.text("n");
+    t.text("d");
+    CHECK(t.doc().elements.size() == before);
+}
+
+TEST_CASE("a multi-byte character survives typing and erasing as ONE character") {
+    Live t;
+    t.begin_editing("Name");
+    REQUIRE(t.row("Name")->editing());
+    for (int i = 0; i < 5; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("caf\xc3\xa9"); // cafe-acute, the last character two bytes
+    CHECK(t.row("Name")->draft() == "caf\xc3\xa9");
+    t.key(input::scan::kBackspace);
+    // One press erased the whole character, not half of it -- a draft holding
+    // half a character is not text and no setter could parse it.
+    CHECK(t.row("Name")->draft() == "caf");
+    t.key(input::scan::kReturn);
+    CHECK(t.first()->label == "caf");
+}
+
+TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still moves") {
+    // W-3 paid four literal keys (`,` `.` `-` `=`) for a second directional
+    // gesture, because the wire could not say "with Shift held". It can now.
+    Live t;
+    const std::int64_t x0 = t.first()->x;
+    const std::int64_t y0 = t.first()->y;
+    const std::int64_t w0 = t.first()->width.amount;
+
+    t.key(input::scan::kL); // bare: moves
+    CHECK(t.first()->x == x0 + 1);
+    CHECK(t.first()->width.amount == w0);
+
+    t.key(input::scan::kL, input::mod::kShift); // shifted: resizes
+    CHECK(t.first()->x == x0 + 1);              // position untouched
+    CHECK(t.first()->width.amount > w0);
+    CHECK(t.first()->width.mode == ui::kExtentPercent); // and the MODE is preserved
+
+    t.key(input::scan::kJ);
+    CHECK(t.first()->y == y0 + 1);
+    const std::int64_t h0 = t.first()->height.amount;
+    t.key(input::scan::kJ, input::mod::kShift);
+    CHECK(t.first()->y == y0 + 1);
+    CHECK(t.first()->height.amount == h0 + 1);
+
+    t.key(input::scan::kK, input::mod::kShift);
+    CHECK(t.first()->height.amount == h0);
+
+    // Shrinking back returns the same SIZE and not necessarily the same NUMBER,
+    // which is W-3's canonical-share property arriving through the new binding
+    // rather than a new behaviour: 60% and 59% both resolve to 28 cells at a
+    // 48-cell workspace, and the projection authors the canonical one.
+    const std::int64_t wide = resolved_w(t);
+    t.key(input::scan::kH, input::mod::kShift);
+    CHECK(resolved_w(t) == wide - 1);
+    CHECK(t.first()->width.mode == ui::kExtentPercent);
+    t.key(input::scan::kL, input::mod::kShift);
+    CHECK(resolved_w(t) == wide);
+
+    // The four W-3 workaround keys are GONE, not merely unrecommended: they do
+    // nothing at all now, so nothing can quietly keep depending on them.
+    const std::int64_t w1 = t.first()->width.amount;
+    const std::int64_t h1 = t.first()->height.amount;
+    for (const std::int64_t sc : {input::scan::kComma, input::scan::kPeriod,
+                                  input::scan::kMinus, input::scan::kEquals}) {
+        t.key(sc);
+    }
+    CHECK(t.first()->width.amount == w1);
+    CHECK(t.first()->height.amount == h1);
+}
+
+TEST_CASE("a press grabs from ITS OWN position, with no motion event anywhere") {
+    // THE PHASE, in one case. Not one PointerMoved is published before the
+    // press -- which under W-2's vocabulary meant the weave believed the pointer
+    // was at 0,0 and grabbed whatever was there.
+    Live t;
+    const std::int64_t id2 = t.second()->id;
+    const std::int64_t x = t.second()->x;
+    const std::int64_t y = t.second()->y;
+
+    t.press(x + 2, y + 1);
+    CHECK(t.session().selected == id2);
+    CHECK(t.session().drag.active);
+    CHECK(t.session().drag.id == id2);
+    CHECK_FALSE(t.session().drag.resizing);
+    CHECK(t.notice() == "holding #" + std::to_string(id2) + " -- drag to move it");
+    // The grab offset proves the position was believed: the press was 2 cells
+    // right and 1 down of the object's own corner.
+    CHECK(t.session().drag.grab_dx == 2);
+    CHECK(t.session().drag.grab_dy == 1);
+
+    // Drag, and the object follows the pointer, still with no prior motion state.
+    t.motion(x + 7, y + 1);
+    CHECK(t.second()->x == x + 5);
+    CHECK(t.second()->y == y);
+    t.release(x + 7, y + 1);
+    CHECK_FALSE(t.session().drag.active);
+}
+
+TEST_CASE("a press after a long silence uses the press, not the last thing seen") {
+    // W-2's exact failure, recreated at the weave: the pointer is reported
+    // somewhere, then the platform goes quiet (a console reports no motion while
+    // it lacks focus), then a click arrives somewhere else entirely. The old
+    // reconstruction answered with the stale position.
+    Live t;
+    const std::int64_t id1 = t.first()->id;
+    const std::int64_t id2 = t.second()->id;
+
+    // The pointer is last SEEN over object #1...
+    t.motion(t.first()->x + 1, t.first()->y + 1);
+    CHECK_FALSE(t.session().drag.active); // motion outside a drag does nothing at all
+
+    // ...and the click, with nothing in between, lands on object #2.
+    t.press(t.second()->x + 1, t.second()->y + 1);
+    CHECK(t.session().selected == id2);
+    CHECK(t.session().drag.id == id2);
+    CHECK(t.session().selected != id1);
+
+    // And the release is its own moment too: it does not need a motion to know
+    // where it happened.
+    t.release(t.second()->x + 1, t.second()->y + 1);
+    CHECK(t.notice() == "released #" + std::to_string(id2));
+}
+
+TEST_CASE("a press on the body reaches move; a press on the size handle reaches resize") {
+    Live t;
+    const std::int64_t id2 = t.second()->id;
+    t.press(t.second()->x, t.second()->y); // select it so its handle is shown
+    t.release(t.second()->x, t.second()->y);
+    REQUIRE(t.session().selected == id2);
+
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* p = ui::placed_for(scene, id2);
+    REQUIRE(p != nullptr);
+    const std::int64_t px = p->rect.x;
+    const std::int64_t py = p->rect.y;
+    const std::int64_t hx = px + p->rect.w;
+    const std::int64_t hy = py + p->rect.h;
+    const std::int64_t w0 = t.second()->width.amount;
+
+    // The handle: one cell past the bottom-right corner.
+    t.press(hx, hy);
+    CHECK(t.session().drag.active);
+    CHECK(t.session().drag.resizing);
+    CHECK(t.notice() == "holding #" + std::to_string(id2) + " -- drag to resize it");
+    t.motion(hx + 3, hy);
+    CHECK(t.second()->width.amount == w0 + 3);
+    CHECK(t.second()->x == px); // a resize moved nothing
+    t.release(hx + 3, hy);
+
+    // The body: the same object, inside its own rectangle.
+    t.press(px + 1, py);
+    CHECK(t.session().drag.active);
+    CHECK_FALSE(t.session().drag.resizing);
+    t.release(px + 1, py);
+
+    // Empty space: nothing grabbed, and it says so.
+    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice() == "nothing there");
+}
+
+TEST_CASE("the semantic operations are still the only authority, through the message path") {
+    // The gesture layer got better facts; it did not get new powers. Everything
+    // below travels message -> gesture -> doc::, and doc:: still decides.
+    Live t;
+    const std::int64_t id1 = t.first()->id;
+
+    // CLAMP: a hand that reaches past the origin stops at it, authors the
+    // boundary value, and says which wall it met (W-3's policy, unchanged).
+    t.press(t.first()->x, t.first()->y);
+    t.motion(-50, -50);
+    CHECK(t.first()->x == 0);
+    CHECK(t.first()->y == 0);
+    CHECK(t.notice() == "#" + std::to_string(id1) + " is at 0,0 -- stopped at the workspace edge");
+    CHECK_FALSE(t.session().notice_is_bad); // a clamp WROTE something
+    t.release(0, 0);
+
+    // REFUSE: a typed value that is not allowed is refused, the authored state
+    // is untouched, and the draft survives on screen.
+    t.begin_editing("Width");
+    REQUIRE(t.row("Width")->editing());
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("0");
+    t.key(input::scan::kReturn);
+    CHECK(t.session().notice_is_bad); // red means NOTHING WAS WRITTEN
+    CHECK(t.notice() == "Width: at least 1 cell");
+    CHECK(t.row("Width")->editing());
+    CHECK(t.row("Width")->draft() == "0");
+    CHECK(t.first()->width.mode == ui::kExtentPercent); // untouched
+    t.key(input::scan::kEscape);
+}
+
+TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-placed") {
+    // `space` earning its field. A backend reporting pixels is not talking about
+    // anything this document has, and guessing an equivalence is exactly the
+    // mistake the field exists to prevent.
+    Live t;
+    const std::int64_t id2 = t.second()->id;
+    t.press(t.second()->x, t.second()->y);
+    t.release(t.second()->x, t.second()->y);
+    REQUIRE(t.session().selected == id2);
+
+    const std::int64_t before_x = t.second()->x;
+    t.publish(loom::to_value(input::PointerButton{1, true, Live::term_x(t.second()->x),
+                                                  Live::term_y(t.second()->y),
+                                                  input::space::kPixels, input::mod::kNone}));
+    CHECK_FALSE(t.session().drag.active); // no grab from a space we do not speak
+    t.publish(loom::to_value(input::PointerMoved{9999, 9999, 0, 0, input::space::kPixels,
+                                                  input::mod::kNone}));
+    CHECK(t.second()->x == before_x);
+    // An unstamped event -- the default -- is likewise not cells.
+    t.publish(loom::to_value(input::PointerButton{1, true, 0, 0, input::space::kUnknown,
+                                                  input::mod::kNone}));
+    CHECK_FALSE(t.session().drag.active);
+}
+
+TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
+    Live t;
+    bool stopped = false;
+    t.host.request_stop = [&stopped] { stopped = true; };
+
+    t.key(input::scan::kC); // a plain c is not a command at all
+    CHECK_FALSE(t.host.quit);
+    t.key(input::scan::kC, input::mod::kShift); // nor a shifted one
+    CHECK_FALSE(t.host.quit);
+
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(t.host.quit);
+    CHECK(stopped);
+}
+
+TEST_CASE("canvas, object list and inspector stay coherent through a message-driven session") {
+    // W-2 and W-3 proved this over the gesture functions. This proves it over
+    // the MESSAGES, which is the layer that changed.
+    Live t;
+    const std::size_t frames_at_start = t.canvases.size();
+
+    t.key(input::scan::kN); // create
+    const std::int64_t made = t.session().selected;
+    CHECK(t.doc().elements.size() == 3);
+    CHECK(t.notice() == "created #" + std::to_string(made) + " -- a new identity, not a new name");
+
+    t.key(input::scan::kL);                     // move it
+    t.key(input::scan::kL, input::mod::kShift); // and resize it
+
+    // The canvas is republished on every one of those, and it is derived from
+    // the document rather than patched: what the hit test answers about is what
+    // was painted.
+    CHECK(t.canvases.size() > frames_at_start);
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* p = ui::placed_for(scene, made);
+    REQUIRE(p != nullptr);
+    const ui::Placed* under = ui::hit(scene, p->rect.x, p->rect.y);
+    REQUIRE(under != nullptr);
+    CHECK(under->id == made);
+
+    // The inspector follows the selection, and reads through the properties.
+    CHECK(t.row("Identity")->value() == "#" + std::to_string(made));
+    CHECK(t.row("X")->value() == std::to_string(t.doc().elements.back().x));
+
+    // Tab moves the selection and the inspector follows.
+    t.key(input::scan::kTab);
+    CHECK(t.session().selected != made);
+    CHECK(t.row("Identity")->value() == "#" + std::to_string(t.session().selected));
+
+    // Delete says where the selection went.
+    const std::int64_t doomed = t.session().selected;
+    t.key(input::scan::kD);
+    CHECK(t.doc().elements.size() == 2);
+    CHECK(t.notice().rfind("deleted #" + std::to_string(doomed), 0) == 0);
+    CHECK(t.session().selected != doomed);
+
+    // The workspace keys still work, and change no authored value.
+    const std::int64_t authored = t.first()->width.amount;
+    t.key(input::scan::kLeftBracket);
+    CHECK(t.session().workspace_w == kWorkspaceW - 4);
+    CHECK(t.first()->width.amount == authored);
+    t.key(input::scan::kRightBracket);
+    CHECK(t.session().workspace_w == kWorkspaceW);
+
+    // And a status line went out with every frame.
+    REQUIRE_FALSE(t.notes.empty());
+    CHECK(t.notes.back().slot == surface::kSlotStatus);
+    CHECK(t.notes.back().text.rfind("[workshop] 2 objects", 0) == 0);
 }

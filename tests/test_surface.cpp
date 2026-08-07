@@ -913,6 +913,75 @@ TEST_CASE("linkage pin: load-unload-load across shared vocabulary, no other libr
 }
 
 // ============================================================================
+// Tier 4a — the terminal MODES a Skin claims, including pointer reporting (W-4)
+// ============================================================================
+
+TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoes enter") {
+    // W-4 §19: a terminal reports a pointer only if something asks it to, in
+    // band, on the OUTPUT stream -- and the output stream is the Skin's. So
+    // pointer reporting is claimed and released on exactly the lifetime that
+    // already claims the alternate screen and the cursor, with no coordination
+    // surface invented between Surface and Input. Input parses SGR reports
+    // whenever they arrive; they only arrive because of these bytes.
+    const std::string on = tui_enter_sequence(true);
+    const std::string off = tui_leave_sequence(true);
+
+    // What enter claims, named one at a time so a silent drop is a red.
+    CHECK(on.find("\x1b[?1049h") != std::string::npos); // alternate screen
+    CHECK(on.find("\x1b[?25l") != std::string::npos);   // cursor hidden
+    CHECK(on.find("\x1b[2J") != std::string::npos);     // and cleared
+    CHECK(on.find("\x1b[?1002h") != std::string::npos); // button-event tracking
+    CHECK(on.find("\x1b[?1006h") != std::string::npos); // SGR coordinates
+
+    // 1002, not 1003: press, release and motion WHILE A BUTTON IS HELD is
+    // exactly a drag. 1003 would report every idle motion and pay for a gesture
+    // nobody makes.
+    CHECK(on.find("\x1b[?1003h") == std::string::npos);
+
+    // What leave releases -- everything, in the OPPOSITE order.
+    CHECK(off.find("\x1b[?1006l") != std::string::npos);
+    CHECK(off.find("\x1b[?1002l") != std::string::npos);
+    CHECK(off.find("\x1b[?25h") != std::string::npos);
+    CHECK(off.find("\x1b[?1049l") != std::string::npos);
+    CHECK(off.find("\x1b[?1006l") < off.find("\x1b[?1049l"));
+    CHECK(off.find("\x1b[?1002l") < off.find("\x1b[?25h"));
+
+    // Every mode enter sets, leave clears: `h` and `l` are the only difference,
+    // so a mode claimed and never released cannot hide.
+    for (const char* mode : {"1049", "25", "1002", "1006"}) {
+        const std::string set = std::string("\x1b[?") + mode;
+        INFO("mode ", mode);
+        const bool claimed =
+            on.find(set + "h") != std::string::npos || on.find(set + "l") != std::string::npos;
+        const bool released =
+            off.find(set + "l") != std::string::npos || off.find(set + "h") != std::string::npos;
+        CHECK(claimed);
+        CHECK(released);
+    }
+
+    // A backend whose pointer is NOT in band (the Win32 console hands the Input
+    // weave real MOUSE_EVENT records) asks for no reporting -- asking twice for
+    // one thing is not politeness.
+    const std::string plain_on = tui_enter_sequence(false);
+    const std::string plain_off = tui_leave_sequence(false);
+    CHECK(plain_on.find("\x1b[?1002h") == std::string::npos);
+    CHECK(plain_on.find("\x1b[?1006h") == std::string::npos);
+    CHECK(plain_off.find("\x1b[?1002l") == std::string::npos);
+    // ...and the ordinary screen and cursor restoration is untouched either way.
+    CHECK(plain_on.find("\x1b[?1049h") != std::string::npos);
+    CHECK(plain_off.find("\x1b[?25h") != std::string::npos);
+    CHECK(plain_off.find("\x1b[?1049l") != std::string::npos);
+
+    // HONEST LIMIT, asserted as prose because it cannot be asserted as code: a
+    // process killed uncatchably restores nothing, and a terminal left in
+    // reporting mode prints mouse escapes at its shell until `reset`. That is
+    // the same exposure the alternate screen has always carried; W-4 adds one
+    // more mode to it and does not pretend otherwise.
+    CHECK(kTuiPointerOn == std::string("\x1b[?1002h\x1b[?1006h"));
+    CHECK(kTuiPointerOff == std::string("\x1b[?1006l\x1b[?1002l"));
+}
+
+// ============================================================================
 // Tier 4b — the SDL skin, where this lane built it (dummy video driver)
 // ============================================================================
 

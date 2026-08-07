@@ -2,48 +2,22 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // zengine-workshop — the first Workshop surface. One rectangle, selected,
-// inspected, edited, refused.
+// inspected, edited, refused, moved, resized, typed into.
 //
 // It is an ordinary Zengine application and holds no privilege snake does not:
-// keys arrive from the Input package's weave, time from the Timer package's,
+// input arrives from the Input package's weave, time from the Timer package's,
 // pixels-or-characters from whichever Skin holds `zengine.skin`, and the host
 // owns the boot list and nothing else. Workshop paints by PUBLISHING intent — a
 // SurfaceCanvas — exactly as the world publishes a SnakeVisual, and it never
 // touches the terminal.
 //
-// WHAT IS AND IS NOT WORKSHOP'S HERE, because the whole phase turns on it:
-//
-//   the authored object   a real zengine::ui::Element in the weave's own state:
-//                         gated, schema-carrying, poke-inspectable. There is no
-//                         shadow model -- the element the maker selects IS the
-//                         element the canvas is painted from and the inspector
-//                         reads through. W-1 moved the TYPE out to the UI
-//                         package; the object is no less Workshop's state for
-//                         being spelled in a shared vocabulary.
-//   the geometry          NOT Workshop's, since W-1. `ui::resolve` turns the
-//                         authored extents into a scene and `ui::hit` says what
-//                         is under a cell; this file computes neither, and the
-//                         canvas, the inspector and the pointer all read one
-//                         scene.
-//   the session           selection, workspace extent, drafts, a drag in flight.
-//                         Plain members, never state (the Skin's `announced_`
-//                         stance).
-//   the screen            screen.hpp, pure, pinned by the suite -- and since W-2
-//                         that header owns the GESTURES too. This file binds keys
-//                         and pointer events to them and reaches the document
-//                         through nothing else, so every maker action the suite
-//                         drives is the same one a maker's hand drives.
-//
-// THE INPUT REALITY, named where a reader will hit it. The locked input
-// vocabulary carries a SCANCODE -- a physical key -- with no modifier and no
-// character concept (input/vocabulary.hpp). So typing has to be rebuilt here
-// from scancodes, and it can only ever produce lowercase ASCII: the terminal
-// backend maps 'A' and 'a' to the same scancode, so the two are not
-// distinguishable facts on this wire. A maker cannot type a capital letter into
-// a Workshop name, and cannot type `%` at all. That is a real hole in the
-// vocabulary, not a shortcut taken here.
+// THIS FILE IS THE HOST, and only the host: the boot weave, `main()`, and the
+// two grants. Workshop's own weave lives in weave.hpp, where a suite can mount
+// it — W-4 moved it there to close P16, so `input message -> gesture -> semantic
+// operation` is a chain the tests can walk end to end instead of a claim the
+// report has to make.
 
-#include "screen.hpp"
+#include "weave.hpp"
 
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -70,51 +44,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <functional>
 #include <string>
 
 namespace {
 
 using namespace zengine::workshop;
 namespace input = zengine::input;
-namespace scan = zengine::input::scan;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
-namespace ui = zengine::ui;
-
-/// One scancode back to the character it stood for, or 0 for "not a character".
-///
-/// LOWERCASE ONLY, and not by choice: see the header note. Reconstructing this
-/// table is itself the finding -- an application that wants text has to know the
-/// keyboard, which is exactly the knowledge the Input package exists to own.
-char character_of(std::int64_t scancode) {
-    if (scancode >= scan::kA && scancode <= scan::kZ) {
-        return static_cast<char>('a' + (scancode - scan::kA));
-    }
-    if (scancode >= scan::k1 && scancode <= scan::k9) {
-        return static_cast<char>('1' + (scancode - scan::k1));
-    }
-    switch (scancode) {
-    case scan::k0: return '0';
-    case scan::kSpace: return ' ';
-    case scan::kMinus: return '-';
-    case scan::kPeriod: return '.';
-    case scan::kComma: return ',';
-    case scan::kSlash: return '/';
-    case scan::kSemicolon: return ';';
-    case scan::kLeftBracket: return '[';
-    case scan::kRightBracket: return ']';
-    default: return 0;
-    }
-}
-
-/// What the host needs from the weave and cannot get by message: the stop lever.
-struct HostContext {
-    bool quit = false;
-    std::function<void()> request_stop;
-    std::string dir;
-    std::string so(const char* stem) const;
-};
 
 /// The boot weave: it asks the Weave Manager to load the packages Workshop runs
 /// on, and — the part that matters — it HEARS THE ANSWERS.
@@ -160,380 +97,6 @@ public:
     }
 };
 
-/// The Workshop weave: the authored document, the session, and the keys.
-class WorkshopWeave
-    : public loom::WeaveBase<WorkshopWeave, WorkshopDoc,
-                             loom::Accept<input::KeyPressed, input::MouseButton, input::MouseMoved,
-                                          surface::SurfaceReady>,
-                             loom::Emit<surface::SurfaceCanvas, surface::SurfaceText>> {
-public:
-    explicit WorkshopWeave(HostContext& host) : host_(&host) {
-        // The document a maker opens onto. Deliberately boring, and deliberately
-        // TWO rectangles sharing nothing but a name pattern -- `panel` and
-        // `panel` would be the same object in the old builder, and here they are
-        // #1 and #2. The wide one is authored as a SHARE so the very first screen
-        // already shows an authored intent and its resolved value side by side.
-        doc::add(state_, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60},
-                 ui::Extent{ui::kExtentCells, 6});
-        doc::add(state_, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
-                 ui::Extent{ui::kExtentCells, 4});
-        session_.selected = state_.elements.empty() ? 0 : state_.elements.front().id;
-        rebuild_rows();
-    }
-
-    /// A Skin claimed the surface and said hello: give it the whole screen. The
-    /// operator weave's precedent, and the only thing Workshop needs in order to
-    /// paint for the first time -- so load order decides nothing here either.
-    void on(const surface::SurfaceReady&, loom::Mail& mail) { repaint(mail); }
-
-    void on(const input::KeyPressed& k, loom::Mail& mail) {
-        // Ctrl+C is the one key that means the same thing in every mode. It
-        // arrives as a scancode plus a courtesy name because V1 has no modifier
-        // vocabulary; the host branches on it exactly as snake's does, and with
-        // the same expiry.
-        if (k.scancode == scan::kC && k.name == "Ctrl+C") {
-            quit();
-            return;
-        }
-        if (editing_row() != nullptr) {
-            typing(k, mail);
-        } else {
-            command(k, mail);
-        }
-        repaint(mail);
-    }
-
-    /// The pointer, where one exists. MouseButton carries no position, so the
-    /// place a click landed has to come from the last MouseMoved -- two messages
-    /// to say one thing, and the reason this weave keeps `pointer_`.
-    ///
-    /// Nothing on the canonical Linux lane sends either message: the POSIX
-    /// terminal backend produces keystrokes only (input/input.cpp), and nothing
-    /// asks the terminal to report a mouse at all. So the pointer path is live
-    /// only on a backend that has one -- the Win32 console does -- and the
-    /// keyboard nudge below is the portable gesture. Both end at the same
-    /// document operation, which is the point: the suite drives one of them and
-    /// proves the write path for both.
-    void on(const input::MouseMoved& m, loom::Mail& mail) {
-        pointer_x_ = cell_of(m.x);
-        pointer_y_ = cell_of(m.y);
-        if (!session_.drag.active) {
-            return; // not dragging: remember where the pointer is, say nothing
-        }
-        const bool sizing = session_.drag.resizing;
-        const Handled done = drag_to(state_, session_, workspace_x(), workspace_y());
-        if (!done.accepted()) {
-            // A gesture can still propose something the document refuses, and it
-            // must say so rather than have the setter quietly correct it. What it
-            // may do -- and now does -- is STOP at a boundary before proposing;
-            // that is a different event and it is reported below, in different
-            // words, with the object actually changed.
-            say(done.written.refusal, true);
-        } else {
-            const ui::Element* e = doc::find(state_, session_.drag.id);
-            if (e != nullptr) {
-                say(sizing ? size_notice(*e, done) : move_notice(*e, done), false);
-            }
-        }
-        repaint(mail);
-    }
-
-    /// Press: take hold of the size handle if the pointer is on it, otherwise of
-    /// whatever object is under it, and select that object. Release: let go.
-    /// Between them, every MouseMoved authors a new position or a new size.
-    void on(const input::MouseButton& b, loom::Mail& mail) {
-        if (b.button != 1) {
-            return;
-        }
-        if (b.pressed) {
-            const std::int64_t id = take_hold(state_, session_, workspace_x(), workspace_y());
-            if (id != 0) {
-                const bool sizing = session_.drag.resizing;
-                select(id);
-                say("holding #" + std::to_string(id) +
-                        (sizing ? " -- drag to resize it" : " -- drag to move it"),
-                    false);
-            } else {
-                say("nothing there", false);
-            }
-        } else if (session_.drag.active) {
-            const std::int64_t id = session_.drag.id;
-            end_drag(session_);
-            say("released #" + std::to_string(id), false);
-        }
-        repaint(mail);
-    }
-
-private:
-    /// The workspace cell the pointer is over.
-    ///
-    /// Two accessors and not a click object: the reconstruction is exactly what
-    /// P6 costs (MouseButton carries no position, so a press's location comes
-    /// from the last MouseMoved), and hiding it behind an invented "Click" type
-    /// would hide the one thing this phase is meant to measure. The mapping
-    /// itself is screen.hpp's, where the suite can reach it.
-    std::int64_t workspace_x() const { return workspace_cell_x(pointer_x_); }
-    std::int64_t workspace_y() const { return workspace_cell_y(pointer_y_); }
-
-    Row* editing_row() {
-        for (Row& r : session_.rows) {
-            if (r.editing()) {
-                return &r;
-            }
-        }
-        return nullptr;
-    }
-
-    /// Editing mode: every character key goes to the DRAFT, including the ones
-    /// that are commands otherwise. `q` types a q here, and that is the whole
-    /// reason Ctrl+C is handled above this branch.
-    void typing(const input::KeyPressed& k, loom::Mail&) {
-        Row* row = editing_row();
-        switch (k.scancode) {
-        case scan::kReturn: {
-            const Commit result = row->commit();
-            if (result == Commit::Accepted) {
-                say("committed " + row->label() + " = " + row->value(), false);
-            } else {
-                // Two different failures, and the row already words each one for
-                // its own kind: an unparseable draft reads "not <what would have
-                // worked>", a refused value carries the setter's own reason. The
-                // first live run appended the expected form AGAIN here, which said
-                // it twice and then ran off the end of the line -- the notice is
-                // one line, so a line's worth is all it may spend.
-                (void)result;
-                say(row->label() + ": " + row->refusal(), true);
-            }
-            break;
-        }
-        case scan::kEscape:
-            row->cancel();
-            say("edit cancelled -- nothing was written", false);
-            break;
-        case scan::kBackspace: row->backspace(); break;
-        default: {
-            const char c = character_of(k.scancode);
-            if (c != 0) {
-                row->type(c);
-            }
-            break;
-        }
-        }
-    }
-
-    /// Command mode.
-    ///
-    /// The move gesture is `hjkl` and not the arrows, and that is a real
-    /// collision resolved rather than a preference: the arrows already step the
-    /// inspector's rows, Workshop has no focus concept that would let one pair of
-    /// keys mean two things, and inventing one to free the arrows would be a
-    /// focus system built to serve a keybinding. The arrows keep the job they
-    /// had; the four free letters take the new one. On a backend with a pointer
-    /// this is the fallback, not the gesture -- see on(MouseButton).
-    void command(const input::KeyPressed& k, loom::Mail&) {
-        switch (k.scancode) {
-        case scan::kTab: select_next(); break;
-        case scan::kUp:
-            if (session_.cursor > 0) {
-                --session_.cursor;
-            }
-            break;
-        case scan::kDown:
-            if (session_.cursor + 1 < session_.rows.size()) {
-                ++session_.cursor;
-            }
-            break;
-        case scan::kReturn: begin_edit(); break;
-        case scan::kN: create_object(); break;
-        case scan::kD: delete_object(); break;
-        case scan::kH: move_by(-1, 0); break;
-        case scan::kJ: move_by(0, +1); break;
-        case scan::kK: move_by(0, -1); break;
-        case scan::kL: move_by(+1, 0); break;
-        case scan::kComma: size_by(-1, 0); break;
-        case scan::kPeriod: size_by(+1, 0); break;
-        case scan::kMinus: size_by(0, -1); break;
-        case scan::kEquals: size_by(0, +1); break;
-        case scan::kLeftBracket: resize_workspace(-4); break;
-        case scan::kRightBracket: resize_workspace(+4); break;
-        case scan::kQ: quit(); break;
-        default: break;
-        }
-    }
-
-    /// Make one. The notice names the IDENTITY and not the label, because the
-    /// default label is the same word the other objects already carry -- which is
-    /// the lesson, arriving at the moment a maker can see it is not a problem.
-    void create_object() {
-        const std::int64_t id = create(state_, session_);
-        say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
-    }
-
-    /// Delete the selected one, and say where the selection went. "Deleted, and
-    /// you are now on #2" is one fact; leaving a maker to work out which object
-    /// the inspector is suddenly showing is two.
-    void delete_object() {
-        const std::int64_t was = session_.selected;
-        const Written gone = delete_selected(state_, session_);
-        if (!gone.accepted) {
-            say(gone.refusal, true);
-            return;
-        }
-        say(session_.selected == 0
-                ? "deleted #" + std::to_string(was) + " -- the document is empty"
-                : "deleted #" + std::to_string(was) + " -- now on #" +
-                      std::to_string(session_.selected),
-            false);
-    }
-
-    /// One cell, through the same document operation a typed X or Y goes through.
-    void move_by(std::int64_t ddx, std::int64_t ddy) {
-        const Handled moved = nudge(state_, session_, ddx, ddy);
-        if (!moved.accepted()) {
-            say(moved.written.refusal, true);
-            return;
-        }
-        const ui::Element* e = doc::find(state_, session_.selected);
-        if (e != nullptr) {
-            say(move_notice(*e, moved), false);
-        }
-    }
-
-    /// One cell of SIZE, through the same document operation a typed Width or
-    /// Height goes through — and through the same projection the pointer uses, so
-    /// the two gestures cannot come to hold different opinions about what a
-    /// dragged share should become.
-    ///
-    /// The keyboard's four resize keys are `,` `.` for width and `-` `=` for
-    /// height, and that is a collision paid for rather than a preference: `hjkl`
-    /// already moves, the arrows already step the inspector's rows, and there are
-    /// no modifiers on this wire at all (input/vocabulary.hpp) -- so a second
-    /// direction gesture costs four more literal keys. That is P4's bill, arriving
-    /// a second time.
-    void size_by(std::int64_t dw, std::int64_t dh) {
-        const Handled done = grow(state_, session_, dw, dh);
-        if (!done.accepted()) {
-            say(done.written.refusal, true);
-            return;
-        }
-        const ui::Element* e = doc::find(state_, session_.selected);
-        if (e != nullptr) {
-            say(size_notice(*e, done), false);
-        }
-    }
-
-    /// The two notices a direct manipulation produces, in one place so the
-    /// pointer and the keyboard cannot describe the same act differently.
-    ///
-    /// A size notice reports the AUTHORED extents, not the resolved ones: the
-    /// whole question this phase exists to answer is what a maker's hand wrote,
-    /// and `71%` is the answer -- `34 x 6 cells` is what the inspector's Resolved
-    /// row already says. A boundary is appended in its own words and the notice
-    /// stays in the ordinary role, because in this tool the alert role means
-    /// exactly one thing: NOTHING WAS WRITTEN. A clamped gesture did write --
-    /// the boundary value -- so colouring it as a refusal would erase the
-    /// distinction the boundary policy was built to make.
-    static std::string edge_of(const Handled& done) {
-        return done.clamped() ? " -- " + done.boundary : std::string();
-    }
-    static std::string move_notice(const ui::Element& e, const Handled& done) {
-        return "#" + std::to_string(e.id) + " is at " + std::to_string(e.x) + "," +
-               std::to_string(e.y) + edge_of(done);
-    }
-    static std::string size_notice(const ui::Element& e, const Handled& done) {
-        return "#" + std::to_string(e.id) + " is now " + TextForm<ui::Extent>::format(e.width) +
-               " x " + TextForm<ui::Extent>::format(e.height) + edge_of(done);
-    }
-
-    void begin_edit() {
-        if (session_.cursor >= session_.rows.size()) {
-            return;
-        }
-        Row& row = session_.rows[session_.cursor];
-        if (!row.editable()) {
-            say(row.label() + " is not authored -- it is what the workspace makes of the "
-                              "authored value",
-                true);
-            return;
-        }
-        row.begin();
-        say("editing " + row.label() + " -- enter commits, esc cancels", false);
-    }
-
-    /// Resize the workspace: NO authored value changes, and a share visibly
-    /// resolves to something else. One keystroke, and the difference between an
-    /// authored fact and a resolved one stops being an argument.
-    void resize_workspace(std::int64_t delta) {
-        std::int64_t want = session_.workspace_w + delta;
-        if (want < kWorkspaceMinW) {
-            want = kWorkspaceMinW;
-        }
-        if (want > kWorkspaceW) {
-            want = kWorkspaceW;
-        }
-        session_.workspace_w = want;
-        rebuild_rows(); // the resolved row closes over the extent it resolves against
-        say("workspace is now " + std::to_string(want) +
-                " cells wide -- authored values unchanged",
-            false);
-    }
-
-    void select_next() {
-        if (state_.elements.empty()) {
-            return;
-        }
-        std::size_t at = 0;
-        for (std::size_t i = 0; i < state_.elements.size(); ++i) {
-            if (state_.elements[i].id == session_.selected) {
-                at = i;
-                break;
-            }
-        }
-        select(state_.elements[(at + 1) % state_.elements.size()].id);
-    }
-
-    void select(std::int64_t id) {
-        if (id == session_.selected) {
-            return;
-        }
-        session_.selected = id;
-        rebuild_rows();
-    }
-
-    /// The rows are rebuilt, never patched. Each one reads through its property
-    /// every time it is displayed, so there is no cached value to refresh and no
-    /// "refresh the inspector" call anywhere in this file -- the second half of
-    /// the old builder's per-row plumbing, also gone.
-    void rebuild_rows() { refocus(state_, session_); }
-
-    void say(std::string text, bool bad) {
-        session_.notice = std::move(text);
-        session_.notice_is_bad = bad;
-    }
-
-    void repaint(loom::Mail& mail) {
-        mail.publish(paint(state_, session_));
-        mail.publish(surface::SurfaceText{
-            surface::kSlotStatus,
-            "[workshop] " + std::to_string(state_.elements.size()) + " objects | " +
-                (session_.selected == 0
-                     ? std::string("nothing selected")
-                     : "selected #" + std::to_string(session_.selected))});
-    }
-
-    void quit() {
-        host_->quit = true;
-        if (host_->request_stop) {
-            host_->request_stop();
-        }
-    }
-
-    HostContext* host_;
-    Session session_;
-    std::int64_t pointer_x_ = 0; ///< the last position a MouseMoved reported...
-    std::int64_t pointer_y_ = 0; ///< ...because MouseButton does not carry one
-};
-
 std::string exe_dir() {
 #if defined(_WIN32)
     char buf[MAX_PATH];
@@ -557,15 +120,6 @@ std::string exe_dir() {
 #endif
 }
 
-constexpr const char* kWeaveSuffix =
-#if defined(_WIN32)
-    ".dll";
-#else
-    ".so";
-#endif
-
-std::string HostContext::so(const char* stem) const { return dir + "/" + stem + kWeaveSuffix; }
-
 } // namespace
 
 int main() {
@@ -586,8 +140,8 @@ int main() {
     // Workshop's own reach: the right to SPEAK its screen, and nothing else. It
     // commands no lifecycle, loads no weave and reaches no manager -- the boot
     // list below is the host's. A maker tool with a live document does not need
-    // the dangerous grant to do W-0's job, and giving it one "because Workshop
-    // will eventually need it" is exactly the specialness this phase is
+    // the dangerous grant to do its job, and giving it one "because Workshop
+    // will eventually need it" is exactly the specialness these phases are
     // supposed to be counting.
     loom::Grant speak;
     speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
@@ -605,8 +159,10 @@ int main() {
     // Boot, as ordinary LoadWeave commands sent AS the boot weave -- so the
     // Manager's answers come back to something that can hear them, and a refused
     // load is a fact this program can report instead of a silence it exits on.
-    // The Skin is first: loading it claims the terminal, and its hello is what
-    // makes Workshop paint.
+    // The Skin is first: loading it claims the terminal -- which since W-4
+    // includes asking the terminal to report its POINTER, because terminal modes
+    // are the Skin's lifetime and always were -- and its hello is what makes
+    // Workshop paint.
     const auto boot = [&](const char* stem, const char* role) {
         bus.send_as(booter, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{stem, host.so(stem), role}),

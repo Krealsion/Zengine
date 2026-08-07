@@ -312,15 +312,80 @@ private:
     Sink sink_;
 };
 
+/// The terminal modes a TUI Skin claims, as bytes — pure, so the claim is a
+/// value a suite can read rather than a side effect only a live terminal sees.
+///
+/// WHO OWNS POINTER REPORTING (W-4 §19, decided here). A terminal reports a
+/// pointer only if something asks it to, in-band, on the OUTPUT stream. The
+/// output stream is the Skin's — it already claims the alternate screen and the
+/// cursor and gives them back — so pointer reporting is claimed and released on
+/// exactly the same lifetime, by the same RAII, with no coordination surface
+/// invented between the two packages. Input never writes a byte to the
+/// terminal; it only parses what arrives. That the two need not talk is the
+/// reason this is the smallest truthful owner: the Skin turning reporting on
+/// requires telling Input nothing, because Input parses an SGR report whenever
+/// one shows up and one only shows up if a Skin asked.
+///
+/// The consequence, stated because it is a real product fact: on the POSIX
+/// lane there is no pointer without a TUI Skin loaded. A Workshop with no Skin
+/// has no screen either, so nothing is lost that was not already gone.
+///
+/// `1002` is button-event tracking — press, release, and motion WHILE A BUTTON
+/// IS HELD. That is exactly a drag and nothing else; `1003` would report every
+/// idle motion and pay for a gesture nobody makes. `1006` asks for SGR
+/// coordinates, which are the only encoding that survives past column 223 and
+/// the only one that spells press and release distinctly.
+///
+/// LEAVE UNDOES ENTER, in reverse order, and that is asserted rather than
+/// eyeballed. What it cannot promise is survival of an uncatchable death: a
+/// process killed with SIGKILL restores nothing, and a terminal left in
+/// reporting mode prints mouse escapes at its shell until `reset`. That is the
+/// same exposure the alternate screen already carries and it is not new here.
+inline constexpr const char* kTuiPointerOn = "\x1b[?1002h\x1b[?1006h";
+inline constexpr const char* kTuiPointerOff = "\x1b[?1006l\x1b[?1002l";
+
+/// What a TUI Skin writes when it takes the terminal. `pointer` is false on a
+/// backend whose pointer arrives some other way — the Win32 console delivers
+/// mouse INPUT_RECORDs to the Input weave's own reader, so asking it for
+/// in-band reports would be asking twice for one thing.
+inline std::string tui_enter_sequence(bool pointer) {
+    std::string s = "\x1b[?1049h\x1b[?25l\x1b[2J";
+    if (pointer) {
+        s += kTuiPointerOn;
+    }
+    return s;
+}
+
+/// What it writes when it gives the terminal back: everything `enter` claimed,
+/// released in the opposite order.
+inline std::string tui_leave_sequence(bool pointer) {
+    std::string s;
+    if (pointer) {
+        s += kTuiPointerOff;
+    }
+    s += "\x1b[?25h\x1b[?1049l";
+    return s;
+}
+
+/// Whether this build's terminal delivers its pointer in band. POSIX: yes, as
+/// SGR reports on stdin. Win32 console: no — the console hands the Input
+/// weave's reader real MOUSE_EVENT records instead.
+inline constexpr bool kTuiPointerIsInBand =
+#if defined(_WIN32)
+    false;
+#else
+    true;
+#endif
+
 /// The OUTPUT side of the terminal, claimed for exactly the Skin's lifetime —
-/// alternate screen, hidden cursor, and (on Windows) VT processing so the
-/// ANSI is real, plus the UTF-8 codepage lever — restored whole on
-/// destruction. Degrades gracefully with no console (stdout redirected,
-/// headless ctest): the ceremony is skipped but frames still go to stdout,
-/// exactly the old drawers' posture — bytes belong to whoever redirected
-/// them. This is the host's old Screen class, relocated: the INPUT side of
-/// the terminal stays the Input weave's, and the two never touch the same
-/// console state.
+/// alternate screen, hidden cursor, pointer reporting where it is in-band, and
+/// (on Windows) VT processing so the ANSI is real, plus the UTF-8 codepage
+/// lever — restored whole on destruction. Degrades gracefully with no console
+/// (stdout redirected, headless ctest): the ceremony is skipped but frames
+/// still go to stdout, exactly the old drawers' posture — bytes belong to
+/// whoever redirected them. This is the host's old Screen class, relocated: the
+/// INPUT side of the terminal stays the Input weave's, and the two never touch
+/// the same console state.
 class TuiTerminal {
 public:
 #if defined(_WIN32)
@@ -368,11 +433,13 @@ public:
 
 private:
     static void enter() {
-        std::fputs("\x1b[?1049h\x1b[?25l\x1b[2J", stdout);
+        const std::string s = tui_enter_sequence(kTuiPointerIsInBand);
+        std::fwrite(s.data(), 1, s.size(), stdout);
         std::fflush(stdout);
     }
     static void leave() {
-        std::fputs("\x1b[?25h\x1b[?1049l", stdout);
+        const std::string s = tui_leave_sequence(kTuiPointerIsInBand);
+        std::fwrite(s.data(), 1, s.size(), stdout);
         std::fflush(stdout);
     }
 

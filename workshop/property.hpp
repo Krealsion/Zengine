@@ -283,8 +283,33 @@ public:
         }
     }
 
+    /// Text the platform said the maker entered, appended whole (W-4). A UTF-8
+    /// character is up to four bytes and they belong together; appending it a
+    /// byte at a time would be the same fact told in a way `backspace` could cut
+    /// in half.
+    void type(const std::string& text) {
+        if (editing_) {
+            draft_ += text;
+        }
+    }
+
+    /// Erase one CHARACTER, not one byte.
+    ///
+    /// The draft is a byte string, so a naive `pop_back` over `é` would leave
+    /// half a character behind -- a value that is not text and that no setter
+    /// could parse. Continuation bytes (10xxxxxx) go with their lead byte. This
+    /// is the whole of Workshop's Unicode editing: transport is honest, erase is
+    /// character-shaped, and NOTHING here claims grapheme clusters, combining
+    /// marks or display width.
     void backspace() {
-        if (editing_ && !draft_.empty()) {
+        if (!editing_) {
+            return;
+        }
+        while (!draft_.empty() &&
+               (static_cast<unsigned char>(draft_.back()) & 0xC0u) == 0x80u) {
+            draft_.pop_back();
+        }
+        if (!draft_.empty()) {
             draft_.pop_back();
         }
     }
