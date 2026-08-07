@@ -54,7 +54,7 @@ the tests themselves pass
   this one exits **70** and says `EMPTY TEST POPULATION`. The verifier
   re-proves that on every run, per binary, with a filter that matches nothing.
 - Floors are **minimums** anchored to a measured baseline (`snake` 22,
-  `timer` 78, `input` 15, `surface` 21 + 1 `sdl`, `ui` 11, `workshop` 51,
+  `timer` 78, `input` 15, `surface` 21 + 1 `sdl`, `ui` 12, `workshop` 51,
   `audit_probes` 4). Additions are free; a deletion is a red. Do not lower a
   floor to make a deletion pass. Read them from `tests/test_population.txt`,
   which is the contract; this list is a convenience and can go stale.

@@ -327,4 +327,48 @@ TEST_CASE("where one identity landed, and null as a normal answer") {
     CHECK(placed_for(scene, 0) == nullptr);
 }
 
+TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hold") {
+    // The same widened-input-domain claim `resolve_extent` carries, one function
+    // along. A cells extent resolves to ITSELF, authored content is a ZEN_SHAPE,
+    // and a poke writes the amount past every application's check -- so a scene
+    // resolved from poked content holds rects whose edges are not representable,
+    // and `x + w` on one of those is undefined behaviour produced by data.
+    //
+    // Found by a sanitizer during W-3, through an ordinary press: `hit` is what a
+    // maker's hand asks, so this is on the gesture path and not in a corner.
+    // The plain lane cannot see it, which is why the assertions below are about
+    // ANSWERS and the sanitizer lane is the other half of the evidence.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+
+    const Rect wild{1, 1, kMax, kMax};
+    CHECK(wild.contains(5, 5));       // it really is that big
+    CHECK_FALSE(wild.contains(0, 5)); // ...and still bounded on the near side
+    CHECK_FALSE(wild.contains(5, 0));
+    // A rect starting at the most negative cell and as wide as the type allows
+    // still ENDS somewhere: kMin + kMax is -1, so its last cell is -2 and 0 is
+    // outside it. The unsigned difference gets that exactly right where the
+    // signed addition could not have been evaluated at all.
+    const Rect huge{kMin, kMin, kMax, kMax};
+    CHECK(huge.contains(-2, -2));
+    CHECK_FALSE(huge.contains(-1, -1));
+    CHECK_FALSE(huge.contains(0, 0));
+    CHECK_FALSE(Rect{kMin, kMin, 2, 2}.contains(0, 0));
+    CHECK_FALSE(Rect{1, 1, kMin, kMin}.contains(5, 5));
+
+    // An empty or inverted rectangle contains nothing -- unchanged behaviour,
+    // now stated rather than falling out of arithmetic that could overflow.
+    CHECK_FALSE(Rect{0, 0, 0, 4}.contains(0, 0));
+    CHECK_FALSE(Rect{0, 0, 4, 0}.contains(0, 0));
+    CHECK_FALSE(Rect{0, 0, -3, -3}.contains(0, 0));
+
+    // ...and through the package's own door, which is how it is actually reached.
+    std::vector<Element> authored{make(1, "poked", 1, 1, Extent{kExtentCells, kMax},
+                                       Extent{kExtentCells, 4})};
+    const Scene scene = resolve(authored, Viewport{48, 16});
+    REQUIRE(hit(scene, 5, 2) != nullptr);
+    CHECK(hit(scene, 5, 2)->id == 1);
+    CHECK(hit(scene, 0, 2) == nullptr);
+}
+
 } // TEST_SUITE
