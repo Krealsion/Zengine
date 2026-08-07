@@ -56,6 +56,21 @@
 //                 position it happened at, so nothing here remembers where the
 //                 pointer was in order to answer where the click landed.
 
+// W-5 GAVE THE DOCUMENT A LIFE LONGER THAN THE PROCESS, and the interesting
+// part landed here rather than in the codec. Two bindings arrived (`^s`, `^o`)
+// and three questions with them, each answered in the method that needs it:
+//
+//   what does Save do about an open editor draft   refuse (see save_document)
+//   what happens to the SESSION on a load          it is re-established, not
+//                                                  preserved (load_document)
+//   how does a maker know whether work is saved    the status line COMPARES the
+//                                                  live document with the one on
+//                                                  disk (`saved_`), rather than
+//                                                  keeping a dirty flag that
+//                                                  every write site would have to
+//                                                  remember to set
+
+#include "persist.hpp"
 #include "screen.hpp"
 
 #include "input/vocabulary.hpp"
@@ -78,6 +93,19 @@ struct HostContext {
     bool quit = false;
     std::function<void()> request_stop;
     std::string dir;
+
+    /// The one file this Workshop saves to and loads from.
+    ///
+    /// It is the host's to choose (`--document <path>`, defaulted) and it is
+    /// SESSION, not document: a file cannot sensibly contain its own location,
+    /// and the same document opened from two places is the same document. There
+    /// is deliberately no recent-files list, no picker and no project concept —
+    /// one path is the smallest thing that lets a maker close Workshop and come
+    /// back to their work, which is the whole of what W-5 promised.
+    ///
+    /// Empty means no document file was chosen, and save/load say so rather
+    /// than guessing one.
+    std::string document_path;
 
     /// A weave stem, as this platform spells a shared library.
     std::string so(const char* stem) const {
@@ -110,8 +138,7 @@ public:
                  ui::Extent{ui::kExtentCells, 6});
         doc::add(state_, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
                  ui::Extent{ui::kExtentCells, 4});
-        session_.selected = state_.elements.empty() ? 0 : state_.elements.front().id;
-        rebuild_rows();
+        open_on_first();
     }
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
@@ -129,6 +156,32 @@ public:
         if (k.scancode == input::scan::kC && held(k.modifiers, input::mod::kCtrl)) {
             quit();
             return;
+        }
+        // Save and open are the two commands that mean the same thing in every
+        // mode, so they sit beside Ctrl+C rather than inside `command()`: a
+        // maker halfway through typing a width still means "save my work" when
+        // they press ^s, and what Workshop does about the half-typed width is
+        // save_document's answer, not a reason to make the key unreachable.
+        //
+        // BOTH ARE TRUTHFUL ON BOTH BACKENDS, and ^s in particular is a claim
+        // worth source-tracing rather than assuming. Ctrl+S is byte 0x13, which
+        // is XOFF: on a terminal that still has flow control it never reaches
+        // the application at all. The Input weave's TerminalReader clears IXON
+        // when it takes raw mode (input.cpp), so the byte arrives, and the
+        // parser reads 1..26 as Ctrl+letter with the modifier MEASURED rather
+        // than inferred. On the Win32 console it is VK_S with the control-key
+        // state the record already carries. Neither backend was changed.
+        if (held(k.modifiers, input::mod::kCtrl)) {
+            if (k.scancode == input::scan::kS) {
+                save_document();
+                repaint(mail);
+                return;
+            }
+            if (k.scancode == input::scan::kO) {
+                load_document();
+                repaint(mail);
+                return;
+            }
         }
         if (editing_row() != nullptr) {
             editing_key(k);
@@ -312,11 +365,123 @@ private:
         }
     }
 
+    // ---- Save and open -------------------------------------------------------
+
+    /// Write the document to its file.
+    ///
+    /// THE DRAFT POLICY, and it is a refusal. If a row is open with an
+    /// uncommitted draft, nothing is saved and the notice says which row. The
+    /// two alternatives were weighed against how this tool already behaves:
+    ///
+    ///   save the committed value quietly   would write the OLD width while a
+    ///                                      NEW one is on the screen with a
+    ///                                      cursor after it. The file would then
+    ///                                      disagree with what the maker is
+    ///                                      looking at, and nothing would say so.
+    ///   commit the draft for them          is auto-commit. Workshop has spent
+    ///                                      five phases keeping "the draft is
+    ///                                      not the property" true; a save that
+    ///                                      writes a value the maker never
+    ///                                      confirmed would end that for a
+    ///                                      keystroke's convenience.
+    ///
+    /// So it refuses, in the alert role, which in this tool means exactly one
+    /// thing: NOTHING WAS WRITTEN -- true of the document and now also of the
+    /// file. Enter commits and Escape cancels; both are one key and both are on
+    /// the help line.
+    void save_document() {
+        if (host_->document_path.empty()) {
+            say(kNoDocumentFile, true);
+            return;
+        }
+        const Row* draft = editing_row();
+        if (draft != nullptr) {
+            say(draft->label() + " is still being edited -- enter commits, esc cancels; "
+                                 "nothing was saved",
+                true);
+            return;
+        }
+        const Written written = persist::save_file(host_->document_path, state_);
+        if (!written.accepted) {
+            say(written.refusal, true);
+            return;
+        }
+        // What is on disk is now what is in memory. Recorded as a COPY of the
+        // document rather than as a flag, so "saved" cannot drift from the truth
+        // it describes -- see WorkshopDoc's operator==.
+        saved_ = state_;
+        say("saved " + host_->document_path, false);
+    }
+
+    /// Replace the document with the one in its file.
+    ///
+    /// A LOAD IS NOT A MERGE and it is not an import: the document that was here
+    /// is gone, identities and all, and the one in the file takes its place with
+    /// ITS identities. `persist::load_file` is a transaction -- the live document
+    /// is untouched unless the whole candidate is legal -- so everything below
+    /// runs only on success.
+    ///
+    /// THE SESSION IS RE-ESTABLISHED, NOT PRESERVED, and that distinction is the
+    /// whole of W-5's session work. Every session fact pointed at the document
+    /// that is gone:
+    ///
+    ///   the drag       held an identity and an offset from an object that may
+    ///                  not exist. It is cancelled, so a pointer already down
+    ///                  cannot drag a new object it never grabbed.
+    ///   the drafts     lived in rows bound to the old objects. Rebuilding the
+    ///                  inspector ends them.
+    ///   the selection  is the sharp one. KEEPING the old id would silently
+    ///                  alias whatever new object happened to carry that number
+    ///                  -- the same identity confusion the whole arc is arranged
+    ///                  to prevent, arriving through the back door. So the
+    ///                  selection is re-established by the SAME rule that opens
+    ///                  a fresh Workshop: the first object, or none.
+    ///
+    /// What is NOT reset is the workspace extent, and that is deliberate: it is
+    /// a fact about the window this document is being looked at through, not
+    /// about the document. Loading a file under a different workspace is exactly
+    /// how a maker sees that a share was authored rather than resolved.
+    void load_document() {
+        if (host_->document_path.empty()) {
+            say(kNoDocumentFile, true);
+            return;
+        }
+        const Written read = persist::load_file(host_->document_path, state_);
+        if (!read.accepted) {
+            // The document, the selection, the drag and any draft are all
+            // exactly as they were. A failed load costs a maker nothing but the
+            // notice.
+            say(read.refusal, true);
+            return;
+        }
+        end_drag(session_);
+        open_on_first();
+        saved_ = state_;
+        say("loaded " + host_->document_path + " -- " + std::to_string(state_.elements.size()) +
+                " objects",
+            false);
+    }
+
+    /// Open onto the first object, or onto none. The rule a fresh Workshop uses
+    /// and the rule a load uses, written once so a loaded document and a new one
+    /// cannot come to open differently.
+    void open_on_first() {
+        session_.selected = state_.elements.empty() ? 0 : state_.elements.front().id;
+        rebuild_rows();
+    }
+
     /// Make one. The notice names the IDENTITY and not the label, because the
     /// default label is the same word the other objects already carry -- which is
     /// the lesson, arriving at the moment a maker can see it is not a problem.
     void create_object() {
         const std::int64_t id = create(state_, session_);
+        if (id == 0) {
+            // The mint is spent. Unreachable by pressing `n`; reachable in one
+            // line of a loaded file, which is why W-5 is the phase that had to
+            // give this gesture an answer instead of an overflow.
+            say("this document has no identity left to give -- nothing was created", true);
+            return;
+        }
         say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
     }
 
@@ -455,14 +620,31 @@ private:
         session_.notice_is_bad = bad;
     }
 
+    /// The status line: how many objects, which one is selected, and — since
+    /// W-5 — WHICH FILE and whether it matches.
+    ///
+    /// The file half is not decoration. Once work survives a process, the first
+    /// thing a maker needs to know is whether the thing in front of them is the
+    /// thing on disk, and the second is which file that is. `unsaved` is
+    /// computed by comparing, so it is right by construction: a fresh Workshop
+    /// says `unsaved` because its opening document has genuinely never been
+    /// written, and a document edited and then edited BACK says `saved`, because
+    /// it is.
+    std::string status_line() const {
+        std::string line =
+            "[workshop] " + std::to_string(state_.elements.size()) + " objects | " +
+            (session_.selected == 0 ? std::string("nothing selected")
+                                    : "selected #" + std::to_string(session_.selected));
+        if (!host_->document_path.empty()) {
+            line += " | " + host_->document_path + (state_ == saved_ ? " saved" : " UNSAVED");
+        }
+        return line;
+    }
+
     void repaint(loom::Mail& mail) {
         mail.publish(paint(state_, session_));
-        mail.publish(zengine::surface::SurfaceText{
-            zengine::surface::kSlotStatus,
-            "[workshop] " + std::to_string(state_.elements.size()) + " objects | " +
-                (session_.selected == 0
-                     ? std::string("nothing selected")
-                     : "selected #" + std::to_string(session_.selected))});
+        mail.publish(
+            zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     }
 
     void quit() {
@@ -472,8 +654,19 @@ private:
         }
     }
 
+    /// What to say when there is no file to save to or load from. One sentence,
+    /// in one place, because a maker who meets it twice should not have to
+    /// wonder whether they met two different problems.
+    static constexpr const char* kNoDocumentFile =
+        "no document file -- start Workshop with --document <path>";
+
     HostContext* host_;
     Session session_;
+
+    /// The document as it is ON DISK, or an empty one when nothing has been
+    /// written yet. Session, emphatically: it is a copy kept so the status line
+    /// can answer "is this saved" by comparing rather than by trusting a flag.
+    WorkshopDoc saved_;
 };
 
 } // namespace zengine::workshop

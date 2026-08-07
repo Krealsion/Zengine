@@ -17,10 +17,18 @@
 # result: `ui` owns what a maker AUTHORS and what a viewport MAKES of it;
 # `surface` owns what gets PAINTED. Workshop is the application that joins them,
 # and it is the only one of the three that knows about both.
+#
+# It links loom::core EXPLICITLY since W-5, and not merely by inheritance from
+# the ui vocabulary. `workshop/persist.hpp` includes <zen/serialize.hpp> and
+# calls into the Loom's compat codec and its gate, so this package now has its
+# own direct, linked dependency on that surface — a consumer that got it for
+# free through a sibling target would keep building right up until the sibling
+# stopped needing it.
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
-                                                            zengine-ui-vocabulary)
+                                                            zengine-ui-vocabulary
+                                                            loom::core)
 
 # The host needs a Loom that can host .so weaves, for the same honest reason
 # snake's does: it loads a Skin and an Input producer.

@@ -399,8 +399,9 @@ configuration.
 ## `workshop/` — the maker-facing surface
 
 A person opens Workshop, **makes** an ordinary authored rectangle, selects it, **moves** it,
-inspects a real property, changes it, watches an invalid change refuse, and **deletes** it —
-down to an empty document and back. It is an ordinary Zengine application holding no privilege
+inspects a real property, changes it, watches an invalid change refuse, **deletes** it — down to
+an empty document and back — **saves** it, closes the program, and **opens it again** to the same
+objects with the same identities. It is an ordinary Zengine application holding no privilege
 snake does not — keys from the Input weave, time from the Timer service, painting by
 *publishing* a `SurfaceCanvas` to whichever skin holds `zengine.skin`. It touches no terminal
 and no window itself.
@@ -484,10 +485,47 @@ and no window itself.
   relay forwards nothing and the load silently never happens
   (`loom::forward_for`) — found by running it, and the reason boot answers have an addressee.
 
+- **The document survives the process, and only the document does** (W-5). `Ctrl+S` writes the
+  authored objects to one file and `Ctrl+O` reads them back; `--document <path>` says which file,
+  and the status line names it and says `saved` or `UNSAVED`. What is written is exactly
+  `WorkshopDoc` — identity, name, authored place, both halves of each extent, the object **order**,
+  and `next_id` — and nothing else. The selection, the workspace extent, an editor draft and a
+  drag in flight are *session*; the resolved scene, every `Rect`, the resolved size and the size
+  handle are *derived* and rebuilt. The sharpest consequence: save under a 48-cell workspace and
+  load under a 36-cell one, and the authored `61%` is byte-identical while `Resolved` reads
+  `29 x 6` before and `21 x 6` after. **`next_id` is in the file** because it cannot be
+  reconstructed: `max(surviving ids) + 1` would recycle the identity of an object deleted before
+  the save, so a maker who made `#3`, deleted it and came back would find their next object
+  wearing a dead one's number.
+- **The file is JSON, written through the Loom's own compat codec** (`workshop/persist.hpp`), not
+  a parser written here — so a document and a message are refused by the *same* gate, the
+  materialization budget already bounds a hostile file, and W-5 added no dependency. The file has
+  its own three small shapes rather than serialising the weave's state, so renaming a member
+  cannot silently change a maker's file, and an extent mode is the **word** `cells` or `percent`
+  rather than the integer it is in memory. Output is deterministic, so `save → load → save` is
+  byte-identical and a document is diffable. Loading is a **transaction** (`persist::load_into` →
+  `doc::restore`): the candidate is judged whole — format, then version, then the document law —
+  and a refusal leaves the live document, the selection, the drag and any draft exactly as they
+  were. Unknown fields are **rejected**, not dropped; an unsupported `format_version` fails
+  closed, naming the number. There is one version and deliberately no migration machinery.
+- **Saving never touches the document and never destroys the last good one.** Serialization takes
+  a `const&` and normalises nothing (`60%` is not written as the 28 cells it currently resolves
+  to). The writer serialises the complete candidate, writes a sibling `.saving` file, checks it,
+  and only then renames it over the destination — so a detected write failure leaves the previous
+  save byte-identical. No crash durability is claimed: nothing calls `fsync`.
+- **A load re-establishes the session rather than preserving it.** The drag is cancelled, the
+  inspector is rebuilt (so drafts end), and the selection is set by the same rule that opens a
+  fresh Workshop — the first object, or none — because keeping the old id would silently alias
+  whatever new object happened to carry that number. A `Ctrl+S` while a row is being edited is
+  **refused**, naming the row: the alternatives were writing the old value while a new one is on
+  screen, or auto-committing a value the maker never confirmed.
+
 Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell at a time,
-`,`/`.` narrow and widen it, `-`/`=` shorten and heighten it, `tab` cycles objects, `up`/`down`
-walks inspector rows, `enter` edits, `esc` cancels, `[`/`]` resizes the workspace, `q` quits.
-The move gesture is `hjkl` and not the arrows because the arrows already step the rows and
+`Shift+hjkl` resizes it, `tab` cycles objects, `up`/`down` walks inspector rows, `enter` edits,
+`esc` cancels, `[`/`]` resizes the workspace, `Ctrl+S` saves, `Ctrl+O` opens, `q` quits.
+`Ctrl+S` is byte 0x13 — XOFF — and reaches the application only because the Input weave's
+terminal reader clears `IXON` when it takes raw mode; the modifier is then *measured*, not
+inferred. The move gesture is `hjkl` and not the arrows because the arrows already step the rows and
 Workshop has no focus concept that would let one pair of keys mean two things — inventing one to
 free the arrows would be a focus system built to serve a keybinding. **Resize is `Shift+hjkl`**:
 one gesture family spelled two ways, rather than two families competing for free keys. W-3 could

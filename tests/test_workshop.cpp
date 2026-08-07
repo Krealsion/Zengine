@@ -10,7 +10,15 @@
 // values, and the screen is a SurfaceCanvas returned by a function. Nothing in
 // W-0's own logic needs a terminal, so nothing here has one.
 //
-// Three tiers:
+// W-5 ADDED TWO MORE TIERS AND ONE OF THEM TOUCHES A DISK. Tier 5 is the
+// document and its format — pure, and asserted mostly as bytes and values. Tier
+// 6 drives save and load through the real weave on a real bus, because the
+// interesting half of persistence is not the codec but what the SESSION does
+// when the document under it is replaced. The cases that need a file use a
+// temporary directory of their own and remove it; nothing here writes into the
+// source tree, and no case shares a path with another.
+//
+// Three original tiers:
 //   1. THE VOCABULARY — the document is ordinary content, and identity is not
 //      the name.
 //   2. THE PROPERTY CONNECTION — read through the semantic surface, commit
@@ -36,6 +44,7 @@
 #include "doctest.h"
 
 #include "workshop/document.hpp"
+#include "workshop/persist.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
 #include "workshop/weave.hpp"
@@ -47,12 +56,19 @@
 #include "ui/vocabulary.hpp"
 
 #include <zen/schema.hpp>
+#include <zen/serialize.hpp>
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <ios>
+#include <iterator>
 #include <memory>
 #include <limits>
 #include <string>
+#include <system_error>
+#include <utility>
 #include <vector>
 
 using namespace zengine::workshop;
@@ -2408,4 +2424,986 @@ TEST_CASE("canvas, object list and inspector stay coherent through a message-dri
     REQUIRE_FALSE(t.notes.empty());
     CHECK(t.notes.back().slot == surface::kSlotStatus);
     CHECK(t.notes.back().text.rfind("[workshop] 2 objects", 0) == 0);
+}
+
+// ============================================================================
+// Tier 5 — PERSISTENCE: what survives a process, and what deliberately does not
+// ============================================================================
+//
+// W-5's subject. Three questions, and every case below answers one of them:
+//
+//   1. WHAT IS THE DOCUMENT?  Everything a maker authored — identity, name,
+//      place, both halves of each extent, the ORDER, and the mint — comes back
+//      exactly. Nothing else is in the file, and the strongest proof of that is
+//      the workspace: save under one and load under another, and the authored
+//      share is identical while the resolved cells are not.
+//   2. WHAT IS "THE SAME OBJECT" ACROSS PROCESS DEATH?  The identity, and only
+//      the identity. A loaded #2 IS the saved #2 — the same number, findable,
+//      selectable, editable — and the mint does not rewind, so an identity that
+//      died before the save cannot come back after the load.
+//   3. WHAT HAPPENS WHEN THE FILE IS WRONG?  Nothing. Every refusal below
+//      asserts the live document is untouched, because "a malformed file must
+//      never leave Workshop halfway loaded" is the claim, and "the parser
+//      returned an error" is not that claim.
+
+namespace {
+
+/// A directory of this run's own, removed when the case ends. Tests never write
+/// into the source tree and never share a path with each other.
+class TempDir {
+public:
+    explicit TempDir(const char* tag) {
+        static int counter = 0;
+        path_ = std::filesystem::temp_directory_path() /
+                ("zengine-w5-" + std::string(tag) + "-" + std::to_string(++counter));
+        std::error_code ec;
+        std::filesystem::remove_all(path_, ec);
+        std::filesystem::create_directories(path_);
+    }
+    ~TempDir() {
+        std::error_code ec;
+        std::filesystem::remove_all(path_, ec);
+    }
+    TempDir(const TempDir&) = delete;
+    TempDir& operator=(const TempDir&) = delete;
+
+    std::string file(const char* name) const { return (path_ / name).string(); }
+    std::string document() const { return file("document.json"); }
+    const std::filesystem::path& path() const { return path_; }
+
+private:
+    std::filesystem::path path_;
+};
+
+/// Read a whole file as bytes, for a case that wants to look at what was
+/// actually written rather than at what the writer said it wrote.
+std::string slurp(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+/// Put bytes at a path -- how a case forges a file that Workshop then meets as
+/// an ordinary maker would.
+void spillout(const std::string& path, const std::string& text) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out.write(text.data(), static_cast<std::streamsize>(text.size()));
+}
+
+/// A document with everything W-5 has to preserve in it: two objects sharing a
+/// name, one authored in cells and one as a share, and a mint that has already
+/// been past a deleted identity.
+WorkshopDoc rich_document() {
+    WorkshopDoc d;
+    doc::add(d, "panel", 3, 2, ui::Extent{ui::kExtentPercent, 60},
+             ui::Extent{ui::kExtentCells, 6});
+    doc::add(d, "panel", 6, 10, ui::Extent{ui::kExtentCells, 14},
+             ui::Extent{ui::kExtentCells, 4});
+    const std::int64_t doomed = doc::add(d, "temporary", 0, 0, ui::Extent{ui::kExtentCells, 2},
+                                         ui::Extent{ui::kExtentCells, 2});
+    REQUIRE(doc::remove(d, doomed).accepted);
+    return d;
+}
+
+/// The text of a saved document, with one substring replaced — how the refusal
+/// cases forge a file that the honest writer could never produce.
+std::string forged(const WorkshopDoc& d, const std::string& from, const std::string& to) {
+    std::string text = persist::to_text(d);
+    const std::size_t at = text.find(from);
+    REQUIRE(at != std::string::npos);
+    text.replace(at, from.size(), to);
+    return text;
+}
+
+} // namespace
+
+TEST_CASE("an empty document survives a round trip as an empty document") {
+    // The boring case first, because it is the one a format is most likely to
+    // get wrong: an empty list and a mint that has never minted are still facts.
+    WorkshopDoc empty;
+    const std::string text = persist::to_text(empty);
+
+    WorkshopDoc live = two_panels();
+    REQUIRE(persist::load_into(live, text).accepted);
+    CHECK(live.elements.empty());
+    CHECK(live.next_id == 1);
+    CHECK(live == empty);
+}
+
+TEST_CASE("every authored fact survives, and the identities are the SAME identities") {
+    const WorkshopDoc original = rich_document();
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
+
+    // Not "equivalent". Equal.
+    CHECK(live == original);
+
+    // And the identities are usable AS identities on the other side, which is
+    // the operational form of the claim: #2 can be found, hit, and edited.
+    const std::int64_t id = original.elements[1].id;
+    REQUIRE(doc::find(live, id) != nullptr);
+    CHECK(doc::find(live, id)->label == "panel");
+    CHECK(doc::set_x(live, id, 9).accepted);
+    CHECK(doc::find(live, id)->x == 9);
+
+    Session s;
+    const ui::Scene scene = workspace_scene(live, s);
+    const ui::Placed* placed = ui::placed_for(scene, id);
+    REQUIRE(placed != nullptr);
+    const ui::Placed* under = ui::hit(scene, placed->rect.x, placed->rect.y);
+    REQUIRE(under != nullptr);
+    CHECK(under->id == id);
+}
+
+TEST_CASE("two objects called `panel` come back as two objects called `panel`") {
+    // W-0's fixture, asked across a process boundary: a duplicate name is legal
+    // and stays legal, because the identity is the id. A format that keyed on
+    // the name would silently merge these two.
+    const WorkshopDoc original = two_panels();
+    REQUIRE(original.elements[0].label == original.elements[1].label);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
+    REQUIRE(live.elements.size() == 2);
+    CHECK(live.elements[0].label == live.elements[1].label);
+    CHECK(live.elements[0].id != live.elements[1].id);
+}
+
+TEST_CASE("object ORDER round-trips, and it is order a maker can see") {
+    // Ordering is semantic in this application in four ways -- paint order,
+    // which object a click finds where two overlap, the object list, and where
+    // the selection lands after a delete. So the file writes document order and
+    // never sorts. The proof is the one a maker would notice: two rectangles on
+    // top of each other answer a click with the SAME id after a reload.
+    WorkshopDoc original;
+    const std::int64_t under = doc::add(original, "under", 1, 1, ui::Extent{ui::kExtentCells, 10},
+                                        ui::Extent{ui::kExtentCells, 5});
+    const std::int64_t over = doc::add(original, "over", 1, 1, ui::Extent{ui::kExtentCells, 10},
+                                       ui::Extent{ui::kExtentCells, 5});
+    Session s;
+    REQUIRE(ui::hit(workspace_scene(original, s), 3, 3)->id == over);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
+    CHECK(live.elements[0].id == under);
+    CHECK(live.elements[1].id == over);
+    CHECK(ui::hit(workspace_scene(live, s), 3, 3)->id == over);
+
+    // And the negative control: a file whose objects are in the OTHER order is
+    // a DIFFERENT document, and the click says so. This is what makes the claim
+    // "order is meaning" a measurement rather than an assertion.
+    WorkshopDoc swapped = original;
+    std::swap(swapped.elements[0], swapped.elements[1]);
+    WorkshopDoc other;
+    REQUIRE(persist::load_into(other, persist::to_text(swapped)).accepted);
+    CHECK(ui::hit(workspace_scene(other, s), 3, 3)->id == under);
+}
+
+TEST_CASE("a cells extent stays cells and a share stays a share") {
+    // The semantic distinction, preserved even where both happen to resolve to
+    // the same number of cells in the workspace that saved them.
+    WorkshopDoc original;
+    const std::int64_t cells = doc::add(original, "cells", 0, 0, ui::Extent{ui::kExtentCells, 28},
+                                        ui::Extent{ui::kExtentCells, 3});
+    const std::int64_t share = doc::add(original, "share", 0, 5, ui::Extent{ui::kExtentPercent, 60},
+                                        ui::Extent{ui::kExtentCells, 3});
+    Session s; // the default 48-cell workspace: 60% of 48 IS 28
+    const ui::Scene scene = workspace_scene(original, s);
+    REQUIRE(ui::placed_for(scene, cells)->rect.w == ui::placed_for(scene, share)->rect.w);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
+    CHECK(doc::find(live, cells)->width == ui::Extent{ui::kExtentCells, 28});
+    CHECK(doc::find(live, share)->width == ui::Extent{ui::kExtentPercent, 60});
+
+    // The file says which is which in words, so a person reading it does not
+    // have to know what 0 and 1 mean this week.
+    const std::string text = persist::to_text(original);
+    CHECK(text.find("\"mode\":\"cells\"") != std::string::npos);
+    CHECK(text.find("\"mode\":\"percent\"") != std::string::npos);
+}
+
+TEST_CASE("the mint survives, so an identity that died before the save stays dead") {
+    // THE PROMPT'S HARD CASE, and the reason `next_id` is in the file at all.
+    //
+    //   create #1, #2, #3 -> delete #3 -> save -> load -> create
+    //
+    // must produce #4. A loader that reconstructed the mint the only way it
+    // could without this field -- one past the largest surviving id -- would
+    // produce #3 again, and a notice, a selection or a half-finished thought
+    // still saying "#3" would quietly come to mean a different object.
+    WorkshopDoc original;
+    CHECK(doc::add_default(original) == 1);
+    CHECK(doc::add_default(original) == 2);
+    CHECK(doc::add_default(original) == 3);
+    REQUIRE(doc::remove(original, 3).accepted);
+    REQUIRE(original.next_id == 4);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(original)).accepted);
+    CHECK(live.next_id == 4);
+
+    // Stated the way a defect would take, BEFORE creating anything: the largest
+    // id that survived the save is 2, and the mint is NOT 3. `max(live)+1` is
+    // the only reconstruction available to a loader without this field, and it
+    // is exactly the one that recycles a dead identity.
+    std::int64_t largest = 0;
+    for (const ui::Element& e : live.elements) {
+        largest = e.id > largest ? e.id : largest;
+    }
+    CHECK(largest == 2);
+    CHECK(live.next_id != largest + 1);
+
+    const std::int64_t next = doc::add_default(live);
+    CHECK(next == 4);
+    CHECK(next != 3);
+}
+
+TEST_CASE("save -> load -> save is byte-identical") {
+    // Canonical serialization, without a canonicalization framework: the writer
+    // emits fields in declared schema order and the document's own object order,
+    // so the same document is always the same bytes. That is what makes a saved
+    // document diffable and archivable.
+    const WorkshopDoc original = rich_document();
+    const std::string first = persist::to_text(original);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, first).accepted);
+    const std::string second = persist::to_text(live);
+    CHECK(first == second);
+
+    // And again, so "stable" means stable rather than "the same twice".
+    WorkshopDoc again;
+    REQUIRE(persist::load_into(again, second).accepted);
+    CHECK(persist::to_text(again) == first);
+}
+
+TEST_CASE("saving does not touch the document") {
+    // Serialization is OBSERVATION. Nothing is renumbered, re-ordered, rounded,
+    // clamped or tidied on the way out -- including a value some later rule
+    // might not like, because a save that edits the work it was asked to
+    // preserve is worse than one that refuses.
+    WorkshopDoc d = rich_document();
+    const WorkshopDoc before = d;
+    const std::string text = persist::to_text(d);
+    CHECK(d == before);
+    CHECK(d.next_id == before.next_id);
+    CHECK(text.size() > 0);
+}
+
+TEST_CASE("the file a person can read: identity, version, objects, and the mint") {
+    // Legibility is a requirement, not a nicety: a maker owns this file. A
+    // technically literate person should recognise every fact in it without
+    // reverse-engineering Workshop's memory layout.
+    WorkshopDoc d;
+    doc::add(d, "sidebar", 3, 2, ui::Extent{ui::kExtentPercent, 60},
+             ui::Extent{ui::kExtentCells, 6});
+    const std::string text = persist::to_text(d);
+
+    CHECK(text.find("\"format\":\"zengine-workshop\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"1\"") != std::string::npos);
+    CHECK(text.find("\"next_id\":\"2\"") != std::string::npos);
+    CHECK(text.find("\"name\":\"sidebar\"") != std::string::npos);
+    CHECK(text.find("\"id\":\"1\"") != std::string::npos);
+    CHECK(text.find("\"x\":\"3\"") != std::string::npos);
+    CHECK(text.find("\"y\":\"2\"") != std::string::npos);
+    CHECK(text.find("\"mode\":\"percent\",\"amount\":\"60\"") != std::string::npos);
+
+    // It is real JSON, and it says whose value it is -- the Loom's envelope,
+    // which is the claim `admit()` checks. That is a DIFFERENT claim from the
+    // `format` field above: one is about the shape of the bytes, the other is
+    // about what the document means.
+    CHECK(text.rfind("{\"zen\":1,\"schema\":\"WorkshopDocument\",\"version\":1,", 0) == 0);
+}
+
+TEST_CASE("the file carries no resolved geometry, and the scene is rebuilt from what it does") {
+    // The claim, in the only form that can actually be checked: none of the
+    // resolved vocabulary appears anywhere in the file, and deleting the whole
+    // scene and resolving again from the loaded document gives the same live
+    // answer -- the same picture, the same hit test.
+    const WorkshopDoc original = rich_document();
+    const std::string text = persist::to_text(original);
+
+    for (const char* resolved : {"\"rect\"", "\"w\":", "\"h\":", "\"scene\"", "\"resolved\"",
+                                 "\"handle\"", "\"viewport\"", "\"workspace\"", "\"selected\"",
+                                 "\"pixels\"", "\"cursor\"", "\"drag\""}) {
+        CAPTURE(resolved);
+        CHECK(text.find(resolved) == std::string::npos);
+    }
+
+    Session s;
+    const ui::Scene from_original = workspace_scene(original, s);
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, text).accepted);
+    const ui::Scene rebuilt = workspace_scene(live, s);
+    CHECK(rebuilt == from_original);
+
+    // And the PICTURE, which is the form a maker would notice: every rectangle
+    // the original screen showed is on the loaded one, in the same place, at
+    // the same size, in the same ink.
+    const surface::SurfaceCanvas was = paint(original, s);
+    const surface::SurfaceCanvas now = paint(live, s);
+    REQUIRE(was.rects.size() == now.rects.size());
+    for (const surface::SurfaceRect& r : was.rects) {
+        CHECK(has_rect(now, r.x, r.y, r.w, r.h, r.role));
+    }
+}
+
+TEST_CASE("the same share, loaded into a different workspace, resolves differently") {
+    // THE PROOF THAT THE FILE KEPT INTENT AND NOT CELLS. Save under workspace
+    // A; load under workspace B. The authored numbers are identical and the
+    // resolved ones are not, and that is not a bug -- it is the whole reason
+    // authored and resolved are two facts.
+    WorkshopDoc original;
+    const std::int64_t share = doc::add(original, "share", 0, 0,
+                                        ui::Extent{ui::kExtentPercent, 60},
+                                        ui::Extent{ui::kExtentCells, 4});
+    const std::int64_t fixed = doc::add(original, "fixed", 0, 6, ui::Extent{ui::kExtentCells, 20},
+                                        ui::Extent{ui::kExtentCells, 4});
+
+    Session wide;   // 48 cells, the default
+    Session narrow; // half of it
+    narrow.workspace_w = 24;
+
+    const std::int64_t share_wide = ui::placed_for(workspace_scene(original, wide), share)->rect.w;
+    const std::string text = persist::to_text(original);
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, text).accepted);
+
+    // AUTHORED: identical, both of them.
+    CHECK(doc::find(live, share)->width == ui::Extent{ui::kExtentPercent, 60});
+    CHECK(doc::find(live, fixed)->width == ui::Extent{ui::kExtentCells, 20});
+
+    // RESOLVED: the share moved with the workspace, the cells did not.
+    const std::int64_t share_narrow = ui::placed_for(workspace_scene(live, narrow), share)->rect.w;
+    CHECK(share_wide == 28);
+    CHECK(share_narrow == 14);
+    CHECK(share_narrow != share_wide);
+    CHECK(ui::placed_for(workspace_scene(live, narrow), fixed)->rect.w == 20);
+
+    // And the file is the same file either way: the workspace is nowhere in it.
+    CHECK(persist::to_text(live) == text);
+}
+
+TEST_CASE("a save normalizes nothing: 60% is not written as the cells it happens to be") {
+    // W-3's no-op stability rule, in its persistence form. At a 48-cell
+    // workspace both 59% and 60% resolve to 28 cells, so a loader that
+    // "helpfully" canonicalised would be free to pick either. Each is written
+    // and read as itself.
+    for (const std::int64_t pct : {59, 60}) {
+        CAPTURE(pct);
+        WorkshopDoc d;
+        const std::int64_t id = doc::add(d, "p", 0, 0, ui::Extent{ui::kExtentPercent, pct},
+                                         ui::Extent{ui::kExtentCells, 3});
+        Session s;
+        REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28);
+
+        WorkshopDoc live;
+        REQUIRE(persist::load_into(live, persist::to_text(d)).accepted);
+        CHECK(doc::find(live, id)->width.mode == ui::kExtentPercent);
+        CHECK(doc::find(live, id)->width.amount == pct);
+    }
+}
+
+// ---- Refusal: every one of these leaves the live document untouched ---------
+
+TEST_CASE("a malformed document never leaves Workshop halfway loaded") {
+    // The claim is NOT "the parser returned an error". It is that the document
+    // a maker is working on is exactly what it was -- which is the persistence
+    // form of the rule the property editor has kept since W-0.
+    const WorkshopDoc good = rich_document();
+    const std::string valid = persist::to_text(good);
+
+    struct Case {
+        const char* what;
+        std::string text;
+    };
+    std::vector<Case> cases;
+    cases.push_back({"not JSON at all", "{ this is not a document"});
+    cases.push_back({"empty file", ""});
+    cases.push_back({"a JSON array", "[1,2,3]"});
+    cases.push_back({"someone else's value",
+                     loom::compat::serialize(loom::to_value(ui::Extent{0, 4}))});
+    cases.push_back({"wrong format identity",
+                     forged(good, "\"zengine-workshop\"", "\"someone-elses-editor\"")});
+    cases.push_back({"unsupported format version",
+                     forged(good, "\"format_version\":\"1\"", "\"format_version\":\"2\"")});
+    cases.push_back({"a missing required field", forged(good, "\"next_id\":\"4\",", "")});
+    cases.push_back({"a field of the wrong kind",
+                     forged(good, "\"next_id\":\"4\"", "\"next_id\":4")});
+    cases.push_back({"a field the document does not declare",
+                     forged(good, "\"next_id\":", "\"colour\":\"red\",\"next_id\":")});
+    cases.push_back({"an integer larger than an integer",
+                     forged(good, "\"next_id\":\"4\"", "\"next_id\":\"99999999999999999999\"")});
+    cases.push_back({"two objects with one identity",
+                     forged(good, "\"id\":\"2\"", "\"id\":\"1\"")});
+    cases.push_back({"a mint that has already been spent",
+                     forged(good, "\"next_id\":\"4\"", "\"next_id\":\"2\"")});
+    cases.push_back({"a mint below the first identity",
+                     forged(good, "\"next_id\":\"4\"", "\"next_id\":\"0\"")});
+    cases.push_back({"a mint at the bottom of the number line",
+                     forged(good, "\"next_id\":\"4\"", "\"next_id\":\"-9223372036854775808\"")});
+    cases.push_back({"an identity of zero", forged(good, "\"id\":\"1\"", "\"id\":\"0\"")});
+    cases.push_back({"a negative identity", forged(good, "\"id\":\"1\"", "\"id\":\"-1\"")});
+    cases.push_back({"an extent mode with no meaning",
+                     forged(good, "\"mode\":\"percent\"", "\"mode\":\"pixels\"")});
+    cases.push_back({"an empty extent mode", forged(good, "\"mode\":\"cells\"", "\"mode\":\"\"")});
+    cases.push_back({"a share of more than everything",
+                     forged(good, "\"mode\":\"percent\",\"amount\":\"60\"",
+                            "\"mode\":\"percent\",\"amount\":\"500\"")});
+    cases.push_back({"a share of nothing",
+                     forged(good, "\"mode\":\"percent\",\"amount\":\"60\"",
+                            "\"mode\":\"percent\",\"amount\":\"0\"")});
+    cases.push_back({"a size larger than the document allows",
+                     forged(good, "\"mode\":\"cells\",\"amount\":\"6\"",
+                            "\"mode\":\"cells\",\"amount\":\"999999\"")});
+    cases.push_back({"a size at the top of the number line",
+                     forged(good, "\"mode\":\"cells\",\"amount\":\"6\"",
+                            "\"mode\":\"cells\",\"amount\":\"9223372036854775807\"")});
+    cases.push_back({"a position that does not exist",
+                     forged(good, "\"x\":\"3\"", "\"x\":\"-1\"")});
+    cases.push_back({"a name that is not a name",
+                     forged(good, "\"name\":\"panel\"", "\"name\":\"\"")});
+    cases.push_back({"a name longer than a name",
+                     forged(good, "\"name\":\"panel\"",
+                            "\"name\":\"" + std::string(doc::kMaxNameLen + 1, 'x') + "\"")});
+    cases.push_back({"an integer at the bottom of the number line",
+                     forged(good, "\"y\":\"2\"", "\"y\":\"-9223372036854775808\"")});
+
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        WorkshopDoc live = good;
+        const Written refused = persist::load_into(live, c.text);
+        CHECK_FALSE(refused.accepted);
+        CHECK_FALSE(refused.refusal.empty()); // a refusal without a reason is not one
+        CHECK(live == good);                  // THE claim
+    }
+
+    // The control: the unforged text is accepted, so the loop above is not
+    // measuring a loader that refuses everything.
+    WorkshopDoc live = two_panels();
+    CHECK(persist::load_into(live, valid).accepted);
+    CHECK(live == good);
+}
+
+TEST_CASE("a refusal says which fact was wrong, in words a maker can act on") {
+    // Diagnostics matter more once state survives a process: the file is a
+    // thing a maker owns and can open, so a refusal that names the field and
+    // the object is a refusal they can fix.
+    const WorkshopDoc good = rich_document();
+
+    const Written unknown =
+        persist::from_text(forged(good, "\"next_id\":", "\"colour\":\"red\",\"next_id\":"))
+            .outcome;
+    CHECK_FALSE(unknown.accepted);
+    CHECK(unknown.refusal.find("colour") != std::string::npos);
+
+    const Written version =
+        persist::from_text(forged(good, "\"format_version\":\"1\"", "\"format_version\":\"7\""))
+            .outcome;
+    CHECK_FALSE(version.accepted);
+    CHECK(version.refusal.find("7") != std::string::npos);
+    CHECK(version.refusal.find("version 1") != std::string::npos);
+
+    const Written mode =
+        persist::from_text(forged(good, "\"mode\":\"percent\"", "\"mode\":\"furlongs\"")).outcome;
+    CHECK_FALSE(mode.accepted);
+    CHECK(mode.refusal.find("furlongs") != std::string::npos);
+    CHECK(mode.refusal.find("percent") != std::string::npos); // and what would have worked
+
+    const Written foreign =
+        persist::from_text(forged(good, "\"zengine-workshop\"", "\"blender\"")).outcome;
+    CHECK_FALSE(foreign.accepted);
+    CHECK(foreign.refusal.find("blender") != std::string::npos);
+
+    // A document-law refusal names the object it is about.
+    WorkshopDoc live;
+    const Written duplicate =
+        persist::load_into(live, forged(good, "\"id\":\"2\"", "\"id\":\"1\""));
+    CHECK_FALSE(duplicate.accepted);
+    CHECK(duplicate.refusal.find("#1") != std::string::npos);
+}
+
+TEST_CASE("the document law is the maker's law, and it is stated in one place") {
+    // A loaded document meets the SAME rules a maker's edits meet. The proof is
+    // that each per-value refusal below is worded by the very function the
+    // interactive path calls -- so the two cannot come to disagree about what a
+    // legal extent, coordinate or name is.
+    WorkshopDoc d;
+    doc::add(d, "p", 0, 0, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
+
+    WorkshopDoc bad_extent = d;
+    bad_extent.elements[0].width = ui::Extent{ui::kExtentPercent, 500};
+    CHECK(doc::check_document(bad_extent).refusal ==
+          "#1: width: " + doc::check_extent(ui::Extent{ui::kExtentPercent, 500}).refusal);
+
+    WorkshopDoc bad_coord = d;
+    bad_coord.elements[0].x = -1;
+    CHECK(doc::check_document(bad_coord).refusal == "#1: " + doc::check_coord(-1).refusal);
+
+    WorkshopDoc bad_name = d;
+    bad_name.elements[0].label.clear();
+    CHECK(doc::check_document(bad_name).refusal == "#1: " + doc::check_name("").refusal);
+
+    // And the two laws that are new -- the ones a maker's path holds by
+    // construction and therefore never had to state.
+    WorkshopDoc twice = d;
+    twice.elements.push_back(twice.elements[0]);
+    twice.next_id = 9;
+    CHECK_FALSE(doc::check_document(twice).accepted);
+
+    WorkshopDoc behind = d;
+    behind.next_id = 1;
+    CHECK_FALSE(doc::check_document(behind).accepted);
+
+    CHECK(doc::check_document(d).accepted);
+}
+
+TEST_CASE("restore keeps the candidate's identities rather than minting new ones") {
+    // The difference between "the same document came back" and "a lookalike was
+    // built from it". A loader written on `create` would produce the second and
+    // display the first.
+    WorkshopDoc live = two_panels(); // ids 1, 2, mint 3
+    WorkshopDoc candidate;
+    candidate.next_id = 41;
+    candidate.elements.push_back(ui::Element{7, "seven", 1, 1, ui::Extent{ui::kExtentCells, 5},
+                                             ui::Extent{ui::kExtentCells, 5}});
+    candidate.elements.push_back(ui::Element{40, "forty", 2, 2, ui::Extent{ui::kExtentCells, 5},
+                                             ui::Extent{ui::kExtentCells, 5}});
+
+    REQUIRE(doc::restore(live, candidate).accepted);
+    CHECK(live.elements[0].id == 7);
+    CHECK(live.elements[1].id == 40);
+    CHECK(live.next_id == 41);
+    CHECK(doc::add_default(live) == 41);
+}
+
+TEST_CASE("the mint can be spent, and creating says so rather than overflowing") {
+    // A document arriving from a file can say its mint is at the end of the
+    // number line. `next_id++` there is signed overflow -- undefined behaviour
+    // produced by data, reachable through an ordinary maker gesture -- so the
+    // exhausted mint is an ANSWER. (The sanitizer lane is what would catch the
+    // version of this that merely looked fine.)
+    WorkshopDoc spent;
+    spent.next_id = doc::kMaxIdentity;
+    CHECK(doc::check_document(spent).accepted); // it is a legal document
+    CHECK_FALSE(doc::can_mint(spent));
+
+    Session s;
+    CHECK(create(spent, s) == 0);
+    CHECK(spent.elements.empty());
+    CHECK(spent.next_id == doc::kMaxIdentity);
+    CHECK(s.selected == 0); // a gesture that could not happen moved nothing
+
+    // One below the end still works, and lands exactly on the last identity.
+    WorkshopDoc last;
+    last.next_id = doc::kMaxIdentity - 1;
+    CHECK(doc::add_default(last) == doc::kMaxIdentity - 1);
+    CHECK(last.next_id == doc::kMaxIdentity);
+    CHECK(doc::add_default(last) == 0);
+
+    // And it survives the file: a spent mint is written and read as a spent mint.
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(last)).accepted);
+    CHECK(live.next_id == doc::kMaxIdentity);
+    CHECK_FALSE(doc::can_mint(live));
+}
+
+// ---- The file on disk -------------------------------------------------------
+
+TEST_CASE("a document written to a file is the document read back from it") {
+    TempDir dir("roundtrip");
+    const WorkshopDoc original = rich_document();
+    REQUIRE(persist::save_file(dir.document(), original).accepted);
+
+    WorkshopDoc live = two_panels();
+    REQUIRE(persist::load_file(dir.document(), live).accepted);
+    CHECK(live == original);
+
+    // The bytes on disk are the bytes the writer produced -- no wrapper, no
+    // trailer, nothing added by the file layer.
+    CHECK(slurp(dir.document()) == persist::to_text(original));
+
+    // And the sibling it was written through is gone.
+    CHECK_FALSE(std::filesystem::exists(persist::pending_path(dir.document())));
+
+    // Saving again over an existing document replaces it. Stated as a case
+    // because the replace is the platform's `rename` and a platform that
+    // refused an existing destination would otherwise fail only on the SECOND
+    // save a maker ever performs.
+    WorkshopDoc second = original;
+    REQUIRE(doc::rename(second, second.elements[0].id, "renamed").accepted);
+    REQUIRE(persist::save_file(dir.document(), second).accepted);
+    WorkshopDoc reread;
+    REQUIRE(persist::load_file(dir.document(), reread).accepted);
+    CHECK(reread == second);
+}
+
+TEST_CASE("a missing file is an ordinary refusal, not a crash and not an empty document") {
+    TempDir dir("missing");
+    WorkshopDoc live = two_panels();
+    const WorkshopDoc before = live;
+    const Written refused = persist::load_file(dir.file("never-written.json"), live);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal.find("never-written.json") != std::string::npos);
+    CHECK(live == before);
+}
+
+TEST_CASE("a detected write failure leaves the last good save readable and unchanged") {
+    // The reason the writer never opens the destination: a save that fails must
+    // not be able to turn a maker's document into an empty or half-written file.
+    TempDir dir("failsave");
+    const WorkshopDoc first = two_panels();
+    REQUIRE(persist::save_file(dir.document(), first).accepted);
+    const std::string good_bytes = slurp(dir.document());
+    REQUIRE_FALSE(good_bytes.empty());
+
+    // A controlled, deterministic, non-destructive failure: the sibling path the
+    // writer must use is occupied by a DIRECTORY, so the write cannot open. No
+    // permission games, and the same result on every supported platform.
+    std::filesystem::create_directories(persist::pending_path(dir.document()));
+
+    WorkshopDoc second = first;
+    REQUIRE(doc::rename(second, second.elements[0].id, "renamed").accepted);
+    REQUIRE(doc::add_default(second) != 0);
+    REQUIRE_FALSE(second == first);
+
+    const Written refused = persist::save_file(dir.document(), second);
+    CHECK_FALSE(refused.accepted);
+    CHECK_FALSE(refused.refusal.empty());
+
+    // The last good save is intact, byte for byte, and still loads.
+    CHECK(slurp(dir.document()) == good_bytes);
+    WorkshopDoc reloaded;
+    REQUIRE(persist::load_file(dir.document(), reloaded).accepted);
+    CHECK(reloaded == first);
+
+    // And the document in memory is still the one the maker is working on.
+    CHECK_FALSE(second == first);
+    CHECK(second.elements[0].label == "renamed");
+
+    std::error_code ec;
+    std::filesystem::remove_all(persist::pending_path(dir.document()), ec);
+    CHECK(persist::save_file(dir.document(), second).accepted); // and it works again
+    WorkshopDoc now;
+    REQUIRE(persist::load_file(dir.document(), now).accepted);
+    CHECK(now == second);
+}
+
+TEST_CASE("a save into a place that does not exist refuses before it writes anything") {
+    TempDir dir("nowhere");
+    const std::string path = (dir.path() / "no-such-directory" / "document.json").string();
+    const Written refused = persist::save_file(path, two_panels());
+    CHECK_FALSE(refused.accepted);
+    CHECK_FALSE(std::filesystem::exists(path));
+    CHECK_FALSE(std::filesystem::exists(persist::pending_path(path)));
+}
+
+TEST_CASE("a file too large to be a document is refused before it is read") {
+    TempDir dir("huge");
+    const std::string path = dir.document();
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        const std::string chunk(1u << 16, 'x');
+        for (int i = 0; i < 80; ++i) { // 5 MiB, past the 4 MiB ceiling
+            out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+        }
+    }
+    REQUIRE(std::filesystem::file_size(path) > persist::kMaxDocumentBytes);
+
+    WorkshopDoc live = two_panels();
+    const WorkshopDoc before = live;
+    const Written refused = persist::load_file(path, live);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal.find("larger") != std::string::npos);
+    CHECK(live == before);
+}
+
+// ============================================================================
+// Tier 6 — persistence THROUGH THE WEAVE, on a real bus
+// ============================================================================
+//
+// Everything above is about the document and the file. These are about the
+// APPLICATION: a maker presses ^s, and what the session does about it.
+
+TEST_CASE("^s saves and ^o loads, through the real message path") {
+    TempDir dir("live");
+    Live t;
+    t.host.document_path = dir.document();
+
+    // Nothing has been saved yet, and the status line says so.
+    t.key(input::scan::kN); // republish, so the note reflects the path
+    REQUIRE_FALSE(t.notes.empty());
+    CHECK(t.notes.back().text.find(dir.document()) != std::string::npos);
+    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "saved " + dir.document());
+    CHECK(std::filesystem::exists(dir.document()));
+    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+    const WorkshopDoc as_saved = t.doc();
+
+    // Change it. The status line notices without anyone setting a flag.
+    t.key(input::scan::kL);
+    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+    CHECK_FALSE(t.doc() == as_saved);
+
+    // And ^o brings the saved one back.
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.doc() == as_saved);
+    CHECK(t.notice() == "loaded " + dir.document() + " -- 3 objects");
+    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+
+    // Editing back to what was saved says `saved` again -- a comparison cannot
+    // drift from the thing it describes, and a dirty flag would have said
+    // otherwise here.
+    t.key(input::scan::kL);
+    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+    t.key(input::scan::kH);
+    CHECK(t.doc() == as_saved);
+    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+}
+
+TEST_CASE("^s refuses while a row is being edited, and writes nothing") {
+    // The draft policy. A save that quietly wrote the OLD width while a NEW one
+    // is on the screen with a cursor after it would put the file and the
+    // maker's eyes in disagreement, with nothing to say so.
+    TempDir dir("draft");
+    Live t;
+    t.host.document_path = dir.document();
+
+    t.begin_editing("Width");
+    REQUIRE(t.row("Width")->editing());
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("7");
+
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "Width is still being edited -- enter commits, esc cancels; "
+                        "nothing was saved");
+    CHECK(t.session().notice_is_bad);
+    CHECK_FALSE(std::filesystem::exists(dir.document())); // nothing was written
+    CHECK(t.row("Width")->editing());                     // and the draft is intact
+    CHECK(t.row("Width")->draft() == "7");
+
+    // Cancel and it saves. (Commit would too; the point is that the maker says
+    // which, rather than the save deciding for them.)
+    t.key(input::scan::kEscape);
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "saved " + dir.document());
+    CHECK(std::filesystem::exists(dir.document()));
+}
+
+TEST_CASE("a successful load cancels a drag and cannot continue an old resize") {
+    // No dangling reference may survive a document replacement. A pointer
+    // already down held an identity and an offset from an object that is gone.
+    TempDir dir("drag");
+    Live t;
+    t.host.document_path = dir.document();
+    t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE(t.notice().rfind("saved", 0) == 0);
+
+    // Take hold of the second object's body and start moving it.
+    //
+    // The coordinates are copied out as NUMBERS and not held as a pointer into
+    // the document, and that is this phase's own hazard rather than style: a
+    // load REPLACES the element vector, so every pointer into it dangles the
+    // instant the load succeeds. The first draft of this case kept
+    // `const ui::Element*` across the load and the sanitizer lane called it a
+    // heap-use-after-free while the ordinary lane passed -- the third time that
+    // pairing has paid for itself here (W-2, W-3, now W-5).
+    const std::int64_t held_id = t.second()->id;
+    const std::int64_t held_x = t.second()->x;
+    const std::int64_t held_y = t.second()->y;
+    t.press(held_x + 1, held_y + 1);
+    REQUIRE(t.session().drag.active);
+    REQUIRE(t.session().drag.id == held_id);
+    REQUIRE_FALSE(t.session().drag.resizing);
+
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.session().drag.id == 0);
+    CHECK(t.notice().rfind("loaded", 0) == 0);
+
+    // The pointer is still down; moving it now must author nothing.
+    const WorkshopDoc after_load = t.doc();
+    t.motion(held_x + 20, held_y + 20);
+    CHECK(t.doc() == after_load);
+
+    // The same, for a resize: take the handle, then load.
+    const Handle handle = size_handle(t.doc(), t.session());
+    REQUIRE(handle.shown);
+    t.press(handle.x, handle.y);
+    REQUIRE(t.session().drag.resizing);
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK_FALSE(t.session().drag.resizing);
+    const WorkshopDoc after_second_load = t.doc();
+    t.motion(handle.x + 6, handle.y + 6);
+    CHECK(t.doc() == after_second_load);
+}
+
+TEST_CASE("selection after a load is re-established, never inherited") {
+    // A loaded document is a DIFFERENT document. Keeping the old selected id
+    // would silently alias whatever new object happened to carry that number --
+    // the identity confusion the whole arc is arranged to prevent, arriving
+    // through the back door. So the selection is set by the rule that opens a
+    // fresh Workshop: the first object.
+    TempDir dir("selection");
+    Live t;
+    t.host.document_path = dir.document();
+    t.key(input::scan::kS, input::mod::kCtrl);
+
+    // Select the SECOND object, so "kept" and "re-established" differ.
+    t.key(input::scan::kTab);
+    const std::int64_t was = t.session().selected;
+    REQUIRE(was == t.second()->id);
+    REQUIRE(was != t.first()->id);
+
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.session().selected == t.first()->id);
+    CHECK(t.session().selected != was);
+    CHECK(t.row("Identity")->value() == "#" + std::to_string(t.first()->id));
+
+    // A load into an empty document selects nothing, and the screen says so
+    // rather than going blank.
+    WorkshopDoc empty;
+    spillout(dir.document(), persist::to_text(empty));
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.doc().elements.empty());
+    CHECK(t.session().selected == 0);
+    CHECK(t.session().rows.empty());
+    CHECK(label_at(t.canvases.back(), kPanelX, kListY) == "(none) -- n makes one");
+}
+
+TEST_CASE("a failed load costs a maker nothing but the notice") {
+    // Failure must not destroy valid session state. The document, the
+    // selection, the cursor and any draft are exactly what they were.
+    TempDir dir("failload");
+    Live t;
+    t.host.document_path = dir.document();
+    t.key(input::scan::kN); // make a third object, so the document is the maker's
+    t.key(input::scan::kTab);
+
+    const WorkshopDoc before_doc = t.doc();
+    const std::int64_t before_selected = t.session().selected;
+    const std::size_t before_cursor = t.session().cursor;
+
+    // No file at all.
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.doc() == before_doc);
+    CHECK(t.session().selected == before_selected);
+    CHECK(t.session().cursor == before_cursor);
+
+    // A file that is not a document.
+    spillout(dir.document(), "{\"zen\":1,\"schema\":\"Nope\"");
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.doc() == before_doc);
+    CHECK(t.session().selected == before_selected);
+
+    // A real Workshop document with one illegal fact in it.
+    WorkshopDoc bad = before_doc;
+    bad.elements[0].x = -1;
+    spillout(dir.document(), persist::to_text(bad));
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("#" + std::to_string(before_doc.elements[0].id)) != std::string::npos);
+    CHECK(t.doc() == before_doc);
+    CHECK(t.session().selected == before_selected);
+
+    // And the good one still loads, so the three refusals above are not a
+    // Workshop that had stopped loading anything.
+    spillout(dir.document(), persist::to_text(before_doc));
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.doc() == before_doc);
+}
+
+TEST_CASE("with no document file, save and open say so instead of guessing one") {
+    Live t; // host.document_path left empty, as a suite-mounted weave has it
+    const WorkshopDoc before = t.doc();
+
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("--document") != std::string::npos);
+
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("--document") != std::string::npos);
+    CHECK(t.doc() == before);
+
+    // And the status line does not claim a file it does not have.
+    CHECK(t.notes.back().text.find("saved") == std::string::npos);
+    CHECK(t.notes.back().text.find("UNSAVED") == std::string::npos);
+}
+
+TEST_CASE("a bare s and a bare o are not commands, and Ctrl is what makes them one") {
+    // The same shape as W-4's Ctrl+C case: the modifier is READ, not implied by
+    // the key. A bare `o` and a bare `s` do nothing at all, so nothing can come
+    // to depend on them.
+    TempDir dir("modifier");
+    Live t;
+    t.host.document_path = dir.document();
+    const WorkshopDoc before = t.doc();
+
+    t.key(input::scan::kS);
+    CHECK_FALSE(std::filesystem::exists(dir.document()));
+    t.key(input::scan::kO);
+    CHECK(t.doc() == before);
+
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(std::filesystem::exists(dir.document()));
+}
+
+TEST_CASE("the whole cross-process story, in one session") {
+    // The headless twin of the live witness in the report: author, save, lose
+    // the process, come back, and get the work -- identities and all -- while
+    // the mint refuses to rewind.
+    TempDir dir("crossprocess");
+
+    std::string on_disk;
+    std::int64_t doomed = 0;
+    {
+        Live run_a;
+        run_a.host.document_path = dir.document();
+        run_a.key(input::scan::kN); // #3
+        doomed = run_a.session().selected;
+        run_a.key(input::scan::kL); // move it
+        run_a.key(input::scan::kL, input::mod::kShift);
+        run_a.key(input::scan::kD); // and delete it again
+        REQUIRE(run_a.doc().elements.size() == 2);
+        REQUIRE(run_a.doc().next_id == doomed + 1);
+        run_a.key(input::scan::kS, input::mod::kCtrl);
+        REQUIRE(run_a.notice().rfind("saved", 0) == 0);
+        on_disk = slurp(dir.document());
+    } // run A is gone, with its bus, its weave and its whole session
+
+    REQUIRE_FALSE(on_disk.empty());
+
+    Live run_b; // a fresh process: its own opening document, its own session
+    run_b.host.document_path = dir.document();
+    REQUIRE_FALSE(run_b.doc().next_id == doomed + 1);
+
+    run_b.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(run_b.doc().elements.size() == 2);
+    CHECK(run_b.doc().next_id == doomed + 1);
+    CHECK(run_b.doc().elements[0].width == ui::Extent{ui::kExtentPercent, 60});
+    CHECK(run_b.doc().elements[1].width == ui::Extent{ui::kExtentCells, 14});
+
+    // The identity that died before the save stays dead.
+    run_b.key(input::scan::kN);
+    CHECK(run_b.session().selected == doomed + 1);
+    CHECK(run_b.session().selected != doomed);
+
+    // And what run B saves is what run A saved, plus exactly the new object.
+    run_b.key(input::scan::kD);
+    run_b.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(slurp(dir.document()) != on_disk); // the mint moved, and that is a fact
+    WorkshopDoc back;
+    REQUIRE(persist::load_file(dir.document(), back).accepted);
+    CHECK(back.elements.size() == 2);
+    CHECK(back.next_id == doomed + 2);
 }
