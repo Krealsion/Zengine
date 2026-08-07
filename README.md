@@ -365,17 +365,42 @@ and no window itself.
   and *refused* (`500%` is an extent the setter rejects, with its own reason). A maker fixes the
   first by retyping and the second by wanting something else, so they are never collapsed. A
   failed commit leaves the property untouched and keeps the draft, marked as a draft.
-- **There is exactly one operation that writes a position** (`doc::move`), and `set_x`/`set_y`
-  are that operation holding one coordinate still. So a typed `X` in the inspector and a drag on
-  the canvas are not two write paths that validate alike; they are one path reached two ways —
-  which is the only version of "shared policy" that a change to one cannot separate from the
-  other. A move is also **atomic**: both coordinates are checked before either is written, so a
-  diagonal drag into the corner refuses rather than sliding down the edge *and* reporting a
-  refusal.
+- **There is exactly one operation that writes a position** (`doc::move`) and exactly one that
+  writes a size (`doc::resize`); `set_x`/`set_y` and `set_width`/`set_height` are those
+  operations holding one half still. So a typed `X` in the inspector and a drag on the canvas are
+  not two write paths that validate alike; they are one path reached two ways — the only version
+  of "shared policy" that a change to one cannot separate from the other. Both are **atomic**:
+  both halves are checked before either is written, so a diagonal gesture never half-succeeds
+  *and* reports a refusal.
+- **A hand STOPS at a boundary; a written value is REFUSED.** Those are different acts and get
+  different answers. A drag or a resize key that reaches past what exists is clamped to the
+  boundary — in the *gesture* layer (`screen.hpp`), expressed in the document's own limits — and
+  the notice says which wall was met (`#1 is now 1% x 6 -- stopped at the smallest size`). A
+  value a maker *typed* is refused outright, the authored state is untouched and the draft
+  survives (`Width: at least 1 cell`). The document's operations never clamp, so nothing is ever
+  silently corrected; in this tool the alert ink means exactly one thing: **nothing was written**.
+- **Resizing preserves the authored mode, and the rounding rule is forced.** Pull a `60%`-wide
+  object's corner out to 34 cells and Workshop writes **`71%`**, not `34`. Converting the share to
+  cells would destroy the only part of the value that survives the next workspace change. The
+  projection (`extent_from_drag`, Workshop-local) is *not* an inverse of `resolve_extent` — that
+  function floors and clamps, so it has none — it **authors a new value** that this viewport
+  resolves to what the hand asked for, taking the smallest share that reaches it. That "smallest"
+  is not taste: the resolver floors, so `nearest` would send 28 cells to 58%, which resolves to
+  27, and merely grabbing an edge would shrink the object. And the rule is expressed by *asking
+  the resolver* over its hundred candidates rather than re-deriving its arithmetic, so the two
+  cannot drift and the projection inherits its totality over hostile values for free.
 - **The maker's gestures live in `screen.hpp`, not in the weave.** `create`, `delete_selected`,
-  `nudge`, `begin_drag`/`drag_to`/`end_drag` are pure-ish functions over document + session;
-  `workshop.cpp` binds keys and pointer events to them and reaches the document through nothing
-  else. A gesture whose only witness is a keystroke is a gesture no suite can pin.
+  `nudge`, `grow`, `take_hold`/`drag_to`/`end_drag` and `size_handle` are pure-ish functions over
+  document + session; `workshop.cpp` binds keys and pointer events to them and reaches the
+  document through nothing else. A gesture whose only witness is a keystroke is a gesture no
+  suite can pin.
+- **The resize handle is Workshop's furniture, not authored content.** It is the `+` on the
+  selection ring's bottom-right corner, derived from the selected object's resolved `Placed::rect`
+  every time it is wanted, with no identity, no persistence and no place in `zengine::ui`. It is
+  drawn with an ordinary `SurfaceLabel`, so no role and no package shape had to be added. Its
+  priority over the body on a press is Workshop's own — `ui::hit` still answers only about
+  authored elements. When it would fall outside the workspace it is not shown *and* not grabbable:
+  what a maker cannot see, a maker cannot grab.
 - **Identity survives creation and deletion.** The mint is still `WorkshopDoc::next_id`, it never
   rewinds, and a new object's default label is deliberately the same word the others carry — so
   making one teaches "the name is not the identity" at the moment it is cheapest to learn. The
@@ -391,14 +416,18 @@ and no window itself.
   relay forwards nothing and the load silently never happens
   (`loom::forward_for`) — found by running it, and the reason boot answers have an addressee.
 
-Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell at a time, `tab`
-cycles objects, `up`/`down` walks inspector rows, `enter` edits, `esc` cancels, `[`/`]` resizes
-the workspace, `q` quits. The move gesture is `hjkl` and not the arrows because the arrows
-already step the rows and Workshop has no focus concept that would let one pair of keys mean two
-things — inventing one to free the arrows would be a focus system built to serve a keybinding.
+Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell at a time,
+`,`/`.` narrow and widen it, `-`/`=` shorten and heighten it, `tab` cycles objects, `up`/`down`
+walks inspector rows, `enter` edits, `esc` cancels, `[`/`]` resizes the workspace, `q` quits.
+The move gesture is `hjkl` and not the arrows because the arrows already step the rows and
+Workshop has no focus concept that would let one pair of keys mean two things — inventing one to
+free the arrows would be a focus system built to serve a keybinding. The four resize keys are
+literal for the same reason one layer worse: this wire has **no modifiers at all**, so a second
+direction gesture cannot be spelled as a shifted first one and costs four more keys.
 
-**On a backend with a pointer, press-drag-release is the real gesture** and the keyboard nudge is
-the fallback; both end at `doc::move`. The catch is that **the POSIX terminal backend emits no
+**On a backend with a pointer, press-drag-release is the real gesture** — on the body to move,
+on the `+` handle to resize — and the keyboard is the fallback; both end at `doc::move` and
+`doc::resize`. The catch is that **the POSIX terminal backend emits no
 mouse events at all**, and nothing asks a terminal to report one — so on the canonical Linux lane
 the pointer path is unreachable and only the nudge is live. Where a pointer does exist (the Win32
 console), `MouseButton` still carries no coordinates, so a press's position is reconstructed from

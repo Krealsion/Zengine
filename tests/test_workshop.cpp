@@ -781,10 +781,10 @@ TEST_CASE("a nudge authors placement, and every reading of the object follows") 
     REQUIRE(ui::hit(before, 3, 2) != nullptr);
     CHECK(ui::hit(before, 3, 2)->id == id);
 
-    REQUIRE(nudge(d, s, +1, 0).accepted);
+    REQUIRE(nudge(d, s, +1, 0).accepted());
     CHECK(doc::find(d, id)->x == 4);
     CHECK(doc::find(d, id)->y == 2); // the other coordinate did NOT move
-    REQUIRE(nudge(d, s, 0, +1).accepted);
+    REQUIRE(nudge(d, s, 0, +1).accepted());
     CHECK(doc::find(d, id)->x == 4);
     CHECK(doc::find(d, id)->y == 3);
     CHECK(s.selected == id); // moving is not selecting
@@ -834,12 +834,20 @@ TEST_CASE("a move is ONE authored change: a refused move writes neither coordina
     CHECK(doc::find(d, id)->x == 0); // NOT 7
     CHECK(doc::find(d, id)->y == 5);
 
-    // A nudge is the same operation, so it refuses the same way and leaves both.
-    CHECK_FALSE(nudge(d, s, -1, +1).accepted);
-    CHECK(doc::find(d, id)->x == 0);
-    CHECK(doc::find(d, id)->y == 5);
+    // A nudge reaches the same operation, but it is a HAND, so W-3's boundary
+    // policy applies before the proposal is made: it stops at the workspace edge
+    // and SLIDES along it rather than refusing, and it says which wall it met.
+    // The other coordinate still moves -- that is the whole difference a clamp
+    // buys, and the reason P15 was worth answering.
+    const Handled slid = nudge(d, s, -1, +1);
+    CHECK(slid.accepted());
+    CHECK(slid.clamped());
+    CHECK(slid.boundary == kAtWorkspaceStart);
+    CHECK(doc::find(d, id)->x == 0); // already at the edge; stayed there
+    CHECK(doc::find(d, id)->y == 6); // and the legal half of the gesture happened
 
     // And a legal move still writes both at once.
+    REQUIRE(doc::move(d, id, 0, 5).accepted);
     REQUIRE(doc::move(d, id, 7, 6).accepted);
     CHECK(doc::find(d, id)->x == 7);
     CHECK(doc::find(d, id)->y == 6);
@@ -864,10 +872,11 @@ TEST_CASE("the inspector and the maker's hand write through ONE position operati
     CHECK(x_row.commit() == Commit::Refused);
     const std::string typed_refusal = x_row.refusal();
 
-    // The same illegal position, proposed by a gesture instead.
+    // The same illegal position, proposed to the document instead.
     const Written dragged = doc::move(d, id, -1, 4);
-    const Written nudged = nudge(d, s, -1, 0) /* 4 -> 3, legal */;
-    CHECK(nudged.accepted);
+    const Handled nudged = nudge(d, s, -1, 0) /* 4 -> 3, legal */;
+    CHECK(nudged.accepted());
+    CHECK_FALSE(nudged.clamped());
     REQUIRE(doc::set_x(d, id, 4).accepted); // put it back
 
     // Identical wording, because it is not two rules that agree -- set_x IS
@@ -902,6 +911,7 @@ TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point fo
     // asks the same ui::hit the click path asks, over the same painted scene.
     CHECK(begin_drag(d, s, 5, 3) == front);
     CHECK(s.drag.active);
+    CHECK_FALSE(s.drag.resizing); // a press on a BODY moves it
     CHECK(s.drag.id == front);
     CHECK(s.drag.grab_dx == 1); // 5 - 4
     CHECK(s.drag.grab_dy == 1); // 3 - 2
@@ -909,7 +919,7 @@ TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point fo
     // Drag to a new cell. The grabbed point ends up under the pointer, which is
     // the whole behavioural claim of a drag, and it is checked against the
     // RESOLVED scene rather than against the arithmetic that produced it.
-    REQUIRE(drag_to(d, s, 20, 9).accepted);
+    REQUIRE(drag_to(d, s, 20, 9).accepted());
     CHECK(doc::find(d, front)->x == 19);
     CHECK(doc::find(d, front)->y == 8);
     // The scene is NAMED, and that is not style: `placed_for` answers with a
@@ -933,11 +943,11 @@ TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point fo
 
     end_drag(s);
     CHECK_FALSE(s.drag.active);
-    CHECK_FALSE(drag_to(d, s, 30, 9).accepted); // and nothing moves after release
+    CHECK_FALSE(drag_to(d, s, 30, 9).accepted()); // and nothing moves after release
     CHECK(doc::find(d, front)->x == 19);
 }
 
-TEST_CASE("a press on empty space grabs nothing, and a refused drag leaves the object put") {
+TEST_CASE("a press on empty space grabs nothing, and a drag against the edge slides along it") {
     WorkshopDoc d;
     const std::int64_t id = doc::add(d, "one", 5, 5, ui::Extent{ui::kExtentCells, 4},
                                      ui::Extent{ui::kExtentCells, 4});
@@ -946,24 +956,36 @@ TEST_CASE("a press on empty space grabs nothing, and a refused drag leaves the o
 
     CHECK(begin_drag(d, s, 40, 12) == 0);
     CHECK_FALSE(s.drag.active);
-    CHECK_FALSE(drag_to(d, s, 41, 12).accepted);
+    CHECK_FALSE(drag_to(d, s, 41, 12).accepted());
 
-    // Grab the top-left cell, then drag off the left edge of the workspace. The
-    // document refuses, and the object stays exactly where it was rather than
-    // being silently clamped to the edge: a corrected position is a position the
-    // maker did not author and cannot see they did not author.
+    // Grab the top-left cell, then drag OFF the left edge of the workspace while
+    // still moving down. W-2 refused this outright and left the object put, which
+    // was truthful and brusque (P15). W-3's boundary policy stops the HAND at the
+    // wall instead: the proposal is reduced to the first cell the workspace has,
+    // the legal half of the gesture still happens, and the notice says which wall
+    // was met -- so nothing was silently corrected, it was openly stopped.
     REQUIRE(begin_drag(d, s, 5, 5) == id);
     CHECK(s.drag.grab_dx == 0);
-    const Written refused = drag_to(d, s, -1, 5);
-    CHECK_FALSE(refused.accepted);
-    CHECK(refused.refusal == "the workspace starts at 0");
-    CHECK(doc::find(d, id)->x == 5);
-    CHECK(doc::find(d, id)->y == 5);
+    const Handled slid = drag_to(d, s, -1, 7);
+    CHECK(slid.accepted());
+    CHECK(slid.clamped());
+    CHECK(slid.boundary == kAtWorkspaceStart);
+    CHECK(doc::find(d, id)->x == 0); // stopped at the edge, not left where it was
+    CHECK(doc::find(d, id)->y == 7); // and it kept sliding down it
+
+    // The TYPED path is untouched by that decision, and the two now differ in
+    // exactly the way the policy says they should: a hand is stopped, a written
+    // value is refused, and the document still holds the only opinion about what
+    // is legal.
+    const Written typed = doc::move(d, id, -1, 7);
+    CHECK_FALSE(typed.accepted);
+    CHECK(typed.refusal == "the workspace starts at 0");
+    CHECK(doc::find(d, id)->x == 0);
 
     // The drag is still live afterwards, so the maker can keep going without
-    // re-pressing -- a refusal ends a proposal, not a gesture.
+    // re-pressing.
     CHECK(s.drag.active);
-    REQUIRE(drag_to(d, s, 2, 5).accepted);
+    REQUIRE(drag_to(d, s, 2, 5).accepted());
     CHECK(doc::find(d, id)->x == 2);
 }
 
@@ -980,18 +1002,24 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
     s.selected = id;
 
     doc::find_mut(d, id)->x = kMax; // the poke
-    CHECK(nudge(d, s, +1, 0).accepted);
+    CHECK(nudge(d, s, +1, 0).accepted());
     CHECK(doc::find(d, id)->x == kMax); // saturated: it went nowhere, and legally
-    CHECK(nudge(d, s, -1, 0).accepted);
+    CHECK(nudge(d, s, -1, 0).accepted());
     CHECK(doc::find(d, id)->x == kMax - 1);
 
     // The other end is only reachable by a poke at all, and it must not wrap
-    // either -- a nudge left from the most negative cell would otherwise become
-    // the most positive one.
+    // either -- a nudge up from the most negative cell would otherwise become the
+    // most positive one. Under W-3's boundary policy the gesture then does what it
+    // does at any wall: it stops at the first cell the workspace HAS, and says so.
+    // A hand can therefore recover an object a poke put somewhere impossible,
+    // which is the same rule as everywhere else rather than a special case.
     doc::find_mut(d, id)->y = (std::numeric_limits<std::int64_t>::min)();
-    const Written down = nudge(d, s, 0, -1);
-    CHECK_FALSE(down.accepted); // still a negative coordinate, refused as always
-    CHECK(doc::find(d, id)->y == (std::numeric_limits<std::int64_t>::min)());
+    const Handled down = nudge(d, s, 0, -1);
+    CHECK(down.accepted());
+    CHECK(down.clamped());
+    CHECK(doc::find(d, id)->y == doc::kFirstCell);
+    // and the document itself still refuses the impossible value outright
+    CHECK_FALSE(doc::move(d, id, 0, (std::numeric_limits<std::int64_t>::min)()).accepted);
 }
 
 TEST_CASE("a reported pointer position survives every double the wire can carry") {
@@ -1083,8 +1111,8 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
     const std::int64_t a = create(d, s);
     agree(a, 0);
 
-    REQUIRE(nudge(d, s, +2, +3).accepted); // hjkl arrives as repeated single steps;
-    REQUIRE(nudge(d, s, +1, 0).accepted);  // the operation is the same either way
+    REQUIRE(nudge(d, s, +2, +3).accepted()); // hjkl arrives as repeated single steps;
+    REQUIRE(nudge(d, s, +1, 0).accepted());  // the operation is the same either way
     refocus(d, s);
     agree(a, 0);
 
@@ -1093,7 +1121,18 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
     agree(b, 1);
 
     REQUIRE(begin_drag(d, s, doc::find(d, b)->x, doc::find(d, b)->y) == b);
-    REQUIRE(drag_to(d, s, 22, 11).accepted);
+    REQUIRE(drag_to(d, s, 22, 11).accepted());
+    end_drag(s);
+    refocus(d, s);
+    agree(b, 1);
+
+    // ...and a resize, through the handle, in the same session: the three views
+    // still agree afterwards, and the object is still the same identity.
+    const Handle grip = size_handle(d, s);
+    REQUIRE(grip.shown);
+    REQUIRE(take_hold(d, s, grip.x, grip.y) == b);
+    REQUIRE(s.drag.resizing);
+    REQUIRE(drag_to(d, s, 30, 16).accepted());
     end_drag(s);
     refocus(d, s);
     agree(b, 1);
@@ -1102,6 +1141,598 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
     CHECK(s.selected == a);
     refocus(d, s);
     agree(a, 0);
+}
+
+// ============================================================================
+// Tier 2e — the maker's hand on an EXTENT: resize  (W-3)
+// ============================================================================
+//
+// The tier the phase exists for. A move could be dragged because authored and
+// resolved placement are the same number; an EXTENT is interpreted, so a hand on
+// an edge has to decide what to author. Every case here drives the same
+// functions workshop.cpp binds the handle and the four resize keys to.
+
+TEST_CASE("resizing a cells extent authors cells, and every reading of the object follows") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "box", 3, 2, ui::Extent{ui::kExtentCells, 12},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+    refocus(d, s);
+
+    // The handle is the cell just past the object's bottom-right corner, so a
+    // pointer resting ON it proposes the size the object already has.
+    const Handle grip = size_handle(d, s);
+    REQUIRE(grip.shown);
+    CHECK(grip.id == id);
+    CHECK(grip.x == 3 + 12);
+    CHECK(grip.y == 2 + 4);
+    REQUIRE(take_hold(d, s, grip.x, grip.y) == id);
+    REQUIRE(s.drag.resizing);
+    REQUIRE(drag_to(d, s, grip.x, grip.y).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 12}); // unchanged
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 4});
+
+    // Pull it five cells right and two down. 12 -> 17, exactly the phase prompt's
+    // arithmetic, and the AUTHORED value is what changed.
+    REQUIRE(drag_to(d, s, grip.x + 5, grip.y + 2).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 17});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 6});
+
+    // Identity, label and POSITION are untouched: a resize resizes.
+    CHECK(doc::find(d, id)->id == id);
+    CHECK(doc::find(d, id)->label == "box");
+    CHECK(doc::find(d, id)->x == 3);
+    CHECK(doc::find(d, id)->y == 2);
+    CHECK(s.selected == id);
+    CHECK(d.elements.size() == 1);
+
+    // The resolved rect, the canvas, the hit region and the inspector all follow,
+    // because all four are derived from the one authored value that changed.
+    const ui::Scene after = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(after, id);
+    REQUIRE(placed != nullptr);
+    CHECK(placed->rect == ui::Rect{3, 2, 17, 6});
+    CHECK(has_rect(paint(d, s), kWorkspaceX + 3, kWorkspaceY + 2, 17, 6, surface::role::kFill));
+    REQUIRE(ui::hit(after, 3 + 16, 2 + 5) != nullptr); // the newly occupied corner
+    CHECK(ui::hit(after, 3 + 16, 2 + 5)->id == id);
+    CHECK(ui::hit(after, 3 + 17, 2) == nullptr); // one past it is still nothing
+    refocus(d, s);
+    REQUIRE(s.rows.size() == 7);
+    CHECK(s.rows[4].value() == "17");           // authored Width
+    CHECK(s.rows[5].value() == "6");            // authored Height
+    CHECK(s.rows[6].value() == "17 x 6 cells"); // and what the workspace makes of it
+
+    // Shrinking is the same gesture backwards, and the cell it no longer occupies
+    // STOPPED BEING TRUE rather than merely stopping being painted.
+    REQUIRE(drag_to(d, s, 3 + 5, 2 + 2).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 5});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 2});
+    CHECK(ui::hit(workspace_scene(d, s), 3 + 16, 2 + 5) == nullptr);
+    end_drag(s);
+}
+
+TEST_CASE("resizing a share authors a SHARE, and the number is the smallest one that fits") {
+    // The phase's central experiment, with the phase prompt's own numbers.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 60},
+                                     ui::Extent{ui::kExtentCells, 6});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+    REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28); // 60% of 48
+
+    // Pull the edge out to 34 resolved cells. The maker manipulated a property
+    // they authored as a SHARE, so a share is what gets written -- and the number
+    // is 71%, which is the smallest share this workspace resolves to 34 cells.
+    REQUIRE(size_to(d, s, id, 34, 6).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 71});
+    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 34); // it means what it says
+    CHECK(ui::resolve_extent(ui::Extent{ui::kExtentPercent, 70}, 48) == 33); // and 70% would not
+
+    // The height was authored in CELLS and stays cells, in the same operation.
+    // Two extents, two modes, one gesture: mode is per-property, not per-object.
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 6});
+
+    // A share is never converted to cells behind the maker's back, at any size.
+    for (const std::int64_t want : {1, 5, 24, 47, 48}) {
+        REQUIRE(size_to(d, s, id, want, 6).accepted());
+        CHECK(doc::find(d, id)->width.mode == ui::kExtentPercent);
+        CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == want);
+    }
+}
+
+TEST_CASE("the projection is stable: the same resolved size always names the same share") {
+    // §11's property, and the reason the rounding rule is not a taste. The
+    // resolver FLOORS, so the projection must take the SMALLEST share that
+    // reaches the asked-for size. `nearest` would send 28 cells to 58%, which
+    // resolves to 27 -- so merely grabbing an edge and letting go would shrink the
+    // object, and repeated resizes to the same place would walk the number down.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 60},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+
+    // Asking for the size it already has re-authors NOTHING: the share it carries
+    // already says exactly that, and rewriting it to the canonical spelling would
+    // change a maker's number for no reason a maker could see.
+    REQUIRE(size_to(d, s, id, 28, 4).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 60});
+
+    // Resize away and back: the same PICTURE, and — because 60% was never the
+    // canonical name for 28 cells — a different NUMBER. That is a true fact about
+    // shares (58%, 59% and 60% are all 28 cells at this workspace), not a defect,
+    // and the projection is honest that it authors a NEW value rather than
+    // reconstructing the old one.
+    REQUIRE(size_to(d, s, id, 34, 4).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 71});
+    REQUIRE(size_to(d, s, id, 28, 4).accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 59});
+    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28); // the picture came back
+
+    // And from there it does not move again, however many times the maker asks
+    // for the same place. One resolved size, one authored share, forever.
+    for (int i = 0; i < 5; ++i) {
+        REQUIRE(size_to(d, s, id, 28, 4).accepted());
+        CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 59});
+    }
+
+    // Every reachable size round-trips EXACTLY, at every workspace this tool has:
+    // a percent is finer than a cell below 100 cells of span, so the ceil rule is
+    // not merely stable but exact. Asked of the resolver, so the two cannot drift.
+    for (std::int64_t span = kWorkspaceMinW; span <= kWorkspaceW; ++span) {
+        s.workspace_w = span;
+        for (std::int64_t want = 1; want <= span; ++want) {
+            std::string boundary;
+            const ui::Extent got =
+                extent_from_drag(ui::Extent{ui::kExtentPercent, 50}, want, span, boundary);
+            REQUIRE(got.mode == ui::kExtentPercent);
+            CHECK(ui::resolve_extent(got, span) == want);
+            CHECK(doc::check_extent(got).accepted);
+        }
+    }
+}
+
+TEST_CASE("a resize is ONE authored change: a refused proposal writes neither extent") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 10},
+                                     ui::Extent{ui::kExtentCells, 5});
+
+    // A diagonal proposal whose width is legal and whose height is not. With two
+    // independent setters this would narrow the object AND report a refusal -- a
+    // refusal message beside a successful write, which is exactly the bug W-2
+    // removed from placement, at the other property.
+    const Written refused = doc::resize(d, id, ui::Extent{ui::kExtentCells, 7},
+                                        ui::Extent{ui::kExtentCells, 0});
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "at least 1 cell");
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 10}); // NOT 7
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5});
+
+    // The same, with the illegal extent first.
+    CHECK_FALSE(doc::resize(d, id, ui::Extent{ui::kExtentPercent, 500},
+                            ui::Extent{ui::kExtentCells, 9})
+                    .accepted);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 10});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5}); // NOT 9
+
+    // And a legal resize still writes both at once.
+    REQUIRE(doc::resize(d, id, ui::Extent{ui::kExtentCells, 7}, ui::Extent{ui::kExtentCells, 9})
+                .accepted);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 7});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 9});
+}
+
+TEST_CASE("the inspector and the maker's hand write through ONE size operation") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 10},
+                                     ui::Extent{ui::kExtentCells, 5});
+    Session s;
+    s.selected = id;
+    refocus(d, s);
+    REQUIRE(s.rows.size() == 7);
+
+    // A typed Width of 0, through the Row the inspector actually holds.
+    Row& width = s.rows[4];
+    width.begin();
+    while (!width.draft().empty()) {
+        width.backspace();
+    }
+    type_all(width, "0");
+    CHECK(width.commit() == Commit::Refused);
+    const std::string typed_refusal = width.refusal();
+
+    // Identical wording from every door, because it is not several rules that
+    // agree -- set_width IS doc::resize holding the height still, so there is no
+    // second place a gesture could acquire its own opinion about a legal extent.
+    CHECK(typed_refusal == "at least 1 cell");
+    CHECK(typed_refusal ==
+          doc::set_width(d, id, ui::Extent{ui::kExtentCells, 0}).refusal);
+    CHECK(typed_refusal ==
+          doc::set_height(d, id, ui::Extent{ui::kExtentCells, 0}).refusal);
+    CHECK(typed_refusal == doc::resize(d, id, ui::Extent{ui::kExtentCells, 0},
+                                       ui::Extent{ui::kExtentCells, 5})
+                               .refusal);
+
+    // set_width writes only the width; set_height only the height. Delegating to
+    // a two-extent operation did not quietly make them write both.
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 40}).accepted);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 5});
+    REQUIRE(doc::set_height(d, id, ui::Extent{ui::kExtentCells, 8}).accepted);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 40});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 8});
+
+    // And a value the hand authors is a value the inspector will accept back:
+    // the gesture never produces an extent the document's own check refuses.
+    REQUIRE(size_to(d, s, id, 34, 6).accepted());
+    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+    CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
+    refocus(d, s);
+    CHECK(s.rows[4].value() == TextForm<ui::Extent>::format(doc::find(d, id)->width));
+}
+
+TEST_CASE("the authored minimum is the DOCUMENT's, not the resolution floor") {
+    // §12. `ui::kMinCells` is what resolution refuses to round a share BELOW; it
+    // is not the editor's authoring rule, and the two are different questions
+    // that happen to agree at one end.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 6},
+                                     ui::Extent{ui::kExtentCells, 6});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // What the document permits a maker to author, by its own check and nothing
+    // else: no zero-cell extent, no zero-percent share.
+    CHECK_FALSE(doc::check_extent(ui::Extent{ui::kExtentCells, 0}).accepted);
+    CHECK_FALSE(doc::check_extent(ui::Extent{ui::kExtentPercent, 0}).accepted);
+    CHECK(doc::check_extent(ui::Extent{ui::kExtentCells, ui::kMinCells}).accepted);
+    CHECK(doc::check_extent(ui::Extent{ui::kExtentPercent, 1}).accepted);
+
+    // A hand that asks for less stops at that minimum -- the SAME minimum, not a
+    // handle-specific one -- and says so.
+    Handled done = size_to(d, s, id, -40, 0);
+    CHECK(done.accepted());
+    CHECK(done.boundary == kAtSmallest);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, ui::kMinCells});
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, ui::kMinCells});
+    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+
+    // The two floors are different rules, and here they visibly disagree: 1% of a
+    // 12-cell workspace is 0 cells by arithmetic, and resolution floors it to
+    // kMinCells so a maker never loses an object they authored. The AUTHORING
+    // rule never sees that number at all.
+    s.workspace_w = kWorkspaceMinW;
+    CHECK(ui::resolve_extent(ui::Extent{ui::kExtentPercent, 1}, kWorkspaceMinW) == ui::kMinCells);
+    CHECK(doc::check_extent(ui::Extent{ui::kExtentPercent, 1}).accepted);
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 1}).accepted);
+    done = size_to(d, s, id, 0, 1);
+    CHECK(done.accepted());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 1}); // still the smallest share
+}
+
+TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they are told apart") {
+    // §15, and the answer to W-2's P15. The distinction is not decoration: after a
+    // clamp something WAS written (the boundary value), after a refusal nothing
+    // was -- so a maker who cannot tell them apart cannot tell what their document
+    // now says.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "wide", 0, 0, ui::Extent{ui::kExtentPercent, 50},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // PHYSICAL OVERSHOOT, on a share: the far wall is 100%, and it is the
+    // VOCABULARY's wall rather than the workspace being a barrier -- a share OF
+    // the viewport cannot be more than the whole of it.
+    const Handled far = size_to(d, s, id, 400, 4);
+    CHECK(far.accepted());
+    CHECK(far.clamped());
+    CHECK(far.boundary == kAtWholeWorkspace);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
+    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 48);
+
+    // A CELLS extent has no such wall, because an absolute size has nothing to do
+    // with the viewport: the same overshoot authors 400 cells and the canvas
+    // simply clips, exactly as W-2 let an object be positioned past the edge.
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentCells, 10}).accepted);
+    const Handled past = size_to(d, s, id, 400, 4);
+    CHECK(past.accepted());
+    CHECK_FALSE(past.clamped());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, 400});
+    // ...until the document's OWN limit, which is where it does stop.
+    const Handled huge = size_to(d, s, id, doc::kMaxCells + 1000, 4);
+    CHECK(huge.accepted());
+    CHECK(huge.boundary == kAtLargest);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, doc::kMaxCells});
+
+    // SEMANTIC INVALID AUTHORING, through the typed path, at the same extremes:
+    // refused, and the authored state does not move.
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 50}).accepted);
+    const Written typed = doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 400});
+    CHECK_FALSE(typed.accepted);
+    CHECK(typed.refusal == "a share is 1% to 100%");
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 50}); // untouched
+
+    // The gesture never hands the document a proposal it would refuse -- that is
+    // what makes "the clamp lives in the gesture and the judgement in the
+    // document" a division of labour rather than two chances to be wrong.
+    for (const std::int64_t want : {-99999, 0, 1, 47, 48, 49, 100000}) {
+        REQUIRE(size_to(d, s, id, want, want).accepted());
+        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
+    }
+}
+
+TEST_CASE("move and resize meet the workspace with one policy, in two different walls") {
+    // §16. The philosophy is shared: a hand stops and says so, a written value is
+    // refused. The WALLS differ, and they differ because the properties do --
+    // which is a fact about the vocabulary rather than a rule Workshop invented.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "box", 0, 0, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // Position: the origin is a wall (there are no cells before it) and the far
+    // edge is not (the canvas clips).
+    CHECK(nudge(d, s, -1, -1).clamped());
+    CHECK(doc::find(d, id)->x == doc::kFirstCell);
+    REQUIRE(doc::move(d, id, 100, 100).accepted);
+    const Handled beyond = nudge(d, s, +1, +1);
+    CHECK(beyond.accepted());
+    CHECK_FALSE(beyond.clamped()); // past the far edge is not a wall for a position
+    CHECK(doc::find(d, id)->x == 101);
+
+    // Size: the smallest authorable extent is a wall for both modes; the far wall
+    // exists only for a share, and it is 100%.
+    REQUIRE(doc::move(d, id, 0, 0).accepted);
+    CHECK(grow(d, s, -99, -99).clamped());
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, ui::kMinCells});
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 99}).accepted);
+    CHECK(grow(d, s, +5, 0).boundary == kAtWholeWorkspace);
+    CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
+
+    // And every one of those is a CLAMP, never a refusal: the document's refusals
+    // still belong to typed values only.
+    CHECK(nudge(d, s, -1, -1).accepted());
+    CHECK(grow(d, s, -99, -99).accepted());
+    CHECK_FALSE(doc::move(d, id, -1, 0).accepted);
+    CHECK_FALSE(doc::set_width(d, id, ui::Extent{ui::kExtentCells, 0}).accepted);
+}
+
+TEST_CASE("a share keeps following the workspace after a resize; cells do not") {
+    // §23 and §24, as one contrast. This is the maker-facing consequence of
+    // preserving the authored mode, and the reason converting a dragged share to
+    // cells would have destroyed something the maker cannot get back.
+    WorkshopDoc d;
+    const std::int64_t share = doc::add(d, "share", 0, 0, ui::Extent{ui::kExtentPercent, 60},
+                                        ui::Extent{ui::kExtentCells, 3});
+    const std::int64_t fixed = doc::add(d, "fixed", 0, 8, ui::Extent{ui::kExtentCells, 28},
+                                        ui::Extent{ui::kExtentCells, 3});
+    Session s;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // Both are 28 cells wide right now, by two different truths.
+    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 28);
+    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 28);
+
+    // Resize BOTH to 34 resolved cells, by hand.
+    s.selected = share;
+    REQUIRE(size_to(d, s, share, 34, 3).accepted());
+    s.selected = fixed;
+    REQUIRE(size_to(d, s, fixed, 34, 3).accepted());
+    CHECK(doc::find(d, share)->width == ui::Extent{ui::kExtentPercent, 71});
+    CHECK(doc::find(d, fixed)->width == ui::Extent{ui::kExtentCells, 34});
+    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 34);
+    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 34);
+
+    // Now narrow the workspace, exactly as `[` does. NO authored value changes,
+    // and the two objects part company: the one authored as a share is still a
+    // share OF THE NEW WORKSPACE, the one authored in cells is still 34 cells.
+    s.workspace_w = 24;
+    CHECK(doc::find(d, share)->width == ui::Extent{ui::kExtentPercent, 71});
+    CHECK(doc::find(d, fixed)->width == ui::Extent{ui::kExtentCells, 34});
+    CHECK(ui::placed_for(workspace_scene(d, s), share)->rect.w == 17); // 71% of 24
+    CHECK(ui::placed_for(workspace_scene(d, s), fixed)->rect.w == 34); // clipped, not resized
+
+    // Had the drag written cells, the share object would now be indistinguishable
+    // from the other one -- and nothing in the document would remember that a
+    // maker ever asked for a proportion. That is the intent the mode carries.
+    CHECK(doc::find(d, share)->width.mode != doc::find(d, fixed)->width.mode);
+}
+
+TEST_CASE("the size handle is derived, is Workshop's, and grabs the right identity") {
+    WorkshopDoc d;
+    const std::int64_t back = doc::add(d, "back", 0, 0, ui::Extent{ui::kExtentCells, 20},
+                                       ui::Extent{ui::kExtentCells, 8});
+    const std::int64_t front = doc::add(d, "front", 2, 2, ui::Extent{ui::kExtentCells, 4},
+                                        ui::Extent{ui::kExtentCells, 3});
+    Session s;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // No selection, no handle: the affordance belongs to the selected object.
+    CHECK_FALSE(size_handle(d, s).shown);
+
+    // It follows the RESOLVED rectangle, so it moves when the object moves,
+    // resizes when the object resizes, and follows a share when the workspace
+    // changes -- without anything telling it to.
+    s.selected = back;
+    CHECK(size_handle(d, s).x == 20);
+    REQUIRE(doc::move(d, back, 3, 1).accepted);
+    CHECK(size_handle(d, s).x == 23);
+    CHECK(size_handle(d, s).y == 9);
+    REQUIRE(doc::set_width(d, back, ui::Extent{ui::kExtentPercent, 50}).accepted);
+    CHECK(size_handle(d, s).x == 3 + 24);
+    s.workspace_w = 24;
+    CHECK(size_handle(d, s).x == 3 + 12);
+    s.workspace_w = 48;
+
+    // It is PAINTED, as a glyph a maker can tell from the ring, the body and the
+    // workspace -- and it is painted at exactly the cell it is grabbed at.
+    const Handle grip = size_handle(d, s);
+    REQUIRE(grip.shown);
+    CHECK(label_at(paint(d, s), kWorkspaceX + grip.x, kWorkspaceY + grip.y) == kHandleGlyph);
+
+    // The handle sits one cell outside its own object, so it can lie over a
+    // neighbour. It wins -- and that priority is WORKSHOP's, in Workshop's own
+    // gesture: ui::hit still answers with the topmost authored element, which at
+    // that cell is the object underneath.
+    s.selected = front;
+    const Handle small = size_handle(d, s);
+    REQUIRE(small.shown);
+    CHECK(small.x == 6);
+    CHECK(small.y == 5);
+    REQUIRE(ui::hit(workspace_scene(d, s), small.x, small.y) != nullptr);
+    CHECK(ui::hit(workspace_scene(d, s), small.x, small.y)->id == back); // the package's answer
+    CHECK(take_hold(d, s, small.x, small.y) == front);                   // Workshop's
+    CHECK(s.drag.resizing);
+    end_drag(s);
+
+    // One cell away from the handle is an ordinary press: the body under the
+    // pointer, moved and not resized.
+    CHECK(take_hold(d, s, small.x + 1, small.y) == back);
+    CHECK_FALSE(s.drag.resizing);
+    end_drag(s);
+
+    // An object whose handle would fall outside the workspace has none -- what a
+    // maker cannot see, a maker cannot grab. The keyboard and the inspector still
+    // reach it, so it is never stuck.
+    s.selected = back;
+    REQUIRE(doc::set_width(d, back, ui::Extent{ui::kExtentCells, 200}).accepted);
+    CHECK_FALSE(size_handle(d, s).shown);
+    CHECK(take_hold(d, s, 60, 9) == 0);
+    CHECK(grow(d, s, -190, 0).accepted());
+    CHECK(size_handle(d, s).shown);
+}
+
+TEST_CASE("the four resize keys and the handle are ONE gesture, reached two ways") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "wide", 1, 1, ui::Extent{ui::kExtentPercent, 60},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // The keyboard asks for one more RESOLVED cell than it can see, which is the
+    // same question the pointer asks by landing one cell further out -- so both
+    // go through one projection and one document operation, and a share dragged
+    // and a share grown cannot become different numbers.
+    REQUIRE(ui::placed_for(workspace_scene(d, s), id)->rect.w == 28);
+    REQUIRE(grow(d, s, +1, 0).accepted());
+    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 29);
+    const ui::Extent by_key = doc::find(d, id)->width;
+
+    REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 60}).accepted);
+    const Handle grip = size_handle(d, s);
+    REQUIRE(take_hold(d, s, grip.x, grip.y) == id);
+    REQUIRE(drag_to(d, s, grip.x + 1, grip.y).accepted());
+    CHECK(doc::find(d, id)->width == by_key); // the same authored value, to the digit
+    end_drag(s);
+
+    // Growing and shrinking returns the same SIZE. On a share it need not return
+    // the same number, because the projection authors the one canonical share for
+    // a given cell count -- so the value settles instead of walking.
+    const std::int64_t was = ui::placed_for(workspace_scene(d, s), id)->rect.w;
+    REQUIRE(grow(d, s, +3, +2).accepted());
+    REQUIRE(grow(d, s, -3, -2).accepted());
+    CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == was);
+    CHECK(doc::find(d, id)->height == ui::Extent{ui::kExtentCells, 4});
+    const ui::Extent settled = doc::find(d, id)->width;
+    REQUIRE(grow(d, s, +3, 0).accepted());
+    REQUIRE(grow(d, s, -3, 0).accepted());
+    CHECK(doc::find(d, id)->width == settled);
+}
+
+TEST_CASE("a resize survives every extent and pointer a poke or a wire can produce") {
+    // §25. A resize's proposal is a DIFFERENCE between a pointer off the bus and
+    // an authored edge a poke can write, so both terms are untrusted numeric
+    // input and the arithmetic must be total before anything is validated.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    CHECK(detail::minus(0, kMin) == kMax);       // saturates instead of wrapping
+    CHECK(detail::minus(kMin, 1) == kMin);
+    CHECK(detail::minus(5, 3) == 2);
+    CHECK(detail::minus(-5, 3) == -8);
+
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 0, 0, ui::Extent{ui::kExtentCells, 4},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s;
+    s.selected = id;
+    s.workspace_w = 48;
+    s.workspace_h = 16;
+
+    // A poked extent no setter would ever have produced: the handle refuses to be
+    // shown somewhere the object is not, and the projection still lands on a legal
+    // authored value.
+    for (const std::int64_t poked :
+         std::initializer_list<std::int64_t>{kMin, kMin + 1, -1, 0, kMax - 1, kMax}) {
+        doc::find_mut(d, id)->width = ui::Extent{ui::kExtentCells, poked};
+        doc::find_mut(d, id)->height = ui::Extent{ui::kExtentCells, poked};
+        // Shown or not, the grip never lands somewhere the object is not: the
+        // additions that would say where it goes are not representable for most of
+        // these, and the answer is "nowhere" rather than a wrapped cell.
+        const Handle grip = size_handle(d, s);
+        if (grip.shown) {
+            CHECK(grip.x >= 0);
+            CHECK(grip.x < s.workspace_w);
+            CHECK(grip.y >= 0);
+            CHECK(grip.y < s.workspace_h);
+        }
+        REQUIRE(grow(d, s, +1, -1).accepted());
+        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
+    }
+
+    // A poked MODE is neither cells nor a share. The document refuses to accept
+    // one, and the gesture repairs rather than propagates it: what a hand writes
+    // is always something the document would have accepted.
+    doc::find_mut(d, id)->width = ui::Extent{7, 3};
+    CHECK_FALSE(doc::check_extent(doc::find(d, id)->width).accepted);
+    REQUIRE(grow(d, s, +1, 0).accepted());
+    CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+
+    // A poked POSITION, with the pointer at the far ends of what the wire can
+    // carry: the difference saturates rather than wrapping, and the clamp lands.
+    REQUIRE(doc::resize(d, id, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4})
+                .accepted);
+    doc::find_mut(d, id)->x = kMax;
+    doc::find_mut(d, id)->y = kMin;
+    s.drag = Drag{true, true, id, 0, 0};
+    const double inf = std::numeric_limits<double>::infinity();
+    for (const double at : {inf, -inf, 0.0, 1e300}) {
+        const Handled done = drag_to(d, s, workspace_cell_x(cell_of(at)),
+                                     workspace_cell_y(cell_of(at)));
+        CHECK(done.accepted());
+        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+        CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
+    }
+    end_drag(s);
+
+    // And a hostile WORKSPACE: resolution is total over those, so the projection
+    // it is written in terms of is too.
+    doc::find_mut(d, id)->width = ui::Extent{ui::kExtentPercent, 60};
+    for (const std::int64_t span : std::initializer_list<std::int64_t>{kMin, -1, 0, 1, kMax}) {
+        s.workspace_w = span;
+        REQUIRE(size_to(d, s, id, 34, 4).accepted());
+        CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
+        CHECK(doc::find(d, id)->width.mode == ui::kExtentPercent);
+    }
 }
 
 // ============================================================================
