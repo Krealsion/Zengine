@@ -10,6 +10,11 @@
 // translate native events; the suite's fake feeds scripted batches, so the
 // weave's whole message contract is pinned without a console in sight.
 //
+// The weave is INDIFFERENT to what a poll contains: it publishes whatever the
+// reader hands back, by shape. That is why W-4 changed the vocabulary without
+// changing a line of the pumping below — the moment a backend preserves is the
+// reader's business, and delivering it is this weave's.
+//
 // The weave is DEAF until driven and says nothing on its own: a weave runs
 // only when a message arrives. It DECLARES the drive it wants — a repeating
 // role-addressed beat on kPumpTimerId — and the timer binding (timer/
@@ -51,8 +56,8 @@ template <class Reader>
 class InputWeaveT
     : public zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState,
                                         loom::Accept<PumpInput>,
-                                        loom::Emit<KeyPressed, KeyReleased, MouseButton,
-                                                   MouseMoved, MouseWheel>> {
+                                        loom::Emit<KeyPressed, KeyReleased, TextEntered,
+                                                   PointerMoved, PointerButton, PointerWheel>> {
 public:
     InputWeaveT() { declare_pump(); }
     explicit InputWeaveT(Reader reader) : reader_(std::move(reader)) { declare_pump(); }
@@ -61,8 +66,8 @@ public:
     /// own `on` handler, which would otherwise HIDE the binding layer's three.
     /// (WeaveBase dispatches via self->on(...) on the derived type.)
     using zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState, loom::Accept<PumpInput>,
-                                     loom::Emit<KeyPressed, KeyReleased, MouseButton, MouseMoved,
-                                                MouseWheel>>::on;
+                                     loom::Emit<KeyPressed, KeyReleased, TextEntered, PointerMoved,
+                                                PointerButton, PointerWheel>>::on;
 
     /// The direct door: the same hands, on request, for suites, diagnostics and
     /// timer-less hosts.

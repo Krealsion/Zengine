@@ -218,15 +218,14 @@ public:
             quit();
             break;
         case scan::kC:
-            // V1 carries no modifiers, so Ctrl+C survives only as the backends'
-            // dressed convenience name. Quitting on it is a courtesy the host
-            // chooses to trust; the scancode stays the authority for the key.
-            // A DEBT, and pinned as one: the input suite's "contract,
-            // EXPLICITLY TEMPORARY" case locks both backends to this exact
-            // spelling for exactly as long as this branch exists. When the
-            // modifier-vocabulary phase lands, this reads a modifier and that
-            // case is deleted.
-            if (k.name == "Ctrl+C") {
+            // The debt this branch used to carry is PAID (W-4). V1 had no
+            // modifier vocabulary, so Ctrl+C survived only as a dressed
+            // convenience NAME and this host had to trust a courtesy; the input
+            // suite pinned that spelling as "EXPLICITLY TEMPORARY" for exactly
+            // as long as this line existed. Ctrl is a modifier now, carried on
+            // the transition it was held for, and the name is back to being
+            // nothing but a name.
+            if ((k.modifiers & input::mod::kCtrl) != 0) {
                 quit();
             }
             break;

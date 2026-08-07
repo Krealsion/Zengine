@@ -209,16 +209,44 @@ frozen unabridged at
 ## `input/` — the Input package
 
 The floor games sit on: exactly one Input weave (`zengine-input`, holding the `zengine.input`
-role) is the sole producer of the five locked shapes — `KeyPressed`/`KeyReleased` (SDL scancodes
-as the wire identity of a key; `name` is convenience, never authority), `MouseButton`,
-`MouseMoved`, `MouseWheel` — and the only code that talks to the platform. Consumers only
-accept; there is no polling API. Backends today are the ones snake runs on: the POSIX terminal
-(raw mode; strokes synthesize press+release) and the Win32 console (real key transitions, mouse
-records); an SDL **Reader** (the window's own input, including its close box) is the named
-follow-on now that the Surface package gives it a window to read. The weave arranges its own
-execution: on the TimerService's hello it asks for a repeating role-addressed beat
-(`zengine.input.pump`, 10ms — the package owns its own pace now) and polls on each firing;
-`PumpInput` stays as the same hands on direct request, for suites and timer-less hosts.
+role) is the sole producer of the input shapes and the only code that talks to the platform.
+Consumers only accept; there is no polling API.
+
+**The law (W-4): Input reports coherent MOMENTS; applications interpret GESTURES.** A moment
+carries everything the backend already knew when one thing happened, so no consumer has to
+reconstruct a fact the platform had already stated. A drag, a resize or a selection is
+application meaning and is not spoken here at any version.
+
+| shape | what it preserves |
+|---|---|
+| `KeyPressed` / `KeyReleased` v2 | which key changed state, plus the **modifiers held at that transition**. SDL scancodes are the wire identity; `name` is convenience, never authority. |
+| `TextEntered` v1 | **what the user actually typed**, UTF-8, as the platform's own keyboard layout produced it. The only truthful route to a character — nobody computes `Shift+5 -> %`. |
+| `PointerMoved` v1 | position, delta, coordinate **space**, modifiers. |
+| `PointerButton` v1 | button, transition, **the position it happened at**, space, modifiers. |
+| `PointerWheel` v1 | notches, position, space, modifiers. |
+
+Positions are int64 and carry a `space` (`kCells` on both current backends, `kPixels` declared)
+so a terminal cell can never be mistaken for an SDL pixel. Editing controls are keys, never text:
+Backspace, Enter and Escape arrive as transitions, and what they *mean* is the application's.
+
+Backends today are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode
+bytes with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a
+mouse report split across reads is rejoined rather than translated into the keystrokes its bytes
+happen to spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer
+reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract. The
+**Win32 console** reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the
+modifiers, `dwMousePosition` the position — all present on the record and all now preserved. An
+SDL **Reader** (the window's own input, including its close box) is the named follow-on.
+
+**Who turns the terminal's pointer on:** the **Skin**, because terminal modes are output and the
+output stream is already claimed and released on the Skin's own lifetime (`surface/skin_tui.hpp`).
+Input never writes a byte to the terminal; it parses SGR reports whenever they arrive, and they
+only arrive because a Skin asked. The two packages need no coordination surface between them.
+
+The weave arranges its own execution: on the TimerService's hello it asks for a repeating
+role-addressed beat (`zengine.input.pump`, 10ms — the package owns its own pace) and polls on
+each firing; `PumpInput` stays as the same hands on direct request, for suites and timer-less
+hosts.
 
 ## `surface/` — the Surface package
 
@@ -461,23 +489,23 @@ Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell 
 walks inspector rows, `enter` edits, `esc` cancels, `[`/`]` resizes the workspace, `q` quits.
 The move gesture is `hjkl` and not the arrows because the arrows already step the rows and
 Workshop has no focus concept that would let one pair of keys mean two things — inventing one to
-free the arrows would be a focus system built to serve a keybinding. The four resize keys are
-literal for the same reason one layer worse: this wire has **no modifiers at all**, so a second
-direction gesture cannot be spelled as a shifted first one and costs four more keys.
+free the arrows would be a focus system built to serve a keybinding. **Resize is `Shift+hjkl`**:
+one gesture family spelled two ways, rather than two families competing for free keys. W-3 could
+not say that — the wire had no modifiers, so a second directional gesture cost four more literal
+keys (`,` `.` `-` `=`), and those four bindings are gone.
 
-**On a backend with a pointer, press-drag-release is the real gesture** — on the body to move,
-on the `+` handle to resize — and the keyboard is the fallback; both end at `doc::move` and
-`doc::resize`. The catch is that **the POSIX terminal backend emits no
-mouse events at all**, and nothing asks a terminal to report one — so on the canonical Linux lane
-the pointer path is unreachable and only the nudge is live. Where a pointer does exist (the Win32
-console), `MouseButton` still carries no coordinates, so a press's position is reconstructed from
-the last `MouseMoved`; the input suite pins both halves of that loss, including that the Win32
-translator is *handed* the press position and drops it. Text editing is likewise rebuilt from
-scancodes and is **lowercase-only**: the locked input vocabulary has no character and no modifier
-concept, and the terminal backend maps `A` and `a` to one scancode — so `%` cannot be typed,
-which is why the extent parser also accepts `70p`.
+**Press-drag-release is the real gesture** — on the body to move, on the `+` handle to resize —
+and the keyboard is the fallback; both end at `doc::move` and `doc::resize`. Since W-4 that is
+live on the **canonical POSIX/TUI lane** as well as the Win32 console: the Skin asks the terminal
+to report its pointer, Input parses the reports incrementally, and `PointerButton` carries the
+position the press happened at — so Workshop grabs from the press itself rather than from the
+last motion event, which W-2 measured could be arbitrarily stale. Text is likewise the platform's
+own: `%` and capital letters are ordinary `TextEntered`, Workshop maps no key to any character,
+and the `70p` workaround the extent parser existed to accept is no longer needed to type `70%`.
 
-Workshop's own weave is mounted **in-process**: nothing in W-0 asks to unload it, so the
+Workshop's weave lives in `workshop/weave.hpp`, not in the host's translation unit — so the
+suite mounts it on a real bus and walks `input message -> gesture -> semantic operation` end to
+end (W-4, closing P16). It is mounted **in-process**: nothing asks to unload it, so the
 reloadable-weave machinery would be ceremony bought with nothing. The weaves it *loads* are
 other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
 
