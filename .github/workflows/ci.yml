@@ -101,6 +101,92 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
 
+  # THE STANDING SANITIZER WITNESS (W-3a). Deliberately a separate job rather than a
+  # second step in the one above: the ordinary lane's result must stay readable on its
+  # own, and these two answer different questions. `verify.cmake` asks whether the
+  # population this repository meant to run existed, ran and passed; it cannot ask
+  # whether the code that passed did so while reading freed memory or overflowing a
+  # signed int, because there the symptom is that NO answer changes.
+  #
+  # The cost of not asking is measured twice: W-2's heap-use-after-free in committed
+  # test code and W-3's signed-overflow UB in ui::Rect::contains, on the ordinary
+  # Workshop press path. Both were found by hand-built sanitizer trees that lasted one
+  # phase, and both had been called green by the job above. This is that tree, owned by
+  # the repository.
+  #
+  # It runs the SAME population under instrumentation -- no subset, no lowered floor, no
+  # gate turned off, SDL skin included -- so a red here is about the code and never about
+  # the lane having quietly shrunk.
+  zengine-linux-asan-ubsan:
+    name: Zengine / Linux / ASan + UBSan
+    needs: resolve-loom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record toolchain
+        run: |
+          g++ --version
+          cmake --version
+          nm --version
+
+      - name: Fetch pinned canonical Loom
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          loom_source="$RUNNER_TEMP/loom-src"
+          git init "$loom_source"
+          git -C "$loom_source" remote add origin https://github.com/Krealsion/Loom.git
+          git -C "$loom_source" fetch --depth=1 origin "$LOOM_SHA"
+          git -C "$loom_source" checkout --detach FETCH_HEAD
+          test "$(git -C "$loom_source" rev-parse HEAD)" = "$LOOM_SHA"
+
+      # An ordinary Loom, not a sanitized one, and that is the honest boundary rather
+      # than an oversight: this lane instruments the targets Zengine AUTHORS, and the
+      # Loom runs the identical lane over itself in its own repository. ASan's allocator
+      # is process-wide regardless, so a Loom allocation freed and then read by Zengine
+      # code is still caught here.
+      - name: Build and install Loom to a fresh prefix
+        run: |
+          loom_prefix="$RUNNER_TEMP/loom-prefix"
+          test ! -e "$loom_prefix"
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug
+          cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
+
+      - name: Configure Zengine as a stranger, instrumented
+        run: |
+          cmake -S . -B build-san \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DZEN_LOOM_DEV=OFF \
+            -DBUILD_TESTING=ON \
+            -DZENGINE_SANITIZE=ON
+
+      - name: Build Zengine
+        run: cmake --build build-san --parallel "$(nproc)"
+
+      - name: Verify the repository-owned population under ASan + UBSan
+        run: |
+          set +e
+          cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake 2>&1 | tee verify.log
+          verify_rc="${PIPESTATUS[0]}"
+          verify_outcome=failed
+          if (( verify_rc == 0 )); then verify_outcome=passed; fi
+          {
+            printf '## Zengine / Linux / ASan + UBSan\n\n'
+            printf '**Verification:** %s (exit %s)\n\n' "$verify_outcome" "$verify_rc"
+            printf 'Selected lines from the repository verifier and CTest output:\n\n'
+            printf '```text\n'
+            grep -E 'verify:|population:|cases \(floor|judged on|[0-9]+% tests passed|test cases:|assertions:|DECLARED ABSENT|Total Test time|runtime error:|ERROR: AddressSanitizer' verify.log || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$verify_rc"
+
   zengine-windows-stranger:
     name: Zengine / Windows / canonical Loom stranger (advisory)
     needs: resolve-loom

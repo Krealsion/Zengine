@@ -82,7 +82,7 @@ target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVA
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
-            zengine-warnings)
+            zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/snake)
@@ -117,7 +117,8 @@ zengine_doctest_test(snake zengine-tests)
 add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings)
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings
+            zengine-sanitize)
 target_include_directories(zengine-timer-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
@@ -161,7 +162,8 @@ foreach(case_name case_id IN ZIP_LISTS ZENGINE_CN_NAMES ZENGINE_CN_IDS)
     add_executable(zengine-cn-${case_name} EXCLUDE_FROM_ALL
         compile_negative/activation_collision.cpp)
     target_link_libraries(zengine-cn-${case_name}
-        PRIVATE loom::switchboard loom::core zengine-timer-vocabulary zengine-warnings)
+        PRIVATE loom::switchboard loom::core zengine-timer-vocabulary zengine-warnings
+                zengine-sanitize)
     target_include_directories(zengine-cn-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
     target_compile_definitions(zengine-cn-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
 endforeach()
@@ -191,7 +193,7 @@ zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor "discards qua
 add_executable(zengine-input-tests test_input.cpp doctest_main.cpp)
 target_link_libraries(zengine-input-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
-            zengine-timer-vocabulary zengine-warnings)
+            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-input-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/snake)
@@ -211,7 +213,7 @@ zengine_doctest_test(input zengine-input-tests)
 add_executable(zengine-surface-tests test_surface.cpp doctest_main.cpp)
 target_link_libraries(zengine-surface-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
-            zengine-timer-vocabulary zengine-warnings)
+            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-surface-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
@@ -262,7 +264,7 @@ endif()
 # derivation the contract case checks.
 add_executable(zengine-ui-tests test_ui.cpp doctest_main.cpp)
 target_link_libraries(zengine-ui-tests
-    PRIVATE loom::core zengine-ui-vocabulary zengine-warnings)
+    PRIVATE loom::core zengine-ui-vocabulary zengine-warnings zengine-sanitize)
 target_include_directories(zengine-ui-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
@@ -285,7 +287,7 @@ foreach(case_name case_id IN ZIP_LISTS ZENGINE_UI_CN_NAMES ZENGINE_UI_CN_IDS)
     add_executable(zengine-cn-ui-${case_name} EXCLUDE_FROM_ALL
         compile_negative/ui_fence.cpp)
     target_link_libraries(zengine-cn-ui-${case_name}
-        PRIVATE loom::core zengine-ui-vocabulary zengine-warnings)
+        PRIVATE loom::core zengine-ui-vocabulary zengine-warnings zengine-sanitize)
     target_include_directories(zengine-cn-ui-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
     target_compile_definitions(zengine-cn-ui-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
 endforeach()
@@ -317,7 +319,8 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
-            zengine-surface-vocabulary zengine-ui-vocabulary zengine-warnings)
+            zengine-surface-vocabulary zengine-ui-vocabulary zengine-warnings
+            zengine-sanitize)
 target_include_directories(zengine-workshop-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
@@ -331,7 +334,7 @@ zengine_doctest_test(workshop zengine-workshop-tests)
 add_executable(zengine-audit-probes test_audit_probes.cpp doctest_main.cpp)
 target_link_libraries(zengine-audit-probes
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
-            zengine-warnings)
+            zengine-warnings zengine-sanitize)
 target_include_directories(zengine-audit-probes PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/snake)

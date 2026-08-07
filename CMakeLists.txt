@@ -86,6 +86,59 @@ target_compile_options(zengine-warnings INTERFACE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
     -Wsign-conversion -Werror>)
 
+# ---- The standing sanitizer witness (W-3a) ---------------------------------------------
+#
+# A SECOND KIND OF EVIDENCE, not a second correctness lane. tests/verify.cmake asks whether
+# the population this repository meant to run actually ran and passed; it cannot ask whether
+# the code that passed did so while reading freed memory or overflowing a signed int. Nothing
+# here asked that on a schedule until now, and the cost of not asking is measured, twice:
+#
+#   W-2  a heap-use-after-free in committed test code (a `Placed` view outliving the
+#        document it borrowed from). The ordinary lane called it green.
+#   W-3  signed-overflow UB in ui::Rect::contains -- shared ui/ code, on the ordinary
+#        Workshop press/hit path. The ordinary lane called that green too.
+#
+# Both were found by hand-built ASan+UBSan trees that existed for one phase and were then
+# forgotten. This target is the same instrumentation, owned by the repository: on by one
+# option, applied by one name, and run by CI without anyone remembering to.
+#
+# The Loom's shape exactly (ZEN_SANITIZE / zen-sanitize), under Zengine's own option prefix
+# because the two repositories decide this separately: with ZEN_LOOM_DEV=ON the Loom's option
+# is still the Loom's to set, and one flag silently sanitizing someone else's tree is the kind
+# of coupling this repo's stranger-by-default rule exists to avoid.
+#
+# -fno-sanitize-recover=all is what makes it a lane rather than a log: UBSan's default is to
+# print and CARRY ON, which under CTest means a diagnostic scrolls past inside a run that then
+# reports success. Non-recovering, the process dies and the test is red -- which is the whole
+# point of a witness that nobody is watching live.
+#
+# WHAT IT DOES NOT COVER, stated because a lane's boundary is part of what it proves: the
+# instrumentation reaches the targets THIS repository authors, not the Loom it consumes. A
+# stranger-path Loom arrives as an already-compiled package (loom::sanitize is whatever that
+# build chose), so Loom's own code is uninstrumented here -- deliberately: the Loom runs this
+# same lane over itself next door. ASan's allocator is process-wide either way, so a Loom
+# allocation freed and then read by Zengine code is still caught; what is not caught is a fault
+# entirely inside Loom's own compiled objects, which is Loom's lane's job. Both demonstrated
+# defects were in Zengine's own code, which is why this scope is the honest one.
+#
+# AND THE FLAGS ARE UNCONDITIONAL, unlike zengine-warnings' $<CXX_COMPILER_ID:GNU,Clang>
+# guard directly above. That difference is deliberate and runs the other way on purpose:
+# warnings dropped on an unsupported compiler cost strictness, but sanitizer flags dropped
+# on one would hand back a build that says ZENGINE_SANITIZE=ON, passes, and watched nothing
+# — a green naming a witness that was never there. An unsupported toolchain should fail at
+# the compiler, loudly, rather than fail open in the widening direction.
+option(ZENGINE_SANITIZE
+       "Build Zengine's own targets with AddressSanitizer + UndefinedBehaviorSanitizer"
+       OFF)
+
+add_library(zengine-sanitize INTERFACE)
+if(ZENGINE_SANITIZE)
+    target_compile_options(zengine-sanitize INTERFACE
+        -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
+    target_link_options(zengine-sanitize INTERFACE
+        -fsanitize=address,undefined)
+endif()
+
 # ---- The loadable-weave pattern --------------------------------------------------------
 #
 # A loadable weave: PIC shared library, exact filename (no 'lib' prefix), linked against
@@ -116,7 +169,8 @@ target_compile_options(zengine-warnings INTERFACE
 # spelling. The Loom's function asks the semantic question instead.
 function(zengine_weave target source)
     add_library(${target} SHARED ${source})
-    target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings)
+    target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
+                                            zengine-sanitize)
     loom_weave_build_contract(${target})
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()

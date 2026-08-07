@@ -36,6 +36,12 @@ cmake --install build --prefix "$PWD/build/_install"
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
 cmake --build build -j"$(nproc)"
 cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake
+
+# the sanitizer lane — the same suites, instrumented (ASan + UBSan)
+cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install" -DZENGINE_SANITIZE=ON
+cmake --build build-san -j"$(nproc)"
+cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 ```
 
 **The dev override — the sibling path** (`-DZEN_LOOM_DEV=ON`): `add_subdirectory(../Loom)`,
@@ -145,6 +151,40 @@ swap kills the incumbent's parked beat (`CapabilityDenied`, sender-death), and n
 activated successor authors a new chain. It deliberately measures the **hard** path; since
 R2B-0 the service converses about its own succession, so the graceful path — and the continuity
 it buys — is the timer suite's.
+
+### The sanitizer lane — the other half of the evidence (W-3a)
+
+`-DZENGINE_SANITIZE=ON` builds Zengine's own targets with **AddressSanitizer +
+UndefinedBehaviorSanitizer** (`-fsanitize=address,undefined -fno-omit-frame-pointer
+-fno-sanitize-recover=all`), and `tests/verify.cmake` then runs the *same* population under
+them. CI runs it on every push and pull request; there is nothing to remember.
+
+**Two lanes, two questions, and neither substitutes for the other.** The ordinary verifier asks
+whether the population this repository meant to run existed, ran and passed. It cannot ask
+whether the code that passed did so while reading freed memory or overflowing a signed integer,
+because a wrong answer is not the failure mode — *no answer changing at all* is:
+
+| | ordinary lane | sanitizer lane |
+|---|---|---|
+| a `Placed` bound into a temporary `Scene` | **passes** | ASan `heap-use-after-free` |
+| `resolve_extent` without its overflow guard | **passes** | UBSan `signed integer overflow` |
+
+Both rows are measured, and both are real history rather than invented hazards. W-2 shipped the
+first one in committed test code; W-3 found signed-overflow UB in `ui::Rect::contains` — shared
+`ui/` code, on the ordinary Workshop press path. Each was caught by a hand-built sanitizer tree
+that existed for one phase and was then thrown away, and each had been called green by the
+ordinary lane.
+
+The instrumentation reaches the targets **this repository authors**, not the Loom it consumes: a
+stranger-path Loom arrives already compiled, and the Loom runs this same lane over itself next
+door. ASan's allocator is process-wide either way, so a Loom allocation freed and then read by
+Zengine code is still caught; a fault entirely inside Loom's compiled objects is Loom's lane's
+job. Both defects above were in Zengine's own code.
+
+The lane runs the **full** population — 15 entries, the SDL skin included (`gates active:
+always;sdl`, `surface` at 22). No floor is lowered and no gate is turned off to buy the
+instrumentation. A new target lists `zengine-sanitize` beside `zengine-warnings`; leaving it off
+does not fail the build, it just quietly leaves that target out of the witness.
 
 ## `timer/` — the Timer package
 

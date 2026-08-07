@@ -11,6 +11,12 @@ substrate truth lives in `../Loom/docs/`, machine router
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install"
 cmake --build build -j"$(nproc)"
 cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake        # the official lane
+
+# sanitizer lane: the same suites under ASan + UBSan (W-3a)
+cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install" -DZENGINE_SANITIZE=ON
+cmake --build build-san -j"$(nproc)"
+cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 ```
 
 - **Run `tests/verify.cmake`, not a bare `ctest`**, whenever a result is going
@@ -27,6 +33,31 @@ cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake        # the official lane
   reintroduce a private compiler flag for it here.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them
   all, plus compile-negative targets judged on their diagnostics.
+
+## The sanitizer lane is a SECOND kind of evidence (W-3a)
+
+`-DZENGINE_SANITIZE=ON` (ASan + UBSan, non-recovering) runs the same population
+under instrumentation; CI runs it on every push and PR. It is not a second
+correctness lane and it does not replace `verify.cmake` — the ordinary lane asks
+whether the intended population ran and passed, which cannot see a defect whose
+symptom is that *no answer changes*. Measured, both ways round:
+
+```text
+a Placed bound into a temporary Scene   ordinary PASSES   ASan  heap-use-after-free
+resolve_extent without its guard        ordinary PASSES   UBSan signed integer overflow
+```
+
+- W-2 shipped the first in committed test code; W-3 found signed-overflow UB in
+  `ui::Rect::contains`, in shared `ui/` code on the ordinary press path. Both
+  were called green by the ordinary lane. That is why this lane exists.
+- **A new target lists `zengine-sanitize` beside `zengine-warnings`.** Omitting
+  it does not fail anything — it silently drops that target out of the witness,
+  which is the one way this lane degrades.
+- It instruments what this repo AUTHORS, not the Loom it consumes (the Loom runs
+  the same lane over itself). ASan's allocator is process-wide, so a Loom
+  allocation misused by Zengine code is still caught.
+- It runs the **full** population, SDL skin included (`gates active: always;sdl`,
+  `surface` 22). Do not lower a floor or drop a gate to buy instrumentation.
 
 ## The population contract (C4, POP-01/POP-02)
 

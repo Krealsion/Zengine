@@ -43,7 +43,8 @@ target_link_libraries(snake-clock PRIVATE zengine-timer-vocabulary zengine-activ
 add_executable(zengine-snake play.cpp)
 target_link_libraries(zengine-snake
     PRIVATE loom::kernel loom::switchboard loom::core zengine-input-vocabulary
-            zengine-surface-vocabulary zengine-timer-vocabulary zengine-warnings)
+            zengine-surface-vocabulary zengine-timer-vocabulary zengine-warnings
+            zengine-sanitize)
 set(zengine_snake_runtime zengine-snake snake-world-v1 snake-world-v2 snake-score
     snake-controls snake-clock zengine-input zengine-timer
     zengine-skin-tui-classic zengine-skin-tui-block)
