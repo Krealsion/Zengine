@@ -80,7 +80,7 @@ timer                             doctest           always  78
 input                             doctest           always  15
 surface                           doctest           always  21
 surface                           doctest           sdl     1
-ui                                doctest           always  11
+ui                                doctest           always  12
 workshop                          doctest           always  51
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
