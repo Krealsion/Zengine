@@ -329,8 +329,15 @@ struct Handled {
 /// than a thing that happens somewhere off screen. The canvas, the object list
 /// and the inspector all read the selection, so all three follow from this one
 /// assignment; there is no "add it to the list too" step to forget.
+/// Returns 0 when the document has no identity left to mint (W-5: a document
+/// can arrive from a file, and a file can say its mint is spent). Nothing is
+/// created and nothing in the session moves -- a gesture that could not happen
+/// must not leave the selection somewhere new.
 inline std::int64_t create(WorkshopDoc& d, Session& s) {
     const std::int64_t id = doc::add_default(d);
+    if (id == 0) {
+        return 0;
+    }
     s.selected = id;
     refocus(d, s);
     return id;
@@ -416,7 +423,8 @@ inline Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t 
 /// something different and weaker: it AUTHORS A NEW VALUE that this viewport
 /// resolves to what the maker asked for. It does not reconstruct the value that
 /// was there before and it cannot, because several percentages name the same cell
-/// count (at a 48-cell workspace, 58% through 60% are all 28 cells). A maker who
+/// count (at a 48-cell workspace, 59% and 60% are both 28 cells -- 58% is 27, so
+/// the range this comment used to name was one wider than the truth). A maker who
 /// drags a 60%-wide object out and back gets the same PICTURE and a different
 /// NUMBER, and that is a true fact about shares rather than a defect.
 ///
@@ -811,10 +819,15 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // Two lines, because the canvas clips at its own width and a help line that
     // silently loses its last hint is worse than no hint. The maker's gestures
     // come first; the tool's own furniture second.
-    label(0, kHelpY, "n new | d delete | hjkl move | ,. width | -= height | tab object",
+    //
+    // It advertises `shift+hjkl` and not `,. width | -= height`, which is a
+    // REPAIR and not a W-5 addition: W-4 deleted those four bindings and left
+    // the help line naming them, so until now the tool's own instructions told
+    // a maker to press keys that do nothing.
+    label(0, kHelpY, "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
           surface::role::kMuted);
     label(0, kHelpY + 1,
-          "enter edit | esc cancel | up/down row | [ ] workspace | q quit",
+          "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
           surface::role::kMuted);
 
     return c;

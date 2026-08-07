@@ -178,7 +178,13 @@ template <> struct TextForm<ui::Extent> {
         return ui::Extent{mode, *amount};
     }
 
-    static const char* expected() { return "cells (12) or a share (70% -- type 70p)"; }
+    /// `70%`, because since W-4 that is what a maker types. The old wording
+    /// advertised `70p` as the route, which stopped being true when text became
+    /// text -- a refusal that recommends a workaround for a hole that has been
+    /// filled is worse than no recommendation. `70p` is still ACCEPTED (whether
+    /// this parser keeps a convenience spelling is its own question, and not
+    /// one persistence gets to answer); it is simply no longer advertised.
+    static const char* expected() { return "cells (12) or a share (70%)"; }
 };
 
 /// What a commit attempt did. Three outcomes, not two, because a maker needs to

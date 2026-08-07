@@ -11,11 +11,19 @@
 // SurfaceCanvas — exactly as the world publishes a SnakeVisual, and it never
 // touches the terminal.
 //
-// THIS FILE IS THE HOST, and only the host: the boot weave, `main()`, and the
-// two grants. Workshop's own weave lives in weave.hpp, where a suite can mount
-// it — W-4 moved it there to close P16, so `input message -> gesture -> semantic
-// operation` is a chain the tests can walk end to end instead of a claim the
-// report has to make.
+// THIS FILE IS THE HOST, and only the host: the boot weave, `main()`, the two
+// grants, and — since W-5 — the one command-line argument that says which file
+// this Workshop's document lives in. Workshop's own weave lives in weave.hpp,
+// where a suite can mount it — W-4 moved it there to close P16, so
+// `input message -> gesture -> semantic operation` is a chain the tests can walk
+// end to end instead of a claim the report has to make.
+//
+// THE HOST CHOOSES THE PATH AND THE WEAVE USES IT, which is the same division
+// the boot list already follows: where things are is the host's business, what
+// to do with them is the application's. Workshop still holds no privilege snake
+// does not — it opens an ordinary file with an ordinary standard-library call,
+// which is a power every program on this machine already has, and it needs no
+// grant, no broker and no capability to do it (see the specialness ledger).
 
 #include "weave.hpp"
 
@@ -122,10 +130,58 @@ std::string exe_dir() {
 
 } // namespace
 
-int main() {
+/// Which file this Workshop saves to and loads from.
+///
+/// `--document <path>`, defaulted to `workshop.json` in whatever directory the
+/// maker started Workshop in. That is the whole of W-5's path story, and the
+/// smallness is the point: there is no picker, no recent list, no project
+/// concept and no workspace manager, because none of those is needed to prove
+/// that a maker can close Workshop and get their work back. An unknown argument
+/// is REFUSED rather than ignored — a mistyped flag that silently saved to the
+/// default file is exactly the kind of quiet wrong answer persistence makes
+/// expensive.
+struct Arguments {
+    bool ok = true;
+    std::string complaint;
+    std::string document = zengine::workshop::persist::kDefaultDocumentName;
+};
+
+Arguments parse_arguments(int argc, char** argv) {
+    Arguments args;
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--document") {
+            if (i + 1 >= argc) {
+                args.ok = false;
+                args.complaint = "--document needs a path";
+                return args;
+            }
+            args.document = argv[++i];
+            continue;
+        }
+        args.ok = false;
+        args.complaint = "unknown argument `" + arg + "`";
+        return args;
+    }
+    if (args.document.empty()) {
+        args.ok = false;
+        args.complaint = "--document needs a path";
+    }
+    return args;
+}
+
+int main(int argc, char** argv) {
+    const Arguments args = parse_arguments(argc, argv);
+    if (!args.ok) {
+        std::printf("zengine-workshop - %s\nusage: zengine-workshop [--document <path>]\n",
+                    args.complaint.c_str());
+        return 2;
+    }
+
     // The honest line, in plain scrollback, exactly as snake's host prints it:
     // this host isolates nothing.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
+    std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -135,6 +191,7 @@ int main() {
 
     HostContext host;
     host.dir = exe_dir();
+    host.document_path = args.document;
     host.request_stop = [&bus] { bus.stop(); };
 
     // Workshop's own reach: the right to SPEAK its screen, and nothing else. It

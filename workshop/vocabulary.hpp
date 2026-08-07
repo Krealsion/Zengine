@@ -44,10 +44,15 @@
 //     already prove medium-agnostic ink; see surface/vocabulary.hpp).
 //   - no z / no ordering field. Paint order is list order, once, in
 //     SurfaceCanvas — and now also in ui::Scene, which says the same thing
-//     about the same sequence.
-//   - no persisted anything. Workshop does not save (the phase's explicit
-//     non-goal), and the shapes are honest about that by carrying nothing
-//     whose only purpose would be to survive a save.
+//     about the same sequence. W-5 made that sequence a PERSISTED fact, because
+//     it is semantically observable four ways (paint order, which object a
+//     click finds under an overlap, the object list, and where the selection
+//     lands after a delete) — but it is still the order of the vector and not
+//     a field on an element.
+//   - no field whose only purpose is to survive a save. W-5 gave Workshop
+//     persistence and this struct did not change: what a maker authored was
+//     already all of it, and the FILE's shape lives in persist.hpp, separate
+//     on purpose (see the note there).
 //
 // THE STATE IS PUBLIC AND THAT IS THE SUBSTRATE'S REQUIREMENT, NOT A CHOICE.
 // ZEN_SHAPE registers members by pointer-to-member (`&ZenSelf::member`), so a
@@ -74,10 +79,19 @@ namespace zengine::workshop {
 ///
 /// What is NOT here is as load-bearing as what is: the SELECTION, the workspace
 /// extent, and every editor draft are session facts, not authored content, and
-/// they live as plain members of the weave (workshop.cpp) exactly the way a
-/// Skin's `announced_` flag does. W-0 has no persistence boundary to test that
-/// split against, so the split is made structurally instead — the two kinds of
-/// fact cannot be confused because they are not in the same struct.
+/// they live as plain members of the weave (weave.hpp) exactly the way a Skin's
+/// `announced_` flag does. W-0 had no persistence boundary to test that split
+/// against, so the split was made structurally instead — the two kinds of fact
+/// cannot be confused because they are not in the same struct.
+///
+/// W-5 IS THAT TEST, AND THE SPLIT HELD. The persistence boundary is exactly
+/// this struct: everything in it survives a process, nothing outside it does,
+/// and no field had to move in either direction. The strongest evidence is the
+/// workspace extent — it is the one session fact a save would have been most
+/// tempted to keep, and keeping it would have destroyed the proof that a share
+/// is authored rather than resolved (load the same file into a narrower
+/// workspace and the authored `60%` is unchanged while the resolved cells are
+/// not).
 ///
 /// ZEN_EXPOSE(): every field is poke-manipulable, deliberately and in the open.
 /// The document holds no secrets, live manipulation is the substrate's point,
@@ -90,6 +104,13 @@ namespace zengine::workshop {
 struct WorkshopDoc {
     std::vector<ui::Element> elements;
     std::int64_t next_id = 1; ///< the identity mint; document-owned, so it rides with the document
+
+    /// Two documents are the same document when they hold the same objects in
+    /// the same order with the same mint. Used by the weave to answer "is what
+    /// is on screen what is on disk" by COMPARING rather than by a dirty flag —
+    /// a flag needs a hand at every write site and is wrong the first time one
+    /// is missed, while a comparison cannot drift from the thing it describes.
+    friend bool operator==(const WorkshopDoc&, const WorkshopDoc&) = default;
 
     ZEN_EXPOSE();
     ZEN_SHAPE(WorkshopDoc, 1, ZEN_FIELD(elements), ZEN_FIELD(next_id));
