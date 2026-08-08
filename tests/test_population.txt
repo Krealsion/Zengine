@@ -81,7 +81,7 @@ input                             doctest           always  24
 surface                           doctest           always  22
 surface                           doctest           sdl     1
 ui                                doctest           always  22
-workshop                          doctest           always  119
+workshop                          doctest           always  130
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
