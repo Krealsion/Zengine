@@ -1458,10 +1458,14 @@ TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they a
     // PHYSICAL OVERSHOOT, on a share: the far wall is 100%, and it is the
     // VOCABULARY's wall rather than the workspace being a barrier -- a share OF
     // the viewport cannot be more than the whole of it.
-    const Handled far = size_to(d, s, id, 400, 4);
-    CHECK(far.accepted());
-    CHECK(far.clamped());
-    CHECK(far.boundary == kAtWholeContext);
+    // `far_end`, not `far`: the Windows SDK still carries the 16-bit memory-model
+    // keywords as empty object-like macros (`#define far` in minwindef.h), so a
+    // variable named `far` vanishes mid-declaration under MSVC and the line after it
+    // becomes a syntax error. Same in the two other places this name was natural.
+    const Handled far_end = size_to(d, s, id, 400, 4);
+    CHECK(far_end.accepted());
+    CHECK(far_end.clamped());
+    CHECK(far_end.boundary == kAtWholeContext);
     CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
     CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 48);
 
@@ -3879,10 +3883,10 @@ TEST_CASE("a hand stops at the workspace edge for a dependent too, and the offse
 
     const ui::Rect b_was = rect_of(d, s, 2);
     REQUIRE(take_hold(d, s, b_was.x, b_was.y) == 2);
-    const Handled far = drag_to(d, s, -20, -20);
-    CHECK(far.accepted());
-    CHECK(far.clamped());
-    CHECK(far.boundary == kAtWorkspaceStart);
+    const Handled far_end = drag_to(d, s, -20, -20);
+    CHECK(far_end.accepted());
+    CHECK(far_end.clamped());
+    CHECK(far_end.boundary == kAtWorkspaceStart);
 
     // It stopped where a maker can SEE it stop: the workspace's first cell.
     CHECK(rect_of(d, s, 2).x == doc::kFirstCell);
@@ -3936,9 +3940,9 @@ TEST_CASE("resizing a dependent's share asks for a share of its SOURCE, not the 
 
     // The far wall is 100% OF THE SOURCE, and it says so in words that are true
     // in any context.
-    const Handled far = size_to(d, s, 2, 400, 4);
-    CHECK(far.clamped());
-    CHECK(far.boundary == kAtWholeContext);
+    const Handled far_end = size_to(d, s, 2, 400, 4);
+    CHECK(far_end.clamped());
+    CHECK(far_end.boundary == kAtWholeContext);
     CHECK(doc::find(d, 2)->width == ui::Extent{ui::kExtentPercent, 100});
     CHECK(rect_of(d, s, 2).w == 40); // the whole of #1, not the whole workspace
 }
