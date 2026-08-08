@@ -177,15 +177,27 @@ zengine_compile_test(timer_raw_activation_refused zengine-cn-collision "on_timed
 
 zengine_compile_test(timer_activation_hook_compiles zengine-cn-hook)
 
+# TWO SPELLINGS OF ONE REFUSAL, because the compilers genuinely refuse it differently
+# (MSVC-0). GCC reaches the authored static_assert in timer/binding.hpp and prints the
+# sentence that tells a maker what to add. MSVC does NOT: its requires-expression accepts
+# `s.on(f, m)` there, so the guard passes and the hidden handler surfaces one layer later
+# as the raw conversion failure instead. The WALL holds identically on both -- the weave
+# cannot be built either way, which is the property under test -- but the GUIDANCE is
+# GCC-only, and that difference is recorded as pressure rather than smoothed over here.
+# Each alternative is specific enough to disappear if the wall ever stopped working.
 zengine_compile_test(timer_missing_using_refused zengine-cn-missing-using
-                     "using TimedWeave::on")
+                     "using TimedWeave::on|cannot convert argument 1 from 'const zengine::timer::TimerFired'")
 
 # The hook runs INSIDE an accepted activation, so it must not be able to accept
 # again. `activation()` hands back a const& and `accept` is non-const, so the
 # attempt cannot compile — and this is what keeps that true, since a mutation
 # widening the accessor to a mutable reference is otherwise invisible: no
 # runtime case can produce an input the language refuses to express.
-zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor "discards qualifiers")
+# GCC says "discards qualifiers", MSVC says "Conversion loses qualifiers" -- the same
+# const-correctness refusal, two house styles. Both compilers DO reach it (unlike the
+# case above), so one pattern covers them without weakening the claim.
+zengine_compile_test(timer_cursor_bypass_refused zengine-cn-cursor
+                     "(discards|loses) qualifiers")
 
 # The Input suite: its own executable so each package's green stays its own
 # count (the snake suite's numbers must not move when input's do). It speaks
