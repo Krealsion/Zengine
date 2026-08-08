@@ -54,12 +54,13 @@ cmake --build build-dev -j"$(nproc)"
 cmake -DZEN_BUILD_DIR=build-dev -P tests/verify.cmake
 ```
 
-On **Windows** (MinGW), the dev override is also the turnkey path, because it is the one that
-brings a kernel: dev mode defaults `LOOM_ENABLE_WINDOWS_KERNEL=ON` — the Loom's explicit
-development/demo backend (**no isolation**; the Loom prints its banner and
-`Kernel::containment_note()` says so) — so the snake package and its suite build and run
-natively. Pass `-DLOOM_ENABLE_WINDOWS_KERNEL=OFF` to decline. The MinGW runtime DLLs must be
-on `PATH` (or beside the binaries) to run.
+On **Windows** — under **MinGW-w64 and MSVC alike** — the dev override is also the turnkey
+path, because it is the one that brings a kernel: dev mode defaults
+`LOOM_ENABLE_WINDOWS_KERNEL=ON` — the Loom's explicit development/demo backend (**no
+isolation**; the Loom prints its banner and `Kernel::containment_note()` says so) — so the
+snake package and its suite build and run natively. Pass
+`-DLOOM_ENABLE_WINDOWS_KERNEL=OFF` to decline. With MinGW the runtime DLLs must be on
+`PATH` (or beside the binaries) to run.
 
 ```powershell
 # Windows / MinGW — one flag more than it used to be, on purpose
@@ -67,6 +68,20 @@ cmake -S . -B build-win -G Ninja -DZEN_LOOM_DEV=ON
 cmake --build build-win
 cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 ```
+
+```powershell
+# Windows / MSVC — from a Developer PowerShell (or after vcvars64.bat)
+cmake -S . -B build-msvc -G Ninja -DZEN_LOOM_DEV=OFF "-DCMAKE_PREFIX_PATH=<loom prefix>"
+cmake --build build-msvc
+cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
+```
+
+Zengine adds **no MSVC-specific flag of its own**, and that is the point: Loom's public
+macro surface needs `/Zc:preprocessor`, and `loom::core` carries it as an interface
+requirement, so a consumer inherits it by linking. A compatibility flag copied into this
+repo would mean the package had stopped carrying its own law. Tested on MSVC 19.50 (Visual
+Studio 2026) x64; clang-cl and ARM64 are unverified, and the Linux-only sandbox is
+unaffected by any of this.
 
 Both paths expose the **same target names** (`loom::core`, `loom::switchboard`,
 `loom::kernel`) — the Loom's export sets `EXPORT_NAME` to match its in-tree aliases — so the

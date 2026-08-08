@@ -283,3 +283,90 @@ jobs:
       # slack floor, so advisory green means the same test-population thing.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
+
+  # The MSVC stranger (MSVC-0). The same shape as the MinGW job above, and that is the
+  # claim: Zengine carries NO MSVC-specific compile option of its own. Loom's public
+  # macro surface needs /Zc:preprocessor and `loom::core` exports it as an interface
+  # requirement, so this lane going green while this file adds nothing is exactly the
+  # evidence that the package -- not the consumer -- owns that law. If this job ever
+  # needs a flag added here to pass, the requirement has stopped riding the package and
+  # the fix belongs in Loom.
+  zengine-windows-msvc-stranger:
+    name: Zengine / Windows / MSVC Loom stranger (advisory)
+    needs: resolve-loom
+    runs-on: windows-2025
+    continue-on-error: true
+    timeout-minutes: 60
+    steps:
+      - name: Check out Zengine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record selected MSVC toolset
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "No MSVC x64 toolset on this image" }
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          cl 2>&1 | Select-Object -First 2
+          cmake --version
+          ninja --version
+
+      - name: Fetch pinned canonical Loom
+        shell: pwsh
+        env:
+          LOOM_SHA: ${{ needs.resolve-loom.outputs.sha }}
+        run: |
+          $loomSource = Join-Path $env:RUNNER_TEMP 'loom-src-msvc'
+          git init $loomSource
+          git -C $loomSource remote add origin https://github.com/Krealsion/Loom.git
+          git -C $loomSource fetch --depth=1 origin $env:LOOM_SHA
+          git -C $loomSource checkout --detach FETCH_HEAD
+          $actual = git -C $loomSource rev-parse HEAD
+          if ($actual -ne $env:LOOM_SHA) {
+            throw "Expected Loom $env:LOOM_SHA, got $actual"
+          }
+
+      - name: Build and install kernel-full Loom to a fresh prefix with MSVC
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          $loomSource = Join-Path $env:RUNNER_TEMP 'loom-src-msvc'
+          $loomBuild = Join-Path $env:RUNNER_TEMP 'loom-build-msvc'
+          $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix-msvc'
+          if (Test-Path -LiteralPath $loomPrefix) {
+            throw "Fresh Loom prefix already exists: $loomPrefix"
+          }
+          cmake -S $loomSource -B $loomBuild -G Ninja `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DZEN_BUILD_TESTS=OFF `
+            -DZEN_BUILD_EXAMPLES=OFF `
+            -DLOOM_ENABLE_WINDOWS_KERNEL=ON
+          cmake --build $loomBuild
+          cmake --install $loomBuild --prefix $loomPrefix
+
+      - name: Configure and build Zengine as a stranger with MSVC
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix-msvc'
+          cmake -S . -B build-msvc -G Ninja `
+            -DCMAKE_BUILD_TYPE=Debug `
+            "-DCMAKE_PREFIX_PATH=$loomPrefix" `
+            -DZEN_LOOM_DEV=OFF `
+            -DBUILD_TESTING=ON `
+            -DZENGINE_SDL_SKIN=OFF
+          cmake --build build-msvc
+
+      - name: Verify the repository-owned population
+        shell: pwsh
+        run: cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
