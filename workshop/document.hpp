@@ -66,6 +66,34 @@
 // path does not need them (it satisfies them by construction) and why that is
 // not a second set of laws.
 
+// W-6 ADDED THE FIRST FACT ABOUT ONE OBJECT THAT IS ALSO A FACT ABOUT ANOTHER --
+// `context`, the identity whose frame this object's values are read in -- and
+// the shape of this package answered it without changing:
+//
+//   `set_context`      the one operation that writes a context, and the third
+//                      instance of the pattern `move` and `resize` established:
+//                      a maker's act is judged WHOLE before any of it is
+//                      written. It judges three facts, because changing a
+//                      context can make an already-written coordinate illegal.
+//   `check_context`    what this document will accept as a relationship: an
+//                      identity that exists, that is not this object, and whose
+//                      own chain does not come back here.
+//   `check_document`   the same law over every object at once, so a loaded file
+//                      and a keystroke are refused in the same words.
+//   `remove`           gained its second refusal: a source something measures
+//                      against is not deletable. That is a POLICY, argued at
+//                      the function, and it is Workshop's -- not a property of
+//                      the vocabulary.
+//
+// AND ONE OLD LAW TURNED OUT TO BE NARROWER THAN IT WAS WRITTEN. `check_coord`
+// refused every negative coordinate; its stated reason was that the workspace
+// has no cells before 0, which is a fact about the WORKSPACE and not about
+// coordinates. In another element's frame a coordinate is an offset, -1 is an
+// ordinary thing to author, and the cell it lands on may well exist. So the
+// check now takes the context it is judging in and the root's guard is exactly
+// as strong as it was. That is a repair, not a widening: the law was always the
+// root's, and it had simply never been asked in any other frame.
+
 #include "property.hpp"
 #include "vocabulary.hpp"
 
@@ -195,6 +223,45 @@ inline std::int64_t add_default(WorkshopDoc& d) {
                ui::Extent{ui::kExtentCells, kNewHeightCells});
 }
 
+/// Everything that measures against `id`, in document order.
+///
+/// One-directional on purpose. An element records what IT measures against and
+/// nothing records what measures against it, so this is a scan rather than a
+/// lookup -- and that asymmetry is the honest one: the relationship is a fact
+/// the dependent authored, and a back-pointer would be a second copy of it that
+/// every edit would have to remember to maintain.
+inline std::vector<std::int64_t> dependents_of(const WorkshopDoc& d, std::int64_t id) {
+    std::vector<std::int64_t> who;
+    if (id == ui::kRootContext) {
+        return who; // the root is not an object and nothing can be deleted out from under it
+    }
+    for (const ui::Element& e : d.elements) {
+        if (e.context == id) {
+            who.push_back(e.id);
+        }
+    }
+    return who;
+}
+
+/// A list of identities as a maker reads them: `#2`, or `#2 and #5`, or
+/// `#2, #5 and 3 others` — because a refusal that names two dozen objects is a
+/// refusal nobody reads.
+inline std::string identities_text(const std::vector<std::int64_t>& ids) {
+    constexpr std::size_t kShow = 2;
+    std::string out;
+    const std::size_t shown = ids.size() < kShow ? ids.size() : kShow;
+    for (std::size_t i = 0; i < shown; ++i) {
+        if (i > 0) {
+            out += (shown == ids.size() && i + 1 == shown) ? " and " : ", ";
+        }
+        out += "#" + std::to_string(ids[i]);
+    }
+    if (ids.size() > shown) {
+        out += " and " + std::to_string(ids.size() - shown) + " others";
+    }
+    return out;
+}
+
 /// Remove one authored object BY IDENTITY.
 ///
 /// By identity and never by position in the vector: an index is a fact about the
@@ -206,9 +273,38 @@ inline std::int64_t add_default(WorkshopDoc& d) {
 /// It refuses rather than quietly doing nothing, because "there is no such
 /// object" is a thing a maker did (pressed delete with nothing selected) and not
 /// a no-op worth hiding.
+///
+/// AND SINCE W-6 IT REFUSES A SECOND WAY: an object something else measures
+/// against cannot be deleted. That is a POLICY, chosen here, and the two
+/// alternatives were both rejected for changing a maker's work without being
+/// asked to:
+///
+///   delete the dependents too   would be treating a dependency as OWNERSHIP.
+///                               Nothing about "B's numbers are measured from
+///                               A's" says B is part of A, and deleting one
+///                               rectangle should never destroy another one a
+///                               maker cannot even see is related.
+///   move them to the root       would be rewriting their authored x/y's
+///                               MEANING while leaving the numbers alone. B at
+///                               2,1 in A's frame is somewhere; B at 2,1 in the
+///                               root's frame is somewhere else, and the tool
+///                               would have silently authored the move.
+///
+/// So it refuses and NAMES the dependents, and rewiring or deleting them is a
+/// separate act the maker performs deliberately. This is Workshop's document
+/// policy and not a property of `ui::Element::context`: another application may
+/// decide a source does own its dependents, and nothing in the vocabulary
+/// stops it.
 inline Written remove(WorkshopDoc& d, std::int64_t id) {
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
         if (d.elements[i].id == id) {
+            const std::vector<std::int64_t> who = dependents_of(d, id);
+            if (!who.empty()) {
+                return Written::no(identities_text(who) +
+                                   (who.size() == 1 ? " takes context from #" : " take context from #") +
+                                   std::to_string(id) + " -- change or delete " +
+                                   (who.size() == 1 ? "it" : "them") + " first");
+            }
             d.elements.erase(d.elements.begin() + static_cast<std::ptrdiff_t>(i));
             return Written::ok();
         }
@@ -335,15 +431,40 @@ inline constexpr std::int64_t kFirstCell = 0;
 
 /// Position: a rectangle may sit anywhere in the workspace, including partly off
 /// its right or bottom edge (the canvas clips, and a maker dragging something
-/// half out of view has not made a mistake). Negative is refused, because the
-/// workspace has no cells there at all -- the object would be authored somewhere
-/// that does not exist.
+/// half out of view has not made a mistake). Negative is refused AT THE ROOT,
+/// because the workspace has no cells there at all -- the object would be
+/// authored somewhere that does not exist.
+///
+/// W-6 ASKED WHETHER THAT WAS A LAW ABOUT COORDINATES OR A LAW ABOUT THE ROOT,
+/// and the answer is in the sentence above: "the workspace has no cells there".
+/// That is a fact about the WORKSPACE. A coordinate authored in another
+/// element's frame is an OFFSET FROM ITS ORIGIN, and -1 there means "one cell
+/// before my source starts", which is an ordinary thing to want (a marker on a
+/// panel's left edge, a badge over its corner) and which resolves to a cell that
+/// exists whenever the source is not itself at 0. So the rule now says what it
+/// always meant:
+///
+///     context == root     the coordinate IS a workspace cell. Unchanged: the
+///                         workspace starts at 0 and nothing may be authored
+///                         before it.
+///     context == an id    the coordinate is an offset in that element's frame.
+///                         Any offset is authorable; where it lands is
+///                         resolution's answer, and landing outside the
+///                         workspace is the same already-legal situation as an
+///                         object authored past the right edge.
+///
+/// The root's guard did not weaken by one cell, and it is now stated as being
+/// the root's rather than being every coordinate's by accident. What a HAND is
+/// allowed to reach is a separate question with a separate answer -- screen.hpp
+/// stops a drag at the workspace edge in RESOLVED cells, for everybody, so a
+/// dependent dragged left stops where a maker can see it stop and the negative
+/// offset is what that stop is authored AS.
 ///
 /// One check, shared by every operation that writes a coordinate, for the same
 /// reason `check_extent` is shared by width and height: two spellings of one rule
 /// is how a typed edit and a dragged one come to disagree about what is legal.
-inline Written check_coord(std::int64_t v) {
-    if (v < kFirstCell) {
+inline Written check_coord(std::int64_t v, std::int64_t context) {
+    if (context == ui::kRootContext && v < kFirstCell) {
         return Written::no("the workspace starts at 0");
     }
     return Written::ok();
@@ -368,11 +489,14 @@ inline Written move(WorkshopDoc& d, std::int64_t id, std::int64_t x, std::int64_
     if (e == nullptr) {
         return Written::no("no such object");
     }
-    const Written cx = check_coord(x);
+    // The object's OWN context decides which coordinate domain this proposal is
+    // in. It is read from the element rather than passed in, so a caller cannot
+    // supply a domain the object is not actually in.
+    const Written cx = check_coord(x, e->context);
     if (!cx.accepted) {
         return cx;
     }
-    const Written cy = check_coord(y);
+    const Written cy = check_coord(y, e->context);
     if (!cy.accepted) {
         return cy;
     }
@@ -395,6 +519,158 @@ inline Written set_y(WorkshopDoc& d, std::int64_t id, std::int64_t y) {
         return Written::no("no such object");
     }
     return move(d, id, e->x, y);
+}
+
+// ---- The one relationship, and the law it lives under ----------------------------------
+//
+// W-6's whole authored addition is one identity per element, and everything in
+// this section exists because an identity that names another object can name one
+// that is not there, or one whose own chain comes back around. Both are
+// REFUSALS, and both are refused in the same words whether they arrive by a
+// maker's keystroke or out of a file -- there is one law, stated here, and
+// `check_document` and `set_context` are the two doors that ask it.
+//
+// WHAT IS NOT HERE, and could not be: how deep a chain may go. There is no limit
+// and there is deliberately no constant to find. The only bound is that a chain
+// visiting more objects than the document holds has visited one twice, which is
+// what a cycle IS -- so depth is bounded by the document's own size and by
+// nothing this file decided.
+
+/// How a broken chain reads: `#7 -> #9 -> #7`, cut off before it becomes wall.
+///
+/// CUT BY CHARACTERS AND NOT BY LINKS, which is the difference between a cap
+/// that works and one that looks like it does. Workshop's notice is ONE LINE and
+/// the canvas clips at its own width, so a refusal that does not fit is a
+/// refusal whose tail a maker never sees -- and the tail of a cycle message is
+/// the part that names the loop. The first live W-6 run printed a two-object
+/// cycle one character too long and lost its closing bracket; a fixed link count
+/// then failed the same way one identity later, because an identity is an
+/// int64 and `#9223372036854775807` is twenty characters on its own.
+///
+/// WHAT IT DOES NOT CLAIM: that every refusal fits. The prose around the chain
+/// carries two identities of its own, so a document whose objects are numbered
+/// in the quadrillions can still overrun the line. That is the notice line's
+/// standing limit rather than this function's, it is recorded as pressure, and
+/// nothing here pretends to have closed it.
+inline constexpr std::size_t kMaxChainChars = 20;
+
+inline std::string chain_text(const std::vector<std::int64_t>& ids) {
+    std::string out;
+    std::size_t shown = 0;
+    for (const std::int64_t id : ids) {
+        const std::string next = (shown == 0 ? "" : " -> ") + ("#" + std::to_string(id));
+        if (out.size() + next.size() > kMaxChainChars) {
+            break;
+        }
+        out += next;
+        ++shown;
+    }
+    if (shown < ids.size()) {
+        out += (shown == 0 ? "..." : " -> ...");
+    }
+    return out;
+}
+
+/// Whether `candidate` may supply `id`'s frame — the ONE STATEMENT of the
+/// relationship law, asked about one proposal.
+///
+/// Three refusals, each naming the number a maker can act on:
+///
+///   itself         an object measured against itself has no frame at all, and
+///                  it is the cycle a maker is most likely to type by accident.
+///   nothing        `#999` when nothing carries 999. It is refused rather than
+///                  quietly becoming the root, because a missing dependency is
+///                  not the same fact as no dependency, and a tool that turned
+///                  one into the other would silently move the object.
+///   a cycle        `candidate`'s own chain already runs through `id`, so
+///                  writing this would close a loop that never reaches the
+///                  workspace. The test is exactly that -- ask the source where
+///                  it measures FROM, and refuse if the answer comes back here.
+///
+/// The chain is walked by `ui::walk_context`, which is also what checks a whole
+/// loaded document, so an interactive rewire and a file are judged by one
+/// implementation rather than by two that agree today.
+inline Written check_context(const std::vector<ui::Element>& elements, std::int64_t id,
+                             std::int64_t candidate) {
+    if (candidate == ui::kRootContext) {
+        return Written::ok(); // the root is always there; that is what makes it the root
+    }
+    if (candidate == id) {
+        return Written::no("#" + std::to_string(id) +
+                           " cannot take its context from itself");
+    }
+    const ui::ById index(elements);
+    if (index.find(candidate) == ui::ById::npos) {
+        return Written::no("no object #" + std::to_string(candidate) +
+                           " to take context from");
+    }
+    // No memo: the COMPLETE chain is the answer here, and a memo shortens it.
+    const ui::ContextWalk walk = ui::walk_context(elements, index, candidate);
+    if (walk.end == ui::ContextEnd::Missing) {
+        return Written::no("#" + std::to_string(candidate) + " takes context from #" +
+                           std::to_string(walk.at) + ", which is not an object");
+    }
+    if (walk.end == ui::ContextEnd::Cycle || walk.passes_through(id)) {
+        std::vector<std::int64_t> loop;
+        loop.push_back(id);
+        for (const std::int64_t step : walk.chain) {
+            loop.push_back(step);
+            if (step == id) {
+                break;
+            }
+        }
+        if (loop.back() != id) {
+            loop.push_back(walk.at);
+        }
+        return Written::no("#" + std::to_string(id) + " cannot use #" +
+                           std::to_string(candidate) + " as context: a cycle (" +
+                           chain_text(loop) + ")");
+    }
+    return Written::ok();
+}
+
+/// Author what an object's values are measured against. THE ONE PLACE a context
+/// is written in this package.
+///
+/// It is one operation over three facts, for exactly the reason `move` is one
+/// operation over two coordinates: changing a context can make an existing,
+/// previously legal coordinate illegal, and half-authoring that is the
+/// refusal-beside-a-successful-write this package has removed twice already. A
+/// dependent sitting at x = -3 is legal (it is an offset in its source's frame);
+/// the same object moved to the ROOT would be authored three cells before the
+/// workspace begins. So the coordinates are re-judged IN THE PROPOSED DOMAIN
+/// before anything is written, and a refused rewire leaves the object exactly as
+/// it was -- context and position both.
+///
+/// WHAT IT DELIBERATELY DOES NOT DO: compensate. The authored x/y and the
+/// authored extents are left exactly as the maker wrote them, so an object
+/// rewired from the root into a source at 10,4 visibly MOVES. The alternative --
+/// rewriting x/y to preserve the picture -- would author two facts a maker
+/// changed one of, which is the silent correction the whole authored/resolved
+/// discipline exists to prevent. (A future "drag B into A" gesture is a
+/// different act and may reasonably project the hand instead; that is a gesture
+/// question, and gestures live in screen.hpp.)
+inline Written set_context(WorkshopDoc& d, std::int64_t id, std::int64_t candidate) {
+    ui::Element* e = find_mut(d, id);
+    if (e == nullptr) {
+        return Written::no("no such object");
+    }
+    const Written legal = check_context(d.elements, id, candidate);
+    if (!legal.accepted) {
+        return legal;
+    }
+    const Written cx = check_coord(e->x, candidate);
+    if (!cx.accepted) {
+        return Written::no("#" + std::to_string(id) + " is at " + std::to_string(e->x) + "," +
+                           std::to_string(e->y) + " -- " + cx.refusal);
+    }
+    const Written cy = check_coord(e->y, candidate);
+    if (!cy.accepted) {
+        return Written::no("#" + std::to_string(id) + " is at " + std::to_string(e->x) + "," +
+                           std::to_string(e->y) + " -- " + cy.refusal);
+    }
+    e->context = candidate;
+    return Written::ok();
 }
 
 // ---- A whole document, and the one door that admits one -------------------------------
@@ -443,11 +719,11 @@ inline Written check_document(const WorkshopDoc& d) {
         if (!name.accepted) {
             return Written::no(who + name.refusal);
         }
-        const Written cx = check_coord(e.x);
+        const Written cx = check_coord(e.x, e.context);
         if (!cx.accepted) {
             return Written::no(who + cx.refusal);
         }
-        const Written cy = check_coord(e.y);
+        const Written cy = check_coord(e.y, e.context);
         if (!cy.accepted) {
             return Written::no(who + cy.refusal);
         }
@@ -460,10 +736,14 @@ inline Written check_document(const WorkshopDoc& d) {
             return Written::no(who + "height: " + ch.refusal);
         }
     }
-    // Distinctness last, and by sorting a copy rather than by a nested loop:
-    // the object count is bounded by the decoder's materialization budget and
-    // not by anything a screen can show, so the quadratic form is a cost a
-    // hostile file gets to choose.
+    // Distinctness before the relationships, and by sorting a copy rather than
+    // by a nested loop: the object count is bounded by the decoder's
+    // materialization budget and not by anything a screen can show, so the
+    // quadratic form is a cost a hostile file gets to choose.
+    //
+    // It goes FIRST of the two because a relationship names an identity, and
+    // "the object called #4" is not a question with one answer while two objects
+    // are both called #4.
     std::vector<std::int64_t> ids;
     ids.reserve(d.elements.size());
     for (const ui::Element& e : d.elements) {
@@ -474,6 +754,27 @@ inline Written check_document(const WorkshopDoc& d) {
     if (twice != ids.end()) {
         return Written::no("#" + std::to_string(*twice) +
                            ": two objects cannot share one identity");
+    }
+    // The relationships. One pass over the whole document rather than one walk
+    // per object: `settled` remembers which objects have already been proven to
+    // reach the workspace, so an element is visited once and a thousand-deep
+    // chain costs a thousand steps rather than a thousand squared. A file gets
+    // to choose the object count; it does not also get to choose the exponent.
+    const ui::ById index(d.elements);
+    std::vector<char> settled(d.elements.size(), 0);
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        const ui::Element& e = d.elements[i];
+        const std::string who = "#" + std::to_string(e.id) + ": ";
+        const ui::ContextWalk walk = ui::walk_context(d.elements, index, e.context, &settled);
+        if (walk.end == ui::ContextEnd::Missing) {
+            return Written::no(who + "no object #" + std::to_string(walk.at) +
+                               " to take context from");
+        }
+        if (walk.end == ui::ContextEnd::Cycle) {
+            return Written::no(who + "its context never reaches the workspace (" +
+                               chain_text(walk.chain) + ")");
+        }
+        settled[i] = 1; // its own chain reaches the workspace, so it is settled too
     }
     return Written::ok();
 }
@@ -531,6 +832,23 @@ inline Property<std::string> name_of(WorkshopDoc& d, std::int64_t id) {
             return e == nullptr ? std::string() : e->label;
         },
         [&d, id](std::string v) { return rename(d, id, std::move(v)); });
+}
+
+/// What this object's values are measured against. The relationship, as an
+/// ordinary editable property — which is the whole of W-6's authoring surface.
+///
+/// There is no tree editor, no node graph and no hierarchy panel, because the
+/// relationship is one field and the inspector already knows how to edit one
+/// field. That it cost a single line here is the measurement: the property
+/// machinery W-0 built for `Name` carried a relationship without being told
+/// relationships exist.
+inline Property<ContextRef> context_of(WorkshopDoc& d, std::int64_t id) {
+    return Property<ContextRef>(
+        [&d, id] {
+            const ui::Element* e = find(d, id);
+            return e == nullptr ? ContextRef{} : ContextRef{e->context};
+        },
+        [&d, id](ContextRef v) { return set_context(d, id, v.id); });
 }
 
 inline Property<std::int64_t> x_of(WorkshopDoc& d, std::int64_t id) {

@@ -35,10 +35,15 @@
 // WHAT IS DELIBERATELY ABSENT, so the absence is a decision rather than an
 // oversight:
 //
-//   - no parent/child. A hierarchy of one level (the document holds
-//     elements) is the hierarchy Workshop actually needs to name and select an
-//     object; nesting is W0 work with its own evidence to produce, and it is
-//     now a named seam in the UI package rather than a gap here.
+//   - STILL no parent/child, and W-6 is the phase that makes the absence a
+//     measured claim rather than a deferral. An element now says what its
+//     values are measured against (ui::Element::context), which is what
+//     composition actually needed; it says nothing about containment,
+//     ownership, clipping, painting or lifetime. Workshop authors ONE policy
+//     over that -- a source with dependents is not deletable (document.hpp) --
+//     and that policy is Workshop's, in Workshop's document law, not a
+//     property of the relationship. "Put B inside A" remains a thing an
+//     application could build; it is not a thing this document does.
 //   - no colour. It would be a third semantic property type and it buys the
 //     phase nothing the extent does not already buy (the canvas roles
 //     already prove medium-agnostic ink; see surface/vocabulary.hpp).
@@ -113,7 +118,12 @@ struct WorkshopDoc {
     friend bool operator==(const WorkshopDoc&, const WorkshopDoc&) = default;
 
     ZEN_EXPOSE();
-    ZEN_SHAPE(WorkshopDoc, 1, ZEN_FIELD(elements), ZEN_FIELD(next_id));
+    /// Version 2 since W-6. Its OWN two fields are unchanged -- what moved is
+    /// `ui::Element`, which went to v2 when it grew a context -- and a schema's
+    /// content-id is derived from the whole shape, so this one changed too. A
+    /// version that claimed otherwise would be saying "the same shape" about a
+    /// different shape.
+    ZEN_SHAPE(WorkshopDoc, 2, ZEN_FIELD(elements), ZEN_FIELD(next_id));
 };
 
 } // namespace zengine::workshop

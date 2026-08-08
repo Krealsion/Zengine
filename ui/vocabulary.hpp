@@ -35,9 +35,13 @@
 //     Loom's loom::Widget is that other, higher thing (intent + RELATIONSHIP,
 //     resolved by a renderer) and it stays where it is -- see W-1-RB for the
 //     measurement that separated the two models.
-//   - no parent/child. W-0 authored a flat document and W-1 moved exactly that.
-//     Nesting is the named seam: it is where this model grows, and it grows on
-//     the day an application authors a child, not before.
+//   - no parent/child. W-6 changed what this line MEANS rather than deleting it,
+//     and the difference is the phase. An element may now say what its authored
+//     values are measured AGAINST (`context`, below); it still does not say that
+//     anything CONTAINS it, owns it, clips it, paints it or dies with it. A
+//     source supplies a frame. That is the whole relationship, and parent/child
+//     is one thing an application could BUILD out of it rather than the thing
+//     this vocabulary provides.
 //   - no colour, no z, no style. Paint order is list order, said once.
 //   - nothing about PAINTING. zengine::surface::SurfaceCanvas is the drawing
 //     vocabulary; a resolved scene is what you paint FROM. This package must
@@ -46,10 +50,13 @@
 
 #include <zen/weave/shape.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace zengine::ui {
 
@@ -80,8 +87,18 @@ struct Extent {
     ZEN_SHAPE(Extent, 1, ZEN_FIELD(mode), ZEN_FIELD(amount));
 };
 
-/// One authored element of a UI: an identity, a display label, an authored
-/// placement, and two authored extents.
+/// The identity that is not an identity: "measure me against the root".
+///
+/// Zero, and it is zero for a reason that already existed. No element may carry
+/// identity 0 -- a document's mint starts at 1 and a session spells "nothing is
+/// selected" as 0 -- so the value is unavailable to mean anything else, and a
+/// default-constructed Element already says the ordinary thing. That is what
+/// keeps the flat case free: an element resolves against the root because its
+/// author said nothing, not because they filled in a node.
+inline constexpr std::int64_t kRootContext = 0;
+
+/// One authored element of a UI: an identity, a display label, what its values
+/// are measured against, an authored placement, and two authored extents.
 ///
 /// `id` IS the identity; `label` is text for a human and nothing more. They are
 /// separate fields on purpose, and the separation is proven rather than claimed:
@@ -96,23 +113,222 @@ struct Extent {
 ///
 /// PLACEMENT IS AUTHORED, EXTENT IS RESOLVABLE, and that asymmetry is the honest
 /// shape of the model rather than an oversight. `x`/`y` are what the maker said,
-/// in viewport cells, and resolution never changes them: there is no such thing
-/// as "50% across" here because no consumer has authored one. `width`/`height`
-/// carry intent a viewport must interpret, so they are Extents and the fence
+/// in cells, and resolution never reinterprets them: there is no such thing as
+/// "50% across" here because no consumer has authored one. `width`/`height`
+/// carry intent a context must interpret, so they are Extents and the fence
 /// below makes them impossible to spell as bare numbers.
+///
+/// AND EVERY ONE OF THOSE FOUR NUMBERS IS MEASURED AGAINST SOMETHING, which is
+/// what `context` finally says out loud. Before W-6 the something was always the
+/// viewport, implicitly, in one hard-coded line of `resolve` -- an origin of 0,0
+/// and a span of the whole workspace. It is now a value the maker authors:
+///
+///     context == kRootContext   x/y are offsets from the root's origin and an
+///                               extent's share is a share of the root's span.
+///                               The unchanged, default, ceremony-free case.
+///     context == some id        x/y are offsets from THAT element's resolved
+///                               origin and a share is a share of ITS resolved
+///                               span. See ui::resolve_in, which is that
+///                               sentence as four lines of arithmetic.
+///
+/// IT IS AN IDENTITY AND NEVER A POSITION. Not an index into the sequence, not a
+/// pointer, not a place in a Scene: those are facts about storage, and storage
+/// changes under every insertion, every reallocation, every save and every load,
+/// while an identity is the one thing a selection, a list marker, a hit test and
+/// a file already agree about. `#4` means the element carrying identity 4, not
+/// the fourth element.
+///
+/// WHAT IT DOES NOT SAY, listed because a reader arriving from any other UI
+/// toolkit will assume at least three of them: it does not say the source OWNS
+/// this element, contains it, clips it, paints it, must outlive it, or sits
+/// behind or in front of it. It says where this element's numbers are measured
+/// from. Every other relationship an application might want -- containment,
+/// ownership, z-order, a delete policy -- is that application's to author on
+/// top, and Workshop authors exactly one of them (a source may not be deleted
+/// while something still measures against it) as a POLICY of its own document,
+/// not as a property of this field.
 struct Element {
     std::int64_t id = 0;
     std::string label;
-    std::int64_t x = 0; ///< authored placement, in viewport cells, from the top-left
+    std::int64_t context = kRootContext; ///< whose frame this element's values are read in
+    std::int64_t x = 0; ///< authored placement, in cells, from that frame's top-left
     std::int64_t y = 0;
     Extent width;
     Extent height;
 
     friend bool operator==(const Element&, const Element&) = default;
 
-    ZEN_SHAPE(Element, 1, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(width), ZEN_FIELD(height));
+    /// Version 2 since W-6, because a published shape is immutable and this one
+    /// grew a field. The Loom would have caught the disagreement anyway -- a
+    /// content-id is derived from the shape, so two builds spelling `Element v1`
+    /// differently simply fail to agree rather than mis-decoding -- but a
+    /// version that says "the same shape" about a different shape is a lie the
+    /// mechanism does not need told. (`KeyPressed` went 1 -> 2 in W-4 for the
+    /// same reason.)
+    ZEN_SHAPE(Element, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(context), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(width), ZEN_FIELD(height));
 };
+
+// ---- Finding, and following, an authored relationship ----------------------------------
+//
+// Everything below answers questions about AUTHORED relationships only. Not one
+// of these functions takes a viewport, produces a number, or knows what a
+// rectangle is -- which is why they live on this side of the split. "Does this
+// chain reach the root?" is a fact about what a maker wrote; "how many cells is
+// it?" is a fact about a viewport, and that one is layout.hpp's.
+
+/// A by-identity index over an authored sequence.
+///
+/// It exists because a relationship names an IDENTITY, and every use of one has
+/// to find the element carrying it: resolution walks a context chain, and a
+/// document law checks every chain. A linear search per step makes both
+/// quadratic over a sequence whose length a FILE gets to choose -- the same
+/// reasoning that made Workshop's distinctness check sort a copy instead of
+/// nesting two loops. One build is O(n log n) and one lookup is O(log n).
+///
+/// DUPLICATE IDENTITIES ARE REPRESENTABLE HERE, and the index says what it does
+/// about them rather than assuming they are gone. Distinctness is a DOCUMENT
+/// law, and authored content arrives from a poke as well as from a checked edit,
+/// so a sequence carrying one identity twice is a thing this vocabulary must
+/// still answer about. It answers with the FIRST position carrying the identity
+/// -- the same answer a linear search would have given, and the same one every
+/// other lookup over these elements gives.
+class ById {
+public:
+    static constexpr std::size_t npos = static_cast<std::size_t>(-1);
+
+    explicit ById(const std::vector<Element>& elements) {
+        at_.reserve(elements.size());
+        for (std::size_t i = 0; i < elements.size(); ++i) {
+            at_.push_back(Entry{elements[i].id, i});
+        }
+        // STABLE, so equal identities keep their document order and `find`
+        // returning the range's first entry returns the first ELEMENT.
+        std::stable_sort(at_.begin(), at_.end(),
+                         [](const Entry& a, const Entry& b) { return a.id < b.id; });
+    }
+
+    /// Where the first element carrying `id` is, or npos.
+    std::size_t find(std::int64_t id) const noexcept {
+        const auto it = std::lower_bound(at_.begin(), at_.end(), id,
+                                         [](const Entry& e, std::int64_t v) { return e.id < v; });
+        return (it == at_.end() || it->id != id) ? npos : it->at;
+    }
+
+    std::size_t size() const noexcept { return at_.size(); }
+
+private:
+    struct Entry {
+        std::int64_t id;
+        std::size_t at;
+    };
+    std::vector<Entry> at_;
+};
+
+/// Where a context chain ends. Three outcomes and not two, because "it names
+/// nothing" and "it names something that comes back here" are different mistakes
+/// with different repairs.
+enum class ContextEnd {
+    Root,    ///< it reaches the root: the relationship is resolvable
+    Missing, ///< it names an identity no element in this sequence carries
+    Cycle,   ///< it comes back to somewhere it has already been
+};
+
+/// One walk up a context chain, and what it found.
+struct ContextWalk {
+    ContextEnd end = ContextEnd::Root;
+    std::int64_t at = kRootContext;  ///< the missing identity, or one inside the cycle
+    std::vector<std::int64_t> chain; ///< the identities visited, from `start` outward
+
+    bool reaches_root() const noexcept { return end == ContextEnd::Root; }
+
+    /// Whether this chain passes through `id` — the question an authoring
+    /// operation asks before it hands `id` a new context, and the whole of the
+    /// cycle test: a relationship closes a loop exactly when the proposed
+    /// source's own chain already runs through the element being changed.
+    bool passes_through(std::int64_t id) const noexcept {
+        return std::find(chain.begin(), chain.end(), id) != chain.end();
+    }
+};
+
+/// Follow a context chain from one identity to the root, or to the reason it
+/// does not get there.
+///
+/// THE ONE WALK. A document law asks it about every element it holds; an
+/// authoring operation asks it about the one relationship being proposed. There
+/// is no second implementation of "what does this chain do", so the rule an edit
+/// is judged by and the rule a loaded file is judged by cannot come to disagree
+/// -- which is the same argument `check_extent` already carries one layer up.
+///
+/// IT IS ITERATIVE, AND THE DEPTH LIMIT IS THE DOCUMENT'S OWN SIZE. Nothing here
+/// recurses, so how deep a legal composition may be is not secretly decided by
+/// how much C++ stack the host happens to have. There is no authored ceiling at
+/// all: a chain of a thousand elements is as legal as a chain of one, and the
+/// only bound is that a walk visiting more elements than the sequence contains
+/// must have visited one twice, which is what a cycle IS. That bound is exact,
+/// costs one comparison per step, and is why a cycle is DETECTED rather than
+/// discovered by running out of stack.
+///
+/// THE CYCLE IT REPORTS IS ONE LAP. Having proven a repeat, it walks forward
+/// from where it stands until it returns there, so the diagnostic names the loop
+/// (`#7 -> #9 -> #7`) instead of the long road that led into it. That is
+/// deliberate: "invalid graph" tells a maker nothing they can act on.
+///
+/// `settled`, when given, is a memo indexed by POSITION: positions already known
+/// to reach the root. It turns a whole-document check from one walk per element
+/// into one visit per element, and it is why checking a document is O(n log n)
+/// rather than O(n * depth). It also SHORTENS the reported chain -- the walk
+/// stops at the first settled element -- so an operation that needs the complete
+/// chain (`passes_through`) must not pass one.
+inline ContextWalk walk_context(const std::vector<Element>& elements, const ById& index,
+                                std::int64_t start, std::vector<char>* settled = nullptr) {
+    ContextWalk walk;
+    std::vector<std::size_t> path;
+    std::int64_t here = start;
+    while (here != kRootContext) {
+        const std::size_t at = index.find(here);
+        if (at == ById::npos) {
+            walk.end = ContextEnd::Missing;
+            walk.at = here;
+            return walk;
+        }
+        if (settled != nullptr && at < settled->size() && (*settled)[at] != 0) {
+            break; // already proven to reach the root; so does everything behind us
+        }
+        if (walk.chain.size() > elements.size()) {
+            // The budget is spent, so a node has certainly been visited twice --
+            // and a walk whose every step is determined by the element it is on
+            // is periodic from its first repeat, so `here` is INSIDE the loop.
+            // Take exactly one lap from it.
+            walk.end = ContextEnd::Cycle;
+            walk.at = here;
+            walk.chain.clear();
+            std::int64_t lap = here;
+            do {
+                walk.chain.push_back(lap);
+                const std::size_t on = index.find(lap);
+                if (on == ById::npos) {
+                    break; // unreachable inside a cycle; never trusted anyway
+                }
+                lap = elements[on].context;
+            } while (lap != here && walk.chain.size() <= elements.size());
+            walk.chain.push_back(here); // close it, so the text reads as a loop
+            return walk;
+        }
+        walk.chain.push_back(here);
+        path.push_back(at);
+        here = elements[at].context;
+    }
+    walk.end = ContextEnd::Root;
+    if (settled != nullptr) {
+        for (const std::size_t at : path) {
+            if (at < settled->size()) {
+                (*settled)[at] = 1;
+            }
+        }
+    }
+    return walk;
+}
 
 // ---- The authored/resolved fence, at compile time --------------------------------------
 //

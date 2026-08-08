@@ -62,6 +62,26 @@
 
 namespace zengine::workshop {
 
+/// An authored context reference, in the spelling a maker reads and types.
+///
+/// It is a distinct type and not a bare `std::int64_t` for one reason and it is
+/// not aesthetics: `TextForm<std::int64_t>` is already spoken for by X and Y,
+/// and a context is not a number a maker should be typing. `root` and `#4` are
+/// the two things it can be, and `#4` is deliberately not spelled `4` -- the
+/// `#` is the same mark the object list and the Identity row already use, so a
+/// maker writes an IDENTITY rather than an ordinal. "The fourth object" is the
+/// mistake this whole vocabulary is arranged to make unsayable.
+///
+/// It is a PRESENTATION type, Workshop-local, and it is not what gets stored:
+/// `ui::Element::context` is the authored fact and it is a plain identity. This
+/// is one of the two directions that identity is spoken in (the other is the
+/// file's, in persist.hpp), and both are translations of the same number.
+struct ContextRef {
+    std::int64_t id = ui::kRootContext;
+
+    friend bool operator==(const ContextRef&, const ContextRef&) = default;
+};
+
 /// The outcome of an attempted write. A refusal carries its reason, in words a
 /// maker can act on -- the reason IS the feature, so there is no bare `false`.
 struct Written {
@@ -185,6 +205,44 @@ template <> struct TextForm<ui::Extent> {
     /// this parser keeps a convenience spelling is its own question, and not
     /// one persistence gets to answer); it is simply no longer advertised.
     static const char* expected() { return "cells (12) or a share (70%)"; }
+};
+
+template <> struct TextForm<ContextRef> {
+    /// `root`, or `#4`.
+    static std::string format(const ContextRef& v) {
+        return v.id == ui::kRootContext ? std::string("root")
+                                        : "#" + std::to_string(v.id);
+    }
+
+    /// A CLOSED set of two spellings, for the same reason persist.hpp keeps a
+    /// closed set of extent modes: an unrecognised draft must be "that is not a
+    /// context" rather than something quietly defaulted. In particular a bare
+    /// number is NOT accepted -- `4` would read as an ordinal to anyone who has
+    /// used a layer panel, and the whole point of the field is that it is not
+    /// one -- and `#0` is not accepted either, because 0 is not an identity any
+    /// object can carry (see ui::kRootContext); the maker who means the root
+    /// says `root`.
+    static std::optional<ContextRef> parse(std::string_view text) {
+        if (text == "root") {
+            return ContextRef{ui::kRootContext};
+        }
+        if (text.size() < 2 || text.front() != '#') {
+            return std::nullopt;
+        }
+        text.remove_prefix(1);
+        const std::optional<std::int64_t> id = TextForm<std::int64_t>::parse(text);
+        if (!id || *id <= ui::kRootContext) {
+            return std::nullopt;
+        }
+        return ContextRef{*id};
+    }
+
+    /// Whether the identity EXISTS is not this type's question -- that is the
+    /// document's, and it answers it with a refusal naming the number. Parsing
+    /// says what a context looks like; the property says what this document will
+    /// accept. The same division `TextForm<ui::Extent>` and `doc::check_extent`
+    /// already keep.
+    static const char* expected() { return "root or an identity (#1)"; }
 };
 
 /// What a commit attempt did. Three outcomes, not two, because a maker needs to

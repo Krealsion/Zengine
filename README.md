@@ -352,23 +352,38 @@ observation of the first.
 
 ```text
 ui/vocabulary.hpp   Extent{mode, amount}     an authored width or height, one property
+                    kRootContext             the identity that is not one: "the root"
                     Element{id, label,       one authored element -- identity, label,
-                            x, y,            authored placement in cells...
+                            context,         WHOSE FRAME its values are read in (W-6)...
+                            x, y,            ...authored placement in that frame...
                             width, height}   ...and two authored extents
                     authored_only_v<T>       the compile-time fence, as a question about
                                              ANY type, so an application can ask it too
+                    ById / walk_context      finding and following a relationship, with
+                                             no viewport and no number in sight
 
-ui/layout.hpp       Viewport{cells_w, cells_h}   what intent is resolved AGAINST
+ui/layout.hpp       Viewport{cells_w, cells_h}   what the ROOT frame is made of
                     Rect / Placed{id, rect}      the resolved observation
                     Scene{viewport, items}       authored order == paint order
+                    root_frame / resolve_in      authored shape + context = resolved shape
                     resolve_extent / resolve     the ONE place intent becomes geometry
+                    frame_in                     the frame an element was read in
                     hit / placed_for             what is under this cell -> the AUTHORED id
 ```
 
-Three things are structural rather than promised:
+Four things are structural rather than promised:
 
-- **Resolution needs a viewport.** `resolve()` takes one, so "how big is this?" is not an
+- **Resolution needs a context.** `resolve()` takes a viewport, so "how big is this?" is not an
   answerable question about an element alone.
+- **A context is a FRAME, and the root is one of them.** W-6's whole addition: the origin an
+  element's `x`/`y` are counted from and the span its shares are shares *of*, as one value
+  (`Rect`). Before it, that frame was two hard-coded assumptions in one statement of `resolve` —
+  origin `0,0`, span the whole viewport. An element now names an *identity* whose resolved
+  rectangle supplies it, or says nothing and gets the root's. `resolve` orders its own work by
+  dependency, iteratively and on the heap (no depth ceiling, no recursion), and emits its items
+  in **document** order, because document order is paint/hit/list order and must not silently
+  become dependency order. A chain that cannot reach the root — a cycle, or a source nothing
+  carries — is **not placed at all**: an absence, never a guess at the root.
 - **The result is a separate value, cached nowhere.** The authored side has no field able to
   hold a resolved rectangle, and the fence makes adding one a compile error — proven *firing*
   by `ui_authored_extent_required` and `ui_resolved_geometry_refused` (a bare `int64_t width`,
@@ -385,8 +400,13 @@ checked edit. An out-of-range share is clamped and an absurd span divides before
 (`span * amount` on unvalidated `int64` is signed overflow — undefined behaviour produced by
 data). *What* a legal extent is stays with whoever accepts one; see Workshop's `check_extent`.
 
-What it is **not**: no widget kinds, no stacks, no relational arrangement, no parent/child (the
-named seam — it grows when an application authors a child), no colour, no z, and nothing about
+What it is **not**: no widget kinds, no stacks, no relational arrangement, and **still no
+parent/child** — W-6 changed what that absence means rather than ending it. An element says what
+its values are *measured against*; it says nothing about containment, ownership, clipping,
+painting or lifetime, and a dependent's rectangle may extend well past its source's with nothing
+trimming it. "Put B inside A" is something an application could build on this; Workshop builds
+exactly one policy over it (a source with dependents is not deletable) and keeps that policy in
+its own document law. Also no colour, no z, and nothing about
 painting. `SurfaceCanvas` is the drawing vocabulary; a resolved scene is what you paint *from*.
 The Loom's `loom::Widget` + `px_layout` is the *other* model — intent plus **relationship**,
 resolved by a renderer — and W-1 measured that it is neither relocatable (the Loom console,
@@ -475,6 +495,36 @@ and no window itself.
   making one teaches "the name is not the identity" at the moment it is cheapest to learn. The
   post-delete selection rule is stated once and tested: the object that took the deleted one's
   place, else the new last, else **none**.
+- **One object can be measured against another** (W-6), and it is one editable property. The
+  inspector's `Context` row reads `root` or `#1`; authoring it is the same enter/retype/enter a
+  width takes, and it cost one `Row::edit` line plus one `TextForm`. It is **not** labelled
+  `Parent`: nothing here is a parent, and the familiar word would promise ownership, clipping and
+  cascade-delete that the document does not do. `doc::set_context` is the third instance of the
+  one-act pattern `move` and `resize` established — it judges the relationship *and* re-judges the
+  coordinates in the proposed frame, because rewiring can make an already-written coordinate
+  illegal, and a refused rewire writes neither half. It **does not compensate**: an object rewired
+  into a source visibly moves, because a maker who changed what a number is measured from changed
+  what the number means, and silently rewriting `x`/`y` would author facts they never touched.
+- **`the workspace starts at 0` turned out to be a law about the workspace.** Its own stated
+  reason said so — "the workspace has no cells there". A coordinate in another element's frame is
+  an *offset*, so `-1` there is ordinary and lands on a cell that exists. `check_coord` now takes
+  the context it is judging in; the root's guard is exactly as strong as it was, and it is stated
+  as being the root's rather than being every coordinate's by accident.
+- **Direct manipulation projects through the context, using the resolver's own answer.** A hand
+  speaks workspace cells, so `place` clamps in *global* cells — a dependent dragged left stops at
+  the workspace edge where a maker can see it stop — and then subtracts the frame's origin
+  (`ui::frame_in`) to get the authored offset, which may be negative. W-2 concluded that a
+  position "relative to something else" could not be dragged because the resolver is not
+  invertible; W-6 measured that as true of *extents* and false of *placement* — a share floors and
+  clamps, a sum does not, so a position composes by addition and inverts exactly. Resizing needed
+  **no** new path at all: `extent_from_drag` was always asking "which share of this span reaches
+  the hand", and the span is now the context's rather than always the workspace's.
+- **A source something measures against is not deletable**, and the refusal names the dependents
+  (`#2 and #3 take context from #1 -- change or delete them first`). Cascade-deleting would treat
+  dependency as ownership; re-rooting the dependents would rewrite their coordinates' *meaning*
+  while leaving the numbers alone. Both are silent semantic edits, so neither happens: rewire,
+  then delete, as two authored acts. That policy is **Workshop's**, in Workshop's document law —
+  not a property of `ui::Element::context`.
 - **The screen** (`screen.hpp`) is a pure function from document + session to `SurfaceCanvas`, so
   the suite asserts whole screens as values. Session facts — selection, workspace extent, drafts,
   a drag in flight — live outside the authored state on purpose. An empty document *says* it is
@@ -508,6 +558,16 @@ and no window itself.
   and a refusal leaves the live document, the selection, the drag and any draft exactly as they
   were. Unknown fields are **rejected**, not dropped; an unsupported `format_version` fails
   closed, naming the number. There is one version and deliberately no migration machinery.
+  W-6 added one field — `context`, written as the **identity** it is (`0` is the root, and a
+  `static_assert` pins that 0 can never become an identity an object carries). Whether `#4` exists,
+  and whether following it comes back around, is **not** checked there: that is the document's law,
+  asked once, in `doc::check_document`, so an interactive rewire and a loaded file are refused in
+  the same words. The relationship is persisted; its *result* is not — no frame, no global
+  position, no cell count, no traversal order. Adding the field changed the written shape, so a
+  W-5-era document no longer admits: refused, closed, by the Loom's gate. That is stated rather
+  than papered over — Workshop is pre-release and its own only consumer, `format_version` is
+  **not yet a public compatibility boundary**, no migration layer or legacy reader was built, and
+  the number was not bumped for ceremony.
 - **Saving never touches the document and never destroys the last good one.** Serialization takes
   a `const&` and normalises nothing (`60%` is not written as the 28 cells it currently resolves
   to). The writer serialises the complete candidate, writes a sibling `.saving` file, checks it,
