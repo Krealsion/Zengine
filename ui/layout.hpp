@@ -111,6 +111,22 @@ struct Placed {
 /// place in it, in AUTHORED ORDER — which is paint order, said once (the same
 /// rule SurfaceCanvas states about its own rects). Later is in front.
 ///
+/// AUTHORED ORDER SURVIVED W-6, and that is one of the phase's findings rather
+/// than an accident. Composition introduces a second ordering concern -- an
+/// element cannot be resolved before the element it measures against -- and the
+/// obvious implementation is to sort the document into dependency order and walk
+/// it. That would have made document order mean dependency order, silently
+/// changing which rectangle paints over which and which one a click finds. So
+/// resolution orders its own WORK internally and emits its ANSWERS in document
+/// order (see `resolve`), and the two concepts stay separate: dependency order
+/// is an implementation detail of one function, presentation order is the
+/// document's and is still what a maker arranged.
+///
+/// An element whose context could not be resolved is NOT IN THE SCENE at all, so
+/// `items` is not necessarily one-to-one with the elements it observes. See
+/// `resolve` for what makes that reachable and why it is an absence rather than
+/// a guess.
+///
 /// It keeps its viewport so a scene can be asked what it is an observation OF.
 /// A rectangle without the viewport that produced it is a number with its
 /// meaning cut off.
@@ -167,6 +183,62 @@ inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept 
     return cells < kMinCells ? kMinCells : cells;
 }
 
+/// `a + b` in cells, without leaving the number line.
+///
+/// W-6 needs it and W-5 did not, which is the arithmetic shape of what the phase
+/// changed. A resolved position used to BE the authored one -- `resolve` copied
+/// x/y through, so there was no sum to overflow. It is now `the context's origin
+/// + the authored offset`, and both terms are values this package does not own:
+/// authored content is a ZEN_SHAPE, so it arrives from a poke, and a context's
+/// origin is itself the result of one of these sums further down a chain.
+/// `INT64_MAX + 1` is undefined behaviour produced by data. The saturated ends
+/// are far outside any viewport, which already means "nothing reachable there".
+inline std::int64_t add_cells(std::int64_t a, std::int64_t b) noexcept {
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    if (b > 0) {
+        return a > kMax - b ? kMax : a + b;
+    }
+    if (b < 0) {
+        return a < kMin - b ? kMin : a + b;
+    }
+    return a;
+}
+
+/// The frame the ROOT supplies: the whole viewport, at the origin.
+///
+/// This is the line W-6 went looking for. Before it, the viewport WAS resolution
+/// context -- not as a value anything could name or replace, but as two
+/// hard-coded assumptions inside one statement of `resolve`: an origin of 0,0
+/// that authored placement was added to (invisibly, because adding zero looks
+/// like copying), and a span that every extent took its share of. Naming it as a
+/// frame is most of the mechanism; the rest is letting an element say a
+/// different one.
+inline Rect root_frame(Viewport viewport) noexcept {
+    return Rect{0, 0, viewport.cells_w, viewport.cells_h};
+}
+
+/// ONE authored shape, in ONE context. The whole of what resolution means.
+///
+///     authored shape + resolution context = resolved shape
+///
+/// A frame supplies both halves of the context because both halves are one
+/// measurement: the origin the offsets are counted from, and the span the shares
+/// are shares OF. They are not welded together for tradition's sake -- they are
+/// the two things you need in order to read `x = 2, width = 50%` as a rectangle,
+/// and a frame is exactly the smallest value that carries them. An element that
+/// wanted its position from one source and its size from another would be a
+/// SECOND context field on the element, not a different shape of frame; the
+/// arithmetic below would not change at all. Nothing here forecloses that, and
+/// nothing here builds it, because no consumer has asked.
+///
+/// TOTAL, for the same reason `resolve_extent` is: every operand can come from a
+/// poke or off the wire.
+inline Rect resolve_in(const Element& e, const Rect& context) noexcept {
+    return Rect{add_cells(context.x, e.x), add_cells(context.y, e.y),
+                resolve_extent(e.width, context.w), resolve_extent(e.height, context.h)};
+}
+
 /// Resolve a whole authored sequence against a viewport.
 ///
 /// The ONE place authored intent becomes geometry. Everything downstream — painting, the
@@ -174,14 +246,106 @@ inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept 
 /// no second copy of the geometry able to fall out of step with the first. That single
 /// path is the whole point of the package: W-0 had three call sites resolving extents
 /// themselves, agreeing only because one person wrote all three.
+///
+/// HOW IT ORDERS ITS WORK, and why the answers come out in a different order than the
+/// work was done. Each element is resolved once, memoised, by walking UP its context
+/// chain onto an explicit stack and then unwinding it — so a source is resolved before
+/// whatever measures against it no matter where either of them sits in the document.
+/// The `items` it emits are in DOCUMENT order regardless, because document order is
+/// paint order, hit order and list order, and quietly reordering the document to make
+/// resolution easier would have changed all three (see Scene).
+///
+/// THE STACK IS ON THE HEAP, and that is a semantic claim rather than an implementation
+/// note: nothing here recurses, so how deep a composition may go is not decided by how
+/// much C++ stack the host happens to have. There is no depth ceiling in this function,
+/// and none anywhere else either.
+///
+/// WHAT IT DOES ABOUT A CHAIN THAT DOES NOT REACH THE ROOT, which is the interesting
+/// half. A cycle, or a context naming an identity nothing carries, has no resolved
+/// geometry — there is no frame to read the numbers in. So such an element is simply
+/// NOT PLACED: it is absent from the scene, and therefore unpainted, unhittable, and
+/// answered about with the null that `placed_for` already documents as a normal answer.
+///
+/// It is an ABSENCE and never a guess, and the difference is load-bearing. Falling back
+/// to the root would resolve the element against a DIFFERENT relationship than the one
+/// it names and show a confident rectangle in the wrong place; there is no "nearest
+/// legal" reading of a broken reference the way there is of a 500% share. Nor could
+/// this function refuse, because it has no way to say so: it is a shared vocabulary's
+/// total function, and refusing is the DOCUMENT's job (Workshop's `check_document`
+/// refuses both faults, so an element can only get here through a poke or through an
+/// application that has no such law — the same widened input domain `resolve_extent`
+/// already answers for).
 inline Scene resolve(const std::vector<Element>& elements, Viewport viewport) {
+    enum : unsigned char { kTodo = 0, kWorking = 1, kDone = 2, kUnplaceable = 3 };
+
     Scene scene;
     scene.viewport = viewport;
+
+    const ById index(elements);
+    const Rect root = root_frame(viewport);
+    std::vector<unsigned char> state(elements.size(), kTodo);
+    std::vector<Rect> rect(elements.size());
+    std::vector<std::size_t> stack;
+
+    for (std::size_t i = 0; i < elements.size(); ++i) {
+        if (state[i] != kTodo) {
+            continue;
+        }
+        // Up the chain. Each element is pushed at most once in the whole pass --
+        // pushing marks it -- so the total work is one visit per element plus one
+        // lookup each, and the shape is O(n log n) rather than O(n * depth).
+        stack.clear();
+        Rect base{};
+        bool broken = false;
+        std::size_t at = i;
+        while (true) {
+            if (state[at] == kWorking) {
+                broken = true; // we have walked back onto our own path: a cycle
+                break;
+            }
+            if (state[at] == kDone) {
+                base = rect[at];
+                break;
+            }
+            if (state[at] == kUnplaceable) {
+                broken = true;
+                break;
+            }
+            state[at] = kWorking;
+            stack.push_back(at);
+            const std::int64_t context = elements[at].context;
+            if (context == kRootContext) {
+                base = root;
+                break;
+            }
+            const std::size_t source = index.find(context);
+            if (source == ById::npos) {
+                broken = true; // it names an identity nothing carries
+                break;
+            }
+            at = source;
+        }
+        // Down again. Everything on the stack shares one verdict: an element
+        // whose source cannot be placed cannot be placed either.
+        if (broken) {
+            for (const std::size_t on : stack) {
+                state[on] = kUnplaceable;
+            }
+            continue;
+        }
+        for (std::size_t k = stack.size(); k > 0; --k) {
+            const std::size_t on = stack[k - 1];
+            rect[on] = resolve_in(elements[on], base);
+            state[on] = kDone;
+            base = rect[on];
+        }
+    }
+
     scene.items.reserve(elements.size());
-    for (const Element& e : elements) {
-        scene.items.push_back(Placed{e.id, Rect{e.x, e.y,
-                                                resolve_extent(e.width, viewport.cells_w),
-                                                resolve_extent(e.height, viewport.cells_h)}});
+    for (std::size_t i = 0; i < elements.size(); ++i) {
+        if (state[i] == kDone) {
+            scene.items.push_back(Placed{elements[i].id, rect[i]});
+        }
     }
     return scene;
 }
@@ -202,7 +366,8 @@ inline const Placed* hit(const Scene& scene, std::int64_t cx, std::int64_t cy) n
 }
 
 /// Where one authored identity landed, or null if this scene has no such element —
-/// a normal answer, not an error: a selection can outlive its element.
+/// a normal answer, not an error: a selection can outlive its element, and since
+/// W-6 an element whose context does not reach the root is never placed at all.
 inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
     for (const Placed& p : scene.items) {
         if (p.id == id) {
@@ -210,6 +375,29 @@ inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
         }
     }
     return nullptr;
+}
+
+/// The frame ONE element's authored values were read in, as this scene resolved
+/// it — the root's rectangle when it measures against the root, the source's
+/// resolved rectangle when it measures against another element.
+///
+/// It exists so that a caller who needs the context (to turn a pointer's global
+/// position into an authored local one, or to ask what span a share is a share
+/// OF) asks the resolver rather than reconstructing the answer. That is W-1's
+/// one-place-resolves lesson spent a second time: a gesture that computed
+/// "well, the parent is at 3,2" for itself would be a second copy of the
+/// geometry, and the copy is the one that goes stale.
+///
+/// TOTAL. An element naming a source this scene has no placement for gets an
+/// EMPTY frame — which is consistent with what `resolve` did about the same
+/// element, namely not place it, since resolving anything in an empty frame is
+/// exactly as meaningless as the reference was.
+inline Rect frame_in(const Scene& scene, const Element& e) noexcept {
+    if (e.context == kRootContext) {
+        return root_frame(scene.viewport);
+    }
+    const Placed* source = placed_for(scene, e.context);
+    return source == nullptr ? Rect{} : source->rect;
 }
 
 } // namespace zengine::ui

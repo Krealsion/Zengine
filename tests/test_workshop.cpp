@@ -134,16 +134,22 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
                             .field("mode", Kind::Int)
                             .field("amount", Kind::Int)
                             .build();
-    const auto element = SchemaBuilder("Element", 1)
+    const auto element = SchemaBuilder("Element", 2)
                              .field("id", Kind::Int)
                              .field("label", Kind::Text)
+                             .field("context", Kind::Int)
                              .field("x", Kind::Int)
                              .field("y", Kind::Int)
                              .message("width", extent)
                              .message("height", extent)
                              .build();
 
-    const auto document = SchemaBuilder("WorkshopDoc", 1)
+    // Version 2 since W-6, and the document's own two fields did not change:
+    // what moved is the element inside it, and a content-id is over the WHOLE
+    // shape. A `WorkshopDoc v1` that now serialises differently would be the
+    // immutable-published-schema invariant broken quietly, so the version says
+    // so out loud.
+    const auto document = SchemaBuilder("WorkshopDoc", 2)
                               .list("elements", loom::type_message(element))
                               .field("next_id", Kind::Int)
                               .build();
@@ -411,21 +417,21 @@ TEST_CASE("a resolved row cannot be edited, because it has nothing to write to")
     Session s;
     s.selected = d.elements[0].id;
     refocus(d, s);
-    REQUIRE(s.rows.size() == 7);
+    REQUIRE(s.rows.size() == 8);
 
     // The identity row and the resolved row are `show`s; every property is an
     // `edit`. The structural answer to "never present a resolved value as though
     // it were the authored property": begin() on one does nothing at all.
     CHECK(s.rows[0].label() == "Identity");
     CHECK_FALSE(s.rows[0].editable());
-    CHECK(s.rows[6].label() == "Resolved");
-    CHECK_FALSE(s.rows[6].editable());
+    CHECK(s.rows[7].label() == "Resolved");
+    CHECK_FALSE(s.rows[7].editable());
     for (std::size_t i = 1; i <= 5; ++i) {
         CHECK(s.rows[i].editable());
     }
 
-    s.rows[6].begin();
-    CHECK_FALSE(s.rows[6].editing());
+    s.rows[7].begin();
+    CHECK_FALSE(s.rows[7].editing());
 }
 
 // ============================================================================
@@ -444,8 +450,8 @@ TEST_CASE("authored and resolved are different facts, and only one of them moves
     s.selected = id;
     s.workspace_w = 48;
     refocus(d, s);
-    CHECK(s.rows[4].value() == "50%");       // the authored property
-    CHECK(s.rows[6].value() == "24 x 4 cells"); // what this workspace makes of it
+    CHECK(s.rows[5].value() == "50%");       // the authored property
+    CHECK(s.rows[7].value() == "24 x 4 cells"); // what this workspace makes of it
 
     // The resolved row is the SCENE's reading, not a second calculation that
     // happens to agree. Ask the package directly and the numbers are the same
@@ -460,13 +466,13 @@ TEST_CASE("authored and resolved are different facts, and only one of them moves
     // lines, and it is the one the inspector must never collapse.
     s.workspace_w = 24;
     refocus(d, s);
-    CHECK(s.rows[4].value() == "50%");
-    CHECK(s.rows[6].value() == "12 x 4 cells");
+    CHECK(s.rows[5].value() == "50%");
+    CHECK(s.rows[7].value() == "12 x 4 cells");
     CHECK(d.elements[0].width == ui::Extent{ui::kExtentPercent, 50});
 
     // A cells extent's two facts COINCIDE, which is not the same as being one
     // fact -- the inspector still reports them as two rows.
-    CHECK(s.rows[5].value() == "4");
+    CHECK(s.rows[6].value() == "4");
 }
 
 TEST_CASE("the painted rectangle IS the resolved rectangle, and the panel is not") {
@@ -620,8 +626,9 @@ TEST_CASE("creation cannot author a state this document would refuse") {
     const ui::Element* e = doc::find(d, made);
     REQUIRE(e != nullptr);
 
-    CHECK(doc::check_coord(e->x).accepted);
-    CHECK(doc::check_coord(e->y).accepted);
+    CHECK(doc::check_coord(e->x, e->context).accepted);
+    CHECK(doc::check_coord(e->y, e->context).accepted);
+    CHECK(doc::check_context(d.elements, e->id, e->context).accepted);
     CHECK(doc::check_extent(e->width).accepted);
     CHECK(doc::check_extent(e->height).accepted);
     CHECK(doc::rename(d, made, e->label).accepted);
@@ -654,7 +661,7 @@ TEST_CASE("delete removes exactly one identity, and the other duplicate label su
 
     REQUIRE(delete_selected(d, s).accepted);
     REQUIRE(d.elements.size() == 1);
-    REQUIRE(s.rows.size() == 7); // a selection survived, so the inspector has a subject
+    REQUIRE(s.rows.size() == 8); // a selection survived, so the inspector has a subject
     CHECK(doc::find(d, kept) != nullptr);
     CHECK(doc::find(d, kept)->label == "panel"); // the twin is untouched
     CHECK(doc::find(d, 1) == nullptr);
@@ -754,9 +761,9 @@ TEST_CASE("a newly created object works with the existing property machinery, un
     // No per-object registration, no reflection, no inspector framework: the
     // rows for a created object are built by exactly the call that builds them
     // for a seeded one, and they write through exactly the same setters.
-    REQUIRE(s.rows.size() == 7);
+    REQUIRE(s.rows.size() == 8);
     CHECK(s.rows[1].label() == "Name");
-    CHECK(s.rows[4].label() == "Width");
+    CHECK(s.rows[5].label() == "Width");
 
     Row& name = s.rows[1];
     name.begin();
@@ -767,7 +774,7 @@ TEST_CASE("a newly created object works with the existing property machinery, un
     CHECK(name.commit() == Commit::Accepted);
     CHECK(doc::find(d, made)->label == "mine");
 
-    Row& width = s.rows[4];
+    Row& width = s.rows[5];
     width.begin();
     while (!width.draft().empty()) {
         width.backspace();
@@ -818,10 +825,10 @@ TEST_CASE("a nudge authors placement, and every reading of the object follows") 
     CHECK(placed->rect == ui::Rect{4, 3, 24, 4});
     CHECK(has_rect(paint(d, s), kWorkspaceX + 4, kWorkspaceY + 3, 24, 4, surface::role::kFill));
     refocus(d, s);
-    REQUIRE(s.rows.size() == 7);
-    CHECK(s.rows[2].value() == "4"); // X
-    CHECK(s.rows[3].value() == "3"); // Y
-    CHECK(s.rows[6].value() == "24 x 4 cells"); // resolved size unchanged by a move
+    REQUIRE(s.rows.size() == 8);
+    CHECK(s.rows[3].value() == "4"); // X
+    CHECK(s.rows[4].value() == "3"); // Y
+    CHECK(s.rows[7].value() == "24 x 4 cells"); // resolved size unchanged by a move
 
     REQUIRE(ui::hit(after, 4, 3) != nullptr);
     CHECK(ui::hit(after, 4, 3)->id == id);
@@ -878,10 +885,10 @@ TEST_CASE("the inspector and the maker's hand write through ONE position operati
     Session s;
     s.selected = id;
     refocus(d, s);
-    REQUIRE(s.rows.size() == 7);
+    REQUIRE(s.rows.size() == 8);
 
     // A typed X of -1, through the Row the inspector actually holds.
-    Row& x_row = s.rows[2];
+    Row& x_row = s.rows[3];
     x_row.begin();
     while (!x_row.draft().empty()) {
         x_row.backspace();
@@ -1108,7 +1115,7 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
         // selection would otherwise walk off an empty vector and take the whole
         // binary down, and a crashed run is not a red -- it is a run that
         // stopped reporting. (Found by the mutation harness doing exactly that.)
-        REQUIRE(s.rows.size() == 7);
+        REQUIRE(s.rows.size() == 8);
         // canvas: the fill and the ring are where the scene put it
         CHECK(has_rect(c, kWorkspaceX + placed->rect.x, kWorkspaceY + placed->rect.y,
                        placed->rect.w, placed->rect.h, surface::role::kFill));
@@ -1118,8 +1125,8 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
         CHECK(label_at(c, kPanelX, kListY + row).rfind("> #" + std::to_string(id), 0) == 0);
         // inspector: the same identity, and the authored position it is drawn at
         CHECK(s.rows[0].value() == "#" + std::to_string(id));
-        CHECK(s.rows[2].value() == std::to_string(placed->rect.x));
-        CHECK(s.rows[3].value() == std::to_string(placed->rect.y));
+        CHECK(s.rows[3].value() == std::to_string(placed->rect.x));
+        CHECK(s.rows[4].value() == std::to_string(placed->rect.y));
         // and the hit test answers with it at its own top-left cell
         REQUIRE(ui::hit(scene, placed->rect.x, placed->rect.y) != nullptr);
         CHECK(ui::hit(scene, placed->rect.x, placed->rect.y)->id == id);
@@ -1217,10 +1224,10 @@ TEST_CASE("resizing a cells extent authors cells, and every reading of the objec
     CHECK(ui::hit(after, 3 + 16, 2 + 5)->id == id);
     CHECK(ui::hit(after, 3 + 17, 2) == nullptr); // one past it is still nothing
     refocus(d, s);
-    REQUIRE(s.rows.size() == 7);
-    CHECK(s.rows[4].value() == "17");           // authored Width
-    CHECK(s.rows[5].value() == "6");            // authored Height
-    CHECK(s.rows[6].value() == "17 x 6 cells"); // and what the workspace makes of it
+    REQUIRE(s.rows.size() == 8);
+    CHECK(s.rows[5].value() == "17");           // authored Width
+    CHECK(s.rows[6].value() == "6");            // authored Height
+    CHECK(s.rows[7].value() == "17 x 6 cells"); // and what the workspace makes of it
 
     // Shrinking is the same gesture backwards, and the cell it no longer occupies
     // STOPPED BEING TRUE rather than merely stopping being painted.
@@ -1352,10 +1359,10 @@ TEST_CASE("the inspector and the maker's hand write through ONE size operation")
     Session s;
     s.selected = id;
     refocus(d, s);
-    REQUIRE(s.rows.size() == 7);
+    REQUIRE(s.rows.size() == 8);
 
     // A typed Width of 0, through the Row the inspector actually holds.
-    Row& width = s.rows[4];
+    Row& width = s.rows[5];
     width.begin();
     while (!width.draft().empty()) {
         width.backspace();
@@ -1391,7 +1398,7 @@ TEST_CASE("the inspector and the maker's hand write through ONE size operation")
     CHECK(doc::check_extent(doc::find(d, id)->width).accepted);
     CHECK(doc::check_extent(doc::find(d, id)->height).accepted);
     refocus(d, s);
-    CHECK(s.rows[4].value() == TextForm<ui::Extent>::format(doc::find(d, id)->width));
+    CHECK(s.rows[5].value() == TextForm<ui::Extent>::format(doc::find(d, id)->width));
 }
 
 TEST_CASE("the authored minimum is the DOCUMENT's, not the resolution floor") {
@@ -1454,7 +1461,7 @@ TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they a
     const Handled far = size_to(d, s, id, 400, 4);
     CHECK(far.accepted());
     CHECK(far.clamped());
-    CHECK(far.boundary == kAtWholeWorkspace);
+    CHECK(far.boundary == kAtWholeContext);
     CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
     CHECK(ui::placed_for(workspace_scene(d, s), id)->rect.w == 48);
 
@@ -1518,7 +1525,7 @@ TEST_CASE("move and resize meet the workspace with one policy, in two different 
     CHECK(grow(d, s, -99, -99).clamped());
     CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentCells, ui::kMinCells});
     REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentPercent, 99}).accepted);
-    CHECK(grow(d, s, +5, 0).boundary == kAtWholeWorkspace);
+    CHECK(grow(d, s, +5, 0).boundary == kAtWholeContext);
     CHECK(doc::find(d, id)->width == ui::Extent{ui::kExtentPercent, 100});
 
     // And every one of those is a CLAMP, never a refusal: the document's refusals
@@ -1798,8 +1805,8 @@ TEST_CASE("the screen shows the selected object, ringed, listed, and inspected")
     CHECK(s.cursor == 1);
     CHECK(label_at(c, kPanelX, kRowsY) == " Identity #1");
     CHECK(label_at(c, kPanelX, kRowsY + 1) == ">Name     panel");
-    CHECK(label_at(c, kPanelX, kRowsY + 4) == " Width    60%");
-    CHECK(label_at(c, kPanelX, kRowsY + 6) == " Resolved 28 x 6 cells");
+    CHECK(label_at(c, kPanelX, kRowsY + 5) == " Width    60%");
+    CHECK(label_at(c, kPanelX, kRowsY + 7) == " Resolved 28 x 6 cells");
 }
 
 TEST_CASE("selecting the other object moves the ring, the list marker, and the inspector") {
@@ -1814,11 +1821,11 @@ TEST_CASE("selecting the other object moves the ring, the list marker, and the i
     CHECK(label_at(c, kPanelX, kListY) == "  #1 panel");
     CHECK(label_at(c, kPanelX, kListY + 1) == "> #2 panel");
     CHECK(label_at(c, kPanelX, kRowsY) == " Identity #2");
-    CHECK(label_at(c, kPanelX, kRowsY + 4) == " Width    14");
+    CHECK(label_at(c, kPanelX, kRowsY + 5) == " Width    14");
     // #2's width is authored in CELLS, so its authored and resolved facts
     // coincide -- which the inspector still reports as two rows, because
     // coinciding is not the same as being one fact.
-    CHECK(label_at(c, kPanelX, kRowsY + 6) == " Resolved 14 x 4 cells");
+    CHECK(label_at(c, kPanelX, kRowsY + 7) == " Resolved 14 x 4 cells");
 }
 
 TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen") {
@@ -1827,27 +1834,27 @@ TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen"
     s.selected = d.elements[0].id;
     refocus(d, s);
 
-    s.cursor = 4; // Width
-    s.rows[4].begin();
-    while (!s.rows[4].draft().empty()) {
-        s.rows[4].backspace();
+    s.cursor = 5; // Width
+    s.rows[5].begin();
+    while (!s.rows[5].draft().empty()) {
+        s.rows[5].backspace();
     }
-    type_all(s.rows[4], "500p");
+    type_all(s.rows[5], "500p");
 
     const surface::SurfaceCanvas drafting = paint(d, s);
     // The row carries a cursor and the alert role: a draft cannot be mistaken
     // for a committed value on the screen either.
-    CHECK(label_at(drafting, kPanelX, kRowsY + 4) == ">Width    500p_");
+    CHECK(label_at(drafting, kPanelX, kRowsY + 5) == ">Width    500p_");
     for (const surface::SurfaceLabel& l : drafting.labels) {
-        if (l.y == kRowsY + 4) {
+        if (l.y == kRowsY + 5) {
             CHECK(l.role == surface::role::kAlert);
         }
     }
     // And the resolved row still reports the COMMITTED width, not the draft.
-    CHECK(label_at(drafting, kPanelX, kRowsY + 6) == " Resolved 28 x 6 cells");
+    CHECK(label_at(drafting, kPanelX, kRowsY + 7) == " Resolved 28 x 6 cells");
 
-    CHECK(s.rows[4].commit() == Commit::Refused);
-    s.notice = "Width: " + s.rows[4].refusal();
+    CHECK(s.rows[5].commit() == Commit::Refused);
+    s.notice = "Width: " + s.rows[5].refusal();
     s.notice_is_bad = true;
 
     const surface::SurfaceCanvas refused = paint(d, s);
@@ -1944,8 +1951,8 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     CHECK(rows[1].find("> #1 panel") != std::string::npos);
     CHECK(rows[2].find("  #2 panel") != std::string::npos);
     CHECK(rows[8].find("Identity #1") != std::string::npos);
-    CHECK(rows[12].find("Width    60%") != std::string::npos);
-    CHECK(rows[14].find("Resolved 28 x 6 cells") != std::string::npos);
+    CHECK(rows[13].find("Width    60%") != std::string::npos);
+    CHECK(rows[15].find("Resolved 28 x 6 cells") != std::string::npos);
 }
 
 // ============================================================================
@@ -2707,12 +2714,18 @@ TEST_CASE("the file a person can read: identity, version, objects, and the mint"
     CHECK(text.find("\"x\":\"3\"") != std::string::npos);
     CHECK(text.find("\"y\":\"2\"") != std::string::npos);
     CHECK(text.find("\"mode\":\"percent\",\"amount\":\"60\"") != std::string::npos);
+    // The relationship, written as the identity it is. An ordinary root-context
+    // object says `0`, which is not an identity any object can carry.
+    CHECK(text.find("\"context\":\"0\"") != std::string::npos);
 
     // It is real JSON, and it says whose value it is -- the Loom's envelope,
     // which is the claim `admit()` checks. That is a DIFFERENT claim from the
     // `format` field above: one is about the shape of the bytes, the other is
-    // about what the document means.
-    CHECK(text.rfind("{\"zen\":1,\"schema\":\"WorkshopDocument\",\"version\":1,", 0) == 0);
+    // about what the document means -- and W-6 is where the two visibly diverge.
+    // The SHAPE went to version 2 (an object grew a `context`); `format_version`
+    // stayed 1, because the meaning of every field is what it was and there is
+    // still exactly one Workshop format in the world.
+    CHECK(text.rfind("{\"zen\":1,\"schema\":\"WorkshopDocument\",\"version\":2,", 0) == 0);
 }
 
 TEST_CASE("the file carries no resolved geometry, and the scene is rebuilt from what it does") {
@@ -2939,7 +2952,8 @@ TEST_CASE("the document law is the maker's law, and it is stated in one place") 
 
     WorkshopDoc bad_coord = d;
     bad_coord.elements[0].x = -1;
-    CHECK(doc::check_document(bad_coord).refusal == "#1: " + doc::check_coord(-1).refusal);
+    CHECK(doc::check_document(bad_coord).refusal ==
+          "#1: " + doc::check_coord(-1, ui::kRootContext).refusal);
 
     WorkshopDoc bad_name = d;
     bad_name.elements[0].label.clear();
@@ -2966,9 +2980,11 @@ TEST_CASE("restore keeps the candidate's identities rather than minting new ones
     WorkshopDoc live = two_panels(); // ids 1, 2, mint 3
     WorkshopDoc candidate;
     candidate.next_id = 41;
-    candidate.elements.push_back(ui::Element{7, "seven", 1, 1, ui::Extent{ui::kExtentCells, 5},
+    candidate.elements.push_back(ui::Element{7, "seven", ui::kRootContext, 1, 1,
+                                             ui::Extent{ui::kExtentCells, 5},
                                              ui::Extent{ui::kExtentCells, 5}});
-    candidate.elements.push_back(ui::Element{40, "forty", 2, 2, ui::Extent{ui::kExtentCells, 5},
+    candidate.elements.push_back(ui::Element{40, "forty", ui::kRootContext, 2, 2,
+                                             ui::Extent{ui::kExtentCells, 5},
                                              ui::Extent{ui::kExtentCells, 5}});
 
     REQUIRE(doc::restore(live, candidate).accepted);
@@ -3406,4 +3422,925 @@ TEST_CASE("the whole cross-process story, in one session") {
     REQUIRE(persist::load_file(dir.document(), back).accepted);
     CHECK(back.elements.size() == 2);
     CHECK(back.next_id == doomed + 2);
+}
+
+// ============================================================================
+// Tier 7 — composition: one authored object read in another's frame (W-6)
+// ============================================================================
+//
+// Everything above resolves against one workspace. This tier is the phase's
+// whole subject, and it is arranged around the four things that could have gone
+// wrong and did not:
+//
+//   1. THE AUTHORED VALUES STAY AUTHORED. Moving or resizing a source changes
+//      what a dependent RESOLVES to and rewrites nothing it was authored with.
+//      That is the authored/resolved split meeting composition, which is the
+//      first real test it has had.
+//   2. THE HAND PROJECTS THROUGH THE CONTEXT. A drag speaks workspace cells and
+//      a dependent's position is authored in its source's frame, so the gesture
+//      subtracts the frame's origin -- asked of the resolver, never
+//      reconstructed -- and a Percent resize asks for a share of the SOURCE's
+//      span, through the same projection W-3 built.
+//   3. THE RELATIONSHIP IS AN IDENTITY. It survives reordering, deletion of
+//      other objects, save, process death and load, and it is refused when it
+//      names nothing or comes back around.
+//   4. THE ORDINARY CASE DID NOT GET MORE EXPENSIVE. Every case above this
+//      comment is a flat document, unchanged, and not one of them mentions a
+//      context.
+
+namespace {
+
+/// A composed document: #1 in the workspace as a share, #2 read in #1 as a
+/// share OF IT, #3 read in #1 in cells. The fixture the composition cases share,
+/// built through the maker's OWN operations -- `add` then `set_context` -- so
+/// nothing here is authored in a way a maker could not reach.
+WorkshopDoc composed() {
+    WorkshopDoc d;
+    doc::add(d, "A", 4, 3, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 10});
+    doc::add(d, "B", 2, 1, ui::Extent{ui::kExtentPercent, 50}, ui::Extent{ui::kExtentCells, 4});
+    doc::add(d, "C", 1, 6, ui::Extent{ui::kExtentCells, 6}, ui::Extent{ui::kExtentCells, 2});
+    REQUIRE(doc::set_context(d, 2, 1).accepted);
+    REQUIRE(doc::set_context(d, 3, 1).accepted);
+    return d;
+}
+
+/// Where an identity landed, as the canvas and the hit test read it.
+///
+/// The Scene is a NAMED LOCAL and not a temporary, and the first draft of this
+/// helper got that wrong -- `placed_for(workspace_scene(d, s), id)` hands back a
+/// pointer into a Scene that dies at the end of that statement, so every rect it
+/// returned was read out of freed memory. It is the same defect W-5 shipped in
+/// committed test code and the sanitizer lane found; here the ordinary lane
+/// caught it, because the garbage happened to be visible in an assertion.
+ui::Rect rect_of(const WorkshopDoc& d, const Session& s, std::int64_t id) {
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* p = ui::placed_for(scene, id);
+    REQUIRE(p != nullptr);
+    return p->rect;
+}
+
+/// Open an inspector row and REPLACE its draft, the way a maker retypes a value
+/// -- `begin` seeds the draft with the committed one, so typing alone appends.
+void retype(Live& t, const std::string& label, const std::string& text) {
+    t.begin_editing(label);
+    const Row* row = t.row(label);
+    REQUIRE(row != nullptr);
+    const std::size_t had = row->draft().size();
+    for (std::size_t i = 0; i < had; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text(text);
+    t.key(input::scan::kReturn);
+}
+
+} // namespace
+
+// ---- Authoring the relationship ---------------------------------------------
+
+TEST_CASE("the root is the default, and it costs a maker nothing to mean it") {
+    // The constraint the phase was given: composition must not make the flat
+    // case ceremonious. A created object measures against the workspace because
+    // nobody said otherwise -- there is no node to make, no graph to join, and
+    // no field to fill in.
+    WorkshopDoc d;
+    Session s;
+    const std::int64_t made = create(d, s);
+    const ui::Element* e = doc::find(d, made);
+    REQUIRE(e != nullptr);
+    CHECK(e->context == ui::kRootContext);
+    CHECK(rect_of(d, s, made).x == e->x); // the root's origin is 0,0, so it reads through
+
+    // ...and the whole opening document is still flat, which is what a maker's
+    // first screen shows.
+    const WorkshopDoc opening = two_panels();
+    for (const ui::Element& one : opening.elements) {
+        CHECK(one.context == ui::kRootContext);
+    }
+}
+
+TEST_CASE("a context is authored BY IDENTITY, and an identity is not a position") {
+    WorkshopDoc d = composed();
+    CHECK(doc::find(d, 2)->context == 1);
+
+    // The relationship names #1. Moving #1's POSITION in the vector changes
+    // nothing about it -- which a reference stored as an index could not have
+    // survived.
+    REQUIRE(doc::set_context(d, 3, ui::kRootContext).accepted);
+    doc::add(d, "extra", 0, 0, ui::Extent{ui::kExtentCells, 2}, ui::Extent{ui::kExtentCells, 2});
+    std::rotate(d.elements.begin(), d.elements.begin() + 3, d.elements.end());
+    CHECK(d.elements[0].id == 4); // #1 is no longer first
+    CHECK(doc::find(d, 2)->context == 1);
+    Session s;
+    CHECK(rect_of(d, s, 2).x == rect_of(d, s, 1).x + 2);
+}
+
+TEST_CASE("a relationship that cannot mean anything is refused, and says which") {
+    WorkshopDoc d = composed();
+
+    SUBCASE("itself") {
+        const Written no = doc::set_context(d, 2, 2);
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal == "#2 cannot take its context from itself");
+        CHECK(doc::find(d, 2)->context == 1); // untouched
+    }
+    SUBCASE("nothing") {
+        const Written no = doc::set_context(d, 2, 999);
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal == "no object #999 to take context from");
+        CHECK(doc::find(d, 2)->context == 1);
+    }
+    SUBCASE("a two-object loop") {
+        const Written no = doc::set_context(d, 1, 2); // #2 already measures against #1
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal == "#1 cannot use #2 as context: a cycle (#1 -> #2 -> #1)");
+        CHECK(doc::find(d, 1)->context == ui::kRootContext);
+    }
+    SUBCASE("a loop three objects long") {
+        REQUIRE(doc::set_context(d, 3, 2).accepted); // #3 -> #2 -> #1 -> root
+        const Written no = doc::set_context(d, 1, 3);
+        CHECK_FALSE(no.accepted);
+        // The diagnostic names the chain, which is the difference between a
+        // maker who can fix it and one who cannot -- AND IT FITS ON THE NOTICE
+        // LINE, which the first live run proved is not automatic: Workshop's
+        // notice is one line and the canvas clips it, so a message that does
+        // not fit loses exactly the part that names the loop.
+        CHECK(no.refusal == "#1 cannot use #3 as context: a cycle (#1 -> #3 -> #2 -> #1)");
+        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kScreenW));
+        CHECK(doc::find(d, 1)->context == ui::kRootContext);
+    }
+    SUBCASE("a chain a long way further along") {
+        // Depth changes nothing about the law: #1 measured against the far end
+        // of a chain that already runs through #1 is still a loop.
+        std::int64_t previous = 3;
+        for (int i = 0; i < 40; ++i) {
+            const std::int64_t made = doc::add(d, "link", 0, 0,
+                                               ui::Extent{ui::kExtentCells, 2},
+                                               ui::Extent{ui::kExtentCells, 2});
+            REQUIRE(doc::set_context(d, made, previous).accepted);
+            previous = made;
+        }
+        const Written no = doc::set_context(d, 1, previous);
+        CHECK_FALSE(no.accepted);
+        // A 43-link loop still fits on the notice line: the chain is cut with an
+        // ellipsis rather than allowed to run off the end of what a maker sees.
+        CHECK(no.refusal.find("...") != std::string::npos);
+        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kScreenW));
+        CHECK(doc::check_document(d).accepted);
+    }
+    SUBCASE("no such object at all") {
+        CHECK(doc::set_context(d, 404, 1).refusal == "no such object");
+    }
+}
+
+TEST_CASE("a rewire is ONE authored act: a refused one writes neither half") {
+    // The lesson `move` and `resize` already taught, at the property that made
+    // it hardest: changing a context can make an ALREADY WRITTEN coordinate
+    // illegal, so the coordinates are re-judged in the proposed frame before
+    // anything at all is written.
+    WorkshopDoc d = composed();
+    REQUIRE(doc::set_x(d, 2, -3).accepted); // legal: an offset in #1's frame
+
+    const Written no = doc::set_context(d, 2, ui::kRootContext);
+    CHECK_FALSE(no.accepted);
+    CHECK(no.refusal == "#2 is at -3,1 -- the workspace starts at 0");
+    // Neither the context nor the position moved.
+    CHECK(doc::find(d, 2)->context == 1);
+    CHECK(doc::find(d, 2)->x == -3);
+
+    // The maker's repair is the one the message names, and then it goes through.
+    REQUIRE(doc::set_x(d, 2, 5).accepted);
+    CHECK(doc::set_context(d, 2, ui::kRootContext).accepted);
+    CHECK(doc::find(d, 2)->context == ui::kRootContext);
+}
+
+TEST_CASE("changing a context does not rewrite the values whose meaning it changed") {
+    // The decision, pinned. Editing the Context property changes exactly the
+    // relationship; it does not silently rewrite x/y or an extent to keep the
+    // picture still. The object VISIBLY MOVES, and that is honest -- a maker who
+    // changed what a number is measured from changed what the number means, and
+    // compensating would author facts they did not touch.
+    WorkshopDoc d = composed();
+    Session s;
+    REQUIRE(doc::set_context(d, 3, ui::kRootContext).accepted);
+    const ui::Element before = *doc::find(d, 3);
+    const ui::Rect was = rect_of(d, s, 3);
+
+    REQUIRE(doc::set_context(d, 3, 1).accepted);
+    const ui::Element after = *doc::find(d, 3);
+
+    CHECK(after.x == before.x);
+    CHECK(after.y == before.y);
+    CHECK(after.width == before.width);
+    CHECK(after.height == before.height);
+    CHECK(after.context == 1);
+    // ...and the resolved rectangle moved by exactly #1's origin.
+    const ui::Rect now = rect_of(d, s, 3);
+    CHECK(now.x == was.x + rect_of(d, s, 1).x);
+    CHECK(now.y == was.y + rect_of(d, s, 1).y);
+}
+
+TEST_CASE("a coordinate is a workspace cell at the root and an OFFSET in a frame") {
+    // W-6 asked whether "the workspace starts at 0" was a law about coordinates
+    // or a law about the workspace. Its own stated reason answered it.
+    WorkshopDoc d = composed();
+
+    // At the root: unchanged, to the cell.
+    CHECK_FALSE(doc::move(d, 1, -1, 0).accepted);
+    CHECK(doc::move(d, 1, -1, 0).refusal == "the workspace starts at 0");
+    CHECK(doc::find(d, 1)->x == 4);
+    CHECK_FALSE(doc::check_coord(-1, ui::kRootContext).accepted);
+
+    // In a frame: an offset, and -1 means one cell before the source starts.
+    CHECK(doc::check_coord(-1, 1).accepted);
+    REQUIRE(doc::move(d, 2, -1, -1).accepted);
+    Session s;
+    CHECK(rect_of(d, s, 2).x == rect_of(d, s, 1).x - 1);
+    CHECK(rect_of(d, s, 2).y == rect_of(d, s, 1).y - 1);
+
+    // ...and a document carrying that is legal, which is the load half of the
+    // same law.
+    CHECK(doc::check_document(d).accepted);
+    WorkshopDoc bad = d;
+    bad.elements[0].x = -1; // #1 measures against the root
+    CHECK(doc::check_document(bad).refusal == "#1: the workspace starts at 0");
+}
+
+TEST_CASE("two objects called the same thing are still two references") {
+    // A relationship names an identity, so the oldest fixture in this suite --
+    // two objects sharing a label -- has nothing to say about which one is
+    // meant, and that is the point.
+    WorkshopDoc d = two_panels(); // both called `panel`, ids 1 and 2
+    REQUIRE(doc::set_context(d, 2, 1).accepted);
+    REQUIRE(doc::rename(d, 1, "panel").accepted);
+    REQUIRE(doc::rename(d, 2, "panel").accepted);
+    CHECK(doc::find(d, 2)->context == 1);
+    CHECK(TextForm<ContextRef>::format(ContextRef{doc::find(d, 2)->context}) == "#1");
+    CHECK(TextForm<ContextRef>::format(ContextRef{doc::find(d, 1)->context}) == "root");
+    CHECK(TextForm<ContextRef>::parse("#1")->id == 1);
+    CHECK(TextForm<ContextRef>::parse("root")->id == ui::kRootContext);
+    // Not an ordinal, and not the reserved non-identity.
+    CHECK_FALSE(TextForm<ContextRef>::parse("1").has_value());
+    CHECK_FALSE(TextForm<ContextRef>::parse("#0").has_value());
+    CHECK_FALSE(TextForm<ContextRef>::parse("#").has_value());
+    CHECK_FALSE(TextForm<ContextRef>::parse("panel").has_value());
+}
+
+// ---- The composition proofs -------------------------------------------------
+
+TEST_CASE("moving a source moves what measures against it, and rewrites none of it") {
+    WorkshopDoc d = composed();
+    Session s;
+    const ui::Element b_before = *doc::find(d, 2);
+    const ui::Rect a_was = rect_of(d, s, 1);
+    const ui::Rect b_was = rect_of(d, s, 2);
+
+    REQUIRE(doc::move(d, 1, 10, 7).accepted);
+
+    // A's authored position changed; B's did not; B's RESOLVED position did.
+    CHECK(doc::find(d, 1)->x == 10);
+    CHECK(*doc::find(d, 2) == b_before); // nothing about B was touched at all
+
+    const ui::Rect b_now = rect_of(d, s, 2);
+    CHECK(b_now.x == b_was.x + (10 - a_was.x));
+    CHECK(b_now.y == b_was.y + (7 - a_was.y));
+    // ...and the gap between them is exactly what B authored, still.
+    CHECK(b_now.x - rect_of(d, s, 1).x == b_before.x);
+}
+
+TEST_CASE("resizing a source re-resolves a share and leaves an authored cell count alone") {
+    // The Percent proof and the Cells proof are one case, because they are the
+    // same claim told about the two extent modes: B is 50% OF A, C is 6 cells
+    // wherever it is.
+    WorkshopDoc d = composed();
+    Session s;
+    CHECK(rect_of(d, s, 1).w == 24); // 50% of a 48-cell workspace
+    CHECK(rect_of(d, s, 2).w == 12); // 50% of that
+    CHECK(rect_of(d, s, 3).w == 6);  // cells
+
+    REQUIRE(doc::set_width(d, 1, ui::Extent{ui::kExtentCells, 30}).accepted);
+
+    CHECK(doc::find(d, 2)->width == ui::Extent{ui::kExtentPercent, 50}); // still 50%
+    CHECK(doc::find(d, 3)->width == ui::Extent{ui::kExtentCells, 6});    // still 6 cells
+    CHECK(rect_of(d, s, 2).w == 15); // 50% of 30
+    CHECK(rect_of(d, s, 3).w == 6);  // unmoved: cells are cells in every frame
+}
+
+TEST_CASE("the workspace re-resolves a whole composed chain, and authors nothing") {
+    // The Percent proof with the workspace as the thing that moves. Every
+    // authored value is identical before and after, all the way down.
+    WorkshopDoc d = composed();
+    Session wide;
+    Session narrow;
+    narrow.workspace_w = 24;
+
+    const WorkshopDoc authored_before = d;
+    CHECK(rect_of(d, wide, 1).w == 24);
+    CHECK(rect_of(d, wide, 2).w == 12);
+    CHECK(rect_of(d, narrow, 1).w == 12); // 50% of 24
+    CHECK(rect_of(d, narrow, 2).w == 6);  // 50% of that 12 -- transitively
+    CHECK(rect_of(d, narrow, 3).w == 6);  // and cells do not move
+    CHECK(d == authored_before);
+}
+
+TEST_CASE("document order is not dependency order, and stays paint, hit and list order") {
+    // A document deliberately not in topological order: C, A, B with
+    // C -> B -> A -> root. Nothing sorts it.
+    WorkshopDoc d;
+    const std::int64_t c = doc::add(d, "C", 1, 1, ui::Extent{ui::kExtentCells, 20},
+                                    ui::Extent{ui::kExtentCells, 8});
+    const std::int64_t a = doc::add(d, "A", 5, 2, ui::Extent{ui::kExtentCells, 20},
+                                    ui::Extent{ui::kExtentCells, 8});
+    const std::int64_t b = doc::add(d, "B", 1, 1, ui::Extent{ui::kExtentCells, 20},
+                                    ui::Extent{ui::kExtentCells, 8});
+    REQUIRE(doc::set_context(d, b, a).accepted);
+    REQUIRE(doc::set_context(d, c, b).accepted);
+
+    Session s;
+    s.selected = a;
+    refocus(d, s);
+    const ui::Scene scene = workspace_scene(d, s);
+
+    // Resolved correctly, though the work had to run A, then B, then C.
+    REQUIRE(scene.items.size() == 3);
+    CHECK(ui::placed_for(scene, a)->rect.x == 5);
+    CHECK(ui::placed_for(scene, b)->rect.x == 6);
+    CHECK(ui::placed_for(scene, c)->rect.x == 7);
+
+    // ORDER: the scene, the object list and the document all still read C, A, B.
+    CHECK(scene.items[0].id == c);
+    CHECK(scene.items[1].id == a);
+    CHECK(scene.items[2].id == b);
+    CHECK(d.elements[0].id == c);
+    const surface::SurfaceCanvas canvas = paint(d, s);
+    CHECK(label_at(canvas, kPanelX, kListY) == "  #" + std::to_string(c) + " C");
+    CHECK(label_at(canvas, kPanelX, kListY + 1) == "> #" + std::to_string(a) + " A");
+    CHECK(label_at(canvas, kPanelX, kListY + 2) == "  #" + std::to_string(b) + " B");
+
+    // ...and the topmost thing under an overlapping cell is the LAST authored,
+    // B -- the one the others depend on. Dependency order is not z-order.
+    const ui::Placed* under = ui::hit(scene, 10, 5);
+    REQUIRE(under != nullptr);
+    CHECK(under->id == b);
+
+    // The maker still says which is in front by authoring order, and doing so
+    // leaves the dependency exactly where it was.
+    std::rotate(d.elements.begin(), d.elements.begin() + 1, d.elements.end()); // A, B, C
+    const ui::Scene after = workspace_scene(d, s);
+    CHECK(after.items[2].id == c);
+    CHECK(ui::hit(after, 10, 5)->id == c);
+    CHECK(doc::find(d, c)->context == b);
+}
+
+TEST_CASE("a dependent may spill past its source, and nothing clips, owns or reorders it") {
+    // A contextual relationship is not containment. Recorded as behaviour rather
+    // than asserted as an intention.
+    WorkshopDoc d;
+    doc::add(d, "small", 5, 5, ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 2});
+    doc::add(d, "spills", 0, 0, ui::Extent{ui::kExtentCells, 20},
+             ui::Extent{ui::kExtentCells, 6});
+    REQUIRE(doc::set_context(d, 2, 1).accepted);
+    Session s;
+    s.selected = 2;
+    refocus(d, s);
+
+    // PAINT: the whole rectangle reaches the canvas, not the part inside #1.
+    CHECK(rect_of(d, s, 2) == ui::Rect{5, 5, 20, 6});
+    CHECK(has_rect(paint(d, s), kWorkspaceX + 5, kWorkspaceY + 5, 20, 6, surface::role::kFill));
+
+    // HIT: everywhere it is, including well outside its source.
+    const ui::Scene scene = workspace_scene(d, s);
+    REQUIRE(ui::hit(scene, 20, 9) != nullptr);
+    CHECK(ui::hit(scene, 20, 9)->id == 2);
+
+    // DRAG: it can be taken hold of out there, and moved further out.
+    CHECK(take_hold(d, s, 20, 9) == 2);
+    CHECK(drag_to(d, s, 30, 12).accepted());
+    CHECK(rect_of(d, s, 2).x == 15);
+    end_drag(s);
+
+    // RESIZE: its handle is at its own far corner, not its source's.
+    const Handle handle = size_handle(d, s);
+    CHECK(handle.shown);
+    CHECK(handle.x == rect_of(d, s, 2).x + rect_of(d, s, 2).w);
+}
+
+// ---- Direct manipulation through a context ----------------------------------
+
+TEST_CASE("dragging a dependent authors its LOCAL position, and never touches its source") {
+    WorkshopDoc d = composed();
+    Session s;
+    s.selected = 2;
+    refocus(d, s);
+    const ui::Element a_before = *doc::find(d, 1);
+    const ui::Rect frame = rect_of(d, s, 1);
+
+    // Take hold one cell into B, and drag it somewhere on the WORKSPACE.
+    const ui::Rect b_was = rect_of(d, s, 2);
+    REQUIRE(take_hold(d, s, b_was.x + 1, b_was.y + 1) == 2);
+    REQUIRE(drag_to(d, s, 20, 9).accepted());
+
+    // What was written is a LOCAL offset -- the global answer minus the frame's
+    // origin -- and the object is where the hand put it.
+    CHECK(doc::find(d, 2)->x == (20 - 1) - frame.x);
+    CHECK(doc::find(d, 2)->y == (9 - 1) - frame.y);
+    CHECK(rect_of(d, s, 2) == ui::Rect{19, 8, b_was.w, b_was.h});
+    CHECK(doc::find(d, 2)->context == 1); // still measured against #1
+    CHECK(*doc::find(d, 1) == a_before);  // and #1 was not rewritten
+    end_drag(s);
+
+    // NOW MOVE THE SOURCE. B follows, because what the drag authored was the
+    // relationship's offset and not a global position baked in.
+    const std::int64_t local_x = doc::find(d, 2)->x;
+    REQUIRE(doc::move(d, 1, a_before.x + 3, a_before.y + 2).accepted);
+    CHECK(doc::find(d, 2)->x == local_x);
+    CHECK(rect_of(d, s, 2).x == 19 + 3);
+    CHECK(rect_of(d, s, 2).y == 8 + 2);
+
+    // And a second drag, after the source moved, still projects through the
+    // frame the source is in NOW.
+    const ui::Rect b_now = rect_of(d, s, 2);
+    REQUIRE(take_hold(d, s, b_now.x, b_now.y) == 2);
+    REQUIRE(drag_to(d, s, 6, 4).accepted());
+    CHECK(rect_of(d, s, 2) == ui::Rect{6, 4, b_now.w, b_now.h});
+    CHECK(doc::find(d, 2)->x == 6 - rect_of(d, s, 1).x);
+}
+
+TEST_CASE("a hand stops at the workspace edge for a dependent too, and the offset goes negative") {
+    // The boundary policy, unchanged in kind: a hand that reaches past what
+    // exists stops at the wall, authors the wall's value, and says so. What
+    // changed is what "the wall's value" is authored AS -- an offset in the
+    // frame, negative whenever the frame does not start at 0.
+    WorkshopDoc d = composed();
+    Session s;
+    s.selected = 2;
+    refocus(d, s);
+    const ui::Rect frame = rect_of(d, s, 1);
+    REQUIRE(frame.x > 0);
+
+    const ui::Rect b_was = rect_of(d, s, 2);
+    REQUIRE(take_hold(d, s, b_was.x, b_was.y) == 2);
+    const Handled far = drag_to(d, s, -20, -20);
+    CHECK(far.accepted());
+    CHECK(far.clamped());
+    CHECK(far.boundary == kAtWorkspaceStart);
+
+    // It stopped where a maker can SEE it stop: the workspace's first cell.
+    CHECK(rect_of(d, s, 2).x == doc::kFirstCell);
+    CHECK(rect_of(d, s, 2).y == doc::kFirstCell);
+    // ...and what that stop is authored as is the negative offset it is.
+    CHECK(doc::find(d, 2)->x == -frame.x);
+    CHECK(doc::find(d, 2)->y == -frame.y);
+    CHECK(doc::check_document(d).accepted);
+    end_drag(s);
+
+    // A ROOT object meets the same wall and authors 0, exactly as before W-6.
+    // On a fresh document, because #2 is now sitting on top of #1's corner --
+    // which is itself the phase working: paint order decided that, not the
+    // dependency.
+    WorkshopDoc fresh = composed();
+    Session root;
+    root.selected = 1;
+    refocus(fresh, root);
+    const ui::Rect a_was = rect_of(fresh, root, 1);
+    REQUIRE(take_hold(fresh, root, a_was.x, a_was.y) == 1);
+    const Handled at_edge = drag_to(fresh, root, -5, -5);
+    CHECK(at_edge.boundary == kAtWorkspaceStart);
+    CHECK(doc::find(fresh, 1)->x == doc::kFirstCell);
+    CHECK(doc::find(fresh, 1)->y == doc::kFirstCell);
+}
+
+TEST_CASE("resizing a dependent's share asks for a share of its SOURCE, not the workspace") {
+    // W-3's projection, handed the right span. There is no second projection and
+    // no branch on whether an object has a context: `extent_from_drag` always
+    // asked "which share of this span reaches the hand", and the span was the
+    // only thing that had been wrong.
+    WorkshopDoc d = composed();
+    Session s;
+    s.selected = 2;
+    refocus(d, s);
+    CHECK(rect_of(d, s, 1).w == 24); // #1 is 24 cells wide
+    CHECK(rect_of(d, s, 2).w == 12);
+
+    // Ask, by hand, for 18 resolved cells. As a share of #1's 24 that is 75%;
+    // as a share of the 48-cell workspace it would have been 38%, which resolves
+    // to 18 against the WORKSPACE and to 9 against #1 -- so the object the maker
+    // just grew would have come back half the size.
+    REQUIRE(size_to(d, s, 2, 18, 4).accepted());
+    CHECK(doc::find(d, 2)->width == ui::Extent{ui::kExtentPercent, 75});
+    CHECK(rect_of(d, s, 2).w == 18);
+
+    // MODE IS PRESERVED: it is still a share, so it still follows its source.
+    REQUIRE(doc::set_width(d, 1, ui::Extent{ui::kExtentCells, 40}).accepted);
+    CHECK(doc::find(d, 2)->width == ui::Extent{ui::kExtentPercent, 75});
+    CHECK(rect_of(d, s, 2).w == 30);
+
+    // The far wall is 100% OF THE SOURCE, and it says so in words that are true
+    // in any context.
+    const Handled far = size_to(d, s, 2, 400, 4);
+    CHECK(far.clamped());
+    CHECK(far.boundary == kAtWholeContext);
+    CHECK(doc::find(d, 2)->width == ui::Extent{ui::kExtentPercent, 100});
+    CHECK(rect_of(d, s, 2).w == 40); // the whole of #1, not the whole workspace
+}
+
+TEST_CASE("resizing a dependent in cells stays cells, and a no-op preserves the spelling") {
+    WorkshopDoc d = composed();
+    Session s;
+    s.selected = 3; // authored 6 cells, in #1's frame
+    refocus(d, s);
+
+    REQUIRE(size_to(d, s, 3, 9, 2).accepted());
+    CHECK(doc::find(d, 3)->width == ui::Extent{ui::kExtentCells, 9});
+    CHECK(rect_of(d, s, 3).w == 9);
+
+    // The source's size changes; an absolute size does not.
+    REQUIRE(doc::set_width(d, 1, ui::Extent{ui::kExtentCells, 12}).accepted);
+    CHECK(rect_of(d, s, 3).w == 9);
+
+    // ...and asking for exactly what it already resolves to re-authors nothing,
+    // for a dependent's share as well as for a root object's.
+    s.selected = 2;
+    refocus(d, s);
+    const ui::Extent share = doc::find(d, 2)->width;
+    REQUIRE(size_to(d, s, 2, rect_of(d, s, 2).w, rect_of(d, s, 2).h).accepted());
+    CHECK(doc::find(d, 2)->width == share);
+}
+
+TEST_CASE("the keyboard and the pointer compose identically, because they are one path") {
+    WorkshopDoc d = composed();
+    Session s;
+    s.selected = 2;
+    refocus(d, s);
+    const ui::Rect was = rect_of(d, s, 2);
+
+    // A nudge speaks the screen: one cell right is one cell right, whatever
+    // frame the object is authored in.
+    REQUIRE(nudge(d, s, +1, 0).accepted());
+    CHECK(rect_of(d, s, 2).x == was.x + 1);
+    CHECK(doc::find(d, 2)->x == 3); // the authored offset, one further along
+
+    // ...and `grow` reaches the same projection the handle does.
+    const ui::Extent share = doc::find(d, 2)->width;
+    REQUIRE(grow(d, s, +1, 0).accepted());
+    CHECK(doc::find(d, 2)->width.mode == share.mode);
+    CHECK(rect_of(d, s, 2).w == was.w + 1);
+}
+
+// ---- Deletion ---------------------------------------------------------------
+
+TEST_CASE("a source something measures against is not deletable, and the refusal names who") {
+    WorkshopDoc d = composed(); // #2 and #3 both measure against #1
+    Session s;
+    s.selected = 1;
+    refocus(d, s);
+
+    const Written no = delete_selected(d, s);
+    CHECK_FALSE(no.accepted);
+    CHECK(no.refusal == "#2 and #3 take context from #1 -- change or delete them first");
+    // Nothing moved: not the document, not the selection.
+    CHECK(d.elements.size() == 3);
+    CHECK(s.selected == 1);
+    CHECK(doc::find(d, 2)->context == 1);
+
+    // A DEPENDENT deletes normally, and the ordinary selection rule applies.
+    s.selected = 3;
+    refocus(d, s);
+    REQUIRE(delete_selected(d, s).accepted);
+    CHECK(d.elements.size() == 2);
+
+    // With one dependent left the refusal is singular, and correct.
+    s.selected = 1;
+    refocus(d, s);
+    CHECK(delete_selected(d, s).refusal ==
+          "#2 takes context from #1 -- change or delete it first");
+
+    // REWIRE, THEN DELETE. Two authored acts, both the maker's.
+    REQUIRE(doc::set_context(d, 2, ui::kRootContext).accepted);
+    CHECK(delete_selected(d, s).accepted);
+    CHECK(d.elements.size() == 1);
+    CHECK(doc::find(d, 2)->context == ui::kRootContext);
+    // No dangling reference survived an accepted delete.
+    CHECK(doc::check_document(d).accepted);
+}
+
+// ---- The document law, over relationships ------------------------------------
+
+TEST_CASE("the relationship law is the document law, and a poke cannot smuggle one past it") {
+    WorkshopDoc d = composed();
+    CHECK(doc::check_document(d).accepted);
+
+    SUBCASE("a source that is not there") {
+        WorkshopDoc bad = d;
+        bad.elements[1].context = 42;
+        CHECK(doc::check_document(bad).refusal == "#2: no object #42 to take context from");
+    }
+    SUBCASE("an object measured against itself") {
+        WorkshopDoc bad = d;
+        bad.elements[0].context = 1;
+        CHECK(doc::check_document(bad).refusal ==
+              "#1: its context never reaches the workspace (#1 -> #1)");
+    }
+    SUBCASE("a loop") {
+        WorkshopDoc bad = d;
+        bad.elements[0].context = 2; // #1 -> #2 -> #1
+        const Written no = doc::check_document(bad);
+        CHECK_FALSE(no.accepted);
+        CHECK(no.refusal.find("never reaches the workspace") != std::string::npos);
+    }
+    SUBCASE("the root itself is always available") {
+        CHECK(doc::check_document(two_panels()).accepted);
+    }
+    SUBCASE("a deep legal chain is legal, however deep") {
+        WorkshopDoc deep;
+        std::int64_t previous = ui::kRootContext;
+        for (int i = 0; i < 500; ++i) {
+            const std::int64_t made = doc::add(deep, "link", 1, 0,
+                                               ui::Extent{ui::kExtentCells, 2},
+                                               ui::Extent{ui::kExtentCells, 2});
+            REQUIRE(doc::set_context(deep, made, previous).accepted);
+            previous = made;
+        }
+        CHECK(doc::check_document(deep).accepted);
+        Session s;
+        CHECK(rect_of(deep, s, previous).x == 500);
+    }
+}
+
+// ---- Persistence -------------------------------------------------------------
+
+TEST_CASE("the relationship round-trips by identity, and its RESULT is not in the file") {
+    WorkshopDoc original = composed();
+    REQUIRE(doc::move(original, 2, -1, 2).accepted); // a negative local offset, deliberately
+    const std::string text = persist::to_text(original);
+
+    // What is written: the identity. What is not: any resolved consequence of
+    // it -- a frame, a global position, a cell count, a traversal order.
+    CHECK(text.find("\"context\":\"1\"") != std::string::npos);
+    CHECK(text.find("\"context\":\"0\"") != std::string::npos);
+    for (const char* derived : {"\"frame\"", "\"global\"", "\"depth\"", "\"order\"",
+                                "\"resolved\"", "\"rect\"", "\"parent\""}) {
+        CHECK(text.find(derived) == std::string::npos);
+    }
+
+    WorkshopDoc live = two_panels();
+    REQUIRE(persist::load_into(live, text).accepted);
+    CHECK(live == original);
+    CHECK(doc::find(live, 2)->context == 1);
+    CHECK(doc::find(live, 2)->x == -1);
+
+    // ...and it is the SAME relationship, not a lookalike: changing #1 still
+    // changes #2, and #2's authored value stays put.
+    Session s;
+    const ui::Rect was = rect_of(live, s, 2);
+    REQUIRE(doc::move(live, 1, 12, 8).accepted);
+    CHECK(rect_of(live, s, 2).x != was.x);
+    CHECK(doc::find(live, 2)->x == -1);
+
+    // save -> load -> save is still byte-identical with relationships in it.
+    WorkshopDoc again;
+    REQUIRE(persist::load_into(again, persist::to_text(live)).accepted);
+    CHECK(persist::to_text(again) == persist::to_text(live));
+}
+
+TEST_CASE("a composed document loaded under a different workspace rebuilds every rectangle") {
+    // The strongest evidence the phase can produce inside one process; the
+    // report's live witness is the same claim across two.
+    const WorkshopDoc saved = composed();
+    const std::string text = persist::to_text(saved);
+
+    Session wide;
+    Session narrow;
+    narrow.workspace_w = 24;
+
+    WorkshopDoc loaded;
+    REQUIRE(persist::load_into(loaded, text).accepted);
+
+    // AUTHORED: identical, to the byte.
+    CHECK(loaded == saved);
+    CHECK(persist::to_text(loaded) == text);
+    CHECK(doc::find(loaded, 2)->context == 1);
+    CHECK(doc::find(loaded, 2)->width == ui::Extent{ui::kExtentPercent, 50});
+
+    // RESOLVED: rebuilt, and different, all the way down the chain.
+    CHECK(rect_of(loaded, wide, 1).w == 24);
+    CHECK(rect_of(loaded, wide, 2).w == 12);
+    CHECK(rect_of(loaded, narrow, 1).w == 12);
+    CHECK(rect_of(loaded, narrow, 2).w == 6);
+    CHECK(rect_of(loaded, narrow, 3).w == 6); // the cells one, unmoved
+}
+
+TEST_CASE("a forged relationship never leaves Workshop halfway loaded") {
+    const WorkshopDoc subject = composed();
+    WorkshopDoc live = subject;
+    const std::string untouched = persist::to_text(live);
+
+    struct Forgery {
+        const char* what;
+        std::string from;
+        std::string to;
+    };
+    // Each is a file the honest writer could not produce, and each has to be
+    // refused by the DOCUMENT's law rather than by a second copy of it in the
+    // reader.
+    const Forgery forgeries[] = {
+        {"a source that does not exist", "\"context\":\"1\"", "\"context\":\"77\""},
+        {"an object measured against itself", "\"id\":\"2\",\"name\":\"B\",\"context\":\"1\"",
+         "\"id\":\"2\",\"name\":\"B\",\"context\":\"2\""},
+        {"the root turned into a loop", "\"id\":\"1\",\"name\":\"A\",\"context\":\"0\"",
+         "\"id\":\"1\",\"name\":\"A\",\"context\":\"2\""},
+        {"a negative identity", "\"context\":\"1\"", "\"context\":\"-4\""},
+    };
+    for (const Forgery& f : forgeries) {
+        CAPTURE(f.what);
+        const Written no = persist::load_into(live, forged(subject, f.from, f.to));
+        CHECK_FALSE(no.accepted);
+        CHECK_FALSE(no.refusal.empty());
+        CHECK(live == subject); // byte for byte
+        CHECK(persist::to_text(live) == untouched);
+    }
+
+    // An indirect loop, three long, forged the same way.
+    WorkshopDoc chain = composed();
+    REQUIRE(doc::set_context(chain, 3, 2).accepted); // #3 -> #2 -> #1 -> root
+    const std::string looped = forged(chain, "\"id\":\"1\",\"name\":\"A\",\"context\":\"0\"",
+                                      "\"id\":\"1\",\"name\":\"A\",\"context\":\"3\"");
+    CHECK_FALSE(persist::load_into(live, looped).accepted);
+    CHECK(live == subject);
+
+    // ...and a document that merely LOOKS unusual is not refused: document order
+    // is not dependency order in a file either.
+    WorkshopDoc backwards = composed();
+    std::rotate(backwards.elements.begin(), backwards.elements.begin() + 1,
+                backwards.elements.end()); // B, C, A
+    REQUIRE(persist::load_into(live, persist::to_text(backwards)).accepted);
+    CHECK(live.elements[0].id == 2);
+    CHECK(live.elements[2].id == 1);
+    Session s;
+    CHECK(rect_of(live, s, 2).x == rect_of(live, s, 1).x + 2);
+}
+
+TEST_CASE("a deep composed document survives a whole file round trip") {
+    // The deep chain, through persistence, because a depth assumption is exactly
+    // as likely to live in a loader as in a resolver.
+    WorkshopDoc deep;
+    std::int64_t previous = ui::kRootContext;
+    for (int i = 0; i < 300; ++i) {
+        const std::int64_t made = doc::add(deep, "link", 1, 0, ui::Extent{ui::kExtentCells, 2},
+                                           ui::Extent{ui::kExtentCells, 2});
+        REQUIRE(doc::set_context(deep, made, previous).accepted);
+        previous = made;
+    }
+
+    WorkshopDoc live;
+    REQUIRE(persist::load_into(live, persist::to_text(deep)).accepted);
+    CHECK(live == deep);
+    Session s;
+    CHECK(rect_of(live, s, previous).x == 300);
+    CHECK(persist::to_text(live) == persist::to_text(deep));
+}
+
+TEST_CASE("a document written before relationships existed is refused, and says what is missing") {
+    // W-6 changed the written shape, so a W-5 document no longer admits. That is
+    // stated here rather than papered over with a migration: Workshop is
+    // pre-release and its own only consumer, and no artifact in the world
+    // deserves a compatibility layer yet. What matters is that the refusal is
+    // CLOSED and legible -- never a silent default to the root.
+    const std::string w5_era =
+        "{\"zen\":1,\"schema\":\"WorkshopDocument\",\"version\":1,\"value\":{"
+        "\"format\":\"zengine-workshop\",\"format_version\":\"1\",\"next_id\":\"2\","
+        "\"objects\":[{\"id\":\"1\",\"name\":\"panel\",\"x\":\"3\",\"y\":\"2\","
+        "\"width\":{\"mode\":\"percent\",\"amount\":\"60\"},"
+        "\"height\":{\"mode\":\"cells\",\"amount\":\"6\"}}]}}";
+
+    WorkshopDoc live = composed();
+    const WorkshopDoc before = live;
+    const Written no = persist::load_into(live, w5_era);
+    CHECK_FALSE(no.accepted);
+    CHECK_FALSE(no.refusal.empty());
+    CHECK(live == before);
+}
+
+// ---- Through the message path ------------------------------------------------
+
+TEST_CASE("a maker authors a context in the inspector, and the picture follows") {
+    Live t; // the opening document: #1 and #2, both measured against the root
+    REQUIRE(t.doc().elements.size() == 2);
+    CHECK(t.doc().elements[1].context == ui::kRootContext);
+
+    // Select #2 and read its Context row: `root`, before anything is authored.
+    t.key(input::scan::kTab);
+    REQUIRE(t.session().selected == 2);
+    REQUIRE(t.row("Context") != nullptr);
+    CHECK(t.row("Context")->value() == "root");
+    CHECK(t.row("Context")->editable());
+
+    // Author it exactly the way a width is authored: enter, retype, enter.
+    retype(t, "Context", "#1");
+    CHECK(t.row("Context")->value() == "#1");
+    CHECK(t.doc().elements[1].context == 1);
+    CHECK(t.notice() == "committed Context = #1");
+
+    // The picture follows: #2's rectangle is its authored offset from #1's.
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* a = ui::placed_for(scene, 1);
+    const ui::Placed* b = ui::placed_for(scene, 2);
+    REQUIRE(a != nullptr);
+    REQUIRE(b != nullptr);
+    CHECK(b->rect.x == a->rect.x + t.doc().elements[1].x);
+    CHECK(b->rect.y == a->rect.y + t.doc().elements[1].y);
+
+    // Move #1 with the keyboard; #2 follows and its authored values do not move.
+    const ui::Element b_before = t.doc().elements[1];
+    t.key(input::scan::kTab); // back to #1
+    REQUIRE(t.session().selected == 1);
+    t.key(input::scan::kL);
+    CHECK(t.doc().elements[1] == b_before);
+    CHECK(ui::placed_for(workspace_scene(t.doc(), t.session()), 2)->rect.x == b->rect.x + 1);
+
+    // A refusal reaches the maker as a refusal, and writes nothing.
+    t.key(input::scan::kTab);
+    REQUIRE(t.session().selected == 2);
+    retype(t, "Context", "#99");
+    CHECK(t.notice() == "Context: no object #99 to take context from");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.doc().elements[1].context == 1);
+    t.key(input::scan::kEscape);
+
+    // ...and an unparseable draft is the OTHER outcome, still told apart: a
+    // bare `2` is not a context, because a context is an identity and not the
+    // second object.
+    retype(t, "Context", "2");
+    CHECK(t.notice() == "Context: not root or an identity (#1)");
+    CHECK(t.doc().elements[1].context == 1);
+    t.key(input::scan::kEscape);
+}
+
+TEST_CASE("a delete refusal reaches the maker with the dependents named") {
+    Live t;
+    t.key(input::scan::kTab);
+    retype(t, "Context", "#1");
+    REQUIRE(t.doc().elements[1].context == 1);
+
+    t.key(input::scan::kTab); // select #1, the source
+    REQUIRE(t.session().selected == 1);
+    t.key(input::scan::kD);
+    CHECK(t.notice() == "#2 takes context from #1 -- change or delete it first");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.doc().elements.size() == 2);
+    CHECK(t.session().selected == 1);
+}
+
+TEST_CASE("a composed document survives save, a new process, and a load, through the keys") {
+    // The cross-process claim, driven entirely by messages: run A composes and
+    // saves, run B is a fresh weave with a DIFFERENT workspace that loads it.
+    TempDir dir("compose");
+    ui::Rect a_wide{};
+    ui::Rect b_wide{};
+    {
+        Live run_a;
+        run_a.host.document_path = dir.document();
+        run_a.key(input::scan::kTab);
+        retype(run_a, "Context", "#1");
+        retype(run_a, "Width", "50%");
+        REQUIRE(run_a.doc().elements[1].context == 1);
+        REQUIRE(run_a.doc().elements[1].width == ui::Extent{ui::kExtentPercent, 50});
+
+        const ui::Scene scene = workspace_scene(run_a.doc(), run_a.session());
+        a_wide = ui::placed_for(scene, 1)->rect;
+        b_wide = ui::placed_for(scene, 2)->rect;
+
+        run_a.key(input::scan::kS, input::mod::kCtrl);
+        REQUIRE(run_a.notice() == "saved " + dir.document());
+    }
+
+    Live run_b;
+    run_b.host.document_path = dir.document();
+    // A different window onto the same work: `[` narrows the workspace.
+    run_b.key(input::scan::kLeftBracket);
+    run_b.key(input::scan::kLeftBracket);
+    run_b.key(input::scan::kLeftBracket);
+    REQUIRE(run_b.session().workspace_w < kWorkspaceW);
+    run_b.key(input::scan::kO, input::mod::kCtrl);
+    REQUIRE(run_b.notice().rfind("loaded", 0) == 0);
+
+    // IDENTITY, RELATIONSHIP and AUTHORED VALUES: the same.
+    REQUIRE(run_b.doc().elements.size() == 2);
+    CHECK(run_b.doc().elements[0].id == 1);
+    CHECK(run_b.doc().elements[1].id == 2);
+    CHECK(run_b.doc().elements[1].context == 1);
+    CHECK(run_b.doc().elements[1].width == ui::Extent{ui::kExtentPercent, 50});
+    CHECK(run_b.doc().elements[1].x == 6);
+
+    // RESOLVED: rebuilt, and different, transitively.
+    const ui::Scene scene = workspace_scene(run_b.doc(), run_b.session());
+    const ui::Rect a_now = ui::placed_for(scene, 1)->rect;
+    const ui::Rect b_now = ui::placed_for(scene, 2)->rect;
+    CHECK(a_now.w < a_wide.w);
+    CHECK(b_now.w < b_wide.w);
+    CHECK(b_now.w == a_now.w / 2); // still half of #1, whatever #1 came to
+
+    // And it is the same relationship, not a lookalike: move #1 and #2 follows.
+    run_b.key(input::scan::kL);
+    CHECK(ui::placed_for(workspace_scene(run_b.doc(), run_b.session()), 2)->rect.x ==
+          b_now.x + 1);
 }

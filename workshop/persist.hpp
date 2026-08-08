@@ -10,9 +10,20 @@
 // is: **exactly which facts are the document?** Everything else follows from
 // the answer, and the answer is short enough to state here in full:
 //
-//   DOCUMENT   an identity, a name, an authored place, two authored extents
-//              (mode AND amount), the ORDER the objects are in, and the next
-//              identity to mint. That is WorkshopDoc, unchanged by this phase.
+//   DOCUMENT   an identity, a name, the identity this object's values are
+//              measured against, an authored place, two authored extents (mode
+//              AND amount), the ORDER the objects are in, and the next identity
+//              to mint. That is WorkshopDoc; W-5 found it needed no new field
+//              and W-6 added exactly one, to the element rather than to the
+//              document.
+//
+//              The relationship is persisted; its RESULT is not. Nowhere in
+//              this file is a source's resolved rectangle, a dependent's global
+//              position, the cells a share came to, or the order the loader
+//              would have to resolve things in. All four are rebuilt, and the
+//              proof is the same one W-5 used for a share: save under one
+//              context and load under another, and the authored relationship is
+//              byte-identical while the resolved geometry is not.
 //
 //   SESSION    the selection, the workspace extent, an editor draft, a drag in
 //              flight, the last notice, the path being saved to. Belongs to the
@@ -158,6 +169,30 @@ namespace zengine::workshop::persist {
 inline constexpr const char* kFormat = "zengine-workshop";
 
 /// The only format version this build reads or writes.
+///
+/// IT IS NOT YET A PUBLIC COMPATIBILITY BOUNDARY, and W-6 is the phase that had
+/// to say so out loud. This phase changed the written shape -- an object now
+/// carries a `context` -- so a document saved by W-5 no longer admits: the
+/// Loom's gate refuses it for a missing member, before this number is ever
+/// looked at. That is the honest outcome and it was chosen rather than papered
+/// over. There is one implementation, one consumer, no released promise, and no
+/// artifact in the world worth a compatibility layer, so:
+///
+///   NOT DONE   a v1 -> v2 migration, a legacy reader, an upgrade path, a
+///              version graph. Every one of them would be machinery built to
+///              preserve files that only this developer's own experiments
+///              produced.
+///   NOT DONE   bumping this number. It states what a document MEANS, and the
+///              meaning of every field is unchanged; the SHAPE changing is a
+///              different claim, carried by the Loom envelope's own version
+///              (WorkshopDocument v2), which is what actually refuses a W-5
+///              file. Incrementing it here as well would be discipline theatre:
+///              a second refusal for a document the first one already stopped.
+///
+/// Real file-format compatibility policy is required before an official release,
+/// when an external artifact or consumer actually deserves preservation. The
+/// standing trigger is unchanged and it is not this: it is the first format
+/// change that must READ a real document written by a released build.
 inline constexpr std::int64_t kFormatVersion = 1;
 
 /// The two spellings of an authored extent, in the file. Words, not the
@@ -188,17 +223,50 @@ struct WorkshopExtent {
 /// identity -- separate fields here for exactly the reason they are separate in
 /// the vocabulary: two objects may be called `panel` and they are still two
 /// objects, and a format that keyed on the name would make that unsayable.
+///
+/// `context` IS THE RELATIONSHIP, and it is written as the identity it is:
+/// another object's `id`, or 0 for the root. Three things about that, because it
+/// is the one field where the format had a real choice:
+///
+///   it is an IDENTITY and never a position. A relationship written as "the
+///   fourth object" would survive a save and break on the first reorder --
+///   which is the same reason `id` is in this file at all, and the reason the
+///   loader keeps the file's identities rather than minting fresh ones.
+///
+///   it is a NUMBER and not a word, unlike the extent mode next to it, and the
+///   asymmetry is deliberate rather than an inconsistency. `mode` is written as
+///   `"cells"`/`"percent"` because its in-memory 0/1 are ARBITRARY -- renumber
+///   the two constants and every saved document silently changes size. Zero
+///   cannot be renumbered: it is not an identity because the mint starts at 1,
+///   and a document whose objects included a #0 would already be illegal. The
+///   static_assert below is that argument, made into a compile error rather than
+///   left as a paragraph.
+///
+///   it is NOT VALIDATED HERE. Whether #4 exists, and whether following it comes
+///   back around, is the document's law and is asked once, in
+///   `doc::check_document`. This file's job is the same as it is for an extent:
+///   say what the shape of the written thing is, and let the one law judge what
+///   it means.
 struct WorkshopObject {
     std::int64_t id = 0;
     std::string name;
+    std::int64_t context = 0;
     std::int64_t x = 0;
     std::int64_t y = 0;
     WorkshopExtent width;
     WorkshopExtent height;
 
-    ZEN_SHAPE(WorkshopObject, 1, ZEN_FIELD(id), ZEN_FIELD(name), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(width), ZEN_FIELD(height));
+    ZEN_SHAPE(WorkshopObject, 2, ZEN_FIELD(id), ZEN_FIELD(name), ZEN_FIELD(context),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(width), ZEN_FIELD(height));
 };
+
+/// The one thing that would make `context: 0` mean something else. If the mint
+/// ever handed out 0, every saved document's root-context objects would silently
+/// become dependents of an object numbered zero.
+static_assert(ui::kRootContext < doc::kFirstIdentity,
+              "A saved document spells the root context as the identity 0, which is safe only "
+              "while no object can carry it. If the mint's first identity moves, the file "
+              "format needs a word for the root instead of a reserved number.");
 
 /// A whole saved document: what it is, which version of that it is, the next
 /// identity to mint, and the objects in AUTHORED ORDER.
@@ -216,7 +284,10 @@ struct WorkshopDocument {
     std::int64_t next_id = 0;
     std::vector<WorkshopObject> objects;
 
-    ZEN_SHAPE(WorkshopDocument, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    /// Version 2 since W-6, because the objects it holds grew a field and a
+    /// published shape is immutable. `format_version` below is a DIFFERENT
+    /// claim and did NOT move -- see the note on it.
+    ZEN_SHAPE(WorkshopDocument, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(next_id), ZEN_FIELD(objects));
 };
 
@@ -251,8 +322,8 @@ inline WorkshopDocument to_document(const WorkshopDoc& d) {
     out.next_id = d.next_id;
     out.objects.reserve(d.elements.size());
     for (const ui::Element& e : d.elements) {
-        out.objects.push_back(
-            WorkshopObject{e.id, e.label, e.x, e.y, extent_out(e.width), extent_out(e.height)});
+        out.objects.push_back(WorkshopObject{e.id, e.label, e.context, e.x, e.y,
+                                             extent_out(e.width), extent_out(e.height)});
     }
     return out;
 }
@@ -353,6 +424,10 @@ inline Loaded from_text(std::string_view bytes) {
         ui::Element e;
         e.id = o.id;
         e.label = o.name;
+        // Copied, never interpreted. Whether it names an object, and whether
+        // following it comes back here, is `doc::check_document`'s to say --
+        // asked once, on the whole candidate, by `load_into` below.
+        e.context = o.context;
         e.x = o.x;
         e.y = o.y;
         e.width = width;

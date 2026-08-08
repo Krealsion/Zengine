@@ -48,8 +48,8 @@
 #                     runs the real command. No case count is invented for it.
 #
 # FLOORS ARE MINIMUMS, and the numbers below are a MEASURED baseline (C4's, raised by W-0,
-# W-1, W-2, W-3, W-4 and W-5 where those phases' cases should become permanent), so they carry
-# ZERO downward slack --
+# W-1, W-2, W-3, W-4, W-5 and W-6 where those phases' cases should become permanent), so they
+# carry ZERO downward slack --
 # deleting a single test case from any suite crosses its floor -- while leaving healthy
 # ADDITIONS free, which is the traffic this repository actually generates. Raise a floor when
 # a phase's new cases should become permanent. Do not lower one to make a deletion green: a
@@ -80,8 +80,8 @@ timer                             doctest           always  78
 input                             doctest           always  24
 surface                           doctest           always  22
 surface                           doctest           sdl     1
-ui                                doctest           always  12
-workshop                          doctest           always  92
+ui                                doctest           always  22
+workshop                          doctest           always  119
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

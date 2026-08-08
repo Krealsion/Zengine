@@ -70,6 +70,21 @@
 //                                                  every write site would have to
 //                                                  remember to set
 
+// W-6 GAVE ONE AUTHORED OBJECT A CONTEXT SUPPLIED BY ANOTHER, and this file is
+// where you can see how little it cost. There is no new message, no new binding,
+// no new gesture and no new session field: the relationship is an ordinary
+// editable property (`Context` in the inspector), so it is authored through the
+// same Enter/type/Enter the maker already uses for a width, and refused through
+// the same one-line notice. The two places this file changed at all are a move
+// notice that now names the frame a position is authored IN, and the delete
+// refusal, which arrives from the document with the dependents named.
+//
+// The opening document is deliberately still FLAT. A maker's first screen shows
+// two independent rectangles, exactly as it has since W-0; composition is
+// something they do, not something they arrive inside. That is the cheapest
+// possible statement of the phase's own constraint -- the simple case did not
+// get more expensive.
+
 #include "persist.hpp"
 #include "screen.hpp"
 
@@ -545,9 +560,17 @@ private:
     static std::string edge_of(const Handled& done) {
         return done.clamped() ? " -- " + done.boundary : std::string();
     }
+    /// A move notice names the AUTHORED position and, when there is one, the
+    /// frame that position is authored IN. `#2 is at 2,1 in #1` is one fact; a
+    /// bare `#2 is at 2,1` beside a rectangle visibly nowhere near cell 2,1
+    /// would be two, and a maker would have to work out which. Nothing here
+    /// reports the resolved position: that is what the picture already is.
     static std::string move_notice(const ui::Element& e, const Handled& done) {
+        const std::string where = e.context == ui::kRootContext
+                                      ? std::string()
+                                      : " in #" + std::to_string(e.context);
         return "#" + std::to_string(e.id) + " is at " + std::to_string(e.x) + "," +
-               std::to_string(e.y) + edge_of(done);
+               std::to_string(e.y) + where + edge_of(done);
     }
     static std::string size_notice(const ui::Element& e, const Handled& done) {
         return "#" + std::to_string(e.id) + " is now " + TextForm<ui::Extent>::format(e.width) +

@@ -88,10 +88,14 @@ inline constexpr const char* kHandleGlyph = "+";
 /// copy of either here would be the shadow model the whole Workshop arc is
 /// arranged to avoid, and it would be the copy that goes stale.
 ///
-/// `grab_dx/dy` are in AUTHORED cells, which costs nothing to convert because
-/// authored placement and resolved placement are the same number (`ui::resolve`
-/// copies x/y through untouched). See `begin_drag` -- that identity is the reason
-/// a drag is a subtraction here rather than an inverse of the resolver.
+/// `grab_dx/dy` are in RESOLVED cells — where inside the object's rectangle on
+/// the workspace the maker took hold. W-2 wrote "authored cells" and it was the
+/// same number, because `ui::resolve` copied x/y through untouched; W-6 made the
+/// two differ (a resolved position is now its context's origin plus the authored
+/// offset) and the honest name for what a hand grabs is the resolved one. The
+/// grab is still a plain SUBTRACTION and still not an inverse of the resolver;
+/// what changed is that turning the hand's answer back into authored truth is
+/// now a second subtraction -- the context's origin -- performed in `place`.
 ///
 /// `resizing` is the whole of W-3's session cost: ONE bool, because there is one
 /// gesture in flight and it is either moving the object or sizing it. A resize
@@ -141,11 +145,13 @@ inline ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
 /// The inspector for one authored object: the properties, plus the facts that
 /// are not properties.
 ///
-/// The whole list is six calls, and `Width` and `Height` are the two that matter
-/// most -- they are the same semantic type, so they share every line of
-/// conversion, parsing and refusal wording. A seventh property of an existing
+/// The whole list is seven calls, and `Width` and `Height` are the two that
+/// matter most -- they are the same semantic type, so they share every line of
+/// conversion, parsing and refusal wording. A further property of an existing
 /// type would be one more line here and nothing else anywhere. That is the old
-/// builder's per-row plumbing, replaced.
+/// builder's per-row plumbing, replaced -- and W-6 spent the prediction: adding
+/// `Context`, a property of a type that did not exist before, cost one line here
+/// plus one `TextForm` specialisation, and nothing else in this file changed.
 ///
 /// The last row is the RESOLVED size, and it is a `show` rather than an `edit`
 /// because it is not the maker's to author: it is what the current workspace
@@ -168,6 +174,15 @@ inline std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
 
     rows.push_back(Row::show("Identity", [id] { return "#" + std::to_string(id); }));
     rows.push_back(Row::edit("Name", doc::name_of(d, id)));
+    // Context comes BEFORE the four numbers it gives meaning to, because that is
+    // the order the reading has to happen in: `X 2` is not an answer until you
+    // know 2 of what. It is one more `Row::edit` over one more property, and
+    // that is the measurement W-6 wanted from the inspector -- a relationship is
+    // not a different kind of thing needing a different kind of editor. It is
+    // NOT labelled `Parent`: nothing here is a parent, and a familiar word that
+    // implies ownership, clipping and cascade-delete would be the tool telling a
+    // maker something the document does not do.
+    rows.push_back(Row::edit("Context", doc::context_of(d, id)));
     rows.push_back(Row::edit("X", doc::x_of(d, id)));
     rows.push_back(Row::edit("Y", doc::y_of(d, id)));
     rows.push_back(Row::edit("Width", doc::width_of(d, id)));
@@ -293,7 +308,12 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 inline constexpr const char* kAtWorkspaceStart = "stopped at the workspace edge";
 inline constexpr const char* kAtSmallest = "stopped at the smallest size";
 inline constexpr const char* kAtLargest = "stopped at the largest size";
-inline constexpr const char* kAtWholeWorkspace = "a share stops at the whole workspace";
+/// Reworded by W-6, because the sentence stopped being true. It used to read
+/// "a share stops at the whole workspace", which was exact while the workspace
+/// was the only thing a share could be a share of. A share of another object
+/// stops at the whole of THAT object, and the wall is the same wall -- the
+/// vocabulary's, not the workspace's (100% of anything is all of it).
+inline constexpr const char* kAtWholeContext = "a share stops at the whole of its context";
 
 /// What one act of DIRECT MANIPULATION did — a hand's outcome, which is not the
 /// same shape as a value's outcome.
@@ -375,26 +395,51 @@ inline Written delete_selected(WorkshopDoc& d, Session& s) {
     return Written::ok();
 }
 
-/// Put an object where a HAND asked for it — the one place a proposed position
-/// meets the boundary policy, and the only door `nudge` and `drag_to` use.
+/// Put an object where a HAND asked for it, IN WORKSPACE CELLS — the one place a
+/// proposed position meets the boundary policy, and the only door `nudge` and
+/// `drag_to` use.
 ///
-/// The proposal is reduced to the first cell the workspace has and then handed,
-/// unclamped-further, to `doc::move`, which still judges it. So the document
-/// keeps its refusal (there is no path here that writes past it) while a hand
-/// that reached past the origin slides along it instead of stopping dead. A
-/// diagonal drag into the top-left corner therefore ends AT the corner, which is
-/// what a hand expects and what W-2's P15 recorded as missing.
-inline Handled place(WorkshopDoc& d, std::int64_t id, std::int64_t x, std::int64_t y) {
+/// THE PROPOSAL IS GLOBAL AND THE WRITE IS LOCAL, and that is W-6's whole change
+/// to direct manipulation. A hand points at a cell of the workspace; it does not
+/// point at "two cells into #1". So the gesture layer takes the hand's answer in
+/// the only coordinates a hand has, and projects it into whatever the object's
+/// authored coordinates MEAN by subtracting the origin of the frame the resolver
+/// says the object is read in. For a root-context object that origin is 0,0 and
+/// the projection is the identity, which is why W-0 through W-5 never had to
+/// name it.
+///
+/// IT ASKS THE RESOLVER FOR THAT ORIGIN (`ui::frame_in`) rather than working it
+/// out. A gesture that reasoned "the source is at 3,2, so subtract 3 and 2"
+/// would be a second copy of the geometry, and W-1's lesson is that the second
+/// copy is the one that goes stale. It also inherits, free, the answer for the
+/// case a source is missing: an empty frame, for an object the resolver did not
+/// place, so `doc::move` still judges an ordinary proposal.
+///
+/// THE CLAMP IS IN GLOBAL CELLS, FOR EVERYBODY. The proposal is reduced to the
+/// first cell the workspace has BEFORE the projection, so a hand stops where a
+/// maker can see it stop -- at the workspace edge -- whether the object it is
+/// dragging measures against the root or against something else. What that stop
+/// is authored AS then differs, correctly: at the root it is x = 0, and inside a
+/// frame whose origin is at 3 it is x = -3, which since W-6 is an ordinary
+/// authorable offset (see doc::check_coord). The document still judges the
+/// result and there is no path here that writes past its refusal.
+inline Handled place(WorkshopDoc& d, const ui::Scene& scene, std::int64_t id, std::int64_t gx,
+                     std::int64_t gy) {
+    const ui::Element* e = doc::find(d, id);
+    if (e == nullptr) {
+        return Handled::of(Written::no("no such object"));
+    }
     Handled done;
-    if (x < doc::kFirstCell) {
-        x = doc::kFirstCell;
+    if (gx < doc::kFirstCell) {
+        gx = doc::kFirstCell;
         done.boundary = kAtWorkspaceStart;
     }
-    if (y < doc::kFirstCell) {
-        y = doc::kFirstCell;
+    if (gy < doc::kFirstCell) {
+        gy = doc::kFirstCell;
         done.boundary = kAtWorkspaceStart;
     }
-    done.written = doc::move(d, id, x, y);
+    const ui::Rect frame = ui::frame_in(scene, *e);
+    done.written = doc::move(d, id, detail::minus(gx, frame.x), detail::minus(gy, frame.y));
     return done;
 }
 
@@ -404,12 +449,22 @@ inline Handled place(WorkshopDoc& d, std::int64_t id, std::int64_t x, std::int64
 ///
 /// It proposes a position and lets `place` + `doc::move` decide, exactly as a
 /// drag does. Two gestures, one write path.
+///
+/// It steps the RESOLVED position, not the authored one, and that is not a
+/// detail: `place` now speaks workspace cells, and a maker pressing `l` means
+/// "one cell to the right on the screen" whatever frame the object is authored
+/// in. Stepping the authored offset and stepping the resolved position happen to
+/// agree (both add one) -- but only because a frame's origin does not move when
+/// its dependent does, and going through the resolved position is what makes the
+/// keyboard and the pointer literally one path rather than two that agree.
 inline Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t ddy) {
-    const ui::Element* e = doc::find(d, s.selected);
-    if (e == nullptr) {
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* placed = ui::placed_for(scene, s.selected);
+    if (placed == nullptr) {
         return Handled::of(Written::no("no such object"));
     }
-    return place(d, s.selected, detail::step(e->x, ddx), detail::step(e->y, ddy));
+    return place(d, scene, s.selected, detail::step(placed->rect.x, ddx),
+                 detail::step(placed->rect.y, ddy));
 }
 
 // ---- The size a hand asked for, as an authored extent ----------------------------------
@@ -469,9 +524,9 @@ inline ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
             want = most;
             // The wall a share meets at the far end is not the workspace being a
             // wall -- placement has no such limit and a cells extent has none
-            // either. It is the vocabulary: a share OF the viewport cannot be
-            // more than the whole of it, so 100% is where this mode stops.
-            boundary = kAtWholeWorkspace;
+            // either. It is the vocabulary: a share OF something cannot be more
+            // than the whole of it, so 100% is where this mode stops.
+            boundary = kAtWholeContext;
         }
         if (ui::resolve_extent(current, span) == want) {
             return current; // this share already says exactly that: do not re-author it
@@ -505,15 +560,25 @@ inline ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
 ///
 /// Both extents are projected, then written by ONE `doc::resize`, so the
 /// atomicity the document promises is not undone by the gesture proposing twice.
+///
+/// THE SPAN IS THE CONTEXT'S, and W-6's whole change to resizing is those three
+/// words. `extent_from_drag` asks "which share of this span resolves to what the
+/// hand wants"; before, the span was always the workspace's, because that was
+/// the only thing a share could be a share of. It is now whatever frame the
+/// resolver says this object is read in, asked for with `ui::frame_in`. Nothing
+/// else moved: there is no second projection, no "child resize" path, and no
+/// branch on whether an object has a context. The existing operation was simply
+/// being handed the wrong context all along, and now it is handed the right one.
 inline Handled size_to(WorkshopDoc& d, const Session& s, std::int64_t id, std::int64_t want_w,
                        std::int64_t want_h) {
     const ui::Element* e = doc::find(d, id);
     if (e == nullptr) {
         return Handled::of(Written::no("no such object"));
     }
+    const ui::Rect frame = ui::frame_in(workspace_scene(d, s), *e);
     Handled done;
-    const ui::Extent w = extent_from_drag(e->width, want_w, s.workspace_w, done.boundary);
-    const ui::Extent h = extent_from_drag(e->height, want_h, s.workspace_h, done.boundary);
+    const ui::Extent w = extent_from_drag(e->width, want_w, frame.w, done.boundary);
+    const ui::Extent h = extent_from_drag(e->height, want_h, frame.h, done.boundary);
     done.written = doc::resize(d, id, w, h);
     return done;
 }
@@ -592,13 +657,22 @@ inline Handle size_handle(const WorkshopDoc& d, const Session& s) {
 /// no second geometry test for dragging, which is how a drag and a click cannot
 /// come to disagree about which object they are talking about.
 ///
-/// The grabbed point is recorded as an offset from the object's AUTHORED
-/// placement, and it is a plain subtraction because `rect.x` IS `x`: resolution
-/// interprets extents and copies placement through untouched. An authored
-/// position expressed as a share, or relative to something else, could not be
-/// dragged this way -- the gesture would have to invert the resolver, and the
-/// resolver is not invertible (it clamps and it floors). That is the sharpest
-/// thing W-2 learned about the current placement model.
+/// The grabbed point is recorded as an offset from the object's RESOLVED
+/// placement — where inside the rectangle on screen the maker took hold — and it
+/// is a plain subtraction in the coordinates the pointer already speaks.
+///
+/// W-2 wrote this as an offset from AUTHORED placement and observed that the two
+/// were the same number, then drew the sharp conclusion that an authored
+/// position "relative to something else" could not be dragged, because the
+/// gesture would have to invert the resolver and the resolver is not invertible.
+/// W-6 built exactly that position, and the conclusion turned out to be true of
+/// EXTENTS and false of PLACEMENT. What is not invertible in the resolver is the
+/// share arithmetic -- it floors and it clamps, which is why `extent_from_drag`
+/// authors a new value rather than recovering the old one. Placement composes by
+/// ADDITION, and a sum has an inverse: the hand's global answer minus the
+/// context's origin is the authored offset, exactly. So a relative position is
+/// draggable without a projection, and it is `place` that performs the one
+/// subtraction.
 ///
 /// It does NOT change the selection. Composing that is the caller's gesture: a
 /// press on empty space should not silently mean "deselect".
@@ -654,14 +728,21 @@ inline Handled drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::i
     if (!s.drag.active) {
         return Handled::of(Written::no("nothing is being dragged"));
     }
+    const ui::Scene scene = workspace_scene(d, s);
     if (s.drag.resizing) {
-        const ui::Element* e = doc::find(d, s.drag.id);
-        if (e == nullptr) {
+        // The object's RESOLVED left/top edge, because the pointer and the
+        // handle are both in workspace cells. Before W-6 this read the authored
+        // `e->x`, which was the same number; it is not any more, and reading the
+        // authored one would have asked for a size measured from the wrong
+        // corner the moment the object had a context.
+        const ui::Placed* placed = ui::placed_for(scene, s.drag.id);
+        if (placed == nullptr) {
             return Handled::of(Written::no("no such object"));
         }
-        return size_to(d, s, s.drag.id, detail::minus(cx, e->x), detail::minus(cy, e->y));
+        return size_to(d, s, s.drag.id, detail::minus(cx, placed->rect.x),
+                       detail::minus(cy, placed->rect.y));
     }
-    return place(d, s.drag.id, detail::minus(cx, s.drag.grab_dx),
+    return place(d, scene, s.drag.id, detail::minus(cx, s.drag.grab_dx),
                  detail::minus(cy, s.drag.grab_dy));
 }
 
