@@ -219,16 +219,79 @@ inline void refocus(WorkshopDoc& d, Session& s) {
     s.cursor = first_editable(s.rows);
 }
 
+/// Where an identity sits in DOCUMENT ORDER, or `elements.size()` for one this
+/// document does not have.
+///
+/// One copy, because there were about to be three. The post-delete selection
+/// rule needs it and so does the object list's visible window, and "where is
+/// this object in the file" is exactly the kind of small answer that goes stale
+/// when it is written twice -- W-1's lesson, at the smallest scale it comes in.
+inline std::size_t position_of(const WorkshopDoc& d, std::int64_t id) {
+    for (std::size_t i = 0; i < d.elements.size(); ++i) {
+        if (d.elements[i].id == id) {
+            return i;
+        }
+    }
+    return d.elements.size();
+}
+
 namespace detail {
 
 /// Left-align in a fixed width; longer text is cut. Workshop's own layout job --
-/// the canvas has no notion of a column.
+/// the canvas has no notion of a column. Its one caller pads the inspector's
+/// label column to nine, and the longest label this tool has is `Resolved`, so
+/// the cut is arithmetic that never fires rather than a bound anybody is
+/// standing on; `fit` below is the one for text whose length a DOCUMENT decides.
 inline std::string pad(std::string text, std::size_t width) {
     if (text.size() > width) {
         text.resize(width);
         return text;
     }
     text.append(width - text.size(), ' ');
+    return text;
+}
+
+/// The mark a bounded presentation leaves where it could not show everything.
+/// Three plain characters, because this canvas is plain ASCII by contract
+/// (`SurfaceLabel`: "plain means plain") and a glyph a medium cannot draw is a
+/// mark a maker cannot read.
+inline constexpr const char* kElided = "...";
+
+/// Fit `text` into `width` cells, AND SAY SO when it did not fit.
+///
+/// THE CANVAS CLIPS AND SAYS NOTHING. `surface::canvas_body`'s `put` drops any
+/// cell outside the grid, so a label longer than the room it was given loses its
+/// tail with no mark at all. For furniture whose length is a constant somebody
+/// checked, that is harmless. For a NOTICE it is not: a notice's length is
+/// decided by the document that produced it, and a refusal beheaded at the
+/// screen's edge still reads as a finished sentence -- one that means something
+/// else, with nothing on screen to say so. W-6 met this live with a cycle
+/// refusal and shortened the wording; shortening a wording answers one producer,
+/// and this answers the boundary.
+///
+/// So the BOUND STAYS -- one line is still one line -- and only the SILENCE
+/// goes. This is presentation and nothing else: the semantic message stays whole
+/// in `Session::notice`, exactly as its producer wrote it, and a wider screen or
+/// a second line would need nothing from anybody but room.
+///
+/// It is total, including at widths no screen has, and the mark itself is what
+/// makes that a real question: `width - 3` underflows below three. A width at or
+/// under the mark's own length is therefore spent on as much of the mark as fits,
+/// which is still the only honest thing such a width can say.
+inline std::string fit(std::string text, std::int64_t width) {
+    if (width <= 0) {
+        return {};
+    }
+    const std::size_t room = static_cast<std::size_t>(width);
+    if (text.size() <= room) {
+        return text; // it fits, so nothing about it changes -- not even its role
+    }
+    const std::size_t mark = std::char_traits<char>::length(kElided);
+    if (room <= mark) {
+        return std::string(kElided).substr(0, room);
+    }
+    text.resize(room - mark);
+    text += kElided;
     return text;
 }
 
@@ -375,13 +438,7 @@ inline std::int64_t create(WorkshopDoc& d, Session& s) {
 /// object) changes neither the document nor the session.
 inline Written delete_selected(WorkshopDoc& d, Session& s) {
     const std::int64_t id = s.selected;
-    std::size_t at = d.elements.size();
-    for (std::size_t i = 0; i < d.elements.size(); ++i) {
-        if (d.elements[i].id == id) {
-            at = i;
-            break;
-        }
-    }
+    const std::size_t at = position_of(d, id);
     const Written removed = doc::remove(d, id);
     if (!removed.accepted) {
         return removed;
@@ -779,6 +836,135 @@ inline std::int64_t workspace_cell_y(std::int64_t pointer_y) noexcept {
     return detail::minus(detail::minus(pointer_y, kCanvasTopRow), kWorkspaceY);
 }
 
+// ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
+//
+// The panel is `kListRows` lines tall and a document is any size, so some
+// documents do not fit. That was always true and is still fine. What was not
+// fine is what the panel did about it: it stopped after the fifth line and said
+// nothing. A maker with six objects saw five of them, with no marker -- and with
+// the selection marker on NONE of them, while the status line said `6 objects |
+// selected #6` and the inspector said `Identity #6`. Three statements on one
+// screen that could not all be true, and the only one a maker could act on was
+// the one that was wrong. Reachable by pressing `n` six times; found by a cold
+// review, seven phases in, because no run and no case had ever painted a
+// six-object document.
+//
+// It is the argument the empty document already won three lines further down:
+// a panel that merely goes blank is indistinguishable from a tool that has
+// broken. A panel that quietly stops is worse, because it looks like it worked.
+// The console reached the same rule from the other side (C1): retained history
+// is BOUNDED, and its truncation is OBSERVABLE.
+//
+// So the bound stays exactly where it was, and only the silence goes.
+
+/// Which authored objects the OBJECTS panel is showing, and how many it is
+/// leaving out on each side of them.
+///
+/// WORKSHOP PRESENTATION, like `Handle`: derived every paint and stored nowhere.
+/// It is not in `ui/`, because a shared vocabulary should not learn one
+/// application's panel height; and it is not in `WorkshopDoc`, because how many
+/// objects fit on a screen is not a fact about the document.
+///
+/// It is a WINDOW, not a page. There is no scroll position, no anchor, no
+/// session field and nothing to invalidate: the SELECTION decides what is
+/// visible, and the selection is already session state. That is the whole reason
+/// this is four numbers instead of a scroll view -- a stored scroll offset would
+/// be a second opinion about where a maker is looking, and it is the copy that
+/// goes stale.
+struct ListWindow {
+    std::size_t first = 0;  ///< the first object shown, as a position in DOCUMENT order
+    std::size_t count = 0;  ///< how many are shown, contiguously, in that order
+    std::size_t before = 0; ///< how many the panel left out ahead of them
+    std::size_t after = 0;  ///< how many it left out behind them
+};
+
+/// What `rows` lines can honestly show of `total` objects while the
+/// `selected_at`'th is selected.
+///
+/// THREE RULES, in this order:
+///
+///   1. A document that FITS is shown whole, with no marker and no chrome at
+///      all. The simple case stays the simple case: zero through `kListRows`
+///      objects look exactly as they did before this function existed.
+///   2. The SELECTED object is always in the window. It is the object the status
+///      line and the inspector are both already naming, so a list that omits it
+///      does not merely hide an object -- it contradicts the rest of the screen,
+///      which is the defect rather than a symptom of it.
+///   3. Every object left out is COUNTED, on the side it was left out on, and
+///      each count spends one of the `rows`. The markers come out of the budget
+///      rather than being extra lines beneath it: a bound that grows when it is
+///      exceeded is not a bound.
+///
+/// DOCUMENT ORDER IS NEVER TOUCHED. The window is a contiguous run of the
+/// document as it is written, so the list still reads the way the file reads,
+/// the way `paint` paints, and the way `ui::hit` answers. Sorting by identity,
+/// name, context, dependency or selection recency would each be this one panel
+/// telling a maker a different story about the same document -- W-6 separated
+/// document order from dependency order deliberately, and a presentation choice
+/// is not the place to quietly rejoin them.
+///
+/// IT ANCHORS AT THE TOP for as long as it can, then at the BOTTOM, and takes a
+/// middle window only when neither end reaches the selection. So the first
+/// screenful of a growing document stays still -- which is what a maker pressing
+/// `n` is looking at -- and when it finally must move it moves as little as the
+/// selection requires.
+inline ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {
+    ListWindow w;
+    if (total == 0 || rows == 0) {
+        w.after = total; // no room at all: everything there is, is missing
+        return w;
+    }
+    if (total <= rows) {
+        w.count = total; // rule 1 -- and this is the only case a small document takes
+        return w;
+    }
+    if (rows < 3) {
+        // Too few lines to seat one object between two markers, so no window can
+        // obey rules 2 and 3 together. It spends what it has on the omission,
+        // because the one thing this panel may not do is drop objects quietly.
+        // Unreachable at kListRows = 5; here so the arithmetic below may assume
+        // the room it needs rather than underflow looking for it.
+        w.after = total;
+        return w;
+    }
+    if (selected_at >= total) {
+        selected_at = 0; // nothing selected, or a selection that outlived its object
+    }
+    // One marker's worth of room. Both single-marker windows are this wide, and
+    // both leave a non-empty count because `total > rows`.
+    const std::size_t one_marker = rows - 1;
+    if (selected_at < one_marker) {
+        w.count = one_marker;
+        w.after = total - w.count;
+        return w;
+    }
+    const std::size_t tail = total - one_marker;
+    if (selected_at >= tail) {
+        w.first = tail;
+        w.count = one_marker;
+        w.before = tail;
+        return w;
+    }
+    // The selection is far enough from both ends that both walls are real, so
+    // both are said. `first` is the earliest run that reaches the selection,
+    // which is at least 2 here (selected_at >= rows - 1 and count == rows - 2),
+    // so neither subtraction can leave the number line.
+    w.count = rows - 2;
+    w.first = selected_at + 1 - w.count;
+    w.before = w.first;
+    w.after = total - w.first - w.count;
+    return w;
+}
+
+/// What one omission marker says. `... 2 earlier` / `... 4 more`: a count,
+/// because "there are more" without a number tells a maker only that they are
+/// lost, and a direction, because which end they are at is the difference
+/// between scrolling and hunting. Kept as one function so the two markers cannot
+/// come to be worded by two different hands.
+inline std::string omitted_text(std::size_t how_many, const char* which) {
+    return "... " + std::to_string(how_many) + " " + which;
+}
+
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
@@ -853,17 +1039,30 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
           surface::role::kAccent);
 
     // The object list: the same objects, named by identity, pointing at the same
-    // selection the ring in the workspace does.
+    // selection the ring in the workspace does -- and, when there are more of
+    // them than the panel is tall, SAYING how many it is not showing and on
+    // which side. The markers are in the panel's own muted role because they are
+    // the tool's furniture and not authored material: nothing here mints an
+    // identity, invents a name, or reorders a document to make a screen fit.
     label(kPanelX, kListY - 1, "OBJECTS", surface::role::kAccent);
+    const ListWindow window = list_window(d.elements.size(), position_of(d, s.selected),
+                                          static_cast<std::size_t>(kListRows));
     std::int64_t line = 0;
-    for (const ui::Element& e : d.elements) {
-        if (line >= kListRows) {
-            break;
-        }
+    if (window.before > 0) {
+        label(kPanelX, kListY + line, omitted_text(window.before, "earlier"),
+              surface::role::kMuted);
+        ++line;
+    }
+    for (std::size_t i = 0; i < window.count; ++i) {
+        const ui::Element& e = d.elements[window.first + i];
         const bool chosen = e.id == s.selected;
         label(kPanelX, kListY + line,
               std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label,
               chosen ? surface::role::kAccent : surface::role::kFill);
+        ++line;
+    }
+    if (window.after > 0) {
+        label(kPanelX, kListY + line, omitted_text(window.after, "more"), surface::role::kMuted);
         ++line;
     }
     // An empty document SAYS it is empty. W-2 is the phase that made emptiness
@@ -893,8 +1092,14 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
               std::string(here ? ">" : " ") + detail::pad(row.label(), 9) + row.display(), role);
     }
 
+    // The notice, fitted to the one line it has. `Session::notice` keeps the
+    // whole sentence -- the fit happens HERE, at the presentation boundary, and
+    // nowhere upstream, so no document operation is made less informative
+    // because this screen happens to be 78 cells wide. What a maker sees is
+    // bounded; what Workshop knows is not, and the mark is what tells them the
+    // two are different right now.
     if (!s.notice.empty()) {
-        label(0, kNoticeY, s.notice,
+        label(0, kNoticeY, detail::fit(s.notice, kScreenW),
               s.notice_is_bad ? surface::role::kAlert : surface::role::kFill);
     }
     // Two lines, because the canvas clips at its own width and a help line that

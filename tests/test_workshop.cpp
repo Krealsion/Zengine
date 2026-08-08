@@ -87,6 +87,22 @@ WorkshopDoc two_panels() {
     return d;
 }
 
+/// A document of `n` objects in creation order, identities 1..n.
+///
+/// The fixture no phase had, and the reason P26 lived through seven of them:
+/// every live run and every screen case used two objects, and W-6's 300- and
+/// 500-link documents were exercised headlessly, where nothing paints. More
+/// objects than the OBJECTS panel is tall is a shape the suite could not
+/// previously express.
+WorkshopDoc many(std::int64_t n) {
+    WorkshopDoc d;
+    for (std::int64_t i = 0; i < n; ++i) {
+        doc::add(d, "panel", 0, 0, ui::Extent{ui::kExtentCells, 2},
+                 ui::Extent{ui::kExtentCells, 1});
+    }
+    return d;
+}
+
 /// Type the whole of `text` into a row, one character at a time -- the way a
 /// maker's keystrokes actually arrive.
 void type_all(Row& row, const std::string& text) {
@@ -104,6 +120,16 @@ std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
         }
     }
     return {};
+}
+
+/// The OBJECTS panel exactly as a maker reads it: every line of the list block,
+/// in order, including the ones that are empty.
+std::vector<std::string> object_lines(const surface::SurfaceCanvas& c) {
+    std::vector<std::string> lines;
+    for (std::int64_t i = 0; i < kListRows; ++i) {
+        lines.push_back(label_at(c, kPanelX, kListY + i));
+    }
+    return lines;
 }
 
 bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
@@ -1959,6 +1985,285 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     CHECK(rows[15].find("Resolved 28 x 6 cells") != std::string::npos);
 }
 
+// ----------------------------------------------------------------------------
+// Tier 3b — a document larger than the panel, and a notice longer than its line
+// ----------------------------------------------------------------------------
+//
+// Both defects here are the same one said twice: a bounded presentation that
+// omits something and does not say so. Neither had a case, and neither could
+// have: nothing in this suite had ever painted more than five objects, and
+// nothing had ever painted a notice the screen could not hold. Every case below
+// fails on the code that shipped through W-6.
+
+TEST_CASE("a document that FITS the object list is shown whole, with no chrome at all") {
+    // The simple case must stay the simple case. Five objects is the last size
+    // that fits, and it is the size most likely to grow accidental furniture
+    // when a bigger one gets some.
+    WorkshopDoc d = many(kListRows);
+    Session s;
+    s.selected = d.elements.back().id; // the LAST one -- the row that used to lose its marker
+    refocus(d, s);
+
+    const std::vector<std::string> lines = object_lines(paint(d, s));
+    CHECK(lines[0] == "  #1 panel");
+    CHECK(lines[1] == "  #2 panel");
+    CHECK(lines[2] == "  #3 panel");
+    CHECK(lines[3] == "  #4 panel");
+    CHECK(lines[4] == "> #5 panel");
+    for (const std::string& line : lines) {
+        CHECK(line.find("...") == std::string::npos); // nothing was left out, so nothing says so
+    }
+}
+
+TEST_CASE("a sixth object cannot vanish: the list says what it left out and keeps the selection") {
+    // Cold-Z0's exact reproduction, and the smallest one there is: press `n`
+    // four times on an opening document and the tool stops telling the truth.
+    WorkshopDoc d = many(6);
+    Session s;
+    s.selected = d.elements.back().id; // #6
+    refocus(d, s);
+
+    const surface::SurfaceCanvas c = paint(d, s);
+    const std::vector<std::string> lines = object_lines(c);
+    CHECK(lines[0] == "... 2 earlier");
+    CHECK(lines[1] == "  #3 panel");
+    CHECK(lines[2] == "  #4 panel");
+    CHECK(lines[3] == "  #5 panel");
+    CHECK(lines[4] == "> #6 panel");
+
+    // The three on-screen statements that used to disagree. Before this phase
+    // the panel showed #1..#5 with the marker on NONE of them, while the object
+    // count and the inspector both said #6 -- and the only one a maker could act
+    // on was the one that was wrong.
+    CHECK(d.elements.size() == 6);
+    CHECK(label_at(c, kPanelX, kRowsY) == " Identity #6");
+
+    // The marker is the panel's own furniture: muted, like `(none) -- n makes
+    // one`, and it mints no identity and invents no name.
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == kPanelX && l.y == kListY) {
+            CHECK(l.role == surface::role::kMuted);
+        }
+    }
+}
+
+TEST_CASE("a selection in the middle of a long document names BOTH walls") {
+    // A window that can sit in the middle can be silent on two sides, and
+    // silence on either is the same defect. 2 + 3 shown + 4 accounts for all
+    // nine, with nothing counted twice.
+    WorkshopDoc d = many(9);
+    Session s;
+    s.selected = 5;
+    refocus(d, s);
+
+    const std::vector<std::string> lines = object_lines(paint(d, s));
+    CHECK(lines[0] == "... 2 earlier");
+    CHECK(lines[1] == "  #3 panel");
+    CHECK(lines[2] == "  #4 panel");
+    CHECK(lines[3] == "> #5 panel");
+    CHECK(lines[4] == "... 4 more");
+}
+
+TEST_CASE("a selection near the end keeps the document's tail visible") {
+    // Cold-Z0's second witness: nine objects with #8 selected drew five OTHER
+    // objects and no marker at all.
+    WorkshopDoc d = many(9);
+    Session s;
+    s.selected = 8;
+    refocus(d, s);
+
+    const std::vector<std::string> lines = object_lines(paint(d, s));
+    CHECK(lines[0] == "... 5 earlier");
+    CHECK(lines[1] == "  #6 panel");
+    CHECK(lines[2] == "  #7 panel");
+    CHECK(lines[3] == "> #8 panel");
+    CHECK(lines[4] == "  #9 panel");
+}
+
+TEST_CASE("the visible window is a RUN of document order, never a reordering of it") {
+    // A document whose identities are in no order at all, because document order
+    // is the vector's order and nothing else -- the same fact the paint, hit and
+    // list cases pin for a document that fits, said about one that does not.
+    WorkshopDoc d;
+    WorkshopDoc candidate;
+    candidate.next_id = 91;
+    for (const std::int64_t id : {90, 10, 70, 20, 60, 30, 50, 40, 80}) {
+        candidate.elements.push_back(ui::Element{id, "panel", ui::kRootContext, 0, 0,
+                                                 ui::Extent{ui::kExtentCells, 2},
+                                                 ui::Extent{ui::kExtentCells, 1}});
+    }
+    REQUIRE(doc::restore(d, candidate).accepted);
+
+    Session s;
+    s.selected = 60; // the fifth in the file, and neither the fifth nor the middle by identity
+    refocus(d, s);
+
+    const std::vector<std::string> lines = object_lines(paint(d, s));
+    CHECK(lines[0] == "... 2 earlier");
+    CHECK(lines[1] == "  #70 panel");
+    CHECK(lines[2] == "  #20 panel");
+    CHECK(lines[3] == "> #60 panel");
+    CHECK(lines[4] == "... 4 more");
+    // Sorted by identity the window would have begun #10 #20 #30; sorted by
+    // anything else it would have begun somewhere else again. It begins where
+    // the file does.
+}
+
+TEST_CASE("the object-list window is total, and never spends more rows than it has") {
+    // The calculation the paint loop trusts, asked directly about every shape it
+    // can be handed -- including budgets no screen has. It may not underflow,
+    // may not plan past the end of the document, and may not plan more lines
+    // than it was given.
+    for (std::size_t rows = 0; rows <= 8; ++rows) {
+        for (std::size_t total = 0; total <= 12; ++total) {
+            for (std::size_t at = 0; at <= total; ++at) { // `at == total` is "nothing selected"
+                CAPTURE(rows);
+                CAPTURE(total);
+                CAPTURE(at);
+                const ListWindow w = list_window(total, at, rows);
+
+                // It accounts for the WHOLE document, always: every object is
+                // either shown or counted, and none is both.
+                CHECK(w.first + w.count <= total);
+                CHECK(w.before == w.first);
+                CHECK(w.before + w.count + w.after == total);
+
+                // The plan fits its budget. (With no rows there is no panel, so
+                // there is nowhere to say anything either.)
+                if (rows >= 1) {
+                    const std::size_t used = w.count + (w.before > 0 ? 1u : 0u) +
+                                             (w.after > 0 ? 1u : 0u);
+                    CHECK(used <= rows);
+                }
+
+                if (total <= rows) {
+                    CHECK(w.count == total); // it fits: shown whole, and no chrome
+                    CHECK(w.before == 0);
+                    CHECK(w.after == 0);
+                } else {
+                    CHECK(w.before + w.after > 0); // it does not fit: never silently
+                }
+
+                // And wherever a budget can seat an object between two markers,
+                // the selected one is in the window.
+                if (rows >= 3 && at < total) {
+                    CHECK(at >= w.first);
+                    CHECK(at < w.first + w.count);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("fitting text to a line: unchanged when it fits, marked when it does not") {
+    using detail::fit;
+    CHECK(fit("short", 10) == "short");
+    CHECK(fit("exactly-10", 10) == "exactly-10"); // exactly the width is not truncation
+    CHECK(fit("exactly-11!", 10) == "exactly..."); // one over IS
+    CHECK(fit("exactly-11!", 10).size() == 10);    // and the mark is INSIDE the width
+
+    // The mark itself has to fit. These are the widths that would underflow a
+    // `width - 3`, and no screen has them -- which is exactly why a helper
+    // reachable from anywhere must answer for them anyway.
+    CHECK(fit("anything", 3) == "...");
+    CHECK(fit("anything", 2) == "..");
+    CHECK(fit("anything", 1) == ".");
+    CHECK(fit("anything", 0).empty());
+    CHECK(fit("anything", -7).empty());
+    CHECK(fit("", 78).empty());
+}
+
+TEST_CASE("a refusal longer than the notice line says so, and the session keeps all of it") {
+    // THE STRONG WITNESS. W-6 met this live and answered it by shortening one
+    // producer's wording: the rendered cycle is budgeted in characters
+    // (kMaxChainChars) so that ORDINARY identities fit. Identities are int64 and
+    // a document arrives from a FILE, so "ordinary" is not a bound -- and the
+    // general presentation rule has to hold exactly where a particular
+    // producer's wording stops happening to.
+    WorkshopDoc d;
+    WorkshopDoc candidate;
+    candidate.next_id = 9000000000000003;
+    candidate.elements.push_back(ui::Element{9000000000000001, "panel", ui::kRootContext, 0, 0,
+                                             ui::Extent{ui::kExtentCells, 2},
+                                             ui::Extent{ui::kExtentCells, 1}});
+    candidate.elements.push_back(ui::Element{9000000000000002, "panel", 9000000000000001, 0, 0,
+                                             ui::Extent{ui::kExtentCells, 2},
+                                             ui::Extent{ui::kExtentCells, 1}});
+    REQUIRE(doc::restore(d, candidate).accepted);
+
+    // An ordinary rewire that would close a loop, refused in the ordinary way.
+    // Nothing here is forged and nothing is distorted to make the sentence long.
+    const Written refused = doc::set_context(d, 9000000000000001, 9000000000000002);
+    REQUIRE_FALSE(refused.accepted);
+    REQUIRE(refused.refusal.size() > static_cast<std::size_t>(kScreenW));
+
+    Session s;
+    s.selected = 9000000000000001;
+    refocus(d, s);
+    s.notice = refused.refusal;
+    s.notice_is_bad = true;
+
+    const surface::SurfaceCanvas c = paint(d, s);
+    const std::string shown = label_at(c, 0, kNoticeY);
+    CHECK(shown.size() == static_cast<std::size_t>(kScreenW)); // it fits the line it has
+    CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);     // and says it did not fit
+    // What IS shown is the message's own head, unaltered -- the presentation
+    // shortened it and did not reword it.
+    CHECK(refused.refusal.compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
+    // truth != presentation capacity. The screen is bounded; the message is not,
+    // and a wider screen would need nothing from anybody but room.
+    CHECK(s.notice == refused.refusal);
+    CHECK(s.notice.size() > shown.size());
+    // The role is untouched: fitting a refusal does not make it less of one.
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.y == kNoticeY) {
+            CHECK(l.role == surface::role::kAlert);
+        }
+    }
+}
+
+TEST_CASE("a truncated notice still fits the terminal, through the real rasterizer") {
+    // Not a string algorithm: the canvas a Skin actually rasterizes. What the
+    // canvas does with an overlong label is DROP the cells past its edge and say
+    // nothing -- which is precisely why the mark has to be put on before the
+    // canvas ever sees it.
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+    s.notice = std::string(200, 'x') + "END";
+    s.notice_is_bad = true;
+
+    const std::string body = surface::canvas_body(paint(d, s));
+    std::vector<std::string> rows;
+    std::size_t at = 0;
+    while (at < body.size()) {
+        const std::size_t end = body.find("\r\n", at);
+        if (end == std::string::npos) {
+            break;
+        }
+        std::string row;
+        for (std::size_t i = at; i < end; ++i) {
+            if (body[i] == '\x1b') { // skip the SGR/erase escapes; keep the picture
+                while (i < end && body[i] != 'm' && body[i] != 'K') {
+                    ++i;
+                }
+                continue;
+            }
+            row += body[i];
+        }
+        rows.push_back(row);
+        at = end + 2;
+    }
+
+    REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
+    const std::string line = rows[static_cast<std::size_t>(kNoticeY)];
+    CHECK(line.size() == static_cast<std::size_t>(kScreenW)); // the row is the screen's width
+    CHECK(line.compare(line.size() - 3, 3, "...") == 0);      // and it ENDS by saying so
+    CHECK(line.find("END") == std::string::npos);             // the tail really is gone
+    CHECK(s.notice.find("END") != std::string::npos);         // and Workshop still has it
+}
+
 // ============================================================================
 // Tier 4 — the WEAVE, through a real bus: input moments become maker gestures
 // ============================================================================
@@ -2435,6 +2740,79 @@ TEST_CASE("canvas, object list and inspector stay coherent through a message-dri
     REQUIRE_FALSE(t.notes.empty());
     CHECK(t.notes.back().slot == surface::kSlotStatus);
     CHECK(t.notes.back().text.rfind("[workshop] 2 objects", 0) == 0);
+}
+
+TEST_CASE("the selection marker never disappears as a maker walks past the fifth object") {
+    // The contradiction Cold-Z0 measured, driven the way a maker reaches it:
+    // `tab` cycles the whole document, and before this phase it selected objects
+    // the list simply did not draw. Nine objects, made and walked by keystroke,
+    // and the screen is read after every single one.
+    Live t;
+    for (int i = 0; i < 7; ++i) { // two to begin with, so seven more makes nine
+        t.key(input::scan::kN);
+    }
+    REQUIRE(t.doc().elements.size() == 9);
+
+    for (int step = 0; step < 9; ++step) {
+        t.key(input::scan::kTab);
+        const std::int64_t id = t.session().selected;
+        CAPTURE(step);
+        CAPTURE(id);
+
+        bool marked = false;
+        bool omission_said = false;
+        std::size_t drawn = 0;
+        for (const std::string& line : object_lines(t.canvases.back())) {
+            if (line.empty()) {
+                continue;
+            }
+            ++drawn;
+            if (line == "> #" + std::to_string(id) + " panel") {
+                marked = true;
+            }
+            if (line.rfind("... ", 0) == 0) {
+                omission_said = true;
+            }
+        }
+        CHECK(marked);                                // what the status line names, the list shows
+        CHECK(omission_said);                         // and what it cannot show, it counts
+        CHECK(drawn == static_cast<std::size_t>(kListRows)); // inside the budget it already had
+
+        // The status line and the inspector name the same object, on the same
+        // frame the list was read from.
+        CHECK(t.notes.back().text.rfind("[workshop] 9 objects | selected #" + std::to_string(id),
+                                        0) == 0);
+        CHECK(label_at(t.canvases.back(), kPanelX, kRowsY) == " Identity #" + std::to_string(id));
+    }
+}
+
+TEST_CASE("a notice a maker's own path makes too long is marked on screen, not cut in the session") {
+    // P24 through the real message path, on a notice Workshop produces honestly.
+    // A document path is the maker's own input and may be any length the
+    // platform allows, so `cannot read <path>` is a sentence this tool can be
+    // asked to say and cannot show. Nothing is forged and nothing is distorted
+    // to produce it: one ordinary keystroke, on a path that is simply not there.
+    Live t;
+    t.host.document_path =
+        "a-workshop-document-with-a-name-its-maker-chose-and-this-terminal-cannot-show-all-of.json";
+
+    t.key(input::scan::kO, input::mod::kCtrl);
+
+    // The refusal is whole in the session, and it is genuinely longer than a
+    // line -- the path alone overruns the screen, whatever the platform's own
+    // wording for a missing file happens to be.
+    REQUIRE(t.notice().size() > static_cast<std::size_t>(kScreenW));
+    CHECK(t.notice().find(t.host.document_path) != std::string::npos);
+
+    const std::string shown = label_at(t.canvases.back(), 0, kNoticeY);
+    CHECK(shown.size() == static_cast<std::size_t>(kScreenW));
+    CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
+    CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
+
+    // And the refusal cost the maker nothing but the notice, exactly as before:
+    // the live document, the selection and the mint are all untouched.
+    CHECK(t.doc().elements.size() == 2);
+    CHECK(t.session().selected == t.first()->id);
 }
 
 // ============================================================================
