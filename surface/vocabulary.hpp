@@ -172,6 +172,35 @@ struct PumpSurface {
     ZEN_SHAPE(PumpSurface, 1);
 };
 
+/// THE SURFACE THIS APPLICATION IS BEING SHOWN ON HAS BEEN ASKED TO CLOSE.
+///
+/// A window manager's close box, or the platform's equivalent. It is a
+/// LIFECYCLE fact and emphatically not an input moment, and the distinction is
+/// the whole reason it is a shape of its own rather than a synthesized
+/// `KeyPressed{Q}`: a maker who binds `q` to quit has authored a policy, and an
+/// operating system asking a window to go away has not. Whoever hears this
+/// applies its own quit policy — including deciding not to.
+///
+/// IT NAMES NO WINDOW, and that is deliberate rather than unfinished. There is
+/// exactly one application surface in this architecture: `kSkinRole` is a
+/// singleton, so "the active surface" is a complete address. A window id would
+/// either be SDL's (a backend number leaking into a medium-agnostic
+/// vocabulary) or a Zen one (a multi-window identity law written from a
+/// one-window witness). Neither is earned. When a second surface exists, the
+/// fact this shape is missing will be obvious and it can be added then.
+///
+/// WHO PUBLISHES IT is a per-medium question with an awkward but honest answer.
+/// A terminal has no close box and no terminal Skin ever sends this. SDL
+/// reports window lifecycle and input through ONE process-global event queue,
+/// so the weave that owns that queue — the SDL Input reader — is the only thing
+/// in the process that can see the request. Owning the queue does not make the
+/// request input; it makes the reader a router for one fact that is not its
+/// own, and the fact is spelled here, in the vocabulary that owns the
+/// application's surface, so no consumer has to read it as a key.
+struct SurfaceCloseRequested {
+    ZEN_SHAPE(SurfaceCloseRequested, 1);
+};
+
 /// The role that IS surface ownership. Singleton by the Loom's role rules, so
 /// "exactly one active Skin owns the primary surface" is enforced ground, not
 /// convention. Address the Skin by role, never by id — the successor after a

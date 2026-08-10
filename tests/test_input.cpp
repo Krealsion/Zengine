@@ -33,6 +33,7 @@
 
 #include "input/input_weave.hpp"
 #include "input/translate.hpp"
+#include "input/translate_sdl.hpp"
 #include "input/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
@@ -1159,6 +1160,261 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 }
 
 // ============================================================================
+// Tier 2e — SDL, as pure translation (G-1)
+// ============================================================================
+//
+// The same discipline the Win32 paths get: no SDL headers here, so the WSL lane
+// and the Windows-stranger lane (which builds no SDL at all) both pin the whole
+// SDL translation. The local constants ARE SDL's, and input_sdl.cpp -- the one
+// translation unit where both spellings exist -- static_asserts them against the
+// real headers, so a drift is a build failure rather than an opinion.
+
+namespace {
+
+/// The SDL event at [i], REQUIRE'd to hold shape E.
+template <class E>
+const E& sdl_at(const std::vector<SdlEvent>& events, std::size_t i) {
+    REQUIRE(i < events.size());
+    const E* e = std::get_if<E>(&events[i]);
+    REQUIRE(e != nullptr);
+    return *e;
+}
+
+} // namespace
+
+TEST_CASE("sdl: a key transition is SDL'S OWN scancode, and the modifiers of that moment") {
+    // The identity claim. Every other backend TRANSLATES a native key id into
+    // the wire's space; SDL is the backend that space was defined in, so there
+    // is no table here at all -- and a table would be a copy of the identity
+    // function, which is a thing that can drift.
+    std::vector<SdlEvent> e = sdl_key_to_events(scan::kQ, 0, /*down=*/true, /*repeat=*/false);
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<KeyPressed>(e, 0).scancode == scan::kQ);
+    CHECK(sdl_at<KeyPressed>(e, 0).name == "Q");
+    CHECK(sdl_at<KeyPressed>(e, 0).modifiers == mod::kNone);
+
+    e = sdl_key_to_events(scan::kQ, 0, /*down=*/false, false);
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<KeyReleased>(e, 0).scancode == scan::kQ);
+
+    // Left and right fold to one semantic bit, the same fold the Win32 path
+    // performs, because "was Ctrl held" is the question consumers ask.
+    CHECK(sdl_modifiers_of(sdl::kModLShift) == mod::kShift);
+    CHECK(sdl_modifiers_of(sdl::kModRShift) == mod::kShift);
+    CHECK(sdl_modifiers_of(sdl::kModLCtrl) == mod::kCtrl);
+    CHECK(sdl_modifiers_of(sdl::kModRCtrl) == mod::kCtrl);
+    CHECK(sdl_modifiers_of(sdl::kModLAlt) == mod::kAlt);
+    CHECK(sdl_modifiers_of(sdl::kModRAlt) == mod::kAlt);
+    // AND kSuper HAS ITS FIRST PRODUCER. The terminal cannot see the key at all
+    // and the Win32 console has no bit for it; the vocabulary declared kSuper
+    // anyway and until now nothing could ever set it.
+    CHECK(sdl_modifiers_of(sdl::kModLGui) == mod::kSuper);
+    CHECK(sdl_modifiers_of(sdl::kModRGui) == mod::kSuper);
+    CHECK(sdl_modifiers_of(static_cast<std::uint16_t>(sdl::kModRCtrl | sdl::kModLShift)) ==
+          (mod::kCtrl | mod::kShift));
+    // Lock states are not semantic modifiers and are not smuggled in as one.
+    CHECK(sdl_modifiers_of(0x2000 /* SDL_KMOD_CAPS */) == mod::kNone);
+    CHECK(sdl_modifiers_of(0x1000 /* SDL_KMOD_NUM */) == mod::kNone);
+
+    // A key with no courtesy name is still a real key: the scancode is the
+    // identity and it is passed through rather than dropped.
+    e = sdl_key_to_events(225 /* SDL_SCANCODE_LSHIFT */, sdl::kModLShift, true, false);
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<KeyPressed>(e, 0).scancode == 225);
+    CHECK(sdl_at<KeyPressed>(e, 0).name.empty());
+    CHECK(sdl_at<KeyPressed>(e, 0).modifiers == mod::kShift);
+}
+
+TEST_CASE("sdl: an auto-repeat is a PRESS, because the wire has no other word for it") {
+    // input/vocabulary.hpp: "Auto-repeat arrives as repeated presses (SDL's own
+    // stance); there is deliberately no repeat flag." SDL states the flag; this
+    // backend deliberately does not invent a semantic category to carry it, and
+    // a held key is a stream of ordinary presses.
+    const std::vector<SdlEvent> first = sdl_key_to_events(scan::kJ, 0, true, /*repeat=*/false);
+    const std::vector<SdlEvent> again = sdl_key_to_events(scan::kJ, 0, true, /*repeat=*/true);
+    REQUIRE(first.size() == 1);
+    REQUIRE(again.size() == 1);
+    CHECK(sdl_at<KeyPressed>(first, 0).scancode == sdl_at<KeyPressed>(again, 0).scancode);
+    CHECK(sdl_at<KeyPressed>(first, 0).modifiers == sdl_at<KeyPressed>(again, 0).modifiers);
+}
+
+TEST_CASE("sdl: `%` is the platform's own text, and no key was consulted to get it") {
+    // The third backend to answer P4's question, and the easiest of the three:
+    // SDL_EVENT_TEXT_INPUT is already UTF-8 the platform committed, through the
+    // active layout, dead keys and IME. There is nothing to decode.
+    std::vector<SdlEvent> e = sdl_text_to_events("%");
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<TextEntered>(e, 0).text == "%");
+
+    // Multi-byte arrives whole -- it is one platform event, not one per byte.
+    e = sdl_text_to_events("\xc3\xa9");
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<TextEntered>(e, 0).text == "\xc3\xa9");
+
+    // Nothing typed is not an event. An empty TextEntered would be a consumer's
+    // problem forever after.
+    CHECK(sdl_text_to_events("").empty());
+    CHECK(sdl_text_to_events(nullptr).empty());
+}
+
+TEST_CASE("sdl: pointer motion carries SDL's OWN delta, in pixels") {
+    // The other two backends DERIVE dx/dy by remembering the last position,
+    // because their platforms report only a position. SDL states xrel/yrel on
+    // the event, so this reader keeps no tracker at all -- there is nothing here
+    // that could go stale, and nothing that behaves differently after a period
+    // with no motion.
+    const std::vector<SdlEvent> e = sdl_mouse_motion_to_events(120.0f, 36.0f, 5.0f, -2.0f);
+    REQUIRE(e.size() == 1);
+    const PointerMoved& m = sdl_at<PointerMoved>(e, 0);
+    CHECK(m.x == 120);
+    CHECK(m.y == 36);
+    CHECK(m.dx == 5);
+    CHECK(m.dy == -2);
+    // PIXELS, and labelled as pixels. Calling them cells to make a cell-native
+    // application work is the one thing this field exists to prevent.
+    CHECK(m.space == space::kPixels);
+    CHECK(m.space != space::kCells);
+}
+
+TEST_CASE("sdl: a button event states where it happened, and an unknown button is silence") {
+    const std::vector<SdlEvent> e =
+        sdl_mouse_button_to_events(sdl::kButtonLeft, /*down=*/true, 77.0f, 5.0f);
+    REQUIRE(e.size() == 1);
+    const PointerButton& b = sdl_at<PointerButton>(e, 0);
+    CHECK(b.button == 1);
+    CHECK(b.pressed);
+    CHECK(b.x == 77);
+    CHECK(b.y == 5);
+    CHECK(b.space == space::kPixels);
+
+    // SDL numbers left/middle/right 1/2/3 and so does PointerButton, so the
+    // mapping is the identity and no table was written for it.
+    CHECK(sdl_at<PointerButton>(sdl_mouse_button_to_events(sdl::kButtonMiddle, true, 0, 0), 0)
+              .button == 2);
+    CHECK(sdl_at<PointerButton>(sdl_mouse_button_to_events(sdl::kButtonRight, false, 0, 0), 0)
+              .button == 3);
+
+    // X1/X2 are outside the vocabulary's stated set. Silence, NOT a Left click:
+    // reporting a press that did not happen is worse than reporting nothing, and
+    // widening the wire for a thumb button no consumer asks about would be
+    // building for a mouse nobody here owns.
+    CHECK(sdl_mouse_button_to_events(4, true, 10, 10).empty());
+    CHECK(sdl_mouse_button_to_events(5, true, 10, 10).empty());
+    CHECK(sdl_mouse_button_to_events(0, true, 10, 10).empty());
+}
+
+TEST_CASE("sdl: a pointer moment claims NO modifiers, because SDL states none") {
+    // Measured, not assumed: SDL_MouseMotionEvent, SDL_MouseButtonEvent and
+    // SDL_MouseWheelEvent carry no modifier field at all (SDL 3.4.12). The only
+    // way to produce one is SDL_GetModState(), which reads CURRENT keyboard
+    // state at some later instant -- exactly the reconstruction W-2 and W-4 paid
+    // to remove from the pointer path.
+    //
+    // So a clear bit here means what the vocabulary says it means: "nothing this
+    // backend can see was held". A shift-click is not expressible on this
+    // backend, and that is the honest answer rather than a plausible one.
+    CHECK(sdl_at<PointerMoved>(sdl_mouse_motion_to_events(1, 2, 0, 0), 0).modifiers ==
+          mod::kNone);
+    CHECK(sdl_at<PointerButton>(sdl_mouse_button_to_events(sdl::kButtonLeft, true, 1, 2), 0)
+              .modifiers == mod::kNone);
+    CHECK(sdl_at<PointerWheel>(sdl_mouse_wheel_to_events(0, 1, sdl::kWheelNormal, 1, 2), 0)
+              .modifiers == mod::kNone);
+}
+
+TEST_CASE("sdl: a float coordinate FLOORS, and a non-coordinate saturates") {
+    // SDL's pointer coordinates are floats; the wire's are int64. For the window
+    // this package creates -- no high-pixel-density flag, no logical
+    // presentation, not resizable -- every value SDL delivers is integral and
+    // this conversion is exact. Outside that, a fraction is genuinely lost, and
+    // the rule is FLOOR because that is the one that agrees with what a maker
+    // sees: 3.7 is inside pixel 3, which is inside cell 0.
+    CHECK(sdl_pixel(0.0f) == 0);
+    CHECK(sdl_pixel(11.0f) == 11);
+    CHECK(sdl_pixel(11.9f) == 11);
+    CHECK(sdl_pixel(12.0f) == 12);
+    // Toward zero would send -0.5 to 0 -- a pointer just outside the window
+    // reading as inside it.
+    CHECK(sdl_pixel(-0.5f) == -1);
+    CHECK(sdl_pixel(-1.0f) == -1);
+    CHECK(sdl_pixel(-1.5f) == -2);
+
+    // Total over every float, including the ones SDL will never send: a bare
+    // cast of these is undefined behaviour, and the values come off a platform
+    // edge.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(sdl_pixel(std::numeric_limits<float>::infinity()) == kMax);
+    CHECK(sdl_pixel(-std::numeric_limits<float>::infinity()) == kMin);
+    CHECK(sdl_pixel(std::numeric_limits<float>::quiet_NaN()) == kMin);
+    CHECK(sdl_pixel(1e30f) == kMax);
+    CHECK(sdl_pixel(-1e30f) == kMin);
+}
+
+TEST_CASE("sdl: the wheel keeps its fraction, and FLIPPED is put back") {
+    // The one pointer fact where the existing vocabulary is WIDER than the
+    // backend: PointerWheel::dx/dy are doubles precisely because a
+    // high-resolution wheel reports a fraction of a detent, so SDL's floats
+    // cross without losing anything.
+    std::vector<SdlEvent> e = sdl_mouse_wheel_to_events(0.0f, 1.0f, sdl::kWheelNormal, 40, 8);
+    REQUIRE(e.size() == 1);
+    CHECK(sdl_at<PointerWheel>(e, 0).dy == doctest::Approx(1.0));
+    CHECK(sdl_at<PointerWheel>(e, 0).x == 40);
+    CHECK(sdl_at<PointerWheel>(e, 0).y == 8);
+    CHECK(sdl_at<PointerWheel>(e, 0).space == space::kPixels);
+
+    e = sdl_mouse_wheel_to_events(0.0f, 0.25f, sdl::kWheelNormal, 0, 0);
+    CHECK(sdl_at<PointerWheel>(e, 0).dy == doctest::Approx(0.25));
+
+    // FLIPPED means SDL already inverted the values for natural scrolling. The
+    // wire's convention is SDL's normal one (+1 per notch away from the user),
+    // so it is put back -- a consumer must not have to know how a maker's
+    // trackpad is configured.
+    e = sdl_mouse_wheel_to_events(0.0f, 1.0f, sdl::kWheelFlipped, 0, 0);
+    CHECK(sdl_at<PointerWheel>(e, 0).dy == doctest::Approx(-1.0));
+    e = sdl_mouse_wheel_to_events(-2.0f, 0.0f, sdl::kWheelFlipped, 0, 0);
+    CHECK(sdl_at<PointerWheel>(e, 0).dx == doctest::Approx(2.0));
+}
+
+TEST_CASE("sdl: a close request is LIFECYCLE, and it is not any kind of key") {
+    // The mandatory separation. SDL happens to report window lifecycle and input
+    // on one queue; that does not make them one semantic population, and the
+    // cheapest wrong answer here -- synthesizing KeyPressed{Q} because Workshop
+    // already knows how to quit from a key -- is exactly what this asserts is
+    // not happening.
+    const std::vector<SdlEvent> e = sdl_close_to_events();
+    REQUIRE(e.size() == 1);
+    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(e[0]));
+    CHECK_FALSE(std::holds_alternative<KeyPressed>(e[0]));
+    CHECK_FALSE(std::holds_alternative<PointerButton>(e[0]));
+}
+
+TEST_CASE("sdl: the translated populations are exactly the ones with an obligation") {
+    // The Reader sees events it does not translate, and ignoring them is fine --
+    // Zen has no current semantic obligation to gamepads, sensors, pens, drops
+    // or clipboards. What must never happen is one of the four this application
+    // lives on quietly joining that set.
+    CHECK(sdl_event_is_translated(sdl::kEventKeyDown));
+    CHECK(sdl_event_is_translated(sdl::kEventKeyUp));
+    CHECK(sdl_event_is_translated(sdl::kEventTextInput));
+    CHECK(sdl_event_is_translated(sdl::kEventMouseMotion));
+    CHECK(sdl_event_is_translated(sdl::kEventMouseButtonDown));
+    CHECK(sdl_event_is_translated(sdl::kEventMouseButtonUp));
+    CHECK(sdl_event_is_translated(sdl::kEventMouseWheel));
+    CHECK(sdl_event_is_translated(sdl::kEventQuit));
+    CHECK(sdl_event_is_translated(sdl::kEventWindowCloseRequested));
+
+    // And the named exclusions, so "ignored" is a decision with a list rather
+    // than a default. TEXT_EDITING is the interesting one: IME composition is
+    // deliberately NOT supported (input/vocabulary.hpp says so at the door), and
+    // what a platform commits still arrives as ordinary TEXT_INPUT.
+    CHECK_FALSE(sdl_event_is_translated(sdl::kEventTextEditing));
+    CHECK_FALSE(sdl_event_is_translated(0x202 /* SDL_EVENT_WINDOW_SHOWN */));
+    CHECK_FALSE(sdl_event_is_translated(0x20e /* SDL_EVENT_WINDOW_FOCUS_LOST */));
+    CHECK_FALSE(sdl_event_is_translated(0x600 /* SDL_EVENT_JOYSTICK_AXIS_MOTION */));
+    CHECK_FALSE(sdl_event_is_translated(0));
+}
+
+// ============================================================================
 // Tier 3 — the weave through a real bus (injected reader)
 // ============================================================================
 
@@ -1207,6 +1463,93 @@ TEST_CASE("the weave publishes what its reader hears, in order, every shape") {
     // A quiet platform: the pump costs nothing and says nothing.
     pump_input();
     CHECK(heard.size() == 6);
+}
+
+namespace {
+
+/// A reader shaped like the SDL one: its poll() hands back the SDL variant, so
+/// the weave built over it derives the SEVEN-shape Emit set.
+struct FakeSdlReader {
+    std::vector<std::vector<SdlEvent>>* feed = nullptr;
+    std::vector<SdlEvent> poll() {
+        if (feed == nullptr || feed->empty()) {
+            return {};
+        }
+        std::vector<SdlEvent> batch = std::move(feed->front());
+        feed->erase(feed->begin());
+        return batch;
+    }
+};
+
+/// Ears for everything an SDL reader can produce, INCLUDING the one shape that
+/// is not an input moment.
+class SdlEars
+    : public loom::WeaveBase<SdlEars, EarsState,
+                             loom::Accept<KeyPressed, KeyReleased, TextEntered, PointerMoved,
+                                          PointerButton, PointerWheel,
+                                          zengine::surface::SurfaceCloseRequested>,
+                             loom::Emit<>> {
+public:
+    explicit SdlEars(std::vector<SdlEvent>& heard) : heard_(&heard) {}
+    void on(const KeyPressed& e, loom::Mail&) { note(e); }
+    void on(const KeyReleased& e, loom::Mail&) { note(e); }
+    void on(const TextEntered& e, loom::Mail&) { note(e); }
+    void on(const PointerMoved& e, loom::Mail&) { note(e); }
+    void on(const PointerButton& e, loom::Mail&) { note(e); }
+    void on(const PointerWheel& e, loom::Mail&) { note(e); }
+    void on(const zengine::surface::SurfaceCloseRequested& e, loom::Mail&) { note(e); }
+
+private:
+    template <class E>
+    void note(const E& e) {
+        ++state_.heard;
+        heard_->push_back(e);
+    }
+    std::vector<SdlEvent>* heard_;
+};
+
+} // namespace
+
+TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is the reader's") {
+    // Two claims in one case, because they are one mechanism.
+    //
+    // ORDER: `KeyPressed, TextEntered, KeyReleased` is the sequence SDL queues
+    // for a typed character, and it reaches the bus in that order. Nothing in
+    // the weave sorts, batches by kind, or defers one population to serve
+    // another -- it walks the reader's vector.
+    //
+    // EMIT: this weave is over a reader whose variant carries SEVEN
+    // alternatives, six input shapes and one lifecycle fact, and the seventh is
+    // published like any other. The terminal weave beside it derives six and
+    // could not publish this one at all -- which is the point of deriving the
+    // set rather than spelling it: what a weave says it can say is exactly what
+    // its reader can hand it.
+    loom::Switchboard bus;
+    std::vector<std::vector<SdlEvent>> batches;
+    batches.push_back({KeyPressed{scan::k5, "5", mod::kShift},
+                       TextEntered{"%"},
+                       KeyReleased{scan::k5, "5", mod::kShift},
+                       PointerMoved{120, 36, 5, -2, space::kPixels, mod::kNone},
+                       PointerButton{1, true, 77, 5, space::kPixels, mod::kNone},
+                       PointerWheel{0.0, 0.25, 40, 8, space::kPixels, mod::kNone},
+                       zengine::surface::SurfaceCloseRequested{}});
+
+    const loom::WeaveId weave =
+        loom::mount<InputWeaveT<FakeSdlReader>>(bus, FakeSdlReader{&batches});
+    std::vector<SdlEvent> heard;
+    (void)loom::mount<SdlEars>(bus, heard);
+
+    bus.send(weave, loom::Message(loom::to_value(PumpInput{})));
+    bus.pump();
+
+    REQUIRE(heard.size() == 7);
+    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::k5);
+    CHECK(sdl_at<TextEntered>(heard, 1).text == "%");
+    CHECK(sdl_at<KeyReleased>(heard, 2).scancode == scan::k5);
+    CHECK(sdl_at<PointerMoved>(heard, 3).space == space::kPixels);
+    CHECK(sdl_at<PointerButton>(heard, 4).x == 77);
+    CHECK(sdl_at<PointerWheel>(heard, 5).dy == doctest::Approx(0.25));
+    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[6]));
 }
 
 TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks again, "
@@ -1339,3 +1682,229 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
     CHECK(a.kind == 0);
     CHECK(a.text == "1");
 }
+
+// ============================================================================
+// Tier 5 — the REAL SDL event queue, through the real weave library (G-1)
+// ============================================================================
+//
+// Everything above is pure translation or a scripted reader. This is the claim
+// neither of those can make, and it is G-1's central architectural claim:
+//
+//     THIS TEST PROCESS PUSHES EVENTS INTO SDL, AND A SEPARATELY dlopen'ED
+//     WEAVE LIBRARY POLLS THEM OUT.
+//
+// That only works if there is ONE SDL in the process. The Loom loads weaves
+// with dlopen(RTLD_LOCAL) / LoadLibraryA, so a statically archived SDL would
+// give zengine-input-sdl.so its own event queue, and every push below would go
+// into a queue nothing reads -- the reader would see nothing, forever, with no
+// error anywhere. cmake/ZengineSdl.cmake requires a shared SDL3 for exactly
+// this reason, and this case is the positive evidence that the requirement is
+// satisfied rather than merely written down.
+//
+// It also proves the things a unit test of a translator cannot: that the queue
+// has an owner at all, that the owner is reached by the ordinary pump, that
+// dequeue ORDER survives to the bus, and that a native close request travels
+// end to end from the platform's queue to an ordinary listener.
+
+#if defined(INPUT_HAS_SDL)
+
+#include <SDL3/SDL.h>
+
+TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen messages") {
+    // The dummy video driver: a real SDL, a real queue, no display. Set in the
+    // environment by tests/CMakeLists.txt and here as well, belt to braces.
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
+
+    // A real window, so this is not merely "a queue exists": the reader is the
+    // ear for a window somebody else owns, which is the whole arrangement.
+    SDL_Window* window = SDL_CreateWindow("zengine-input-sdl test", 96, 48, 0);
+    REQUIRE(window != nullptr);
+    const SDL_WindowID window_id = SDL_GetWindowID(window);
+
+    Rig r;
+    const loom::WeaveId reader = r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
+
+    // Drain anything the window's own creation queued (shown, exposed, focus
+    // gained...), so the assertions below are about what THIS case pushed. Those
+    // are precisely the events the reader ignores, and this proves it ignores
+    // them rather than turning them into messages.
+    r.pump_input_by_role();
+    std::vector<SdlEvent> heard;
+    const loom::WeaveId ears = loom::mount<SdlEars>(r.bus, heard);
+    (void)ears;
+
+    const auto push = [](SDL_Event e) { REQUIRE(SDL_PushEvent(&e)); };
+
+    // The typed-character sequence, in the order SDL queues it.
+    SDL_Event down{};
+    down.type = SDL_EVENT_KEY_DOWN;
+    down.key.windowID = window_id;
+    down.key.scancode = SDL_SCANCODE_5;
+    down.key.mod = SDL_KMOD_LSHIFT;
+    down.key.down = true;
+    push(down);
+
+    SDL_Event text{};
+    text.type = SDL_EVENT_TEXT_INPUT;
+    text.text.windowID = window_id;
+    text.text.text = "%";
+    push(text);
+
+    SDL_Event up = down;
+    up.type = SDL_EVENT_KEY_UP;
+    up.key.down = false;
+    push(up);
+
+    SDL_Event motion{};
+    motion.type = SDL_EVENT_MOUSE_MOTION;
+    motion.motion.windowID = window_id;
+    motion.motion.x = 36.0f;
+    motion.motion.y = 24.0f;
+    motion.motion.xrel = 4.0f;
+    motion.motion.yrel = -1.0f;
+    push(motion);
+
+    SDL_Event click{};
+    click.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    click.button.windowID = window_id;
+    click.button.button = SDL_BUTTON_LEFT;
+    click.button.down = true;
+    click.button.clicks = 1;
+    click.button.x = 37.0f;
+    click.button.y = 25.0f;
+    push(click);
+
+    // ONE pump drains everything pending, in order.
+    r.pump_input_by_role();
+
+    REQUIRE(heard.size() == 5);
+    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::k5);
+    CHECK(sdl_at<KeyPressed>(heard, 0).modifiers == mod::kShift);
+    // TEXT IS TEXT: the `%` came out of SDL's own text population, and nothing
+    // anywhere computed it from `Shift+5`.
+    CHECK(sdl_at<TextEntered>(heard, 1).text == "%");
+    CHECK(sdl_at<KeyReleased>(heard, 2).scancode == scan::k5);
+    CHECK(sdl_at<PointerMoved>(heard, 3).x == 36);
+    CHECK(sdl_at<PointerMoved>(heard, 3).dx == 4);
+    CHECK(sdl_at<PointerMoved>(heard, 3).space == space::kPixels);
+    // THE EVENT-TIME POSITION. The button is at (37,25) and the last motion was
+    // at (36,24); the published press says 37,25.
+    CHECK(sdl_at<PointerButton>(heard, 4).x == 37);
+    CHECK(sdl_at<PointerButton>(heard, 4).y == 25);
+    CHECK(sdl_at<PointerButton>(heard, 4).space == space::kPixels);
+
+    // The reader's own honest counters, through the ordinary poke door.
+    CHECK(r.poke(reader, loom::PokeRead{"emitted"}).text == "5");
+
+    // ---- the native close, end to end -------------------------------------
+    heard.clear();
+    SDL_Event close{};
+    close.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
+    close.window.windowID = window_id;
+    push(close);
+    r.pump_input_by_role();
+
+    REQUIRE(heard.size() == 1);
+    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[0]));
+
+    // SDL_EVENT_QUIT is the same lifecycle fact by another path -- some
+    // platforms deliver an application quit that way and never as a window
+    // event -- and it must not be the one that goes missing.
+    heard.clear();
+    SDL_Event quit{};
+    quit.type = SDL_EVENT_QUIT;
+    push(quit);
+    r.pump_input_by_role();
+    REQUIRE(heard.size() == 1);
+    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[0]));
+
+    // ---- the ignored classes really are ignored ----------------------------
+    heard.clear();
+    SDL_Event shown{};
+    shown.type = SDL_EVENT_WINDOW_FOCUS_GAINED;
+    shown.window.windowID = window_id;
+    push(shown);
+    SDL_Event editing{};
+    editing.type = SDL_EVENT_TEXT_EDITING;
+    editing.edit.windowID = window_id;
+    editing.edit.text = "";
+    editing.edit.start = 0;
+    editing.edit.length = 0;
+    push(editing);
+    SDL_Event thumb{};
+    thumb.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    thumb.button.windowID = window_id;
+    thumb.button.button = SDL_BUTTON_X1;
+    thumb.button.down = true;
+    thumb.button.x = 1.0f;
+    thumb.button.y = 1.0f;
+    push(thumb);
+    r.pump_input_by_role();
+    CHECK(heard.empty());
+
+    SDL_DestroyWindow(window);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+
+TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING off the queue") {
+    // THE ONE-OWNER PROPERTY, asserted directly and with the exact interleaving
+    // that used to break it.
+    //
+    // Before G-1 the SDL Skin drained the whole queue every 10ms and dropped it.
+    // That was correct for an output-only medium and is the single most
+    // destructive thing it could do now, because SDL_PollEvent REMOVES what it
+    // returns: a Skin that keeps calling it is not a second poller, it is a
+    // thief. The Skin's `pump()` is empty now, and this case runs a real Skin
+    // and a real reader side by side, pumps the SKIN between the push and the
+    // read, and requires the events to survive.
+    //
+    // Note what is NOT asserted: that the Skin is idle. It still owns the window
+    // and is still given execution time on its own beat. What it may not do is
+    // consume.
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+
+    Rig r;
+    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, "zengine.skin");
+    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
+
+    // A canvas, so the Skin actually creates its window: an idle Skin with no
+    // window would prove nothing about a Skin with one.
+    zengine::surface::SurfaceCanvas canvas;
+    canvas.width = 8;
+    canvas.height = 4;
+    canvas.rects.push_back(zengine::surface::SurfaceRect{0, 0, 2, 2, 0});
+    r.publish_root(loom::to_value(canvas));
+    CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "1");
+
+    std::vector<SdlEvent> heard;
+    (void)loom::mount<SdlEars>(r.bus, heard);
+
+    SDL_Event down{};
+    down.type = SDL_EVENT_KEY_DOWN;
+    down.key.scancode = SDL_SCANCODE_Q;
+    down.key.down = true;
+    REQUIRE(SDL_PushEvent(&down));
+    SDL_Event close{};
+    close.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
+    REQUIRE(SDL_PushEvent(&close));
+
+    // The Skin is given its hands FIRST -- twice -- which is precisely when the
+    // old code would have swallowed both events.
+    r.bus.send_to_role("zengine.skin",
+                       loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
+    r.bus.pump();
+    r.bus.send_to_role("zengine.skin",
+                       loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
+    r.bus.pump();
+    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2"); // it really did run
+
+    // ...and the reader still finds everything, in order.
+    r.pump_input_by_role();
+    REQUIRE(heard.size() == 2);
+    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::kQ);
+    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[1]));
+}
+
+#endif // INPUT_HAS_SDL

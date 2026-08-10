@@ -44,6 +44,8 @@
 #include "property.hpp"
 #include "vocabulary.hpp"
 
+#include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
+#include "surface/pointing.hpp"  // and what that medium's layout makes of them
 #include "surface/vocabulary.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
@@ -813,27 +815,74 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 // message handlers themselves are still unreachable that way -- see the report;
 // what this relocation buys is that the part with an undefined-behaviour edge is
 // not among them.)
+//
+// G-1 SPLIT ONE FUNCTION INTO TWO STEPS, and the split is the answer to "who
+// owns the pixel-to-cell transform". There were always two translations stacked
+// here, and only one of them was Workshop's:
+//
+//   medium position -> CANVAS cell    the Skin's layout. A terminal Skin starts
+//                                     the canvas at terminal row 3 because rows
+//                                     1-2 are its text slots; the SDL Skin starts
+//                                     it at the window's origin and spends
+//                                     kCanvasCellPx pixels per cell.
+//   canvas cell -> WORKSPACE cell     Workshop's own composition: where this
+//                                     application put its workspace on its screen.
+//
+// The first was a Workshop constant called `kCanvasTopRow`, correct for as long
+// as Workshop had exactly one medium. It is not a number an application can
+// know, and the moment a second medium reported a pointer it was WRONG for it --
+// pixel row 2 of the SDL window is canvas row 0, not canvas row -2. It now lives
+// in surface/pointing.hpp beside the Skin that decides it. What stays here is
+// the second step, which is genuinely this application's.
 
-/// The canvas's first row on the terminal, 0-based: the Skin puts a canvas at
-/// terminal row 3, and a pointer reports where it is on the terminal.
-inline constexpr std::int64_t kCanvasTopRow = 2;
-
-/// The workspace cell a reported pointer position lands on.
+/// The canvas cell a reported pointer position lands on, whatever medium
+/// reported it -- or nothing, for a space this application cannot place.
 ///
-/// W-4 deleted the conversion that used to stand in front of these. `PointerMoved`
-/// and `PointerButton` carry int64 cells and say so (`space`), so there is no
-/// double to narrow and no NaN to defend against -- the backend reports the unit
-/// it means, and this is a translation of origin and nothing else.
+/// THIS IS THE PAIRING, AND THE PAIRING IS THE HONEST COST. Each medium's
+/// transform is the Surface package's (it authored the layout); which transform
+/// applies to THIS event is decided from the `space` the backend stamped, and
+/// that decision is here because nothing else in the process can make it:
+/// nobody can currently ask the active Skin what its presentation context is
+/// (P18). So Workshop states the pairing rather than pretending it is derived,
+/// and the statement is exactly one switch in one place.
+///
+/// It is true today because there is one terminal layout and one graphical one.
+/// A second graphical Skin with a different layout would report kPixels too and
+/// this switch could not tell them apart -- which is the day P18 has to be
+/// answered rather than deferred, and is written down here so that day is
+/// recognisable when it comes.
+///
+/// A SPACE THIS APPLICATION DOES NOT RECOGNISE IS IGNORED, never guessed at.
+/// That is the whole reason `space` exists: a terminal cell and an SDL pixel are
+/// both small non-negative integers, and assuming is how a click lands 12 cells
+/// from where a maker pointed.
+struct PointedAt {
+    bool understood = false;
+    surface::CanvasPoint cell;
+};
+
+inline PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
+    if (space == input::space::kCells) {
+        return PointedAt{true, surface::canvas_of_terminal_cells(x, y)};
+    }
+    if (space == input::space::kPixels) {
+        return PointedAt{true, surface::canvas_of_window_pixels(x, y)};
+    }
+    return PointedAt{};
+}
+
+/// The workspace cell a CANVAS cell lands on -- Workshop's own composition, and
+/// nothing else.
 ///
 /// The saturation stays, and for the unchanged reason: the numbers come off the
 /// wire from whichever weave holds the input role, a backend is a weave like any
 /// other, and `INT64_MIN - 3` is undefined behaviour produced by data. The
 /// saturated end is far outside any canvas, which already means "nothing there".
-inline std::int64_t workspace_cell_x(std::int64_t pointer_x) noexcept {
-    return detail::minus(pointer_x, kWorkspaceX);
+inline std::int64_t workspace_cell_x(std::int64_t canvas_x) noexcept {
+    return detail::minus(canvas_x, kWorkspaceX);
 }
-inline std::int64_t workspace_cell_y(std::int64_t pointer_y) noexcept {
-    return detail::minus(detail::minus(pointer_y, kCanvasTopRow), kWorkspaceY);
+inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
+    return detail::minus(canvas_y, kWorkspaceY);
 }
 
 // ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------

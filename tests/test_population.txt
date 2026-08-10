@@ -59,19 +59,29 @@
 # explicitly instead of hidden behind a slack floor:
 #
 #   always  every supported test configuration has it; absence is always a defect.
-#   sdl     rides `TARGET zengine-skin-sdl` (ZENGINE_SDL_SKIN=ON, the default; the Windows
+#   sdl     rides the SDL-backed weaves (ZENGINE_SDL_SKIN=ON, the default; the Windows
 #           stranger lane turns it off). Absent => declared absent, never "passed".
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
-# is active: `surface` is 32 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
-# (the last case in test_surface.cpp, the SDL skin driven under the dummy video driver), so its
-# contract reads 33 where the skin is built and 32 where it is not, and neither number has
-# any give in it.
+# is active: `surface` is 35 cases everywhere plus 2 behind `#if defined(SURFACE_HAS_SDL)`
+# (the SDL skin driven under the dummy video driver, and the same skin refused a video driver
+# that does not exist), so its contract reads 37 where SDL is built and 35 where it is not,
+# and neither number has any give in it. Since G-1 `input` carries the same split, for the
+# same kind of case: a real SDL queue read by a real weave library, and both SDL weaves live
+# at once.
 #
 # G-0's ten new cases are all in the ALWAYS row on purpose, and that placement is the
 # claim: the SDL medium's whole label path is pure arithmetic in skin_sdl_plan.hpp, so the
 # lane that builds no SDL at all -- the Windows stranger lane -- still proves that a
 # SurfaceLabel reaches pixels, in which cell, in which ink, and clipped where.
+#
+# G-1 made the same placement decision twice more, and the split is worth reading as one
+# rule: EVERYTHING PURE GOES IN `always`. The SDL translation (keys, modifiers, text,
+# pointer coordinates, wheel, the close request) is pure code in input/translate_sdl.hpp
+# and lands in input's always row; the pixel-to-cell projection is pure code in
+# surface/pointing.hpp and lands in surface's. What rides the `sdl` gate is only what
+# genuinely cannot exist without SDL -- one case per suite, each driving a real SDL against
+# a real weave library.
 #
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
@@ -82,11 +92,12 @@
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  78
-input                             doctest           always  24
-surface                           doctest           always  32
-surface                           doctest           sdl     1
+input                             doctest           always  35
+input                             doctest           sdl     2
+surface                           doctest           always  35
+surface                           doctest           sdl     2
 ui                                doctest           always  22
-workshop                          doctest           always  130
+workshop                          doctest           always  137
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -61,9 +61,18 @@ set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer
 if(TARGET zengine-skin-sdl)
     list(APPEND zengine_workshop_weaves zengine-skin-sdl)
 endif()
+if(TARGET zengine-input-sdl)
+    list(APPEND zengine_workshop_weaves zengine-input-sdl)
+endif()
 foreach(weave IN LISTS zengine_workshop_weaves)
     add_custom_command(TARGET zengine-workshop POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_FILE:${weave}> $<TARGET_FILE_DIR:zengine-workshop>
         COMMENT "workshop: staging ${weave} beside the host")
 endforeach()
+
+# And the shared SDL3 the two SDL-backed weaves link. New in G-1: SDL used to be
+# archived INTO the one weave that used it, and two weaves cannot share an archived
+# copy (cmake/ZengineSdl.cmake says why). A shared library has to be findable at run
+# time, which on Windows means the application directory and nowhere else.
+zengine_stage_sdl(zengine-workshop)

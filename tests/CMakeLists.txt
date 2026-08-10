@@ -217,6 +217,30 @@ target_compile_definitions(zengine-input-tests PRIVATE
 
 zengine_doctest_test(input zengine-input-tests)
 
+# THE SDL READER IS A CONDITIONAL SUBPOPULATION, declared the same way the SDL skin's is.
+#
+# The SDL TRANSLATION is pure and lives in the always rows -- the Windows stranger lane
+# builds no SDL and still pins every key, modifier, coordinate and close mapping. What
+# rides this gate is the one case that cannot be pure: the test process pushes events into
+# a REAL SDL queue and a separately dlopen'ed zengine-input-sdl.so polls them out, which is
+# the positive evidence that the two SDL-backed weaves share ONE SDL (a static SDL would
+# give each of them their own queue and this case would see nothing). It therefore links
+# SDL itself, which is the whole trick.
+if(TARGET zengine-input-sdl)
+    target_compile_definitions(zengine-input-tests PRIVATE
+        INPUT_HAS_SDL=1
+        "INPUT_SDL_SO=\"$<TARGET_FILE:zengine-input-sdl>\""
+        # The window Skin too: one of the cases runs BOTH SDL weaves at once and
+        # pumps the Skin between a push and a read, which is the interleaving that
+        # would prove the queue has two owners if it had.
+        "SKIN_SO_SDL=\"$<TARGET_FILE:zengine-skin-sdl>\"")
+    target_link_libraries(zengine-input-tests PRIVATE zengine-surface-vocabulary
+                                                      ${ZENGINE_SDL_LIB})
+    set_tests_properties(input PROPERTIES
+        ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
+endif()
+
 # The Surface suite: the skin pattern — golden terminal bytes, the pure SDL
 # plan (pinned on every lane, SDL built or not), the hello handshake, surface
 # ownership, and the linkage pins riding the skin pair. Where the SDL skin is

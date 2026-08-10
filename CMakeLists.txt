@@ -175,6 +175,16 @@ function(zengine_weave target source)
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
 
+# ---- The SDL dependency, acquired once for every package that needs it ------------------
+#
+# It used to live inside surface/, because the window Skin was the only target that saw
+# SDL. G-1 gave SDL a second consumer — the SDL Input reader in input/ — and with two
+# weave libraries the acquisition stops being one package's business: they must share ONE
+# SDL or the reader polls a queue the Skin's window never posts to. cmake/ZengineSdl.cmake
+# owns that decision, states why the library must be shared, and refuses a static one out
+# loud. Included HERE, before any package, because both of them ask it for the same target.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineSdl.cmake)
+
 # ---- Testing is a real switch, and it is a real requirement -----------------------------
 #
 # BUILD_TESTING is CMake's conventional name, and here it draws a line that used to be
@@ -303,17 +313,19 @@ endfunction()
 # tests: the Zengine suites (the smoke test stays its own tiny proof; the others drive
 # the real .so weaves through the real kernel). Order matters only where vocabulary
 # flows: activation's interface target must exist before the packages that read an
-# activation, timer's before input/surface consume it, theirs before snake, surface's and
-# ui's before workshop consumes both, and snake's skins before workshop stages copies of
-# them.
+# activation, timer's before input/surface consume it, SURFACE'S BEFORE INPUT'S (G-1: the
+# SDL Input reader is the one weave that must carry a window-lifecycle fact, and that fact
+# belongs to the Surface vocabulary — see input/translate_sdl.hpp), theirs before snake,
+# surface's and ui's before workshop consumes both, and snake's skins before workshop
+# stages copies of them.
 #
 # smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
 # themselves do not, and each still makes its own honest kernel decision.
 
 add_subdirectory(activation)
 add_subdirectory(timer)
-add_subdirectory(input)
 add_subdirectory(surface)
+add_subdirectory(input)
 add_subdirectory(ui)
 add_subdirectory(snake)
 add_subdirectory(workshop)
@@ -334,6 +346,11 @@ if(BUILD_TESTING)
     # requirement lives in tests/test_population.txt, in the source tree, where deleting a
     # registration cannot reach it.
     get_property(zengine_active_gates GLOBAL PROPERTY ZENGINE_ACTIVE_GATES)
+    # A SET, not a tally. Two suites now carry `sdl`-gated rows (surface's window
+    # medium and input's real-queue witness) and each declares the gate it rides;
+    # a gate named twice is still one gate, and saying `always;sdl;sdl` would read
+    # as though it were two.
+    list(REMOVE_DUPLICATES zengine_active_gates)
     get_property(zengine_test_record GLOBAL PROPERTY ZENGINE_TEST_RECORD)
     file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/zengine-test-population.cmake" CONTENT
 "# GENERATED AT CONFIGURE TIME by Zengine/CMakeLists.txt. Do not edit; do not commit.

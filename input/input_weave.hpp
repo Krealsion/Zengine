@@ -6,9 +6,12 @@
 
 // The Input weave, over an injected Reader (the zen-ui-pixel move: the brain
 // is testable everywhere, the platform is a thin edge). A Reader is anything
-// with `std::vector<InputEvent> poll()` — the real ones (input.cpp) fetch and
-// translate native events; the suite's fake feeds scripted batches, so the
-// weave's whole message contract is pinned without a console in sight.
+// with `std::vector<V> poll()`, for some variant V of published shapes — the
+// real ones (input.cpp, input_sdl.cpp) fetch and translate native events; the
+// suite's fake feeds scripted batches, so the weave's whole message contract is
+// pinned without a console in sight. The weave's Emit set is DERIVED from V
+// (see EmitsOf below), so a reader that can hand over one more kind of fact
+// says so once, in its own file.
 //
 // The weave is INDIFFERENT to what a poll contains: it publishes whatever the
 // reader hands back, by shape. That is why W-4 changed the vocabulary without
@@ -38,8 +41,10 @@
 
 #include <chrono>
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace zengine::input {
 
@@ -52,12 +57,49 @@ struct InputState {
     ZEN_SHAPE(InputState, 1, ZEN_FIELD(pumped), ZEN_FIELD(emitted));
 };
 
+namespace detail {
+
+/// The variant a Reader's poll() hands back.
 template <class Reader>
-class InputWeaveT
-    : public zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState,
-                                        loom::Accept<PumpInput>,
-                                        loom::Emit<KeyPressed, KeyReleased, TextEntered,
-                                                   PointerMoved, PointerButton, PointerWheel>> {
+using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll())>::value_type;
+
+/// That variant's alternatives, as the weave's Emit set.
+///
+/// G-1 DERIVED THIS INSTEAD OF SPELLING IT, and the reason is written a few
+/// lines up in this file's own header: "The weave is INDIFFERENT to what a poll
+/// contains: it publishes whatever the reader hands back, by shape." The Emit
+/// list was the one place that was not indifferent — six shapes, hard-coded,
+/// true of the two readers that existed.
+///
+/// The SDL reader broke that. SDL carries window LIFECYCLE and input on one
+/// process-global queue, so the weave that owns the queue is the only thing
+/// that can see a close request, and that request is not an input moment and
+/// must not be spelled as one (translate_sdl.hpp). Deriving the Emit set is
+/// what lets the SDL reader declare the extra shape WITHOUT the Input package
+/// itself gaining a surface dependency, and without the terminal and Win32
+/// weaves advertising a fact they can never produce. What each weave says it
+/// can say is now exactly what its reader can hand it.
+template <class V>
+struct EmitsOf;
+template <class... Ts>
+struct EmitsOf<std::variant<Ts...>> {
+    using type = loom::Emit<Ts...>;
+};
+
+} // namespace detail
+
+template <class Reader>
+class InputWeaveT;
+
+/// The base, named once — three spellings of it is what the `using ...::on`
+/// line below used to cost.
+template <class Reader>
+using InputWeaveBase =
+    zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState, loom::Accept<PumpInput>,
+                               typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type>;
+
+template <class Reader>
+class InputWeaveT : public InputWeaveBase<Reader> {
 public:
     InputWeaveT() { declare_pump(); }
     explicit InputWeaveT(Reader reader) : reader_(std::move(reader)) { declare_pump(); }
@@ -65,9 +107,7 @@ public:
     /// The one line of ceremony the binding cannot remove: this weave has its
     /// own `on` handler, which would otherwise HIDE the binding layer's three.
     /// (WeaveBase dispatches via self->on(...) on the derived type.)
-    using zengine::timer::TimedWeave<InputWeaveT<Reader>, InputState, loom::Accept<PumpInput>,
-                                     loom::Emit<KeyPressed, KeyReleased, TextEntered, PointerMoved,
-                                                PointerButton, PointerWheel>>::on;
+    using InputWeaveBase<Reader>::on;
 
     /// The direct door: the same hands, on request, for suites, diagnostics and
     /// timer-less hosts.
@@ -87,13 +127,13 @@ private:
 
     void pump(loom::Mail& mail) {
         ++this->state_.pumped;
-        for (const InputEvent& ev : reader_.poll()) {
+        for (const detail::ReaderEvent<Reader>& ev : reader_.poll()) {
             ++this->state_.emitted;
             std::visit([&mail](const auto& e) { mail.publish(e); }, ev);
         }
     }
 
-    typename InputWeaveT::Handle pump_;
+    typename InputWeaveBase<Reader>::Handle pump_;
     Reader reader_;
 };
 
