@@ -599,6 +599,374 @@ TEST_CASE("plan: death tints the window, the food sentinel plans no food, the ti
 }
 
 // ============================================================================
+// Tier 2c — the SDL canvas plan: labels reach pixels (G-0 / P8)
+// ============================================================================
+//
+// The whole label path is here rather than behind SURFACE_HAS_SDL on purpose.
+// `plan_canvas` is the only place that knows a label from a rect -- the SDL edge
+// receives one flat quad list -- so these cases are what stands between the
+// medium and P8, and they must run on every lane, including the Windows stranger
+// lane that builds no SDL at all.
+//
+// The first case belongs to BOTH media: G-0 found the terminal Skin's clipping
+// unsafe while writing this one's, so the guard is shared and so is its proof.
+
+namespace {
+
+/// Rasterize a plan back into a pixel grid, so a case can assert what a screen
+/// would actually show rather than which quads were emitted. `ink` is anything
+/// that is not the canvas background; a cell a label took reads as background
+/// even where its glyph has no ink, which is the point of `plan_canvas` clearing
+/// a label's own cell.
+class Raster {
+public:
+    explicit Raster(const SurfaceCanvas& c)
+        : w_(canvas_extent(c.width) * kCanvasCellPx), h_(canvas_extent(c.height) * kCanvasCellPx),
+          px_(static_cast<std::size_t>(w_ * h_), PlanInk{0, 0, 0}) {
+        for (const PlanRect& r : plan_canvas(c)) {
+            // A quad outside the surface it claims to be drawing on is the defect
+            // this rasterizer exists to catch, so it is an assertion and not a
+            // clamp -- clamping here would hide exactly what a sanitizer sees.
+            REQUIRE(r.x >= 0);
+            REQUIRE(r.y >= 0);
+            REQUIRE(r.w > 0);
+            REQUIRE(r.h > 0);
+            REQUIRE(r.x + r.w <= w_);
+            REQUIRE(r.y + r.h <= h_);
+            for (std::int64_t y = r.y; y < r.y + r.h; ++y) {
+                for (std::int64_t x = r.x; x < r.x + r.w; ++x) {
+                    px_[static_cast<std::size_t>(y * w_ + x)] = PlanInk{r.r, r.g, r.b};
+                }
+            }
+        }
+    }
+
+    PlanInk at(std::int64_t x, std::int64_t y) const {
+        return px_[static_cast<std::size_t>(y * w_ + x)];
+    }
+
+    /// How many pixels of one canvas cell are ink -- 0 means nothing was drawn
+    /// there, which is what "a label was dropped" looks like from the outside.
+    int ink_in_cell(std::int64_t cx, std::int64_t cy) const {
+        int n = 0;
+        for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
+            for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
+                const PlanInk p = at(cx * kCanvasCellPx + x, cy * kCanvasCellPx + y);
+                if (!(p == kCanvasBackground) && !(p == PlanInk{0, 0, 0})) {
+                    ++n;
+                }
+            }
+        }
+        return n;
+    }
+
+    /// The ink colour of a cell that has some, as the medium would show it.
+    PlanInk ink_colour(std::int64_t cx, std::int64_t cy) const {
+        for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
+            for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
+                const PlanInk p = at(cx * kCanvasCellPx + x, cy * kCanvasCellPx + y);
+                if (!(p == kCanvasBackground) && !(p == PlanInk{0, 0, 0})) {
+                    return p;
+                }
+            }
+        }
+        return kCanvasBackground;
+    }
+
+private:
+    std::int64_t w_;
+    std::int64_t h_;
+    std::vector<PlanInk> px_;
+};
+
+SurfaceCanvas canvas_of(std::int64_t w, std::int64_t h) {
+    SurfaceCanvas c;
+    c.width = w;
+    c.height = h;
+    return c;
+}
+
+/// The characters of one terminal row of `canvas_body`, with the SGR runs taken
+/// out -- what a reader of that medium sees, as opposed to how it was coloured.
+std::string tui_row(const SurfaceCanvas& c, std::size_t row) {
+    const std::string all = canvas_body(c);
+    std::vector<std::string> rows;
+    std::string current;
+    for (std::size_t i = 0; i < all.size(); ++i) {
+        if (all[i] == '\x1b') {
+            while (i < all.size() && all[i] != 'm' && all[i] != 'K') {
+                ++i;
+            }
+            continue;
+        }
+        if (all[i] == '\r') {
+            continue;
+        }
+        if (all[i] == '\n') {
+            rows.push_back(current);
+            current.clear();
+            continue;
+        }
+        current += all[i];
+    }
+    return row < rows.size() ? rows[row] : std::string{};
+}
+
+} // namespace
+
+TEST_CASE("canvas: a published coordinate cannot overflow or outrun the canvas") {
+    // FOUND BY G-0 IN COMMITTED CODE, in the TERMINAL Skin, and both halves were
+    // reachable from data alone -- a canvas is a ZEN_SHAPE, so its numbers come
+    // from whoever published it.
+    //
+    //   `r.x + dx` and `l.x + i` at the top of the number line were signed
+    //   overflow (UBSan says so; the standing lane never caught it because no
+    //   test fed the rasterizer such a canvas -- this one now does);
+    //
+    //   and the rect loop walked every cell the PUBLISHER named before dropping
+    //   the ones off the canvas, so a rect 10^8 cells wide cost 75 ms on a 4x2
+    //   canvas and the same shape near INT64_MAX did not finish at all.
+    //
+    // This case is the data those two guards guard against, in the suite that
+    // runs everywhere -- and it is why `surface/cells.hpp` is shared with the SDL
+    // plan rather than copied into it.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    SurfaceCanvas c;
+    c.width = 4;
+    c.height = 2;
+    c.rects.push_back(SurfaceRect{kMax, 0, kMax, 1, role::kFill});
+    c.rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kMuted});
+    c.rects.push_back(SurfaceRect{0, 0, kMax, kMax, role::kAlert}); // covers the canvas
+    c.labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
+    c.labels.push_back(SurfaceLabel{kMin, 1, "AB", role::kFill});
+
+    // It returns, it is bounded, and the one rect that does reach the canvas
+    // covers it exactly: clipping changed what is WALKED, never what is DRAWN.
+    CHECK(tui_row(c, 0) == "!!!!");
+    CHECK(tui_row(c, 1) == "!!!!");
+
+    // The same numbers through the same helper, spelled out.
+    CHECK(add_cells(kMax, 1) == kMax);
+    CHECK(add_cells(kMin, -1) == kMin);
+    CHECK(add_cells(5, 7) == 12);
+    CHECK(clip_span(kMax, kMax, 4) == CellSpan{4, 4});
+    CHECK(clip_span(kMin, kMax, 4) == CellSpan{0, 0});
+    CHECK(clip_span(-2, 5, 4) == CellSpan{0, 3});
+    CHECK(clip_span(1, 2, 4) == CellSpan{1, 3});
+    CHECK(clip_span(9, 2, 4).empty());
+}
+
+TEST_CASE("canvas plan: a label reaches pixels, in the cell the publisher named") {
+    SurfaceCanvas c = canvas_of(8, 3);
+    c.labels.push_back(SurfaceLabel{2, 1, "AB", role::kFill});
+    const Raster r(c);
+
+    // THE P8 CASE. Ink exists where the label was published and nowhere else on
+    // that row -- if the medium ever drops labels again, every one of these
+    // counts goes to zero.
+    CHECK(r.ink_in_cell(2, 1) > 0);
+    CHECK(r.ink_in_cell(3, 1) > 0);
+    CHECK(r.ink_in_cell(0, 1) == 0);
+    CHECK(r.ink_in_cell(1, 1) == 0);
+    CHECK(r.ink_in_cell(4, 1) == 0);
+    CHECK(r.ink_in_cell(2, 0) == 0);
+    CHECK(r.ink_in_cell(2, 2) == 0);
+
+    // One cell per byte, and the cell is exactly the canvas cell: the glyph fills
+    // it, so 'A' and 'B' are different pictures in adjacent cells rather than one
+    // run of text drifting off the grid.
+    CHECK(kGlyphScale == 2);
+    CHECK(r.at(2 * kCanvasCellPx, 1 * kCanvasCellPx) == kCanvasBackground);
+    CHECK_FALSE(r.ink_in_cell(2, 1) == r.ink_in_cell(3, 1)); // A and B differ
+}
+
+TEST_CASE("canvas plan: a label takes its whole cell, and lands over the rects") {
+    SurfaceCanvas c = canvas_of(4, 1);
+    c.rects.push_back(SurfaceRect{0, 0, 4, 1, role::kAlert});
+    c.labels.push_back(SurfaceLabel{1, 0, "i", role::kAccent});
+    const Raster r(c);
+
+    // The rect is under everything...
+    CHECK(r.at(0, 0) == ink_for_role(role::kAlert));
+    CHECK(r.at(3 * kCanvasCellPx, 0) == ink_for_role(role::kAlert));
+    // ...but the label's own cell is the label's: the terminal's `put` overwrites
+    // both the glyph and the role of a cell a label lands on, so the closest this
+    // medium can do is clear the cell and draw the glyph on it. A name written on
+    // an object must not have to compete with the object's own fill.
+    CHECK(r.at(1 * kCanvasCellPx, 0) == kCanvasBackground);
+    CHECK(r.ink_colour(1, 0) == ink_for_role(role::kAccent));
+}
+
+TEST_CASE("canvas plan: later labels win, exactly as the terminal's do") {
+    SurfaceCanvas c = canvas_of(2, 1);
+    c.labels.push_back(SurfaceLabel{0, 0, "X", role::kMuted});
+    c.labels.push_back(SurfaceLabel{0, 0, "X", role::kAlert});
+    const Raster r(c);
+    CHECK(r.ink_colour(0, 0) == ink_for_role(role::kAlert));
+}
+
+TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn") {
+    SurfaceCanvas c = canvas_of(4, 1);
+    c.labels.push_back(SurfaceLabel{0, 0, "A", role::kAccent});
+    c.labels.push_back(SurfaceLabel{1, 0, "A", role::kMuted});
+    c.labels.push_back(SurfaceLabel{2, 0, "A", role::kAlert});
+    c.labels.push_back(SurfaceLabel{3, 0, "A", 99}); // no such role
+    const Raster r(c);
+    CHECK(r.ink_colour(0, 0) == PlanInk{112, 232, 240});
+    CHECK(r.ink_colour(1, 0) == PlanInk{96, 96, 108});
+    CHECK(r.ink_colour(2, 0) == PlanInk{232, 72, 72});
+    // vocabulary.hpp's stated fallback: an unknown role paints as kFill rather
+    // than vanishing.
+    CHECK(r.ink_colour(3, 0) == ink_for_role(role::kFill));
+}
+
+TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing else") {
+    SUBCASE("a label running off the right edge keeps the cells that fit") {
+        SurfaceCanvas c = canvas_of(3, 1);
+        c.labels.push_back(SurfaceLabel{1, 0, "ABCDEFGH", role::kFill});
+        const Raster r(c); // the Raster's own REQUIREs are the out-of-bounds proof
+        CHECK(r.ink_in_cell(1, 0) > 0);
+        CHECK(r.ink_in_cell(2, 0) > 0);
+    }
+    SUBCASE("a negative origin drops the cells before the canvas and keeps the rest") {
+        SurfaceCanvas c = canvas_of(3, 1);
+        c.labels.push_back(SurfaceLabel{-2, 0, "ABCD", role::kFill});
+        const Raster r(c);
+        // 'A' and 'B' are off the canvas; 'C' lands in cell 0.
+        SurfaceCanvas just_c = canvas_of(3, 1);
+        just_c.labels.push_back(SurfaceLabel{0, 0, "C", role::kFill});
+        const Raster expected(just_c);
+        CHECK(r.ink_in_cell(0, 0) == expected.ink_in_cell(0, 0));
+        CHECK(r.ink_in_cell(0, 0) > 0);
+    }
+    SUBCASE("a label below or above the canvas draws nothing at all") {
+        SurfaceCanvas c = canvas_of(3, 2);
+        c.labels.push_back(SurfaceLabel{0, 2, "A", role::kFill});  // one row past
+        c.labels.push_back(SurfaceLabel{0, -1, "A", role::kFill}); // one row before
+        const Raster r(c);
+        CHECK(r.ink_in_cell(0, 0) == 0);
+        CHECK(r.ink_in_cell(0, 1) == 0);
+    }
+    SUBCASE("an empty label and an empty canvas are both legitimate pictures") {
+        SurfaceCanvas c = canvas_of(2, 1);
+        c.labels.push_back(SurfaceLabel{0, 0, "", role::kFill});
+        CHECK(Raster(c).ink_in_cell(0, 0) == 0);
+        CHECK(plan_canvas(canvas_of(0, 0)).empty());
+        CHECK(plan_canvas(canvas_of(-5, -5)).empty());
+    }
+    SUBCASE("the saturated ends of the number line clip like any other coordinate") {
+        constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+        constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+        SurfaceCanvas c = canvas_of(4, 2);
+        // Every one of these would be undefined behaviour under a naive
+        // `x + i` or `cell * kCanvasCellPx`; all of them must simply clip.
+        c.labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
+        c.labels.push_back(SurfaceLabel{kMin, 0, "AB", role::kFill});
+        c.labels.push_back(SurfaceLabel{0, kMax, "AB", role::kFill});
+        c.labels.push_back(SurfaceLabel{0, kMin, "AB", role::kFill});
+        c.rects.push_back(SurfaceRect{kMax, kMax, kMax, kMax, role::kFill});
+        c.rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kFill});
+        const Raster r(c);
+        CHECK(r.ink_in_cell(0, 0) == 0);
+        CHECK(r.ink_in_cell(3, 1) == 0);
+        // And an extent no pixel number could hold is capped rather than
+        // multiplied into undefined behaviour.
+        CHECK(canvas_extent(kMax) == kMaxCanvasCells);
+        CHECK(canvas_window_size(canvas_of(78, 22)).w == 78 * kCanvasCellPx);
+        CHECK(canvas_window_size(canvas_of(78, 22)).h == 22 * kCanvasCellPx);
+    }
+}
+
+TEST_CASE("canvas plan: a byte with no glyph is SEEN, never dropped") {
+    // P8 at character granularity is the thing this policy exists to refuse: a
+    // character that silently disappears is invisible to the publisher, so an
+    // unsupported byte draws a box instead.
+    SurfaceCanvas c = canvas_of(6, 1);
+    c.labels.push_back(SurfaceLabel{0, 0, "A\x01\xC3\xA9 B", role::kFill}); // 'e-acute' in UTF-8
+    const Raster r(c);
+    CHECK(r.ink_in_cell(0, 0) > 0); // 'A'
+    CHECK(r.ink_in_cell(1, 0) > 0); // a control byte -- drawn as the box
+    CHECK(r.ink_in_cell(2, 0) > 0); // one cell per BYTE of the sequence...
+    CHECK(r.ink_in_cell(3, 0) > 0); // ...so both bytes are visible
+    CHECK(r.ink_in_cell(4, 0) == 0); // a space is a real, blank glyph -- not a box
+    CHECK(r.ink_in_cell(5, 0) > 0);  // 'B'
+
+    // All three unsupported bytes draw the SAME thing, and it is the box.
+    SurfaceCanvas box = canvas_of(1, 1);
+    box.labels.push_back(SurfaceLabel{0, 0, "\x01", role::kFill});
+    const int box_ink = Raster(box).ink_in_cell(0, 0);
+    CHECK(r.ink_in_cell(1, 0) == box_ink);
+    CHECK(r.ink_in_cell(2, 0) == box_ink);
+    CHECK(r.ink_in_cell(3, 0) == box_ink);
+    CHECK(glyph_of(0x01) == kUnknownGlyph);
+    CHECK(glyph_of(0xC3) == kUnknownGlyph);
+    CHECK(glyph_of(0x7f) == kUnknownGlyph);
+    CHECK_FALSE(glyph_of(' ') == kUnknownGlyph);
+}
+
+TEST_CASE("canvas plan: the promise is printable ASCII, and every character of it") {
+    // The measured Workshop population is 73 distinct bytes; the other 22
+    // printable characters are one maker keystroke away, so the floor is the
+    // whole range rather than what the tool happens to say today.
+    for (unsigned char b = kFirstGlyph; b <= kLastGlyph; ++b) {
+        CAPTURE(b);
+        CHECK_FALSE(glyph_of(b) == kUnknownGlyph);
+    }
+    // ...and every one of them is distinguishable from every other, so no two
+    // characters can read as the same thing on screen. Space is the one glyph
+    // that is legitimately blank.
+    for (unsigned char a = kFirstGlyph; a <= kLastGlyph; ++a) {
+        for (unsigned char b = static_cast<unsigned char>(a + 1); b <= kLastGlyph; ++b) {
+            if (glyph_of(a) == glyph_of(b)) {
+                CAPTURE(a);
+                CAPTURE(b);
+                FAIL_CHECK("two printable characters share one glyph");
+            }
+        }
+    }
+    CHECK(glyph_of(' ') == Glyph{});
+}
+
+TEST_CASE("canvas plan: rectangles are clipped to the canvas, like the terminal's") {
+    SurfaceCanvas c = canvas_of(3, 2);
+    c.rects.push_back(SurfaceRect{-1, -1, 10, 10, role::kFill});
+    const std::vector<PlanRect> quads = plan_canvas(c);
+    REQUIRE(quads.size() == 1);
+    CHECK(quads[0].x == 0);
+    CHECK(quads[0].y == 0);
+    CHECK(quads[0].w == 3 * kCanvasCellPx);
+    CHECK(quads[0].h == 2 * kCanvasCellPx);
+
+    // An empty or inverted rect is nothing, not a negative quad.
+    SurfaceCanvas none = canvas_of(3, 2);
+    none.rects.push_back(SurfaceRect{1, 1, 0, 5, role::kFill});
+    none.rects.push_back(SurfaceRect{1, 1, -4, 5, role::kFill});
+    none.rects.push_back(SurfaceRect{9, 9, 5, 5, role::kFill});
+    CHECK(plan_canvas(none).empty());
+}
+
+TEST_CASE("canvas plan: the two media place the same label in the same cell") {
+    // The agnosticism claim, made checkable. The terminal rasterizes to bytes and
+    // this medium to quads, so they cannot be compared directly -- but WHICH CELL
+    // a character lands in is a fact both must agree on, and it is the fact a
+    // publisher relies on when it puts a panel at column 50.
+    SurfaceCanvas c = canvas_of(6, 2);
+    c.labels.push_back(SurfaceLabel{2, 1, "Hi", role::kFill});
+    const Raster r(c);
+
+    // The terminal: row 1, columns 2 and 3 carry 'H' and 'i'.
+    CHECK(tui_row(c, 0) == "      ");
+    CHECK(tui_row(c, 1) == "  Hi  ");
+    // This medium: the same two cells carry ink, and no others.
+    for (std::int64_t x = 0; x < 6; ++x) {
+        CAPTURE(x);
+        CHECK((r.ink_in_cell(x, 1) > 0) == (x == 2 || x == 3));
+        CHECK(r.ink_in_cell(x, 0) == 0);
+    }
+}
+
+// ============================================================================
 // Tier 3 — the shell through a real bus
 // ============================================================================
 

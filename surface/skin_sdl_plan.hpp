@@ -14,10 +14,21 @@
 // no pixel anywhere in it. That direction — medium-specific numbers derived
 // from medium-agnostic intent, never the reverse — is the agnosticism the
 // phase exists to prove.
+//
+// G-0 brings the general canvas here for the same reason, and gains one
+// property from it that is worth naming: `plan_canvas` returns rectangles and
+// labels as ONE flat list of opaque quads, so the SDL edge cannot tell a
+// glyph from a rect. P8 — "rectangles drawn, labels dropped" — is therefore
+// not sayable at the edge at all; the only place that distinction exists is
+// in this header, where every lane's suite is already looking.
 
+#include "cells.hpp"
+#include "skin_sdl_glyphs.hpp"
 #include "snake/vocabulary.hpp"
+#include "vocabulary.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -92,6 +103,162 @@ inline std::vector<PlanRect> plan_frame(const zengine::snake::SnakeVisual& v) {
         h.g = 232;
         h.b = 128;
         out.push_back(h);
+    }
+    return out;
+}
+
+// ---- The general canvas (G-0) ------------------------------------------------------
+//
+// Everything below turns a `SurfaceCanvas` into the same `PlanRect` list the
+// snake frame already produces. See the header note on why labels and rects
+// arrive as one indistinguishable list.
+
+/// This medium's ink per semantic canvas role — the counterpart of the TUI's SGR
+/// table, and the proof the role vocabulary was worth having: two media, two
+/// completely unrelated palettes, one unchanged publisher. Unknown roles paint as
+/// `kFill`, per vocabulary.hpp.
+///
+/// It lives in the plan rather than at the SDL edge so that "which ink did this
+/// role get" is a fact every lane can pin, SDL built or not.
+struct PlanInk {
+    std::uint8_t r = 0;
+    std::uint8_t g = 0;
+    std::uint8_t b = 0;
+
+    friend bool operator==(const PlanInk&, const PlanInk&) = default;
+};
+
+inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
+    switch (role) {
+    case role::kAccent: return PlanInk{112, 232, 240};
+    case role::kMuted: return PlanInk{96, 96, 108};
+    case role::kAlert: return PlanInk{232, 72, 72};
+    default: return PlanInk{176, 176, 188};
+    }
+}
+
+/// What a cell shows where nothing was published — and what a label's own cell is
+/// cleared to before its glyph is drawn. See `plan_canvas` on why a label takes
+/// its whole cell rather than sitting on top of whatever was under it.
+inline constexpr PlanInk kCanvasBackground{18, 18, 24};
+
+/// One glyph pixel, in device pixels. Chosen so a glyph fills a canvas cell
+/// exactly: no resampling, no partial cells, and a label's Nth character sits in
+/// the canvas cell the publisher named and nowhere else.
+inline constexpr std::int64_t kGlyphScale = kCanvasCellPx / kGlyphCols;
+static_assert(kCanvasCellPx % kGlyphCols == 0,
+              "a canvas cell must be a whole number of glyph pixels wide");
+static_assert(kCanvasCellPx % kGlyphRows == 0,
+              "a canvas cell must be a whole number of glyph pixels tall");
+
+/// The largest canvas extent this medium will consider, in cells.
+///
+/// Not a policy about how big a canvas may be — it is exactly how many cells a
+/// pixel number can hold. `cell * kCanvasCellPx` is the first arithmetic every
+/// element goes through, and a published `width` of 10^18 makes that multiply
+/// undefined before anything has been drawn or refused. Clamping the extent here
+/// makes every pixel product in this file safe by construction rather than by
+/// each caller remembering.
+inline constexpr std::int64_t kMaxCanvasCells =
+    (std::numeric_limits<std::int64_t>::max)() / kCanvasCellPx;
+
+/// The canvas extent this plan will actually work in, in cells: what was
+/// published, floored at nothing and capped at what pixels can express.
+inline constexpr std::int64_t canvas_extent(std::int64_t published) noexcept {
+    if (published <= 0) {
+        return 0;
+    }
+    return published < kMaxCanvasCells ? published : kMaxCanvasCells;
+}
+
+/// The window this canvas asks for: its extent in cells, in pixels.
+inline constexpr PlanSize canvas_window_size(const SurfaceCanvas& c) noexcept {
+    return PlanSize{canvas_extent(c.width) * kCanvasCellPx,
+                    canvas_extent(c.height) * kCanvasCellPx};
+}
+
+/// The whole canvas as one flat list of opaque quads, in painter's order.
+///
+/// Rectangles first in list order, then every label's cells over them — the same
+/// order `canvas_body` rasterizes for a terminal, so the two media agree about
+/// what is on top without either knowing the other exists.
+///
+/// A LABEL TAKES ITS CELL. The terminal's `put` overwrites both the glyph AND the
+/// role of every cell a label lands on, so a label cell there shows the label's
+/// character on the terminal's own background and the rect underneath is simply
+/// gone from that cell. The closest thing this medium can do is clear each label
+/// cell to the canvas background and draw the glyph over it, which is what it
+/// does: text never has to compete with a fill it happens to be sitting on.
+///
+/// CLIPPING IS PER CELL, against the canvas extent and nothing else — the same
+/// rule and the same bounds the terminal applies, so a label hanging off any edge
+/// (or starting at a negative coordinate) loses exactly the cells that are not on
+/// the canvas and keeps the rest.
+///
+/// The shape of the work is one pass: each rect is a single quad, and each label
+/// cell is one background quad plus one quad per horizontal run of ink in its
+/// glyph — at most three per glyph row. Nothing is allocated per character, no
+/// texture is created, and there is no state to cache between frames.
+inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c) {
+    std::vector<PlanRect> out;
+    const std::int64_t w = canvas_extent(c.width);
+    const std::int64_t h = canvas_extent(c.height);
+    if (w == 0 || h == 0) {
+        return out; // an empty canvas is a legitimate picture: it draws nothing
+    }
+
+    const auto quad = [&out](std::int64_t x, std::int64_t y, std::int64_t pw, std::int64_t ph,
+                             PlanInk ink) {
+        out.push_back(PlanRect{x, y, pw, ph, ink.r, ink.g, ink.b});
+    };
+
+    for (const SurfaceRect& r : c.rects) {
+        // Clipped in CELLS, before any pixel arithmetic — which is what keeps the
+        // multiply below inside the number line whatever the wire said. Same
+        // helper the terminal Skin clips with, so the two media cannot come to
+        // disagree about what is on the canvas.
+        const CellSpan xs = clip_span(r.x, r.w, w);
+        const CellSpan ys = clip_span(r.y, r.h, h);
+        if (xs.empty() || ys.empty()) {
+            continue;
+        }
+        quad(xs.begin * kCanvasCellPx, ys.begin * kCanvasCellPx, xs.count() * kCanvasCellPx,
+             ys.count() * kCanvasCellPx, ink_for_role(r.role));
+    }
+
+    for (const SurfaceLabel& l : c.labels) {
+        if (l.y < 0 || l.y >= h) {
+            continue; // no row of this canvas belongs to it
+        }
+        const PlanInk ink = ink_for_role(l.role);
+        const std::int64_t cell_y = l.y * kCanvasCellPx;
+        for (std::size_t i = 0; i < l.text.size(); ++i) {
+            const std::int64_t cx = add_cells(l.x, static_cast<std::int64_t>(i));
+            if (cx < 0) {
+                continue; // before the canvas starts; a later character may land
+            }
+            if (cx >= w) {
+                break; // every remaining character is further right still
+            }
+            const std::int64_t cell_x = cx * kCanvasCellPx;
+            quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, kCanvasBackground);
+            const Glyph& g = glyph_of(static_cast<unsigned char>(l.text[i]));
+            for (int gy = 0; gy < kGlyphRows; ++gy) {
+                int gx = 0;
+                while (gx < kGlyphCols) {
+                    if ((g.row[gy] & (1u << gx)) == 0) {
+                        ++gx;
+                        continue;
+                    }
+                    const int run_start = gx;
+                    while (gx < kGlyphCols && (g.row[gy] & (1u << gx)) != 0) {
+                        ++gx;
+                    }
+                    quad(cell_x + run_start * kGlyphScale, cell_y + gy * kGlyphScale,
+                         (gx - run_start) * kGlyphScale, kGlyphScale, ink);
+                }
+            }
+        }
     }
     return out;
 }

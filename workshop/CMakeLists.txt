@@ -52,7 +52,15 @@ target_link_libraries(zengine-workshop
 # one of them winning — so the shared artifacts stay where they are built and each
 # host takes a copy. (Deployment is the host's concern; those packages still do
 # not know who runs them.)
+#
+# The SDL skin joins the list only where this configuration built it. `--skin`
+# (workshop.cpp) is what SELECTS one at launch; staging is what makes the chosen
+# stem resolvable beside the host. Both halves are needed and they are different
+# acts — that split is the whole of what P29 measured.
 set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer)
+if(TARGET zengine-skin-sdl)
+    list(APPEND zengine_workshop_weaves zengine-skin-sdl)
+endif()
 foreach(weave IN LISTS zengine_workshop_weaves)
     add_custom_command(TARGET zengine-workshop POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
