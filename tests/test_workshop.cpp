@@ -73,6 +73,7 @@
 
 using namespace zengine::workshop;
 using loom::schema_of;
+namespace input = zengine::input;
 namespace surface = zengine::surface;
 namespace ui = zengine::ui;
 
@@ -1083,12 +1084,12 @@ TEST_CASE("a reported pointer position survives every integer the wire can carry
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
 
     CHECK(workspace_cell_x(12) == 12);
-    CHECK(workspace_cell_y(kCanvasTopRow + kWorkspaceY) == 0);
+    CHECK(workspace_cell_y(kWorkspaceY) == 0);
 
     // The saturating ends, which is where a plain subtraction would be UB.
     CHECK(workspace_cell_y(kMin) == kMin);
     CHECK(workspace_cell_x(kMin) == kMin);
-    CHECK(workspace_cell_y(kMax) == kMax - kCanvasTopRow - kWorkspaceY);
+    CHECK(workspace_cell_y(kMax) == kMax - kWorkspaceY);
 
     // And a saturated position is still just a cell: it hits nothing, and it
     // cannot make the arithmetic downstream of it overflow either.
@@ -1102,14 +1103,21 @@ TEST_CASE("a reported pointer position survives every integer the wire can carry
 }
 
 TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
-    // The canvas starts at terminal row 3 and the workspace one row into the
-    // canvas, so a pointer on terminal row 3 is workspace row -1 and terminal row
-    // 4 is workspace row 0. An off-by-one here would select the object above the
-    // one a maker clicked, which is the kind of wrong that looks like a bug in
-    // the hit test.
-    CHECK(workspace_cell_x(0) == kWorkspaceX);
-    CHECK(workspace_cell_y(kCanvasTopRow + kWorkspaceY) == 0);
-    CHECK(workspace_cell_y(kCanvasTopRow) == -kWorkspaceY);
+    // Two translations, and only the second one is Workshop's (screen.hpp).
+    // A terminal Skin starts the canvas at terminal row 3; the workspace is one
+    // row into the canvas. So a pointer on terminal row 3 is workspace row -1 and
+    // terminal row 4 is workspace row 0. An off-by-one here would select the
+    // object above the one a maker clicked, which is the kind of wrong that looks
+    // like a bug in the hit test.
+    const auto term = [](std::int64_t x, std::int64_t y) {
+        const PointedAt at = canvas_point_of(input::space::kCells, x, y);
+        REQUIRE(at.understood);
+        return std::pair<std::int64_t, std::int64_t>{workspace_cell_x(at.cell.x),
+                                                     workspace_cell_y(at.cell.y)};
+    };
+    CHECK(term(0, surface::kTuiCanvasTopRow + kWorkspaceY).first == -kWorkspaceX);
+    CHECK(term(0, surface::kTuiCanvasTopRow + kWorkspaceY).second == 0);
+    CHECK(term(0, surface::kTuiCanvasTopRow).second == -kWorkspaceY);
 
     WorkshopDoc d;
     const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentCells, 4},
@@ -1117,11 +1125,58 @@ TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
     Session s;
     s.selected = id;
     // The object's authored top-left (3,2) is terminal (3, 2+1+2) = (3, 5).
-    CHECK(begin_drag(d, s, workspace_cell_x(3), workspace_cell_y(5)) == id);
+    CHECK(begin_drag(d, s, term(3, 5).first, term(3, 5).second) == id);
     CHECK(s.drag.grab_dx == 0);
     CHECK(s.drag.grab_dy == 0);
     end_drag(s);
-    CHECK(begin_drag(d, s, workspace_cell_x(3), workspace_cell_y(4)) == 0); // one row above
+    CHECK(begin_drag(d, s, term(3, 4).first, term(3, 4).second) == 0); // one row above
+}
+
+TEST_CASE("the SAME object is under the pointer whichever medium reported it") {
+    // G-1's projection question, asserted as the only thing that actually
+    // matters: a maker pointing at the middle of an object hits THAT object, and
+    // which medium they were looking through is not the document's business.
+    //
+    // The two media disagree about every number on the way in -- the terminal
+    // reports canvas cells offset by two rows, the window reports pixels at
+    // kCanvasCellPx each with no offset -- and agree about the answer. That is
+    // what makes `12 / 12 == 1` the wrong test and this the right one.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "one", 3, 2, ui::Extent{ui::kExtentCells, 6},
+                                     ui::Extent{ui::kExtentCells, 4});
+    // The object's own middle, in workspace cells, then on the canvas.
+    const std::int64_t wx = 3 + 6 / 2;
+    const std::int64_t wy = 2 + 4 / 2;
+    const std::int64_t cx = wx + kWorkspaceX;
+    const std::int64_t cy = wy + kWorkspaceY;
+
+    const auto hit_through = [&d](std::int64_t space, std::int64_t x, std::int64_t y) {
+        const PointedAt at = canvas_point_of(space, x, y);
+        REQUIRE(at.understood);
+        Session s;
+        return begin_drag(d, s, workspace_cell_x(at.cell.x), workspace_cell_y(at.cell.y));
+    };
+
+    // Terminal: canvas cells, two rows down.
+    CHECK(hit_through(input::space::kCells, cx, cy + surface::kTuiCanvasTopRow) == id);
+    // Window: the pixel at that cell's top-left, its middle, and its last pixel
+    // are all the same cell and therefore the same object.
+    const std::int64_t px = cx * surface::kCanvasCellPx;
+    const std::int64_t py = cy * surface::kCanvasCellPx;
+    CHECK(hit_through(input::space::kPixels, px, py) == id);
+    CHECK(hit_through(input::space::kPixels, px + surface::kCanvasCellPx / 2,
+                      py + surface::kCanvasCellPx / 2) == id);
+    CHECK(hit_through(input::space::kPixels, px + surface::kCanvasCellPx - 1,
+                      py + surface::kCanvasCellPx - 1) == id);
+    // One pixel further is the NEXT cell, and at the object's right edge that is
+    // off it. (The object spans cells 3..8; cell 9 is not the object.)
+    const std::int64_t right_px = (3 + 6 + kWorkspaceX) * surface::kCanvasCellPx;
+    CHECK(hit_through(input::space::kPixels, right_px, py) == 0);
+    CHECK(hit_through(input::space::kPixels, right_px - 1, py) == id);
+
+    // A space this application cannot place is not guessed at.
+    CHECK_FALSE(canvas_point_of(input::space::kUnknown, px, py).understood);
+    CHECK_FALSE(canvas_point_of(9999, px, py).understood);
 }
 
 TEST_CASE("canvas, object list and inspector agree after every gesture in a session") {
@@ -2307,7 +2362,7 @@ private:
     std::vector<surface::SurfaceText>* notes_;
 };
 
-namespace input = zengine::input;
+
 
 /// A live Workshop: the real weave on a real bus, driven only by published
 /// input messages. Nothing here reaches past the message boundary except to
@@ -2344,7 +2399,20 @@ struct Live {
     /// own, done here so every case below reads in the coordinates a maker
     /// thinks in.
     static std::int64_t term_x(std::int64_t wx) { return wx + kWorkspaceX; }
-    static std::int64_t term_y(std::int64_t wy) { return wy + kWorkspaceY + kCanvasTopRow; }
+    static std::int64_t term_y(std::int64_t wy) {
+        return wy + kWorkspaceY + surface::kTuiCanvasTopRow;
+    }
+
+    /// The same workspace cell, as the WINDOW would report it: the pixel at the
+    /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
+    /// own layout and not of the terminal's -- the whole point of G-1 is that
+    /// these two are different numbers naming one place.
+    static std::int64_t px_x(std::int64_t wx) {
+        return (wx + kWorkspaceX) * surface::kCanvasCellPx;
+    }
+    static std::int64_t px_y(std::int64_t wy) {
+        return (wy + kWorkspaceY) * surface::kCanvasCellPx;
+    }
 
     void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
         publish(loom::to_value(input::PointerButton{1, true, term_x(wx), term_y(wy),
@@ -2358,6 +2426,27 @@ struct Live {
         publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
                                                    input::space::kCells, input::mod::kNone}));
     }
+
+    /// The same three gestures, arriving from the graphical Skin's window. The
+    /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
+    /// corner, which is where a maker's pointer actually is and is what makes a
+    /// truncating (rather than flooring) projection visible.
+    static std::int64_t mid(std::int64_t p) { return p + surface::kCanvasCellPx / 2; }
+    void press_px(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerButton{1, true, mid(px_x(wx)), mid(px_y(wy)),
+                                                    input::space::kPixels, input::mod::kNone}));
+    }
+    void release_px(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerButton{1, false, mid(px_x(wx)), mid(px_y(wy)),
+                                                    input::space::kPixels, input::mod::kNone}));
+    }
+    void motion_px(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerMoved{mid(px_x(wx)), mid(px_y(wy)), 0, 0,
+                                                   input::space::kPixels, input::mod::kNone}));
+    }
+
+    /// The window manager asked the surface to close.
+    void close_requested() { publish(loom::to_value(surface::SurfaceCloseRequested{})); }
 
     const WorkshopDoc& doc() const { return w->document(); }
     const Session& session() const { return w->session(); }
@@ -2649,9 +2738,11 @@ TEST_CASE("the semantic operations are still the only authority, through the mes
 }
 
 TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-placed") {
-    // `space` earning its field. A backend reporting pixels is not talking about
-    // anything this document has, and guessing an equivalence is exactly the
-    // mistake the field exists to prevent.
+    // `space` earning its field, and G-1 is where it finally earns it in BOTH
+    // directions. A backend reporting a space this application cannot place is
+    // not talking about anything the document has, and guessing an equivalence is
+    // exactly the mistake the field exists to prevent -- while a backend
+    // reporting one it CAN place is now projected rather than refused.
     Live t;
     const std::int64_t id2 = t.second()->id;
     t.press(t.second()->x, t.second()->y);
@@ -2659,17 +2750,145 @@ TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-plac
     REQUIRE(t.session().selected == id2);
 
     const std::int64_t before_x = t.second()->x;
+    // An unstamped event -- the default -- names no medium and is placed by none.
     t.publish(loom::to_value(input::PointerButton{1, true, Live::term_x(t.second()->x),
                                                   Live::term_y(t.second()->y),
-                                                  input::space::kPixels, input::mod::kNone}));
-    CHECK_FALSE(t.session().drag.active); // no grab from a space we do not speak
-    t.publish(loom::to_value(input::PointerMoved{9999, 9999, 0, 0, input::space::kPixels,
+                                                  input::space::kUnknown, input::mod::kNone}));
+    CHECK_FALSE(t.session().drag.active);
+    t.publish(loom::to_value(input::PointerMoved{9999, 9999, 0, 0, input::space::kUnknown,
                                                   input::mod::kNone}));
     CHECK(t.second()->x == before_x);
-    // An unstamped event -- the default -- is likewise not cells.
-    t.publish(loom::to_value(input::PointerButton{1, true, 0, 0, input::space::kUnknown,
-                                                  input::mod::kNone}));
+    // Nor is a space nobody has defined. A future medium must be READ, not
+    // assumed into whichever projection happens to be nearest.
+    t.publish(loom::to_value(input::PointerButton{1, true, 0, 0, 4242, input::mod::kNone}));
     CHECK_FALSE(t.session().drag.active);
+}
+
+TEST_CASE("a click in the WINDOW selects the object the maker is pointing at") {
+    // The graphical half of "a click selects the same authored object the maker
+    // can see". Same weave, same gesture, same document operation -- the only
+    // difference is that the numbers arrived in pixels, and the projection is
+    // what makes that not matter.
+    Live t;
+    const std::int64_t id1 = t.first()->id;
+    const std::int64_t id2 = t.second()->id;
+    REQUIRE(t.session().selected == id1);
+
+    t.press_px(t.second()->x + 1, t.second()->y + 1);
+    CHECK(t.session().selected == id2);
+    CHECK(t.session().drag.active);
+    CHECK_FALSE(t.session().drag.resizing);
+    t.release_px(t.second()->x + 1, t.second()->y + 1);
+    CHECK_FALSE(t.session().drag.active);
+
+    // And empty space is still empty space: no selection change, no grab.
+    t.press_px(kWorkspaceW - 1, kWorkspaceH - 1);
+    CHECK(t.session().selected == id2);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice() == "nothing there");
+}
+
+TEST_CASE("a drag in the WINDOW authors placement, through the same document operation") {
+    Live t;
+    const std::int64_t id2 = t.second()->id;
+    const std::int64_t x0 = t.second()->x;
+    const std::int64_t y0 = t.second()->y;
+
+    t.press_px(x0, y0); // the object's own top-left: grab offset 0,0
+    REQUIRE(t.session().selected == id2);
+    REQUIRE(t.session().drag.active);
+    CHECK(t.session().drag.grab_dx == 0);
+    CHECK(t.session().drag.grab_dy == 0);
+
+    t.motion_px(x0 + 4, y0 + 3);
+    CHECK(t.second()->x == x0 + 4);
+    CHECK(t.second()->y == y0 + 3);
+    t.release_px(x0 + 4, y0 + 3);
+    CHECK_FALSE(t.session().drag.active);
+
+    // The document is the authority, not the pointer: a drag past the workspace
+    // edge stops at the edge and SAYS it stopped, exactly as the terminal's does.
+    t.press_px(t.second()->x, t.second()->y);
+    t.motion_px(-6, 0);
+    CHECK(t.second()->x == -kWorkspaceX);
+    CHECK(t.notice().find(kAtWorkspaceStart) != std::string::npos);
+    t.release_px(0, 0);
+}
+
+TEST_CASE("the resize handle can be grabbed in the WINDOW, and authors an extent") {
+    // W-3's semantics, reached through pixels: the handle is one cell past the
+    // object's own last cell, a pointer resting ON it proposes the size the
+    // object already has, and the mode a maker authored is preserved.
+    Live t;
+    t.press_px(t.second()->x, t.second()->y); // select #2, whose extents are cells
+    t.release_px(t.second()->x, t.second()->y);
+    const std::int64_t id2 = t.session().selected;
+    REQUIRE(t.second()->id == id2);
+    REQUIRE(t.second()->width.mode == ui::kExtentCells);
+
+    const Handle h = size_handle(t.doc(), t.session());
+    REQUIRE(h.shown);
+    t.press_px(h.x, h.y);
+    CHECK(t.session().drag.active);
+    CHECK(t.session().drag.resizing);
+
+    const std::int64_t w0 = t.second()->width.amount;
+    const std::int64_t h0 = t.second()->height.amount;
+    t.motion_px(h.x + 3, h.y + 2);
+    CHECK(t.second()->width.mode == ui::kExtentCells); // the authored MODE survives
+    CHECK(t.second()->width.amount == w0 + 3);
+    CHECK(t.second()->height.amount == h0 + 2);
+    t.release_px(h.x + 3, h.y + 2);
+}
+
+TEST_CASE("the maker's hands reach the same object whichever medium they arrive through") {
+    // The sharpest form of "no shadow interaction model": drive HALF a gesture
+    // from the terminal and half from the window. If the graphical path had its
+    // own selection, its own drag state or its own hit test, this could not work
+    // -- and it is one document, one session and one set of operations, so it
+    // does.
+    Live t;
+    t.press(t.second()->x, t.second()->y); // press: terminal cells
+    REQUIRE(t.session().drag.active);
+    const std::int64_t id2 = t.session().selected;
+
+    t.motion_px(t.second()->x + 2, t.second()->y); // drag: window pixels
+    CHECK(t.second()->x == 6 + 2);
+
+    t.release(t.second()->x, t.second()->y); // release: terminal cells again
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice() == "released #" + std::to_string(id2));
+}
+
+TEST_CASE("the native close request reaches the quit policy `q` already had") {
+    // The lifecycle half. It is NOT a key: nothing below publishes a scancode,
+    // and the weave has no branch that turns this shape into one. What it shares
+    // with `q` is the POLICY, which is the thing that should be shared.
+    Live t;
+    bool stopped = false;
+    t.host.request_stop = [&stopped] { stopped = true; };
+    REQUIRE_FALSE(t.host.quit);
+
+    t.close_requested();
+    CHECK(t.host.quit);
+    CHECK(stopped);
+}
+
+TEST_CASE("a close request does not care what the maker was in the middle of") {
+    // A half-typed width is a draft, and a draft is not a reason to refuse to
+    // close: `^s` refuses to SAVE over one (W-5) because writing an unconfirmed
+    // value would be the tool putting words in a maker's mouth, and quitting
+    // writes nothing at all. P22 -- whether closing should ask about unsaved work
+    // -- is a separate product question and G-1 deliberately does not answer it.
+    Live t;
+    t.begin_editing("Width");
+    t.text("70");
+    REQUIRE(t.row("Width")->editing());
+
+    t.close_requested();
+    CHECK(t.host.quit);
+    // And nothing was written on the way out.
+    CHECK(t.first()->width.amount == 60);
 }
 
 TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {

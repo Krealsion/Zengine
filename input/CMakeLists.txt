@@ -21,3 +21,26 @@ endif()
 # hello and beat, so it speaks that vocabulary too.
 zengine_weave(zengine-input input.cpp)
 target_link_libraries(zengine-input PRIVATE zengine-timer-vocabulary zengine-activation)
+
+# ---- The SDL Input reader (G-1) ---------------------------------------------------------
+#
+# A SECOND artifact rather than a second reader inside the one above, because which
+# surface a run is shown on is a LAUNCH decision and not a platform fact: the same Linux
+# box runs the terminal Workshop and the graphical one, and `--input <stem>` is what
+# chooses. The terminal/console reader is untouched and still builds everywhere.
+#
+# It is the only weave in the Input package that links the SURFACE vocabulary, and the
+# reason is in translate_sdl.hpp: SDL carries window lifecycle and input on one queue, so
+# the queue's owner is the only thing that can see a close request — which it forwards as
+# the surface fact it is, never as a synthesized key.
+#
+# It shares SDL with the window Skin, and it must: two weave libraries each holding their
+# own archived SDL would be two event queues. cmake/ZengineSdl.cmake requires a shared
+# SDL3, refuses a static one out loud, and owns the $ORIGIN/staging half through
+# zengine_sdl_weave().
+if(ZENGINE_SDL_LIB)
+    zengine_weave(zengine-input-sdl input_sdl.cpp)
+    target_link_libraries(zengine-input-sdl PRIVATE zengine-timer-vocabulary zengine-activation
+                                                    zengine-surface-vocabulary)
+    zengine_sdl_weave(zengine-input-sdl)
+endif()

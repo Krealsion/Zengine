@@ -55,3 +55,8 @@ set_target_properties(${zengine_snake_runtime}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+# The SDL skin links a SHARED SDL3 since G-1 (two weaves must share one event queue —
+# cmake/ZengineSdl.cmake), so the library has to be findable beside this host too.
+# Snake keeps its own terminal reader; it gains no SDL input and no new weave.
+zengine_stage_sdl(zengine-snake)

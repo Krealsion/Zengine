@@ -153,24 +153,54 @@ std::string exe_dir() {
 /// which is why this is one string and not a skin registry, a config file, a
 /// browser or a hot-swap. Choosing at launch is host policy; Workshop's own weave
 /// still does not know which Skin holds the role, and must not.
+///
+/// `--input <stem>`, defaulted to the terminal/console reader, is G-1's addition
+/// and is deliberately the third of the same shape rather than anything cleverer.
+///
+/// IT IS A SEPARATE FLAG FROM `--skin` ON PURPOSE, and the temptation it refuses
+/// is real: `--skin zengine-skin-sdl` could obviously imply `zengine-input-sdl`,
+/// and the graphical Workshop would then be one flag instead of two. But
+/// presentation and input are two dimensions, not one -- W-4's whole result is
+/// that a backend states what it saw, and which backend is watching is not
+/// deducible from which one is painting. Coupling them here would write that
+/// deduction into the host as a permanent architecture on the first day two
+/// backends existed. Two flags say what is actually happening, and the banner
+/// below prints both, which is what makes a run's active reader LEGIBLE rather
+/// than inferred.
+///
+/// EXACTLY ONE READER IS LOADED, which is the other half of that legibility. The
+/// host boots one input stem, so the terminal reader and the SDL reader are never
+/// both live and one physical action cannot become two semantic messages. The
+/// Loom would refuse the second anyway -- `zengine.input` is a singleton role --
+/// so the guarantee is doubled rather than assumed, and neither half rests on OS
+/// focus deciding who hears what.
 struct Arguments {
     bool ok = true;
     std::string complaint;
     std::string document = zengine::workshop::persist::kDefaultDocumentName;
     std::string skin = "zengine-skin-tui-classic";
+    std::string input = "zengine-input";
 };
 
 Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document" || arg == "--skin") {
+        if (arg == "--document" || arg == "--skin" || arg == "--input") {
             if (i + 1 >= argc) {
                 args.ok = false;
-                args.complaint = arg + " needs a " + (arg == "--skin" ? "weave stem" : "path");
+                args.complaint =
+                    arg + " needs a " + (arg == "--document" ? "path" : "weave stem");
                 return args;
             }
-            (arg == "--skin" ? args.skin : args.document) = argv[++i];
+            const std::string value = argv[++i];
+            if (arg == "--skin") {
+                args.skin = value;
+            } else if (arg == "--input") {
+                args.input = value;
+            } else {
+                args.document = value;
+            }
             continue;
         }
         args.ok = false;
@@ -183,6 +213,9 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.skin.empty()) {
         args.ok = false;
         args.complaint = "--skin needs a weave stem";
+    } else if (args.input.empty()) {
+        args.ok = false;
+        args.complaint = "--input needs a weave stem";
     }
     return args;
 }
@@ -191,7 +224,10 @@ int main(int argc, char** argv) {
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
-                    "usage: zengine-workshop [--document <path>] [--skin <weave stem>]\n",
+                    "usage: zengine-workshop [--document <path>] [--skin <weave stem>]\n"
+                    "                        [--input <weave stem>]\n"
+                    "the graphical Workshop is:\n"
+                    "  zengine-workshop --skin zengine-skin-sdl --input zengine-input-sdl\n",
                     args.complaint.c_str());
         return 2;
     }
@@ -201,6 +237,7 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - skin: %s\n", args.skin.c_str());
+    std::printf("zengine-workshop - input: %s\n", args.input.c_str());
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -245,7 +282,7 @@ int main(int argc, char** argv) {
                                   booter, booter));
     };
     boot(args.skin.c_str(), surface::kSkinRole);
-    boot("zengine-input", input::kInputRole);
+    boot(args.input.c_str(), input::kInputRole);
     boot("zengine-timer", timer::kTimerRole);
 
     // Everything runs inside pump(): the input weave's own beat keeps the queue

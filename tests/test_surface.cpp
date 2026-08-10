@@ -35,6 +35,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "surface/pointing.hpp"
 #include "surface/skin.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
@@ -61,6 +62,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -970,6 +972,76 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
 // Tier 3 — the shell through a real bus
 // ============================================================================
 
+// ============================================================================
+// Tier 2d — where a reported pointer lands on the canvas (G-1)
+// ============================================================================
+//
+// The pixel-to-cell rule and the terminal's canvas origin are BOTH this
+// package's, because both are decided by a Skin's own layout. They are pinned
+// here, on every lane, because they are pure arithmetic and because the lane
+// that builds no SDL is exactly the lane most likely to be the one that breaks
+// them.
+
+TEST_CASE("pointing: a window pixel lands on the cell a maker is looking at") {
+    constexpr std::int64_t kCell = kCanvasCellPx;
+
+    // The three that decide the boundary policy, stated in terms of the CELL
+    // SIZE rather than of 12 -- there is one owner of that number and this test
+    // consults it rather than making a second copy.
+    CHECK(canvas_of_window_pixels(0, 0) == CanvasPoint{0, 0});
+    CHECK(canvas_of_window_pixels(kCell - 1, kCell - 1) == CanvasPoint{0, 0});
+    CHECK(canvas_of_window_pixels(kCell, kCell) == CanvasPoint{1, 1});
+    CHECK(canvas_of_window_pixels(2 * kCell + kCell / 2, 5 * kCell) == CanvasPoint{2, 5});
+
+    // OUTSIDE IS A REAL ANSWER, and it is where truncation would lie. C++
+    // integer division rounds toward zero, so a plain `/` sends pixel -1 to cell
+    // 0 -- one pixel left of the window reading as the window's first column,
+    // which downstream becomes "the click selected the leftmost object". Floored,
+    // the cell boundaries are evenly spaced across zero and -1 is cell -1.
+    CHECK(canvas_of_window_pixels(-1, -1) == CanvasPoint{-1, -1});
+    CHECK(canvas_of_window_pixels(-kCell, -kCell) == CanvasPoint{-1, -1});
+    CHECK(canvas_of_window_pixels(-kCell - 1, -kCell - 1) == CanvasPoint{-2, -2});
+
+    // And it is total over the whole number line: these are wire values.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(canvas_of_window_pixels(kMax, kMax) == CanvasPoint{kMax / kCell, kMax / kCell});
+    const CanvasPoint low = canvas_of_window_pixels(kMin, kMin);
+    CHECK(low.x < 0);
+    CHECK(low.y < 0);
+}
+
+TEST_CASE("pointing: a terminal cell is a canvas cell, two rows up") {
+    // The terminal Skins write the canvas from terminal row 3 (`\x1b[3;1H`),
+    // because rows 1 and 2 are the SurfaceText slots. So the only difference
+    // between a terminal position and a canvas position is those two rows -- and
+    // the column is not shifted at all.
+    CHECK(canvas_of_terminal_cells(0, kTuiCanvasTopRow) == CanvasPoint{0, 0});
+    CHECK(canvas_of_terminal_cells(7, kTuiCanvasTopRow + 4) == CanvasPoint{7, 4});
+    CHECK(canvas_of_terminal_cells(0, 0) == CanvasPoint{0, -kTuiCanvasTopRow});
+
+    // Saturating, for the same reason every other wire-fed subtraction here is.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    CHECK(canvas_of_terminal_cells(kMin, kMin) == CanvasPoint{kMin, kMin});
+}
+
+TEST_CASE("pointing: the two media disagree about the numbers and agree about the cell") {
+    // The property that actually matters, as one assertion: whatever medium a
+    // maker is looking through, pointing at canvas cell (c) reports something
+    // that projects back to (c). Nothing downstream should be able to tell.
+    for (std::int64_t cx = 0; cx < 5; ++cx) {
+        for (std::int64_t cy = 0; cy < 5; ++cy) {
+            const CanvasPoint want{cx, cy};
+            CHECK(canvas_of_terminal_cells(cx, cy + kTuiCanvasTopRow) == want);
+            // every pixel of that cell, not merely its corner
+            for (std::int64_t p = 0; p < kCanvasCellPx; ++p) {
+                CHECK(canvas_of_window_pixels(cx * kCanvasCellPx + p,
+                                              cy * kCanvasCellPx + p) == want);
+            }
+        }
+    }
+}
+
 TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     loom::Switchboard bus;
     std::vector<std::string> log;
@@ -1354,6 +1426,135 @@ TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoe
 // ============================================================================
 
 #if defined(SURFACE_HAS_SDL)
+
+namespace {
+
+/// fd-2 recorder: what a Skin said on stderr while this object was alive.
+///
+/// Hush's twin, pointed at the other stream and keeping what it catches. It
+/// exists because P32's whole content is that a failure is now SAID, and the
+/// only honest way to assert "said" is to read what came out of the process.
+class Caught {
+public:
+    Caught() {
+        std::fflush(stderr);
+#if defined(_WIN32)
+        saved_ = ::_dup(2);
+        if (::_pipe(pipe_, 65536, _O_BINARY) == 0) {
+            ::_dup2(pipe_[1], 2);
+        }
+#else
+        saved_ = ::dup(STDERR_FILENO);
+        if (::pipe(pipe_) == 0) {
+            ::dup2(pipe_[1], STDERR_FILENO);
+        }
+#endif
+    }
+    ~Caught() { restore(); }
+    Caught(const Caught&) = delete;
+    Caught& operator=(const Caught&) = delete;
+
+    /// Everything written to stderr so far, and put the real stderr back.
+    std::string text() {
+        restore();
+        return caught_;
+    }
+
+private:
+    void restore() {
+        if (saved_ < 0) {
+            return;
+        }
+        std::fflush(stderr);
+#if defined(_WIN32)
+        ::_dup2(saved_, 2);
+        ::_close(saved_);
+        ::_close(pipe_[1]);
+        char buf[4096];
+        int n = 0;
+        while ((n = ::_read(pipe_[0], buf, sizeof(buf))) > 0) {
+            caught_.append(buf, static_cast<std::size_t>(n));
+        }
+        ::_close(pipe_[0]);
+#else
+        ::dup2(saved_, STDERR_FILENO);
+        ::close(saved_);
+        ::close(pipe_[1]);
+        char buf[4096];
+        ssize_t n = 0;
+        while ((n = ::read(pipe_[0], buf, sizeof(buf))) > 0) {
+            caught_.append(buf, static_cast<std::size_t>(n));
+        }
+        ::close(pipe_[0]);
+#endif
+        saved_ = -1;
+    }
+
+    int saved_ = -1;
+    int pipe_[2] = {-1, -1};
+    std::string caught_;
+};
+
+void choose_video_driver(const char* name) {
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", name);
+    ::_putenv_s("SDL_VIDEODRIVER", name);
+#else
+    ::setenv("SDL_VIDEO_DRIVER", name, 1);
+    ::setenv("SDL_VIDEODRIVER", name, 1);
+#endif
+}
+
+} // namespace
+
+TEST_CASE("a Skin that cannot open its surface SAYS SO, in SDL's own words") {
+    // P32, asserted rather than described. The V1 posture was "politely dark":
+    // SDL_Init fails, the medium disables itself, every frame after that is
+    // consumed and nothing is ever shown -- a correct degradation and a terrible
+    // diagnosis. G-0 spent real time on it, because on this machine's WSL the
+    // fetched SDL3 has only the dummy and offscreen drivers and the only symptom
+    // available was "no window".
+    //
+    // The failure is FORCED, not waited for: a video driver that does not exist
+    // is a real SDL_Init failure with a real SDL_GetError() behind it, and it
+    // needs no machine configuration to be changed and nothing left behind.
+    //
+    // This case must run BEFORE the one below, because SDL_Init is refcounted
+    // per process and a video subsystem someone else already brought up would
+    // succeed whatever this asks for. It is also why the assertion is on the
+    // DIAGNOSTIC and not merely on "no window": a run in which the failure did
+    // not actually happen produces no diagnostic and is a red, so this cannot
+    // pass vacuously.
+    choose_video_driver("zengine-no-such-video-driver");
+
+    Rig r;
+    std::string said;
+    loom::WeaveId skin{};
+    {
+        Caught stderr_of_the_skin;
+        skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+        said = stderr_of_the_skin.text();
+    }
+
+    CHECK(said.find("zengine-skin-sdl:") != std::string::npos);
+    CHECK(said.find("SDL_Init(SDL_INIT_VIDEO) failed") != std::string::npos);
+    // SDL'S OWN REASON, not a house sentence about it. The exact wording is
+    // SDL's to choose and this does not pin it; what it pins is that something
+    // beyond the house prefix and the call's name came out, which is the whole
+    // difference between "it failed" and "here is why".
+    const std::size_t colon = said.rfind(": ");
+    REQUIRE(colon != std::string::npos);
+    CHECK(said.size() > colon + 3);
+    CHECK(said.find("(SDL gave no reason)") == std::string::npos);
+
+    // And the medium is still a good citizen about it: the weave loaded, holds
+    // the role, and consumes intent without a window rather than taking the
+    // process down. Politely dark is still the right DEGRADATION; what P32 was
+    // about is that it used to be a silent one.
+    Hush hush;
+    r.intent(skin, SurfaceText{kSlotStatus, "still running"});
+    CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");
+}
 
 TEST_CASE("the same intent drives the SDL skin - a window medium, zero new fields") {
     // Belt to ctest's braces: the dummy driver must be chosen before the .so's

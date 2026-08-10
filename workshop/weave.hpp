@@ -85,6 +85,29 @@
 // possible statement of the phase's own constraint -- the simple case did not
 // get more expensive.
 
+// G-1 GAVE THE GRAPHICAL WORKSHOP HANDS, and the measure of it is how little of
+// this file it touched. There is no graphical selection, no SDL drag state, no
+// graphical hit test and no second gesture path: a click in the SDL window
+// reaches `take_hold` and a drag reaches `drag_to`, which are the same functions
+// the terminal's pointer has driven since W-2, writing through the same document
+// operations with the same clamp/refuse law.
+//
+// Three lines changed, and each is a boundary rather than a behaviour:
+//
+//   pointer space   `understands(space)` -- which used to mean "is it cells" --
+//                   is gone. An event is now PROJECTED (screen.hpp's
+//                   `canvas_point_of`) from whichever medium reported it, and an
+//                   event this application cannot place is still ignored rather
+//                   than mis-placed. Pixels are no longer refused; they are
+//                   converted, once, by the package that knows the conversion.
+//   close           a native close request arrives as surface truth and reaches
+//                   the quit policy `q` already had.
+//   nothing else    no new session field, no new gesture, no new notice.
+//
+// The pointer path is otherwise exactly W-4's: a press carries the position it
+// happened at, and nothing here remembers a pointer in order to answer where a
+// click landed.
+
 #include "persist.hpp"
 #include "screen.hpp"
 
@@ -139,7 +162,8 @@ class WorkshopWeave
                              loom::Accept<zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
-                                          zengine::surface::SurfaceReady>,
+                                          zengine::surface::SurfaceReady,
+                                          zengine::surface::SurfaceCloseRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText>> {
 public:
@@ -160,6 +184,23 @@ public:
     /// operator weave's precedent, and the only thing Workshop needs in order to
     /// paint for the first time -- so load order decides nothing here either.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) { repaint(mail); }
+
+    /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
+    /// the platform. Workshop applies the quit policy it already has.
+    ///
+    /// It is the SAME policy `q` and Ctrl+C reach, deliberately: G-1 added a new
+    /// way for the request to ARRIVE, not a new thing for it to mean. In
+    /// particular it does not ask about unsaved work -- the status line has said
+    /// `UNSAVED` since W-5 and `^o` can already discard authored work without a
+    /// confirmation (P22). Making the close box the one gesture that argues back
+    /// would be answering a product question nobody has asked, in the phase that
+    /// happened to add the button.
+    ///
+    /// It is not a key. Nothing here reads a scancode, and no backend
+    /// synthesized one: a native close request and a maker pressing `q` are
+    /// different events that this application chooses to answer the same way,
+    /// and the choice is visible precisely because they arrive separately.
+    void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&) { quit(); }
 
     /// A key TRANSITION: which key changed, and what was held when it did.
     ///
@@ -233,12 +274,13 @@ public:
     /// click after refocusing grabbed whatever the pointer had last been seen
     /// over. Nothing here remembers a pointer any more.
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-        if (b.button != 1 || !understands(b.space)) {
+        const PointedAt at = canvas_point_of(b.space, b.x, b.y);
+        if (b.button != 1 || !at.understood) {
             return;
         }
         if (b.pressed) {
-            const std::int64_t id =
-                take_hold(state_, session_, workspace_cell_x(b.x), workspace_cell_y(b.y));
+            const std::int64_t id = take_hold(state_, session_, workspace_cell_x(at.cell.x),
+                                              workspace_cell_y(at.cell.y));
             if (id != 0) {
                 const bool sizing = session_.drag.resizing;
                 select(id);
@@ -261,12 +303,13 @@ public:
     /// of remembering where the pointer is went away with the reconstruction it
     /// existed to serve.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-        if (!understands(m.space) || !session_.drag.active) {
+        const PointedAt at = canvas_point_of(m.space, m.x, m.y);
+        if (!at.understood || !session_.drag.active) {
             return;
         }
         const bool sizing = session_.drag.resizing;
-        const Handled done =
-            drag_to(state_, session_, workspace_cell_x(m.x), workspace_cell_y(m.y));
+        const Handled done = drag_to(state_, session_, workspace_cell_x(at.cell.x),
+                                     workspace_cell_y(at.cell.y));
         if (!done.accepted()) {
             // A gesture can still propose something the document refuses, and it
             // must say so rather than have the setter quietly correct it. What it
@@ -292,12 +335,6 @@ private:
     static bool held(std::int64_t modifiers, std::int64_t which) {
         return (modifiers & which) != 0;
     }
-
-    /// Workshop is a tool made of character cells. A backend reporting pixels is
-    /// not speaking about anything this document has, and guessing an equivalence
-    /// is exactly the mistake `space` exists to prevent -- so such an event is
-    /// ignored rather than mis-placed.
-    static bool understands(std::int64_t space) { return space == input::space::kCells; }
 
     Row* editing_row() {
         for (Row& r : session_.rows) {
