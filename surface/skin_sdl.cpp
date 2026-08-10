@@ -2,11 +2,18 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The SDL Skin — the same intent, a real window. This file is deliberately
-// nothing but the SDL edge: the frame is planned by skin_sdl_plan.hpp as pure
-// math (pinned on every lane, SDL or not); here the plan is executed against
-// a real renderer and the text slots land in the window title. Zero
-// snake-specific or TUI-specific fields were added to any intent to make
-// this medium work — that absence is the phase's agnosticism proof.
+// nothing but the SDL edge: both the snake frame and the general canvas are
+// planned by skin_sdl_plan.hpp as pure math (pinned on every lane, SDL or
+// not); here a plan is executed against a real renderer and the SurfaceText
+// slots land in the window title. Zero snake-specific or TUI-specific fields
+// were added to any intent to make this medium work — that absence is the
+// phase's agnosticism proof.
+//
+// G-0 gave the canvas its labels. `SurfaceLabel` used to arrive here and go
+// nowhere, because a window owns no font the way a terminal does; the medium
+// now draws each label byte from a cell-sized bitmap the plan owns. What it
+// promises is exactly printable ASCII — see skin_sdl_glyphs.hpp, which also
+// says what any other byte draws instead of vanishing.
 //
 // The medium owns the SDL video subsystem RAII-style for the weave's
 // lifetime: construction brings SDL up (the window itself is created lazily
@@ -82,32 +89,32 @@ public:
         SDL_RenderPresent(renderer_);
     }
 
-    /// The general canvas, in a window: cells become `kCanvasCellPx` pixels and
-    /// each role becomes ink.
+    /// The general canvas, in a window — the same three lines `frame` uses, and
+    /// deliberately so.
     ///
-    /// LABELS ARE DROPPED, and that is a real hole, not a policy: this medium
-    /// has no font stack at all (it is the reason SurfaceText lands in the
-    /// window TITLE — see title_of). A canvas whose meaning lives in its labels
-    /// therefore arrives here as its rectangles alone. Said out loud rather than
-    /// papered over: the fix is a font, which is a phase, not a line.
+    /// `plan_canvas` hands back the rectangles AND the labels as one list of
+    /// opaque quads, so there is nothing here that knows what a label is. That
+    /// is the whole shape of G-0's answer to P8: this medium used to loop over
+    /// `c.rects` and never read `c.labels`, and the fix was not to add a second
+    /// loop it could lose again — it was to leave the edge with no second thing
+    /// to draw. What a glyph looks like, where it lands and what happens to a
+    /// byte with no glyph are all decided in skin_sdl_plan.hpp / skin_sdl_glyphs.hpp,
+    /// where every lane's suite can read them, SDL built or not.
     void canvas(const SurfaceCanvas& c, bool) {
         if (!ok_) {
             return;
         }
-        const PlanSize want{c.width * kCanvasCellPx, c.height * kCanvasCellPx};
-        if (!ensure_sized_window(want)) {
+        if (!ensure_sized_window(canvas_window_size(c))) {
             return;
         }
         pump();
-        SDL_SetRenderDrawColor(renderer_, 18, 18, 24, SDL_ALPHA_OPAQUE);
+        SDL_SetRenderDrawColor(renderer_, kCanvasBackground.r, kCanvasBackground.g,
+                               kCanvasBackground.b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer_);
-        for (const SurfaceRect& r : c.rects) {
-            const RGB ink = ink_for_role(r.role);
-            SDL_SetRenderDrawColor(renderer_, ink.r, ink.g, ink.b, SDL_ALPHA_OPAQUE);
-            const SDL_FRect fr{static_cast<float>(r.x * kCanvasCellPx),
-                               static_cast<float>(r.y * kCanvasCellPx),
-                               static_cast<float>(r.w * kCanvasCellPx),
-                               static_cast<float>(r.h * kCanvasCellPx)};
+        for (const PlanRect& r : plan_canvas(c)) {
+            SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
+            const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
+                               static_cast<float>(r.w), static_cast<float>(r.h)};
             SDL_RenderFillRect(renderer_, &fr);
         }
         SDL_RenderPresent(renderer_);
@@ -138,25 +145,6 @@ public:
     }
 
 private:
-    struct RGB {
-        Uint8 r;
-        Uint8 g;
-        Uint8 b;
-    };
-
-    /// This medium's ink per semantic canvas role — the counterpart of the TUI's
-    /// SGR table, and the proof the role vocabulary was worth having: two media,
-    /// two completely unrelated palettes, one unchanged publisher. Unknown roles
-    /// paint as kFill, per vocabulary.hpp.
-    static RGB ink_for_role(std::int64_t role) noexcept {
-        switch (role) {
-        case role::kAccent: return RGB{112, 232, 240};
-        case role::kMuted: return RGB{96, 96, 108};
-        case role::kAlert: return RGB{232, 72, 72};
-        default: return RGB{176, 176, 188};
-        }
-    }
-
     bool ensure_window(const zengine::snake::SnakeVisual& v) {
         return ensure_sized_window(window_size_of(v));
     }

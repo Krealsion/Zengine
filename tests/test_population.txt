@@ -63,10 +63,15 @@
 #           stranger lane turns it off). Absent => declared absent, never "passed".
 #
 # An entry may carry MORE THAN ONE row, and a doctest floor is the SUM of the rows whose gate
-# is active: `surface` is 21 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
+# is active: `surface` is 32 cases everywhere plus 1 more behind `#if defined(SURFACE_HAS_SDL)`
 # (the last case in test_surface.cpp, the SDL skin driven under the dummy video driver), so its
-# contract reads 22 where the skin is built and 21 where it is not, and neither number has
+# contract reads 33 where the skin is built and 32 where it is not, and neither number has
 # any give in it.
+#
+# G-0's ten new cases are all in the ALWAYS row on purpose, and that placement is the
+# claim: the SDL medium's whole label path is pure arithmetic in skin_sdl_plan.hpp, so the
+# lane that builds no SDL at all -- the Windows stranger lane -- still proves that a
+# SurfaceLabel reaches pixels, in which cell, in which ink, and clipped where.
 #
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
@@ -78,7 +83,7 @@ smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  24
-surface                           doctest           always  22
+surface                           doctest           always  32
 surface                           doctest           sdl     1
 ui                                doctest           always  22
 workshop                          doctest           always  130

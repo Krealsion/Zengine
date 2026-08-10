@@ -26,6 +26,7 @@
 // The suite injects a string Sink and pins the exact bytes; the two .so skins
 // (skin_tui_classic.cpp / skin_tui_block.cpp) plug in TuiTerminal and ship.
 
+#include "cells.hpp"
 #include "skin.hpp"
 
 #if defined(_WIN32)
@@ -213,17 +214,28 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         roles[i] = static_cast<char>(role);
     };
 
+    // CLIPPED BEFORE ITERATING. `put` already refuses every cell off the canvas,
+    // so the visible picture is the same either way -- but a canvas is a
+    // ZEN_SHAPE, so `r.w` is a number a publisher chose, and walking it was the
+    // publisher deciding how long this Skin runs. G-0 measured both halves of
+    // that: a rect 100,000,000 cells wide on a 4x2 canvas cost 75 ms to produce
+    // 38 bytes, and `r.x + dx` at the top of the number line was signed overflow
+    // (UBSan, on committed code -- no test fed it such a canvas, so the standing
+    // lane had nothing to catch). Both are gone by asking surface/cells.hpp for
+    // the span first; see there for why the rule is shared with the SDL plan.
     for (const zengine::surface::SurfaceRect& r : c.rects) {
         const char g = glyph_for_role(static_cast<int>(r.role));
-        for (std::int64_t dy = 0; dy < r.h; ++dy) {
-            for (std::int64_t dx = 0; dx < r.w; ++dx) {
-                put(r.x + dx, r.y + dy, g, r.role);
+        const CellSpan xs = clip_span(r.x, r.w, w);
+        const CellSpan ys = clip_span(r.y, r.h, h);
+        for (std::int64_t y = ys.begin; y < ys.end; ++y) {
+            for (std::int64_t x = xs.begin; x < xs.end; ++x) {
+                put(x, y, g, r.role);
             }
         }
     }
     for (const zengine::surface::SurfaceLabel& l : c.labels) {
         for (std::size_t i = 0; i < l.text.size(); ++i) {
-            put(l.x + static_cast<std::int64_t>(i), l.y, l.text[i], l.role);
+            put(add_cells(l.x, static_cast<std::int64_t>(i)), l.y, l.text[i], l.role);
         }
     }
 

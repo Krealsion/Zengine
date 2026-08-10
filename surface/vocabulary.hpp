@@ -105,9 +105,13 @@ struct SurfaceRect {
 };
 
 /// One run of PLAIN text anchored at a canvas cell, drawn over every rect.
-/// Plain means plain, exactly as in SurfaceText: no escapes, no markup. A Skin
-/// whose medium has no text stack simply cannot draw these, and says so in its
-/// own docs rather than pretending — the SDL skin today is that Skin.
+/// Plain means plain, exactly as in SurfaceText: no escapes, no markup.
+///
+/// One cell per BYTE, in every medium: the terminal skins index `text[i]` and
+/// the SDL skin draws one glyph per byte, so a canvas describes one picture
+/// rather than one per backend. A Skin states in its own docs which bytes it has
+/// a glyph for and what it draws for the rest; what no Skin may do is drop a
+/// character silently, because a publisher cannot see that happen.
 struct SurfaceLabel {
     std::int64_t x = 0;
     std::int64_t y = 0;

@@ -130,7 +130,7 @@ std::string exe_dir() {
 
 } // namespace
 
-/// Which file this Workshop saves to and loads from.
+/// Which file this Workshop saves to and loads from, and which Skin paints it.
 ///
 /// `--document <path>`, defaulted to `workshop.json` in whatever directory the
 /// maker started Workshop in. That is the whole of W-5's path story, and the
@@ -140,23 +140,37 @@ std::string exe_dir() {
 /// is REFUSED rather than ignored — a mistyped flag that silently saved to the
 /// default file is exactly the kind of quiet wrong answer persistence makes
 /// expensive.
+///
+/// `--skin <stem>`, defaulted to the classic terminal Skin, is G-0's addition and
+/// is deliberately the same shape. BUILDING a Skin and CHOOSING one are different
+/// acts: `ZENGINE_SDL_SKIN=ON` only makes the window Skin exist, and until now
+/// running Workshop against it meant editing the literal below — so the graphical
+/// Workshop was a founder experiment nobody else could repeat.
+///
+/// It is a WEAVE STEM and nothing more: the host already resolves stems to files
+/// beside the executable (`host.so`), and the boot weave already reports a load
+/// that is refused. So a wrong stem is answered by the machinery that exists,
+/// which is why this is one string and not a skin registry, a config file, a
+/// browser or a hot-swap. Choosing at launch is host policy; Workshop's own weave
+/// still does not know which Skin holds the role, and must not.
 struct Arguments {
     bool ok = true;
     std::string complaint;
     std::string document = zengine::workshop::persist::kDefaultDocumentName;
+    std::string skin = "zengine-skin-tui-classic";
 };
 
 Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document") {
+        if (arg == "--document" || arg == "--skin") {
             if (i + 1 >= argc) {
                 args.ok = false;
-                args.complaint = "--document needs a path";
+                args.complaint = arg + " needs a " + (arg == "--skin" ? "weave stem" : "path");
                 return args;
             }
-            args.document = argv[++i];
+            (arg == "--skin" ? args.skin : args.document) = argv[++i];
             continue;
         }
         args.ok = false;
@@ -166,6 +180,9 @@ Arguments parse_arguments(int argc, char** argv) {
     if (args.document.empty()) {
         args.ok = false;
         args.complaint = "--document needs a path";
+    } else if (args.skin.empty()) {
+        args.ok = false;
+        args.complaint = "--skin needs a weave stem";
     }
     return args;
 }
@@ -173,7 +190,8 @@ Arguments parse_arguments(int argc, char** argv) {
 int main(int argc, char** argv) {
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
-        std::printf("zengine-workshop - %s\nusage: zengine-workshop [--document <path>]\n",
+        std::printf("zengine-workshop - %s\n"
+                    "usage: zengine-workshop [--document <path>] [--skin <weave stem>]\n",
                     args.complaint.c_str());
         return 2;
     }
@@ -182,6 +200,7 @@ int main(int argc, char** argv) {
     // this host isolates nothing.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
+    std::printf("zengine-workshop - skin: %s\n", args.skin.c_str());
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -225,7 +244,7 @@ int main(int argc, char** argv) {
                     loom::Message(loom::to_value(loom::LoadWeave{stem, host.so(stem), role}),
                                   booter, booter));
     };
-    boot("zengine-skin-tui-classic", surface::kSkinRole);
+    boot(args.skin.c_str(), surface::kSkinRole);
     boot("zengine-input", input::kInputRole);
     boot("zengine-timer", timer::kTimerRole);
 
