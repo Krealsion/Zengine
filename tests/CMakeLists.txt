@@ -262,12 +262,12 @@ zengine_doctest_test(surface zengine-surface-tests)
 
 # THE SDL SKIN IS A CONDITIONAL SUBPOPULATION, AND IT IS DECLARED, NOT ABSORBED.
 #
-# One TEST_CASE in test_surface.cpp lives behind `#if defined(SURFACE_HAS_SDL)`, so this
-# suite is 16 cases where the SDL skin was not built and 17 where it was -- and the Windows
-# stranger lane builds it with -DZENGINE_SDL_SKIN=OFF, so both numbers are real. A single
-# floor of 16 everywhere would have bought that portability by giving the Linux lane a case
-# of downward slack; the `sdl` gate states the difference instead, and
-# tests/test_population.txt sums the rows whose gates are active (16 always + 1 sdl).
+# Cases in test_surface.cpp live behind `#if defined(SURFACE_HAS_SDL)`, so this suite is
+# smaller where the SDL skin was not built -- and the Windows stranger lane builds it with
+# -DZENGINE_SDL_SKIN=OFF, so both numbers are real. One floor everywhere would have bought
+# that portability by giving the Linux lane that many cases of downward slack; the `sdl` gate
+# states the difference instead, and tests/test_population.txt sums the rows whose gates are
+# active. The two values are written there, once, next to the rows that produce them.
 #
 # ONE `if`, THREE CONSEQUENCES, on purpose. The compile definition that admits the case, the
 # environment the case needs, and the gate the floor is derived from all hang off the same

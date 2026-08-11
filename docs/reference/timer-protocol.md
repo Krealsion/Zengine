@@ -43,5 +43,8 @@ owns it.
 
 ## Tests
 
-Zengine suite `timer` (78 cases): protocol, chains, continuity, prepared
-crossing, real-clock pilot.
+Zengine suite `timer`: protocol, chains, continuity, prepared crossing,
+real-clock pilot. Its case floor is in
+[`tests/test_population.txt`](../../tests/test_population.txt), which is the
+contract; a count repeated here would be a second answer that nothing keeps
+current.
