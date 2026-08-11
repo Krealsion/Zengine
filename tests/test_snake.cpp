@@ -841,12 +841,12 @@ TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to s
 }
 
 // ============================================================================
-// R2A-2 — the host holds no privileged wind
+// TIMER-02 — the host holds no privileged wind
 // ============================================================================
 
 TEST_CASE("the playable host sends no Drive: time is the composition's, not the host's") {
-    // WHY THIS READS THE SOURCE, said plainly. Since R2A-2 a root Drive is
-    // INERT — it carries no activation key, so the service ignores it — which
+    // WHY THIS READS THE SOURCE, said plainly. A root Drive is INERT — it
+    // carries no activation key, so the service ignores it (TIMER-01) — which
     // means a wind left behind in the host cannot be caught by behaviour: the
     // game would run identically with one. The claim at risk is therefore not
     // "the game works" but "the host contributes nothing to time", and the only

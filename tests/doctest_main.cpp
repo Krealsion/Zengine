@@ -5,8 +5,7 @@
 // main() for EVERY Zengine runtime test binary. Each suite's own file includes
 // "doctest.h" and defines no config macro.
 //
-// POP-01 (COLD-2 C-4): a run that executed ZERO test cases is a FAILURE, not a
-// pass.
+// POP-01: a run that executed ZERO test cases is a FAILURE, not a pass.
 //
 // Every one of these binaries used to carry DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN,
 // which means stock doctest semantics: a filter that matches nothing prints
@@ -14,7 +13,7 @@
 //     test cases: 0 | 0 passed | 0 failed | 13 skipped
 //     Status: SUCCESS!
 //
-// and exits 0. COLD-2 measured exactly that against `zengine-input-tests`. A
+// and exits 0. That was measured against `zengine-input-tests`. A
 // CTest entry whose binary answers "success" to a question it never asked is a
 // green with no evidence under it, and doctest 2.4.11 has no option that closes
 // it -- there is no --no-tests=error equivalent anywhere in Context::parseArgs.

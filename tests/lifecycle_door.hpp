@@ -4,17 +4,17 @@
 #ifndef ZENGINE_TESTS_LIFECYCLE_DOOR_HPP
 #define ZENGINE_TESTS_LIFECYCLE_DOOR_HPP
 
-// The suites' stand-in for the Loom's control door (R2B-1).
+// The suites' stand-in for the Loom's control door.
 //
 // Every Zengine package that arranges its own time does so on `zen.Activated`,
-// and since R2B-1 that fact is only believed when LOOM ATTESTS IT. So a test
-// that wants a weave to come alive can no longer hand-post the public shape —
+// and that fact is only believed when LOOM ATTESTS IT (activation/activation.hpp).
+// So a test that wants a weave to come alive cannot hand-post the public shape —
 // which is exactly the point, and exactly why this file exists rather than a
 // root shortcut: the suites must activate the way the real door does, or they
 // would be proving something the running system does not do.
 //
-// A HOST hands out the authority; a weave cannot mint one. Since R2B-1a the only
-// expression that yields one is `loom::host_lifecycle_authority(bus)`, declared
+// A HOST hands out the authority; a weave cannot mint one. The only expression
+// that yields one is `loom::host_lifecycle_authority(bus)`, declared
 // in `zen/host/lifecycle_wiring.hpp` — a host-wiring header no weave-authoring
 // header includes — and it requires the `Switchboard` itself, which a weave
 // never holds. This suite may call it because a test harness IS a host: it owns

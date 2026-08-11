@@ -7,16 +7,15 @@
 // The snake package's message vocabulary — the whole contract in one file, so
 // there is exactly one place to diff against the locked spellings.
 //
-// THE LOCKED CONTRACT (Vision chat; quoted in the Stage 2 phase prompt) is five
-// shapes: Pos v1, SnakeVisual v1, FoodEaten v1, SnakeDied v1, SnakeWorldState v1.
-// They are spelled here as ZEN_SHAPE structs whose derived schemas are
-// field-for-field identical — same names, same order, same kinds — to the
-// contract's SchemaBuilder spellings; the suite pins that identity by
-// content-id, so a drift between this file and the contract is a red test, not
-// an opinion.
+// THE LOCKED CONTRACT is five shapes: Pos v1, SnakeVisual v1, FoodEaten v1,
+// SnakeDied v1, SnakeWorldState v1. They are spelled here as ZEN_SHAPE structs
+// whose derived schemas are field-for-field identical — same names, same order,
+// same kinds — to the contract's SchemaBuilder spellings, which suite `snake`
+// carries and pins by content-id. A drift between this file and that spelling
+// is a red test, not an opinion.
 //
-// NAMED ADDITIONS (the contract proved insufficient here; recorded face-up per
-// the phase's report-back rule, never silently):
+// EVERYTHING ELSE HERE IS A NAMED ADDITION, listed rather than folded in
+// silently, because the locked five are not sufficient to play:
 //   - SnakeTick v1, SnakeTurn v1 — the contract has no time or input vocabulary
 //     at all, and a world nobody can tick or steer is not playable. Both are
 //     world-owned shapes: the world accepts them; who produces them is

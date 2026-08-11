@@ -20,15 +20,15 @@
 // swapped mid-game, and if it ever is, its successor asks on its own
 // activation; the predecessor's beat dies against a never-reused WeaveId.
 //
-// WHAT STAYED AND WHAT LEFT (R2A-3). The adapter weave REMAINS, because the
-// time-to-world policy is genuinely replaceable: a pause driver, a slow-motion
-// clock, a replay feeder or a turn-based driver can take this slot without the
-// world or the Timer package changing a line. What left is the Timer protocol
-// CEREMONY — accepting an activation, deduplicating it, accepting TimerReady,
-// sending the ask, filtering firing ids — because none of that was ever this
-// weave's policy. It was common package vocabulary being retyped, and it now
-// lives in timer/binding.hpp. The whole adapter is one declaration and one
-// callback.
+// WHY IT IS STILL A WEAVE, AND WHY IT IS ONE LINE LONG. The adapter REMAINS,
+// because the time-to-world policy is genuinely replaceable: a pause driver, a
+// slow-motion clock, a replay feeder or a turn-based driver can take this slot
+// without the world or the Timer package changing a line. What it does NOT
+// contain is the Timer protocol CEREMONY — accepting an activation,
+// deduplicating it, accepting TimerReady, sending the ask, filtering firing ids
+// — because none of that is this weave's policy. It is common package
+// vocabulary, and it lives in timer/binding.hpp (TIMER-05). The whole adapter is
+// one declaration and one callback.
 
 #include "vocabulary.hpp"
 
