@@ -128,12 +128,12 @@ function(zengine_check_population manifest build_dir registered)
                 "comparison. Spell the pattern without one.")
         endif()
 
-        if(NOT kind MATCHES "^(doctest|compile-negative|compile-positive|program)$")
+        if(NOT kind MATCHES "^(doctest|compile-negative|compile-positive|program|script)$")
             message(FATAL_ERROR
                 "population: '${entry}' declares an unknown kind '${kind}'. The kinds are "
-                "doctest, compile-negative, compile-positive and program; each carries a "
-                "different population question, so a new one is a deliberate edit to "
-                "tests/check_population.cmake as well as to the manifest.")
+                "doctest, compile-negative, compile-positive, program and script; each "
+                "carries a different population question, so a new one is a deliberate edit "
+                "to tests/check_population.cmake as well as to the manifest.")
         endif()
 
         list(FIND entries "${entry}" known)
@@ -315,8 +315,10 @@ function(zengine_check_population manifest build_dir registered)
             else()
                 string(APPEND report "  ${entry}: compile-positive, judged on building\n")
             endif()
-        else()
+        elseif(kind STREQUAL "program")
             string(APPEND report "  ${entry}: program, ${exe}\n")
+        else()
+            string(APPEND report "  ${entry}: script, run over the source tree\n")
         endif()
     endforeach()
 

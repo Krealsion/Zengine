@@ -381,3 +381,16 @@ target_compile_definitions(zengine-audit-probes PRIVATE
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
 
 zengine_doctest_test(audit_probes zengine-audit-probes)
+
+# ---- The documentation-link contract (VOLATILE-2) --------------------------------------
+#
+# The only entry here that interrogates the SOURCE TREE rather than a build: it asks whether
+# every repo-local documentation reference this repository makes still resolves -- markdown
+# links and their #anchors, and the repository-relative `docs/...md` paths written in
+# first-party C/C++ comments.
+#
+# A CTest entry rather than a step in verify.cmake, so a bare `ctest` carries it too, and
+# because the population contract is what keeps it registered: `doc_links` is a declared row
+# in tests/test_population.txt, so deleting this registration is a red rather than a silently
+# smaller lane. That is the composition C4 built the inventory for.
+zengine_script_test(doc_links ${CMAKE_CURRENT_SOURCE_DIR}/check_doc_links.cmake)
