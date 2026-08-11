@@ -6,7 +6,7 @@
 
 // The continuity probe's own small vocabulary — a suite fixture, not a package.
 //
-// The R2B-0 vertical proof has to watch a real binding, inside a real dynamic
+// The continuity proof has to watch a real binding, inside a real dynamic
 // library, across a real graceful replacement of the Timer. A `.so` cannot be
 // reached into from the test process, and the binding's lifecycle state and its
 // last receipt are deliberately LOCAL to the consumer incarnation — so the probe
@@ -36,7 +36,7 @@ struct AskProbe {
 /// Timer last said it did about the binding (and why), where the binding stands
 /// in its own lifecycle, and how many times its OWN activation hook ran.
 ///
-/// v2 added `activations` (R2B-3c). It is the domain-visible observation
+/// v2 added `activations`. It is the domain-visible observation
 /// `on_timed_activation` makes, and it exists to answer two questions the other
 /// fields cannot: that the hook ran on this consumer's own activation, AFTER its
 /// timer bindings were reconciled — and that replacing the TIMER SERVICE, which

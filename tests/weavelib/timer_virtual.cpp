@@ -8,7 +8,8 @@
 // chain are all `TimerServiceT` exactly as timer_weave.hpp defines them — this
 // file only swaps out the thing that reads a clock and sleeps.
 //
-// WHY IT EXISTS. The R2B-0 vertical proof is a SEMANTIC claim about durations:
+// WHY IT EXISTS. The continuity proof is a SEMANTIC claim about durations
+// (TIMER-03):
 // a five-second one-shot with three seconds elapsed has two seconds left, and
 // the successor fires it two seconds later and not five. Proving that on a wall
 // clock would mean sleeping for five real seconds and hoping the machine was not
@@ -21,7 +22,7 @@
 // seam so the proof can run through the REAL kernel, the REAL Weave Manager, a
 // REAL graceful swap, and REAL bequest storage — everything except the sleeping.
 //
-// R2B-3c builds THREE artifacts from this one source, and they are three real
+// THREE artifacts are built from this one source, and they are three real
 // separate libraries rather than one loaded twice:
 //
 //   zengine-timer-virtual       the incumbent (v1)
