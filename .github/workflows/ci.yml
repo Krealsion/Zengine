@@ -278,9 +278,11 @@ jobs:
         run: cmake --build build-win
 
       # Advisory, and it verifies the same repository-owned population -- with the
-      # `sdl` gate off, so `surface` is contractually 16 cases here and 17 on Linux.
-      # That difference is declared in tests/test_population.txt, not absorbed into a
-      # slack floor, so advisory green means the same test-population thing.
+      # `sdl` gate off, so the SDL-gated suites are contractually smaller here than on
+      # Linux. That difference is declared in tests/test_population.txt, not absorbed
+      # into a slack floor, so advisory green means the same test-population thing. The
+      # numbers are in that file; a workflow comment that repeated them would be one
+      # more copy to go stale, and this one had.
       - name: Verify the repository-owned population
         run: cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 

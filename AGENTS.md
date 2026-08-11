@@ -56,8 +56,9 @@ resolve_extent without its guard        ordinary PASSES   UBSan signed integer o
 - It instruments what this repo AUTHORS, not the Loom it consumes (the Loom runs
   the same lane over itself). ASan's allocator is process-wide, so a Loom
   allocation misused by Zengine code is still caught.
-- It runs the **full** population, SDL skin included (`gates active: always;sdl`,
-  `surface` 37). Do not lower a floor or drop a gate to buy instrumentation.
+- It runs the **full** population, SDL skin included — the verifier prints
+  `gates active: always;sdl`, and every floor is the one the ordinary lane
+  clears. Do not lower a floor or drop a gate to buy instrumentation.
 
 ## The population contract (C4, POP-01/POP-02)
 
@@ -84,13 +85,12 @@ the tests themselves pass
   Stock doctest exits **0** on `--test-case=<no match>` ("Status: SUCCESS!");
   this one exits **70** and says `EMPTY TEST POPULATION`. The verifier
   re-proves that on every run, per binary, with a filter that matches nothing.
-- Floors are **minimums** anchored to a measured baseline (`snake` 22,
-  `timer` 78, `input` 35 + 2 `sdl`, `surface` 35 + 2 `sdl`, `ui` 22,
-  `workshop` 137, `audit_probes` 4). Additions are free; a deletion is a red. Do
-  not lower a floor to make a deletion pass. Read them from
-  `tests/test_population.txt`, which is the contract; this list is a convenience
-  and can go stale — it had gone stale in three entries before BL-VER-04
-  re-derived it, which is the standing argument for reading the file instead.
+- Floors are **minimums** anchored to a measured baseline. Additions are free; a
+  deletion is a red. Do not lower a floor to make a deletion pass. The per-suite
+  values live in `tests/test_population.txt` and nowhere else — this file used to
+  carry a convenience copy of them, which had gone stale in three entries before
+  BL-VER-04 re-derived it and was stale again by VOLATILE-2. A second copy of a
+  contract is not a convenience; it is a second answer.
 - **Moving evidence between suites does not lower the source suite's floor.**
   W-1 relocated the authored/resolved vocabulary out of Workshop into `ui/` and
   Workshop's floor went **up**, 20 → 22: what `resolve`/`hit` DO became the

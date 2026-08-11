@@ -29,8 +29,10 @@
 #
 #   doctest           A runtime doctest binary. `detail` is a per-suite case FLOOR: the
 #                     binary must select at least that many test cases. Floors, never
-#                     assertion totals -- ~2,450 assertions is evidence to report, not a
-#                     population, and it is not coverage.
+#                     assertion totals: an assertion total is evidence to report, not a
+#                     population, and it is not coverage. No contract file holds one --
+#                     nothing would enforce it, so it would decay here unwatched, which is
+#                     exactly what the figure that used to sit on this line did.
 #
 #   compile-negative  A compilation that MUST fail, judged on its diagnostic. `detail` is the
 #                     exact PASS_REGULAR_EXPRESSION the registration must carry. Pinned here

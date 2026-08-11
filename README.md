@@ -196,10 +196,13 @@ door. ASan's allocator is process-wide either way, so a Loom allocation freed an
 Zengine code is still caught; a fault entirely inside Loom's compiled objects is Loom's lane's
 job. Both defects above were in Zengine's own code.
 
-The lane runs the **full** population — 15 entries, the SDL skin included (`gates active:
-always;sdl`, `surface` at 22). No floor is lowered and no gate is turned off to buy the
-instrumentation. A new target lists `zengine-sanitize` beside `zengine-warnings`; leaving it off
-does not fail the build, it just quietly leaves that target out of the witness.
+The lane runs the **full** population, the SDL skin included — the verifier prints `gates
+active: always;sdl`, and every entry the ordinary lane declares is here at the same floor. No
+floor is lowered and no gate is turned off to buy the instrumentation. The entries and their
+floors are in [tests/test_population.txt](tests/test_population.txt); this paragraph used to
+name a couple of them and both had gone stale. A new target lists `zengine-sanitize` beside
+`zengine-warnings`; leaving it off does not fail the build, it just quietly leaves that target
+out of the witness.
 
 ## `timer/` — the Timer package
 
