@@ -57,7 +57,7 @@ resolve_extent without its guard        ordinary PASSES   UBSan signed integer o
   the same lane over itself). ASan's allocator is process-wide, so a Loom
   allocation misused by Zengine code is still caught.
 - It runs the **full** population, SDL skin included (`gates active: always;sdl`,
-  `surface` 22). Do not lower a floor or drop a gate to buy instrumentation.
+  `surface` 37). Do not lower a floor or drop a gate to buy instrumentation.
 
 ## The population contract (C4, POP-01/POP-02)
 
@@ -85,10 +85,12 @@ the tests themselves pass
   this one exits **70** and says `EMPTY TEST POPULATION`. The verifier
   re-proves that on every run, per binary, with a filter that matches nothing.
 - Floors are **minimums** anchored to a measured baseline (`snake` 22,
-  `timer` 78, `input` 24, `surface` 22 + 1 `sdl`, `ui` 22, `workshop` 119,
-  `audit_probes` 4). Additions are free; a deletion is a red. Do not lower a
-  floor to make a deletion pass. Read them from `tests/test_population.txt`,
-  which is the contract; this list is a convenience and can go stale.
+  `timer` 78, `input` 35 + 2 `sdl`, `surface` 35 + 2 `sdl`, `ui` 22,
+  `workshop` 137, `audit_probes` 4). Additions are free; a deletion is a red. Do
+  not lower a floor to make a deletion pass. Read them from
+  `tests/test_population.txt`, which is the contract; this list is a convenience
+  and can go stale — it had gone stale in three entries before BL-VER-04
+  re-derived it, which is the standing argument for reading the file instead.
 - **Moving evidence between suites does not lower the source suite's floor.**
   W-1 relocated the authored/resolved vocabulary out of Workshop into `ui/` and
   Workshop's floor went **up**, 20 → 22: what `resolve`/`hit` DO became the
@@ -97,10 +99,10 @@ the tests themselves pass
   the guarantee out of watch, not out of the file.
 - Assertion totals (~2,450) are evidence to report. They are **not** a
   population, never an acceptance oracle, and not coverage.
-- Configuration-dependent populations are **declared**, not absorbed: the one
-  SDL-gated case in `test_surface.cpp` is its own manifest row, so the Windows
-  lane's `-DZENGINE_SDL_SKIN=OFF` reads 16 and Linux reads 17 with no slack in
-  either.
+- Configuration-dependent populations are **declared**, not absorbed: the
+  SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
+  are their own manifest rows, so the Windows lane's `-DZENGINE_SDL_SKIN=OFF`
+  reads 35 for each suite and Linux reads 37, with no slack in either.
 - The verifier verifies the **configured build tree it is handed**; producing a
   current one is the job of whoever configures and builds.
 
