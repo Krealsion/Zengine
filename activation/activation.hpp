@@ -18,8 +18,8 @@
 // plus the comparison rule, kept here so Timer, Input, Skin and SnakeClock read
 // an activation the same way instead of four subtly different ways.
 //
-// WHAT IT NOW IS, and what it still is not (R2B-1). It answers TWO questions,
-// in this order, and keeping them apart is the whole of the design:
+// WHAT IT IS, and what it is not. It answers TWO questions, in this order, and
+// keeping them apart is the whole of the design:
 //
 //   PROVENANCE  "did Loom itself authorize a lifecycle commit for me?"
 //               Answered by Loom, not by this file: `mail.lifecycle_attested()`
@@ -30,13 +30,13 @@
 //   LINEAGE     "have I already acted on this one?"
 //               Answered here, as before: positive, newer, per-sender.
 //
-// The trust anchor that was missing is now present, and the sentence it replaces
-// is worth quoting so nobody re-derives it: activation identity is NO LONGER
-// inferred from an arbitrary stamped sender. Before R2B-1 any weave granted the
-// public shape could manufacture a first breath for someone else's incarnation
-// and a consumer had no way to tell; a different sender was simply read as a new
-// lineage. Now an unattested activation is not a lineage at all — it is an
-// ordinary message wearing a lifecycle costume, and is ignored entirely.
+// ACTIVATION IDENTITY IS NEVER INFERRED FROM A STAMPED SENDER, and the reason
+// is worth stating so nobody re-derives the alternative: read that way, any
+// weave granted the public shape could manufacture a first breath for someone
+// else's incarnation and a consumer would have no way to tell -- a different
+// sender simply reading as a new lineage. An unattested activation is not a
+// lineage at all here; it is an ordinary message wearing a lifecycle costume,
+// and is ignored entirely.
 //
 // The sender half is still load-bearing, and its meaning is now sharper: among
 // ATTESTED activations, a different sender is a different authorized operator's

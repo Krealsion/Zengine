@@ -145,9 +145,11 @@ struct DriveForensics {
     std::int64_t delivered = 0;
     std::int64_t refused_capability = 0;
     std::int64_t refused_no_target = 0;
-    /// The author's life ended before delivery (Loom R2B-2b). This bucket used to
-    /// be part of `refused_capability`, because a vanished sender has no grant to
-    /// check and the authorization term was what failed. Same event, real name.
+    /// The author's life ended before delivery. Distinct from
+    /// `refused_capability` on purpose: a vanished sender has no grant to check,
+    /// so folding the two together names the authorization term for an event
+    /// that is about a life. Same event either way; only one of the two names
+    /// sends an operator hunting a grant.
     std::int64_t refused_sender_life = 0;
     std::int64_t refused_other = 0;
     std::int64_t stop_after_delivered = -1; ///< watchdog: stop the bus here
@@ -216,8 +218,8 @@ struct Rig {
     /// The beat watchdog — the one pump lever that works on both sides of the
     /// clock's existence. Before a timer is loaded no Drive is ever delivered,
     /// so it never trips and the pump drains; once a chain is alive it bounds
-    /// an otherwise endless pump. Required since R2A-2, because loading the
-    /// service is itself what starts time.
+    /// an otherwise endless pump. Required, because loading the service is
+    /// itself what starts time (TIMER-02).
     std::int64_t drives = 0;
     std::int64_t stop_after_drives = -1;
 
@@ -382,10 +384,10 @@ TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTI
     const std::int64_t beats_before = r.poke_int(old_service, old_service, "beats");
     CHECK(beats_before > 0);
 
-    // The swap. HARD on purpose, and since R2B-0 that is a real choice rather
-    // than the only available one: the service now declares zen.PrepareShutdown,
-    // so a graceful swap would run the letter ceremony and the successor would
-    // inherit the standing schedule. This probe deliberately measures the
+    // The swap. HARD on purpose, and that is a real choice rather than the only
+    // available one: the service declares zen.PrepareShutdown, so a graceful swap
+    // would run the letter ceremony and the successor would inherit the standing
+    // schedule (TIMER-03). This probe deliberately measures the
     // letterless path — what the SUBSTRATE does to an in-flight beat when its
     // sender goes away — which is exactly the fact the audit recorded and which
     // no amount of authored inheritance changes. (The graceful path, and the
@@ -406,10 +408,11 @@ TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTI
     // (the successor already held the role by then). Keeping this assertion is the
     // point of rewriting rather than replacing the probe.
     //
-    // Loom's R2B-2b renamed the reason to match what this comment always said. It
-    // was `CapabilityDenied` because a vanished sender has no grant to check, so the
-    // authorization term was the one that failed — the right outcome down the wrong
-    // road, and an operator reading that reason would have gone hunting a grant.
+    // The reason names the LIFE and not the grant, which is what this comment has
+    // always said the event is. `CapabilityDenied` would be the right outcome down
+    // the wrong road — a vanished sender has no grant to check, so the
+    // authorization term is the one that fails — and an operator reading that
+    // reason would go hunting a grant.
     CHECK(f.refused_sender_life == 1);
     CHECK(f.refused_capability == 0);
     CHECK(f.refused_no_target == 0);
@@ -466,8 +469,8 @@ TEST_CASE("probe B: a reload does not INHERIT the old chain — the predecessor'
     // Reload in place. The measured substrate half is unchanged and still
     // true: reload rebinds the new library behind the SAME adapter/WeaveId, so
     // the predecessor's parked Drive is still DELIVERABLE — its sender lookup
-    // keeps succeeding and the role is never vacated. What R2A-2 changed is
-    // that being deliverable is no longer enough to own anything.
+    // keeps succeeding and the role is never vacated. What the activation law
+    // adds is that being deliverable is not enough to own anything (TIMER-01).
     const std::uint64_t corr = r.command(loom::ReloadWeave{"zengine-timer", TIMER_SO});
     r.pump_beats(8);
 

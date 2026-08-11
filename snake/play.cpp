@@ -218,13 +218,12 @@ public:
             quit();
             break;
         case scan::kC:
-            // The debt this branch used to carry is PAID (W-4). V1 had no
-            // modifier vocabulary, so Ctrl+C survived only as a dressed
-            // convenience NAME and this host had to trust a courtesy; the input
-            // suite pinned that spelling as "EXPLICITLY TEMPORARY" for exactly
-            // as long as this line existed. Ctrl is a modifier now, carried on
-            // the transition it was held for, and the name is back to being
-            // nothing but a name.
+            // Ctrl is MEASURED here, not inferred from a name. Without a
+            // modifier vocabulary Ctrl+C could only survive as a dressed
+            // convenience `name`, which would make this host trust a courtesy
+            // the Input contract explicitly refuses to make authoritative. The
+            // modifier is carried on the transition it was held for, and a name
+            // is nothing but a name (README.md#input--the-input-package).
             if ((k.modifiers & input::mod::kCtrl) != 0) {
                 quit();
             }

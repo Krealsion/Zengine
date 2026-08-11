@@ -133,9 +133,9 @@ private:
     // consumer obligation's shape here; the stamped-sender half is honestly
     // WAIVED — the heir reaches the steward by role precisely because it
     // cannot know the steward's id, so it cannot pre-bind the answer's sender.
-    // An in-process peer could forge a Bequest into the waiting window; that
-    // is B1-tier ground (loaded code is trusted-in-process by declaration),
-    // accepted and named, not hidden.
+    // An in-process peer could forge a Bequest into the waiting window; loaded
+    // code is trusted-in-process by declaration at this tier, which is accepted
+    // and named here rather than hidden.
     static constexpr std::uint64_t kClaimCorrelation = 0xC1A1;
     bool asked_ = false;
     bool awaiting_claim_ = false;
