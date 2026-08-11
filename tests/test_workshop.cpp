@@ -1692,9 +1692,20 @@ TEST_CASE("the size handle is derived, is Workshop's, and grabs the right identi
 
     // It is PAINTED, as a glyph a maker can tell from the ring, the body and the
     // workspace -- and it is painted at exactly the cell it is grabbed at.
+    //
+    // The glyph is written out as the LITERAL a maker sees, deliberately NOT as
+    // `kHandleGlyph`. An expectation read from the constant under test moves with
+    // it, so it can only ever agree with it: Z0a's first canary changed
+    // `kHandleGlyph "+" -> "*"` and this whole suite stayed GREEN, because both
+    // sides of the comparison changed together. The duplication is the point. What
+    // it duplicates is the README's contract -- the handle is the `+` on the
+    // selection ring's bottom-right corner -- and `*` is precisely what the glyph
+    // must not become, since that is already the accent role's own character in the
+    // terminal medium, which is the ring this affordance has to be told apart from.
+    // The position below stays DERIVED; only the appearance is pinned from outside.
     const Handle grip = size_handle(d, s);
     REQUIRE(grip.shown);
-    CHECK(label_at(paint(d, s), kWorkspaceX + grip.x, kWorkspaceY + grip.y) == kHandleGlyph);
+    CHECK(label_at(paint(d, s), kWorkspaceX + grip.x, kWorkspaceY + grip.y) == "+");
 
     // The handle sits one cell outside its own object, so it can lie over a
     // neighbour. It wins -- and that priority is WORKSHOP's, in Workshop's own
