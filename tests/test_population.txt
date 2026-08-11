@@ -49,6 +49,13 @@
 #                     contract is that the entry exists, the binary exists, and CTest still
 #                     runs the real command. No case count is invented for it.
 #
+#   script            A repository-owned CMake script run over the SOURCE TREE rather than
+#                     over a build -- today, the documentation-link check. `detail` is empty:
+#                     there is no binary to exist, no case to count and no diagnostic to
+#                     judge, and inventing one of those would be a number that means nothing.
+#                     Its registration being declared HERE is the point: the check reads the
+#                     tree, so nothing in a build could notice it had stopped being run.
+#
 # FLOORS ARE MINIMUMS, and the numbers below are a MEASURED baseline (C4's, raised by W-0,
 # W-1, W-2, W-3, W-4, W-5 and W-6 where those phases' cases should become permanent), so they
 # carry ZERO downward slack --
@@ -108,3 +115,4 @@ timer_cursor_bypass_refused       compile-negative  always  (discards|loses) qua
 ui_authored_extent_required       compile-negative  always  a resolvable dimension must be an authored Extent
 ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
 ui_authored_element_compiles      compile-positive  always
+doc_links                         script            always

@@ -110,6 +110,18 @@ the tests themselves pass
   reads 35 for each suite and Linux reads 37, with no slack in either.
 - The verifier verifies the **configured build tree it is handed**; producing a
   current one is the job of whoever configures and builds.
+- **Documentation references are checked too** (`doc_links`, kind `script` — the
+  one entry that reads the source tree rather than a build). Every relative link
+  in a current-facing `*.md` and its `#anchor`, plus every repository-relative
+  `docs/...md` path written in a first-party C/C++ comment under any package
+  directory or `tests/`, must resolve — a broken one is a RED in the official
+  lane. A comment's reference is resolved against the **repository root**,
+  because a comment moves with its code. Excluded by written rule:
+  `docs/history/` (frozen), `reference/` (the pre-Zen quarry), vendored and build
+  trees. A reference above the repository root — including anything under
+  `../Loom/` — is counted and declined: this repository is verified as a
+  standalone clone, and a stranger has no sibling to look at.
+  `tests/check_doc_links.cmake`.
 
 ## The suites need a Loom that can host weaves (POP-03)
 

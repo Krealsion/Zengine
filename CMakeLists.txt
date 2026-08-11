@@ -259,6 +259,20 @@ function(zengine_program_test entry target)
     zengine_record_test(${entry} program "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
 endfunction()
 
+# A repository-owned CMake script run over the SOURCE TREE -- today, the documentation-link
+# check. It is its own kind because none of the other three questions is askable of it: it
+# has no binary to exist, no test cases to count, and no compiler diagnostic to be judged on.
+# Recording it as a `program` would have avoided this edit at the price of the verifier
+# checking that `cmake` exists, which is not a fact about this repository.
+#
+# It reads the source tree rather than the build, so it is registered unconditionally and
+# stays honest in a tree configured any way at all.
+function(zengine_script_test entry script)
+    add_test(NAME ${entry} COMMAND ${CMAKE_COMMAND}
+             -DZEN_REPO=${CMAKE_SOURCE_DIR} -P ${script})
+    zengine_record_test(${entry} script)
+endfunction()
+
 # A compile-judged test: it builds an EXCLUDE_FROM_ALL fixture and reads the compiler.
 #
 #   zengine_compile_test(<entry> <target> <required diagnostic>)  the negative case
