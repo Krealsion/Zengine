@@ -8,12 +8,10 @@
 // inspector's rows, and the one function that turns all of it into a published
 // canvas.
 //
-// W-2 added the gestures — create, delete, nudge, and the three halves of a
-// pointer drag — and put them HERE rather than in the weave on purpose. A
-// gesture whose only witness is a keystroke is a gesture no suite can pin, and
-// W-0/W-1's evidence all lives in this header's purity. `workshop.cpp` now binds
-// keys and pointer events to these functions and does nothing else with the
-// document, so what the suite drives is what a maker's hand drives.
+// THE GESTURES LIVE HERE, not in the weave, and on purpose: a gesture whose
+// only witness is a keystroke is a gesture no suite can pin. `workshop.cpp`
+// binds keys and pointer events to these functions and does nothing else with
+// the document, so what the suite drives is what a maker's hand drives.
 //
 // PURE, and that is the point of it being its own header: paint() takes a
 // document and a session and returns a SurfaceCanvas. No terminal, no window, no
@@ -23,13 +21,12 @@
 // bus and the Skin carry it, which is a different claim from "the screen is
 // right".
 //
-// THE AUTHORED MATERIAL IS RESOLVED IN EXACTLY ONE PLACE, and after W-1 that
-// place is not this file. `workspace_scene()` below builds the viewport and calls
+// THE AUTHORED MATERIAL IS RESOLVED IN EXACTLY ONE PLACE, and that place is not
+// this file. `workspace_scene()` below builds the viewport and calls
 // `ui::resolve` once; the canvas, the inspector's resolved reading and the hit
-// test all read the Scene it returns. W-0 had three separate call sites doing
-// their own extent arithmetic and agreeing only because one person wrote all
-// three -- which is a coincidence, not a guarantee, and it is the coincidence
-// this phase removed.
+// test all read the Scene it returns. Three separate call sites doing their own
+// extent arithmetic agree only because one person wrote all three -- which is a
+// coincidence, not a guarantee.
 //
 // The SCREEN'S OWN FURNITURE is still constants, and that is a different thing
 // from the authored material and stays a Workshop decision: where the object
@@ -38,7 +35,8 @@
 // SurfaceCanvas paints a picture; whoever publishes one has already decided what
 // the picture is. A relational layout engine (stacks, weights, "beside") is the
 // Loom's loom::Widget + px_layout, a different model that stays where it is --
-// see W-1-RB for why the assumed relocation did not happen.
+// the two are not competitors, and neither replaces the other
+// (README.md#ui--the-authoredresolved-vocabulary).
 
 #include "document.hpp"
 #include "property.hpp"
@@ -91,16 +89,16 @@ inline constexpr const char* kHandleGlyph = "+";
 /// arranged to avoid, and it would be the copy that goes stale.
 ///
 /// `grab_dx/dy` are in RESOLVED cells — where inside the object's rectangle on
-/// the workspace the maker took hold. W-2 wrote "authored cells" and it was the
-/// same number, because `ui::resolve` copied x/y through untouched; W-6 made the
-/// two differ (a resolved position is now its context's origin plus the authored
-/// offset) and the honest name for what a hand grabs is the resolved one. The
-/// grab is still a plain SUBTRACTION and still not an inverse of the resolver;
-/// what changed is that turning the hand's answer back into authored truth is
-/// now a second subtraction -- the context's origin -- performed in `place`.
+/// the workspace the maker took hold. RESOLVED and not authored, and the two are
+/// genuinely different numbers: a resolved position is its context's origin plus
+/// the authored offset, and what a hand grabs is what is on screen. The grab is
+/// a plain SUBTRACTION and not an inverse of the resolver; turning the hand's
+/// answer back into authored truth is a second subtraction -- the context's
+/// origin -- performed in `place`.
 ///
-/// `resizing` is the whole of W-3's session cost: ONE bool, because there is one
-/// gesture in flight and it is either moving the object or sizing it. A resize
+/// `resizing` is the whole of a resize's session cost: ONE bool, because there
+/// is one gesture in flight and it is either moving the object or sizing it. A
+/// resize
 /// stores no grab offset (the handle is one cell and the pointer names the new
 /// corner outright), no starting extent and no starting viewport -- the
 /// projection reads the CURRENT extent for its mode and the CURRENT workspace for
@@ -151,9 +149,9 @@ inline ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
 /// matter most -- they are the same semantic type, so they share every line of
 /// conversion, parsing and refusal wording. A further property of an existing
 /// type would be one more line here and nothing else anywhere. That is the old
-/// builder's per-row plumbing, replaced -- and W-6 spent the prediction: adding
-/// `Context`, a property of a type that did not exist before, cost one line here
-/// plus one `TextForm` specialisation, and nothing else in this file changed.
+/// builder's per-row plumbing, replaced -- and the prediction is spent: adding
+/// `Context`, a property of a type nothing else uses, costs one line here plus
+/// one `TextForm` specialisation, and nothing else in this file.
 ///
 /// The last row is the RESOLVED size, and it is a `show` rather than an `edit`
 /// because it is not the maker's to author: it is what the current workspace
@@ -161,9 +159,9 @@ inline ui::Scene workspace_scene(const WorkshopDoc& d, const Session& s) {
 /// looking at two true things, and the inspector says which is which by what it
 /// will let them touch.
 ///
-/// After W-1 that row reads THE SCENE -- the same resolved scene the canvas is
-/// painted from and the same one a click is tested against. Before, it did its
-/// own extent arithmetic, and "the inspector agrees with the picture" was a
+/// That row reads THE SCENE -- the same resolved scene the canvas is painted
+/// from and the same one a click is tested against. Reading its own extent
+/// arithmetic instead would make "the inspector agrees with the picture" a
 /// property of two functions happening to say the same thing.
 inline std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
     std::vector<Row> rows;
@@ -179,8 +177,8 @@ inline std::vector<Row> inspector_rows(WorkshopDoc& d, const Session& s) {
     // Context comes BEFORE the four numbers it gives meaning to, because that is
     // the order the reading has to happen in: `X 2` is not an answer until you
     // know 2 of what. It is one more `Row::edit` over one more property, and
-    // that is the measurement W-6 wanted from the inspector -- a relationship is
-    // not a different kind of thing needing a different kind of editor. It is
+    // that is the measurement -- a relationship is not a different kind of thing
+    // needing a different kind of editor. It is
     // NOT labelled `Parent`: nothing here is a parent, and a familiar word that
     // implies ownership, clipping and cascade-delete would be the tool telling a
     // maker something the document does not do.
@@ -227,7 +225,7 @@ inline void refocus(WorkshopDoc& d, Session& s) {
 /// One copy, because there were about to be three. The post-delete selection
 /// rule needs it and so does the object list's visible window, and "where is
 /// this object in the file" is exactly the kind of small answer that goes stale
-/// when it is written twice -- W-1's lesson, at the smallest scale it comes in.
+/// when it is written twice, at the smallest scale that lesson comes in.
 inline std::size_t position_of(const WorkshopDoc& d, std::int64_t id) {
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
         if (d.elements[i].id == id) {
@@ -267,9 +265,8 @@ inline constexpr const char* kElided = "...";
 /// checked, that is harmless. For a NOTICE it is not: a notice's length is
 /// decided by the document that produced it, and a refusal beheaded at the
 /// screen's edge still reads as a finished sentence -- one that means something
-/// else, with nothing on screen to say so. W-6 met this live with a cycle
-/// refusal and shortened the wording; shortening a wording answers one producer,
-/// and this answers the boundary.
+/// else, with nothing on screen to say so. Met live with a cycle refusal:
+/// shortening that wording answers one producer, and this answers the boundary.
 ///
 /// So the BOUND STAYS -- one line is still one line -- and only the SILENCE
 /// goes. This is presentation and nothing else: the semantic message stays whole
@@ -300,7 +297,7 @@ inline std::string fit(std::string text, std::int64_t width) {
 /// One cell along, without leaving the number line.
 ///
 /// A nudge's proposal is COMPUTED rather than typed, and that widens its input
-/// domain the same way W-1's move into a package widened `resolve_extent`'s:
+/// domain the same way sharing `resolve_extent` widens its own:
 /// `x + 1` is well defined for every value a setter produced and undefined for
 /// the largest one a poke can write (`WorkshopDoc` is ZEN_EXPOSE()d). So the step
 /// saturates -- the neighbour of the last representable cell is itself -- and the
@@ -338,11 +335,9 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 
 // ---- Direct manipulation, and the boundary policy it needs -----------------------------
 //
-// W-2 left P15 open: a drag into the workspace's edge stopped dead and reported a
-// refusal, which is truthful and brusque, and W-2 declined to invent a clamping
-// policy from one sighting. W-3 has the second sighting -- a resize meets a wall
-// at BOTH ends of every extent -- so the policy is decided here, once, for both
-// gestures:
+// A hand reaches a wall in two places -- a drag into the workspace's edge, and a
+// resize meeting a limit at BOTH ends of every extent -- so the policy is stated
+// here, once, for both gestures:
 //
 //     A HAND that reaches past what exists           stops at the boundary,
 //     (a drag, a nudge, a corner pulled)             authors the boundary value,
@@ -373,10 +368,8 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 inline constexpr const char* kAtWorkspaceStart = "stopped at the workspace edge";
 inline constexpr const char* kAtSmallest = "stopped at the smallest size";
 inline constexpr const char* kAtLargest = "stopped at the largest size";
-/// Reworded by W-6, because the sentence stopped being true. It used to read
-/// "a share stops at the whole workspace", which was exact while the workspace
-/// was the only thing a share could be a share of. A share of another object
-/// stops at the whole of THAT object, and the wall is the same wall -- the
+/// "of its context" and not "the workspace": a share of another object stops at
+/// the whole of THAT object, and the wall is the same wall either way -- the
 /// vocabulary's, not the workspace's (100% of anything is all of it).
 inline constexpr const char* kAtWholeContext = "a share stops at the whole of its context";
 
@@ -414,8 +407,8 @@ struct Handled {
 /// than a thing that happens somewhere off screen. The canvas, the object list
 /// and the inspector all read the selection, so all three follow from this one
 /// assignment; there is no "add it to the list too" step to forget.
-/// Returns 0 when the document has no identity left to mint (W-5: a document
-/// can arrive from a file, and a file can say its mint is spent). Nothing is
+/// Returns 0 when the document has no identity left to mint (a document can
+/// arrive from a file, and a file can say its mint is spent). Nothing is
 /// created and nothing in the session moves -- a gesture that could not happen
 /// must not leave the selection somewhere new.
 inline std::int64_t create(WorkshopDoc& d, Session& s) {
@@ -458,19 +451,18 @@ inline Written delete_selected(WorkshopDoc& d, Session& s) {
 /// proposed position meets the boundary policy, and the only door `nudge` and
 /// `drag_to` use.
 ///
-/// THE PROPOSAL IS GLOBAL AND THE WRITE IS LOCAL, and that is W-6's whole change
-/// to direct manipulation. A hand points at a cell of the workspace; it does not
-/// point at "two cells into #1". So the gesture layer takes the hand's answer in
-/// the only coordinates a hand has, and projects it into whatever the object's
-/// authored coordinates MEAN by subtracting the origin of the frame the resolver
-/// says the object is read in. For a root-context object that origin is 0,0 and
-/// the projection is the identity, which is why W-0 through W-5 never had to
-/// name it.
+/// THE PROPOSAL IS GLOBAL AND THE WRITE IS LOCAL. A hand points at a cell of the
+/// workspace; it does not point at "two cells into #1". So the gesture layer
+/// takes the hand's answer in the only coordinates a hand has, and projects it
+/// into whatever the object's authored coordinates MEAN by subtracting the
+/// origin of the frame the resolver says the object is read in. For a
+/// root-context object that origin is 0,0 and the projection is the identity,
+/// which is why it is easy to miss that it is there at all.
 ///
 /// IT ASKS THE RESOLVER FOR THAT ORIGIN (`ui::frame_in`) rather than working it
 /// out. A gesture that reasoned "the source is at 3,2, so subtract 3 and 2"
-/// would be a second copy of the geometry, and W-1's lesson is that the second
-/// copy is the one that goes stale. It also inherits, free, the answer for the
+/// would be a second copy of the geometry, and the second copy is the one that
+/// goes stale. It also inherits, free, the answer for the
 /// case a source is missing: an empty frame, for an object the resolver did not
 /// place, so `doc::move` still judges an ordinary proposal.
 ///
@@ -479,8 +471,8 @@ inline Written delete_selected(WorkshopDoc& d, Session& s) {
 /// maker can see it stop -- at the workspace edge -- whether the object it is
 /// dragging measures against the root or against something else. What that stop
 /// is authored AS then differs, correctly: at the root it is x = 0, and inside a
-/// frame whose origin is at 3 it is x = -3, which since W-6 is an ordinary
-/// authorable offset (see doc::check_coord). The document still judges the
+/// frame whose origin is at 3 it is x = -3, which is an ordinary authorable
+/// offset (see doc::check_coord). The document still judges the
 /// result and there is no path here that writes past its refusal.
 inline Handled place(WorkshopDoc& d, const ui::Scene& scene, std::int64_t id, std::int64_t gx,
                      std::int64_t gy) {
@@ -532,8 +524,7 @@ inline Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t 
 ///
 /// NOT AN INVERSE, and the name is the first line of the argument.
 /// `ui::resolve_extent` is many-to-one -- it floors a share and it clamps an
-/// out-of-range one -- so it has no inverse at all, which is precisely what W-2
-/// measured as the reason authored PLACEMENT stayed raw cells. This function does
+/// out-of-range one -- so it has no inverse at all. This function does
 /// something different and weaker: it AUTHORS A NEW VALUE that this viewport
 /// resolves to what the maker asked for. It does not reconstruct the value that
 /// was there before and it cannot, because several percentages name the same cell
@@ -564,7 +555,7 @@ inline Handled nudge(WorkshopDoc& d, Session& s, std::int64_t ddx, std::int64_t 
 /// from the resolver, it inherits the resolver's totality over hostile values for
 /// free (no `100 * want` to overflow), and "the authored value resolves to what
 /// the maker asked for" is true by construction rather than by two functions
-/// agreeing. That is W-1's one-place-resolves lesson, spent.
+/// agreeing. That is the one-place-resolves rule, spent.
 ///
 /// The clamp is the gesture layer's, per this header's boundary policy: `want` is
 /// first reduced to the reachable band, and `boundary` says which wall it met.
@@ -600,9 +591,9 @@ inline ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
     }
     // Cells, and anything a poke wrote that is neither: an absolute size, whose
     // limits are the document's and have nothing to do with the workspace. An
-    // object may be authored WIDER than the workspace for the same reason W-2 let
-    // one be positioned past its right edge -- the canvas clips, and a maker who
-    // did that has not made a mistake.
+    // object may be authored WIDER than the workspace for the same reason one may
+    // be positioned past its right edge -- the canvas clips, and a maker who did
+    // that has not made a mistake.
     if (want < ui::kMinCells) {
         want = ui::kMinCells;
         boundary = kAtSmallest;
@@ -620,12 +611,11 @@ inline ui::Extent extent_from_drag(const ui::Extent& current, std::int64_t want,
 /// Both extents are projected, then written by ONE `doc::resize`, so the
 /// atomicity the document promises is not undone by the gesture proposing twice.
 ///
-/// THE SPAN IS THE CONTEXT'S, and W-6's whole change to resizing is those three
-/// words. `extent_from_drag` asks "which share of this span resolves to what the
-/// hand wants"; before, the span was always the workspace's, because that was
-/// the only thing a share could be a share of. It is now whatever frame the
-/// resolver says this object is read in, asked for with `ui::frame_in`. Nothing
-/// else moved: there is no second projection, no "child resize" path, and no
+/// THE SPAN IS THE CONTEXT'S, and those three words are the whole of what a
+/// context costs resizing. `extent_from_drag` asks "which share of this span
+/// resolves to what the hand wants", and the span is whatever frame the resolver
+/// says this object is read in, asked for with `ui::frame_in`. There is no
+/// second projection, no "child resize" path, and no
 /// branch on whether an object has a context. The existing operation was simply
 /// being handed the wrong context all along, and now it is handed the right one.
 inline Handled size_to(WorkshopDoc& d, const Session& s, std::int64_t id, std::int64_t want_w,
@@ -720,12 +710,10 @@ inline Handle size_handle(const WorkshopDoc& d, const Session& s) {
 /// placement — where inside the rectangle on screen the maker took hold — and it
 /// is a plain subtraction in the coordinates the pointer already speaks.
 ///
-/// W-2 wrote this as an offset from AUTHORED placement and observed that the two
-/// were the same number, then drew the sharp conclusion that an authored
-/// position "relative to something else" could not be dragged, because the
-/// gesture would have to invert the resolver and the resolver is not invertible.
-/// W-6 built exactly that position, and the conclusion turned out to be true of
-/// EXTENTS and false of PLACEMENT. What is not invertible in the resolver is the
+/// AN AUTHORED POSITION "RELATIVE TO SOMETHING ELSE" IS DRAGGABLE, and the
+/// tempting argument that it is not -- the gesture would have to invert the
+/// resolver, and the resolver is not invertible -- is true of EXTENTS and false
+/// of PLACEMENT. What is not invertible in the resolver is the
 /// share arithmetic -- it floors and it clamps, which is why `extent_from_drag`
 /// authors a new value rather than recovering the old one. Placement composes by
 /// ADDITION, and a sum has an inverse: the hand's global answer minus the
@@ -790,10 +778,9 @@ inline Handled drag_to(WorkshopDoc& d, const Session& s, std::int64_t cx, std::i
     const ui::Scene scene = workspace_scene(d, s);
     if (s.drag.resizing) {
         // The object's RESOLVED left/top edge, because the pointer and the
-        // handle are both in workspace cells. Before W-6 this read the authored
-        // `e->x`, which was the same number; it is not any more, and reading the
-        // authored one would have asked for a size measured from the wrong
-        // corner the moment the object had a context.
+        // handle are both in workspace cells. Reading the authored `e->x` would
+        // ask for a size measured from the wrong corner the moment the object
+        // had a context -- the two are the same number only at the root.
         const ui::Placed* placed = ui::placed_for(scene, s.drag.id);
         if (placed == nullptr) {
             return Handled::of(Written::no("no such object"));
@@ -816,24 +803,16 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 // what this relocation buys is that the part with an undefined-behaviour edge is
 // not among them.)
 //
-// G-1 SPLIT ONE FUNCTION INTO TWO STEPS, and the split is the answer to "who
-// owns the pixel-to-cell transform". There were always two translations stacked
-// here, and only one of them was Workshop's:
+// TWO TRANSLATIONS ARE STACKED HERE, and only the second is Workshop's:
 //
-//   medium position -> CANVAS cell    the Skin's layout. A terminal Skin starts
-//                                     the canvas at terminal row 3 because rows
-//                                     1-2 are its text slots; the SDL Skin starts
-//                                     it at the window's origin and spends
-//                                     kCanvasCellPx pixels per cell.
+//   medium position -> CANVAS cell    the Skin's layout, and the Surface
+//                                     package's (surface/pointing.hpp). It is
+//                                     not a number an application can know.
 //   canvas cell -> WORKSPACE cell     Workshop's own composition: where this
 //                                     application put its workspace on its screen.
 //
-// The first was a Workshop constant called `kCanvasTopRow`, correct for as long
-// as Workshop had exactly one medium. It is not a number an application can
-// know, and the moment a second medium reported a pointer it was WRONG for it --
-// pixel row 2 of the SDL window is canvas row 0, not canvas row -2. It now lives
-// in surface/pointing.hpp beside the Skin that decides it. What stays here is
-// the second step, which is genuinely this application's.
+// The whole contract, both halves and who owns each, is
+// docs/reference/pointer-spaces.md.
 
 /// The canvas cell a reported pointer position lands on, whatever medium
 /// reported it -- or nothing, for a space this application cannot place.
@@ -841,16 +820,12 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 /// THIS IS THE PAIRING, AND THE PAIRING IS THE HONEST COST. Each medium's
 /// transform is the Surface package's (it authored the layout); which transform
 /// applies to THIS event is decided from the `space` the backend stamped, and
-/// that decision is here because nothing else in the process can make it:
-/// nobody can currently ask the active Skin what its presentation context is
-/// (P18). So Workshop states the pairing rather than pretending it is derived,
-/// and the statement is exactly one switch in one place.
-///
-/// It is true today because there is one terminal layout and one graphical one.
-/// A second graphical Skin with a different layout would report kPixels too and
-/// this switch could not tell them apart -- which is the day P18 has to be
-/// answered rather than deferred, and is written down here so that day is
-/// recognisable when it comes.
+/// that decision is here because nothing else in the process can make it --
+/// nothing can ask the active Skin what its presentation context is. So Workshop
+/// states the pairing rather than pretending it is derived, and the statement is
+/// exactly one switch in one place. The contract, and the day a second graphical
+/// Skin makes this switch unable to tell two layouts apart, are
+/// docs/reference/pointer-spaces.md.
 ///
 /// A SPACE THIS APPLICATION DOES NOT RECOGNISE IS IGNORED, never guessed at.
 /// That is the whole reason `space` exists: a terminal cell and an SDL pixel are
@@ -901,7 +876,7 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 // It is the argument the empty document already won three lines further down:
 // a panel that merely goes blank is indistinguishable from a tool that has
 // broken. A panel that quietly stops is worse, because it looks like it worked.
-// The console reached the same rule from the other side (C1): retained history
+// The Loom console reached the same rule from the other side: retained history
 // is BOUNDED, and its truncation is OBSERVABLE.
 //
 // So the bound stays exactly where it was, and only the silence goes.
@@ -948,9 +923,10 @@ struct ListWindow {
 /// document as it is written, so the list still reads the way the file reads,
 /// the way `paint` paints, and the way `ui::hit` answers. Sorting by identity,
 /// name, context, dependency or selection recency would each be this one panel
-/// telling a maker a different story about the same document -- W-6 separated
-/// document order from dependency order deliberately, and a presentation choice
-/// is not the place to quietly rejoin them.
+/// telling a maker a different story about the same document. Document order and
+/// dependency order are separated deliberately (ui::resolve orders its own work
+/// by dependency and emits in document order), and a presentation choice is not
+/// the place to quietly rejoin them.
 ///
 /// IT ANCHORS AT THE TOP for as long as it can, then at the BOTTOM, and takes a
 /// middle window only when neither end reaches the selection. So the first
@@ -1074,8 +1050,9 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // and from the workspace at a glance. `SurfaceLabel` carries arbitrary text
     // over the rects, so the generic canvas vocabulary already had what this
     // needed -- no role was added, and nothing in surface/ or ui/ changed.
-    // (Honest cost: a Skin with no text stack draws no handle. The SDL skin is
-    // that Skin today -- P8, unchanged by this phase.)
+    // (Honest cost: a Skin with no text stack draws no handle. Both shipped
+    // media have one -- a terminal's own font, and the SDL medium's bitmap face
+    // in surface/skin_sdl_glyphs.hpp -- so nothing declines it today.)
     const Handle handle = size_handle(d, s);
     if (handle.shown) {
         label(kWorkspaceX + handle.x, kWorkspaceY + handle.y, kHandleGlyph,
@@ -1114,10 +1091,10 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         label(kPanelX, kListY + line, omitted_text(window.after, "more"), surface::role::kMuted);
         ++line;
     }
-    // An empty document SAYS it is empty. W-2 is the phase that made emptiness
-    // reachable by a maker's own hand rather than only by a suite constructing
-    // one, and a panel that merely goes blank is indistinguishable from a tool
-    // that has broken. It also says what to do next, because the answer is one
+    // An empty document SAYS it is empty. A maker can reach this state with their
+    // own hand by deleting their work, and a panel that merely goes blank is
+    // indistinguishable from a tool that has broken. It also says what to do
+    // next, because the answer is one
     // key and the alternative is a maker who thinks they have destroyed it.
     if (d.elements.empty()) {
         label(kPanelX, kListY, "(none) -- n makes one", surface::role::kMuted);
@@ -1155,10 +1132,9 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // silently loses its last hint is worse than no hint. The maker's gestures
     // come first; the tool's own furniture second.
     //
-    // It advertises `shift+hjkl` and not `,. width | -= height`, which is a
-    // REPAIR and not a W-5 addition: W-4 deleted those four bindings and left
-    // the help line naming them, so until now the tool's own instructions told
-    // a maker to press keys that do nothing.
+    // It advertises `shift+hjkl` and not `,. width | -= height`: those four
+    // literal bindings do not exist, and a help line naming them would be the
+    // tool's own instructions telling a maker to press keys that do nothing.
     label(0, kHelpY, "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
           surface::role::kMuted);
     label(0, kHelpY + 1,

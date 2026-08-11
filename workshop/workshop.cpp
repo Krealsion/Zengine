@@ -12,11 +12,11 @@
 // touches the terminal.
 //
 // THIS FILE IS THE HOST, and only the host: the boot weave, `main()`, the two
-// grants, and — since W-5 — the one command-line argument that says which file
-// this Workshop's document lives in. Workshop's own weave lives in weave.hpp,
-// where a suite can mount it — W-4 moved it there to close P16, so
-// `input message -> gesture -> semantic operation` is a chain the tests can walk
-// end to end instead of a claim the report has to make.
+// grants, and the command-line arguments that say which file this Workshop's
+// document lives in and which Skin and reader paint and watch it. Workshop's own
+// weave lives in weave.hpp, where a suite can mount it, so
+// `input message -> gesture -> semantic operation` is a chain the tests walk end
+// to end instead of a claim a report has to make.
 //
 // THE HOST CHOOSES THE PATH AND THE WEAVE USES IT, which is the same division
 // the boot list already follows: where things are is the host's business, what
@@ -133,19 +133,19 @@ std::string exe_dir() {
 /// Which file this Workshop saves to and loads from, and which Skin paints it.
 ///
 /// `--document <path>`, defaulted to `workshop.json` in whatever directory the
-/// maker started Workshop in. That is the whole of W-5's path story, and the
-/// smallness is the point: there is no picker, no recent list, no project
+/// maker started Workshop in. The smallness is the point: there is no picker,
+/// no recent list, no project
 /// concept and no workspace manager, because none of those is needed to prove
 /// that a maker can close Workshop and get their work back. An unknown argument
 /// is REFUSED rather than ignored — a mistyped flag that silently saved to the
 /// default file is exactly the kind of quiet wrong answer persistence makes
 /// expensive.
 ///
-/// `--skin <stem>`, defaulted to the classic terminal Skin, is G-0's addition and
-/// is deliberately the same shape. BUILDING a Skin and CHOOSING one are different
-/// acts: `ZENGINE_SDL_SKIN=ON` only makes the window Skin exist, and until now
-/// running Workshop against it meant editing the literal below — so the graphical
-/// Workshop was a founder experiment nobody else could repeat.
+/// `--skin <stem>`, defaulted to the classic terminal Skin, is deliberately the
+/// same shape. BUILDING a Skin and CHOOSING one are different acts:
+/// `ZENGINE_SDL_SKIN=ON` only makes the window Skin exist, and without this flag
+/// running Workshop against it would mean editing the literal below — a founder
+/// experiment nobody else could repeat.
 ///
 /// It is a WEAVE STEM and nothing more: the host already resolves stems to files
 /// beside the executable (`host.so`), and the boot weave already reports a load
@@ -154,14 +154,14 @@ std::string exe_dir() {
 /// browser or a hot-swap. Choosing at launch is host policy; Workshop's own weave
 /// still does not know which Skin holds the role, and must not.
 ///
-/// `--input <stem>`, defaulted to the terminal/console reader, is G-1's addition
-/// and is deliberately the third of the same shape rather than anything cleverer.
+/// `--input <stem>`, defaulted to the terminal/console reader, is the third of
+/// the same shape rather than anything cleverer.
 ///
 /// IT IS A SEPARATE FLAG FROM `--skin` ON PURPOSE, and the temptation it refuses
 /// is real: `--skin zengine-skin-sdl` could obviously imply `zengine-input-sdl`,
 /// and the graphical Workshop would then be one flag instead of two. But
-/// presentation and input are two dimensions, not one -- W-4's whole result is
-/// that a backend states what it saw, and which backend is watching is not
+/// presentation and input are two dimensions, not one. A backend states what it
+/// saw, and which backend is watching is not
 /// deducible from which one is painting. Coupling them here would write that
 /// deduction into the host as a permanent architecture on the first day two
 /// backends existed. Two flags say what is actually happening, and the banner
@@ -272,10 +272,10 @@ int main(int argc, char** argv) {
     // Boot, as ordinary LoadWeave commands sent AS the boot weave -- so the
     // Manager's answers come back to something that can hear them, and a refused
     // load is a fact this program can report instead of a silence it exits on.
-    // The Skin is first: loading it claims the terminal -- which since W-4
-    // includes asking the terminal to report its POINTER, because terminal modes
-    // are the Skin's lifetime and always were -- and its hello is what makes
-    // Workshop paint.
+    // The Skin is first: loading it claims the terminal -- which includes asking
+    // the terminal to report its POINTER, because terminal modes are output and
+    // the output stream is claimed on the Skin's own lifetime -- and its hello is
+    // what makes Workshop paint.
     const auto boot = [&](const char* stem, const char* role) {
         bus.send_as(booter, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{stem, host.so(stem), role}),

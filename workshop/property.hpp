@@ -6,8 +6,8 @@
 
 // The typed connection between an editor and the property it presents.
 //
-// This is the one abstraction W-0 exists to test, and it exists because of a
-// measured pain point rather than a design instinct: the historical builder
+// It exists because of a measured pain point rather than a design instinct: the
+// historical builder
 // (reference/src/apps/builder/build_state.cpp, archaeology only) hand-wrote,
 // per property, a label plus a current-value read plus an input filter plus a
 // parse plus a setter callback plus two refreshes -- dozens of times, with the
@@ -198,10 +198,10 @@ template <> struct TextForm<ui::Extent> {
         return ui::Extent{mode, *amount};
     }
 
-    /// `70%`, because since W-4 that is what a maker types. The old wording
-    /// advertised `70p` as the route, which stopped being true when text became
-    /// text -- a refusal that recommends a workaround for a hole that has been
-    /// filled is worse than no recommendation. `70p` is still ACCEPTED (whether
+    /// `70%`, because that is what a maker types -- the platform reports the
+    /// character, so no workaround spelling has to be recommended. A refusal that
+    /// recommends a workaround for a hole that has been filled is worse than no
+    /// recommendation. `70p` is still ACCEPTED (whether
     /// this parser keeps a convenience spelling is its own question, and not
     /// one persistence gets to answer); it is simply no longer advertised.
     static const char* expected() { return "cells (12) or a share (70%)"; }
@@ -347,7 +347,7 @@ public:
         }
     }
 
-    /// Text the platform said the maker entered, appended whole (W-4). A UTF-8
+    /// Text the platform said the maker entered, appended whole. A UTF-8
     /// character is up to four bytes and they belong together; appending it a
     /// byte at a time would be the same fact told in a way `backspace` could cut
     /// in half.

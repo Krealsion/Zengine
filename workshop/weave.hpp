@@ -7,16 +7,13 @@
 // Workshop's own weave: the authored document, the session, and the bindings
 // from input MOMENTS to maker GESTURES.
 //
-// WHY IT IS A HEADER (W-4, closing P16). It used to live in workshop.cpp's
-// anonymous namespace, where no suite could reach it — so every phase since W-0
-// could prove `gesture -> document` and never `message -> gesture`, and the
-// binding was the one part of the pointer path nothing witnessed. W-4 rewrote
-// what a message CONTAINS, which makes that gap exactly the wrong one to keep:
-// the phase's central claim is that a press carries its own position, and the
-// only place that claim can be tested end to end is here. Moving the class is
-// the whole fix — no framework, no registry, no test hooks. `main()` and the
-// host's boot weave stay in the .cpp, because those are the host's job and not
-// Workshop's.
+// WHY IT IS A HEADER. A weave in the host's anonymous namespace is a weave no
+// suite can reach, which would leave `gesture -> document` provable and
+// `message -> gesture` not -- and the binding is the one part of the pointer
+// path nothing else witnesses. The claim that a press carries its own position
+// can only be tested end to end from here. That is the whole reason: no
+// framework, no registry, no test hooks. `main()` and the host's boot weave stay
+// in the .cpp, because those are the host's job and not Workshop's.
 //
 // WHAT IS AND IS NOT WORKSHOP'S HERE, because several phases turn on it:
 //
@@ -24,26 +21,25 @@
 //                         gated, schema-carrying, poke-inspectable. There is no
 //                         shadow model -- the element the maker selects IS the
 //                         element the canvas is painted from and the inspector
-//                         reads through. W-1 moved the TYPE out to the UI
-//                         package; the object is no less Workshop's state for
-//                         being spelled in a shared vocabulary.
-//   the geometry          NOT Workshop's, since W-1. `ui::resolve` turns the
-//                         authored extents into a scene and `ui::hit` says what
-//                         is under a cell; this file computes neither, and the
-//                         canvas, the inspector and the pointer all read one
-//                         scene.
+//                         reads through. The TYPE is the UI package's; the
+//                         object is no less Workshop's state for being spelled
+//                         in a shared vocabulary.
+//   the geometry          NOT Workshop's. `ui::resolve` turns the authored
+//                         extents into a scene and `ui::hit` says what is under
+//                         a cell; this file computes neither, and the canvas,
+//                         the inspector and the pointer all read one scene.
 //   the session           selection, workspace extent, drafts, a drag in flight.
 //                         Plain members, never state (the Skin's `announced_`
 //                         stance).
-//   the screen            screen.hpp, pure, pinned by the suite -- and since W-2
-//                         that header owns the GESTURES too. This file binds
-//                         messages to them and reaches the document through
-//                         nothing else, so every maker action the suite drives
-//                         is the same one a maker's hand drives.
+//   the screen            screen.hpp, pure, pinned by the suite -- and that
+//                         header owns the GESTURES too. This file binds messages
+//                         to them and reaches the document through nothing else,
+//                         so every maker action the suite drives is the same one
+//                         a maker's hand drives.
 //
-// THE INPUT REALITY, named where a reader will hit it — and W-4 is where it
-// finally reads as a description of what works rather than a list of what does
-// not. Three reconstructions this file used to perform are GONE, not tidied:
+// THE INPUT REALITY, named where a reader will hit it. Three reconstructions
+// this file does NOT perform, because the Input vocabulary carries the facts
+// that were simultaneously true (README.md#input--the-input-package):
 //
 //   typing        `character_of(scancode)` is deleted. Characters arrive as
 //                 input::TextEntered, from the platform's own keyboard layout,
@@ -56,9 +52,9 @@
 //                 position it happened at, so nothing here remembers where the
 //                 pointer was in order to answer where the click landed.
 
-// W-5 GAVE THE DOCUMENT A LIFE LONGER THAN THE PROCESS, and the interesting
-// part landed here rather than in the codec. Two bindings arrived (`^s`, `^o`)
-// and three questions with them, each answered in the method that needs it:
+// THE DOCUMENT HAS A LIFE LONGER THAN THE PROCESS, and the interesting part of
+// that is here rather than in the codec. Two bindings (`^s`, `^o`) and three
+// questions with them, each answered in the method that needs it:
 //
 //   what does Save do about an open editor draft   refuse (see save_document)
 //   what happens to the SESSION on a load          it is re-established, not
@@ -70,43 +66,35 @@
 //                                                  every write site would have to
 //                                                  remember to set
 
-// W-6 GAVE ONE AUTHORED OBJECT A CONTEXT SUPPLIED BY ANOTHER, and this file is
-// where you can see how little it cost. There is no new message, no new binding,
-// no new gesture and no new session field: the relationship is an ordinary
-// editable property (`Context` in the inspector), so it is authored through the
-// same Enter/type/Enter the maker already uses for a width, and refused through
-// the same one-line notice. The two places this file changed at all are a move
-// notice that now names the frame a position is authored IN, and the delete
-// refusal, which arrives from the document with the dependents named.
+// ONE AUTHORED OBJECT TAKES ITS CONTEXT FROM ANOTHER, and this file is where you
+// can see how little that costs. There is no message, no binding, no gesture and
+// no session field for it: the relationship is an ordinary editable property
+// (`Context` in the inspector), authored through the same Enter/type/Enter a
+// width takes and refused through the same one-line notice. The only two places
+// it shows here are a move notice that names the frame a position is authored
+// IN, and the delete refusal, which arrives from the document with the
+// dependents named.
 //
-// The opening document is deliberately still FLAT. A maker's first screen shows
-// two independent rectangles, exactly as it has since W-0; composition is
-// something they do, not something they arrive inside. That is the cheapest
-// possible statement of the phase's own constraint -- the simple case did not
-// get more expensive.
+// The opening document is deliberately FLAT. A maker's first screen shows two
+// independent rectangles; composition is something they do, not something they
+// arrive inside, and the simple case is not made more expensive by the
+// capability existing.
 
-// G-1 GAVE THE GRAPHICAL WORKSHOP HANDS, and the measure of it is how little of
-// this file it touched. There is no graphical selection, no SDL drag state, no
+// THE GRAPHICAL WORKSHOP HAS HANDS, and the measure of it is how little of this
+// file that takes. There is no graphical selection, no SDL drag state, no
 // graphical hit test and no second gesture path: a click in the SDL window
-// reaches `take_hold` and a drag reaches `drag_to`, which are the same functions
-// the terminal's pointer has driven since W-2, writing through the same document
-// operations with the same clamp/refuse law.
+// reaches `take_hold` and a drag reaches `drag_to`, the same functions the
+// terminal's pointer drives, writing through the same document operations with
+// the same clamp/refuse law. Two boundaries make that true:
 //
-// Three lines changed, and each is a boundary rather than a behaviour:
-//
-//   pointer space   `understands(space)` -- which used to mean "is it cells" --
-//                   is gone. An event is now PROJECTED (screen.hpp's
-//                   `canvas_point_of`) from whichever medium reported it, and an
-//                   event this application cannot place is still ignored rather
-//                   than mis-placed. Pixels are no longer refused; they are
-//                   converted, once, by the package that knows the conversion.
+//   pointer space   an event is PROJECTED (screen.hpp's `canvas_point_of`) from
+//                   whichever medium reported it. Pixels are not refused; they
+//                   are converted, once, by the package that knows the
+//                   conversion -- docs/reference/pointer-spaces.md. An event
+//                   this application cannot place is ignored rather than
+//                   mis-placed.
 //   close           a native close request arrives as surface truth and reaches
 //                   the quit policy `q` already had.
-//   nothing else    no new session field, no new gesture, no new notice.
-//
-// The pointer path is otherwise exactly W-4's: a press carries the position it
-// happened at, and nothing here remembers a pointer in order to answer where a
-// click landed.
 
 #include "persist.hpp"
 #include "screen.hpp"
@@ -139,7 +127,7 @@ struct HostContext {
     /// and the same document opened from two places is the same document. There
     /// is deliberately no recent-files list, no picker and no project concept —
     /// one path is the smallest thing that lets a maker close Workshop and come
-    /// back to their work, which is the whole of what W-5 promised.
+    /// back to their work.
     ///
     /// Empty means no document file was chosen, and save/load say so rather
     /// than guessing one.
@@ -188,12 +176,12 @@ public:
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
     ///
-    /// It is the SAME policy `q` and Ctrl+C reach, deliberately: G-1 added a new
-    /// way for the request to ARRIVE, not a new thing for it to mean. In
-    /// particular it does not ask about unsaved work -- the status line has said
-    /// `UNSAVED` since W-5 and `^o` can already discard authored work without a
-    /// confirmation (P22). Making the close box the one gesture that argues back
-    /// would be answering a product question nobody has asked, in the phase that
+    /// It is the SAME policy `q` and Ctrl+C reach, deliberately: a close box is a
+    /// new way for the request to ARRIVE, not a new thing for it to mean. In
+    /// particular it does not ask about unsaved work -- the status line says
+    /// `UNSAVED` and `^o` can already discard authored work without a
+    /// confirmation. Making the close box the one gesture that argues back would
+    /// be answering a product question nobody has asked, in whichever phase
     /// happened to add the button.
     ///
     /// It is not a key. Nothing here reads a scancode, and no backend
@@ -252,7 +240,7 @@ public:
     /// mode there is no draft, so text is simply not a command, and the keys that
     /// ARE commands were already delivered as their own transitions.
     ///
-    /// This is the whole of P4's typing half. `%` arrives here as "%".
+    /// Workshop maps no key to any character. `%` arrives here as "%".
     void on(const zengine::input::TextEntered& t, loom::Mail& mail) {
         Row* row = editing_row();
         if (row == nullptr || t.text.empty()) {
@@ -268,11 +256,11 @@ public:
     /// whatever object is under it, and select that object. Release: let go.
     /// Between them, every PointerMoved authors a new position or a new size.
     ///
-    /// The position comes from the message. W-2 had to reconstruct it from the
-    /// last motion event, which is wrong whenever the platform reported no motion
-    /// in between -- a console generates none while it lacks focus, so the first
-    /// click after refocusing grabbed whatever the pointer had last been seen
-    /// over. Nothing here remembers a pointer any more.
+    /// The position comes from the message. Reconstructing it from the last
+    /// motion event is wrong whenever the platform reported no motion in between
+    /// -- a console generates none while it lacks focus, so the first click after
+    /// refocusing would grab whatever the pointer had last been seen over.
+    /// Nothing here remembers a pointer.
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
         const PointedAt at = canvas_point_of(b.space, b.x, b.y);
         if (b.button != 1 || !at.understood) {
@@ -298,10 +286,9 @@ public:
         repaint(mail);
     }
 
-    /// The pointer moved. Outside a drag this weave now has nothing to do with
-    /// it -- which is the clearest measure of what W-4 changed: the entire job
-    /// of remembering where the pointer is went away with the reconstruction it
-    /// existed to serve.
+    /// The pointer moved. Outside a drag this weave has nothing to do with it:
+    /// the job of remembering where the pointer is went away with the
+    /// reconstruction it existed to serve.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
         const PointedAt at = canvas_point_of(m.space, m.x, m.y);
         if (!at.understood || !session_.drag.active) {
@@ -381,14 +368,14 @@ private:
     /// Command mode.
     ///
     /// `hjkl` moves and `Shift+hjkl` resizes, which is one gesture family spelled
-    /// two ways rather than two families competing for free keys. W-3 could not
-    /// say it: with no modifier on the wire, a second direction gesture cost four
-    /// more literal keys (`,` `.` `-` `=`), and the report priced that as P4
-    /// arriving a second time. The bill is paid and those four bindings are gone.
+    /// two ways rather than two families competing for free keys. It is spellable
+    /// only because the wire carries the modifiers held at the transition; with
+    /// no modifier vocabulary a second directional gesture costs four more
+    /// literal keys (`,` `.` `-` `=`), and those four bindings do not exist.
     ///
-    /// The arrows still step the inspector's rows and `hjkl` still moves, so the
-    /// collision W-2 resolved is untouched -- the modifier bought a new gesture,
-    /// not a re-argument of an old one.
+    /// The arrows step the inspector's rows and `hjkl` moves, which is why
+    /// neither pair had to be re-argued: the modifier bought a new gesture, not a
+    /// second meaning for an old key.
     void command(const zengine::input::KeyPressed& k) {
         const bool shift = held(k.modifiers, input::mod::kShift);
         switch (k.scancode) {
@@ -474,8 +461,8 @@ private:
     /// runs only on success.
     ///
     /// THE SESSION IS RE-ESTABLISHED, NOT PRESERVED, and that distinction is the
-    /// whole of W-5's session work. Every session fact pointed at the document
-    /// that is gone:
+    /// whole of what a load costs the session. Every session fact points at the
+    /// document that is gone:
     ///
     ///   the drag       held an identity and an offset from an object that may
     ///                  not exist. It is cancelled, so a pointer already down
@@ -529,8 +516,8 @@ private:
         const std::int64_t id = create(state_, session_);
         if (id == 0) {
             // The mint is spent. Unreachable by pressing `n`; reachable in one
-            // line of a loaded file, which is why W-5 is the phase that had to
-            // give this gesture an answer instead of an overflow.
+            // line of a loaded file, which is why this gesture has an answer
+            // rather than an overflow.
             say("this document has no identity left to give -- nothing was created", true);
             return;
         }
@@ -587,8 +574,8 @@ private:
     /// pointer and the keyboard cannot describe the same act differently.
     ///
     /// A size notice reports the AUTHORED extents, not the resolved ones: the
-    /// whole question W-3 existed to answer is what a maker's hand wrote, and
-    /// `71%` is the answer -- `34 x 6 cells` is what the inspector's Resolved
+    /// whole question a resize notice answers is what a maker's hand wrote, and
+    /// `71%` is that -- `34 x 6 cells` is what the inspector's Resolved
     /// row already says. A boundary is appended in its own words and the notice
     /// stays in the ordinary role, because in this tool the alert role means
     /// exactly one thing: NOTHING WAS WRITTEN. A clamped gesture did write --
@@ -680,8 +667,8 @@ private:
         session_.notice_is_bad = bad;
     }
 
-    /// The status line: how many objects, which one is selected, and — since
-    /// W-5 — WHICH FILE and whether it matches.
+    /// The status line: how many objects, which one is selected, WHICH FILE, and
+    /// whether it matches.
     ///
     /// The file half is not decoration. Once work survives a process, the first
     /// thing a maker needs to know is whether the thing in front of them is the

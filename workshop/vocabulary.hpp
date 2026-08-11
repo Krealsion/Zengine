@@ -6,58 +6,51 @@
 
 // The Workshop package's shapes — the authored material a maker manipulates.
 //
-// W-0's whole subject is one boring rectangle, and the interesting question is
-// not how to draw it but what it IS. W-1 answered a further question about the
-// same rectangle: whose vocabulary is it? The answer turned out not to be
-// Workshop's. What a maker authors -- an identity, a label, a place, and two
-// extents -- is what ANY visual Zengine application authors, so it moved out to
-// the UI package, and this file is now the document that HOLDS such elements
-// rather than the file that invents them.
+// The interesting question about a maker's rectangle is not how to draw it but
+// what it IS -- and whose vocabulary it is spelled in. It is not Workshop's:
+// what a maker authors (an identity, a label, a place, two extents) is what ANY
+// visual Zengine application authors, so the TYPE is `zengine::ui::Element` in
+// the UI package (README.md#ui--the-authoredresolved-vocabulary) and this file
+// is the document that HOLDS such elements rather than the file that invents
+// them.
 //
-// So what is left here is exactly Workshop's own:
+// So what is here is exactly Workshop's own:
 //
 //   WorkshopDoc     the authored content, and nothing else. The weave's state:
 //                   a sequence of zengine::ui::Element, plus the identity mint
 //                   that makes them distinguishable.
 //
-// and what left, with the phase that moved it:
-//
-//   WorkshopExtent  -> zengine::ui::Extent   (W-1)
-//   WorkshopRect    -> zengine::ui::Element  (W-1; `name` is spelled `label`
-//                                             there, because a label is what it
-//                                             always was -- see the id note)
-//
-// There is deliberately no alias, no wrapper and no forwarding header for
-// either. Workshop names `ui::Element` at every call site, so the move is
-// visible where the code is read rather than hidden behind a spelling that
-// suggests Workshop still owns the concept.
+// There is deliberately no alias, no wrapper and no forwarding header for the
+// shared types. Workshop names `ui::Element` and `ui::Extent` at every call
+// site, so a reader sees whose concept it is where the code is read rather than
+// behind a spelling that suggests Workshop still owns it.
 //
 // WHAT IS DELIBERATELY ABSENT, so the absence is a decision rather than an
 // oversight:
 //
-//   - STILL no parent/child, and W-6 is the phase that makes the absence a
-//     measured claim rather than a deferral. An element now says what its
-//     values are measured against (ui::Element::context), which is what
-//     composition actually needed; it says nothing about containment,
-//     ownership, clipping, painting or lifetime. Workshop authors ONE policy
-//     over that -- a source with dependents is not deletable (document.hpp) --
-//     and that policy is Workshop's, in Workshop's document law, not a
-//     property of the relationship. "Put B inside A" remains a thing an
-//     application could build; it is not a thing this document does.
+//   - no parent/child, and the absence is a measured claim rather than a
+//     deferral. An element says what its values are measured against
+//     (ui::Element::context), which is what composition actually needed; it
+//     says nothing about containment, ownership, clipping, painting or
+//     lifetime. Workshop authors ONE policy over that -- a source with
+//     dependents is not deletable (document.hpp) -- and that policy is
+//     Workshop's, in Workshop's document law, not a property of the
+//     relationship. "Put B inside A" remains a thing an application could
+//     build; it is not a thing this document does.
 //   - no colour. It would be a third semantic property type and it buys the
 //     phase nothing the extent does not already buy (the canvas roles
 //     already prove medium-agnostic ink; see surface/vocabulary.hpp).
 //   - no z / no ordering field. Paint order is list order, once, in
 //     SurfaceCanvas — and now also in ui::Scene, which says the same thing
-//     about the same sequence. W-5 made that sequence a PERSISTED fact, because
-//     it is semantically observable four ways (paint order, which object a
-//     click finds under an overlap, the object list, and where the selection
-//     lands after a delete) — but it is still the order of the vector and not
-//     a field on an element.
-//   - no field whose only purpose is to survive a save. W-5 gave Workshop
-//     persistence and this struct did not change: what a maker authored was
-//     already all of it, and the FILE's shape lives in persist.hpp, separate
-//     on purpose (see the note there).
+//     about the same sequence. That sequence is a PERSISTED fact, because it is
+//     semantically observable four ways (paint order, which object a click
+//     finds under an overlap, the object list, and where the selection lands
+//     after a delete) — but it is still the order of the vector and not a field
+//     on an element.
+//   - no field whose only purpose is to survive a save. Persistence added
+//     nothing to this struct: what a maker authored was already all of it, and
+//     the FILE's shape lives in persist.hpp, separate on purpose (see the note
+//     there).
 //
 // THE STATE IS PUBLIC AND THAT IS THE SUBSTRATE'S REQUIREMENT, NOT A CHOICE.
 // ZEN_SHAPE registers members by pointer-to-member (`&ZenSelf::member`), so a
@@ -66,10 +59,9 @@
 // the only door Workshop itself walks through (see document.hpp: every write in
 // this package goes through a function that can refuse). Reported as pressure
 // rather than hidden behind a wrapper that would merely move the public members
-// somewhere less visible. One consequence became the UI package's problem in
-// W-1 and was fixed there: because a poke can write any int64 into an authored
-// extent, `ui::resolve_extent` has to be total for values no setter would ever
-// have accepted.
+// somewhere less visible. One consequence is the UI package's: because a poke
+// can write any int64 into an authored extent, `ui::resolve_extent` has to be
+// total for values no setter would ever have accepted.
 
 #include "ui/vocabulary.hpp"
 
@@ -85,18 +77,15 @@ namespace zengine::workshop {
 /// What is NOT here is as load-bearing as what is: the SELECTION, the workspace
 /// extent, and every editor draft are session facts, not authored content, and
 /// they live as plain members of the weave (weave.hpp) exactly the way a Skin's
-/// `announced_` flag does. W-0 had no persistence boundary to test that split
-/// against, so the split was made structurally instead — the two kinds of fact
+/// `announced_` flag does. The split is structural — the two kinds of fact
 /// cannot be confused because they are not in the same struct.
 ///
-/// W-5 IS THAT TEST, AND THE SPLIT HELD. The persistence boundary is exactly
-/// this struct: everything in it survives a process, nothing outside it does,
-/// and no field had to move in either direction. The strongest evidence is the
-/// workspace extent — it is the one session fact a save would have been most
-/// tempted to keep, and keeping it would have destroyed the proof that a share
-/// is authored rather than resolved (load the same file into a narrower
-/// workspace and the authored `60%` is unchanged while the resolved cells are
-/// not).
+/// THE PERSISTENCE BOUNDARY IS EXACTLY THIS STRUCT: everything in it survives a
+/// process, nothing outside it does. The sharpest case is the workspace extent
+/// — the one session fact a save would be most tempted to keep, and keeping it
+/// would destroy the proof that a share is authored rather than resolved (load
+/// the same file into a narrower workspace and the authored `60%` is unchanged
+/// while the resolved cells are not).
 ///
 /// ZEN_EXPOSE(): every field is poke-manipulable, deliberately and in the open.
 /// The document holds no secrets, live manipulation is the substrate's point,
@@ -118,10 +107,10 @@ struct WorkshopDoc {
     friend bool operator==(const WorkshopDoc&, const WorkshopDoc&) = default;
 
     ZEN_EXPOSE();
-    /// Version 2 since W-6. Its OWN two fields are unchanged -- what moved is
+    /// Version 2, though its OWN two fields have never changed. What changed is
     /// `ui::Element`, which went to v2 when it grew a context -- and a schema's
-    /// content-id is derived from the whole shape, so this one changed too. A
-    /// version that claimed otherwise would be saying "the same shape" about a
+    /// content-id is derived from the WHOLE shape, so this one changed with it.
+    /// A version that claimed otherwise would be saying "the same shape" about a
     /// different shape.
     ZEN_SHAPE(WorkshopDoc, 2, ZEN_FIELD(elements), ZEN_FIELD(next_id));
 };
