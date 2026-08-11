@@ -15,12 +15,12 @@
 // from medium-agnostic intent, never the reverse — is the agnosticism the
 // phase exists to prove.
 //
-// G-0 brings the general canvas here for the same reason, and gains one
-// property from it that is worth naming: `plan_canvas` returns rectangles and
-// labels as ONE flat list of opaque quads, so the SDL edge cannot tell a
-// glyph from a rect. P8 — "rectangles drawn, labels dropped" — is therefore
-// not sayable at the edge at all; the only place that distinction exists is
-// in this header, where every lane's suite is already looking.
+// The general canvas is here for the same reason, and gains one property from it
+// that is worth naming: `plan_canvas` returns rectangles and labels as ONE flat
+// list of opaque quads, so the SDL edge cannot tell a glyph from a rect.
+// "Rectangles drawn, labels dropped" is therefore not sayable at the edge at
+// all; the only place that distinction exists is in this header, where every
+// lane's suite is already looking.
 
 #include "cells.hpp"
 #include "skin_sdl_glyphs.hpp"
@@ -107,7 +107,7 @@ inline std::vector<PlanRect> plan_frame(const zengine::snake::SnakeVisual& v) {
     return out;
 }
 
-// ---- The general canvas (G-0) ------------------------------------------------------
+// ---- The general canvas -----------------------------------------------------------
 //
 // Everything below turns a `SurfaceCanvas` into the same `PlanRect` list the
 // snake frame already produces. See the header note on why labels and rects

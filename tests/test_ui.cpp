@@ -103,7 +103,7 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
                             .build();
     CHECK(schema_of<Extent>()->content_id() == extent->content_id());
 
-    // Version 2 since W-6, which added `context`. A published shape is
+    // Version 2, because `context` joined it. A published shape is
     // immutable, and the Loom would have caught the disagreement anyway (a
     // content-id is derived from the shape, so two builds spelling `Element v1`
     // differently fail to agree rather than mis-decoding) -- the version is what
@@ -340,8 +340,8 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
     // resolved from poked content holds rects whose edges are not representable,
     // and `x + w` on one of those is undefined behaviour produced by data.
     //
-    // Found by a sanitizer during W-3, through an ordinary press: `hit` is what a
-    // maker's hand asks, so this is on the gesture path and not in a corner.
+    // Found by a sanitizer, through an ordinary press: `hit` is what a maker's
+    // hand asks, so this is on the gesture path and not in a corner.
     // The plain lane cannot see it, which is why the assertions below are about
     // ANSWERS and the sanitizer lane is the other half of the evidence.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
@@ -378,7 +378,7 @@ TEST_CASE("the rectangle test is TOTAL, over every rect a resolved scene can hol
 }
 
 // ============================================================================
-// 4 — composition: the context an authored shape is read in (W-6)
+// 4 — composition: the context an authored shape is read in
 // ============================================================================
 //
 // Everything above resolves against one root context, which is the easy case
@@ -668,8 +668,8 @@ TEST_CASE("the frame an element was read in is asked of the resolver, not recons
 }
 
 TEST_CASE("composed placement is TOTAL over coordinates no setter would have produced") {
-    // W-5 had no sum to overflow: a resolved position WAS the authored one.
-    // W-6's is `the context's origin + the authored offset`, and both terms come
+    // A resolved position that WAS the authored one has no sum to overflow. This
+    // one is `the context's origin + the authored offset`, and both terms come
     // off a ZEN_SHAPE -- so a poke can write the pair that makes `a + b` signed
     // overflow, which is undefined behaviour produced by data. Only a sanitizer
     // can see the difference; these assertions are about the ANSWERS.

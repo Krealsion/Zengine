@@ -26,7 +26,7 @@
 //
 // V2 adds the GENERAL canvas the note above promised — `SurfaceCanvas` — but
 // it does NOT dissolve the SnakeVisual coupling, and that restraint is
-// deliberate. Workshop (W-0) is the live consumer that pulled it: a maker tool
+// deliberate. Workshop is the live consumer that pulled it: a maker tool
 // has to paint an authored rectangle somewhere, and the alternatives were a
 // second world beside the Skins (a Workshop-only painter) or teaching the
 // Skins a Workshop-only shape. Both are worse than one general canvas that any

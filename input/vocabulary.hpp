@@ -7,7 +7,7 @@
 // The Input package's message vocabulary — the whole contract in one file, so
 // there is exactly one place to diff against the current spellings.
 //
-// THE LAW THIS FILE IS BUILT ON (W-4):
+// THE LAW THIS FILE IS BUILT ON (README.md#input--the-input-package):
 //
 //     Input reports coherent MOMENTS. Applications interpret GESTURES.
 //
@@ -15,20 +15,20 @@
 // happened. A gesture — a drag, a resize, a selection, a click on a panel — is
 // application meaning and is not spoken here at any version.
 //
-// The V1 vocabulary (five shapes: KeyPressed, KeyReleased, MouseButton,
-// MouseMoved, MouseWheel) was built out of isolated FACTS, and three phases of
-// Workshop measured the bill:
+// A vocabulary built out of isolated FACTS (a key, a position, a button, with
+// nothing said about what else was true at the same instant) costs a consumer
+// three reconstructions, and all three were measured against a real application:
 //
-//   W-0   `%` is unreachable, because a scancode is not a character
-//   W-2   a Win32 button record carries dwMousePosition and the wire dropped
-//         it, so a consumer had to reconstruct the press location from the last
-//         MouseMoved -- which can be arbitrarily stale
-//   W-3   with no modifier vocabulary a second directional gesture cannot be
-//         spelled `Shift+hjkl`, so it cost four more literal keys
+//   `%` is unreachable, because a scancode is not a character
+//   a Win32 button record carries dwMousePosition and a wire that drops it makes
+//     a consumer reconstruct the press location from the last MouseMoved --
+//     which can be arbitrarily stale
+//   with no modifier vocabulary a second directional gesture cannot be spelled
+//     `Shift+hjkl`, so it costs four more literal keys
 //
 // Every one of those is the same defect: the backend knew, and the wire forgot.
 // So the shapes below carry the facts that were SIMULTANEOUSLY TRUE, and the
-// three reconstructions are gone rather than made more convenient.
+// three reconstructions do not exist rather than being made more convenient.
 //
 // THE IDENTITY RULE (unchanged): `scancode` carries SDL scancode values — the
 // wire identity of a key. Every backend's one job is to translate its native

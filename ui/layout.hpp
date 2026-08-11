@@ -12,8 +12,8 @@
 //
 //   1. Resolution cannot be performed without a viewport. `resolve()` takes one,
 //      so "what size is this?" is not an answerable question about an element
-//      alone -- which is the truth, and the reason W-0's inspector could show
-//      `60%` and `28 x 6 cells` as two rows without either being wrong.
+//      alone -- which is the truth, and the reason an inspector can show `60%`
+//      and `28 x 6 cells` as two rows without either being wrong.
 //   2. The result is a SEPARATE VALUE. A Scene is not stored on the elements it
 //      observes; the authored side has no field able to hold one (see the fence
 //      in vocabulary.hpp). Nothing caches: a resolved number that outlived the
@@ -72,8 +72,8 @@ struct Rect {
     /// to itself, authored content is a ZEN_SHAPE, and a poke writes the amount
     /// past every application's check (Workshop says so about its own document).
     /// So a scene resolved from poked content can hold a rect whose right edge is
-    /// not representable, and W-3 measured this one with a sanitizer, reached
-    /// through an ordinary press: `hit` is what a maker's hand asks.
+    /// not representable. Measured with a sanitizer, reached through an ordinary
+    /// press: `hit` is what a maker's hand asks.
     ///
     /// The repair is the comparison, not the geometry. An empty or inverted
     /// rectangle contains nothing (which is what the old spelling already said),
@@ -111,8 +111,8 @@ struct Placed {
 /// place in it, in AUTHORED ORDER — which is paint order, said once (the same
 /// rule SurfaceCanvas states about its own rects). Later is in front.
 ///
-/// AUTHORED ORDER SURVIVED W-6, and that is one of the phase's findings rather
-/// than an accident. Composition introduces a second ordering concern -- an
+/// AUTHORED ORDER SURVIVES COMPOSITION, and that is a finding rather than an
+/// accident. Composition introduces a second ordering concern -- an
 /// element cannot be resolved before the element it measures against -- and the
 /// obvious implementation is to sort the document into dependency order and walk
 /// it. That would have made document order mean dependency order, silently
@@ -162,9 +162,9 @@ inline constexpr std::int64_t kMinCells = 1;
 /// setter, and neither of those has been past anybody's check_extent. An out-of-range
 /// share is clamped rather than trusted, and an absurd span divides before it multiplies —
 /// `span * amount` on unvalidated int64 is signed overflow, which is undefined behaviour
-/// produced by data. (W-0's Workshop-local resolve() did exactly that; the relocation is
-/// what made it worth fixing, because a private helper's exposure is one document's and a
-/// package's is every consumer's.)
+/// produced by data. (An application-local resolve() that skipped this would be exposed to
+/// one document's values; a package's is exposed to every consumer's, which is what makes
+/// totality the only honest bar here.)
 inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept {
     if (e.mode != kExtentPercent) {
         return e.amount; // cells (and any unknown mode) resolve to themselves
@@ -185,10 +185,10 @@ inline std::int64_t resolve_extent(const Extent& e, std::int64_t span) noexcept 
 
 /// `a + b` in cells, without leaving the number line.
 ///
-/// W-6 needs it and W-5 did not, which is the arithmetic shape of what the phase
-/// changed. A resolved position used to BE the authored one -- `resolve` copied
-/// x/y through, so there was no sum to overflow. It is now `the context's origin
-/// + the authored offset`, and both terms are values this package does not own:
+/// It is needed because a resolved position is not the authored one. Copying x/y
+/// through would leave no sum to overflow; a resolved position is `the context's
+/// origin + the authored offset`, and both terms are values this package does
+/// not own:
 /// authored content is a ZEN_SHAPE, so it arrives from a poke, and a context's
 /// origin is itself the result of one of these sums further down a chain.
 /// `INT64_MAX + 1` is undefined behaviour produced by data. The saturated ends
@@ -207,9 +207,9 @@ inline std::int64_t add_cells(std::int64_t a, std::int64_t b) noexcept {
 
 /// The frame the ROOT supplies: the whole viewport, at the origin.
 ///
-/// This is the line W-6 went looking for. Before it, the viewport WAS resolution
-/// context -- not as a value anything could name or replace, but as two
-/// hard-coded assumptions inside one statement of `resolve`: an origin of 0,0
+/// This is the line composition needed. Unnamed, the viewport IS the resolution
+/// context -- not as a value anything can name or replace, but as two hard-coded
+/// assumptions inside one statement of `resolve`: an origin of 0,0
 /// that authored placement was added to (invisibly, because adding zero looks
 /// like copying), and a span that every extent took its share of. Naming it as a
 /// frame is most of the mechanism; the rest is letting an element say a
@@ -244,8 +244,8 @@ inline Rect resolve_in(const Element& e, const Rect& context) noexcept {
 /// The ONE place authored intent becomes geometry. Everything downstream — painting, the
 /// inspector's resolved reading, hit testing — reads the scene this produced, so there is
 /// no second copy of the geometry able to fall out of step with the first. That single
-/// path is the whole point of the package: W-0 had three call sites resolving extents
-/// themselves, agreeing only because one person wrote all three.
+/// path is the whole point of the package: three call sites resolving extents themselves
+/// agree only because one person wrote all three.
 ///
 /// HOW IT ORDERS ITS WORK, and why the answers come out in a different order than the
 /// work was done. Each element is resolved once, memoised, by walking UP its context
@@ -366,8 +366,8 @@ inline const Placed* hit(const Scene& scene, std::int64_t cx, std::int64_t cy) n
 }
 
 /// Where one authored identity landed, or null if this scene has no such element —
-/// a normal answer, not an error: a selection can outlive its element, and since
-/// W-6 an element whose context does not reach the root is never placed at all.
+/// a normal answer, not an error: a selection can outlive its element, and an
+/// element whose context does not reach the root is never placed at all.
 inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
     for (const Placed& p : scene.items) {
         if (p.id == id) {
@@ -383,8 +383,8 @@ inline const Placed* placed_for(const Scene& scene, std::int64_t id) noexcept {
 ///
 /// It exists so that a caller who needs the context (to turn a pointer's global
 /// position into an authored local one, or to ask what span a share is a share
-/// OF) asks the resolver rather than reconstructing the answer. That is W-1's
-/// one-place-resolves lesson spent a second time: a gesture that computed
+/// OF) asks the resolver rather than reconstructing the answer. That is the
+/// one-place-resolves rule spent a second time: a gesture that computed
 /// "well, the parent is at 3,2" for itself would be a second copy of the
 /// geometry, and the copy is the one that goes stale.
 ///
