@@ -9,13 +9,14 @@
 //   A weave DECLARES the time behaviour it wants; the binding owns the Timer
 //   protocol and the lifecycle reconciliation required to maintain it.
 //
-// R2A-2 made the raw Timer conversation correct, and in doing so made its
-// ceremony visible. Every consumer that wanted a heartbeat had to write the
-// same seven steps: accept `zen.Activated`, deduplicate it, accept
-// `TimerReady`, send a StartTimer/StartRoleTimer, accept `TimerFired`, filter
-// by id, and re-ask whenever the service appeared or came back. That machinery
-// is real and none of it is a domain decision — so it belongs in package
-// vocabulary, written once, not in every author's file.
+// Without it, every consumer that wants a heartbeat writes the same seven
+// steps: accept `zen.Activated`, deduplicate it, accept `TimerReady`, send a
+// StartTimer/StartRoleTimer, accept `TimerFired`, filter by id, and re-ask
+// whenever the service appears or comes back. That machinery is real and none
+// of it is a domain decision — so it belongs in package vocabulary, written
+// once, not in every author's file. The layer's contract is TIMER-05,
+// docs/laws/timer-laws.md; the model and its boundary are
+// docs/reference/timer-binding.md.
 //
 // WHAT THIS IS NOT. It is not a scheduler, not an event framework, and not a
 // second interpretation of time. The raw Timer vocabulary stays public and
@@ -118,11 +119,11 @@ C* activation_owner(void (C::*)(const loom::Activated&, loom::Mail&));
 
 /// Where one binding stands in this incarnation's life.
 ///
-/// R2B-0 replaced a single `desired` bool with these three, because that bool
-/// was answering two different questions at once and getting one of them wrong.
-/// "Should reconciliation re-establish this?" and "has this already happened?"
-/// are not the same question, and a one-shot that fired needed to answer NO to
-/// the first for a reason the second explains.
+/// Three states and not a `desired` bool, because that bool answers two
+/// different questions at once and gets one of them wrong. "Should
+/// reconciliation re-establish this?" and "has this already happened?" are not
+/// the same question, and a one-shot that fired must answer NO to the first for
+/// a reason only the second explains.
 enum class BindingState {
     Waiting,  ///< wanted, and not yet finished with
     Spent,    ///< a one-shot that has fired; done unless explicitly restarted
@@ -532,8 +533,8 @@ public:
     /// This incarnation is live: establish everything it declared.
     ///
     /// Activation trust AND deduplication live HERE, once, so no author has to
-    /// rediscover the rule. Since R2B-1 the cursor requires Loom's attestation
-    /// before it considers lineage at all — so a bound weave cannot be made to
+    /// rediscover the rule. The cursor requires Loom's attestation before it
+    /// considers lineage at all — so a bound weave cannot be made to
     /// re-establish its timers by any weave that merely knows the public shape.
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {

@@ -5,10 +5,10 @@
 //
 // Everything scheduled lives in timer_weave.hpp (pinned by the suite over a
 // fake clock); this file is just the real Clock — the monotonic read and the
-// nap that used to live, hard-coded, in the playable host's loop. They moved
-// HERE because this weave is the one participant whose whole purpose is time;
-// for everyone else the clock is now a message away. Replace this library and
-// the system keeps the same vocabulary with someone else's idea of time.
+// nap. They live HERE because this weave is the one participant whose whole
+// purpose is time, and no host winds it (TIMER-02, docs/laws/timer-laws.md);
+// for everyone else the clock is a message away. Replace this library and the
+// system keeps the same vocabulary with someone else's idea of time.
 
 #include "timer_weave.hpp"
 #include "vocabulary.hpp"
@@ -33,8 +33,7 @@ namespace {
 
 /// The real clock: monotonic milliseconds and a genuine nap. The one place
 /// in the running system that sleeps — the beat's nap is what paces the
-/// whole bus, exactly as the host's old nap_10ms() did, one layer lower and
-/// behind a replaceable role.
+/// whole bus, and it sits behind a replaceable role rather than in a host.
 struct MonotonicClock {
     std::int64_t now_ms() {
 #if defined(_WIN32)

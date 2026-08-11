@@ -14,58 +14,15 @@
 // clock and the one nap; everyone else just hears beats. There is no polling
 // API in V1: time is a stream of events, not a state to be asked about.
 //
-// THE V1 CONTRACT (Vision's phase prompt) is four shapes: StartTimer v1,
-// CancelTimer v1, CancelAllMyTimers v1, TimerFired v1 — spelled here exactly
-// as locked; the timer suite pins the spellings by content-id.
+// Every shape below is frozen by content-id and its spelling is pinned by suite
+// `timer`. The whole wire surface — consumer shapes, service internals, the
+// letter, and the constants — is tabulated in
+// docs/reference/timer-protocol.md; each shape's own comment here owns what its
+// fields MEAN. The invariants they serve are TIMER-01..05,
+// docs/laws/timer-laws.md.
 //
-// NAMED ADDITIONS (the contract proved insufficient here; recorded face-up
-// per the report-back rule, never silently):
-//   - StartRoleTimer v1 — the prompt's own "or to a role if the design makes
-//     that cleaner" option, made a distinct shape so StartTimer stays exactly
-//     as specified. A requester-addressed timer dies with its requester — and
-//     a weave cannot observe another weave's death (the bus shows a sender no
-//     outcomes, and no unload broadcast exists), so a heartbeat that must
-//     SURVIVE its starter being swapped (the input pump, the skin pump) is
-//     addressed to the ROLE: whoever holds the slot at each firing hears the
-//     beat. That is also what heals a freshly swapped-in skin on a dead-quiet
-//     bus: the beat belongs to the role, so the successor inherits it. (What
-//     a standing timer does NOT survive is the TIMER SERVICE itself being
-//     replaced — the table lives in the service. See Drive.)
-//   - TimerReady v1 — the service's availability notice, published once per
-//     ACCEPTED ACTIVATION. Since R2A-2 it is no longer the system's only
-//     first breath (every weave gets its own `zen.Activated`); its remaining
-//     job is the opposite load order and the service's own succession. See
-//     TimerReady below.
-//   - Drive v2 — the beat itself, and since R2A-2 a claim of ownership. A
-//     weave runs only when a message arrives, so the service keeps itself
-//     alive by re-sending Drive to its role at the end of every beat; inside
-//     the beat it naps to the next deadline (the one sleep in the system) and
-//     fires what came due. **The host does not wind the clock.** The service
-//     seeds its own chain when the Loom's control door activates it, and each
-//     valid beat seeds exactly its one successor. A Drive now carries the
-//     activation it belongs to and its serial, so a stale, duplicated,
-//     replayed, inherited or foreign one establishes nothing. See Drive below.
-//   - EnsureTimer v1 / EnsureRoleTimer v1 / TimerResolution v1 — the ORDERED
-//     forms and their receipt (R2B-0). The raw Start* shapes are
-//     fire-and-forget and mean exactly "restart/upsert"; they can neither
-//     express a preference about surviving a replacement nor report what the
-//     service did. Rather than reinterpret them invisibly, the ordered forms
-//     are NEW shapes that carry a preference and a fallback, and answer the
-//     stamped requester with what actually happened. See the continuity block.
-//   - TimerHandoffEntry v1 / TimerHandoff v1 — the package's own letter
-//     (R2B-0). The Loom supplies the replacement moment and carries the
-//     envelope; what crosses death is the Timer's decision, said in the
-//     Timer's own vocabulary. See the handoff block.
-//   - PrepareTimerHandover v1 / TimerCandidatePrepared v1 /
-//     TimerCandidateDeclined v1 — the PREPARED-REPLACEMENT preparation
-//     conversation (R2B-3c). Three shapes a sealed candidate speaks with the
-//     coordinator preparing it, and with nobody else. They add no second way to
-//     describe a schedule: the letter stays `TimerHandoff`, written by the
-//     incumbent in answer to the same `zen.PrepareShutdown` as always. See the
-//     prepared-replacement block.
-//
-// R2B-0 — THE THREE KINDS OF STATE THIS PACKAGE HOLDS, named so that a
-// continuity decision can be about one of them rather than about "the timer":
+// THE THREE KINDS OF STATE THIS PACKAGE HOLDS, named so that a continuity
+// decision can be about one of them rather than about "the timer":
 //
 //   INTENT            what the consumer wants (id, delay, repeat, addressing).
 //                     Declared by the consumer; the consumer re-declares it on
@@ -85,20 +42,16 @@
 // acceptable, and what actually survived — and then SAYS which of those it
 // did.
 
-// CROSSING INTO THIS CONTRACT IS REPLACEMENT, NOT RELOAD — recorded so nobody
-// reads the refusal as a regression. R2A-2 changed accepted-message contracts:
-// the Timer now accepts `zen.Activated` and `Drive v2`, and the official
-// consumers accept `zen.Activated`. R2B-3c did it once more: the Timer also
-// accepts `PrepareTimerHandover`, so a pre-R2B-3c artifact and this one are
-// again REPLACEMENT rather than reload. That is the rule working, not a
-// regression — and prepared replacement is now the way to make such a crossing
-// without the service going away first. The Loom enforces EXACT accepted-contract
-// equality on reload-in-place (R2A-1), so `zen.ReloadWeave` from a pre-R2A-2
-// artifact to one of these refuses cleanly with "accepted schema contract
-// mismatch; reload refused". That is the substrate telling the truth: a weave
-// whose doors changed is a REPLACEMENT (`zen.SwapWeave`), not a reload. Within
-// this contract, reloading in place works and stays live — probe B pins exactly
-// that.
+// ADDING AN ACCEPTED SHAPE HERE MAKES THE CROSSING A REPLACEMENT, NOT A RELOAD
+// — said so nobody reads the refusal as a regression. The Loom enforces EXACT
+// accepted-contract equality on reload-in-place, so `zen.ReloadWeave` from an
+// artifact whose accept set differs from this one refuses cleanly with
+// "accepted schema contract mismatch; reload refused". That is the substrate
+// telling the truth: a weave whose doors changed is a REPLACEMENT
+// (`zen.SwapWeave`). Prepared replacement is how such a crossing is made
+// without the service going away first — docs/reference/timer-continuity.md.
+// WITHIN one contract, reloading in place works and stays live; probe B in
+// `tests/test_audit_probes.cpp` pins exactly that.
 
 #include <zen/weave/shape.hpp>
 
@@ -141,9 +94,11 @@ struct StartTimer {
 /// The one succession it does NOT survive is the TimerService's own: the
 /// standing-timer table is the service instance's private state, not
 /// gate-carried state, so a replaced or reloaded service starts with an
-/// empty table. Since R2A-2 that heals the same way for BOTH reload and
-/// swap: the new incarnation is activated, publishes TimerReady, and
-/// standing consumers refill the table by re-asking (see Drive).
+/// empty table. That heals the same way for BOTH reload and swap: the new
+/// incarnation is activated, publishes TimerReady, and standing consumers
+/// refill the table by re-asking (see Drive). What a re-ask cannot rebuild is
+/// PROGRESS, which is what the letter carries — TIMER-03,
+/// docs/reference/timer-continuity.md.
 struct StartRoleTimer {
     std::string id;
     std::int64_t delay_ms = 0;
@@ -212,10 +167,10 @@ struct TimerFired {
 ///   "The Timer service has accepted an activation and is available;
 ///    re-establish the timers you require."
 ///
-/// It is no longer the only first breath available to a consumer, and that
-/// changes what it is FOR. Since R2A-2 a consumer arranges its own time on its
-/// OWN `zen.Activated`, so this shape's remaining job is the opposite load
-/// order and the service's own succession:
+/// It is not the only first breath available to a consumer, and that decides
+/// what it is FOR. A consumer arranges its own time on its OWN `zen.Activated`,
+/// so this shape's job is the opposite load order and the service's own
+/// succession:
 ///   - consumer loaded AFTER the Timer — its own activation makes it ask; it
 ///     needs nothing from here;
 ///   - consumer loaded BEFORE the Timer — its activation-time ask went nowhere,
@@ -238,36 +193,27 @@ struct TimerFired {
 /// right trade for a service that may just have come back with an empty table —
 /// and it was a real cost, not a no-op.
 ///
-/// R2B-0 gave a consumer a way to say it would rather not pay it: an ORDERED
-/// re-ask (EnsureTimer / EnsureRoleTimer) can prefer `preserve_remaining`, in
-/// which case a matching standing schedule is kept exactly as it is and the
-/// re-ask really is free — and where there is nothing to preserve, the declared
+/// A consumer that would rather not pay it says so: an ORDERED re-ask
+/// (EnsureTimer / EnsureRoleTimer) can prefer `preserve_remaining`, in which
+/// case a matching standing schedule is kept exactly as it is and the re-ask
+/// really is free — and where there is nothing to preserve, the declared
 /// fallback restarts it and a TimerResolution says which of the two happened.
 /// The raw shapes keep their original meaning, unchanged and unreinterpreted.
 ///
 /// Published on the ACTIVATION, not on the first beat — a consumer should not
 /// have to wait a nap to learn the service exists. A duplicate or non-newer
-/// activation republishes nothing.
-///
-/// HISTORICAL: before R2A-2 this was published on the service's first beat and
-/// was the system's only first breath, which made a weave loaded after the wind
-/// permanently deaf (measured: probe D — a late `snake-clock` whose tick count
-/// stayed 0 forever). That is fixed at the source now: the latecomer gets its
-/// own activation.
+/// activation republishes nothing. TIMER-04 fixes WHEN it may be published:
+/// never before the continuity decision (docs/laws/timer-laws.md).
 struct TimerReady {
     ZEN_SHAPE(TimerReady, 1);
 };
 
-/// The service's own beat — and, since R2A-2, a CLAIM OF OWNERSHIP rather than
-/// a bare nudge. A beat now carries the activation it belongs to and its place
-/// in that chain, so the service can tell its own next breath from everything
-/// else that might arrive wearing the same shape.
-///
-/// THE LAW THIS ENFORCES:
-///
-///   Every successfully activated Timer incarnation establishes exactly ONE
-///   beat chain. A new activation owns a new chain; stale, duplicate,
-///   replayed, inherited, or foreign Drives cannot establish another.
+/// The service's own beat, and a CLAIM OF OWNERSHIP rather than a bare nudge: a
+/// beat carries the activation it belongs to and its place in that chain, so
+/// the service can tell its own next breath from everything else that might
+/// arrive wearing the same shape. That is what makes TIMER-01 — one beat chain
+/// per activated incarnation — enforceable rather than hoped for
+/// (docs/laws/timer-laws.md).
 ///
 /// A Drive is acted on only when ALL of these hold — anything else is ignored
 /// completely (no nap, no firing, no beat count, no re-wind):
@@ -297,18 +243,12 @@ struct TimerReady {
 /// schema rule paid honestly: `(Drive, 1)` meant "an anonymous nudge" and still
 /// does, forever.
 ///
-/// HISTORICAL, and kept because the audit record depends on it: before R2A-2
-/// the HOST sent the first Drive (the wind) and liveness was accidental —
-/// `zen.ReloadWeave` happened to preserve the chain because the WeaveId
-/// survived, `zen.SwapWeave` killed it because the parked beat's sender was
-/// gone (CapabilityDenied at delivery, sender-death rather than role vacancy),
-/// a stray second Drive seeded a permanent conserved second chain, and a
-/// consumer loaded after the hello was permanently deaf. All four were measured
-/// (the trust-gate audit of 2026-07-26; probes A–D). R2A-2 replaced the
-/// mechanism rather than patching it: **there is no host wind**, and the
-/// substrate behaviour those probes measured has not changed — the old parked
-/// beat is still refused CapabilityDenied on a swap. What changed is that the
-/// successor is ACTIVATED, and authors a new chain of its own.
+/// The four failures that shape closed were MEASURED before it existed, and the
+/// measurements are kept where they can still be run: the four probes of
+/// `tests/test_audit_probes.cpp`, whose header maps each one to the proof it
+/// has become. The substrate behaviour they recorded is unchanged — a parked
+/// beat is still refused CapabilityDenied on a swap — and what changed is above
+/// it: there is no host wind, and the successor authors a chain of its own.
 struct Drive {
     std::string activation_sender;      ///< canonical decimal of the activating sender's WeaveId
     std::int64_t activation_sequence = 0;
@@ -317,7 +257,7 @@ struct Drive {
               ZEN_FIELD(serial));
 };
 
-// ---- continuity: the order, and the receipt (R2B-0) -------------------------
+// ---- continuity: the order, and the receipt ---------------------------------
 //
 // THE FIRST CONFIGURATION ORDER IN ZEN, AND IT IS PACKAGE-LOCAL ON PURPOSE.
 // This is not a universal negotiation framework and must not become one. It is
@@ -467,7 +407,7 @@ struct TimerResolution {
     ZEN_SHAPE(TimerResolution, 1, ZEN_FIELD(id), ZEN_FIELD(resolved), ZEN_FIELD(reason));
 };
 
-// ---- the letter: what the Timer offers its successor (R2B-0) ----------------
+// ---- the letter: what the Timer offers its successor ------------------------
 //
 // The Loom's cooperative handoff (zen/weave/lifecycle.hpp) supplies the
 // replacement moment and transports the envelope; the CONTENTS are this
@@ -569,15 +509,15 @@ inline constexpr std::size_t kMaxDeferredOps = 32;
 
 /// The correlation the service puts on its one claim per activation.
 ///
-/// PUBLISHED ON PURPOSE, and the reason is the whole shape of R2B-1. This number
-/// is not a secret and was never capable of being one: any weave can watch it on
-/// the bus, and before R2B-1 knowing it was most of what an impersonator needed
-/// to answer a claim the heir could not otherwise authenticate. It is a
-/// CONVERSATION LABEL — it says which of this weave's asks an answer belongs to
-/// — and nothing else. What makes an answer trustworthy is Loom's attestation
+/// PUBLISHED ON PURPOSE. This number is not a secret and is not capable of
+/// being one: any weave can watch it on the bus. It is a CONVERSATION LABEL —
+/// it says which of this weave's asks an answer belongs to — and nothing else.
+/// What makes an answer trustworthy is Loom's attestation
 /// (`Mail::answers_ask()`), which no payload, correlation or role name can
 /// produce. Writing the number down here keeps that division honest, and lets
-/// the suite forge with everything the threat model grants.
+/// the suite forge with everything the threat model grants: knowing the
+/// correlation is most of what an impersonator would need against a claim the
+/// attestation did not cover.
 inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 
 /// The bootstrap length: how many of its own beats a fresh incarnation spends
@@ -589,7 +529,7 @@ inline constexpr std::uint64_t kClaimCorrelation = 0x71E5;
 /// spin, and no permanent dependency on a steward existing at all.
 inline constexpr std::int64_t kBootstrapBeats = 2;
 
-// ---- prepared replacement: the preparation conversation (R2B-3c) ------------
+// ---- prepared replacement: the preparation conversation ---------------------
 //
 // THE PROBLEM THIS SOLVES, and it is the one an ordinary graceful handoff does
 // not have. A graceful replacement is a single ceremony: the incumbent is asked
@@ -613,10 +553,11 @@ inline constexpr std::int64_t kBootstrapBeats = 2;
 //
 // Nothing in this vocabulary asks the incumbent for anything before that moment,
 // and nothing here is said to the incumbent at all — the letter it eventually
-// writes is the SAME `zen.PrepareShutdown` -> `TimerHandoff` exchange R2B-0
-// defined, unchanged, so there is exactly one interpretation of schedule
-// progress in this package. What is new is only what a CANDIDATE is told before
-// it is admitted, and where it looks for its letter afterwards.
+// writes is the SAME `zen.PrepareShutdown` -> `TimerHandoff` exchange the
+// graceful path uses, so there is exactly one interpretation of schedule
+// progress in this package. The shapes below add only what a CANDIDATE is told
+// before it is admitted, and where it looks for its letter afterwards. Both
+// paths, side by side: docs/reference/timer-continuity.md.
 
 /// What a candidate is asked to be ready for.
 ///
