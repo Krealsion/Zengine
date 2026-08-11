@@ -113,9 +113,12 @@ the tests themselves pass
 - **Documentation references are checked too** (`doc_links`, kind `script` — the
   one entry that reads the source tree rather than a build). Every relative link
   in a current-facing `*.md` and its `#anchor`, plus every repository-relative
-  `docs/...md` path written in a first-party C/C++ comment under any package
+  `*.md` path written in a first-party C/C++ comment under any package
   directory or `tests/`, must resolve — a broken one is a RED in the official
-  lane. A comment's reference is resolved against the **repository root**,
+  lane. `docs/reference/foo.md` is the usual form, but the check is not limited
+  to `docs/`: `README.md#surface--the-surface-package` is checked, anchor and
+  all, which is what makes a README section a citable owner. A comment's
+  reference is resolved against the **repository root**,
   because a comment moves with its code. Excluded by written rule:
   `docs/history/` (frozen), `reference/` (the pre-Zen quarry), vendored and build
   trees. A reference above the repository root — including anything under
