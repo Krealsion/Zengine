@@ -97,8 +97,13 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~2,450) are evidence to report. They are **not** a
-  population, never an acceptance oracle, and not coverage.
+- Assertion totals (~16,400 over the seven doctest suites, SDL lane, measured
+  2026-08-11) are evidence to report. They are **not** a population, never an
+  acceptance oracle, and not coverage. The figure is configuration-dependent —
+  the two gated suites carry fewer cases where SDL is off — so it travels with
+  the lane it was measured on, and it is dated because nothing enforces it: no
+  contract file holds assertion counts, and a phase that adds a case moves this
+  number without anything noticing.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so the Windows lane's `-DZENGINE_SDL_SKIN=OFF`
