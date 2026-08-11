@@ -601,17 +601,18 @@ TEST_CASE("plan: death tints the window, the food sentinel plans no food, the ti
 }
 
 // ============================================================================
-// Tier 2c — the SDL canvas plan: labels reach pixels (G-0 / P8)
+// Tier 2c — the SDL canvas plan: labels reach pixels
 // ============================================================================
 //
 // The whole label path is here rather than behind SURFACE_HAS_SDL on purpose.
 // `plan_canvas` is the only place that knows a label from a rect -- the SDL edge
 // receives one flat quad list -- so these cases are what stands between the
-// medium and P8, and they must run on every lane, including the Windows stranger
-// lane that builds no SDL at all.
+// medium and "rectangles drawn, labels dropped", and they must run on every
+// lane, including the Windows stranger lane that builds no SDL at all.
 //
-// The first case belongs to BOTH media: G-0 found the terminal Skin's clipping
-// unsafe while writing this one's, so the guard is shared and so is its proof.
+// The first case belongs to BOTH media: the terminal Skin's clipping was found
+// unsafe while this one's was written, so the guard is shared and so is its
+// proof.
 
 namespace {
 
@@ -717,7 +718,7 @@ std::string tui_row(const SurfaceCanvas& c, std::size_t row) {
 } // namespace
 
 TEST_CASE("canvas: a published coordinate cannot overflow or outrun the canvas") {
-    // FOUND BY G-0 IN COMMITTED CODE, in the TERMINAL Skin, and both halves were
+    // FOUND IN COMMITTED CODE, in the TERMINAL Skin, and both halves were
     // reachable from data alone -- a canvas is a ZEN_SHAPE, so its numbers come
     // from whoever published it.
     //
@@ -764,7 +765,7 @@ TEST_CASE("canvas plan: a label reaches pixels, in the cell the publisher named"
     c.labels.push_back(SurfaceLabel{2, 1, "AB", role::kFill});
     const Raster r(c);
 
-    // THE P8 CASE. Ink exists where the label was published and nowhere else on
+    // THE LABELS-REACH-PIXELS CASE. Ink exists where the label was published and nowhere else on
     // that row -- if the medium ever drops labels again, every one of these
     // counts goes to zero.
     CHECK(r.ink_in_cell(2, 1) > 0);
@@ -881,7 +882,7 @@ TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing els
 }
 
 TEST_CASE("canvas plan: a byte with no glyph is SEEN, never dropped") {
-    // P8 at character granularity is the thing this policy exists to refuse: a
+    // A dropped label at character granularity is what this policy refuses: a
     // character that silently disappears is invisible to the publisher, so an
     // unsupported byte draws a box instead.
     SurfaceCanvas c = canvas_of(6, 1);
@@ -973,7 +974,7 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
 // ============================================================================
 
 // ============================================================================
-// Tier 2d — where a reported pointer lands on the canvas (G-1)
+// Tier 2d — where a reported pointer lands on the canvas
 // ============================================================================
 //
 // The pixel-to-cell rule and the terminal's canvas origin are BOTH this
@@ -1121,7 +1122,7 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
 }
 
 TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on TimerReady") {
-    // THE BUG THIS EXISTS FOR (R2A-2). These two used to share `hello_once`, so
+    // THE BUG THIS EXISTS FOR. Sharing one `hello_once` between them means
     // a skin whose ask went nowhere (rejected at the library/schema seam, since
     // with no Timer present nobody accepts StartRoleTimer and the shape is
     // never registered) could never retry: the hello was already spent, and
@@ -1225,7 +1226,7 @@ TEST_CASE("the tally survives the painter being replaced (the hello handshake)")
     const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
     CHECK(r.poke(block, loom::PokeRead{"frames"}).text == "0"); // nothing painted yet
 
-    // AND THE TALLY IS ALREADY THERE (R2A-2). The successor does not have to
+    // AND THE TALLY IS ALREADY THERE. The successor does not have to
     // wait for a frame to wake it: its own activation is its first breath, so
     // it announced at load, the score weave heard the hello and re-published,
     // and the line was on screen before anything was drawn. Under the old
@@ -1285,10 +1286,10 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     const loom::WeaveId speaking = loom::mount_granted<Speaker>(r.bus, std::move(reach), spoke);
     r.bus.send(speaking, loom::Message(loom::to_value(SurfaceReady{})));
     r.pump();
-    // The line lands. It lands ONCE, not twice: since R2A-2 the skin said its
-    // hello at its own activation, back when it was loaded — so this text is
-    // not its first message and does not trigger a second hello, and the
-    // speaker has nothing to re-speak to. (Under the old mechanism this read 2
+    // The line lands. It lands ONCE, not twice: the skin said its hello at its
+    // own activation, back when it was loaded — so this text is not its first
+    // message and does not trigger a second hello, and the speaker has nothing
+    // to re-speak to. (With a hello spoken on the first message this reads 2
     // for both, because the skin's hello was still pending here.) The property
     // under test is unchanged and is the whole point: the line lands at all,
     // because the grant carries an any-target SurfaceText rule.
@@ -1353,11 +1354,11 @@ TEST_CASE("linkage pin: load-unload-load across shared vocabulary, no other libr
 }
 
 // ============================================================================
-// Tier 4a — the terminal MODES a Skin claims, including pointer reporting (W-4)
+// Tier 4a — the terminal MODES a Skin claims, including pointer reporting
 // ============================================================================
 
 TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoes enter") {
-    // W-4 §19: a terminal reports a pointer only if something asks it to, in
+    // A terminal reports a pointer only if something asks it to, in
     // band, on the OUTPUT stream -- and the output stream is the Skin's. So
     // pointer reporting is claimed and released on exactly the lifetime that
     // already claims the alternate screen and the cursor, with no coordination
@@ -1415,8 +1416,8 @@ TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoe
     // HONEST LIMIT, asserted as prose because it cannot be asserted as code: a
     // process killed uncatchably restores nothing, and a terminal left in
     // reporting mode prints mouse escapes at its shell until `reset`. That is
-    // the same exposure the alternate screen has always carried; W-4 adds one
-    // more mode to it and does not pretend otherwise.
+    // the same exposure the alternate screen has always carried, with one more
+    // mode on it, and nothing here pretends otherwise.
     CHECK(kTuiPointerOn == std::string("\x1b[?1002h\x1b[?1006h"));
     CHECK(kTuiPointerOff == std::string("\x1b[?1006l\x1b[?1002l"));
 }
@@ -1432,7 +1433,7 @@ namespace {
 /// fd-2 recorder: what a Skin said on stderr while this object was alive.
 ///
 /// Hush's twin, pointed at the other stream and keeping what it catches. It
-/// exists because P32's whole content is that a failure is now SAID, and the
+/// exists because the claim is that a failure is SAID, and the
 /// only honest way to assert "said" is to read what came out of the process.
 class Caught {
 public:
@@ -1508,12 +1509,12 @@ void choose_video_driver(const char* name) {
 } // namespace
 
 TEST_CASE("a Skin that cannot open its surface SAYS SO, in SDL's own words") {
-    // P32, asserted rather than described. The V1 posture was "politely dark":
+    // Asserted rather than described. "Politely dark" is the tempting posture:
     // SDL_Init fails, the medium disables itself, every frame after that is
     // consumed and nothing is ever shown -- a correct degradation and a terrible
-    // diagnosis. G-0 spent real time on it, because on this machine's WSL the
-    // fetched SDL3 has only the dummy and offscreen drivers and the only symptom
-    // available was "no window".
+    // diagnosis. Real time has been spent on it, because on this machine's WSL
+    // the fetched SDL3 has only the dummy and offscreen drivers and the only
+    // symptom available was "no window".
     //
     // The failure is FORCED, not waited for: a video driver that does not exist
     // is a real SDL_Init failure with a real SDL_GetError() behind it, and it
@@ -1549,8 +1550,8 @@ TEST_CASE("a Skin that cannot open its surface SAYS SO, in SDL's own words") {
 
     // And the medium is still a good citizen about it: the weave loaded, holds
     // the role, and consumes intent without a window rather than taking the
-    // process down. Politely dark is still the right DEGRADATION; what P32 was
-    // about is that it used to be a silent one.
+    // process down. Politely dark is still the right DEGRADATION; what this case
+    // is about is that it must not be a silent one.
     Hush hush;
     r.intent(skin, SurfaceText{kSlotStatus, "still running"});
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1");

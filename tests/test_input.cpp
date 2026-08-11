@@ -349,9 +349,9 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the intended schemas exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
 
-    // W-4 changed this contract deliberately and says so here rather than in a
-    // report only: the keys went to v2 (they gained `modifiers` — same concept,
-    // one more fact), and the three pointer shapes are NEW NAMES at v1 because
+    // The contract changed deliberately, and says so here rather than in a report
+    // only: the keys are at v2 (they gained `modifiers` — same concept, one more
+    // fact), and the three pointer shapes are NEW NAMES at v1 because
     // they are not the old shapes with fields bolted on. `MouseButton` named a
     // field; `PointerButton` names a moment. Renaming makes the break a compile
     // error at every accept-list instead of a message that silently stops being
@@ -525,8 +525,8 @@ TEST_CASE("terminal: EDITING CONTROLS are keys and are never text") {
 }
 
 TEST_CASE("terminal: `%` arrives as TEXT and nobody computes Shift+5") {
-    // P4's headline, and the reason Workshop had to commit `70p` for three
-    // phases. The terminal has already applied the layout: the byte IS the
+    // The headline, and the reason a scancode vocabulary makes `70p` a workaround
+    // worth committing. The terminal has already applied the layout: the byte IS the
     // answer, and this package refuses to invent a key identity it cannot know.
     auto ev = term("%");
     CHECK(typed(ev) == "%");
@@ -543,7 +543,7 @@ TEST_CASE("terminal: `%` arrives as TEXT and nobody computes Shift+5") {
     CHECK(codes[0] == scan::k7);
     CHECK(codes[1] == scan::k0);
 
-    // The other characters W-0 listed as unreachable.
+    // The other characters a scancode alone cannot reach.
     CHECK(typed(term("@")) == "@");
     CHECK(typed(term("Panel")) == "Panel");
     CHECK(typed(term("A")) == "A");
@@ -855,12 +855,12 @@ TEST_CASE("win32 pointer: every record's own position and modifiers, deltas that
     CHECK(as<PointerWheel>(ev, 0).dy == 0.0);
 }
 
-// ---- What a drag asks of this vocabulary, and now GETS  (the two W-2 probes, flipped) ----
+// ---- What a drag asks of this vocabulary, and GETS (two pins, deliberately flipped) ----
 //
-// W-2 left two cases here that pinned CURRENT behaviour rather than desired
-// behaviour, so that "the Input phase that fixes either one has to come and
-// delete a test on purpose, rather than discovering afterwards that something
-// depended on the loss." This is that phase, and these are those two cases,
+// These two cases once pinned CURRENT behaviour rather than desired behaviour,
+// so that "the Input phase that fixes either one has to come and delete a test
+// on purpose, rather than discovering afterwards that something depended on the
+// loss." They are those two cases,
 // rewritten to assert the repair in the same words that described the defect.
 
 TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES THE WIRE") {
@@ -875,9 +875,9 @@ TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES T
     REQUIRE(ev.size() == 1);
     CHECK(as<PointerMoved>(ev, 0).x == 10);
 
-    // A press 32 cells away, with no intervening move record. W-2's consumer
-    // answered 10,5 for this click. The message answers 42,7 -- because that is
-    // what the platform said.
+    // A press 32 cells away, with no intervening move record. A consumer
+    // reconstructing from the last motion answers 10,5 for this click. The
+    // message answers 42,7 -- because that is what the platform said.
     ev = win32_mouse_to_events(track, 42, 7, win32::kButtonLeft, 0, 0);
     REQUIRE(ev.size() == 1);
     const PointerButton& press = as<PointerButton>(ev, 0);
@@ -888,8 +888,9 @@ TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES T
 
     // And the STALENESS is gone at its root, not merely routed around: a
     // button-only record advances the tracker too, so the next move's delta is
-    // measured from where the pointer actually was. W-2 measured 33 here (43-10,
-    // spanning right across the press); the honest answer is 1.
+    // measured from where the pointer actually was. A tracker that skipped the
+    // press measures 33 here (43-10, spanning right across it); the honest
+    // answer is 1.
     ev = win32_mouse_to_events(track, 43, 7, win32::kButtonLeft, win32::kMouseMoved, 0);
     REQUIRE(ev.size() == 1);
     CHECK(as<PointerMoved>(ev, 0).dx == 1); // 43 - 42, not 43 - 10
@@ -897,8 +898,8 @@ TEST_CASE("win32 pointer: a button record knows where it happened, AND SO DOES T
 }
 
 TEST_CASE("pointer moments: an event-time position is not the LAST position") {
-    // The failure W-2 had to live with, recreated explicitly (§33) and shown to
-    // be unreachable through the new messages: a press at A, motion afterwards
+    // The failure a reconstruction has to live with, recreated explicitly and
+    // shown to be unreachable through these messages: a press at A, motion afterwards
     // to B, and the press event still says A. A consumer that reads the press
     // cannot get B by accident, because the press is not asking anybody.
     PointerTrack track;
@@ -936,8 +937,8 @@ TEST_CASE("pointer moments: an event-time position is not the LAST position") {
 TEST_CASE("terminal: THE CANONICAL LANE HAS A POINTER, and a report is not keystrokes") {
     // Was: "the canonical lane has no pointer, and a mouse report is keystrokes."
     //
-    // W-2's version fed exactly these bytes and counted NINE keystrokes coming
-    // out, one of them `[` -- the key Workshop binds to "narrow the workspace".
+    // A parser with no SGR support fed exactly these bytes counts NINE keystrokes
+    // coming out, one of them `[` -- the key Workshop binds to "narrow the workspace".
     // So a single click on a terminal that had been asked to report one would
     // silently have resized a maker's workspace.
     const auto ev = term("\x1b[<0;10;5M"); // "left button pressed at column 10, row 5"
@@ -1160,7 +1161,7 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 }
 
 // ============================================================================
-// Tier 2e — SDL, as pure translation (G-1)
+// Tier 2e — SDL, as pure translation
 // ============================================================================
 //
 // The same discipline the Win32 paths get: no SDL headers here, so the WSL lane
@@ -1239,7 +1240,7 @@ TEST_CASE("sdl: an auto-repeat is a PRESS, because the wire has no other word fo
 }
 
 TEST_CASE("sdl: `%` is the platform's own text, and no key was consulted to get it") {
-    // The third backend to answer P4's question, and the easiest of the three:
+    // The third backend to answer the character question, and the easiest:
     // SDL_EVENT_TEXT_INPUT is already UTF-8 the platform committed, through the
     // active layout, dead keys and IME. There is nothing to decode.
     std::vector<SdlEvent> e = sdl_text_to_events("%");
@@ -1307,8 +1308,8 @@ TEST_CASE("sdl: a pointer moment claims NO modifiers, because SDL states none") 
     // Measured, not assumed: SDL_MouseMotionEvent, SDL_MouseButtonEvent and
     // SDL_MouseWheelEvent carry no modifier field at all (SDL 3.4.12). The only
     // way to produce one is SDL_GetModState(), which reads CURRENT keyboard
-    // state at some later instant -- exactly the reconstruction W-2 and W-4 paid
-    // to remove from the pointer path.
+    // state at some later instant -- exactly the reconstruction this vocabulary
+    // exists to remove from the pointer path.
     //
     // So a clear bit here means what the vocabulary says it means: "nothing this
     // backend can see was held". A shift-click is not expressible on this
@@ -1563,13 +1564,13 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     (void)loom::mount<Ears>(bus, heard);
     std::vector<BeatAsk> asks;
     (void)mount_into_role<BeatCatcher>(bus, zengine::timer::kTimerRole, asks);
-    // R2B-1: a first breath is Loom's to grant. The suite activates through a
-    // real lifecycle operator holding a real authority, because that is the only
-    // way a weave can be activated at all now — hand-posting the public shape
-    // is exactly the forgery the attestation refuses.
+    // A first breath is Loom's to grant. The suite activates through a real
+    // lifecycle operator holding a real authority, because that is the only way a
+    // weave can be activated at all — hand-posting the public shape is exactly
+    // the forgery the attestation refuses.
     const loom::WeaveId door = zengine::testing::mount_door(bus);
 
-    // ITS OWN ACTIVATION is its first breath (R2A-2): the weave asks for ITS
+    // ITS OWN ACTIVATION is its first breath (TIMER-02): the weave asks for ITS
     // beat, wire content pinned field by field. This is the trigger that makes
     // load order stop mattering — loaded long after the Timer, it still asks.
     zengine::testing::order_activation(bus, door, weave, 1);
@@ -1579,7 +1580,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     CHECK(asks[0].delay_ms == kPumpBeatMs);
     CHECK(asks[0].repeat);
     CHECK(asks[0].role == kInputRole);
-    // The ORDER travels with the ask (R2B-0): this weave prefers to keep the
+    // The ORDER travels with the ask (TIMER-03): this weave prefers to keep the
     // remaining time across a Timer succession, and accepts a restart when there
     // is nothing to keep.
     CHECK(asks[0].preferred == zengine::timer::kPreserveRemaining);
@@ -1684,11 +1685,11 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through the real 
 }
 
 // ============================================================================
-// Tier 5 — the REAL SDL event queue, through the real weave library (G-1)
+// Tier 5 — the REAL SDL event queue, through the real weave library
 // ============================================================================
 //
 // Everything above is pure translation or a scripted reader. This is the claim
-// neither of those can make, and it is G-1's central architectural claim:
+// neither of those can make, and it is the SDL reader's central one:
 //
 //     THIS TEST PROCESS PUSHES EVENTS INTO SDL, AND A SEPARATELY dlopen'ED
 //     WEAVE LIBRARY POLLS THEM OUT.
@@ -1852,8 +1853,8 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     // THE ONE-OWNER PROPERTY, asserted directly and with the exact interleaving
     // that used to break it.
     //
-    // Before G-1 the SDL Skin drained the whole queue every 10ms and dropped it.
-    // That was correct for an output-only medium and is the single most
+    // A Skin draining the whole queue every 10ms and dropping it is correct for
+    // an output-only medium and is the single most
     // destructive thing it could do now, because SDL_PollEvent REMOVES what it
     // returns: a Skin that keeps calling it is not a second poller, it is a
     // thief. The Skin's `pump()` is empty now, and this case runs a real Skin

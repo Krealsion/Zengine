@@ -217,8 +217,8 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     // CLIPPED BEFORE ITERATING. `put` already refuses every cell off the canvas,
     // so the visible picture is the same either way -- but a canvas is a
     // ZEN_SHAPE, so `r.w` is a number a publisher chose, and walking it was the
-    // publisher deciding how long this Skin runs. G-0 measured both halves of
-    // that: a rect 100,000,000 cells wide on a 4x2 canvas cost 75 ms to produce
+    // publisher deciding how long this Skin runs. Both halves of that were
+    // measured: a rect 100,000,000 cells wide on a 4x2 canvas cost 75 ms to produce
     // 38 bytes, and `r.x + dx` at the top of the number line was signed overflow
     // (UBSan, on committed code -- no test fed it such a canvas, so the standing
     // lane had nothing to catch). Both are gone by asking surface/cells.hpp for
@@ -327,7 +327,7 @@ private:
 /// The terminal modes a TUI Skin claims, as bytes — pure, so the claim is a
 /// value a suite can read rather than a side effect only a live terminal sees.
 ///
-/// WHO OWNS POINTER REPORTING (W-4 §19, decided here). A terminal reports a
+/// WHO OWNS POINTER REPORTING, decided here. A terminal reports a
 /// pointer only if something asks it to, in-band, on the OUTPUT stream. The
 /// output stream is the Skin's — it already claims the alternate screen and the
 /// cursor and gives them back — so pointer reporting is claimed and released on

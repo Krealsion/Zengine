@@ -19,9 +19,9 @@
 //
 // WHY IT MAY POLL AND THE SKIN MAY NOT. SDL has one process-global event queue
 // and SDL_PollEvent REMOVES what it returns, so two components polling it steal
-// from each other. Before G-1 the SDL Skin drained that queue every 10ms and
-// threw everything away — correct for an output-only medium, fatal for an ear.
-// The Skin's `pump()` is now empty and this is the only code in the process
+// from each other. A Skin that drained that queue every 10ms and threw
+// everything away would be correct for an output-only medium and fatal for an
+// ear. The Skin's `pump()` is empty and this is the only code in the process
 // that touches the queue. Servicing the OS conversation for the Skin's window
 // comes free with the same call: SDL_PollEvent pumps the platform's own queue
 // on the way past, on this weave's own 10ms beat, which is the cadence the

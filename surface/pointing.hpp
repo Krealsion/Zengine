@@ -19,14 +19,12 @@
 //   pixels per cell (skin_sdl_plan.hpp's `canvas_window_size` / `plan_canvas`),
 //   because a window title carries the SurfaceText slots instead
 //
-// Before G-1 the first of those lived in `workshop/screen.hpp`, as a Workshop
-// constant called `kCanvasTopRow` — one application holding one Skin's layout
-// number, correct only for as long as Workshop had one medium. The moment a
-// second medium reported a pointer, that copy was simply wrong for it: two
-// pixels down the SDL window is canvas row 0, not canvas row -2. So the numbers
-// come home to the package that authors them, and the application keeps only
-// the composition that is genuinely its own (where its workspace sits ON the
-// canvas).
+// An application holding one Skin's layout number is correct only for as long as
+// it has one medium: two pixels down the SDL window is canvas row 0, not canvas
+// row -2. So the numbers live with the package that authors them, and a consumer
+// keeps only the composition that is genuinely its own (where its workspace sits
+// ON the canvas). The three spaces and who owns each boundary are
+// docs/reference/pointer-spaces.md.
 //
 // WHAT IS DELIBERATELY NOT HERE. There is no registry, no transform graph, no
 // presentation-context query and no dispatch on a backend identity. Two media
@@ -41,9 +39,9 @@
 // true: `canvas_of_window_pixels` describes THE graphical Skin that exists
 // today — the canvas at the window's origin, no margin, no scaling, one cell
 // every kCanvasCellPx pixels. A second graphical Skin with a different layout
-// would need its own function and a way for a consumer to tell them apart, and
-// that is the day the capability-context question (P18) actually has to be
-// answered rather than deferred.
+// would need its own function and a way for a consumer to tell them apart, which
+// is the open seam docs/reference/pointer-spaces.md states so that the day it
+// fires is recognisable.
 
 #include "cells.hpp"
 #include "vocabulary.hpp"

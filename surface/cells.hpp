@@ -9,16 +9,15 @@
 // A `SurfaceCanvas` is a ZEN_SHAPE: every coordinate in one arrives from the wire
 // or from a poke, so a Skin's clipping arithmetic runs on values a publisher
 // chose and not on values an application computed. That is the input domain this
-// header exists for, and it is the P11 shape stated once instead of learned again
-// per Skin — a helper shared between media inherits the widest domain of any of
-// them, so it is written total rather than written for the values Workshop
-// happens to send.
+// header exists for, stated once instead of learned again per Skin — a helper
+// shared between media inherits the widest domain of any of them, so it is
+// written total rather than written for the values Workshop happens to send.
 //
 // Two Skins rasterize a canvas (the terminal's `canvas_body`, the SDL plan's
 // `plan_canvas`) and both need the same two facts: a sum that cannot leave the
 // number line, and a span already clipped to the canvas so neither the loop nor
-// the pixel multiply that follows it can run away. G-0 found both defects live in
-// the terminal Skin, so the answer is one rule in one place rather than two
+// the pixel multiply that follows it can run away. Both defects were found live
+// in the terminal Skin, so the answer is one rule in one place rather than two
 // copies that agree today.
 
 #include <cstdint>

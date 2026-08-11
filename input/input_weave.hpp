@@ -14,7 +14,7 @@
 // says so once, in its own file.
 //
 // The weave is INDIFFERENT to what a poll contains: it publishes whatever the
-// reader hands back, by shape. That is why W-4 changed the vocabulary without
+// reader hands back, by shape. That is why the vocabulary can change without
 // changing a line of the pumping below — the moment a backend preserves is the
 // reader's business, and delivering it is this weave's.
 //
@@ -65,11 +65,11 @@ using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll(
 
 /// That variant's alternatives, as the weave's Emit set.
 ///
-/// G-1 DERIVED THIS INSTEAD OF SPELLING IT, and the reason is written a few
-/// lines up in this file's own header: "The weave is INDIFFERENT to what a poll
-/// contains: it publishes whatever the reader hands back, by shape." The Emit
-/// list was the one place that was not indifferent — six shapes, hard-coded,
-/// true of the two readers that existed.
+/// DERIVED AND NOT SPELLED, and the reason is written a few lines up in this
+/// file's own header: "The weave is INDIFFERENT to what a poll contains: it
+/// publishes whatever the reader hands back, by shape." A hard-coded Emit list
+/// would be the one place that was not indifferent — true of the readers that
+/// happened to exist when it was written, and silently wrong for the next one.
 ///
 /// The SDL reader broke that. SDL carries window LIFECYCLE and input on one
 /// process-global queue, so the weave that owns the queue is the only thing

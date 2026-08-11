@@ -9,9 +9,9 @@
 // different claim, and the only honest way to make it is to write the violation
 // and read the compiler's refusal.
 //
-// (This is the one place W-1 came out ahead of the Loom implementation it did
-// not relocate: loom::Widget carries the same kind of fence and nothing in the
-// Loom tree ever asks it to fire.)
+// (loom::Widget carries the same kind of fence, and nothing in the Loom tree
+// ever asks it to fire -- so this is the one place such a fence is proven to
+// refuse rather than merely declared.)
 //
 // One source, three cases, selected by ZENGINE_CN_CASE, so the positive control
 // and the two refusals share every line except the thing under test — a build

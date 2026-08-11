@@ -8,10 +8,10 @@
 //
 // WHY THIS EXISTS AT ALL. `SurfaceLabel` has always carried text over a canvas;
 // the terminal skins draw it because a terminal already owns a font, and the SDL
-// skin dropped every one of them because a window does not. That hole (P8) is
-// what made the graphical Workshop unreadable: object names, the inspector, the
-// notice line, the help and the resize handle are ALL labels, so the medium was
-// rendering the furniture and none of the meaning.
+// skin has no font. A medium that dropped every label would make the graphical
+// Workshop unreadable: object names, the inspector, the notice line, the help
+// and the resize handle are ALL labels, so it would render the furniture and
+// none of the meaning.
 //
 // WHY IT IS DATA IN A HEADER AND NOT A FONT DEPENDENCY. Three properties decided
 // it, and none of them is aesthetic:
@@ -25,7 +25,7 @@
 //   - it is deliberately too small to grow into a typography system. There is no
 //     size, no family, no fallback and no layout here: one bitmap, one cell.
 //
-// It is a debug-grade face and it is meant to be. G-0's success condition is that
+// It is a debug-grade face and it is meant to be. The success condition is that
 // a person can READ the graphical Workshop, not that the type is good.
 //
 // THE METRIC. A glyph is six columns by six rows, drawn at `kGlyphScale` device
@@ -41,8 +41,8 @@
 // `std::string` and may hold any byte, so anything outside that range — a control
 // character, or any byte of a multi-byte UTF-8 sequence — renders as the visible
 // `kUnknownGlyph` box. It is never dropped. A character that silently disappears
-// would be P8 again at character granularity, which is the one outcome this file
-// exists to prevent.
+// would be the labels-vanish defect again at character granularity, which is the
+// one outcome this file exists to prevent.
 
 #include <cstdint>
 

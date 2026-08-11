@@ -9,9 +9,8 @@
 // were added to any intent to make this medium work — that absence is the
 // phase's agnosticism proof.
 //
-// G-0 gave the canvas its labels. `SurfaceLabel` used to arrive here and go
-// nowhere, because a window owns no font the way a terminal does; the medium
-// now draws each label byte from a cell-sized bitmap the plan owns. What it
+// THIS MEDIUM DRAWS LABELS. A window owns no font the way a terminal does, so
+// each label byte is drawn from a cell-sized bitmap the plan owns. What it
 // promises is exactly printable ASCII — see skin_sdl_glyphs.hpp, which also
 // says what any other byte draws instead of vanishing.
 //
@@ -23,18 +22,17 @@
 //
 // Degrades gracefully with no display: SDL_Init fails, the medium stays
 // disabled, frames are consumed and counted with nothing to show them on
-// (the Input reader's posture, pointed at output) — and since G-1 it SAYS SO,
-// with SDL's own reason, instead of going quietly dark (P32). Under SDL's
-// dummy driver (the headless suite) everything below runs for real except
-// photons.
+// (the Input reader's posture, pointed at output) — and it SAYS SO, with SDL's
+// own reason, instead of going quietly dark. Under SDL's dummy driver (the
+// headless suite) everything below runs for real except photons.
 //
-// G-1 MADE THE WINDOW AN EAR, and the three things that changed here are all
-// consequences of one architectural fact: SDL has ONE process-global event
-// queue, and after G-1 it has ONE owner — the SDL Input reader (input/).
+// THE WINDOW IS AN EAR, and three things here are consequences of one
+// architectural fact: SDL has ONE process-global event queue, and it has ONE
+// owner — the SDL Input reader (input/).
 //
-//   - THIS MEDIUM NO LONGER TOUCHES THE QUEUE. `pump()` used to drain it and
-//     drop everything, which was the honest posture for an output-only V1 and
-//     is exactly wrong now: every key, click and close request the reader
+//   - THIS MEDIUM DOES NOT TOUCH THE QUEUE. A `pump()` that drained it and
+//     dropped everything would be the honest posture for an output-only medium
+//     and is exactly wrong here: every key, click and close request the reader
 //     exists to hear would be swallowed here first. It does not poll, it does
 //     not peek, it does not filter. Servicing the window is now a side effect
 //     of the reader's own poll, on the reader's own beat — the same 10ms
@@ -76,13 +74,13 @@ namespace {
 
 using namespace zengine::surface;
 
-/// What went wrong, in SDL's own words, on plain stderr (P32).
+/// What went wrong, in SDL's own words, on plain stderr.
 ///
 /// The V1 posture was "politely dark": SDL_Init fails, `ok_` goes false, every
 /// frame after that is consumed and nothing is ever shown. It is a correct
-/// degradation and a terrible diagnosis — G-0 spent real time on a WSL whose
-/// fetched SDL3 has only the dummy and offscreen video drivers, and the only
-/// symptom available was "no window". A surface that cannot exist should say
+/// degradation and a terrible diagnosis — real time has been spent on a WSL
+/// whose fetched SDL3 has only the dummy and offscreen video drivers, where the
+/// only symptom available was "no window". A surface that cannot exist should say
 /// why it cannot exist.
 ///
 /// stderr, not a SurfaceText: the most likely thing to have failed is the
@@ -100,8 +98,8 @@ void complain(const char* what) {
 /// Give back this weave's claim on SDL, and turn the lights off if nobody else
 /// is still in the room.
 ///
-/// SDL_Quit alone would be wrong: since G-1 the SDL Input reader holds the same
-/// subsystem in the same process, and SDL_Quit shuts everything down regardless
+/// SDL_Quit alone would be wrong: the SDL Input reader holds the same subsystem
+/// in the same process, and SDL_Quit shuts everything down regardless
 /// of who is still using it — a Skin swap would deafen the reader.
 /// SDL_QuitSubSystem alone is wrong in the other direction, and MEASURED so: it
 /// releases the subsystem and leaves SDL's own global state allocated, which the
@@ -172,9 +170,9 @@ public:
     ///
     /// `plan_canvas` hands back the rectangles AND the labels as one list of
     /// opaque quads, so there is nothing here that knows what a label is. That
-    /// is the whole shape of G-0's answer to P8: this medium used to loop over
-    /// `c.rects` and never read `c.labels`, and the fix was not to add a second
-    /// loop it could lose again — it was to leave the edge with no second thing
+    /// is the whole shape of the answer to "rectangles drawn, labels dropped":
+    /// looping over `c.rects` and never reading `c.labels` is a mistake a second
+    /// loop could make again — so the edge has no second thing
     /// to draw. What a glyph looks like, where it lands and what happens to a
     /// byte with no glyph are all decided in skin_sdl_plan.hpp / skin_sdl_glyphs.hpp,
     /// where every lane's suite can read them, SDL built or not.
@@ -211,10 +209,10 @@ public:
         }
     }
 
-    /// EMPTY, AND THAT IS THE POINT (G-1).
+    /// EMPTY, AND THAT IS THE POINT.
     ///
-    /// This used to be `while (SDL_PollEvent(&ev)) {}` — drain the queue and
-    /// drop it — which was the honest thing for an output-only medium and is the
+    /// `while (SDL_PollEvent(&ev)) {}` — drain the queue and drop it — is the
+    /// honest thing for an output-only medium and is the
     /// single most destructive thing it could do now. SDL_PollEvent REMOVES what
     /// it returns, so a skin that keeps calling it is not merely a second poller,
     /// it is a thief: every key, click and close request would vanish here
@@ -238,8 +236,9 @@ private:
             return false;
         }
         if (window_ == nullptr) {
-            // No flags. It was SDL_WINDOW_NOT_FOCUSABLE until G-1 — see the
-            // header — and it is deliberately NOT SDL_WINDOW_RESIZABLE: the
+            // No flags. Not SDL_WINDOW_NOT_FOCUSABLE, because this window is an
+            // ear as well as a surface — see the header — and deliberately NOT
+            // SDL_WINDOW_RESIZABLE: the
             // window is still exactly the canvas, and what a resizable graphical
             // Workshop should mean is a question nobody has evidence for yet.
             window_ = SDL_CreateWindow(title_of(status_, score_).c_str(),

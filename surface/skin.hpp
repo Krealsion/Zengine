@@ -152,8 +152,8 @@ private:
     /// Which is exactly why TimerReady is still load-bearing: this weave cannot
     /// tell that its ask evaporated, so something has to tell it to try again.
     ///
-    /// SEPARATE FROM THE HELLO ON PURPOSE (R2A-2), and the bug that forced it is
-    /// worth keeping named: these two used to share `hello_once`, so a skin that
+    /// SEPARATE FROM THE HELLO ON PURPOSE, and the bug that forces it is worth
+    /// keeping named: sharing one `hello_once` between them means a skin that
     /// activated BEFORE any Timer existed said hello, sent an ask that went
     /// nowhere, and then — when the Timer finally appeared and published
     /// TimerReady — returned early from the already-spent hello and never

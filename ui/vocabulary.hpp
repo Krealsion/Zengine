@@ -7,12 +7,11 @@
 // The UI package's AUTHORED side — what a maker says, before anything has
 // decided where it goes.
 //
-// This package exists because W-0 built a maker tool and discovered it was
-// keeping its own private answer to a question every visual Zengine application
-// asks: "the maker authored 60% wide -- how many cells is that, and which object
-// is under this cell?" Workshop answered it in workshop/document.hpp, for its own
-// material only. W-1 moved that answer here, where the next application can have
-// it without inventing a second one.
+// This package exists because every visual Zengine application asks one
+// question: "the maker authored 60% wide -- how many cells is that, and which
+// object is under this cell?" An application that answers it privately, for its
+// own material only, leaves the next one to invent a second answer. The answer
+// is here (README.md#ui--the-authoredresolved-vocabulary).
 //
 // THE ONE DISTINCTION THIS PACKAGE OWNS, and the reason it is two headers:
 //
@@ -33,12 +32,12 @@
 //   - no widget kinds, no stacks, no relational arrangement. An Element says
 //     where it is and how big it is; it does not say "beside" or "inside". The
 //     Loom's loom::Widget is that other, higher thing (intent + RELATIONSHIP,
-//     resolved by a renderer) and it stays where it is -- see W-1-RB for the
-//     measurement that separated the two models.
-//   - no parent/child. W-6 changed what this line MEANS rather than deleting it,
-//     and the difference is the phase. An element may now say what its authored
-//     values are measured AGAINST (`context`, below); it still does not say that
-//     anything CONTAINS it, owns it, clips it, paints it or dies with it. A
+//     resolved by a renderer) and it stays where it is: the two are not
+//     competitors and neither replaces the other.
+//   - no parent/child, and the line means what it says rather than being a
+//     deferral. An element may say what its authored values are measured AGAINST
+//     (`context`, below); it still does not say that anything CONTAINS it, owns
+//     it, clips it, paints it or dies with it. A
 //     source supplies a frame. That is the whole relationship, and parent/child
 //     is one thing an application could BUILD out of it rather than the thing
 //     this vocabulary provides.
@@ -76,8 +75,8 @@ inline constexpr std::int64_t kExtentPercent = 1; ///< a share of the viewport, 
 /// It is one property, not two. A maker does not author a type and then author
 /// a value; they author a width. The historical builder presented "Width Type"
 /// and "Width Value" as separate inspector rows because that is how the two were
-/// STORED, and W-0's refusal to repeat that is the reason this struct exists at
-/// all rather than a bare `std::int64_t width` plus a mode field somewhere else.
+/// STORED. Refusing to repeat that is the reason this struct exists at all
+/// rather than a bare `std::int64_t width` plus a mode field somewhere else.
 struct Extent {
     std::int64_t mode = kExtentCells;
     std::int64_t amount = 0;
@@ -119,9 +118,9 @@ inline constexpr std::int64_t kRootContext = 0;
 /// below makes them impossible to spell as bare numbers.
 ///
 /// AND EVERY ONE OF THOSE FOUR NUMBERS IS MEASURED AGAINST SOMETHING, which is
-/// what `context` finally says out loud. Before W-6 the something was always the
+/// what `context` says out loud. Left unsaid, the something is always the
 /// viewport, implicitly, in one hard-coded line of `resolve` -- an origin of 0,0
-/// and a span of the whole workspace. It is now a value the maker authors:
+/// and a span of the whole workspace. Here it is a value the maker authors:
 ///
 ///     context == kRootContext   x/y are offsets from the root's origin and an
 ///                               extent's share is a share of the root's span.
@@ -158,13 +157,12 @@ struct Element {
 
     friend bool operator==(const Element&, const Element&) = default;
 
-    /// Version 2 since W-6, because a published shape is immutable and this one
-    /// grew a field. The Loom would have caught the disagreement anyway -- a
-    /// content-id is derived from the shape, so two builds spelling `Element v1`
-    /// differently simply fail to agree rather than mis-decoding -- but a
-    /// version that says "the same shape" about a different shape is a lie the
-    /// mechanism does not need told. (`KeyPressed` went 1 -> 2 in W-4 for the
-    /// same reason.)
+    /// Version 2, because a published shape is immutable and this one grew a
+    /// field. The Loom would catch the disagreement anyway -- a content-id is
+    /// derived from the shape, so two builds spelling `Element v1` differently
+    /// simply fail to agree rather than mis-decoding -- but a version that says
+    /// "the same shape" about a different shape is a lie the mechanism does not
+    /// need told. (`input::KeyPressed` is at v2 for the same reason.)
     ZEN_SHAPE(Element, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(context), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(width), ZEN_FIELD(height));
 };

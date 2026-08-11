@@ -291,11 +291,17 @@ every medium. It is a *drawing* vocabulary and pointedly not a layout one — no
 anchors, no percentages; whoever publishes has already decided where things go. A skin treats a
 canvas exactly as a board (same hello, same first-frame flag, same `frames` counter — it is the
 same act), an unknown role paints as `kFill` rather than vanishing, and elements outside the
-extent are the skin's to clip. The **SDL skin cannot draw labels at all** — it has no font
-stack, which is why `SurfaceText` lands in its window *title* — so a canvas whose meaning lives
-in its labels arrives there as rectangles alone.
+extent are the skin's to clip. **Both media draw labels**: a terminal already owns a font, and
+the SDL medium carries its own 6×6 bitmap face (`surface/skin_sdl_glyphs.hpp`), so a canvas
+whose meaning lives in its labels is readable in a window as well as in a terminal. That face is
+deliberately debug-grade and covers printable ASCII 0x20–0x7E and nothing else; any other byte —
+a control character, or any byte of a multi-byte UTF-8 sequence — renders as a visible unknown
+box and is never dropped, because a character that silently disappeared would be the
+labels-vanish defect again at character granularity. `SurfaceText` — the named *slot*
+lines, which are a different shape — still lands in the window's *title*, because the canvas
+occupies the whole window.
 
-W-0 (the Workshop package) is the live consumer that pulled the canvas in. `SnakeVisual`
+The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
 remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
 re-expressing snake's proven frames through the canvas is its own evidence-carrying move, and a
 general shape existing is not permission to migrate a proven one through it.
