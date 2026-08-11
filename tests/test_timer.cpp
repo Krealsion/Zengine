@@ -220,7 +220,7 @@ public:
         case Letters::Answer::Silence:
             return; // the steward that never speaks: the bootstrap must not hang
         case Letters::Answer::Refuse:
-            // ANSWERED, not merely sent (R2B-1). "There is nothing for you" is
+            // ANSWERED, not merely sent. "There is nothing for you" is
             // exactly as load-bearing as a letter — it is what ends the heir's
             // bounded wait — so it carries Loom's word too.
             mail.answer(loom::Refused{"no bequest is held for you"});
@@ -477,8 +477,9 @@ class Witness
                              loom::Emit<>> {
 public:
     explicit Witness(Seen& seen) : seen_(&seen) {}
-    /// THE RULER (R2B-3c). Asking a Timer to describe itself changes nothing in
-    /// its schedule — R2B-0 made that a law of `on(PrepareShutdown)` — so the
+    /// THE RULER. Asking a Timer to describe itself changes nothing in its
+    /// schedule — that is TIMER-03's second MEANS, and a law of
+    /// `on(PrepareShutdown)` — so the
     /// suite uses it as an exact clock read: send one, catch the letter, and
     /// know precisely how much of a standing schedule is left at that instant.
     /// The letter has to be ACCEPTED to be seen, because the tap carries a
@@ -564,10 +565,10 @@ struct Rig {
     /// The beat watchdog: the one pump lever that works on BOTH sides of the
     /// clock's existence. Before any timer is loaded no Drive is ever
     /// delivered, so it never trips and the pump simply drains; once a chain is
-    /// alive it bounds an otherwise endless pump. Since R2A-2 that dual nature
-    /// is required rather than convenient — loading the timer service is what
-    /// starts time, so even `load()` runs under a live chain from its own
-    /// second half onward.
+    /// alive it bounds an otherwise endless pump. That dual nature is required
+    /// rather than convenient — loading the timer service is what starts time
+    /// (TIMER-02), so even `load()` runs under a live chain from its own second
+    /// half onward.
     std::int64_t drives = 0;
     std::int64_t stop_after_drives = -1;
 
@@ -762,7 +763,7 @@ TEST_CASE("contract: ZEN_SHAPE spellings derive the locked schemas exactly") {
                                                            ->content_id());
     CHECK(schema_of<TimerReady>()->content_id() ==
           SchemaBuilder("TimerReady", 1).build()->content_id());
-    // Drive v2 — the beat that carries its own ownership (R2A-2). The sender is
+    // Drive v2 — the beat that carries its own ownership. The sender is
     // TEXT and that is contract, not taste: a WeaveId is unsigned 64-bit and the
     // wire's Int is signed, so an Int field would silently narrow the top half
     // of the range. A drift back to Int is a red test.
@@ -924,10 +925,10 @@ TEST_CASE("contract: the R2B-3c preparation conversation is frozen too, and it a
 // Tier 2 — the service over a fake clock, through a real bus
 // ============================================================================
 
-// ---- R2A-2: the activation law ----------------------------------------------
+// ---- TIMER-01: the activation law -------------------------------------------
 // "Every successfully activated incarnation establishes exactly ONE beat chain.
 //  A new activation owns a new chain; stale, duplicate, replayed, inherited or
-//  foreign Drives cannot establish another."
+//  foreign Drives cannot establish another."  (docs/laws/timer-laws.md)
 //
 // With no timers standing, every beat naps the cap and a parked pump leaves
 // exactly the in-flight Drives in the queue — so `pending()` IS the chain count,
@@ -1456,8 +1457,8 @@ TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone wi
     // vacancy. Found live, on the pilot's very first run; the host had to
     // boot-pump before winding to avoid it.
     //
-    // R2A-2 removed the hazard by removing the wind. What is pinned now is the
-    // stronger property that replaced it: a root Drive is not a lever at all.
+    // Removing the wind removed the hazard. What is pinned here is the stronger
+    // property that replaced it: a root Drive is not a lever at all.
     Rig r;
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     CHECK(r.seen.ready == 1);
@@ -1504,10 +1505,10 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
     CHECK(std::stoll(a.text) >= 2);
 }
 
-// ---- R2A-2: the load-order matrix -------------------------------------------
-// Load order used to decide who got to breathe. It decides nothing now, and
-// these two cases are the halves that prove it: a consumer AFTER the timer is
-// served by its own activation; a consumer BEFORE it is served by the retry.
+// ---- TIMER-02: the load-order matrix ----------------------------------------
+// Load order decides nothing, and these two cases are the halves that prove it:
+// a consumer AFTER the timer is served by its own activation; a consumer BEFORE
+// it is served by the retry.
 
 TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
           "is what rescues it") {
@@ -1622,7 +1623,7 @@ TEST_CASE("the skin keeps itself serviced: hello and beats with nobody pumping")
 }
 
 // ============================================================================
-// Tier 5 — the timer BINDING (R2A-3): the word that replaced the ceremony
+// Tier 5 — the timer BINDING (TIMER-05): the word that replaced the ceremony
 // ============================================================================
 //
 // The binding declares desire and owns the Timer protocol. These cases prove
@@ -2300,8 +2301,8 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
         }
         return false;
     };
-    // The four the binding accepts on the author's behalf — the receipt joined
-    // them in R2B-0, because an order that could not be answered would be a
+    // The four the binding accepts on the author's behalf — the receipt is one
+    // of them, because an order that could not be answered would be a
     // conversation the manifest lied about.
     CHECK(accepts(loom::Activated::zen_name, loom::Activated::zen_version));
     CHECK(accepts("TimerReady", 1));
@@ -2348,7 +2349,7 @@ TEST_CASE("binding: the convenience hides ceremony from the author, never the co
 // ============================================================================
 // Tier 5 — CONTINUITY, end to end: real libraries, real kernel, real steward, a
 // real graceful replacement, a real letter through the real gate, and virtual
-// time so the semantics are exact instead of slept for (R2B-0)
+// time so the semantics are exact instead of slept for (TIMER-03)
 // ============================================================================
 //
 // Everything here runs through `zengine-timer-virtual` — TimerServiceT exactly
@@ -2554,7 +2555,7 @@ TEST_CASE("continuity, required preservation: an order with no acceptable fallba
 }
 
 // ============================================================================
-// Tier 2 continuity — the unit pins, over the fake clock (R2B-0)
+// Tier 2 continuity — the unit pins, over the fake clock (TIMER-03)
 // ============================================================================
 //
 // The end-to-end lane (tier 5) proves the whole sentence through real
@@ -3096,7 +3097,7 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
 }
 
 // ============================================================================
-// R2B-1 — the hostile half: an ordinary weave, with everything the threat model
+// The hostile half: an ordinary weave, with everything the threat model
 // grants it, trying to be the steward
 // ============================================================================
 //
@@ -3288,7 +3289,7 @@ TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and 
 }
 
 // ============================================================================
-// Tier 6 — THE KEYSTONE: a LIVE Timer crosses a prepared replacement (R2B-3c)
+// Tier 6 — THE KEYSTONE: a LIVE Timer crosses a prepared replacement
 // ============================================================================
 //
 // Everything below runs through real dynamic artifacts, the real Kernel, the
@@ -3310,12 +3311,14 @@ TEST_CASE("hostile: a forged ACTIVATION cannot give a Timer a first breath, and 
 //     coordinator can reach it and its table is frozen.
 //
 // The letter is therefore written AFTER the admission by a service that has
-// already been made incapable of changing, through the UNCHANGED R2B-0 exchange
-// (`zen.PrepareShutdown` -> `TimerHandoff`). One interpretation of schedule
+// already been made incapable of changing, through the same exchange the
+// graceful path uses (`zen.PrepareShutdown` -> `TimerHandoff`). One
+// interpretation of schedule
 // progress, and no state is parked anywhere that an abort would have to release.
 //
 // THE RULER. `on(PrepareShutdown)` fires nothing, cancels nothing and advances
-// nothing — R2B-0's law — so the suite uses it as an exact clock read: ask the
+// nothing — TIMER-03's second MEANS — so the suite uses it as an exact clock
+// read: ask the
 // live incumbent to describe itself, catch the letter on the tap, and know how
 // much of the probe's schedule is left at that instant. That is what lets every
 // number below be derived from a measurement rather than predicted.
@@ -3387,7 +3390,7 @@ struct PreparerState {
 ///   1. consume the candidate's authentic preparation answer;
 ///   2. admit INSIDE THAT SAME DELIVERY — no ordinary delivery runs between
 ///      readiness and admission, so there is no unaccounted window;
-///   3. ask the now-retired incumbent for its letter (the ordinary R2B-0 ask);
+///   3. ask the now-retired incumbent for its letter (the ordinary ask);
 ///   4. hand that letter to the candidate as the authenticated answer to the
 ///      candidate's OWN claim — which is why it defers the claim rather than
 ///      inventing a second way to deliver a bequest.
@@ -3431,7 +3434,7 @@ public:
     /// The retired incumbent's letter. It becomes the candidate's inheritance by
     /// being spent into the claim it already made — so what the candidate finally
     /// sees is an authenticated answer to its own ask, through exactly the code
-    /// R2B-0 wrote for a graceful succession.
+    /// a graceful succession already uses.
     void on(const loom::Bequest& letter, loom::Mail& mail) {
         ++state_.acted;
         if (!(mail.sender() == p_->incumbent) || !claim_.valid()) {
@@ -3490,7 +3493,7 @@ private:
     loom::DeferredAnswer claim_{};
 };
 
-/// The keystone rig: the R2B-0 lane plus a coordinator, a Kernel-sealed
+/// The keystone rig: the tier-5 continuity lane plus a coordinator, a Kernel-sealed
 /// candidate, and the transaction that binds them.
 struct Keystone {
     Rig r;
@@ -3509,15 +3512,16 @@ struct Keystone {
         reach.allow_to_any(PrepareTimerHandover::zen_name, PrepareTimerHandover::zen_version);
         reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
         reach.allow_to_any(loom::Bequest::zen_name, loom::Bequest::zen_version);
-        // AND DELIBERATELY *NOT* `zen.Activated` (R2B-3d).
+        // AND DELIBERATELY *NOT* `zen.Activated` — withholding it is the assertion.
         //
-        // R2B-3c had to grant it, and said so at length: `admit_candidate` used to
-        // enqueue the activation as an ordinary gated send stamped with the
-        // coordinator's identity, so a coordinator that could not emit the shape
-        // committed perfectly successfully — the role moved, the candidate was
-        // unsealed, `commit_prepared_replacement` returned ok — and the activation
-        // was then refused at delivery as `CapabilityDenied`. A candidate that was
-        // publicly the service and had never been told it was alive.
+        // An admission that enqueued the activation as an ordinary gated send
+        // stamped with the coordinator's identity would let a coordinator that
+        // cannot emit the shape commit perfectly successfully — the role moves,
+        // the candidate is unsealed, `commit_prepared_replacement` returns ok —
+        // and the activation is then refused at delivery as `CapabilityDenied`. A
+        // candidate that is publicly the service and has never been told it is
+        // alive. This fixture withholds the grant so that shape of failure cannot
+        // pass unnoticed.
         //
         // A committed activation is Loom's own act now, authorized by the
         // lifecycle authority this coordinator holds and performed as part of the
@@ -3701,7 +3705,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     CHECK(k.prep.readiness.back().ok);
     REQUIRE(k.prep.commits.size() == 1);
     CHECK(k.prep.commits.back().ok); // the commit call SCHEDULED the admission...
-    // ...AND THE REAL COMMITTED OUTCOME IS THE ONE THAT COUNTS (R2B-3d). The
+    // ...AND THE REAL COMMITTED OUTCOME IS THE ONE THAT COUNTS. The
     // coordinator's `ok` says the admission is on its way; what says it happened
     // is the transaction's own terminal result, written inside the dispatch that
     // moved the role and told the successor. The operator collects it once.
@@ -3725,7 +3729,7 @@ TEST_CASE("keystone: the live Timer keeps serving while a sealed candidate prepa
     // THE NUMBER THAT IS THE PHASE. Exactly two seconds remained at the boundary
     // — read off the letter the retired incumbent actually wrote, decoded through
     // the real gate.
-    // ⭐ AND THIS IS ALSO THE R2B-3d-1 POSITIVE CONTROL AT THE PACKAGE TIER.
+    // ⭐ AND THIS IS ALSO A POSITIVE CONTROL AT THE PACKAGE TIER.
     // That claim is ORDINARY DOMAIN SPEECH sent from inside a COMMITTED
     // ADMISSION ACTIVATION — `mail.send(preparer_, ClaimBequest{...})`, the
     // first thing the successor does on its first breath. An activation that
@@ -4027,12 +4031,11 @@ TEST_CASE("keystone: a candidate artifact that cannot load never becomes a candi
 
 TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent Timer's chain "
           "and schedule exactly as they were") {
-    // THE INPUT THE PACKAGE COULD NOT PRODUCE BEFORE R2B-3d, and a mutation is
-    // what found that out: every other failure route in this lane ends the
-    // transaction BEFORE an admission is ever scheduled, so "a failed admission
-    // disturbs the incumbent" had no Timer-tier road at all. It has one now,
-    // because scheduling and dispatch are two moments and the world may change
-    // between them.
+    // THE INPUT THIS PACKAGE ONCE COULD NOT PRODUCE, and a mutation is what found
+    // that out: every other failure route in this lane ends the transaction
+    // BEFORE an admission is ever scheduled, so "a failed admission disturbs the
+    // incumbent" had no Timer-tier road at all. It has one because scheduling and
+    // dispatch are two moments and the world may change between them.
     Keystone k;
     anchor_required_probe(k);
     k.advance_until_remaining(2000 + kPreparedCeremonyBeats * kBeatCapMs);
@@ -4069,11 +4072,12 @@ TEST_CASE("keystone: an admission that refuses AT DISPATCH leaves the incumbent 
 
 TEST_CASE("keystone: the boundary is a POSITION IN THE QUEUE — a by-id operation ahead of it "
           "reaches the incumbent and crosses in the letter; one behind it is refused visibly") {
-    // CHANGED BY R2B-3d, and the change is the whole reason the new model is
-    // coherent. Admission used to jump ahead of the queue: it moved topology
-    // inside the commit call, so a message enqueued while the incumbent was
-    // public was judged against a world that only came into being afterwards, and
-    // a by-id operation queued BEFORE the boundary was refused as `NoSuchTarget`.
+    // WHY THE MODEL IS COHERENT, stated as the alternative it rejects. An
+    // admission that jumped ahead of the queue would move topology inside the
+    // commit call, so a message enqueued while the incumbent was still public
+    // would be judged against a world that only came into being afterwards, and a
+    // by-id operation queued BEFORE the boundary would be refused as
+    // `NoSuchTarget`.
     //
     // Now the admission occupies a position in the queue like everything else.
     // Ahead of it is the old world; behind it is the new one. That is the same
@@ -4279,7 +4283,8 @@ TEST_CASE("keystone: a forged letter cannot be inherited by a prepared candidate
     const loom::WeaveId candidate = k.seal("zengine-timer-v2", TIMER_VIRTUAL_V2_SO);
     REQUIRE(k.begin(candidate).ok);
 
-    // The impersonator of the R2B-1 lane, pointed at the prepared candidate. It
+    // The impersonator of the hostile-steward lane above, pointed at the prepared
+    // candidate. It
     // knows the published claim correlation, it builds handoff bytes the gate
     // accepts, and it holds an ordinary grant to send `zen.Bequest` to anyone.
     // The one thing it cannot have is Loom's word that it received the claim.
