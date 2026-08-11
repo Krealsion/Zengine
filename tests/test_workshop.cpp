@@ -8,9 +8,9 @@
 // it is a property of the design: the authored objects are plain data, the
 // operations on them are functions that can refuse, the inspector is a list of
 // values, and the screen is a SurfaceCanvas returned by a function. Nothing in
-// W-0's own logic needs a terminal, so nothing here has one.
+// Workshop's own logic needs a terminal, so nothing here has one.
 //
-// W-5 ADDED TWO MORE TIERS AND ONE OF THEM TOUCHES A DISK. Tier 5 is the
+// TWO OF THE TIERS ARE PERSISTENCE AND ONE OF THEM TOUCHES A DISK. Tier 5 is the
 // document and its format — pure, and asserted mostly as bytes and values. Tier
 // 6 drives save and load through the real weave on a real bus, because the
 // interesting half of persistence is not the codec but what the SESSION does
@@ -28,12 +28,12 @@
 //      the object list, the inspector, the authored-versus-resolved split, and a
 //      refusal visible on it.
 //
-// AFTER W-1, THE GEOMETRY CLAIMS HERE ARE INTEGRATION CLAIMS. Resolution and hit
-// testing belong to the UI package and are proven in the `ui` suite; what these
-// cases prove is that Workshop's answers COME from there — that the painted
-// rectangle, the inspector's resolved reading and the reply to a click are all
-// derived from one ui::Scene. That is the property W-0 could only get by having
-// one person write all three call sites.
+// THE GEOMETRY CLAIMS HERE ARE INTEGRATION CLAIMS. Resolution and hit testing
+// belong to the UI package and are proven in the `ui` suite; what these cases
+// prove is that Workshop's answers COME from there — that the painted rectangle,
+// the inspector's resolved reading and the reply to a click are all derived from
+// one ui::Scene. Three separate call sites would have that property only by one
+// person having written all three.
 //
 // What headless cannot prove is that a Skin carries the canvas to a human's
 // eyes. That is the Surface suite's job (a canvas is a frame: same hello, same
@@ -90,11 +90,11 @@ WorkshopDoc two_panels() {
 
 /// A document of `n` objects in creation order, identities 1..n.
 ///
-/// The fixture no phase had, and the reason P26 lived through seven of them:
-/// every live run and every screen case used two objects, and W-6's 300- and
-/// 500-link documents were exercised headlessly, where nothing paints. More
-/// objects than the OBJECTS panel is tall is a shape the suite could not
-/// previously express.
+/// The fixture that was missing for a long time, and the reason a whole class of
+/// panel defect survived: every live run and every screen case used two objects,
+/// and the 300- and 500-link documents were exercised headlessly, where nothing
+/// paints. More objects than the OBJECTS panel is tall is the shape those cases
+/// could not express.
 WorkshopDoc many(std::int64_t n) {
     WorkshopDoc d;
     for (std::int64_t i = 0; i < n; ++i) {
@@ -171,8 +171,8 @@ TEST_CASE("contract: the authored shapes derive their declared spellings exactly
                              .message("height", extent)
                              .build();
 
-    // Version 2 since W-6, and the document's own two fields did not change:
-    // what moved is the element inside it, and a content-id is over the WHOLE
+    // Version 2, and the document's own two fields have never changed: what
+    // changed is the element inside it, and a content-id is over the WHOLE
     // shape. A `WorkshopDoc v1` that now serialises differently would be the
     // immutable-published-schema invariant broken quietly, so the version says
     // so out loud.
@@ -592,7 +592,7 @@ TEST_CASE("a share's hit area follows the workspace, because both read one scene
 }
 
 // ============================================================================
-// Tier 2d — the maker's own hands: create, move, delete  (W-2)
+// Tier 2d — the maker's own hands: create, move, delete
 // ============================================================================
 //
 // Every case here drives the SAME functions workshop.cpp binds keys and pointer
@@ -886,11 +886,11 @@ TEST_CASE("a move is ONE authored change: a refused move writes neither coordina
     CHECK(doc::find(d, id)->x == 0); // NOT 7
     CHECK(doc::find(d, id)->y == 5);
 
-    // A nudge reaches the same operation, but it is a HAND, so W-3's boundary
+    // A nudge reaches the same operation, but it is a HAND, so the boundary
     // policy applies before the proposal is made: it stops at the workspace edge
     // and SLIDES along it rather than refusing, and it says which wall it met.
     // The other coordinate still moves -- that is the whole difference a clamp
-    // buys, and the reason P15 was worth answering.
+    // buys, and the reason the two acts are worth telling apart.
     const Handled slid = nudge(d, s, -1, +1);
     CHECK(slid.accepted());
     CHECK(slid.clamped());
@@ -978,8 +978,8 @@ TEST_CASE("a drag takes hold of what the maker can see, and the grabbed point fo
     // pointer INTO the scene, so binding it to a variable while the scene was a
     // temporary is a use-after-free the plain lane cannot see. It shipped in this
     // file's first draft and a sanitizer found it -- the same dangling-observation
-    // hazard W-1 designed `Placed` to carry an id against, one phase later, in the
-    // test that proves the design.
+    // hazard `Placed` carries an id against -- met here, in the test that proves
+    // the design.
     const ui::Scene moved = workspace_scene(d, s);
     const ui::Placed* placed = ui::placed_for(moved, front);
     REQUIRE(placed != nullptr);
@@ -1011,9 +1011,9 @@ TEST_CASE("a press on empty space grabs nothing, and a drag against the edge sli
     CHECK_FALSE(drag_to(d, s, 41, 12).accepted());
 
     // Grab the top-left cell, then drag OFF the left edge of the workspace while
-    // still moving down. W-2 refused this outright and left the object put, which
-    // was truthful and brusque (P15). W-3's boundary policy stops the HAND at the
-    // wall instead: the proposal is reduced to the first cell the workspace has,
+    // still moving down. Refusing this outright and leaving the object put would
+    // be truthful and brusque; the boundary policy stops the HAND at the wall
+    // instead: the proposal is reduced to the first cell the workspace has,
     // the legal half of the gesture still happens, and the notice says which wall
     // was met -- so nothing was silently corrected, it was openly stopped.
     REQUIRE(begin_drag(d, s, 5, 5) == id);
@@ -1045,7 +1045,8 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
     // WorkshopDoc is ZEN_EXPOSE()d, so a poke writes x directly, past every
     // refusal in document.hpp. A nudge COMPUTES its proposal, so it meets values
     // a typed edit never could -- and the neighbour of the largest representable
-    // cell is not representable. (The same widening W-1 found one layer down.)
+    // cell is not representable. (The same widening `resolve_extent` meets one
+    // layer down.)
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
     WorkshopDoc d;
     const std::int64_t id = doc::add(d, "poked", 0, 0, ui::Extent{ui::kExtentCells, 2},
@@ -1061,7 +1062,7 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
 
     // The other end is only reachable by a poke at all, and it must not wrap
     // either -- a nudge up from the most negative cell would otherwise become the
-    // most positive one. Under W-3's boundary policy the gesture then does what it
+    // most positive one. Under the boundary policy the gesture then does what it
     // does at any wall: it stops at the first cell the workspace HAS, and says so.
     // A hand can therefore recover an object a poke put somewhere impossible,
     // which is the same rule as everywhere else rather than a special case.
@@ -1075,9 +1076,9 @@ TEST_CASE("a nudge survives an authored coordinate no setter would have produced
 }
 
 TEST_CASE("a reported pointer position survives every integer the wire can carry") {
-    // W-4 replaced the double coordinates with int64 cells, so the old hazard --
+    // Coordinates are int64 cells and not doubles, so one hazard --
     // `static_cast<int64_t>` of a double that does not fit, which is UNDEFINED --
-    // is gone at the type. The REMAINING hazard is the one the type change cannot
+    // is gone at the type. The REMAINING hazard is the one the type cannot
     // remove: the numbers still come from whichever weave holds the input role,
     // and `INT64_MIN - 3` is undefined behaviour produced by data.
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
@@ -1133,9 +1134,10 @@ TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
 }
 
 TEST_CASE("the SAME object is under the pointer whichever medium reported it") {
-    // G-1's projection question, asserted as the only thing that actually
-    // matters: a maker pointing at the middle of an object hits THAT object, and
-    // which medium they were looking through is not the document's business.
+    // The projection question, asserted as the only thing that actually matters:
+    // a maker pointing at the middle of an object hits THAT object, and which
+    // medium they were looking through is not the document's business
+    // (docs/reference/pointer-spaces.md).
     //
     // The two media disagree about every number on the way in -- the terminal
     // reports canvas cells offset by two rows, the window reports pixels at
@@ -1249,7 +1251,7 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
 }
 
 // ============================================================================
-// Tier 2e — the maker's hand on an EXTENT: resize  (W-3)
+// Tier 2e — the maker's hand on an EXTENT: resize
 // ============================================================================
 //
 // The tier the phase exists for. A move could be dragged because authored and
@@ -1410,8 +1412,8 @@ TEST_CASE("a resize is ONE authored change: a refused proposal writes neither ex
 
     // A diagonal proposal whose width is legal and whose height is not. With two
     // independent setters this would narrow the object AND report a refusal -- a
-    // refusal message beside a successful write, which is exactly the bug W-2
-    // removed from placement, at the other property.
+    // refusal message beside a successful write, which is exactly what placement
+    // refuses to produce, met here at the other property.
     const Written refused = doc::resize(d, id, ui::Extent{ui::kExtentCells, 7},
                                         ui::Extent{ui::kExtentCells, 0});
     CHECK_FALSE(refused.accepted);
@@ -1524,7 +1526,7 @@ TEST_CASE("the authored minimum is the DOCUMENT's, not the resolution floor") {
 }
 
 TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they are told apart") {
-    // §15, and the answer to W-2's P15. The distinction is not decoration: after a
+    // The distinction is not decoration: after a
     // clamp something WAS written (the boundary value), after a refusal nothing
     // was -- so a maker who cannot tell them apart cannot tell what their document
     // now says.
@@ -1552,7 +1554,7 @@ TEST_CASE("a hand STOPS at a boundary and a written value is REFUSED, and they a
 
     // A CELLS extent has no such wall, because an absolute size has nothing to do
     // with the viewport: the same overshoot authors 400 cells and the canvas
-    // simply clips, exactly as W-2 let an object be positioned past the edge.
+    // simply clips, exactly as an object may be positioned past the edge.
     REQUIRE(doc::set_width(d, id, ui::Extent{ui::kExtentCells, 10}).accepted);
     const Handled past = size_to(d, s, id, 400, 4);
     CHECK(past.accepted());
@@ -1695,8 +1697,8 @@ TEST_CASE("the size handle is derived, is Workshop's, and grabs the right identi
     //
     // The glyph is written out as the LITERAL a maker sees, deliberately NOT as
     // `kHandleGlyph`. An expectation read from the constant under test moves with
-    // it, so it can only ever agree with it: Z0a's first canary changed
-    // `kHandleGlyph "+" -> "*"` and this whole suite stayed GREEN, because both
+    // it, so it can only ever agree with it: a canary that changed
+    // `kHandleGlyph "+" -> "*"` left this whole suite GREEN, because both
     // sides of the comparison changed together. The duplication is the point. What
     // it duplicates is the README's contract -- the handle is the `+` on the
     // selection ring's bottom-right corner -- and `*` is precisely what the glyph
@@ -1985,11 +1987,10 @@ TEST_CASE("the whole screen survives an empty document, and SAYS it is empty") {
 
     const surface::SurfaceCanvas c = paint(d, s);
     CHECK(c.width == kScreenW);
-    // W-0 asserted that nothing was INVENTED here, and nothing is: no row, no
-    // object, no identity. What W-2 added is that emptiness now announces
-    // itself, because W-2 is the phase in which a maker can reach this state by
-    // deleting their own work -- and a panel that merely goes blank is
-    // indistinguishable from a tool that has broken.
+    // Nothing is INVENTED here: no row, no object, no identity. And emptiness
+    // ANNOUNCES itself, because a maker can reach this state by deleting their
+    // own work -- and a panel that merely goes blank is indistinguishable from a
+    // tool that has broken.
     CHECK(label_at(c, kPanelX, kListY) == "(none) -- n makes one");
     CHECK(label_at(c, kPanelX, kRowsY) == "(nothing selected)");
     // The workspace and the two headings are still there: an empty document is a
@@ -2059,7 +2060,7 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
 // omits something and does not say so. Neither had a case, and neither could
 // have: nothing in this suite had ever painted more than five objects, and
 // nothing had ever painted a notice the screen could not hold. Every case below
-// fails on the code that shipped through W-6.
+// fails on the code that shipped before the bound and its marker existed.
 
 TEST_CASE("a document that FITS the object list is shown whole, with no chrome at all") {
     // The simple case must stay the simple case. Five objects is the last size
@@ -2082,8 +2083,8 @@ TEST_CASE("a document that FITS the object list is shown whole, with no chrome a
 }
 
 TEST_CASE("a sixth object cannot vanish: the list says what it left out and keeps the selection") {
-    // Cold-Z0's exact reproduction, and the smallest one there is: press `n`
-    // four times on an opening document and the tool stops telling the truth.
+    // The exact reproduction, and the smallest one there is: press `n` four
+    // times on an opening document and the tool stops telling the truth.
     WorkshopDoc d = many(6);
     Session s;
     s.selected = d.elements.back().id; // #6
@@ -2131,8 +2132,8 @@ TEST_CASE("a selection in the middle of a long document names BOTH walls") {
 }
 
 TEST_CASE("a selection near the end keeps the document's tail visible") {
-    // Cold-Z0's second witness: nine objects with #8 selected drew five OTHER
-    // objects and no marker at all.
+    // The second witness: nine objects with #8 selected drew five OTHER objects
+    // and no marker at all.
     WorkshopDoc d = many(9);
     Session s;
     s.selected = 8;
@@ -2240,8 +2241,8 @@ TEST_CASE("fitting text to a line: unchanged when it fits, marked when it does n
 }
 
 TEST_CASE("a refusal longer than the notice line says so, and the session keeps all of it") {
-    // THE STRONG WITNESS. W-6 met this live and answered it by shortening one
-    // producer's wording: the rendered cycle is budgeted in characters
+    // THE STRONG WITNESS. Met live, and answered by shortening one producer's
+    // wording: the rendered cycle is budgeted in characters
     // (kMaxChainChars) so that ORDINARY identities fit. Identities are int64 and
     // a document arrives from a FILE, so "ordinary" is not a bound -- and the
     // general presentation rule has to hold exactly where a particular
@@ -2334,11 +2335,11 @@ TEST_CASE("a truncated notice still fits the terminal, through the real rasteriz
 // Tier 4 — the WEAVE, through a real bus: input moments become maker gestures
 // ============================================================================
 //
-// This tier exists because W-4 closed P16. `WorkshopWeave` used to live in
-// workshop.cpp's anonymous namespace, so every phase since W-0 could prove
-// `gesture -> document` and never `message -> gesture` -- and the binding was
-// the one part of the pointer path nothing witnessed. Moving the class into
-// workshop/weave.hpp is the whole change; there is no test hook, no framework,
+// This tier exists because `WorkshopWeave` lives in workshop/weave.hpp rather
+// than in the host's anonymous namespace. In the host it would be unreachable,
+// leaving `gesture -> document` provable and `message -> gesture` not -- and the
+// binding is the one part of the pointer path nothing else witnesses. The
+// location is the whole mechanism; there is no test hook, no framework,
 // and no seam that exists only for this file.
 //
 // What it buys is the phase's own headline, asserted rather than argued: a
@@ -2416,8 +2417,8 @@ struct Live {
 
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
     /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
-    /// own layout and not of the terminal's -- the whole point of G-1 is that
-    /// these two are different numbers naming one place.
+    /// own layout and not of the terminal's -- the two media report different
+    /// numbers for one place (docs/reference/pointer-spaces.md).
     static std::int64_t px_x(std::int64_t wx) {
         return (wx + kWorkspaceX) * surface::kCanvasCellPx;
     }
@@ -2501,10 +2502,10 @@ std::int64_t resolved_w(const Live& t) {
 } // namespace
 
 TEST_CASE("a maker types `70%` through the canonical text route, and 70p is history") {
-    // P4's headline, end to end. W-0 could not reach `%` at all, so W-2's live
-    // evidence had to commit `70p` and call it a workaround. The characters now
-    // arrive as text the platform produced, and Workshop appends them without
-    // owning one line of keyboard knowledge.
+    // The headline, end to end. A vocabulary of scancodes alone cannot reach `%`
+    // at all, which is what made `70p` a workaround worth committing. The
+    // characters arrive as text the platform produced, and Workshop appends them
+    // without owning one line of keyboard knowledge.
     Live t;
     t.begin_editing("Width");
     REQUIRE(t.row("Width")->editing());
@@ -2536,8 +2537,8 @@ TEST_CASE("entered text is text; editing controls are keys; and the two never sw
     }
     CHECK(t.row("Name")->draft().empty());
 
-    // Capitals and symbols -- both unreachable before W-4 -- and `q`, which is
-    // the quit command in the other mode and is simply a letter here.
+    // Capitals and symbols -- both unreachable from a scancode -- and `q`, which
+    // is the quit command in the other mode and is simply a letter here.
     t.text("Panel");
     t.text("-");
     t.text("q");
@@ -2575,8 +2576,8 @@ TEST_CASE("a multi-byte character survives typing and erasing as ONE character")
 }
 
 TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still moves") {
-    // W-3 paid four literal keys (`,` `.` `-` `=`) for a second directional
-    // gesture, because the wire could not say "with Shift held". It can now.
+    // A wire that cannot say "with Shift held" makes a second directional gesture
+    // cost four literal keys (`,` `.` `-` `=`). This one can say it.
     Live t;
     const std::int64_t x0 = t.first()->x;
     const std::int64_t y0 = t.first()->y;
@@ -2602,8 +2603,8 @@ TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still 
     CHECK(t.first()->height.amount == h0);
 
     // Shrinking back returns the same SIZE and not necessarily the same NUMBER,
-    // which is W-3's canonical-share property arriving through the new binding
-    // rather than a new behaviour: 60% and 59% both resolve to 28 cells at a
+    // which is the canonical-share property arriving through the binding rather
+    // than a behaviour of its own: 60% and 59% both resolve to 28 cells at a
     // 48-cell workspace, and the projection authors the canonical one.
     const std::int64_t wide = resolved_w(t);
     t.key(input::scan::kH, input::mod::kShift);
@@ -2612,8 +2613,8 @@ TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still 
     t.key(input::scan::kL, input::mod::kShift);
     CHECK(resolved_w(t) == wide);
 
-    // The four W-3 workaround keys are GONE, not merely unrecommended: they do
-    // nothing at all now, so nothing can quietly keep depending on them.
+    // The four workaround keys are GONE, not merely unrecommended: they do
+    // nothing at all, so nothing can quietly keep depending on them.
     const std::int64_t w1 = t.first()->width.amount;
     const std::int64_t h1 = t.first()->height.amount;
     for (const std::int64_t sc : {input::scan::kComma, input::scan::kPeriod,
@@ -2626,8 +2627,8 @@ TEST_CASE("Shift turns the move gesture into the resize gesture, and hjkl still 
 
 TEST_CASE("a press grabs from ITS OWN position, with no motion event anywhere") {
     // THE PHASE, in one case. Not one PointerMoved is published before the
-    // press -- which under W-2's vocabulary meant the weave believed the pointer
-    // was at 0,0 and grabbed whatever was there.
+    // press -- which under a vocabulary whose buttons carry no position would
+    // mean the weave believed the pointer was at 0,0 and grabbed what was there.
     Live t;
     const std::int64_t id2 = t.second()->id;
     const std::int64_t x = t.second()->x;
@@ -2653,10 +2654,10 @@ TEST_CASE("a press grabs from ITS OWN position, with no motion event anywhere") 
 }
 
 TEST_CASE("a press after a long silence uses the press, not the last thing seen") {
-    // W-2's exact failure, recreated at the weave: the pointer is reported
-    // somewhere, then the platform goes quiet (a console reports no motion while
-    // it lacks focus), then a click arrives somewhere else entirely. The old
-    // reconstruction answered with the stale position.
+    // The exact failure a reconstruction produces, recreated at the weave: the
+    // pointer is reported somewhere, then the platform goes quiet (a console
+    // reports no motion while it lacks focus), then a click arrives somewhere
+    // else entirely. A reconstruction answers with the stale position.
     Live t;
     const std::int64_t id1 = t.first()->id;
     const std::int64_t id2 = t.second()->id;
@@ -2722,7 +2723,7 @@ TEST_CASE("the semantic operations are still the only authority, through the mes
     const std::int64_t id1 = t.first()->id;
 
     // CLAMP: a hand that reaches past the origin stops at it, authors the
-    // boundary value, and says which wall it met (W-3's policy, unchanged).
+    // boundary value, and says which wall it met (screen.hpp's boundary policy).
     t.press(t.first()->x, t.first()->y);
     t.motion(-50, -50);
     CHECK(t.first()->x == 0);
@@ -2749,8 +2750,9 @@ TEST_CASE("the semantic operations are still the only authority, through the mes
 }
 
 TEST_CASE("a pointer in a space Workshop does not speak is ignored, not mis-placed") {
-    // `space` earning its field, and G-1 is where it finally earns it in BOTH
-    // directions. A backend reporting a space this application cannot place is
+    // `space` earning its field, in BOTH directions
+    // (docs/reference/pointer-spaces.md). A backend reporting a space this
+    // application cannot place is
     // not talking about anything the document has, and guessing an equivalence is
     // exactly the mistake the field exists to prevent -- while a backend
     // reporting one it CAN place is now projected rather than refused.
@@ -2827,7 +2829,7 @@ TEST_CASE("a drag in the WINDOW authors placement, through the same document ope
 }
 
 TEST_CASE("the resize handle can be grabbed in the WINDOW, and authors an extent") {
-    // W-3's semantics, reached through pixels: the handle is one cell past the
+    // The resize semantics, reached through pixels: the handle is one cell past the
     // object's own last cell, a pointer resting ON it proposes the size the
     // object already has, and the mode a maker authored is preserved.
     Live t;
@@ -2887,10 +2889,10 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
 
 TEST_CASE("a close request does not care what the maker was in the middle of") {
     // A half-typed width is a draft, and a draft is not a reason to refuse to
-    // close: `^s` refuses to SAVE over one (W-5) because writing an unconfirmed
-    // value would be the tool putting words in a maker's mouth, and quitting
-    // writes nothing at all. P22 -- whether closing should ask about unsaved work
-    // -- is a separate product question and G-1 deliberately does not answer it.
+    // close: `^s` refuses to SAVE over one because writing an unconfirmed value
+    // would be the tool putting words in a maker's mouth, and quitting writes
+    // nothing at all. Whether closing should ask about unsaved work is a separate
+    // product question, and nothing here answers it.
     Live t;
     t.begin_editing("Width");
     t.text("70");
@@ -2918,8 +2920,8 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
 }
 
 TEST_CASE("canvas, object list and inspector stay coherent through a message-driven session") {
-    // W-2 and W-3 proved this over the gesture functions. This proves it over
-    // the MESSAGES, which is the layer that changed.
+    // The tiers above prove this over the gesture functions. This proves it over
+    // the MESSAGES.
     Live t;
     const std::size_t frames_at_start = t.canvases.size();
 
@@ -2973,9 +2975,9 @@ TEST_CASE("canvas, object list and inspector stay coherent through a message-dri
 }
 
 TEST_CASE("the selection marker never disappears as a maker walks past the fifth object") {
-    // The contradiction Cold-Z0 measured, driven the way a maker reaches it:
-    // `tab` cycles the whole document, and before this phase it selected objects
-    // the list simply did not draw. Nine objects, made and walked by keystroke,
+    // The contradiction, driven the way a maker reaches it: `tab` cycles the
+    // whole document, and an unwindowed list selects objects it does not draw.
+    // Nine objects, made and walked by keystroke,
     // and the screen is read after every single one.
     Live t;
     for (int i = 0; i < 7; ++i) { // two to begin with, so seven more makes nine
@@ -3017,8 +3019,8 @@ TEST_CASE("the selection marker never disappears as a maker walks past the fifth
 }
 
 TEST_CASE("a notice a maker's own path makes too long is marked on screen, not cut in the session") {
-    // P24 through the real message path, on a notice Workshop produces honestly.
-    // A document path is the maker's own input and may be any length the
+    // The overlong notice through the real message path, on one Workshop produces
+    // honestly. A document path is the maker's own input and may be any length the
     // platform allows, so `cannot read <path>` is a sentence this tool can be
     // asked to say and cannot show. Nothing is forged and nothing is distorted
     // to produce it: one ordinary keystroke, on a path that is simply not there.
@@ -3049,7 +3051,7 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
 // Tier 5 — PERSISTENCE: what survives a process, and what deliberately does not
 // ============================================================================
 //
-// W-5's subject. Three questions, and every case below answers one of them:
+// Three questions, and every case below answers one of them:
 //
 //   1. WHAT IS THE DOCUMENT?  Everything a maker authored — identity, name,
 //      place, both halves of each extent, the ORDER, and the mint — comes back
@@ -3108,7 +3110,7 @@ void spillout(const std::string& path, const std::string& text) {
     out.write(text.data(), static_cast<std::streamsize>(text.size()));
 }
 
-/// A document with everything W-5 has to preserve in it: two objects sharing a
+/// A document with everything persistence has to preserve in it: two objects sharing a
 /// name, one authored in cells and one as a share, and a mint that has already
 /// been past a deleted identity.
 WorkshopDoc rich_document() {
@@ -3174,7 +3176,7 @@ TEST_CASE("every authored fact survives, and the identities are the SAME identit
 }
 
 TEST_CASE("two objects called `panel` come back as two objects called `panel`") {
-    // W-0's fixture, asked across a process boundary: a duplicate name is legal
+    // The two-panels fixture, asked across a process boundary: a duplicate name is legal
     // and stays legal, because the identity is the id. A format that keyed on
     // the name would silently merge these two.
     const WorkshopDoc original = two_panels();
@@ -3333,8 +3335,8 @@ TEST_CASE("the file a person can read: identity, version, objects, and the mint"
     // It is real JSON, and it says whose value it is -- the Loom's envelope,
     // which is the claim `admit()` checks. That is a DIFFERENT claim from the
     // `format` field above: one is about the shape of the bytes, the other is
-    // about what the document means -- and W-6 is where the two visibly diverge.
-    // The SHAPE went to version 2 (an object grew a `context`); `format_version`
+    // about what the document means -- and here the two visibly diverge.
+    // The SHAPE is at version 2 (an object grew a `context`); `format_version`
     // stayed 1, because the meaning of every field is what it was and there is
     // still exactly one Workshop format in the world.
     CHECK(text.rfind("{\"zen\":1,\"schema\":\"WorkshopDocument\",\"version\":2,", 0) == 0);
@@ -3411,7 +3413,7 @@ TEST_CASE("the same share, loaded into a different workspace, resolves different
 }
 
 TEST_CASE("a save normalizes nothing: 60% is not written as the cells it happens to be") {
-    // W-3's no-op stability rule, in its persistence form. At a 48-cell
+    // The no-op stability rule, in its persistence form. At a 48-cell
     // workspace both 59% and 60% resolve to 28 cells, so a loader that
     // "helpfully" canonicalised would be free to pick either. Each is written
     // and read as itself.
@@ -3435,7 +3437,7 @@ TEST_CASE("a save normalizes nothing: 60% is not written as the cells it happens
 TEST_CASE("a malformed document never leaves Workshop halfway loaded") {
     // The claim is NOT "the parser returned an error". It is that the document
     // a maker is working on is exactly what it was -- which is the persistence
-    // form of the rule the property editor has kept since W-0.
+    // form of the rule the property editor keeps.
     const WorkshopDoc good = rich_document();
     const std::string valid = persist::to_text(good);
 
@@ -3840,7 +3842,7 @@ TEST_CASE("a successful load cancels a drag and cannot continue an old resize") 
     // instant the load succeeds. The first draft of this case kept
     // `const ui::Element*` across the load and the sanitizer lane called it a
     // heap-use-after-free while the ordinary lane passed -- the third time that
-    // pairing has paid for itself here (W-2, W-3, now W-5).
+    // pairing has paid for itself in this file.
     const std::int64_t held_id = t.second()->id;
     const std::int64_t held_x = t.second()->x;
     const std::int64_t held_y = t.second()->y;
@@ -3969,7 +3971,7 @@ TEST_CASE("with no document file, save and open say so instead of guessing one")
 }
 
 TEST_CASE("a bare s and a bare o are not commands, and Ctrl is what makes them one") {
-    // The same shape as W-4's Ctrl+C case: the modifier is READ, not implied by
+    // The same shape as the Ctrl+C case: the modifier is READ, not implied by
     // the key. A bare `o` and a bare `s` do nothing at all, so nothing can come
     // to depend on them.
     TempDir dir("modifier");
@@ -4037,7 +4039,7 @@ TEST_CASE("the whole cross-process story, in one session") {
 }
 
 // ============================================================================
-// Tier 7 — composition: one authored object read in another's frame (W-6)
+// Tier 7 — composition: one authored object read in another's frame
 // ============================================================================
 //
 // Everything above resolves against one workspace. This tier is the phase's
@@ -4052,7 +4054,7 @@ TEST_CASE("the whole cross-process story, in one session") {
 //      a dependent's position is authored in its source's frame, so the gesture
 //      subtracts the frame's origin -- asked of the resolver, never
 //      reconstructed -- and a Percent resize asks for a share of the SOURCE's
-//      span, through the same projection W-3 built.
+//      span, through the same projection a root resize uses.
 //   3. THE RELATIONSHIP IS AN IDENTITY. It survives reordering, deletion of
 //      other objects, save, process death and load, and it is refused when it
 //      names nothing or comes back around.
@@ -4081,8 +4083,8 @@ WorkshopDoc composed() {
 /// The Scene is a NAMED LOCAL and not a temporary, and the first draft of this
 /// helper got that wrong -- `placed_for(workspace_scene(d, s), id)` hands back a
 /// pointer into a Scene that dies at the end of that statement, so every rect it
-/// returned was read out of freed memory. It is the same defect W-5 shipped in
-/// committed test code and the sanitizer lane found; here the ordinary lane
+/// returned was read out of freed memory. It is the same defect the sanitizer
+/// lane has found in committed test code before; here the ordinary lane
 /// caught it, because the garbage happened to be visible in an assertion.
 ui::Rect rect_of(const WorkshopDoc& d, const Session& s, std::int64_t id) {
     const ui::Scene scene = workspace_scene(d, s);
@@ -4252,8 +4254,8 @@ TEST_CASE("changing a context does not rewrite the values whose meaning it chang
 }
 
 TEST_CASE("a coordinate is a workspace cell at the root and an OFFSET in a frame") {
-    // W-6 asked whether "the workspace starts at 0" was a law about coordinates
-    // or a law about the workspace. Its own stated reason answered it.
+    // "The workspace starts at 0" is a law about the WORKSPACE and not about
+    // coordinates, and its own stated reason is what says so.
     WorkshopDoc d = composed();
 
     // At the root: unchanged, to the cell.
@@ -4505,7 +4507,7 @@ TEST_CASE("a hand stops at the workspace edge for a dependent too, and the offse
     CHECK(doc::check_document(d).accepted);
     end_drag(s);
 
-    // A ROOT object meets the same wall and authors 0, exactly as before W-6.
+    // A ROOT object meets the same wall and authors 0.
     // On a fresh document, because #2 is now sitting on top of #1's corner --
     // which is itself the phase working: paint order decided that, not the
     // dependency.
@@ -4522,7 +4524,7 @@ TEST_CASE("a hand stops at the workspace edge for a dependent too, and the offse
 }
 
 TEST_CASE("resizing a dependent's share asks for a share of its SOURCE, not the workspace") {
-    // W-3's projection, handed the right span. There is no second projection and
+    // The one projection, handed the right span. There is no second one and
     // no branch on whether an object has a context: `extent_from_drag` always
     // asked "which share of this span reaches the hand", and the span was the
     // only thing that had been wrong.
@@ -4812,7 +4814,7 @@ TEST_CASE("a deep composed document survives a whole file round trip") {
 }
 
 TEST_CASE("a document written before relationships existed is refused, and says what is missing") {
-    // W-6 changed the written shape, so a W-5 document no longer admits. That is
+    // The written shape changed, so an older document no longer admits. That is
     // stated here rather than papered over with a migration: Workshop is
     // pre-release and its own only consumer, and no artifact in the world
     // deserves a compatibility layer yet. What matters is that the refusal is

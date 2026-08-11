@@ -16,10 +16,8 @@
 // path anywhere in the package. The refusals below are therefore real
 // properties of the OPERATIONS. They are not claims about the data.
 //
-// AUTHORED VERSUS RESOLVED USED TO LIVE HERE, as a private resolve(), with a
-// private pick() beside it testing geometry it worked out for itself. W-1 moved
-// both to the UI package (ui/layout.hpp), and the split of responsibility that
-// came out of the move is the useful part:
+// WHAT THIS PACKAGE OWNS, AND WHAT IT DELIBERATELY DOES NOT. Authored-versus-
+// resolved is the UI package's (ui/layout.hpp); the split is the useful part:
 //
 //   ui::resolve / ui::hit   HOW authored intent becomes geometry, and what is
 //                           under a cell. The same answer for every application.
@@ -29,70 +27,50 @@
 //                           generalise -- a different application may hold a
 //                           different opinion and still resolve identically.
 //
-// So Workshop still owns every refusal, and owns no geometry at all.
+// So Workshop owns every refusal, and owns no geometry at all.
 //
-// W-2 ADDED THE OPERATIONS A MAKER'S HANDS NEED -- create, move, delete -- and
-// the arrangement that came out of it is the useful part. There is now exactly
-// ONE operation in this package that writes a position (`move`), and `set_x` /
-// `set_y` are that operation holding one coordinate still. A typed edit in the
+// ONE ACT, ONE OPERATION. `move` is the only function here that writes a
+// position, `resize` the only one that writes an extent, and `set_context` the
+// only one that writes a relationship; `set_x`/`set_y`, `set_width`/
+// `set_height` are those operations holding one half still. A typed edit in the
 // inspector and a drag on the canvas are therefore not two write paths that
 // happen to validate alike; they are one write path reached two ways, which is
-// the only version of "shared policy" a mutation cannot quietly separate.
+// the only version of "shared policy" a mutation cannot quietly separate. Each
+// judges the maker's act WHOLE before writing any of it -- `set_context` judges
+// three facts, because changing a context can make an already-written
+// coordinate illegal -- so a two-part gesture never half-succeeds. The
+// granularity of an operation is decided by the GESTURE, not by how many fields
+// it happens to touch.
 //
-// W-3 PUT SIZE UNDER THE SAME HAND, and the arrangement repeated exactly:
-// `resize` is now the one operation that writes an extent, and `set_width` /
-// `set_height` are it holding one extent still. Two properties, one shape of
-// answer -- which is the second piece of evidence that the granularity of an
-// operation is decided by the GESTURE, not by how many fields it happens to
-// touch.
-//
-// WHAT DOES NOT LIVE HERE, and the distinction W-3 turns on: the CLAMP. These
-// operations judge an authored proposal and refuse the ones this document will
-// not accept. They never quietly correct one. A maker's HAND, on the other hand,
-// can ask for a place or a size that does not exist, and stopping it at the wall
-// is interaction policy -- so it lives with the gestures in screen.hpp, which
-// then hand a real proposal down to these functions. Refusal and clamping are
-// two different truths about two different acts, and keeping them in two files
-// is the cheapest reminder of which one is being told.
+// WHAT DOES NOT LIVE HERE, and it is the distinction the whole boundary turns
+// on: the CLAMP. These operations judge an authored proposal and refuse the ones
+// this document will not accept. They never quietly correct one. A maker's HAND,
+// on the other hand, can ask for a place or a size that does not exist, and
+// stopping it at the wall is interaction policy -- so it lives with the gestures
+// in screen.hpp, which then hand a real proposal down to these functions.
+// Refusal and clamping are two different truths about two different acts, and
+// keeping them in two files is the cheapest reminder of which one is being told.
 
-// W-5 ADDED THE ONE OPERATION A FILE NEEDS -- `restore` -- and with it the first
-// law in this package that is about the DOCUMENT rather than about one edit.
-// Every rule above judges a proposal against a document that is already legal.
-// A document read from a file has not been past any of them, and it can be
-// illegal in ways a single edit cannot: two objects carrying one identity, a
-// mint that has already handed out the number it says it will hand out next.
-// Those are stated in `check_document` and nowhere else, and `restore` is the
-// only door that admits a whole document. See the note there for why the maker
-// path does not need them (it satisfies them by construction) and why that is
-// not a second set of laws.
+// TWO KINDS OF LAW, and only one of them is about a single edit. Every rule
+// above judges a proposal against a document that is already legal. A document
+// read from a FILE has not been past any of them, and can be illegal in ways a
+// single edit cannot: two objects carrying one identity, a mint that has already
+// handed out the number it says it will hand out next. Those are stated in
+// `check_document` and nowhere else, and `restore` is the only door that admits
+// a whole document -- so an interactive rewire and a loaded file are refused in
+// the same words. See the note there for why the maker path does not need them
+// (it satisfies them by construction) and why that is not a second set of laws.
 
-// W-6 ADDED THE FIRST FACT ABOUT ONE OBJECT THAT IS ALSO A FACT ABOUT ANOTHER --
-// `context`, the identity whose frame this object's values are read in -- and
-// the shape of this package answered it without changing:
-//
-//   `set_context`      the one operation that writes a context, and the third
-//                      instance of the pattern `move` and `resize` established:
-//                      a maker's act is judged WHOLE before any of it is
-//                      written. It judges three facts, because changing a
-//                      context can make an already-written coordinate illegal.
-//   `check_context`    what this document will accept as a relationship: an
-//                      identity that exists, that is not this object, and whose
-//                      own chain does not come back here.
-//   `check_document`   the same law over every object at once, so a loaded file
-//                      and a keystroke are refused in the same words.
-//   `remove`           gained its second refusal: a source something measures
-//                      against is not deletable. That is a POLICY, argued at
-//                      the function, and it is Workshop's -- not a property of
-//                      the vocabulary.
-//
-// AND ONE OLD LAW TURNED OUT TO BE NARROWER THAN IT WAS WRITTEN. `check_coord`
-// refused every negative coordinate; its stated reason was that the workspace
-// has no cells before 0, which is a fact about the WORKSPACE and not about
-// coordinates. In another element's frame a coordinate is an offset, -1 is an
+// `check_coord` IS THE ROOT'S GUARD, not every coordinate's, and the reason is
+// its own stated one: the workspace has no cells before 0, which is a fact about
+// the WORKSPACE. In another element's frame a coordinate is an offset, -1 is an
 // ordinary thing to author, and the cell it lands on may well exist. So the
-// check now takes the context it is judging in and the root's guard is exactly
-// as strong as it was. That is a repair, not a widening: the law was always the
-// root's, and it had simply never been asked in any other frame.
+// check takes the context it is judging in, and the root's guard is exactly as
+// strong as it would be without it.
+//
+// What all of this looks like to a maker -- and why a source with dependents is
+// not deletable, which is this document's policy and not the vocabulary's -- is
+// README.md#workshop--the-maker-facing-surface.
 
 #include "property.hpp"
 #include "vocabulary.hpp"
@@ -122,11 +100,11 @@ inline constexpr std::size_t kMaxNameLen = 32;  ///< a label, not a document
 
 /// The last identity this document could ever mint.
 ///
-/// It exists because W-5 let a document arrive from a FILE. `next_id++` on the
+/// It exists because a document can arrive from a FILE. `next_id++` on the
 /// largest representable integer is signed overflow -- undefined behaviour
-/// produced by data -- and before persistence the only way to reach it was a
-/// poke. A file is ordinary maker input, so the mint now has an end and says so
-/// (`add` below) instead of wrapping into an identity it has already used.
+/// produced by data -- and a file is ordinary maker input, so the mint has an
+/// end and says so (`add` below) instead of wrapping into an identity it has
+/// already used.
 inline constexpr std::int64_t kMaxIdentity = (std::numeric_limits<std::int64_t>::max)();
 
 /// The first identity a document may carry. Zero is reserved: the session
@@ -144,7 +122,7 @@ inline constexpr std::int64_t kFirstIdentity = 1;
 /// behind it yet.
 ///
 /// The label is deliberately the SAME word the opening document already uses
-/// twice. Two objects called `panel` was W-0's fixture for "a name is not an
+/// twice. Two objects called `panel` is the fixture for "a name is not an
 /// identity"; making it the default means a maker meets that fact by creating,
 /// which is the moment it is cheapest to learn.
 inline constexpr const char* kNewLabel = "panel";
@@ -184,10 +162,9 @@ inline bool can_mint(const WorkshopDoc& d) {
 /// Add an authored object, minting its identity. Returns the new id, or 0 when
 /// this document has no identity left to give.
 ///
-/// It still judges no maker-supplied value -- there is none, W-0 has no
-/// create-with-arguments gesture -- and W-0 through W-4 recorded that as "this
-/// operation cannot refuse". W-5 found the one thing it can refuse about: the
-/// MINT ITSELF can be exhausted. `next_id++` at the top of the number line is
+/// It judges no maker-supplied value -- there is none, because there is no
+/// create-with-arguments gesture -- but it is not unable to refuse: the MINT
+/// ITSELF can be exhausted. `next_id++` at the top of the number line is
 /// signed overflow, and the result would be an identity this document has
 /// already handed out, which is the one law the whole arc rests on. So the
 /// exhausted mint is an answer (0) rather than an overflow, and 0 is the same
@@ -211,10 +188,9 @@ inline std::int64_t add(WorkshopDoc& d, std::string label, std::int64_t x, std::
 /// Mint one new authored object with this document's defaults. Returns its
 /// identity.
 ///
-/// The mint is still `WorkshopDoc::next_id` -- W-1 left it with the document and
-/// W-2 deliberately did not move it, because interactive creation is exactly the
-/// pressure that would have shown it to be in the wrong place. What that pressure
-/// actually surfaced is one property worth naming: the counter NEVER REWINDS. A
+/// The mint is `WorkshopDoc::next_id`, and it rides with the document rather
+/// than with the session because a saved document must come back able to mint
+/// (persist.hpp). The property that matters: the counter NEVER REWINDS. A
 /// deleted object's id is not handed out again, so a maker who deletes #3 and
 /// creates another gets #4, and a selection, a notice or a half-finished thought
 /// that still says "#3" can never quietly come to mean a different object.
@@ -274,8 +250,8 @@ inline std::string identities_text(const std::vector<std::int64_t>& ids) {
 /// object" is a thing a maker did (pressed delete with nothing selected) and not
 /// a no-op worth hiding.
 ///
-/// AND SINCE W-6 IT REFUSES A SECOND WAY: an object something else measures
-/// against cannot be deleted. That is a POLICY, chosen here, and the two
+/// AND IT REFUSES A SECOND WAY: an object something else measures against
+/// cannot be deleted. That is a POLICY, chosen here, and the two
 /// alternatives were both rejected for changing a maker's work without being
 /// asked to:
 ///
@@ -318,8 +294,8 @@ inline Written remove(WorkshopDoc& d, std::int64_t id) {
 /// not the identity (see ui::Element), and refusing a duplicate here would
 /// quietly make it one.
 ///
-/// Its own function since W-5, for the reason `check_extent` and `check_coord`
-/// are their own functions: a document read from a file carries labels nobody
+/// Its own function, for the reason `check_extent` and `check_coord` are their
+/// own functions: a document read from a file carries labels nobody
 /// typed, and it must meet the SAME rule a maker's rename meets. Two spellings
 /// of one rule is how a typed name and a loaded one come to disagree.
 inline Written check_name(const std::string& label) {
@@ -375,13 +351,13 @@ inline Written check_extent(const ui::Extent& e) {
 
 /// Author a size. THE ONE PLACE an extent is written in this package.
 ///
-/// One operation and not two, for exactly the reason `move` below is one. W-2
-/// found that a gesture and a property can disagree about the granularity of an
-/// operation, and a corner handle says it again at the other property: a maker
-/// pulling a corner proposes a SIZE, not a width and then a height. Written as
-/// two independent setters, a diagonal resize whose height is illegal would
-/// narrow the object AND report a refusal -- the refusal-beside-a-successful-write
-/// W-2 removed from placement, reappearing here. So both extents are checked
+/// One operation and not two, for exactly the reason `move` below is one: a
+/// gesture and a property can disagree about the granularity of an operation,
+/// and a corner handle says so at this property too -- a maker pulling a corner
+/// proposes a SIZE, not a width and then a height. Written as two independent
+/// setters, a diagonal resize whose height is illegal would narrow the object
+/// AND report a refusal, which is the refusal-beside-a-successful-write that
+/// placement already refuses to produce. So both extents are checked
 /// before either is written, and a refused resize leaves the object exactly the
 /// size it was.
 ///
@@ -435,8 +411,8 @@ inline constexpr std::int64_t kFirstCell = 0;
 /// because the workspace has no cells there at all -- the object would be
 /// authored somewhere that does not exist.
 ///
-/// W-6 ASKED WHETHER THAT WAS A LAW ABOUT COORDINATES OR A LAW ABOUT THE ROOT,
-/// and the answer is in the sentence above: "the workspace has no cells there".
+/// THAT IS A LAW ABOUT THE ROOT AND NOT ABOUT COORDINATES, and the reason is in
+/// the sentence above: "the workspace has no cells there".
 /// That is a fact about the WORKSPACE. A coordinate authored in another
 /// element's frame is an OFFSET FROM ITS ORIGIN, and -1 there means "one cell
 /// before my source starts", which is an ordinary thing to want (a marker on a
@@ -523,8 +499,8 @@ inline Written set_y(WorkshopDoc& d, std::int64_t id, std::int64_t y) {
 
 // ---- The one relationship, and the law it lives under ----------------------------------
 //
-// W-6's whole authored addition is one identity per element, and everything in
-// this section exists because an identity that names another object can name one
+// The authored relationship is one identity per element, and everything in this
+// section exists because an identity that names another object can name one
 // that is not there, or one whose own chain comes back around. Both are
 // REFUSALS, and both are refused in the same words whether they arrive by a
 // maker's keystroke or out of a file -- there is one law, stated here, and
@@ -542,8 +518,8 @@ inline Written set_y(WorkshopDoc& d, std::int64_t id, std::int64_t y) {
 /// that works and one that looks like it does. Workshop's notice is ONE LINE and
 /// the canvas clips at its own width, so a refusal that does not fit is a
 /// refusal whose tail a maker never sees -- and the tail of a cycle message is
-/// the part that names the loop. The first live W-6 run printed a two-object
-/// cycle one character too long and lost its closing bracket; a fixed link count
+/// the part that names the loop. Measured live: a two-object cycle printed one
+/// character too long and lost its closing bracket, and a fixed link count
 /// then failed the same way one identity later, because an identity is an
 /// int64 and `#9223372036854775807` is twenty characters on its own.
 ///
@@ -676,9 +652,9 @@ inline Written set_context(WorkshopDoc& d, std::int64_t id, std::int64_t candida
 // ---- A whole document, and the one door that admits one -------------------------------
 //
 // Everything above judges ONE PROPOSAL against a document that is already legal.
-// W-5 needs the other question -- is this whole thing a document at all -- and
-// the two are not the same question, because a document can be wrong in ways no
-// single edit can make it wrong.
+// A loaded file poses the other question -- is this whole thing a document at
+// all -- and the two are not the same, because a document can be wrong in ways
+// no single edit can make it wrong.
 //
 // WHY THIS IS NOT A SECOND SET OF LAWS. Every per-value rule below is the SAME
 // function the maker's own edits go through: check_name, check_coord,
@@ -789,8 +765,8 @@ inline Written check_document(const WorkshopDoc& d) {
 ///
 /// IT IS A TRANSACTION. The candidate is judged whole, before anything is
 /// written; a refusal leaves the live document byte-for-byte what it was. That
-/// is the same rule the property editor has kept since W-0 -- a refusal leaves
-/// committed truth unchanged -- said about a whole document instead of one
+/// is the same rule the property editor keeps -- a refusal leaves committed
+/// truth unchanged -- said about a whole document instead of one
 /// field, and it is what stops a malformed file from leaving Workshop half
 /// loaded.
 ///
@@ -835,12 +811,13 @@ inline Property<std::string> name_of(WorkshopDoc& d, std::int64_t id) {
 }
 
 /// What this object's values are measured against. The relationship, as an
-/// ordinary editable property — which is the whole of W-6's authoring surface.
+/// ordinary editable property — which is the whole of the authoring surface for
+/// it.
 ///
 /// There is no tree editor, no node graph and no hierarchy panel, because the
 /// relationship is one field and the inspector already knows how to edit one
-/// field. That it cost a single line here is the measurement: the property
-/// machinery W-0 built for `Name` carried a relationship without being told
+/// field. That it costs a single line here is the measurement: the property
+/// machinery written for `Name` carries a relationship without being told
 /// relationships exist.
 inline Property<ContextRef> context_of(WorkshopDoc& d, std::int64_t id) {
     return Property<ContextRef>(

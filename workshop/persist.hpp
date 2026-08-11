@@ -13,16 +13,15 @@
 //   DOCUMENT   an identity, a name, the identity this object's values are
 //              measured against, an authored place, two authored extents (mode
 //              AND amount), the ORDER the objects are in, and the next identity
-//              to mint. That is WorkshopDoc; W-5 found it needed no new field
-//              and W-6 added exactly one, to the element rather than to the
-//              document.
+//              to mint. That is WorkshopDoc exactly, with no field existing
+//              only to be saved.
 //
 //              The relationship is persisted; its RESULT is not. Nowhere in
 //              this file is a source's resolved rectangle, a dependent's global
 //              position, the cells a share came to, or the order the loader
 //              would have to resolve things in. All four are rebuilt, and the
-//              proof is the same one W-5 used for a share: save under one
-//              context and load under another, and the authored relationship is
+//              proof is the one a share already uses: save under one context
+//              and load under another, and the authored relationship is
 //              byte-identical while the resolved geometry is not.
 //
 //   SESSION    the selection, the workspace extent, an editor draft, a drag in
@@ -45,8 +44,8 @@
 // OWN compat codec (<zen/serialize.hpp>) -- not a parser written here. That is
 // a source-traced choice rather than a convenience:
 //
-//   - it is already an ordinary dependency. Zengine links loom::core; W-5 adds
-//     no third-party library and no new build edge.
+//   - it is already an ordinary dependency. Zengine links loom::core, so this
+//     costs no third-party library and no new build edge.
 //   - it is the SAME GATE every value crossing the bus goes through. A document
 //     read from a file and a message read from the wire are refused by one
 //     validator, so Workshop cannot come to trust a file more than it trusts a
@@ -170,13 +169,13 @@ inline constexpr const char* kFormat = "zengine-workshop";
 
 /// The only format version this build reads or writes.
 ///
-/// IT IS NOT YET A PUBLIC COMPATIBILITY BOUNDARY, and W-6 is the phase that had
-/// to say so out loud. This phase changed the written shape -- an object now
-/// carries a `context` -- so a document saved by W-5 no longer admits: the
-/// Loom's gate refuses it for a missing member, before this number is ever
-/// looked at. That is the honest outcome and it was chosen rather than papered
-/// over. There is one implementation, one consumer, no released promise, and no
-/// artifact in the world worth a compatibility layer, so:
+/// IT IS NOT YET A PUBLIC COMPATIBILITY BOUNDARY, said out loud because the
+/// written shape has changed under it: an object carries a `context`, so a
+/// document written before that field existed no longer admits -- the Loom's
+/// gate refuses it for a missing member, before this number is ever looked at.
+/// That is the honest outcome and it was chosen rather than papered over. There
+/// is one implementation, one consumer, no released promise, and no artifact in
+/// the world worth a compatibility layer, so:
 ///
 ///   NOT DONE   a v1 -> v2 migration, a legacy reader, an upgrade path, a
 ///              version graph. Every one of them would be machinery built to
@@ -185,7 +184,7 @@ inline constexpr const char* kFormat = "zengine-workshop";
 ///   NOT DONE   bumping this number. It states what a document MEANS, and the
 ///              meaning of every field is unchanged; the SHAPE changing is a
 ///              different claim, carried by the Loom envelope's own version
-///              (WorkshopDocument v2), which is what actually refuses a W-5
+///              (WorkshopDocument v2), which is what actually refuses an older
 ///              file. Incrementing it here as well would be discipline theatre:
 ///              a second refusal for a document the first one already stopped.
 ///
@@ -284,8 +283,8 @@ struct WorkshopDocument {
     std::int64_t next_id = 0;
     std::vector<WorkshopObject> objects;
 
-    /// Version 2 since W-6, because the objects it holds grew a field and a
-    /// published shape is immutable. `format_version` below is a DIFFERENT
+    /// Version 2, because the objects it holds grew a field and a published
+    /// shape is immutable. `format_version` below is a DIFFERENT
     /// claim and did NOT move -- see the note on it.
     ZEN_SHAPE(WorkshopDocument, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(next_id), ZEN_FIELD(objects));
