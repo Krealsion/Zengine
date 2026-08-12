@@ -148,6 +148,41 @@ struct SurfaceCanvas {
 /// Skin gets the conversion, rather than each inventing its own scale.
 inline constexpr std::int64_t kCanvasCellPx = 12;
 
+/// HOW MUCH ROOM THE ACTIVE SURFACE HAS, in canvas cells — the medium answering
+/// the one question a publisher cannot answer for itself.
+///
+/// Every other shape here travels intent -> medium. This one travels the other
+/// way, and it is the only fact that does: a canvas is authored in cells and a
+/// medium resolves cells into its own units, so how many cells there is room for
+/// is a fact ONLY the medium holds. Before G-2 a publisher had to guess, which in
+/// practice meant a constant, which in practice meant a window sized to the
+/// picture rather than a picture sized to the window. `Workshop`'s own screen
+/// header said so in as many words — "a canvas has no notion of the medium's
+/// size, and giving it one is a Surface question, not a Workshop one". This is
+/// that Surface question, answered.
+///
+/// IT IS AN OFFER, NOT AN INSTRUCTION, exactly like every other intent on this
+/// bus in the other direction. A publisher that ignores it keeps publishing
+/// whatever extent it likes and the Skin clips, which is the contract
+/// `SurfaceCanvas` already states. What changes is only that a publisher which
+/// WANTS to fill its medium now can.
+///
+/// PUBLISHED WHEN IT CHANGES, and not otherwise — a Skin's own beat is what
+/// notices a person dragging a window edge, so the fact arrives on the pump
+/// rather than on an event nobody owns. A medium with no answer (a terminal Skin,
+/// or a window that does not exist yet) publishes NOTHING rather than publishing
+/// zeroes: "I have no opinion" and "there is no room" are different sentences,
+/// and only one of them should move a publisher's screen.
+///
+/// It names no surface for the same reason `SurfaceCloseRequested` names no
+/// window: `kSkinRole` is a singleton, so "the active surface" is a complete
+/// address.
+struct SurfaceExtent {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    ZEN_SHAPE(SurfaceExtent, 1, ZEN_FIELD(width), ZEN_FIELD(height));
+};
+
 /// The active Skin's hello: published exactly once per incarnation, on the
 /// first message it handles after claiming its surface (a weave runs only on
 /// message — the same lazy-first-wake stance as the v2 world's inheritance

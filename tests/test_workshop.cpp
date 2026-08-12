@@ -133,7 +133,7 @@ std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
 std::vector<std::string> object_lines(const surface::SurfaceCanvas& c) {
     std::vector<std::string> lines;
     for (std::int64_t i = 0; i < kListRows; ++i) {
-        lines.push_back(label_at(c, kPanelX, kListY + i));
+        lines.push_back(label_at(c, kMinScreen.panel_x, kListY + i));
     }
     return lines;
 }
@@ -570,7 +570,7 @@ TEST_CASE("a click selects the same authored object the maker can see") {
     s.selected = ui::hit(scene, 5, 3)->id;
     refocus(d, s);
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(label_at(c, kPanelX, kListY + 1) == "> #" + std::to_string(front) + " front");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY + 1) == "> #" + std::to_string(front) + " front");
     CHECK(s.rows[0].value() == "#" + std::to_string(front));
     const ui::Rect fr = ui::placed_for(scene, front)->rect;
     CHECK(has_rect(c, kWorkspaceX + fr.x - 1, kWorkspaceY + fr.y - 1, fr.w + 2, fr.h + 2,
@@ -644,7 +644,7 @@ TEST_CASE("creating mints a fresh identity, and the identity is not the label or
                    placed->rect.h, surface::role::kFill));
     CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
                    placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
-    CHECK(label_at(c, kPanelX, kListY + 2) == "> #" + std::to_string(made) + " panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY + 2) == "> #" + std::to_string(made) + " panel");
 }
 
 TEST_CASE("creation cannot author a state this document would refuse") {
@@ -702,8 +702,8 @@ TEST_CASE("delete removes exactly one identity, and the other duplicate label su
     CHECK(ui::placed_for(workspace_scene(d, s), 1) == nullptr);
     CHECK(workspace_scene(d, s).items.size() == 1);
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(label_at(c, kPanelX, kListY) == "> #" + std::to_string(kept) + " panel");
-    CHECK(label_at(c, kPanelX, kListY + 1).empty());
+    CHECK(label_at(c, kMinScreen.panel_x, kListY) == "> #" + std::to_string(kept) + " panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY + 1).empty());
     CHECK(s.rows[0].value() == "#" + std::to_string(kept));
 }
 
@@ -1210,7 +1210,7 @@ TEST_CASE("canvas, object list and inspector agree after every gesture in a sess
         CHECK(has_rect(c, kWorkspaceX + placed->rect.x - 1, kWorkspaceY + placed->rect.y - 1,
                        placed->rect.w + 2, placed->rect.h + 2, surface::role::kAccent));
         // list: the marker is on this identity
-        CHECK(label_at(c, kPanelX, kListY + row).rfind("> #" + std::to_string(id), 0) == 0);
+        CHECK(label_at(c, kMinScreen.panel_x, kListY + row).rfind("> #" + std::to_string(id), 0) == 0);
         // inspector: the same identity, and the authored position it is drawn at
         CHECK(s.rows[0].value() == "#" + std::to_string(id));
         CHECK(s.rows[3].value() == std::to_string(placed->rect.x));
@@ -1871,8 +1871,8 @@ TEST_CASE("the screen shows the selected object, ringed, listed, and inspected")
     refocus(d, s);
 
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(c.width == kScreenW);
-    CHECK(c.height == kScreenH);
+    CHECK(c.width == kMinScreen.w);
+    CHECK(c.height == kMinScreen.h);
 
     // The workspace, then the selected object's ring UNDER its fill, then the
     // unselected object with no ring.
@@ -1900,16 +1900,16 @@ TEST_CASE("the screen shows the selected object, ringed, listed, and inspected")
 
     // The object list names the SAME objects by identity, and marks the same
     // selection the ring does.
-    CHECK(label_at(c, kPanelX, kListY) == "> #1 panel");
-    CHECK(label_at(c, kPanelX, kListY + 1) == "  #2 panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY) == "> #1 panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY + 1) == "  #2 panel");
 
     // The inspector reads the real object's real properties. The cursor sits on
     // the first row a maker can author, which is Name, not Identity.
     CHECK(s.cursor == 1);
-    CHECK(label_at(c, kPanelX, kRowsY) == " Identity #1");
-    CHECK(label_at(c, kPanelX, kRowsY + 1) == ">Name     panel");
-    CHECK(label_at(c, kPanelX, kRowsY + 5) == " Width    60%");
-    CHECK(label_at(c, kPanelX, kRowsY + 7) == " Resolved 28 x 6 cells");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY) == " Identity #1");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY + 1) == ">Name     panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY + 5) == " Width    60%");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY + 7) == " Resolved 28 x 6 cells");
 }
 
 TEST_CASE("selecting the other object moves the ring, the list marker, and the inspector") {
@@ -1921,14 +1921,14 @@ TEST_CASE("selecting the other object moves the ring, the list marker, and the i
     const surface::SurfaceCanvas c = paint(d, s);
     CHECK(has_rect(c, 5, kWorkspaceY + 9, 16, 6, surface::role::kAccent));
     CHECK_FALSE(has_rect(c, 2, kWorkspaceY + 1, 30, 8, surface::role::kAccent));
-    CHECK(label_at(c, kPanelX, kListY) == "  #1 panel");
-    CHECK(label_at(c, kPanelX, kListY + 1) == "> #2 panel");
-    CHECK(label_at(c, kPanelX, kRowsY) == " Identity #2");
-    CHECK(label_at(c, kPanelX, kRowsY + 5) == " Width    14");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY) == "  #1 panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY + 1) == "> #2 panel");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY) == " Identity #2");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY + 5) == " Width    14");
     // #2's width is authored in CELLS, so its authored and resolved facts
     // coincide -- which the inspector still reports as two rows, because
     // coinciding is not the same as being one fact.
-    CHECK(label_at(c, kPanelX, kRowsY + 7) == " Resolved 14 x 4 cells");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY + 7) == " Resolved 14 x 4 cells");
 }
 
 TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen") {
@@ -1947,23 +1947,23 @@ TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen"
     const surface::SurfaceCanvas drafting = paint(d, s);
     // The row carries a cursor and the alert role: a draft cannot be mistaken
     // for a committed value on the screen either.
-    CHECK(label_at(drafting, kPanelX, kRowsY + 5) == ">Width    500p_");
+    CHECK(label_at(drafting, kMinScreen.panel_x, kRowsY + 5) == ">Width    500p_");
     for (const surface::SurfaceLabel& l : drafting.labels) {
         if (l.y == kRowsY + 5) {
             CHECK(l.role == surface::role::kAlert);
         }
     }
     // And the resolved row still reports the COMMITTED width, not the draft.
-    CHECK(label_at(drafting, kPanelX, kRowsY + 7) == " Resolved 28 x 6 cells");
+    CHECK(label_at(drafting, kMinScreen.panel_x, kRowsY + 7) == " Resolved 28 x 6 cells");
 
     CHECK(s.rows[5].commit() == Commit::Refused);
     s.notice = "Width: " + s.rows[5].refusal();
     s.notice_is_bad = true;
 
     const surface::SurfaceCanvas refused = paint(d, s);
-    CHECK(label_at(refused, 0, kNoticeY) == "Width: a share is 1% to 100%");
+    CHECK(label_at(refused, 0, kMinScreen.notice_y) == "Width: a share is 1% to 100%");
     for (const surface::SurfaceLabel& l : refused.labels) {
-        if (l.y == kNoticeY) {
+        if (l.y == kMinScreen.notice_y) {
             CHECK(l.role == surface::role::kAlert);
         }
     }
@@ -1991,18 +1991,18 @@ TEST_CASE("the whole screen survives an empty document, and SAYS it is empty") {
     CHECK(s.rows.empty()); // nothing selected, so there are no properties to show
 
     const surface::SurfaceCanvas c = paint(d, s);
-    CHECK(c.width == kScreenW);
+    CHECK(c.width == kMinScreen.w);
     // Nothing is INVENTED here: no row, no object, no identity. And emptiness
     // ANNOUNCES itself, because a maker can reach this state by deleting their
     // own work -- and a panel that merely goes blank is indistinguishable from a
     // tool that has broken.
-    CHECK(label_at(c, kPanelX, kListY) == "(none) -- n makes one");
-    CHECK(label_at(c, kPanelX, kRowsY) == "(nothing selected)");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY) == "(none) -- n makes one");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY) == "(nothing selected)");
     // The workspace and the two headings are still there: an empty document is a
     // document, and the tool does not disappear with it.
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, kWorkspaceW, kWorkspaceH, surface::role::kMuted));
-    CHECK(label_at(c, kPanelX, kListY - 1) == "OBJECTS");
-    CHECK(label_at(c, kPanelX, kRowsY - 1) == "PROPERTIES");
+    CHECK(label_at(c, kMinScreen.panel_x, kListY - 1) == "OBJECTS");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY - 1) == "PROPERTIES");
     // And nothing was authored to make the message: the document is still empty.
     CHECK(d.elements.empty());
 }
@@ -2046,7 +2046,7 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     refocus(d, s);
 
     const std::vector<std::string> rows = rasterized(paint(d, s));
-    REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
+    REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
     CHECK(rows[0].rfind("WORKSPACE 48x16 cells", 0) == 0);
     // The ring's top edge, above the selected rectangle.
     CHECK(rows[2].rfind("..**", 0) == 0);
@@ -2114,12 +2114,12 @@ TEST_CASE("a sixth object cannot vanish: the list says what it left out and keep
     // count and the inspector both said #6 -- and the only one a maker could act
     // on was the one that was wrong.
     CHECK(d.elements.size() == 6);
-    CHECK(label_at(c, kPanelX, kRowsY) == " Identity #6");
+    CHECK(label_at(c, kMinScreen.panel_x, kRowsY) == " Identity #6");
 
     // The marker is the panel's own furniture: muted, like `(none) -- n makes
     // one`, and it mints no identity and invents no name.
     for (const surface::SurfaceLabel& l : c.labels) {
-        if (l.x == kPanelX && l.y == kListY) {
+        if (l.x == kMinScreen.panel_x && l.y == kListY) {
             CHECK(l.role == surface::role::kMuted);
         }
     }
@@ -2273,7 +2273,7 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     // Nothing here is forged and nothing is distorted to make the sentence long.
     const Written refused = doc::set_context(d, 9000000000000001, 9000000000000002);
     REQUIRE_FALSE(refused.accepted);
-    REQUIRE(refused.refusal.size() > static_cast<std::size_t>(kScreenW));
+    REQUIRE(refused.refusal.size() > static_cast<std::size_t>(kMinScreen.w));
 
     Session s;
     s.selected = 9000000000000001;
@@ -2282,8 +2282,8 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     s.notice_is_bad = true;
 
     const surface::SurfaceCanvas c = paint(d, s);
-    const std::string shown = label_at(c, 0, kNoticeY);
-    CHECK(shown.size() == static_cast<std::size_t>(kScreenW)); // it fits the line it has
+    const std::string shown = label_at(c, 0, kMinScreen.notice_y);
+    CHECK(shown.size() == static_cast<std::size_t>(kMinScreen.w)); // it fits the line it has
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);     // and says it did not fit
     // What IS shown is the message's own head, unaltered -- the presentation
     // shortened it and did not reword it.
@@ -2294,7 +2294,7 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     CHECK(s.notice.size() > shown.size());
     // The role is untouched: fitting a refusal does not make it less of one.
     for (const surface::SurfaceLabel& l : c.labels) {
-        if (l.y == kNoticeY) {
+        if (l.y == kMinScreen.notice_y) {
             CHECK(l.role == surface::role::kAlert);
         }
     }
@@ -2334,9 +2334,9 @@ TEST_CASE("a truncated notice still fits the terminal, through the real rasteriz
         at = end + 2;
     }
 
-    REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
-    const std::string line = rows[static_cast<std::size_t>(kNoticeY)];
-    CHECK(line.size() == static_cast<std::size_t>(kScreenW)); // the row is the screen's width
+    REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
+    const std::string line = rows[static_cast<std::size_t>(kMinScreen.notice_y)];
+    CHECK(line.size() == static_cast<std::size_t>(kMinScreen.w)); // the row is the screen's width
     CHECK(line.compare(line.size() - 3, 3, "...") == 0);      // and it ENDS by saying so
     CHECK(line.find("END") == std::string::npos);             // the tail really is gone
     CHECK(s.notice.find("END") != std::string::npos);         // and Workshop still has it
@@ -2437,7 +2437,7 @@ std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& me,
 std::string pane_text(const surface::SurfaceCanvas& c) {
     std::string out;
     for (const surface::SurfaceLabel& l : c.labels) {
-        if (l.x == kTerminalX && l.y >= kTerminalY) {
+        if (l.x == kMinScreen.terminal_x && l.y >= kMinScreen.terminal_y) {
             out += l.text;
             out += '\n';
         }
@@ -3149,7 +3149,7 @@ TEST_CASE("the selection marker never disappears as a maker walks past the fifth
         // frame the list was read from.
         CHECK(t.notes.back().text.rfind("[workshop] 9 objects | selected #" + std::to_string(id),
                                         0) == 0);
-        CHECK(label_at(t.canvases.back(), kPanelX, kRowsY) == " Identity #" + std::to_string(id));
+        CHECK(label_at(t.canvases.back(), kMinScreen.panel_x, kRowsY) == " Identity #" + std::to_string(id));
     }
 }
 
@@ -3168,11 +3168,11 @@ TEST_CASE("a notice a maker's own path makes too long is marked on screen, not c
     // The refusal is whole in the session, and it is genuinely longer than a
     // line -- the path alone overruns the screen, whatever the platform's own
     // wording for a missing file happens to be.
-    REQUIRE(t.notice().size() > static_cast<std::size_t>(kScreenW));
+    REQUIRE(t.notice().size() > static_cast<std::size_t>(kMinScreen.w));
     CHECK(t.notice().find(t.host.document_path) != std::string::npos);
 
-    const std::string shown = label_at(t.canvases.back(), 0, kNoticeY);
-    CHECK(shown.size() == static_cast<std::size_t>(kScreenW));
+    const std::string shown = label_at(t.canvases.back(), 0, kMinScreen.notice_y);
+    CHECK(shown.size() == static_cast<std::size_t>(kMinScreen.w));
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
 
@@ -4039,7 +4039,7 @@ TEST_CASE("selection after a load is re-established, never inherited") {
     CHECK(t.doc().elements.empty());
     CHECK(t.session().selected == 0);
     CHECK(t.session().rows.empty());
-    CHECK(label_at(t.canvases.back(), kPanelX, kListY) == "(none) -- n makes one");
+    CHECK(label_at(t.canvases.back(), kMinScreen.panel_x, kListY) == "(none) -- n makes one");
 }
 
 TEST_CASE("a failed load costs a maker nothing but the notice") {
@@ -4314,7 +4314,7 @@ TEST_CASE("a relationship that cannot mean anything is refused, and says which")
         // notice is one line and the canvas clips it, so a message that does
         // not fit loses exactly the part that names the loop.
         CHECK(no.refusal == "#1 cannot use #3 as context: a cycle (#1 -> #3 -> #2 -> #1)");
-        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kScreenW));
+        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kMinScreen.w));
         CHECK(doc::find(d, 1)->context == ui::kRootContext);
     }
     SUBCASE("a chain a long way further along") {
@@ -4333,7 +4333,7 @@ TEST_CASE("a relationship that cannot mean anything is refused, and says which")
         // A 43-link loop still fits on the notice line: the chain is cut with an
         // ellipsis rather than allowed to run off the end of what a maker sees.
         CHECK(no.refusal.find("...") != std::string::npos);
-        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kScreenW));
+        CHECK(std::string("Context: " + no.refusal).size() <= static_cast<std::size_t>(kMinScreen.w));
         CHECK(doc::check_document(d).accepted);
     }
     SUBCASE("no such object at all") {
@@ -4521,9 +4521,9 @@ TEST_CASE("document order is not dependency order, and stays paint, hit and list
     CHECK(scene.items[2].id == b);
     CHECK(d.elements[0].id == c);
     const surface::SurfaceCanvas canvas = paint(d, s);
-    CHECK(label_at(canvas, kPanelX, kListY) == "  #" + std::to_string(c) + " C");
-    CHECK(label_at(canvas, kPanelX, kListY + 1) == "> #" + std::to_string(a) + " A");
-    CHECK(label_at(canvas, kPanelX, kListY + 2) == "  #" + std::to_string(b) + " B");
+    CHECK(label_at(canvas, kMinScreen.panel_x, kListY) == "  #" + std::to_string(c) + " C");
+    CHECK(label_at(canvas, kMinScreen.panel_x, kListY + 1) == "> #" + std::to_string(a) + " A");
+    CHECK(label_at(canvas, kMinScreen.panel_x, kListY + 2) == "  #" + std::to_string(b) + " B");
 
     // ...and the topmost thing under an overlapping cell is the LAST authored,
     // B -- the one the others depend on. Dependency order is not z-order.
@@ -5351,7 +5351,7 @@ TEST_CASE("the address grammar the pane reads is Loom's own, not a second one") 
     t.bus.pump();
     CHECK_FALSE(seat->who_said("no sigil").valid());
     CHECK(of_kind(*me, loom::TranscriptKind::Submitted).empty());
-    CHECK(me->transcript().entries().back().text.find("#12, @office or *") != std::string::npos);
+    CHECK(me->transcript().entries().back().text.find("#12 for one weave") != std::string::npos);
 
     // ...and the same line with the sigil is authored.
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"with sigil\"");
@@ -5420,10 +5420,10 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     const surface::SurfaceCanvas& c = t.canvases.back();
 
     // ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, exactly.
-    CHECK(kTerminalX + kTerminalW == kScreenW);
-    CHECK(kTerminalY + kTerminalH == kScreenH);
-    CHECK(label_at(c, kTerminalX, kTerminalY).rfind("TERMINAL -- weave #", 0) == 0);
-    CHECK(label_at(c, kTerminalX, kTerminalY).find(std::to_string(t.terminal_id.value)) !=
+    CHECK(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinScreen.w);
+    CHECK(kMinScreen.terminal_y + kMinScreen.terminal_h == kMinScreen.h);
+    CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y).rfind("TERMINAL -- weave #", 0) == 0);
+    CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y).find(std::to_string(t.terminal_id.value)) !=
           std::string::npos);
 
     // The line a maker typed, and the message it authored, both on the screen.
@@ -5437,27 +5437,27 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     CHECK(body.find("SUBMITTED") != std::string::npos);
     CHECK(body.find(terminal_legend()) != std::string::npos);
     CHECK(body.find("delivered") == std::string::npos);
-    CHECK(label_at(c, kTerminalX, kTerminalY + 1).rfind(terminal_legend(), 0) == 0);
+    CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y + 1).rfind(terminal_legend(), 0) == 0);
 
     // The cursor row shows what is being typed, and every row is exactly the pane's width --
     // which is what clears the furniture underneath in a medium whose ink is one cell.
     t.text("ab");
     const surface::SurfaceCanvas& c2 = t.canvases.back();
-    CHECK(label_at(c2, kTerminalX, kScreenH - 1).rfind("> ab_", 0) == 0);
+    CHECK(label_at(c2, kMinScreen.terminal_x, kMinScreen.h - 1).rfind("> ab_", 0) == 0);
     for (const surface::SurfaceLabel& l : c2.labels) {
-        if (l.x == kTerminalX && l.y >= kTerminalY) {
-            CHECK(static_cast<std::int64_t>(l.text.size()) == kTerminalW);
+        if (l.x == kMinScreen.terminal_x && l.y >= kMinScreen.terminal_y) {
+            CHECK(static_cast<std::int64_t>(l.text.size()) == kMinScreen.terminal_w);
         }
     }
 
     // The bottom band is the pane's while it is open: the notice and the two help lines are
     // not painted under it, because their right-hand two thirds would be covered and a
     // sentence beheaded mid-word is worse than no sentence.
-    CHECK(label_at(c2, 0, kHelpY).empty());
-    CHECK(label_at(c2, 0, kHelpY + 1).empty());
+    CHECK(label_at(c2, 0, kMinScreen.help_y).empty());
+    CHECK(label_at(c2, 0, kMinScreen.help_y + 1).empty());
     // ...and with the pane closed they are exactly as they were.
     t.toggle_terminal();
-    CHECK(label_at(t.canvases.back(), 0, kHelpY).rfind("n new | d delete", 0) == 0);
+    CHECK(label_at(t.canvases.back(), 0, kMinScreen.help_y).rfind("n new | d delete", 0) == 0);
 }
 
 TEST_CASE("the pane says what it is not showing, in the two senses that differ") {
@@ -5471,7 +5471,7 @@ TEST_CASE("the pane says what it is not showing, in the two senses that differ")
         (void)me->record_notice("line " + std::to_string(i));
     }
     t.text("x"); // any event repaints, and a repaint re-snapshots
-    CHECK(t.pane().shown.size() == kTerminalRows);
+    CHECK(t.pane().shown.size() == kMinScreen.terminal_rows);
     CHECK(t.pane().earlier > 0);
     CHECK(t.pane().dropped == 0);
     CHECK(terminal_omission(t.pane()).rfind("... ", 0) == 0);
@@ -5499,7 +5499,7 @@ TEST_CASE("a Workshop with no participant says so and authors nothing") {
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"x\"");
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("no terminal participant is mounted") != std::string::npos);
-    CHECK(label_at(t.canvases.back(), kTerminalX, kTerminalY)
+    CHECK(label_at(t.canvases.back(), kMinScreen.terminal_x, kMinScreen.terminal_y)
               .rfind("TERMINAL -- no participant", 0) == 0);
 }
 
@@ -5534,7 +5534,7 @@ TEST_CASE("the pane's snapshot outlives the participant it came from") {
         t.text("z");
         CHECK_FALSE(t.pane().attached);
         CHECK(t.pane().shown.empty());
-        CHECK(t.canvases.back().width == kScreenW);
+        CHECK(t.canvases.back().width == kMinScreen.w);
     }
     CHECK(held.front().text == "hello");
     CHECK(painted.find("> hello") != std::string::npos);
@@ -5562,36 +5562,452 @@ TEST_CASE("the overlay a maker actually sees: a solid pane, through the real ras
     s.terminal.shown.push_back(typed);
 
     const std::vector<std::string> rows = rasterized(paint(d, s));
-    REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
+    REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
 
     // THE PANE IS A SOLID BLOCK. One transcript row is filled and eight are empty, and an
     // EMPTY one is what the defect hid in: unwritten, it showed the backdrop's `.` straight
     // through into the workspace behind. Asserted as blank rather than as "no dots anywhere",
     // because a dot is perfectly legitimate CONTENT -- `zengine.skin` has one.
     const auto band = [&rows](std::int64_t y) {
-        return rows[static_cast<std::size_t>(y)].substr(static_cast<std::size_t>(kTerminalX),
-                                                        static_cast<std::size_t>(kTerminalW));
+        return rows[static_cast<std::size_t>(y)].substr(static_cast<std::size_t>(kMinScreen.terminal_x),
+                                                        static_cast<std::size_t>(kMinScreen.terminal_w));
     };
-    const std::string blank(static_cast<std::size_t>(kTerminalW), ' ');
-    for (std::size_t i = 1; i < kTerminalRows; ++i) {
-        CHECK(band(kTerminalY + 2 + static_cast<std::int64_t>(i)) == blank);
+    const std::string blank(static_cast<std::size_t>(kMinScreen.terminal_w), ' ');
+    for (std::size_t i = 1; i < kMinScreen.terminal_rows; ++i) {
+        CHECK(band(kMinScreen.terminal_y + 2 + static_cast<std::int64_t>(i)) == blank);
     }
-    for (std::int64_t y = kTerminalY; y < kScreenH; ++y) {
-        CHECK(band(y).size() == static_cast<std::size_t>(kTerminalW));
+    for (std::int64_t y = kMinScreen.terminal_y; y < kMinScreen.h; ++y) {
+        CHECK(band(y).size() == static_cast<std::size_t>(kMinScreen.terminal_w));
     }
 
     // ...and it says the things it is for.
-    CHECK(rows[static_cast<std::size_t>(kTerminalY)].find("TERMINAL -- weave #3") !=
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y)].find("TERMINAL -- weave #3") !=
           std::string::npos);
-    CHECK(rows[static_cast<std::size_t>(kTerminalY) + 1].find(terminal_legend()) !=
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y) + 1].find(terminal_legend()) !=
           std::string::npos);
-    CHECK(rows[static_cast<std::size_t>(kTerminalY) + 2].find("> send @zengine.skin") !=
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y) + 2].find("> send @zengine.skin") !=
           std::string::npos);
-    CHECK(rows[static_cast<std::size_t>(kScreenH) - 1].find("> send @_") != std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.h) - 1].find("> send @_") != std::string::npos);
 
     // The workspace ABOVE the pane is untouched -- an overlay covers, it does not rearrange.
     CHECK(rows[3].rfind("..*panel", 0) == 0);
     // ...and the notice underneath it was not painted at all, in either half of its row.
-    CHECK(rows[static_cast<std::size_t>(kNoticeY)].find("this notice is under") ==
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.notice_y)].find("this notice is under") ==
           std::string::npos);
+}
+
+
+// ---- tier 7: the surface's own extent (G-2) ----------------------------------------------
+//
+// Until G-2 the screen was 78x22 because a canvas publisher had no way to learn how much room
+// its medium had. The Surface package now says so, and everything below is what a Workshop
+// makes of the answer: where the extra columns and rows go, what a maker's authored work does
+// while they arrive, and what a pane does with room it did not have before.
+
+TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a small one") {
+    // THE PHASE'S CENTRAL CLAIM, as arithmetic. Every number here is derived in one place
+    // (`screen_of`) and the minimum reproduces the composition that existed before.
+    CHECK(kMinScreen.w == 78);
+    CHECK(kMinScreen.h == 22);
+
+    const Screen big = screen_of(100, 33);
+    CHECK(big.w == 100);
+    CHECK(big.h == 33);
+
+    // THE WORKSPACE TAKES THE EXTRA ROOM. Twenty-two more columns of surface are twenty-two
+    // more columns a maker can build in; eleven more rows are eleven more rows.
+    CHECK(big.room_w == kMinScreen.room_w + 22);
+    CHECK(big.room_h == kMinScreen.room_h + 11);
+
+    // ...AND THE PANEL DOES NOT. Its width is a fact about how much of a name is worth
+    // showing, so it is the same column count anchored to the new right edge.
+    CHECK(big.w - big.panel_x == kMinScreen.w - kMinScreen.panel_x);
+    CHECK(big.panel_x == 72);
+
+    // The bottom band keeps its shape against the bottom edge.
+    CHECK(big.h - big.notice_y == kMinScreen.h - kMinScreen.notice_y);
+    CHECK(big.h - big.help_y == kMinScreen.h - kMinScreen.help_y);
+    CHECK(big.help_y + 1 == big.h - 1); // the second help line is the last row
+
+    // Nothing overlaps: the workspace ends, then a gap, then the panel.
+    CHECK(big.room_w + kPanelGap == big.panel_x);
+}
+
+TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
+    // It arrives as a ZEN_SHAPE off the bus, so its fields are whatever the sender put in
+    // them -- W-1's lesson at the other end of the same telescope. Nothing below may produce
+    // a negative extent, an inverted layout, or a multiply that leaves the number line.
+    const std::int64_t hostile[] = {(std::numeric_limits<std::int64_t>::min)(),
+                                    -1,
+                                    0,
+                                    1,
+                                    kScreenMinW - 1,
+                                    kScreenMaxW,
+                                    kScreenMaxW + 1,
+                                    (std::numeric_limits<std::int64_t>::max)()};
+    for (const std::int64_t w : hostile) {
+        for (const std::int64_t h : hostile) {
+            const Screen sc = screen_of(w, h);
+            CHECK(sc.w >= kScreenMinW);
+            CHECK(sc.w <= kScreenMaxW);
+            CHECK(sc.h >= kScreenMinH);
+            CHECK(sc.h <= kScreenMaxH);
+            // and the furniture stays a layout rather than becoming a shape
+            CHECK(sc.room_w >= kWorkspaceMinW);
+            CHECK(sc.room_h >= 1);
+            CHECK(sc.panel_x > 0);
+            CHECK(sc.terminal_x >= 0);
+            CHECK(sc.terminal_y >= 0);
+            CHECK(sc.terminal_x + sc.terminal_w == sc.w);
+            CHECK(sc.terminal_y + sc.terminal_h == sc.h);
+            CHECK(sc.terminal_rows >= 1);
+            CHECK(sc.notice_y < sc.h);
+            CHECK(sc.help_y + 1 < sc.h);
+        }
+    }
+}
+
+TEST_CASE("taking the room refits the workspace, and says whether anything moved") {
+    Session s;
+    CHECK(s.screen_w == kScreenMinW);
+    CHECK(s.workspace_w == kWorkspaceW);
+
+    CHECK(adopt_screen(s, 100, 33));
+    CHECK(s.screen_w == 100);
+    CHECK(s.workspace_w == screen_of(100, 33).room_w);
+    CHECK(s.workspace_h == screen_of(100, 33).room_h);
+
+    // THE SAME EXTENT AGAIN IS NOT A CHANGE. It is what lets a caller decline to repaint a
+    // screen nothing happened to -- and it is what makes the clamps safe to state, because
+    // two different extents that clamp to one screen are one screen.
+    CHECK_FALSE(adopt_screen(s, 100, 33));
+    CHECK_FALSE(adopt_screen(s, 100, 33));
+
+    // Below the minimum is not a smaller screen; it is the minimum.
+    CHECK(adopt_screen(s, 4, 4));
+    CHECK(s.screen_w == kScreenMinW);
+    CHECK(s.screen_h == kScreenMinH);
+    CHECK(s.workspace_w == kWorkspaceW);
+    CHECK_FALSE(adopt_screen(s, 0, 0));
+    CHECK_FALSE(adopt_screen(s, -9, -9));
+}
+
+TEST_CASE("a maker's authored work keeps its place while the surface grows") {
+    // WHAT MUST NOT MOVE. An authored cell coordinate is a fact the maker wrote down; a share
+    // is a fact about its context. Growing the surface changes the CONTEXT and nothing else,
+    // which is the authored/resolved discipline meeting a window edge.
+    WorkshopDoc d = two_panels();
+    const ui::Element before_share = d.elements[0]; // 60% wide
+    const ui::Element before_cells = d.elements[1]; // 14 cells wide, at 6,10
+
+    Session small;
+    Session large;
+    REQUIRE(adopt_screen(large, 100, 33));
+
+    const ui::Scene s1 = workspace_scene(d, small);
+    const ui::Scene s2 = workspace_scene(d, large);
+
+    // Nothing authored changed. Not one field.
+    CHECK(d.elements[0] == before_share);
+    CHECK(d.elements[1] == before_cells);
+
+    // The cell-authored object is in the same cell, the same size, on both screens.
+    const ui::Placed* p1 = ui::placed_for(s2, before_cells.id);
+    REQUIRE(p1 != nullptr);
+    CHECK(p1->rect.x == 6);
+    CHECK(p1->rect.y == 10);
+    CHECK(p1->rect.w == 14);
+    CHECK(p1->rect.h == 4);
+    CHECK(*p1 == *ui::placed_for(s1, before_cells.id));
+
+    // ...and the SHARE resolves to more cells, because 60% of a wider workspace is wider.
+    // That is the whole reason a share is a different kind of value from a cell count.
+    const ui::Placed* q1 = ui::placed_for(s1, before_share.id);
+    const ui::Placed* q2 = ui::placed_for(s2, before_share.id);
+    REQUIRE(q1 != nullptr);
+    REQUIRE(q2 != nullptr);
+    CHECK(q1->rect.w == 28);
+    CHECK(q2->rect.w > q1->rect.w);
+    CHECK(q2->rect.x == q1->rect.x); // its authored position did not move
+}
+
+TEST_CASE("the surface says how much room it has, and Workshop paints that much") {
+    // END TO END, on a real bus: the one message that travels medium -> application, and the
+    // canvas that comes back out.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.canvases.empty());
+    CHECK(t.canvases.back().width == kMinScreen.w);
+    CHECK(t.canvases.back().height == kMinScreen.h);
+
+    const std::size_t before = t.canvases.size();
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    REQUIRE(t.canvases.size() > before);
+
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    const Screen sc = screen_of(t.session());
+    CHECK(c.width == 100);
+    CHECK(c.height == 33);
+    // MORE USABLE SURFACE, not a stretched picture: the workspace rectangle a maker builds
+    // inside is genuinely bigger, in cells.
+    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 70, 27, surface::role::kMuted));
+    CHECK(sc.room_w == 70);
+    CHECK(label_at(c, 0, 0) == "WORKSPACE 70x27 cells");
+    // The panel came with the right edge rather than staying at column 50.
+    CHECK(label_at(c, sc.panel_x, kListY - 1) == "OBJECTS");
+    CHECK(label_at(c, sc.panel_x, kRowsY - 1) == "PROPERTIES");
+    CHECK(sc.panel_x == 72);
+    // ...and the hint that was twenty cells from the right edge still is.
+    CHECK(label_at(c, c.width - 20, 0) == "shift+space terminal");
+
+    // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
+    // screen, and a maker dragging across that boundary must not see the tool flicker.
+    const std::size_t settled = t.canvases.size();
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    CHECK(t.canvases.size() == settled);
+    t.publish(loom::to_value(surface::SurfaceExtent{2, 2}));
+    REQUIRE(t.canvases.size() > settled);
+    CHECK(t.canvases.back().width == kMinScreen.w); // back to the minimum, not to 2
+    t.publish(loom::to_value(surface::SurfaceExtent{1, 1}));
+    CHECK(t.canvases.size() == settled + 1);
+
+    // An absurd one is bounded before any arithmetic touches it.
+    t.publish(loom::to_value(surface::SurfaceExtent{
+        (std::numeric_limits<std::int64_t>::max)(), (std::numeric_limits<std::int64_t>::max)()}));
+    CHECK(t.canvases.back().width == kScreenMaxW);
+    CHECK(t.canvases.back().height == kScreenMaxH);
+}
+
+TEST_CASE("`]` reaches the room a bigger surface gave, and `[` still narrows") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    CHECK(t.session().workspace_w == 70);
+
+    // The ceiling moved with the screen: before G-2 this stopped at 48.
+    for (int i = 0; i < 60; ++i) {
+        t.key(input::scan::kRightBracket);
+    }
+    CHECK(t.session().workspace_w == 70);
+    CHECK(t.notice().find("70 cells wide") != std::string::npos);
+    CHECK(t.notice().find("authored values unchanged") != std::string::npos);
+
+    // ...and the floor did not.
+    for (int i = 0; i < 100; ++i) {
+        t.key(input::scan::kLeftBracket);
+    }
+    CHECK(t.session().workspace_w == kWorkspaceMinW);
+
+    // A NARROWING DOES NOT SURVIVE A RESIZE, and that is the stated trade rather than an
+    // oversight: `[` and a hand on the window edge are the same sentence, and the one that
+    // happened last wins. There is no second remembered width for them to disagree about.
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 33}));
+    CHECK(t.session().workspace_w == screen_of(120, 33).room_w);
+}
+
+TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
+    // THE TERMINAL PROJECTION'S POLICY, from the application's side. The terminal skins have
+    // no opinion about how much room there is and publish no extent, so a terminal Workshop
+    // never hears this message -- and what it paints is the minimum screen, which is the
+    // 78x22 composition, unchanged. `paint` is the whole of the evidence: a default Session
+    // is what a run with no medium opinion has.
+    WorkshopDoc d = two_panels();
+    Session s;
+    refocus(d, s);
+    const surface::SurfaceCanvas c = paint(d, s);
+    CHECK(c.width == 78);
+    CHECK(c.height == 22);
+    CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 48, 16, surface::role::kMuted));
+    CHECK(label_at(c, 50, kListY - 1) == "OBJECTS");
+    CHECK(label_at(c, 0, 20).rfind("n new | d delete", 0) == 0);
+    CHECK(label_at(c, 0, 21).rfind("enter edit | esc cancel", 0) == 0);
+    const std::vector<std::string> rows = rasterized(c);
+    REQUIRE(rows.size() == 22);
+    for (const std::string& row : rows) {
+        CHECK(row.size() == 78);
+    }
+}
+
+// ---- tier 7b: the pane can state its own grammar -----------------------------------------
+
+TEST_CASE("wrapping is a presentation act: as many rows as the sentence needs") {
+    using zengine::workshop::detail::wrap;
+
+    // It fits: one row, untouched -- not even a mark.
+    REQUIRE(wrap("short", 20).size() == 1);
+    CHECK(wrap("short", 20)[0] == "short");
+
+    // AT SPACES, with the continuation indented so the pane still reads as a list of entries.
+    const std::vector<std::string> two = wrap("alpha beta gamma delta", 14);
+    REQUIRE(two.size() == 2);
+    CHECK(two[0] == "alpha beta");
+    CHECK(two[1] == "  gamma delta");
+    for (const std::string& row : two) {
+        CHECK(row.size() <= 14);
+    }
+    // The indent is real room, so a continuation holds fewer characters than the first row --
+    // which is why the same text at twelve cells needs three rows, not two.
+    CHECK(wrap("alpha beta gamma delta", 12).size() == 3);
+
+    // A WORD WITH NO SPACE IN IT IS BROKEN RATHER THAN LOST. Refusing to break is how a tail
+    // disappears silently, which is the defect this function exists to end.
+    const std::vector<std::string> hard = wrap("aaaaaaaaaaaaaaaaaaaa", 8);
+    REQUIRE(hard.size() >= 3);
+    std::string rejoined;
+    for (const std::string& row : hard) {
+        rejoined += row.substr(row.find_first_not_of(' ') == std::string::npos
+                                   ? 0
+                                   : row.find_first_not_of(' '));
+        CHECK(row.size() <= 8);
+    }
+    CHECK(rejoined == "aaaaaaaaaaaaaaaaaaaa");
+
+    // NOTHING IS DROPPED: every non-space character of the input survives, in order.
+    const std::string sentence =
+        "this pane speaks two verbs, and `ask` takes the same form as `send`";
+    for (std::int64_t width = 1; width <= 80; ++width) {
+        std::string seen;
+        for (const std::string& row : wrap(sentence, width)) {
+            CHECK(static_cast<std::int64_t>(row.size()) <= width);
+            for (const char ch : row) {
+                if (ch != ' ') {
+                    seen += ch;
+                }
+            }
+        }
+        std::string want;
+        for (const char ch : sentence) {
+            if (ch != ' ') {
+                want += ch;
+            }
+        }
+        CHECK(seen == want);
+    }
+
+    // Total at widths no pane has, and an empty line is still a line.
+    CHECK(wrap("anything", 0).empty());
+    CHECK(wrap("anything", -5).empty());
+    REQUIRE(wrap("", 20).size() == 1);
+    CHECK(wrap("", 20)[0].empty());
+}
+
+TEST_CASE("the pane states its whole grammar, wrapped, with nothing elided") {
+    // THE PHASE'S STOP CONDITION, as a screen. Before G-2 this notice was `fit` into one
+    // 56-cell row: a maker who asked the pane how to say something got the first fifty-three
+    // characters of the answer and `...`, which is the point at which it stopped being one.
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.type_line("help");
+    t.bus.pump();
+
+    const std::vector<std::string> rows = rasterized(t.canvases.back());
+    const Screen sc = screen_of(t.session());
+    std::string pane;
+    for (std::int64_t y = sc.terminal_y; y < sc.h; ++y) {
+        pane += rows[static_cast<std::size_t>(y)].substr(
+            static_cast<std::size_t>(sc.terminal_x), static_cast<std::size_t>(sc.terminal_w));
+        pane += "\n";
+    }
+
+    // THE REQUIRED SYNTAX IS ON THE SCREEN, in the pane, whole. Read the way a person reads
+    // it: across the row boundaries the wrap put in, which is what "wrapped rather than
+    // truncated" MEANS. Runs of whitespace collapse to one, so a phrase broken across two
+    // rows still reads as itself -- and a phrase broken mid-WORD would not, which is the
+    // failure this flattening deliberately still catches.
+    std::string flat;
+    for (const char ch : pane) {
+        if (ch == ' ' || ch == '\n') {
+            if (!flat.empty() && flat.back() != ' ') {
+                flat += ' ';
+            }
+            continue;
+        }
+        flat += ch;
+    }
+    CHECK(flat.find("send <addr> <Shape> <version> [args]") != std::string::npos);
+    CHECK(flat.find("#12 for one weave") != std::string::npos);
+    CHECK(flat.find("@office for whoever holds a role") != std::string::npos);
+    CHECK(flat.find("* for everyone") != std::string::npos);
+    CHECK(flat.find("`ask` takes the same form as `send`") != std::string::npos);
+
+    // ...AND NOTHING WAS ELIDED TO PUT IT THERE. `...` is the mark a one-row fit leaves, and
+    // its absence is the difference between an answer and the beginning of one.
+    CHECK(pane.find("...") == std::string::npos);
+
+    // The command a maker typed is above the answer, and every row is still the pane's width.
+    CHECK(pane.find("> help") != std::string::npos);
+    for (std::int64_t y = sc.terminal_y; y < sc.h; ++y) {
+        CHECK(rows[static_cast<std::size_t>(y)].size() == static_cast<std::size_t>(sc.w));
+    }
+
+    // ONE ENTRY, SEVERAL ROWS -- and the pane's own accounting knows it. The notice takes
+    // three of the nine transcript rows at this width, so a pane holding two entries is not
+    // a pane that has scrolled anything away.
+    const std::size_t entries = t.pane().shown.size();
+    CHECK(entries == 2); // the typed command, and the answer
+    CHECK(t.pane().earlier == 0);
+    CHECK(terminal_omission(t.pane()) == "[the whole of this session's record is on screen]");
+}
+
+TEST_CASE("a pane fits ENTRIES, not lines, and says what it could not show") {
+    // The shared arithmetic, driven directly. `entries_that_fit` is the one place the choice
+    // is made; `refresh_terminal` and `paint_terminal` both call it, which is what stops the
+    // omission marker from lying about a pane whose rows were spent on wrapping.
+    std::vector<loom::TranscriptEntry> record;
+    for (int i = 0; i < 20; ++i) {
+        loom::TranscriptEntry e;
+        e.kind = loom::TranscriptKind::LocalNotice;
+        e.text = "line " + std::to_string(i);
+        record.push_back(e);
+    }
+    CHECK(entries_that_fit(record, 56, 9) == 9); // one row apiece
+    CHECK(entries_that_fit(record, 56, 1) == 1);
+    CHECK(entries_that_fit({}, 56, 9) == 0);
+
+    // One long entry costs several rows, and the entries before it lose their place.
+    loom::TranscriptEntry big;
+    big.kind = loom::TranscriptKind::LocalNotice;
+    big.text = std::string(200, 'x');
+    record.push_back(big);
+    const std::size_t cost = detail::wrap(terminal_line(big), 56).size();
+    CHECK(cost > 1);
+    CHECK(entries_that_fit(record, 56, 9) == 9 - cost + 1);
+
+    // AT LEAST ONE, ALWAYS: a pane gone blank because its newest line was too long is
+    // indistinguishable from a broken tool.
+    CHECK(entries_that_fit(record, 56, 1) == 1);
+    CHECK(entries_that_fit(record, 4, 2) == 1);
+}
+
+TEST_CASE("the pane keeps its corner and gains its half of a bigger surface") {
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    t.toggle_terminal();
+
+    const Screen sc = screen_of(t.session());
+    // BOTTOM-RIGHT IS STILL BOTTOM-RIGHT: the pane's edges ARE the screen's edges.
+    CHECK(sc.terminal_x + sc.terminal_w == sc.w);
+    CHECK(sc.terminal_y + sc.terminal_h == sc.h);
+    // ...and it took half the new room, so both it and the workspace are better off.
+    CHECK(sc.terminal_w == kMinScreen.terminal_w + 11);
+    CHECK(sc.terminal_h == kMinScreen.terminal_h + 5);
+    CHECK(sc.terminal_rows == kMinScreen.terminal_rows + 5);
+    CHECK(sc.terminal_x > kMinScreen.terminal_x); // the workspace to its left grew too
+
+    // And it is a solid block in the right place, on the real rasterizer.
+    const std::vector<std::string> rows = rasterized(t.canvases.back());
+    REQUIRE(rows.size() == static_cast<std::size_t>(sc.h));
+    CHECK(rows[static_cast<std::size_t>(sc.terminal_y)].substr(
+              static_cast<std::size_t>(sc.terminal_x), 8) == "TERMINAL");
+    CHECK(rows[static_cast<std::size_t>(sc.h) - 1].substr(
+              static_cast<std::size_t>(sc.terminal_x), 3) == "> _");
+    // The pane's own last row IS the screen's last row, at every extent.
+    const std::string blank(static_cast<std::size_t>(sc.terminal_w), ' ');
+    CHECK(rows[static_cast<std::size_t>(sc.terminal_y) + 3].substr(
+              static_cast<std::size_t>(sc.terminal_x),
+              static_cast<std::size_t>(sc.terminal_w)) == blank);
 }

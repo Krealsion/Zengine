@@ -301,6 +301,17 @@ labels-vanish defect again at character granularity. `SurfaceText` — the named
 lines, which are a different shape — still lands in the window's *title*, because the canvas
 occupies the whole window.
 
+`SurfaceExtent{width, height}` is the one fact that travels the *other* way — a medium
+answering how much room it has, in canvas cells. Every other shape here is intent flowing
+publisher → skin; this is the only one flowing skin → publisher, and it exists because
+"how many cells is there room for" is a fact **only the medium holds**. The active skin
+publishes it when the answer CHANGES and at no other time (its own 10ms beat is what notices
+a person dragging a window edge), and a medium with no answer — every terminal skin, and a
+window skin before its window exists — publishes **nothing** rather than publishing zeroes:
+"I have no opinion" and "there is no room" are different sentences. It is an *offer*: a
+publisher that ignores it keeps publishing whatever extent it likes and the skin clips, which
+is the contract `SurfaceCanvas` already states.
+
 The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
 remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
 re-expressing snake's proven frames through the canvas is its own evidence-carrying move, and a
@@ -315,15 +326,28 @@ target that sees SDL: it fetches a **pinned static SDL3** where none is installe
 (`skin_sdl_plan.hpp`, pinned on every lane), and degrades gracefully with no display — the
 suite drives it under SDL's dummy driver, and the window title carries the text slots.
 
-The SDL window is **output-only in V1, structurally**: it is created not-focusable (a window
-that cannot hear must not take the keys — the terminal stays the game's one ear until the SDL
-Reader phase makes the window an ear too), and it keeps itself answering its OS: a skin's
-own activation asks the Timer package for the `zengine.skin.pump` role beat (10ms), and the
-beat services the window's event queue even when the world publishes nothing (a dead world
-starves a frame-driven pump; the OS calls the result "not responding"). Role-addressed is the
-load-bearing half: the beat belongs to the SLOT, so a swapped-in skin inherits it without
-asking. Terminal media no-op the beat, exactly as they no-op'd the old host-sent pump;
-`PumpSurface` stays as the same hands on direct request, for suites and timer-less hosts.
+The SDL window **is an ear as well as a surface** (G-1): it was created not-focusable while
+the terminal was the game's only ear, and the flag came off when the SDL Reader made the
+window able to hear. It keeps itself answering its OS: a skin's own activation asks the Timer
+package for the `zengine.skin.pump` role beat (10ms), and the beat calls `SDL_PumpEvents` —
+which gathers OS input INTO the process-global queue and removes nothing, so the queue still
+has exactly one owner and it is still the Input reader. That servicing happens even when the
+world publishes nothing (a dead world starves a frame-driven pump; the OS calls the result
+"not responding"). Role-addressed is the load-bearing half: the beat belongs to the SLOT, so a
+swapped-in skin inherits it without asking. Terminal media no-op the beat, exactly as they
+no-op'd the old host-sent pump; `PumpSurface` stays as the same hands on direct request, for
+suites and timer-less hosts.
+
+**The window is the person's to resize** (G-2), under one rule with no per-shape special
+case: *a window never shows less than the picture asks for, and is otherwise the person's*. It
+is created at the size its first picture asks for, that size becomes its **minimum**, it
+carries `SDL_WINDOW_RESIZABLE`, and after that it is grown only by a picture that genuinely
+does not fit — which is how a snake board that grew mid-run still comes up whole, while a
+canvas publisher that heard `SurfaceExtent` never moves it at all. The alternative is two
+parties resizing each other: a canvas rounds down to whole cells, so a medium that sized the
+window to the canvas would nibble the window a few pixels smaller every time somebody dragged
+it. The extent the skin reports is measured from the renderer's own output size, never
+remembered, because a person dragging an edge changes that number and no message says so.
 
 ## `snake/` — the first game panel
 
@@ -554,6 +578,28 @@ and no window itself.
   a drag in flight — live outside the authored state on purpose. An empty document *says* it is
   empty rather than going blank, because a maker can now reach that state by deleting their own
   work.
+- **The screen's extent is runtime, and a bigger surface is a bigger workspace** (G-2). Until
+  then it was one pair of constants, because a canvas publisher had no way to learn how much
+  room its medium had; `surface::SurfaceExtent` now says so, Workshop takes it, and `Screen` /
+  `screen_of` derive every other number from it in one place. Where the extra room goes is
+  this application's composition and nothing more general: the **workspace** takes the extra
+  columns and rows (`]` reaches the new ceiling), the **panel column** keeps its width and
+  moves with the right edge, the bottom band keeps its shape against the bottom edge, and the
+  terminal overlay takes **half** of whatever the surface gained. The panel's width and the
+  inspector's rows are decisions about how much of each thing is worth showing, not shares of
+  a screen, and turning them into shares would be a layout policy nothing here has evidence
+  for. The extent is **clamped** at both ends — the minimum is the 78×22 composition, and the
+  maximum is arithmetic rather than taste: an extent arrives off the bus as a `ZEN_SHAPE`
+  whose fields are whatever the sender put in them, and the terminal rasterizer allocates
+  `w × h` cells from whatever canvas it is handed. Nothing authored moves: a cell coordinate
+  is in the same cell on both screens and a share resolves to more cells, which is the
+  authored/resolved discipline meeting a window edge.
+- **The terminal projection keeps the minimum, and that is its own policy rather than a
+  stub.** A terminal skin owns no drawable whose size is its to read — it writes into a
+  `Sink` that may be a string, a pipe or a console — so it declines the question, publishes
+  no extent, and a terminal Workshop paints exactly the screen it painted before G-2. A
+  terminal too small shows less of it, which is what a terminal has always done to output too
+  wide for it. Nothing here mimics the window medium's resize semantics for symmetry.
 - **The host** (`workshop.cpp`) owns the boot list. Its `BootWeave` holds the Manager grant and
   **hears the answers**: a root `bus.send` of `zen.LoadWeave` has no asker, so the Manager's
   relay forwards nothing and the load silently never happens
@@ -624,6 +670,19 @@ position the press happened at — so Workshop grabs from the press itself rathe
 last motion event, which W-2 measured could be arbitrarily stale. Text is likewise the platform's
 own: `%` and capital letters are ordinary `TextEntered`, Workshop maps no key to any character,
 and the `70p` workaround the extent parser existed to accept is no longer needed to type `70%`.
+
+**The terminal overlay wraps** (G-2). `Shift+Space` opens a pane on the ordinary
+`loom::TerminalSession` the host mounted, anchored to the screen's bottom-right corner. A
+transcript entry is rendered whole and then spends as many of the pane's rows as its sentence
+needs (`detail::wrap`, continuation rows indented two cells); nothing upstream is shortened to
+suit a pane, exactly as `Session::notice` keeps its whole sentence and `detail::fit` bounds
+only what is shown. Before this, an entry was fitted into one 56-cell row — so the pane's own
+syntax notice, the one thing a maker can ask it, arrived as its first fifty-three characters
+and `...`. The pane fits **entries**, not lines: `entries_that_fit` is the one place that
+arithmetic lives and both the snapshot and the painter call it, so the omission marker cannot
+come to lie about rows spent on wrapping. Discoverability is unchanged and deliberately so —
+any line the pane does not recognise (including `help`) answers with the grammar, and the pane
+still speaks two verbs.
 
 Workshop's weave lives in `workshop/weave.hpp`, not in the host's translation unit — so the
 suite mounts it on a real bus and walks `input message -> gesture -> semantic operation` end to

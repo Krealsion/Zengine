@@ -47,7 +47,16 @@ outside the package can see. Both live in `surface/pointing.hpp`:
 | function | rule | why that number |
 |---|---|---|
 | `canvas_of_terminal_cells(x, y)` | `y - kTuiCanvasTopRow`, saturating | the terminal Skins write `\x1b[3;1H`, because terminal rows 1–2 carry the `SurfaceText` slots |
-| `canvas_of_window_pixels(x, y)` | `cell_of_pixel` on each axis | the window IS the canvas — `canvas_window_size` sizes it `extent * kCanvasCellPx` with no margin and no scaling, and `plan_canvas` draws cell (0,0) at pixel (0,0) |
+| `canvas_of_window_pixels(x, y)` | `cell_of_pixel` on each axis | the canvas starts at the window's ORIGIN — `plan_canvas` draws cell (0,0) at pixel (0,0), no margin and no scaling, one cell every `kCanvasCellPx` pixels |
+
+Since G-2 the window is **not** exactly the canvas: it is user-resizable, so it
+can be a few pixels wider than a whole number of cells, and a publisher that
+ignores `SurfaceExtent` can leave it much wider than that. The transform is
+unchanged by that, and the reason is worth stating because the old wording
+rested on the coincidence: what this arithmetic depends on is the canvas's
+ORIGIN, not its extent. The medium only ever grows down and to the right, so
+the origin does not move. A pointer landing on a cell no canvas has is already
+this function's documented answer — see below.
 
 Two rules the arithmetic depends on, both because the numbers arrive from the
 wire rather than from a computation:
