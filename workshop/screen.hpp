@@ -502,11 +502,11 @@ inline constexpr std::int64_t kWrapIndent = 2;
 /// `fit` above is the answer for a place with exactly ONE row -- it bounds the text and
 /// leaves a mark saying it did. This is the answer for a place with SEVERAL, and G-2 exists
 /// partly because one of those places had been using the other: the terminal pane's own
-/// syntax notice is a hundred and eleven characters, the pane is fifty-six wide, and what a
-/// maker who asked how to send a message got was the first fifty-three characters of the
-/// answer and `...`. A pane that cannot state its own grammar is a pane that cannot be used,
-/// and no amount of extra window would have fixed it -- the truncation was in the fitting,
-/// not in the room.
+/// syntax notice was a hundred and eleven characters and the pane was fifty-six wide, so
+/// what a maker who asked how to send a message got was the first fifty-three characters of
+/// the answer and `...`. A pane that cannot state its own grammar is a pane that cannot be
+/// used, and no amount of extra window would have fixed it -- the truncation was in the
+/// fitting, not in the room.
 ///
 /// IT WRAPS AT SPACES, and hard-breaks a word with no space in it, because the alternative
 /// -- refusing to break -- silently loses the tail again. Leading spaces on a continuation
@@ -1292,8 +1292,9 @@ inline std::string terminal_shape(const loom::TranscriptEntry& e) {
 /// outbound line carries what was authored, where it was aimed, and Loom's own word for the
 /// only thing that is known. What that word MEANS is said once, by `terminal_legend` below,
 /// on a row the pane always shows. Once rather than on every line, because a fifty-cell
-/// clause repeated down a nine-row pane costs the room the record itself needs -- and because
-/// a rule with one owner is a rule that cannot come to be worded two ways.
+/// clause repeated down every row of the pane costs the room the record itself needs -- and
+/// wrapping only makes that worse, since a clause that no longer fits takes a second row from
+/// the record too. Also because a rule with one owner cannot come to be worded two ways.
 ///
 /// The suite additionally asserts that nothing this renderer produces contains the word
 /// "delivered": a renderer is the one place the never-say-delivered contract can be broken by
