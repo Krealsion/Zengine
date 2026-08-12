@@ -103,10 +103,10 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  35
-surface                           doctest           sdl     3
+surface                           doctest           always  38
+surface                           doctest           sdl     4
 ui                                doctest           always  22
-workshop                          doctest           always  152
+workshop                          doctest           always  163
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

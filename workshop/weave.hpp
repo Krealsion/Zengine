@@ -180,6 +180,7 @@ class WorkshopWeave
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::surface::SurfaceReady,
+                                          zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfaceCloseRequested>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText>> {
@@ -201,6 +202,34 @@ public:
     /// operator weave's precedent, and the only thing Workshop needs in order to
     /// paint for the first time -- so load order decides nothing here either.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) { repaint(mail); }
+
+    /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
+    ///
+    /// This is the one message that flows medium -> application in this whole tool, and it is
+    /// the whole of G-2's plumbing: a Skin measures its drawable, Workshop believes it, and a
+    /// larger window becomes a larger Workshop instead of a larger picture of a small one.
+    /// A medium with no opinion -- the terminal Skins -- never sends it, so a terminal run is
+    /// exactly the run it was before, at the minimum extent.
+    ///
+    /// IT IS TAKEN, NOT OBEYED. `adopt_screen` clamps into what this composition is honest
+    /// on, so an extent smaller than the minimum leaves the screen alone and lets the medium
+    /// clip, and an absurd one (this arrives as a `ZEN_SHAPE` off the bus, whose fields are
+    /// whatever the sender put in them) is bounded before any arithmetic touches it.
+    ///
+    /// IT REPAINTS ONLY ON A REAL CHANGE. The Skin already guards its own publishing, so this
+    /// second guard is not redundancy for its own sake -- it is what makes the clamps above
+    /// safe to state: two different extents that both clamp to the minimum are one screen,
+    /// and a maker dragging a window edge across that boundary should not see it flicker.
+    ///
+    /// The rows are rebuilt because the `Resolved` row closes over the workspace extent, and
+    /// the workspace extent is exactly what just changed.
+    void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
+        if (!adopt_screen(session_, e.width, e.height)) {
+            return;
+        }
+        rebuild_rows();
+        repaint(mail);
+    }
 
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
@@ -550,8 +579,16 @@ private:
             }
             return;
         }
-        me.record_notice("this pane speaks two verbs: `send <addr> <Shape> <version> [args]` "
-                         "and `ask` -- addresses are #12, @office or *");
+        // THE WHOLE SENTENCE, at whatever length it takes to be a complete one. It is
+        // recorded on the participant, unshortened, exactly as every other entry is: the pane
+        // wraps it across as many of its own rows as it needs (`detail::wrap`), so the length
+        // of this string is a question about the GRAMMAR and never about the furniture. Before
+        // G-2 it was fitted into one 56-cell row and a maker asking how to send a message got
+        // `this pane speaks two verbs: \`send <addr> <Shape> <ver...` -- the answer truncated
+        // at exactly the point it started being an answer.
+        me.record_notice("this pane speaks two verbs, and `ask` takes the same form as `send`: "
+                         "send <addr> <Shape> <version> [args] -- an address is #12 for one "
+                         "weave, @office for whoever holds a role, or * for everyone");
     }
 
     /// Take the pane's snapshot of the participant.
@@ -573,8 +610,21 @@ private:
         if (!pane.attached || !pane.open) {
             return; // nothing is painted from it, so nothing is copied
         }
+        // AS MANY ENTRIES AS THIS PANE CAN SHOW WHOLE, which is no longer the same as "as
+        // many entries as it has rows": since G-2 a line too long for the pane WRAPS rather
+        // than being cut, so one entry can cost several rows. `entries_that_fit` is the one
+        // place that arithmetic lives, and `paint_terminal` carries out the same choice with
+        // the same call -- two answers here would be a pane whose omission marker lied.
+        //
+        // A row apiece is the floor, so `tail(rows)` is always at least as many entries as
+        // can possibly fit, and the fitting only ever takes fewer.
+        const Screen sc = screen_of(session_);
         const loom::Transcript& record = host_->terminal->transcript();
-        pane.shown = record.tail(kTerminalRows);
+        std::vector<loom::TranscriptEntry> newest = record.tail(sc.terminal_rows);
+        const std::size_t fits = entries_that_fit(newest, sc.terminal_w, sc.terminal_rows);
+        newest.erase(newest.begin(),
+                     newest.end() - static_cast<std::ptrdiff_t>(fits));
+        pane.shown = std::move(newest);
         pane.earlier = record.size() - pane.shown.size();
         pane.dropped = record.evicted();
     }
@@ -834,12 +884,16 @@ private:
     /// resolves to something else. One keystroke, and the difference between an
     /// authored fact and a resolved one stops being an argument.
     void resize_workspace(std::int64_t delta) {
+        // The ceiling is THIS SCREEN'S room, not a constant: since G-2 a surface can offer
+        // more of it, and a `]` that stopped at 48 cells on a window with room for eighty
+        // would be the tool refusing space it had already been given.
+        const std::int64_t room = screen_of(session_).room_w;
         std::int64_t want = session_.workspace_w + delta;
         if (want < kWorkspaceMinW) {
             want = kWorkspaceMinW;
         }
-        if (want > kWorkspaceW) {
-            want = kWorkspaceW;
+        if (want > room) {
+            want = room;
         }
         session_.workspace_w = want;
         rebuild_rows(); // the resolved row closes over the extent it resolves against

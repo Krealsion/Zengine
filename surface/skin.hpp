@@ -10,6 +10,7 @@
 //   void frame(const zengine::snake::SnakeVisual&, bool first);
 //   void canvas(const SurfaceCanvas&, bool first);
 //   void note(std::string_view slot, std::string_view text);
+//   SurfaceExtent extent() const;   // how much room I have, in cells; {0,0} = no opinion
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
 // the alternate screen in its constructor and restores it in its destructor,
@@ -23,6 +24,12 @@
 // A Medium also provides `void pump()` — service your OS surface, nothing
 // else — driven by the host's PumpSurface lap message (see vocabulary.hpp);
 // media with nothing to service keep it empty.
+//
+// `extent()` is the one thing a Medium is ASKED rather than told, and the shell
+// turns the answer into the one message that travels medium -> publisher
+// (SurfaceExtent). A Medium that cannot answer returns {0,0} and the shell says
+// nothing at all — a terminal Skin has no drawable it owns the size of, and a
+// window Skin has no answer until its window exists.
 
 #include "vocabulary.hpp"
 
@@ -62,7 +69,8 @@ class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                                   SurfaceText, PumpSurface, loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
-                                     loom::Emit<SurfaceReady, zengine::timer::StartRoleTimer>> {
+                                     loom::Emit<SurfaceReady, SurfaceExtent,
+                                                zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
     explicit SkinT(Medium medium) : medium_(std::move(medium)) {}
@@ -71,6 +79,7 @@ public:
         announce_surface_once(mail);
         medium_.frame(v, this->state_.frames == 0);
         ++this->state_.frames;
+        report_extent(mail); // the first frame is what brings a window into existence
     }
 
     /// The general canvas — the same act as a frame, from general intent
@@ -82,6 +91,7 @@ public:
         announce_surface_once(mail);
         medium_.canvas(c, this->state_.frames == 0);
         ++this->state_.frames;
+        report_extent(mail);
     }
 
     void on(const SurfaceText& t, loom::Mail& mail) {
@@ -96,6 +106,7 @@ public:
         announce_surface_once(mail);
         medium_.pump();
         ++this->state_.pumps;
+        report_extent(mail);
     }
 
     /// This incarnation is live and holds the surface: say so, and arrange the
@@ -122,6 +133,7 @@ public:
         }
         medium_.pump();
         ++this->state_.pumps;
+        report_extent(mail); // THE BEAT IS WHAT NOTICES A PERSON DRAGGING A WINDOW EDGE
     }
 
     Medium& medium() { return medium_; }
@@ -167,7 +179,43 @@ private:
                                                          /*repeat=*/true, kSkinRole});
     }
 
+    /// SAY HOW MUCH ROOM THERE IS, WHEN IT CHANGES AND ONLY THEN.
+    ///
+    /// Asked of the Medium after every act that could have changed its answer —
+    /// a frame or a canvas (either can be what creates a window in the first
+    /// place) and every pump (the 10ms beat is what notices a person dragging a
+    /// window edge, and a resize arrives through no other door this weave has).
+    ///
+    /// THE CHANGE GUARD IS THE WHOLE OF THE POLICY. Without it this would publish
+    /// a hundred times a second at a publisher that would repaint on every one of
+    /// them, which is a busy loop wearing a message's clothes. With it, a still
+    /// window is silent and a dragged one speaks once per size it passes through.
+    ///
+    /// {0,0} IS "NO OPINION" AND IS NEVER PUBLISHED. A terminal Medium always
+    /// answers that way, and a window Medium answers that way until its window
+    /// exists. Publishing zeroes would tell a publisher there is no room, which
+    /// is a different sentence and a false one. The value is still REMEMBERED, so
+    /// a medium that loses its surface and gets it back at the same size says so
+    /// again.
+    ///
+    /// A PLAIN MEMBER, never state: the reported extent belongs to an
+    /// incarnation's surface, exactly as `announced_` belongs to its hello. A
+    /// successor claims its own surface and must report its own room, even where
+    /// state rides across.
+    void report_extent(loom::Mail& mail) {
+        const SurfaceExtent now = medium_.extent();
+        if (now.width == reported_.width && now.height == reported_.height) {
+            return;
+        }
+        reported_ = now;
+        if (now.width <= 0 || now.height <= 0) {
+            return; // no opinion: say nothing rather than saying zero
+        }
+        mail.publish(now);
+    }
+
     bool announced_ = false;
+    SurfaceExtent reported_{}; ///< the last extent said out loud, per incarnation
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Medium medium_;
 };

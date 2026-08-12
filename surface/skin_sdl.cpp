@@ -159,6 +159,13 @@ public:
             return;
         }
         pump();
+        // The drawable can now be LARGER than the picture — the window is
+        // resizable and a board's extent is the board's — so the surface is
+        // cleared before the plan is drawn. Without this, the pixels outside a
+        // board that no longer fills its window are whatever was there before.
+        SDL_SetRenderDrawColor(renderer_, kCanvasBackground.r, kCanvasBackground.g,
+                               kCanvasBackground.b, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(renderer_);
         for (const PlanRect& r : plan_frame(v)) {
             SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
             const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
@@ -251,6 +258,21 @@ public:
         notice_unread_queue();
     }
 
+    /// HOW MUCH ROOM THIS WINDOW HAS, in canvas cells — the one question this
+    /// medium answers rather than obeys.
+    ///
+    /// Measured every time it is asked, from the renderer's own output size, and
+    /// floored to whole cells by `extent_of_drawable` (pure, in the plan header,
+    /// pinned on every lane). No window and no working renderer means no answer:
+    /// {0,0} is "I have no opinion", which the shell turns into silence rather
+    /// than into a claim that there is no room.
+    SurfaceExtent extent() const {
+        if (!ok_ || window_ == nullptr) {
+            return SurfaceExtent{};
+        }
+        return extent_of_drawable(drawable());
+    }
+
 private:
     /// SAY, ONCE, WHEN NOTHING IS TAKING WHAT THIS WINDOW HEARS.
     ///
@@ -300,22 +322,56 @@ private:
         return ensure_sized_window(window_size_of(v));
     }
 
+    /// THE WINDOW NEVER SHOWS LESS THAN THE PICTURE ASKS FOR, AND IS OTHERWISE THE
+    /// PERSON'S.
+    ///
+    /// One rule, and both halves of it are load-bearing. Before G-2 the window WAS
+    /// the picture: created at the asked size and re-sized to every later one, with
+    /// no resize handle for anybody to take hold of. That is correct for a publisher
+    /// that cannot be told how much room there is, and it is exactly wrong for one
+    /// that can — a canvas publisher hearing `SurfaceExtent` sizes itself to the
+    /// window, so a medium that then sized the window to the canvas would be two
+    /// parties resizing each other. (It converges rather than oscillating, because
+    /// a canvas rounds DOWN to whole cells — but it converges by nibbling the
+    /// window a few pixels smaller every time somebody drags it, which is the
+    /// window fighting the hand that holds it.)
+    ///
+    /// So: created at the asked size, with that size as its MINIMUM, resizable, and
+    /// thereafter grown only by a picture that genuinely does not fit. Every case
+    /// this medium actually has falls out of it rather than being special-cased:
+    ///
+    ///   a canvas publisher that heard the extent  asks for what fits: never grows
+    ///   a board (SnakeVisual) that grew mid-run    asks for more: the window grows
+    ///   a person dragging the edge                 nothing here answers back
+    ///   a person dragging it too small             SDL's own minimum refuses
+    ///
+    /// THE MINIMUM IS THE FIRST PICTURE'S OWN SIZE, set once and never moved. Moving
+    /// it with each picture would re-break the loop the rest of this avoids: a
+    /// canvas that follows the window would ratchet the minimum up to whatever the
+    /// window last was, and the window could then never be made smaller again.
     bool ensure_sized_window(const PlanSize& want) {
         if (want.w <= 0 || want.h <= 0) {
             return false;
         }
         if (window_ == nullptr) {
-            // No flags. Not SDL_WINDOW_NOT_FOCUSABLE, because this window is an
-            // ear as well as a surface — see the header — and deliberately NOT
-            // SDL_WINDOW_RESIZABLE: the
-            // window is still exactly the canvas, and what a resizable graphical
-            // Workshop should mean is a question nobody has evidence for yet.
+            // SDL_WINDOW_RESIZABLE, because a larger window is now a larger usable
+            // surface rather than a larger copy of a fixed one: the publisher is
+            // told the room (SurfaceExtent) and answers with a picture that fills
+            // it. Not SDL_WINDOW_NOT_FOCUSABLE, because this window is an ear as
+            // well as a surface — see the header.
             window_ = SDL_CreateWindow(title_of(status_, score_).c_str(),
-                                       static_cast<int>(want.w), static_cast<int>(want.h), 0);
+                                       static_cast<int>(want.w), static_cast<int>(want.h),
+                                       SDL_WINDOW_RESIZABLE);
             if (window_ == nullptr) {
                 complain("SDL_CreateWindow");
                 return false;
             }
+            // The floor under every later drag, in the picture's own terms. A
+            // failure is not fatal to drawing and not worth a line of stderr: the
+            // window still works, it can just be dragged smaller than its picture,
+            // and the picture is clipped exactly as the canvas contract says.
+            SDL_SetWindowMinimumSize(window_, static_cast<int>(want.w),
+                                     static_cast<int>(want.h));
             renderer_ = SDL_CreateRenderer(window_, nullptr);
             if (renderer_ == nullptr) {
                 complain("SDL_CreateRenderer");
@@ -336,19 +392,37 @@ private:
             if (!SDL_StartTextInput(window_)) {
                 complain("SDL_StartTextInput");
             }
-            size_ = want;
             return true;
         }
-        if (want.w != size_.w || want.h != size_.h) {
-            SDL_SetWindowSize(window_, static_cast<int>(want.w), static_cast<int>(want.h));
-            size_ = want;
+        const PlanSize have = drawable();
+        if (want.w > have.w || want.h > have.h) {
+            SDL_SetWindowSize(window_, static_cast<int>(want.w > have.w ? want.w : have.w),
+                              static_cast<int>(want.h > have.h ? want.h : have.h));
         }
         return true;
     }
 
+    /// WHAT THIS MEDIUM IS ACTUALLY DRAWING ON, in pixels — asked of SDL, never
+    /// remembered.
+    ///
+    /// `SDL_GetRenderOutputSize` and not a private `size_` field, because after G-2
+    /// this medium is no longer the only party changing the number: a person
+    /// dragging the window edge changes it, and no message tells this weave they
+    /// did. A cached size would be right until the first drag and confidently wrong
+    /// after it. It is also the renderer's OWN output size rather than the window's,
+    /// which is the space `plan_canvas`'s quads are expressed in — the same number
+    /// the drawing uses, asked of the same object.
+    PlanSize drawable() const {
+        int w = 0;
+        int h = 0;
+        if (renderer_ == nullptr || !SDL_GetRenderOutputSize(renderer_, &w, &h)) {
+            return PlanSize{};
+        }
+        return PlanSize{w, h};
+    }
+
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
-    PlanSize size_{};
     std::string status_;
     std::string score_;
     bool ok_ = false;

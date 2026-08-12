@@ -97,8 +97,8 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~16,400 over the seven doctest suites, SDL lane, measured
-  2026-08-11) are evidence to report. They are **not** a population, never an
+- Assertion totals (~22,200 over the seven doctest suites, SDL lane, measured
+  2026-08-12) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The figure is configuration-dependent —
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no
@@ -106,8 +106,12 @@ the tests themselves pass
   number without anything noticing.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
-  are their own manifest rows, so the Windows lane's `-DZENGINE_SDL_SKIN=OFF`
-  reads 35 for each suite and Linux reads 37, with no slack in either.
+  are their own manifest rows, so a suite's floor is the SUM of the rows whose
+  gate is active and the Windows lane's `-DZENGINE_SDL_SKIN=OFF` simply drops
+  the `sdl` row, with no slack in either configuration. The numbers themselves
+  live in `tests/test_population.txt` and nowhere else — a worked example here
+  went stale the first time a phase added an SDL-gated case, which is the same
+  lesson as the per-suite floors two bullets up.
 - The verifier verifies the **configured build tree it is handed**; producing a
   current one is the job of whoever configures and builds.
 - **Documentation references are checked too** (`doc_links`, kind `script` — the

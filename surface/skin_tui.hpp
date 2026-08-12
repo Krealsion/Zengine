@@ -318,6 +318,30 @@ public:
     /// media's lifeline (see vocabulary.hpp), honestly idle here.
     void pump() {}
 
+    /// NO OPINION ABOUT HOW MUCH ROOM THERE IS — this projection's policy, stated
+    /// rather than defaulted.
+    ///
+    /// A window Skin owns a drawable whose size is its own to read; a terminal
+    /// Skin owns no such thing. It writes into a stream, from row 3 down, and how
+    /// many rows and columns are on the other end of that stream is the
+    /// TERMINAL'S fact, not this medium's — it belongs to a `Sink` that may be a
+    /// std::string in a suite, a pipe, or a real console, and only the last of
+    /// those has an answer at all.
+    ///
+    /// So this projection keeps the extent its publisher already authors, and a
+    /// terminal too small simply shows less of it — which is what it did before
+    /// G-2 and what a terminal has always done to output too wide for it. Saying
+    /// {0,0} here is not a stub: it is the honest sentence "I have no opinion",
+    /// and `SkinT::report_extent` publishes nothing for it, so a publisher hears
+    /// no claim rather than a wrong one.
+    ///
+    /// THE TRIGGER for changing that is a real terminal size arriving with a real
+    /// consumer for it: a `Sink` that can be ASKED its extent (and a rule for what
+    /// a resize of a live terminal means, which SIGWINCH-less Windows consoles and
+    /// pipes answer differently). G-2 deliberately did not invent one to be
+    /// symmetrical with the window medium.
+    SurfaceExtent extent() const { return SurfaceExtent{}; }
+
     Sink& sink() { return sink_; }
 
 private:

@@ -113,6 +113,12 @@ struct FakeMedium {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
     }
     void pump() { log->push_back("pump"); }
+
+    /// The one thing a Medium is ASKED. A fake answers whatever a case set, so the
+    /// shell's own rule -- publish on change, never publish "no opinion" -- can be
+    /// driven without a window.
+    SurfaceExtent room{};
+    SurfaceExtent extent() const { return room; }
 };
 
 struct ReadyState {
@@ -131,6 +137,31 @@ public:
 private:
     int* count_;
 };
+
+/// An ordinary accepter of the one fact that travels medium -> publisher.
+class RoomEars : public loom::WeaveBase<RoomEars, ReadyState, loom::Accept<SurfaceExtent>,
+                                        loom::Emit<>> {
+public:
+    explicit RoomEars(std::vector<SurfaceExtent>& heard) : heard_(&heard) {}
+    void on(const SurfaceExtent& e, loom::Mail&) { heard_->push_back(e); }
+
+private:
+    std::vector<SurfaceExtent>* heard_;
+};
+
+/// mount(), keeping the pointer, so a case can move the fake medium's answer the way a
+/// person moves a window edge. `loom::mount` hands back only an id, and what these cases
+/// need to reach is the MEDIUM the shell is asking.
+inline SkinT<FakeMedium>* mount_fake_skin(loom::Switchboard& bus, std::vector<std::string>& log,
+                                          loom::WeaveId& id) {
+    auto weave = std::make_unique<SkinT<FakeMedium>>(FakeMedium{&log});
+    SkinT<FakeMedium>* raw = weave.get();
+    loom::Grant grant = loom::emit_default_grant(*raw);
+    loom::allow_poke_answers(grant);
+    id = bus.register_weave(std::move(weave), std::move(grant));
+    raw->zen_set_self(id);
+    return raw;
+}
 
 /// What a skin asked the Timer package for, field by field.
 struct BeatAsk {
@@ -1068,6 +1099,135 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     CHECK(hellos == 1); // once per incarnation, not per message
 }
 
+TEST_CASE("how many whole cells a drawable has room for - floored, and total") {
+    // G-2's one new piece of medium arithmetic, and it is here rather than behind the SDL
+    // gate for the reason every other pure thing in this file is: the lane that builds no SDL
+    // must still be able to say what a window of N pixels means in cells.
+
+    // The plain reading, and the one a person resizing a window meets.
+    CHECK(extent_of_drawable(PlanSize{936, 264}).width == 78);
+    CHECK(extent_of_drawable(PlanSize{936, 264}).height == 22);
+    CHECK(extent_of_drawable(PlanSize{1200, 400}).width == 100);
+    CHECK(extent_of_drawable(PlanSize{1200, 400}).height == 33);
+
+    // FLOORED, and this is the assertion that says why: three quarters of a cell is not room
+    // for a cell, and a publisher told otherwise authors a row whose bottom it cannot see.
+    for (std::int64_t spare = 0; spare < kCanvasCellPx; ++spare) {
+        const SurfaceExtent e = extent_of_drawable(PlanSize{10 * kCanvasCellPx + spare,
+                                                            4 * kCanvasCellPx + spare});
+        CHECK(e.width == 10);
+        CHECK(e.height == 4);
+    }
+
+    // A surface with no room says so, and a NEGATIVE one -- which is not a size any window
+    // has, and is exactly what an int64 field can hold -- says the same thing rather than
+    // dividing its way to a negative extent.
+    CHECK(extent_of_drawable(PlanSize{}).width == 0);
+    CHECK(extent_of_drawable(PlanSize{0, 400}).width == 0);
+    CHECK(extent_of_drawable(PlanSize{-1, -1}).width == 0);
+    CHECK(extent_of_drawable(PlanSize{-1, -1}).height == 0);
+    CHECK(extent_of_drawable(PlanSize{(std::numeric_limits<std::int64_t>::min)(), 1}).width == 0);
+
+    // THE TWO DIRECTIONS AGREE. A canvas of N cells asks for a window of exactly N cells'
+    // worth of pixels, and that window has room for exactly N cells -- which is what makes
+    // the loop between a publisher and a medium a fixed point rather than a fight.
+    for (std::int64_t n = 1; n < 200; ++n) {
+        SurfaceCanvas c;
+        c.width = n;
+        c.height = n;
+        CHECK(extent_of_drawable(canvas_window_size(c)).width == n);
+        CHECK(extent_of_drawable(canvas_window_size(c)).height == n);
+    }
+}
+
+TEST_CASE("the shell says how much room there is - on change, and never says none") {
+    // THE ONE MESSAGE THAT TRAVELS MEDIUM -> PUBLISHER, and the whole of its policy.
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    std::vector<SurfaceExtent> heard;
+    loom::WeaveId skin{};
+    SkinT<FakeMedium>* raw = mount_fake_skin(bus, log, skin);
+    (void)loom::mount<RoomEars>(bus, heard);
+
+    SurfaceCanvas c;
+    c.width = 8;
+    c.height = 2;
+
+    // A MEDIUM WITH NO OPINION SAYS NOTHING. A terminal skin answers this way forever and a
+    // window skin answers this way until its window exists; publishing {0,0} would tell a
+    // publisher there is no room, which is a different sentence and a false one.
+    bus.send(skin, loom::Message(loom::to_value(c)));
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    CHECK(heard.empty());
+
+    // The surface came up: said once.
+    raw->medium().room = SurfaceExtent{78, 22};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].width == 78);
+    CHECK(heard[0].height == 22);
+
+    // ...AND NOT AGAIN WHILE IT IS THE SAME. The beat is 10ms; without this guard a still
+    // window would publish a hundred times a second at a publisher that repaints on each one.
+    for (int i = 0; i < 20; ++i) {
+        bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+        bus.send(skin, loom::Message(loom::to_value(c)));
+    }
+    bus.pump();
+    CHECK(heard.size() == 1);
+
+    // A hand on the window edge: one sentence per size it passes through.
+    raw->medium().room = SurfaceExtent{90, 22};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    raw->medium().room = SurfaceExtent{100, 33};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[2].width == 100);
+    CHECK(heard[2].height == 33);
+
+    // A SURFACE THAT WENT AWAY IS STILL NOT "NO ROOM". Nothing is published, and the value is
+    // remembered -- so a medium that loses its surface and gets the same one back says so
+    // again rather than going quiet about a change a publisher needs.
+    raw->medium().room = SurfaceExtent{};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    CHECK(heard.size() == 3);
+    raw->medium().room = SurfaceExtent{100, 33};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.pump();
+    REQUIRE(heard.size() == 4);
+    CHECK(heard[3].width == 100);
+}
+
+TEST_CASE("a terminal medium has no opinion about how much room there is") {
+    // THE TUI PROJECTION'S POLICY, asserted rather than described. A terminal skin writes into
+    // a stream from row 3 down and owns no drawable whose size is its to read, so it declines
+    // the question -- and `report_extent` turns a declined question into SILENCE, which is
+    // what keeps a terminal Workshop painting exactly the screen it painted before G-2.
+    TuiMedium<ClassicStyle, StringSink> medium;
+    CHECK(medium.extent().width == 0);
+    CHECK(medium.extent().height == 0);
+
+    loom::Switchboard bus;
+    std::vector<SurfaceExtent> heard;
+    const loom::WeaveId skin = loom::mount<SkinT<TuiMedium<ClassicStyle, StringSink>>>(bus);
+    (void)loom::mount<RoomEars>(bus, heard);
+
+    SurfaceCanvas c;
+    c.width = 78;
+    c.height = 22;
+    for (int i = 0; i < 5; ++i) {
+        bus.send(skin, loom::Message(loom::to_value(c)));
+        bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    }
+    bus.pump();
+    CHECK(heard.empty());
+}
+
 TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
     loom::Switchboard bus;
     std::vector<std::string> log;
@@ -1669,6 +1829,96 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2");
     while (SDL_PollEvent(&got)) {
     }
+}
+
+TEST_CASE("the SDL window is the person's to resize, and says how much room it has") {
+    // G-2's live half, under the dummy driver: everything below is a real SDL window, a real
+    // renderer and the real weave library -- only the photons are missing. The window this
+    // case inspects was created inside the loaded .so; there is one shared SDL3 in this
+    // process, so `SDL_GetWindows` finds it, which is what makes this an observation of the
+    // shipped medium rather than of a copy of its arithmetic.
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
+    ::_putenv_s("SDL_VIDEODRIVER", "dummy");
+#else
+    ::setenv("SDL_VIDEO_DRIVER", "dummy", 1);
+    ::setenv("SDL_VIDEODRIVER", "dummy", 1);
+#endif
+    Rig r;
+    std::vector<SurfaceExtent> heard;
+    (void)loom::mount<RoomEars>(r.bus, heard);
+    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+
+    // The opening picture: Workshop's own minimum screen, which is what creates the window.
+    SurfaceCanvas c;
+    c.width = 78;
+    c.height = 22;
+    r.intent(skin, c);
+
+    int count = 0;
+    SDL_Window** windows = SDL_GetWindows(&count);
+    REQUIRE(windows != nullptr);
+    REQUIRE(count == 1);
+    SDL_Window* win = windows[0];
+    SDL_free(windows);
+
+    // RESIZABLE. Before G-2 this window was created with no flags at all and a person could
+    // not take hold of its edge; the whole phase is downstream of this bit.
+    CHECK((SDL_GetWindowFlags(win) & SDL_WINDOW_RESIZABLE) != 0);
+
+    // ...WITH A FLOOR, and the floor is the first picture's own size. 78x22 cells at
+    // kCanvasCellPx is what a Workshop asks for, and it is what this window will never be
+    // dragged below.
+    int min_w = 0;
+    int min_h = 0;
+    REQUIRE(SDL_GetWindowMinimumSize(win, &min_w, &min_h));
+    CHECK(min_w == 78 * kCanvasCellPx);
+    CHECK(min_h == 22 * kCanvasCellPx);
+
+    // AND IT SAID SO, in cells, unprompted.
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].width == 78);
+    CHECK(heard[0].height == 22);
+
+    // A HAND ON THE WINDOW EDGE. Nothing tells the weave this happened -- there is no resize
+    // message it accepts and it takes nothing off the event queue -- so the beat is what
+    // notices, and PumpSurface is that beat's hands.
+    REQUIRE(SDL_SetWindowSize(win, 1200, 400));
+    r.intent(skin, PumpSurface{});
+    REQUIRE(heard.size() == 2);
+    CHECK(heard[1].width == 100);
+    CHECK(heard[1].height == 33);
+
+    // THE PUBLISHER'S ANSWER DOES NOT SHRINK THE WINDOW BACK. This is the half that would
+    // have made a resizable window unusable: a canvas that fills the room, handed to a medium
+    // that sizes the window to the canvas, nibbles the window down to a whole number of cells
+    // on every single frame.
+    c.width = 100;
+    c.height = 33;
+    r.intent(skin, c);
+    int now_w = 0;
+    int now_h = 0;
+    REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
+    CHECK(now_w == 1200);
+    CHECK(now_h == 400);
+    CHECK(heard.size() == 2); // and nothing changed, so nothing was said
+
+    // SMALLER AGAIN, within the minimum: the same numbers, in reverse.
+    REQUIRE(SDL_SetWindowSize(win, 78 * kCanvasCellPx, 22 * kCanvasCellPx));
+    r.intent(skin, PumpSurface{});
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[2].width == 78);
+    CHECK(heard[2].height == 22);
+
+    // A PICTURE THAT GENUINELY DOES NOT FIT STILL GROWS THE WINDOW -- the rule that keeps a
+    // board (whose publisher hears nothing) whole. Same medium, same function, no per-shape
+    // special case.
+    c.width = 120;
+    c.height = 22;
+    r.intent(skin, c);
+    REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
+    CHECK(now_w == 120 * kCanvasCellPx);
+    CHECK(now_h == 22 * kCanvasCellPx);
 }
 
 #endif // SURFACE_HAS_SDL

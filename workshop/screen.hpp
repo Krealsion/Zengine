@@ -59,42 +59,148 @@
 namespace zengine::workshop {
 
 // ---- The one screen's layout, in canvas cells ------------------------------------------
+//
+// THE SCREEN'S EXTENT IS RUNTIME, AND EVERYTHING ELSE HERE IS EITHER FIXED OR DERIVED FROM
+// IT. Until G-2 it was one pair of constants, because a canvas publisher had no way to learn
+// how much room its medium had; the Surface package now says so (`surface::SurfaceExtent`),
+// so a larger window is a larger Workshop rather than a larger copy of one.
+//
+// WHAT THE EXTRA ROOM IS SPENT ON is this application's composition and nobody else's, and
+// it is spent in exactly two places: the WORKSPACE takes the extra columns and rows, and the
+// terminal overlay takes half of them back while it is open. The panel column beside the
+// workspace keeps its width, the inspector keeps its rows, and the bottom band keeps its
+// shape -- their sizes are decisions about how much of each thing is worth showing, not
+// shares of a screen, and turning them into shares would be inventing a layout policy this
+// phase has no evidence for.
+//
+// EVERY CONSTANT BELOW THAT SURVIVED IS ONE OF TWO KINDS: a MINIMUM (the smallest surface
+// this composition is honest on), or a FIXED SIZE (something whose right size does not
+// depend on how much room there is). `Screen` holds what is derived, `screen_of` is the one
+// place the derivation happens, and the static_asserts underneath it pin that the minimum
+// screen is byte-for-byte the 78x22 composition that existed before this phase.
 
-inline constexpr std::int64_t kScreenW = 78;
-inline constexpr std::int64_t kScreenH = 22;
+/// The smallest surface this screen is laid out on -- and, deliberately, the extent it uses
+/// when nothing tells it otherwise. It is not a taste: at 78x22 every piece of furniture
+/// below is still on the canvas with the workspace at its documented 48x16, which is the
+/// composition WT-0 measured as fully spoken for. A medium that offers less is not refused;
+/// its publisher simply keeps painting this, and the medium clips, which is what a terminal
+/// too small for its output has always done.
+inline constexpr std::int64_t kScreenMinW = 78;
+inline constexpr std::int64_t kScreenMinH = 22;
+
+/// The largest surface this screen will lay out, and the reason is arithmetic rather than
+/// taste: an extent arrives from a MEDIUM, over the bus, as a `ZEN_SHAPE` whose fields are
+/// whatever the sender put in them. `paint` allocates nothing, but the terminal Skin's
+/// rasterizer allocates `w * h` cells from the canvas it is handed, so a published extent of
+/// 10^18 is a multiply that leaves the number line before anything is drawn. This is W-1's
+/// lesson at the other end of the same telescope: a value that used to be a constant
+/// somebody chose is now an input, so it needs a total function rather than a comment.
+/// 640x400 cells is a 7680x4800-pixel window in the graphical medium -- larger than any
+/// display this runs on -- and 256,000 cells, which every consumer of it handles in
+/// microseconds.
+inline constexpr std::int64_t kScreenMaxW = 640;
+inline constexpr std::int64_t kScreenMaxH = 400;
 
 inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON THE CANVAS...
 inline constexpr std::int64_t kWorkspaceY = 1; ///< ...which authored coordinates are relative to
-inline constexpr std::int64_t kWorkspaceW = 48; ///< the default workspace extent, in cells
-inline constexpr std::int64_t kWorkspaceH = 16;
 inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
 
-inline constexpr std::int64_t kPanelX = 50; ///< the object list and the inspector
+/// The panel column beside the workspace: FIXED, and anchored to the right edge rather than
+/// to a column number. Its width is how much of an object's name and an inspector row is
+/// worth showing, which is a fact about the rows and not about the screen -- so a wider
+/// surface gives the workspace more room and gives this exactly as much as it had.
+inline constexpr std::int64_t kPanelCols = 28;
+inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
+
 inline constexpr std::int64_t kListY = 1;
 inline constexpr std::int64_t kListRows = 5;
 inline constexpr std::int64_t kRowsY = 8;
-inline constexpr std::int64_t kNoticeY = 18;
-inline constexpr std::int64_t kHelpY = 20;
+
+/// The band under the workspace: a spare row, the notice, a spare row, and the two help
+/// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
+inline constexpr std::int64_t kBottomRows = 5;
 
 // ---- The terminal overlay's own furniture, in canvas cells -----------------------------
 //
-// ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, and the arithmetic below is the whole of
-// what that means: the pane's right edge IS `kScreenW` and its bottom edge IS `kScreenH`.
-// Nothing was rearranged to make room -- it is an OVERLAY, drawn last, and while it is open
-// it covers the furniture underneath rather than pushing it aside. Workshop's screen is 78x22
-// and fully spoken for (WT-0 measured it); a pane that demanded its own unoccupied region
-// would have meant re-laying-out the whole tool for a first compositional presentation.
+// ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, and that is still the whole of the geometry:
+// the pane's right edge IS the screen's and its bottom edge IS the screen's. Nothing is
+// rearranged to make room -- it is an OVERLAY, drawn last, and while it is open it covers the
+// furniture underneath rather than pushing it aside.
 //
-// The honest limit, stated where a reader meets it: this is the bottom-right of THE CANVAS,
-// which is a fixed extent Workshop authored, not the bottom-right of whatever window or
-// terminal a medium happens to be. A canvas has no notion of the medium's size, and giving it
-// one is a Surface question, not a Workshop one.
-inline constexpr std::int64_t kTerminalW = 56;
-inline constexpr std::int64_t kTerminalH = 13;
-inline constexpr std::int64_t kTerminalX = kScreenW - kTerminalW;
-inline constexpr std::int64_t kTerminalY = kScreenH - kTerminalH;
-/// Header, the standing statement, the transcript, the omission marker, the input line.
-inline constexpr std::size_t kTerminalRows = static_cast<std::size_t>(kTerminalH) - 4;
+// WHAT G-2 CHANGED is that there is now sometimes more room, and the pane takes HALF of it.
+// Half, because the two things competing for a bigger surface are the workspace a maker is
+// building in and the record they are reading, and neither deserves all of it: at the
+// minimum extent the pane is the same 56x13 it has always been, and every two columns the
+// surface gains are one column of workspace and one column of pane. The alternative rules
+// were both worse -- a FIXED pane wastes the room the phase exists to make usable, and a
+// pane that keeps its gutters swallows a growing share of the screen until it is the tool.
+//
+// The old honest limit here -- "a canvas has no notion of the medium's size, and giving it
+// one is a Surface question, not a Workshop one" -- was answered rather than removed. The
+// Surface package now says it (`surface::SurfaceExtent`), Workshop hears it, and this
+// arithmetic is what a Workshop screen makes of the answer.
+inline constexpr std::int64_t kTerminalMinW = 56;
+inline constexpr std::int64_t kTerminalMinH = 13;
+/// Header, the standing statement, the omission marker, the input line: the rows a pane
+/// spends on being a pane, whatever is in it. Everything else is transcript.
+inline constexpr std::int64_t kTerminalChrome = 4;
+
+/// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
+///
+/// It is a value rather than a set of constants, and it is recomputed rather than cached,
+/// for exactly the reason `workspace_scene()` below is a function: a screen laid out against
+/// an extent it no longer has is the stale-number lie this whole tool is arranged against.
+/// It is a dozen integers and no allocation.
+struct Screen {
+    std::int64_t w = kScreenMinW;  ///< the canvas extent this screen paints, in cells
+    std::int64_t h = kScreenMinH;
+    std::int64_t panel_x = 0;      ///< the object list and the inspector
+    std::int64_t room_w = 0;       ///< the widest the workspace may be on this screen...
+    std::int64_t room_h = 0;       ///< ...and the tallest
+    std::int64_t notice_y = 0;
+    std::int64_t help_y = 0;       ///< the first of two help lines
+    std::int64_t terminal_x = 0;
+    std::int64_t terminal_y = 0;
+    std::int64_t terminal_w = 0;
+    std::int64_t terminal_h = 0;
+    std::size_t terminal_rows = 0; ///< transcript rows the pane has room for
+};
+
+/// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
+/// extent it is given came off the bus.
+inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h) noexcept {
+    Screen s;
+    s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
+    s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
+    s.panel_x = s.w - kPanelCols;
+    s.room_w = s.panel_x - kPanelGap;
+    s.room_h = s.h - kWorkspaceY - kBottomRows;
+    s.notice_y = s.h - 4;
+    s.help_y = s.h - 2;
+    s.terminal_w = kTerminalMinW + (s.w - kScreenMinW) / 2;
+    s.terminal_h = kTerminalMinH + (s.h - kScreenMinH) / 2;
+    s.terminal_x = s.w - s.terminal_w;
+    s.terminal_y = s.h - s.terminal_h;
+    s.terminal_rows = static_cast<std::size_t>(s.terminal_h - kTerminalChrome);
+    return s;
+}
+
+/// The minimum screen, and the one the terminal projection keeps. Named because the
+/// assertions under it are this phase's own regression test in the type system: every number
+/// the 78x22 composition was written with is still exactly what this screen resolves to.
+inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
+
+static_assert(kMinScreen.panel_x == 50, "the panel column has not moved on the minimum screen");
+static_assert(kMinScreen.room_w == 48, "the workspace's documented default width");
+static_assert(kMinScreen.room_h == 16, "the workspace's documented default height");
+static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 20, "the bottom band");
+static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pane's corner");
+static_assert(kMinScreen.terminal_w == 56 && kMinScreen.terminal_h == 13, "the pane's extent");
+static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
+
+/// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
+inline constexpr std::int64_t kWorkspaceW = kMinScreen.room_w;
+inline constexpr std::int64_t kWorkspaceH = kMinScreen.room_h;
 
 /// What the size handle looks like. One character, because it occupies one cell,
 /// and one that none of the medium's role glyphs already use (`.` workspace,
@@ -170,6 +276,14 @@ struct TerminalPane {
 /// and neither is a half-finished drag.
 struct Session {
     std::int64_t selected = 0;              ///< the selected object's IDENTITY (0 = none)
+    /// HOW MUCH ROOM THE SURFACE SAID IT HAS, in canvas cells -- session, and the most
+    /// session-like fact in this struct: it is not authored, it is not derived from anything
+    /// authored, and two makers looking at the same document through different windows are
+    /// looking at the same document. It starts at the minimum and moves only when a Skin says
+    /// so (`surface::SurfaceExtent`), so a run with no medium opinion is exactly the run
+    /// Workshop had before G-2.
+    std::int64_t screen_w = kScreenMinW;
+    std::int64_t screen_h = kScreenMinH;
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
     std::size_t cursor = 0;   ///< which inspector row the maker is on
@@ -179,6 +293,38 @@ struct Session {
     bool notice_is_bad = false; ///< whether that thing was a refusal
     TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
 };
+
+/// This session's screen furniture. The one call; see `Screen`.
+inline constexpr Screen screen_of(const Session& s) noexcept {
+    return screen_of(s.screen_w, s.screen_h);
+}
+
+/// TAKE THE ROOM A SURFACE OFFERED, and re-fit the workspace to it. Answers whether anything
+/// actually changed, so a caller can decline to repaint over a surface that merely repeated
+/// itself.
+///
+/// THE WORKSPACE FILLS THE NEW ROOM, and that is the whole of what "more usable surface"
+/// means here -- a bigger window whose workspace stayed 48 cells wide would be a bigger
+/// picture of the same tool. It costs a maker's `[` narrowing when the surface changes size,
+/// and that is the honest trade rather than an oversight: `[`/`]` says "show me this
+/// document in a narrower workspace", and dragging the window is the same sentence said with
+/// a hand. The one that happened last wins, and there is no second remembered width for the
+/// two of them to disagree about.
+///
+/// Nothing authored is touched. A share resolves to something else and every authored value
+/// is byte-identical, which is the property `[`/`]` was built to demonstrate and this is a
+/// second way to reach.
+inline bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h) {
+    const Screen fresh = screen_of(want_w, want_h);
+    if (fresh.w == s.screen_w && fresh.h == s.screen_h) {
+        return false;
+    }
+    s.screen_w = fresh.w;
+    s.screen_h = fresh.h;
+    s.workspace_w = fresh.room_w;
+    s.workspace_h = fresh.room_h;
+    return true;
+}
 
 /// The workspace as a viewport, and the document resolved against it — the ONE
 /// call that turns authored intent into geometry in this application.
@@ -343,6 +489,72 @@ inline std::string fit(std::string text, std::int64_t width) {
     text.resize(room - mark);
     text += kElided;
     return text;
+}
+
+/// How far a wrapped continuation row is indented, so a reader can tell one sentence
+/// running on from a new one starting. Two cells: enough to be visible under the sigils
+/// every transcript line begins with (`> `, `-- `, `!! `, `^ `, `v `), and cheap enough that
+/// a pane loses almost none of its width to it.
+inline constexpr std::int64_t kWrapIndent = 2;
+
+/// FIT `text` INTO AS MANY ROWS AS IT NEEDS, at most `width` cells each.
+///
+/// `fit` above is the answer for a place with exactly ONE row -- it bounds the text and
+/// leaves a mark saying it did. This is the answer for a place with SEVERAL, and G-2 exists
+/// partly because one of those places had been using the other: the terminal pane's own
+/// syntax notice is a hundred and eleven characters, the pane is fifty-six wide, and what a
+/// maker who asked how to send a message got was the first fifty-three characters of the
+/// answer and `...`. A pane that cannot state its own grammar is a pane that cannot be used,
+/// and no amount of extra window would have fixed it -- the truncation was in the fitting,
+/// not in the room.
+///
+/// IT WRAPS AT SPACES, and hard-breaks a word with no space in it, because the alternative
+/// -- refusing to break -- silently loses the tail again. Leading spaces on a continuation
+/// are eaten (they are the break itself, not content), and a continuation is indented by
+/// `kWrapIndent` so the pane still reads as a list of entries rather than as prose.
+///
+/// TOTAL, including at widths no pane has: a width at or under the indent spends the whole
+/// row on text and indents nothing, and every row consumes at least one character, so this
+/// terminates for any input.
+inline std::vector<std::string> wrap(const std::string& text, std::int64_t width) {
+    std::vector<std::string> rows;
+    if (width <= 0) {
+        return rows;
+    }
+    const std::size_t room = static_cast<std::size_t>(width);
+    const std::size_t indent =
+        width > kWrapIndent + 1 ? static_cast<std::size_t>(kWrapIndent) : 0;
+    std::size_t at = 0;
+    while (true) {
+        const std::string lead(rows.empty() ? 0 : indent, ' ');
+        const std::size_t take = room - lead.size();
+        if (text.size() - at <= take) {
+            rows.push_back(lead + text.substr(at));
+            return rows;
+        }
+        // The last space at or before the first character that does not fit. Landing ON that
+        // character means the whole run fits and the break is clean, which is why the search
+        // starts there rather than one earlier.
+        std::size_t cut = at + take;
+        bool broke = false;
+        for (std::size_t i = cut; i > at; --i) {
+            if (text[i] == ' ') {
+                cut = i;
+                broke = true;
+                break;
+            }
+        }
+        rows.push_back(lead + text.substr(at, cut - at));
+        at = cut;
+        if (broke) {
+            while (at < text.size() && text[at] == ' ') {
+                ++at;
+            }
+        }
+        if (at >= text.size()) {
+            return rows;
+        }
+    }
 }
 
 /// One cell along, without leaving the number line.
@@ -1113,10 +1325,60 @@ inline std::string terminal_legend() {
     return "SUBMITTED = authored; a sender is not told its fate";
 }
 
+/// ONE TRANSCRIPT ENTRY AS THE ROWS A PANE THIS WIDE SPENDS ON IT.
+///
+/// The renderer above says what an entry IS; this says how much of a pane it takes, and the
+/// separation is the whole answer to G-2's terminal defect. `loom::Transcript` keeps
+/// structured facts and Workshop's renderer turns one into a sentence of whatever length
+/// that sentence needs; NOTHING upstream is shortened to suit a pane. The pane then spends as
+/// many of its own rows as the sentence needs, which is a presentation decision made at the
+/// presentation boundary and nowhere else -- exactly the division `Session::notice` and
+/// `detail::fit` already keep for the notice line, applied to a place that has more than one
+/// row to spend.
+///
+/// Before this, an entry was `fit` into ONE row: the pane's own syntax notice arrived as its
+/// first fifty-three characters and `...`, so the one thing a maker could ask this pane --
+/// how do I say something -- was the one thing it could not answer.
+inline std::vector<std::string> terminal_wrapped(const loom::TranscriptEntry& e,
+                                                 std::int64_t width) {
+    return detail::wrap(terminal_line(e), width);
+}
+
+/// HOW MANY OF THE NEWEST ENTRIES A PANE THIS WIDE AND THIS TALL CAN SHOW WHOLE.
+///
+/// `entries` is oldest-first, as `Transcript::tail` hands it over. Counting from the NEWEST
+/// backwards is the direction that matters: a pane is a window onto the end of a record, so
+/// what must survive a shortage is the most recent thing that happened, and the omission
+/// marker says how much did not.
+///
+/// AT LEAST ONE, WHEN THERE IS ONE. An entry whose sentence is taller than the whole pane
+/// would otherwise show nothing at all -- a pane gone blank because its newest line was too
+/// long is indistinguishable from a broken tool. It is shown from its beginning and the rows
+/// that do not fit are dropped, which is the one place in this pane where something is lost
+/// without a mark of its own; it takes an entry of more than `width * rows` characters to
+/// reach, and the omission marker is still telling the truth about the ENTRIES.
+inline std::size_t entries_that_fit(const std::vector<loom::TranscriptEntry>& entries,
+                                    std::int64_t width, std::size_t rows) {
+    std::size_t taken = 0;
+    std::size_t used = 0;
+    for (std::size_t i = entries.size(); i > 0; --i) {
+        const std::size_t cost = terminal_wrapped(entries[i - 1], width).size();
+        if (taken > 0 && used + cost > rows) {
+            break;
+        }
+        used += cost;
+        ++taken;
+        if (used >= rows) {
+            break;
+        }
+    }
+    return taken;
+}
+
 /// WHAT THE PANE IS NOT SHOWING, in two numbers that are two different facts.
 ///
-/// `earlier` scrolled off the top of a twelve-row pane and is still in the participant's
-/// record; `dropped` was evicted by the transcript's own bound and is gone for good. Z0a's
+/// `earlier` scrolled off the top of the pane and is still in the participant's record;
+/// `dropped` was evicted by the transcript's own bound and is gone for good. Z0a's
 /// rule, and the reason it is not one number: "you cannot see it here" and "nobody can see it
 /// any more" are answers to different questions, and a maker deciding whether to widen a pane
 /// or re-run a command needs to know which one they are looking at.
@@ -1139,17 +1401,17 @@ inline std::string terminal_omission(const TerminalPane& t) {
 /// media that draw glyphs rather than cells: there a space draws nothing, so without it the
 /// pane would be text floating over the workspace. Both media are served, and neither the
 /// canvas vocabulary nor any Skin needed a new role, a new shape or a new slot to serve them.
-inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t) {
+inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, const Screen& sc) {
     if (!t.open) {
         return;
     }
-    c.rects.push_back(
-        surface::SurfaceRect{kTerminalX, kTerminalY, kTerminalW, kTerminalH, surface::role::kMuted});
-    const auto row = [&c](std::int64_t line, const std::string& text, std::int64_t role) {
+    c.rects.push_back(surface::SurfaceRect{sc.terminal_x, sc.terminal_y, sc.terminal_w,
+                                           sc.terminal_h, surface::role::kMuted});
+    const auto row = [&c, &sc](std::int64_t line, const std::string& text, std::int64_t role) {
         c.labels.push_back(surface::SurfaceLabel{
-            kTerminalX, kTerminalY + line,
-            detail::pad(detail::fit(text, static_cast<std::size_t>(kTerminalW)),
-                        static_cast<std::size_t>(kTerminalW)),
+            sc.terminal_x, sc.terminal_y + line,
+            detail::pad(detail::fit(text, sc.terminal_w),
+                        static_cast<std::size_t>(sc.terminal_w)),
             role});
     };
 
@@ -1164,20 +1426,34 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t) {
 
     row(1, terminal_legend(), surface::role::kMuted);
 
+    // THE TRANSCRIPT, WRAPPED -- one entry becomes as many rows as its sentence needs, and the
+    // pane is a list of ROWS from here down rather than a list of entries. `refresh_terminal`
+    // chose `shown` with the same arithmetic (`entries_that_fit`), so this loop is where that
+    // choice is CARRIED OUT rather than where it is made; the truncation below can only fire
+    // for a single entry taller than the whole pane, which is the case that function names.
+    std::vector<std::string> lines;
+    for (const loom::TranscriptEntry& e : t.shown) {
+        for (std::string& line : terminal_wrapped(e, sc.terminal_w)) {
+            lines.push_back(std::move(line));
+        }
+    }
+    if (lines.size() > sc.terminal_rows) {
+        lines.resize(sc.terminal_rows);
+    }
+
     // EVERY transcript row is written, including the ones with nothing in them. A row left
     // unwritten shows the backdrop's own glyph -- `.` in a terminal -- so a short session
     // rendered as a pane with holes punched through it into the workspace behind. Seen in the
     // first live rasterization, and fixed here rather than by giving the backdrop a quieter
     // glyph, because the pane's shape should not depend on how much it happens to be showing.
-    for (std::size_t i = 0; i < kTerminalRows; ++i) {
+    for (std::size_t i = 0; i < sc.terminal_rows; ++i) {
         const std::int64_t line = 2 + static_cast<std::int64_t>(i);
-        row(line, i < t.shown.size() ? terminal_line(t.shown[i]) : std::string(),
-            surface::role::kFill);
+        row(line, i < lines.size() ? lines[i] : std::string(), surface::role::kFill);
     }
-    row(kTerminalH - 2, terminal_omission(t), surface::role::kMuted);
+    row(sc.terminal_h - 2, terminal_omission(t), surface::role::kMuted);
     // The cursor is a character, for the same reason the size handle is: this canvas has no
     // notion of a caret, and a maker needs to see where the next keystroke lands.
-    row(kTerminalH - 1, "> " + t.input + "_",
+    row(sc.terminal_h - 1, "> " + t.input + "_",
         t.attached ? surface::role::kAccent : surface::role::kAlert);
 }
 
@@ -1192,9 +1468,10 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t) {
 /// is what makes "what you see is what the hit test answers about" structural
 /// rather than a claim: the two read one value.
 inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
+    const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
-    c.width = kScreenW;
-    c.height = kScreenH;
+    c.width = sc.w;
+    c.height = sc.h;
 
     const auto rect = [&c](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h,
                            std::int64_t role) {
@@ -1259,8 +1536,10 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // help lines have no room -- both are within a few cells of the canvas width already, and
     // abbreviating a gesture a maker uses constantly to advertise one they may never use would
     // be paying for the new thing with the old. This row has twenty-one free cells to its
-    // right; the hint is twenty. A mode with no way to discover it is not a feature.
-    label(kScreenW - 20, 0, "shift+space terminal", surface::role::kMuted);
+    // right; the hint is twenty. A mode with no way to discover it is not a feature. Both
+    // this and OBJECTS below are measured from the RIGHT edge, so a wider surface moves them
+    // together and the twenty-one cells between them are the same twenty-one cells.
+    label(sc.w - 20, 0, "shift+space terminal", surface::role::kMuted);
 
     // The object list: the same objects, named by identity, pointing at the same
     // selection the ring in the workspace does -- and, when there are more of
@@ -1268,25 +1547,26 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // which side. The markers are in the panel's own muted role because they are
     // the tool's furniture and not authored material: nothing here mints an
     // identity, invents a name, or reorders a document to make a screen fit.
-    label(kPanelX, kListY - 1, "OBJECTS", surface::role::kAccent);
+    label(sc.panel_x, kListY - 1, "OBJECTS", surface::role::kAccent);
     const ListWindow window = list_window(d.elements.size(), position_of(d, s.selected),
                                           static_cast<std::size_t>(kListRows));
     std::int64_t line = 0;
     if (window.before > 0) {
-        label(kPanelX, kListY + line, omitted_text(window.before, "earlier"),
+        label(sc.panel_x, kListY + line, omitted_text(window.before, "earlier"),
               surface::role::kMuted);
         ++line;
     }
     for (std::size_t i = 0; i < window.count; ++i) {
         const ui::Element& e = d.elements[window.first + i];
         const bool chosen = e.id == s.selected;
-        label(kPanelX, kListY + line,
+        label(sc.panel_x, kListY + line,
               std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label,
               chosen ? surface::role::kAccent : surface::role::kFill);
         ++line;
     }
     if (window.after > 0) {
-        label(kPanelX, kListY + line, omitted_text(window.after, "more"), surface::role::kMuted);
+        label(sc.panel_x, kListY + line, omitted_text(window.after, "more"),
+              surface::role::kMuted);
         ++line;
     }
     // An empty document SAYS it is empty. A maker can reach this state with their
@@ -1295,13 +1575,13 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // next, because the answer is one
     // key and the alternative is a maker who thinks they have destroyed it.
     if (d.elements.empty()) {
-        label(kPanelX, kListY, "(none) -- n makes one", surface::role::kMuted);
+        label(sc.panel_x, kListY, "(none) -- n makes one", surface::role::kMuted);
     }
 
     // The inspector.
-    label(kPanelX, kRowsY - 1, "PROPERTIES", surface::role::kAccent);
+    label(sc.panel_x, kRowsY - 1, "PROPERTIES", surface::role::kAccent);
     if (s.rows.empty()) {
-        label(kPanelX, kRowsY, "(nothing selected)", surface::role::kMuted);
+        label(sc.panel_x, kRowsY, "(nothing selected)", surface::role::kMuted);
     }
     for (std::size_t i = 0; i < s.rows.size(); ++i) {
         const Row& row = s.rows[i];
@@ -1312,34 +1592,36 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         } else if (!row.editable()) {
             role = surface::role::kMuted; // not the maker's to author
         }
-        label(kPanelX, kRowsY + static_cast<std::int64_t>(i),
+        label(sc.panel_x, kRowsY + static_cast<std::int64_t>(i),
               std::string(here ? ">" : " ") + detail::pad(row.label(), 9) + row.display(), role);
     }
 
     // THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE IT IS OPEN, and that is why these three
-    // lines are conditional. The pane is anchored to the bottom-right corner and is 56 of the
-    // canvas's 78 cells wide, so a notice or a help line painted underneath it would survive
-    // only in its leftmost 22 cells -- a sentence beheaded mid-word with nothing to say so,
-    // which is the exact failure `detail::fit` exists to prevent one line further down. Half a
-    // hint beside a pane is worse than no hint, and the pane's own header carries the one
-    // gesture that matters while it is open.
+    // lines are conditional. The pane is anchored to the bottom-right corner and covers most
+    // of the screen's width at every extent, so a notice or a help line painted underneath it
+    // would survive only in the cells to its left -- a sentence beheaded mid-word with nothing
+    // to say so, which is the exact failure `detail::fit` exists to prevent one line further
+    // down. Half a hint beside a pane is worse than no hint, and the pane's own header carries
+    // the one gesture that matters while it is open.
     if (s.terminal.open) {
         // LAST, and that is the whole of what "overlay" means here. Painter's order is list
         // order, so a pane appended after everything covers whatever it lands on -- and the
         // screen underneath is composed exactly as it was before this phase, with no row budget
         // taken from it and no constant moved. A closed pane appends nothing at all.
-        paint_terminal(c, s.terminal);
+        paint_terminal(c, s.terminal, sc);
         return c;
     }
 
     // The notice, fitted to the one line it has. `Session::notice` keeps the
     // whole sentence -- the fit happens HERE, at the presentation boundary, and
     // nowhere upstream, so no document operation is made less informative
-    // because this screen happens to be 78 cells wide. What a maker sees is
+    // because this screen happens to be as wide as it is. What a maker sees is
     // bounded; what Workshop knows is not, and the mark is what tells them the
-    // two are different right now.
+    // two are different right now. A wider surface therefore needs nothing from
+    // anybody but room, which is what this line said before there was any, and
+    // a bigger window now spends that room on more of the sentence.
     if (!s.notice.empty()) {
-        label(0, kNoticeY, detail::fit(s.notice, kScreenW),
+        label(0, sc.notice_y, detail::fit(s.notice, sc.w),
               s.notice_is_bad ? surface::role::kAlert : surface::role::kFill);
     }
     // Two lines, because the canvas clips at its own width and a help line that
@@ -1349,9 +1631,9 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // It advertises `shift+hjkl` and not `,. width | -= height`: those four
     // literal bindings do not exist, and a help line naming them would be the
     // tool's own instructions telling a maker to press keys that do nothing.
-    label(0, kHelpY, "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
+    label(0, sc.help_y, "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
           surface::role::kMuted);
-    label(0, kHelpY + 1,
+    label(0, sc.help_y + 1,
           "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
           surface::role::kMuted);
 

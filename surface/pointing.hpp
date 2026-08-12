@@ -16,7 +16,7 @@
 //   the terminal Skins draw the canvas from terminal row 3 (skin_tui.hpp's
 //   `\x1b[3;1H`), because rows 1 and 2 carry the SurfaceText slots
 //   the SDL Skin draws the canvas from the window's origin at kCanvasCellPx
-//   pixels per cell (skin_sdl_plan.hpp's `canvas_window_size` / `plan_canvas`),
+//   pixels per cell (skin_sdl_plan.hpp's `extent_of_drawable` / `plan_canvas`),
 //   because a window title carries the SurfaceText slots instead
 //
 // An application holding one Skin's layout number is correct only for as long as
@@ -84,10 +84,20 @@ inline constexpr std::int64_t cell_of_pixel(std::int64_t v) noexcept {
 
 /// A pointer position in the graphical Skin's window, as a canvas cell.
 ///
-/// The window is exactly the canvas: `canvas_window_size` sizes it
-/// `extent * kCanvasCellPx` with no margin and no scaling, and `plan_canvas`
-/// draws cell (0,0) at pixel (0,0). So the whole transform is one floored
-/// division per axis, and `kCanvasCellPx` is consulted rather than copied.
+/// The canvas starts at the window's origin: `plan_canvas` draws cell (0,0) at
+/// pixel (0,0), with no margin and no scaling, one cell every `kCanvasCellPx`
+/// pixels. So the whole transform is one floored division per axis, and
+/// `kCanvasCellPx` is consulted rather than copied.
+///
+/// SINCE G-2 THE WINDOW IS NOT EXACTLY THE CANVAS, and this function is unchanged
+/// by that, which is worth saying because the old wording rested on it. A
+/// resizable window can be a few pixels wider than a whole number of cells, and a
+/// publisher that ignores `SurfaceExtent` can leave it much wider than that — so a
+/// pointer can now land on a cell no canvas has. That is already this function's
+/// documented answer: it is a projection, not a hit test, and "off the canvas" is
+/// a legitimate result its consumers already test for. What would have broken is
+/// an ORIGIN that moved (a margin, a letterbox, a centred canvas); the medium
+/// deliberately grows only down and to the right, so the origin does not move.
 inline constexpr CanvasPoint canvas_of_window_pixels(std::int64_t x, std::int64_t y) noexcept {
     return CanvasPoint{cell_of_pixel(x), cell_of_pixel(y)};
 }

@@ -177,6 +177,25 @@ inline constexpr PlanSize canvas_window_size(const SurfaceCanvas& c) noexcept {
                     canvas_extent(c.height) * kCanvasCellPx};
 }
 
+/// The other direction, and the only one that is new in G-2: how many WHOLE
+/// canvas cells a drawable of this many pixels has room for.
+///
+/// FLOORED, and it has to be: a cell that is only three quarters on the surface
+/// is not room for a cell, and a publisher told otherwise would author a row it
+/// could not see the bottom of. The remainder — up to `kCanvasCellPx - 1` pixels
+/// on each axis — is simply background, which is why `canvas` clears the whole
+/// drawable before it draws anything.
+///
+/// It lives here rather than at the SDL edge for the reason everything else in
+/// this header does: it is pure arithmetic, so every lane pins it, including the
+/// ones that build no SDL at all. Negative or zero pixels answer zero — a
+/// surface with no room says so honestly, and `SkinT::report_extent` turns that
+/// into silence rather than a claim.
+inline constexpr SurfaceExtent extent_of_drawable(const PlanSize& px) noexcept {
+    return SurfaceExtent{px.w > 0 ? px.w / kCanvasCellPx : 0,
+                         px.h > 0 ? px.h / kCanvasCellPx : 0};
+}
+
 /// The whole canvas as one flat list of opaque quads, in painter's order.
 ///
 /// Rectangles first in list order, then every label's cells over them — the same
