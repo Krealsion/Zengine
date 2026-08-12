@@ -369,6 +369,24 @@ jobs:
             -DZENGINE_SDL_SKIN=OFF
           cmake --build build-msvc
 
+      # THIS STEP NEEDS THE DEV SHELL, and it is the only verify step in this file that
+      # does. The compile-negative entries are compilations run AT TEST TIME: ctest starts a
+      # nested build, that build runs `cl.exe`, and `cl.exe` finds the C++ standard headers
+      # through the INCLUDE variable a VS developer shell sets and through nothing else. The
+      # MinGW job next door needs no equivalent because it names its compiler by absolute
+      # path and g++ carries its own header roots.
+      #
+      # Without it the seven compile-negative and compile-positive entries fail as
+      # `C1083: Cannot open include file: 'cstdint'`, which reads exactly like a broken
+      # repository and is an unset environment variable. The three steps above already enter
+      # the shell; this one was simply missed, and the failure shows only in the entries that
+      # COMPILE rather than merely run -- which is why a lane whose suites all pass can still
+      # be red.
       - name: Verify the repository-owned population
         shell: pwsh
-        run: cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
