@@ -30,15 +30,18 @@
 // architectural fact: SDL has ONE process-global event queue, and it has ONE
 // owner — the SDL Input reader (input/).
 //
-//   - THIS MEDIUM DOES NOT TOUCH THE QUEUE. A `pump()` that drained it and
-//     dropped everything would be the honest posture for an output-only medium
-//     and is exactly wrong here: every key, click and close request the reader
-//     exists to hear would be swallowed here first. It does not poll, it does
-//     not peek, it does not filter. Servicing the window is now a side effect
-//     of the reader's own poll, on the reader's own beat — the same 10ms
-//     cadence this skin's beat used to supply. Running the SDL skin with a
-//     NON-SDL reader therefore leaves the window unserviced, which is a real
-//     consequence of one-owner and is reported rather than hidden.
+//   - THIS MEDIUM TAKES NOTHING OUT OF THE QUEUE, AND SERVICES ITS OWN WINDOW.
+//     A `pump()` that drained the queue would swallow every key, click and close
+//     request the reader exists to hear, so it does not poll and does not
+//     filter. What it does do is `SDL_PumpEvents` on its own beat, which
+//     gathers the OS's pending input INTO the queue and removes nothing.
+//     One-owner is a rule about who REMOVES, and this is still not it.
+//     G-1 read it as a rule about who CALLS, emptied this function, and left a
+//     window's liveness depending on which reader the host booted -- with the
+//     terminal reader nothing called into SDL at all and the window was flagged
+//     Not Responding. That is fixed here, and the pairing's remaining honest
+//     cost is measured and said out loud (`notice_unread_queue`) rather than
+//     left for a person to discover as a hang.
 //   - THE WINDOW IS FOCUSABLE. It was created SDL_WINDOW_NOT_FOCUSABLE
 //     (WS_EX_NOACTIVATE on Windows) because a window that cannot hear must not
 //     take the keys: the terminal was the game's one ear, and keys kept dying
@@ -209,24 +212,90 @@ public:
         }
     }
 
-    /// EMPTY, AND THAT IS THE POINT.
+    /// SERVICE THIS WINDOW'S CONVERSATION WITH THE OS, AND TAKE NOTHING OUT OF THE QUEUE.
     ///
-    /// `while (SDL_PollEvent(&ev)) {}` — drain the queue and drop it — is the
-    /// honest thing for an output-only medium and is the
-    /// single most destructive thing it could do now. SDL_PollEvent REMOVES what
-    /// it returns, so a skin that keeps calling it is not merely a second poller,
-    /// it is a thief: every key, click and close request would vanish here
-    /// microseconds before the reader looked.
+    /// TWO JOBS THAT SDL_PollEvent DOES AT ONCE, and separating them is the whole of this
+    /// function. `while (SDL_PollEvent(&ev)) {}` — drain the queue and drop it — is the
+    /// honest thing for an output-only medium and is the single most destructive thing this
+    /// medium could do: SDL_PollEvent REMOVES what it returns, so a skin that kept calling it
+    /// would not merely be a second poller, it would be a thief, and every key, click and
+    /// close request the reader exists to hear would vanish here microseconds before the
+    /// reader looked. That reasoning was right and it still stands.
     ///
-    /// So the queue has exactly one owner and this is not it. The window still
-    /// gets serviced on the same 10ms cadence, because the reader's own poll is
-    /// what pumps the OS conversation now; nothing was lost except this file's
-    /// claim on it. Terminal media already no-op this call — the SDL one now
-    /// joins them, for a completely different reason, and that reason is worth
-    /// the paragraph.
-    void pump() {}
+    /// What it concluded was wrong. G-1 answered it by doing NOTHING here and leaving the
+    /// window to be serviced as a side effect of the reader's own poll — which made a Skin's
+    /// liveness depend on which INPUT weave the host happened to boot, two independent
+    /// choices the host argues at length must stay independent (`--skin` / `--input`, see
+    /// workshop.cpp). Run the SDL skin with the terminal reader and nobody calls into SDL's
+    /// event machinery at all: the window comes up, never processes another OS message,
+    /// Windows flags it Not Responding, and the tool looks broken. Found live, in the
+    /// graphical Workshop, on exactly that pair of flags.
+    ///
+    /// `SDL_PumpEvents` is the half that was wanted. It gathers the pending OS input INTO
+    /// the queue and removes nothing — it is the call SDL_PollEvent makes internally before
+    /// it takes anything — and SDL's own header names this situation: "if you are not
+    /// polling or waiting for events (e.g. you are filtering them), then you must call
+    /// SDL_PumpEvents() to force an event queue update". So the queue still has exactly one
+    /// OWNER, meaning one component that REMOVES from it, and that is still not this one.
+    /// Whether a reader is loaded no longer decides whether a window is alive.
+    ///
+    /// It is safe to pump twice. When the SDL reader IS loaded its poll pumps as well; the
+    /// call gathers whatever the OS has and is not a state machine anybody can get out of
+    /// step. It runs on the host's one thread, which is the thread that brought the video
+    /// subsystem up in this medium's constructor.
+    void pump() {
+        if (!ok_ || window_ == nullptr) {
+            return; // nothing has an OS conversation yet
+        }
+        SDL_PumpEvents();
+        notice_unread_queue();
+    }
 
 private:
+    /// SAY, ONCE, WHEN NOTHING IS TAKING WHAT THIS WINDOW HEARS.
+    ///
+    /// The window is an ear as well as a surface, and it takes focus. Boot it beside a reader
+    /// that is watching something else — the terminal — and a maker types into a window
+    /// whose keys nobody collects, including its close box. That is a legitimate pairing of
+    /// two independent flags and it is not this file's to refuse; it is this file's to make
+    /// legible, the same posture the whole of `complain` above exists for.
+    ///
+    /// IT MEASURES, IT DOES NOT INFER. Nothing here reads a flag, asks who is registered, or
+    /// guesses a reader from the skin's own name — which is the deduction the host refuses to
+    /// write down and this medium is in no position to write down for it. It counts the
+    /// queue, non-destructively (`SDL_PeepEvents` with a null buffer walks the whole queue and
+    /// removes nothing), and a queue that has grown past a thousand events is a queue nobody
+    /// is emptying: a live reader drains it completely every beat, so reaching this number
+    /// with one running would take a hundred thousand events a second, sustained.
+    ///
+    /// Once, and then never again — a complaint on every beat would be the noise that teaches
+    /// a person to stop reading stderr.
+    void notice_unread_queue() {
+        if (said_unread_) {
+            return;
+        }
+        const int waiting =
+            SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST);
+        if (waiting < kUnreadQueue) {
+            return;
+        }
+        said_unread_ = true;
+        std::fprintf(stderr,
+                     "zengine-skin-sdl: %d events are queued for this window and nothing is "
+                     "taking them.\n"
+                     "zengine-skin-sdl: the window still draws, but it is not the ear this run "
+                     "is listening with --\n"
+                     "zengine-skin-sdl: type at the terminal instead, or start with `--input "
+                     "zengine-input-sdl`.\n",
+                     waiting);
+        std::fflush(stderr);
+    }
+
+    /// How many unread events make "nobody is draining this" a measurement rather than a
+    /// coincidence. A reader empties the queue on each of its own 10ms beats, so a thousand
+    /// standing events cannot be a drained queue caught mid-beat.
+    static constexpr int kUnreadQueue = 1000;
+
     bool ensure_window(const zengine::snake::SnakeVisual& v) {
         return ensure_sized_window(window_size_of(v));
     }
@@ -283,6 +352,7 @@ private:
     std::string status_;
     std::string score_;
     bool ok_ = false;
+    bool said_unread_ = false; ///< the queue complaint is said once per incarnation
 };
 
 using SkinSdl = SkinT<SdlMedium>;

@@ -1428,6 +1428,8 @@ TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoe
 
 #if defined(SURFACE_HAS_SDL)
 
+#include <SDL3/SDL.h>
+
 namespace {
 
 /// fd-2 recorder: what a Skin said on stderr while this object was alive.
@@ -1584,6 +1586,89 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
     r.pump();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
+}
+
+TEST_CASE("the SDL skin services its own window and takes nothing off the queue") {
+    // THE DEFECT THIS CASE EXISTS FOR. G-1 read "the queue has one owner" as a rule about who
+    // may CALL SDL and emptied this medium's pump(), leaving a window's liveness to be a side
+    // effect of whichever INPUT weave the host happened to boot. Run the SDL skin with the
+    // terminal reader -- two independent flags the host argues must stay independent -- and
+    // nothing called into SDL at all: the window came up, never processed another OS message,
+    // and Windows flagged it Not Responding. Found live, in the graphical Workshop.
+    //
+    // One-owner is a rule about who REMOVES. `SDL_PumpEvents` removes nothing, and both halves
+    // of that are asserted below: the pump ran (it complained about what it found), and every
+    // event that was on the queue is still on it, in order, for the reader that owns it.
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
+    ::_putenv_s("SDL_VIDEODRIVER", "dummy");
+#else
+    ::setenv("SDL_VIDEO_DRIVER", "dummy", 1);
+    ::setenv("SDL_VIDEODRIVER", "dummy", 1);
+#endif
+    Rig r;
+    r.load("snake-world-v1", WORLD_V1_SO, zengine::snake::kWorldRole);
+    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+    r.tick(); // the window is created on the first frame, and pump() has one to service
+
+    // Put events on THE queue -- one SDL, shared between this process and the weave library.
+    // Enough of them that a queue nobody drains is a measurement and not a coincidence.
+    constexpr int kPushed = 1200;
+    for (int i = 0; i < kPushed; ++i) {
+        SDL_Event ev{};
+        ev.type = SDL_EVENT_USER;
+        ev.user.code = i;
+        REQUIRE(SDL_PushEvent(&ev));
+    }
+    const int before =
+        SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST);
+    REQUIRE(before >= kPushed);
+
+    std::string said;
+    {
+        Caught caught;
+        r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
+        r.pump();
+        said = caught.text();
+    }
+
+    // THE PUMP RAN. An emptied pump() is silent here, which is exactly how the defect was
+    // shaped -- and the complaint is the honest half of the pairing that caused it: a window
+    // that draws while a different ear is listening, said out loud with the flag that fixes it.
+    CHECK(said.find("nothing is taking them") != std::string::npos);
+    CHECK(said.find("--input zengine-input-sdl") != std::string::npos);
+
+    // ...AND IT TOOK NOTHING. Not one event, and not one out of order: the reader that owns
+    // this queue finds exactly what was put on it.
+    CHECK(SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST) == before);
+    int seen = 0;
+    SDL_Event got{};
+    while (SDL_PollEvent(&got)) {
+        if (got.type == SDL_EVENT_USER) {
+            CHECK(got.user.code == seen);
+            ++seen;
+        }
+    }
+    CHECK(seen == kPushed);
+
+    // Said ONCE per incarnation: a complaint on every beat is the noise that teaches a person
+    // to stop reading stderr.
+    for (int i = 0; i < kPushed; ++i) {
+        SDL_Event ev{};
+        ev.type = SDL_EVENT_USER;
+        REQUIRE(SDL_PushEvent(&ev));
+    }
+    std::string again;
+    {
+        Caught caught;
+        r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
+        r.pump();
+        again = caught.text();
+    }
+    CHECK(again.find("nothing is taking them") == std::string::npos);
+    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2");
+    while (SDL_PollEvent(&got)) {
+    }
 }
 
 #endif // SURFACE_HAS_SDL
