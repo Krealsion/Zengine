@@ -2392,12 +2392,18 @@ private:
 /// written by a payload and cannot be chosen by whoever composed the message,
 /// which is what makes it the one right instrument for "which identity spoke".
 class SkinSeat : public loom::WeaveBase<SkinSeat, SeenState,
-                                        loom::Accept<surface::SurfaceText>, loom::Emit<>> {
+                                        loom::Accept<surface::SurfaceText>,
+                                        loom::Emit<loom::Ack>> {
 public:
     void on(const surface::SurfaceText& t, loom::Mail& mail) {
         ++state_.frames;
         heard.push_back(t);
         from.push_back(mail.sender());
+        // Answers ONE slot, so Workshop's own status publications -- which are not asks and
+        // which arrive here constantly -- are never answered by accident.
+        if (t.slot == "ask") {
+            (void)mail.answer(loom::Ack{});
+        }
     }
 
     /// Who said this exact text, or the invalid id if nobody did.
@@ -2499,8 +2505,10 @@ struct Live {
     SkinSeat* mount_skin_seat() {
         auto seat = std::make_unique<SkinSeat>();
         SkinSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
         const loom::WeaveId id =
-            bus.register_weave(std::move(seat), loom::Grant::nothing(), surface::kSkinRole);
+            bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         raw->zen_set_self(id);
         return raw;
     }
@@ -5349,6 +5357,57 @@ TEST_CASE("the address grammar the pane reads is Loom's own, not a second one") 
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"with sigil\"");
     t.bus.pump();
     CHECK(seat->who_said("with sigil") == t.terminal_id);
+}
+
+TEST_CASE("an ask waits, and LOOM's own answer settles it on the screen") {
+    Live t;
+    (void)t.mount_skin_seat();
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    // AWAITING IS ALL AN OUTSTANDING ASK MEANS. Not delivered, not being worked on, not seen
+    // by anybody -- so an ask nobody answers simply stays outstanding, and the pane pumps
+    // nothing to change that: the HOST owns the loop here exactly as it does in the
+    // standalone terminal.
+    t.type_line("ask #99 SurfaceText 1 slot=\"ask\" text=\"anyone at 99\"");
+    CHECK(me->awaiting());
+    CHECK(me->outstanding() == 1);
+    t.bus.pump();
+    t.bus.pump();
+    CHECK(me->awaiting()); // still. Nothing here can tell it whether that was even delivered.
+
+    t.type_line("ask @zengine.skin SurfaceText 1 slot=\"ask\" text=\"is anybody there\"");
+    CHECK(me->outstanding() == 1); // the second settled inside the fixture's own pump
+
+    // The answer is settled by LOOM's provenance and correlation, not by shape: the entry is
+    // an AnswerReceived, it names the local ask number, and the pane renders both.
+    const std::vector<loom::TranscriptEntry> answers =
+        of_kind(*me, loom::TranscriptKind::AnswerReceived);
+    REQUIRE(answers.size() == 1);
+    CHECK(answers.front().answers_ask);
+    CHECK(answers.front().shape == "zen.Ack");
+    CHECK(answers.front().sender != t.workshop_id);
+    CHECK(terminal_line(answers.front()).find("[Loom: answers ask 2]") != std::string::npos);
+
+    // Escape: a repaint, and a cleared line. `t.text(...)` would repaint too and would leave
+    // what it typed in the buffer -- which is how this case first read `xask * ...` and
+    // measured the wrong verb.
+    t.key(input::scan::kEscape);
+    CHECK(pane_text(t.canvases.back()).find("v zen.Ack v1 from #") != std::string::npos);
+    CHECK(pane_text(t.canvases.back()).find("[Loom: answers ask 2]") != std::string::npos);
+
+    // A PUBLICATION CANNOT BE AN ASK: it has no one respondent, so there is no conversation
+    // for Loom to authorize. Refused LOCALLY, and the participant says so in its own record.
+    const std::size_t before = me->outstanding();
+    t.type_line("ask * SurfaceText 1 slot=\"ask\" text=\"everyone\"");
+    CHECK(me->outstanding() == before);
+    std::string said;
+    for (const loom::TranscriptEntry& e : me->transcript().entries()) {
+        if (e.kind == loom::TranscriptKind::LocalNotice ||
+            e.kind == loom::TranscriptKind::LocalRefusal) {
+            said = e.text;
+        }
+    }
+    CHECK(said.find("bad-address") != std::string::npos);
 }
 
 TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
