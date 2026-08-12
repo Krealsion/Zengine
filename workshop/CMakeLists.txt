@@ -76,12 +76,44 @@ endif()
 if(TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_weaves zengine-input-sdl)
 endif()
+#
+# STAGED ON THE WEAVE'S OWN CLOCK, not on the host's -- and that is a repair with a measured
+# cost behind it. A `POST_BUILD` command runs when its TARGET is (re)linked, so with the host
+# already up to date, `cmake --build .` copied nothing: edit a Skin, rebuild everything
+# successfully, and the Workshop host went on loading the previous one from beside itself.
+# Silently, with the fresh library sitting one directory away. Twenty minutes of WT-1a went
+# into a measurement taken against a thirty-minute-old Skin because of it, and it produces the
+# worst shape a build defect has -- "I fixed it and nothing changed".
+#
+# So each copy is a rule with its own OUTPUT and its own DEPENDS, which is what makes the
+# build graph carry the fact: the stamp is older than the weave, therefore copy. The host
+# depends on the whole set, so building the host stages what the host will load. (Snake does
+# not need this: it AIMS these weaves at its own directory with RUNTIME_OUTPUT_DIRECTORY and
+# has no copy to go stale. Workshop is the second host, and the second host is the one that
+# copies.)
+# The host's own directory, SPELLED OUT rather than asked of the target. `$<TARGET_FILE_DIR:
+# zengine-workshop>` would make these rules depend on the host that depends on them, and CMake
+# says so out loud: "the inter-target dependency graph contains a cycle". The host sets no
+# output directory, so this is where it lands, and the multi-config arm is the one line that
+# keeps that true for a generator this repository's lanes do not use.
+if(CMAKE_CONFIGURATION_TYPES)
+    set(zengine_workshop_dir ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
+else()
+    set(zengine_workshop_dir ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+set(zengine_workshop_staged "")
 foreach(weave IN LISTS zengine_workshop_weaves)
-    add_custom_command(TARGET zengine-workshop POST_BUILD
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${weave}.stamp)
+    add_custom_command(OUTPUT ${stamp}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:${weave}> $<TARGET_FILE_DIR:zengine-workshop>
+                $<TARGET_FILE:${weave}> ${zengine_workshop_dir}
+        COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
+        DEPENDS ${weave}
         COMMENT "workshop: staging ${weave} beside the host")
+    list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
+add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
+add_dependencies(zengine-workshop zengine-workshop-staging)
 
 # And the shared SDL3 the two SDL-backed weaves link. New in G-1: SDL used to be
 # archived INTO the one weave that used it, and two weaves cannot share an archived

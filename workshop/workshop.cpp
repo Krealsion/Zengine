@@ -300,6 +300,10 @@ int main(int argc, char** argv) {
     host.terminal = terminal.session;
     std::printf("zengine-workshop - terminal: weave #%s (shift+space opens it)\n",
                 std::to_string(terminal.id.value).c_str());
+    // Flushed like the four banner lines above it, and for the reason WT-1a met: a killed
+    // process loses whatever is still in the buffer, and the line naming the identity the
+    // pane speaks as is exactly the line somebody is reading when they kill it.
+    std::fflush(stdout);
 
     // Workshop's own reach: the right to SPEAK its screen, and nothing else. It
     // commands no lifecycle, loads no weave and reaches no manager -- the boot
