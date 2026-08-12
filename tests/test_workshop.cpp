@@ -2007,18 +2007,10 @@ TEST_CASE("the whole screen survives an empty document, and SAYS it is empty") {
     CHECK(d.elements.empty());
 }
 
-TEST_CASE("the screen a maker actually sees: one canvas, through the real rasterizer") {
-    // The end-to-end shape of the thing, in one assertion a human can read: the
-    // canvas paint() produced, rasterized by the terminal medium's own pure
-    // function. Not a golden byte-for-byte pin (the layout is meant to move);
-    // what it pins is that the pieces MEET -- a ring around a rectangle, an
-    // object list, and an inspector, all on one surface.
-    WorkshopDoc d = two_panels();
-    Session s;
-    s.selected = d.elements[0].id;
-    refocus(d, s);
-
-    const std::string body = surface::canvas_body(paint(d, s));
+/// One canvas as the terminal medium's own pure function draws it, one string per screen row,
+/// with the SGR and erase escapes taken out so what is left is the picture.
+std::vector<std::string> rasterized(const surface::SurfaceCanvas& canvas) {
+    const std::string body = surface::canvas_body(canvas);
     std::vector<std::string> rows;
     std::size_t at = 0;
     while (at < body.size()) {
@@ -2039,7 +2031,21 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
         rows.push_back(row);
         at = end + 2;
     }
+    return rows;
+}
 
+TEST_CASE("the screen a maker actually sees: one canvas, through the real rasterizer") {
+    // The end-to-end shape of the thing, in one assertion a human can read: the
+    // canvas paint() produced, rasterized by the terminal medium's own pure
+    // function. Not a golden byte-for-byte pin (the layout is meant to move);
+    // what it pins is that the pieces MEET -- a ring around a rectangle, an
+    // object list, and an inspector, all on one surface.
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+
+    const std::vector<std::string> rows = rasterized(paint(d, s));
     REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
     CHECK(rows[0].rfind("WORKSPACE 48x16 cells", 0) == 0);
     // The ring's top edge, above the selected rectangle.
@@ -5473,4 +5479,60 @@ TEST_CASE("the pane's snapshot outlives the participant it came from") {
     }
     CHECK(held.front().text == "hello");
     CHECK(painted.find("> hello") != std::string::npos);
+}
+
+
+TEST_CASE("the overlay a maker actually sees: a solid pane, through the real rasterizer") {
+    // THE CASE THE FIRST LIVE RASTERIZATION EARNED. Every check on the canvas passes with a
+    // pane full of holes: a transcript row with no entry was simply not written, so the
+    // backdrop's own glyph showed through into the workspace behind it, and only a picture
+    // says so. This is that picture, pinned -- and it is a pure `paint()` of a hand-built
+    // pane, so it needs no bus, no participant and no keystrokes to say it.
+    WorkshopDoc d = two_panels();
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+    s.notice = "this notice is under the pane and must not be painted";
+    s.terminal.open = true;
+    s.terminal.attached = true;
+    s.terminal.id = loom::WeaveId{3};
+    s.terminal.input = "send @";
+    loom::TranscriptEntry typed;
+    typed.kind = loom::TranscriptKind::LocalCommand;
+    typed.text = "send @zengine.skin SurfaceText 1";
+    s.terminal.shown.push_back(typed);
+
+    const std::vector<std::string> rows = rasterized(paint(d, s));
+    REQUIRE(rows.size() == static_cast<std::size_t>(kScreenH));
+
+    // THE PANE IS A SOLID BLOCK. One transcript row is filled and eight are empty, and an
+    // EMPTY one is what the defect hid in: unwritten, it showed the backdrop's `.` straight
+    // through into the workspace behind. Asserted as blank rather than as "no dots anywhere",
+    // because a dot is perfectly legitimate CONTENT -- `zengine.skin` has one.
+    const auto band = [&rows](std::int64_t y) {
+        return rows[static_cast<std::size_t>(y)].substr(static_cast<std::size_t>(kTerminalX),
+                                                        static_cast<std::size_t>(kTerminalW));
+    };
+    const std::string blank(static_cast<std::size_t>(kTerminalW), ' ');
+    for (std::size_t i = 1; i < kTerminalRows; ++i) {
+        CHECK(band(kTerminalY + 2 + static_cast<std::int64_t>(i)) == blank);
+    }
+    for (std::int64_t y = kTerminalY; y < kScreenH; ++y) {
+        CHECK(band(y).size() == static_cast<std::size_t>(kTerminalW));
+    }
+
+    // ...and it says the things it is for.
+    CHECK(rows[static_cast<std::size_t>(kTerminalY)].find("TERMINAL -- weave #3") !=
+          std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(kTerminalY) + 1].find(terminal_legend()) !=
+          std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(kTerminalY) + 2].find("> send @zengine.skin") !=
+          std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(kScreenH) - 1].find("> send @_") != std::string::npos);
+
+    // The workspace ABOVE the pane is untouched -- an overlay covers, it does not rearrange.
+    CHECK(rows[3].rfind("..*panel", 0) == 0);
+    // ...and the notice underneath it was not painted at all, in either half of its row.
+    CHECK(rows[static_cast<std::size_t>(kNoticeY)].find("this notice is under") ==
+          std::string::npos);
 }
