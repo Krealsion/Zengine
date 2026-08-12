@@ -354,7 +354,8 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # painted screen through the medium's own pure function.
 add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
+            zengine-workshop-vocabulary
             zengine-surface-vocabulary zengine-ui-vocabulary zengine-warnings
             zengine-sanitize)
 target_include_directories(zengine-workshop-tests PRIVATE

@@ -254,6 +254,27 @@ enum class Commit {
     Refused      ///< it is a value of this type, and the property said no
 };
 
+/// ERASE ONE CHARACTER FROM A TYPED LINE, not one byte.
+///
+/// A line a maker types is a byte string, so a naive `pop_back` over `é` would leave half a
+/// character behind -- a value that is not text and that no setter could parse. Continuation
+/// bytes (10xxxxxx) go with their lead byte. This is the whole of Workshop's Unicode editing:
+/// transport is honest, erase is character-shaped, and NOTHING here claims grapheme clusters,
+/// combining marks or display width.
+///
+/// IT IS A FREE FUNCTION because Workshop now has two places a maker types -- an inspector
+/// draft and the terminal overlay's command line (WT-1) -- and a second copy of this loop is a
+/// second answer to "what is a character", which would be right in one place and wrong in the
+/// other on the first day somebody improved one of them.
+inline void erase_one_character(std::string& line) {
+    while (!line.empty() && (static_cast<unsigned char>(line.back()) & 0xC0u) == 0x80u) {
+        line.pop_back();
+    }
+    if (!line.empty()) {
+        line.pop_back();
+    }
+}
+
 /// One inspector line over one property, with an editor draft.
 ///
 /// THE DRAFT IS NOT THE PROPERTY, and the whole class is arranged around that:
@@ -357,24 +378,10 @@ public:
         }
     }
 
-    /// Erase one CHARACTER, not one byte.
-    ///
-    /// The draft is a byte string, so a naive `pop_back` over `é` would leave
-    /// half a character behind -- a value that is not text and that no setter
-    /// could parse. Continuation bytes (10xxxxxx) go with their lead byte. This
-    /// is the whole of Workshop's Unicode editing: transport is honest, erase is
-    /// character-shaped, and NOTHING here claims grapheme clusters, combining
-    /// marks or display width.
+    /// Erase one CHARACTER, not one byte -- through the one rule this tool has for it.
     void backspace() {
-        if (!editing_) {
-            return;
-        }
-        while (!draft_.empty() &&
-               (static_cast<unsigned char>(draft_.back()) & 0xC0u) == 0x80u) {
-            draft_.pop_back();
-        }
-        if (!draft_.empty()) {
-            draft_.pop_back();
+        if (editing_) {
+            erase_one_character(draft_);
         }
     }
 

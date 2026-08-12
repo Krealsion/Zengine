@@ -55,8 +55,13 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
+#include <zen/host/terminal_wiring.hpp>
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
+#include <zen/terminal/input_lex.hpp>
+#include <zen/terminal/session.hpp>
+#include <zen/terminal/transcript.hpp>
+#include <zen/terminal/vocabulary.hpp>
 #include <zen/weave.hpp>
 
 #include <cstdint>
@@ -2376,6 +2381,58 @@ private:
 
 
 
+/// WHOEVER HOLDS `zengine.skin` -- an ordinary weave that records not only WHAT it
+/// was told but WHO told it. `mail.sender()` is the BUS STAMP: it cannot be
+/// written by a payload and cannot be chosen by whoever composed the message,
+/// which is what makes it the one right instrument for "which identity spoke".
+class SkinSeat : public loom::WeaveBase<SkinSeat, SeenState,
+                                        loom::Accept<surface::SurfaceText>, loom::Emit<>> {
+public:
+    void on(const surface::SurfaceText& t, loom::Mail& mail) {
+        ++state_.frames;
+        heard.push_back(t);
+        from.push_back(mail.sender());
+    }
+
+    /// Who said this exact text, or the invalid id if nobody did.
+    loom::WeaveId who_said(const std::string& text) const {
+        for (std::size_t i = 0; i < heard.size(); ++i) {
+            if (heard[i].text == text) {
+                return from[i];
+            }
+        }
+        return loom::WeaveId{};
+    }
+
+    std::vector<surface::SurfaceText> heard;
+    std::vector<loom::WeaveId> from;
+};
+
+/// One participant's own record, filtered -- the transcript is a MODEL, so a test asks it
+/// structured questions rather than grepping rendered prose.
+std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& me,
+                                           loom::TranscriptKind kind) {
+    std::vector<loom::TranscriptEntry> out;
+    for (const loom::TranscriptEntry& e : me.transcript().entries()) {
+        if (e.kind == kind) {
+            out.push_back(e);
+        }
+    }
+    return out;
+}
+
+/// Everything the overlay is showing, as one string -- the pane's own column, top to bottom.
+std::string pane_text(const surface::SurfaceCanvas& c) {
+    std::string out;
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == kTerminalX && l.y >= kTerminalY) {
+            out += l.text;
+            out += '\n';
+        }
+    }
+    return out;
+}
+
 /// A live Workshop: the real weave on a real bus, driven only by published
 /// input messages. Nothing here reaches past the message boundary except to
 /// READ the result.
@@ -2385,6 +2442,8 @@ struct Live {
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
     WorkshopWeave* w = nullptr;
+    loom::WeaveId workshop_id{};
+    loom::WeaveId terminal_id{};
 
     Live() {
         auto weave = std::make_unique<WorkshopWeave>(host);
@@ -2393,8 +2452,70 @@ struct Live {
         loom::allow_poke_answers(grant);
         const loom::WeaveId id = bus.register_weave(std::move(weave), std::move(grant));
         w->zen_set_self(id);
+        workshop_id = id;
         (void)loom::mount<Painter>(bus, canvases, notes);
     }
+
+    /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on THIS bus, the one that already
+    /// carries Workshop's own weave, and hand the weave the non-owning pointer through the
+    /// same HostContext `request_stop` travels through.
+    ///
+    /// Its baseline is the host's own: one rule, SurfaceText to whoever holds `zengine.skin`
+    /// AT DELIVERY. Workshop's own grant, minted above from its Emit set, is `to_any` for the
+    /// same shape -- so the two identities differ by their RULE rather than by their
+    /// vocabulary, which is the sharpest form the difference can take.
+    ///
+    /// `widen` is the CANARY LEVER: it gives the participant Workshop's wider rule. The case
+    /// that asserts a publication from the pane reaches nobody is only a measurement if this
+    /// makes it fail.
+    loom::TerminalSession* mount_terminal(bool widen = false) {
+        loom::TerminalVocabulary vocab;
+        vocab.knows(loom::schema_of<surface::SurfaceText>())
+            .accepts(loom::schema_of<loom::Ack>())
+            .accepts(loom::schema_of<loom::Refused>());
+        loom::Grant grant;
+        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
+                            surface::kSkinRole);
+        if (widen) {
+            grant.allow_to_any(surface::SurfaceText::zen_name,
+                               surface::SurfaceText::zen_version);
+        }
+        const loom::MountedTerminal mounted = loom::host_mount_terminal(
+            bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
+            std::move(grant));
+        host.terminal = mounted.session;
+        terminal_id = mounted.id;
+        return mounted.session;
+    }
+
+    /// The office the participant is allowed to reach, held by a weave that remembers who
+    /// spoke to it.
+    SkinSeat* mount_skin_seat() {
+        auto seat = std::make_unique<SkinSeat>();
+        SkinSeat* raw = seat.get();
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), loom::Grant::nothing(), surface::kSkinRole);
+        raw->zen_set_self(id);
+        return raw;
+    }
+
+    /// Shift+Space, AS THE BACKENDS ACTUALLY REPORT IT: the key transition and the character
+    /// it produced, both, in the order they arrive. Getting this wrong in the fixture would
+    /// hide the whole reason the toggle swallows text.
+    void toggle_terminal() {
+        key(input::scan::kSpace, input::mod::kShift);
+        text(" ");
+    }
+
+    /// Type a whole line into whatever is taking text, then press Return.
+    void type_line(const std::string& line) {
+        for (const char c : line) {
+            text(std::string(1, c));
+        }
+        key(input::scan::kReturn);
+    }
+
+    const TerminalPane& pane() const { return w->session().terminal; }
 
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -4957,4 +5078,394 @@ TEST_CASE("a composed document survives save, a new process, and a load, through
     run_b.key(input::scan::kL);
     CHECK(ui::placed_for(workspace_scene(run_b.doc(), run_b.session()), 2)->rect.x ==
           b_now.x + 1);
+}
+
+
+// ---- Tier 7: the terminal overlay (WT-1) -----------------------------------------------
+//
+// WORKSHOP PRESENTS AN ORDINARY `loom::TerminalSession` ON ITS EXISTING LOOM. Six claims the
+// prompt named, and four this composition has to keep for those six to mean anything:
+//
+//   shift+space opens it, shift+space closes it
+//   a closed overlay leaves every ordinary Workshop gesture exactly as it was
+//   a typed line reaches the PARTICIPANT -- its own record, its own door
+//   the transcript becomes visible through Workshop's own canvas vocabulary
+//   the participant is on the SAME bus, not a second Loom
+//   ...and the toggle's own keystroke never becomes text
+//   ...and a target sees the PARTICIPANT as sender, never Workshop
+//   ...and the two grants do not merge, in either direction     <- canary'd
+//   ...and SUBMITTED never quietly becomes "delivered" on this screen
+//   ...and the pane says what it is not showing
+//
+// The pointer path is not re-proven here: it is the same `canvas_point_of` chain Tier 4
+// walks, and the only thing WT-1 changed about it is that an open overlay ignores it.
+
+TEST_CASE("shift+space opens the terminal overlay, and shift+space closes it") {
+    Live t;
+    t.mount_terminal();
+    REQUIRE_FALSE(t.pane().open);
+
+    t.toggle_terminal();
+    CHECK(t.pane().open);
+    CHECK(t.pane().attached);
+    CHECK(t.pane().id == t.terminal_id);
+
+    t.toggle_terminal();
+    CHECK_FALSE(t.pane().open);
+    CHECK(t.notice() == "terminal closed -- shift+space reopens it");
+
+    // A bare Space is not the gesture, and neither is Shift+anything-else.
+    t.key(input::scan::kSpace);
+    CHECK_FALSE(t.pane().open);
+    t.key(input::scan::kJ, input::mod::kShift);
+    CHECK_FALSE(t.pane().open);
+}
+
+TEST_CASE("the toggle's own keystroke never becomes text, in either direction") {
+    Live t;
+    t.mount_terminal();
+    // The backends report Shift+Space as a key AND a space. Opening must not seed the command
+    // line with one, and closing must not append one to whatever is underneath.
+    t.toggle_terminal();
+    REQUIRE(t.pane().open);
+    CHECK(t.pane().input.empty());
+
+    t.text("s");
+    CHECK(t.pane().input == "s");
+    t.toggle_terminal(); // close
+    REQUIRE_FALSE(t.pane().open);
+
+    // ...and the space did not land in the inspector either. Open an editor draft first, so
+    // there is somewhere for a leaked space to go, and look at it after a full open/close.
+    t.begin_editing("Name");
+    const Row* name = t.row("Name");
+    REQUIRE(name != nullptr);
+    REQUIRE(name->editing());
+    const std::string draft = name->display();
+    t.toggle_terminal();
+    t.toggle_terminal();
+    CHECK(t.row("Name")->display() == draft);
+
+    // A ONE-SHOT FLAG THAT OUTLIVED ITS MOMENT WOULD EAT A SPACE A MAKER MEANT. The next
+    // ordinary key ends the toggle's moment, so a space typed after one is ordinary text.
+    t.text("a");
+    t.text(" ");
+    t.text("b");
+    CHECK(t.row("Name")->display().find("a b") != std::string::npos);
+}
+
+TEST_CASE("a closed overlay leaves every ordinary Workshop gesture exactly as it was") {
+    Live t;
+    t.mount_terminal();
+    const std::int64_t before_x = t.first()->x;
+
+    // Open, type something that would be four commands with the pane closed, close.
+    t.toggle_terminal();
+    t.type_line("hjkl");
+    t.toggle_terminal();
+    REQUIRE_FALSE(t.pane().open);
+
+    t.key(input::scan::kL);
+    CHECK(t.first()->x == before_x + 1);
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == 3);
+    t.key(input::scan::kTab);
+    CHECK(t.session().selected != 0);
+    t.press(t.first()->x + 1, t.first()->y + 1);
+    CHECK(t.session().drag.active);
+    t.release(t.first()->x + 1, t.first()->y + 1);
+    CHECK_FALSE(t.session().drag.active);
+}
+
+TEST_CASE("while the overlay is open the keys and the pointer belong to it") {
+    Live t;
+    t.mount_terminal();
+    const std::int64_t x = t.first()->x;
+    const std::size_t objects = t.doc().elements.size();
+    t.toggle_terminal();
+
+    // `h`, `n` and `d` are Workshop commands with the pane closed. With it open they are text.
+    t.key(input::scan::kH);
+    t.text("h");
+    t.key(input::scan::kN);
+    t.text("n");
+    t.key(input::scan::kD);
+    t.text("d");
+    CHECK(t.pane().input == "hnd");
+    CHECK(t.first()->x == x);
+    CHECK(t.doc().elements.size() == objects);
+
+    // ...and a press does not take hold of an object the maker cannot see.
+    t.press(t.first()->x + 1, t.first()->y + 1);
+    CHECK_FALSE(t.session().drag.active);
+    t.motion(t.first()->x + 4, t.first()->y + 1);
+    CHECK(t.first()->x == x);
+
+    // Backspace erases, escape clears the line and LEAVES THE PANE OPEN.
+    t.key(input::scan::kBackspace);
+    CHECK(t.pane().input == "hn");
+    t.key(input::scan::kEscape);
+    CHECK(t.pane().input.empty());
+    CHECK(t.pane().open);
+}
+
+TEST_CASE("Ctrl+C and ^s still mean the same thing with the overlay open") {
+    Live t;
+    t.mount_terminal();
+    t.toggle_terminal();
+    // ^s is not text -- a control byte is never TextEntered -- so it cannot be typed into a
+    // command line, and its meaning is deliberately mode-independent.
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
+    CHECK(t.pane().open);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(t.host.quit);
+}
+
+TEST_CASE("a typed line reaches the participant's own record, understood or not") {
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    t.type_line("this is not a verb");
+
+    // RECORDED BEFORE IT IS UNDERSTOOD. A chronology of effects with no causes is not a
+    // session, so the line is on the participant even though it authored nothing.
+    const std::vector<loom::TranscriptEntry> log = me->transcript().entries();
+    REQUIRE(log.size() >= 2);
+    CHECK(log[0].kind == loom::TranscriptKind::LocalCommand);
+    CHECK(log[0].text == "this is not a verb");
+    CHECK(log[1].kind == loom::TranscriptKind::LocalNotice);
+    CHECK(log[1].text.find("two verbs") != std::string::npos);
+    CHECK(of_kind(*me, loom::TranscriptKind::Submitted).empty());
+}
+
+TEST_CASE("a typed send leaves through the PARTICIPANT's door, on Workshop's own bus") {
+    Live t;
+    SkinSeat* seat = t.mount_skin_seat();
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"from the pane\"");
+    t.bus.pump();
+
+    // IT ARRIVED, AND IT ARRIVED ON THIS BUS. The seat is registered on the same Switchboard
+    // Workshop's own weave is; nothing here constructs a second Loom, and a participant on a
+    // second one could not have reached this weave at all.
+    REQUIRE_FALSE(seat->heard.empty());
+    bool arrived = false;
+    for (const surface::SurfaceText& said : seat->heard) {
+        arrived = arrived || (said.slot == "score" && said.text == "from the pane");
+    }
+    CHECK(arrived);
+
+    // ...AND THE BUS STAMPED THE PARTICIPANT, NOT WORKSHOP. This is the whole authority
+    // claim, measured at the one place that cannot be talked out of it.
+    CHECK(seat->who_said("from the pane") == t.terminal_id);
+    CHECK(seat->who_said("from the pane") != t.workshop_id);
+    CHECK(me->id() == t.terminal_id);
+
+    // TWO IDENTITIES, ONE SCREEN, AND STILL TWO. The same seat also heard Workshop's own
+    // status line, from every repaint -- and those are stamped with WORKSHOP's id. One
+    // keyboard, one screen, one bus, two senders, told apart by Loom and by nothing else.
+    bool workshop_spoke = false;
+    for (const loom::WeaveId who : seat->from) {
+        workshop_spoke = workshop_spoke || who == t.workshop_id;
+    }
+    CHECK(workshop_spoke);
+
+    // The participant's own record says SUBMITTED, addressed to the office, and says nothing
+    // whatever about what happened next.
+    const std::vector<loom::TranscriptEntry> sent =
+        of_kind(*me, loom::TranscriptKind::Submitted);
+    REQUIRE(sent.size() == 1);
+    CHECK(sent.back().shape == "SurfaceText");
+    CHECK(sent.back().addressing == loom::Addressing::Role);
+    CHECK(sent.back().role == surface::kSkinRole);
+}
+
+TEST_CASE("holding the pointer merged nothing: the two grants stay different") {
+    // The pane holds a C++ pointer to a participant. That is PRESENTATION. What each of the
+    // two may SAY is decided by the Kernel against that one's own grant, separately -- and
+    // here the two differ in the same shape, by their rule alone: Workshop may publish
+    // SurfaceText to anybody; the participant may say it only to an office.
+    //
+    // CANARY: `mount_terminal(true)` gives the participant Workshop's wider rule, and the
+    // publication below then arrives -- which is what makes this a measurement rather than a
+    // restatement of the fixture.
+    const bool widen = false;
+    Live t;
+    SkinSeat* seat = t.mount_skin_seat();
+    loom::TerminalSession* me = t.mount_terminal(widen);
+    t.toggle_terminal();
+
+    // The office: authorized, and it lands.
+    t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"to the office\"");
+    t.bus.pump();
+    CHECK(seat->who_said("to the office") == t.terminal_id);
+
+    // A PUBLICATION: composed, authored, SUBMITTED -- and refused at delivery for want of a
+    // rule this participant does not hold. The participant is not told that, and does not
+    // claim to know it; what the transcript says is that it was submitted.
+    t.type_line("send * SurfaceText 1 slot=\"score\" text=\"to everyone\"");
+    t.bus.pump();
+    CHECK(of_kind(*me, loom::TranscriptKind::Submitted).size() == 2);
+    CHECK_FALSE(seat->who_said("to everyone").valid());
+
+    // ...while Workshop's own publications of the very same shape reached the seat all along.
+    // Nothing the participant holds widened Workshop, and nothing Workshop holds widened the
+    // participant.
+    bool workshop_published = false;
+    for (const loom::WeaveId who : seat->from) {
+        workshop_published = workshop_published || who == t.workshop_id;
+    }
+    CHECK(workshop_published);
+}
+
+TEST_CASE("the address grammar the pane reads is Loom's own, not a second one") {
+    // The pane parses `@office` with `loom::parse_address` out of <zen/terminal/input_lex.hpp>,
+    // the same parser the standalone terminal uses. Two claims, joined here: the parser says
+    // what it says, and a line typed into Workshop is addressed by it.
+    loom::Address a;
+    REQUIRE(loom::parse_address("@zengine.skin", a));
+    REQUIRE(a.mode == loom::Addressing::Role);
+
+    Live t;
+    SkinSeat* seat = t.mount_skin_seat();
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    // A BAREWORD IS NOT AN ADDRESS, and the pane invents no default for one.
+    t.type_line("send zengine.skin SurfaceText 1 slot=\"score\" text=\"no sigil\"");
+    t.bus.pump();
+    CHECK_FALSE(seat->who_said("no sigil").valid());
+    CHECK(of_kind(*me, loom::TranscriptKind::Submitted).empty());
+    CHECK(me->transcript().entries().back().text.find("#12, @office or *") != std::string::npos);
+
+    // ...and the same line with the sigil is authored.
+    t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"with sigil\"");
+    t.bus.pump();
+    CHECK(seat->who_said("with sigil") == t.terminal_id);
+}
+
+TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"hello\"");
+    t.bus.pump();
+    const surface::SurfaceCanvas& c = t.canvases.back();
+
+    // ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, exactly.
+    CHECK(kTerminalX + kTerminalW == kScreenW);
+    CHECK(kTerminalY + kTerminalH == kScreenH);
+    CHECK(label_at(c, kTerminalX, kTerminalY).rfind("TERMINAL -- weave #", 0) == 0);
+    CHECK(label_at(c, kTerminalX, kTerminalY).find(std::to_string(t.terminal_id.value)) !=
+          std::string::npos);
+
+    // The line a maker typed, and the message it authored, both on the screen.
+    const std::string body = pane_text(c);
+    CHECK(body.find("> send @zengine.skin") != std::string::npos);
+    CHECK(body.find("^ SurfaceText v1 -> @zengine.skin") != std::string::npos);
+
+    // SUBMITTED IS NOT DELIVERED, and a renderer is the one place that contract can be broken
+    // by prose alone. The pane says what SUBMITTED means, once, on a row it always shows --
+    // and nowhere on it does it say the other thing.
+    CHECK(body.find("SUBMITTED") != std::string::npos);
+    CHECK(body.find(terminal_legend()) != std::string::npos);
+    CHECK(body.find("delivered") == std::string::npos);
+    CHECK(label_at(c, kTerminalX, kTerminalY + 1).rfind(terminal_legend(), 0) == 0);
+
+    // The cursor row shows what is being typed, and every row is exactly the pane's width --
+    // which is what clears the furniture underneath in a medium whose ink is one cell.
+    t.text("ab");
+    const surface::SurfaceCanvas& c2 = t.canvases.back();
+    CHECK(label_at(c2, kTerminalX, kScreenH - 1).rfind("> ab_", 0) == 0);
+    for (const surface::SurfaceLabel& l : c2.labels) {
+        if (l.x == kTerminalX && l.y >= kTerminalY) {
+            CHECK(static_cast<std::int64_t>(l.text.size()) == kTerminalW);
+        }
+    }
+
+    // The bottom band is the pane's while it is open: the notice and the two help lines are
+    // not painted under it, because their right-hand two thirds would be covered and a
+    // sentence beheaded mid-word is worse than no sentence.
+    CHECK(label_at(c2, 0, kHelpY).empty());
+    CHECK(label_at(c2, 0, kHelpY + 1).empty());
+    // ...and with the pane closed they are exactly as they were.
+    t.toggle_terminal();
+    CHECK(label_at(t.canvases.back(), 0, kHelpY).rfind("n new | d delete", 0) == 0);
+}
+
+TEST_CASE("the pane says what it is not showing, in the two senses that differ") {
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    CHECK(terminal_omission(t.pane()) == "[the whole of this session's record is on screen]");
+
+    // More lines than the pane is tall: the rest is EARLIER, and still in the record.
+    for (int i = 0; i < 20; ++i) {
+        (void)me->record_notice("line " + std::to_string(i));
+    }
+    t.text("x"); // any event repaints, and a repaint re-snapshots
+    CHECK(t.pane().shown.size() == kTerminalRows);
+    CHECK(t.pane().earlier > 0);
+    CHECK(t.pane().dropped == 0);
+    CHECK(terminal_omission(t.pane()).rfind("... ", 0) == 0);
+
+    // Past the transcript's own bound the earliest lines are gone for good, and the pane says
+    // THAT differently -- "you cannot see it here" and "nobody can see it any more" are
+    // answers to different questions.
+    for (std::size_t i = 0; i < loom::kTranscriptCapacity + 5; ++i) {
+        (void)me->record_notice("flood " + std::to_string(i));
+    }
+    t.text("y");
+    CHECK(t.pane().dropped > 0);
+    CHECK(terminal_omission(t.pane()).find("dropped for good") != std::string::npos);
+    CHECK(pane_text(t.canvases.back()).find("dropped for good") != std::string::npos);
+}
+
+TEST_CASE("a Workshop with no participant says so and authors nothing") {
+    // The host may mount none -- `HostContext::terminal` is a plain pointer with a null
+    // default, and a suite constructs one either way. The pane must be a refusal, not a crash.
+    Live t;
+    REQUIRE(t.host.terminal == nullptr);
+    t.toggle_terminal();
+    CHECK(t.pane().open);
+    CHECK_FALSE(t.pane().attached);
+    t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"x\"");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("no terminal participant is mounted") != std::string::npos);
+    CHECK(label_at(t.canvases.back(), kTerminalX, kTerminalY)
+              .rfind("TERMINAL -- no participant", 0) == 0);
+}
+
+TEST_CASE("the pane's snapshot outlives the participant it came from") {
+    // THE LIFETIME CLAIM, and the reason the sanitizer lane is obliged for this phase. The bus
+    // owns the participant; Workshop holds a non-owning pointer to it. Every entry the pane
+    // paints from is a COPY taken inside a handler, so a canvas already published cannot come
+    // to read a freed transcript -- and this case is what lets ASan say so.
+    std::vector<loom::TranscriptEntry> held;
+    std::string painted;
+    {
+        Live t;
+        (void)t.mount_terminal();
+        t.toggle_terminal();
+        t.type_line("hello");
+        held = t.pane().shown;
+        painted = pane_text(t.canvases.back());
+        REQUIRE_FALSE(held.empty());
+
+        // The host's explicit act: end the participant. The pointer in HostContext is dead
+        // from here on, and the host is what must stop handing it out.
+        const std::unique_ptr<loom::Weave> gone = t.bus.unregister_weave(t.terminal_id);
+        CHECK(gone != nullptr);
+        t.host.terminal = nullptr;
+
+        // Workshop keeps working, and now paints a pane with no participant behind it.
+        t.text("z");
+        CHECK_FALSE(t.pane().attached);
+        CHECK(t.pane().shown.empty());
+        CHECK(t.canvases.back().width == kScreenW);
+    }
+    CHECK(held.front().text == "hello");
+    CHECK(painted.find("> hello") != std::string::npos);
 }

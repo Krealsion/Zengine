@@ -48,6 +48,8 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
+#include <zen/terminal/transcript.hpp> // the participant's own record, rendered HERE
+
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -73,6 +75,26 @@ inline constexpr std::int64_t kListRows = 5;
 inline constexpr std::int64_t kRowsY = 8;
 inline constexpr std::int64_t kNoticeY = 18;
 inline constexpr std::int64_t kHelpY = 20;
+
+// ---- The terminal overlay's own furniture, in canvas cells -----------------------------
+//
+// ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, and the arithmetic below is the whole of
+// what that means: the pane's right edge IS `kScreenW` and its bottom edge IS `kScreenH`.
+// Nothing was rearranged to make room -- it is an OVERLAY, drawn last, and while it is open
+// it covers the furniture underneath rather than pushing it aside. Workshop's screen is 78x22
+// and fully spoken for (WT-0 measured it); a pane that demanded its own unoccupied region
+// would have meant re-laying-out the whole tool for a first compositional presentation.
+//
+// The honest limit, stated where a reader meets it: this is the bottom-right of THE CANVAS,
+// which is a fixed extent Workshop authored, not the bottom-right of whatever window or
+// terminal a medium happens to be. A canvas has no notion of the medium's size, and giving it
+// one is a Surface question, not a Workshop one.
+inline constexpr std::int64_t kTerminalW = 56;
+inline constexpr std::int64_t kTerminalH = 13;
+inline constexpr std::int64_t kTerminalX = kScreenW - kTerminalW;
+inline constexpr std::int64_t kTerminalY = kScreenH - kTerminalH;
+/// Header, the standing statement, the transcript, the omission marker, the input line.
+inline constexpr std::size_t kTerminalRows = static_cast<std::size_t>(kTerminalH) - 4;
 
 /// What the size handle looks like. One character, because it occupies one cell,
 /// and one that none of the medium's role glyphs already use (`.` workspace,
@@ -113,6 +135,34 @@ struct Drag {
     std::int64_t grab_dy = 0;
 };
 
+/// THE TERMINAL OVERLAY'S VIEW OF A PARTICIPANT — session, emphatically, and a SNAPSHOT.
+///
+/// Workshop presents an ordinary `loom::TerminalSession` that its host mounted on the one bus
+/// this process has. What lives here is the presentation's side of that and nothing else:
+/// whether the pane is open, the line a maker is part-way through typing, and a COPY of the
+/// entries the pane is currently showing.
+///
+/// A COPY, and that is a lifetime answer rather than a convenience. The participant is owned
+/// by the bus; this pane holds a non-owning pointer to it in the weave and nothing at all
+/// here. `Transcript::entries()` returns by value precisely so a presentation may hold the
+/// result across anything, including the death of the participant it came from -- so a screen
+/// painted from this struct cannot read a freed transcript no matter when it is painted.
+///
+/// IT IS NOT AN IDENTITY AND CARRIES NO AUTHORITY. `id` is here so the pane can say WHOSE
+/// record a maker is reading, because a presentation showing two identities that does not name
+/// them is the one thing this composition must never become. Nothing is authored from this
+/// struct; every send goes through the participant's own door, stamped by the bus with the
+/// participant's own WeaveId and gated against the participant's own grant.
+struct TerminalPane {
+    bool open = false;         ///< shift+space, and nothing else, decides this
+    bool attached = false;     ///< is there a participant at all (a host may mount none)
+    loom::WeaveId id{};        ///< the participant's identity, for the header
+    std::string input;         ///< the line being typed, before Return authors anything
+    std::vector<loom::TranscriptEntry> shown; ///< the newest entries that FIT, oldest first
+    std::uint64_t earlier = 0; ///< kept by the participant, above the top of this pane
+    std::uint64_t dropped = 0; ///< evicted from the transcript entirely -- gone, not scrolled
+};
+
 /// The session: what a maker is currently doing, as opposed to what they have
 /// authored. Kept out of WorkshopDoc deliberately (see vocabulary.hpp) so the
 /// two kinds of fact cannot be mistaken for each other -- selection is not
@@ -127,6 +177,7 @@ struct Session {
     Drag drag;                ///< a pointer drag in flight, if any
     std::string notice;       ///< the last thing Workshop had to say
     bool notice_is_bad = false; ///< whether that thing was a refusal
+    TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
 };
 
 /// The workspace as a viewport, and the document resolved against it — the ONE
@@ -990,6 +1041,141 @@ inline std::string omitted_text(std::size_t how_many, const char* which) {
     return "... " + std::to_string(how_many) + " " + which;
 }
 
+// ---- Rendering one participant's record ------------------------------------------------
+//
+// THE TRANSCRIPT IS A MODEL, NOT OUTPUT, and Loom says so in as many words: entries carry
+// structured facts -- kind, shape identity, the bus-stamped sender, the addressing, the
+// correlation -- and NO baked prose, so that two renderers cannot come to disagree about what
+// a message entry says by disagreeing about a string the core happened to write. These three
+// functions are Workshop's renderer, and they are pure, so the suite pins the exact words.
+//
+// `loom::safe_terminal_text` is deliberately NOT used. It is a rule for a renderer that has a
+// real terminal to protect from escape sequences; this one paints into a SurfaceCanvas that
+// every Skin rasterizes cell by cell, and showing a maker backslash-escapes for no reason is
+// the mistake its own comment names.
+
+/// WHERE A SUBMITTED MESSAGE WAS ADDRESSED, in the SAME three sigils the command line reads.
+///
+/// Not a coincidence and not a second table: `#N` / `@office` / `*` is Loom's own address
+/// grammar (`loom::parse_address`), so a maker can read a line out of the transcript and type
+/// it back in. A publication additionally says how many deliveries were QUEUED -- the one
+/// delivery fact an ordinary sender is given, and never a count of what landed.
+inline std::string terminal_address(const loom::TranscriptEntry& e) {
+    switch (e.addressing) {
+    case loom::Addressing::Weave: return "#" + std::to_string(e.target.value);
+    case loom::Addressing::Role: return "@" + e.role;
+    case loom::Addressing::Publish: return "* (" + std::to_string(e.recipients) + " queued)";
+    }
+    return "?";
+}
+
+inline std::string terminal_shape(const loom::TranscriptEntry& e) {
+    return e.shape + " v" + std::to_string(e.version);
+}
+
+/// ONE TRANSCRIPT ENTRY AS ONE LINE.
+///
+/// SUBMITTED SAYS SUBMITTED, and no line says more than that. A participant is never told its
+/// send's fate -- not delivered, not refused, not dropped for want of a target -- so an
+/// outbound line carries what was authored, where it was aimed, and Loom's own word for the
+/// only thing that is known. What that word MEANS is said once, by `terminal_legend` below,
+/// on a row the pane always shows. Once rather than on every line, because a fifty-cell
+/// clause repeated down a nine-row pane costs the room the record itself needs -- and because
+/// a rule with one owner is a rule that cannot come to be worded two ways.
+///
+/// The suite additionally asserts that nothing this renderer produces contains the word
+/// "delivered": a renderer is the one place the never-say-delivered contract can be broken by
+/// prose alone.
+inline std::string terminal_line(const loom::TranscriptEntry& e) {
+    switch (e.kind) {
+    case loom::TranscriptKind::LocalCommand: return "> " + e.text;
+    case loom::TranscriptKind::LocalRefusal: return "!! " + e.text;
+    case loom::TranscriptKind::LocalNotice: return "-- " + e.text;
+    case loom::TranscriptKind::Submitted:
+        return "^ " + terminal_shape(e) + " -> " + terminal_address(e) + "  SUBMITTED";
+    case loom::TranscriptKind::Received:
+        return "v " + terminal_shape(e) + " from #" + std::to_string(e.sender.value);
+    case loom::TranscriptKind::AnswerReceived:
+        return "v " + terminal_shape(e) + " from #" + std::to_string(e.sender.value) +
+               "  [Loom: answers ask " + std::to_string(e.answers) + "]";
+    }
+    return e.text;
+}
+
+/// WHAT `^` MEANS, said once, on a row the pane always shows.
+///
+/// This is the pane's whole copy of the never-say-delivered rule, and it is deliberately a
+/// STANDING statement rather than a per-line one. The standalone terminal words it its own
+/// way and this words it this way; what makes two renderers safe is that neither is inventing
+/// a FACT -- the transcript has no outcome field to read, so no renderer can say "delivered"
+/// by accident, only by writing the word.
+inline std::string terminal_legend() {
+    return "SUBMITTED = authored; a sender is not told its fate";
+}
+
+/// WHAT THE PANE IS NOT SHOWING, in two numbers that are two different facts.
+///
+/// `earlier` scrolled off the top of a twelve-row pane and is still in the participant's
+/// record; `dropped` was evicted by the transcript's own bound and is gone for good. Z0a's
+/// rule, and the reason it is not one number: "you cannot see it here" and "nobody can see it
+/// any more" are answers to different questions, and a maker deciding whether to widen a pane
+/// or re-run a command needs to know which one they are looking at.
+inline std::string terminal_omission(const TerminalPane& t) {
+    if (t.earlier == 0 && t.dropped == 0) {
+        return "[the whole of this session's record is on screen]";
+    }
+    std::string text = "... " + std::to_string(t.earlier) + " earlier";
+    if (t.dropped > 0) {
+        text += ", " + std::to_string(t.dropped) + " dropped for good";
+    }
+    return text;
+}
+
+/// The overlay, painted OVER the finished screen.
+///
+/// Every row is a label padded to the pane's full width, which is what CLEARS the furniture
+/// underneath in a medium whose ink is one character per cell -- a space is a glyph like any
+/// other, and painter's order makes the last writer win. The backdrop rect underneath is for
+/// media that draw glyphs rather than cells: there a space draws nothing, so without it the
+/// pane would be text floating over the workspace. Both media are served, and neither the
+/// canvas vocabulary nor any Skin needed a new role, a new shape or a new slot to serve them.
+inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t) {
+    if (!t.open) {
+        return;
+    }
+    c.rects.push_back(
+        surface::SurfaceRect{kTerminalX, kTerminalY, kTerminalW, kTerminalH, surface::role::kMuted});
+    const auto row = [&c](std::int64_t line, const std::string& text, std::int64_t role) {
+        c.labels.push_back(surface::SurfaceLabel{
+            kTerminalX, kTerminalY + line,
+            detail::pad(detail::fit(text, static_cast<std::size_t>(kTerminalW)),
+                        static_cast<std::size_t>(kTerminalW)),
+            role});
+    };
+
+    // The header NAMES THE IDENTITY whose record this is. A presentation may hold controls for
+    // more than one identity, and the moment it stops saying which one it is showing is the
+    // moment the two look like one thing with two windows.
+    row(0,
+        t.attached ? "TERMINAL -- weave #" + std::to_string(t.id.value) +
+                         "  (shift+space closes)"
+                   : "TERMINAL -- no participant was mounted on this bus",
+        surface::role::kAccent);
+
+    row(1, terminal_legend(), surface::role::kMuted);
+
+    std::int64_t line = 2;
+    for (const loom::TranscriptEntry& e : t.shown) {
+        row(line, terminal_line(e), surface::role::kFill);
+        ++line;
+    }
+    row(kTerminalH - 2, terminal_omission(t), surface::role::kMuted);
+    // The cursor is a character, for the same reason the size handle is: this canvas has no
+    // notion of a caret, and a maker needs to see where the next keystroke lands.
+    row(kTerminalH - 1, "> " + t.input + "_",
+        t.attached ? surface::role::kAccent : surface::role::kAlert);
+}
+
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
@@ -1064,6 +1250,13 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
               " cells",
           surface::role::kAccent);
 
+    // HOW TO OPEN THE TERMINAL, and it is up here rather than on the help lines because the
+    // help lines have no room -- both are within a few cells of the canvas width already, and
+    // abbreviating a gesture a maker uses constantly to advertise one they may never use would
+    // be paying for the new thing with the old. This row has twenty-one free cells to its
+    // right; the hint is twenty. A mode with no way to discover it is not a feature.
+    label(kScreenW - 20, 0, "shift+space terminal", surface::role::kMuted);
+
     // The object list: the same objects, named by identity, pointing at the same
     // selection the ring in the workspace does -- and, when there are more of
     // them than the panel is tall, SAYING how many it is not showing and on
@@ -1116,6 +1309,22 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         }
         label(kPanelX, kRowsY + static_cast<std::int64_t>(i),
               std::string(here ? ">" : " ") + detail::pad(row.label(), 9) + row.display(), role);
+    }
+
+    // THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE IT IS OPEN, and that is why these three
+    // lines are conditional. The pane is anchored to the bottom-right corner and is 56 of the
+    // canvas's 78 cells wide, so a notice or a help line painted underneath it would survive
+    // only in its leftmost 22 cells -- a sentence beheaded mid-word with nothing to say so,
+    // which is the exact failure `detail::fit` exists to prevent one line further down. Half a
+    // hint beside a pane is worse than no hint, and the pane's own header carries the one
+    // gesture that matters while it is open.
+    if (s.terminal.open) {
+        // LAST, and that is the whole of what "overlay" means here. Painter's order is list
+        // order, so a pane appended after everything covers whatever it lands on -- and the
+        // screen underneath is composed exactly as it was before this phase, with no row budget
+        // taken from it and no constant moved. A closed pane appends nothing at all.
+        paint_terminal(c, s.terminal);
+        return c;
     }
 
     // The notice, fitted to the one line it has. `Session::notice` keeps the
