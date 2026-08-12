@@ -279,6 +279,13 @@ if(TARGET zengine-skin-sdl)
     target_compile_definitions(zengine-surface-tests PRIVATE
         SURFACE_HAS_SDL=1
         "SKIN_SO_SDL=\"$<TARGET_FILE:zengine-skin-sdl>\"")
+    # THE SUITE REACHES THE SAME SDL THE SKIN DOES, and that is a measurement rather than a
+    # convenience. SDL's event queue is process-global with exactly one owner, and the whole
+    # reason cmake/ZengineSdl.cmake fetches a SHARED SDL3 is that a weave loaded with
+    # RTLD_LOCAL and an archived copy would be talking to a different queue. Linking the suite
+    # to the same shared library is what lets a case put events on THE queue and then ask
+    # whether the skin took any -- which cannot be asked from outside SDL at all.
+    target_link_libraries(zengine-surface-tests PRIVATE ${ZENGINE_SDL_LIB})
     set_tests_properties(surface PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
