@@ -31,10 +31,13 @@
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
+#include <zen/host/terminal_wiring.hpp>
 #include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
+#include <zen/terminal/session.hpp>
+#include <zen/terminal/vocabulary.hpp>
 #include <zen/weave.hpp>
 
 #if defined(_WIN32)
@@ -52,7 +55,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -249,6 +254,52 @@ int main(int argc, char** argv) {
     host.dir = exe_dir();
     host.document_path = args.document;
     host.request_stop = [&bus] { bus.stop(); };
+
+    // ---- The terminal participant Workshop presents (WT-1) -------------------
+    //
+    // AN ORDINARY WEAVE ON THE BUS THIS PROCESS ALREADY HAS. There is exactly one
+    // Switchboard in this program and this participant is mounted on it, beside
+    // Workshop's own weave, the boot weave and everything the Manager loads. A
+    // second Loom would have made the pane a window onto a different world --
+    // useless for looking at THIS one, and a whole second lifetime for the host
+    // to own.
+    //
+    // THE HOST CHOOSES WHAT IT MAY KNOW AND WHAT IT MAY SAY, and the two are
+    // separate in every direction. Knowing a shape is type knowledge; being
+    // allowed to say one is authority, and it is the Kernel's answer, not this
+    // participant's.
+    loom::TerminalVocabulary terminal_vocab;
+    terminal_vocab
+        // The one ordinary verb, deliberately given: a line of text on the
+        // screen's score slot. It is real -- whichever Skin holds `zengine.skin`
+        // paints it -- and it is small: the participant cannot draw, cannot move
+        // an object, cannot save and cannot quit.
+        .knows(loom::schema_of<surface::SurfaceText>())
+        // ...and the one it must never be able to USE. Knowing SurfaceCanvas is
+        // what makes the refusal below a real measurement instead of a shape this
+        // participant could not spell: `send * zengine.SurfaceCanvas 1` composes
+        // and is then refused by the Kernel, which is exactly the demonstration.
+        .knows(loom::schema_of<surface::SurfaceCanvas>())
+        .accepts(loom::schema_of<loom::Ack>())
+        .accepts(loom::schema_of<loom::Result>())
+        .accepts(loom::schema_of<loom::Refused>());
+
+    // ITS BASELINE IS ONE RULE, target-scoped to an OFFICE rather than to any
+    // weave: it may say SurfaceText to whoever holds `zengine.skin` at delivery.
+    // Being a terminal confers nothing else -- no allow_any, no observation, no
+    // load capability, no reach to the Manager or the control door, and nothing
+    // that lets it speak as Workshop.
+    loom::Grant terminal_grant;
+    terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
+                                 surface::SurfaceText::zen_version, surface::kSkinRole);
+    const loom::MountedTerminal terminal = loom::host_mount_terminal(
+        bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
+        std::move(terminal_grant));
+    // Non-owning, handed down the way `request_stop` is. The bus owns the
+    // participant; Workshop's weave holds a pointer and inherits nothing from it.
+    host.terminal = terminal.session;
+    std::printf("zengine-workshop - terminal: weave #%s (shift+space opens it)\n",
+                std::to_string(terminal.id.value).c_str());
 
     // Workshop's own reach: the right to SPEAK its screen, and nothing else. It
     // commands no lifecycle, loads no weave and reaches no manager -- the boot

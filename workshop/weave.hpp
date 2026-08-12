@@ -102,6 +102,8 @@
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
+#include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
+#include <zen/terminal/session.hpp>
 #include <zen/weave.hpp>
 
 #include <cstddef>
@@ -112,13 +114,40 @@
 namespace zengine::workshop {
 
 /// What the weave needs from the host and cannot get by message: the stop
-/// lever. `dir`/`so()` are the host's own boot bookkeeping and are filled in
+/// lever, and — since WT-1 — the terminal participant the host mounted.
+/// `dir`/`so()` are the host's own boot bookkeeping and are filled in
 /// there — kept whole in this header so a suite can construct one without
 /// linking the host.
 struct HostContext {
     bool quit = false;
     std::function<void()> request_stop;
     std::string dir;
+
+    /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
+    /// host mounted none.
+    ///
+    /// IT ARRIVES THE SAME WAY `request_stop` DOES, and that is the whole of the
+    /// composition's wiring: the host owns the bus, mounts an ordinary
+    /// `loom::TerminalSession` on it with `host_mount_terminal`, and hands the
+    /// weave the pointer it got back. There is no global, no registry, no
+    /// singleton and no lookup — a suite constructs a HostContext with whatever
+    /// participant it wants, or none, and the weave cannot reach one any other
+    /// way.
+    ///
+    /// A POINTER IS NOT AN IDENTITY AND IT IS NOT AUTHORITY. The bus owns the
+    /// participant; holding this changes nothing about who Workshop is. Every
+    /// message authored through it leaves through the PARTICIPANT'S own door,
+    /// stamped by the bus with the PARTICIPANT'S WeaveId and gated against the
+    /// PARTICIPANT'S grant — and `WorkshopWeave`'s own grant is untouched by any
+    /// of it. The two identities sit on one screen and stay two, which is the
+    /// invariant this whole phase exists to keep.
+    ///
+    /// LIFETIME: the bus owns it, so a pane can be built and destroyed without
+    /// ending the participant, and ending the participant is the host's explicit
+    /// act. After that act this pointer must not be used — which is why the pane
+    /// holds SNAPSHOTS (`TerminalPane::shown`, taken by value) and never reads a
+    /// transcript while painting.
+    loom::TerminalSession* terminal = nullptr;
 
     /// The one file this Workshop saves to and loads from.
     ///
@@ -201,6 +230,27 @@ public:
             quit();
             return;
         }
+        // SHIFT+SPACE OPENS AND CLOSES THE TERMINAL, above every mode, because a
+        // maker who cannot reach the pane from inside a half-typed width has a
+        // pane with a trapdoor rather than a toggle.
+        //
+        // AND IT SWALLOWS ITS OWN TEXT. A key transition and the character it
+        // produced are two facts that were simultaneously true, and both arrive:
+        // the SDL and Win32 backends report Shift+Space as `KeyPressed{Space,
+        // shift}` AND `TextEntered{" "}`. Without this the gesture that closed
+        // the pane would also have typed a space into the line it closed over.
+        // The flag is set here and cleared by the very next key OR the very next
+        // text, so it cannot outlive the moment it belongs to and eat a space a
+        // maker meant -- which a lingering one-shot flag would do on a backend
+        // that reports the key and no text at all.
+        const bool toggling =
+            k.scancode == input::scan::kSpace && held(k.modifiers, input::mod::kShift);
+        swallow_toggle_text_ = toggling;
+        if (toggling) {
+            toggle_terminal();
+            repaint(mail);
+            return;
+        }
         // Save and open are the two commands that mean the same thing in every
         // mode, so they sit beside Ctrl+C rather than inside `command()`: a
         // maker halfway through typing a width still means "save my work" when
@@ -227,7 +277,13 @@ public:
                 return;
             }
         }
-        if (editing_row() != nullptr) {
+        // THREE MODES NOW, and the order is the priority. The overlay is what a
+        // maker most recently asked for, so while it is open it has the keys --
+        // an open inspector draft is not cancelled, not committed and not
+        // touched, and is still there when the pane closes.
+        if (session_.terminal.open) {
+            terminal_key(k);
+        } else if (editing_row() != nullptr) {
             editing_key(k);
         } else {
             command(k);
@@ -242,8 +298,24 @@ public:
     ///
     /// Workshop maps no key to any character. `%` arrives here as "%".
     void on(const zengine::input::TextEntered& t, loom::Mail& mail) {
+        if (swallow_toggle_text_) {
+            swallow_toggle_text_ = false;
+            if (t.text == " ") {
+                return; // the space Shift+Space produced belongs to the toggle
+            }
+        }
+        if (t.text.empty()) {
+            return;
+        }
+        // The overlay is where typing goes while it is open. Same rule as the
+        // keys, same reason, and the inspector draft underneath is untouched.
+        if (session_.terminal.open) {
+            session_.terminal.input += t.text;
+            repaint(mail);
+            return;
+        }
         Row* row = editing_row();
-        if (row == nullptr || t.text.empty()) {
+        if (row == nullptr) {
             return;
         }
         row->type(t.text);
@@ -262,6 +334,17 @@ public:
     /// refocusing would grab whatever the pointer had last been seen over.
     /// Nothing here remembers a pointer.
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+        // WHILE THE OVERLAY IS OPEN THE POINTER DOES NOTHING, and this is one
+        // rule rather than a focus framework. The pane covers the bottom-right
+        // of the screen, workspace included, so a press there would take hold of
+        // an object the maker cannot see -- and a press just outside it would
+        // move the document out from under a mode they are typing in. One
+        // sentence covers both: while the terminal is open, the terminal has the
+        // input. There is no focus object, no hit test against the pane, no
+        // capture and no z-order; closing it restores every gesture exactly.
+        if (session_.terminal.open) {
+            return;
+        }
         const PointedAt at = canvas_point_of(b.space, b.x, b.y);
         if (b.button != 1 || !at.understood) {
             return;
@@ -290,6 +373,9 @@ public:
     /// the job of remembering where the pointer is went away with the
     /// reconstruction it existed to serve.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+        if (session_.terminal.open) {
+            return; // the same rule as the press above: the overlay has the input
+        }
         const PointedAt at = canvas_point_of(m.space, m.x, m.y);
         if (!at.understood || !session_.drag.active) {
             return;
@@ -363,6 +449,134 @@ private:
         case input::scan::kBackspace: row->backspace(); break;
         default: break;
         }
+    }
+
+    // ---- The terminal overlay ------------------------------------------------
+    //
+    // WORKSHOP PRESENTS A PARTICIPANT; IT DOES NOT BECOME ONE. Everything below
+    // reads a snapshot or calls an ordinary method on the participant the host
+    // mounted. Nothing here sends a message as Workshop, and nothing here can:
+    // `WorkshopWeave`'s own grant carries `SurfaceCanvas` and `SurfaceText` and
+    // nothing else, and it has no bus to speak through outside a handler anyway.
+    // The participant's door is the participant's.
+
+    /// Open or close the pane. The whole of the mode change.
+    void toggle_terminal() {
+        session_.terminal.open = !session_.terminal.open;
+        if (!session_.terminal.open) {
+            // Said on the way OUT and not on the way in, because the notice line
+            // is not painted while the pane covers it -- an "opened" notice would
+            // be a sentence nobody could read that then reappeared, stale, at the
+            // moment it stopped being true. The pane's own header says how to
+            // close it, which is the fact a maker needs while it is open.
+            say("terminal closed -- shift+space reopens it", false);
+        }
+        refresh_terminal();
+    }
+
+    /// Editing mode for the command line: the three keys that are controls
+    /// rather than text, exactly as the inspector's editor has.
+    ///
+    /// Escape CLEARS THE LINE AND DOES NOT CLOSE THE PANE. One gesture opens and
+    /// closes this thing, and giving Escape a second way out would mean a maker
+    /// who wanted to abandon a half-typed command sometimes lost the pane too.
+    void terminal_key(const zengine::input::KeyPressed& k) {
+        switch (k.scancode) {
+        case input::scan::kReturn: submit_terminal_line(); break;
+        case input::scan::kBackspace: erase_one_character(session_.terminal.input); break;
+        case input::scan::kEscape: session_.terminal.input.clear(); break;
+        default: break;
+        }
+        refresh_terminal();
+    }
+
+    /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
+    ///
+    /// The grammar is LOOM'S, not Workshop's: `tokenize`, `parse_address` and
+    /// `lex_arg` all come from <zen/terminal/input_lex.hpp>, which is the same
+    /// parser the standalone terminal uses. That is the whole reason WT-1 lifted
+    /// `parse_address` out of that REPL's anonymous namespace -- a second author
+    /// of one grammar is two grammars, and the day `#12` grows a second form only
+    /// one of them would learn it.
+    ///
+    /// TWO VERBS, and the smallness is deliberate: `send` and `ask` are the two
+    /// acts an ordinary participant has, and every other thing the standalone
+    /// REPL offers is either a renderer (`show`, `log`), a convenience over these
+    /// two (`request`, `approve`), or a HOST power no participant holds
+    /// (`weaves`, `tap`, `notify`). A pane that grew those would be growing a
+    /// second terminal, which is the one thing this phase is not allowed to do.
+    ///
+    /// The line is recorded on the participant BEFORE it is understood, so a
+    /// command that turns out to be nonsense is still part of that participant's
+    /// own chronology -- a record of effects with no causes is not a session.
+    void submit_terminal_line() {
+        const std::string line = session_.terminal.input;
+        session_.terminal.input.clear();
+        if (line.empty()) {
+            return;
+        }
+        if (host_->terminal == nullptr) {
+            // Nothing to author through, and nowhere to record the attempt: the
+            // participant IS the transcript. So the tool's own notice line says
+            // it, and it is visible the moment the pane closes.
+            say("no terminal participant is mounted on this bus -- nothing was authored", true);
+            return;
+        }
+        loom::TerminalSession& me = *host_->terminal;
+        me.record_command(line);
+
+        const std::vector<loom::Token> tok = loom::tokenize(line);
+        const std::string verb = tok.empty() ? std::string() : tok[0].text;
+        loom::Address to;
+        std::uint64_t version = 0;
+        if ((verb == "send" || verb == "ask") && tok.size() >= 4 &&
+            loom::parse_address(tok[1].text, to) && loom::parse_u64(tok[3].text, version) &&
+            version <= kMaxVersion) {
+            std::vector<loom::Arg> args;
+            for (std::size_t i = 4; i < tok.size(); ++i) {
+                args.push_back(loom::lex_arg(tok[i]));
+            }
+            const loom::TerminalResult r =
+                verb == "ask" ? me.ask(to, tok[2].text, static_cast<std::uint32_t>(version), args)
+                              : me.send(to, tok[2].text, static_cast<std::uint32_t>(version), args);
+            if (!r) {
+                // A LOCAL refusal, and it is recorded as this participant's own
+                // notice rather than dressed up as an answer: nothing was
+                // authored, so nothing was denied by anybody. The core already
+                // words each outcome; repeating it here in different words would
+                // be a second vocabulary for one fact.
+                me.record_notice(std::string(loom::name_of(r.outcome)) +
+                                 (r.detail.empty() ? "" : ": " + r.detail));
+            }
+            return;
+        }
+        me.record_notice("this pane speaks two verbs: `send <addr> <Shape> <version> [args]` "
+                         "and `ask` -- addresses are #12, @office or *");
+    }
+
+    /// Take the pane's snapshot of the participant.
+    ///
+    /// BY VALUE, EVERY TIME, and never a retained reference into the transcript.
+    /// `Transcript::entries()`/`tail()` return copies precisely so a presentation
+    /// may hold the result across anything at all, including the destruction of
+    /// the participant it came from. So the canvas Workshop publishes cannot
+    /// contain a read of a freed transcript no matter when a Skin paints it, and
+    /// the only pointer in this composition is dereferenced here, inside a
+    /// handler, on the same thread the host pumps.
+    void refresh_terminal() {
+        TerminalPane& pane = session_.terminal;
+        pane.attached = host_->terminal != nullptr;
+        pane.id = pane.attached ? host_->terminal->id() : loom::WeaveId{};
+        pane.shown.clear();
+        pane.earlier = 0;
+        pane.dropped = 0;
+        if (!pane.attached || !pane.open) {
+            return; // nothing is painted from it, so nothing is copied
+        }
+        const loom::Transcript& record = host_->terminal->transcript();
+        pane.shown = record.tail(kTerminalRows);
+        pane.earlier = record.size() - pane.shown.size();
+        pane.dropped = record.evicted();
     }
 
     /// Command mode.
@@ -689,6 +903,7 @@ private:
     }
 
     void repaint(loom::Mail& mail) {
+        refresh_terminal(); // the pane is a snapshot, and a snapshot is only true when taken
         mail.publish(paint(state_, session_));
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
@@ -707,8 +922,19 @@ private:
     static constexpr const char* kNoDocumentFile =
         "no document file -- start Workshop with --document <path>";
 
+    /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
+    /// a schema version is 32, so a wider number is REFUSED rather than
+    /// truncated -- `send @x Foo 4294967297` must not quietly become version 1.
+    static constexpr std::uint64_t kMaxVersion = 0xFFFFFFFFull;
+
     HostContext* host_;
     Session session_;
+
+    /// One moment's worth of memory: the toggle's own keystroke produced a
+    /// space, and that space is not text a maker typed. Set by the toggle,
+    /// cleared by the next key or the next text, so it can never outlive its
+    /// moment.
+    bool swallow_toggle_text_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
     /// written yet. Session, emphatically: it is a copy kept so the status line

@@ -24,11 +24,22 @@
 # own direct, linked dependency on that surface — a consumer that got it for
 # free through a sibling target would keep building right up until the sibling
 # stopped needing it.
+# ...and loom::terminal EXPLICITLY since WT-1, by the same rule. `workshop/screen.hpp`
+# includes <zen/terminal/transcript.hpp> to render a participant's own record and
+# `workshop/weave.hpp` includes <zen/terminal/session.hpp> and the shared command
+# grammar in <zen/terminal/input_lex.hpp>; `name_of(TranscriptKind)` and
+# `TerminalSession::send/ask` are compiled symbols, not header-only, so this is a
+# real link dependency and is named rather than inherited.
+#
+# It is portable, like the rest of this target: the terminal core is in Loom's export
+# set unconditionally and needs no kernel. The HOST below still gates on loom::kernel,
+# for the reason it always did -- it loads .so weaves -- and that gate is unrelated.
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
                                                             zengine-ui-vocabulary
-                                                            loom::core)
+                                                            loom::core
+                                                            loom::terminal)
 
 # The host needs a Loom that can host .so weaves, for the same honest reason
 # snake's does: it loads a Skin and an Input producer.
@@ -39,7 +50,8 @@ endif()
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-workshop-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
+            zengine-workshop-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-warnings zengine-sanitize)
 
