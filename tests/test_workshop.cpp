@@ -5454,10 +5454,15 @@ TEST_CASE("the pane's snapshot outlives the participant it came from") {
         painted = pane_text(t.canvases.back());
         REQUIRE_FALSE(held.empty());
 
-        // The host's explicit act: end the participant. The pointer in HostContext is dead
-        // from here on, and the host is what must stop handing it out.
-        const std::unique_ptr<loom::Weave> gone = t.bus.unregister_weave(t.terminal_id);
-        CHECK(gone != nullptr);
+        // The host's explicit act: end the participant, and LET THE LAST OWNER GO. The inner
+        // scope is load-bearing -- `unregister_weave` hands the weave back, so holding that
+        // unique_ptr would keep the participant alive and this case would prove nothing about
+        // a dead one. Measured: with the pointer kept, deleting the line below is invisible to
+        // ASan; with it released, deleting the line below is a heap-use-after-free.
+        {
+            const std::unique_ptr<loom::Weave> gone = t.bus.unregister_weave(t.terminal_id);
+            CHECK(gone != nullptr);
+        }
         t.host.terminal = nullptr;
 
         // Workshop keeps working, and now paints a pane with no participant behind it.
