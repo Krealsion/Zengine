@@ -1164,10 +1164,15 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t) {
 
     row(1, terminal_legend(), surface::role::kMuted);
 
-    std::int64_t line = 2;
-    for (const loom::TranscriptEntry& e : t.shown) {
-        row(line, terminal_line(e), surface::role::kFill);
-        ++line;
+    // EVERY transcript row is written, including the ones with nothing in them. A row left
+    // unwritten shows the backdrop's own glyph -- `.` in a terminal -- so a short session
+    // rendered as a pane with holes punched through it into the workspace behind. Seen in the
+    // first live rasterization, and fixed here rather than by giving the backdrop a quieter
+    // glyph, because the pane's shape should not depend on how much it happens to be showing.
+    for (std::size_t i = 0; i < kTerminalRows; ++i) {
+        const std::int64_t line = 2 + static_cast<std::int64_t>(i);
+        row(line, i < t.shown.size() ? terminal_line(t.shown[i]) : std::string(),
+            surface::role::kFill);
     }
     row(kTerminalH - 2, terminal_omission(t), surface::role::kMuted);
     // The cursor is a character, for the same reason the size handle is: this canvas has no
