@@ -210,6 +210,12 @@ struct PanelPicker {
     std::size_t cursor = 0;
 };
 
+/// WHAT A MAKER CALLS THE PICKER — the words on the hint that opens it, so that a
+/// sentence about the box on the screen uses the name printed beside the key that
+/// put it there. It is here rather than in the catalog because the picker has no
+/// catalog row; it is the one presentation that names itself.
+inline constexpr const char* kPickerName = "+ panel";
+
 /// THE BUILDER PANEL'S VIEW OF THE BUILDER TOOL — a COPY, and session.
 ///
 /// `heard` is the honest distinction between "the tool says it has never built

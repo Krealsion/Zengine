@@ -790,15 +790,44 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   row and a painter, neither of which is geometry. Docking, tabs, saved layouts, dragging,
   resizing and focus are all still absent, and what using two unalike panels felt like is the
   evidence for whichever of them gets built.
+- **A visible panel occupies pointer space, not only pixels** (PNL-2). Bounds resolved in one
+  path made the question sayable and the measured answer was that nobody asked it: a press on a
+  cell the Builder was visibly covering took hold of the object underneath, selected it and
+  began a drag a maker could not see. The routing rule, in order:
+
+  ```text
+  the terminal overlay, while it is open   -- it has the pointer entirely
+  a visible panel, by its resolved bounds  -- it occupies what it covers
+  the workspace and the document underneath
+  ```
+
+  The first is a **mode** and the second is a **place**, which is the whole design: the overlay
+  takes every pointer event anywhere, because a maker typing into it is not also authoring in
+  the workspace; a panel takes only the presses that land on it, because a maker with a panel
+  open *is*. `occupied_at(panels, screen, cx, cy)` is the one question — it names no kind, and
+  it asks the same `bounds_of` the painter was handed, so occupancy cannot drift from painting.
+  The picker answers too, as the mode that pads itself to a whole slot precisely so it cannot be
+  read through. **Only a press is occluded**, and the two asymmetries are why no capture, focus
+  or z-order state exists: a press on a panel begins nothing, so a pointer that later leaves it
+  drags nothing (the absence of a drag is the memory); a gesture that began on the workspace
+  owns the pointer until its release, so the release ends it wherever the hand is — occluding
+  that would strand a drag with the button up. **Motion is never occluded**, because stopping a
+  drag at a panel's edge would clamp the document: an object would be unable to reach a cell a
+  maker is entitled to put it at merely because something is drawn over that cell.
 - **Removing `Info` leaves its 28 columns empty, deliberately.** Giving them to the workspace
   would not be a tidier layout — the workspace's extent is what a share resolves against, so
   every `%`-wide object on screen would change size because a maker hid a list of names. A
-  panel's presence must not be visible in the picture of the document.
-- **No focus framework.** Four modes, in priority: the terminal overlay, the panel picker, an
-  open inspector draft, then command mode. `p` and `b` were unbound keys and `b` still does
-  nothing with no Builder panel open. The inspector's own keys (`up`, `down`, Return) belong
-  to `Info`: with it removed they say so instead of driving rows nobody can see, which would
-  otherwise open a draft that no screen shows and that `^s` would then refuse to save over.
+  panel's presence must not be visible in the picture of the document. That rule is what settles
+  the drag question above too: a panel may cover what a maker authored, and may not change what
+  they are able to author.
+- **No focus framework.** Four modes for the keyboard, in priority: the terminal overlay, the
+  panel picker, an open inspector draft, then command mode. `p` and `b` were unbound keys and
+  `b` still does nothing with no Builder panel open. The inspector's own keys (`up`, `down`,
+  Return) belong to `Info`: with it removed they say so instead of driving rows nobody can see,
+  which would otherwise open a draft that no screen shows and that `^s` would then refuse to
+  save over. The pointer's rule is the three lines above it and is still one `if` per line —
+  there is no focused panel, no z-order, no capture and no widget tree, and no panel affordance
+  is clickable.
 - **A synchronous build has no in-flight frame.** Pressing `b` paints one frame — `asked --
   waiting for it to finish` — because Workshop's own repaint is queued ahead of the order that
   reaches the runner; after that the runner blocks the pump that would carry the next one. What
