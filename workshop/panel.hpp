@@ -42,9 +42,11 @@
 // WHAT IS DELIBERATELY ABSENT, so the absences are decisions and not omissions:
 //
 //   - no docking, no tabs, no dragging, no resizing, no saved layout. A panel
-//     appears where this file says panels appear. The placement is chosen for
-//     being the simplest thing the current geometry supports, not for being
-//     good, and the report says what using it felt like.
+//     kind DECLARES one of the two places this Workshop has (`placement` below)
+//     and that is the whole of its say in where it goes. Neither place was chosen
+//     for being good — one covers the material a maker is building and the other
+//     is a column that was furniture until PNL-0 — and the reports say what
+//     using them felt like.
 //   - no focus framework. There is no focused panel, no z-order and no capture.
 //     What there is: while the picker is open it has the keys, and while a
 //     Builder panel is open one key that was previously unbound means something.
@@ -57,7 +59,7 @@
 //     named. One live Builder and one live Info are what exists, and a policy
 //     about several would be a policy invented ahead of the case that wants it.
 //   - no per-panel keybindings, no registry, no plugin surface. The catalog is
-//     an array of two strings and an integer, spelled out below.
+//     an array of two integers and two strings, spelled out below.
 //
 // PRESENCE HAS ONE OWNER, AND IT IS THE PICKER (PNL-0). With one kind, `x`
 // could mean "close the Builder" and be unambiguous; with two it would have to
@@ -93,9 +95,40 @@ inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
 } // namespace panel
 
-/// One entry in the catalog: what a maker sees in the picker.
+/// WHERE a panel kind is presented. Two, because Workshop has two places and no
+/// more, and each is a NAME for a place this screen already had rather than a
+/// coordinate somebody chose.
+///
+/// THIS IS PLACEMENT INTENT, AND THE BOUNDS ARE SOMEWHERE ELSE. A place says
+/// which of Workshop's two regions a kind occupies; WHAT RECTANGLE that is
+/// depends on the screen's extent and on how many other panels are stacked, and
+/// is worked out against a `Screen` by `placement_bounds` in screen.hpp. That
+/// is the same authored/resolved split the document itself is under (W-1): the
+/// intent is a small constant that can be written down and read, the rectangle
+/// is an observation that is recomputed on demand and cached nowhere.
+///
+/// A place is NOT a docking side, an anchor, a constraint or a layout, and there
+/// is no policy here that could put a third kind somewhere neither of these two
+/// is. What a third kind gets is the ability to SAY which of the two it wants,
+/// instead of a painter quietly knowing a column number.
+namespace placement {
+/// The reserved column beside the workspace: fixed width, against the right
+/// edge, and reserved whether or not anything is in it (screen.hpp says why it
+/// stays empty when Info is removed). It has room for ONE panel, and the
+/// static_assert under the catalog is what keeps that true rather than hoped.
+inline constexpr std::int64_t kSideRegion = 0;
+/// Over the workspace, from the canvas's top-left, stacked downwards — the
+/// terminal overlay's mechanism pointed at the other corner. It covers the
+/// material a maker is building, which is BLD-0's awkwardness and still the
+/// evidence a layout phase should be built on.
+inline constexpr std::int64_t kOverlayStack = 1;
+} // namespace placement
+
+/// One entry in the catalog: what a maker sees in the picker, and where the
+/// thing they open will be.
 struct PanelKind {
     std::int64_t kind = panel::kBuilder;
+    std::int64_t placed_in = placement::kOverlayStack; ///< which of the two places it is in
     const char* name = "";    ///< what the picker lists
     const char* summary = ""; ///< one line, so a maker can tell what they are opening
 };
@@ -107,9 +140,16 @@ struct PanelKind {
 /// exists: a registry would be a mechanism for parties unknown to add entries,
 /// and there are no such parties. When there are, this becomes the thing they
 /// add to, and the picker below does not change.
+///
+/// A KIND'S PLACE IS ONE OF THE FOUR THINGS WRITTEN DOWN HERE (PNL-1), beside
+/// its name and its one-line summary, because that is what it is: a fact about
+/// the kind, known before anything is open, changed only by editing this array.
+/// It is not per-instance state and not authored by a maker — nothing in this
+/// application can move a panel, so a coordinate stored per open panel would be
+/// a field whose only possible value is the one this table already holds.
 inline constexpr PanelKind kPanelCatalog[] = {
-    {panel::kBuilder, "Builder", "build one known target"},
-    {panel::kInfo, "Info", "objects and properties"},
+    {panel::kBuilder, placement::kOverlayStack, "Builder", "build one known target"},
+    {panel::kInfo, placement::kSideRegion, "Info", "objects and properties"},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -125,6 +165,40 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
     }
     return kPanelCatalog[0];
 }
+
+/// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
+/// a column. Total, for the same reason `panel_kind` is.
+inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
+    return panel_kind(kind).placed_in;
+}
+
+/// How many kinds declare a given place. Only ever asked at compile time, by the
+/// assertion under it.
+inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
+    std::size_t n = 0;
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        if (kPanelCatalog[i].placed_in == where) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+/// THE SIDE REGION HOLDS EXACTLY ONE PANEL, and this line is the whole of that
+/// rule. It is here rather than in a comment because the failure it prevents is
+/// silent: two kinds declaring `kSideRegion` resolve to the SAME rectangle, so
+/// they would paint over each other in a column a maker reads as one thing, and
+/// nothing at runtime would say which one they were looking at.
+///
+/// A third kind is meant to be cheap — a catalog row and a painter — and this is
+/// the one place where it is not free: a third kind that wants the side region
+/// needs the layout question answered first (how the column is shared), and it
+/// finds that out from a compiler rather than from a screen. The overlay stack
+/// carries no such assertion, because stacking is what it is FOR; what it has
+/// instead is a measured limit on how many slots fit, in screen.hpp.
+static_assert(kinds_placed_in(placement::kSideRegion) == 1,
+              "the side region has room for one panel: a second kind placed there would "
+              "resolve to the same bounds and paint over the first");
 
 /// The `+ panel` picker: open or not, and which entry a maker is on.
 ///
