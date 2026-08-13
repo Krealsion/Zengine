@@ -25,7 +25,9 @@
 //
 //   - no environment authoring. The child inherits this process's environment.
 //     Choosing what a child may see of it is the exec-boundary question Loom's
-//     isolation host answers properly (Loom `docs/reference/capabilities.md`);
+//     isolation host answers properly (the Loom's own capabilities reference --
+//     cited by NAME rather than by path, because a comment's `*.md` path resolves
+//     against THIS repository's root and a stranger's clone has no sibling Loom);
 //     inventing a second, weaker answer here would be worse than inheriting
 //     visibly.
 //   - no isolation, no containment, no resource bound. This is an ordinary
