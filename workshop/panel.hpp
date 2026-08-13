@@ -233,6 +233,17 @@ inline constexpr const char* kPickerName = "+ panel";
 /// this records "I asked and have not been answered", and it is what decides
 /// whether an arriving status is news.
 ///
+/// ASYNC-1 MADE IT WORTH MORE, NOT LESS, and widened exactly one thing about it.
+/// A build now has a MIDDLE: `asked` and `running` are both conditions a status
+/// can arrive in and neither is an ending, so this fact is held across every one
+/// of them and released only at a condition the build will not leave —
+/// `builder::still_going` is the one place that list is written down. Without
+/// the widening, the first intermediate status would clear it and the real
+/// ending would arrive as something this panel merely learned. And the case it
+/// now covers is the one BLD-0 could never reach at all: a panel OPENED while a
+/// child is alive is told `running`, shows it, and announces nothing — because it
+/// did not watch this build begin.
+///
 /// Nothing is authored from this struct and nothing is asked through it. Opening
 /// the panel sends `builder::StatusRequested` and everything here arrives as the
 /// tool's own published answer.

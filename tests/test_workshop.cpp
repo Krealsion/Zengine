@@ -6266,11 +6266,79 @@ TEST_CASE("Build asks for the name the TOOL gave, and asks for nothing without o
     REQUIRE(tool->asked.size() == 1);
     CHECK(tool->asked[0] == "zengine-snake");
     // And Workshop says what it did, in its own voice, before anything ran --
-    // on the notice line AND on the panel, which is the one frame a maker gets
-    // before a synchronous build takes the pump away.
+    // on the notice line AND on the panel.
+    //
+    // BOTH SENTENCES CHANGED WITH ASYNC-1, and the change is the phase. The
+    // notice used to say the screen would wait until the build was done, and the
+    // panel used to say it was waiting for it to FINISH; both were true of a
+    // runner that built inside its own handler and both are false of one that
+    // holds a child across turns. What the panel is waiting for now is the much
+    // shorter moment before a process exists.
     CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
+    CHECK(t.w->session().notice.find("stays live") != std::string::npos);
     CHECK(t.w->session().panels.builder.awaiting);
-    CHECK(stack_text(t.canvases.back()).find("waiting for it to finish") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("waiting for it to start") != std::string::npos);
+}
+
+TEST_CASE("a running build is on the panel, with its operation and its output count") {
+    // THE PANEL'S HALF OF ASYNC-1. A build now has a middle, and the two numbers
+    // on this row are what make that middle VISIBLE rather than asserted: a
+    // maker who watches `out` climb while moving a rectangle has watched
+    // Workshop stay alive while a real child process ran.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    open_builder(t);
+
+    tool->next.outcome = zengine::builder::outcome::kRunning;
+    tool->next.op = 17;
+    tool->next.chunks = 4;
+    tool->next.recipe = "cmake --build . --target zengine-snake";
+    tool->next.detail = "[ 45%] Building CXX object";
+    t.key(input::scan::kB);
+
+    const std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("running -- op #17, 4 out") != std::string::npos);
+    CHECK(shown.find("Building CXX object") != std::string::npos);
+    // NOTHING IS ANNOUNCED FOR A BUILD THAT IS STILL HAPPENING. A notice is for
+    // an event that is over; `running` is a condition, and a maker who is told
+    // it every hundred milliseconds is a maker who cannot read the notice line.
+    CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
+    // ...and the panel is STILL WATCHING, so the ending will be news when it
+    // comes. That is the whole reason `awaiting` survives an intermediate status.
+    CHECK(t.w->session().panels.builder.awaiting);
+
+    // THE CANARY: the ending IS announced, to the panel that watched it begin.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.status = 0;
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice == "built zengine-snake -- exit 0");
+    CHECK_FALSE(t.w->session().panels.builder.awaiting);
+}
+
+TEST_CASE("a panel opened mid-build is TOLD it is running, and announces nothing") {
+    // THE REGRESSION THE FIRST LIVE RUN PRODUCED, ASKED ABOUT THE ONE CONDITION
+    // BLD-0 COULD NOT REACH. Learning that a build is running and watching one
+    // start are different, and only the second is news -- so a panel opened
+    // while a child is alive shows the running build and says nothing about it.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    tool->next.outcome = zengine::builder::outcome::kRunning;
+    tool->next.op = 3;
+    tool->next.chunks = 12;
+    tool->next.builds = 5;
+
+    open_builder(t);
+    const std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("running -- op #3, 12 out") != std::string::npos);
+    CHECK(shown.find("asks 5 ever") != std::string::npos);
+    CHECK(t.w->session().notice == "opened Builder -- p removes it");
+    // IT IS NOT WATCHING, because it did not ask -- so the ending it did not
+    // witness will be shown and not announced either.
+    CHECK_FALSE(t.w->session().panels.builder.awaiting);
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice == "opened Builder -- p removes it");
+    CHECK(stack_text(t.canvases.back()).find("succeeded") != std::string::npos);
 }
 
 TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {

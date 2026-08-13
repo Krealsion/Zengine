@@ -10,9 +10,10 @@
 #                   property of the types rather than of a check.
 #   weave.hpp       the TOOL. Ordinary: it holds one target NAME, remembers what
 #                   happened, and publishes that. Two grant rules, no reach.
-#   runner.hpp      the RUNNER. It holds the host's catalog of recipes and is the
-#                   only weave that starts a process; run.hpp is the platform
-#                   code it calls, and the only such code in Zengine.
+#   runner.hpp      the RUNNER. It holds the host's catalog of recipes, is the
+#                   only weave that starts a process, and since ASYNC-1 HOLDS the
+#                   processes it started; run.hpp is the platform code it calls,
+#                   and the only such code in Zengine.
 #
 # ONE INTERFACE TARGET, NOT THREE, and that is a decision about consumers rather
 # than a shortcut. A consumer that wants to PRESENT a build (Workshop) includes
@@ -31,6 +32,17 @@
 #
 # It links loom::core for zen/weave/shape.hpp and zen/weave.hpp: the shapes are
 # ordinary Zen content and both weaves are ordinary WeaveBase weaves.
+#
+# ...and the Timer's vocabulary and activation cursor since ASYNC-1, because the
+# runner is now a `TimedWeave`: it asks for a repeating beat while it holds live
+# operations and gives it back when it does not. That is one more package this
+# ONE target carries, which is the cost of the single-target decision above and
+# is worth naming rather than leaving to be discovered -- a presentation that
+# includes only `builder/vocabulary.hpp` still compiles against nothing it does
+# not use, and the enforcement of which half a consumer may reach was never the
+# build graph's job in the first place. It is the grant the host writes.
 add_library(zengine-builder-vocabulary INTERFACE)
 target_include_directories(zengine-builder-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-builder-vocabulary INTERFACE loom::core)
+target_link_libraries(zengine-builder-vocabulary INTERFACE loom::core
+                                                          zengine-timer-vocabulary
+                                                          zengine-activation)
