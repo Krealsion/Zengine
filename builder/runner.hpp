@@ -24,8 +24,11 @@
 //
 // WHAT THIS BOUNDARY IS AND IS NOT WORTH. An in-process weave shares the host's
 // address space: the grant bounds what it may SAY, never what it may TOUCH
-// (Loom `docs/reference/capabilities.md`), so any weave compiled into this
-// program could call the same platform functions `run.hpp` calls. This split
+// (the Loom's own capabilities reference -- named rather than linked, because a
+// comment's `*.md` path resolves against THIS repository's root and this repository
+// is verified as a standalone clone with no sibling to look at), so any weave
+// compiled into this program could call the same platform functions `run.hpp`
+// calls. This split
 // therefore buys reviewability rather than containment — one place to look for
 // process authority, one grant to read, one refusal to test — and calling it
 // containment would be exactly the overclaim the surrounding phases exist to

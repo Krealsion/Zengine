@@ -89,7 +89,7 @@ set(ZEN_DOC_EXCLUDE
 # First-party C/C++ whose comments are in scope. Anything not listed here is not scanned.
 # These are the package directories: this repository has no src/ or include/ -- each package
 # is its own top-level folder, so a new package is a line here.
-set(ZEN_DOC_SOURCE_ROOTS activation input smoke snake surface tests timer ui workshop)
+set(ZEN_DOC_SOURCE_ROOTS activation builder input smoke snake surface tests timer ui workshop)
 set(ZEN_DOC_SOURCE_GLOBS *.h *.hpp *.ipp *.c *.cc *.cpp *.cxx)
 
 # The document the self-test interrogates. Every repository has one, it is current-facing by
