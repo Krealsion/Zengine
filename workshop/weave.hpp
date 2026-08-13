@@ -381,6 +381,20 @@ public:
     /// whatever object is under it, and select that object. Release: let go.
     /// Between them, every PointerMoved authors a new position or a new size.
     ///
+    /// THE WHOLE ROUTING RULE, in the order it is written below (PNL-2):
+    ///
+    ///     the terminal overlay, while it is open -- it has the pointer entirely
+    ///     a visible panel, where a press lands inside its resolved bounds
+    ///     the workspace and the document underneath
+    ///
+    /// The first is a MODE and the second is a PLACE, and the difference is the
+    /// whole design: the overlay takes every pointer event anywhere, because
+    /// while it is open it is what the maker is doing; a panel takes only the
+    /// presses that land on it, because a maker with a panel open is still
+    /// working in the workspace beside it. Neither is a focus object, a capture,
+    /// a z-order or a widget tree -- one `if` each, and the same shape the
+    /// keyboard's four modes already have.
+    ///
     /// The position comes from the message. Reconstructing it from the last
     /// motion event is wrong whenever the platform reported no motion in between
     /// -- a console generates none while it lacks focus, so the first click after
@@ -395,6 +409,12 @@ public:
         // sentence covers both: while the terminal is open, the terminal has the
         // input. There is no focus object, no hit test against the pane, no
         // capture and no z-order; closing it restores every gesture exactly.
+        //
+        // IT IS STILL NOT A BOUNDS TEST, and PNL-2 sharpened rather than
+        // replaced that. A panel below is refused by WHERE the press landed; the
+        // pane is refused by the fact that it is open at all, which is wider and
+        // is the right width -- a maker typing into the pane is not also
+        // authoring in the workspace, and a maker with a panel open is.
         if (session_.terminal.open) {
             return;
         }
@@ -403,18 +423,49 @@ public:
             return;
         }
         if (b.pressed) {
-            const std::int64_t id = take_hold(state_, session_, workspace_cell_x(at.cell.x),
-                                              workspace_cell_y(at.cell.y));
-            if (id != 0) {
-                const bool sizing = session_.drag.resizing;
-                select(id);
-                say("holding #" + std::to_string(id) +
-                        (sizing ? " -- drag to resize it" : " -- drag to move it"),
+            // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
+            // whole of it: the press is asked what it landed on before the
+            // document is asked anything, and a press that landed on a panel
+            // never reaches `take_hold` -- so it cannot select, cannot begin a
+            // move and cannot begin a resize, because all three are that one
+            // call. The question names no kind and knows no coordinate; it is
+            // the same `bounds_of` the painter used for the same panel.
+            //
+            // IT SAYS SO RATHER THAN GOING QUIET. Every other press writes the
+            // notice line, so a press that changed nothing and said nothing
+            // would leave the previous gesture's sentence sitting beside a
+            // maker who has just done something else -- a stale statement,
+            // which is the one thing this tool is arranged against. It is also
+            // the only way a maker learns that the panel is a thing rather than
+            // a picture, since `[ Build ]` is not clickable yet.
+            const Occupancy here =
+                occupied_at(session_.panels, screen_of(session_), at.cell.x, at.cell.y);
+            if (here.occupied) {
+                say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                     false);
             } else {
-                say("nothing there", false);
+                const std::int64_t id = take_hold(state_, session_, workspace_cell_x(at.cell.x),
+                                                  workspace_cell_y(at.cell.y));
+                if (id != 0) {
+                    const bool sizing = session_.drag.resizing;
+                    select(id);
+                    say("holding #" + std::to_string(id) +
+                            (sizing ? " -- drag to resize it" : " -- drag to move it"),
+                        false);
+                } else {
+                    say("nothing there", false);
+                }
             }
         } else if (session_.drag.active) {
+            // A RELEASE IS NOT ASKED THE SAME QUESTION, and the asymmetry is the
+            // reason no capture state exists here. A gesture that began on the
+            // workspace owns the pointer until it ends, so its release must end
+            // it wherever the maker's hand happens to be -- occluding the
+            // release would strand `drag.active` true with the button up, and
+            // the next motion would drag an object nobody was holding. The
+            // other direction needs nothing at all: a press on a panel starts no
+            // drag, so a release after one finds none and does nothing at all.
+            // The absence of a drag IS the memory.
             const std::int64_t id = session_.drag.id;
             end_drag(session_);
             say("released #" + std::to_string(id), false);
@@ -425,6 +476,16 @@ public:
     /// The pointer moved. Outside a drag this weave has nothing to do with it:
     /// the job of remembering where the pointer is went away with the
     /// reconstruction it existed to serve.
+    ///
+    /// A PANEL DOES NOT OCCLUDE MOTION, and that is a decision rather than an
+    /// omission (PNL-2). Only a press can begin a gesture, so a motion that
+    /// matters here belongs to a drag that began on the workspace -- and
+    /// stopping that drag at a panel's edge would CLAMP the document: an object
+    /// could not be dragged to a cell a maker is entitled to put it at merely
+    /// because something is currently drawn over that cell. That is a panel's
+    /// presence becoming visible in the picture of the document, which is the
+    /// same rule that keeps the vacated Info column empty (screen.hpp). The
+    /// object goes where the hand puts it, and the panel goes on covering it.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
         if (session_.terminal.open) {
             return; // the same rule as the press above: the overlay has the input

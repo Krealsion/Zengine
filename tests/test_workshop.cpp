@@ -7052,3 +7052,498 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
     t.key(input::scan::kEscape);
     CHECK(stack_text(t.canvases.back()).find("recipe") != std::string::npos);
 }
+
+// ============================================================================
+// Tier 11 -- a panel occupies POINTER space, not only pixels (PNL-2)
+// ============================================================================
+//
+// WHAT PNL-1 MEASURED AND DID NOT REPAIR: with the Builder open, a press at a
+// canvas cell that panel was visibly covering took hold of the object underneath
+// it, selected it, and began a drag a maker could not see. The panel was a
+// picture of a thing rather than a thing.
+//
+// THE RULE THESE CASES PIN, in the order the press is asked:
+//
+//     the terminal overlay, while it is open   -- it has the pointer entirely
+//     a visible panel, by its resolved bounds  -- it occupies what it covers
+//     the workspace and the document underneath
+//
+// AND THE TWO ASYMMETRIES THAT MEAN NO CAPTURE STATE EXISTS: a press on a panel
+// begins nothing, so nothing later needs cancelling; a gesture that began on the
+// workspace owns the pointer until its release, wherever that release lands.
+//
+// The boot document is #1 at workspace 3,2 (28x6) and #2 at 6,10 (14x4); the
+// overlay stack's first slot is canvas {0,1,48,9} and the side region is canvas
+// {50,0,28,17} on the minimum screen. So workspace (10,5) is canvas (10,6):
+// inside the Builder's bounds AND on top of #1, which is the whole overlap this
+// tier is about.
+
+namespace {
+
+/// Is this canvas cell inside any OPEN panel's bounds, worked out from the
+/// painting path alone -- `bounds_of` per open kind, exactly as `paint_panels`
+/// asks it. The point of computing it a second way is that `occupied_at` has to
+/// agree with it cell for cell.
+bool inside_a_painted_panel(const Panels& panels, const Screen& sc, std::int64_t x,
+                            std::int64_t y) {
+    for (const Panel& p : panels.open) {
+        if (bounds_of(panels, p.kind, sc).rect.contains(x, y)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// EVERY CELL OF THE CANVAS, ASKED BOTH WAYS -- what the painting path says is
+/// inside a panel, and what the pointer path says is occupied.
+///
+/// It is a SWEEP that reports a tally rather than a case that asserts per cell:
+/// seventeen hundred assertions saying the same thing would drown the suite's
+/// own totals, and a count plus the first cell that disagreed diagnoses a failure
+/// just as precisely. `first_bad` is `{-1,-1}` when nothing disagreed.
+struct Sweep {
+    std::size_t cells = 0;    ///< how many were asked
+    std::size_t occupied = 0; ///< how many the pointer path called occupied
+    std::size_t painted = 0;  ///< how many the painting path called covered
+    std::size_t disagreed = 0;
+    std::int64_t first_bad_x = -1;
+    std::int64_t first_bad_y = -1;
+};
+
+Sweep sweep_canvas(const Panels& panels, const Screen& sc) {
+    Sweep out;
+    for (std::int64_t y = 0; y < sc.h; ++y) {
+        for (std::int64_t x = 0; x < sc.w; ++x) {
+            const bool painted = inside_a_painted_panel(panels, sc, x, y);
+            const bool occupied = occupied_at(panels, sc, x, y).occupied;
+            ++out.cells;
+            out.painted += painted ? 1u : 0u;
+            out.occupied += occupied ? 1u : 0u;
+            if (painted != occupied) {
+                if (out.disagreed == 0) {
+                    out.first_bad_x = x;
+                    out.first_bad_y = y;
+                }
+                ++out.disagreed;
+            }
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("a visible panel occupies the pointer space it covers") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    // A SELECTION THAT IS NOT THE COVERED OBJECT, so "cannot select" is a claim
+    // this case can actually make: the press below is on #1, and #2 has to still
+    // be the selection afterwards.
+    t.key(input::scan::kTab);
+    const std::int64_t other = t.session().selected;
+    REQUIRE(other == 2);
+
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    const ui::Rect panel = bounds_of(t.session().panels, panel::kBuilder, sc).rect;
+    // The press cell, named from the panel's OWN bounds and from the object's own
+    // placement, so neither the panel nor the object is where this case guessed.
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* covered = ui::placed_for(scene, 1);
+    REQUIRE(covered != nullptr);
+    const std::int64_t wx = covered->rect.x + 7;
+    const std::int64_t wy = covered->rect.y + 3;
+    REQUIRE(panel.contains(wx + kWorkspaceX, wy + kWorkspaceY)); // the panel covers it
+    REQUIRE(ui::hit(scene, wx, wy) != nullptr);                  // and so does the object
+
+    const ui::Element before = *doc::find(t.doc(), 1);
+    t.press(wx, wy);
+    // NOTHING UNDER IT WAS REACHED: not selected, not held, not moved -- and all
+    // three at once, because `take_hold` is the one door to all of them.
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+    CHECK(t.session().selected == other);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK_FALSE(t.session().drag.resizing);
+    CHECK(doc::find(t.doc(), 1)->x == before.x);
+    CHECK(doc::find(t.doc(), 1)->y == before.y);
+    t.release(wx, wy);
+    CHECK_FALSE(t.session().drag.active);
+
+    // AND THE SAME OBJECT IS REACHABLE AGAIN THE MOMENT THE PANEL IS REMOVED --
+    // the same cell, the same document, the same gesture. The occlusion is the
+    // panel's presence and nothing else.
+    pick(t, panel::kBuilder);
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+    t.press(wx, wy);
+    CHECK(t.notice() == "holding #1 -- drag to move it");
+    CHECK(t.session().selected == 1);
+    CHECK(t.session().drag.active);
+    t.release(wx, wy);
+}
+
+TEST_CASE("a press that lands on a panel begins nothing, so a hand that leaves it drags nothing") {
+    // PRESS BEGINS ON THE PANEL, POINTER LATER LEAVES IT. There is no capture
+    // state to get this right: a press on a panel never calls `take_hold`, so
+    // there is no drag for the motion to continue, and the absence of the drag is
+    // the whole of the memory.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const ui::Element one_before = *doc::find(t.doc(), 1);
+    const ui::Element two_before = *doc::find(t.doc(), 2);
+
+    t.press(10, 5); // on the Builder
+    CHECK_FALSE(t.session().drag.active);
+    t.motion(8, 11); // off it, over #2
+    t.motion(9, 12);
+    t.release(9, 12);
+
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(doc::find(t.doc(), 1)->x == one_before.x);
+    CHECK(doc::find(t.doc(), 1)->y == one_before.y);
+    CHECK(doc::find(t.doc(), 2)->x == two_before.x);
+    CHECK(doc::find(t.doc(), 2)->y == two_before.y);
+    // Not one frame of this said "holding": the gesture never began.
+    CHECK(t.notice().find("holding") == std::string::npos);
+}
+
+TEST_CASE("a gesture that began on the workspace is not interrupted by a panel") {
+    // PRESS BEGINS ON THE WORKSPACE, POINTER LATER MOVES BENEATH A PANEL. The
+    // drag owns the pointer until it ends, so it keeps authoring -- and the
+    // object goes where the maker's hand put it, UNDER the panel, because a panel
+    // that stopped a drag at its own edge would be clamping the document. That is
+    // a panel's presence becoming visible in what a maker can author, which is
+    // the rule that also keeps a removed Info's column empty.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    const ui::Rect panel = bounds_of(t.session().panels, panel::kBuilder, sc).rect;
+
+    // #2 sits at workspace 6,10 -- canvas row 11, below the panel's last row.
+    REQUIRE_FALSE(panel.contains(7 + kWorkspaceX, 11 + kWorkspaceY));
+    t.press(7, 11);
+    REQUIRE(t.session().drag.active);
+    REQUIRE(t.session().drag.id == 2);
+
+    t.motion(7, 6);
+    t.motion(7, 3); // under the panel now
+    CHECK(t.session().drag.active);
+    const ui::Scene mid = workspace_scene(t.doc(), t.session());
+    const ui::Placed* moved = ui::placed_for(mid, 2);
+    REQUIRE(moved != nullptr);
+    CHECK(panel.contains(moved->rect.x + kWorkspaceX, moved->rect.y + kWorkspaceY));
+    const std::int64_t rested_x = moved->rect.x;
+    const std::int64_t rested_y = moved->rect.y;
+
+    // AND THE RELEASE ENDS IT, wherever the hand is. Occluding the release would
+    // strand the drag with the button up, and the next motion would carry an
+    // object nobody was holding.
+    t.release(7, 3);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice() == "released #2");
+    t.motion(20, 14); // no button down: nothing follows the pointer
+    const ui::Scene after = workspace_scene(t.doc(), t.session());
+    const ui::Placed* still = ui::placed_for(after, 2);
+    REQUIRE(still != nullptr);
+    CHECK(still->rect.x == rested_x);
+    CHECK(still->rect.y == rested_y);
+
+    // The object is genuinely under the panel now -- and genuinely out of reach
+    // there, which closes the loop: the document may hold what the picture does
+    // not show, and the pointer answers about the picture.
+    t.press(rested_x + 1, rested_y + 1);
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.active);
+}
+
+TEST_CASE("a resize a panel covers cannot be started either") {
+    // THE OTHER GESTURE, and the reason one is not enough: a press has two
+    // possible meanings (take the size handle, or take the body) and the panel
+    // has to refuse both. It does, structurally -- `take_hold` is what decides
+    // between them and the press never reaches it.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    const Handle grip = size_handle(t.doc(), t.session());
+    REQUIRE(grip.shown);
+    REQUIRE(grip.id == 1);
+
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    REQUIRE(bounds_of(t.session().panels, panel::kBuilder, sc)
+                .rect.contains(grip.x + kWorkspaceX, grip.y + kWorkspaceY));
+    const ui::Element before = *doc::find(t.doc(), 1);
+
+    t.press(grip.x, grip.y);
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.resizing);
+    CHECK_FALSE(t.session().drag.active);
+    t.motion(grip.x + 6, grip.y + 2); // a resize that never began authors nothing
+    CHECK(doc::find(t.doc(), 1)->width.amount == before.width.amount);
+    CHECK(doc::find(t.doc(), 1)->height.amount == before.height.amount);
+    t.release(grip.x + 6, grip.y + 2);
+
+    // Remove the panel and the very same press is the resize it always was.
+    pick(t, panel::kBuilder);
+    t.press(grip.x, grip.y);
+    CHECK(t.notice() == "holding #1 -- drag to resize it");
+    CHECK(t.session().drag.resizing);
+    t.motion(grip.x + 6, grip.y + 2);
+    CHECK(doc::find(t.doc(), 1)->height.amount != before.height.amount);
+    t.release(grip.x + 6, grip.y + 2);
+}
+
+TEST_CASE("Info's column occupies pointer space, and an object can walk under it") {
+    // INFO PARTICIPATES IN THE SAME MODEL, and this is not a manufactured case:
+    // the side region is outside the WORKSPACE's extent, but an authored position
+    // is not bounded by that extent -- `check_coord` guards the first cell and
+    // nothing guards the last -- so an object dragged or nudged rightwards walks
+    // straight under the column, and before PNL-2 a press there took hold of it.
+    Live t;
+    const Screen sc = screen_of(t.session());
+    const ui::Rect side = bounds_of(t.session().panels, panel::kInfo, sc).rect;
+    REQUIRE(side == ui::Rect{50, 0, 28, 17});
+
+    // Walk #1 under the column with the pointer -- the press begins on the
+    // workspace, so the gesture is not occluded, and the release lands INSIDE the
+    // side region, which is the release-completes-a-gesture rule again.
+    t.press(10, 4);
+    REQUIRE(t.session().drag.active);
+    t.motion(40, 4);
+    t.motion(59, 4);
+    t.release(59, 4);
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* under = ui::placed_for(scene, 1);
+    REQUIRE(under != nullptr);
+    CHECK(under->rect.x == 52);
+    const std::int64_t ox = under->rect.x;
+    const std::int64_t oy = under->rect.y;
+    REQUIRE(side.contains(ox + kWorkspaceX, oy + kWorkspaceY));
+
+    // IT IS THERE, AND IT IS OUT OF REACH.
+    t.press(ox + 2, oy + 1);
+    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.active);
+
+    // Remove Info and the column is ordinary space again -- the object under it
+    // was always there, and now a hand can reach it.
+    pick(t, panel::kInfo);
+    REQUIRE_FALSE(t.session().panels.has(panel::kInfo));
+    t.press(ox + 2, oy + 1);
+    CHECK(t.notice() == "holding #1 -- drag to move it");
+    CHECK(t.session().drag.active);
+    t.release(ox + 2, oy + 1);
+}
+
+TEST_CASE("the picker occupies the slot it opens over, and answers for it while it is there") {
+    // THE PICKER IS A MODE AND NOT A PANEL -- no catalog row, no instance -- but
+    // it is a box a maker can read, and PNL-0 went to the trouble of padding it to
+    // a whole slot precisely so it could not be read through. A box that cannot be
+    // read through and CAN be pressed through is the same defect wearing the other
+    // half of its costume.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    t.key(input::scan::kP);
+    REQUIRE(t.session().panels.picker.open);
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder)); // nothing else is in that slot
+
+    t.press(10, 5);
+    CHECK(t.notice() == "+ panel is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.active);
+
+    // Dismissed, the slot is workspace again.
+    t.key(input::scan::kEscape);
+    t.press(10, 5);
+    CHECK(t.notice() == "holding #1 -- drag to move it");
+    t.release(10, 5);
+
+    // AND WHEN A PANEL IS UNDER IT, THE ANSWER IS THE PICKER -- what a maker would
+    // say is there, which is the topmost and not the first. The two rectangles are
+    // the same one; the names are not.
+    open_builder(t);
+    t.key(input::scan::kP);
+    REQUIRE(t.session().panels.picker.open);
+    const Screen sc = screen_of(t.session());
+    CHECK(occupied_at(t.session().panels, sc, 10, 6).occupied);
+    CHECK(std::string(occupied_at(t.session().panels, sc, 10, 6).what) == kPickerName);
+    CHECK(picker_bounds(sc) == bounds_of(t.session().panels, panel::kBuilder, sc).rect);
+}
+
+TEST_CASE("the terminal overlay outranks panels for the pointer too, and by a wider rule") {
+    // A MODE, NOT A PLACE. While the pane is open the pointer does nothing
+    // ANYWHERE -- inside a panel, outside every panel, on an object in the clear.
+    // That ordering is unchanged by PNL-2 and is deliberately wider than
+    // occupancy: a maker typing into the pane is not also authoring in the
+    // workspace, and a maker with a panel open is.
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    t.toggle_terminal();
+    REQUIRE(t.session().terminal.open);
+
+    const std::string said = t.notice();
+    const ui::Element before = *doc::find(t.doc(), 1);
+    t.press(10, 5); // inside the Builder's bounds
+    t.press(7, 11); // on #2, in the clear
+    t.motion(9, 12);
+    t.release(9, 12);
+    CHECK(t.notice() == said); // not one of them wrote a word
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(doc::find(t.doc(), 1)->x == before.x);
+
+    // Closing it restores both the panel's occupancy and the workspace's.
+    t.toggle_terminal();
+    REQUIRE_FALSE(t.session().terminal.open);
+    t.press(10, 5);
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+    t.press(7, 11);
+    CHECK(t.notice() == "holding #2 -- drag to move it");
+    t.release(7, 11);
+}
+
+TEST_CASE("what a panel is painted at and what it occupies are one resolved truth") {
+    // THE STRUCTURAL CLAIM, swept over every cell of the canvas rather than
+    // sampled: the occupancy answer IS the union of the open panels' bounds, and
+    // those are the same rectangles `paint_panels` hands the painters. There is no
+    // second geometry to drift.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    const Panels& panels = t.session().panels;
+    REQUIRE(panels.open.size() == 2);
+
+    const Sweep swept = sweep_canvas(panels, sc);
+    CHECK(swept.cells == static_cast<std::size_t>(sc.w * sc.h));
+    CHECK(swept.first_bad_x == -1); // named, so a failure says WHICH cell disagreed
+    CHECK(swept.first_bad_y == -1);
+    CHECK(swept.disagreed == 0);
+    // Both places, exactly: 48x9 of stack and 28x17 of side region.
+    CHECK(swept.occupied == static_cast<std::size_t>(48 * 9 + 28 * 17));
+    CHECK(swept.painted == swept.occupied);
+
+    // AND WHAT THE PAINTERS ACTUALLY WROTE IS INSIDE THE SPACE THAT IS OCCUPIED --
+    // painted through the same one call the screen makes, into a canvas holding
+    // nothing else.
+    surface::SurfaceCanvas only_panels;
+    paint_panels(only_panels, t.doc(), t.session(), sc);
+    REQUIRE_FALSE(only_panels.labels.empty());
+    for (const surface::SurfaceLabel& l : only_panels.labels) {
+        CHECK(occupied_at(panels, sc, l.x, l.y).occupied);
+    }
+    REQUIRE_FALSE(only_panels.rects.empty()); // the stacked panel's backdrop
+    for (const surface::SurfaceRect& r : only_panels.rects) {
+        CHECK(occupied_at(panels, sc, r.x, r.y).occupied);
+        CHECK(occupied_at(panels, sc, r.x + r.w - 1, r.y + r.h - 1).occupied);
+    }
+}
+
+TEST_CASE("occupancy is resolved against the screen, not remembered from one") {
+    // A BIGGER SURFACE MOVES THE SIDE REGION, and the cells it occupies move with
+    // it -- because the occupancy answer is `bounds_of` on the CURRENT screen and
+    // is cached nowhere. The stack is anchored to the other corner and does not
+    // move, which is the same asymmetry the painting has.
+    Live t;
+    const Screen small = screen_of(t.session());
+    const ui::Rect side_small = bounds_of(t.session().panels, panel::kInfo, small).rect;
+    REQUIRE(occupied_at(t.session().panels, small, side_small.x, 4).occupied);
+
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    const Screen big = screen_of(t.session());
+    REQUIRE(big.w == 100);
+    const ui::Rect side_big = bounds_of(t.session().panels, panel::kInfo, big).rect;
+    CHECK(side_big.x == big.panel_x);
+    CHECK(side_big.x > side_small.x);
+
+    // The column a maker presses is the column they can see, on either screen.
+    CHECK(occupied_at(t.session().panels, big, side_big.x, 4).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, big, side_small.x, 4).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, big, side_big.x - 1, 4).occupied);
+
+    // AND THE PRESS FOLLOWS IT, through the whole live path: what was the Info
+    // column on the small screen is ordinary workspace on the big one.
+    t.press(side_small.x, 3);
+    CHECK(t.notice() == "nothing there");
+    t.press(side_big.x, 3);
+    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
+}
+
+TEST_CASE("a closed panel occupies nothing, and neither does a screen with none open") {
+    // THE OTHER HALF OF THE INVARIANT, and the one a maker feels every second: a
+    // panel that is not open takes nothing away. `bounds_of` answers a closed
+    // panel with an empty rectangle, `contains` says an empty rectangle holds
+    // nothing, and the whole canvas is therefore the workspace's again.
+    Live t;
+    pick(t, panel::kInfo); // remove the one panel a fresh session opens with
+    REQUIRE(t.session().panels.open.empty());
+    const Screen sc = screen_of(t.session());
+    const Sweep swept = sweep_canvas(t.session().panels, sc);
+    CHECK(swept.cells == static_cast<std::size_t>(sc.w * sc.h));
+    CHECK(swept.occupied == 0);
+    CHECK(swept.disagreed == 0);
+    // Including the cells the two places WOULD have had.
+    CHECK_FALSE(
+        occupied_at(t.session().panels, sc, picker_bounds(sc).x, picker_bounds(sc).y).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, sc.panel_x, 0).occupied);
+
+    // And a press in the vacated column reaches the workspace, which is what "the
+    // panel was the only thing in the way" means.
+    t.press(10, 5);
+    CHECK(t.notice() == "holding #1 -- drag to move it");
+    t.release(10, 5);
+}
+
+TEST_CASE("the window's pixels meet the same panel the terminal's cells do") {
+    // THE OTHER MEDIUM, through the graphical Skin's own projection. Occupancy is
+    // asked in CANVAS cells, so both media arrive at the same question -- and the
+    // case is worth having because the two report different numbers for one place,
+    // which is exactly where a second geometry would hide.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    t.press_px(10, 5);
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.active);
+    t.release_px(10, 5);
+
+    t.press_px(7, 11); // below the panel, on #2
+    CHECK(t.notice() == "holding #2 -- drag to move it");
+    t.release_px(7, 11);
+}
+
+TEST_CASE("the cells just outside a panel are ordinary workspace, on every edge") {
+    // WHERE THE OCCLUSION STOPS, asked at the boundary rather than in the middle.
+    // A press one row below the stack's last row is the cell that separates "the
+    // panel occupies what it covers" from "the panel occupies a bit more", and it
+    // is also the cell that separates CANVAS cells from WORKSPACE cells: the two
+    // spaces are one row apart, so a question asked in the wrong one is invisible
+    // everywhere except here.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    const ui::Rect stack = bounds_of(t.session().panels, panel::kBuilder, sc).rect;
+    const ui::Rect side = bounds_of(t.session().panels, panel::kInfo, sc).rect;
+
+    // The four edges of each place, in canvas cells: inside, then one cell out.
+    CHECK(occupied_at(t.session().panels, sc, stack.x, stack.y + stack.h - 1).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, stack.x, stack.y + stack.h).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, stack.x, stack.y - 1).occupied);
+    CHECK(occupied_at(t.session().panels, sc, stack.x + stack.w - 1, stack.y).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, stack.x + stack.w, stack.y).occupied);
+    CHECK(occupied_at(t.session().panels, sc, side.x, side.y + side.h - 1).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, side.x - 1, side.y).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, side.x, side.y + side.h).occupied);
+
+    // AND THROUGH THE LIVE PRESS, which is the half that would catch a question
+    // asked in the wrong space: the row under the panel is empty workspace, and
+    // it says the empty-workspace sentence rather than the panel's.
+    const std::int64_t below = stack.y + stack.h - kWorkspaceY; // workspace row under it
+    REQUIRE_FALSE(stack.contains(10 + kWorkspaceX, below + kWorkspaceY));
+    t.press(10, below);
+    CHECK(t.notice() == "nothing there");
+    t.press(10, below - 1); // the panel's own last row
+    CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
+}

@@ -377,6 +377,71 @@ static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
               "the side region ends where the workspace does, above the bottom band");
 static_assert(kPickerRows <= kStackRows, "the picker is never taller than a panel");
 
+/// WHERE THE PICKER OPENS: the stack's first slot, and it is a function rather than a repeated
+/// expression so that the mode that PAINTS there and the pointer that must not see THROUGH it
+/// read one answer. The picker has no catalog row to declare a place in -- it is a mode -- so
+/// this is the one presentation that names its own place, and now it names it once.
+inline constexpr ui::Rect picker_bounds(const Screen& sc) noexcept {
+    return placement_bounds(placement::kOverlayStack, 0, sc);
+}
+
+// ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
+//
+// PNL-1 MADE THE DEFECT SAYABLE AND PNL-2 SAYS IT. With bounds resolved in one path, "did this
+// press land inside an open panel" became one `contains` call -- and the measured answer was
+// that it did not matter, because nothing asked: a press at a canvas cell the Builder was
+// visibly covering took hold of the object underneath it, selected that object, and began a
+// drag a maker could not see. Two phases old, and not previously expressible.
+//
+// SO A PANEL'S BOUNDS ARE NOT ONLY PIXELS. The rectangle a kind's place resolves to is the
+// rectangle it occupies in every sense this application has: what gets painted there, and what
+// a hand meets there. There is no second geometry and no second truth -- `occupied_at` asks
+// `bounds_of`, which is the same call `paint_panels` makes for the same panel on the same
+// screen, so a panel that moved would take its occupancy with it without anybody remembering.
+//
+// IT IS A QUESTION, NOT A DISPATCHER. No kind is named below, nothing is registered, nothing
+// is captured and nothing is focused: one loop over what is open, one `contains`, and an
+// answer that says WHICH presentation was met so a maker can be told rather than left with a
+// press that vanished.
+
+/// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
+struct Occupancy {
+    bool occupied = false;
+    /// The name a maker reads on those cells -- the catalog's own for a panel, the picker's
+    /// own for the picker. Empty when nothing is there, and never a kind a caller has to
+    /// switch on: what it is FOR is a sentence.
+    const char* what = "";
+};
+
+/// DOES ANY VISIBLE PRESENTATION OCCUPY THIS CANVAS CELL — the one question the pointer asks
+/// before it asks the document anything.
+///
+/// IT ANSWERS WITH WHAT IS ON TOP, in painter's order reversed: the picker first because it is
+/// painted last over the stack's first slot, then the open panels newest-first. Today no two of
+/// those rectangles can overlap -- the side region holds one panel by a static_assert and the
+/// stack's slots are disjoint by construction -- so the order changes no answer; it is written
+/// this way because the question is "what would a maker say is there", and that is the
+/// topmost-not-first discipline a suite helper already had to learn once (PNL-0's `label_at`).
+///
+/// THE TERMINAL OVERLAY IS NOT HERE, deliberately. It is a MODE and it outranks the pointer
+/// entirely rather than by bounds -- while it is open the pointer does nothing anywhere, which
+/// is a strictly wider rule than occupancy and is enforced ahead of this call (weave.hpp). A
+/// pane that answered here as well would be the same rule written twice, and the second copy is
+/// the one that would go stale.
+inline Occupancy occupied_at(const Panels& panels, const Screen& sc, std::int64_t cx,
+                             std::int64_t cy) noexcept {
+    if (panels.picker.open && picker_bounds(sc).contains(cx, cy)) {
+        return Occupancy{true, kPickerName};
+    }
+    for (std::size_t i = panels.open.size(); i > 0; --i) {
+        const std::int64_t kind = panels.open[i - 1].kind;
+        if (bounds_of(panels, kind, sc).rect.contains(cx, cy)) {
+            return Occupancy{true, panel_kind(kind).name};
+        }
+    }
+    return Occupancy{};
+}
+
 /// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
 inline constexpr std::int64_t kWorkspaceW = kMinScreen.room_w;
 inline constexpr std::int64_t kWorkspaceH = kMinScreen.room_h;
@@ -1793,13 +1858,16 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
 ///
 /// IT ASKS FOR THE STACK'S FIRST SLOT rather than knowing where that is (PNL-1). The picker
 /// is a mode and not a panel -- it has no catalog row to declare a place in — so this is the
-/// one caller that names a place itself, and naming one is all it does.
+/// one caller that names a place itself, and naming one is all it does. Since PNL-2 it names
+/// it through `picker_bounds`, because the pointer has to ask the same question: a box a maker
+/// can read through is one defect and a box a maker can press through is another, and both are
+/// answered by the same rectangle.
 inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Screen& sc) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
         return;
     }
-    const ui::Rect b = placement_bounds(placement::kOverlayStack, 0, sc);
+    const ui::Rect b = picker_bounds(sc);
     paint_panel_frame(c, b);
     paint_panel_row(c, b, 0, "+ PANEL -- up/down, enter opens or removes",
                     surface::role::kAccent);

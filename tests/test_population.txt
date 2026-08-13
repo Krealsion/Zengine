@@ -57,8 +57,8 @@
 #                     tree, so nothing in a build could notice it had stopped being run.
 #
 # FLOORS ARE MINIMUMS, and the numbers below are a MEASURED baseline (C4's, raised by W-0,
-# W-1, W-2, W-3, W-4, W-5, W-6, BLD-0 and PNL-0 where those phases' cases should become permanent), so they
-# carry ZERO downward slack --
+# W-1, W-2, W-3, W-4, W-5, W-6, BLD-0, PNL-0, PNL-1 and PNL-2 where those phases' cases
+# should become permanent), so they carry ZERO downward slack --
 # deleting a single test case from any suite crosses its floor -- while leaving healthy
 # ADDITIONS free, which is the traffic this repository actually generates. Raise a floor when
 # a phase's new cases should become permanent. Do not lower one to make a deletion green: a
@@ -107,7 +107,7 @@ surface                           doctest           always  38
 surface                           doctest           sdl     4
 ui                                doctest           always  22
 builder                           doctest           always  12
-workshop                          doctest           always  193
+workshop                          doctest           always  205
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
