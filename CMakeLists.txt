@@ -317,7 +317,11 @@ endfunction()
 # window pixel; consumers only publish). ui: the UI package — authored intent in,
 # resolved geometry out, plus "which authored object is under this cell"; the one
 # distinction it owns is authored-versus-resolved, and it owns nothing else (no widgets,
-# no relational layout, no drawing — a resolved scene is what you paint FROM). snake: the
+# no relational layout, no drawing — a resolved scene is what you paint FROM). builder: the
+# Builder package — a name, a command, and the line between them; the first package here
+# whose subject is an EFFECT (a child process) rather than a picture, split across an
+# ordinary tool weave that holds only a target NAME and the one weave in the program that
+# holds a command and starts a process. snake: the
 # first game panel — the Stage 2 vertical slice, and the hosting consumer that pulled
 # loom::kernel onto the Loom's export surface; consumer of the floors, owner of no
 # platform edge. workshop: the maker-facing surface — the second hosting consumer, the
@@ -330,8 +334,10 @@ endfunction()
 # activation, timer's before input/surface consume it, SURFACE'S BEFORE INPUT'S (G-1: the
 # SDL Input reader is the one weave that must carry a window-lifecycle fact, and that fact
 # belongs to the Surface vocabulary — see input/translate_sdl.hpp), theirs before snake,
-# surface's and ui's before workshop consumes both, and snake's skins before workshop
-# stages copies of them.
+# surface's and ui's before workshop consumes both, BUILDER'S BEFORE WORKSHOP'S (BLD-0: the
+# Builder panel presents a weave it does not own, so Workshop's presentation names
+# builder/vocabulary.hpp — and only that header, which is the whole of what a presentation
+# is allowed to know about a tool), and snake's skins before workshop stages copies of them.
 #
 # smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
 # themselves do not, and each still makes its own honest kernel decision.
@@ -341,6 +347,7 @@ add_subdirectory(timer)
 add_subdirectory(surface)
 add_subdirectory(input)
 add_subdirectory(ui)
+add_subdirectory(builder)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

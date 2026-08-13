@@ -39,6 +39,7 @@
 // (README.md#ui--the-authoredresolved-vocabulary).
 
 #include "document.hpp"
+#include "panel.hpp"
 #include "property.hpp"
 #include "vocabulary.hpp"
 
@@ -120,6 +121,42 @@ inline constexpr std::int64_t kRowsY = 8;
 /// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
 inline constexpr std::int64_t kBottomRows = 5;
 
+// ---- Where a DYNAMIC panel goes, and why it goes there ---------------------------------
+//
+// THE SIMPLEST TRUTHFUL PLACEMENT THIS GEOMETRY SUPPORTS, and it is not a good one. A
+// dynamic panel is an OVERLAY anchored to the canvas's top-left corner, drawn after the
+// workspace and over it, stacked downwards if there is ever more than one. The terminal
+// overlay's mechanism exactly (a backdrop rect, then rows padded to the pane's full width
+// so a character medium's spaces erase what is underneath), pointed at the other corner.
+//
+// WHY AN OVERLAY RATHER THAN A COLUMN. The fixed furniture is spoken for: the right-hand
+// column holds OBJECTS at a fixed five rows and PROPERTIES immediately under it at a height
+// that CHANGES with the selection, so "below PROPERTIES" is a row number that moves when a
+// maker selects a different object -- a panel whose top edge slides is worse than one that
+// covers something. And BLD-0 is explicitly not allowed to rearrange the fixed panels. So
+// the honest remaining choice is to put it over the workspace and say so.
+//
+// AND IT IS AWKWARD ON PURPOSE-ADJACENT GROUNDS: it covers the material a maker is
+// building. That awkwardness is the phase's evidence rather than its embarrassment -- the
+// first thing a second panel kind or a longer-lived Builder will produce is the demand for
+// somewhere to PUT panels, and inventing docking now would be answering that demand before
+// anybody has felt it. What using it actually felt like is in the report.
+inline constexpr std::int64_t kDockX = 0;
+inline constexpr std::int64_t kDockY = kWorkspaceY; ///< directly under the screen's title row
+inline constexpr std::int64_t kDockW = 48;          ///< wide enough for a build recipe's tail
+inline constexpr std::int64_t kPanelRows = 9;       ///< every panel kind is this tall, for now
+inline constexpr std::int64_t kDockGap = 1;         ///< a blank row between stacked panels
+
+/// Where the n-th open panel's top-left corner is.
+inline constexpr std::int64_t panel_top(std::size_t index) noexcept {
+    return kDockY + static_cast<std::int64_t>(index) * (kPanelRows + kDockGap);
+}
+
+/// The picker is the same width and as tall as the catalog plus its header. It has no
+/// instance and no place in the stack: it opens over the top of everything in the dock,
+/// because it is a question rather than a thing.
+inline constexpr std::int64_t kPickerRows = 1 + static_cast<std::int64_t>(kPanelKinds);
+
 // ---- The terminal overlay's own furniture, in canvas cells -----------------------------
 //
 // ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, and that is still the whole of the geometry:
@@ -197,6 +234,20 @@ static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 20, "the bottom 
 static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pane's corner");
 static_assert(kMinScreen.terminal_w == 56 && kMinScreen.terminal_h == 13, "the pane's extent");
 static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
+
+// The dock fits the SMALLEST screen this composition is honest on, which is the only extent
+// it has to fit: a wider surface gives the workspace more room and gives the dock exactly as
+// much as it had, the same rule the panel column and the bottom band follow. Asserted rather
+// than assumed because these are four separate constants and nothing else would notice one of
+// them growing past the furniture beside it.
+static_assert(kDockX + kDockW <= kMinScreen.panel_x - kPanelGap,
+              "a dynamic panel never reaches the OBJECTS/PROPERTIES column");
+static_assert(kDockX + kDockW == kMinScreen.room_w,
+              "the dock is exactly the minimum screen's workspace width -- it covers the top "
+              "of the workspace and nothing else");
+static_assert(panel_top(0) + kPanelRows <= kMinScreen.notice_y,
+              "the first dynamic panel stays clear of the notice line");
+static_assert(kPickerRows <= kPanelRows, "the picker is never taller than a panel");
 
 /// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
 inline constexpr std::int64_t kWorkspaceW = kMinScreen.room_w;
@@ -292,6 +343,12 @@ struct Session {
     std::string notice;       ///< the last thing Workshop had to say
     bool notice_is_bad = false; ///< whether that thing was a refusal
     TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
+    /// THE DYNAMIC PANELS a maker has opened, and the picker they opened them from
+    /// (panel.hpp). Session like everything else here, and for the sharpest version of the
+    /// reason: what a maker has open is not what a maker has AUTHORED, and a panel list
+    /// that rode the document would make "which tools were showing" part of the file --
+    /// a persistence decision arriving as a side effect of where a vector was declared.
+    Panels panels;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1458,6 +1515,157 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
         t.attached ? surface::role::kAccent : surface::role::kAlert);
 }
 
+// ---- The dynamic panels, painted -------------------------------------------------------
+//
+// THE SAME MECHANISM THE TERMINAL OVERLAY USES, and deliberately not a second one: a
+// backdrop rect for media that draw glyphs rather than cells, then rows padded to the
+// panel's full width so that in a character medium a space erases what is underneath. Two
+// overlay mechanisms would be two answers to "what does an overlay do about the furniture
+// below it", and this file has already answered it once.
+
+/// One panel-shaped block of rows at a corner, with its backdrop. The shared half of every
+/// panel kind, so a second kind writes its content and inherits its shape.
+inline void paint_panel_frame(surface::SurfaceCanvas& c, std::int64_t top, std::int64_t rows) {
+    c.rects.push_back(surface::SurfaceRect{kDockX, top, kDockW, rows, surface::role::kMuted});
+}
+
+/// One row of a panel, fitted and padded to the dock's width.
+inline void paint_panel_row(surface::SurfaceCanvas& c, std::int64_t top, std::int64_t line,
+                            const std::string& text, std::int64_t role) {
+    c.labels.push_back(surface::SurfaceLabel{
+        kDockX, top + line,
+        detail::pad(detail::fit(text, kDockW), static_cast<std::size_t>(kDockW)), role});
+}
+
+/// A panel's own field: a fixed-width label and its value, so the values line up down the
+/// panel and a maker reads a column rather than a paragraph.
+inline std::string panel_field(const char* label, const std::string& value) {
+    return detail::pad(label, 9) + value;
+}
+
+/// A field whose value is longer than a row: wrapped across a fixed row budget, and MARKED
+/// when the budget ran out before the sentence did.
+///
+/// The rows are a fixed number because the panel is, so this cannot grow the furniture --
+/// which means it can and does run out of room, and saying so is the whole job. `wrap`
+/// already breaks on words and indents its continuations; what it has no way to express is
+/// "there was more", and a block silently ending mid-thought is exactly the failure
+/// `detail::fit` exists to prevent one row at a time.
+inline std::vector<std::string> panel_block(const char* label, const std::string& value,
+                                            std::size_t rows) {
+    std::vector<std::string> lines = detail::wrap(panel_field(label, value), kDockW);
+    if (lines.size() > rows) {
+        lines.resize(rows);
+        lines.back() = detail::fit(lines.back() + " " + detail::kElided, kDockW);
+    }
+    while (lines.size() < rows) {
+        lines.push_back(std::string());
+    }
+    return lines;
+}
+
+/// THE BUILDER PANEL — Workshop's presentation of a weave it does not own.
+///
+/// Every value on it came off the bus as `builder::BuildStatus`, published by the tool. The
+/// panel computes none of them, remembers none of them past a close, and states the one
+/// thing that is genuinely its own: whether the tool has answered it yet.
+inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane, std::int64_t top) {
+    paint_panel_frame(c, top, kPanelRows);
+    const auto row = [&c, top](std::int64_t line, const std::string& text, std::int64_t role) {
+        paint_panel_row(c, top, line, text, role);
+    };
+    // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
+    // header follows: a presentation that shows somebody else's facts without saying whose
+    // is a presentation that will eventually be read as its own.
+    row(0, std::string("BUILDER @") + builder::kBuilderRole + " -- b builds, x closes",
+        surface::role::kAccent);
+
+    if (!pane.heard) {
+        // NOT THE SAME AS "NEVER BUILT", and the panel must not show it as though it were.
+        // This is a fact about this panel -- it has asked and is waiting -- and the target's
+        // own history is not knowable from here until the tool says it.
+        row(1, panel_field("target", "(the Builder has not answered yet)"),
+            surface::role::kMuted);
+        for (std::int64_t i = 2; i < kPanelRows; ++i) {
+            row(i, std::string(), surface::role::kFill);
+        }
+        return;
+    }
+
+    const builder::BuildStatus& s = pane.shown;
+    row(1, panel_field("target", s.target), surface::role::kFill);
+    // WHAT THIS PANEL IS WATCHING beats what it was last told. `awaiting` is the panel's own
+    // fact and it is the truer one while it holds: the tool's last OUTCOME is still the
+    // previous build's, and showing that while a new one is running would answer "what
+    // happened on the last build" with a sentence about the wrong build.
+    row(2,
+        pane.awaiting ? panel_field("last", "asked -- waiting for it to finish")
+                      : panel_field("last", builder::name_of_outcome(s.outcome)),
+        pane.awaiting ? surface::role::kAccent
+                      : (s.outcome == builder::outcome::kFailed ||
+                                 s.outcome == builder::outcome::kNotStarted ||
+                                 s.outcome == builder::outcome::kUnknownTarget
+                             ? surface::role::kAlert
+                             : surface::role::kFill));
+    // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
+    // never started reads as success, which is the exact wrong answer at the exact moment a
+    // maker most needs the right one.
+    //
+    // THE TOOL'S OWN COUNTER SHARES THE ROW, and it is on the panel at all because it is the
+    // number that proves the tool outlives its presentation: close this panel, reopen it,
+    // build again, and it reads 2 -- which a panel that owned the state could not say. It
+    // shares rather than taking its own because the rows below are worth more to a maker
+    // whose build just failed, and this one has a column to spare.
+    row(3,
+        panel_field("exit", detail::pad(s.outcome == builder::outcome::kSucceeded ||
+                                                s.outcome == builder::outcome::kFailed
+                                            ? std::to_string(s.status)
+                                            : std::string("--"),
+                                        11) +
+                                "asks " + std::to_string(s.builds) + " ever"),
+        surface::role::kMuted);
+    // WHAT WAS ACTUALLY RUN, as the runner reported it. Empty until something has been run,
+    // because the tool holds no command and this panel will not invent one to fill a row.
+    row(4, panel_field("recipe", s.recipe.empty() ? std::string("(nothing has run yet)")
+                                                  : s.recipe),
+        surface::role::kMuted);
+    // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends when
+    // something has gone wrong, and one row of a compiler's answer is a row of nothing.
+    const std::vector<std::string> said =
+        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3);
+    for (std::size_t i = 0; i < said.size(); ++i) {
+        row(5 + static_cast<std::int64_t>(i), said[i], surface::role::kMuted);
+    }
+    row(8, "[ Build ]  press b", surface::role::kAccent);
+}
+
+/// The `+ panel` picker: the catalog, and where a maker's cursor is in it.
+inline void paint_picker(surface::SurfaceCanvas& c, const PanelPicker& picker) {
+    if (!picker.open) {
+        return;
+    }
+    paint_panel_frame(c, kDockY, kPickerRows);
+    paint_panel_row(c, kDockY, 0, "+ PANEL -- up/down, enter opens, esc cancels",
+                    surface::role::kAccent);
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        const bool here = i == picker.cursor;
+        paint_panel_row(c, kDockY, 1 + static_cast<std::int64_t>(i),
+                        std::string(here ? "> " : "  ") + detail::pad(kPanelCatalog[i].name, 10) +
+                            kPanelCatalog[i].summary,
+                        here ? surface::role::kAccent : surface::role::kFill);
+    }
+}
+
+/// Every open panel, then the picker over them. The one call `paint` makes.
+inline void paint_panels(surface::SurfaceCanvas& c, const Panels& panels) {
+    for (std::size_t i = 0; i < panels.open.size(); ++i) {
+        if (panels.open[i].kind == panel::kBuilder) {
+            paint_builder(c, panels.builder, panel_top(i));
+        }
+    }
+    paint_picker(c, panels.picker);
+}
+
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
@@ -1541,6 +1749,20 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // this and OBJECTS below are measured from the RIGHT edge, so a wider surface moves them
     // together and the twenty-one cells between them are the same twenty-one cells.
     label(sc.w - 20, 0, "shift+space terminal", surface::role::kMuted);
+
+    // HOW TO OPEN A PANEL, on the same row and for the same reason the terminal hint is
+    // there: the two help lines at the bottom are within a few cells of the canvas width
+    // already, and this row has twenty-nine free cells between the workspace title and
+    // OBJECTS. It is LEFT-anchored beside the title rather than right-anchored beside the
+    // terminal hint, because a maker looking for something to do with the workspace reads
+    // left to right and the dock it opens into is on this side.
+    label(24, 0, "[+ panel]  p", surface::role::kMuted);
+
+    // THE DYNAMIC PANELS, over the workspace and under everything else. They come after the
+    // scene and the size handle so that in a character medium their padded rows erase the
+    // authored material behind them rather than being erased by it, and before the OBJECTS
+    // column, which they are asserted never to reach (the dock's static_asserts).
+    paint_panels(c, s.panels);
 
     // The object list: the same objects, named by identity, pointing at the same
     // selection the ring in the workspace does -- and, when there are more of

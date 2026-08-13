@@ -181,9 +181,12 @@ class WorkshopWeave
                                           zengine::input::PointerMoved,
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
-                                          zengine::surface::SurfaceCloseRequested>,
+                                          zengine::surface::SurfaceCloseRequested,
+                                          zengine::builder::BuildStatus>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
-                                        zengine::surface::SurfaceText>> {
+                                        zengine::surface::SurfaceText,
+                                        zengine::builder::StatusRequested,
+                                        zengine::builder::BuildRequested>> {
 public:
     explicit WorkshopWeave(HostContext& host) : host_(&host) {
         // The document a maker opens onto. Deliberately boring, and deliberately
@@ -306,16 +309,28 @@ public:
                 return;
             }
         }
-        // THREE MODES NOW, and the order is the priority. The overlay is what a
+        // FOUR MODES NOW, and the order is the priority. The overlay is what a
         // maker most recently asked for, so while it is open it has the keys --
         // an open inspector draft is not cancelled, not committed and not
         // touched, and is still there when the pane closes.
+        //
+        // THE PICKER SITS SECOND, AND IT CANNOT COLLIDE WITH THE THIRD. It is
+        // reachable only from command mode, and command mode is exactly the
+        // state in which no row is being edited -- so "picker open" and "a draft
+        // is live" cannot both be true. The order is written anyway rather than
+        // left to that argument: an ordering that depends on a reachability
+        // proof is one refactor away from being wrong silently, and this costs
+        // one line. It is NOT a focus framework: there is no focused panel, no
+        // z-order and no capture -- one `if` per mode, the same shape the
+        // overlay's was.
         if (session_.terminal.open) {
             terminal_key(k);
+        } else if (session_.panels.picker.open) {
+            picker_key(k, mail);
         } else if (editing_row() != nullptr) {
             editing_key(k);
         } else {
-            command(k);
+            command(k, mail);
         }
         repaint(mail);
     }
@@ -341,6 +356,15 @@ public:
         if (session_.terminal.open) {
             session_.terminal.input += t.text;
             repaint(mail);
+            return;
+        }
+        // THE PICKER TAKES NO TEXT AND TYPES NONE. It is chosen from with arrow
+        // keys, so every character produced while it is open belongs to nothing
+        // -- and the `p` that opened it produces one. Without this the picker
+        // would be unreachable from an open draft anyway (there can be none),
+        // but the rule is written where a reader looks for it rather than left
+        // as a consequence of the branch below.
+        if (session_.panels.picker.open) {
             return;
         }
         Row* row = editing_row();
@@ -424,6 +448,60 @@ public:
             if (e != nullptr) {
                 say(sizing ? size_notice(*e, done) : move_notice(*e, done), false);
             }
+        }
+        repaint(mail);
+    }
+
+    /// THE BUILDER TOOL SAID WHAT IT IS.
+    ///
+    /// A publication from a weave this application does not own, presented by a
+    /// panel this application does. Everything a Builder panel shows arrives
+    /// here and nowhere else -- Workshop computes no build fact, holds no
+    /// target of its own, and cannot ask for a build it was not first told
+    /// about (see `build_now`).
+    ///
+    /// IT IS KEPT ONLY WHILE A PANEL IS PRESENTING IT. With no Builder panel
+    /// open there is nothing to put it on, and keeping a copy against the
+    /// possibility of one being opened later is precisely how a presentation
+    /// quietly becomes a second owner of somebody else's facts. The tool goes on
+    /// saying what it is to whoever else is listening; this application stops
+    /// listening in the only sense it can -- it stops remembering.
+    void on(const zengine::builder::BuildStatus& said, loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return;
+        }
+        BuilderPane& pane = session_.panels.builder;
+        // WAS THIS PANEL WATCHING? The first live run got this wrong and the
+        // screen said so: reopening the panel asks the tool, the tool answers
+        // with the outcome of a build that finished a minute ago, and the notice
+        // line announced `built zengine-snake -- exit 0` as though it had just
+        // happened. LEARNING a fact and WITNESSING an event are different, and
+        // only the second is news. So the announcement below is made only for a
+        // build this panel asked for and has not yet been answered about.
+        const bool watching = pane.awaiting;
+        pane.heard = true;
+        pane.shown = said;
+        if (said.outcome != zengine::builder::outcome::kAsked) {
+            pane.awaiting = false;
+        }
+        if (!watching || said.outcome == zengine::builder::outcome::kAsked) {
+            repaint(mail);
+            return;
+        }
+        switch (said.outcome) {
+        case zengine::builder::outcome::kSucceeded:
+            say("built " + said.target + " -- exit 0", false);
+            break;
+        case zengine::builder::outcome::kFailed:
+            say("BUILD FAILED: " + said.target + " -- exit " + std::to_string(said.status), true);
+            break;
+        case zengine::builder::outcome::kNotStarted:
+            say("the build never started: " + said.detail, true);
+            break;
+        case zengine::builder::outcome::kUnknownTarget:
+            say("the Builder refused: " + said.detail, true);
+            break;
+        default: break;
         }
         repaint(mail);
     }
@@ -640,7 +718,16 @@ private:
     /// The arrows step the inspector's rows and `hjkl` moves, which is why
     /// neither pair had to be re-argued: the modifier bought a new gesture, not a
     /// second meaning for an old key.
-    void command(const zengine::input::KeyPressed& k) {
+    ///
+    /// `p`, `b` and `x` are the three keys BLD-0 adds, and all three were
+    /// previously unbound: no existing gesture changed meaning, and with no
+    /// Builder panel open `b` and `x` do exactly what they did before, which is
+    /// nothing. That is deliberately not a keybinding framework -- there is no
+    /// table, no registry and no per-panel binding, just three cases in the
+    /// switch that already existed, two of them conditional on a panel being
+    /// open. The second panel kind is what will force the real question (whose
+    /// `x` is it?), and BLD-0 does not answer it in advance.
+    void command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         const bool shift = held(k.modifiers, input::mod::kShift);
         switch (k.scancode) {
         case input::scan::kTab: select_next(); break;
@@ -663,9 +750,122 @@ private:
         case input::scan::kL: shift ? size_by(+1, 0) : move_by(+1, 0); break;
         case input::scan::kLeftBracket: resize_workspace(-4); break;
         case input::scan::kRightBracket: resize_workspace(+4); break;
+        case input::scan::kP: open_picker(); break;
+        case input::scan::kB: build_now(mail); break;
+        case input::scan::kX: close_builder(); break;
         case input::scan::kQ: quit(); break;
         default: break;
         }
+    }
+
+    // ---- The dynamic panels --------------------------------------------------
+    //
+    // A WEAVE MAY PROVIDE A TOOL; A PANEL IS ITS PRESENTATION. Everything below
+    // is presentation: it opens and closes rows of this application's furniture,
+    // and the two places it touches the bus are ordinary sends to an office,
+    // authored as Workshop, gated against Workshop's own grant. Workshop gained
+    // exactly two new things it may SAY -- ask the Builder what it is, and ask
+    // it to build the target it just named -- and nothing it may DO.
+
+    /// Open the `+ panel` picker.
+    void open_picker() {
+        session_.panels.picker.open = true;
+        session_.panels.picker.cursor = 0;
+        say("+ panel -- up/down chooses, enter opens, esc or p cancels", false);
+    }
+
+    /// The picker's keys. Escape and `p` both close it: the key that opened it
+    /// closes it, the terminal overlay's rule, and Escape closes it too because
+    /// a maker who has changed their mind should not have to remember which of
+    /// the two ways out this particular thing has.
+    void picker_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        PanelPicker& picker = session_.panels.picker;
+        switch (k.scancode) {
+        case input::scan::kUp:
+            if (picker.cursor > 0) {
+                --picker.cursor;
+            }
+            break;
+        case input::scan::kDown:
+            if (picker.cursor + 1 < kPanelKinds) {
+                ++picker.cursor;
+            }
+            break;
+        case input::scan::kReturn: choose_panel(mail); break;
+        case input::scan::kEscape:
+        case input::scan::kP:
+            picker.open = false;
+            say("no panel opened", false);
+            break;
+        default: break;
+        }
+    }
+
+    /// Open the kind the cursor is on.
+    ///
+    /// It cannot open a kind twice, and the refusal is a sentence rather than a
+    /// silent no-op -- but it is not a MULTI-INSTANCE POLICY: BLD-0 needs one
+    /// live Builder and has no case that wants two, so what exists is the
+    /// smallest truthful answer to "you already have one" rather than a decision
+    /// about how several would behave.
+    void choose_panel(loom::Mail& mail) {
+        PanelPicker& picker = session_.panels.picker;
+        const PanelKind& chosen = kPanelCatalog[picker.cursor];
+        picker.open = false;
+        if (!open_panel(session_.panels, chosen.kind)) {
+            say(std::string(chosen.name) + " is already open -- x closes it", true);
+            return;
+        }
+        say(std::string("opened ") + chosen.name + " -- x closes it", false);
+        // AND THE PANEL ASKS THE TOOL WHAT IT IS. A presentation that was handed
+        // its subject's facts by whoever built it would be showing the builder's
+        // opinion; this one shows the tool's answer, and shows nothing until it
+        // has one.
+        if (chosen.kind == panel::kBuilder) {
+            (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                    zengine::builder::StatusRequested{});
+        }
+    }
+
+    /// ASK FOR A BUILD -- by the name the TOOL gave, never by one of Workshop's.
+    ///
+    /// This is the sharpest statement of the split that this file makes. Workshop
+    /// holds no target, no recipe and no command; the only build it can name is
+    /// the one the Builder has already told it about, so a Workshop with a panel
+    /// that has not yet heard from the tool cannot ask for anything at all, and
+    /// says so.
+    void build_now(loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return; // `b` is an unbound key with no Builder panel open, exactly as before
+        }
+        const BuilderPane& pane = session_.panels.builder;
+        if (!pane.heard || pane.shown.target.empty()) {
+            say("the Builder has not said what it builds yet -- nothing was asked for", true);
+            return;
+        }
+        (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                zengine::builder::BuildRequested{pane.shown.target});
+        // I ASKED. Workshop's own fact, recorded before anything is dispatched,
+        // and the one frame a maker gets before the freeze is painted from it:
+        // the repaint at the end of this key's handler is queued AHEAD of the
+        // order that reaches the runner, so `asked -- waiting for it to finish`
+        // is on the screen before the build starts. Everything after that waits,
+        // because BLD-0's runner builds inside its own handler on the pump that
+        // would have to carry the next repaint.
+        session_.panels.builder.awaiting = true;
+        say("asked the Builder for `" + pane.shown.target +
+                "` -- the screen waits until it is done",
+            false);
+    }
+
+    /// Close the Builder panel. The TOOL is untouched: it keeps its target, its
+    /// history and its running count of asks, and reopening the panel asks it
+    /// again and is answered with all three.
+    void close_builder() {
+        if (!close_panel(session_.panels, panel::kBuilder)) {
+            return; // `x` is an unbound key with no Builder panel open
+        }
+        say("closed Builder -- the tool is still there; [+ panel] reopens it", false);
     }
 
     // ---- Save and open -------------------------------------------------------

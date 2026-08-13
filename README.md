@@ -464,6 +464,45 @@ extent. The two are not competitors and neither replaces the other.
 No kernel, no weave, no bus: this package is vocabulary and arithmetic, so it exists on every
 configuration.
 
+## `builder/` — a name, a command, and the line between them
+
+The first Zengine package whose subject is an **effect** rather than a picture: building
+something means starting an operating-system process, with a real exit status, and nothing
+here had ever done that. So the package is arranged as a split, and the split is what it is
+for.
+
+- **The tool** (`weave.hpp`) is ordinary. It holds one target **name**, remembers what
+  happened to it, and publishes that as `BuildStatus` for any presentation to read. Two grant
+  rules: order the runner, and say what it knows. It holds no command and cannot spell one.
+- **The runner** (`runner.hpp`) holds the host's catalog of recipes — an absolute program, an
+  absolute working directory, an argument vector — and is the only weave in the program that
+  starts a process. One grant rule: report a `BuildOutcome` to whoever holds the Builder
+  office. A `RunBuild` naming something outside the catalog is refused by name, and nothing
+  runs.
+- **The wire cannot spell a command.** `BuildRequested` and `RunBuild` carry exactly one field
+  and it is a target name; there is no shape here whose field is a program, an argument list,
+  a directory or a shell line. "The panel sent a command" is not a sentence this vocabulary
+  can express, which is a property of the types rather than of a check.
+- **`run.hpp` is not a shell.** It takes a program and an argument vector and runs them —
+  `fork`/`exec` with a pipe on POSIX, `CreateProcess` with a pipe on Windows. `popen()` would
+  have been four lines and would also have been a general shell capability; a later phase that
+  genuinely needs one can add it and argue for it, rather than finding it already here having
+  arrived as a side effect of a button.
+- **What the split buys is reviewability, not containment.** An in-process weave shares the
+  host's address space, so a grant bounds what a weave may *say* and never what it may *touch*
+  (Loom `docs/reference/capabilities.md`) — any code compiled into the binary could call the
+  same platform functions. What this arrangement gives is one place where process authority
+  lives, one grant to read, and one refusal to test. Calling it containment would be the
+  overclaim these phases exist to refuse.
+- **It blocks.** The runner builds inside its own handler, so the tool that asked for the
+  build freezes for the duration. That cost is real, it is measured rather than hidden, and it
+  is what a queue-and-poll phase would exist to answer.
+
+No kernel and no loadable weave: both weaves are mounted in-process by whichever host wants
+them, exactly as Workshop's own weave is. The suite is `tests/test_builder.cpp`, and it starts
+real child processes — every recipe it runs is `cmake -E ...`, CMake's own portable shim, so it
+needs no shell and no assumption about what else is installed.
+
 ## `workshop/` — the maker-facing surface
 
 A person opens Workshop, **makes** an ordinary authored rectangle, selects it, **moves** it,
@@ -683,6 +722,52 @@ arithmetic lives and both the snapshot and the painter call it, so the omission 
 come to lie about rows spent on wrapping. Discoverability is unchanged and deliberately so —
 any line the pane does not recognise (including `help`) answers with the grammar, and the pane
 still speaks two verbs.
+
+### Dynamic panels, and the Builder panel (BLD-0)
+
+> A weave may provide a tool; a **panel** is its presentation.
+
+`[+ panel]` on the screen's title row (`p`) opens a small picker over the catalog of panel
+kinds Workshop knows how to present (`panel.hpp`); Return opens the chosen one, `x` closes it,
+and `p` `Return` opens it again. The catalog is a constant array of Workshop's own — a panel
+that is not in it cannot be opened, because the picker is the only door. `panel == weave` is
+deliberately **not** an architectural rule: a later panel that presents something with no weave
+behind it fits this catalog unchanged.
+
+- **The panel is not the tool.** The Builder panel holds a *copy* of the last `BuildStatus` the
+  Builder tool published, and closing the panel destroys the copy and nothing else. Reopening
+  it sends `builder::StatusRequested` and shows the tool's own answer — including `asks N
+  ever`, the tool's running count, which comes back as 3 rather than as 1 and is the number a
+  panel that owned the state could not produce.
+- **Workshop gained two sentences and no powers.** Its grant adds `StatusRequested` and
+  `BuildRequested`, both scoped *to the Builder office*. It cannot reach the runner, and the
+  only build it can ask for is the one the tool has already named — a panel that has not heard
+  from its tool cannot ask for anything, and says so.
+- **Placement is the simplest truthful thing the current geometry supports, and it is
+  awkward.** A panel is an overlay anchored to the canvas's top-left, exactly the workspace's
+  width at the minimum screen, stacked downwards — the terminal overlay's mechanism pointed at
+  the other corner. It covers the top of the material a maker is building. The fixed panels are
+  untouched: `OBJECTS` sits at a fixed five rows and `PROPERTIES` at a height that *changes*
+  with the selection, so "below PROPERTIES" is a row number that slides. Docking, tabs, saved
+  layouts and resizing are all absent, and what using this felt like is the phase's evidence
+  for whichever of them gets built.
+- **No focus framework.** Four modes, in priority: the terminal overlay, the panel picker, an
+  open inspector draft, then command mode. `p`, `b` and `x` were unbound keys and `b`/`x` still
+  do nothing with no Builder panel open.
+- **A synchronous build has no in-flight frame.** Pressing `b` paints one frame — `asked --
+  waiting for it to finish` — because Workshop's own repaint is queued ahead of the order that
+  reaches the runner; after that the runner blocks the pump that would carry the next one. What
+  a maker sees is the truth about what this mechanism can do, not a spinner over a freeze.
+- **Announcing and learning are different.** A status that arrives for a build this panel
+  asked for is announced on the notice line; one that merely arrives — the answer to a reopen —
+  is shown in the panel's rows and never announced. The first live run got that wrong out loud,
+  saying `built zengine-snake -- exit 0` about a build that had finished minutes earlier.
+
+The target is `zengine-snake`, and the recipe is the target's own: `${CMAKE_COMMAND} --build
+<this build tree> --target zengine-snake`, both baked at configure time. It is deliberately not
+one of the weaves this running Workshop has loaded — building one of those would overwrite a
+shared library the process has mapped — and `zengine-workshop` rebuilding itself is the same
+hazard aimed at the host binary, which is Build+Load's problem and not this phase's.
 
 Workshop's weave lives in `workshop/weave.hpp`, not in the host's translation unit — so the
 suite mounts it on a real bus and walks `input message -> gesture -> semantic operation` end to
