@@ -106,10 +106,19 @@ inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON TH
 inline constexpr std::int64_t kWorkspaceY = 1; ///< ...which authored coordinates are relative to
 inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
 
-/// The Info column beside the workspace: FIXED, and anchored to the right edge rather than
-/// to a column number. Its width is how much of an object's name and an inspector row is
-/// worth showing, which is a fact about the rows and not about the screen -- so a wider
-/// surface gives the workspace more room and gives this exactly as much as it had.
+/// THE SIDE REGION (`placement::kSideRegion`): the column beside the workspace, FIXED, and
+/// anchored to the right edge rather than to a column number. Its width is how much of an
+/// object's name and an inspector row is worth showing, which is a fact about the rows and
+/// not about the screen -- so a wider surface gives the workspace more room and gives this
+/// exactly as much as it had.
+///
+/// THE SCREEN RESERVES IT; THE PLACEMENT PATH SPENDS IT. `screen_of` below turns this width
+/// into `Screen::panel_x`, which exists whether or not any panel is in the column and is
+/// what the workspace measures itself against; `placement_bounds` turns that reservation into
+/// the rectangle the panel placed here occupies. Two steps rather than one, because they
+/// answer different questions -- how much room the workspace has is a fact about the SCREEN
+/// and must not depend on what a maker has open, and that is exactly why hiding Info moves
+/// nothing.
 ///
 /// IT IS RESERVED WHETHER OR NOT INFO IS OPEN (PNL-0), and that is a decision rather than an
 /// oversight. Removing the Info panel leaves these 28 columns empty, and empty they stay.
@@ -125,6 +134,12 @@ inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a 
 inline constexpr std::int64_t kPanelCols = 28;
 inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
 
+/// The rows INSIDE the side region's bounds: where the object list starts, how many names
+/// it shows, and where the inspector starts under it. They are the same three numbers they
+/// have always been, because the region begins at the top of the canvas -- what PNL-1
+/// changed is what they are measured FROM, so the panel painted here reads its own column's
+/// x and y off the bounds it was handed and knows nothing about the screen around it.
+inline constexpr std::int64_t kSideY = 0; ///< the region's top edge: the canvas's own
 inline constexpr std::int64_t kListY = 1;
 inline constexpr std::int64_t kListRows = 5;
 inline constexpr std::int64_t kRowsY = 8;
@@ -133,49 +148,40 @@ inline constexpr std::int64_t kRowsY = 8;
 /// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
 inline constexpr std::int64_t kBottomRows = 5;
 
-// ---- Where a DYNAMIC panel goes, and why it goes there ---------------------------------
+// ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
 //
-// THE SIMPLEST TRUTHFUL PLACEMENT THIS GEOMETRY SUPPORTS, and it is not a good one. A
-// dynamic panel is an OVERLAY anchored to the canvas's top-left corner, drawn after the
+// THE SIMPLEST TRUTHFUL PLACEMENT THIS GEOMETRY SUPPORTS, and it is not a good one. A panel
+// placed here is an OVERLAY anchored to the canvas's top-left corner, drawn after the
 // workspace and over it, stacked downwards if there is ever more than one. The terminal
 // overlay's mechanism exactly (a backdrop rect, then rows padded to the pane's full width
 // so a character medium's spaces erase what is underneath), pointed at the other corner.
 //
-// WHY AN OVERLAY RATHER THAN A COLUMN. The right-hand column is spoken for: it holds OBJECTS
-// at a fixed five rows and PROPERTIES immediately under it at a height that CHANGES with the
+// WHY AN OVERLAY RATHER THAN THE COLUMN. The side region is spoken for: it holds OBJECTS at
+// a fixed five rows and PROPERTIES immediately under it at a height that CHANGES with the
 // selection, so "below PROPERTIES" is a row number that moves when a maker selects a
 // different object -- a panel whose top edge slides is worse than one that covers something.
-// So the honest remaining choice is to put it over the workspace and say so.
+// So the honest remaining choice is to put it over the workspace and say so. That is also
+// why the side region holds exactly one panel and panel.hpp asserts it.
 //
-// PNL-0 DID NOT CHANGE THIS, AND THE REASON IS WORTH WRITING DOWN, because it is the first
-// thing a reader will expect it to have changed. That column is now a panel (`Info`) rather
-// than structural furniture, so "the fixed panels may not be rearranged" has stopped being
-// the argument. What has NOT stopped being true is everything else: PROPERTIES is still as
-// tall as the selection makes it, the column is still 28 cells wide against the dock's 48,
-// and a Builder that moved there when Info was absent would be a panel whose PLACE depended
-// on which other panels were open -- which is a layout policy, and a fiddly one, arriving
-// as a side effect. The dock stays where BLD-0 put it, over the workspace, still awkward,
-// and the awkwardness is still the evidence a layout phase should be built on.
+// PNL-0 DID NOT MOVE THE BUILDER HERE-OR-THERE BY WHAT ELSE IS OPEN, and PNL-1 has not
+// either. A Builder that took the column when Info was absent would be a panel whose PLACE
+// depended on which other panels were open -- a layout policy, and a fiddly one, arriving as
+// a side effect. A place is a fact about a KIND (panel.hpp's catalog); what varies at
+// runtime is only which slot of this stack an open panel is in.
 //
 // AND IT IS AWKWARD ON PURPOSE-ADJACENT GROUNDS: it covers the material a maker is
-// building. That awkwardness is the phase's evidence rather than its embarrassment -- the
-// first thing a second panel kind or a longer-lived Builder will produce is the demand for
-// somewhere to PUT panels, and inventing docking now would be answering that demand before
-// anybody has felt it. What using it actually felt like is in the report.
-inline constexpr std::int64_t kDockX = 0;
-inline constexpr std::int64_t kDockY = kWorkspaceY; ///< directly under the screen's title row
-inline constexpr std::int64_t kDockW = 48;          ///< wide enough for a build recipe's tail
-inline constexpr std::int64_t kPanelRows = 9;       ///< every panel kind is this tall, for now
-inline constexpr std::int64_t kDockGap = 1;         ///< a blank row between stacked panels
-
-/// Where the n-th open panel's top-left corner is.
-inline constexpr std::int64_t panel_top(std::size_t index) noexcept {
-    return kDockY + static_cast<std::int64_t>(index) * (kPanelRows + kDockGap);
-}
+// building. That awkwardness is the evidence rather than the embarrassment -- inventing
+// docking would be answering a demand ahead of anybody feeling it. What using it actually
+// felt like is in the reports.
+inline constexpr std::int64_t kStackX = 0;
+inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the screen's title row
+inline constexpr std::int64_t kStackW = 48;          ///< wide enough for a build recipe's tail
+inline constexpr std::int64_t kStackRows = 9; ///< every panel placed here is this tall, for now
+inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
 
 /// How many rows of the picker carry anything: the header, then one per catalog entry. It
-/// has no instance and no place in the stack -- it opens over the top of everything in the
-/// dock, because it is a question rather than a thing.
+/// has no instance and takes no slot -- it opens over the stack's FIRST slot, because it is
+/// a question rather than a thing.
 ///
 /// IT PAINTS A WHOLE PANEL'S WORTH OF ROWS ANYWAY, and that is a live finding rather than a
 /// preference (PNL-0). A picker three rows tall over a panel nine rows tall left the panel's
@@ -265,19 +271,111 @@ static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pa
 static_assert(kMinScreen.terminal_w == 56 && kMinScreen.terminal_h == 13, "the pane's extent");
 static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
 
-// The dock fits the SMALLEST screen this composition is honest on, which is the only extent
-// it has to fit: a wider surface gives the workspace more room and gives the dock exactly as
-// much as it had, the same rule the panel column and the bottom band follow. Asserted rather
-// than assumed because these are four separate constants and nothing else would notice one of
-// them growing past the furniture beside it.
-static_assert(kDockX + kDockW <= kMinScreen.panel_x - kPanelGap,
-              "a docked panel never reaches the Info column");
-static_assert(kDockX + kDockW == kMinScreen.room_w,
-              "the dock is exactly the minimum screen's workspace width -- it covers the top "
+// ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
+//
+// THE ONE PLACE A PANEL'S GEOMETRY IS WORKED OUT (PNL-1). Before this, each panel kind's
+// painter carried its own: the Builder wrote its rows at the stack's x and padded them to
+// the stack's width, Info wrote its labels at `Screen::panel_x`, and the picker knew all
+// three of the stack's numbers. So "where is this panel, and what bounds belong to it" was a
+// question you answered by reading two painters, and a third kind would have arrived with a
+// third set of constants and a third chance to overlap something.
+//
+//     panel kind  ->  placement intent (panel.hpp)  ->  placement_bounds()  ->  the
+//                                                              painter is HANDED that rect
+//
+// WHAT THIS IS NOT: a docking framework, an anchor system, a constraint solver, or a way for
+// a kind to ask for somewhere neither place is. `placement_bounds` has two branches because
+// Workshop has two places, and a third would be a phase with evidence for a third place.
+// What a third KIND costs, meanwhile, is a catalog row -- it declares one of these two and
+// is handed a rectangle, and nothing in this section changes.
+//
+// THE RECTANGLES ARE CANVAS CELLS, not workspace cells. The document's own scene is resolved
+// against the workspace and offset by `kWorkspaceX/kWorkspaceY` at paint time; a panel's
+// bounds are already where they are on the canvas. Both are `ui::Rect` because both are
+// resolved observations of the same kind -- but a panel rect handed to `ui::hit` would be
+// asking a question about the wrong space.
+
+/// THE BOUNDS A PLACE RESOLVES TO on this screen, in canvas cells.
+///
+/// `slot` is a panel's position in the overlay stack, counted over the panels actually
+/// placed there; the side region has room for exactly one panel (panel.hpp asserts it) and
+/// ignores the slot entirely.
+///
+/// TOTAL, like every other function here that takes a number it did not choose. `Screen` is
+/// already clamped, and the slot is clamped to the tallest screen this composition lays out
+/// -- a slot below that is off every screen anyway, and without the clamp a large enough
+/// slot is a signed multiply that leaves the number line. Nothing reachable passes one (the
+/// open list is bounded by the catalog), which is exactly the argument W-1 measured wrong
+/// once already.
+inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
+                                           const Screen& sc) noexcept {
+    if (where == placement::kSideRegion) {
+        // From the top of the canvas to the bottom of the workspace: the column beside the
+        // material, ending where the bottom band begins.
+        return ui::Rect{sc.panel_x, kSideY, kPanelCols, kWorkspaceY + sc.room_h - kSideY};
+    }
+    const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
+                               ? kScreenMaxH
+                               : static_cast<std::int64_t>(slot);
+    return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap), kStackW, kStackRows};
+}
+
+/// What the one narrow path answers with: whether this kind is open, where its kind is
+/// placed, and the rectangle it occupies if it is open at all.
+struct PanelBounds {
+    bool open = false;
+    /// THE KIND'S DECLARED PLACE, open or not — a fact about the catalog rather than about
+    /// this session, so it is answerable for a panel nobody has opened.
+    std::int64_t placed_in = placement::kOverlayStack;
+    /// EMPTY WHEN THE PANEL IS NOT OPEN, deliberately: a caller that forgets to ask `open`
+    /// gets a rectangle that contains nothing (`ui::Rect::contains` says so for w/h <= 0)
+    /// rather than the first slot's, which would be a closed panel answering as though it
+    /// were somewhere.
+    ui::Rect rect{};
+};
+
+/// WHERE AN OPEN PANEL IS RIGHT NOW — the one narrow path, and the only thing that knows how
+/// a slot is earned.
+///
+/// A panel takes the next slot in the stack only if it is PLACED in the stack, so an Info
+/// ahead of a Builder in the open list never pushes it down a slot it does not occupy. That
+/// rule used to be a counter inside the painting loop that named a kind; it is stated here
+/// once, and a third kind is counted by it without being mentioned in it.
+inline PanelBounds bounds_of(const Panels& panels, std::int64_t kind, const Screen& sc) noexcept {
+    std::size_t slot = 0;
+    for (const Panel& p : panels.open) {
+        const std::int64_t where = placement_of(p.kind);
+        if (p.kind == kind) {
+            return PanelBounds{true, where, placement_bounds(where, slot, sc)};
+        }
+        if (where == placement::kOverlayStack) {
+            ++slot;
+        }
+    }
+    return PanelBounds{false, placement_of(kind), ui::Rect{}};
+}
+
+// The two places fit the SMALLEST screen this composition is honest on, which is the only
+// extent they have to fit: a wider surface gives the workspace more room and gives each of
+// these exactly as much as it had, the same rule the bottom band follows. Asserted over the
+// RESOLVED rectangles rather than over the constants behind them, which is what PNL-1 bought
+// -- "these two places do not overlap" is now one comparison of two rectangles instead of a
+// hand-checked relation between four separate numbers.
+inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
+inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
+
+static_assert(kMinStack.x + kMinStack.w <= kMinSide.x - kPanelGap,
+              "the two places do not overlap: a stacked panel never reaches the side region");
+static_assert(kMinStack.x + kMinStack.w == kMinScreen.room_w,
+              "the stack is exactly the minimum screen's workspace width -- it covers the top "
               "of the workspace and nothing else");
-static_assert(panel_top(0) + kPanelRows <= kMinScreen.notice_y,
-              "the first dynamic panel stays clear of the notice line");
-static_assert(kPickerRows <= kPanelRows, "the picker is never taller than a panel");
+static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
+              "the stack's first slot stays clear of the notice line");
+static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,
+              "the side region reaches the screen's right edge");
+static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
+              "the side region ends where the workspace does, above the bottom band");
+static_assert(kPickerRows <= kStackRows, "the picker is never taller than a panel");
 
 /// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
 inline constexpr std::int64_t kWorkspaceW = kMinScreen.room_w;
@@ -1553,18 +1651,24 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
 // overlay mechanisms would be two answers to "what does an overlay do about the furniture
 // below it", and this file has already answered it once.
 
-/// One panel-shaped block of rows at a corner, with its backdrop. The shared half of every
-/// panel kind, so a second kind writes its content and inherits its shape.
-inline void paint_panel_frame(surface::SurfaceCanvas& c, std::int64_t top, std::int64_t rows) {
-    c.rects.push_back(surface::SurfaceRect{kDockX, top, kDockW, rows, surface::role::kMuted});
+/// The backdrop of an overlaid panel: its whole bounds, in one rect.
+///
+/// IT IS THE OVERLAY'S SHAPE AND NOT EVERY PANEL'S, and PNL-1 did not change that. BLD-0
+/// wrote that these two helpers were "the shared half of every panel kind, so a second kind
+/// writes its content and inherits its shape"; PNL-0 measured that prediction false, because
+/// the second kind is a column of bare labels with no backdrop and no padding. What is
+/// genuinely shared between the two kinds is that each occupies some resolved bounds -- so
+/// bounds is what got factored, and these still belong to the panels that overlay something.
+inline void paint_panel_frame(surface::SurfaceCanvas& c, const ui::Rect& b) {
+    c.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
 }
 
-/// One row of a panel, fitted and padded to the dock's width.
-inline void paint_panel_row(surface::SurfaceCanvas& c, std::int64_t top, std::int64_t line,
+/// One row of an overlaid panel, fitted and padded to its bounds' width.
+inline void paint_panel_row(surface::SurfaceCanvas& c, const ui::Rect& b, std::int64_t line,
                             const std::string& text, std::int64_t role) {
     c.labels.push_back(surface::SurfaceLabel{
-        kDockX, top + line,
-        detail::pad(detail::fit(text, kDockW), static_cast<std::size_t>(kDockW)), role});
+        b.x, b.y + line, detail::pad(detail::fit(text, b.w), static_cast<std::size_t>(b.w)),
+        role});
 }
 
 /// A panel's own field: a fixed-width label and its value, so the values line up down the
@@ -1582,11 +1686,11 @@ inline std::string panel_field(const char* label, const std::string& value) {
 /// "there was more", and a block silently ending mid-thought is exactly the failure
 /// `detail::fit` exists to prevent one row at a time.
 inline std::vector<std::string> panel_block(const char* label, const std::string& value,
-                                            std::size_t rows) {
-    std::vector<std::string> lines = detail::wrap(panel_field(label, value), kDockW);
+                                            std::size_t rows, std::int64_t width) {
+    std::vector<std::string> lines = detail::wrap(panel_field(label, value), width);
     if (lines.size() > rows) {
         lines.resize(rows);
-        lines.back() = detail::fit(lines.back() + " " + detail::kElided, kDockW);
+        lines.back() = detail::fit(lines.back() + " " + detail::kElided, width);
     }
     while (lines.size() < rows) {
         lines.push_back(std::string());
@@ -1599,10 +1703,16 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// Every value on it came off the bus as `builder::BuildStatus`, published by the tool. The
 /// panel computes none of them, remembers none of them past a close, and states the one
 /// thing that is genuinely its own: whether the tool has answered it yet.
-inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane, std::int64_t top) {
-    paint_panel_frame(c, top, kPanelRows);
-    const auto row = [&c, top](std::int64_t line, const std::string& text, std::int64_t role) {
-        paint_panel_row(c, top, line, text, role);
+///
+/// IT IS HANDED ITS BOUNDS AND DOES NOT KNOW WHERE THEY CAME FROM (PNL-1). Every number
+/// below is either a row of its own content or a reading off `b` -- there is no `kStackX` in
+/// this function any more, and no `kStackRows`, so what it means to move this panel or to
+/// give it a different amount of room is entirely `placement_bounds`'s business.
+inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
+                          const ui::Rect& b) {
+    paint_panel_frame(c, b);
+    const auto row = [&c, &b](std::int64_t line, const std::string& text, std::int64_t role) {
+        paint_panel_row(c, b, line, text, role);
     };
     // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
     // header follows: a presentation that shows somebody else's facts without saying whose
@@ -1619,7 +1729,7 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane, st
         // own history is not knowable from here until the tool says it.
         row(1, panel_field("target", "(the Builder has not answered yet)"),
             surface::role::kMuted);
-        for (std::int64_t i = 2; i < kPanelRows; ++i) {
+        for (std::int64_t i = 2; i < b.h; ++i) {
             row(i, std::string(), surface::role::kFill);
         }
         return;
@@ -1665,7 +1775,7 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane, st
     // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends when
     // something has gone wrong, and one row of a compiler's answer is a row of nothing.
     const std::vector<std::string> said =
-        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3);
+        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3, b.w);
     for (std::size_t i = 0; i < said.size(); ++i) {
         row(5 + static_cast<std::int64_t>(i), said[i], surface::role::kMuted);
     }
@@ -1680,17 +1790,22 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane, st
 /// was previously nowhere on this list — so a picker that showed only names would be asking a
 /// maker to remember whether the thing they are about to select is currently there. The state
 /// gets its own fixed column so the words line up and the list reads down rather than across.
-inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels) {
+///
+/// IT ASKS FOR THE STACK'S FIRST SLOT rather than knowing where that is (PNL-1). The picker
+/// is a mode and not a panel -- it has no catalog row to declare a place in — so this is the
+/// one caller that names a place itself, and naming one is all it does.
+inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Screen& sc) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
         return;
     }
-    paint_panel_frame(c, kDockY, kPanelRows);
-    paint_panel_row(c, kDockY, 0, "+ PANEL -- up/down, enter opens or removes",
+    const ui::Rect b = placement_bounds(placement::kOverlayStack, 0, sc);
+    paint_panel_frame(c, b);
+    paint_panel_row(c, b, 0, "+ PANEL -- up/down, enter opens or removes",
                     surface::role::kAccent);
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         const bool here = i == picker.cursor;
-        paint_panel_row(c, kDockY, 1 + static_cast<std::int64_t>(i),
+        paint_panel_row(c, b, 1 + static_cast<std::int64_t>(i),
                         std::string(here ? "> " : "  ") + detail::pad(kPanelCatalog[i].name, 10) +
                             detail::pad(panels.has(kPanelCatalog[i].kind) ? "open" : "closed", 8) +
                             kPanelCatalog[i].summary,
@@ -1699,8 +1814,8 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels) {
     // THE REST OF THE SLOT, PADDED AND BLANK. In a character medium those spaces are what
     // erase the panel underneath; without them the panel's own rows read as more of this
     // list. See kPickerRows.
-    for (std::int64_t row = kPickerRows; row < kPanelRows; ++row) {
-        paint_panel_row(c, kDockY, row, std::string(), surface::role::kFill);
+    for (std::int64_t row = kPickerRows; row < b.h; ++row) {
+        paint_panel_row(c, b, row, std::string(), surface::role::kFill);
     }
 }
 
@@ -1718,14 +1833,22 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels) {
 /// panel destroys nothing and reopening it asks nobody, which is exactly how it differs from
 /// the Builder beside it and exactly why it is worth having as the second kind.
 ///
-/// IT IS NOT IN THE DOCK, and it does not use the dock's frame. `paint_panel_frame` and
-/// `paint_panel_row` are the DOCK's shape — a backdrop at `kDockX` and rows padded to
-/// `kDockW` — and BLD-0's comment on them ("so a second kind writes its content and inherits
-/// its shape") turned out to be a prediction rather than a description: the second kind sits
-/// somewhere else and inherits none of it. Nothing was generalised to fix that. A panel kind
-/// knows where it goes, there are two places, and each is spelled out where it is used.
+/// IT IS NOT IN THE STACK, and it does not use the stack's frame. `paint_panel_frame` and
+/// `paint_panel_row` are the OVERLAY's shape — a backdrop and rows padded to a panel's full
+/// width — and BLD-0's comment on them ("so a second kind writes its content and inherits its
+/// shape") turned out to be a prediction rather than a description: the second kind is a
+/// column of bare labels and inherits none of it. PNL-1 did not rescue that abstraction
+/// either. What the two kinds genuinely share is that each occupies some resolved bounds, so
+/// bounds is what was factored — this function is handed a rectangle and writes inside it,
+/// and how it fills it is still nothing like how the Builder fills its own.
+///
+/// EVERY COORDINATE BELOW IS RELATIVE TO `b`. `kListY` and `kRowsY` are rows within this
+/// panel; `b.x` is its column. There is no `Screen` here any more, which is the measurable
+/// half of PNL-1 for this kind: what used to be "the painter reads `sc.panel_x`, the same
+/// number `screen_of` gives the workspace to measure against" is now "the painter is told
+/// where it is".
 inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                       const Screen& sc) {
+                       const ui::Rect& b) {
     const auto label = [&c](std::int64_t x, std::int64_t y, std::string text, std::int64_t role) {
         c.labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
     };
@@ -1736,25 +1859,25 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     // which side. The markers are in the panel's own muted role because they are
     // the tool's furniture and not authored material: nothing here mints an
     // identity, invents a name, or reorders a document to make a screen fit.
-    label(sc.panel_x, kListY - 1, "OBJECTS", surface::role::kAccent);
+    label(b.x, b.y + kListY - 1, "OBJECTS", surface::role::kAccent);
     const ListWindow window = list_window(d.elements.size(), position_of(d, s.selected),
                                           static_cast<std::size_t>(kListRows));
     std::int64_t line = 0;
     if (window.before > 0) {
-        label(sc.panel_x, kListY + line, omitted_text(window.before, "earlier"),
+        label(b.x, b.y + kListY + line, omitted_text(window.before, "earlier"),
               surface::role::kMuted);
         ++line;
     }
     for (std::size_t i = 0; i < window.count; ++i) {
         const ui::Element& e = d.elements[window.first + i];
         const bool chosen = e.id == s.selected;
-        label(sc.panel_x, kListY + line,
+        label(b.x, b.y + kListY + line,
               std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label,
               chosen ? surface::role::kAccent : surface::role::kFill);
         ++line;
     }
     if (window.after > 0) {
-        label(sc.panel_x, kListY + line, omitted_text(window.after, "more"),
+        label(b.x, b.y + kListY + line, omitted_text(window.after, "more"),
               surface::role::kMuted);
         ++line;
     }
@@ -1764,13 +1887,13 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     // next, because the answer is one
     // key and the alternative is a maker who thinks they have destroyed it.
     if (d.elements.empty()) {
-        label(sc.panel_x, kListY, "(none) -- n makes one", surface::role::kMuted);
+        label(b.x, b.y + kListY, "(none) -- n makes one", surface::role::kMuted);
     }
 
     // The inspector.
-    label(sc.panel_x, kRowsY - 1, "PROPERTIES", surface::role::kAccent);
+    label(b.x, b.y + kRowsY - 1, "PROPERTIES", surface::role::kAccent);
     if (s.rows.empty()) {
-        label(sc.panel_x, kRowsY, "(nothing selected)", surface::role::kMuted);
+        label(b.x, b.y + kRowsY, "(nothing selected)", surface::role::kMuted);
     }
     for (std::size_t i = 0; i < s.rows.size(); ++i) {
         const Row& row = s.rows[i];
@@ -1781,37 +1904,37 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
         } else if (!row.editable()) {
             role = surface::role::kMuted; // not the maker's to author
         }
-        label(sc.panel_x, kRowsY + static_cast<std::int64_t>(i),
+        label(b.x, b.y + kRowsY + static_cast<std::int64_t>(i),
               std::string(here ? ">" : " ") + detail::pad(row.label(), 9) + row.display(), role);
     }
 }
 
 /// Every open panel, then the picker over them. The one call `paint` makes.
 ///
-/// TWO PLACEMENTS, AND THE LOOP KNOWS THE DIFFERENCE. A docked panel takes the next slot
-/// down the left-hand stack; Info takes the right-hand column, which is a fixed place with
-/// room for exactly one thing in it. So the slot counter counts DOCKED panels rather than
-/// open ones -- an Info panel ahead of a Builder in the list must not push the Builder down
-/// a slot it does not occupy, and `open`'s order is a maker's opening order, not a layout.
+/// THE LOOP NO LONGER KNOWS ANY GEOMETRY (PNL-1). It asks the placement path where each open
+/// panel is and hands the answer to that kind's painter; the branch that remains chooses a
+/// PAINTER, which is the one thing about a panel kind that genuinely cannot be shared -- the
+/// Builder draws a tool's status and Info draws a document. Before this, the same branch also
+/// carried the placement (one kind got a slot in a stack, the other got a column) and a
+/// counter that named a kind to decide which panels earned a slot.
 ///
-/// This is the smallest honest shape and not a layout policy: there is no placement
-/// vocabulary, no anchor, no docking side, no constraint. There are two places, both are
-/// constants, and each kind's line below says which one it is in. The moment a third kind
-/// wants somewhere that is neither, that is the phase which has to answer the layout
-/// question -- and it will have two worked examples to answer it from rather than one.
+/// A THIRD KIND IS A CATALOG ROW AND A LINE HERE, and neither of them is geometry. That is
+/// the whole of what PNL-1 set out to be worth: the placement question is answered where a
+/// kind is DECLARED rather than where it is drawn, so the third one does not arrive with a
+/// third set of constants. What it still cannot do is ask for somewhere neither place is --
+/// that is the layout phase, and it now has two named places to argue from.
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc) {
     const Panels& panels = s.panels;
-    std::size_t docked = 0;
-    for (std::size_t i = 0; i < panels.open.size(); ++i) {
-        if (panels.open[i].kind == panel::kBuilder) {
-            paint_builder(c, panels.builder, panel_top(docked));
-            ++docked;
-        } else if (panels.open[i].kind == panel::kInfo) {
-            paint_info(c, d, s, sc);
+    for (const Panel& p : panels.open) {
+        const ui::Rect b = bounds_of(panels, p.kind, sc).rect;
+        if (p.kind == panel::kBuilder) {
+            paint_builder(c, panels.builder, b);
+        } else if (p.kind == panel::kInfo) {
+            paint_info(c, d, s, b);
         }
     }
-    paint_picker(c, panels);
+    paint_picker(c, panels, sc);
 }
 
 /// The whole screen as one published canvas.
@@ -1903,12 +2026,12 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
     // already, and this row has twenty-nine free cells between the workspace title and
     // OBJECTS. It is LEFT-anchored beside the title rather than right-anchored beside the
     // terminal hint, because a maker looking for something to do with the workspace reads
-    // left to right and the dock it opens into is on this side.
+    // left to right and the stack it opens into is on this side.
     label(24, 0, "[+ panel]  p", surface::role::kMuted);
 
     // THE DYNAMIC PANELS -- every one of them, INCLUDING the OBJECTS and PROPERTIES columns
     // a maker has always read on the right. They come after the scene and the size handle so
-    // that in a character medium a docked panel's padded rows erase the authored material
+    // that in a character medium a stacked panel's padded rows erase the authored material
     // behind them rather than being erased by it, and before the notice and help lines, which
     // no panel reaches.
     //

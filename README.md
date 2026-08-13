@@ -723,7 +723,7 @@ come to lie about rows spent on wrapping. Discoverability is unchanged and delib
 any line the pane does not recognise (including `help`) answers with the grammar, and the pane
 still speaks two verbs.
 
-### Dynamic panels: Builder and Info (BLD-0, PNL-0)
+### Dynamic panels: Builder and Info (BLD-0, PNL-0, PNL-1)
 
 > A weave may provide a tool; a **panel** is its presentation.
 
@@ -768,14 +768,28 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   `BuildRequested`, both scoped *to the Builder office*. It cannot reach the runner, and the
   only build it can ask for is the one the tool has already named — a panel that has not heard
   from its tool cannot ask for anything, and says so.
-- **There are two placements, and no layout policy.** `Builder` is an overlay anchored to the
-  canvas's top-left, exactly the workspace's width at the minimum screen, stacked downwards —
-  the terminal overlay's mechanism pointed at the other corner — and it covers the top of the
-  material a maker is building. `Info` is the fixed right-hand column it has always been.
-  Each kind knows which of the two it is in; the dock's stack counts *docked* panels, so an
-  `Info` ahead of a `Builder` in the open list never pushes it down a slot it does not occupy.
-  Docking, tabs, saved layouts, dragging and resizing are all absent, and what using two
-  unalike panels felt like is the evidence for whichever of them gets built.
+- **There are two places, they are named, and there is no layout policy** (PNL-1). A kind
+  DECLARES its place in the catalog — `placement::kOverlayStack` or `placement::kSideRegion` —
+  and one function turns a place plus a screen into the rectangle that panel occupies:
+
+  ```text
+  panel kind  ->  placement intent (panel.hpp)  ->  placement_bounds()  ->  the painter is
+                                                                           handed that rect
+  ```
+
+  The **overlay stack** is anchored to the canvas's top-left, exactly the workspace's width at
+  the minimum screen, stacked downwards — the terminal overlay's mechanism pointed at the other
+  corner — and it covers the top of the material a maker is building. The **side region** is
+  the fixed right-hand column `Info` has always been; it holds exactly one panel, and a second
+  kind declaring it is a compile-time refusal rather than two panels painting over each other.
+  A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
+  list never pushes it down a slot it does not occupy. `bounds_of(panels, kind, screen)` is the
+  one path to an open panel's bounds — a closed one answers with an empty rectangle rather than
+  with the place it would have had. Before PNL-1 each painter carried its own column and the
+  two places existed only as agreement between them; what a third kind costs now is a catalog
+  row and a painter, neither of which is geometry. Docking, tabs, saved layouts, dragging,
+  resizing and focus are all still absent, and what using two unalike panels felt like is the
+  evidence for whichever of them gets built.
 - **Removing `Info` leaves its 28 columns empty, deliberately.** Giving them to the workspace
   would not be a tidier layout — the workspace's extent is what a share resolves against, so
   every `%`-wide object on screen would change size because a maker hid a list of names. A

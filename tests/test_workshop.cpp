@@ -6096,16 +6096,28 @@ ToolSeat* mount_tool(Live& t, const std::string& target) {
     return raw;
 }
 
-/// Everything the dock is showing, top to bottom -- the panel's own column.
-std::string dock_text(const surface::SurfaceCanvas& c) {
+/// EVERYTHING AT A PANEL'S BOUNDS, top to bottom.
+///
+/// One helper for both kinds, and that is PNL-1 arriving in the suite: "what is
+/// this panel showing" used to be two questions with two different answers --
+/// one walked the stack's hard-coded column and rows, the other walked every
+/// label at `Screen::panel_x` -- and it is now one question about a rectangle.
+std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b) {
     std::string out;
     for (const surface::SurfaceLabel& l : c.labels) {
-        if (l.x == kDockX && l.y >= kDockY && l.y < kDockY + kPanelRows) {
+        if (l.x == b.x && l.y >= b.y && l.y < b.y + b.h) {
             out += l.text;
             out += '\n';
         }
     }
     return out;
+}
+
+/// What the overlay stack's first slot is showing, whatever is in it. The stack
+/// is anchored to the canvas's top-left, so its bounds are the same on every
+/// screen and the minimum one answers for all of them.
+std::string stack_text(const surface::SurfaceCanvas& c) {
+    return panel_text(c, placement_bounds(placement::kOverlayStack, 0, kMinScreen));
 }
 
 /// Where a kind sits in the catalog, so a case names a KIND rather than a row
@@ -6137,16 +6149,20 @@ void pick(Live& t, std::int64_t kind) {
 /// Open the Builder panel the way a maker does.
 void open_builder(Live& t) { pick(t, panel::kBuilder); }
 
-/// Everything the Info column is showing, top to bottom.
+/// THE BUILDER IS IN THE STACK'S FIRST SLOT, asked through the placement path
+/// and read off the canvas at the answer -- so the case cannot agree with the
+/// screen by both of them holding the same constant.
+bool first_slot_shows_builder(Live& t) {
+    const Screen sc = screen_of(t.session());
+    const PanelBounds at = bounds_of(t.session().panels, panel::kBuilder, sc);
+    return at.open && at.rect == placement_bounds(placement::kOverlayStack, 0, sc) &&
+           label_at(t.canvases.back(), at.rect.x, at.rect.y).find("BUILDER") == 0;
+}
+
+/// Everything the Info panel is showing, top to bottom -- through the same path,
+/// asked about the other place.
 std::string info_text(const surface::SurfaceCanvas& c, const Screen& sc) {
-    std::string out;
-    for (const surface::SurfaceLabel& l : c.labels) {
-        if (l.x == sc.panel_x) {
-            out += l.text;
-            out += '\n';
-        }
-    }
-    return out;
+    return panel_text(c, placement_bounds(placement::kSideRegion, 0, sc));
 }
 
 } // namespace
@@ -6163,8 +6179,8 @@ TEST_CASE("the catalog is what the picker offers, and it says which kinds are op
     Session s; // a fresh session: Info open, Builder not
     s.panels.picker.open = true;
     surface::SurfaceCanvas c;
-    paint_picker(c, s.panels);
-    const std::string shown = dock_text(c);
+    paint_picker(c, s.panels, screen_of(s));
+    const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
     CHECK(shown.find("Builder") != std::string::npos);
     CHECK(shown.find(kPanelCatalog[0].summary) != std::string::npos);
@@ -6190,17 +6206,17 @@ TEST_CASE("a panel opens from the picker, is removed, and opens again") {
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.w->session().panels.picker.open);
     CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("BUILDER") != std::string::npos);
 
     // THE SAME DOOR REMOVES IT (PNL-0). There is no close key; selecting a kind
     // that is open is what takes it away.
     open_builder(t);
     CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
-    CHECK(dock_text(t.canvases.back()).find("BUILDER") == std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("BUILDER") == std::string::npos);
 
     open_builder(t);
     CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("BUILDER") != std::string::npos);
     // ...and every one of those opens ASKED the tool, which is the half that
     // makes a reopened panel show a live tool rather than a remembered one.
     CHECK(tool->described == 2);
@@ -6228,7 +6244,7 @@ TEST_CASE("opening a Builder panel ASKS the tool, and shows what the tool answer
     open_builder(t);
 
     CHECK(tool->described == 1);
-    const std::string shown = dock_text(t.canvases.back());
+    const std::string shown = stack_text(t.canvases.back());
     // The target's NAME is the one fact that exists before any build, and it
     // came from the tool -- Workshop holds no target of its own.
     CHECK(shown.find("zengine-snake") != std::string::npos);
@@ -6254,7 +6270,7 @@ TEST_CASE("Build asks for the name the TOOL gave, and asks for nothing without o
     // before a synchronous build takes the pump away.
     CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
     CHECK(t.w->session().panels.builder.awaiting);
-    CHECK(dock_text(t.canvases.back()).find("waiting for it to finish") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("waiting for it to finish") != std::string::npos);
 }
 
 TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
@@ -6263,7 +6279,7 @@ TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
     // Workshop has no target to name, and names none.
     open_builder(t);
     CHECK(t.w->session().panels.has(panel::kBuilder));
-    CHECK(dock_text(t.canvases.back()).find("has not answered yet") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("has not answered yet") != std::string::npos);
 
     t.key(input::scan::kB);
     CHECK(t.w->session().notice.find("has not said what it builds") != std::string::npos);
@@ -6282,7 +6298,7 @@ TEST_CASE("success and failure are both on the screen, and both true") {
         tool->next.builds = 1;
         t.key(input::scan::kB);
 
-        const std::string shown = dock_text(t.canvases.back());
+        const std::string shown = stack_text(t.canvases.back());
         CHECK(shown.find("succeeded") != std::string::npos);
         CHECK(shown.find("Built target zengine-snake") != std::string::npos);
         CHECK(t.w->session().notice == "built zengine-snake -- exit 0");
@@ -6297,7 +6313,7 @@ TEST_CASE("success and failure are both on the screen, and both true") {
         tool->next.builds = 1;
         t.key(input::scan::kB);
 
-        const std::string shown = dock_text(t.canvases.back());
+        const std::string shown = stack_text(t.canvases.back());
         CHECK(shown.find("FAILED") != std::string::npos);
         CHECK(shown.find("Error 2") != std::string::npos);
         CHECK(t.w->session().notice.find("BUILD FAILED") != std::string::npos);
@@ -6310,7 +6326,7 @@ TEST_CASE("success and failure are both on the screen, and both true") {
         tool->next.detail = "could not run it (not found, or not executable)";
         t.key(input::scan::kB);
 
-        const std::string shown = dock_text(t.canvases.back());
+        const std::string shown = stack_text(t.canvases.back());
         CHECK(shown.find("did not start") != std::string::npos);
         // A `0` in the exit column after a build that never began would read as
         // success at the exact moment a maker most needs the right answer.
@@ -6333,7 +6349,7 @@ TEST_CASE("a status this panel did not ask for is SHOWN, and never ANNOUNCED") {
 
     open_builder(t);
     // The panel SHOWS the tool's history...
-    const std::string shown = dock_text(t.canvases.back());
+    const std::string shown = stack_text(t.canvases.back());
     CHECK(shown.find("succeeded") != std::string::npos);
     CHECK(shown.find("asks 7 ever") != std::string::npos);
     // ...and says nothing about a build happening, because none did.
@@ -6370,7 +6386,7 @@ TEST_CASE("closing forgets the panel's copy; the TOOL keeps its own count") {
     // a panel that owned the state could not produce.
     open_builder(t);
     CHECK(t.w->session().panels.builder.shown.builds == 9);
-    CHECK(dock_text(t.canvases.back()).find("asks 9 ever") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("asks 9 ever") != std::string::npos);
 }
 
 TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
@@ -6401,7 +6417,7 @@ TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
     CHECK(tool->described == asked_of_tool);
 }
 
-TEST_CASE("the dock covers the workspace and never reaches the panel column") {
+TEST_CASE("a stacked panel covers the workspace and never reaches the side region") {
     Live t;
     (void)mount_tool(t, "zengine-snake");
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
@@ -6410,23 +6426,236 @@ TEST_CASE("the dock covers the workspace and never reaches the panel column") {
     // one new thing: the row-0 hint that says how to open one.
     const surface::SurfaceCanvas bare = t.canvases.back();
     CHECK(label_at(bare, 24, 0) == "[+ panel]  p");
-    CHECK(dock_text(bare).empty());
+    CHECK(stack_text(bare).empty());
 
     open_builder(t);
     const surface::SurfaceCanvas with = t.canvases.back();
     const Screen sc = screen_of(t.session());
+    // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those
+    // rather than against a column this case knows independently.
+    const ui::Rect stack = bounds_of(t.session().panels, panel::kBuilder, sc).rect;
     for (const surface::SurfaceLabel& l : with.labels) {
-        if (l.x == kDockX && l.y >= kDockY && l.y < kDockY + kPanelRows) {
-            // Every dock row is padded to the dock's width, so in a character
-            // medium the spaces erase the workspace under it rather than
-            // punching holes through to it.
-            CHECK(l.text.size() == static_cast<std::size_t>(kDockW));
-            CHECK(kDockX + kDockW <= sc.panel_x);
+        if (l.x == stack.x && l.y >= stack.y && l.y < stack.y + stack.h) {
+            // Every stacked row is padded to the panel's own width, so in a
+            // character medium the spaces erase the workspace under it rather
+            // than punching holes through to it.
+            CHECK(l.text.size() == static_cast<std::size_t>(stack.w));
+            CHECK(stack.x + stack.w <= sc.panel_x);
         }
     }
     // The OBJECTS and PROPERTIES columns are untouched by any of this.
     CHECK(label_at(with, sc.panel_x, kListY - 1) == "OBJECTS");
     CHECK(label_at(with, sc.panel_x, kRowsY - 1) == "PROPERTIES");
+}
+
+// ---- PNL-1: the two places, said once -------------------------------------------------
+//
+// WHAT THESE CASES ARE ABOUT is not where the two panels are -- the case above and the
+// 186 that came before it already pin that, cell by cell, and every one of them still
+// passes unchanged. It is WHERE THAT ANSWER COMES FROM: a kind declares one of two
+// places in the catalog, `placement_bounds` turns a place into a rectangle on a screen,
+// and each painter is handed the rectangle. Before PNL-1 the same answer was arrived at
+// twice, by two painters that each knew a column of their own.
+
+TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
+    // THE INTENT IS AUTHORED IN THE CATALOG. It is a fact about the kind, known
+    // before anything is open and readable without a screen anywhere near it.
+    CHECK(placement_of(panel::kBuilder) == placement::kOverlayStack);
+    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
+    CHECK(kinds_placed_in(placement::kSideRegion) == 1); // asserted at compile time too
+    CHECK(kinds_placed_in(placement::kOverlayStack) == 1);
+
+    // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and they are the two places
+    // Workshop has always had: the column beside the workspace, and the top of
+    // the workspace itself.
+    const ui::Rect side = placement_bounds(placement::kSideRegion, 0, kMinScreen);
+    const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
+    CHECK(side == ui::Rect{50, 0, 28, 17});
+    CHECK(stack == ui::Rect{0, 1, 48, 9});
+
+    // AND THEY DO NOT OVERLAP -- one comparison of two rectangles, which is what
+    // the model bought: it was a hand-checked relation between four separate
+    // constants before, and nothing would have noticed one of them moving.
+    CHECK(stack.x + stack.w <= side.x);
+    CHECK(side.x + side.w == kMinScreen.w);          // the region reaches the right edge
+    CHECK(stack.y + stack.h <= kMinScreen.notice_y); // neither reaches the bottom band
+    CHECK(side.y + side.h <= kMinScreen.notice_y);
+    // The side region is the SCREEN'S own reservation made into a rectangle: the
+    // workspace measures against that column whether or not a panel is in it,
+    // which is why removing Info moves nothing.
+    CHECK(side.x == kMinScreen.panel_x);
+    CHECK(side.w == kPanelCols);
+    CHECK(kMinScreen.room_w == side.x - kPanelGap);
+}
+
+TEST_CASE("each panel is painted where the placement path says it is") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+    const surface::SurfaceCanvas c = t.canvases.back();
+
+    const PanelBounds info = bounds_of(t.session().panels, panel::kInfo, sc);
+    const PanelBounds builder = bounds_of(t.session().panels, panel::kBuilder, sc);
+    REQUIRE(info.open);
+    REQUIRE(builder.open);
+    CHECK(info.placed_in == placement::kSideRegion);
+    CHECK(builder.placed_in == placement::kOverlayStack);
+
+    // INFO'S REGION COMES FROM THE PATH: its two headings are at the rectangle it
+    // was handed, on the rows it keeps inside that rectangle.
+    CHECK(label_at(c, info.rect.x, info.rect.y + kListY - 1) == "OBJECTS");
+    CHECK(label_at(c, info.rect.x, info.rect.y + kRowsY - 1) == "PROPERTIES");
+    // BUILDER'S REGION COMES FROM THE PATH, at the first slot of the stack.
+    CHECK(label_at(c, builder.rect.x, builder.rect.y).find("BUILDER") == 0);
+    CHECK(builder.rect == placement_bounds(placement::kOverlayStack, 0, sc));
+
+    // AND NEITHER PANEL PAINTS OUTSIDE ITS OWN BOUNDS. Every label in a panel's
+    // column is on one of that panel's rows, and every row of the stacked panel
+    // is padded to the width its bounds gave it -- which is the erasing mechanism
+    // following the panel rather than a constant.
+    std::size_t seen_info = 0;
+    std::size_t seen_stack = 0;
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == info.rect.x) {
+            CHECK(l.y >= info.rect.y);
+            CHECK(l.y < info.rect.y + info.rect.h);
+            ++seen_info;
+        }
+        if (l.x == builder.rect.x && l.y >= builder.rect.y &&
+            l.y < builder.rect.y + builder.rect.h) {
+            CHECK(l.text.size() == static_cast<std::size_t>(builder.rect.w));
+            ++seen_stack;
+        }
+    }
+    CHECK(seen_info > 0);
+    CHECK(seen_stack == static_cast<std::size_t>(builder.rect.h));
+}
+
+TEST_CASE("a closed panel is not anywhere") {
+    // A PANEL THAT IS NOT OPEN HAS NO BOUNDS, and the empty rectangle is the
+    // deliberate answer rather than the first slot's: a caller that forgets to
+    // ask gets a rectangle that contains nothing, not one that contains the place
+    // this panel WOULD have had.
+    Live t;
+    const Screen sc = screen_of(t.session());
+    const PanelBounds absent = bounds_of(t.session().panels, panel::kBuilder, sc);
+    CHECK_FALSE(absent.open);
+    CHECK(absent.rect == ui::Rect{});
+    CHECK_FALSE(absent.rect.contains(0, 1));
+    // Its KIND still has a declared place, because that is a fact about the
+    // catalog rather than about this session.
+    CHECK(absent.placed_in == placement::kOverlayStack);
+    // The place it would have had is perfectly well defined -- what is absent is
+    // the PANEL, not the place.
+    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).contains(0, 1));
+}
+
+TEST_CASE("a slot is earned by being in the stack, not by being early in the list") {
+    // THE RULE THAT USED TO BE A COUNTER INSIDE THE PAINTING LOOP. It named a
+    // kind; it counts placements now, so the answer cannot depend on the order a
+    // maker happened to open two unalike panels in.
+    const Screen sc = kMinScreen;
+    Panels info_first;
+    info_first.open = {Panel{panel::kInfo}, Panel{panel::kBuilder}};
+    Panels builder_first;
+    builder_first.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+
+    const ui::Rect first_slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    CHECK(bounds_of(info_first, panel::kBuilder, sc).rect == first_slot);
+    CHECK(bounds_of(builder_first, panel::kBuilder, sc).rect == first_slot);
+    // And Info is in the same column either way: the side region has no slots.
+    CHECK(bounds_of(info_first, panel::kInfo, sc).rect ==
+          bounds_of(builder_first, panel::kInfo, sc).rect);
+}
+
+TEST_CASE("a painter goes where its bounds say, not where a constant says") {
+    // THE STRUCTURAL HALF OF THE THIRD-PANEL CLAIM, and it costs no fake catalog
+    // entry: both painters are called with bounds that are NOT the ones their kind
+    // resolves to, and both land there. A painter that still knew its own column
+    // would ignore this and paint where it always did.
+    //
+    // The rectangles are the same HEIGHT as the real ones. A panel's content is
+    // written for its place's row budget -- the Builder's nine rows are nine
+    // statements about a build -- so what a moved rectangle proves is that the
+    // WHERE is owned by the placement path. A place of a different height is a
+    // layout question nothing has asked yet.
+    WorkshopDoc d = two_panels();
+    Session s;
+    refocus(d, s);
+
+    const ui::Rect moved_info{7, 2, kPanelCols, 17};
+    surface::SurfaceCanvas ic;
+    paint_info(ic, d, s, moved_info);
+    CHECK(label_at(ic, moved_info.x, moved_info.y + kListY - 1) == "OBJECTS");
+    CHECK(label_at(ic, moved_info.x, moved_info.y + kRowsY - 1) == "PROPERTIES");
+    CHECK(ic.rects.empty()); // Info still has no backdrop: bounds were shared, chrome was not
+    for (const surface::SurfaceLabel& l : ic.labels) {
+        CHECK(l.x == moved_info.x);
+        CHECK(l.y >= moved_info.y);
+        CHECK(l.y < moved_info.y + moved_info.h);
+    }
+
+    BuilderPane pane;
+    pane.heard = true;
+    pane.shown.target = "zengine-snake";
+    const ui::Rect moved_stack{4, 6, 30, kStackRows};
+    surface::SurfaceCanvas bc;
+    paint_builder(bc, pane, moved_stack);
+    CHECK(label_at(bc, moved_stack.x, moved_stack.y).find("BUILDER") == 0);
+    REQUIRE(bc.rects.size() == 1);
+    CHECK(bc.rects[0].x == moved_stack.x);
+    CHECK(bc.rects[0].y == moved_stack.y);
+    CHECK(bc.rects[0].w == moved_stack.w);
+    CHECK(bc.rects[0].h == moved_stack.h);
+    for (const surface::SurfaceLabel& l : bc.labels) {
+        CHECK(l.x == moved_stack.x);
+        CHECK(l.y >= moved_stack.y);
+        CHECK(l.y < moved_stack.y + moved_stack.h);
+        // Fitted and padded to the bounds it was handed and not to the stack's own
+        // width, so a narrower panel erases exactly what it covers.
+        CHECK(l.text.size() == static_cast<std::size_t>(moved_stack.w));
+    }
+}
+
+TEST_CASE("the stack has a second slot, and the minimum screen has no room for it") {
+    // WHAT A THIRD KIND WOULD FIND IF IT DECLARED THE STACK. The path answers for
+    // slot 1 without anything being added to it: same column, same width, one
+    // blank row below the first.
+    const ui::Rect first = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
+    const ui::Rect second = placement_bounds(placement::kOverlayStack, 1, kMinScreen);
+    CHECK(second.x == first.x);
+    CHECK(second.w == first.w);
+    CHECK(second.h == first.h);
+    CHECK(second.y == first.y + first.h + kStackGap);
+
+    // AND IT DOES NOT FIT on the screen this composition is written for. That is a
+    // measured limit rather than a surprise waiting for whoever adds a third kind:
+    // the second slot's last row is past the notice line, and the screen has to be
+    // three rows taller than the minimum before the stack can hold two panels.
+    CHECK(second.y + second.h > kMinScreen.notice_y);
+    const Screen tall = screen_of(kScreenMinW, 25);
+    const ui::Rect on_tall = placement_bounds(placement::kOverlayStack, 1, tall);
+    CHECK(on_tall.y + on_tall.h <= tall.notice_y);
+    // Nothing here clamps, refuses or rearranges. The model SAYS where a second
+    // slot is; whether Workshop should ever put a panel there is the layout
+    // question PNL-1 did not answer.
+}
+
+TEST_CASE("a wider screen moves the side region and leaves the stack where it is") {
+    // THE TWO PLACES ANSWER THE EXTENT QUESTION DIFFERENTLY, and the path is where
+    // that difference lives now: the region is anchored to the right edge and
+    // keeps its width, the stack is anchored to the top-left corner and keeps
+    // everything. That is G-2's rule, restated over rectangles.
+    const Screen big = screen_of(100, 30);
+    const ui::Rect side = placement_bounds(placement::kSideRegion, 0, big);
+    const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, big);
+    CHECK(side.x == big.panel_x);
+    CHECK(side.w == kPanelCols);
+    CHECK(side.x + side.w == big.w);
+    CHECK(side.h > placement_bounds(placement::kSideRegion, 0, kMinScreen).h);
+    CHECK(stack == placement_bounds(placement::kOverlayStack, 0, kMinScreen));
+    CHECK(stack.x + stack.w <= side.x);
 }
 
 TEST_CASE("the terminal overlay still outranks everything, panels included") {
@@ -6602,7 +6831,7 @@ TEST_CASE("Builder and Info are present independently -- all four states") {
     const Screen sc = screen_of(t.session());
     const auto shows_info = [&t, &sc]() { return !info_text(t.canvases.back(), sc).empty(); };
     const auto shows_builder = [&t]() {
-        return dock_text(t.canvases.back()).find("BUILDER") != std::string::npos;
+        return stack_text(t.canvases.back()).find("BUILDER") != std::string::npos;
     };
 
     // Info alone -- how Workshop boots.
@@ -6617,12 +6846,12 @@ TEST_CASE("Builder and Info are present independently -- all four states") {
     CHECK(shows_builder());
 
     // Builder alone. Removing Info leaves the Builder exactly where it was --
-    // its dock slot is counted over DOCKED panels, so an Info ahead of it in the
-    // open list never pushed it down and removing one never pulls it up.
+    // a slot is earned by being PLACED in the stack, so an Info ahead of it in
+    // the open list never pushed it down and removing one never pulls it up.
     pick(t, panel::kInfo);
     CHECK_FALSE(shows_info());
     CHECK(shows_builder());
-    CHECK(label_at(t.canvases.back(), kDockX, panel_top(0)).find("BUILDER") == 0);
+    CHECK(first_slot_shows_builder(t));
 
     // Neither. An empty screen around a live document is a legitimate state, and
     // the document is still all there.
@@ -6636,7 +6865,7 @@ TEST_CASE("Builder and Info are present independently -- all four states") {
     open_builder(t);
     CHECK(shows_info());
     CHECK(shows_builder());
-    CHECK(label_at(t.canvases.back(), kDockX, panel_top(0)).find("BUILDER") == 0);
+    CHECK(first_slot_shows_builder(t));
     // Every Builder OPEN asked the tool; neither removal did, and neither did
     // anything Info was part of.
     CHECK(tool->described == 2);
@@ -6767,15 +6996,15 @@ TEST_CASE("the picker's state column follows the panels, not a memory of them") 
     (void)mount_tool(t, "zengine-snake");
 
     t.key(input::scan::kP);
-    CHECK(dock_text(t.canvases.back()).find("Builder   closed") != std::string::npos);
-    CHECK(dock_text(t.canvases.back()).find("Info      open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("Builder   closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("Info      open") != std::string::npos);
     t.key(input::scan::kEscape);
 
     open_builder(t);
     pick(t, panel::kInfo);
     t.key(input::scan::kP);
-    CHECK(dock_text(t.canvases.back()).find("Builder   open") != std::string::npos);
-    CHECK(dock_text(t.canvases.back()).find("Info      closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("Builder   open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("Info      closed") != std::string::npos);
     t.key(input::scan::kEscape);
 }
 
@@ -6796,7 +7025,7 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
     ToolSeat* tool = mount_tool(t, "zengine-snake");
     tool->next.outcome = zengine::builder::outcome::kNeverBuilt;
     open_builder(t);
-    REQUIRE(dock_text(t.canvases.back()).find("recipe") != std::string::npos);
+    REQUIRE(stack_text(t.canvases.back()).find("recipe") != std::string::npos);
 
     t.key(input::scan::kP);
     const surface::SurfaceCanvas& c = t.canvases.back();
@@ -6805,9 +7034,10 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
     // which is the mechanism -- a row written last, padded to the dock's width,
     // is what a character medium leaves on the screen.
     std::string visible;
-    for (std::int64_t row = 0; row < kPanelRows; ++row) {
-        const std::string top = topmost_at(c, kDockX, kDockY + row);
-        CHECK(top.size() == static_cast<std::size_t>(kDockW));
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, screen_of(t.session()));
+    for (std::int64_t row = 0; row < slot.h; ++row) {
+        const std::string top = topmost_at(c, slot.x, slot.y + row);
+        CHECK(top.size() == static_cast<std::size_t>(slot.w));
         visible += top;
         visible += '\n';
     }
@@ -6820,5 +7050,5 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
 
     // AND THE CANARY: dismissing the picker gives the panel back whole.
     t.key(input::scan::kEscape);
-    CHECK(dock_text(t.canvases.back()).find("recipe") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("recipe") != std::string::npos);
 }
