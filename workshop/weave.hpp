@@ -539,13 +539,21 @@ public:
         // happened. LEARNING a fact and WITNESSING an event are different, and
         // only the second is news. So the announcement below is made only for a
         // build this panel asked for and has not yet been answered about.
+        //
+        // ASYNC-1 MADE THAT DISTINCTION WORTH MORE, NOT LESS. A build now has a
+        // middle, so a panel opened while one is running is TOLD "running" and
+        // must announce nothing -- it did not watch this build begin, and the
+        // arrival of a status is not the arrival of an event. `awaiting` is
+        // therefore held across every intermediate condition and released only
+        // when the build reaches one it will not leave: `still_going` is the one
+        // place that list is written down.
         const bool watching = pane.awaiting;
         pane.heard = true;
         pane.shown = said;
-        if (said.outcome != zengine::builder::outcome::kAsked) {
+        if (!zengine::builder::still_going(said.outcome)) {
             pane.awaiting = false;
         }
-        if (!watching || said.outcome == zengine::builder::outcome::kAsked) {
+        if (!watching || zengine::builder::still_going(said.outcome)) {
             repaint(mail);
             return;
         }
@@ -947,15 +955,20 @@ private:
         (void)mail.send_to_role(zengine::builder::kBuilderRole,
                                 zengine::builder::BuildRequested{pane.shown.target});
         // I ASKED. Workshop's own fact, recorded before anything is dispatched,
-        // and the one frame a maker gets before the freeze is painted from it:
-        // the repaint at the end of this key's handler is queued AHEAD of the
-        // order that reaches the runner, so `asked -- waiting for it to finish`
-        // is on the screen before the build starts. Everything after that waits,
-        // because BLD-0's runner builds inside its own handler on the pump that
-        // would have to carry the next repaint.
+        // and the thing that decides whether the answer will be news to this
+        // panel.
+        //
+        // THE SENTENCE CHANGED WITH ASYNC-1 AND THE CHANGE IS THE PHASE. It used
+        // to say `the screen waits until it is done`, which was true and was the
+        // measured cost of a runner that built inside its own handler. It is now
+        // false: the runner starts a child, keeps it, and comes back to it on an
+        // ordinary beat, so every other delivery in this program goes on
+        // happening. Leaving the old words in place would have been the one kind
+        // of stale comment this repository treats as a defect -- a sentence a
+        // maker reads on the screen.
         session_.panels.builder.awaiting = true;
         say("asked the Builder for `" + pane.shown.target +
-                "` -- the screen waits until it is done",
+                "` -- Workshop stays live while it builds",
             false);
     }
 

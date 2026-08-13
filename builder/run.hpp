@@ -4,22 +4,56 @@
 #ifndef ZENGINE_BUILDER_RUN_HPP
 #define ZENGINE_BUILDER_RUN_HPP
 
-// The one place in Zengine that starts an operating-system process.
+// The one place in Zengine that starts an operating-system process, and the one
+// place that HOLDS one after the call that started it has returned.
 //
-// IT IS NOT A SHELL, AND THE INTERFACE IS WHAT MAKES THAT TRUE. `run_recipe`
+// IT IS NOT A SHELL, AND THE INTERFACE IS WHAT MAKES THAT TRUE. `start_recipe`
 // takes a PROGRAM and an ARGUMENT VECTOR that were chosen by the host, and there
 // is no overload, no convenience and no field anywhere that takes a command
 // LINE. Nothing composes a string that a shell then takes apart again, so the
 // entire family of "a quote in the wrong place became an extra command" cannot
-// occur here — not because the arguments are checked, but because there is no
+// occur here -- not because the arguments are checked, but because there is no
 // shell in the picture to check them for.
 //
 // That was a decision with a cheaper alternative. `popen()` is four lines and
 // would have run this build perfectly well; it is also, exactly, a general shell
-// capability, and BLD-0's whole job is to give Builder the smallest bounded
-// mechanism it can be built on rather than the most convenient one. A later
-// phase that genuinely needs a shell can add one and argue for it; it will not
-// find one already sitting here having arrived as a side effect of a button.
+// capability, and BLD-0's whole job was to give Builder the smallest bounded
+// mechanism it can be built on rather than the most convenient one. ASYNC-1
+// widens the LIFETIME of that mechanism and not one inch of its authority: the
+// same recipe struct, the same host-chosen program, the same absent shell.
+//
+// ---------------------------------------------------------------------------
+// THE HELD LIFETIME (ASYNC-1), which is the whole of what this phase added here.
+//
+// BLD-0 had one verb -- `run recipe -> wait -> result` -- and its cost was
+// measured rather than argued: the caller is a weave handler on the bus the
+// Workshop is pumping, so the whole application stopped until the child exited.
+// The replacement is three moments instead of one, and the middle one is the
+// point:
+//
+//     start_recipe(recipe)   -> a RunningRecipe, OWNED by the caller
+//     ...the caller returns. the handler's stack frame is gone...
+//     process.look()         -> what is newly visible RIGHT NOW, never blocking
+//     ...many ordinary turns later...
+//     process.look()         -> ...ended, with a status, reaped
+//
+// `RunningRecipe` is the custody. It is MOVE-ONLY and it reaps in its
+// destructor, so "exactly once" is a property of the type rather than a
+// discipline its user has to keep. Nothing here polls on its own, owns a thread,
+// sleeps, or knows what a Loom is: the holder decides when to look, and the
+// holder is an ordinary weave (builder/runner.hpp).
+//
+// A LOOK IS BOUNDED AND NEVER BLOCKS, both halves deliberately. It reads at most
+// `kMaxLookBytes` before answering, so a chatty build cannot make one look long;
+// and the read end is non-blocking (O_NONBLOCK / PeekNamedPipe), so a quiet
+// build cannot make one look slow. The whole cost of asking a running build what
+// it has said is a handful of syscalls that return immediately.
+//
+// THE ENDING IS REPORTED ONLY AFTER THE OUTPUT HAS ENDED. `look()` will not say
+// `ended` while the pipe is still open, even when the child has already exited
+// -- because a child's last words are written before it exits and read after it,
+// and an ending that raced the drain would throw away exactly the lines that say
+// what went wrong. Output end first, reap second, ending last.
 //
 // WHAT IT DOES NOT DO, and each absence is the same restraint:
 //
@@ -33,25 +67,42 @@
 //   - no isolation, no containment, no resource bound. This is an ordinary
 //     child process of an ordinary host process, and it is exactly as
 //     privileged as the Workshop that started it. Said out loud because that is
-//     the honest description; the alternative — implying a boundary that is not
-//     there — is the one thing this repository's phases keep refusing to do.
+//     the honest description; the alternative -- implying a boundary that is not
+//     there -- is the one thing this repository's phases keep refusing to do.
 //   - no stdin. The child inherits it, and a build that decides to ask a
 //     question will therefore wait for an answer that no maker can see it
-//     asking. BLD-0's answer to that is to choose a recipe that does not ask
-//     one, and to say here that nothing prevents it.
-//   - no cancel and no timeout. `run_recipe` returns when the child exits.
+//     asking. The answer is still to choose a recipe that does not ask one, and
+//     to say here that nothing prevents it.
+//   - NO CANCEL, and `abandon()` is not one. It is the cleanup a destructor
+//     needs: it terminates and reaps so that a holder going away leaves no child
+//     of this process running and no zombie behind it. It makes no claim about
+//     the build -- nothing here authors a fact, and "the holder stopped holding"
+//     is not "the build was cancelled". builder/runner.hpp is where that
+//     distinction is spent.
+//   - no timeout. A running operation is simply running; how long is too long is
+//     an observer's judgement about itself, and no observer here makes one.
 //
-// IT BLOCKS. The caller's thread is inside this function for as long as the
-// build takes, and in BLD-0 that caller is a weave handler on the bus the
-// Workshop is pumping — so the tool freezes for the duration. That is a real
-// cost, it is the pressure this phase set out to feel, and it is measured in the
-// report rather than papered over with a thread whose lifetime nobody has
-// designed yet.
+// ---------------------------------------------------------------------------
+// ONE PLATFORM ASYMMETRY, MEASURED AND NOT SMOOTHED OVER. On Windows,
+// `CreateProcess` fails where it is called, so "this program is not there" is
+// known before `start_recipe` returns. On POSIX, `fork` succeeds and `execvp`
+// fails inside a child that has no way left to speak except its exit status --
+// so the same fact arrives LATER, as an ending with status 127 (or 126 for a
+// working directory that could not be entered), and `RunLook::never_ran` is
+// where it is turned back into what it describes. The shell's own convention,
+// used for the reason the shell uses it: those two numbers are the only channel
+// a failed exec has. A build that genuinely exits 127 is therefore reported as
+// never having started -- the cost of that channel being shared, and BLD-0's
+// judgement kept rather than a new one invented.
 
 #include <cerrno>
+#include <chrono>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -63,6 +114,7 @@
 #endif
 #include <windows.h>
 #else
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -73,8 +125,8 @@ namespace zengine::builder {
 /// One buildable thing, as the HOST describes it.
 ///
 /// `target` is the NAME the rest of the world uses; everything else is the part
-/// only the runner ever sees. A recipe is data, not a capability — holding one
-/// does nothing — but the runner is the only weave that is given any, which is
+/// only the runner ever sees. A recipe is data, not a capability -- holding one
+/// does nothing -- but the runner is the only weave that is given any, which is
 /// the arrangement that makes "the tool holds a name, the runner holds a
 /// command" structurally true instead of merely stated.
 struct BuildRecipe {
@@ -108,12 +160,38 @@ struct RunResult {
     std::string trouble; ///< why it never started, when it did not
 };
 
-/// The most of a child's output this keeps. A build is chatty and a panel shows
-/// a handful of lines, so the whole of it is never needed; what IS needed is
-/// that a talkative build cannot grow this process without bound. The OLDEST
-/// bytes are dropped, because the end of a build's output is the part that says
-/// what went wrong.
+/// The most of a child's output `run_recipe` keeps. A build is chatty and a
+/// panel shows a handful of lines, so the whole of it is never needed; what IS
+/// needed is that a talkative build cannot grow this process without bound. The
+/// OLDEST bytes are dropped, because the end of a build's output is the part
+/// that says what went wrong.
 inline constexpr std::size_t kMaxCaptured = 64u * 1024u;
+
+/// The most one `look()` drains before answering.
+///
+/// IT BOUNDS A LOOK, NOT A BUILD. Whatever is left stays in the pipe and is
+/// there at the next look, so nothing is lost -- what this buys is that the cost
+/// of asking is a property of the ASKING and not of how loud the child is. It is
+/// large enough that an ordinary build is fully drained every time (a pipe's own
+/// buffer is typically 64 KiB, so a much smaller number here would let a chatty
+/// child fill the pipe and block on its own write between looks), and small
+/// enough that one look is a bounded number of immediate syscalls.
+inline constexpr std::size_t kMaxLookBytes = 64u * 1024u;
+
+/// WHAT ONE LOOK AT A HELD CHILD SAW -- an observation, and only ever about the
+/// moment it was taken.
+///
+/// `fresh` is what has not been reported before: the pipe is drained BY reading
+/// it, so bytes handed over here are gone from the pipe and cannot arrive twice.
+/// An empty `fresh` with `ended` false is the ordinary answer while a build is
+/// compiling quietly, and it is not news.
+struct RunLook {
+    std::string fresh;        ///< output seen for the first time, this look
+    bool ended = false;       ///< output has ENDED and the child has been reaped
+    std::int64_t status = 0;  ///< its exit status; meaningful only when `ended`
+    bool never_ran = false;   ///< it ended because the program was never entered
+    std::string trouble;      ///< ...and why, when `never_ran`
+};
 
 namespace detail {
 
@@ -131,7 +209,7 @@ inline void append_bounded(std::string& into, const char* data, std::size_t n) {
 /// a string and every child takes it apart again with the same convention, so
 /// composing that string correctly IS the argument vector on this platform. This
 /// is the documented rule (backslashes are literal except before a quote, where
-/// they double), applied to values the HOST chose — a path with a space in it is
+/// they double), applied to values the HOST chose -- a path with a space in it is
 /// the case that actually occurs.
 inline std::string windows_quote(const std::string& arg) {
     const bool needs = arg.empty() || arg.find_first_of(" \t\n\v\"") != std::string::npos;
@@ -163,13 +241,275 @@ inline std::string windows_quote(const std::string& arg) {
 
 } // namespace detail
 
-/// Run one recipe to completion and answer what happened.
-inline RunResult run_recipe(const BuildRecipe& recipe) {
-    RunResult result;
-    if (recipe.program.empty()) {
-        result.trouble = "this recipe names no program";
-        return result;
+struct RecipeStart;
+
+/// CUSTODY OF ONE LIVE CHILD PROCESS -- the thing ASYNC-1 exists to give Builder.
+///
+/// It owns an operating-system process handle (a `pid_t` on POSIX, a process
+/// HANDLE on Windows) and the read end of the one pipe its output arrives on,
+/// and it releases both EXACTLY ONCE. That "exactly once" is the type's job and
+/// not its user's: it is move-only, a moved-from handle holds nothing, and the
+/// destructor does whatever is left to do.
+///
+/// IT DOES NOT NEED THE STACK FRAME THAT MADE IT. That is the whole property
+/// this class exists for -- a `RunningRecipe` sitting in a weave's member vector
+/// is a build that outlives the handler that started it, and looking at it later
+/// is an ordinary member call on an ordinary object.
+///
+/// IT IS NOT ADDRESSABLE, INSPECTABLE OR WRITABLE FROM THE BUS, and that is
+/// deliberate in the same way BLD-0's recipe catalog is: a poke that could write
+/// a new pid into a `ZEN_SHAPE` field would be a door onto arbitrary process
+/// control wearing an inspection tool's clothes. Nothing in this class is a Zen
+/// shape, and the runner keeps its live handles in a plain member for that
+/// reason.
+class RunningRecipe {
+public:
+    RunningRecipe() = default;
+
+    RunningRecipe(const RunningRecipe&) = delete;
+    RunningRecipe& operator=(const RunningRecipe&) = delete;
+
+    RunningRecipe(RunningRecipe&& other) noexcept { adopt(other); }
+    RunningRecipe& operator=(RunningRecipe&& other) noexcept {
+        if (this != &other) {
+            abandon();
+            adopt(other);
+        }
+        return *this;
     }
+
+    /// LOSING THE HOLDER LOSES THE CHILD, deliberately and completely. A weave
+    /// that is destroyed, a vector that is cleared, a process that is quitting:
+    /// each of them ends here, and each of them ends with the child terminated
+    /// and reaped rather than orphaned or left a zombie. It authors nothing --
+    /// there is no `Mail` in a destructor, and no fact is invented from one.
+    ~RunningRecipe() { abandon(); }
+
+    /// Is there still a child here? False before a start, after an ending was
+    /// observed, after `abandon()`, and in a moved-from handle.
+    bool holds() const noexcept {
+#if defined(_WIN32)
+        return process_ != nullptr;
+#else
+        return child_ >= 0;
+#endif
+    }
+
+    /// WHAT IS NEWLY TRUE RIGHT NOW. Never blocks; never waits for the child;
+    /// never reports an ending it has not reaped.
+    RunLook look() {
+        RunLook seen;
+        if (!holds()) {
+            return seen;
+        }
+        drain(seen);
+        if (output_open()) {
+            // STILL SPEAKING. Refusing to look for an ending here is what keeps
+            // the last words of a failing build: a child writes them before it
+            // exits, and an ending taken now would be an ending taken before
+            // they were read.
+            return seen;
+        }
+        reap_if_done(seen);
+        return seen;
+    }
+
+    /// End custody now: terminate what is still running, reap it, close
+    /// everything, exactly once.
+    ///
+    /// THE SEMANTIC CLAIM IS NARROW AND IT IS WRITTEN HERE SO NOBODY HAS TO
+    /// GUESS AT IT: this says the HOLDER stopped holding. It does not say the
+    /// build was cancelled, that it failed, or that it finished -- no fact of
+    /// any kind is produced, because there is nobody in a destructor to produce
+    /// one to. A caller that wants an observation to exist must author it while
+    /// it still can.
+    void abandon() {
+#if defined(_WIN32)
+        if (out_ != nullptr) {
+            ::CloseHandle(out_);
+            out_ = nullptr;
+        }
+        if (process_ != nullptr) {
+            (void)::TerminateProcess(process_, 1);
+            (void)::WaitForSingleObject(process_, INFINITE);
+            ::CloseHandle(process_);
+            process_ = nullptr;
+        }
+#else
+        if (out_ >= 0) {
+            ::close(out_);
+            out_ = -1;
+        }
+        if (child_ >= 0) {
+            (void)::kill(child_, SIGKILL);
+            int ignored = 0;
+            while (::waitpid(child_, &ignored, 0) < 0 && errno == EINTR) {
+            }
+            child_ = -1;
+        }
+#endif
+    }
+
+private:
+    friend RecipeStart start_recipe(const BuildRecipe&);
+
+    bool output_open() const noexcept {
+#if defined(_WIN32)
+        return out_ != nullptr;
+#else
+        return out_ >= 0;
+#endif
+    }
+
+    void adopt(RunningRecipe& other) noexcept {
+        program_ = std::move(other.program_);
+        dir_ = std::move(other.dir_);
+#if defined(_WIN32)
+        process_ = other.process_;
+        out_ = other.out_;
+        other.process_ = nullptr;
+        other.out_ = nullptr;
+#else
+        child_ = other.child_;
+        out_ = other.out_;
+        other.child_ = -1;
+        other.out_ = -1;
+#endif
+    }
+
+    void drain(RunLook& seen) {
+        if (!output_open()) {
+            return;
+        }
+        char buffer[4096];
+        std::size_t taken = 0;
+#if defined(_WIN32)
+        while (taken < kMaxLookBytes) {
+            DWORD available = 0;
+            if (::PeekNamedPipe(out_, nullptr, 0, nullptr, &available, nullptr) == 0) {
+                // The last writer let go: this is end of output, and it is the
+                // only form of it an anonymous pipe reports on this platform.
+                ::CloseHandle(out_);
+                out_ = nullptr;
+                return;
+            }
+            if (available == 0) {
+                return; // nothing right now -- and asking again is the next look's job
+            }
+            const DWORD want = available < static_cast<DWORD>(sizeof(buffer))
+                                   ? available
+                                   : static_cast<DWORD>(sizeof(buffer));
+            DWORD got = 0;
+            if (::ReadFile(out_, buffer, want, &got, nullptr) == 0 || got == 0) {
+                ::CloseHandle(out_);
+                out_ = nullptr;
+                return;
+            }
+            seen.fresh.append(buffer, static_cast<std::size_t>(got));
+            taken += static_cast<std::size_t>(got);
+        }
+#else
+        while (taken < kMaxLookBytes) {
+            const ::ssize_t got = ::read(out_, buffer, sizeof(buffer));
+            if (got > 0) {
+                seen.fresh.append(buffer, static_cast<std::size_t>(got));
+                taken += static_cast<std::size_t>(got);
+                continue;
+            }
+            if (got < 0 && errno == EINTR) {
+                continue;
+            }
+            if (got < 0) {
+                return; // EAGAIN: the pipe is open and empty, which is not an ending
+            }
+            ::close(out_); // 0 bytes from a non-blocking read: every writer let go
+            out_ = -1;
+            return;
+        }
+#endif
+    }
+
+    void reap_if_done(RunLook& seen) {
+#if defined(_WIN32)
+        if (::WaitForSingleObject(process_, 0) != WAIT_OBJECT_0) {
+            return; // finished writing, not yet exited
+        }
+        DWORD code = 0;
+        (void)::GetExitCodeProcess(process_, &code);
+        ::CloseHandle(process_);
+        process_ = nullptr;
+        seen.ended = true;
+        seen.status = static_cast<std::int64_t>(code);
+        // No never-ran translation here: CreateProcess had already failed, or
+        // had not, before start_recipe returned. See this file's header.
+#else
+        int wait_status = 0;
+        ::pid_t done = 0;
+        while ((done = ::waitpid(child_, &wait_status, WNOHANG)) < 0 && errno == EINTR) {
+        }
+        if (done != child_) {
+            return; // finished writing, not yet exited
+        }
+        child_ = -1;
+        seen.ended = true;
+        if (WIFEXITED(wait_status)) {
+            seen.status = static_cast<std::int64_t>(WEXITSTATUS(wait_status));
+        } else if (WIFSIGNALED(wait_status)) {
+            // A signalled child has no exit status, so it is given one that
+            // cannot be mistaken for a build's own -- the shell's convention,
+            // for the same reason: 0 would read as success and there is no
+            // honest small number.
+            seen.status = 128 + static_cast<std::int64_t>(WTERMSIG(wait_status));
+        } else {
+            seen.status = -1;
+        }
+        // 127 and 126 are the child's report that exec never happened. They
+        // arrive as an exit status because that is the only channel a failed
+        // exec has, and they are turned back into the fact they describe here
+        // rather than being shown to a maker as a build that failed.
+        if (seen.status == 127) {
+            seen.never_ran = true;
+            seen.trouble = "could not run `" + program_ + "` (not found, or not executable)";
+        } else if (seen.status == 126) {
+            seen.never_ran = true;
+            seen.trouble = "could not enter `" + dir_ + "`";
+        }
+#endif
+    }
+
+    std::string program_; ///< only ever used to write the sentence above
+    std::string dir_;     ///< likewise
+#if defined(_WIN32)
+    HANDLE process_ = nullptr;
+    HANDLE out_ = nullptr;
+#else
+    ::pid_t child_ = -1;
+    int out_ = -1;
+#endif
+};
+
+/// The answer to "did a process begin?", and the custody if one did.
+///
+/// TWO FACTS AND NOT ONE, for the reason `RunResult` keeps them apart: a program
+/// that is not there and a build that failed are different things to tell a
+/// maker. `started` false means nothing was left running and `process` holds
+/// nothing.
+struct RecipeStart {
+    bool started = false;
+    std::string trouble; ///< why nothing began, when nothing did
+    RunningRecipe process;
+};
+
+/// Start one recipe and HAND BACK CUSTODY of it. Returns as soon as the child
+/// exists; it does not wait for a single byte.
+inline RecipeStart start_recipe(const BuildRecipe& recipe) {
+    RecipeStart out;
+    if (recipe.program.empty()) {
+        out.trouble = "this recipe names no program";
+        return out;
+    }
+    out.process.program_ = recipe.program;
+    out.process.dir_ = recipe.dir;
 
 #if defined(_WIN32)
     SECURITY_ATTRIBUTES inheritable{};
@@ -180,12 +520,11 @@ inline RunResult run_recipe(const BuildRecipe& recipe) {
     HANDLE read_end = nullptr;
     HANDLE write_end = nullptr;
     if (::CreatePipe(&read_end, &write_end, &inheritable, 0) == 0) {
-        result.trouble = "could not make a pipe for the build's output";
-        return result;
+        out.trouble = "could not make a pipe for the build's output";
+        return out;
     }
     // The READ end is ours alone. Without this the child holds a copy, the pipe
-    // never reaches end-of-file, and the read below waits forever for a writer
-    // that is this very process.
+    // never reaches end-of-file, and this build could never be observed to end.
     ::SetHandleInformation(read_end, HANDLE_FLAG_INHERIT, 0);
 
     std::string command = detail::windows_quote(recipe.program);
@@ -210,32 +549,20 @@ inline RunResult run_recipe(const BuildRecipe& recipe) {
     ::CloseHandle(write_end); // ours is closed either way: a child's copy is the writer now
     if (began == 0) {
         ::CloseHandle(read_end);
-        result.trouble = "could not start `" + recipe.program + "` (error " +
-                         std::to_string(static_cast<std::int64_t>(::GetLastError())) + ")";
-        return result;
+        out.trouble = "could not start `" + recipe.program + "` (error " +
+                      std::to_string(static_cast<std::int64_t>(::GetLastError())) + ")";
+        return out;
     }
-    result.started = true;
-
-    char buffer[4096];
-    DWORD got = 0;
-    while (::ReadFile(read_end, buffer, static_cast<DWORD>(sizeof(buffer)), &got, nullptr) != 0 &&
-           got > 0) {
-        detail::append_bounded(result.output, buffer, static_cast<std::size_t>(got));
-    }
-    ::CloseHandle(read_end);
-
-    ::WaitForSingleObject(process.hProcess, INFINITE);
-    DWORD code = 0;
-    ::GetExitCodeProcess(process.hProcess, &code);
-    result.status = static_cast<std::int64_t>(code);
-    ::CloseHandle(process.hProcess);
-    ::CloseHandle(process.hThread);
-    return result;
+    ::CloseHandle(process.hThread); // never used: this custody waits on the PROCESS
+    out.process.process_ = process.hProcess;
+    out.process.out_ = read_end;
+    out.started = true;
+    return out;
 #else
     int pipe_ends[2] = {-1, -1};
     if (::pipe(pipe_ends) != 0) {
-        result.trouble = "could not make a pipe for the build's output";
-        return result;
+        out.trouble = "could not make a pipe for the build's output";
+        return out;
     }
 
     // The argument vector, built BEFORE the fork. Everything between fork and
@@ -257,8 +584,8 @@ inline RunResult run_recipe(const BuildRecipe& recipe) {
     if (child < 0) {
         ::close(pipe_ends[0]);
         ::close(pipe_ends[1]);
-        result.trouble = "could not start a process for `" + recipe.program + "`";
-        return result;
+        out.trouble = "could not start a process for `" + recipe.program + "`";
+        return out;
     }
     if (child == 0) {
         ::close(pipe_ends[0]);
@@ -281,50 +608,55 @@ inline RunResult run_recipe(const BuildRecipe& recipe) {
     }
 
     ::close(pipe_ends[1]);
-    result.started = true;
-    char buffer[4096];
-    for (;;) {
-        const ::ssize_t got = ::read(pipe_ends[0], buffer, sizeof(buffer));
-        if (got > 0) {
-            detail::append_bounded(result.output, buffer, static_cast<std::size_t>(got));
-            continue;
-        }
-        if (got < 0 && errno == EINTR) {
-            continue;
-        }
-        break;
-    }
-    ::close(pipe_ends[0]);
-
-    // DRAINED FIRST, WAITED SECOND, and the order is the whole of why this does
-    // not hang: a child that fills the pipe blocks writing, and a parent that
-    // waited first would be waiting for a child that is waiting for the parent.
-    int wait_status = 0;
-    while (::waitpid(child, &wait_status, 0) < 0 && errno == EINTR) {
-    }
-    if (WIFEXITED(wait_status)) {
-        result.status = static_cast<std::int64_t>(WEXITSTATUS(wait_status));
-    } else if (WIFSIGNALED(wait_status)) {
-        // A signalled child has no exit status, so it is given one that cannot
-        // be mistaken for a build's own — the shell's convention, for the same
-        // reason: 0 would read as success and there is no honest small number.
-        result.status = 128 + static_cast<std::int64_t>(WTERMSIG(wait_status));
-    } else {
-        result.status = -1;
-    }
-    // 127 and 126 are the child's report that exec never happened. They arrive
-    // as an exit status because that is the only channel a failed exec has, and
-    // they are turned back into the fact they describe here rather than being
-    // shown to a maker as a build that failed.
-    if (result.status == 127) {
-        result.started = false;
-        result.trouble = "could not run `" + recipe.program + "` (not found, or not executable)";
-    } else if (result.status == 126) {
-        result.started = false;
-        result.trouble = "could not enter `" + recipe.dir + "`";
-    }
-    return result;
+    // NON-BLOCKING FROM THE FIRST LOOK ONWARD. Without this a `read` on a quiet
+    // build waits for the build, which is the exact thing this phase removed.
+    const int flags = ::fcntl(pipe_ends[0], F_GETFL, 0);
+    (void)::fcntl(pipe_ends[0], F_SETFL, (flags < 0 ? 0 : flags) | O_NONBLOCK);
+    out.process.child_ = child;
+    out.process.out_ = pipe_ends[0];
+    out.started = true;
+    return out;
 #endif
+}
+
+/// Run one recipe TO COMPLETION and answer what happened. IT BLOCKS.
+///
+/// THIS IS BLD-0'S SHAPE, KEPT ON PURPOSE AND CALLED BY NOTHING IN PRODUCTION.
+/// ASYNC-1's central claim -- that a build no longer stops the Workshop -- is
+/// only a claim if the other answer can still be built and measured beside it,
+/// so this stayed as the control the regression canary drives (the `builder`
+/// suite's blocking-runner case). It is written OVER the held primitive rather
+/// than beside it, so there is exactly one implementation of the platform work
+/// and the canary cannot pass merely because two paths drifted apart.
+///
+/// The one-millisecond nap is what makes this a wait rather than a spin. It is
+/// also the only sleep anywhere in this file, and it exists solely on the path
+/// that is deliberately not used.
+inline RunResult run_recipe(const BuildRecipe& recipe) {
+    RunResult result;
+    RecipeStart begun = start_recipe(recipe);
+    if (!begun.started) {
+        result.trouble = begun.trouble;
+        return result;
+    }
+    result.started = true;
+    for (;;) {
+        const RunLook seen = begun.process.look();
+        if (!seen.fresh.empty()) {
+            detail::append_bounded(result.output, seen.fresh.data(), seen.fresh.size());
+        }
+        if (seen.ended) {
+            result.status = seen.status;
+            if (seen.never_ran) {
+                result.started = false;
+                result.trouble = seen.trouble;
+            }
+            return result;
+        }
+        if (seen.fresh.empty()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
 }
 
 } // namespace zengine::builder

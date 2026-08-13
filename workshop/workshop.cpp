@@ -338,10 +338,22 @@ int main(int argc, char** argv) {
     //
     //   the RUNNER holds the catalog -- an absolute cmake, an absolute build
     //     tree and a target name, all decided at configure time -- and is the
-    //     only weave in this program that starts a process. Its whole reach is
-    //     one rule: it may report a BuildOutcome to whoever holds the Builder
-    //     office. It cannot paint, cannot publish, cannot load a weave and
-    //     cannot reach the Manager or the control door.
+    //     only weave in this program that starts a process. Its reach is the
+    //     four observations it may report to whoever holds the Builder office,
+    //     plus (ASYNC-1) two sentences to the Timer: ask for a beat, and give it
+    //     back. It cannot paint, cannot publish, cannot load a weave and cannot
+    //     reach the Manager or the control door.
+    //
+    //     THE TIMER RULES ARE THE PHASE'S ONE GRANT WIDENING, and they are worth
+    //     reading as what they are: the right to ask a service for a heartbeat.
+    //     A weave holding them can cause itself to be woken; it cannot cause
+    //     anything else, cannot address anyone but the Timer with them, and gets
+    //     nothing it could not have had by being loaded with a manifest that
+    //     declared the same conversation. `EnsureRoleTimer` is in the composed
+    //     emit set the binding layer brings and is deliberately NOT granted:
+    //     this runner's beat belongs to this incarnation, which is the thing
+    //     that holds the children, so the role-addressed form would be an
+    //     authority for a promise it does not make.
     //   the TOOL is ordinary. It holds the target's NAME and its history, and
     //     its two rules are: order the runner, and say what it knows to anyone
     //     who accepts a BuildStatus. It holds no command and cannot spell one.
@@ -367,8 +379,18 @@ int main(int argc, char** argv) {
         ZENGINE_BUILDER_BUILD_DIR});
 
     loom::Grant run_builds;
-    run_builds.allow_to_role(builder::BuildOutcome::zen_name, builder::BuildOutcome::zen_version,
+    run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);
+    run_builds.allow_to_role(builder::BuildOutput::zen_name, builder::BuildOutput::zen_version,
+                             builder::kBuilderRole);
+    run_builds.allow_to_role(builder::BuildFinished::zen_name,
+                             builder::BuildFinished::zen_version, builder::kBuilderRole);
+    run_builds.allow_to_role(builder::BuildNotStarted::zen_name,
+                             builder::BuildNotStarted::zen_version, builder::kBuilderRole);
+    run_builds.allow_to_role(timer::EnsureTimer::zen_name, timer::EnsureTimer::zen_version,
+                             timer::kTimerRole);
+    run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
+                             timer::kTimerRole);
     const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
         bus, std::move(run_builds), builder::kBuildRunnerRole, catalog);
 
@@ -381,8 +403,10 @@ int main(int argc, char** argv) {
 
     // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
     // for the same reason: what a button in this program will actually run is a
-    // fact a maker is entitled to before they press it, and the panel can only
-    // show it AFTER the runner has run it (the tool holds no command to show).
+    // fact a maker is entitled to before they press it, and the panel cannot
+    // show it until the runner has started it (the tool holds no command to
+    // show). ASYNC-1 moved "until it has finished" to "until it has started",
+    // which is a real improvement and still not "before".
     // Two lines, so the identities are as legible as the command.
     std::printf("zengine-workshop - builder: weave #%s builds `%s` (p opens the panel)\n",
                 std::to_string(builder_tool.value).c_str(), ZENGINE_BUILDER_TARGET);

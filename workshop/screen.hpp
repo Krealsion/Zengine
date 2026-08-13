@@ -1818,15 +1818,31 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
     // fact and it is the truer one while it holds: the tool's last OUTCOME is still the
     // previous build's, and showing that while a new one is running would answer "what
     // happened on the last build" with a sentence about the wrong build.
+    //
+    // THE OPERATION AND THE OUTPUT COUNT SHARE THIS ROW (ASYNC-1), and they are on the panel
+    // for one reason: they are what make a running build VISIBLE rather than asserted. A
+    // maker who presses `b`, moves a rectangle, opens Info and comes back to a Builder that
+    // says `running -- op #1, 37 out` has watched Workshop stay alive while a real child
+    // process ran, and has watched the count climb while doing it. A build that had frozen
+    // the pump could not have produced either number, because nothing would have been
+    // delivered to change them. They stay on the row after it ends, so the evidence does not
+    // vanish at the moment it becomes a result.
+    const bool named_op = s.op != 0;
+    const std::string carried =
+        named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) + " out"
+                 : std::string();
+    const bool unanswered = pane.awaiting && s.outcome != builder::outcome::kRunning;
     row(2,
-        pane.awaiting ? panel_field("last", "asked -- waiting for it to finish")
-                      : panel_field("last", builder::name_of_outcome(s.outcome)),
-        pane.awaiting ? surface::role::kAccent
-                      : (s.outcome == builder::outcome::kFailed ||
-                                 s.outcome == builder::outcome::kNotStarted ||
-                                 s.outcome == builder::outcome::kUnknownTarget
-                             ? surface::role::kAlert
-                             : surface::role::kFill));
+        unanswered ? panel_field("last", "asked -- waiting for it to start")
+                   : panel_field("last", std::string(builder::name_of_outcome(s.outcome)) +
+                                             carried),
+        unanswered || s.outcome == builder::outcome::kRunning
+            ? surface::role::kAccent
+            : (s.outcome == builder::outcome::kFailed ||
+                       s.outcome == builder::outcome::kNotStarted ||
+                       s.outcome == builder::outcome::kUnknownTarget
+                   ? surface::role::kAlert
+                   : surface::role::kFill));
     // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
     // never started reads as success, which is the exact wrong answer at the exact moment a
     // maker most needs the right one.
