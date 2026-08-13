@@ -1716,14 +1716,26 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
 // overlay mechanisms would be two answers to "what does an overlay do about the furniture
 // below it", and this file has already answered it once.
 
-/// The backdrop of an overlaid panel: its whole bounds, in one rect.
+/// THE BACKDROP OF A PANEL: its whole bounds, in one rect.
 ///
-/// IT IS THE OVERLAY'S SHAPE AND NOT EVERY PANEL'S, and PNL-1 did not change that. BLD-0
-/// wrote that these two helpers were "the shared half of every panel kind, so a second kind
-/// writes its content and inherits its shape"; PNL-0 measured that prediction false, because
-/// the second kind is a column of bare labels with no backdrop and no padding. What is
-/// genuinely shared between the two kinds is that each occupies some resolved bounds -- so
-/// bounds is what got factored, and these still belong to the panels that overlay something.
+/// EVERY PANEL HAS ONE, and PNL-2a is where that became true. BLD-0 predicted that this and
+/// `paint_panel_row` were "the shared half of every panel kind, so a second kind writes its
+/// content and inherits its shape"; PNL-0 measured that false, because the second kind was a
+/// column of bare labels with neither. Only half of that measurement survived contact with a
+/// pointer. PNL-2 gave a panel's bounds the maker's HAND as well as their eye -- a press
+/// inside them stops there -- and then found the picture disagreeing with the refusal: an
+/// object dragged under the Info column painted its body and its selection ring straight
+/// THROUGH the panel, with the panel's own words on top of it. One rectangle, visibly empty
+/// and demonstrably occupied.
+///
+/// So a backdrop is what a PLACE looks like when something is in it, and it belongs to every
+/// kind that occupies one. It is emphatically NOT a per-cell painted mask: occlusion stays a
+/// question about BOUNDS (`occupied_at`), because a mask would make what a maker can press
+/// depend on the length of a label.
+///
+/// `paint_panel_row` below is still the OVERLAY's shape and not every panel's -- that half of
+/// BLD-0's prediction is still a prediction. Info writes bare labels, and padding them to the
+/// bounds' width would erase the screen-level hint that shares the side region's top row.
 inline void paint_panel_frame(surface::SurfaceCanvas& c, const ui::Rect& b) {
     c.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
 }
@@ -1901,14 +1913,36 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
 /// panel destroys nothing and reopening it asks nobody, which is exactly how it differs from
 /// the Builder beside it and exactly why it is worth having as the second kind.
 ///
-/// IT IS NOT IN THE STACK, and it does not use the stack's frame. `paint_panel_frame` and
-/// `paint_panel_row` are the OVERLAY's shape — a backdrop and rows padded to a panel's full
-/// width — and BLD-0's comment on them ("so a second kind writes its content and inherits its
-/// shape") turned out to be a prediction rather than a description: the second kind is a
-/// column of bare labels and inherits none of it. PNL-1 did not rescue that abstraction
-/// either. What the two kinds genuinely share is that each occupies some resolved bounds, so
-/// bounds is what was factored — this function is handed a rectangle and writes inside it,
-/// and how it fills it is still nothing like how the Builder fills its own.
+/// IT IS NOT IN THE STACK, and it still does not use the stack's ROWS. `paint_panel_row` is
+/// the OVERLAY's shape — rows padded to a panel's full width — and BLD-0's comment on it ("so
+/// a second kind writes its content and inherits its shape") is still a prediction rather
+/// than a description here: the second kind is a column of bare labels. What PNL-2a changed
+/// is the other half of that sentence. This panel takes a BACKDROP across the whole of its
+/// bounds, from the same `paint_panel_frame` the Builder and the picker take theirs from,
+/// because a backdrop is not chrome — it is what a place LOOKS like when something is in it,
+/// and PNL-2 had already given this rectangle the maker's hand. A region a press cannot
+/// reach through and an eye can is one rectangle telling a maker two different things.
+///
+/// IT IS THE SAME RECTANGLE, NOT A SECOND ONE. The backdrop is painted at `b` — the bounds
+/// this painter was handed, which `paint_panels` got from `bounds_of` and which
+/// `occupied_at` asks the same function for. There is no geometry here to drift from the
+/// occupancy answer, which is why widening this panel moves what it covers and what it
+/// refuses in one edit.
+///
+/// WHAT THE BACKDROP DOES NOT DO IS PAD THE ROWS, and that is deliberate. Padding each label
+/// to `b.w` — the shape a stacked panel has — would also erase the `shift+space terminal`
+/// hint, which `paint` writes on this region's top row beside OBJECTS and which belongs to
+/// the SCREEN rather than to this panel. A rect is drawn under every label by construction,
+/// so the hint survives a backdrop; it would not have survived a padded row.
+///
+/// AND THE INK IS THE ROLE'S, NOT THIS PANEL'S. `paint_panel_frame` says `kMuted` — quiet
+/// ground — which is the same role the workspace's own backdrop carries, so in both shipped
+/// media this region is currently the same ink as the workspace beside it: `.` in a terminal,
+/// the same grey in a window. That is the role vocabulary working as designed rather than an
+/// oversight: a publisher ships intent and a Skin owns appearance, so "quiet ground behind
+/// furniture" and "quiet ground a maker authors on" are told apart by a MEDIUM that wants to,
+/// or by a new role once something has measured that they must be. Neither is this phase's to
+/// decide, and what it is worth is the observation that a filled region is no longer a hole.
 ///
 /// EVERY COORDINATE BELOW IS RELATIVE TO `b`. `kListY` and `kRowsY` are rows within this
 /// panel; `b.x` is its column. There is no `Screen` here any more, which is the measurable
@@ -1917,6 +1951,10 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
 /// where it is".
 inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                        const ui::Rect& b) {
+    // THE BACKDROP FIRST, so everything below is written over it and nothing authored
+    // survives underneath it. One rect, the whole of `b`, and the same call the other two
+    // presentations make.
+    paint_panel_frame(c, b);
     const auto label = [&c](std::int64_t x, std::int64_t y, std::string text, std::int64_t role) {
         c.labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
     };
