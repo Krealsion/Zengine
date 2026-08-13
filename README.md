@@ -723,7 +723,7 @@ come to lie about rows spent on wrapping. Discoverability is unchanged and delib
 any line the pane does not recognise (including `help`) answers with the grammar, and the pane
 still speaks two verbs.
 
-### Dynamic panels: Builder and Info (BLD-0, PNL-0, PNL-1)
+### Dynamic panels: Builder and Info (BLD-0, PNL-0, PNL-1, PNL-2, PNL-2a)
 
 > A weave may provide a tool; a **panel** is its presentation.
 
@@ -814,6 +814,15 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   that would strand a drag with the button up. **Motion is never occluded**, because stopping a
   drag at a panel's edge would clamp the document: an object would be unable to reach a cell a
   maker is entitled to put it at merely because something is drawn over that cell.
+- **A panel is as visible as it is occupied** (PNL-2a). Every open panel paints a backdrop
+  across the whole of its resolved bounds — the same rectangle `bounds_of` hands its painter
+  and `occupied_at` answers about, so there is one geometry rather than two that agree. Until
+  PNL-2a `Info` painted bare labels: it refused a press across 28×17 cells while an object
+  dragged under the column showed its body and its selection ring straight *through* the panel,
+  with the panel's own words on top. That was a real defect and it was one rectangle telling a
+  maker two different things. What it is **not** is an argument for a painted-cell mask: what a
+  hand meets is still bounds, because a mask would make occlusion depend on the length of a
+  label. Whitespace inside a panel is the panel's.
 - **Removing `Info` leaves its 28 columns empty, deliberately.** Giving them to the workspace
   would not be a tidier layout — the workspace's extent is what a share resolves against, so
   every `%`-wide object on screen would change size because a maker hid a list of names. A

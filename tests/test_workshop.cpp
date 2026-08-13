@@ -6589,7 +6589,19 @@ TEST_CASE("a painter goes where its bounds say, not where a constant says") {
     paint_info(ic, d, s, moved_info);
     CHECK(label_at(ic, moved_info.x, moved_info.y + kListY - 1) == "OBJECTS");
     CHECK(label_at(ic, moved_info.x, moved_info.y + kRowsY - 1) == "PROPERTIES");
-    CHECK(ic.rects.empty()); // Info still has no backdrop: bounds were shared, chrome was not
+    // AND ITS BACKDROP GOES WITH IT (PNL-2a). This assertion used to read
+    // `ic.rects.empty()` -- Info had no backdrop at all, pinned deliberately by
+    // PNL-1 and named by PNL-2 as the case that would have to change if anybody
+    // ever gave it one. Somebody did. It is one rect, it is the whole of the
+    // rectangle this painter was HANDED, and it is not the rectangle this kind
+    // would have resolved to -- so the backdrop is owned by the placement path
+    // exactly as much as the labels are.
+    REQUIRE(ic.rects.size() == 1);
+    CHECK(ic.rects[0].x == moved_info.x);
+    CHECK(ic.rects[0].y == moved_info.y);
+    CHECK(ic.rects[0].w == moved_info.w);
+    CHECK(ic.rects[0].h == moved_info.h);
+    CHECK(ic.rects[0].role == surface::role::kMuted);
     for (const surface::SurfaceLabel& l : ic.labels) {
         CHECK(l.x == moved_info.x);
         CHECK(l.y >= moved_info.y);
@@ -7335,6 +7347,177 @@ TEST_CASE("Info's column occupies pointer space, and an object can walk under it
     t.release(ox + 2, oy + 1);
 }
 
+// ----------------------------------------------------------------------------
+// Tier 6b -- PNL-2a: a region a hand cannot reach through, an eye cannot either
+// ----------------------------------------------------------------------------
+//
+// PNL-2 left exactly one thing measured and unrepaired. Occupancy is by BOUNDS;
+// visibility was by whatever the painter happened to write -- so Info refused a
+// press across the whole of 28x17 cells while showing the document through most
+// of them. An object walked under the column painted its body and its selection
+// ring straight through the panel, and the terminal medium read
+// `*#####PROPERTIES#############*` on one row: one rectangle saying two things.
+//
+// The repair is one rect, from the primitive the Builder and the picker already
+// take theirs from, at the bounds this painter was already handed. What the cases
+// below pin is that it is the SAME rectangle -- not a second one that agrees today
+// -- and that occlusion did NOT become a per-cell painted mask, which would have
+// made what a maker can press depend on the length of a label.
+
+TEST_CASE("Info's backdrop is the rectangle the pointer meets, on whatever screen it is") {
+    Live t;
+    t.key(input::scan::kN); // something to look at, so this is not the empty column
+    const Screen sc = screen_of(t.session());
+    const ui::Rect side = bounds_of(t.session().panels, panel::kInfo, sc).rect;
+    REQUIRE(side == ui::Rect{50, 0, 28, 17});
+
+    // ONE backdrop, and it IS the bounds. An equality, so a panel that painted
+    // most of its region -- which is the defect, one degree weaker -- cannot pass.
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    CHECK(has_rect(c, side.x, side.y, side.w, side.h, surface::role::kMuted));
+    std::size_t backdrops = 0;
+    for (const surface::SurfaceRect& r : c.rects) {
+        if (r.x == side.x && r.y == side.y && r.w == side.w && r.h == side.h) {
+            ++backdrops;
+        }
+    }
+    CHECK(backdrops == 1);
+
+    // The two answers stop together: both corners of the rectangle are occupied,
+    // and the gutter cell one column to its left is neither painted by it nor
+    // occupied. A backdrop that ran one cell wide of the bounds would say so here.
+    CHECK(occupied_at(t.session().panels, sc, side.x, side.y).occupied);
+    CHECK(occupied_at(t.session().panels, sc, side.x + side.w - 1, side.y + side.h - 1).occupied);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, side.x - 1, side.y).occupied);
+
+    // AND IT IS RESOLVED, NOT REMEMBERED. A bigger surface moves the side region;
+    // the backdrop is at the new answer and is not at the old one. A second copy of
+    // the geometry would still be painting the column a maker no longer has.
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33}));
+    const Screen big = screen_of(t.session());
+    const ui::Rect moved = bounds_of(t.session().panels, panel::kInfo, big).rect;
+    REQUIRE(moved.x > side.x);
+    const surface::SurfaceCanvas& after = t.canvases.back();
+    CHECK(has_rect(after, moved.x, moved.y, moved.w, moved.h, surface::role::kMuted));
+    CHECK_FALSE(has_rect(after, side.x, side.y, side.w, side.h, surface::role::kMuted));
+}
+
+TEST_CASE("what is inside Info's bounds is what Info painted, and nothing underneath it") {
+    // THE PICTURE PNL-2 RECORDED, ASSERTED AWAY -- and this is the case that fails
+    // the moment Info goes back to label-only painting.
+    WorkshopDoc d;
+    // Authored at 46 and 20 cells wide, this runs from the workspace, across the
+    // two-cell gutter, and well into the side region -- so this is a region
+    // something is genuinely trying to bleed into rather than one nothing reaches.
+    // An authored position is not bounded by the workspace extent (PNL-2), which is
+    // why a maker can reach this state with their own hand.
+    doc::add(d, "under", 46, 3, ui::Extent{ui::kExtentCells, 20},
+             ui::Extent{ui::kExtentCells, 5});
+    Session s;
+    s.selected = d.elements[0].id;
+    refocus(d, s);
+
+    const Screen sc = screen_of(s);
+    const ui::Rect side = bounds_of(s.panels, panel::kInfo, sc).rect;
+    const ui::Scene scene = workspace_scene(d, s);
+    REQUIRE(scene.items.size() == 1);
+    const ui::Rect obj = scene.items[0].rect;
+    REQUIRE(kWorkspaceX + obj.x + obj.w > side.x);
+
+    const std::vector<std::string> screen = rasterized(paint(d, s));
+    REQUIRE(screen.size() == static_cast<std::size_t>(sc.h));
+    for (const std::string& line : screen) {
+        REQUIRE(line.size() == static_cast<std::size_t>(sc.w));
+    }
+
+    // The object really is drawn right up to the panel's left edge...
+    const std::size_t row = static_cast<std::size_t>(kWorkspaceY + obj.y + 1);
+    CHECK(screen[row][static_cast<std::size_t>(side.x - 1)] == '#');
+
+    // ...and inside the panel every cell is the cell INFO painted, compared against
+    // one canvas holding nothing but this panel, through the same rasterizer.
+    surface::SurfaceCanvas alone;
+    alone.width = sc.w;
+    alone.height = sc.h;
+    paint_info(alone, d, s, side);
+    const std::vector<std::string> only_info = rasterized(alone);
+    REQUIRE(only_info.size() == screen.size());
+
+    // ROW 0 IS THE ONE EXCEPTION AND IT IS NOT INFO'S DOING: `paint` writes the
+    // screen's own `shift+space terminal` hint measured from the right edge, so it
+    // lands on this region's top row beside OBJECTS. It survives because a backdrop
+    // is a RECT and every label is drawn over every rect -- which is also the reason
+    // Info's rows are not padded to its width the way a stacked panel's are.
+    std::size_t compared = 0;
+    std::size_t differed = 0;
+    std::int64_t first_bad_x = -1;
+    std::int64_t first_bad_y = -1;
+    for (std::int64_t y = side.y + 1; y < side.y + side.h; ++y) {
+        for (std::int64_t x = side.x; x < side.x + side.w; ++x) {
+            ++compared;
+            const std::size_t yi = static_cast<std::size_t>(y);
+            const std::size_t xi = static_cast<std::size_t>(x);
+            if (screen[yi][xi] != only_info[yi][xi]) {
+                ++differed;
+                if (first_bad_x < 0) {
+                    first_bad_x = x;
+                    first_bad_y = y;
+                }
+            }
+        }
+    }
+    CHECK(compared == static_cast<std::size_t>((side.h - 1) * side.w));
+    CHECK(first_bad_x == -1); // named, so a failure says WHICH cell showed through
+    CHECK(first_bad_y == -1);
+    CHECK(differed == 0);
+    CHECK(screen[0].find("OBJECTS") != std::string::npos);
+    CHECK(screen[0].find("shift+space terminal") != std::string::npos);
+}
+
+TEST_CASE("removing Info takes its backdrop with it, and reopening brings both back") {
+    // A PANEL THAT IS NOT THERE HIDES NOTHING, which is the other half of the same
+    // claim: the backdrop belongs to the panel, so it leaves when the panel does and
+    // the document underneath is exactly the document it always was.
+    Live t;
+    const Screen sc = screen_of(t.session());
+    const ui::Rect side = bounds_of(t.session().panels, panel::kInfo, sc).rect;
+
+    // Walk #1 under the column by hand, so the column has something to be hiding.
+    t.press(10, 4);
+    REQUIRE(t.session().drag.active);
+    t.motion(40, 4);
+    t.motion(59, 4);
+    t.release(59, 4);
+    // The scene is held in a named value: `placed_for` answers with a pointer INTO
+    // it, so asking a temporary would hand back a pointer to something already gone.
+    const ui::Scene scene = workspace_scene(t.doc(), t.session());
+    const ui::Placed* under = ui::placed_for(scene, 1);
+    REQUIRE(under != nullptr);
+    const std::int64_t ox = kWorkspaceX + under->rect.x + 1;
+    const std::int64_t oy = kWorkspaceY + under->rect.y + 1;
+    REQUIRE(side.contains(ox, oy));
+    const std::size_t row = static_cast<std::size_t>(oy);
+
+    const std::string shown = info_text(t.canvases.back(), sc);
+    REQUIRE(shown.find("OBJECTS") != std::string::npos);
+    REQUIRE(has_rect(t.canvases.back(), side.x, side.y, side.w, side.h, surface::role::kMuted));
+    CHECK(rasterized(t.canvases.back())[row][static_cast<std::size_t>(ox)] == '.');
+
+    pick(t, panel::kInfo);
+    REQUIRE_FALSE(t.session().panels.has(panel::kInfo));
+    const surface::SurfaceCanvas& gone = t.canvases.back();
+    CHECK_FALSE(has_rect(gone, side.x, side.y, side.w, side.h, surface::role::kMuted));
+    CHECK(info_text(gone, sc).empty());
+    // AND THE OBJECT IS BACK IN VIEW, on the very cell the panel was covering.
+    CHECK(rasterized(gone)[row][static_cast<std::size_t>(ox)] == '#');
+
+    pick(t, panel::kInfo);
+    const surface::SurfaceCanvas& back = t.canvases.back();
+    CHECK(info_text(back, sc) == shown);
+    CHECK(has_rect(back, side.x, side.y, side.w, side.h, surface::role::kMuted));
+    CHECK(rasterized(back)[row][static_cast<std::size_t>(ox)] == '.');
+}
+
 TEST_CASE("the picker occupies the slot it opens over, and answers for it while it is there") {
     // THE PICKER IS A MODE AND NOT A PANEL -- no catalog row, no instance -- but
     // it is a box a maker can read, and PNL-0 went to the trouble of padding it to
@@ -7433,7 +7616,15 @@ TEST_CASE("what a panel is painted at and what it occupies are one resolved trut
     for (const surface::SurfaceLabel& l : only_panels.labels) {
         CHECK(occupied_at(panels, sc, l.x, l.y).occupied);
     }
-    REQUIRE_FALSE(only_panels.rects.empty()); // the stacked panel's backdrop
+    // ONE BACKDROP PER OPEN PANEL, AND EACH IS ITS OWN BOUNDS (PNL-2a). Asserted as
+    // an EQUALITY against `bounds_of` rather than as containment, because the thing
+    // that went wrong for two phases was a panel painting less than it occupied --
+    // and "inside the occupied space" is satisfied by a backdrop over half of it.
+    REQUIRE(only_panels.rects.size() == panels.open.size());
+    for (const Panel& p : panels.open) {
+        const ui::Rect pb = bounds_of(panels, p.kind, sc).rect;
+        CHECK(has_rect(only_panels, pb.x, pb.y, pb.w, pb.h, surface::role::kMuted));
+    }
     for (const surface::SurfaceRect& r : only_panels.rects) {
         CHECK(occupied_at(panels, sc, r.x, r.y).occupied);
         CHECK(occupied_at(panels, sc, r.x + r.w - 1, r.y + r.h - 1).occupied);
