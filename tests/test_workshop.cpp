@@ -6011,3 +6011,363 @@ TEST_CASE("the pane keeps its corner and gains its half of a bigger surface") {
               static_cast<std::size_t>(sc.terminal_x),
               static_cast<std::size_t>(sc.terminal_w)) == blank);
 }
+
+// ============================================================================
+// Tier 8 — the dynamic panels (BLD-0)
+// ============================================================================
+//
+// A WEAVE MAY PROVIDE A TOOL; A PANEL IS ITS PRESENTATION. Everything in this
+// tier is about that sentence, and the cases are arranged so that the split
+// would be visible if it broke:
+//
+//   the CATALOG and the picker are Workshop's own furniture, and pure.
+//   OPEN / CLOSE / REOPEN go through the real weave on a real bus, driven by
+//     published input messages, exactly as every other gesture in this file is.
+//   the TOOL is a stand-in weave holding `zengine.builder`. It records what it
+//     was asked and answers whatever the case wants -- so what is pinned here is
+//     Workshop's half of the conversation, and the Builder package's own half (a
+//     real process, a real exit status, and who may cause one) is the `builder`
+//     suite's, next door.
+//
+// The panel's own state is deliberately NOT reachable from Workshop's document,
+// its persistence, or its authored material, and the cases that would notice
+// otherwise are the ones that close a panel and open it again.
+
+namespace {
+
+/// A stand-in for the Builder tool: it holds the office, records what it was
+/// asked, and answers with whatever status the case has set up.
+///
+/// It is not a mock of the real tool's LOGIC (that has its own suite); it is the
+/// other end of the conversation, so that "Workshop asked" and "Workshop showed
+/// what it was told" are two facts a case can separate.
+class ToolSeat : public loom::WeaveBase<ToolSeat, SeenState,
+                                        loom::Accept<zengine::builder::StatusRequested,
+                                                     zengine::builder::BuildRequested>,
+                                        loom::Emit<zengine::builder::BuildStatus>> {
+public:
+    void on(const zengine::builder::StatusRequested&, loom::Mail& mail) {
+        ++described;
+        (void)mail.publish(next);
+    }
+    void on(const zengine::builder::BuildRequested& ask, loom::Mail& mail) {
+        asked.push_back(ask.target);
+        if (answers_builds) {
+            (void)mail.publish(next);
+        }
+    }
+
+    /// What this tool will say next time it is asked anything.
+    zengine::builder::BuildStatus next{};
+    /// ...and whether it answers a build at all. A real build takes seconds and
+    /// answers when the process exits; a stand-in that always answers instantly
+    /// would make the panel's `waiting` state unreachable from any case.
+    bool answers_builds = true;
+    std::int64_t described = 0;
+    std::vector<std::string> asked;
+};
+
+/// Mount the stand-in into the Builder office on this Workshop's bus.
+ToolSeat* mount_tool(Live& t, const std::string& target) {
+    auto seat = std::make_unique<ToolSeat>();
+    ToolSeat* raw = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
+                       zengine::builder::BuildStatus::zen_version);
+    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
+                                                  std::string(zengine::builder::kBuilderRole));
+    raw->zen_set_self(id);
+    raw->next.target = target;
+    return raw;
+}
+
+/// Everything the dock is showing, top to bottom -- the panel's own column.
+std::string dock_text(const surface::SurfaceCanvas& c) {
+    std::string out;
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == kDockX && l.y >= kDockY && l.y < kDockY + kPanelRows) {
+            out += l.text;
+            out += '\n';
+        }
+    }
+    return out;
+}
+
+/// Open the Builder panel the way a maker does: `p`, then Return.
+void open_builder(Live& t) {
+    t.key(input::scan::kP);
+    t.key(input::scan::kReturn);
+}
+
+} // namespace
+
+TEST_CASE("the catalog is what the picker offers, and Builder is the one entry in it") {
+    // The catalog is Workshop's own and complete: the picker walks it, so a kind
+    // that is not here cannot be opened by any gesture at all.
+    REQUIRE(kPanelKinds == 1);
+    CHECK(kPanelCatalog[0].kind == panel::kBuilder);
+    CHECK(std::string(kPanelCatalog[0].name) == "Builder");
+
+    Session s;
+    s.panels.picker.open = true;
+    surface::SurfaceCanvas c;
+    paint_picker(c, s.panels.picker);
+    const std::string shown = dock_text(c);
+    CHECK(shown.find("+ PANEL") != std::string::npos);
+    CHECK(shown.find("Builder") != std::string::npos);
+    CHECK(shown.find(kPanelCatalog[0].summary) != std::string::npos);
+}
+
+TEST_CASE("a panel opens from the picker, closes, and opens again") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    REQUIRE(t.w->session().panels.open.empty());
+
+    t.key(input::scan::kP);
+    CHECK(t.w->session().panels.picker.open);
+    CHECK(t.w->session().panels.open.empty()); // the picker is a question, not a panel
+
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(t.w->session().panels.picker.open);
+    REQUIRE(t.w->session().panels.open.size() == 1);
+    CHECK(t.w->session().panels.open[0].kind == panel::kBuilder);
+    CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
+
+    t.key(input::scan::kX);
+    CHECK(t.w->session().panels.open.empty());
+    CHECK(dock_text(t.canvases.back()).find("BUILDER") == std::string::npos);
+
+    open_builder(t);
+    REQUIRE(t.w->session().panels.open.size() == 1);
+    CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
+    // ...and every one of those opens ASKED the tool, which is the half that
+    // makes a reopened panel show a live tool rather than a remembered one.
+    CHECK(tool->described == 2);
+}
+
+TEST_CASE("the picker can be dismissed without opening anything, two ways") {
+    for (const std::int64_t out : {input::scan::kEscape, input::scan::kP}) {
+        Live t;
+        (void)mount_tool(t, "zengine-snake");
+        t.key(input::scan::kP);
+        REQUIRE(t.w->session().panels.picker.open);
+        t.key(out);
+        CHECK_FALSE(t.w->session().panels.picker.open);
+        CHECK(t.w->session().panels.open.empty());
+    }
+}
+
+TEST_CASE("opening a Builder panel ASKS the tool, and shows what the tool answers") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    tool->next.outcome = zengine::builder::outcome::kNeverBuilt;
+    open_builder(t);
+
+    CHECK(tool->described == 1);
+    const std::string shown = dock_text(t.canvases.back());
+    // The target's NAME is the one fact that exists before any build, and it
+    // came from the tool -- Workshop holds no target of its own.
+    CHECK(shown.find("zengine-snake") != std::string::npos);
+    CHECK(shown.find("not built yet") != std::string::npos);
+    CHECK(shown.find("nothing has run yet") != std::string::npos);
+}
+
+TEST_CASE("Build asks for the name the TOOL gave, and asks for nothing without one") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    // WITH NO PANEL OPEN, `b` is the unbound key it has always been.
+    t.key(input::scan::kB);
+    CHECK(tool->asked.empty());
+
+    open_builder(t);
+    tool->answers_builds = false; // a real build answers when the process exits
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "zengine-snake");
+    // And Workshop says what it did, in its own voice, before anything ran --
+    // on the notice line AND on the panel, which is the one frame a maker gets
+    // before a synchronous build takes the pump away.
+    CHECK(t.w->session().notice.find("asked the Builder") != std::string::npos);
+    CHECK(t.w->session().panels.builder.awaiting);
+    CHECK(dock_text(t.canvases.back()).find("waiting for it to finish") != std::string::npos);
+}
+
+TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
+    Live t;
+    // NO TOOL AT THE OFFICE. The panel opens, asks, and is never answered -- so
+    // Workshop has no target to name, and names none.
+    open_builder(t);
+    CHECK(t.w->session().panels.open.size() == 1);
+    CHECK(dock_text(t.canvases.back()).find("has not answered yet") != std::string::npos);
+
+    t.key(input::scan::kB);
+    CHECK(t.w->session().notice.find("has not said what it builds") != std::string::npos);
+}
+
+TEST_CASE("success and failure are both on the screen, and both true") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    open_builder(t);
+
+    SUBCASE("a build that succeeded") {
+        tool->next.outcome = zengine::builder::outcome::kSucceeded;
+        tool->next.status = 0;
+        tool->next.recipe = "cmake --build . --target zengine-snake";
+        tool->next.detail = "Built target zengine-snake";
+        tool->next.builds = 1;
+        t.key(input::scan::kB);
+
+        const std::string shown = dock_text(t.canvases.back());
+        CHECK(shown.find("succeeded") != std::string::npos);
+        CHECK(shown.find("Built target zengine-snake") != std::string::npos);
+        CHECK(t.w->session().notice == "built zengine-snake -- exit 0");
+        CHECK_FALSE(t.w->session().notice_is_bad);
+    }
+
+    SUBCASE("a build that failed") {
+        tool->next.outcome = zengine::builder::outcome::kFailed;
+        tool->next.status = 2;
+        tool->next.recipe = "cmake --build . --target zengine-snake";
+        tool->next.detail = "gmake: *** [all] Error 2";
+        tool->next.builds = 1;
+        t.key(input::scan::kB);
+
+        const std::string shown = dock_text(t.canvases.back());
+        CHECK(shown.find("FAILED") != std::string::npos);
+        CHECK(shown.find("Error 2") != std::string::npos);
+        CHECK(t.w->session().notice.find("BUILD FAILED") != std::string::npos);
+        CHECK(t.w->session().notice_is_bad);
+    }
+
+    SUBCASE("a build that never started says so, and shows no exit status") {
+        tool->next.outcome = zengine::builder::outcome::kNotStarted;
+        tool->next.status = 0;
+        tool->next.detail = "could not run it (not found, or not executable)";
+        t.key(input::scan::kB);
+
+        const std::string shown = dock_text(t.canvases.back());
+        CHECK(shown.find("did not start") != std::string::npos);
+        // A `0` in the exit column after a build that never began would read as
+        // success at the exact moment a maker most needs the right answer.
+        CHECK(shown.find("exit     --") != std::string::npos);
+        CHECK(t.w->session().notice_is_bad);
+    }
+}
+
+TEST_CASE("a status this panel did not ask for is SHOWN, and never ANNOUNCED") {
+    // THE REGRESSION THE FIRST LIVE RUN PRODUCED. Reopening the panel asks the
+    // tool, the tool answers with the outcome of a build that finished minutes
+    // ago, and the notice line announced `built zengine-snake -- exit 0` as
+    // though it had just happened. Learning a fact and witnessing an event are
+    // different, and only the second is news.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.detail = "Built target zengine-snake";
+    tool->next.builds = 7;
+
+    open_builder(t);
+    // The panel SHOWS the tool's history...
+    const std::string shown = dock_text(t.canvases.back());
+    CHECK(shown.find("succeeded") != std::string::npos);
+    CHECK(shown.find("asks 7 ever") != std::string::npos);
+    // ...and says nothing about a build happening, because none did.
+    CHECK(t.w->session().notice == "opened Builder -- x closes it");
+
+    // THE CANARY: the same arriving status, for a build this panel DID ask for,
+    // is announced. Without it the case above would be satisfied by a Workshop
+    // that had simply stopped announcing outcomes at all.
+    t.key(input::scan::kB);
+    CHECK(t.w->session().notice.find("built zengine-snake") != std::string::npos);
+}
+
+TEST_CASE("closing forgets the panel's copy; the TOOL keeps its own count") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.builds = 3;
+    open_builder(t);
+    REQUIRE(t.w->session().panels.builder.heard);
+
+    t.key(input::scan::kX);
+    // The panel's view went with the panel. Nothing here reached the tool.
+    CHECK_FALSE(t.w->session().panels.builder.heard);
+    CHECK(t.w->session().panels.builder.shown.builds == 0);
+
+    // WHILE IT IS CLOSED, THE TOOL GOES ON. A publication with nothing
+    // presenting it is not remembered -- keeping a copy against the possibility
+    // of a panel being opened later is how a presentation becomes a second owner.
+    tool->next.builds = 9;
+    t.publish(loom::to_value(tool->next));
+    CHECK_FALSE(t.w->session().panels.builder.heard);
+
+    // And reopening asks, and is answered with the TOOL's running total -- which
+    // a panel that owned the state could not produce.
+    open_builder(t);
+    CHECK(t.w->session().panels.builder.shown.builds == 9);
+    CHECK(dock_text(t.canvases.back()).find("asks 9 ever") != std::string::npos);
+}
+
+TEST_CASE("the same kind cannot be opened twice, and the refusal is a sentence") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    REQUIRE(t.w->session().panels.open.size() == 1);
+
+    open_builder(t);
+    CHECK(t.w->session().panels.open.size() == 1);
+    CHECK(t.w->session().notice.find("already open") != std::string::npos);
+    CHECK(t.w->session().notice_is_bad);
+}
+
+TEST_CASE("the dock covers the workspace and never reaches the panel column") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
+
+    // WITHOUT A PANEL, the screen is the one Workshop already had plus exactly
+    // one new thing: the row-0 hint that says how to open one.
+    const surface::SurfaceCanvas bare = t.canvases.back();
+    CHECK(label_at(bare, 24, 0) == "[+ panel]  p");
+    CHECK(dock_text(bare).empty());
+
+    open_builder(t);
+    const surface::SurfaceCanvas with = t.canvases.back();
+    const Screen sc = screen_of(t.session());
+    for (const surface::SurfaceLabel& l : with.labels) {
+        if (l.x == kDockX && l.y >= kDockY && l.y < kDockY + kPanelRows) {
+            // Every dock row is padded to the dock's width, so in a character
+            // medium the spaces erase the workspace under it rather than
+            // punching holes through to it.
+            CHECK(l.text.size() == static_cast<std::size_t>(kDockW));
+            CHECK(kDockX + kDockW <= sc.panel_x);
+        }
+    }
+    // The OBJECTS and PROPERTIES columns are untouched by any of this.
+    CHECK(label_at(with, sc.panel_x, kListY - 1) == "OBJECTS");
+    CHECK(label_at(with, sc.panel_x, kRowsY - 1) == "PROPERTIES");
+}
+
+TEST_CASE("the terminal overlay still outranks everything, panels included") {
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    open_builder(t);
+    REQUIRE(t.w->session().panels.open.size() == 1);
+
+    t.toggle_terminal();
+    REQUIRE(t.w->session().terminal.open);
+    // `b` and `x` are Workshop's command-mode keys; while the pane is open the
+    // pane has the input, so neither reaches the panel.
+    t.key(input::scan::kB);
+    t.key(input::scan::kX);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().panels.open.size() == 1);
+
+    t.toggle_terminal();
+    CHECK_FALSE(t.w->session().terminal.open);
+    t.key(input::scan::kB);
+    CHECK(tool->asked.size() == 1); // and closing it restores them exactly
+}

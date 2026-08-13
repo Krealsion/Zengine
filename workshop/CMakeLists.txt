@@ -34,10 +34,20 @@
 # It is portable, like the rest of this target: the terminal core is in Loom's export
 # set unconditionally and needs no kernel. The HOST below still gates on loom::kernel,
 # for the reason it always did -- it loads .so weaves -- and that gate is unrelated.
+#
+# ...and zengine-builder-vocabulary since BLD-0, for the narrowest possible reason.
+# `workshop/panel.hpp` includes `builder/vocabulary.hpp` because the Builder PANEL holds a
+# copy of `builder::BuildStatus` and Workshop's weave sends `builder::BuildRequested` — the
+# shapes of a conversation, and nothing else. It does NOT include builder/runner.hpp or
+# builder/run.hpp, and this target does not carry them: a presentation that could reach the
+# code that starts a process would be a presentation with process authority in it, however
+# carefully it declined to use it. Which header a consumer names is the visible half of that
+# split; the enforcing half is the grant the HOST writes below.
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
                                                             zengine-ui-vocabulary
+                                                            zengine-builder-vocabulary
                                                             loom::core
                                                             loom::terminal)
 
@@ -53,7 +63,47 @@ target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
             zengine-workshop-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
-            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+            zengine-timer-vocabulary zengine-builder-vocabulary
+            zengine-warnings zengine-sanitize)
+
+# ---- The one build recipe this host hands its build runner (BLD-0) ----------------------
+#
+# THE TARGET'S EXISTING BUILD RECIPE, NOT A SECOND BUILD SYSTEM. Zengine is built by CMake,
+# so "build zengine-snake" spelled honestly is the very command a maker would type:
+#
+#     ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-snake
+#
+# Nothing here compiles anything itself, knows a compiler, or reimplements a dependency
+# rule. If the recipe is stale the real build system says so, in its own words, on the
+# panel.
+#
+# BAKED AT CONFIGURE TIME, and both halves are deliberate:
+#
+#   the cmake     ${CMAKE_COMMAND} is THE cmake that configured this tree, by absolute
+#                 path. Resolving `cmake` from PATH at run time would let a Workshop
+#                 started from a different shell drive a different CMake against a tree it
+#                 did not configure -- a build that works on one machine and produces an
+#                 unexplainable diagnostic on another.
+#   the build dir ${CMAKE_BINARY_DIR} is THIS build tree, absolute. Deriving it from the
+#                 executable's own directory at run time would be a guess that happens to
+#                 be right for the single-config generators this repository's lanes use and
+#                 quietly wrong for a multi-config one, where the binary sits one directory
+#                 deeper. A copied binary therefore still names the tree it was built in,
+#                 and if that tree is gone the build fails honestly rather than picking a
+#                 nearby one.
+#
+# ZENGINE-SNAKE IS THE TARGET, and the choice is not arbitrary. It is real, it is always
+# built here, and -- the part that matters -- it is NOT one of the weaves this running
+# Workshop has loaded. Building a target whose artifact is staged beside this host would
+# have the build overwrite a shared library the process has mapped, which on Linux changes
+# code under a running program and on Windows simply fails on a locked file. The obvious
+# next wish, `zengine-workshop` rebuilding itself, is the same hazard aimed at the host
+# binary; that it is out of scope here is a consequence of Build+Load being a later phase
+# and not a coincidence.
+target_compile_definitions(zengine-workshop PRIVATE
+    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\""
+    "ZENGINE_BUILDER_BUILD_DIR=\"${CMAKE_BINARY_DIR}\""
+    "ZENGINE_BUILDER_TARGET=\"zengine-snake\"")
 
 # The weaves this host loads must sit beside its binary — the host resolves them
 # from its own directory (workshop.cpp's exe_dir), exactly as snake's does.

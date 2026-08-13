@@ -370,6 +370,32 @@ target_include_directories(zengine-workshop-tests PRIVATE
 
 zengine_doctest_test(workshop zengine-workshop-tests)
 
+# The Builder suite: a name, a command, and the line between them. It is the one
+# suite here that starts REAL CHILD PROCESSES -- success, failure, and a program
+# that is not there -- because that is the effect the package exists to bound, and
+# a mocked process would prove nothing about a boundary whose whole subject is a
+# real one.
+#
+# EVERY RECIPE IT RUNS IS `cmake -E ...`, CMake's own portable shim: no shell, no
+# /bin/sh, no .bat, and no assumption about what else this machine has installed.
+# The cmake it uses is THE one that configured this tree, handed over the way the
+# Workshop host's recipe is handed over -- resolving `cmake` from PATH inside the
+# test would be testing this machine's PATH.
+#
+# It links no weave library and needs no kernel of its own: both Builder weaves are
+# mounted in-process, exactly as Workshop's own weave is. loom::kernel rides along
+# because this whole directory is gated on a Loom that can host weaves (POP-03).
+add_executable(zengine-builder-tests test_builder.cpp doctest_main.cpp)
+target_link_libraries(zengine-builder-tests
+    PRIVATE loom::switchboard loom::core zengine-builder-vocabulary
+            zengine-warnings zengine-sanitize)
+target_include_directories(zengine-builder-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-builder-tests PRIVATE
+    "ZENGINE_TEST_CMAKE=\"${CMAKE_COMMAND}\"")
+
+zengine_doctest_test(builder zengine-builder-tests)
+
 # The Trust-Gate liveness probes: what the substrate actually does when the
 # TIMER SERVICE ITSELF is swapped / reloaded / double-wound / joined late. The
 # durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —

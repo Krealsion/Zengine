@@ -27,6 +27,9 @@
 
 #include "weave.hpp"
 
+#include "builder/runner.hpp"
+#include "builder/vocabulary.hpp"
+#include "builder/weave.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -58,13 +61,34 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace {
 
 using namespace zengine::workshop;
+namespace builder = zengine::builder;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
+
+/// Mount an in-process weave into an OFFICE, with the grant the host chose.
+///
+/// `loom::mount_granted` does everything this does except bind a role, and the
+/// three-argument `register_weave` is the Loom's own way to bind one — so this
+/// is the two of them spelled together rather than a new mechanism. The office
+/// is what lets a grant say "may speak to whoever holds this" instead of naming
+/// a WeaveId, which is what keeps the authority written here readable: the
+/// Builder may reach the build runner, and nothing else may.
+template <class Weave, class... Args>
+loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const char* office,
+                              Args&&... args) {
+    auto weave = std::make_unique<Weave>(std::forward<Args>(args)...);
+    Weave* raw = weave.get();
+    const loom::WeaveId id =
+        bus.register_weave(std::move(weave), std::move(grant), std::string(office));
+    raw->zen_set_self(id);
+    return id;
+}
 
 /// The boot weave: it asks the Weave Manager to load the packages Workshop runs
 /// on, and — the part that matters — it HEARS THE ANSWERS.
@@ -305,15 +329,87 @@ int main(int argc, char** argv) {
     // pane speaks as is exactly the line somebody is reading when they kill it.
     std::fflush(stdout);
 
-    // Workshop's own reach: the right to SPEAK its screen, and nothing else. It
+    // ---- The Builder tool, and the one thing that may start a process (BLD-0) ----
+    //
+    // TWO WEAVES, TWO OFFICES, TWO GRANTS, AND THE SPLIT IS THE POINT. Building
+    // something is the first effect this repository has asked for that is not
+    // "paint" or "open the file the host named", so the authority it needs is
+    // written out here rather than acquired by a tool that happens to need it:
+    //
+    //   the RUNNER holds the catalog -- an absolute cmake, an absolute build
+    //     tree and a target name, all decided at configure time -- and is the
+    //     only weave in this program that starts a process. Its whole reach is
+    //     one rule: it may report a BuildOutcome to whoever holds the Builder
+    //     office. It cannot paint, cannot publish, cannot load a weave and
+    //     cannot reach the Manager or the control door.
+    //   the TOOL is ordinary. It holds the target's NAME and its history, and
+    //     its two rules are: order the runner, and say what it knows to anyone
+    //     who accepts a BuildStatus. It holds no command and cannot spell one.
+    //
+    // WORKSHOP GAINS TWO SENTENCES AND NO POWERS. Its grant below adds the right
+    // to ask the Builder what it is and to ask it for a build BY NAME. It cannot
+    // reach the runner, and the name it may ask for is the one the tool told it.
+    // A maker's Build therefore crosses two offices before it reaches a process,
+    // and every hop is one line a reader can check.
+    //
+    // WHAT THIS IS NOT: containment. An in-process weave shares this process's
+    // address space, so the grant bounds what these weaves may SAY, never what
+    // they may TOUCH -- any code compiled into this binary could call the same
+    // platform functions builder/run.hpp calls. The split buys one reviewable
+    // place where process authority lives, which is worth having and is not the
+    // same thing as a boundary the operating system enforces. Kernel::
+    // containment_note() above already says this host isolates nothing, and this
+    // is the same sentence about a different effect.
+    std::vector<builder::BuildRecipe> catalog;
+    catalog.push_back(builder::BuildRecipe{
+        ZENGINE_BUILDER_TARGET, ZENGINE_BUILDER_CMAKE,
+        {"--build", ZENGINE_BUILDER_BUILD_DIR, "--target", ZENGINE_BUILDER_TARGET},
+        ZENGINE_BUILDER_BUILD_DIR});
+
+    loom::Grant run_builds;
+    run_builds.allow_to_role(builder::BuildOutcome::zen_name, builder::BuildOutcome::zen_version,
+                             builder::kBuilderRole);
+    const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
+        bus, std::move(run_builds), builder::kBuildRunnerRole, catalog);
+
+    loom::Grant order_builds;
+    order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
+                               builder::kBuildRunnerRole);
+    order_builds.allow_to_any(builder::BuildStatus::zen_name, builder::BuildStatus::zen_version);
+    const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
+        bus, std::move(order_builds), builder::kBuilderRole, std::string(ZENGINE_BUILDER_TARGET));
+
+    // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
+    // for the same reason: what a button in this program will actually run is a
+    // fact a maker is entitled to before they press it, and the panel can only
+    // show it AFTER the runner has run it (the tool holds no command to show).
+    // Two lines, so the identities are as legible as the command.
+    std::printf("zengine-workshop - builder: weave #%s builds `%s` (p opens the panel)\n",
+                std::to_string(builder_tool.value).c_str(), ZENGINE_BUILDER_TARGET);
+    std::printf("zengine-workshop - build runner: weave #%s runs `%s`\n",
+                std::to_string(runner.value).c_str(), catalog.front().as_line().c_str());
+    std::fflush(stdout);
+
+    // Workshop's own reach: the right to SPEAK its screen, to ask the Builder
+    // what it is, and to ask it for a build BY NAME -- and nothing else. It
     // commands no lifecycle, loads no weave and reaches no manager -- the boot
     // list below is the host's. A maker tool with a live document does not need
     // the dangerous grant to do its job, and giving it one "because Workshop
     // will eventually need it" is exactly the specialness these phases are
     // supposed to be counting.
+    //
+    // The two BLD-0 rules are ROLE-SCOPED and the choice of scope is the whole
+    // of what Workshop was allowed to become: `to_role(builder)` and not
+    // `to_any`, so Workshop can put these two sentences in front of the Builder
+    // office and nowhere else -- not to the runner, not to the Manager, not to a
+    // stranger who happens to accept the shape.
     loom::Grant speak;
     speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
     speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
+    speak.allow_to_role(builder::StatusRequested::zen_name,
+                        builder::StatusRequested::zen_version, builder::kBuilderRole);
+    speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,
+                        builder::kBuilderRole);
     loom::mount_granted<WorkshopWeave>(bus, std::move(speak), host);
 
     // The boot weave's reach: the Manager, target-scoped, plus the right to speak
