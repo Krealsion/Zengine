@@ -723,16 +723,41 @@ come to lie about rows spent on wrapping. Discoverability is unchanged and delib
 any line the pane does not recognise (including `help`) answers with the grammar, and the pane
 still speaks two verbs.
 
-### Dynamic panels, and the Builder panel (BLD-0)
+### Dynamic panels: Builder and Info (BLD-0, PNL-0)
 
 > A weave may provide a tool; a **panel** is its presentation.
 
 `[+ panel]` on the screen's title row (`p`) opens a small picker over the catalog of panel
-kinds Workshop knows how to present (`panel.hpp`); Return opens the chosen one, `x` closes it,
-and `p` `Return` opens it again. The catalog is a constant array of Workshop's own — a panel
-that is not in it cannot be opened, because the picker is the only door. `panel == weave` is
-deliberately **not** an architectural rule: a later panel that presents something with no weave
-behind it fits this catalog unchanged.
+kinds Workshop knows how to present (`panel.hpp`). The catalog is a constant array of
+Workshop's own — a panel that is not in it cannot be opened, because the picker is the only
+door — and it holds two kinds, chosen to be unalike:
+
+| kind | presents | behind it |
+|---|---|---|
+| `Builder` | one known build target and its last outcome | a weave holding `zengine.builder` |
+| `Info` | the `OBJECTS` list and the `PROPERTIES` inspector | nothing — the document and the session |
+
+`panel == weave` is deliberately **not** an architectural rule, and `Info` is what pays for
+that sentence rather than asserting it: opening it sends no message, asks no office and needs
+no weave mounted anywhere, and it has no per-panel state for a close to destroy. A Workshop
+hosting no tools at all opens it and it works.
+
+**The picker owns panel presence** (PNL-0). One door, both directions:
+
+```text
+closed panel  ->  select  ->  open
+open panel    ->  select  ->  remove
+```
+
+so the picker lists each kind as `open` or `closed` beside its name — a toggle whose current
+state is invisible is a gesture a maker has to guess at. BLD-0 spelled removal `x`, which was
+unambiguous while one kind existed; a second kind would have made that key choose a panel, and
+choosing means either a per-panel binding or a focused panel. Both are frameworks this Workshop
+has declined, so presence moved wholly to the picker and `x` is an unbound key again.
+
+**`Info` is open at boot**, and until PNL-0 those two columns were not a panel at all: `paint`
+drew them unconditionally, and the only way to not have them was to edit `paint`. What the
+migration moved is where they are painted from; what a maker sees at boot is byte-identical.
 
 - **The panel is not the tool.** The Builder panel holds a *copy* of the last `BuildStatus` the
   Builder tool published, and closing the panel destroys the copy and nothing else. Reopening
@@ -743,17 +768,23 @@ behind it fits this catalog unchanged.
   `BuildRequested`, both scoped *to the Builder office*. It cannot reach the runner, and the
   only build it can ask for is the one the tool has already named — a panel that has not heard
   from its tool cannot ask for anything, and says so.
-- **Placement is the simplest truthful thing the current geometry supports, and it is
-  awkward.** A panel is an overlay anchored to the canvas's top-left, exactly the workspace's
-  width at the minimum screen, stacked downwards — the terminal overlay's mechanism pointed at
-  the other corner. It covers the top of the material a maker is building. The fixed panels are
-  untouched: `OBJECTS` sits at a fixed five rows and `PROPERTIES` at a height that *changes*
-  with the selection, so "below PROPERTIES" is a row number that slides. Docking, tabs, saved
-  layouts and resizing are all absent, and what using this felt like is the phase's evidence
-  for whichever of them gets built.
+- **There are two placements, and no layout policy.** `Builder` is an overlay anchored to the
+  canvas's top-left, exactly the workspace's width at the minimum screen, stacked downwards —
+  the terminal overlay's mechanism pointed at the other corner — and it covers the top of the
+  material a maker is building. `Info` is the fixed right-hand column it has always been.
+  Each kind knows which of the two it is in; the dock's stack counts *docked* panels, so an
+  `Info` ahead of a `Builder` in the open list never pushes it down a slot it does not occupy.
+  Docking, tabs, saved layouts, dragging and resizing are all absent, and what using two
+  unalike panels felt like is the evidence for whichever of them gets built.
+- **Removing `Info` leaves its 28 columns empty, deliberately.** Giving them to the workspace
+  would not be a tidier layout — the workspace's extent is what a share resolves against, so
+  every `%`-wide object on screen would change size because a maker hid a list of names. A
+  panel's presence must not be visible in the picture of the document.
 - **No focus framework.** Four modes, in priority: the terminal overlay, the panel picker, an
-  open inspector draft, then command mode. `p`, `b` and `x` were unbound keys and `b`/`x` still
-  do nothing with no Builder panel open.
+  open inspector draft, then command mode. `p` and `b` were unbound keys and `b` still does
+  nothing with no Builder panel open. The inspector's own keys (`up`, `down`, Return) belong
+  to `Info`: with it removed they say so instead of driving rows nobody can see, which would
+  otherwise open a draft that no screen shows and that `^s` would then refuse to save over.
 - **A synchronous build has no in-flight frame.** Pressing `b` paints one frame — `asked --
   waiting for it to finish` — because Workshop's own repaint is queued ahead of the order that
   reaches the runner; after that the runner blocks the pump that would carry the next one. What

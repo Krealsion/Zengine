@@ -128,6 +128,21 @@ std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
     return {};
 }
 
+/// What is actually SEEN at a cell where several labels landed: the LAST one
+/// written, because painter's order is list order and every Skin draws it that
+/// way. `label_at` above answers with the first, which is the bottom of the
+/// stack -- fine everywhere nothing overlaps, and exactly wrong for asking
+/// whether an overlay covered what is under it.
+std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+    std::string seen;
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == x && l.y == y) {
+            seen = l.text;
+        }
+    }
+    return seen;
+}
+
 /// The OBJECTS panel exactly as a maker reads it: every line of the list block,
 /// in order, including the ones that are empty.
 std::vector<std::string> object_lines(const surface::SurfaceCanvas& c) {
@@ -6093,52 +6108,98 @@ std::string dock_text(const surface::SurfaceCanvas& c) {
     return out;
 }
 
-/// Open the Builder panel the way a maker does: `p`, then Return.
-void open_builder(Live& t) {
+/// Where a kind sits in the catalog, so a case names a KIND rather than a row
+/// number that a later catalog entry would silently invalidate.
+std::size_t catalog_at(std::int64_t kind) {
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        if (kPanelCatalog[i].kind == kind) {
+            return i;
+        }
+    }
+    return kPanelKinds; // walked off the end: the case that used it will fail loudly
+}
+
+/// SELECT A KIND IN THE PICKER, the way a maker does: `p`, down to it, Return.
+///
+/// One helper for both directions, because since PNL-0 there is one gesture for
+/// both directions: what this does to a closed kind is open it, and what it does
+/// to an open kind is remove it.
+void pick(Live& t, std::int64_t kind) {
+    const std::size_t at = catalog_at(kind);
+    REQUIRE(at < kPanelKinds);
     t.key(input::scan::kP);
+    for (std::size_t i = 0; i < at; ++i) {
+        t.key(input::scan::kDown);
+    }
     t.key(input::scan::kReturn);
+}
+
+/// Open the Builder panel the way a maker does.
+void open_builder(Live& t) { pick(t, panel::kBuilder); }
+
+/// Everything the Info column is showing, top to bottom.
+std::string info_text(const surface::SurfaceCanvas& c, const Screen& sc) {
+    std::string out;
+    for (const surface::SurfaceLabel& l : c.labels) {
+        if (l.x == sc.panel_x) {
+            out += l.text;
+            out += '\n';
+        }
+    }
+    return out;
 }
 
 } // namespace
 
-TEST_CASE("the catalog is what the picker offers, and Builder is the one entry in it") {
+TEST_CASE("the catalog is what the picker offers, and it says which kinds are open") {
     // The catalog is Workshop's own and complete: the picker walks it, so a kind
     // that is not here cannot be opened by any gesture at all.
-    REQUIRE(kPanelKinds == 1);
+    REQUIRE(kPanelKinds == 2);
     CHECK(kPanelCatalog[0].kind == panel::kBuilder);
     CHECK(std::string(kPanelCatalog[0].name) == "Builder");
+    CHECK(kPanelCatalog[1].kind == panel::kInfo);
+    CHECK(std::string(kPanelCatalog[1].name) == "Info");
 
-    Session s;
+    Session s; // a fresh session: Info open, Builder not
     s.panels.picker.open = true;
     surface::SurfaceCanvas c;
-    paint_picker(c, s.panels.picker);
+    paint_picker(c, s.panels);
     const std::string shown = dock_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
     CHECK(shown.find("Builder") != std::string::npos);
     CHECK(shown.find(kPanelCatalog[0].summary) != std::string::npos);
+    CHECK(shown.find("Info") != std::string::npos);
+    CHECK(shown.find(kPanelCatalog[1].summary) != std::string::npos);
+    // THE STATE COLUMN, and it is what makes the picker usable as the one owner
+    // of presence: Return does one of two opposite things, so the list has to
+    // say which one it is about to do.
+    CHECK(shown.find("Builder   closed") != std::string::npos);
+    CHECK(shown.find("Info      open") != std::string::npos);
 }
 
-TEST_CASE("a panel opens from the picker, closes, and opens again") {
+TEST_CASE("a panel opens from the picker, is removed, and opens again") {
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
-    REQUIRE(t.w->session().panels.open.empty());
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kBuilder));
 
     t.key(input::scan::kP);
     CHECK(t.w->session().panels.picker.open);
-    CHECK(t.w->session().panels.open.empty()); // the picker is a question, not a panel
+    // The picker is a question, not a panel: opening it opens nothing.
+    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
 
     t.key(input::scan::kReturn);
     CHECK_FALSE(t.w->session().panels.picker.open);
-    REQUIRE(t.w->session().panels.open.size() == 1);
-    CHECK(t.w->session().panels.open[0].kind == panel::kBuilder);
+    CHECK(t.w->session().panels.has(panel::kBuilder));
     CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
 
-    t.key(input::scan::kX);
-    CHECK(t.w->session().panels.open.empty());
+    // THE SAME DOOR REMOVES IT (PNL-0). There is no close key; selecting a kind
+    // that is open is what takes it away.
+    open_builder(t);
+    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
     CHECK(dock_text(t.canvases.back()).find("BUILDER") == std::string::npos);
 
     open_builder(t);
-    REQUIRE(t.w->session().panels.open.size() == 1);
+    CHECK(t.w->session().panels.has(panel::kBuilder));
     CHECK(dock_text(t.canvases.back()).find("BUILDER") != std::string::npos);
     // ...and every one of those opens ASKED the tool, which is the half that
     // makes a reopened panel show a live tool rather than a remembered one.
@@ -6153,7 +6214,10 @@ TEST_CASE("the picker can be dismissed without opening anything, two ways") {
         REQUIRE(t.w->session().panels.picker.open);
         t.key(out);
         CHECK_FALSE(t.w->session().panels.picker.open);
-        CHECK(t.w->session().panels.open.empty());
+        // NOTHING WAS OPENED AND NOTHING WAS REMOVED -- the second half matters
+        // now that one gesture does both, and Info was open when the picker was.
+        CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
+        CHECK(t.w->session().panels.has(panel::kInfo));
     }
 }
 
@@ -6198,7 +6262,7 @@ TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
     // NO TOOL AT THE OFFICE. The panel opens, asks, and is never answered -- so
     // Workshop has no target to name, and names none.
     open_builder(t);
-    CHECK(t.w->session().panels.open.size() == 1);
+    CHECK(t.w->session().panels.has(panel::kBuilder));
     CHECK(dock_text(t.canvases.back()).find("has not answered yet") != std::string::npos);
 
     t.key(input::scan::kB);
@@ -6273,7 +6337,7 @@ TEST_CASE("a status this panel did not ask for is SHOWN, and never ANNOUNCED") {
     CHECK(shown.find("succeeded") != std::string::npos);
     CHECK(shown.find("asks 7 ever") != std::string::npos);
     // ...and says nothing about a build happening, because none did.
-    CHECK(t.w->session().notice == "opened Builder -- x closes it");
+    CHECK(t.w->session().notice == "opened Builder -- p removes it");
 
     // THE CANARY: the same arriving status, for a build this panel DID ask for,
     // is announced. Without it the case above would be satisfied by a Workshop
@@ -6290,7 +6354,7 @@ TEST_CASE("closing forgets the panel's copy; the TOOL keeps its own count") {
     open_builder(t);
     REQUIRE(t.w->session().panels.builder.heard);
 
-    t.key(input::scan::kX);
+    open_builder(t); // the picker's second selection: remove
     // The panel's view went with the panel. Nothing here reached the tool.
     CHECK_FALSE(t.w->session().panels.builder.heard);
     CHECK(t.w->session().panels.builder.shown.builds == 0);
@@ -6309,16 +6373,32 @@ TEST_CASE("closing forgets the panel's copy; the TOOL keeps its own count") {
     CHECK(dock_text(t.canvases.back()).find("asks 9 ever") != std::string::npos);
 }
 
-TEST_CASE("the same kind cannot be opened twice, and the refusal is a sentence") {
+TEST_CASE("selecting an open kind REMOVES it, and says what was not touched") {
+    // BLD-0 refused this selection (`Builder is already open -- x closes it`)
+    // because `x` was the removal and the picker had nothing to add. PNL-0 gave
+    // the picker both directions, so the refusal became the removal and `x` went
+    // back to being unbound. Both kinds, because the whole point is that the
+    // gesture does not know which kind it is operating on.
     Live t;
-    (void)mount_tool(t, "zengine-snake");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
     open_builder(t);
-    REQUIRE(t.w->session().panels.open.size() == 1);
+    REQUIRE(t.w->session().panels.has(panel::kBuilder));
 
     open_builder(t);
-    CHECK(t.w->session().panels.open.size() == 1);
-    CHECK(t.w->session().notice.find("already open") != std::string::npos);
-    CHECK(t.w->session().notice_is_bad);
+    CHECK_FALSE(t.w->session().panels.has(panel::kBuilder));
+    CHECK(t.w->session().notice ==
+          "removed Builder -- p brings it back; nothing behind it was touched");
+    CHECK_FALSE(t.w->session().notice_is_bad); // a removal a maker asked for is not a refusal
+
+    // ...AND THE THING BEHIND IT REALLY WAS NOT TOUCHED. The tool never heard
+    // about the removal: no message reached the office, and reopening finds it
+    // exactly where it was.
+    const std::int64_t asked_of_tool = tool->described;
+    pick(t, panel::kInfo);
+    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
+    CHECK(t.w->session().notice ==
+          "removed Info -- p brings it back; nothing behind it was touched");
+    CHECK(tool->described == asked_of_tool);
 }
 
 TEST_CASE("the dock covers the workspace and never reaches the panel column") {
@@ -6355,19 +6435,390 @@ TEST_CASE("the terminal overlay still outranks everything, panels included") {
     (void)t.mount_terminal();
     ToolSeat* tool = mount_tool(t, "zengine-snake");
     open_builder(t);
-    REQUIRE(t.w->session().panels.open.size() == 1);
+    REQUIRE(t.w->session().panels.has(panel::kBuilder));
 
     t.toggle_terminal();
     REQUIRE(t.w->session().terminal.open);
-    // `b` and `x` are Workshop's command-mode keys; while the pane is open the
-    // pane has the input, so neither reaches the panel.
+    // `b` and `p` are Workshop's command-mode keys; while the pane is open the
+    // pane has the input, so neither reaches the panels.
     t.key(input::scan::kB);
-    t.key(input::scan::kX);
+    t.key(input::scan::kP);
     CHECK(tool->asked.empty());
-    CHECK(t.w->session().panels.open.size() == 1);
+    CHECK_FALSE(t.w->session().panels.picker.open);
+    CHECK(t.w->session().panels.has(panel::kBuilder));
 
     t.toggle_terminal();
     CHECK_FALSE(t.w->session().terminal.open);
     t.key(input::scan::kB);
     CHECK(tool->asked.size() == 1); // and closing it restores them exactly
+}
+
+// ============================================================================
+// Tier 9 -- Info, the second panel kind (PNL-0)
+// ============================================================================
+//
+// THE OBJECTS AND PROPERTIES COLUMNS ARE NO LONGER FURNITURE. They were painted
+// unconditionally by `paint` from W-0 until now; they are a panel like the
+// Builder beside them, and the whole of this tier is the difference that makes.
+//
+// WHAT MAKES INFO THE INTERESTING SECOND KIND is what it is NOT:
+//
+//   it has no weave.        Opening it sends nothing and asks nobody. A Workshop
+//                           hosting no tools at all opens it and it works.
+//   it has no state.        There is no `InfoPane`. Removing it destroys nothing,
+//                           because everything it shows belongs to the document
+//                           or to the session and outlives the panel by a lot.
+//   it is not in the dock.  It sits in the right-hand column, which is a
+//                           different place with different rules, so the two
+//                           kinds together are what the placement question will
+//                           eventually have to be answered from.
+//
+// The cases that would notice if any of those quietly stopped being true are the
+// ones that remove Info with no tool on the bus, that compare the column before
+// and after a removal, and that measure the document while it is absent.
+
+TEST_CASE("Info is open at boot, and it is a panel rather than furniture") {
+    Live t;
+    t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
+
+    // A FRESH SESSION HAS IT OPEN, and it is the only thing open.
+    const Panels& panels = t.w->session().panels;
+    REQUIRE(panels.open.size() == 1);
+    CHECK(panels.open[0].kind == panel::kInfo);
+    CHECK(panels.has(panel::kInfo));
+    CHECK_FALSE(panels.has(panel::kBuilder));
+
+    // ...and the screen a maker boots into is the screen they have always booted
+    // into: the two column headings, in the column they have always been in.
+    const Screen sc = screen_of(t.session());
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    CHECK(label_at(c, sc.panel_x, kListY - 1) == "OBJECTS");
+    CHECK(label_at(c, sc.panel_x, kRowsY - 1) == "PROPERTIES");
+    CHECK(label_at(c, sc.panel_x, kListY) == "> #1 panel");
+    CHECK(label_at(c, sc.panel_x, kRowsY) == " Identity #1");
+
+    // AND IT IS IN THE CATALOG, which is what makes it a panel rather than a
+    // fixed thing that happens to be listed: the picker is the only door, and
+    // this kind is behind it.
+    CHECK(catalog_at(panel::kInfo) < kPanelKinds);
+}
+
+TEST_CASE("Info can be removed, and takes its whole column with it") {
+    Live t;
+    t.key(input::scan::kN); // something to look at, so an empty column is not the empty case
+    const Screen sc = screen_of(t.session());
+    REQUIRE_FALSE(info_text(t.canvases.back(), sc).empty());
+
+    pick(t, panel::kInfo);
+    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
+
+    // NOT ONE LABEL IS LEFT IN THAT COLUMN. Not the headings, not the object
+    // list, not the inspector, not the "(none)" marker -- the panel is gone
+    // rather than emptied.
+    const surface::SurfaceCanvas& gone = t.canvases.back();
+    CHECK(info_text(gone, sc).empty());
+    CHECK(label_at(gone, sc.panel_x, kListY - 1).empty());
+    CHECK(label_at(gone, sc.panel_x, kRowsY - 1).empty());
+
+    // AND NOTHING ELSE MOVED. The screen around the hole is the screen it was:
+    // the workspace title, the two hints on row 0, and the help lines at the
+    // bottom are all exactly where they were, because removing a panel is not a
+    // re-layout.
+    CHECK(label_at(gone, 0, 0) == "WORKSPACE 48x16 cells");
+    CHECK(label_at(gone, 24, 0) == "[+ panel]  p");
+    CHECK(label_at(gone, sc.w - 20, 0) == "shift+space terminal");
+    CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
+}
+
+TEST_CASE("reopening Info brings back the column it had, cell for cell") {
+    Live t;
+    t.key(input::scan::kN);
+    t.key(input::scan::kN);
+    const Screen sc = screen_of(t.session());
+    const std::string before = info_text(t.canvases.back(), sc);
+    REQUIRE(before.find("OBJECTS") != std::string::npos);
+
+    pick(t, panel::kInfo);
+    REQUIRE(info_text(t.canvases.back(), sc).empty());
+
+    pick(t, panel::kInfo);
+    CHECK(t.w->session().panels.has(panel::kInfo));
+    // THE SAME COLUMN, not a reconstructed one. It is byte-identical because
+    // there was never a copy to go stale: the panel reads the document and the
+    // session, both of which went on being true while it was absent.
+    CHECK(info_text(t.canvases.back(), sc) == before);
+}
+
+TEST_CASE("removing Info changes nothing about the document, not even its picture") {
+    // THE SHARPEST CLAIM IN THIS TIER, and the reason the vacated 28 columns
+    // stay vacant. The workspace's extent is what a share resolves against, so a
+    // workspace that grew into the empty column would make every %-width object
+    // on the screen change size because a maker hid a list of names. A panel's
+    // presence must not be visible in the picture of the document.
+    // The document Workshop boots on already carries the case this needs: object
+    // #1 is authored as a SHARE, so its resolved width is a function of the
+    // workspace and nothing else.
+    Live t;
+    REQUIRE(t.w->document().elements.size() == 2);
+    REQUIRE(t.w->document().elements[0].width.mode == ui::kExtentPercent);
+
+    const std::int64_t authored_w = t.w->document().elements[0].width.amount;
+    const std::int64_t workspace_w = t.session().workspace_w;
+    const ui::Scene before = workspace_scene(t.w->document(), t.session());
+    REQUIRE(before.items.size() == 2);
+
+    pick(t, panel::kInfo);
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
+
+    // The authored value, the workspace it resolves against, and the rectangle
+    // it resolves to -- all three unchanged.
+    CHECK(t.w->document().elements[0].width.amount == authored_w);
+    CHECK(t.session().workspace_w == workspace_w);
+    const ui::Scene after = workspace_scene(t.w->document(), t.session());
+    REQUIRE(after.items.size() == 2);
+    CHECK(after.items[0].rect.x == before.items[0].rect.x);
+    CHECK(after.items[0].rect.y == before.items[0].rect.y);
+    CHECK(after.items[0].rect.w == before.items[0].rect.w);
+    CHECK(after.items[0].rect.h == before.items[0].rect.h);
+
+    // ...and the same rectangle is still on the canvas, at the same cells. The
+    // Screen itself is untouched too: the column is reserved, not reclaimed.
+    const Screen sc = screen_of(t.session());
+    CHECK(sc.panel_x == kMinScreen.panel_x);
+    CHECK(sc.room_w == kMinScreen.room_w);
+    bool found = false;
+    for (const surface::SurfaceRect& r : t.canvases.back().rects) {
+        if (r.role == surface::role::kFill && r.w == before.items[0].rect.w &&
+            r.h == before.items[0].rect.h) {
+            found = true;
+        }
+    }
+    CHECK(found);
+}
+
+TEST_CASE("Builder and Info are present independently -- all four states") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    const Screen sc = screen_of(t.session());
+    const auto shows_info = [&t, &sc]() { return !info_text(t.canvases.back(), sc).empty(); };
+    const auto shows_builder = [&t]() {
+        return dock_text(t.canvases.back()).find("BUILDER") != std::string::npos;
+    };
+
+    // Info alone -- how Workshop boots.
+    t.key(input::scan::kEscape);
+    CHECK(shows_info());
+    CHECK_FALSE(shows_builder());
+
+    // Both. The Builder is over the workspace, Info is in its column, and
+    // neither knows the other exists.
+    open_builder(t);
+    CHECK(shows_info());
+    CHECK(shows_builder());
+
+    // Builder alone. Removing Info leaves the Builder exactly where it was --
+    // its dock slot is counted over DOCKED panels, so an Info ahead of it in the
+    // open list never pushed it down and removing one never pulls it up.
+    pick(t, panel::kInfo);
+    CHECK_FALSE(shows_info());
+    CHECK(shows_builder());
+    CHECK(label_at(t.canvases.back(), kDockX, panel_top(0)).find("BUILDER") == 0);
+
+    // Neither. An empty screen around a live document is a legitimate state, and
+    // the document is still all there.
+    open_builder(t);
+    CHECK_FALSE(shows_info());
+    CHECK_FALSE(shows_builder());
+    CHECK(label_at(t.canvases.back(), 0, 0) == "WORKSPACE 48x16 cells");
+
+    // And back to both, in the other order.
+    pick(t, panel::kInfo);
+    open_builder(t);
+    CHECK(shows_info());
+    CHECK(shows_builder());
+    CHECK(label_at(t.canvases.back(), kDockX, panel_top(0)).find("BUILDER") == 0);
+    // Every Builder OPEN asked the tool; neither removal did, and neither did
+    // anything Info was part of.
+    CHECK(tool->described == 2);
+}
+
+TEST_CASE("Info needs no weave to be a panel") {
+    // NOTHING IS MOUNTED IN THE BUILDER OFFICE, and nothing else is either. If
+    // being a panel required a tool behind it, this is the case that could not
+    // pass.
+    Live t;
+    const Screen sc = screen_of(t.session());
+    t.key(input::scan::kN);
+    CHECK(info_text(t.canvases.back(), sc).find("OBJECTS") != std::string::npos);
+
+    pick(t, panel::kInfo);
+    CHECK_FALSE(t.w->session().panels.has(panel::kInfo));
+    pick(t, panel::kInfo);
+    CHECK(t.w->session().panels.has(panel::kInfo));
+    CHECK(info_text(t.canvases.back(), sc).find("OBJECTS") != std::string::npos);
+
+    // AND NO MESSAGE WENT TO THE ONE OFFICE WORKSHOP KNOWS ABOUT. With the
+    // stand-in mounted, opening and removing Info leaves its counters at zero --
+    // the sends in `choose_panel` belong to the Builder kind and to no other.
+    Live u;
+    ToolSeat* tool = mount_tool(u, "zengine-snake");
+    pick(u, panel::kInfo);
+    pick(u, panel::kInfo);
+    pick(u, panel::kInfo);
+    CHECK(tool->described == 0);
+    CHECK(tool->asked.empty());
+}
+
+TEST_CASE("the document is still a document with Info removed") {
+    Live t;
+    const std::size_t born = t.w->document().elements.size();
+    REQUIRE(born == 2);
+    pick(t, panel::kInfo);
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
+
+    // Every gesture that authors: they are the WORKSPACE's, not the panel's, and
+    // removing the panel that lists the results does not remove the results.
+    t.key(input::scan::kN);
+    REQUIRE(t.w->document().elements.size() == born + 1);
+    const std::int64_t made = t.w->document().elements.back().id;
+    CHECK(t.session().selected == made); // creating still selects what it made
+
+    t.key(input::scan::kTab);
+    CHECK(t.session().selected == t.w->document().elements[0].id);
+
+    const std::int64_t x0 = t.w->document().elements[0].x;
+    t.key(input::scan::kL);
+    CHECK(t.w->document().elements[0].x == x0 + 1);
+    const std::int64_t w0 = t.w->document().elements[0].width.amount;
+    t.key(input::scan::kL, input::mod::kShift);
+    CHECK(t.w->document().elements[0].width.amount != w0);
+
+    t.key(input::scan::kD);
+    CHECK(t.w->document().elements.size() == born);
+
+    // ...and the picture kept up the whole time, in the workspace where it lives.
+    CHECK(label_at(t.canvases.back(), 0, 0) == "WORKSPACE 48x16 cells");
+
+    // Reopening finds the document that was authored while nobody was showing it.
+    pick(t, panel::kInfo);
+    const Screen sc = screen_of(t.session());
+    CHECK(info_text(t.canvases.back(), sc).find("#" + std::to_string(made)) !=
+          std::string::npos);
+}
+
+TEST_CASE("the inspector's keys say so when Info is not showing, and open no draft") {
+    // THE TRAP THIS CLOSES. A draft opened with Info removed would put Workshop
+    // into editing mode, where `p` types a p instead of opening the picker -- so
+    // the maker could not reopen the panel to find what they were editing -- and
+    // Ctrl+S would then refuse to save, naming a row that is not on the screen.
+    Live t;
+    t.key(input::scan::kN);
+    pick(t, panel::kInfo);
+    REQUIRE_FALSE(t.w->session().panels.has(panel::kInfo));
+
+    t.key(input::scan::kReturn);
+    CHECK(t.w->session().notice == "the properties are not showing -- p opens the Info panel");
+    CHECK(t.w->session().notice_is_bad);
+    for (const Row& r : t.session().rows) {
+        CHECK_FALSE(r.editing());
+    }
+
+    // The cursor keys answer for the same panel, for the same reason: they used
+    // to do something, so silence would be indistinguishable from a broken tool.
+    const std::size_t cursor = t.session().cursor;
+    t.key(input::scan::kDown);
+    CHECK(t.session().cursor == cursor);
+    CHECK(t.w->session().notice == "the properties are not showing -- p opens the Info panel");
+    t.key(input::scan::kUp);
+    CHECK(t.session().cursor == cursor);
+
+    // AND THE CANARY: with Info back, all three do exactly what they always did.
+    pick(t, panel::kInfo);
+    t.key(input::scan::kDown);
+    CHECK(t.session().cursor == cursor + 1);
+    t.key(input::scan::kReturn);
+    CHECK(t.w->session().notice.find("editing ") == 0);
+    bool drafting = false;
+    for (const Row& r : t.session().rows) {
+        drafting = drafting || r.editing();
+    }
+    CHECK(drafting);
+}
+
+TEST_CASE("x is an unbound key again") {
+    // BLD-0 bound it to "close the Builder"; the second kind made that a choice
+    // the key could not make, so presence moved to the picker and this went back
+    // to meaning nothing. A key that still half-worked would be the worst of the
+    // three available outcomes.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    REQUIRE(t.w->session().panels.has(panel::kBuilder));
+    const std::string notice = t.w->session().notice;
+
+    t.key(input::scan::kX);
+    CHECK(t.w->session().panels.has(panel::kBuilder));
+    CHECK(t.w->session().panels.has(panel::kInfo));
+    CHECK(t.w->session().notice == notice); // it said nothing, because it means nothing
+}
+
+TEST_CASE("the picker's state column follows the panels, not a memory of them") {
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+
+    t.key(input::scan::kP);
+    CHECK(dock_text(t.canvases.back()).find("Builder   closed") != std::string::npos);
+    CHECK(dock_text(t.canvases.back()).find("Info      open") != std::string::npos);
+    t.key(input::scan::kEscape);
+
+    open_builder(t);
+    pick(t, panel::kInfo);
+    t.key(input::scan::kP);
+    CHECK(dock_text(t.canvases.back()).find("Builder   open") != std::string::npos);
+    CHECK(dock_text(t.canvases.back()).find("Info      closed") != std::string::npos);
+    t.key(input::scan::kEscape);
+}
+
+TEST_CASE("the picker covers the whole slot it opens over, so nothing reads through it") {
+    // FOUND LIVE, IN THE GRAPHICAL MEDIUM. The picker was as tall as its own
+    // contents, so over a nine-row Builder it left six of that panel's rows
+    // showing underneath -- with no edge between them, because in a character
+    // medium there is none. The screen read:
+    //
+    //     + PANEL -- up/down, enter opens or removes
+    //     > Builder   open    build one known target
+    //       Info      closed  objects and properties
+    //     exit     --         asks 0 ever
+    //
+    // One box, two unrelated statements. The second catalog entry did not create
+    // this, but it made it long enough to notice.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+    tool->next.outcome = zengine::builder::outcome::kNeverBuilt;
+    open_builder(t);
+    REQUIRE(dock_text(t.canvases.back()).find("recipe") != std::string::npos);
+
+    t.key(input::scan::kP);
+    const surface::SurfaceCanvas& c = t.canvases.back();
+
+    // WHAT A MAKER SEES, row by row: the topmost label at every row of the slot,
+    // which is the mechanism -- a row written last, padded to the dock's width,
+    // is what a character medium leaves on the screen.
+    std::string visible;
+    for (std::int64_t row = 0; row < kPanelRows; ++row) {
+        const std::string top = topmost_at(c, kDockX, kDockY + row);
+        CHECK(top.size() == static_cast<std::size_t>(kDockW));
+        visible += top;
+        visible += '\n';
+    }
+    CHECK(visible.find("+ PANEL") != std::string::npos);
+    CHECK(visible.find("Builder   open") != std::string::npos);
+    // Not one row of the panel underneath survives.
+    CHECK(visible.find("recipe") == std::string::npos);
+    CHECK(visible.find("BUILDER") == std::string::npos);
+    CHECK(visible.find("Build ]") == std::string::npos);
+
+    // AND THE CANARY: dismissing the picker gives the panel back whole.
+    t.key(input::scan::kEscape);
+    CHECK(dock_text(t.canvases.back()).find("recipe") != std::string::npos);
 }

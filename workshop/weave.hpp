@@ -719,28 +719,28 @@ private:
     /// neither pair had to be re-argued: the modifier bought a new gesture, not a
     /// second meaning for an old key.
     ///
-    /// `p`, `b` and `x` are the three keys BLD-0 adds, and all three were
-    /// previously unbound: no existing gesture changed meaning, and with no
-    /// Builder panel open `b` and `x` do exactly what they did before, which is
-    /// nothing. That is deliberately not a keybinding framework -- there is no
-    /// table, no registry and no per-panel binding, just three cases in the
-    /// switch that already existed, two of them conditional on a panel being
-    /// open. The second panel kind is what will force the real question (whose
-    /// `x` is it?), and BLD-0 does not answer it in advance.
+    /// `p` opens the picker and `b` asks the open Builder for a build. Both were
+    /// unbound before BLD-0, so no existing gesture changed meaning, and with no
+    /// Builder panel open `b` does exactly what it did before, which is nothing.
+    ///
+    /// `x` IS UNBOUND AGAIN, and that is PNL-0 answering the question BLD-0 wrote
+    /// down and declined: whose `x` is it? With a second panel kind the answer
+    /// would have to be either a per-panel binding or a focus rule, and this file
+    /// has refused both. So presence moved wholly to the picker -- one door,
+    /// which opens what is closed and removes what is open -- and the key that
+    /// used to close the Builder means nothing again.
+    ///
+    /// THE INSPECTOR'S KEYS NOW ANSWER FOR THEIR PANEL. `up`, `down` and Return
+    /// drive rows that only the Info panel shows, so with Info removed they say
+    /// so instead of quietly working on something invisible. That is not a focus
+    /// rule: it is the same sentence `b` says by doing nothing, said out loud
+    /// because unlike `b` these keys used to do something.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         const bool shift = held(k.modifiers, input::mod::kShift);
         switch (k.scancode) {
         case input::scan::kTab: select_next(); break;
-        case input::scan::kUp:
-            if (session_.cursor > 0) {
-                --session_.cursor;
-            }
-            break;
-        case input::scan::kDown:
-            if (session_.cursor + 1 < session_.rows.size()) {
-                ++session_.cursor;
-            }
-            break;
+        case input::scan::kUp: move_cursor(-1); break;
+        case input::scan::kDown: move_cursor(+1); break;
         case input::scan::kReturn: begin_edit(); break;
         case input::scan::kN: create_object(); break;
         case input::scan::kD: delete_object(); break;
@@ -752,7 +752,6 @@ private:
         case input::scan::kRightBracket: resize_workspace(+4); break;
         case input::scan::kP: open_picker(); break;
         case input::scan::kB: build_now(mail); break;
-        case input::scan::kX: close_builder(); break;
         case input::scan::kQ: quit(); break;
         default: break;
         }
@@ -766,12 +765,19 @@ private:
     // authored as Workshop, gated against Workshop's own grant. Workshop gained
     // exactly two new things it may SAY -- ask the Builder what it is, and ask
     // it to build the target it just named -- and nothing it may DO.
+    //
+    // AND PNL-0 ADDED A SECOND PANEL KIND WITHOUT ADDING A THIRD THING. `Info`
+    // opens, presents and closes through exactly the machinery below, and the
+    // only line in this whole section that knows a bus exists is still the one
+    // `if (chosen.kind == panel::kBuilder)` in `choose_panel`. That is the
+    // clearest evidence available that the panel seam is not a weave seam: the
+    // second kind arrived and the grant did not move.
 
     /// Open the `+ panel` picker.
     void open_picker() {
         session_.panels.picker.open = true;
         session_.panels.picker.cursor = 0;
-        say("+ panel -- up/down chooses, enter opens, esc or p cancels", false);
+        say("+ panel -- up/down chooses, enter opens or removes, esc or p cancels", false);
     }
 
     /// The picker's keys. Escape and `p` both close it: the key that opened it
@@ -795,32 +801,66 @@ private:
         case input::scan::kEscape:
         case input::scan::kP:
             picker.open = false;
-            say("no panel opened", false);
+            say("no panel opened or removed", false);
             break;
         default: break;
         }
     }
 
-    /// Open the kind the cursor is on.
+    /// OPEN THE KIND THE CURSOR IS ON, OR REMOVE IT. The picker is the one owner
+    /// of panel presence, and this is the whole of that ownership.
     ///
-    /// It cannot open a kind twice, and the refusal is a sentence rather than a
-    /// silent no-op -- but it is not a MULTI-INSTANCE POLICY: BLD-0 needs one
-    /// live Builder and has no case that wants two, so what exists is the
-    /// smallest truthful answer to "you already have one" rather than a decision
-    /// about how several would behave.
+    ///     closed panel  ->  select  ->  open
+    ///     open panel    ->  select  ->  remove
+    ///
+    /// BLD-0 REFUSED THE SECOND SELECTION with a sentence -- `Builder is already
+    /// open` -- because with one kind, `x` could say "remove" unambiguously and
+    /// the picker had nothing to add. The second kind took that away: `x` would
+    /// have had to choose a panel, and choosing means either a per-panel binding
+    /// or a focused panel, and both are frameworks this Workshop has declined to
+    /// grow. Selecting an open kind was already the gesture a maker reached for
+    /// and it was already spelled `p`, so the refusal became the removal and one
+    /// key went back to being unbound. That is the smallest layer this could be
+    /// resolved at: no new gesture, no new mode, no new state, one branch.
+    ///
+    /// IT IS STILL NOT A MULTI-INSTANCE POLICY. A kind is present or absent;
+    /// there is no second Builder for this to have an opinion about.
+    ///
+    /// NO DRAFT CAN BE ORPHANED BY A REMOVAL, and the reason is a reachability
+    /// one, so it is written where a reader would otherwise have to reconstruct
+    /// it: the picker is reachable only from command mode, command mode is by
+    /// definition the state in which no inspector row is being edited, and the
+    /// key routing in `on(KeyPressed)` puts editing ahead of command. So a maker
+    /// cannot be part-way through typing a value into a row and remove the panel
+    /// showing it. Nothing here guards against that, because nothing can reach
+    /// it -- and if the routing ever changes, this paragraph is the thing that
+    /// stops being true, which is why it names the routing rather than the fact.
     void choose_panel(loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
         const PanelKind& chosen = kPanelCatalog[picker.cursor];
         picker.open = false;
-        if (!open_panel(session_.panels, chosen.kind)) {
-            say(std::string(chosen.name) + " is already open -- x closes it", true);
+        if (close_panel(session_.panels, chosen.kind)) {
+            // WHAT IT WAS PRESENTING IS UNTOUCHED, and one sentence covers both
+            // kinds because it is the same sentence: the Builder tool keeps its
+            // target, its history and its running count of asks; the document
+            // keeps every object, the selection and the inspector's rows. A
+            // panel is a presentation, and removing one removes a presentation.
+            say(std::string("removed ") + chosen.name +
+                    " -- p brings it back; nothing behind it was touched",
+                false);
             return;
         }
-        say(std::string("opened ") + chosen.name + " -- x closes it", false);
+        (void)open_panel(session_.panels, chosen.kind);
+        say(std::string("opened ") + chosen.name + " -- p removes it", false);
         // AND THE PANEL ASKS THE TOOL WHAT IT IS. A presentation that was handed
         // its subject's facts by whoever built it would be showing the builder's
         // opinion; this one shows the tool's answer, and shows nothing until it
         // has one.
+        //
+        // INFO ASKS NOBODY, and the absence of an `else` here is the phase's
+        // structural claim: opening it sends no message, touches no role and
+        // needs no weave mounted anywhere. A Workshop hosting no tools at all
+        // opens Info and it works.
         if (chosen.kind == panel::kBuilder) {
             (void)mail.send_to_role(zengine::builder::kBuilderRole,
                                     zengine::builder::StatusRequested{});
@@ -856,16 +896,6 @@ private:
         say("asked the Builder for `" + pane.shown.target +
                 "` -- the screen waits until it is done",
             false);
-    }
-
-    /// Close the Builder panel. The TOOL is untouched: it keeps its target, its
-    /// history and its running count of asks, and reopening the panel asks it
-    /// again and is answered with all three.
-    void close_builder() {
-        if (!close_panel(session_.panels, panel::kBuilder)) {
-            return; // `x` is an unbound key with no Builder panel open
-        }
-        say("closed Builder -- the tool is still there; [+ panel] reopens it", false);
     }
 
     // ---- Save and open -------------------------------------------------------
@@ -1065,7 +1095,53 @@ private:
                " x " + TextForm<ui::Extent>::format(e.height) + edge_of(done);
     }
 
+    /// IS THE INSPECTOR ON THE SCREEN AT ALL? Since PNL-0 the rows are shown by a
+    /// panel a maker may remove, and `Session::rows` goes on existing when they
+    /// do -- correctly, because the rows are a fact about the SELECTION and the
+    /// selection is not the panel's. What must not go on happening is a gesture
+    /// over them.
+    bool inspector_shown() const { return session_.panels.has(panel::kInfo); }
+
+    /// True if the gesture the caller is about to perform has nothing on screen
+    /// to perform it on, HAVING SAID SO. A silent no-op would be the worse half
+    /// of both available answers: these keys did something before Info could be
+    /// removed, so a maker pressing one and seeing nothing has been given no way
+    /// to tell a removed panel from a broken tool -- the same argument the empty
+    /// OBJECTS list already won.
+    bool inspector_absent() {
+        if (inspector_shown()) {
+            return false;
+        }
+        say("the properties are not showing -- p opens the Info panel", true);
+        return true;
+    }
+
+    /// Step the inspector's cursor, when there is an inspector to step it in.
+    void move_cursor(std::int64_t delta) {
+        if (inspector_absent()) {
+            return;
+        }
+        if (delta < 0) {
+            if (session_.cursor > 0) {
+                --session_.cursor;
+            }
+        } else if (session_.cursor + 1 < session_.rows.size()) {
+            ++session_.cursor;
+        }
+    }
+
+    /// BEGIN AN EDIT -- and refuse to begin one nobody can see.
+    ///
+    /// This is the guard that matters most of the three, because the state it
+    /// prevents is a trap rather than a confusion: a draft opened with Info
+    /// removed would put Workshop into editing mode, where `p` types a `p`
+    /// instead of opening the picker, so the maker could not reopen the panel to
+    /// find what they were editing -- and `^s` would then refuse to save, naming
+    /// a row that is not on the screen.
     void begin_edit() {
+        if (inspector_absent()) {
+            return;
+        }
         if (session_.cursor >= session_.rows.size()) {
             return;
         }
