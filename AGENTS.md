@@ -178,7 +178,7 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~31,700 over the **eight** doctest suites, SDL lane, measured
+- Assertion totals (~31,675 over the **eight** doctest suites, SDL lane, measured
   2026-08-14 after HD-3) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
