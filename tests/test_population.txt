@@ -118,11 +118,12 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  53
+surface                           doctest           always  54
 surface                           doctest           sdl     5
 ui                                doctest           always  22
+component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  252
+workshop                          doctest           always  261
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

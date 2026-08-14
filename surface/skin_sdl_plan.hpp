@@ -261,13 +261,19 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
     // rectangle, and it does so through shared code rather than through a
     // second renderer that would have to be kept in step.
     //
-    // With a real metric the regions are absent from this list entirely: they
-    // are the SDL edge's to draw in type (`plan_text_regions`), and rasterizing
-    // them here as well would paint the same words twice at two sizes.
-    std::vector<ProjectedRow> projected;
-    if (metric.text_advance_px <= 0 || metric.text_line_px <= 0) {
-        projected = project_text_regions(c);
-    }
+    // With a real metric MOST regions are absent from this list: they are the SDL
+    // edge's to draw in type (`plan_text_regions`), and rasterizing them here as
+    // well would paint the same words twice at two sizes.
+    //
+    // MOST, NOT ALL, SINCE HD-5, and the partition is now one predicate rather
+    // than a test on the metric alone: a region belongs to whichever list
+    // `fit_region` says its BOUNDS support. A face's line is not a cell -- this
+    // repository's is 18 device pixels against a 12-pixel cell -- so a region one
+    // cell tall (the Inspector's editable row) holds no row of type at all, and
+    // before HD-5 it was in neither list and was therefore drawn by nobody. The
+    // two lists still partition the work exactly; what changed is what they
+    // partition on. See region.hpp's `fit_region`.
+    const std::vector<ProjectedRow> projected = project_text_regions(c, metric);
 
     // A GROUND IS THE CELL'S OWN QUAD, which is the whole of what this face has to
     // change to honour one (HD-2): a label cell is already cleared before its glyph
@@ -466,8 +472,14 @@ inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
     for (const SurfaceTextRegion& r : c.texts) {
         const RegionFit fit = fit_region(r, metric);
         const RegionViewport clipped = clip_viewport(fit.view, surface.w, surface.h);
-        if (clipped.empty() || fit.columns <= 0 || fit.rows <= 0) {
-            continue; // nothing of it is on the surface, or nothing of it fits
+        if (clipped.empty() || fit.columns <= 0 || fit.rows <= 0 || !fit.graphical()) {
+            // Nothing of it is on the surface, or nothing of it fits, or this medium cannot
+            // set THIS region in type at all -- the last is HD-5's, and it is the other half
+            // of `plan_canvas`'s partition rather than a second policy: a region whose bounds
+            // hold no row of the face is drawn there, as cells, by the same glyph loop every
+            // other label goes through. Asking `graphical()` rather than the metric is what
+            // makes the two lists disjoint and complete for every region on the canvas.
+            continue;
         }
         PlanTextRegion p;
         p.view = clipped;

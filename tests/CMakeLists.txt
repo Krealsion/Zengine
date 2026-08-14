@@ -313,6 +313,26 @@ target_include_directories(zengine-ui-tests PRIVATE
 
 zengine_doctest_test(ui zengine-ui-tests)
 
+# The Component suite: the first foundational component, on its own.
+#
+# It links  and NOTHING ELSE -- not even loom::core, which every other
+# suite here needs for zen/weave/shape.hpp. That is the claim rather than an economy: a
+# TextBox is a std::string and two indices, it has no wire form, nothing serializes it and
+# nothing hosts it, so a suite that had to boot anything to test it would be testing
+# something other than a component.
+#
+# Its own executable for the same reason the UI suite has one: this package's green stays its
+# own count, so the Workshop suite's numbers cannot move when the component's do. HD-5 moved
+# four cases here out of Workshop -- what a TextBox DOES is this suite's claim, and that the
+# Terminal's command line and a property draft get their answers from it is Workshop's.
+add_executable(zengine-component-tests test_component.cpp doctest_main.cpp)
+target_link_libraries(zengine-component-tests
+    PRIVATE zengine-component zengine-warnings zengine-sanitize)
+target_include_directories(zengine-component-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(component zengine-component-tests)
+
 # ---- The fence's compile-negative lane (owned by the UI suite) ---------------
 #
 # The authored/resolved fence is a COMPILE-TIME refusal, so a runtime suite

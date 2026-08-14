@@ -205,24 +205,43 @@ inline constexpr RegionViewport viewport_of_cells(std::int64_t x, std::int64_t y
 /// is a cell" (see `SurfaceExtent`), and it resolves to the region's own cell
 /// bounds with no inset — which is exactly what a character medium draws and
 /// exactly what a graphical medium with no font draws.
+///
+/// A REGION TOO SMALL FOR THE MEDIUM'S OWN TYPE IS A CELL REGION IN THAT MEDIUM
+/// (HD-5), and that is the same sentence one step further rather than a new rule.
+/// A face's line is not a cell: this repository's measures 18 device pixels
+/// against a 12-pixel cell, so a region ONE CELL TALL holds `(12 - 2*inset) / 18`
+/// = zero rows of it. Before HD-5 such a region resolved to a graphical fit with
+/// no capacity, and both media then drew NOTHING — `plan_text_regions` skips a
+/// fit with no rows and `plan_canvas` had already decided the regions were the
+/// other list's. A bounded region that silently vanishes is the one answer this
+/// header exists to make impossible, so the fallback is here, in the ONE function
+/// both sides call: a medium that cannot set a region in type describes it in
+/// cells, exactly as a medium with no face does, and the publisher asking for the
+/// capacity is told the same thing. The Inspector's editable row is one cell
+/// tall and reaches this; the Terminal pane and its completion list are not and
+/// do not.
 inline constexpr RegionFit fit_region(std::int64_t x, std::int64_t y, std::int64_t w,
                                       std::int64_t h, std::int64_t text_advance_px,
                                       std::int64_t text_line_px) noexcept {
     RegionFit f;
     f.view = viewport_of_cells(x, y, w, h);
-    if (text_advance_px <= 0 || text_line_px <= 0) {
-        f.columns = w > 0 ? w : 0; // one cell per character: the region's own bounds
-        f.rows = h > 0 ? h : 0;
-        return f;
+    if (text_advance_px > 0 && text_line_px > 0) {
+        const std::int64_t inner_w = f.view.w - 2 * kTextInsetPx;
+        const std::int64_t inner_h = f.view.h - 2 * kTextInsetPx;
+        const std::int64_t columns = inner_w > 0 ? inner_w / text_advance_px : 0;
+        const std::int64_t rows = inner_h > 0 ? inner_h / text_line_px : 0;
+        if (columns > 0 && rows > 0) {
+            f.advance_px = text_advance_px;
+            f.line_px = text_line_px;
+            f.origin_x = kTextInsetPx;
+            f.origin_y = kTextInsetPx;
+            f.columns = columns;
+            f.rows = rows;
+            return f;
+        }
     }
-    f.advance_px = text_advance_px;
-    f.line_px = text_line_px;
-    f.origin_x = kTextInsetPx;
-    f.origin_y = kTextInsetPx;
-    const std::int64_t inner_w = f.view.w - 2 * kTextInsetPx;
-    const std::int64_t inner_h = f.view.h - 2 * kTextInsetPx;
-    f.columns = inner_w > 0 ? inner_w / text_advance_px : 0;
-    f.rows = inner_h > 0 ? inner_h / text_line_px : 0;
+    f.columns = w > 0 ? w : 0; // one cell per character: the region's own bounds
+    f.rows = h > 0 ? h : 0;
     return f;
 }
 
@@ -320,34 +339,63 @@ struct ProjectedRow {
 /// row like any other character rather than being specially rescued: this
 /// projection does not scroll, and inventing a scroll here would be inventing one
 /// for every consumer at once.
+inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<ProjectedRow>& out) {
+    if (r.w <= 0 || r.h <= 0) {
+        return; // a region with no bounds shows nothing, and says nothing about it
+    }
+    const std::size_t width = static_cast<std::size_t>(
+        r.w < static_cast<std::int64_t>(kMaxProjectedWidth) ? r.w : kMaxProjectedWidth);
+    const std::int64_t lines =
+        r.h < static_cast<std::int64_t>(kMaxProjectedRows) ? r.h : kMaxProjectedRows;
+    for (std::int64_t i = 0; i < lines; ++i) {
+        const std::size_t at = static_cast<std::size_t>(i);
+        const bool said = at < r.rows.size();
+        std::string text = said ? r.rows[at].text : std::string();
+        const std::int64_t role = said ? r.rows[at].role : role::kFill;
+        const std::int64_t back = said ? r.rows[at].background : role::kNone;
+        if (r.caret_row == i && r.caret_col >= 0 &&
+            r.caret_col <= static_cast<std::int64_t>(text.size())) {
+            text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
+        }
+        if (text.size() > width) {
+            text.resize(width); // cut on a byte boundary: one cell per byte, as ever
+        } else {
+            text.append(width - text.size(), ' ');
+        }
+        out.push_back(
+            ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back});
+    }
+}
+
+/// EVERY REGION ON A CANVAS, AS CELLS — a character medium's whole answer, because a
+/// character medium has no second one to partition against.
 inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
     std::vector<ProjectedRow> out;
     for (const SurfaceTextRegion& r : c.texts) {
-        if (r.w <= 0 || r.h <= 0) {
-            continue; // a region with no bounds shows nothing, and says nothing about it
+        project_one_text_region(r, out);
+    }
+    return out;
+}
+
+/// THE REGIONS THIS MEDIUM CANNOT SET IN ITS OWN TYPE, as cells (HD-5).
+///
+/// The partition a graphical medium draws from, and it is one predicate rather than a global
+/// test: a region belongs to `plan_text_regions` when `fit_region` says its bounds hold type,
+/// and to this list when they do not. With a zero metric that is EVERY region, byte-for-byte
+/// what the single-argument overload above returns, which is why no canvas this repository
+/// paints in a character medium moves.
+///
+/// Before HD-5 the split was made once for the whole canvas — regions were cells when the
+/// medium had no face and type when it had one — and a region too small for the face was
+/// therefore in neither list. See `fit_region` for the measurement that made that reachable.
+inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c,
+                                                     const SurfaceExtent& metric) {
+    std::vector<ProjectedRow> out;
+    for (const SurfaceTextRegion& r : c.texts) {
+        if (fit_region(r, metric).graphical()) {
+            continue; // this medium sets this one in type: plan_text_regions has it
         }
-        const std::size_t width = static_cast<std::size_t>(
-            r.w < static_cast<std::int64_t>(kMaxProjectedWidth) ? r.w : kMaxProjectedWidth);
-        const std::int64_t lines =
-            r.h < static_cast<std::int64_t>(kMaxProjectedRows) ? r.h : kMaxProjectedRows;
-        for (std::int64_t i = 0; i < lines; ++i) {
-            const std::size_t at = static_cast<std::size_t>(i);
-            const bool said = at < r.rows.size();
-            std::string text = said ? r.rows[at].text : std::string();
-            const std::int64_t role = said ? r.rows[at].role : role::kFill;
-            const std::int64_t back = said ? r.rows[at].background : role::kNone;
-            if (r.caret_row == i && r.caret_col >= 0 &&
-                r.caret_col <= static_cast<std::int64_t>(text.size())) {
-                text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
-            }
-            if (text.size() > width) {
-                text.resize(width); // cut on a byte boundary: one cell per byte, as ever
-            } else {
-                text.append(width - text.size(), ' ');
-            }
-            out.push_back(
-                ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back});
-        }
+        project_one_text_region(r, out);
     }
     return out;
 }

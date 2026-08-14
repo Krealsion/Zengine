@@ -224,13 +224,17 @@ public:
         // THE REGIONS LAST, AND IN TYPE.
         //
         // Two lists, one picture, and which list a text region lands in is decided
-        // by exactly one fact: whether this medium is currently reporting a text
-        // metric. With a face open the quads above contain no region at all and
-        // these do; with no face the quads contain them as bitmap labels and this
-        // loop is empty. So there is no configuration in which the same words are
-        // drawn twice, and no `if` here to get that wrong -- `plan_canvas` and
-        // `plan_text_regions` are handed the same metric and partition the work
-        // between them in pure code every lane pins.
+        // by exactly one fact: whether THIS REGION'S BOUNDS hold a row of the face
+        // this medium is reporting (`fit_region(...).graphical()`, HD-5). With no
+        // face that is false for every region and the quads above contain them all
+        // as bitmap labels; with a face open it is true for every region big
+        // enough, and those are here. A region one cell tall is smaller than the
+        // face's own line, so it stays in the quads and is drawn in cells -- which
+        // is the Inspector's editable row, and which before HD-5 was in neither
+        // list and drawn by nobody. So there is still no configuration in which
+        // the same words are drawn twice, and still no `if` here to get that wrong
+        // -- `plan_canvas` and `plan_text_regions` are handed the same metric and
+        // partition the work between them in pure code every lane pins.
         for (const PlanTextRegion& p : plan_text_regions(c, metric, drawable())) {
             text_.draw(renderer_, p);
         }
