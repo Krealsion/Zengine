@@ -140,11 +140,19 @@ inline constexpr std::uint32_t kWheelFlipped = 1;
 /// honest way to answer whether an int64 field may carry a float fact:
 ///
 ///   SDL's pointer coordinates are floats and are window-relative. For the
-///   window this package creates — no SDL_WINDOW_HIGH_PIXEL_DENSITY, no
-///   SDL_SetRenderLogicalPresentation, not resizable — window coordinates and
-///   framebuffer pixels are 1:1 and every value SDL delivers is integral. On
-///   that domain this conversion is EXACT, and the report says so with the
-///   measurement rather than the assumption.
+///   window the Surface package creates — no SDL_WINDOW_HIGH_PIXEL_DENSITY, no
+///   SDL_SetRenderLogicalPresentation, no SDL_SetRenderScale — window
+///   coordinates and framebuffer pixels are 1:1 and every value SDL delivers is
+///   integral. On that domain this conversion is EXACT, and the report says so
+///   with the measurement rather than the assumption.
+///
+///   THAT LIST USED TO END "not resizable", AND IT WAS STALE (HD-0 found it,
+///   HD-1 repaired it). G-2 made the window SDL_WINDOW_RESIZABLE, and the
+///   conclusion survived the change because resizability is not one of the
+///   things that introduces a scale: a bigger window is more 1:1 pixels, not
+///   differently-sized ones. The three flags named above are the ones that
+///   actually would, and none of them is set — which is the sentence a DPI phase
+///   will read, so it now names properties that are still true.
 ///
 ///   Outside it — a logical presentation, a high-density display, relative
 ///   mode — SDL genuinely can report a fraction, and int64 cannot hold one.

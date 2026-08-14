@@ -36,6 +36,7 @@
 #include "doctest.h"
 
 #include "surface/pointing.hpp"
+#include "surface/region.hpp"
 #include "surface/skin.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
@@ -371,6 +372,26 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
           SchemaBuilder("SurfaceReady", 1).build()->content_id());
     CHECK(schema_of<PumpSurface>()->content_id() ==
           SchemaBuilder("PumpSurface", 1).build()->content_id());
+
+    // THE ONE SHAPE THAT TRAVELS MEDIUM -> PUBLISHER, at version 2: the room, and
+    // since HD-1 the size of one character of the medium's own type. Pinned in the
+    // order they are declared, because this is a wire: a medium and an application
+    // in two separately-loaded libraries agree about these four numbers or they
+    // agree about nothing.
+    CHECK(schema_of<SurfaceExtent>()->content_id() == SchemaBuilder("SurfaceExtent", 2)
+                                                          .field("width", Kind::Int)
+                                                          .field("height", Kind::Int)
+                                                          .field("text_advance_px", Kind::Int)
+                                                          .field("text_line_px", Kind::Int)
+                                                          .build()
+                                                          ->content_id());
+
+    // ZERO IS A VALUE, NOT AN ABSENCE, and the default says so: an extent built
+    // with no metric means "text is a cell", which is what every terminal medium
+    // means always and what a window medium means before its face opens.
+    const SurfaceExtent fresh;
+    CHECK(fresh.text_advance_px == 0);
+    CHECK(fresh.text_line_px == 0);
 }
 
 TEST_CASE("contract: the canvas shapes derive their declared spellings exactly") {
@@ -393,14 +414,40 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                            .build();
     CHECK(schema_of<SurfaceLabel>()->content_id() == label->content_id());
 
-    // The canvas carries lists of the two above, so its identity depends on
+    // HD-1's bounded text region: a row carries what it says and how loudly, and
+    // NOT where it is -- a row's place is its index in its region, which is what
+    // makes the region a bounded presentation rather than a second coordinate
+    // system. Pinned here so that "a row gained an x" is a red in this file rather
+    // than a discovery on a wire.
+    const auto text_row = SchemaBuilder("SurfaceTextRow", 1)
+                              .field("text", Kind::Text)
+                              .field("role", Kind::Int)
+                              .build();
+    CHECK(schema_of<SurfaceTextRow>()->content_id() == text_row->content_id());
+
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 1)
+                                 .field("x", Kind::Int)
+                                 .field("y", Kind::Int)
+                                 .field("w", Kind::Int)
+                                 .field("h", Kind::Int)
+                                 .list("rows", loom::type_message(text_row))
+                                 .build();
+    CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
+
+    // The canvas carries lists of the three above, so its identity depends on
     // theirs -- which is the property that makes a drift anywhere in this
     // vocabulary a red here rather than a surprise on a wire.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 1)
+    //
+    // VERSION 2, because a published schema is immutable and evolving a shape is
+    // publishing a new one. The list it gained is the region list; the two that
+    // were there are unmoved, which is why every existing canvas value in this
+    // suite still means exactly what it meant.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 2)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("rects", loom::type_message(rect))
                             .list("labels", loom::type_message(label))
+                            .list("texts", loom::type_message(text_region))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
 }
@@ -508,6 +555,56 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
     m.canvas(c, /*first=*/false);
     CHECK(m.sink().out.rfind("\x1b[3;1H\x1b[2K", 0) == 0);
     CHECK(m.sink().out.find("\x1b[0J") == std::string::npos);
+}
+
+TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded") {
+    // HD-1's honesty proof as bytes. A terminal owns no font, so a bounded text
+    // region IS cells here -- one row per cell row, cut at the region's width,
+    // dropped past its height -- and this is the projection every character medium
+    // performs. It is deliberately the same arithmetic `paint_terminal` used to
+    // perform for itself before regions existed.
+    SurfaceCanvas c;
+    c.width = 6;
+    c.height = 4;
+    c.rects.push_back(SurfaceRect{0, 0, 6, 4, role::kMuted});
+    // A label UNDER the region, in the cells the region owns: the region wins,
+    // because a region is a grant of bounds and the topmost thing on a canvas.
+    c.labels.push_back(SurfaceLabel{1, 1, "ZZZZ", role::kAlert});
+
+    SurfaceTextRegion r;
+    r.x = 1;
+    r.y = 1;
+    r.w = 4;
+    r.h = 2;
+    r.rows.push_back(SurfaceTextRow{"ab", role::kAccent});
+    r.rows.push_back(SurfaceTextRow{"toolong", role::kFill});
+    r.rows.push_back(SurfaceTextRow{"never", role::kAlert}); // past the region's height
+    c.texts.push_back(r);
+
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.canvas(c, /*first=*/true);
+    CHECK(m.sink().out ==
+          "\x1b[3;1H\x1b[0J"
+          "\x1b[2K\x1b[90m......\x1b[0m\r\n"
+          // `ab  ` is ONE run: the padding a row is widened with carries that row's
+          // own role, exactly as `pad(fit(...))` did before regions existed.
+          "\x1b[2K\x1b[90m.\x1b[36mab  \x1b[90m.\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m.\x1b[37mtool\x1b[90m.\x1b[0m\r\n"
+          "\x1b[2K\x1b[90m......\x1b[0m\r\n");
+
+    // AND THE SAME CANVAS THROUGH THE GRAPHICAL MEDIUM'S BITMAP FACE, which is the
+    // other half of "the fallback is the cell projection": with no metric the SDL
+    // plan draws exactly these labels, so a window with no font shows the picture
+    // a terminal shows.
+    SurfaceCanvas same_as_labels;
+    same_as_labels.width = c.width;
+    same_as_labels.height = c.height;
+    same_as_labels.rects = c.rects;
+    same_as_labels.labels = c.labels;
+    for (const SurfaceLabel& l : project_text_regions(c)) {
+        same_as_labels.labels.push_back(l);
+    }
+    CHECK(plan_canvas(c) == plan_canvas(same_as_labels));
 }
 
 TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a picture") {
@@ -1074,6 +1171,282 @@ TEST_CASE("pointing: the two media disagree about the numbers and agree about th
     }
 }
 
+// ============================================================================
+// Tier 2b — bounded regions: one resolution, two consumers (HD-1)
+// ============================================================================
+//
+// EVERYTHING IN THIS BLOCK IS PURE, AND THAT PLACEMENT IS THE CLAIM. The lane
+// that builds no SDL at all -- the Windows stranger lane -- still proves how much
+// prose a region holds, where its pixels are, where its interior starts, what a
+// pointer lands on inside it and what a character medium makes of it. Only the
+// rasterization needs a font, and the rasterization is the part that cannot be
+// wrong about anything except plumbing.
+
+TEST_CASE("region: with no text metric a region is exactly its own cells") {
+    // THE HONESTY HINGE OF THE WHOLE PHASE. A medium that publishes no metric has
+    // said "text is a cell", and this is what that sentence resolves to: the
+    // region's own bounds, no inset, no pixel arithmetic anybody has to trust.
+    // Every terminal Skin lives here, and so does the graphical one before its
+    // font opens and after a font has failed to open.
+    const RegionFit f = fit_region(3, 4, 20, 6, 0, 0);
+    CHECK(f.columns == 20);
+    CHECK(f.rows == 6);
+    CHECK(f.origin_x == 0);
+    CHECK(f.origin_y == 0);
+    CHECK_FALSE(f.graphical());
+    CHECK(f.view == RegionViewport{3 * kCanvasCellPx, 4 * kCanvasCellPx, 20 * kCanvasCellPx,
+                                   6 * kCanvasCellPx});
+
+    // A metric is two numbers or it is none: half an answer describes half a line
+    // of text, so either missing half means cells.
+    CHECK_FALSE(fit_region(0, 0, 20, 6, 8, 0).graphical());
+    CHECK_FALSE(fit_region(0, 0, 20, 6, 0, 18).graphical());
+    CHECK(fit_region(0, 0, 20, 6, 8, 0).columns == 20);
+    CHECK(fit_region(0, 0, 20, 6, 0, 18).rows == 6);
+
+    // A negative advance is not a size. It is a number off the wire, and it means
+    // the same thing zero does rather than meaning an error.
+    CHECK_FALSE(fit_region(0, 0, 20, 6, -8, -18).graphical());
+    CHECK(fit_region(0, 0, 20, 6, -8, -18).columns == 20);
+}
+
+TEST_CASE("region: a real metric divides the region's pixels, inset and all") {
+    // The minimum Terminal pane, at the face HD-1 ships: 56x13 cells is 672x156
+    // device pixels, and an 8px advance with an 18px line divides what is left
+    // after the inset comes off BOTH sides.
+    const RegionFit f = fit_region(22, 9, 56, 13, 8, 18);
+    REQUIRE(f.graphical());
+    CHECK(f.view == RegionViewport{22 * 12, 9 * 12, 672, 156});
+    CHECK(f.origin_x == kTextInsetPx);
+    CHECK(f.origin_y == kTextInsetPx);
+    CHECK(f.columns == (672 - 2 * kTextInsetPx) / 8);
+    CHECK(f.rows == (156 - 2 * kTextInsetPx) / 18);
+    CHECK(f.advance_px == 8);
+    CHECK(f.line_px == 18);
+
+    // THE INSET IS IN THE CAPACITY, WHICH IS THE WHOLE POINT OF IT LIVING HERE.
+    // Padding a renderer consumed privately would leave a publisher wrapping
+    // against 84 columns and a medium drawing 83 of them, and the difference
+    // would appear as the last character of every long row falling off the edge.
+    CHECK(f.columns == 83);
+    CHECK(f.columns < 672 / 8);
+}
+
+TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") {
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+
+    // A line taller than the region, or a character wider than it: nothing fits,
+    // said as zero rather than as a negative somebody downstream would subtract.
+    CHECK(fit_region(0, 0, 4, 2, 8, 4000).rows == 0);
+    CHECK(fit_region(0, 0, 4, 2, 4000, 18).columns == 0);
+    CHECK(fit_region(0, 0, 4, 2, kMax, kMax).columns == 0);
+    CHECK(fit_region(0, 0, 4, 2, kMax, kMax).rows == 0);
+
+    // A region with no bounds, or bounds off the number line: still an answer.
+    CHECK(fit_region(0, 0, -5, -5, 8, 18).columns == 0);
+    CHECK(fit_region(0, 0, -5, -5, 0, 0).columns == 0);
+    CHECK(fit_region(kMax, kMax, kMax, kMax, 8, 18).view.w > 0);
+    CHECK(fit_region(kMin, kMin, kMin, kMin, 8, 18).view.w == 0);
+
+    // The inset can be larger than the region itself. Two cells is 24 pixels and
+    // survives; a region so small that the inset eats it answers zero, not a
+    // negative width.
+    CHECK(fit_region(0, 0, 1, 1, 8, 18).columns == (12 - 2 * kTextInsetPx) / 8);
+    CHECK(fit_region(0, 0, 1, 1, 8, 18).rows == 0);
+}
+
+TEST_CASE("region: the clip is the surface's business and never the capacity's") {
+    // A region wholly on the surface is untouched.
+    const RegionViewport whole{100, 50, 200, 80};
+    CHECK(clip_viewport(whole, 936, 264) == whole);
+
+    // Hanging off the right and the bottom: less is painted.
+    CHECK(clip_viewport(whole, 200, 100) == RegionViewport{100, 50, 100, 50});
+
+    // Starting above and to the left: the clip moves, and a medium is expected to
+    // carry the difference in its LOCAL origin rather than in the capacity.
+    CHECK(clip_viewport(RegionViewport{-30, -10, 100, 40}, 936, 264) ==
+          RegionViewport{0, 0, 70, 30});
+
+    // Entirely off: an empty clip, and `empty()` says so rather than a caller
+    // having to compare two numbers.
+    CHECK(clip_viewport(RegionViewport{2000, 0, 100, 40}, 936, 264).empty());
+    CHECK(clip_viewport(RegionViewport{0, 2000, 100, 40}, 936, 264).empty());
+
+    // AND THE CAPACITY IS UNMOVED BY ANY OF IT. This is the separation that keeps
+    // the omission marker true: a window two pixels too small paints less and the
+    // pane still says the same thing about what it is showing, because what it is
+    // showing was decided from authored bounds.
+    const RegionFit f = fit_region(22, 9, 56, 13, 8, 18);
+    const RegionViewport squeezed = clip_viewport(f.view, 400, 200);
+    CHECK(squeezed.w == 400 - 264);
+    CHECK(squeezed.h == 200 - 108);
+    CHECK(squeezed.w < f.view.w);
+    CHECK(fit_region(22, 9, 56, 13, 8, 18).columns == f.columns);
+}
+
+TEST_CASE("region: the cell projection is what the pane used to do, exactly") {
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 10;
+    SurfaceTextRegion r;
+    r.x = 2;
+    r.y = 3;
+    r.w = 8;
+    r.h = 4;
+    r.rows.push_back(SurfaceTextRow{"abc", role::kAccent});
+    r.rows.push_back(SurfaceTextRow{"a much longer row than fits", role::kAlert});
+    c.texts.push_back(r);
+
+    const std::vector<SurfaceLabel> out = project_text_regions(c);
+    REQUIRE(out.size() == 4); // EVERY cell row of the region, including the empty ones
+
+    // Padded to the region's width -- which is what CLEARS the furniture underneath
+    // in a medium whose ink is one character per cell, and which is the job
+    // `paint_terminal` used to do for itself.
+    CHECK(out[0].text == "abc     ");
+    CHECK(out[0].x == 2);
+    CHECK(out[0].y == 3);
+    CHECK(out[0].role == role::kAccent);
+
+    // Cut at the region's width, on a byte boundary: one cell per byte, as ever.
+    CHECK(out[1].text == "a much l");
+    CHECK(out[1].role == role::kAlert);
+
+    // The rows with nothing behind them are still written, still the full width,
+    // and quiet -- a short session must not render as an overlay with holes
+    // punched through it into the workspace behind.
+    CHECK(out[2].text == "        ");
+    CHECK(out[3].text == "        ");
+    CHECK(out[3].y == 6);
+    CHECK(out[2].role == role::kFill);
+
+    // More rows than the region is tall: the extra ones are simply not there.
+    c.texts[0].rows.resize(99, SurfaceTextRow{"x", role::kFill});
+    CHECK(project_text_regions(c).size() == 4);
+
+    // A region with no bounds projects nothing, and says nothing about it.
+    c.texts[0].w = 0;
+    CHECK(project_text_regions(c).empty());
+}
+
+TEST_CASE("region plan: a region resolves to a viewport, a local origin and rows") {
+    SurfaceCanvas c;
+    c.width = 78;
+    c.height = 22;
+    SurfaceTextRegion r;
+    r.x = 22;
+    r.y = 9;
+    r.w = 56;
+    r.h = 13;
+    r.rows.push_back(SurfaceTextRow{"TERMINAL", role::kAccent});
+    r.rows.push_back(SurfaceTextRow{"", role::kFill});
+    r.rows.push_back(SurfaceTextRow{"> _", role::kAccent});
+    c.texts.push_back(r);
+
+    const SurfaceExtent metric{78, 22, 8, 18};
+    const std::vector<PlanTextRegion> plan = plan_text_regions(c, metric, PlanSize{936, 264});
+    REQUIRE(plan.size() == 1);
+    CHECK(plan[0].view == RegionViewport{264, 108, 672, 156});
+    CHECK(plan[0].origin_x == kTextInsetPx);
+    CHECK(plan[0].origin_y == kTextInsetPx);
+    CHECK(plan[0].line_px == 18);
+    REQUIRE(plan[0].rows.size() == 3);
+    CHECK(plan[0].rows[0].text == "TERMINAL");
+    CHECK(plan[0].rows[0].ink == ink_for_role(role::kAccent));
+    CHECK(plan[0].rows[2].ink == ink_for_role(role::kAccent));
+
+    // WITH NO METRIC THERE IS NO GRAPHICAL REGION AT ALL, and `plan_canvas` has the
+    // words instead. One list or the other; never both, so the same sentence can
+    // never be painted twice at two sizes.
+    CHECK(plan_text_regions(c, SurfaceExtent{78, 22, 0, 0}, PlanSize{936, 264}).empty());
+    CHECK(plan_canvas(c, SurfaceExtent{78, 22, 8, 18}).size() ==
+          plan_canvas(SurfaceCanvas{c.width, c.height, c.rects, c.labels, {}}).size());
+}
+
+TEST_CASE("region plan: the plan bounds its own work, and carries the clip in its origin") {
+    SurfaceCanvas c;
+    c.width = 78;
+    c.height = 22;
+    SurfaceTextRegion r;
+    r.x = 22;
+    r.y = 9;
+    r.w = 56;
+    r.h = 13;
+    r.rows.resize(400, SurfaceTextRow{std::string(4000, 'x'), role::kFill});
+    c.texts.push_back(r);
+
+    const SurfaceExtent metric{78, 22, 8, 18};
+    const std::vector<PlanTextRegion> plan = plan_text_regions(c, metric, PlanSize{936, 264});
+    REQUIRE(plan.size() == 1);
+    // NEVER MORE ROWS THAN THE FIT SAID, and never a longer row than fits either.
+    // A publisher that oversends cannot make this medium draw what it claimed it
+    // could not show, and a published row of four thousand characters costs four
+    // thousand characters of nothing rather than four thousand characters of font
+    // engine.
+    const RegionFit fit = fit_region(r, metric);
+    CHECK(static_cast<std::int64_t>(plan[0].rows.size()) == fit.rows);
+    CHECK(static_cast<std::int64_t>(plan[0].rows[0].text.size()) == fit.columns);
+
+    // A region hanging off the top-left: the CLIP moved and the text did not, which
+    // is what the local origin going negative means.
+    c.texts[0].x = -1;
+    c.texts[0].y = -1;
+    const std::vector<PlanTextRegion> off = plan_text_regions(c, metric, PlanSize{936, 264});
+    REQUIRE(off.size() == 1);
+    CHECK(off[0].view.x == 0);
+    CHECK(off[0].view.y == 0);
+    CHECK(off[0].origin_x == kTextInsetPx - kCanvasCellPx);
+    CHECK(off[0].origin_y == kTextInsetPx - kCanvasCellPx);
+
+    // A region entirely off the surface is not in the plan at all.
+    c.texts[0].x = 9000;
+    c.texts[0].y = 9000;
+    CHECK(plan_text_regions(c, metric, PlanSize{936, 264}).empty());
+}
+
+TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
+    // The same floored division `cell_of_pixel` performs, one step finer, and
+    // resolved with the fit the rows were DRAWN with rather than with a metric
+    // read separately.
+    const RegionFit fit = fit_region(22, 9, 56, 13, 8, 18);
+    const std::int64_t x0 = 22 * kCanvasCellPx + kTextInsetPx;
+    const std::int64_t y0 = 9 * kCanvasCellPx + kTextInsetPx;
+
+    CHECK(prose_column_of_pixel(x0, 22, fit) == 0);
+    CHECK(prose_column_of_pixel(x0 + 7, 22, fit) == 0);
+    CHECK(prose_column_of_pixel(x0 + 8, 22, fit) == 1);
+    CHECK(prose_row_of_pixel(y0, 9, fit) == 0);
+    CHECK(prose_row_of_pixel(y0 + 17, 9, fit) == 0);
+    CHECK(prose_row_of_pixel(y0 + 18, 9, fit) == 1);
+
+    // FLOORED, so a pixel to the LEFT of the region's prose is column -1 and not
+    // column 0. Truncating division would put a press just outside the pane onto
+    // its first character.
+    CHECK(prose_column_of_pixel(x0 - 1, 22, fit) == -1);
+    CHECK(prose_row_of_pixel(y0 - 1, 9, fit) == -1);
+
+    // A PROJECTION, NOT A HIT TEST: past the region is an answer, not an error.
+    CHECK(prose_column_of_pixel(x0 + 8 * 500, 22, fit) == 500);
+    CHECK(prose_column_of_pixel(x0 + 8 * 500, 22, fit) > fit.columns);
+
+    // Under a cell-projection fit it degrades to the cell answer, which is the
+    // truthful one for a medium whose character IS a cell.
+    const RegionFit cells = fit_region(22, 9, 56, 13, 0, 0);
+    CHECK(prose_column_of_pixel(22 * kCanvasCellPx + 5, 22, cells) == 0);
+    CHECK(prose_column_of_pixel(23 * kCanvasCellPx, 22, cells) == 1);
+    CHECK(prose_row_of_pixel(10 * kCanvasCellPx, 9, cells) == 1);
+
+    // Total over the number line, both fits: these are wire values on both sides.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(prose_column_of_pixel(kMin, kMax, fit) < 0);
+    CHECK(prose_column_of_pixel(kMax, kMin, fit) > 0);
+    CHECK(prose_row_of_pixel(kMin, kMax, cells) < 0);
+    CHECK(prose_row_of_pixel(kMax, kMin, cells) > 0);
+}
+
 TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     loom::Switchboard bus;
     std::vector<std::string> log;
@@ -1211,6 +1584,13 @@ TEST_CASE("a terminal medium has no opinion about how much room there is") {
     TuiMedium<ClassicStyle, StringSink> medium;
     CHECK(medium.extent().width == 0);
     CHECK(medium.extent().height == 0);
+
+    // AND NO OPINION ABOUT TYPE EITHER (HD-1). A terminal's character IS its cell; it owns no
+    // face whose metric would be its to report, and answering anything else would be this
+    // medium claiming a capability it does not have. Zero here is the same word the extent
+    // uses -- "text is a cell" -- and it is the truth in a terminal rather than a placeholder.
+    CHECK(medium.extent().text_advance_px == 0);
+    CHECK(medium.extent().text_line_px == 0);
 
     loom::Switchboard bus;
     std::vector<SurfaceExtent> heard;
@@ -1919,6 +2299,66 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
     CHECK(now_w == 120 * kCanvasCellPx);
     CHECK(now_h == 22 * kCanvasCellPx);
+}
+
+TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
+    // HD-1's live half, under the dummy driver: a real window, a real renderer, a
+    // real SDL_ttf, a real FreeType and the real weave library -- only the photons
+    // are missing. What this case cannot do is judge whether the letters are
+    // legible; that is a person's job and it is done in the report. What it CAN do
+    // is prove the seam: the medium opened the face it carries, measured it, and
+    // said the result out loud.
+    choose_video_driver("dummy");
+    Rig r;
+    std::vector<SurfaceExtent> heard;
+    (void)loom::mount<RoomEars>(r.bus, heard);
+    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+
+    SurfaceCanvas c;
+    c.width = 78;
+    c.height = 22;
+    // A bounded region, published exactly as Workshop's Terminal publishes one.
+    SurfaceTextRegion pane;
+    pane.x = 22;
+    pane.y = 9;
+    pane.w = 56;
+    pane.h = 13;
+    pane.rows.push_back(SurfaceTextRow{"TERMINAL -- weave #3", role::kAccent});
+    pane.rows.push_back(SurfaceTextRow{"gjpqy Ill1 O0o ceao weave", role::kFill});
+    c.texts.push_back(pane);
+    r.intent(skin, c);
+
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].width == 78);
+    CHECK(heard[0].height == 22);
+
+    // MEASURED, NOT AUTHORED. The only number a person chose is the point size; the
+    // advance and the line height are what the opened face answered, so this case
+    // asserts their SHAPE rather than their values -- a face is allowed to be
+    // rasterized differently by a different FreeType, and a test that pinned 8 and
+    // 18 would be pinning this machine.
+    const std::int64_t advance = heard[0].text_advance_px;
+    const std::int64_t line = heard[0].text_line_px;
+    CHECK(advance > 0);
+    CHECK(line > 0);
+    CHECK(line > advance);        // a monospace line is taller than a character is wide
+    CHECK(advance < kCanvasCellPx); // ...and at this size, narrower than a cell
+    CHECK(line < 4 * kCanvasCellPx);
+
+    // AND THE PUBLISHER CAN DO ARITHMETIC WITH IT. This is the whole reason the
+    // metric travels: `fit_region` here and `fit_region` in Workshop are the same
+    // function reading the same two numbers, so "how much prose fits" has one
+    // answer in this process.
+    const RegionFit fit = fit_region(pane, heard[0]);
+    CHECK(fit.graphical());
+    CHECK(fit.columns > pane.w);   // real type is narrower than a cell: MORE columns
+    CHECK(fit.rows < pane.h);      // ...and taller than one: fewer rows
+    CHECK(fit.rows >= 1);
+
+    // A SECOND FRAME SAYS NOTHING NEW. The metric is a fact about the face, not
+    // about the frame, so a still window with an open font is silent.
+    r.intent(skin, c);
+    CHECK(heard.size() == 1);
 }
 
 #endif // SURFACE_HAS_SDL

@@ -31,7 +31,12 @@ option(ZENGINE_SDL_SKIN
 # What a package links, and what a host must stage beside itself. Empty when
 # this configuration has no SDL at all, which is a legitimate configuration and
 # is declared rather than assumed (tests/test_population.txt's `sdl` gate).
+#
+# ZENGINE_SDL_RUNTIME is a LIST since HD-1: SDL3 and SDL3_ttf are two shared
+# libraries a host must find beside itself on Windows, and a staging rule that
+# copied "the SDL" would have copied one of them.
 set(ZENGINE_SDL_LIB "")
+set(ZENGINE_SDL_TEXT_LIB "")
 set(ZENGINE_SDL_RUNTIME "")
 
 # zengine_sdl_weave(<target>) — a weave that links SDL. One place, so the two
@@ -55,12 +60,12 @@ endfunction()
 # Windows stranger lane, which is the configuration with no SDL, is exactly the
 # lane least likely to be the one someone tests that `if` on.
 function(zengine_stage_sdl host)
-    if(ZENGINE_SDL_RUNTIME)
+    foreach(runtime IN LISTS ZENGINE_SDL_RUNTIME)
         add_custom_command(TARGET ${host} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${ZENGINE_SDL_RUNTIME} $<TARGET_FILE_DIR:${host}>
-            COMMENT "${host}: staging the shared SDL3 beside the host")
-    endif()
+                    ${runtime} $<TARGET_FILE_DIR:${host}>
+            COMMENT "${host}: staging ${runtime} beside the host")
+    endforeach()
 endfunction()
 
 if(NOT ZENGINE_SDL_SKIN)
@@ -157,8 +162,106 @@ set(ZENGINE_SDL_LIB SDL3::SDL3)
 # DLL must simply be in the application directory, which is what this copies.
 if(zengine_sdl_fetched)
     if(WIN32)
-        set(ZENGINE_SDL_RUNTIME "$<TARGET_FILE:SDL3::SDL3>")
+        list(APPEND ZENGINE_SDL_RUNTIME "$<TARGET_FILE:SDL3::SDL3>")
     else()
-        set(ZENGINE_SDL_RUNTIME "$<TARGET_SONAME_FILE:SDL3::SDL3>")
+        list(APPEND ZENGINE_SDL_RUNTIME "$<TARGET_SONAME_FILE:SDL3::SDL3>")
+    endif()
+endif()
+
+# ---- SDL_ttf: a real typeface for the graphical Skin (HD-1) --------------------------
+#
+# WHY A SECOND TARBALL. HD-0 measured the graphical Terminal's defect as the
+# LETTERFORM -- a 5x5 bitmap face where `a`, `e`, `o` and `c` differ by one pixel --
+# and measured that scaling it does not fix it. Fixing it needs a font engine.
+# SDL_ttf is the one that pairs with the SDL3 already here: it opens a face from
+# memory, measures a string, and caches its glyphs in a renderer-owned atlas, which
+# is all three of the things this medium needs and no more.
+#
+# WHY *TWO* TARBALLS, WHICH IS THE UGLY PART, AND WHY IT IS STILL THE RIGHT TRADE.
+# SDL_ttf hard-requires FreeType (`SDLTTF_FREETYPE` is not an option, it is `ON`),
+# and its release tarball deliberately does NOT bundle it -- upstream keeps its
+# third-party trees as git submodules and ships a download script instead. That
+# leaves two doors, and both were measured on this workspace rather than assumed:
+#
+#   SDLTTF_VENDORED=OFF   find_package(Freetype REQUIRED). MEASURED FAILING on the
+#                         canonical WSL lane (no libfreetype-dev, no pkg-config) and
+#                         on the Windows graphical lane (CLion's MinGW ships no
+#                         FreeType at all). Two of the two lanes that build SDL.
+#   SDLTTF_VENDORED=ON    add_subdirectory(external/freetype), which must EXIST.
+#
+# So the sources are put where SDL_ttf looks for them, from a pinned tarball with a
+# checksum, exactly like SDL3 itself. The mechanism is FetchContent's documented
+# populate-without-adding form: SOURCE_SUBDIR pointing at a directory that has no
+# CMakeLists.txt populates the content and does not add it to the build. Verified on
+# both CMake versions this workspace actually uses -- 3.22 on WSL and 4.0 in CLion --
+# because the whole point of the technique is that it is supported, not clever.
+#
+# HarfBuzz and PlutoSVG are OFF: the first is text SHAPING for scripts this pane does
+# not have, the second is colour emoji. Both are large, neither is readability, and
+# leaving them on would have made a font engine into a dependency tree.
+include(FetchContent) # already included above when SDL3 itself was fetched; idempotent
+
+if(NOT TARGET SDL3_ttf::SDL3_ttf)
+    set(SDLTTF_VENDORED ON CACHE BOOL "" FORCE)
+    set(SDLTTF_HARFBUZZ OFF CACHE BOOL "" FORCE)
+    set(SDLTTF_PLUTOSVG OFF CACHE BOOL "" FORCE)
+    set(SDLTTF_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(SDLTTF_INSTALL OFF CACHE BOOL "" FORCE)
+
+    # Populated, not added: `zen-not-a-project` contains no CMakeLists.txt, which is
+    # how FetchContent is told to fetch and stop. The tree is then completed below
+    # and added by hand, in that order, because SDL_ttf's own configure step is what
+    # requires the completed tree.
+    FetchContent_Declare(sdl3_ttf_fetched
+        URL https://github.com/libsdl-org/SDL_ttf/releases/download/release-3.2.2/SDL3_ttf-3.2.2.tar.gz
+        URL_HASH SHA256=63547d58d0185c833213885b635a2c0548201cc8f301e6587c0be1a67e1e045d
+        SOURCE_SUBDIR zen-not-a-project)
+    FetchContent_MakeAvailable(sdl3_ttf_fetched)
+
+    # FreeType lands INSIDE SDL_ttf's own external/ directory, which is the path its
+    # vendored branch reads. Same populate-without-adding form, so nothing here adds
+    # FreeType to the build either -- SDL_ttf's add_subdirectory below is what does,
+    # with the options it wants set on it.
+    FetchContent_Declare(freetype_fetched
+        URL https://downloads.sourceforge.net/project/freetype/freetype2/2.14.3/freetype-2.14.3.tar.gz
+        URL_HASH SHA256=e61b31ab26358b946e767ed7eb7f4bb2e507da1cfefeb7a8861ace7fd5c899a1
+        SOURCE_DIR "${sdl3_ttf_fetched_SOURCE_DIR}/external/freetype"
+        SOURCE_SUBDIR zen-not-a-project)
+    FetchContent_MakeAvailable(freetype_fetched)
+
+    # THE ONE WAY THIS ASSEMBLY CAN COME APART, named before it happens. The two
+    # contents have independent download stamps, and re-populating SDL_ttf wipes
+    # its source tree -- external/freetype with it -- while FreeType's stamp still
+    # says "done". The result would be SDL_ttf's own FATAL about missing sources,
+    # which is true and unhelpful, three layers down somebody else's CMakeLists.
+    # So the assembly checks itself, and says what to delete.
+    if(NOT EXISTS "${sdl3_ttf_fetched_SOURCE_DIR}/external/freetype/CMakeLists.txt")
+        message(FATAL_ERROR
+            "zengine: SDL_ttf's vendored FreeType is missing from\n"
+            "  ${sdl3_ttf_fetched_SOURCE_DIR}/external/freetype\n"
+            "This happens when SDL_ttf was re-downloaded (wiping its tree) while FreeType's\n"
+            "own FetchContent stamp still says it is populated. Delete the FreeType content\n"
+            "and configure again:\n"
+            "  rm -rf \"${FETCHCONTENT_BASE_DIR}/freetype_fetched-subbuild\"")
+    endif()
+
+    add_subdirectory("${sdl3_ttf_fetched_SOURCE_DIR}" "${sdl3_ttf_fetched_BINARY_DIR}"
+                     EXCLUDE_FROM_ALL)
+    set(zengine_sdl_ttf_fetched ON)
+endif()
+
+if(NOT TARGET SDL3_ttf::SDL3_ttf)
+    message(FATAL_ERROR
+        "zengine: ZENGINE_SDL_SKIN is ON but no SDL3_ttf::SDL3_ttf target exists after "
+        "FetchContent. Configure with -DZENGINE_SDL_SKIN=OFF to build without SDL.")
+endif()
+
+set(ZENGINE_SDL_TEXT_LIB SDL3_ttf::SDL3_ttf)
+
+if(zengine_sdl_ttf_fetched)
+    if(WIN32)
+        list(APPEND ZENGINE_SDL_RUNTIME "$<TARGET_FILE:SDL3_ttf::SDL3_ttf>")
+    else()
+        list(APPEND ZENGINE_SDL_RUNTIME "$<TARGET_SONAME_FILE:SDL3_ttf::SDL3_ttf>")
     endif()
 endif()

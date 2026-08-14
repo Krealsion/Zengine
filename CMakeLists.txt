@@ -86,6 +86,31 @@ target_compile_options(zengine-warnings INTERFACE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion
     -Wsign-conversion -Werror>)
 
+# ---- MinGW objects are allowed to be big (HD-1) ----------------------------------------
+#
+# COFF's ordinary object format holds 32,768 sections and addresses debug data with 32-bit
+# section-relative relocations. A heavily-templated C++ translation unit compiled with `-g`
+# emits one COMDAT debug section per instantiation, and `workshop.cpp` -- which instantiates
+# the whole Loom message machinery, the whole Workshop screen and every shape either of them
+# touches -- was measured sitting just under that ceiling. HD-1 added inline arithmetic to a
+# header it includes and it went over, as:
+#
+#   relocation truncated to fit: IMAGE_REL_AMD64_SECREL against `.debug_frame$_ZSt13...`
+#
+# which reads exactly like a broken repository and is not one: the same source links on
+# GCC/Linux, on Clang and on MSVC, and linked on MinGW the commit before. `-mbig-obj` is the
+# assembler's supported answer -- the extended COFF object format, which lifts the limit --
+# and it costs a slightly larger object and nothing else.
+#
+# UNCONDITIONAL ON MINGW rather than applied to the one file that overflowed, because the
+# ceiling is not that file's property: it is the toolchain's, and the next phase to add a
+# template to a shared header would meet it somewhere else. It is scoped to MinGW because
+# nothing else has the limit -- MSVC has its own object format and its own `/bigobj`, and ELF
+# has no such ceiling at all.
+if(MINGW)
+    target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
+endif()
+
 # ---- The standing sanitizer witness (W-3a) ---------------------------------------------
 #
 # A SECOND KIND OF EVIDENCE, not a second correctness lane. tests/verify.cmake asks whether
@@ -168,7 +193,11 @@ endif()
 # ELF-only option into MinGW weave DLLs purely because that compiler accepts the
 # spelling. The Loom's function asks the semantic question instead.
 function(zengine_weave target source)
-    add_library(${target} SHARED ${source})
+    # ARGN so a weave may carry more than its one .cpp: HD-1's SDL Skin compiles a
+    # generated translation unit (its embedded typeface) alongside its edge. The
+    # first source stays named because every weave has exactly one file that IS the
+    # weave, and the rest are material it carries.
+    add_library(${target} SHARED ${source} ${ARGN})
     target_link_libraries(${target} PRIVATE loom::core loom::switchboard zengine-warnings
                                             zengine-sanitize)
     loom_weave_build_contract(${target})

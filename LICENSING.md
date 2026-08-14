@@ -45,9 +45,19 @@ not the copyright owner and not an LLC.
 Files or directories carrying their own license or copyright notice remain
 under those terms. Bundled third-party material is listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); today that is the doctest
-test framework and the font files inside the reference quarry (below). SDL,
-when the SDL skin is enabled, is fetched at build time and is not distributed
-in this repository.
+test framework, the JetBrains Mono typeface the graphical skin sets its text in
+(`surface/fonts/`, SIL OFL 1.1, provenance in
+[surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md)), and the font files
+inside the reference quarry (below). SDL, SDL_ttf and FreeType, when the SDL
+skin is enabled, are fetched at build time and are not distributed in this
+repository.
+
+`surface/fonts/` is **not** first-party material and is excluded from the
+MPL-2.0 claim above. Its bytes are unmodified upstream bytes and remain under
+the SIL Open Font License 1.1, whose text travels with them in
+`surface/fonts/OFL.txt`. The build compiles those bytes into the SDL skin weave,
+so anything distributing that weave is distributing the font and carries the
+OFL's notice obligation with it — which is what the notices file records.
 
 ## `reference/` — the quarry
 

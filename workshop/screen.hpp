@@ -45,6 +45,7 @@
 
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "surface/pointing.hpp"  // and what that medium's layout makes of them
+#include "surface/region.hpp"    // and how much prose a bounded region of it holds
 #include "surface/vocabulary.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
@@ -217,6 +218,14 @@ inline constexpr std::int64_t kTerminalMinH = 13;
 /// Header, the standing statement, the omission marker, the input line: the rows a pane
 /// spends on being a pane, whatever is in it. Everything else is transcript.
 inline constexpr std::int64_t kTerminalChrome = 4;
+/// The narrowest prose the pane will claim to hold, whatever a medium's metric says.
+///
+/// The metric arrives on the bus, so an advance of a million pixels is a sentence a
+/// publisher can say; a pane that answered "zero columns" to it would hand `wrap` a width of
+/// zero and `fit` a length of zero, and the record would vanish rather than degrade. Eight
+/// is enough for `> abc_` and the sigils, which is the smallest thing this pane is still
+/// FOR.
+inline constexpr std::int64_t kTerminalMinCols = 8;
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE.
 ///
@@ -234,14 +243,31 @@ struct Screen {
     std::int64_t help_y = 0;       ///< the first of two help lines
     std::int64_t terminal_x = 0;
     std::int64_t terminal_y = 0;
-    std::int64_t terminal_w = 0;
+    std::int64_t terminal_w = 0;    ///< the pane's PLACEMENT, in cells, always
     std::int64_t terminal_h = 0;
-    std::size_t terminal_rows = 0; ///< transcript rows the pane has room for
+    /// THE PANE'S INTERIOR, IN PROSE, and the only numbers anything downstream may
+    /// use to decide what it can show. They are the pane's own cell bounds resolved
+    /// against whatever text metric the active medium published (HD-1) -- equal to
+    /// `terminal_w`/`terminal_h` in a medium whose character is a cell, and larger
+    /// or smaller in one that sets real type.
+    std::int64_t terminal_cols = 0;  ///< characters that fit across the pane
+    std::size_t terminal_lines = 0;  ///< rows of prose the pane holds, chrome included
+    std::size_t terminal_rows = 0;   ///< ...of which these many carry the transcript
 };
 
 /// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
 /// extent it is given came off the bus.
-inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h) noexcept {
+///
+/// THE TEXT METRIC IS AN ARGUMENT, NOT A LOOKUP, and that is what makes this function the
+/// single source of the pane's capacity (HD-1). Every party that needs to know how much
+/// prose the pane holds -- the snapshot that chooses which entries fit, the omission marker
+/// that says how many did not, and the painter that spends the rows -- calls THIS, with the
+/// session's metric, and gets one answer. Before it, `terminal_w` was both the placement and
+/// the capacity because a cell was both; a medium that sets type separates them, and the
+/// separation has to happen in one place or the pane starts lying about what it left out.
+inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
+                                  std::int64_t text_advance_px = 0,
+                                  std::int64_t text_line_px = 0) noexcept {
     Screen s;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
@@ -254,7 +280,20 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h) noex
     s.terminal_h = kTerminalMinH + (s.h - kScreenMinH) / 2;
     s.terminal_x = s.w - s.terminal_w;
     s.terminal_y = s.h - s.terminal_h;
-    s.terminal_rows = static_cast<std::size_t>(s.terminal_h - kTerminalChrome);
+    const surface::RegionFit fit = surface::fit_region(s.terminal_x, s.terminal_y, s.terminal_w,
+                                                      s.terminal_h, text_advance_px,
+                                                      text_line_px);
+    // A FLOOR THE PANE CANNOT DROP THROUGH. The metric arrives on the bus, so a medium
+    // could report a line height taller than the whole pane -- and a pane with no rows is
+    // indistinguishable from a broken tool, which is the same argument `entries_that_fit`
+    // makes for always showing one entry. Below the floor the pane is a cramped pane; it is
+    // never an empty box, and it never publishes a negative row count for someone else to
+    // subtract from.
+    s.terminal_cols = fit.columns > kTerminalMinCols ? fit.columns : kTerminalMinCols;
+    const std::int64_t lines =
+        fit.rows > kTerminalChrome + 1 ? fit.rows : kTerminalChrome + 1;
+    s.terminal_lines = static_cast<std::size_t>(lines);
+    s.terminal_rows = static_cast<std::size_t>(lines - kTerminalChrome);
     return s;
 }
 
@@ -270,6 +309,12 @@ static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 20, "the bottom 
 static_assert(kMinScreen.terminal_x == 22 && kMinScreen.terminal_y == 9, "the pane's corner");
 static_assert(kMinScreen.terminal_w == 56 && kMinScreen.terminal_h == 13, "the pane's extent");
 static_assert(kMinScreen.terminal_rows == 9, "the transcript rows the pane has always had");
+// WITH NO TEXT METRIC THE PANE IS EXACTLY THE PANE IT WAS, and these two say so in the type
+// system: a character IS a cell, so the interior and the placement are the same numbers, and
+// every golden this repository holds over a terminal medium is unmoved by HD-1.
+static_assert(kMinScreen.terminal_cols == kMinScreen.terminal_w, "no metric: a character is a cell");
+static_assert(kMinScreen.terminal_lines == static_cast<std::size_t>(kMinScreen.terminal_h),
+              "no metric: a row is a cell row");
 
 // ---- PLACEMENT RESOLVED: a place, on a screen, is a rectangle ---------------------------
 //
@@ -528,6 +573,14 @@ struct Session {
     /// Workshop had before G-2.
     std::int64_t screen_w = kScreenMinW;
     std::int64_t screen_h = kScreenMinH;
+    /// AND HOW BIG ONE CHARACTER OF THAT SURFACE IS, in its own device pixels -- the other
+    /// half of the same sentence, and session for exactly the same reasons (HD-1). Zero is
+    /// the honest starting value and the honest steady value for every character medium: it
+    /// means "text is a cell", which is what a terminal's text is and what a window's text
+    /// is until a real face opens. A run with no medium opinion is therefore, again,
+    /// precisely the run Workshop had before.
+    std::int64_t text_advance_px = 0;
+    std::int64_t text_line_px = 0;
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
     std::size_t cursor = 0;   ///< which inspector row the maker is on
@@ -545,8 +598,13 @@ struct Session {
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
+///
+/// IT CARRIES THE METRIC, and that is what makes "the one call" true rather than aspirational
+/// (HD-1). Everything in this application that needs to know how wide the pane's prose is
+/// reaches it through here, so there is no second path by which a caller could compute the
+/// pane's capacity from `terminal_w` and be quietly wrong on a graphical medium.
 inline constexpr Screen screen_of(const Session& s) noexcept {
-    return screen_of(s.screen_w, s.screen_h);
+    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px);
 }
 
 /// TAKE THE ROOM A SURFACE OFFERED, and re-fit the workspace to it. Answers whether anything
@@ -564,13 +622,26 @@ inline constexpr Screen screen_of(const Session& s) noexcept {
 /// Nothing authored is touched. A share resolves to something else and every authored value
 /// is byte-identical, which is the property `[`/`]` was built to demonstrate and this is a
 /// second way to reach.
-inline bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h) {
-    const Screen fresh = screen_of(want_w, want_h);
-    if (fresh.w == s.screen_w && fresh.h == s.screen_h) {
+///
+/// THE TEXT METRIC IS TAKEN THE SAME WAY AND ON THE SAME TERMS (HD-1): clamped at nothing
+/// (a negative advance is not a size, and the vocabulary already spells non-positive as
+/// "text is a cell"), and a change in it counts as a change even when the cell extent did
+/// not move. That second half is load-bearing -- a font that opens after the first frame
+/// changes only the metric, and a guard that compared extents alone would have swallowed the
+/// one message that says the pane may now hold real type.
+inline bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
+                         std::int64_t want_advance_px = 0, std::int64_t want_line_px = 0) {
+    const std::int64_t advance = want_advance_px > 0 ? want_advance_px : 0;
+    const std::int64_t line = want_line_px > 0 ? want_line_px : 0;
+    const Screen fresh = screen_of(want_w, want_h, advance, line);
+    if (fresh.w == s.screen_w && fresh.h == s.screen_h && advance == s.text_advance_px &&
+        line == s.text_line_px) {
         return false;
     }
     s.screen_w = fresh.w;
     s.screen_h = fresh.h;
+    s.text_advance_px = advance;
+    s.text_line_px = line;
     s.workspace_w = fresh.room_w;
     s.workspace_h = fresh.room_h;
     return true;
@@ -1646,24 +1717,43 @@ inline std::string terminal_omission(const TerminalPane& t) {
 
 /// The overlay, painted OVER the finished screen.
 ///
-/// Every row is a label padded to the pane's full width, which is what CLEARS the furniture
-/// underneath in a medium whose ink is one character per cell -- a space is a glyph like any
-/// other, and painter's order makes the last writer win. The backdrop rect underneath is for
-/// media that draw glyphs rather than cells: there a space draws nothing, so without it the
-/// pane would be text floating over the workspace. Both media are served, and neither the
-/// canvas vocabulary nor any Skin needed a new role, a new shape or a new slot to serve them.
+/// SINCE HD-1 THIS PANE IS THE ONE PLACE IN WORKSHOP THAT PUBLISHES A TEXT REGION, and it is
+/// deliberately the only one. A region is a grant of bounds whose interior the active medium
+/// may set in real type instead of in cells; the Terminal asked for it because the Terminal
+/// is the panel a person READS, and no other panel had to change, learn a metric, or move a
+/// coordinate to let it. The backdrop rect underneath is unchanged and still a `SurfaceRect`
+/// in cells -- what got finer is the interior, not the furniture.
+///
+/// EVERY ROW IS STILL WRITTEN, including the ones with nothing in them, and the reason is the
+/// one the first live rasterization taught: a row left unsaid shows whatever is under the
+/// pane, and a short session rendered as an overlay with holes punched through it into the
+/// workspace behind. Region rows carry that for free now -- region.hpp's cell projection
+/// fills the region's whole height, so a pane that has less to say is still a pane.
+///
+/// WHAT IT NO LONGER DOES IS PAD. Padding each row to the pane's width was how a character
+/// medium was made to erase; that is the PROJECTION's job now and it is done for every
+/// medium at once, which is one fewer thing a publisher has to know about the media it might
+/// land on. What stays here is the truncation, because a row longer than the pane is a
+/// PRESENTATION decision -- the pane is choosing what it can show -- and the number it
+/// truncates to is the same `terminal_cols` its snapshot chose entries with.
 inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, const Screen& sc) {
     if (!t.open) {
         return;
     }
     c.rects.push_back(surface::SurfaceRect{sc.terminal_x, sc.terminal_y, sc.terminal_w,
                                            sc.terminal_h, surface::role::kMuted});
-    const auto row = [&c, &sc](std::int64_t line, const std::string& text, std::int64_t role) {
-        c.labels.push_back(surface::SurfaceLabel{
-            sc.terminal_x, sc.terminal_y + line,
-            detail::pad(detail::fit(text, sc.terminal_w),
-                        static_cast<std::size_t>(sc.terminal_w)),
-            role});
+
+    surface::SurfaceTextRegion pane;
+    pane.x = sc.terminal_x;
+    pane.y = sc.terminal_y;
+    pane.w = sc.terminal_w;
+    pane.h = sc.terminal_h;
+    pane.rows.resize(sc.terminal_lines);
+    const auto row = [&pane, &sc](std::size_t line, const std::string& text, std::int64_t role) {
+        if (line >= pane.rows.size()) {
+            return; // the pane is smaller than its own chrome: the floor already refused this
+        }
+        pane.rows[line] = surface::SurfaceTextRow{detail::fit(text, sc.terminal_cols), role};
     };
 
     // The header NAMES THE IDENTITY whose record this is. A presentation may hold controls for
@@ -1679,12 +1769,13 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
 
     // THE TRANSCRIPT, WRAPPED -- one entry becomes as many rows as its sentence needs, and the
     // pane is a list of ROWS from here down rather than a list of entries. `refresh_terminal`
-    // chose `shown` with the same arithmetic (`entries_that_fit`), so this loop is where that
-    // choice is CARRIED OUT rather than where it is made; the truncation below can only fire
-    // for a single entry taller than the whole pane, which is the case that function names.
+    // chose `shown` with the same arithmetic (`entries_that_fit`) against the same
+    // `terminal_cols`, so this loop is where that choice is CARRIED OUT rather than where it is
+    // made; the truncation below can only fire for a single entry taller than the whole pane,
+    // which is the case that function names.
     std::vector<std::string> lines;
     for (const loom::TranscriptEntry& e : t.shown) {
-        for (std::string& line : terminal_wrapped(e, sc.terminal_w)) {
+        for (std::string& line : terminal_wrapped(e, sc.terminal_cols)) {
             lines.push_back(std::move(line));
         }
     }
@@ -1692,20 +1783,16 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
         lines.resize(sc.terminal_rows);
     }
 
-    // EVERY transcript row is written, including the ones with nothing in them. A row left
-    // unwritten shows the backdrop's own glyph -- `.` in a terminal -- so a short session
-    // rendered as a pane with holes punched through it into the workspace behind. Seen in the
-    // first live rasterization, and fixed here rather than by giving the backdrop a quieter
-    // glyph, because the pane's shape should not depend on how much it happens to be showing.
     for (std::size_t i = 0; i < sc.terminal_rows; ++i) {
-        const std::int64_t line = 2 + static_cast<std::int64_t>(i);
-        row(line, i < lines.size() ? lines[i] : std::string(), surface::role::kFill);
+        row(2 + i, i < lines.size() ? lines[i] : std::string(), surface::role::kFill);
     }
-    row(sc.terminal_h - 2, terminal_omission(t), surface::role::kMuted);
+    row(sc.terminal_lines - 2, terminal_omission(t), surface::role::kMuted);
     // The cursor is a character, for the same reason the size handle is: this canvas has no
     // notion of a caret, and a maker needs to see where the next keystroke lands.
-    row(sc.terminal_h - 1, "> " + t.input + "_",
+    row(sc.terminal_lines - 1, "> " + t.input + "_",
         t.attached ? surface::role::kAccent : surface::role::kAlert);
+
+    c.texts.push_back(std::move(pane));
 }
 
 // ---- The dynamic panels, painted -------------------------------------------------------

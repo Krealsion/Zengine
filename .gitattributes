@@ -3,3 +3,11 @@
 # lets git treat files as text and normalize on commit; `eol=lf` forces LF on checkout whatever
 # a user's core.autocrlf says.
 * text=auto eol=lf
+
+# Fonts are BINARY. `text=auto eol=lf` above would otherwise let git normalize line
+# endings inside a TTF -- silently, on checkout, on a Windows working tree -- and the
+# corruption's only symptom would be a font that fails to open at runtime. HD-1 embeds
+# `surface/fonts/JetBrainsMono-Regular.ttf` in the SDL skin, so its bytes have to be the
+# bytes upstream published.
+*.ttf -text
+*.otf -text

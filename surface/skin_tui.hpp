@@ -27,6 +27,7 @@
 // (skin_tui_classic.cpp / skin_tui_block.cpp) plug in TuiTerminal and ship.
 
 #include "cells.hpp"
+#include "region.hpp"
 #include "skin.hpp"
 
 #if defined(_WIN32)
@@ -233,10 +234,23 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
             }
         }
     }
-    for (const zengine::surface::SurfaceLabel& l : c.labels) {
+    const auto write_label = [&](const zengine::surface::SurfaceLabel& l) {
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             put(add_cells(l.x, static_cast<std::int64_t>(i)), l.y, l.text[i], l.role);
         }
+    };
+    for (const zengine::surface::SurfaceLabel& l : c.labels) {
+        write_label(l);
+    }
+    // A TEXT REGION IS CELLS HERE, AND THAT IS THE HONEST ANSWER RATHER THAN THE
+    // CHEAP ONE. A terminal's character is its cell; it owns no font it could set
+    // a finer interior in, and inventing a pixel to divide would be this medium
+    // claiming a capability it does not have. So the projection is the one in
+    // region.hpp -- one row per cell row, cut at the region's width, dropped past
+    // its height -- and it lands through the SAME `put` every label goes through,
+    // last, because a region is the topmost thing on a canvas.
+    for (const zengine::surface::SurfaceLabel& l : project_text_regions(c)) {
+        write_label(l);
     }
 
     std::string out;

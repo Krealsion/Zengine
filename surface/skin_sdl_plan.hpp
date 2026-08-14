@@ -23,6 +23,7 @@
 // lane's suite is already looking.
 
 #include "cells.hpp"
+#include "region.hpp"
 #include "skin_sdl_glyphs.hpp"
 #include "snake/vocabulary.hpp"
 #include "vocabulary.hpp"
@@ -30,6 +31,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::surface {
@@ -43,6 +45,8 @@ struct PlanRect {
     std::uint8_t r = 0;
     std::uint8_t g = 0;
     std::uint8_t b = 0;
+
+    friend bool operator==(const PlanRect&, const PlanRect&) = default;
 };
 
 struct PlanSize {
@@ -218,7 +222,8 @@ inline constexpr SurfaceExtent extent_of_drawable(const PlanSize& px) noexcept {
 /// cell is one background quad plus one quad per horizontal run of ink in its
 /// glyph — at most three per glyph row. Nothing is allocated per character, no
 /// texture is created, and there is no state to cache between frames.
-inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c) {
+inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
+                                         const SurfaceExtent& metric = SurfaceExtent{}) {
     std::vector<PlanRect> out;
     const std::int64_t w = canvas_extent(c.width);
     const std::int64_t h = canvas_extent(c.height);
@@ -245,9 +250,28 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c) {
              ys.count() * kCanvasCellPx, ink_for_role(r.role));
     }
 
-    for (const SurfaceLabel& l : c.labels) {
+    // THE BITMAP FACE ALSO DRAWS THE TEXT REGIONS, WHENEVER THERE IS NO REAL ONE.
+    //
+    // A medium publishing no text metric has said "text is a cell" (see
+    // SurfaceExtent), and this is that sentence carried out: the regions go
+    // through region.hpp's cell projection -- the same one the terminal Skins
+    // use -- and come out as ordinary labels rasterized by the same glyph loop
+    // as every other label. So a window whose font failed to open degrades to
+    // exactly the pane this medium drew before HD-1, rather than to a blank
+    // rectangle, and it does so through shared code rather than through a
+    // second renderer that would have to be kept in step.
+    //
+    // With a real metric the regions are absent from this list entirely: they
+    // are the SDL edge's to draw in type (`plan_text_regions`), and rasterizing
+    // them here as well would paint the same words twice at two sizes.
+    std::vector<SurfaceLabel> projected;
+    if (metric.text_advance_px <= 0 || metric.text_line_px <= 0) {
+        projected = project_text_regions(c);
+    }
+
+    const auto draw_label = [&](const SurfaceLabel& l) {
         if (l.y < 0 || l.y >= h) {
-            continue; // no row of this canvas belongs to it
+            return; // no row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
         const std::int64_t cell_y = l.y * kCanvasCellPx;
@@ -278,6 +302,123 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c) {
                 }
             }
         }
+    };
+
+    for (const SurfaceLabel& l : c.labels) {
+        draw_label(l);
+    }
+    for (const SurfaceLabel& l : projected) {
+        draw_label(l); // last: a region is the topmost thing on a canvas
+    }
+    return out;
+}
+
+// ---- Bounded regions, resolved for a medium that owns a real face --------------------
+//
+// EVERYTHING BELOW IS ABOUT REGIONS, NOT ABOUT TERMINALS. Nothing here knows what
+// a transcript is, and that is the point of it living in the plan: the conversion
+// from a cell rectangle to a pixel viewport, the clip against the surface, the
+// local origin the interior is drawn in, and the row pitch are the four numbers
+// ANY bounded interior needs. A background, a control, a chart or a second panel
+// that wanted a finer inside would ask for exactly these and would not have to be
+// extracted from a terminal renderer first.
+//
+// The rasterization itself is not here, and cannot be: a real font is a real
+// dependency, and this header is pinned by lanes that build no SDL at all. What
+// the SDL edge is left with is "set this viewport, draw these strings at these
+// local coordinates in these inks" -- which is the same division skin_sdl.cpp
+// already lives by, one shape further out.
+
+/// One row of a resolved region: what it says, and in which ink.
+struct PlanTextRow {
+    std::string text;
+    PlanInk ink{};
+
+    friend bool operator==(const PlanTextRow&, const PlanTextRow&) = default;
+};
+
+/// A REGION READY TO DRAW: where to clip, where the first character starts inside
+/// that clip, how far apart the rows are, and the rows.
+///
+/// `view` is the CLIPPED viewport in window pixels — what a medium may paint on.
+/// `origin_x`/`origin_y` are LOCAL to it and may be negative, which is precisely
+/// what carries a region that starts above or to the left of the surface: the
+/// clip moved, the text did not.
+/// A REGION TAKES ITS RECTANGLE, exactly as a label takes its cell.
+///
+/// `background` is what the whole clipped viewport is cleared to before a single
+/// row is drawn, and it is the same argument `plan_canvas` already makes one
+/// granularity down: a label cell there is cleared to the canvas background so
+/// that text never has to compete with a fill it happens to be sitting on. A
+/// region is that at region scale -- and it is not an aesthetic choice, it is
+/// what makes a region an OVERLAY. `plan_canvas` draws every rect and then every
+/// label, so a label belonging to a panel underneath is drawn AFTER the backdrop
+/// rect of a pane on top of it; before HD-1 the pane's own full-width labels
+/// cleared those cells one at a time and the question never arose. Measured live
+/// the first time a region drew real type: the object list and the inspector
+/// showed straight through the Terminal, with the Terminal's sentences on top of
+/// them.
+///
+/// The cell projection carries the identical rule by a different mechanism --
+/// `project_text_regions` pads every row to the region's full width, and a space
+/// erases in a character medium -- so both media end at the same picture without
+/// either knowing the other exists.
+struct PlanTextRegion {
+    RegionViewport view{};
+    std::int64_t origin_x = 0;
+    std::int64_t origin_y = 0;
+    std::int64_t line_px = 0;
+    PlanInk background = kCanvasBackground;
+    std::vector<PlanTextRow> rows;
+
+    friend bool operator==(const PlanTextRegion&, const PlanTextRegion&) = default;
+};
+
+/// EVERY TEXT REGION ON A CANVAS, RESOLVED AGAINST A MEDIUM'S TEXT METRIC.
+///
+/// Empty when the metric is zero — there is no such thing as a graphical region
+/// on a medium that sets text in cells, and `plan_canvas` has already drawn them
+/// as labels in that case. One list or the other, never both.
+///
+/// TRUNCATED TO WHAT FITS, twice over, and neither is redundant. `fit_region`
+/// says how many rows and columns the publisher was working with, so a publisher
+/// that sent more rows than it claimed cannot make this medium draw them; and each
+/// row is cut to `columns` so a published row of a million characters costs a
+/// million characters of nothing rather than a million characters of font
+/// engine. The medium's clip is a third guarantee and still not a substitute for
+/// either — it stops ink leaving the region, which is not the same as bounding
+/// the work.
+inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
+                                                     const SurfaceExtent& metric,
+                                                     const PlanSize& surface) {
+    std::vector<PlanTextRegion> out;
+    if (metric.text_advance_px <= 0 || metric.text_line_px <= 0) {
+        return out; // text is a cell here: plan_canvas drew them
+    }
+    for (const SurfaceTextRegion& r : c.texts) {
+        const RegionFit fit = fit_region(r, metric);
+        const RegionViewport clipped = clip_viewport(fit.view, surface.w, surface.h);
+        if (clipped.empty() || fit.columns <= 0 || fit.rows <= 0) {
+            continue; // nothing of it is on the surface, or nothing of it fits
+        }
+        PlanTextRegion p;
+        p.view = clipped;
+        p.origin_x = sub_px(add_cells(fit.view.x, fit.origin_x), clipped.x);
+        p.origin_y = sub_px(add_cells(fit.view.y, fit.origin_y), clipped.y);
+        p.line_px = fit.line_px;
+        const std::size_t take = r.rows.size() < static_cast<std::size_t>(fit.rows)
+                                     ? r.rows.size()
+                                     : static_cast<std::size_t>(fit.rows);
+        const std::size_t width = static_cast<std::size_t>(fit.columns);
+        p.rows.reserve(take);
+        for (std::size_t i = 0; i < take; ++i) {
+            std::string text = r.rows[i].text;
+            if (text.size() > width) {
+                text.resize(width);
+            }
+            p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role)});
+        }
+        out.push_back(std::move(p));
     }
     return out;
 }
