@@ -102,6 +102,47 @@ lifted out of `completion_rows` for the same reason — a second copy of the lis
 is right until the first scroll, which is to say wrong only when nobody is looking. Do not
 add a `click_*_bounds()` beside a `paint_*_bounds()` here.
 
+## The editable line is a WINDOW onto the command (HD-4)
+
+`TerminalInput` owns `first_visible` beside its text and caret, and the three move together
+because the operations are the only way any of them changes. The capacity is never guessed: it
+is `terminal_input_place(sc).columns`, the same number the painter cuts the slice with and the
+same one a press is answered against.
+
+```text
+always, after every operation      0 <= first_visible <= caret <= size()
+                                   first_visible is on a character boundary
+after keep_caret_visible(N)        caret - first_visible <= N
+                                   first_visible <= max(0, size() - N)
+```
+
+- **`refresh_terminal` reconciles it, once per repaint, above the `attached` early return.**
+  That is the guarantee the whole design rests on — the window a press is answered with is the
+  window the last repaint drew, and a resize needs no path of its own because a new extent
+  causes a repaint. Do not move the call below the return: `paint_terminal` draws the pane
+  whenever it is OPEN and `terminal_key` edits the line on the same condition, so a maker can
+  type into a pane with no participant mounted.
+- **The left edge snaps FORWARDS** (`character_boundary_at_or_after`, `workshop/property.hpp`).
+  Snapping backwards is the obvious spelling and it is wrong here: it carries the window's
+  right edge back with it and pushes the caret one to three columns off the row. The
+  right-hand cut is a **byte** cut, as `detail::fit` and `project_text_regions` have always
+  been — snapping it back would shorten the row under a caret column computed from the window,
+  which is how a cell medium's caret falls off its own row.
+- **`terminal_caret_column`/`terminal_caret_of_column` take `first_visible` and it is not
+  defaulted.** A default would let a call site keep HD-3's two-argument spelling and be
+  silently correct until the first line long enough to scroll. When the compiler stopped every
+  such site, that was the parameter doing its job.
+- **`kTerminalCaretCols` is one column of the row the line may not use.** A caret is *between*
+  characters, so the one after the last character of a full row needs somewhere to be: a
+  window has `kTextInsetPx` and `plan_caret` puts the bar at column `fit.columns` legitimately,
+  but `project_text_regions` inserts a *character* and then cuts at the region's width, so a
+  cell medium has to be given a cell. One rule for both media on purpose — a capacity that
+  branched on the medium would make the two scroll to different places for a reason invisible
+  in either projection.
+- **No marker, no gesture.** There is no `<`/`>` hidden-content indicator, no scrollbar, no
+  wheel or drag scrolling and no scroll command; the viewport moves only because the caret did.
+  Adding one is not free: its width would have to come out of the same one capacity.
+
 **`scan::kHome`/`kDelete`/`kEnd` are NAMES for values that already arrived**, not new reach.
 `translate_sdl.hpp` passes SDL's scancode through untranslated, so the SDL backend has always
 delivered them unnamed; the POSIX terminal backend drops their CSI sequences and the Win32
@@ -178,11 +219,17 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~31,675 over the **eight** doctest suites, SDL lane, measured
-  2026-08-14 after HD-3) are evidence to report. They are **not** a population, never an
+- Assertion totals (**34,093** over the **eight** doctest binaries, SDL lane, measured
+  2026-08-14 after HD-4) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
-  that warns about it. The figure is configuration-dependent —
+  that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
+  figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
+  total that said eight. It is now the sum of all eight, named so the next phase can
+  reproduce it: `zengine-surface-tests` 6,190 · `zengine-workshop-tests` 20,219 ·
+  `zengine-input-tests` 1,374 · `zengine-timer-tests` 1,380 · `zengine-ui-tests` 164 ·
+  `zengine-builder-tests` 4,330 · `zengine-tests` (snake) 364 · `zengine-audit-probes` 72.
+  The figure is configuration-dependent —
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no
   contract file holds assertion counts, and a phase that adds a case moves this

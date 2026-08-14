@@ -50,6 +50,7 @@
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
 
+#include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
 #include "ui/layout.hpp"
@@ -8759,29 +8760,29 @@ TEST_CASE("caret geometry: a byte index and a prose column are one number, both 
         CHECK(p.region_x == sc.terminal_x);
         CHECK(p.region_y == sc.terminal_y);
         CHECK(p.first_column == kTerminalPromptCols);
-        CHECK(p.columns == sc.terminal_cols - kTerminalPromptCols);
+        CHECK(p.columns == sc.terminal_cols - kTerminalPromptCols - kTerminalCaretCols);
 
         // CARET 0, MIDDLE, END -- one column per byte, offset by the prompt.
-        CHECK(terminal_caret_column(p, 0) == kTerminalPromptCols);
-        CHECK(terminal_caret_column(p, 5) == kTerminalPromptCols + 5);
-        CHECK(terminal_caret_column(p, 40) == kTerminalPromptCols + 40);
+        CHECK(terminal_caret_column(p, 0, 0) == kTerminalPromptCols);
+        CHECK(terminal_caret_column(p, 5, 0) == kTerminalPromptCols + 5);
+        CHECK(terminal_caret_column(p, 40, 0) == kTerminalPromptCols + 40);
 
         // ...AND BACK. The two are inverses over every position a line of this length has,
         // which is the property a click-then-type depends on.
         for (std::size_t at = 0; at <= 12; ++at) {
-            CHECK(terminal_caret_of_column(p, terminal_caret_column(p, at), 12) == at);
+            CHECK(terminal_caret_of_column(p, terminal_caret_column(p, at, 0), 12, 0) == at);
         }
 
         // THE BOUNDARIES, written down rather than left to the arithmetic.
-        CHECK(terminal_caret_of_column(p, 0, 12) == 0);                     // before the prompt
-        CHECK(terminal_caret_of_column(p, 1, 12) == 0);                     // inside the prompt
-        CHECK(terminal_caret_of_column(p, -400, 12) == 0);                  // far to the left
-        CHECK(terminal_caret_of_column(p, kTerminalPromptCols + 99, 12) == 12); // past the text
-        CHECK(terminal_caret_of_column(p, kTerminalPromptCols, 0) == 0);    // an empty line
+        CHECK(terminal_caret_of_column(p, 0, 12, 0) == 0);                     // before the prompt
+        CHECK(terminal_caret_of_column(p, 1, 12, 0) == 0);                     // inside the prompt
+        CHECK(terminal_caret_of_column(p, -400, 12, 0) == 0);                  // far to the left
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols + 99, 12, 0) == 12); // past the text
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols, 0, 0) == 0);    // an empty line
 
         // AN EMPTY LINE HAS EXACTLY ONE POSITION, and every column on the row names it.
         for (std::int64_t col = -3; col < 20; ++col) {
-            CHECK(terminal_caret_of_column(p, col, 0) == 0);
+            CHECK(terminal_caret_of_column(p, col, 0, 0) == 0);
         }
 
         // THE ROW IS THE WHOLE HIT TEST, and the column deliberately is not: a maker aiming
@@ -8801,9 +8802,9 @@ TEST_CASE("caret geometry: a byte index and a prose column are one number, both 
     const TerminalInputPlace p = terminal_input_place(screen_of(kScreenMinW, kScreenMinH, 8, 18));
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    CHECK(terminal_caret_of_column(p, kMin, 5) == 0);
-    CHECK(terminal_caret_of_column(p, kMax, 5) == 5);
-    CHECK(terminal_caret_column(p, 0) == kTerminalPromptCols);
+    CHECK(terminal_caret_of_column(p, kMin, 5, 0) == 0);
+    CHECK(terminal_caret_of_column(p, kMax, 5, 0) == 5);
+    CHECK(terminal_caret_column(p, 0, 0) == kTerminalPromptCols);
 }
 
 TEST_CASE("the caret is a position in the line, and every operation keeps it in the line") {
@@ -8908,7 +8909,7 @@ TEST_CASE("the caret steps over a character, never into the middle of one") {
     // cuts at a byte. The caret agrees with what is drawn, which is the property that
     // matters; codepoint and grapheme correctness are not claimed anywhere in Workshop.
     const TerminalInputPlace p = terminal_input_place(screen_of(kScreenMinW, kScreenMinH, 8, 18));
-    CHECK(terminal_caret_column(p, 3) == kTerminalPromptCols + 3);
+    CHECK(terminal_caret_column(p, 3, 0) == kTerminalPromptCols + 3);
 }
 
 TEST_CASE("HD-3: typing lands at the caret, and submission does not depend on where it is") {
@@ -9445,12 +9446,17 @@ TEST_CASE("HD-3: hit geometry follows presentation geometry across a resize") {
         CHECK(p.region_x == sc.terminal_x);
 
         for (const std::size_t want : {std::size_t{0}, std::size_t{7}, std::size_t{18}}) {
+            // THE WINDOW THE PANE ACTUALLY HOLDS, never a literal zero (HD-4): this line is
+            // short enough not to scroll at any of these extents, and reading the offset
+            // rather than assuming it is what makes that a fact of the run instead of an
+            // assumption of the case.
+            const std::size_t from = t.pane().input.first_visible();
             if (p.fit.graphical()) {
-                t.press_at(pane_pixel_x(p, terminal_caret_column(p, want)),
+                t.press_at(pane_pixel_x(p, terminal_caret_column(p, want, from)),
                            pane_pixel_y(p, p.prose_row), input::space::kPixels);
             } else {
                 // No metric: a character IS a cell, and the medium reports cells.
-                t.press_at(p.region_x + terminal_caret_column(p, want),
+                t.press_at(p.region_x + terminal_caret_column(p, want, from),
                            p.region_y + p.prose_row + surface::kTuiCanvasTopRow,
                            input::space::kCells);
             }
@@ -9460,7 +9466,8 @@ TEST_CASE("HD-3: hit geometry follows presentation geometry across a resize") {
         // ...and the CARET THE PANE DREW is at the column the press resolved to, which is
         // the whole of "the geometry that drew it is the geometry that hit it".
         const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
-        CHECK(pane.caret_col == terminal_caret_column(p, t.pane().input.caret()));
+        CHECK(pane.caret_col == terminal_caret_column(p, t.pane().input.caret(),
+                                                      t.pane().input.first_visible()));
         CHECK(pane.caret_row == p.prose_row);
     }
 }
@@ -9485,7 +9492,7 @@ TEST_CASE("HD-3: a terminal medium's press reaches the same local hit model") {
 
     for (const std::size_t want : {std::size_t{0}, std::size_t{4}, std::size_t{11}}) {
         t.publish(loom::to_value(input::PointerButton{
-            1, true, p.region_x + terminal_caret_column(p, want),
+            1, true, p.region_x + terminal_caret_column(p, want, t.pane().input.first_visible()),
             p.region_y + p.prose_row + surface::kTuiCanvasTopRow, input::space::kCells,
             input::mod::kNone}));
         CHECK(t.pane().input.caret() == want);
@@ -9499,3 +9506,695 @@ TEST_CASE("HD-3: a terminal medium's press reaches the same local hit model") {
     CHECK(t.pane().input.caret() == held);
 }
 
+
+// ---- HD-4: the input line's horizontal viewport ------------------------------------------
+//
+// Everything below drives the same three answers the application does: `TerminalInput`'s own
+// window, `terminal_input_place`'s capacity, and the pair of pure functions that turn a byte
+// index into a column and back. There is no second scroll model anywhere in these cases --
+// where a case needs a column it asks the function the painter asks.
+
+/// A REAL COMMAND LONGER THAN THE ROW, at every extent these cases use. Eighty-eight bytes:
+/// long enough to scroll in the pane's widest configuration here and in its narrowest, which
+/// is the difference between a case that watches the scrolling and one that passes because
+/// the string happened to fit (§25).
+static const std::string kLongLine =
+    "send @zengine.skin SurfaceText 1 slot=1 text=the quick brown fox jumps over the lazy dog";
+
+/// The cell a terminal medium would report for a prose position of the pane's own region.
+/// The inverse of `terminal_input_place`'s resolution, exactly as `pane_pixel_x` is.
+static std::int64_t pane_cell_x(const TerminalInputPlace& p, std::int64_t column) {
+    return p.region_x + column;
+}
+static std::int64_t pane_cell_y(const TerminalInputPlace& p, std::int64_t row) {
+    return p.region_y + row + surface::kTuiCanvasTopRow;
+}
+
+TEST_CASE("HD-4: the window is state, and every operation leaves the caret inside it") {
+    // §2 and §24's viewport matrix, over the class rather than through a painted row: what is
+    // being pinned is the invariant itself, and a case that could only see it through a
+    // picture could not tell a window that is right from one that is right by accident.
+    constexpr std::int64_t kRoom = 10;
+    const auto inside = [](const TerminalInput& in, std::int64_t room) {
+        return in.first_visible() <= in.caret() &&
+               in.caret() - in.first_visible() <= static_cast<std::size_t>(room);
+    };
+
+    SUBCASE("a line that fits does not move the window") {
+        TerminalInput in;
+        in.type("abcdefghi"); // nine, one short of the room
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 0);
+        CHECK(in.visible(kRoom) == "abcdefghi");
+        CHECK(inside(in, kRoom));
+    }
+
+    SUBCASE("an exact fit still shows the whole line") {
+        TerminalInput in;
+        in.type("abcdefghij"); // exactly the room, with the caret after the last character
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 0);
+        CHECK(in.visible(kRoom) == "abcdefghij");
+        CHECK(inside(in, kRoom));
+    }
+
+    SUBCASE("one byte beyond the fit moves the window by exactly one") {
+        TerminalInput in;
+        in.type("abcdefghijk");
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 1);
+        CHECK(in.visible(kRoom) == "bcdefghijk");
+        CHECK(in.text() == "abcdefghijk"); // the authored line is untouched by the scroll
+    }
+
+    SUBCASE("many beyond the fit, and Home and End reach both ends") {
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz"); // 26
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 16);
+        CHECK(in.visible(kRoom) == "qrstuvwxyz");
+
+        in.home();
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 0);
+        CHECK(in.visible(kRoom) == "abcdefghij");
+        CHECK(inside(in, kRoom));
+
+        in.end();
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 16);
+        CHECK(in.visible(kRoom) == "qrstuvwxyz");
+        CHECK(inside(in, kRoom));
+    }
+
+    SUBCASE("repeated Left walks the window one character at a time, and Right walks it back") {
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+
+        // INSIDE THE WINDOW NOTHING MOVES. Ten Lefts take the caret from 26 to 16, which is
+        // the window's own start -- minimal movement means the window sits still for all of
+        // them (§3).
+        for (int i = 0; i < 10; ++i) {
+            in.left();
+            in.keep_caret_visible(kRoom);
+            CHECK(in.first_visible() == 16);
+        }
+        REQUIRE(in.caret() == 16);
+
+        // ...AND THEN IT FOLLOWS, one character per keystroke.
+        for (std::size_t want = 15; want > 0; --want) {
+            in.left();
+            in.keep_caret_visible(kRoom);
+            CHECK(in.caret() == want);
+            CHECK(in.first_visible() == want); // the caret is at the left edge
+        }
+
+        // RIGHT IS THE MIRROR: ten free, then one per keystroke.
+        in.home();
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 0);
+        for (int i = 0; i < 10; ++i) {
+            in.right();
+            in.keep_caret_visible(kRoom);
+            CHECK(in.first_visible() == 0);
+        }
+        for (std::size_t step = 1; step <= 16; ++step) {
+            in.right();
+            in.keep_caret_visible(kRoom);
+            CHECK(in.caret() == 10 + step);
+            CHECK(in.first_visible() == step); // the caret is at the right edge
+        }
+    }
+
+    SUBCASE("Backspace at the left edge scrolls, and Delete at the right edge does not") {
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        in.home();
+        for (int i = 0; i < 16; ++i) {
+            in.right();
+        }
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.caret() == 16);
+        REQUIRE(in.first_visible() == 6); // the caret is at the right edge of the window
+
+        // DELETE takes the character AT the caret. The caret does not move, and neither does
+        // the window -- until the line is short enough that the window is holding blank room.
+        in.erase_forward();
+        in.keep_caret_visible(kRoom);
+        CHECK(in.caret() == 16);
+        CHECK(in.first_visible() == 6);
+        CHECK(in.text() == "abcdefghijklmnoprstuvwxyz");
+
+        // BACKSPACE at the window's left edge follows the caret out of it.
+        in.home();
+        for (int i = 0; i < 6; ++i) {
+            in.right();
+        }
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.caret() == 6);
+        REQUIRE(in.first_visible() == 0);
+        in.end();
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.size() == 25);
+        REQUIRE(in.first_visible() == 15);
+        in.place(15);
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.caret() == 15);
+        REQUIRE(in.first_visible() == 15); // the caret is ON the window's first byte
+        in.backspace();
+        in.keep_caret_visible(kRoom);
+        CHECK(in.caret() == 14);
+        CHECK(in.first_visible() == 14);
+    }
+
+    SUBCASE("deleting back to a short line gives the room back") {
+        // §3's last bullet, and the one that decides whether a long line can be repaired: a
+        // window left where a long line put it shows an EMPTY row with the whole command
+        // hidden away to the left, which reads exactly like a tool that lost the text.
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+        for (int i = 0; i < 20; ++i) {
+            in.backspace();
+            in.keep_caret_visible(kRoom);
+        }
+        CHECK(in.text() == "abcdef");
+        CHECK(in.first_visible() == 0);
+        CHECK(in.visible(kRoom) == "abcdef");
+    }
+
+    SUBCASE("clear and set start the window over") {
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+
+        in.clear();
+        CHECK(in.first_visible() == 0);
+        CHECK(in.caret() == 0);
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 0);
+
+        // A WHOLESALE REPLACEMENT (accepting a completion candidate) arrives with its caret
+        // at the end of the inserted result, so the window follows to the TAIL (§10).
+        in.set("0123456789abcdefghij", 20);
+        CHECK(in.first_visible() == 0); // ...before the reconcile
+        in.keep_caret_visible(kRoom);
+        CHECK(in.first_visible() == 10);
+        CHECK(in.visible(kRoom) == "abcdefghij");
+    }
+
+    SUBCASE("no blank room on the right while there is text hidden on the left") {
+        // The property §18 turns on: after a reconcile the window never sits further right
+        // than the last full screenful, so blank room at the right of the input row means
+        // the authored line really did end there.
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        for (std::size_t at = 0; at <= in.size(); ++at) {
+            in.place(at);
+            in.keep_caret_visible(kRoom);
+            CAPTURE(at);
+            CHECK(in.first_visible() <= in.size() - static_cast<std::size_t>(kRoom));
+            CHECK(inside(in, kRoom));
+        }
+    }
+
+    SUBCASE("a row with no room at all still holds the invariant") {
+        // Total over the capacity, because the capacity comes from a metric that arrived on
+        // the bus: a pane too narrow for its own prompt reports zero columns.
+        TerminalInput in;
+        in.type("abcdef");
+        in.keep_caret_visible(0);
+        CHECK(in.first_visible() == in.caret());
+        CHECK(in.visible(0).empty());
+        in.home();
+        in.keep_caret_visible(0);
+        CHECK(in.first_visible() == 0);
+        CHECK(in.visible(-4).empty());
+    }
+}
+
+TEST_CASE("HD-4: the window never begins inside a character") {
+    // §6. The caret already refuses to sit inside a character (HD-3); the window has to obey
+    // the same rule through the same machinery, and it snaps the other way -- forwards --
+    // because snapping backwards would carry the window's right edge back with it and push
+    // the caret off the row it is drawn on.
+    TerminalInput in;
+    std::string accented;
+    for (int i = 0; i < 12; ++i) {
+        accented += "\xC3\xA9"; // é, two bytes each: every odd index is a continuation byte
+    }
+    in.type(accented);
+    REQUIRE(in.size() == 24);
+
+    for (std::int64_t room = 1; room <= 9; ++room) {
+        for (std::size_t at = 0; at <= in.size(); ++at) {
+            in.place(at); // clamped and snapped by TerminalInput, as a press would be
+            in.keep_caret_visible(room);
+            CAPTURE(room);
+            CAPTURE(at);
+            // NEITHER END OF THE WINDOW IS HALF A CHARACTER.
+            CHECK(in.first_visible() % 2 == 0);
+            CHECK(in.caret() % 2 == 0);
+            CHECK_FALSE(is_continuation_byte(in.text()[in.first_visible()]));
+            // ...AND THE CARET IS STILL IN IT.
+            CHECK(in.first_visible() <= in.caret());
+            CHECK(in.caret() - in.first_visible() <= static_cast<std::size_t>(room));
+            // THE SLICE BEGINS ON A WHOLE CHARACTER.
+            const std::string shown = in.visible(room);
+            if (!shown.empty()) {
+                CHECK_FALSE(is_continuation_byte(shown[0]));
+            }
+        }
+    }
+
+    // AND THE FORWARD SNAP COSTS AT MOST ONE CHARACTER OF TEXT, never the caret: a window
+    // that wanted to begin at byte 11 begins at 12, which is the é the maker can actually
+    // read rather than its second half.
+    in.end();
+    in.keep_caret_visible(13);
+    CHECK(in.first_visible() == 12);
+    CHECK(in.visible(13) == "\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9");
+}
+
+TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret against it") {
+    // §5, §7 and §11. The authored command is untouched behind the window; the row carries
+    // the part that fits; the published caret column is relative to THAT, and the cell
+    // projection's `_` lands in the same place a window's bar would.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal(); // no SurfaceExtent: a character IS a cell, 53 columns of line
+    for (const char c : kLongLine) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(kLongLine.size() == 88);
+
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    REQUIRE(p.columns == 53);
+    REQUIRE(t.pane().input.text() == kLongLine); // the whole command is still here
+    REQUIRE(t.pane().input.at_end());
+    REQUIRE(t.pane().input.first_visible() == 35); // 88 - 53, the tail
+
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.rows.back().text == "> ot=1 text=the quick brown fox jumps over the lazy dog");
+        CHECK(pane.caret_col == kTerminalPromptCols + 53);
+        CHECK(pane.caret_row == p.prose_row);
+        // THE ROW IS SHORTER THAN THE REGION BY EXACTLY THE CARET'S OWN COLUMN, which is what
+        // `kTerminalCaretCols` buys: in a cell medium the mark is a character and the last
+        // cell has to be free for it.
+        CHECK(static_cast<std::int64_t>(pane.rows.back().text.size()) == sc.terminal_cols - 1);
+
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::ProjectedRow> shown =
+            surface::project_text_regions(only_pane);
+        CHECK(shown[static_cast<std::size_t>(p.prose_row)].label.text ==
+              "> ot=1 text=the quick brown fox jumps over the lazy dog_");
+    }
+
+    // HOME BRINGS THE BEGINNING BACK, and the caret with it.
+    t.key(input::scan::kHome);
+    CHECK(t.pane().input.first_visible() == 0);
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.rows.back().text == "> send @zengine.skin SurfaceText 1 slot=1 text=the quic");
+        CHECK(pane.caret_col == kTerminalPromptCols);
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::ProjectedRow> shown =
+            surface::project_text_regions(only_pane);
+        CHECK(shown[static_cast<std::size_t>(p.prose_row)].label.text ==
+              "> _send @zengine.skin SurfaceText 1 slot=1 text=the quic");
+    }
+
+    // END TAKES IT BACK TO THE TAIL, and the authored line never changed once.
+    t.key(input::scan::kEnd);
+    CHECK(t.pane().input.first_visible() == 35);
+    CHECK(t.pane().input.text() == kLongLine);
+
+    // A CARET IN THE MIDDLE OF THE HIDDEN LEFT drags the window to meet it, minimally: the
+    // window's start becomes the caret and not one byte further.
+    // FIFTY-THREE OF THEM ARE FREE -- the window is 53 columns wide and the caret starts at
+    // its right edge, so it walks the whole width before the window has to move at all.
+    for (int i = 0; i < 53; ++i) {
+        t.key(input::scan::kLeft);
+    }
+    CHECK(t.pane().input.caret() == 35);
+    CHECK(t.pane().input.first_visible() == 35);
+    for (int i = 0; i < 7; ++i) {
+        t.key(input::scan::kLeft);
+    }
+    CHECK(t.pane().input.caret() == 28);
+    CHECK(t.pane().input.first_visible() == 28); // one character per keystroke, from here
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_col == kTerminalPromptCols); // ...at the left edge of the row
+        CHECK(pane.rows.back().text == "> xt 1 slot=1 text=the quick brown fox jumps over the l");
+    }
+
+    // THE GRAPHICAL MEDIUM IS THE SAME ANSWER IN ITS OWN NUMBERS. A wider row means a
+    // different window, not a different rule.
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.key(input::scan::kEnd);
+    const TerminalInputPlace g = terminal_input_place(screen_of(t.session()));
+    REQUIRE(g.fit.graphical());
+    REQUIRE(g.columns == 80);
+    CHECK(t.pane().input.first_visible() == 8); // 88 - 80
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.rows.back().text ==
+              "> ngine.skin SurfaceText 1 slot=1 text=the quick brown fox jumps over the lazy dog");
+        CHECK(pane.caret_col == kTerminalPromptCols + 80);
+        // ...AND THE BAR IS ACTUALLY DRAWN, which is the half of this the cell projection
+        // cannot answer: `plan_caret` refuses a column the region has no room for, and that
+        // refusal is exactly what the defect looked like before HD-4.
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::PlanTextRegion> plan = surface::plan_text_regions(
+            only_pane, surface::SurfaceExtent{78, 22, 8, 18}, surface::PlanSize{4000, 4000});
+        REQUIRE(plan.size() == 1);
+        CHECK(plan[0].caret.present);
+    }
+}
+
+TEST_CASE("HD-4: a press on a SCROLLED line lands in the full authored string") {
+    // §8, and the canary target. A visible column names `first_visible + offset` of the whole
+    // command; a hit test that forgot the offset is right for exactly as long as no line is
+    // long enough to scroll, which is to say wrong only when nobody is looking.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : kLongLine) {
+        t.text(std::string(1, c));
+    }
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+
+    // THE PREMISE, ASSERTED BEFORE ANYTHING ELSE. Without this the case would pass against a
+    // hit test that ignores the window, for the most boring reason there is.
+    REQUIRE(t.pane().input.first_visible() == 35);
+    const std::size_t from = t.pane().input.first_visible();
+
+    // EVERY VISIBLE COLUMN, and each one resolves to the byte of the WHOLE line that is
+    // actually drawn there.
+    for (std::int64_t k = 0; k <= p.columns; ++k) {
+        t.press_at(pane_cell_x(p, p.first_column + k), pane_cell_y(p, p.prose_row),
+                   input::space::kCells);
+        CAPTURE(k);
+        CHECK(t.pane().input.caret() == from + static_cast<std::size_t>(k));
+        // ...and the window did not move, because every one of these is already inside it.
+        CHECK(t.pane().input.first_visible() == from);
+    }
+
+    // THE FIRST VISIBLE CHARACTER, BY NAME. Column 2 of the row is byte 35, which is the `o`
+    // of `slot=1` -- not byte 0, which is what a viewport-blind hit test would answer.
+    t.press_at(pane_cell_x(p, p.first_column), pane_cell_y(p, p.prose_row),
+               input::space::kCells);
+    REQUIRE(t.pane().input.caret() == 35);
+    CHECK(kLongLine[35] == 'o');
+
+    // A PRESS IN THE PROMPT, OR LEFT OF IT, MEANS THE START OF WHAT THE MAKER CAN SEE, which
+    // on a scrolled line is not the start of the line. Clamping to 0 there would jump the
+    // window a screenful away from where the press landed.
+    t.key(input::scan::kEnd);
+    REQUIRE(t.pane().input.first_visible() == 35);
+    t.press_at(pane_cell_x(p, 0), pane_cell_y(p, p.prose_row), input::space::kCells);
+    CHECK(t.pane().input.caret() == 35);
+    CHECK(t.pane().input.first_visible() == 35);
+
+    // A PRESS PAST THE LAST VISIBLE CHARACTER MEANS THE END OF THE LINE. On a scrolled line
+    // the last visible character IS the last character, because the window never sits
+    // further right than the last full screenful -- so there is no empty room that could
+    // falsely imply the command ended early (§18).
+    t.press_at(pane_cell_x(p, p.fit.columns), pane_cell_y(p, p.prose_row),
+               input::space::kCells);
+    CHECK(t.pane().input.caret() == kLongLine.size());
+
+    // AND THE PRESS REPAIRS THE LINE WHERE THE MAKER AIMED. `text=the quick` -> `text=the
+    // slick`: click the `q`, delete it, type an `s`.
+    const std::size_t q = kLongLine.find("quick");
+    REQUIRE(q > from); // the target is inside the visible window
+    t.press_at(pane_cell_x(p, p.first_column + static_cast<std::int64_t>(q - from)),
+               pane_cell_y(p, p.prose_row), input::space::kCells);
+    REQUIRE(t.pane().input.caret() == q);
+    t.key(input::scan::kDelete);
+    t.text("s");
+    CHECK(t.pane().input.text() ==
+          "send @zengine.skin SurfaceText 1 slot=1 text=the suick brown fox jumps over the lazy dog");
+}
+
+TEST_CASE("HD-4: the window follows the caret across a resize") {
+    // §19. Narrower, narrower again, then wider -- and at each one the caret is still on the
+    // row and a press still reaches the byte a maker aimed at. There is no resize-specific
+    // path: the same reconcile runs on the repaint the new extent causes.
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : kLongLine) {
+        t.text(std::string(1, c));
+    }
+
+    struct Step {
+        surface::SurfaceExtent extent;
+        std::int64_t columns;
+        std::size_t first;
+    };
+    // 80 columns, then 57, then 107 -- the last of which is wider than the whole command, so
+    // the window has to come all the way back to the beginning.
+    for (const Step s : {Step{{78, 22, 8, 18}, 80, 8}, Step{{78, 22, 11, 23}, 57, 31},
+                         Step{{115, 63, 8, 18}, 107, 0}}) {
+        t.publish(loom::to_value(s.extent));
+        const Screen sc = screen_of(t.session());
+        const TerminalInputPlace p = terminal_input_place(sc);
+        CAPTURE(s.extent.text_advance_px);
+        CAPTURE(sc.terminal_cols);
+        REQUIRE(p.columns == s.columns);
+
+        // THE WINDOW MOVED ONLY AS FAR AS IT HAD TO, and the caret is on the row.
+        CHECK(t.pane().input.at_end());
+        CHECK(t.pane().input.first_visible() == s.first);
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_col ==
+              terminal_caret_column(p, t.pane().input.caret(), t.pane().input.first_visible()));
+        CHECK(pane.caret_col <= p.fit.columns);
+        CHECK(pane.rows.back().text ==
+              "> " + t.pane().input.visible(p.columns));
+
+        // WIDENING REVEALS MORE TEXT: the widest of the three shows the whole command.
+        if (s.first == 0) {
+            CHECK(pane.rows.back().text == "> " + kLongLine);
+        }
+
+        // AND A PRESS AFTER THE RESIZE STILL REACHES THE INTENDED POSITION OF THE FULL LINE.
+        for (const std::int64_t k : {std::int64_t{0}, std::int64_t{9}, s.columns}) {
+            t.press_at(pane_pixel_x(p, p.first_column + k), pane_pixel_y(p, p.prose_row),
+                       input::space::kPixels);
+            CAPTURE(k);
+            CHECK(t.pane().input.caret() ==
+                  (s.first + static_cast<std::size_t>(k) < kLongLine.size()
+                       ? s.first + static_cast<std::size_t>(k)
+                       : kLongLine.size()));
+        }
+        t.key(input::scan::kEnd);
+    }
+}
+
+TEST_CASE("HD-4: completion sees the whole line, and acceptance brings the tail into view") {
+    // §9 and §10. The completer is asked about the AUTHORED input and never about the slice
+    // on the row -- a completer fed the visible substring would offer candidates for a
+    // prefix that only looks like the end of the line.
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal(); // 53 columns
+    // FIFTY-EIGHT BYTES, ending in a token the completer answers: the length is spent in a
+    // field VALUE so the line scrolls while the thing being completed is still a field name.
+    const std::string prefix =
+        "send * SurfaceText 1 text=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa s";
+    for (const char c : prefix) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(prefix.size() == 58);
+    REQUIRE(t.pane().input.first_visible() == 5); // 58 - 53: the line has scrolled
+    REQUIRE(t.pane().input.at_end());
+
+    // THE PARTIAL IS A TOKEN OF THE WHOLE LINE, not of the row: `send *` has already
+    // scrolled off the left, and the completer still knows this is a field of `SurfaceText`
+    // because it was handed `input.text()`.
+    CHECK(t.pane().completion.partial == "s");
+    REQUIRE_FALSE(t.pane().completion.candidates.empty());
+
+    // ACCEPTING PRODUCES A LONGER LINE, and the window follows to its tail.
+    const std::string chosen = t.pane().completion.candidates[t.pane().completion.selected].insert;
+    t.key(input::scan::kTab);
+    const std::string after = t.pane().input.text();
+    CHECK(after.size() > prefix.size());
+    CHECK(after.rfind(chosen) == after.size() - chosen.size());
+    CHECK(t.pane().input.at_end());
+
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    CHECK(t.pane().input.first_visible() == after.size() - static_cast<std::size_t>(p.columns));
+    const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+    CHECK(pane.rows.back().text == "> " + after.substr(t.pane().input.first_visible()));
+    CHECK(pane.caret_col == kTerminalPromptCols + p.columns);
+
+    // ...AND NOTHING WAS AUTHORED BY ANY OF IT.
+    CHECK(me->transcript().entries().empty());
+    CHECK(me->pending().empty());
+    CHECK_FALSE(me->awaiting());
+}
+
+TEST_CASE("HD-4: a whole long-line edit authors nothing, and Return still submits all of it") {
+    // §22. Typing, scrolling, clicking, repairing, Home, End and a resize are presentation
+    // to the last one; the only effectful gesture in this pane is still Return, and what it
+    // submits is the AUTHORED line rather than the part that was on the row.
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : kLongLine) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(t.pane().input.first_visible() > 0);
+
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    t.key(input::scan::kHome);
+    t.key(input::scan::kEnd);
+    for (int i = 0; i < 30; ++i) {
+        t.key(input::scan::kLeft);
+    }
+    for (int i = 0; i < 10; ++i) {
+        t.key(input::scan::kRight);
+    }
+    t.press_at(pane_pixel_x(p, p.first_column + 4), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    t.publish(loom::to_value(surface::SurfaceExtent{115, 63, 8, 18}));
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.key(input::scan::kEnd);
+
+    CHECK(t.pane().input.text() == kLongLine);
+    CHECK(me->transcript().entries().empty());
+    CHECK(me->pending().empty());
+    CHECK_FALSE(me->awaiting());
+
+    // RETURN, ONCE, AND THE WHOLE OF IT.
+    t.key(input::scan::kReturn);
+    const std::vector<loom::TranscriptEntry> record = me->transcript().entries();
+    REQUIRE(record.size() >= 1);
+    CHECK(record.front().text == kLongLine);
+    CHECK(t.pane().input.empty());
+    CHECK(t.pane().input.first_visible() == 0);
+}
+
+TEST_CASE("HD-4: a column and a byte index are inverses THROUGH the window") {
+    // §7 and §8 as pure arithmetic, across four faces rather than the live one -- what is
+    // being pinned is the mapping, and a case written against a single metric would pass for
+    // a reason it does not claim. The eight positions §7 names are all here: start, middle,
+    // end, both scrolled edges, an empty line, an exact-capacity line and one byte over.
+    struct Face {
+        std::int64_t advance;
+        std::int64_t line;
+    };
+    for (const Face f : {Face{0, 0}, Face{6, 14}, Face{8, 18}, Face{11, 23}, Face{15, 31}}) {
+        const Screen sc = screen_of(kScreenMinW, kScreenMinH, f.advance, f.line);
+        const TerminalInputPlace p = terminal_input_place(sc);
+        const std::size_t room = static_cast<std::size_t>(p.columns);
+        CAPTURE(f.advance);
+
+        // AN UNSCROLLED WINDOW IS HD-3's ANSWER, BYTE FOR BYTE. This is the compatibility
+        // claim the whole change rests on: a short command is presented exactly as it was.
+        CHECK(terminal_caret_column(p, 0, 0) == kTerminalPromptCols);
+        CHECK(terminal_caret_column(p, 7, 0) == kTerminalPromptCols + 7);
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols + 7, 40, 0) == 7);
+        CHECK(terminal_caret_of_column(p, 0, 40, 0) == 0);
+
+        // A SCROLLED WINDOW SUBTRACTS ITSELF FROM THE COLUMN AND ADDS ITSELF BACK.
+        const std::size_t from = 25;
+        const std::size_t length = from + room + 11; // eleven bytes hidden past the right
+        CHECK(terminal_caret_column(p, from, from) == kTerminalPromptCols);
+        CHECK(terminal_caret_column(p, from + 3, from) == kTerminalPromptCols + 3);
+        CHECK(terminal_caret_column(p, from + room, from) == kTerminalPromptCols + p.columns);
+
+        // ...AND THE TWO ARE INVERSES OVER EVERY POSITION THE WINDOW SHOWS, which is the
+        // property a click-then-type depends on once the line is longer than the row.
+        for (std::size_t at = from; at <= from + room; ++at) {
+            CAPTURE(at);
+            CHECK(terminal_caret_of_column(p, terminal_caret_column(p, at, from), length,
+                                           from) == at);
+        }
+
+        // THE BOUNDARIES, ON A SCROLLED LINE. Left of the prompt is the first byte the maker
+        // can SEE -- not byte zero, which is a screenful away from where they pressed.
+        CHECK(terminal_caret_of_column(p, 0, length, from) == from);
+        CHECK(terminal_caret_of_column(p, 1, length, from) == from);
+        CHECK(terminal_caret_of_column(p, -400, length, from) == from);
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols - 1, length, from) == from);
+
+        // ...and past the last byte is the end of the WHOLE line, never the end of the slice.
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols + p.columns + 400, length,
+                                       from) == length);
+
+        // AN EMPTY LINE, AN EXACT FIT AND ONE BYTE OVER -- the three lengths §7 asks for.
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols, 0, 0) == 0);
+        CHECK(terminal_caret_column(p, room, 0) == kTerminalPromptCols + p.columns);
+        CHECK(terminal_caret_column(p, room + 1, 1) == kTerminalPromptCols + p.columns);
+
+        // TOTAL AT BOTH ENDS OF THE NUMBER LINE, because the column came off the bus and the
+        // window is a byte index the presentation chose.
+        constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+        constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+        CHECK(terminal_caret_of_column(p, kMin, length, from) == from);
+        CHECK(terminal_caret_of_column(p, kMax, length, from) == length);
+        // A WINDOW PAST THE END OF THE LINE cannot name a position the line does not have.
+        CHECK(terminal_caret_of_column(p, kMax, 5, 900) == 5);
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols, 5, 900) == 5);
+    }
+}
+
+TEST_CASE("HD-4: clicking a SCROLLED multibyte line snaps exactly as HD-3's did") {
+    // §6 and §24's character-safety row, through the weave: the window and the caret obey
+    // one rule about what a character is, and a press between the two bytes of an `é` means
+    // the `é` it landed on -- scrolled or not.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal(); // 53 columns
+    for (int i = 0; i < 30; ++i) {
+        t.text("\xC3\xA9"); // a whole character per TextEntered, as a backend reports it
+    }
+    REQUIRE(t.pane().input.size() == 60);
+
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    // 60 - 53 = 7, which is the second byte of an `é` -- so the window snaps FORWARD to 8
+    // and shows one character fewer rather than half of one.
+    REQUIRE(t.pane().input.first_visible() == 8);
+    CHECK(t.pane().input.visible(p.columns).size() == 52);
+    CHECK_FALSE(is_continuation_byte(t.pane().input.visible(p.columns)[0]));
+
+    // EVERY VISIBLE COLUMN, and the caret only ever lands between characters -- at an even
+    // byte, because every character here is two bytes and the line starts on one.
+    for (std::int64_t k = 0; k <= p.columns; ++k) {
+        t.press_at(pane_cell_x(p, p.first_column + k), pane_cell_y(p, p.prose_row),
+                   input::space::kCells);
+        CAPTURE(k);
+        CHECK(t.pane().input.caret() % 2 == 0);
+        // ...and it is the character the press landed ON: an odd column is the second byte
+        // of the character at the even column before it.
+        CHECK(t.pane().input.caret() ==
+              8 + static_cast<std::size_t>(k) - static_cast<std::size_t>(k % 2));
+    }
+
+    // AND THE HIDDEN CHARACTERS ARE STILL THERE, whole, in the authored line.
+    CHECK(t.pane().input.size() == 60);
+    for (std::size_t i = 0; i < 60; i += 2) {
+        CHECK(t.pane().input.text()[i] == '\xC3');
+        CHECK(t.pane().input.text()[i + 1] == '\xA9');
+    }
+}

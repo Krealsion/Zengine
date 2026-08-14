@@ -828,8 +828,14 @@ private:
                                     place.fit);
         if (at.understood && terminal_input_hit(place, at.column, at.row)) {
             const std::size_t was = pane.input.caret();
-            pane.input.place(
-                terminal_caret_of_column(place, at.column, pane.input.size()));
+            // THROUGH THE WINDOW THE ROW WAS DRAWN WITH (HD-4). A visible column names
+            // `first_visible + offset` of the WHOLE authored line, never the offset alone --
+            // that is the one subtraction a horizontal viewport adds to a hit test, and
+            // leaving it out is right for exactly as long as no line is long enough to
+            // scroll. The offset read here is the one the last repaint resolved, which is
+            // the one the maker is looking at.
+            pane.input.place(terminal_caret_of_column(place, at.column, pane.input.size(),
+                                                      pane.input.first_visible()));
             // The caret moving is what changes whether completion may be asked, so a press
             // that moved it has to reach `refresh_terminal` exactly as a caret key does.
             if (pane.input.caret() != was) {
@@ -1019,6 +1025,24 @@ private:
     /// handler, on the same thread the host pumps.
     void refresh_terminal() {
         TerminalPane& pane = session_.terminal;
+        const Screen sc = screen_of(session_);
+        // THE ONE PLACE THE INPUT LINE'S HORIZONTAL WINDOW IS RECONCILED (HD-4).
+        //
+        // It is here because this function runs on EVERY repaint -- which is the property
+        // HD-2 met as a trap and this needs as a guarantee. The window has to follow the
+        // caret after a keystroke, after a press, after accepting a candidate AND after a
+        // resize that changed nothing but the room; the first three are edits and the fourth
+        // is not, so a hook on the edits would have missed exactly the witness §19 asks for.
+        // Running it once per repaint answers all four with no special case, and it answers
+        // them BEFORE `paint` and before the next press is mapped, so the picture and the
+        // hit test are resolved against the same window.
+        //
+        // ABOVE THE `attached` RETURN ON PURPOSE: `paint_terminal` draws the pane whenever it
+        // is OPEN, and `terminal_key` edits the line on the same condition, so a maker can
+        // type into a pane with no participant mounted and must still be able to see where
+        // they are. The capacity is `terminal_input_place`'s -- the same answer the painter
+        // and the press consume, never a second count of the columns.
+        pane.input.keep_caret_visible(terminal_input_place(sc).columns);
         pane.attached = host_->terminal != nullptr;
         pane.id = pane.attached ? host_->terminal->id() : loom::WeaveId{};
         pane.shown.clear();
@@ -1116,8 +1140,9 @@ private:
         // the same call -- two answers here would be a pane whose omission marker lied.
         //
         // A row apiece is the floor, so `tail(rows)` is always at least as many entries as
-        // can possibly fit, and the fitting only ever takes fewer.
-        const Screen sc = screen_of(session_);
+        // can possibly fit, and the fitting only ever takes fewer. `sc` is the one resolved
+        // at the top of this function -- the same screen the input line's window was
+        // reconciled against, because two screens in one refresh is two answers.
         const loom::Transcript& record = host_->terminal->transcript();
         std::vector<loom::TranscriptEntry> newest = record.tail(sc.terminal_rows);
         const std::size_t fits = entries_that_fit(newest, sc.terminal_cols, sc.terminal_rows);
