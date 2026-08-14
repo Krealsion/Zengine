@@ -51,6 +51,7 @@
 //     idea turns out to be wrong it can be deleted without a migration.
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -59,6 +60,7 @@
 
 #include "vocabulary.hpp"
 
+#include "component/text_box.hpp"
 #include "ui/vocabulary.hpp"
 
 namespace zengine::workshop {
@@ -255,95 +257,21 @@ enum class Commit {
     Refused      ///< it is a value of this type, and the property said no
 };
 
-/// IS THIS BYTE THE MIDDLE OF A CHARACTER? UTF-8 continuation bytes are 10xxxxxx, and this
-/// one predicate is the whole of what "not a character boundary" means in this application.
-inline bool is_continuation_byte(char b) noexcept {
-    return (static_cast<unsigned char>(b) & 0xC0u) == 0x80u;
-}
-
-/// THE BYTE INDEX ONE CHARACTER BEFORE `at`, and 0 when there is none.
-///
-/// A line a maker types is a byte string, so stepping back one BYTE over `é` would land
-/// between its two bytes -- a position that is not anywhere in the text, and from which an
-/// erase leaves half a character behind. Continuation bytes go with their lead byte.
-///
-/// AN INDEX RATHER THAN AN ERASE, since HD-3. `erase_one_character` used to be the only
-/// consumer and did its own walking; a caret needs the same walk to MOVE without erasing, and
-/// a second copy of the loop would be a second answer to "what is a character" -- right in one
-/// place and wrong in the other the first day somebody improved one of them.
-inline std::size_t character_before(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && is_continuation_byte(line[i - 1])) {
-        --i;
-    }
-    return i > 0 ? i - 1 : 0;
-}
-
-/// THE BYTE INDEX ONE CHARACTER AFTER `at`, and `line.size()` when there is none. The other
-/// direction of `character_before`, same rule, same reason.
-inline std::size_t character_after(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at;
-    if (i >= line.size()) {
-        return line.size();
-    }
-    ++i;
-    while (i < line.size() && is_continuation_byte(line[i])) {
-        ++i;
-    }
-    return i;
-}
-
-/// THE NEAREST CHARACTER BOUNDARY AT OR BEFORE `at`, clamped into the line.
-///
-/// The one place a position that came from OUTSIDE the text -- a pointer press resolved to a
-/// column -- is made into a position the text actually has. Snapping backwards rather than
-/// forwards is what makes a press on the second byte of a two-byte character mean the
-/// character it landed on rather than the one after it.
-inline std::size_t character_boundary(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i > 0 && is_continuation_byte(line[i])) {
-        --i;
-    }
-    return i;
-}
-
-/// THE NEAREST CHARACTER BOUNDARY AT OR AFTER `at`, clamped into the line — the other
-/// direction, and it exists because a VIEWPORT cannot use the one above (HD-4).
-///
-/// A horizontally scrolled line begins at a byte the presentation chose, and that byte must
-/// not be the middle of a character: half a character at the left edge is a mark a maker
-/// cannot read. Which way to snap looks like taste and is not. The caret has to stay inside
-/// the window, and the window's right edge is `first_visible + columns` — so snapping the
-/// FIRST VISIBLE byte BACKWARDS moves that edge back with it and can push the caret one to
-/// three columns off the end of the row it is supposed to be sitting on. Snapping forwards
-/// can only ever make the window shorter at the left, which costs at most one character of
-/// text and cannot cost the caret.
-///
-/// It also cannot overshoot a caret: a caret is always on a character boundary
-/// (`TerminalInput`'s invariant), so a forward snap from at or before it lands at or before
-/// it. That is what lets the two rules compose in either order.
-inline std::size_t character_boundary_at_or_after(const std::string& line,
-                                                  std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i < line.size() && is_continuation_byte(line[i])) {
-        ++i;
-    }
-    return i;
-}
-
-/// ERASE ONE CHARACTER FROM THE END OF A TYPED LINE, not one byte.
-///
-/// This is the whole of Workshop's Unicode editing: transport is honest, erase is
-/// character-shaped, and NOTHING here claims grapheme clusters, combining marks or display
-/// width.
-///
-/// IT IS A FREE FUNCTION because Workshop has two places a maker types -- an inspector draft
-/// and the terminal overlay's command line (WT-1). The terminal's line reaches it through
-/// `TerminalInput::backspace`, which erases before a CARET rather than at the end; both spend
-/// `character_before`, which is why they cannot disagree.
-inline void erase_one_character(std::string& line) {
-    line.erase(character_before(line, line.size()));
-}
+// WHAT A CHARACTER IS MOVED OUT (HD-5). `is_continuation_byte`, `character_before`,
+// `character_after`, `character_boundary`, `character_boundary_at_or_after` and
+// `erase_one_character` were born here, because a property draft was the first thing in this
+// application that could be backspaced. The Terminal's caret then spent four of them, which
+// is why they were free functions rather than methods on anything.
+//
+// They now live in `component/text_box.hpp`, beside the one thing that spends them, because
+// after HD-5 BOTH of those consumers ARE that component: this row's draft and the Terminal's
+// command line are two `component::TextBox`es. Generic text-boundary arithmetic left owned by
+// property machinery would have been the filing accident outliving its reason.
+//
+// `erase_one_character` did not move -- it was DELETED. It erased from the END of a line,
+// which is the only edit a draft with no caret can make, and `TextBox::backspace` erases
+// before the caret through the same walk. Its last consumer was `Row::backspace`, three lines
+// below.
 
 /// One inspector line over one property, with an editor draft.
 ///
@@ -407,51 +335,134 @@ public:
     const std::string& refusal() const { return refusal_; }
     const char* expected() const { return expected_; }
 
-    /// The draft as it currently stands — empty when not editing. Exposed
-    /// because it is already visible (display() shows it) and because a test
-    /// that could only see the rendered form could not tell a preserved draft
-    /// from a re-read value.
-    const std::string& draft() const { return draft_; }
+    /// THE DRAFT AS A COMPONENT — the text, the caret in it, and which part of it is on
+    /// screen (HD-5). Read-only: every change goes through the guarded operations below, so
+    /// "a draft exists only while this row is being edited" stays this class's invariant
+    /// rather than the caller's.
+    ///
+    /// This is what a presentation asks for its slice, its caret column and its window, and
+    /// it is where a maker's insertion point lives. It is NOT an entity: it has no identity,
+    /// nothing registers it, nothing persists it, and it dies with this row -- which is
+    /// rebuilt from scratch whenever the selection changes.
+    const component::TextBox& editor() const { return draft_; }
+
+    /// The draft's text as it currently stands — empty when not editing. Exposed because
+    /// it is already visible (display() shows it) and because a test that could only see the
+    /// rendered form could not tell a preserved draft from a re-read value.
+    const std::string& draft() const { return draft_.text(); }
 
     /// The committed value, as text. Always a fresh read through the property --
     /// there is no cached copy to go stale, which is the other half of why the
     /// old builder needed a "refresh the inspector" call after every write.
     std::string value() const { return read_(); }
 
-    /// What the maker sees: the committed value, or the live draft with a cursor
-    /// on it. A draft is never displayed as if it were committed.
-    std::string display() const { return editing_ ? draft_ + "_" : read_(); }
+    /// What the maker sees: the committed value, or the live draft.
+    ///
+    /// IT NO LONGER APPENDS A CURSOR (HD-5), and that is the caret becoming a published fact
+    /// rather than a character in the text. The `_` this used to add was truthful only
+    /// because the insertion point could only ever be at the end; it can be anywhere now, so
+    /// the position travels on the region the row is drawn in (`caret_row`/`caret_col`) and
+    /// each medium answers it in its own type -- a bar between two characters where a face
+    /// is setting the row, and, in a cell medium, `_` INSERTED at the caret's column, which
+    /// for a caret at the end is byte-for-byte what this line used to produce.
+    ///
+    /// What it was carrying -- a draft is never displayed as if it were committed -- is
+    /// carried by the caret and by the alert role the editing row is painted in.
+    std::string display() const { return editing_ ? draft_.text() : read_(); }
 
-    /// Start editing from the current committed value.
+    /// Start editing from the current committed value, WITH THE CARET AT ITS END.
+    ///
+    /// The end rather than the start because that is where a value a maker is about to amend
+    /// leaves off, and because it is byte-for-byte where the insertion point already was
+    /// when the end was the only place it could be. `set` also starts the window over, so
+    /// the first reconcile scrolls to the caret and a long value opens with its TAIL on
+    /// screen -- the half a maker is about to type into.
     void begin() {
         if (!editable_ || editing_) {
             return;
         }
         editing_ = true;
-        draft_ = read_();
+        std::string value = read_();
+        const std::size_t at = value.size();
+        draft_.set(std::move(value), at);
         refusal_.clear();
     }
 
     void type(char c) {
         if (editing_) {
-            draft_ += c;
+            draft_.type(std::string(1, c));
         }
     }
 
-    /// Text the platform said the maker entered, appended whole. A UTF-8
-    /// character is up to four bytes and they belong together; appending it a
-    /// byte at a time would be the same fact told in a way `backspace` could cut
-    /// in half.
+    /// Text the platform said the maker entered, inserted whole AT THE CARET. A UTF-8
+    /// character is up to four bytes and they belong together; inserting it a byte at a time
+    /// would be the same fact told in a way `backspace` could cut in half.
     void type(const std::string& text) {
         if (editing_) {
-            draft_ += text;
+            draft_.type(text);
         }
     }
 
-    /// Erase one CHARACTER, not one byte -- through the one rule this tool has for it.
+    // THE EDITING GESTURES, EACH ONE LINE, EACH GUARDED (HD-5). They are forwarders rather
+    // than an exposed mutable component on purpose: "there is no draft unless this row is
+    // being edited" is THIS class's invariant, and a caller holding a mutable `TextBox&`
+    // could type into a row nobody opened. The component keeps its own invariant; this keeps
+    // the one above it.
+    //
+    // They are the same six gestures the Terminal binds, which is the whole point of the
+    // second consumer: a property value is now edited the way a text control is edited,
+    // rather than with the one gesture an append-only draft could offer.
+
+    /// Erase one CHARACTER before the caret, not one byte.
     void backspace() {
         if (editing_) {
-            erase_one_character(draft_);
+            draft_.backspace();
+        }
+    }
+    /// Erase the character AT the caret; the text after it comes back to meet it.
+    void erase_forward() {
+        if (editing_) {
+            draft_.erase_forward();
+        }
+    }
+    void left() {
+        if (editing_) {
+            draft_.left();
+        }
+    }
+    void right() {
+        if (editing_) {
+            draft_.right();
+        }
+    }
+    void home() {
+        if (editing_) {
+            draft_.home();
+        }
+    }
+    void end() {
+        if (editing_) {
+            draft_.end();
+        }
+    }
+
+    /// PUT THE CARET WHERE A POINTER LANDED — a byte index resolved from a column by
+    /// whoever knows where this row's editable region is. Clamped and snapped by the
+    /// component, so there is no index a press can produce that the draft will hold.
+    void place(std::size_t at) {
+        if (editing_) {
+            draft_.place(at);
+        }
+    }
+
+    /// RECONCILE THE DRAFT'S WINDOW AGAINST THE ROOM THIS ROW HAS, once per repaint.
+    ///
+    /// The capacity is an ARGUMENT and is never remembered: this row and the Terminal's
+    /// command line are different widths in the same running application, and the number
+    /// belongs to whoever resolved the geometry (`property_edit_place`, screen.hpp).
+    void keep_caret_visible(std::int64_t columns) {
+        if (editing_) {
+            draft_.keep_caret_visible(columns);
         }
     }
 
@@ -462,7 +473,7 @@ public:
         if (!editing_) {
             return Commit::Accepted; // nothing was drafted; nothing changed
         }
-        const std::pair<Commit, std::string> result = commit_(draft_);
+        const std::pair<Commit, std::string> result = commit_(draft_.text());
         switch (result.first) {
         case Commit::Accepted:
             editing_ = false;
@@ -477,6 +488,32 @@ public:
             return Commit::Refused;
         }
         return Commit::Refused; // unreachable; -Werror wants the return
+    }
+
+    /// TAKE OVER A DRAFT FROM THE ROW THIS ONE REPLACES (HD-5).
+    ///
+    /// The inspector's rows are DERIVED -- rebuilt from the document and the selection rather
+    /// than patched, which is why nothing in this package has a "refresh the inspector" call.
+    /// A draft is not derived from anything: it is what a maker has typed and not yet
+    /// committed, and a rebuild that happens for a reason having nothing to do with them
+    /// must not take it away.
+    ///
+    /// IT WAS TAKING IT AWAY, measured on the pristine HD-4 tree: one `SurfaceExtent` -- a
+    /// window dragged, no gesture aimed at the inspector at all -- rebuilt the rows and the
+    /// half-typed value was gone with no notice. Since HD-5 the loss is worse than a string,
+    /// because the caret and the window go with it.
+    ///
+    /// THE CALLER DECIDES WHETHER A DRAFT MAY BE CARRIED, and only one does (see
+    /// `refocus_keeping_draft`, screen.hpp). A rebuild that follows a change of SELECTION
+    /// must not carry one: `Name` is a row every object has, so a draft handed across a
+    /// selection would arrive on a different object's property wearing the same label.
+    void resume(const Row& previous) {
+        if (!editable_ || !previous.editing_) {
+            return;
+        }
+        editing_ = true;
+        draft_ = previous.draft_;
+        refusal_ = previous.refusal_;
     }
 
     /// Abandon the draft. The property was never touched, so there is nothing to
@@ -497,7 +534,12 @@ private:
     std::function<std::pair<Commit, std::string>(const std::string&)> commit_;
 
     bool editing_ = false;
-    std::string draft_;
+    /// THE DRAFT, AND ONLY THE DRAFT. The component holds text, a caret and a window and
+    /// knows nothing about properties: it cannot parse, cannot validate, cannot commit and
+    /// has never heard of `Written`, `Commit` or a refusal. What the text MEANS is decided
+    /// by `commit_` above, which is the whole reason one editing implementation can serve
+    /// both this and a terminal command line.
+    component::TextBox draft_;
     std::string refusal_;
 };
 

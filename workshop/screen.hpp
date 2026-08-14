@@ -44,6 +44,7 @@
 #include "property.hpp"
 #include "vocabulary.hpp"
 
+#include "component/text_box.hpp" // the editable line, the caret in it, and its window
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "surface/pointing.hpp"  // and what that medium's layout makes of them
 #include "surface/region.hpp"    // and how much prose a bounded region of it holds
@@ -544,245 +545,23 @@ struct Drag {
     std::int64_t grab_dy = 0;
 };
 
-/// THE LINE A MAKER IS TYPING, AND WHERE IN IT THE NEXT KEYSTROKE LANDS (HD-3).
-///
-/// A CLASS RATHER THAN TWO FIELDS, and that is the whole of how the invariant is kept:
-///
-///     0 <= caret() <= text().size(), and caret() is never inside a character
-///
-/// holds after every operation because the operations are the ONLY way the text changes.
-/// Before HD-3 the caret was implicit — always the end — so "keep them in step" was free;
-/// making it explicit as a second public field would have made it free to forget, once per
-/// call site, silently, in the direction that shows up as a caret sitting inside bytes that
-/// are no longer there. `set()` is the door for replacing the line wholesale, and it cannot
-/// be walked through without saying where the caret goes.
-///
-/// IT IS WORKSHOP'S, NOT THE PARTICIPANT'S. `loom::TerminalSession` knows nothing about a
-/// caret and gains nothing from one: it receives whole lines. This is presentation and
-/// editing, and it lives with the pane that draws it.
-///
-/// A BYTE INDEX, DELIBERATELY, and the reason is the one-measurer rule rather than
-/// convenience. Every step of this application's presentation is one column per BYTE —
-/// `detail::fit` cuts at a byte, `project_text_regions` cuts "on a byte boundary: one cell
-/// per byte, as ever", and the graphical face draws the row it is handed. A caret that
-/// counted codepoints would be measuring the line differently from the thing that DRAWS it,
-/// and would drift from the picture on the first multi-byte character. So the column IS the
-/// byte index. What the operations refuse to do is stop half-way through a character:
-/// `character_before`/`character_after` (property.hpp) own that, and they are the same two
-/// functions the inspector's backspace spends.
-///
-/// NO CODEPOINT OR GRAPHEME CORRECTNESS IS CLAIMED. A two-byte character occupies two
-/// columns in this presentation, because that is what the projection draws; combining marks,
-/// double-width glyphs and grapheme clusters are not modelled anywhere in Workshop and are
-/// not modelled here.
-///
-/// ...AND WHICH PART OF IT THE ROW IS SHOWING (HD-4). A command may be longer than the pane
-/// is wide, and before this it simply lost its tail -- and, once the caret could move, lost
-/// the caret with it: the row was cut at the pane's width and the caret was published at a
-/// column past the end of it, where the graphical plan refuses to draw a bar and the cell
-/// projection refuses to insert its mark. So the line gained a horizontal VIEWPORT, and it
-/// is a third piece of state on this class rather than a field beside it for the reason the
-/// caret is: `first_visible` has to move whenever the caret or the text moves, and a caller
-/// that could set it independently is a caller that can forget to.
-///
-///     the AUTHORED text never changes because the window moved
-///     the CARET is always an index into the whole authored line
-///     the WINDOW decides only what is presented
-///
-/// THE CAPACITY IS AN ARGUMENT AND NEVER A GUESS. How many columns the row has is
-/// `terminal_input_place`'s answer -- the same one the painter and the hit test consume --
-/// so it arrives here exactly the way a pointer's column arrives at `place()`: from outside,
-/// once, through a named parameter that cannot be defaulted away.
-///
-/// THE INVARIANT, EXACTLY. Two halves, kept in two places, and the split is which of them
-/// needs to know how much room there is:
-///
-///     always, after every operation      0 <= first_visible <= caret <= size()
-///                                        first_visible is on a character boundary
-///     after keep_caret_visible(N)        caret - first_visible <= N
-///                                        first_visible <= max(0, size() - N)
-///
-/// The second half is established once per repaint, by `refresh_terminal`, which is the one
-/// function that runs before anything is painted or hit-tested. That is deliberate rather
-/// than a compromise: the window a press must be answered with is the window the maker is
-/// LOOKING at, which is the one the last repaint resolved.
-class TerminalInput {
-public:
-    const std::string& text() const noexcept { return text_; }
-    std::size_t caret() const noexcept { return caret_; }
-    bool empty() const noexcept { return text_.empty(); }
-    std::size_t size() const noexcept { return text_.size(); }
-
-    /// THE BYTE THE VISIBLE PART OF THE LINE BEGINS AT. Zero for every line that fits, which
-    /// is what makes a short command's presentation byte-for-byte what it was before HD-4.
-    std::size_t first_visible() const noexcept { return first_; }
-
-    /// Is the caret where HD-2's completion assumed it always was? The completer answers
-    /// about the END of a line, so this is the question that decides whether it may be asked.
-    bool at_end() const noexcept { return caret_ == text_.size(); }
-
-    /// THE PART OF THE AUTHORED LINE A ROW OF `columns` COLUMNS IS SHOWING.
-    ///
-    /// A slice, and emphatically not a mutation: the hidden characters are still in `text()`,
-    /// still submitted by Return, and still what the completer is asked about. Nothing is
-    /// erased, rotated or marked, and no scroll indicator is part of the authored command.
-    ///
-    /// THE RIGHT-HAND CUT IS A BYTE CUT, and that is the same cut this presentation has
-    /// always made -- `detail::fit` and `project_text_regions` both stop at a byte, "one cell
-    /// per byte, as ever". Snapping it back to a character boundary would shorten the row by
-    /// up to three columns while the caret's column is computed from the window, which is how
-    /// a caret at the far right would fall off the cell projection's own row. The LEFT edge
-    /// is snapped because it is a position this class CHOOSES; the right edge is a cut.
-    std::string visible(std::int64_t columns) const {
-        if (columns <= 0 || first_ >= text_.size()) {
-            return {};
-        }
-        const std::size_t room = static_cast<std::size_t>(columns);
-        const std::size_t left = text_.size() - first_;
-        return text_.substr(first_, left < room ? left : room);
-    }
-
-    /// MOVE THE WINDOW AS LITTLE AS IT TAKES TO SEE THE CARET, given the room the row has.
-    ///
-    /// Deterministic and minimal, in that order. There is no animation, no recentring and no
-    /// scroll margin: a caret that walks off the right edge brings the window one character
-    /// with it, and one that walks off the left edge does the same the other way. Recentring
-    /// on every edit would move the whole line under a maker's eye for a keystroke that
-    /// changed one character, which is the behaviour §3 asks not to invent.
-    ///
-    /// THE FOUR RULES, IN THE ORDER THEY MUST BE APPLIED:
-    ///
-    ///     1  no blank room on the right while text is hidden on the left
-    ///     2  the caret is not to the left of the window
-    ///     3  the caret is not past the right of it
-    ///     4  the window does not begin inside a character
-    ///
-    /// Rule 1 is what makes deleting recover the room a deletion freed -- without it,
-    /// backspacing a long line back down to a short one leaves an apparently EMPTY row with
-    /// the whole command hidden away to the left. It also buys a property worth naming,
-    /// because §18 turns on it: rules 2 and 3 only ever move the window to a position rule 1
-    /// already allows, so afterwards `first_visible <= size() - columns` whenever the line is
-    /// longer than the row. Blank room at the right of the input row therefore means the
-    /// authored line really did end there, and a press in it means the end of the line.
-    void keep_caret_visible(std::int64_t columns) noexcept {
-        const std::size_t room = columns > 0 ? static_cast<std::size_t>(columns) : 0;
-        const std::size_t furthest = text_.size() > room ? text_.size() - room : 0;
-        if (first_ > furthest) {
-            first_ = furthest;
-        }
-        if (first_ > caret_) {
-            first_ = caret_;
-        }
-        if (caret_ - first_ > room) {
-            first_ = caret_ - room;
-        }
-        first_ = character_boundary_at_or_after(text_, first_);
-    }
-
-    /// Insert what the platform said the maker typed, at the caret, and step over it.
-    void type(const std::string& utf8) {
-        text_.insert(caret_, utf8);
-        caret_ += utf8.size();
-        settle();
-    }
-
-    /// Erase the character immediately BEFORE the caret, and follow it back.
-    void backspace() {
-        if (caret_ == 0) {
-            return;
-        }
-        const std::size_t from = character_before(text_, caret_);
-        text_.erase(from, caret_ - from);
-        caret_ = from;
-        settle();
-    }
-
-    /// Erase the character AT the caret. The caret does not move -- the text after it comes
-    /// back to meet it, which is what makes this a different gesture from backspace rather
-    /// than the same one aimed differently.
-    void erase_forward() {
-        if (caret_ >= text_.size()) {
-            return;
-        }
-        text_.erase(caret_, character_after(text_, caret_) - caret_);
-        settle();
-    }
-
-    void left() noexcept {
-        caret_ = character_before(text_, caret_);
-        settle();
-    }
-    void right() noexcept {
-        caret_ = character_after(text_, caret_);
-        settle();
-    }
-    void home() noexcept {
-        caret_ = 0;
-        settle();
-    }
-    void end() noexcept {
-        caret_ = text_.size();
-        settle();
-    }
-
-    /// PUT THE CARET AT A POSITION THAT CAME FROM OUTSIDE THE TEXT — a pointer press,
-    /// resolved to a column. Clamped into the line and snapped to a character boundary, so
-    /// there is no index a press can produce that this type will hold.
-    void place(std::size_t at) noexcept {
-        caret_ = character_boundary(text_, at);
-        settle();
-    }
-
-    void clear() noexcept {
-        text_.clear();
-        caret_ = 0;
-        first_ = 0;
-    }
-
-    /// REPLACE THE WHOLE LINE, saying where the caret goes. The one door for an edit that is
-    /// not a keystroke -- accepting a completion candidate -- and the reason it takes two
-    /// arguments is that the alternative is a call site that changes the text and forgets.
-    ///
-    /// THE WINDOW STARTS OVER, because an offset into the line that WAS there is not a fact
-    /// about the line that is. The next `keep_caret_visible` then scrolls to wherever the
-    /// caller put the caret, which for the one caller this has -- accepting a completion --
-    /// is the end of the inserted result, so a long candidate arrives with its tail on
-    /// screen (§10).
-    void set(std::string line, std::size_t at) {
-        text_ = std::move(line);
-        caret_ = character_boundary(text_, at);
-        first_ = 0;
-    }
-
-private:
-    /// THE HALF OF THE VIEWPORT INVARIANT THAT NEEDS NO CAPACITY, re-established after every
-    /// edit: the window never begins past the end of the line, never begins after the caret,
-    /// and never begins inside a character.
-    ///
-    /// "Never after the caret" IS the leftward scroll, and it is minimal by construction --
-    /// the smallest window start that shows a caret to the left of the window is the caret
-    /// itself. So Left, Home and a backspace at the left edge scroll here rather than in
-    /// `keep_caret_visible`, and they do it without being told how wide anything is.
-    ///
-    /// EVERY MUTATOR ENDS WITH IT, including the two it cannot possibly change (`right` and
-    /// `end` only move the caret away from the window's start). "Every operation re-
-    /// establishes the invariant" is a rule a reader checks by eye; "these four do and those
-    /// two need not" is one they have to re-derive, and the difference costs three integer
-    /// comparisons.
-    void settle() noexcept {
-        if (first_ > text_.size()) {
-            first_ = text_.size();
-        }
-        if (first_ > caret_) {
-            first_ = caret_;
-        }
-        first_ = character_boundary_at_or_after(text_, first_);
-    }
-
-    std::string text_;
-    std::size_t caret_ = 0;
-    std::size_t first_ = 0;
-};
+// THE LINE A MAKER IS TYPING IS A COMPONENT NOW (HD-5).
+//
+// `TerminalInput` lived here from HD-3 to HD-4 and is gone: the class -- its text, its caret,
+// its horizontal window, its character-safe operations, its two-half invariant and every line
+// of its reasoning -- IS `zengine::component::TextBox`, moved out whole and renamed once.
+//
+// It moved because a second tool needed the same machinery, not because a component library
+// wanted a member. HD-4 traced the Inspector's property draft on all nine axes and declined
+// the extraction, correctly: at that point the two shared only the character walk they were
+// already sharing as free functions, so a `TextBox` would have renamed this class and deleted
+// nothing. HD-5 is the day the property editor needs the caret, the window and the pointer
+// arithmetic -- which is the day extracting is the SMALLER repair.
+//
+// WHAT STAYED HERE is everything that is about a Terminal rather than about editing text: the
+// prompt's width, where the pane's editable row is, what a completion is allowed to assume,
+// the submission grammar, and the participant the line is eventually spoken to. The component
+// has never heard of any of it.
 
 /// THE TERMINAL OVERLAY'S VIEW OF A PARTICIPANT — session, emphatically, and a SNAPSHOT.
 ///
@@ -806,10 +585,16 @@ struct TerminalPane {
     bool open = false;         ///< shift+space, and nothing else, decides this
     bool attached = false;     ///< is there a participant at all (a host may mount none)
     loom::WeaveId id{};        ///< the participant's identity, for the header
-    /// The line being typed, before Return authors anything — AND THE CARET IN IT (HD-3).
-    /// One object, because the two are one fact: see `TerminalInput` for why the caret is
-    /// not a second field beside a `std::string`.
-    TerminalInput input;
+    /// The line being typed, before Return authors anything — AND THE CARET IN IT (HD-3),
+    /// AND WHICH PART OF IT THE ROW IS SHOWING (HD-4). One object, because the three are one
+    /// fact: see `component/text_box.hpp` for why none of them is a field beside a
+    /// `std::string`.
+    ///
+    /// THE PANE OWNS IT MECHANICALLY (HD-5). It is a member, not an entity: it has no
+    /// identity, nothing registers it, nothing persists it, and closing the pane does not
+    /// have to clean it up because there is nothing to clean up. The Inspector's editing row
+    /// owns another one, and neither knows the other exists.
+    component::TextBox input;
     std::vector<loom::TranscriptEntry> shown; ///< the newest entries that FIT, oldest first
     std::uint64_t earlier = 0; ///< kept by the participant, above the top of this pane
     std::uint64_t dropped = 0; ///< evicted from the transcript entirely -- gone, not scrolled
@@ -1015,6 +800,39 @@ inline std::size_t first_editable(const std::vector<Row>& rows) {
 inline void refocus(WorkshopDoc& d, Session& s) {
     s.rows = inspector_rows(d, s);
     s.cursor = first_editable(s.rows);
+}
+
+/// REBUILD THE INSPECTOR WITHOUT TAKING A MAKER'S HANDS OFF IT (HD-5).
+///
+/// `refocus` above rebuilds the rows AND opens onto the first editable one, which is exactly
+/// right whenever the thing being inspected changed -- a new selection, a load, a delete. A
+/// new surface extent is not that. The same object is selected, the same properties are on
+/// screen, and a maker may be part-way through typing into one of them; the rows still have
+/// to be rebuilt (the resolved row closes over the extent it resolves against), so the
+/// rebuild has to hand the draft back rather than drop it.
+///
+/// MEASURED ON THE PRISTINE HD-4 TREE before it was repaired: one `SurfaceExtent` -- a window
+/// dragged, which is not a gesture aimed at the inspector at all -- and a half-typed value was
+/// gone, silently. Since HD-5 a draft is a caret and a window as well as a string, so the same
+/// event would now throw away a maker's place in a long value too.
+///
+/// BY INDEX AND BY LABEL TOGETHER, which is what makes this safe for the one caller it has:
+/// the rows are rebuilt from the SAME document and the SAME selection, so row i is the same
+/// property it was, and the label agreeing is the cheap proof. `Row::resume` refuses anything
+/// else -- a non-editable row, or a previous row that was not being edited.
+inline void refocus_keeping_draft(WorkshopDoc& d, Session& s) {
+    const std::vector<Row> was = std::move(s.rows);
+    const std::size_t cursor = s.cursor;
+    s.rows = inspector_rows(d, s);
+    for (std::size_t i = 0; i < s.rows.size() && i < was.size(); ++i) {
+        if (s.rows[i].label() == was[i].label()) {
+            s.rows[i].resume(was[i]);
+        }
+    }
+    // AND THE CURSOR STAYS WHERE THE MAKER LEFT IT. It is the other half of "their hands are
+    // still on it": a resize that moved the highlight to the first editable row would make a
+    // maker who was reading Height look at Name instead, for no reason they could see.
+    s.cursor = cursor < s.rows.size() ? cursor : first_editable(s.rows);
 }
 
 /// Where an identity sits in DOCUMENT ORDER, or `elements.size()` for one this
@@ -2101,57 +1919,47 @@ inline constexpr TerminalInputPlace terminal_input_place(const Screen& sc) noexc
     return p;
 }
 
-/// THE PROSE COLUMN A BYTE INDEX SITS AT, ON A ROW SHOWING THE LINE FROM `first_visible`.
+/// THE PROSE COLUMN THE CARET SITS AT, on the row this pane draws the line on.
 ///
 /// One column per byte, which is what every other step of this presentation counts
 /// (`detail::fit` cuts at a byte, the cell projection is "one cell per byte, as ever") — so
 /// this is not a simplification, it is the same measurer.
 ///
-/// THE COLUMN IS RELATIVE TO THE WINDOW AND THE CARET IS NOT (HD-4), which is the whole of
-/// what a horizontal viewport changes about drawing one. `first_visible` is not defaulted on
-/// purpose: a default would let a call site keep the old two-argument spelling and be
-/// silently right only until the first line long enough to scroll — the exact failure
-/// direction a marker with a default value fails in.
-inline constexpr std::int64_t terminal_caret_column(const TerminalInputPlace& p,
-                                                    std::size_t caret,
-                                                    std::size_t first_visible) noexcept {
-    const std::size_t ahead = caret > first_visible ? caret - first_visible : 0;
-    return surface::add_cells(p.first_column, static_cast<std::int64_t>(ahead));
+/// SINCE HD-5 IT IS THE PROMPT PLUS THE COMPONENT'S OWN ANSWER, and nothing else. `caret -
+/// first_visible` is `TextBox::caret_column()`, computed once inside the thing that owns
+/// both numbers; what is left here is the only part that is about a TERMINAL, which is that
+/// this pane's prose begins with `> `.
+///
+/// THE BOX RATHER THAN TWO INDICES, and that is HD-4's parameter lesson arriving at its
+/// conclusion. HD-4 gave this function a NON-DEFAULTED `first_visible` precisely so that no
+/// call site could keep the old spelling and be silently right until the first line long
+/// enough to scroll. Taking the component instead makes that hazard unsayable: there is no
+/// argument left to forget, and no way to hand it a caret from one line and a window from
+/// another.
+inline std::int64_t terminal_caret_column(const TerminalInputPlace& p,
+                                          const component::TextBox& box) noexcept {
+    return surface::add_cells(p.first_column, static_cast<std::int64_t>(box.caret_column()));
 }
 
-/// THE BYTE INDEX A PROSE COLUMN NAMES, on a row showing the line from `first_visible`, and
-/// clamped into a line of this length.
+/// THE BYTE INDEX A PROSE COLUMN NAMES, clamped into the line the pane is showing.
 ///
-/// The boundary answers, written down rather than left to arithmetic:
+/// The mirror of `terminal_caret_column` and, since HD-5, the same one-line shape: take the
+/// prompt off the column, and ask the component what byte the rest of it names. The three
+/// boundary answers are `TextBox::position_at_column`'s and are written down there —
 ///
-///     a column before the prompt   -> first_visible  (the maker aimed at what they can see)
-///     a column inside the prompt   -> first_visible
-///     a column past the last byte  -> line length    (the maker aimed past the end)
+///     a column before or inside the prompt  -> first_visible (the maker aimed at what they
+///                                                             can see)
+///     a column past the last byte           -> line length   (the end of the WHOLE line)
 ///
-/// On an unscrolled line `first_visible` is 0 and those are exactly the three answers HD-3
-/// wrote down, which is why every pre-existing pin still watches what it used to.
+/// — and on an unscrolled line they are byte-for-byte the three answers HD-3 wrote down,
+/// which is why every pre-existing pin still watches what it used to.
 ///
-/// Both ends clamp rather than refuse, because a press that landed on the row IS a statement
-/// about where in the line the maker wants to be; whether it landed on the row at all is
-/// `terminal_input_hit`'s question and is asked first. Snapping off a character's middle is
-/// `TerminalInput::place`'s, so this returns a byte index and never pretends to be one.
-///
-/// "PAST THE LAST BYTE" MEANS THE END OF THE WHOLE LINE, not the end of the visible slice,
-/// and that is honest rather than convenient: `keep_caret_visible` leaves blank room at the
-/// right of the row only when the line ends inside it, so a press in that room is a press
-/// after the last character there is.
-inline constexpr std::size_t terminal_caret_of_column(const TerminalInputPlace& p,
-                                                      std::int64_t column, std::size_t length,
-                                                      std::size_t first_visible) noexcept {
-    const std::size_t from = first_visible < length ? first_visible : length;
-    const std::int64_t offset = surface::sub_px(column, p.first_column);
-    if (offset <= 0) {
-        return from;
-    }
-    const std::uint64_t ahead = static_cast<std::uint64_t>(offset);
-    return ahead < static_cast<std::uint64_t>(length - from)
-               ? from + static_cast<std::size_t>(ahead)
-               : length;
+/// Snapping off a character's middle is `TextBox::place`'s, so this returns a byte index and
+/// never pretends to be one.
+inline std::size_t terminal_caret_of_column(const TerminalInputPlace& p,
+                                            const component::TextBox& box,
+                                            std::int64_t column) noexcept {
+    return box.position_at_column(surface::sub_px(column, p.first_column));
 }
 
 /// IS THIS PROSE POSITION ON THE EDITABLE LINE AT ALL?
@@ -2450,7 +2258,7 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
     // includes WHICH PART of the line is on the row, and all three read the one answer
     // `TerminalInput` holds rather than each deciding for itself.
     pane.caret_row = typing.prose_row;
-    pane.caret_col = terminal_caret_column(typing, t.input.caret(), t.input.first_visible());
+    pane.caret_col = terminal_caret_column(typing, t.input);
 
     c.texts.push_back(std::move(pane));
 
@@ -2686,6 +2494,107 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     }
 }
 
+// ---- The Inspector's editable value, resolved ONCE (HD-5) --------------------------------
+//
+// THE GEOMETRY THAT DRAWS A THING AND THE GEOMETRY THAT HITS IT MUST BE THE SAME GEOMETRY.
+// That is the one-measurer rule (G-2, HD-1) as HD-3 brought it to interaction, arriving at
+// the SECOND editor this application has. So there is no `paint_property_edit_bounds()`
+// beside a `click_property_edit_bounds()` here -- there is `property_edit_place`, and the
+// painter, the caret, the viewport reconcile and the press all call it, with the same panel
+// bounds `bounds_of` gave the painter and the same `Screen` everything else is resolved from.
+// A resize of the Info panel therefore moves what is drawn and what a press means in one
+// edit, because there is one edit to make.
+
+/// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
+///
+/// Constants rather than a `strlen` at each site for `kTerminalPromptCols`' reason: the sum
+/// is the offset between "the first column of this row" and "the first byte of the VALUE",
+/// which is a fact the painter, the region and a press each need and none of them owns.
+inline constexpr std::int64_t kPropertyMarkCols = 1;
+inline constexpr std::int64_t kPropertyLabelCols = 9;
+
+/// HOW TALL THE EDITABLE VALUE'S REGION IS, in cells: exactly the row it belongs to.
+///
+/// One, and it is load-bearing rather than obvious. A property row IS one cell tall, and a
+/// region that took two would cover the row beneath it -- which is a property of the object a
+/// maker is editing, hidden at the moment they are working on it. The consequence is that
+/// this medium cannot set the row in its own type (its face's line is 18 device pixels
+/// against a 12-pixel cell), so `fit_region` answers with the CELL projection and the row is
+/// drawn in the same glyphs, at the same pitch, as every other row of the panel -- aligned
+/// with its neighbours, with the caret as the mark a cell medium makes. That is HD-5's honest
+/// fidelity answer and it is recorded in surface/region.hpp, not decided here: the day the
+/// Inspector's rows are given the room a face needs, this publisher gets real type and a
+/// caret BAR with no change at all.
+inline constexpr std::int64_t kPropertyEditRows = 1;
+
+/// THE COLUMN THE INSERTION POINT SITS IN, kept out of the value's own budget.
+///
+/// `kTerminalCaretCols`' argument, one editor over, and the same one column: a caret is
+/// BETWEEN characters, so the one after the last character of a full row needs somewhere to
+/// be, and a cell medium has no half-cells to put it in -- `project_text_regions` inserts the
+/// mark as a character and then cuts the row at the region's width, so a mark past the last
+/// cell is cut off with it. One rule for both media, deliberately, exactly as there.
+inline constexpr std::int64_t kPropertyCaretCols = 1;
+
+/// WHERE A PROPERTY ROW'S EDITABLE VALUE IS — its region, and how much of the draft that
+/// region can show.
+///
+/// `present` is false when there is nowhere to put it: the Info panel is not open (its bounds
+/// are empty by `bounds_of`'s own rule) or it is too narrow for a mark, a label and a value.
+/// A caller that forgets to ask gets a region of no width, which draws nothing and contains no
+/// press, rather than a rectangle somewhere it is not.
+struct PropertyEditPlace {
+    bool present = false;
+    std::int64_t region_x = 0; ///< the value's own cell origin — a region coordinate
+    std::int64_t region_y = 0;
+    std::int64_t region_w = 0;
+    surface::RegionFit fit{}; ///< what this medium makes of those bounds
+    /// COLUMNS THE VISIBLE PART OF THE DRAFT MAY OCCUPY — the caret's own column excluded.
+    /// It is the ONE capacity: the slice the painter cuts, the window `keep_caret_visible`
+    /// reconciles and the room a press is answered against are all this number.
+    std::int64_t columns = 0;
+};
+
+/// THE REGION IS THE VALUE, and that is why there is no `first_column` here beside the
+/// Terminal's. The pane's region carries a `> ` prompt as well as the line, so a caret column
+/// there is the prompt plus the component's answer; this region begins where the value begins,
+/// so the component's answer IS the column and a pressed column IS the offset into the slice.
+/// The mark and the label stay ordinary labels on the same row, which is what keeps the
+/// editing row's NAME lined up with every other row of the panel.
+inline PropertyEditPlace property_edit_place(const ui::Rect& panel, const Screen& sc,
+                                             std::size_t row) noexcept {
+    PropertyEditPlace p;
+    const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
+    if (panel.w <= used || panel.h <= 0) {
+        return p; // no panel, or no room for a value beside the name
+    }
+    const std::int64_t index = row > static_cast<std::size_t>(kScreenMaxH)
+                                   ? kScreenMaxH
+                                   : static_cast<std::int64_t>(row);
+    p.region_x = surface::add_cells(panel.x, used);
+    p.region_y = surface::add_cells(panel.y, kRowsY + index);
+    p.region_w = panel.w - used;
+    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, kPropertyEditRows,
+                                sc.text_advance_px, sc.text_line_px);
+    p.columns = p.fit.columns - kPropertyCaretCols;
+    if (p.columns < 0) {
+        p.columns = 0;
+    }
+    p.present = true;
+    return p;
+}
+
+/// IS THIS PROSE POSITION ON A ROW'S EDITABLE VALUE AT ALL?
+///
+/// `terminal_input_hit`'s rule, one editor over: the ROW is the whole test and the column is
+/// deliberately not. A press anywhere along the value's row is a press on the value,
+/// including the empty room past the last character -- a maker aiming at the end of a short
+/// value clicks after it, and refusing that would refuse the most obvious gesture the row has.
+inline constexpr bool property_edit_hit(const PropertyEditPlace& p, std::int64_t column,
+                                        std::int64_t row) noexcept {
+    return p.present && row == 0 && column >= 0 && column <= p.fit.columns;
+}
+
 /// THE INFO PANEL — the OBJECTS list and the PROPERTIES inspector, in the column they have
 /// always occupied.
 ///
@@ -2737,7 +2646,7 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
 /// number `screen_of` gives the workspace to measure against" is now "the painter is told
 /// where it is".
 inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                       const ui::Rect& b) {
+                       const ui::Rect& b, const Screen& sc) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
     // presentations make.
@@ -2797,8 +2706,47 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
         } else if (!row.editable()) {
             role = surface::role::kMuted; // not the maker's to author
         }
-        label(b.x, b.y + kRowsY + static_cast<std::int64_t>(i),
-              std::string(here ? ">" : " ") + detail::pad(row.label(), 9) + row.display(), role);
+        const std::int64_t y = b.y + kRowsY + static_cast<std::int64_t>(i);
+        const std::string named = std::string(here ? ">" : " ") +
+                                  detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
+        const PropertyEditPlace place = property_edit_place(b, sc, i);
+        if (!row.editing() || !place.present) {
+            label(b.x, y, named + row.display(), role);
+            continue;
+        }
+        // THE ROW BEING EDITED IS TWO THINGS ON ONE LINE (HD-5), and the split is exactly the
+        // line between what a maker READS and what a maker is CHANGING. The mark and the
+        // property's name stay ordinary labels, so the editing row is lined up, letter for
+        // letter, with the rows above and below it. The VALUE becomes a bounded region,
+        // because a region is the only shape on this canvas that can carry an insertion point
+        // -- `caret_row`/`caret_col`, published as a FACT about the region rather than drawn
+        // as a character by this function, so each medium answers it in its own type.
+        //
+        // AND IT IS A WINDOW ONTO THE DRAFT RATHER THAN THE WHOLE OF IT. `visible` is the
+        // slice the region has room for; the authored draft is untouched behind it, and
+        // nothing in the row says how much is off either side -- no marker, no arrow, no
+        // ellipsis, for the reason HD-4 wrote down: the caret staying put is what tells a
+        // maker the value moved, and an indicator would be a second thing to keep true whose
+        // width would come out of this same one capacity.
+        //
+        // Before this, the whole row was one label carrying the draft plus a trailing `_`,
+        // and `canvas_body`'s `put` (and `plan_canvas`'s matching `break`) dropped every
+        // character past the canvas edge with no mark at all -- 52 of them on the value HD-5
+        // reproduced with, the cursor among them.
+        label(b.x, y, named, role);
+        surface::SurfaceTextRegion value;
+        value.x = place.region_x;
+        value.y = place.region_y;
+        value.w = place.region_w;
+        value.h = kPropertyEditRows;
+        value.rows.push_back(surface::SurfaceTextRow{row.editor().visible(place.columns), role,
+                                                     surface::role::kNone});
+        // ONE MEASURER: the column comes from the same resolution the slice was cut with, and
+        // the same one a press is answered with, so a caret cannot land where the text is not
+        // and a click cannot land where the caret would not.
+        value.caret_row = 0;
+        value.caret_col = static_cast<std::int64_t>(row.editor().caret_column());
+        c.texts.push_back(std::move(value));
     }
 }
 
@@ -2824,7 +2772,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         if (p.kind == panel::kBuilder) {
             paint_builder(c, panels.builder, b);
         } else if (p.kind == panel::kInfo) {
-            paint_info(c, d, s, b);
+            paint_info(c, d, s, b, sc);
         }
     }
     paint_picker(c, panels, sc);

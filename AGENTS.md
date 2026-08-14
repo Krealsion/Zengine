@@ -182,6 +182,74 @@ IMAGE_REL_AMD64_SECREL against .debug_frame$...`, which reads like a broken
 repository and is not one. `zengine-warnings` carries the flag under `if(MINGW)`.
 Do not remove it because a build happens to link without it today.
 
+## Editing text is a COMPONENT now, and it belongs to neither consumer (HD-5)
+
+`zengine::component::TextBox` (`component/text_box.hpp`) owns text, a caret and a horizontal
+window as one state, with the operations as the only door. `workshop::TerminalInput` is gone —
+it moved out whole and was renamed once — and `workshop::Row` holds one too, so the Terminal's
+command line and an Inspector property draft are two instances of one implementation.
+
+```text
+what the component owns      text, caret, first_visible; the character walk; the four
+                             caret-follow rules; the slice; column <-> byte, through the window
+what a consumer owns         the capacity (an ARGUMENT), where its prose begins, and what the
+                             text MEANS -- submit, parse, validate, commit, refuse, complete
+```
+
+- **`zengine-component` links nothing**, not even `loom::core`. A TextBox has no wire form,
+  nothing serializes it and nothing hosts it; the absence of that link is the enforcement.
+- **The character helpers moved with it.** `is_continuation_byte`, `character_before`,
+  `character_after`, `character_boundary` and `character_boundary_at_or_after` were
+  `workshop/property.hpp`'s and are now the component's, because both consumers that spend them
+  ARE the component. `erase_one_character` was **deleted** — it erased from the END of a line,
+  which is the only edit a draft with no caret could make.
+- **`terminal_caret_column`/`terminal_caret_of_column` take the BOX**, not two indices. HD-4
+  made `first_visible` non-defaulted so no call site could keep the old spelling and be
+  silently right until the first line long enough to scroll; taking the component makes that
+  hazard unsayable — there is no argument left to forget, and no way to pair a caret from one
+  line with a window from another.
+- **Do not give the component a focus flag, a filter, a selection, a clipboard or a blink.**
+  Neither consumer has asked, and the pre-Zen `Zen::TextBox` in `reference/` had four of those
+  and could not move its caret.
+
+## The Inspector's editable row, resolved once (HD-5)
+
+`property_edit_place(panel_bounds, screen, row)` (`workshop/screen.hpp`) is the editing row's
+value region, and the painter, the caret, `refresh_inspector` and `info_press` all call it. Do
+not add a `click_property_edit_bounds()` beside a `paint_property_edit_bounds()` here.
+
+- **The row is TWO shapes.** The cursor mark and the padded name stay ordinary `SurfaceLabel`s
+  so the editing row stays aligned with its neighbours; the VALUE is a `SurfaceTextRegion`,
+  because a region is the only shape on a canvas that can carry an insertion point.
+- **`kPropertyEditRows` is 1 and that is load-bearing.** A property row IS one cell tall, and a
+  region two cells tall would cover the row beneath — a property of the object the maker is
+  editing, hidden at the moment they are working on it. One cell is smaller than this face's
+  line, so `fit_region` answers with the CELL projection and the row is drawn in the same
+  glyphs, at the same pitch, as every other row of the panel. The day the Inspector's rows are
+  given the room a face needs, this publisher gets real type and a caret BAR with no change.
+- **`kPropertyCaretCols` is one column of the row the value may not use**, for
+  `kTerminalCaretCols`' reason: a caret is *between* characters and a cell medium has no
+  half-cells.
+- **`refresh_inspector` reconciles the draft's window once per repaint**, beside
+  `refresh_terminal` and for the same reason: the window a press is answered with must be the
+  window the last repaint drew, and a resize is not an edit. At most one row is ever editing —
+  `begin_edit` is reachable only from command mode, which is exactly the state in which no row
+  is being edited.
+- **A `SurfaceExtent` must not drop a live draft.** `refocus_keeping_draft` rebuilds the rows
+  (the resolved row closes over the extent) and hands the draft, its refusal and the cursor
+  back. Every *other* `rebuild_rows` caller follows a change of selection or of document, where
+  dropping it is right — `Name` is a row every object has, so a draft carried across a selection
+  would arrive on a different object's property wearing the same label.
+
+## A region too small for the face is a CELL region (HD-5)
+
+`fit_region` falls back to the region's own cell bounds when a real metric yields no rows or no
+columns, and `plan_canvas`/`plan_text_regions` partition on `fit_region(r, metric).graphical()`
+rather than on the metric alone. Before this, a region one cell tall was in **neither** list and
+was drawn by nobody — reachable, and reached, by the Inspector's editable row. `fit_region`'s
+answer is byte-for-byte the one a faceless medium gets, so no canvas painted in a character
+medium moved.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things
@@ -219,16 +287,20 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**34,104** over the **eight** doctest binaries, SDL lane, measured
-  2026-08-14 after HD-4) are evidence to report. They are **not** a population, never an
+- Assertion totals (**34,975** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-14 after HD-5) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
-  total that said eight. It is now the sum of all eight, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,190 · `zengine-workshop-tests` 20,230 ·
-  `zengine-input-tests` 1,374 · `zengine-timer-tests` 1,380 · `zengine-ui-tests` 164 ·
-  `zengine-builder-tests` 4,330 · `zengine-tests` (snake) 364 · `zengine-audit-probes` 72.
+  total that said eight. It is the sum of all of them, named so the next phase can
+  reproduce it: `zengine-surface-tests` 6,226 · `zengine-workshop-tests` 18,912 ·
+  `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
+  `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
+  `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
+  while the repository's rose by 871, which is the sharpest illustration this bullet has of why
+  the figure is not an oracle: four cases moved out of Workshop into the new component suite,
+  so a suite losing assertions and a repository gaining them are the same event.
   The figure is configuration-dependent —
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no

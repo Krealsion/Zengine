@@ -47,6 +47,7 @@ add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
                                                             zengine-ui-vocabulary
+                                                            zengine-component
                                                             zengine-builder-vocabulary
                                                             loom::core
                                                             loom::terminal)

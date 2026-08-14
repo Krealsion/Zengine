@@ -230,7 +230,15 @@ public:
         if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px)) {
             return;
         }
-        rebuild_rows();
+        // THE ROWS ARE REBUILT AND A LIVE DRAFT IS CARRIED ACROSS (HD-5). The resolved row
+        // closes over the extent it resolves against, so the rebuild is not optional -- but
+        // this is the ONE rebuild that happens for a reason having nothing to do with the
+        // maker. A window dragged is not a gesture aimed at the inspector, and until HD-5
+        // measured it on the pristine tree it silently threw away whatever was half-typed
+        // into a property, its refusal and the cursor with it. Every OTHER caller of
+        // `rebuild_rows` follows a change of selection or of document, where dropping the
+        // draft is the right answer and carrying it would put it on a different object.
+        refocus_keeping_draft(state_, session_);
         repaint(mail);
     }
 
@@ -459,6 +467,23 @@ public:
             return;
         }
         if (b.pressed) {
+            // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
+            // rather than a mode (HD-5). The order is the same one the pane and the
+            // completion list already have: the innermost thing that owns the pointer where
+            // it landed answers before the thing around it, and a press it declines falls
+            // through to the panel's own answer unchanged.
+            //
+            // IT SAYS NOTHING. Every other press on this panel writes the notice line,
+            // because a press that changed nothing and said nothing would leave the previous
+            // gesture's sentence sitting beside a maker who has just done something else.
+            // Moving a caret is the one press where that argument runs the other way: the
+            // caret IS the statement, it is on screen, and a sentence repeating it would push
+            // the refusal a maker may still need to read off the line for a gesture they can
+            // already see the result of.
+            if (info_press(b)) {
+                repaint(mail);
+                return;
+            }
             // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
             // whole of it: the press is asked what it landed on before the
             // document is asked anything, and a press that landed on a panel
@@ -659,8 +684,117 @@ private:
             say("edit cancelled -- nothing was written", false);
             break;
         case input::scan::kBackspace: row->backspace(); break;
+        // THE EDITING KEYS THE SECOND CONSUMER EARNED (HD-5). Until this phase a property
+        // draft could only be appended to and backspaced from, so a typo six characters back
+        // cost six deletions and six retypes -- reproduced before the change, on a draft of
+        // `hellp world`, where Left, Right, Home, End and Delete were every one of them
+        // `default: break`.
+        //
+        // ALL FIVE WERE UNBOUND IN THIS MODE, source-traced exactly as HD-2's three and
+        // HD-3's three were: `editing_key`'s switch had Return, Escape and Backspace, and
+        // everything else fell through. Up/Down step the INSPECTOR's rows and Tab selects the
+        // next OBJECT -- both in COMMAND mode, which is a different mode and is not reachable
+        // while a draft is live. So no gesture anywhere changed meaning.
+        //
+        // They are the same five the Terminal binds, spelled the same way, because they now
+        // reach the same implementation: `Row` forwards to the `component::TextBox` it owns,
+        // and `TerminalPane` calls the same six methods on the one it owns.
+        case input::scan::kLeft: row->left(); break;
+        case input::scan::kRight: row->right(); break;
+        case input::scan::kHome: row->home(); break;
+        case input::scan::kEnd: row->end(); break;
+        case input::scan::kDelete: row->erase_forward(); break;
         default: break;
         }
+    }
+
+    /// THE ONE PLACE THE PROPERTY DRAFT'S HORIZONTAL WINDOW IS RECONCILED (HD-5).
+    ///
+    /// `refresh_terminal`'s argument, one editor over, and it is called from the same place
+    /// for the same reason: once per repaint, BEFORE anything is painted and before the next
+    /// press is mapped, so the window a press is answered with is the window the maker is
+    /// looking at. Four things must move it -- a keystroke, a press, opening a draft on a
+    /// value longer than the row, and a RESIZE that changed nothing but the room -- and only
+    /// the first three are edits, so a hook on the edits alone would have missed the fourth.
+    ///
+    /// ONLY THE EDITING ROW HAS A WINDOW TO RECONCILE, and at most one row is ever editing:
+    /// `begin_edit` is reachable only from command mode, which is precisely the state in
+    /// which no row is being edited. So this is one pass over eight rows doing nothing, plus
+    /// four integer comparisons on the one that matters. Nothing is pooled and no row is
+    /// given presentation state it is not using.
+    ///
+    /// A CLOSED PANEL IS NOT A ZERO CAPACITY. `bounds_of` answers with an empty rectangle for
+    /// a panel nobody has open and `property_edit_place` refuses it, so the reconcile is
+    /// skipped rather than run against no room -- the draft is untouched, and the next
+    /// repaint after the panel comes back resolves the window against the room it then has.
+    void refresh_inspector() {
+        const Screen sc = screen_of(session_);
+        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
+        if (!info.open) {
+            return;
+        }
+        for (std::size_t i = 0; i < session_.rows.size(); ++i) {
+            if (!session_.rows[i].editing()) {
+                continue;
+            }
+            const PropertyEditPlace place = property_edit_place(info.rect, sc, i);
+            if (place.present) {
+                session_.rows[i].keep_caret_visible(place.columns);
+            }
+            return;
+        }
+    }
+
+    /// A PRESS INSIDE THE ACTIVE PROPERTY EDITOR, and nothing else (HD-5).
+    ///
+    /// The pipeline, in the order §10 asks for it and with no step reconstructed from a
+    /// coarser one:
+    ///
+    ///     the raw pointer fact (its own space, its own numbers)
+    ///         -> the resolved editing region        property_edit_place
+    ///         -> a column of THAT region's prose    prose_at
+    ///         -> a byte of the WHOLE draft          TextBox::position_at_column
+    ///         -> the caret                          Row::place
+    ///
+    /// THE RAW PIXEL IS USED AS A RAW PIXEL. `prose_at` branches on the `space` the backend
+    /// stamped, exactly as the Terminal's press does: a window's pixel is divided by the
+    /// resolution the row was drawn with, and a cell medium's position is already a
+    /// character and takes the other route entirely.
+    ///
+    /// IT IS A PLACE, NOT A MODE, AND IT BEGINS NOTHING. A press that lands on an editable
+    /// value which is NOT being edited is not a request to start editing it: that would have
+    /// to decide what happens to a draft already live somewhere else, which is a semantic
+    /// this phase has no measurement for and did not invent. `Return` opens a draft, and this
+    /// only moves the insertion point inside the one that is open. A press anywhere else on
+    /// the panel is answered by the panel exactly as it was.
+    bool info_press(const zengine::input::PointerButton& b) {
+        const Screen sc = screen_of(session_);
+        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
+        if (!info.open) {
+            return false;
+        }
+        for (std::size_t i = 0; i < session_.rows.size(); ++i) {
+            Row& row = session_.rows[i];
+            if (!row.editing()) {
+                continue;
+            }
+            const PropertyEditPlace place = property_edit_place(info.rect, sc, i);
+            const ProseAt at =
+                prose_at(b.space, b.x, b.y, place.region_x, place.region_y, place.fit);
+            if (!at.understood || !property_edit_hit(place, at.column, at.row)) {
+                return false;
+            }
+            // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
+            // `first_visible + offset` of the WHOLE draft, never the offset alone -- the one
+            // subtraction a horizontal window adds to a hit test, and the one that is right
+            // to leave out for exactly as long as no value is long enough to scroll. The
+            // component holds the offset the last repaint resolved, which is the one the
+            // maker is looking at.
+            const std::size_t was = row.editor().caret();
+            row.place(row.editor().position_at_column(at.column));
+            return row.editor().caret() != was;
+        }
+        return false;
     }
 
     // ---- The terminal overlay ------------------------------------------------
@@ -834,8 +968,7 @@ private:
             // leaving it out is right for exactly as long as no line is long enough to
             // scroll. The offset read here is the one the last repaint resolved, which is
             // the one the maker is looking at.
-            pane.input.place(terminal_caret_of_column(place, at.column, pane.input.size(),
-                                                      pane.input.first_visible()));
+            pane.input.place(terminal_caret_of_column(place, pane.input, at.column));
             // The caret moving is what changes whether completion may be asked, so a press
             // that moved it has to reach `refresh_terminal` exactly as a caret key does.
             if (pane.input.caret() != was) {
@@ -1684,7 +1817,8 @@ private:
     }
 
     void repaint(loom::Mail& mail) {
-        refresh_terminal(); // the pane is a snapshot, and a snapshot is only true when taken
+        refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
+        refresh_inspector(); // and a draft's window is only true against the room it has now
         mail.publish(paint(state_, session_));
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});

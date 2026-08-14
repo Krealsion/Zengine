@@ -349,6 +349,20 @@ one), and not blinking — there is no clock on this shape. The two fields made
 `SurfaceTextRegion` version **3** and `SurfaceCanvas` version **4**; the canvas has now
 changed three times and never gained a field of its own.
 
+**A region too small for a medium's own type is a CELL region in that medium** (HD-5), and
+that is the same sentence a zero metric already means rather than a new rule. A face's line is
+not a cell — this repository's is 18 device pixels against a 12-pixel cell — so a region **one
+cell tall** holds `(12 - 2*inset) / 18` = zero rows of it. Before HD-5 such a region resolved
+to a graphical fit with no capacity and both media then drew **nothing**: `plan_text_regions`
+skips a fit with no rows, and `plan_canvas` had already decided the regions were the other
+list's. A bounded region that silently vanishes is the one answer `region.hpp` exists to make
+impossible, so `fit_region` falls back — and because the publisher asks the same function for
+its capacity, the publisher, the window and the terminal all get one answer. The split between
+the two draw lists is now the predicate `fit_region(r, metric).graphical()` rather than a test
+on the metric alone, so they remain exactly disjoint and exactly complete. The Inspector's
+editable row is one cell tall and reaches this; the Terminal pane and its completion list are
+not and do not.
+
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and (since HD-1) how
 big one character of its own type is, in its own device pixels. Every other shape here is intent flowing
@@ -539,6 +553,64 @@ extent. The two are not competitors and neither replaces the other.
 
 No kernel, no weave, no bus: this package is vocabulary and arithmetic, so it exists on every
 configuration.
+
+## `component/` — the first foundational component
+
+HD-5's slice, and it exists because a **measurement** rather than a roadmap: two working
+Workshop tools reached the same editing machinery from opposite ends. The Terminal's command
+line had text, a movable caret, character-safe edits, a horizontal window and a pointer that
+places the caret (HD-3, HD-4). An Inspector property draft had the text and the character-safe
+edits — and **no** caret, **no** window, and no way to reach a value longer than its row.
+
+HD-4 traced that second consumer on all nine axes and *declined* to extract anything, because
+at that point the two shared only the character walk they were already sharing as free
+functions: a `TextBox` would have renamed `TerminalInput` and deleted nothing. HD-5 is the day
+the property editor genuinely needs the caret, the window and the pointer arithmetic — the day
+extracting is the **smaller** repair.
+
+```text
+component/text_box.hpp   is_continuation_byte / character_before / character_after
+                         character_boundary / character_boundary_at_or_after
+                                          what a CHARACTER is, in this application
+
+                         TextBox          text + caret + first_visible, as one state
+                           text/caret/first_visible/size/empty/at_end/caret_column
+                           visible(columns) / position_at_column(column)
+                           keep_caret_visible(columns)
+                           type/backspace/erase_forward/left/right/home/end/place/clear/set
+```
+
+Four things are structural rather than promised:
+
+- **The operations are the only door.** `0 <= first_visible <= caret <= size()`, both indices on
+  a character boundary, holds after every mutator because `settle()` runs at the end of each
+  one. There is no `fix_it()` to call and no way to reach a state that would need it. The other
+  half — `caret - first_visible <= N` and `first_visible <= max(0, size() - N)` — needs to know
+  how much room there is, so it is `keep_caret_visible(N)`, which a consumer calls once per
+  repaint with the capacity it resolved.
+- **The capacity is an argument and never a member.** The Terminal's row and an Inspector row
+  are different widths in the same running application, so a component that remembered one of
+  them would be remembering the wrong one for the other.
+- **It owns no policy and no medium.** No SDL, no terminal, no cell, no pixel, no font metric,
+  no commit, no validation, no refusal, no parse, no completion, no submission, no focus, no
+  blink and no drawing. What a draft *means* is the consumer's, which is exactly what lets one
+  implementation serve two tools whose commit models have nothing in common: the Terminal
+  submits a line to a participant, and a property row parses it, writes it, and may be refused
+  with a reason.
+- **It is not an entity.** No identity, no registry, no persistence, nothing to clean up. A
+  `TerminalPane` owns one and a `workshop::Row` owns one; destroying the owner destroys it.
+
+`zengine-component` links **nothing** — not even `loom::core`, which every other package here
+needs for `zen/weave/shape.hpp`. A TextBox has no wire form, nothing serializes it and nothing
+hosts it, and the absence of that link is the enforcement of "a component is not content".
+
+What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView, focus tree,
+tab order, selection range, clipboard, undo stack, multiline mode or theme, and none of them
+will arrive because a toolkit is expected to have one — the rule this package is built on is
+*extract from repeated working behaviour, never from a list of widgets*. The pre-Zen
+`Zen::TextBox` (`reference/`, archaeology only) is not its ancestor in anything but the name: it
+carried a filter, a focus flag, a blink timer, two signals and a child `Text` entity, and it
+could not move its caret, could not scroll, and erased one **byte** at a time.
 
 ## `builder/` — a name, a command, and the line between them
 
@@ -825,6 +897,36 @@ and no window itself.
   acceptance is an end-of-line edit, so with the caret in the middle it would delete everything
   after it. The list becomes a heading with no candidates in it — exactly the shape a prefix
   that matched nothing already produces — rather than going quiet.
+- **A property value is edited like actual text** (HD-5), and the machinery is not the
+  Terminal's own any more — it is *shared* with it. `TerminalInput` moved out whole and became
+  `component::TextBox`; `workshop::Row` holds one too, so a draft has a caret, a horizontal
+  window and a pointer, and the same six gestures the pane binds (`Left`/`Right`/`Home`/`End`/
+  `Backspace`/`Delete`) reach the same implementation. Before it, a draft could only be appended
+  to and backspaced from: repairing `hellp world` cost seven deletions and seven retyped
+  characters, and a value longer than the row lost its tail at the **canvas edge** with no mark
+  at all — 52 characters of a 69-byte draft, the cursor among them, measured on the pristine
+  tree.
+  **The editing row is two shapes on one line.** The cursor mark and the property's name stay
+  ordinary labels, so the row stays lined up letter for letter with its neighbours; the VALUE
+  becomes a `SurfaceTextRegion`, because a region is the only shape on this canvas that can
+  carry an insertion point. `property_edit_place` resolves that region once and the painter,
+  the caret, the viewport reconcile and the press all call it — there is no
+  `click_property_edit_bounds()` beside a `paint_property_edit_bounds()` here either. The row
+  is one cell tall, which is what makes it a *cell* region in both media (see `surface/`), so
+  the caret is the mark a cell medium makes and the two media scroll to the same place.
+  **The property layer kept everything that is a property's.** `TextBox` cannot parse, cannot
+  validate, cannot commit and has never heard of `Written`, `Commit` or a refusal; a refused
+  commit still leaves the property untouched and the draft alive — and now also leaves the
+  **caret** where it was, so a maker fixes what they typed from where they were.
+  **A surface extent no longer takes a maker's hands off a draft.** The rows are derived and are
+  rebuilt rather than patched, and one rebuild happens for a reason having nothing to do with
+  the maker: a new `SurfaceExtent`. On the pristine tree that silently threw away a half-typed
+  value, its refusal and the cursor. `refocus_keeping_draft` rebuilds and hands the draft back;
+  every *other* rebuild follows a change of selection or of document, where dropping it is right.
+  **No focus framework was added.** Multiple `TextBox` instances now exist in the object graph
+  and Workshop's existing four modes still answer unambiguously which one hears a keystroke:
+  the terminal overlay while it is open, then the picker, then the editing row, then command
+  mode. One `if` each.
 - **The command may be longer than the pane, and the caret stays in sight** (HD-4). The input
   line has a horizontal viewport: `TerminalInput` gained `first_visible`, a byte index the row
   begins at, and the authored command never changes because the window moved. It is a third

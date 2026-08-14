@@ -1266,12 +1266,31 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
 
-    // A line taller than the region, or a character wider than it: nothing fits,
-    // said as zero rather than as a negative somebody downstream would subtract.
-    CHECK(fit_region(0, 0, 4, 2, 8, 4000).rows == 0);
-    CHECK(fit_region(0, 0, 4, 2, 4000, 18).columns == 0);
-    CHECK(fit_region(0, 0, 4, 2, kMax, kMax).columns == 0);
-    CHECK(fit_region(0, 0, 4, 2, kMax, kMax).rows == 0);
+    // A LINE TALLER THAN THE REGION, OR A CHARACTER WIDER THAN IT, IS A CELL REGION (HD-5).
+    //
+    // These four used to answer zero -- "nothing fits", said as zero rather than as a
+    // negative somebody downstream would subtract -- and zero was reachable in a running
+    // application: a region ONE CELL TALL holds (12 - 2*inset) / 18 = no rows of this
+    // repository's own face, which is the Inspector's editable row. Both media then drew
+    // NOTHING, because `plan_text_regions` skips a fit with no rows and `plan_canvas` had
+    // already decided the regions belonged to the other list. A bounded region that silently
+    // vanishes is the one answer this header exists to prevent, so the fit falls back to the
+    // sentence a zero metric already means: text is a cell here.
+    for (const RegionFit& f : {fit_region(0, 0, 4, 2, 8, 4000), fit_region(0, 0, 4, 2, 4000, 18),
+                              fit_region(0, 0, 4, 2, kMax, kMax)}) {
+        CHECK_FALSE(f.graphical());   // this medium cannot set THIS region in its own type
+        CHECK(f.advance_px == 0);     // ...and says so in the same words a faceless one does
+        CHECK(f.line_px == 0);
+        CHECK(f.columns == 4);        // the region's own cell bounds, exactly
+        CHECK(f.rows == 2);
+        CHECK(f.origin_x == 0);       // no inset: a cell projection has none
+        CHECK(f.origin_y == 0);
+    }
+
+    // IT IS THE SAME ANSWER A ZERO METRIC GIVES, byte for byte, which is what makes the
+    // fallback a sentence this vocabulary already knows how to say rather than a fourth state.
+    CHECK(fit_region(0, 0, 4, 2, 8, 4000) == fit_region(0, 0, 4, 2, 0, 0));
+    CHECK(fit_region(0, 0, 1, 1, 8, 18) == fit_region(0, 0, 1, 1, 0, 0));
 
     // A region with no bounds, or bounds off the number line: still an answer.
     CHECK(fit_region(0, 0, -5, -5, 8, 18).columns == 0);
@@ -1279,11 +1298,80 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
     CHECK(fit_region(kMax, kMax, kMax, kMax, 8, 18).view.w > 0);
     CHECK(fit_region(kMin, kMin, kMin, kMin, 8, 18).view.w == 0);
 
-    // The inset can be larger than the region itself. Two cells is 24 pixels and
-    // survives; a region so small that the inset eats it answers zero, not a
-    // negative width.
-    CHECK(fit_region(0, 0, 1, 1, 8, 18).columns == (12 - 2 * kTextInsetPx) / 8);
-    CHECK(fit_region(0, 0, 1, 1, 8, 18).rows == 0);
+    // A REGION BIG ENOUGH FOR ONE ROW OF TYPE STILL GETS IT, so the fallback is a floor and
+    // not a ceiling: two cells is 24 pixels, which holds this face's 18-pixel line.
+    const RegionFit two = fit_region(0, 0, 4, 2, 8, 18);
+    CHECK(two.graphical());
+    CHECK(two.rows == (2 * 12 - 2 * kTextInsetPx) / 18);
+    CHECK(two.rows == 1);
+    CHECK(two.columns == (4 * 12 - 2 * kTextInsetPx) / 8);
+
+    // The inset can be larger than the region itself, and a region so small that the inset
+    // eats it answers zero -- never a negative width.
+    CHECK(fit_region(0, 0, 1, 1, 8, 18).columns == 1); // one cell, as cells
+    CHECK(fit_region(0, 0, 1, 1, 8, 18).rows == 1);
+    CHECK(fit_region(0, 0, 0, 0, 8, 18).columns == 0);
+    CHECK(fit_region(0, 0, 0, 0, 8, 18).rows == 0);
+}
+
+TEST_CASE("region: the two projections partition every region on a canvas, exactly") {
+    // HD-5's other half. `plan_canvas` draws the regions this medium cannot set in type and
+    // `plan_text_regions` draws the ones it can; before HD-5 the split was made once for the
+    // WHOLE canvas -- regions were cells when the medium had no face and type when it had one
+    // -- so a region too small for the face was in neither list and was drawn by nobody.
+    SurfaceCanvas c;
+    c.width = 80;
+    c.height = 40;
+    SurfaceTextRegion tall;   // the Terminal pane's shape: 56 x 13 cells
+    tall.x = 4;
+    tall.y = 4;
+    tall.w = 56;
+    tall.h = 13;
+    tall.rows.push_back(SurfaceTextRow{"a pane", role::kFill, role::kNone});
+    SurfaceTextRegion thin;   // the Inspector's editable row: one cell tall
+    thin.x = 60;
+    thin.y = 30;
+    thin.w = 18;
+    thin.h = 1;
+    thin.rows.push_back(SurfaceTextRow{"a value", role::kAlert, role::kNone});
+    thin.caret_row = 0;
+    thin.caret_col = 3;
+    c.texts.push_back(tall);
+    c.texts.push_back(thin);
+
+    const SurfaceExtent face{80, 40, 8, 18};
+    const SurfaceExtent none{80, 40, 0, 0};
+
+    // WITH A FACE: the pane is type, the one-cell row is cells, and the caret comes with it.
+    const std::vector<ProjectedRow> as_cells = project_text_regions(c, face);
+    CHECK(as_cells.size() == 1); // the thin region's single row, and nothing of the pane
+    CHECK(as_cells[0].label.y == 30);
+    CHECK(as_cells[0].label.text == "a v_alue          "); // the caret, INSERTED at column 3
+    CHECK(as_cells[0].label.role == role::kAlert);
+    const std::vector<PlanTextRegion> as_type = plan_text_regions(c, face, PlanSize{960, 480});
+    CHECK(as_type.size() == 1); // the pane, and nothing of the thin row
+    CHECK(as_type[0].rows.size() == 1);
+    CHECK(as_type[0].rows[0].text == "a pane");
+
+    // NEITHER IS DRAWN TWICE and neither is dropped: one region in each list, two on the
+    // canvas. That is the partition, asserted as a partition rather than as two behaviours.
+    CHECK(as_cells.size() + as_type.size() == c.texts.size());
+
+    // WITH NO FACE: both are cells, which is byte-for-byte what the one-argument overload
+    // says, and the type list is empty. Every canvas this repository paints in a character
+    // medium is therefore unmoved by the change.
+    const auto as_text = [](const std::vector<ProjectedRow>& rows) {
+        std::vector<std::string> out;
+        for (const ProjectedRow& r : rows) {
+            out.push_back(std::to_string(r.label.x) + "," + std::to_string(r.label.y) + "," +
+                          std::to_string(r.label.role) + "," + std::to_string(r.background) +
+                          "," + r.label.text);
+        }
+        return out;
+    };
+    CHECK(as_text(project_text_regions(c, none)) == as_text(project_text_regions(c)));
+    CHECK(project_text_regions(c, none).size() == 13 + 1);
+    CHECK(plan_text_regions(c, none, PlanSize{960, 480}).empty());
 }
 
 TEST_CASE("region: the clip is the surface's business and never the capacity's") {
