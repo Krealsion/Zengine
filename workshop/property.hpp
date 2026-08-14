@@ -307,6 +307,30 @@ inline std::size_t character_boundary(const std::string& line, std::size_t at) n
     return i;
 }
 
+/// THE NEAREST CHARACTER BOUNDARY AT OR AFTER `at`, clamped into the line — the other
+/// direction, and it exists because a VIEWPORT cannot use the one above (HD-4).
+///
+/// A horizontally scrolled line begins at a byte the presentation chose, and that byte must
+/// not be the middle of a character: half a character at the left edge is a mark a maker
+/// cannot read. Which way to snap looks like taste and is not. The caret has to stay inside
+/// the window, and the window's right edge is `first_visible + columns` — so snapping the
+/// FIRST VISIBLE byte BACKWARDS moves that edge back with it and can push the caret one to
+/// three columns off the end of the row it is supposed to be sitting on. Snapping forwards
+/// can only ever make the window shorter at the left, which costs at most one character of
+/// text and cannot cost the caret.
+///
+/// It also cannot overshoot a caret: a caret is always on a character boundary
+/// (`TerminalInput`'s invariant), so a forward snap from at or before it lands at or before
+/// it. That is what lets the two rules compose in either order.
+inline std::size_t character_boundary_at_or_after(const std::string& line,
+                                                  std::size_t at) noexcept {
+    std::size_t i = at < line.size() ? at : line.size();
+    while (i < line.size() && is_continuation_byte(line[i])) {
+        ++i;
+    }
+    return i;
+}
+
 /// ERASE ONE CHARACTER FROM THE END OF A TYPED LINE, not one byte.
 ///
 /// This is the whole of Workshop's Unicode editing: transport is honest, erase is

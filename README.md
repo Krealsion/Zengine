@@ -825,6 +825,34 @@ and no window itself.
   acceptance is an end-of-line edit, so with the caret in the middle it would delete everything
   after it. The list becomes a heading with no candidates in it — exactly the shape a prefix
   that matched nothing already produces — rather than going quiet.
+- **The command may be longer than the pane, and the caret stays in sight** (HD-4). The input
+  line has a horizontal viewport: `TerminalInput` gained `first_visible`, a byte index the row
+  begins at, and the authored command never changes because the window moved. It is a third
+  piece of state on the same class for the caret's own reason — it has to move whenever the
+  caret or the text does, and a caller able to set it separately is a caller able to forget.
+  The capacity is an *argument*, `terminal_input_place`'s `columns`, so nothing here counts the
+  columns for itself. The invariant is kept in two halves: everything that needs no capacity
+  (`first_visible <= caret`, on a character boundary) after every operation, and the rest —
+  the right edge, and never leaving blank room while text is hidden to the left — once per
+  repaint in `refresh_terminal`, which is the one function that runs before anything is
+  painted *or* hit-tested. **The window follows the caret, minimally and deterministically**:
+  one character per keystroke at either edge, no recentring, no animation, and no scroll
+  gesture of its own. Deleting gives the room back, so backspacing a long line down to a short
+  one cannot leave an apparently empty row with the command hidden away to the left.
+  **The left edge snaps *forwards* to a character boundary** — `character_boundary_at_or_after`,
+  the mirror of the one a press already used — because snapping backwards would carry the
+  window's right edge with it and push the caret off the row; the right-hand cut stays a byte
+  cut, which is the cut this presentation has always made. **The published caret column is
+  relative to the window** (`prompt + caret - first_visible`) and a press maps back through the
+  same offset, both through `terminal_caret_column`/`terminal_caret_of_column`, whose
+  `first_visible` parameter is deliberately not defaulted: a default would let a call site keep
+  the old spelling and be silently right until the first line long enough to scroll. On an
+  unscrolled line every one of those answers is byte-for-byte HD-3's. The editable line's
+  capacity is one column short of the row (`kTerminalCaretCols`), because a caret after the
+  last character of a full row needs somewhere to be and a cell medium has no half-cells — a
+  window has the region's inset, a terminal has to be given the cell. There is **no** left/right
+  hidden-content marker, no scrollbar, no wheel gesture and no vertical scrolling; completion
+  is still asked about the whole authored line and still only at its end.
 - **The terminal projection keeps the minimum, and that is its own policy rather than a
   stub.** A terminal skin owns no drawable whose size is its to read — it writes into a
   `Sink` that may be a string, a pipe or a console — so it declines the question, publishes
