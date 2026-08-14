@@ -9722,6 +9722,45 @@ TEST_CASE("HD-4: the window is state, and every operation leaves the caret insid
         }
     }
 
+    SUBCASE("the capacity-free half of the invariant holds before any reconcile") {
+        // The invariant is kept in two halves and this is the one the OPERATIONS owe: a
+        // reader between an edit and the next repaint must not find a window beginning after
+        // the caret or past the end of the line. It is also the whole of the leftward scroll,
+        // which is why it costs no capacity -- Left, Home, a press and a backspace at the
+        // window's edge all move it here rather than in `keep_caret_visible`.
+        TerminalInput in;
+        in.type("abcdefghijklmnopqrstuvwxyz");
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+
+        in.left();
+        CHECK(in.first_visible() == 16); // still inside the window: nothing moved
+        in.home();
+        CHECK(in.first_visible() == 0); // ...and no reconcile has run
+
+        in.end();
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+        in.place(4);
+        CHECK(in.first_visible() == 4);
+
+        in.end();
+        in.keep_caret_visible(kRoom);
+        REQUIRE(in.first_visible() == 16);
+        in.backspace();
+        CHECK(in.first_visible() == 16); // the caret is still inside it
+        for (int i = 0; i < 10; ++i) {
+            in.backspace();
+        }
+        CHECK(in.caret() == 15);
+        CHECK(in.first_visible() == 15); // followed the caret out, told no capacity at all
+
+        // ...AND A REPLACEMENT SHORTER THAN THE WINDOW cannot leave it past the end.
+        in.set("ab", 2);
+        CHECK(in.first_visible() == 0);
+        CHECK(in.caret() == 2);
+    }
+
     SUBCASE("a row with no room at all still holds the invariant") {
         // Total over the capacity, because the capacity comes from a metric that arrived on
         // the bus: a pane too narrow for its own prompt reports zero columns.
