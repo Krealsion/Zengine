@@ -120,6 +120,58 @@ struct SurfaceLabel {
     ZEN_SHAPE(SurfaceLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
+/// ONE ROW OF PROSE inside a bounded text region. Plain text and a semantic
+/// role, exactly as `SurfaceLabel` carries them — and, deliberately, nothing
+/// else: no x, no y, no width. A row's PLACE is its index in its region's list,
+/// which is what makes the region a bounded presentation rather than a second
+/// coordinate system.
+///
+/// Plain ASCII, the same house rule `SurfaceLabel` states, and for the same
+/// reason: the cell projection is one cell per BYTE, so a multi-byte sequence
+/// would be split there. A graphical medium that sets real type may well render
+/// such bytes as real characters; that divergence is not a promise this
+/// vocabulary makes, and no first-party publisher produces one.
+struct SurfaceTextRow {
+    std::string text;
+    std::int64_t role = role::kFill;
+    ZEN_SHAPE(SurfaceTextRow, 1, ZEN_FIELD(text), ZEN_FIELD(role));
+};
+
+/// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
+/// and filled with rows the active medium sets in its OWN text metric.
+///
+/// THIS IS THE ONE PLACE A CANVAS ADMITS THAT A MEDIUM MAY BE FINER THAN A CELL,
+/// and the admission is deliberately narrow. `x/y/w/h` are cells, so where a
+/// region sits is the same kind of fact as where a rect sits and every medium
+/// can honour it. What happens INSIDE is the medium's: a terminal draws one row
+/// per cell row, truncated to `w` and clipped at `h`; a window that owns a real
+/// face draws the rows at its own advance and line height, inside the pixel
+/// rectangle those cells resolve to. Neither is pretending. The terminal is not
+/// asked to invent a pixel, and the window is not asked to round its type onto a
+/// twelve-pixel lattice.
+///
+/// HOW MANY ROWS AND COLUMNS FIT IS NOT ON THIS SHAPE, and that absence is the
+/// load-bearing part. The medium publishes its text metric on `SurfaceExtent`;
+/// the publisher resolves that metric against these cell bounds — through
+/// `surface/region.hpp`, one function, the same one the medium resolves with —
+/// and sends exactly the rows it decided fit. Two parties measuring would be two
+/// answers, and a pane whose omission marker says "... 12 earlier" while its
+/// renderer spends a different number of rows is a pane that lies.
+///
+/// A row longer than the region is the MEDIUM's to cut, exactly as an oversized
+/// rect is: publishers truncate because the cell projection needs them to, and a
+/// graphical medium clips as well because it cannot have its overflow predicted
+/// by anybody else.
+struct SurfaceTextRegion {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+    std::vector<SurfaceTextRow> rows;
+    ZEN_SHAPE(SurfaceTextRegion, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(rows));
+};
+
 /// A whole canvas: an extent in cells, filled rectangles, and text over them.
 /// The complete general drawing intent — and deliberately no more than that.
 /// It is not a layout system and not a widget tree: it carries no parent/child
@@ -132,15 +184,23 @@ struct SurfaceLabel {
 /// medium must PAINT.
 ///
 /// Elements outside the extent are the Skin's to clip. An empty canvas (no
-/// rects, no labels) is a legitimate picture — it means "nothing", not "no
-/// intent" — and clears whatever the previous canvas drew.
+/// rects, no labels, no text regions) is a legitimate picture — it means
+/// "nothing", not "no intent" — and clears whatever the previous canvas drew.
+///
+/// PAINTER'S ORDER ACROSS THE THREE LISTS is rects, then labels, then text
+/// regions — the same "later wins" rule list order already states, extended once
+/// rather than qualified per element. A region is the topmost thing on a canvas
+/// because a region is an overlay: it is granted bounds and owns what is inside
+/// them, which is exactly what would be untrue if a label could land on top of
+/// one.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
-    ZEN_SHAPE(SurfaceCanvas, 1, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
-              ZEN_FIELD(labels));
+    std::vector<SurfaceTextRegion> texts;
+    ZEN_SHAPE(SurfaceCanvas, 2, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
+              ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
 /// One canvas cell in a graphical medium. The terminal needs no such number —
@@ -177,10 +237,37 @@ inline constexpr std::int64_t kCanvasCellPx = 12;
 /// It names no surface for the same reason `SurfaceCloseRequested` names no
 /// window: `kSkinRole` is a singleton, so "the active surface" is a complete
 /// address.
+///
+/// V2 ADDS A SECOND UNIT, AND ONLY FOR TEXT. `text_advance_px` and
+/// `text_line_px` are how wide one character is and how far apart two rows are,
+/// in the medium's own device pixels, when that medium sets text in a real face
+/// rather than in cells. They exist because exactly one party may measure in a
+/// sizing conversation (G-2's rule) and for TEXT that party has to be the
+/// application: the Terminal pane chooses which transcript entries it can show
+/// whole and then SAYS how many it left out, and a medium that wrapped on its
+/// own behalf would make that sentence false. So the medium measures its face
+/// once and publishes the RESULT; the application does the arithmetic.
+///
+/// ZERO MEANS "TEXT IS A CELL", and it is the honest answer for most media. A
+/// terminal publishes no extent at all, so it never says anything about type; a
+/// window says zero before its font is open and after a font has failed to open,
+/// and in both of those cases the thing it actually draws is the cell-sized
+/// bitmap face — so zero is not a placeholder, it is a description. Both numbers
+/// travel together: a medium that answered one and not the other would be
+/// describing half a line of text.
+///
+/// WHAT IS DELIBERATELY NOT HERE: a family, a filename, a point size, an ascent,
+/// a descent, a hinting mode, a DPI. An application needs the RESULT of
+/// measurement in order to decide how much prose fits; it needs none of the
+/// mechanism that produced the result, and every one of those fields would be a
+/// fact about one backend that a second backend would have to fake.
 struct SurfaceExtent {
     std::int64_t width = 0;
     std::int64_t height = 0;
-    ZEN_SHAPE(SurfaceExtent, 1, ZEN_FIELD(width), ZEN_FIELD(height));
+    std::int64_t text_advance_px = 0;
+    std::int64_t text_line_px = 0;
+    ZEN_SHAPE(SurfaceExtent, 2, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_advance_px),
+              ZEN_FIELD(text_line_px));
 };
 
 /// The active Skin's hello: published exactly once per incarnation, on the

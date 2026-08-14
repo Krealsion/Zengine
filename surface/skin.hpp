@@ -11,6 +11,8 @@
 //   void canvas(const SurfaceCanvas&, bool first);
 //   void note(std::string_view slot, std::string_view text);
 //   SurfaceExtent extent() const;   // how much room I have, in cells; {0,0} = no opinion
+//                                   // and, since HD-1, how big one character of
+//                                   // mine is; zeroes there mean "text is a cell"
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
 // the alternate screen in its constructor and restores it in its destructor,
@@ -202,9 +204,20 @@ private:
     /// incarnation's surface, exactly as `announced_` belongs to its hello. A
     /// successor claims its own surface and must report its own room, even where
     /// state rides across.
+    /// THE TEXT METRIC RIDES THE SAME GUARD, and it has to. Since HD-1 a
+    /// graphical medium answers with two facts — how many cells, and how big one
+    /// character is — and they change independently: a person dragging a window
+    /// edge moves the first and not the second, and a font that opens late (or
+    /// fails and leaves the bitmap face drawing) moves the second and not the
+    /// first. Comparing only the extent would have published the first kind of
+    /// change and swallowed the second, so a Workshop that started before the
+    /// font was ready would keep wrapping against cells until somebody happened
+    /// to resize the window.
     void report_extent(loom::Mail& mail) {
         const SurfaceExtent now = medium_.extent();
-        if (now.width == reported_.width && now.height == reported_.height) {
+        if (now.width == reported_.width && now.height == reported_.height &&
+            now.text_advance_px == reported_.text_advance_px &&
+            now.text_line_px == reported_.text_line_px) {
             return;
         }
         reported_ = now;

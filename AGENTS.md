@@ -59,6 +59,34 @@ resolve_extent without its guard        ordinary PASSES   UBSan signed integer o
 - It runs the **full** population, SDL skin included — the verifier prints
   `gates active: always;sdl`, and every floor is the one the ordinary lane
   clears. Do not lower a floor or drop a gate to buy instrumentation.
+- Since HD-1 that includes a real font engine: the `sdl` gate opens the embedded
+  typeface through SDL_ttf and FreeType against a real renderer, so this lane is
+  where a leak or a misuse in that lifetime would be named. It was, at the point
+  of writing, clean.
+
+## The graphical Skin carries a typeface (HD-1)
+
+`ZENGINE_SDL_SKIN=ON` now fetches **three** pinned-and-checksummed dependencies,
+not one: SDL3, SDL_ttf, and — because SDL_ttf hard-requires FreeType and its
+release tarball deliberately does not bundle it — FreeType, extracted into
+SDL_ttf's own `external/freetype` before its subdirectory is added.
+`cmake/ZengineSdl.cmake` owns that assembly, states why both of SDL_ttf's own
+doors were measured shut on the lanes this repository builds on, and fails with
+an actionable message if the two contents' download stamps ever fall out of step.
+
+The face itself (`surface/fonts/JetBrainsMono-Regular.ttf`, SIL OFL 1.1) is
+**bundled and distributed**, unlike the fetched libraries: `cmake/EmbedBinary.cmake`
+turns its bytes into a translation unit compiled into `zengine-skin-sdl`. Nothing
+is installed, staged or discovered at runtime. Provenance and obligations:
+`surface/fonts/PROVENANCE.md`, `THIRD_PARTY_NOTICES.md`.
+
+**MinGW objects need `-mbig-obj` here, and that is not optional.** `workshop.cpp`
+instantiates enough templates that its `-g` debug COMDATs sat just under COFF's
+32-bit section-relative limit; HD-1 added inline arithmetic to a header it
+includes and the link failed with `relocation truncated to fit:
+IMAGE_REL_AMD64_SECREL against .debug_frame$...`, which reads like a broken
+repository and is not one. `zengine-warnings` carries the flag under `if(MINGW)`.
+Do not remove it because a build happens to link without it today.
 
 ## The population contract (C4, POP-01/POP-02)
 
@@ -97,8 +125,8 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~22,200 over the seven doctest suites, SDL lane, measured
-  2026-08-12) are evidence to report. They are **not** a population, never an
+- Assertion totals (~30,700 over the seven doctest suites, SDL lane, measured
+  2026-08-14) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The figure is configuration-dependent —
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no

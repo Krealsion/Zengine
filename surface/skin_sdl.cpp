@@ -14,6 +14,17 @@
 // promises is exactly printable ASCII — see skin_sdl_glyphs.hpp, which also
 // says what any other byte draws instead of vanishing.
 //
+// AND SINCE HD-1 IT OWNS A REAL FACE AS WELL, for one thing only: a
+// `SurfaceTextRegion`, the bounded part of a canvas whose interior a medium may
+// set in its own type. The face is embedded (skin_sdl_text.hpp), measured on
+// open, and its metric is published upward on `SurfaceExtent` so the publisher —
+// never this medium — decides how much prose fits. The two are not alternatives
+// for the same element: labels are cells and always were, regions are type when
+// there is type to set them in, and a medium with no face draws a region as
+// labels through the same cell projection a terminal uses. Nothing else changed;
+// `plan_canvas` still hands this file one flat list of opaque quads and this file
+// still cannot tell a glyph from a rect.
+//
 // The medium owns the SDL video subsystem RAII-style for the weave's
 // lifetime: construction brings SDL up (the window itself is created lazily
 // on the first frame, when the board's geometry is first known), destruction
@@ -65,6 +76,7 @@
 
 #include "skin.hpp"
 #include "skin_sdl_plan.hpp"
+#include "skin_sdl_text.hpp"
 
 #include <zen/kernel/export.hpp>
 
@@ -138,6 +150,11 @@ public:
         }
     }
     ~SdlMedium() {
+        // The face first: its glyph atlas lives in textures this renderer owns, so
+        // the engine has to give them back before the renderer they belong to goes
+        // away. Ordinary destruction order would have run this after, which is a
+        // free-after-free that only a sanitizer lane would have named.
+        text_.close();
         if (renderer_ != nullptr) {
             SDL_DestroyRenderer(renderer_);
         }
@@ -197,11 +214,25 @@ public:
         SDL_SetRenderDrawColor(renderer_, kCanvasBackground.r, kCanvasBackground.g,
                                kCanvasBackground.b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer_);
-        for (const PlanRect& r : plan_canvas(c)) {
+        const SurfaceExtent metric = extent();
+        for (const PlanRect& r : plan_canvas(c, metric)) {
             SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
             const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
                                static_cast<float>(r.w), static_cast<float>(r.h)};
             SDL_RenderFillRect(renderer_, &fr);
+        }
+        // THE REGIONS LAST, AND IN TYPE.
+        //
+        // Two lists, one picture, and which list a text region lands in is decided
+        // by exactly one fact: whether this medium is currently reporting a text
+        // metric. With a face open the quads above contain no region at all and
+        // these do; with no face the quads contain them as bitmap labels and this
+        // loop is empty. So there is no configuration in which the same words are
+        // drawn twice, and no `if` here to get that wrong -- `plan_canvas` and
+        // `plan_text_regions` are handed the same metric and partition the work
+        // between them in pure code every lane pins.
+        for (const PlanTextRegion& p : plan_text_regions(c, metric, drawable())) {
+            text_.draw(renderer_, p);
         }
         SDL_RenderPresent(renderer_);
     }
@@ -266,11 +297,23 @@ public:
     /// pinned on every lane). No window and no working renderer means no answer:
     /// {0,0} is "I have no opinion", which the shell turns into silence rather
     /// than into a claim that there is no room.
+    ///
+    /// AND HOW BIG ONE CHARACTER IS, since HD-1 -- the second half of the same
+    /// answer and, unlike the first, one this medium can give only when it has a
+    /// real face open. The numbers come from `SdlTypeface`, which measured them
+    /// from the opened font; they are never authored here and never guessed. With
+    /// no face they are zero, which the vocabulary spells "text is a cell" and
+    /// which is exactly what the bitmap letterform draws -- so a publisher
+    /// wrapping against this metric is always wrapping against the thing that will
+    /// actually be painted.
     SurfaceExtent extent() const {
         if (!ok_ || window_ == nullptr) {
             return SurfaceExtent{};
         }
-        return extent_of_drawable(drawable());
+        SurfaceExtent e = extent_of_drawable(drawable());
+        e.text_advance_px = text_.advance_px();
+        e.text_line_px = text_.line_px();
+        return e;
     }
 
 private:
@@ -392,6 +435,14 @@ private:
             if (!SDL_StartTextInput(window_)) {
                 complain("SDL_StartTextInput");
             }
+            // THE FACE IS OPENED WITH THE RENDERER, because it belongs to the
+            // renderer: SDL_ttf's text engine caches its glyph atlas in textures
+            // this renderer owns, so the two have exactly one lifetime between
+            // them. A failure here is reported by `open` itself and changes
+            // nothing about whether the window comes up -- a readable-in-bitmap
+            // Workshop is a better answer than no Workshop, and the difference is
+            // legible on stderr rather than being "the letters look wrong".
+            (void)text_.open(renderer_);
             return true;
         }
         const PlanSize have = drawable();
@@ -423,6 +474,7 @@ private:
 
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
+    SdlTypeface text_; ///< the real face, when there is one; see skin_sdl_text.hpp
     std::string status_;
     std::string score_;
     bool ok_ = false;

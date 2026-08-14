@@ -117,10 +117,31 @@ void type_all(Row& row, const std::string& text) {
     }
 }
 
+/// EVERYTHING ON A CANVAS THAT A CELL MEDIUM WOULD SHOW AS TEXT, in painter's
+/// order -- the labels, and then the text regions projected onto cells.
+///
+/// Since HD-1 a canvas may carry a bounded region whose interior a graphical
+/// medium sets in real type. Every assertion in this file that asks "what would a
+/// maker see at cell (x, y)" is asking the CELL question, so it goes through the
+/// same projection the terminal Skins use (`surface::project_text_regions`) rather
+/// than through a second reading of the region invented here. That is deliberate
+/// rather than convenient: if the projection ever stopped agreeing with what a
+/// character medium draws, these assertions would be describing a picture nothing
+/// paints -- and it is the picture the golden-byte suite pins in test_surface.cpp.
+///
+/// Regions come LAST because a region is the topmost thing on a canvas.
+std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCanvas& c) {
+    std::vector<surface::SurfaceLabel> out = c.labels;
+    for (surface::SurfaceLabel& l : surface::project_text_regions(c)) {
+        out.push_back(std::move(l));
+    }
+    return out;
+}
+
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
 /// a maker would see at a place.
 std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const surface::SurfaceLabel& l : c.labels) {
+    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
         if (l.x == x && l.y == y) {
             return l.text;
         }
@@ -135,7 +156,7 @@ std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
 /// whether an overlay covered what is under it.
 std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string seen;
-    for (const surface::SurfaceLabel& l : c.labels) {
+    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
         if (l.x == x && l.y == y) {
             seen = l.text;
         }
@@ -2451,7 +2472,7 @@ std::vector<loom::TranscriptEntry> of_kind(const loom::TerminalSession& me,
 /// Everything the overlay is showing, as one string -- the pane's own column, top to bottom.
 std::string pane_text(const surface::SurfaceCanvas& c) {
     std::string out;
-    for (const surface::SurfaceLabel& l : c.labels) {
+    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
         if (l.x == kMinScreen.terminal_x && l.y >= kMinScreen.terminal_y) {
             out += l.text;
             out += '\n';
@@ -5475,6 +5496,175 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     CHECK(label_at(t.canvases.back(), 0, kMinScreen.help_y).rfind("n new | d delete", 0) == 0);
 }
 
+TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.text("z");
+    const surface::SurfaceCanvas& c = t.canvases.back();
+
+    // ONE REGION, AND ONLY THE TERMINAL'S. No other panel migrated; the workspace, the
+    // object list, the inspector, the picker and the help band are all still labels.
+    REQUIRE(c.texts.size() == 1);
+    const surface::SurfaceTextRegion& pane = c.texts[0];
+    CHECK(pane.x == kMinScreen.terminal_x);
+    CHECK(pane.y == kMinScreen.terminal_y);
+    CHECK(pane.w == kMinScreen.terminal_w);
+    CHECK(pane.h == kMinScreen.terminal_h);
+    CHECK(pane.rows.size() == kMinScreen.terminal_lines);
+
+    // The backdrop is STILL A RECT IN CELLS. What got finer is the interior, not the
+    // furniture -- a region carries no background of its own and was not given one.
+    bool backdrop = false;
+    for (const surface::SurfaceRect& r : c.rects) {
+        if (r.x == pane.x && r.y == pane.y && r.w == pane.w && r.h == pane.h) {
+            backdrop = true;
+            CHECK(r.role == surface::role::kMuted);
+        }
+    }
+    CHECK(backdrop);
+
+    // The chrome is where it has always been, counted in the pane's own rows.
+    CHECK(pane.rows[0].text.rfind("TERMINAL -- weave #", 0) == 0);
+    CHECK(pane.rows[0].role == surface::role::kAccent);
+    CHECK(pane.rows[1].text.rfind(terminal_legend(), 0) == 0);
+    CHECK(pane.rows[pane.rows.size() - 1].text.rfind("> z_", 0) == 0);
+
+    // A ROW IS TRUNCATED BY THE PUBLISHER AND PADDED BY THE PROJECTION. The pane decides
+    // what it can show (a presentation decision); making a space erase the furniture
+    // underneath is every medium's business and is done for all of them at once.
+    for (const surface::SurfaceTextRow& row : pane.rows) {
+        CHECK(static_cast<std::int64_t>(row.text.size()) <= kMinScreen.terminal_cols);
+    }
+    for (const surface::SurfaceLabel& l : surface::project_text_regions(c)) {
+        CHECK(static_cast<std::int64_t>(l.text.size()) == kMinScreen.terminal_w);
+    }
+
+    // ...and with the pane closed there is no region at all.
+    t.toggle_terminal();
+    CHECK(t.canvases.back().texts.empty());
+}
+
+TEST_CASE("a medium that sets real type reflows the pane, and the omission stays true") {
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+
+    // Forty entries, each a sentence long enough to WRAP at 56 cells and not at 83
+    // columns -- which is exactly the width difference the metric buys, so the same
+    // record produces a different number of rows in the two media.
+    for (int i = 0; i < 40; ++i) {
+        (void)me->record_notice("entry " + std::to_string(i) +
+                                ": a sentence of some length, wrapping at the cell width");
+    }
+    t.text("x");
+    const std::size_t cell_shown = t.pane().shown.size();
+    const std::uint64_t cell_earlier = t.pane().earlier;
+
+    // THE MEDIUM SAYS IT HAS TYPE. Same cells, a real advance and a real line height.
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    const Screen sc = screen_of(t.session());
+    REQUIRE(sc.terminal_cols == 83);
+    REQUIRE(sc.terminal_rows == 4);
+
+    // THE SNAPSHOT AND THE PICTURE AGREE, which is the whole of HD-1's correctness
+    // requirement. Both sides asked `screen_of` for the same two numbers, so what the pane
+    // CHOSE to show is exactly what the pane SPENDS its rows on -- and `... N earlier` is
+    // therefore arithmetic rather than a hope.
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    REQUIRE(c.texts.size() == 1);
+    const surface::SurfaceTextRegion& pane = c.texts[0];
+    CHECK(pane.rows.size() == sc.terminal_lines);
+    CHECK(pane.w == kMinScreen.terminal_w); // the PLACEMENT did not move
+    CHECK(pane.h == kMinScreen.terminal_h);
+
+    std::size_t spent = 0;
+    for (const loom::TranscriptEntry& e : t.pane().shown) {
+        spent += terminal_wrapped(e, sc.terminal_cols).size();
+    }
+    CHECK(spent <= sc.terminal_rows);
+    CHECK(t.pane().earlier ==
+          me->transcript().size() - static_cast<std::uint64_t>(t.pane().shown.size()));
+    CHECK(terminal_omission(t.pane()) ==
+          "... " + std::to_string(t.pane().earlier) + " earlier");
+
+    // THE RECORD REFLOWED RATHER THAN BEING REWRITTEN. The same entries cost FEWER ROWS at
+    // the wider prose measure, which is the whole reason a pane four rows tall can still
+    // hold roughly what a pane nine cell-rows tall held.
+    std::size_t cell_cost = 0;
+    for (const loom::TranscriptEntry& e : t.pane().shown) {
+        cell_cost += terminal_wrapped(e, kMinScreen.terminal_w).size();
+    }
+    CHECK(cell_cost > spent);
+    CHECK(t.pane().shown.size() >= 1);
+    CHECK(t.pane().earlier > 0);
+    CHECK(t.pane().dropped == 0);
+    CHECK(cell_shown >= 1);
+    CHECK(cell_earlier > 0);
+
+    // A LONGER LINE IS THE PROOF THE WIDTH IS REAL: at 83 columns this is one row, and at
+    // 56 cells it is more than one.
+    const std::string long_line(70, 'w');
+    (void)me->record_notice(long_line);
+    t.text("y");
+    const loom::TranscriptEntry newest = me->transcript().tail(1)[0];
+    CHECK(terminal_wrapped(newest, sc.terminal_cols).size() == 1);
+    CHECK(terminal_wrapped(newest, kMinScreen.terminal_w).size() > 1);
+
+    // AND THE FACE GOING AWAY PUTS IT BACK. A metric of zero is the sentence "text is a
+    // cell", which is what the bitmap fallback draws -- so a font that fails to open leaves
+    // Workshop wrapping against the thing that is actually being painted, never against the
+    // metric of a face that is not there.
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 0, 0}));
+    const Screen back = screen_of(t.session());
+    CHECK(back.terminal_cols == kMinScreen.terminal_cols);
+    CHECK(back.terminal_lines == kMinScreen.terminal_lines);
+    CHECK(back.terminal_rows == kMinScreen.terminal_rows);
+    CHECK(t.canvases.back().texts[0].rows.size() == kMinScreen.terminal_lines);
+}
+
+TEST_CASE("a fresh skin's hello does NOT clear the presentation context -- measured, not blessed") {
+    // HD-1 §18, answered by measurement rather than by hope. The question is what happens if
+    // a metric-reporting graphical skin disappears and a non-reporting one becomes active in
+    // the same process, and the answer is: NOTHING HAPPENS, which is the problem.
+    //
+    // A terminal medium publishes no `SurfaceExtent` at all -- deliberately, because "I have
+    // no opinion" and "there is no room" are different sentences -- so after a live swap the
+    // only thing that could correct Workshop's presentation context never arrives, and the
+    // session keeps the dead window's cell extent AND, since HD-1, its text metric. The
+    // second is new; the FIRST has been true since G-2, and that is why this is reported here
+    // rather than repaired here: fixing it means deciding what a skin's hello does to a
+    // screen, which is a skin-handoff decision with its own evidence, not a detail of the
+    // extent's lifetime.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+
+    t.publish(loom::to_value(surface::SurfaceExtent{115, 63, 8, 18}));
+    CHECK(t.session().screen_w == 115);
+    CHECK(t.session().text_advance_px == 8);
+    CHECK(t.session().text_line_px == 18);
+
+    // A NEW SKIN SAYS HELLO. This is exactly what a freshly loaded incarnation publishes --
+    // once, on its first message -- and it is the only thing a terminal skin ever says about
+    // itself.
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+
+    // ...and the graphical numbers are all still here. Workshop repaints, at the extent and
+    // the metric of a surface that may no longer exist.
+    CHECK(t.session().screen_w == 115);
+    CHECK(t.session().text_advance_px == 8);
+    CHECK(t.session().text_line_px == 18);
+
+    // WHAT THAT COSTS, CONCRETELY, so the seam is a measurement rather than a worry: the pane
+    // chooses its rows at the graphical width and the cell projection then cuts them at the
+    // region's cell width, so a character medium inheriting a graphical context loses the
+    // right-hand end of every long row -- silently, because both halves are behaving.
+    const Screen sc = screen_of(t.session());
+    CHECK(sc.terminal_cols > sc.terminal_w);
+    CHECK(t.canvases.back().texts.size() == 1);
+}
+
 TEST_CASE("the pane says what it is not showing, in the two senses that differ") {
     Live t;
     loom::TerminalSession* me = t.mount_terminal();
@@ -5660,26 +5850,87 @@ TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
                                     kScreenMaxW,
                                     kScreenMaxW + 1,
                                     (std::numeric_limits<std::int64_t>::max)()};
+    // The metric is on the same wire and gets the same treatment (HD-1), so it is tried
+    // against the same hostile set -- as its own axis rather than as a cross product with
+    // the extent's. Sixty-four extents against sixty-four metrics is four thousand screens
+    // and seventy thousand assertions to say a thing that neither axis needs the other to
+    // say; a suite's assertion total is evidence about itself, and inflating it by two
+    // orders of magnitude for one property is how that evidence stops meaning anything.
+    const auto judge = [](const Screen& sc) {
+        CHECK(sc.w >= kScreenMinW);
+        CHECK(sc.w <= kScreenMaxW);
+        CHECK(sc.h >= kScreenMinH);
+        CHECK(sc.h <= kScreenMaxH);
+        // and the furniture stays a layout rather than becoming a shape
+        CHECK(sc.room_w >= kWorkspaceMinW);
+        CHECK(sc.room_h >= 1);
+        CHECK(sc.panel_x > 0);
+        CHECK(sc.terminal_x >= 0);
+        CHECK(sc.terminal_y >= 0);
+        CHECK(sc.terminal_x + sc.terminal_w == sc.w);
+        CHECK(sc.terminal_y + sc.terminal_h == sc.h);
+        CHECK(sc.terminal_rows >= 1);
+        CHECK(sc.notice_y < sc.h);
+        CHECK(sc.help_y + 1 < sc.h);
+        // THE PANE'S INTERIOR IS NEVER NOTHING. A medium could report a line taller than
+        // the whole pane, and a pane with no rows is indistinguishable from a broken tool
+        // -- so there is a floor, and `wrap` and `fit` are never handed a width of zero.
+        CHECK(sc.terminal_cols >= kTerminalMinCols);
+        CHECK(sc.terminal_lines >= sc.terminal_rows);
+        CHECK(sc.terminal_lines - sc.terminal_rows == static_cast<std::size_t>(kTerminalChrome));
+    };
+
     for (const std::int64_t w : hostile) {
         for (const std::int64_t h : hostile) {
-            const Screen sc = screen_of(w, h);
-            CHECK(sc.w >= kScreenMinW);
-            CHECK(sc.w <= kScreenMaxW);
-            CHECK(sc.h >= kScreenMinH);
-            CHECK(sc.h <= kScreenMaxH);
-            // and the furniture stays a layout rather than becoming a shape
-            CHECK(sc.room_w >= kWorkspaceMinW);
-            CHECK(sc.room_h >= 1);
-            CHECK(sc.panel_x > 0);
-            CHECK(sc.terminal_x >= 0);
-            CHECK(sc.terminal_y >= 0);
-            CHECK(sc.terminal_x + sc.terminal_w == sc.w);
-            CHECK(sc.terminal_y + sc.terminal_h == sc.h);
-            CHECK(sc.terminal_rows >= 1);
-            CHECK(sc.notice_y < sc.h);
-            CHECK(sc.help_y + 1 < sc.h);
+            judge(screen_of(w, h));                 // no metric: the pre-HD-1 domain
+            judge(screen_of(w, h, 8, 18));          // and the shipped face's
         }
     }
+    // The metric's own axis, against the minimum screen and a large one -- an advance of
+    // INT64_MIN and a line height of zero are as ordinary here as a width of -1.
+    for (const std::int64_t advance : hostile) {
+        for (const std::int64_t line : hostile) {
+            judge(screen_of(kScreenMinW, kScreenMinH, advance, line));
+            judge(screen_of(200, 90, advance, line));
+        }
+    }
+}
+
+TEST_CASE("the pane's interior follows the metric, and its placement does not") {
+    // HD-1's central claim, as arithmetic. A medium that sets real type changes how much
+    // PROSE the pane holds; it changes nothing about where the pane IS.
+    const Screen cells = screen_of(78, 22);
+    const Screen typed = screen_of(78, 22, 8, 18);
+
+    CHECK(typed.terminal_x == cells.terminal_x);
+    CHECK(typed.terminal_y == cells.terminal_y);
+    CHECK(typed.terminal_w == cells.terminal_w);
+    CHECK(typed.terminal_h == cells.terminal_h);
+
+    // 56 cells is 672 device pixels; less the inset, at 8 px a character, that is 83
+    // columns -- half again as much of every transcript line as the cell grid could show.
+    CHECK(cells.terminal_cols == 56);
+    CHECK(typed.terminal_cols == 83);
+    // ...and 156 pixels at an 18 px line is 8 rows where 13 cells used to be, which is the
+    // measured cost of real type at the minimum window and is stated rather than hidden.
+    CHECK(cells.terminal_lines == 13);
+    CHECK(typed.terminal_lines == 8);
+    CHECK(typed.terminal_rows == 8 - static_cast<std::size_t>(kTerminalChrome));
+
+    // AND IT MOVES THE RIGHT WAY WITH THE WINDOW. Every pixel a person drags the edge by is
+    // a pixel the metric spends on the record.
+    const Screen bigger = screen_of(115, 63, 8, 18);
+    CHECK(bigger.terminal_cols > typed.terminal_cols);
+    CHECK(bigger.terminal_rows > typed.terminal_rows);
+
+    // THE RESOLUTION IS THE SURFACE PACKAGE'S, NOT A SECOND COPY OF IT. This is what makes
+    // "one measurer" a structural fact rather than a convention: the number the pane budgets
+    // with is the number `fit_region` produces, and the graphical medium draws with the same
+    // call on the same inputs.
+    const surface::RegionFit fit = surface::fit_region(typed.terminal_x, typed.terminal_y,
+                                                      typed.terminal_w, typed.terminal_h, 8, 18);
+    CHECK(fit.columns == typed.terminal_cols);
+    CHECK(static_cast<std::size_t>(fit.rows) == typed.terminal_lines);
 }
 
 TEST_CASE("taking the room refits the workspace, and says whether anything moved") {

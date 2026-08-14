@@ -44,6 +44,7 @@
 // fires is recognisable.
 
 #include "cells.hpp"
+#include "region.hpp"
 #include "vocabulary.hpp"
 
 #include <cstdint>
@@ -112,6 +113,46 @@ inline constexpr CanvasPoint canvas_of_window_pixels(std::int64_t x, std::int64_
 /// "nothing there".
 inline constexpr CanvasPoint canvas_of_terminal_cells(std::int64_t x, std::int64_t y) noexcept {
     return CanvasPoint{x, add_cells(y, -kTuiCanvasTopRow)};
+}
+
+/// WHICH PROSE COLUMN OF A BOUNDED TEXT REGION A WINDOW PIXEL IS ON.
+///
+/// The cell answer one step finer, and it is the same shape of arithmetic:
+/// subtract where the region starts, then floor by the size of one character.
+/// `region_x` is the region's own cell coordinate — the number on the
+/// `SurfaceTextRegion` — and `fit` is what `fit_region` said about it, so the
+/// column a pointer lands on is resolved with the identical metric the rows were
+/// drawn with. Handing it the fit rather than the raw metric is what makes that
+/// unarguable.
+///
+/// A PROJECTION, NOT A HIT TEST, exactly as `canvas_of_window_pixels` is: a
+/// negative column and a column past the region's own `columns` are both
+/// legitimate answers meaning "not on this region's prose", and a consumer that
+/// cares tests for them. Under a cell-projection fit it degrades to the cell
+/// answer, which is the truthful one for a medium whose character IS a cell.
+///
+/// NOTHING IS WIRED TO THIS. It is pinned because the arithmetic is the part
+/// that would otherwise be re-derived — by a caret, a selection edge, a
+/// completion list, or a control inside a region — and because it is the honest
+/// place to say that the sub-cell precision the wire already carries
+/// (`input::PointerButton`'s pixels) is one function away from being usable.
+inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, std::int64_t region_x,
+                                                   const RegionFit& fit) noexcept {
+    if (!fit.graphical()) {
+        return sub_px(cell_of_pixel(px), region_x);
+    }
+    return floor_div_px(sub_px(px, add_cells(px_of_cells(region_x), fit.origin_x)),
+                        fit.advance_px);
+}
+
+/// WHICH PROSE ROW OF A BOUNDED TEXT REGION A WINDOW PIXEL IS ON. The other axis
+/// of `prose_column_of_pixel`, same rules, same non-answers.
+inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, std::int64_t region_y,
+                                                 const RegionFit& fit) noexcept {
+    if (!fit.graphical()) {
+        return sub_px(cell_of_pixel(py), region_y);
+    }
+    return floor_div_px(sub_px(py, add_cells(px_of_cells(region_y), fit.origin_y)), fit.line_px);
 }
 
 } // namespace zengine::surface

@@ -301,8 +301,26 @@ labels-vanish defect again at character granularity. `SurfaceText` — the named
 lines, which are a different shape — still lands in the window's *title*, because the canvas
 occupies the whole window.
 
-`SurfaceExtent{width, height}` is the one fact that travels the *other* way — a medium
-answering how much room it has, in canvas cells. Every other shape here is intent flowing
+`SurfaceTextRegion{x, y, w, h, rows}` is the **one place a canvas admits a medium may be
+finer than a cell** (HD-1). It is placed in cells like everything else — so where it sits is
+the same kind of fact as where a rect sits, and every medium can honour it — and what happens
+*inside* is the medium's: a terminal draws one `SurfaceTextRow{text, role}` per cell row, cut
+at `w` and dropped past `h`; a window that has a real face open draws the rows at its own
+advance and line height, inside the pixel rectangle those cells resolve to, clipped to its own
+viewport. Neither is pretending: the terminal is never asked to invent a pixel, and the window
+is never asked to round its type onto a twelve-pixel lattice. The cell projection is
+`surface/region.hpp`'s `project_text_regions`, one function shared by the terminal skins *and*
+by the SDL medium whenever it has no font — so the lower-fidelity answer is not a stub, it is
+literally the arithmetic the Terminal pane performed for itself before regions existed. Regions
+are the topmost thing on a canvas (rects, then labels, then regions), because a region is a
+grant of bounds and owns what is inside them. **How much fits is not on the shape** and that
+absence is load-bearing: `fit_region` resolves the region's bounds against the medium's text
+metric, and the publisher and the medium both call it, so "how many rows and columns" has one
+answer in the process. Workshop's Terminal is the only publisher of one; no other panel moved.
+
+`SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
+*other* way — a medium answering how much room it has, in canvas cells, and (since HD-1) how
+big one character of its own type is, in its own device pixels. Every other shape here is intent flowing
 publisher → skin; this is the only one flowing skin → publisher, and it exists because
 "how many cells is there room for" is a fact **only the medium holds**. The active skin
 publishes it when the answer CHANGES and at no other time (its own 10ms beat is what notices
@@ -311,6 +329,18 @@ window skin before its window exists — publishes **nothing** rather than publi
 "I have no opinion" and "there is no room" are different sentences. It is an *offer*: a
 publisher that ignores it keeps publishing whatever extent it likes and the skin clips, which
 is the contract `SurfaceCanvas` already states.
+
+**The metric exists because exactly one party may measure in a sizing conversation**, and for
+text that party has to be the application: the Terminal pane chooses which transcript entries
+it can show *whole* and then says how many it left out, and a medium that wrapped on its own
+behalf would make that sentence false. So the medium measures its face once and publishes the
+*result*; the application does the arithmetic. **Zero means "text is a cell"** — the honest
+answer for every terminal skin, for a window before its font opens, and for a window whose font
+*failed* to open, because in all three the thing actually being painted is a cell-sized glyph.
+What the metric deliberately does not carry is a family, a filename, a point size, an ascent, a
+hinting mode or a DPI: an application needs the result of measurement, not the mechanism, and
+every one of those fields would be a fact about one backend that a second backend would have to
+fake.
 
 The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
 remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
@@ -321,10 +351,25 @@ Three skins ship: **`zengine-skin-tui-classic`** and **`zengine-skin-tui-block`*
 snake drawers' looks, now living where drawing lives — the terminal medium is one header,
 golden-byte tested), and **`zengine-skin-sdl`** — a real window, same intent, zero
 medium-specific fields added anywhere (the agnosticism proof). The SDL skin is the only
-target that sees SDL: it fetches a **pinned static SDL3** where none is installed
+target that sees SDL: it fetches a **pinned shared SDL3** where none is installed
 (checksum in the build; `-DZENGINE_SDL_SKIN=OFF` declines), plans every frame as pure math
 (`skin_sdl_plan.hpp`, pinned on every lane), and degrades gracefully with no display — the
 suite drives it under SDL's dummy driver, and the window title carries the text slots.
+
+**It also owns a real typeface, for text regions and nothing else** (HD-1). HD-0 measured the
+graphical Terminal's defect precisely — the 5×5 bitmap letterform makes `a`, `e`, `o` and `c`
+differ by one pixel, so `weave` reads `woave`, and a probe measured that *scaling that face
+does not fix it*. So the skin carries JetBrains Mono Regular (SIL OFL 1.1,
+[surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md)) **embedded in the weave**: the
+build turns the file's bytes into a translation unit (`cmake/EmbedBinary.cmake`) and the medium
+opens them from memory through SDL_ttf. Nothing is installed, nothing is staged, nothing is
+discovered at runtime, and no host font is assumed — a skin either has its face or does not.
+When it does not, it says why on stderr and publishes no metric, which is the same sentence as
+"text is a cell", which is what the bitmap face draws: the pane degrades to the Workshop of
+before rather than to a blank rectangle, and the publisher's wrapping follows it there because
+it is wrapping against the metric it was told. SDL_ttf and its vendored FreeType ride the same
+pinned-and-checksummed fetch as SDL3 itself; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The SDL window **is an ear as well as a surface** (G-1): it was created not-focusable while
 the terminal was the game's only ear, and the flag came off when the SDL Reader made the
@@ -677,6 +722,21 @@ and no window itself.
   `w × h` cells from whatever canvas it is handed. Nothing authored moves: a cell coordinate
   is in the same cell on both screens and a share resolves to more cells, which is the
   authored/resolved discipline meeting a window edge.
+- **The Terminal pane's PLACEMENT is cells and its INTERIOR is prose** (HD-1). It is the one
+  panel that publishes a `SurfaceTextRegion`, and the split is the whole of what a text metric
+  buys: `Screen::terminal_x/y/w/h` still say where the pane is, in cells, unchanged; the new
+  `terminal_cols` / `terminal_lines` / `terminal_rows` say how much prose it holds, resolved by
+  `screen_of` from the metric the active medium published. **They are derived in exactly one
+  place, and that is a correctness requirement rather than tidiness** — the snapshot that
+  chooses which entries fit, the omission marker that says how many did not, and the painter
+  that spends the rows all read the same `Screen`, so `... N earlier` is arithmetic rather than
+  a hope. With no metric a character is a cell, `terminal_cols == terminal_w`, and the pane is
+  byte-for-byte the pane it has always been — asserted in the type system beside the numbers
+  that composition was written with. With the shipped face at the minimum window the pane holds
+  **83 columns and 8 rows** where the cell grid held 56 and 13: half again as much of every
+  transcript line, five fewer rows, and letters that can be told apart. There is a floor under
+  both, because the metric arrives off the bus and a pane with no rows is indistinguishable
+  from a broken tool.
 - **The terminal projection keeps the minimum, and that is its own policy rather than a
   stub.** A terminal skin owns no drawable whose size is its to read — it writes into a
   `Sink` that may be a string, a pipe or a console — so it declines the question, publishes

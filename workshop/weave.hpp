@@ -227,7 +227,7 @@ public:
     /// The rows are rebuilt because the `Resolved` row closes over the workspace extent, and
     /// the workspace extent is exactly what just changed.
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
-        if (!adopt_screen(session_, e.width, e.height)) {
+        if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px)) {
             return;
         }
         rebuild_rows();
@@ -768,7 +768,7 @@ private:
         const Screen sc = screen_of(session_);
         const loom::Transcript& record = host_->terminal->transcript();
         std::vector<loom::TranscriptEntry> newest = record.tail(sc.terminal_rows);
-        const std::size_t fits = entries_that_fit(newest, sc.terminal_w, sc.terminal_rows);
+        const std::size_t fits = entries_that_fit(newest, sc.terminal_cols, sc.terminal_rows);
         newest.erase(newest.begin(),
                      newest.end() - static_cast<std::ptrdiff_t>(fits));
         pane.shown = std::move(newest);
