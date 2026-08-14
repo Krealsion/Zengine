@@ -263,6 +263,22 @@ public:
             TTF_DrawRendererText(t, static_cast<float>(p.origin_x), top);
             TTF_DestroyText(t);
         }
+        // THE CARET, LAST, SO IT IS ON TOP OF THE TEXT IT SITS IN (HD-3). It is a filled
+        // bar and nothing else: `plan_caret` already decided whether there is one and
+        // exactly where, from the SAME `RegionFit` the rows above were positioned with, so
+        // this loop cannot put the caret anywhere the text does not agree with. The
+        // rectangle is local to the viewport like every other coordinate here, and the
+        // viewport is the clip -- a caret past the region's edge is cut by SDL rather than
+        // by an arithmetic special case.
+        //
+        // NOTHING BLINKS. A blink is a clock, and this Skin paints when a canvas arrives.
+        if (p.caret.present) {
+            SDL_SetRenderDrawColor(renderer, p.caret.ink.r, p.caret.ink.g, p.caret.ink.b,
+                                   SDL_ALPHA_OPAQUE);
+            const SDL_FRect bar{static_cast<float>(p.caret.x), static_cast<float>(p.caret.y),
+                                static_cast<float>(p.caret.w), static_cast<float>(p.caret.h)};
+            SDL_RenderFillRect(renderer, &bar);
+        }
         SDL_SetRenderViewport(renderer, had ? &previous : nullptr);
     }
 

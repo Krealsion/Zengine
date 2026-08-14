@@ -64,6 +64,22 @@ namespace zengine::surface {
 /// visible row of the record rather than a millimetre of air.
 inline constexpr std::int64_t kTextInsetPx = 2;
 
+/// HOW WIDE A CARET BAR IS, in device pixels, in a medium that sets real type.
+///
+/// It is here beside the inset rather than in a renderer for the identical
+/// reason: the width is part of the arithmetic that says where a caret is, so a
+/// hit test, a plan and a renderer must not each have their own. Two pixels, the
+/// same as the inset, because a caret has to be visible against a stem of the
+/// face beside it and must not be mistaken for one — at this repository's
+/// measured 8-pixel advance a bar of one pixel is a stem and a bar of four is a
+/// block cursor, which is a different thing that says "overwrite".
+///
+/// A BAR, NEVER A BLOCK, and that is a semantic statement rather than taste: the
+/// caret this vocabulary carries is an INSERTION POINT — it sits BETWEEN two
+/// characters — so a mark that covers one of them would be claiming the wrong
+/// thing about what the next keystroke does.
+inline constexpr std::int64_t kCaretWidthPx = 2;
+
 /// The largest cell coordinate that survives being multiplied into pixels. Not a
 /// policy about how big a canvas may be — exactly how many cells a pixel number
 /// can hold.
@@ -293,6 +309,17 @@ struct ProjectedRow {
 /// what a medium makes of a ground is the medium's own answer — an SGR background
 /// on a terminal, a filled strip in a window, nothing at all where a medium has
 /// no way to say it.
+///
+/// A CARET IS A CHARACTER HERE (HD-3), inserted at its column on its own row,
+/// and that is this projection's whole answer to it. A cell medium has no
+/// sub-cell position to put a bar at, so the honest lower-fidelity reading of
+/// "the next keystroke lands between these two characters" is to put a mark
+/// between them — which pushes the rest of the row one cell right and is exactly
+/// what the Workshop Terminal did for itself when the caret could only be at the
+/// end. Inserted BEFORE the cut, so a caret past the region's width falls off the
+/// row like any other character rather than being specially rescued: this
+/// projection does not scroll, and inventing a scroll here would be inventing one
+/// for every consumer at once.
 inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
     std::vector<ProjectedRow> out;
     for (const SurfaceTextRegion& r : c.texts) {
@@ -309,6 +336,10 @@ inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
             std::string text = said ? r.rows[at].text : std::string();
             const std::int64_t role = said ? r.rows[at].role : role::kFill;
             const std::int64_t back = said ? r.rows[at].background : role::kNone;
+            if (r.caret_row == i && r.caret_col >= 0 &&
+                r.caret_col <= static_cast<std::int64_t>(text.size())) {
+                text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
+            }
             if (text.size() > width) {
                 text.resize(width); // cut on a byte boundary: one cell per byte, as ever
             } else {

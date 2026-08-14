@@ -230,6 +230,12 @@ static_assert(scan::kBackspace == SDL_SCANCODE_BACKSPACE);
 static_assert(scan::kTab == SDL_SCANCODE_TAB);
 static_assert(scan::kLeftBracket == SDL_SCANCODE_LEFTBRACKET);
 static_assert(scan::kUp == SDL_SCANCODE_UP);
+// HD-3's three, pinned the same way and for a sharper reason: their whole claim is that they
+// are the values this backend ALREADY delivers, so an identity that drifted would make a
+// named key silently mean a different one.
+static_assert(scan::kHome == SDL_SCANCODE_HOME);
+static_assert(scan::kDelete == SDL_SCANCODE_DELETE);
+static_assert(scan::kEnd == SDL_SCANCODE_END);
 static_assert(scan::kDown == SDL_SCANCODE_DOWN);
 
 using SdlInputWeave = InputWeaveT<SdlReader>;

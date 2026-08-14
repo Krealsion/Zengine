@@ -2516,11 +2516,20 @@ struct Live {
     /// `widen` is the CANARY LEVER: it gives the participant Workshop's wider rule. The case
     /// that asserts a publication from the pane reaches nobody is only a measurement if this
     /// makes it fail.
-    loom::TerminalSession* mount_terminal(bool widen = false) {
+    /// `shapes` mounts EXTRA declared shapes beyond the default three. Zero is the default
+    /// and every pre-existing case keeps exactly the vocabulary it had; a case that needs the
+    /// completion list to be longer than the room it has (HD-3, the scrolled hit test) asks
+    /// for more, because a window that never slides proves nothing about the sliding.
+    loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
             .accepts(loom::schema_of<loom::Ack>())
             .accepts(loom::schema_of<loom::Refused>());
+        for (int i = 0; i < shapes; ++i) {
+            vocab.knows(loom::SchemaBuilder("Extra" + std::to_string(i), 1)
+                            .field("seq", loom::Kind::Int)
+                            .build());
+        }
         loom::Grant grant;
         grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
                             surface::kSkinRole);
@@ -2595,6 +2604,14 @@ struct Live {
     }
     static std::int64_t px_y(std::int64_t wy) {
         return (wy + kWorkspaceY) * surface::kCanvasCellPx;
+    }
+
+    /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a
+    /// terminal cell, untranslated. Every other helper here speaks WORKSPACE cells because
+    /// that is what a maker thinks in for the document; the Terminal's interior is finer
+    /// than a cell (HD-1), so its cases have to be able to say a pixel.
+    void press_at(std::int64_t x, std::int64_t y, std::int64_t space) {
+        publish(loom::to_value(input::PointerButton{1, true, x, y, space, input::mod::kNone}));
     }
 
     void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
@@ -5181,7 +5198,7 @@ TEST_CASE("the toggle's own keystroke never becomes text, in either direction") 
     CHECK(t.pane().input.empty());
 
     t.text("s");
-    CHECK(t.pane().input == "s");
+    CHECK(t.pane().input.text() == "s");
     t.toggle_terminal(); // close
     REQUIRE_FALSE(t.pane().open);
 
@@ -5241,7 +5258,7 @@ TEST_CASE("while the overlay is open the keys and the pointer belong to it") {
     t.text("n");
     t.key(input::scan::kD);
     t.text("d");
-    CHECK(t.pane().input == "hnd");
+    CHECK(t.pane().input.text() == "hnd");
     CHECK(t.first()->x == x);
     CHECK(t.doc().elements.size() == objects);
 
@@ -5253,7 +5270,7 @@ TEST_CASE("while the overlay is open the keys and the pointer belong to it") {
 
     // Backspace erases, escape clears the line and LEAVES THE PANE OPEN.
     t.key(input::scan::kBackspace);
-    CHECK(t.pane().input == "hn");
+    CHECK(t.pane().input.text() == "hn");
     t.key(input::scan::kEscape);
     CHECK(t.pane().input.empty());
     CHECK(t.pane().open);
@@ -5532,7 +5549,14 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     CHECK(pane.rows[0].text.rfind("TERMINAL -- weave #", 0) == 0);
     CHECK(pane.rows[0].role == surface::role::kAccent);
     CHECK(pane.rows[1].text.rfind(terminal_legend(), 0) == 0);
-    CHECK(pane.rows[pane.rows.size() - 1].text.rfind("> s_", 0) == 0);
+    // THE LINE, AND THE CARET SAID SEPARATELY FROM IT (HD-3). The row no longer carries a
+    // trailing `_`: the caret is a fact ABOUT the region, in the region's own prose
+    // lattice, so each medium can answer it in its own type. The projection below is where
+    // a character medium's answer is measured.
+    CHECK(pane.rows[pane.rows.size() - 1].text.rfind("> s", 0) == 0);
+    CHECK(pane.rows[pane.rows.size() - 1].text.find('_') == std::string::npos);
+    CHECK(pane.caret_row == static_cast<std::int64_t>(pane.rows.size()) - 1);
+    CHECK(pane.caret_col == kTerminalPromptCols + 1); // `> s` -- after the one character
 
     // A ROW IS TRUNCATED BY THE PUBLISHER AND PADDED BY THE PROJECTION. The pane decides
     // what it can show (a presentation decision); making a space erase the furniture
@@ -5767,7 +5791,7 @@ TEST_CASE("the overlay a maker actually sees: a solid pane, through the real ras
     s.terminal.open = true;
     s.terminal.attached = true;
     s.terminal.id = loom::WeaveId{3};
-    s.terminal.input = "send @";
+    s.terminal.input.set("send @", 6);
     loom::TranscriptEntry typed;
     typed.kind = loom::TranscriptKind::LocalCommand;
     typed.text = "send @zengine.skin SurfaceText 1";
@@ -6087,7 +6111,7 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
 
     // THE HOST'S DECLARED ORDER, preserved -- no ranking, no sorting, no learned order.
     const Completion all = complete_line(me, "send * ");
-    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v3",
+    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v4",
                                                     "zen.Ack v1"});
     // ACCEPTANCE WRITES THE VERSION TOO, because a shape without one is never a command
     // this pane can run: the grammar wants four words and the version is the fourth.
@@ -6097,7 +6121,7 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
     // CASE FOLLOWS THE WIRE. A schema name is identity; matching `surfacetext` against
     // `SurfaceText` would offer a completion that composes to UnknownShape.
     CHECK(displays(complete_line(me, "send * Surface")) ==
-          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v3"});
+          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v4"});
     CHECK(complete_line(me, "send * surface").candidates.empty());
     CHECK(complete_line(me, "send * surface").heading.find("(3 known)") != std::string::npos);
 
@@ -6223,7 +6247,7 @@ TEST_CASE("browsing candidates authors NOTHING -- no traffic, no ask, no transcr
     browse("send ");
     t.key(input::scan::kEscape); // the address list is showing: dismissed, line untouched
     t.key(input::scan::kTab);    // nothing showing: asked for again, line untouched
-    REQUIRE(t.pane().input == "send ");
+    REQUIRE(t.pane().input.text() == "send ");
     browse("@zengine.skin SurfaceText 1 slot=score text=hi");
     t.bus.pump();
 
@@ -6257,7 +6281,7 @@ TEST_CASE("accepting a candidate edits the line, and the grammar's separators st
     // so accepting is "drop what has been typed of this token, append what it was to be".
     t.text("s");
     t.key(input::scan::kTab);
-    CHECK(t.pane().input == "send ");
+    CHECK(t.pane().input.text() == "send ");
 
     // A FORM, ACCEPTED WITH NO SEPARATOR, because an id follows it immediately. This is
     // the address slot on purpose: it is the one this fixture's vocabulary makes three
@@ -6266,21 +6290,21 @@ TEST_CASE("accepting a candidate edits the line, and the grammar's separators st
     t.key(input::scan::kDown);
     CHECK(t.pane().completion.selected == 1);
     t.key(input::scan::kTab);
-    CHECK(t.pane().input == "send #");
+    CHECK(t.pane().input.text() == "send #");
     t.text("7 ");
 
     // A SHAPE, ACCEPTED WITH ITS VERSION, because four words is what the grammar wants.
     t.text("Surface");
     CHECK(t.pane().completion.slot == LineSlot::Shape);
     t.key(input::scan::kTab);
-    CHECK(t.pane().input == "send #7 SurfaceText 1 ");
+    CHECK(t.pane().input.text() == "send #7 SurfaceText 1 ");
     t.key(input::scan::kTab); // the first field
-    CHECK(t.pane().input == "send #7 SurfaceText 1 slot=");
+    CHECK(t.pane().input.text() == "send #7 SurfaceText 1 slot=");
 
     // NO SEPARATOR WAS DUPLICATED AND NONE WAS SWALLOWED -- the line still tokenizes to
     // exactly the words that were meant, which is the only definition of that claim that
     // does not depend on counting spaces by eye.
-    const std::vector<loom::Token> tok = loom::tokenize(t.pane().input);
+    const std::vector<loom::Token> tok = loom::tokenize(t.pane().input.text());
     REQUIRE(tok.size() == 5);
     CHECK(tok[0].text == "send");
     CHECK(tok[1].text == "#7");
@@ -6297,7 +6321,7 @@ TEST_CASE("accepting a candidate edits the line, and the grammar's separators st
         t.text(std::string(1, ch));
     }
     t.key(input::scan::kTab);
-    CHECK(t.pane().input == "ask @loom.weaver SurfaceText 1 ");
+    CHECK(t.pane().input.text() == "ask @loom.weaver SurfaceText 1 ");
 }
 
 TEST_CASE("the completion keys were unbound in this mode, and the ones that were not still work") {
@@ -6331,7 +6355,7 @@ TEST_CASE("the completion keys were unbound in this mode, and the ones that were
     t.text("s");
     CHECK(t.pane().completion.candidates.size() == 1);
     t.key(input::scan::kEscape);
-    CHECK(t.pane().input == "s");
+    CHECK(t.pane().input.text() == "s");
     CHECK(t.pane().dismissed);
     CHECK(t.canvases.back().texts.size() == 1); // the list is gone from the picture
     t.key(input::scan::kEscape);
@@ -6354,7 +6378,7 @@ TEST_CASE("the completion keys were unbound in this mode, and the ones that were
 
     // AND THE THREE KEYS THIS MODE ALREADY OWNED ARE UNCHANGED.
     t.key(input::scan::kBackspace);
-    CHECK(t.pane().input == "send");
+    CHECK(t.pane().input.text() == "send");
     t.key(input::scan::kReturn);
     CHECK(t.pane().input.empty());
     t.toggle_terminal();
@@ -6380,7 +6404,15 @@ TEST_CASE("an untouched line asks nothing, so the answer to the last command sta
     const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
     CHECK(pane.rows.back().text.find("tab: what can this terminal say?") != std::string::npos);
     t.text("s");
-    CHECK(t.canvases.back().texts[0].rows.back().text.rfind("> s_", 0) == 0);
+    CHECK(t.canvases.back().texts[0].rows.back().text.rfind("> s", 0) == 0);
+    // ...AND THE CELL PROJECTION STILL DRAWS THE SAME PICTURE IT ALWAYS DID (HD-3). The
+    // publisher stopped appending `_` and the projection started inserting it at the
+    // caret's column, which for a caret at the end of the line is the identical byte in the
+    // identical place -- said here rather than argued, because "unchanged" is a claim.
+    surface::SurfaceCanvas only_pane = t.canvases.back();
+    only_pane.texts.resize(1); // the list HD-2 raised over it is a second region, not this one
+    const std::vector<surface::ProjectedRow> shown = surface::project_text_regions(only_pane);
+    CHECK(shown.back().label.text.rfind("> s_", 0) == 0);
 }
 
 TEST_CASE("the list is a bounded region inside the pane, and never over the input line") {
@@ -8687,3 +8719,783 @@ TEST_CASE("the cells just outside a panel are ordinary workspace, on every edge"
     t.press(10, below - 1); // the panel's own last row
     CHECK(t.notice() == "Builder is here -- nothing under it can be taken hold of");
 }
+
+// ---- HD-3: the caret, and the pointer inside the pane -----------------------------------
+//
+// Everything below drives the same functions `workshop.cpp` binds and the same functions
+// `paint_terminal` draws with. There is no second geometry anywhere in these cases: where a
+// case needs a pixel it computes it from `terminal_input_place`, which is the function under
+// test as well as the one the painter uses -- so a case that agreed with a private copy of
+// the arithmetic would be agreeing with itself.
+
+/// The window pixel at the middle of a given prose column/row of the pane's own region.
+/// Deliberately the INVERSE of `terminal_input_place`'s resolution rather than a second
+/// spelling of it: a helper that recomputed the layout could be wrong in the same direction
+/// as the code it is checking.
+static std::int64_t pane_pixel_x(const TerminalInputPlace& p, std::int64_t column) {
+    return p.region_x * surface::kCanvasCellPx + p.fit.origin_x + column * p.fit.advance_px +
+           p.fit.advance_px / 2;
+}
+static std::int64_t pane_pixel_y(const TerminalInputPlace& p, std::int64_t row) {
+    return p.region_y * surface::kCanvasCellPx + p.fit.origin_y + row * p.fit.line_px +
+           p.fit.line_px / 2;
+}
+
+TEST_CASE("caret geometry: a byte index and a prose column are one number, both ways") {
+    // §22. PURE ARITHMETIC, across four faces rather than the live 8x18 one -- what is being
+    // pinned is the mapping, and a case written against a single metric would pass for a
+    // reason it does not claim. JetBrains Mono's raster is not pinned anywhere here.
+    struct Face {
+        std::int64_t advance;
+        std::int64_t line;
+    };
+    for (const Face f : {Face{0, 0}, Face{6, 14}, Face{8, 18}, Face{11, 23}, Face{15, 31}}) {
+        const Screen sc = screen_of(kScreenMinW, kScreenMinH, f.advance, f.line);
+        const TerminalInputPlace p = terminal_input_place(sc);
+        CAPTURE(f.advance);
+
+        // THE LINE IS THE PANE'S LAST PROSE ROW, whichever lattice this medium counts in.
+        CHECK(p.prose_row == static_cast<std::int64_t>(sc.terminal_lines) - 1);
+        CHECK(p.region_x == sc.terminal_x);
+        CHECK(p.region_y == sc.terminal_y);
+        CHECK(p.first_column == kTerminalPromptCols);
+        CHECK(p.columns == sc.terminal_cols - kTerminalPromptCols);
+
+        // CARET 0, MIDDLE, END -- one column per byte, offset by the prompt.
+        CHECK(terminal_caret_column(p, 0) == kTerminalPromptCols);
+        CHECK(terminal_caret_column(p, 5) == kTerminalPromptCols + 5);
+        CHECK(terminal_caret_column(p, 40) == kTerminalPromptCols + 40);
+
+        // ...AND BACK. The two are inverses over every position a line of this length has,
+        // which is the property a click-then-type depends on.
+        for (std::size_t at = 0; at <= 12; ++at) {
+            CHECK(terminal_caret_of_column(p, terminal_caret_column(p, at), 12) == at);
+        }
+
+        // THE BOUNDARIES, written down rather than left to the arithmetic.
+        CHECK(terminal_caret_of_column(p, 0, 12) == 0);                     // before the prompt
+        CHECK(terminal_caret_of_column(p, 1, 12) == 0);                     // inside the prompt
+        CHECK(terminal_caret_of_column(p, -400, 12) == 0);                  // far to the left
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols + 99, 12) == 12); // past the text
+        CHECK(terminal_caret_of_column(p, kTerminalPromptCols, 0) == 0);    // an empty line
+
+        // AN EMPTY LINE HAS EXACTLY ONE POSITION, and every column on the row names it.
+        for (std::int64_t col = -3; col < 20; ++col) {
+            CHECK(terminal_caret_of_column(p, col, 0) == 0);
+        }
+
+        // THE ROW IS THE WHOLE HIT TEST, and the column deliberately is not: a maker aiming
+        // past the end of a short command clicks empty room, and that is the most obvious
+        // gesture the row has.
+        CHECK(terminal_input_hit(p, kTerminalPromptCols, p.prose_row));
+        CHECK(terminal_input_hit(p, 0, p.prose_row));
+        CHECK(terminal_input_hit(p, p.fit.columns, p.prose_row));
+        CHECK_FALSE(terminal_input_hit(p, kTerminalPromptCols, p.prose_row - 1));
+        CHECK_FALSE(terminal_input_hit(p, kTerminalPromptCols, 0));
+        CHECK_FALSE(terminal_input_hit(p, -1, p.prose_row));
+        CHECK_FALSE(terminal_input_hit(p, p.fit.columns + 1, p.prose_row));
+    }
+
+    // TOTAL over the number line on both sides: a column arrives from a pointer off the bus
+    // and a length from a line a maker typed.
+    const TerminalInputPlace p = terminal_input_place(screen_of(kScreenMinW, kScreenMinH, 8, 18));
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(terminal_caret_of_column(p, kMin, 5) == 0);
+    CHECK(terminal_caret_of_column(p, kMax, 5) == 5);
+    CHECK(terminal_caret_column(p, 0) == kTerminalPromptCols);
+}
+
+TEST_CASE("the caret is a position in the line, and every operation keeps it in the line") {
+    // §2's invariant, exercised as operations rather than asserted as a comment: it holds
+    // because the operations are the only door, so this case walks through all of them.
+    TerminalInput in;
+    CHECK(in.caret() == 0);
+    CHECK(in.at_end());
+
+    in.type("abc");
+    CHECK(in.text() == "abc");
+    CHECK(in.caret() == 3);
+    CHECK(in.at_end());
+
+    in.left();
+    CHECK(in.caret() == 2);
+    CHECK_FALSE(in.at_end());
+    in.type("X");
+    CHECK(in.text() == "abXc"); // §24: type abc, Left, type X
+    CHECK(in.caret() == 3);
+
+    in.backspace();
+    CHECK(in.text() == "abc");
+    CHECK(in.caret() == 2);
+    in.erase_forward();
+    CHECK(in.text() == "ab");
+    CHECK(in.caret() == 2); // Delete does not move the caret; the text comes to meet it
+
+    in.home();
+    CHECK(in.caret() == 0);
+    in.backspace();          // at the start, and there is nothing before it
+    CHECK(in.text() == "ab");
+    CHECK(in.caret() == 0);
+    in.left();               // ...and stepping off the start stops at the start
+    CHECK(in.caret() == 0);
+    in.end();
+    CHECK(in.caret() == 2);
+    in.right();              // ...as does stepping off the end
+    CHECK(in.caret() == 2);
+    in.erase_forward();      // at the end, and there is nothing at it
+    CHECK(in.text() == "ab");
+
+    // A POSITION FROM OUTSIDE THE TEXT is clamped, never held.
+    in.place(999);
+    CHECK(in.caret() == 2);
+    in.place(0);
+    CHECK(in.caret() == 0);
+
+    // REPLACEMENT CANNOT LEAVE A STALE CARET, because the door takes both.
+    in.set("send * SurfaceText 1 ", 21);
+    CHECK(in.caret() == 21);
+    CHECK(in.at_end());
+    in.set("hi", 900);
+    CHECK(in.caret() == 2); // clamped by the same rule
+    in.clear();
+    CHECK(in.caret() == 0);
+    CHECK(in.empty());
+
+    // A SHORTER LINE CANNOT STRAND THE CARET PAST ITS END -- the property every one of the
+    // above rests on, checked directly.
+    in.set("abcdef", 6);
+    for (int i = 0; i < 10; ++i) {
+        in.backspace();
+        CHECK(in.caret() <= in.size());
+    }
+    CHECK(in.empty());
+}
+
+TEST_CASE("the caret steps over a character, never into the middle of one") {
+    // Workshop already decided what a character is -- `erase_one_character` walks UTF-8
+    // continuation bytes so that a backspace over an accented letter does not leave half of
+    // it behind. HD-3 spends the SAME two functions, so a caret cannot land somewhere a
+    // backspace would refuse to.
+    TerminalInput in;
+    in.type("a\xC3\xA9z"); // a, e-acute (two bytes), z
+    CHECK(in.size() == 4);
+    CHECK(in.caret() == 4);
+
+    in.left();
+    CHECK(in.caret() == 3); // before 'z'
+    in.left();
+    CHECK(in.caret() == 1); // before the accented letter, NOT between its two bytes
+    in.left();
+    CHECK(in.caret() == 0);
+    in.right();
+    CHECK(in.caret() == 1);
+    in.right();
+    CHECK(in.caret() == 3); // over the whole character, not one byte of it
+
+    // A PRESS THAT LANDS ON A CONTINUATION BYTE SNAPS BACK to the character it hit.
+    in.place(2);
+    CHECK(in.caret() == 1);
+
+    // ...and erasing from there takes the whole character.
+    in.end();
+    in.backspace();
+    in.backspace();
+    CHECK(in.text() == "a");
+
+    // WHAT IS NOT CLAIMED, said out loud: the accented letter occupies TWO columns in this
+    // presentation, because the projection is one cell per byte and the publisher's `fit`
+    // cuts at a byte. The caret agrees with what is drawn, which is the property that
+    // matters; codepoint and grapheme correctness are not claimed anywhere in Workshop.
+    const TerminalInputPlace p = terminal_input_place(screen_of(kScreenMinW, kScreenMinH, 8, 18));
+    CHECK(terminal_caret_column(p, 3) == kTerminalPromptCols + 3);
+}
+
+TEST_CASE("HD-3: typing lands at the caret, and submission does not depend on where it is") {
+    // §24, driven end to end through the real weave: keys in, a line out.
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("send * SurfaceText 1 slot=s")) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(t.pane().input.text() == "send * SurfaceText 1 slot=s");
+    REQUIRE(t.pane().input.caret() == t.pane().input.size());
+
+    // FIVE STEPS BACK, then repair the middle -- the workflow this phase exists for.
+    for (int i = 0; i < 5; ++i) {
+        t.key(input::scan::kLeft);
+    }
+    CHECK(t.pane().input.caret() == t.pane().input.size() - 5);
+    t.text("X");
+    CHECK(t.pane().input.text() == "send * SurfaceText 1 sXlot=s"); // at byte 22, inside `slot`
+    t.key(input::scan::kBackspace);
+    CHECK(t.pane().input.text() == "send * SurfaceText 1 slot=s");
+
+    // DELETE ERASES FORWARD AND HOME/END JUMP -- all three arrive on the SDL wire today
+    // (translate_sdl passes SDL's scancode through), which is why they are bound.
+    t.key(input::scan::kHome);
+    CHECK(t.pane().input.caret() == 0);
+    t.key(input::scan::kDelete);
+    CHECK(t.pane().input.text() == "end * SurfaceText 1 slot=s");
+    t.text("s");
+    CHECK(t.pane().input.text() == "send * SurfaceText 1 slot=s");
+    t.key(input::scan::kEnd);
+    CHECK(t.pane().input.at_end());
+
+    // SUBMISSION IS THE WHOLE LINE, EXACTLY ONCE, whatever the caret was doing. Return is
+    // not "submit up to the caret" -- which is what makes a mis-typed middle repairable
+    // without the repair changing what gets sent.
+    t.key(input::scan::kHome);
+    for (int i = 0; i < 4; ++i) {
+        t.key(input::scan::kRight);
+    }
+    REQUIRE(t.pane().input.caret() == 4);
+    const std::size_t before = me->transcript().size();
+    t.key(input::scan::kReturn);
+    CHECK(t.pane().input.empty());
+    CHECK(t.pane().input.caret() == 0);
+    std::size_t submitted = 0;
+    for (const loom::TranscriptEntry& e : me->transcript().entries()) {
+        if (e.text.find("send * SurfaceText 1 slot=s") != std::string::npos) {
+            ++submitted;
+        }
+    }
+    CHECK(submitted == 1);
+    CHECK(me->transcript().size() > before);
+}
+
+TEST_CASE("HD-3: a press on the input row places the caret where the maker aimed") {
+    // §9 and §23, in RAW PIXELS through the real bus -- the sub-cell precision the wire has
+    // carried since G-1 is finally the thing being spent, and it is spent without rounding
+    // to a cell first.
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : std::string("send @builder BuildRequsted")) {
+        t.text(std::string(1, c));
+    }
+    const Screen sc = screen_of(t.session());
+    REQUIRE(sc.text_advance_px == 8);
+    const TerminalInputPlace p = terminal_input_place(sc);
+    REQUIRE(p.fit.graphical());
+
+    // ON A CHARACTER: the caret goes before the character that was pressed. `BuildRequsted`
+    // starts at byte 14, so the missing `e` belongs at byte 23 -- before the `s` of `sted`.
+    t.press_at(pane_pixel_x(p, kTerminalPromptCols + 23), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    CHECK(t.pane().input.caret() == 23);
+
+    // ...AND TYPING THERE REPAIRS THE MIDDLE OF THE LINE WITHOUT CLEARING IT. This is §25's
+    // acceptance workflow, in one line of test.
+    t.text("e");
+    CHECK(t.pane().input.text() == "send @builder BuildRequested");
+    CHECK(t.pane().input.caret() == 24);
+
+    // Backspace and Delete both work from where the pointer put it.
+    t.key(input::scan::kBackspace);
+    CHECK(t.pane().input.text() == "send @builder BuildRequsted");
+    t.key(input::scan::kDelete);
+    CHECK(t.pane().input.text() == "send @builder BuildRequted");
+    t.text("s");
+    t.text("e");
+    CHECK(t.pane().input.text() == "send @builder BuildRequseted");
+    // ...and back to the command a maker actually meant, from the middle, without the line
+    // ever having been cleared.
+    t.key(input::scan::kBackspace);
+    t.key(input::scan::kBackspace);
+    REQUIRE(t.pane().input.text() == "send @builder BuildRequted");
+    t.press_at(pane_pixel_x(p, kTerminalPromptCols + 23), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    t.text("e");
+    t.text("s");
+    CHECK(t.pane().input.text() == "send @builder BuildRequested");
+
+    // BEFORE THE FIRST CHARACTER -> 0, including the inset and the prompt.
+    t.press_at(pane_pixel_x(p, 0), pane_pixel_y(p, p.prose_row), input::space::kPixels);
+    CHECK(t.pane().input.caret() == 0);
+    t.press_at(p.region_x * surface::kCanvasCellPx, pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    CHECK(t.pane().input.caret() == 0);
+
+    // AFTER THE LAST CHARACTER -> the end of the line, wherever on the row it landed.
+    t.press_at(pane_pixel_x(p, p.fit.columns), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    CHECK(t.pane().input.caret() == t.pane().input.size());
+
+    // A PRESS ON ANOTHER ROW OF THE PANE DOES NOT MOVE IT. The pane is one region; only its
+    // last prose row is the line.
+    t.press_at(pane_pixel_x(p, kTerminalPromptCols + 3), pane_pixel_y(p, 0),
+               input::space::kPixels);
+    CHECK(t.pane().input.caret() == t.pane().input.size());
+    t.press_at(pane_pixel_x(p, kTerminalPromptCols + 3), pane_pixel_y(p, p.prose_row - 3),
+               input::space::kPixels);
+    CHECK(t.pane().input.caret() == t.pane().input.size());
+
+    // ...and nor does a press outside the pane entirely, which is the same answer for a
+    // different reason: it is consumed by the MODE and reaches none of its regions.
+    t.press_at(4, 4, input::space::kPixels);
+    CHECK(t.pane().input.caret() == t.pane().input.size());
+}
+
+TEST_CASE("HD-3: a press in the pane never reaches the workspace underneath it") {
+    // §12 and §23's click-through proof. The pane covers the bottom-right of the screen,
+    // workspace included, so this is not hypothetical: these presses land on cells that hold
+    // real authored objects.
+    Live t;
+    (void)t.mount_terminal();
+    const std::int64_t was_x = t.first()->x;
+    const std::int64_t was_y = t.first()->y;
+    const std::int64_t was_selected = t.session().selected;
+    const std::string was_notice = t.notice();
+    t.toggle_terminal();
+
+    // EVERY PART OF THE SCREEN, with the pane open: on the pane, off the pane, on the
+    // workspace, on an object, on the side panel. None of them may author or select.
+    const Screen sc = screen_of(t.session());
+    for (const std::pair<std::int64_t, std::int64_t>& cell :
+         {std::pair<std::int64_t, std::int64_t>{sc.terminal_x + 4, sc.terminal_y + 4},
+          {sc.terminal_x, sc.terminal_y},
+          {2, 2},
+          {was_x, was_y},
+          {sc.panel_x + 2, 3},
+          {0, 0}}) {
+        t.publish(loom::to_value(input::PointerButton{
+            1, true, cell.first, cell.second + surface::kTuiCanvasTopRow, input::space::kCells,
+            input::mod::kNone}));
+        t.publish(loom::to_value(input::PointerButton{
+            1, false, cell.first, cell.second + surface::kTuiCanvasTopRow,
+            input::space::kCells, input::mod::kNone}));
+    }
+    CHECK(t.first()->x == was_x);
+    CHECK(t.first()->y == was_y);
+    CHECK(t.session().selected == was_selected);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice() == was_notice); // not even a sentence: the workspace was never asked
+
+    // MOTION IS STILL NOTHING AT ALL, which is what keeps a moved mouse from costing a
+    // repaint (§13, §28). Measured as canvases published rather than argued.
+    const std::size_t frames = t.canvases.size();
+    for (std::int64_t i = 0; i < 20; ++i) {
+        t.motion(i, i);
+    }
+    CHECK(t.canvases.size() == frames);
+
+    // ...and closing the pane restores every gesture exactly.
+    t.toggle_terminal();
+    t.press(was_x + 1, was_y + 1);
+    CHECK(t.session().drag.active);
+    t.release(was_x + 1, was_y + 1);
+}
+
+TEST_CASE("HD-3: opening the pane mid-drag does not strand the gesture") {
+    // REPRODUCED ON THE PRISTINE TREE FIRST (constitution rule 7), where the second check
+    // below moved the object from x=3 to x=22 on a motion with no button held. PNL-2 already
+    // wrote the rule this repairs: "a gesture that began on the workspace owns the pointer
+    // until it ends, so its release must end it wherever the maker's hand happens to be --
+    // occluding the release would strand `drag.active` true with the button up". The overlay
+    // was occluding it by arriving first.
+    Live t;
+    (void)t.mount_terminal();
+    const std::int64_t x = t.first()->x;
+    const std::int64_t y = t.first()->y;
+    t.press(x + 1, y + 1);
+    REQUIRE(t.session().drag.active);
+
+    t.toggle_terminal(); // shift+space, with the button still down
+    REQUIRE(t.session().terminal.open);
+    t.release(x + 1, y + 1);
+    CHECK_FALSE(t.session().drag.active);
+
+    // THE PROOF THAT IT MATTERS: with the pane closed again, a bare motion moves nothing,
+    // because nobody is holding anything.
+    t.toggle_terminal();
+    const std::int64_t settled = t.first()->x;
+    t.motion(x + 20, y + 1);
+    CHECK(t.first()->x == settled);
+
+    // ...AND THE OTHER DIRECTION IS UNTOUCHED (PNL-2): a drag that began on the workspace and
+    // was never interrupted still ends where the hand is, panel or no panel.
+    t.press(x + 1, y + 1);
+    REQUIRE(t.session().drag.active);
+    t.motion(x + 4, y + 1);
+    t.release(x + 4, y + 1);
+    CHECK_FALSE(t.session().drag.active);
+    CHECK(t.notice().rfind("released #", 0) == 0);
+}
+
+TEST_CASE("HD-3: clicking a completion row selects it, and Tab accepts what was clicked") {
+    // §10. ONE SELECTION, WHICHEVER HAND MOVED IT -- the click writes the field Up/Down
+    // write, so `accept_completion` needs to know nothing about a pointer and the renderer
+    // cannot tell which gesture chose the row.
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{115, 63, 8, 18}));
+    t.toggle_terminal();
+    t.text("s");
+    t.text("e");
+    t.text("n");
+    t.text("d");
+    t.text(" ");
+    REQUIRE(t.pane().completion.open);
+    REQUIRE(t.pane().completion.candidates.size() >= 3);
+    REQUIRE(t.pane().completion.selected == 0);
+
+    const Screen sc = screen_of(t.session());
+    const CompletionPlace list =
+        completion_place(sc, t.pane().completion.candidates.size() + 1);
+    REQUIRE(list.visible);
+    REQUIRE(list.rows >= 3); // heading plus at least two candidates
+    const surface::RegionFit fit = surface::fit_region(list.x, list.y, list.w, list.h,
+                                                       sc.text_advance_px, sc.text_line_px);
+    const auto row_pixel_y = [&](std::int64_t r) {
+        return list.y * surface::kCanvasCellPx + fit.origin_y + r * fit.line_px +
+               fit.line_px / 2;
+    };
+    const auto row_pixel_x = [&](std::int64_t col) {
+        return list.x * surface::kCanvasCellPx + fit.origin_x + col * fit.advance_px +
+               fit.advance_px / 2;
+    };
+
+    // ROW 2 IS THE SECOND CANDIDATE (row 0 is the heading), and clicking it selects it.
+    t.press_at(row_pixel_x(4), row_pixel_y(2), input::space::kPixels);
+    CHECK(t.pane().completion.selected == 1);
+    t.press_at(row_pixel_x(4), row_pixel_y(1), input::space::kPixels);
+    CHECK(t.pane().completion.selected == 0);
+
+    // THE HEADING IS NOT A CANDIDATE. A press on it is consumed by the list and changes
+    // nothing -- and in particular does not fall through to the input line, which is not
+    // underneath it at all.
+    t.press_at(row_pixel_x(4), row_pixel_y(0), input::space::kPixels);
+    CHECK(t.pane().completion.selected == 0);
+    CHECK(t.pane().input.text() == "send ");
+    CHECK(t.pane().input.at_end());
+
+    // CLICK SELECTS; TAB ACCEPTS. The smallest unsurprising contract -- no double-click
+    // machinery, no mouse-only acceptance path, and the acceptance is the one HD-2 shipped.
+    t.press_at(row_pixel_x(4), row_pixel_y(2), input::space::kPixels);
+    REQUIRE(t.pane().completion.selected == 1);
+    const std::string wanted = t.pane().completion.candidates[1].insert;
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input.text() == "send " + wanted);
+    CHECK(t.pane().input.at_end()); // §14: the caret follows the inserted result
+
+    // A ROW THE LIST DOES NOT HAVE selects nothing and authors nothing.
+    const std::size_t chosen = t.pane().completion.selected;
+    t.press_at(row_pixel_x(4), row_pixel_y(static_cast<std::int64_t>(list.rows) + 40),
+               input::space::kPixels);
+    CHECK(t.pane().completion.selected == chosen);
+}
+
+TEST_CASE("HD-3: the click reads the SAME window the rows were drawn with") {
+    // §10's real risk, and the reason `completion_first_shown` was lifted out of
+    // `completion_rows`: once the list has SCROLLED, "row 1" is not candidate 0. A second
+    // copy of the windowing would be right until the first scroll and wrong afterwards --
+    // which is to say wrong only when nobody is looking for it.
+    for (std::size_t capacity : {std::size_t{1}, std::size_t{2}, std::size_t{4},
+                                 std::size_t{9}}) {
+        CAPTURE(capacity);
+        for (std::size_t selected = 0; selected < 12; ++selected) {
+            const std::size_t first = completion_first_shown(selected, capacity);
+            if (capacity <= 1) {
+                CHECK(first == 0); // no candidate row at all: the heading is the whole list
+                continue;
+            }
+            const std::size_t room = capacity - 1;
+            // THE SELECTED CANDIDATE IS ALWAYS ON A VISIBLE ROW, which is the property the
+            // hit test inverts.
+            CHECK(selected >= first);
+            CHECK(selected < first + room);
+        }
+    }
+
+    // ...and the inversion agrees with the rows actually produced, at every selection.
+    Completion comp;
+    comp.open = true;
+    comp.heading = "shapes";
+    for (int i = 0; i < 9; ++i) {
+        Candidate c;
+        c.display = "cand" + std::to_string(i);
+        c.insert = "cand" + std::to_string(i) + " ";
+        comp.candidates.push_back(c);
+    }
+    for (std::size_t sel = 0; sel < comp.candidates.size(); ++sel) {
+        comp.selected = sel;
+        const std::size_t capacity = 4;
+        const std::vector<surface::SurfaceTextRow> rows = completion_rows(comp, capacity, 60);
+        const std::size_t first = completion_first_shown(sel, capacity);
+        REQUIRE(rows.size() >= 2);
+        for (std::size_t r = 1; r < rows.size(); ++r) {
+            // The row a press on visible row `r` would resolve to is the row whose text is
+            // actually there.
+            const std::size_t candidate = first + (r - 1);
+            REQUIRE(candidate < comp.candidates.size());
+            CHECK(rows[r].text.find(comp.candidates[candidate].display) != std::string::npos);
+        }
+    }
+}
+
+TEST_CASE("HD-3: a click on a SCROLLED list picks the row that is actually there") {
+    // THE CASE THE WINDOWING EXISTS FOR, and the one a first=0 hit test passes without.
+    // In a large pane the list holds every candidate, so "row 1 is candidate 0" is true by
+    // accident; here the pane is the minimum one and the list is shorter than the vocabulary,
+    // so the window has to slide and row 1 stops being candidate 0.
+    Live t;
+    (void)t.mount_terminal(/*widen=*/false, /*shapes=*/8);
+    t.toggle_terminal(); // no SurfaceExtent: the minimum pane, a character IS a cell
+    for (const char c : std::string("send * ")) {
+        t.text(std::string(1, c));
+    }
+    const std::size_t n = t.pane().completion.candidates.size();
+    REQUIRE(n >= 3);
+    const Screen sc = screen_of(t.session());
+    const CompletionPlace list = completion_place(sc, n + 1);
+    REQUIRE(list.visible);
+    REQUIRE(list.rows < n + 1); // it must SCROLL, or this case proves nothing
+    const std::size_t room = list.rows - 1;
+
+    // Drive the selection to the last candidate: the window has slid as far as it goes.
+    for (std::size_t i = 0; i + 1 < n; ++i) {
+        t.key(input::scan::kDown);
+    }
+    REQUIRE(t.pane().completion.selected == n - 1);
+    const std::size_t first = completion_first_shown(n - 1, list.rows);
+    REQUIRE(first > 0); // ...and it is no longer showing candidate 0
+
+    // THE ROWS SAY WHICH CANDIDATES ARE THERE, and the top visible one is `first`.
+    const std::vector<surface::SurfaceTextRow> rows =
+        completion_rows(t.pane().completion, list.rows, sc.terminal_cols);
+    REQUIRE(rows.size() == list.rows);
+    CHECK(rows[1].text.find(t.pane().completion.candidates[first].display) !=
+          std::string::npos);
+
+    // ...so a press on visible row 1 must select candidate `first`, not candidate 0. That is
+    // the assertion a hit test which ignored the window would fail, and it can only fail
+    // once the list has scrolled -- which is to say only when nobody is looking for it.
+    t.publish(loom::to_value(input::PointerButton{
+        1, true, list.x + 4, list.y + 1 + surface::kTuiCanvasTopRow, input::space::kCells,
+        input::mod::kNone}));
+    CHECK(t.pane().completion.selected == first);
+    CHECK(t.pane().completion.selected != 0);
+
+    // EVERY VISIBLE ROW, not only the first: the mapping is the whole window, inverted.
+    for (std::size_t r = 1; r <= room && first + (r - 1) < n; ++r) {
+        const std::size_t before = t.pane().completion.selected;
+        const std::size_t window = completion_first_shown(before, list.rows);
+        t.publish(loom::to_value(input::PointerButton{
+            1, true, list.x + 4, list.y + static_cast<std::int64_t>(r) + surface::kTuiCanvasTopRow,
+            input::space::kCells, input::mod::kNone}));
+        CHECK(t.pane().completion.selected == window + (r - 1));
+    }
+}
+
+TEST_CASE("HD-3: completion follows the END of the line, and says so when it cannot") {
+    // §5. HD-2's completer rests on an assumption that was free when the caret could not
+    // move -- the token being completed is the LAST one, so accepting is "drop what has been
+    // typed of this token, append what it was going to be". With the caret in the middle,
+    // that edit would delete everything after it. The smallest honest policy is to say so.
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{115, 63, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : std::string("send * Surface")) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(t.pane().completion.open);
+    REQUIRE_FALSE(t.pane().completion.candidates.empty());
+    const std::size_t offered = t.pane().completion.candidates.size();
+
+    // MOVE THE CARET OFF THE END, and the list stops answering a question the maker is no
+    // longer standing in.
+    t.key(input::scan::kLeft);
+    CHECK(t.pane().completion.open); // it still SAYS something...
+    CHECK(t.pane().completion.candidates.empty()); // ...and it is not a candidate
+    CHECK(t.pane().completion.heading.find("END of the line") != std::string::npos);
+
+    // A HEADING WITH NO CANDIDATES IS EXACTLY HD-2's SHAPE, so every gesture that depends on
+    // "is there something to choose" is unchanged: Tab does not accept, Escape still clears.
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input.text() == "send * Surface"); // nothing was accepted
+    t.key(input::scan::kUp);
+    CHECK(t.pane().completion.selected == 0);
+
+    // BACK TO THE END, and the same candidates come back -- the policy is about WHERE the
+    // caret is, and holds nothing of its own.
+    t.key(input::scan::kEnd);
+    CHECK(t.pane().completion.candidates.size() == offered);
+    CHECK(t.pane().completion.heading.find("END of the line") == std::string::npos);
+
+    // A CLICK MOVES IT THE SAME WAY A KEY DOES -- one state, two hands.
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    t.press_at(pane_pixel_x(p, kTerminalPromptCols + 2), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    REQUIRE(t.pane().input.caret() == 2);
+    CHECK(t.pane().completion.candidates.empty());
+    t.press_at(pane_pixel_x(p, p.fit.columns), pane_pixel_y(p, p.prose_row),
+               input::space::kPixels);
+    CHECK(t.pane().input.at_end());
+    CHECK(t.pane().completion.candidates.size() == offered);
+
+    // AND NONE OF IT AUTHORS ANYTHING (§23, §20). Browsing, clicking, moving the caret --
+    // measured by SENDER, because Workshop's own weave publishes to the same office on every
+    // repaint.
+    std::size_t authored = 0;
+    for (const loom::TranscriptEntry& e : me->transcript().entries()) {
+        (void)e;
+        ++authored;
+    }
+    CHECK(authored == 0);
+    CHECK(me->pending().empty());
+    CHECK_FALSE(me->awaiting());
+}
+
+TEST_CASE("HD-3: the pane publishes a caret, and both media answer it in their own type") {
+    // §6. The publisher stopped appending `_`; the position is a fact ABOUT the region now,
+    // so a window fills a bar and a cell medium inserts a character -- and for a caret at the
+    // end of the line the character medium's answer is byte-for-byte the row that was there
+    // before this phase.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("send * S")) {
+        t.text(std::string(1, c));
+    }
+    // ESCAPE DISMISSES THE LIST AND LEAVES THE LINE (HD-2), which is why the prefix is one
+    // the catalog actually answers: over a prefix that matched nothing the list is
+    // heading-only, and Escape goes on meaning "clear the line" there.
+    REQUIRE_FALSE(t.pane().completion.candidates.empty());
+    t.key(input::scan::kEscape);
+    REQUIRE(t.pane().input.text() == "send * S");
+
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_row == static_cast<std::int64_t>(pane.rows.size()) - 1);
+        CHECK(pane.caret_col == kTerminalPromptCols + 8);
+        CHECK(pane.rows.back().text == "> send * S");
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::ProjectedRow> shown =
+            surface::project_text_regions(only_pane);
+        CHECK(shown.back().label.text.rfind("> send * S_", 0) == 0);
+    }
+
+    // IN THE MIDDLE: the region says where, the row does not move, and the cell projection
+    // puts the mark between the two characters the next keystroke lands between.
+    t.key(input::scan::kLeft);
+    t.key(input::scan::kLeft);
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_col == kTerminalPromptCols + 6);
+        CHECK(pane.rows.back().text == "> send * S"); // the LINE is unchanged
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::ProjectedRow> shown =
+            surface::project_text_regions(only_pane);
+        CHECK(shown.back().label.text.rfind("> send *_ S", 0) == 0);
+    }
+
+    // AN EMPTY LINE still names the gesture that asks, and the caret sits at its start --
+    // which is the identical row HD-2 published, reassembled from two facts instead of one.
+    t.key(input::scan::kEscape);
+    REQUIRE(t.pane().input.empty());
+    {
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_col == kTerminalPromptCols);
+        surface::SurfaceCanvas only_pane = t.canvases.back();
+        only_pane.texts.resize(1);
+        const std::vector<surface::ProjectedRow> shown =
+            surface::project_text_regions(only_pane);
+        CHECK(shown.back().label.text.rfind("> _   tab: what can this terminal say?", 0) == 0);
+    }
+
+    // THE COMPLETION LIST CARRIES NO CARET. It is a second region of the same pane and it is
+    // not where anybody is typing -- said here because "there is exactly one caret on this
+    // canvas" is the closest thing this application has to a focus fact, and it is a
+    // consequence of who publishes rather than of a service that arbitrates.
+    t.text("s");
+    REQUIRE(t.canvases.back().texts.size() == 2);
+    CHECK(t.canvases.back().texts[0].caret_row >= 0);
+    CHECK(t.canvases.back().texts[1].caret_row == surface::kNoCaret);
+}
+
+TEST_CASE("HD-3: hit geometry follows presentation geometry across a resize") {
+    // §25 item 12 and the report's resize witness: the same click lands on the same
+    // character before and after the window changes size, because both the picture and the
+    // hit test are resolved from the one `Screen` the medium's extent produced.
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : std::string("send * SurfaceText")) {
+        t.text(std::string(1, c));
+    }
+
+    for (const surface::SurfaceExtent& e :
+         {surface::SurfaceExtent{78, 22, 8, 18}, surface::SurfaceExtent{115, 63, 8, 18},
+          surface::SurfaceExtent{140, 40, 11, 23}, surface::SurfaceExtent{78, 22, 0, 0}}) {
+        t.publish(loom::to_value(e));
+        const Screen sc = screen_of(t.session());
+        const TerminalInputPlace p = terminal_input_place(sc);
+        CAPTURE(sc.terminal_x);
+        CAPTURE(sc.text_advance_px);
+
+        // THE PANE ITSELF MOVED -- this is not a case where nothing changed.
+        CHECK(p.region_x == sc.terminal_x);
+
+        for (const std::size_t want : {std::size_t{0}, std::size_t{7}, std::size_t{18}}) {
+            if (p.fit.graphical()) {
+                t.press_at(pane_pixel_x(p, terminal_caret_column(p, want)),
+                           pane_pixel_y(p, p.prose_row), input::space::kPixels);
+            } else {
+                // No metric: a character IS a cell, and the medium reports cells.
+                t.press_at(p.region_x + terminal_caret_column(p, want),
+                           p.region_y + p.prose_row + surface::kTuiCanvasTopRow,
+                           input::space::kCells);
+            }
+            CHECK(t.pane().input.caret() == want);
+        }
+
+        // ...and the CARET THE PANE DREW is at the column the press resolved to, which is
+        // the whole of "the geometry that drew it is the geometry that hit it".
+        const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+        CHECK(pane.caret_col == terminal_caret_column(p, t.pane().input.caret()));
+        CHECK(pane.caret_row == p.prose_row);
+    }
+}
+
+TEST_CASE("HD-3: a terminal medium's press reaches the same local hit model") {
+    // §17. The graphical lane is where this phase closes, but the routing is stamped with
+    // `space` rather than with a backend identity -- so a cell-reporting medium takes the
+    // other branch of `prose_at` and lands on the same caret. Whether a terminal BACKEND can
+    // report a press is a separate question this phase did not touch (no escape-sequence
+    // work, no terminal mouse protocol); what is proven here is that the Terminal's own hit
+    // model does not stand in the way.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal(); // no SurfaceExtent: a character IS a cell here
+    for (const char c : std::string("send * Ping")) {
+        t.text(std::string(1, c));
+    }
+    const Screen sc = screen_of(t.session());
+    REQUIRE(sc.text_advance_px == 0);
+    const TerminalInputPlace p = terminal_input_place(sc);
+    REQUIRE_FALSE(p.fit.graphical());
+
+    for (const std::size_t want : {std::size_t{0}, std::size_t{4}, std::size_t{11}}) {
+        t.publish(loom::to_value(input::PointerButton{
+            1, true, p.region_x + terminal_caret_column(p, want),
+            p.region_y + p.prose_row + surface::kTuiCanvasTopRow, input::space::kCells,
+            input::mod::kNone}));
+        CHECK(t.pane().input.caret() == want);
+    }
+
+    // A SPACE THIS APPLICATION DOES NOT RECOGNISE MOVES NOTHING, and is still consumed by
+    // the mode -- guessing is how a click lands twelve cells from where a maker pointed.
+    const std::size_t held = t.pane().input.caret();
+    t.publish(loom::to_value(input::PointerButton{1, true, 4, 4, input::space::kUnknown,
+                                                   input::mod::kNone}));
+    CHECK(t.pane().input.caret() == held);
+}
+

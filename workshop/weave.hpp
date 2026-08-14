@@ -354,7 +354,10 @@ public:
         // The overlay is where typing goes while it is open. Same rule as the
         // keys, same reason, and the inspector draft underneath is untouched.
         if (session_.terminal.open) {
-            session_.terminal.input += t.text;
+            // AT THE CARET, WHICH SINCE HD-3 IS NOT ALWAYS THE END. `type` is the only door
+            // that moves the text and the caret together, so a keystroke in the middle of a
+            // line cannot leave one behind.
+            session_.terminal.input.type(t.text);
             // The line changed, so what could be said next changed with it (HD-2).
             // Typing IS the completion gesture -- there is no second key that
             // summons the list, because a maker who has to ask for discovery has to
@@ -406,21 +409,49 @@ public:
     /// refocusing would grab whatever the pointer had last been seen over.
     /// Nothing here remembers a pointer.
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-        // WHILE THE OVERLAY IS OPEN THE POINTER DOES NOTHING, and this is one
-        // rule rather than a focus framework. The pane covers the bottom-right
-        // of the screen, workspace included, so a press there would take hold of
-        // an object the maker cannot see -- and a press just outside it would
-        // move the document out from under a mode they are typing in. One
-        // sentence covers both: while the terminal is open, the terminal has the
-        // input. There is no focus object, no hit test against the pane, no
-        // capture and no z-order; closing it restores every gesture exactly.
+        // WHILE THE OVERLAY IS OPEN THE WORKSPACE GETS NOTHING, and that half is
+        // unchanged since PNL-2: the pane covers the bottom-right of the screen,
+        // workspace included, so a press there would take hold of an object the
+        // maker cannot see -- and a press just outside it would move the document
+        // out from under a mode they are typing in. One sentence covers both:
+        // while the terminal is open, the terminal has the input. There is no
+        // focus object, no capture and no z-order; closing it restores every
+        // gesture exactly.
         //
-        // IT IS STILL NOT A BOUNDS TEST, and PNL-2 sharpened rather than
-        // replaced that. A panel below is refused by WHERE the press landed; the
-        // pane is refused by the fact that it is open at all, which is wider and
-        // is the right width -- a maker typing into the pane is not also
-        // authoring in the workspace, and a maker with a panel open is.
+        // WHAT HD-3 CHANGED IS THAT THE TERMINAL NOW DOES SOMETHING WITH IT --
+        // and only inside itself. The mode is still a MODE: it takes every
+        // pointer event anywhere, and `terminal_press` decides whether one of the
+        // regions the Terminal OWNS wants it. A press that lands on none of them
+        // is still consumed by the mode rather than falling through, which is the
+        // whole of what stops a click on the pane's empty middle from selecting
+        // an object behind it. That is the first PLACE-WITHIN-A-MODE this
+        // application has, and it is a bounds test against the Terminal's own
+        // regions rather than a widget registry: nothing below is an entity,
+        // nothing has an identity, and closing the pane removes all of it because
+        // there is nothing to remove.
         if (session_.terminal.open) {
+            // A RELEASE STILL ENDS A DRAG THAT BEGAN ON THE WORKSPACE, and this is a
+            // repair rather than a new rule (PNL-2's own: "a gesture that began on the
+            // workspace owns the pointer until it ends, so its release must end it
+            // wherever the maker's hand happens to be"). Opening the pane mid-drag used
+            // to swallow the release, leaving `drag.active` true with the button up --
+            // after which closing the pane made the next bare motion drag an object
+            // nobody was holding. Occluding a release is the one thing this file already
+            // knew not to do; the overlay was doing it by arriving first.
+            //
+            // SILENTLY, WHICH IS THE ONE PLACE THIS FILE'S "SAY SO" RULE DOES NOT APPLY.
+            // `toggle_terminal` already wrote down why: the notice line is not painted
+            // while the pane covers it, so a sentence made now is one nobody can read and
+            // that would then reappear, stale, when the pane closes -- and closing writes
+            // its own notice over it anyway. The gesture is ended; there is nobody to
+            // tell.
+            if (!b.pressed && b.button == 1 && session_.drag.active) {
+                end_drag(session_);
+                return;
+            }
+            if (b.pressed && b.button == 1 && terminal_press(b)) {
+                repaint(mail);
+            }
             return;
         }
         const PointedAt at = canvas_point_of(b.space, b.x, b.y);
@@ -678,7 +709,24 @@ private:
         TerminalPane& pane = session_.terminal;
         switch (k.scancode) {
         case input::scan::kReturn: submit_terminal_line(); break;
-        case input::scan::kBackspace: erase_one_character(pane.input); break;
+        case input::scan::kBackspace: pane.input.backspace(); break;
+        // THE CARET KEYS (HD-3). All three were `default: break` before this phase --
+        // source-traced, exactly as HD-2 traced its three. Left/Right are bound in COMMAND
+        // mode to nothing at all (that mode's directional gestures are `hjkl` and the
+        // up/down arrows), and this mode is not reachable from it, so no gesture anywhere
+        // changed meaning.
+        //
+        // THEY DO NOT `return` THE WAY Up/Down DO, and the difference is the phase. Up/Down
+        // move a selection and skip the rebuild because the line did not change; a caret
+        // move does not change the line either, but it changes whether the caret is AT THE
+        // END -- which is the question the completer is allowed to be asked (see
+        // `refresh_terminal`). Falling through is what makes the list appear and disappear
+        // as the caret leaves and returns to the end.
+        case input::scan::kLeft: pane.input.left(); break;
+        case input::scan::kRight: pane.input.right(); break;
+        case input::scan::kDelete: pane.input.erase_forward(); break;
+        case input::scan::kHome: pane.input.home(); break;
+        case input::scan::kEnd: pane.input.end(); break;
         case input::scan::kEscape:
             if (completion_selectable()) {
                 // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted
@@ -693,7 +741,7 @@ private:
                 // leave the list hidden for the whole of the next command with nothing
                 // on screen to explain why. (Measured: after Escape-Escape the next
                 // three characters produced no list at all.)
-                pane.input.clear();
+                pane.input.clear(); // ...and the caret with it: `clear` moves both
                 pane.dismissed = false;
             }
             break;
@@ -714,6 +762,83 @@ private:
         default: break;
         }
         refresh_terminal();
+    }
+
+    /// A PRESS INSIDE THE TERMINAL MODE — the first place-within-a-mode (HD-3).
+    ///
+    /// Answers whether anything changed, so the caller repaints for a press that did
+    /// something and stays quiet for one that landed on the pane's furniture. It never
+    /// answers "not mine": the mode consumes every press either way, which is what makes
+    /// click-through impossible without a z-order service to prevent it.
+    ///
+    /// THE ORDER IS THE PAINTER'S ORDER, BACKWARDS, and that is the whole of the arbitration:
+    /// `paint_terminal` pushes the pane and then the completion list, and painter's order
+    /// across `texts` is list order, so the list is on top -- therefore the list is asked
+    /// first. Two regions, one rule, and no z-order object to hold it.
+    ///
+    /// IT CONSUMES THE PLACEMENT THE PAINTER RESOLVED, never a second interpretation of it.
+    /// `completion_place` and `terminal_input_place` are each called with the same `Screen`
+    /// the painter uses, which is what makes "click the row you can see" true rather than
+    /// approximately true after the list has scrolled.
+    bool terminal_press(const zengine::input::PointerButton& b) {
+        TerminalPane& pane = session_.terminal;
+        const Screen sc = screen_of(session_);
+
+        // THE COMPLETION LIST, IF IT IS ON SCREEN. Its own condition is `paint_terminal`'s,
+        // read from the same two flags, so a list a maker cannot see cannot be clicked.
+        if (pane.completion.open && !pane.dismissed) {
+            const CompletionPlace place =
+                completion_place(sc, pane.completion.candidates.size() + 1 /*the heading*/);
+            if (place.visible) {
+                const surface::RegionFit fit =
+                    surface::fit_region(place.x, place.y, place.w, place.h, sc.text_advance_px,
+                                        sc.text_line_px);
+                const ProseAt at = prose_at(b.space, b.x, b.y, place.x, place.y, fit);
+                if (at.understood && at.column >= 0 && at.column <= fit.columns &&
+                    at.row >= 0 && at.row < static_cast<std::int64_t>(place.rows)) {
+                    // ROW 0 IS THE HEADING and is not a candidate. A press on it is a press
+                    // on the list -- consumed, changing nothing -- rather than a press that
+                    // falls through to the input line underneath, which is not underneath
+                    // it at all.
+                    if (at.row >= 1) {
+                        // THE SAME WINDOW THE ROWS WERE DRAWN WITH. `completion_first_shown`
+                        // is the one answer to "which candidate is the first visible row",
+                        // and it is read here rather than recomputed.
+                        const std::size_t first =
+                            completion_first_shown(pane.completion.selected, place.rows);
+                        const std::size_t at_index =
+                            first + static_cast<std::size_t>(at.row - 1);
+                        if (at_index < pane.completion.candidates.size()) {
+                            // ONE SELECTION, WHICHEVER HAND MOVED IT. There is no
+                            // pointer-selected state beside the keyboard's: this writes the
+                            // field Up/Down write, so the row a click chooses is a row Tab
+                            // then accepts and the renderer cannot tell which happened.
+                            pane.completion.selected = at_index;
+                            return true;
+                        }
+                    }
+                    return false; // on the list, on nothing choosable
+                }
+            }
+        }
+
+        // THE EDITABLE LINE. One region -- the pane's own -- and one row of it.
+        const TerminalInputPlace place = terminal_input_place(sc);
+        const ProseAt at = prose_at(b.space, b.x, b.y, place.region_x, place.region_y,
+                                    place.fit);
+        if (at.understood && terminal_input_hit(place, at.column, at.row)) {
+            const std::size_t was = pane.input.caret();
+            pane.input.place(
+                terminal_caret_of_column(place, at.column, pane.input.size()));
+            // The caret moving is what changes whether completion may be asked, so a press
+            // that moved it has to reach `refresh_terminal` exactly as a caret key does.
+            if (pane.input.caret() != was) {
+                refresh_terminal();
+                return true;
+            }
+            return false;
+        }
+        return false; // inside the mode, on none of its regions: consumed, and nothing moved
     }
 
     /// IS THERE A LIST ON SCREEN WITH SOMETHING IN IT TO CHOOSE?
@@ -767,6 +892,13 @@ private:
     /// trailing space where the grammar wants one and carries none after `field=`,
     /// where a value follows immediately -- so acceptance can neither duplicate a
     /// separator nor swallow one.
+    ///
+    /// HD-3 CHANGED WHERE THE CARET ENDS UP AND NOTHING ELSE, because there is now
+    /// somewhere else it could be. It ends at the end of the inserted result, which is
+    /// where a maker's next keystroke belongs -- and it is not an arbitrary choice: a
+    /// candidate is offered only when the caret is at the end (see `refresh_terminal`), so
+    /// "the end of the insert" and "the end of the line" are the same place, and leaving
+    /// the caret anywhere else would put it inside bytes the accept had just replaced.
     void accept_completion() {
         if (!completion_selectable()) {
             return;
@@ -782,8 +914,11 @@ private:
         // is a doubled word on a line nobody could explain.
         const std::size_t typed =
             comp.partial.size() < pane.input.size() ? comp.partial.size() : pane.input.size();
-        pane.input.resize(pane.input.size() - typed);
-        pane.input += c.insert;
+        std::string line = pane.input.text();
+        line.resize(line.size() - typed);
+        line += c.insert;
+        const std::size_t at = line.size();
+        pane.input.set(std::move(line), at);
     }
 
     /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
@@ -805,8 +940,12 @@ private:
     /// The line is recorded on the participant BEFORE it is understood, so a
     /// command that turns out to be nonsense is still part of that participant's
     /// own chronology -- a record of effects with no causes is not a session.
+    /// SUBMISSION DOES NOT DEPEND ON WHERE THE CARET IS (HD-3). The parser receives the
+    /// whole line exactly as authored -- Return is not "submit up to the caret", it is
+    /// "submit this line", which is the reading that keeps a mis-typed middle repairable
+    /// without the repair changing what gets sent.
     void submit_terminal_line() {
-        const std::string line = session_.terminal.input;
+        const std::string line = session_.terminal.input.text();
         session_.terminal.input.clear();
         // A SUBMITTED LINE ENDS BOTH PIECES OF COMPLETION STATE. Escape said "not for
         // this word" and Tab said "show me anyway"; the next line is neither, and a
@@ -908,7 +1047,30 @@ private:
         // participant's own channel, which a const reference cannot touch. This is
         // the one call in this file that runs on every keystroke, and it is the one
         // that must never send.
-        pane.completion = complete_line(*host_->terminal, pane.input);
+        //
+        // AND IT IS ASKED ABOUT THE END OF THE LINE, WHICH IS WHERE THE CARET HAS TO BE
+        // (HD-3). HD-2's completer rests on an assumption that was free when the caret could
+        // not move: the token being completed is the LAST one, so accepting is "drop what
+        // has been typed of this token, append what it was going to be". With a caret in the
+        // middle that edit would delete everything after it. The two honest repairs are to
+        // teach the completer about a token under an arbitrary caret -- a second parser, on
+        // a phase about carets and pointers -- or to say plainly that completion follows the
+        // end of the line. HD-3 says it plainly.
+        //
+        // AND IT SAYS IT OUT LOUD RATHER THAN GOING QUIET, which is HD-2's own measured rule
+        // arriving from a new direction: three different silences would otherwise render
+        // identically, and a maker who moves the caret and watches the list vanish cannot
+        // tell "not here" from "broken". So the list becomes a heading with no candidates in
+        // it -- exactly the shape `send * s` already produces -- and a heading-only list is
+        // transient and takes no gesture to dismiss.
+        if (pane.input.at_end()) {
+            pane.completion = complete_line(*host_->terminal, pane.input.text());
+        } else {
+            pane.completion.open = true;
+            pane.completion.slot = read_command_line(pane.input.text()).slot;
+            pane.completion.heading =
+                "completion follows the END of the line -- this caret is inside it";
+        }
         // THE SELECTION SURVIVES A REPAINT AND NOT A CHANGE OF QUESTION.
         //
         // This function runs on every repaint, not only when the line changes -- the pane
@@ -944,6 +1106,9 @@ private:
         } else if (!pane.asked) {
             pane.completion = Completion{};
         }
+        // AN EMPTY LINE HAS ITS CARET AT THE END BY CONSTRUCTION, so the branch above and
+        // the caret rule cannot disagree about it -- there is no position in an empty string
+        // that is not both 0 and the end.
         // AS MANY ENTRIES AS THIS PANE CAN SHOW WHOLE, which is no longer the same as "as
         // many entries as it has rows": since G-2 a line too long for the pane WRAPS rather
         // than being cut, so one entry can cost several rows. `entries_that_fit` is the one

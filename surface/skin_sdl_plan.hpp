@@ -381,6 +381,26 @@ struct PlanTextRow {
 /// `project_text_regions` pads every row to the region's full width, and a space
 /// erases in a character medium -- so both media end at the same picture without
 /// either knowing the other exists.
+/// A REGION'S CARET, RESOLVED TO A RECTANGLE (HD-3).
+///
+/// Local to its region's clipped viewport, exactly as `origin_x`/`origin_y` are,
+/// and for the same reason: the renderer draws inside the viewport and never
+/// holds a window coordinate. `present` is false whenever the publisher named no
+/// caret or named one outside the prose this region actually has — resolved HERE
+/// rather than in the renderer, because "is there a caret to draw" is arithmetic
+/// over the same fit the rows were resolved with, and the renderer's copy of that
+/// arithmetic would be the second answer this package exists not to have.
+struct PlanCaret {
+    bool present = false;
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+    PlanInk ink{};
+
+    friend bool operator==(const PlanCaret&, const PlanCaret&) = default;
+};
+
 struct PlanTextRegion {
     RegionViewport view{};
     std::int64_t origin_x = 0;
@@ -388,9 +408,39 @@ struct PlanTextRegion {
     std::int64_t line_px = 0;
     PlanInk background = kCanvasBackground;
     std::vector<PlanTextRow> rows;
+    PlanCaret caret{};
 
     friend bool operator==(const PlanTextRegion&, const PlanTextRegion&) = default;
 };
+
+/// WHERE A REGION'S CARET IS, in pixels local to a resolved region — the whole of
+/// HD-3's caret arithmetic, pure and total.
+///
+/// `advance_px`/`line_px` come off the `RegionFit` rather than off the metric,
+/// which is what makes "the caret is positioned by the same number that drew the
+/// text" a fact rather than a convention: `fit_region` is the one function that
+/// turns a metric into a capacity, and this reads what it decided.
+///
+/// A CARET AT COLUMN `columns` IS LEGITIMATE and is not off the end. It is where
+/// the caret sits after the last character a row can show, and the inset is
+/// exactly what makes it fit: the interior is `columns * advance_px` wide inside
+/// a `2 * kTextInsetPx` margin, so a `kCaretWidthPx`-wide bar at the far column
+/// lands inside the region's own viewport as long as the two constants match.
+inline constexpr PlanCaret plan_caret(const RegionFit& fit, std::int64_t local_origin_x,
+                                      std::int64_t local_origin_y, std::int64_t caret_row,
+                                      std::int64_t caret_col, PlanInk ink) noexcept {
+    PlanCaret c;
+    if (caret_row < 0 || caret_row >= fit.rows || caret_col < 0 || caret_col > fit.columns) {
+        return c; // no caret, or one this region's prose does not have room for
+    }
+    c.present = true;
+    c.x = add_cells(local_origin_x, mul_px(caret_col, fit.advance_px));
+    c.y = add_cells(local_origin_y, mul_px(caret_row, fit.line_px));
+    c.w = kCaretWidthPx;
+    c.h = fit.line_px;
+    c.ink = ink;
+    return c;
+}
 
 /// EVERY TEXT REGION ON A CANVAS, RESOLVED AGAINST A MEDIUM'S TEXT METRIC.
 ///
@@ -444,6 +494,16 @@ inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
             p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role),
                                          ground < 0 ? region_ground : ink_for_role(ground)});
         }
+        // THE CARET TAKES THE INK OF THE ROW IT IS ON, and that is not decoration: a caret
+        // marks where the text a maker is typing continues, so it belongs to that text. A
+        // caret beyond the rows this region was actually given falls back to ordinary fill
+        // rather than to nothing, because a row that was not said is still a row of the
+        // region and a caret on it is still a real position.
+        const PlanInk caret_ink =
+            (r.caret_row >= 0 && static_cast<std::size_t>(r.caret_row) < p.rows.size())
+                ? p.rows[static_cast<std::size_t>(r.caret_row)].ink
+                : ink_for_role(role::kFill);
+        p.caret = plan_caret(fit, p.origin_x, p.origin_y, r.caret_row, r.caret_col, caret_ink);
         out.push_back(std::move(p));
     }
     return out;

@@ -301,7 +301,7 @@ labels-vanish defect again at character granularity. `SurfaceText` — the named
 lines, which are a different shape — still lands in the window's *title*, because the canvas
 occupies the whole window.
 
-`SurfaceTextRegion{x, y, w, h, rows}` is the **one place a canvas admits a medium may be
+`SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col}` is the **one place a canvas admits a medium may be
 finer than a cell** (HD-1). It is placed in cells like everything else — so where it sits is
 the same kind of fact as where a rect sits, and every medium can honour it — and what happens
 *inside* is the medium's: a terminal draws one `SurfaceTextRow{text, role}` per cell row, cut
@@ -331,9 +331,23 @@ added, and the failure would be silent and in the widening direction. And becaus
 alone would be a lie on a monochrome terminal — the argument `glyph_for_role` already makes
 one shape over — a publisher marking a row as chosen is expected to say so in the row's *text*
 as well; Workshop's completion list writes `> `. Adding the field made `SurfaceTextRow`
-version 2, `SurfaceTextRegion` version 2 and `SurfaceCanvas` version **3**: a region's wire
+version 2, `SurfaceTextRegion` version 2 and `SurfaceCanvas` version 3: a region's wire
 identity is computed from its row type and a canvas's from its region type, so both changed
 without either gaining a field of its own.
+
+**A region may have a caret** (HD-3), and it is said in the region's *own prose lattice*:
+`caret_row`/`caret_col` are a row index and a column index into the rows the region carries,
+never a pixel and never a canvas cell. That is what lets each medium answer it with the metric
+it already resolved — a window fills a bar `kCaretWidthPx` wide at
+`origin_x + caret_col * advance_px`, and the cell projection *inserts* `kCaretGlyph` at the
+same column, which for a caret at the end of a line is byte-for-byte the row the Workshop
+Terminal used to append for itself. `kNoCaret` is **negative** on purpose, the same argument
+`role::kNone` makes: a prose row index is non-negative by construction, so the absence of a
+caret cannot collide with a row anybody might mean. It is emphatically *not* a selection (no
+range, no anchor), not a focus fact (a canvas has no focus, and two regions may each carry
+one), and not blinking — there is no clock on this shape. The two fields made
+`SurfaceTextRegion` version **3** and `SurfaceCanvas` version **4**; the canvas has now
+changed three times and never gained a field of its own.
 
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and (since HD-1) how
@@ -778,6 +792,39 @@ and no window itself.
   still submits through exactly the path it always did. **The list covers transcript rows and
   takes none**, so `... N earlier` means what it meant; and when the vocabulary is longer than
   the room, the heading says which slice (`1-3 of 9`) rather than scrolling in silence.
+- **The Terminal is a text tool, not a one-way slot** (HD-3). The command line has an explicit
+  movable caret, and a pointer press inside the pane's graphical input row places it. The caret
+  lives on `TerminalInput`, a Workshop type whose *operations* are the only way the line
+  changes — which is how `0 <= caret <= size` and "never inside a character" hold after every
+  edit rather than at every call site. It is a **byte index** on purpose: every step of this
+  presentation counts one column per byte (`detail::fit` cuts at a byte, the cell projection is
+  one cell per byte), so a caret that counted codepoints would be measuring the line
+  differently from the thing that draws it. The steps over it are still character-shaped, and
+  they spend `property.hpp`'s `character_before`/`character_after` — the same two the
+  inspector's backspace does. Keys: `Left`/`Right` step, `Home`/`End` jump, `Backspace` erases
+  behind the caret, `Delete` erases at it, and `Return` still submits the **whole** line
+  regardless of where the caret is. `Home`/`End`/`Delete` are named in `input/vocabulary.hpp`
+  for the first time and the naming is all that was added — they already arrived on the SDL
+  wire, which passes SDL's scancode through untranslated; neither terminal backend can produce
+  them and neither was widened.
+  **Where a press goes is a place *within* the mode, not a focus system.** While the pane is
+  open it takes every pointer event, exactly as PNL-2 said; what is new is that it now asks
+  whether one of the two regions it owns wants it — the completion list first, because it is
+  drawn last and painter's order across `texts` is list order, then the editable row. A press
+  on neither is still **consumed by the mode**, which is the whole of what stops a click on the
+  pane's empty middle from selecting an object underneath it. There is no widget registry, no
+  z-order service and no focus object: `terminal_press` is one function, and closing the pane
+  removes every bit of it because there is nothing to remove. Clicking a completion row writes
+  the same `selected` index `Up`/`Down` write — **click selects, `Tab` accepts** — so the
+  renderer cannot tell which hand chose the row.
+  **One geometry draws it and hits it.** `terminal_input_place` resolves the pane's region, the
+  row the line is on, and the column its first byte starts at; the painter, the caret and the
+  press all call it, and `completion_first_shown` was lifted out of `completion_rows` for the
+  same reason — a second copy of the windowing would be right until the list first scrolled.
+  **Completion follows the END of the line**, and says so when the caret is elsewhere: HD-2's
+  acceptance is an end-of-line edit, so with the caret in the middle it would delete everything
+  after it. The list becomes a heading with no candidates in it — exactly the shape a prefix
+  that matched nothing already produces — rather than going quiet.
 - **The terminal projection keeps the minimum, and that is its own policy rather than a
   stub.** A terminal skin owns no drawable whose size is its to read — it writes into a
   `Sink` that may be a string, a pipe or a console — so it declines the question, publishes
