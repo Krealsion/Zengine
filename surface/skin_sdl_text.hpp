@@ -199,12 +199,25 @@ public:
     /// clip everything drawn afterwards to a rectangle that no longer means
     /// anything -- and the symptom would be somebody else's picture missing, not
     /// this one's.
+    ///
+    /// AND "NO VIEWPORT" IS RESTORED AS NO VIEWPORT, not as the rectangle it
+    /// currently happens to be (HD-2). SDL keeps two different states here and
+    /// `SDL_GetRenderViewport` flattens them: a renderer with no viewport of its
+    /// own answers with the whole target's rectangle, and setting THAT back makes
+    /// the viewport explicit -- after which SDL stops growing it when the output
+    /// does. The picture that produced was a Workshop dragged larger whose panels
+    /// were still clipped to the old window's width, one frame after the pane had
+    /// already reflowed to the new one; measured on HD-1's own shipped code, with
+    /// nothing typed, and it needed only that a region be drawn once before the
+    /// drag. `SDL_RenderViewportSet` is SDL's own answer to exactly this question,
+    /// and asking it is the whole repair.
     void draw(SDL_Renderer* renderer, const PlanTextRegion& p) {
         if (!live() || renderer == nullptr || p.view.empty()) {
             return;
         }
         SDL_Rect previous{};
-        const bool had = SDL_GetRenderViewport(renderer, &previous);
+        const bool had = SDL_RenderViewportSet(renderer) &&
+                         SDL_GetRenderViewport(renderer, &previous);
         const SDL_Rect vp{static_cast<int>(p.view.x), static_cast<int>(p.view.y),
                           static_cast<int>(p.view.w), static_cast<int>(p.view.h)};
         if (!SDL_SetRenderViewport(renderer, &vp)) {
@@ -221,6 +234,23 @@ public:
         SDL_RenderFillRect(renderer, &whole);
         for (std::size_t i = 0; i < p.rows.size(); ++i) {
             const PlanTextRow& row = p.rows[i];
+            const float top = static_cast<float>(p.origin_y +
+                                                 static_cast<std::int64_t>(i) * p.line_px);
+            // A ROW'S OWN GROUND, and only when it has one (HD-2). "Has one" is
+            // spelled as "differs from the region's", which is what makes this an
+            // absence rather than a second flag to keep in step -- a row that asked
+            // for nothing was resolved to the region's ground and is already
+            // painted. The strip spans the region's whole WIDTH rather than the
+            // row's text, because the thing a selected row has to say is "this row,
+            // all of it" and a bar the length of the longest candidate would say
+            // something about the text instead.
+            if (!(row.background == p.background)) {
+                SDL_SetRenderDrawColor(renderer, row.background.r, row.background.g,
+                                       row.background.b, SDL_ALPHA_OPAQUE);
+                const SDL_FRect strip{0.0F, top, static_cast<float>(p.view.w),
+                                      static_cast<float>(p.line_px)};
+                SDL_RenderFillRect(renderer, &strip);
+            }
             if (row.text.empty()) {
                 continue; // a blank row is a row with nothing in it, not a row to draw
             }
@@ -230,9 +260,7 @@ public:
                 continue;
             }
             TTF_SetTextColor(t, row.ink.r, row.ink.g, row.ink.b, SDL_ALPHA_OPAQUE);
-            TTF_DrawRendererText(
-                t, static_cast<float>(p.origin_x),
-                static_cast<float>(p.origin_y + static_cast<std::int64_t>(i) * p.line_px));
+            TTF_DrawRendererText(t, static_cast<float>(p.origin_x), top);
             TTF_DestroyText(t);
         }
         SDL_SetRenderViewport(renderer, had ? &previous : nullptr);

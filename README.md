@@ -316,7 +316,24 @@ are the topmost thing on a canvas (rects, then labels, then regions), because a 
 grant of bounds and owns what is inside them. **How much fits is not on the shape** and that
 absence is load-bearing: `fit_region` resolves the region's bounds against the medium's text
 metric, and the publisher and the medium both call it, so "how many rows and columns" has one
-answer in the process. Workshop's Terminal is the only publisher of one; no other panel moved.
+answer in the process. Workshop's Terminal is the only publisher of one — since HD-2 it
+publishes *two*, both its own, and no other panel has moved.
+
+**A row may sit on something** (HD-2). `SurfaceTextRow` gained one field: `background`, a
+semantic role like `role` itself, defaulting to `role::kNone` — the *absence* of a ground,
+which is what every row said before this existed and is not a fifth role. It is the smallest
+honest answer to the one question a list has to answer: which row am I on. A terminal paints
+it as an SGR background, the SDL medium fills the row's strip inside the region's own viewport,
+and the bitmap face paints it as the cell's own quad — the same clear a label cell already
+got, in a different ink. `role::kNone` is **negative** on purpose: the unknown-role fallback
+is `kFill`, so a positive sentinel would be indistinguishable from a role a later vocabulary
+added, and the failure would be silent and in the widening direction. And because colour
+alone would be a lie on a monochrome terminal — the argument `glyph_for_role` already makes
+one shape over — a publisher marking a row as chosen is expected to say so in the row's *text*
+as well; Workshop's completion list writes `> `. Adding the field made `SurfaceTextRow`
+version 2, `SurfaceTextRegion` version 2 and `SurfaceCanvas` version **3**: a region's wire
+identity is computed from its row type and a canvas's from its region type, so both changed
+without either gaining a field of its own.
 
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and (since HD-1) how
@@ -737,6 +754,30 @@ and no window itself.
   transcript line, five fewer rows, and letters that can be told apart. There is a floor under
   both, because the metric arrives off the bus and a pane with no rows is indistinguishable
   from a broken tool.
+- **The Terminal shows what it can say, while you are saying it** (HD-2). Typing into the pane
+  raises a second bounded region *inside* it, listing what could come next: the two verbs, the
+  three address forms, the shapes this participant's vocabulary holds and their versions, and a
+  shape's field names. The material is entirely `loom::TerminalSession`'s own —
+  `vocabulary().catalog()`, `describe()`, and `compose()`, which runs the assumption ladder and
+  stops one step before anything is authored — so **browsing produces no traffic, no ask, no
+  authority change and no transcript entry**, and Loom needed no change at all. What was missing
+  was never an API; it was a presentation. `workshop/complete.hpp` holds the model (structured
+  candidates, never formatted lines) and `kTerminalVerbs` is the one table both the completer
+  and `submit_terminal_line` read, so a third verb cannot be learned by only one of them.
+  Matching is **prefix, case-sensitive** — a schema name is wire identity, so matching
+  `surfacetext` against `SurfaceText` would offer a completion that composes to `UnknownShape`
+  — and candidates keep the host's declared order. A shape known at two versions stays two
+  answers (`Ping 1 ` and `Ping 2 `), never one ambiguous row.
+  **The list says what it is a list OF**: `shapes this terminal KNOWS -- knowing one is not
+  authority to send it`, because type knowledge and authority are separate in every direction
+  and this participant holds no way to ask the second question. For the same reason `#12` and
+  `@office` are offered as *forms* with the reason written beside them — it enumerates no
+  weaves and no offices, deliberately — while `*` is a value. Keys: typing updates the list,
+  `Up`/`Down` move (without wrapping), `Tab` accepts (or, on an empty line, asks), `Escape`
+  dismisses a list with candidates in it and otherwise still clears the line, and `Return`
+  still submits through exactly the path it always did. **The list covers transcript rows and
+  takes none**, so `... N earlier` means what it meant; and when the vocabulary is longer than
+  the room, the heading says which slice (`1-3 of 9`) rather than scrolling in silence.
 - **The terminal projection keeps the minimum, and that is its own policy rather than a
   stub.** A terminal skin owns no drawable whose size is its to read — it writes into a
   `Sink` that may be a string, a pipe or a console — so it declines the question, publishes

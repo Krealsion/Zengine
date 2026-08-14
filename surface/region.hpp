@@ -96,6 +96,22 @@ inline constexpr std::int64_t sub_px(std::int64_t a, std::int64_t b) noexcept {
     return a;
 }
 
+/// `a * b` for non-negative operands, saturating at the top of the number line.
+///
+/// The same discipline `px_of_cells` applies to a constant factor, for a factor
+/// that arrives on the bus: a medium publishes `text_line_px`, so "which cell row
+/// does prose row N begin on" is a multiply by a number a publisher chose. A
+/// non-positive operand answers zero, because neither a count of rows nor a row
+/// pitch has a meaning below one and saturating downwards would invent a
+/// coordinate.
+inline constexpr std::int64_t mul_px(std::int64_t a, std::int64_t b) noexcept {
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    if (a <= 0 || b <= 0) {
+        return 0;
+    }
+    return a > kMax / b ? kMax : a * b;
+}
+
 /// `v / d` FLOORED, for a strictly positive divisor — the same rule
 /// `cell_of_pixel` states for the cell grid, written once for any metric.
 ///
@@ -239,6 +255,20 @@ inline constexpr RegionViewport clip_viewport(const RegionViewport& v, std::int6
 inline constexpr std::int64_t kMaxProjectedWidth = 16384;
 inline constexpr std::int64_t kMaxProjectedRows = 16384;
 
+/// ONE PROJECTED ROW: the label a cell medium draws, and the ground it draws it
+/// on.
+///
+/// The ground is beside the label rather than on it, and that is deliberate.
+/// `SurfaceLabel` is a shape on the wire and a label has no background — giving
+/// it one would be widening a published vocabulary to carry a fact only the
+/// projection of a different shape produces. So the pairing lives here, in the
+/// projection's own return type, where both consumers (the terminal Skin and the
+/// SDL medium's bitmap face) read it and nothing else has to know it exists.
+struct ProjectedRow {
+    SurfaceLabel label;
+    std::int64_t background = role::kNone; ///< role::kNone: whatever is underneath
+};
+
 /// A REGION'S ROWS AS ORDINARY CANVAS LABELS — the cell projection, written once
 /// and shared by every medium that has cells rather than type.
 ///
@@ -256,8 +286,15 @@ inline constexpr std::int64_t kMaxProjectedRows = 16384;
 /// canvas underneath. (Painted as spaces, which erase in a character medium and
 /// draw nothing in a graphical one — the same trick `paint_terminal` used to do
 /// for itself, now done for it.)
-inline std::vector<SurfaceLabel> project_text_regions(const SurfaceCanvas& c) {
-    std::vector<SurfaceLabel> out;
+///
+/// A ROW'S GROUND RIDES ALONG UNCHANGED (HD-2). The projection does not resolve
+/// it, does not substitute for it and does not invent one for the rows with
+/// nothing behind them: `role::kNone` travels out exactly as it travelled in, and
+/// what a medium makes of a ground is the medium's own answer — an SGR background
+/// on a terminal, a filled strip in a window, nothing at all where a medium has
+/// no way to say it.
+inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
+    std::vector<ProjectedRow> out;
     for (const SurfaceTextRegion& r : c.texts) {
         if (r.w <= 0 || r.h <= 0) {
             continue; // a region with no bounds shows nothing, and says nothing about it
@@ -268,14 +305,17 @@ inline std::vector<SurfaceLabel> project_text_regions(const SurfaceCanvas& c) {
             r.h < static_cast<std::int64_t>(kMaxProjectedRows) ? r.h : kMaxProjectedRows;
         for (std::int64_t i = 0; i < lines; ++i) {
             const std::size_t at = static_cast<std::size_t>(i);
-            std::string text = at < r.rows.size() ? r.rows[at].text : std::string();
-            const std::int64_t role = at < r.rows.size() ? r.rows[at].role : role::kFill;
+            const bool said = at < r.rows.size();
+            std::string text = said ? r.rows[at].text : std::string();
+            const std::int64_t role = said ? r.rows[at].role : role::kFill;
+            const std::int64_t back = said ? r.rows[at].background : role::kNone;
             if (text.size() > width) {
                 text.resize(width); // cut on a byte boundary: one cell per byte, as ever
             } else {
                 text.append(width - text.size(), ' ');
             }
-            out.push_back(SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role});
+            out.push_back(
+                ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back});
         }
     }
     return out;

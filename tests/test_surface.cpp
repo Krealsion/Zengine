@@ -419,13 +419,26 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // makes the region a bounded presentation rather than a second coordinate
     // system. Pinned here so that "a row gained an x" is a red in this file rather
     // than a discovery on a wire.
-    const auto text_row = SchemaBuilder("SurfaceTextRow", 1)
+    //
+    // VERSION 2 SINCE HD-2, for the field that made a selected row sayable. The
+    // ground is the LAST field, deliberately: an existing publisher's two fields
+    // are where they were, so the only thing a reader has to check is that the new
+    // one is at the end.
+    const auto text_row = SchemaBuilder("SurfaceTextRow", 2)
                               .field("text", Kind::Text)
                               .field("role", Kind::Int)
+                              .field("background", Kind::Int)
                               .build();
     CHECK(schema_of<SurfaceTextRow>()->content_id() == text_row->content_id());
 
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 1)
+    // AND THE TWO SHAPES THAT CARRY IT MOVED WITH IT, which is the whole reason
+    // this case builds them by hand out of each other rather than checking three
+    // independent spellings. A region's identity is computed from its field TYPES,
+    // one of which is a list of the row above; the canvas's from a list of
+    // regions. So a row gaining a field changed all three content-ids, and all
+    // three declared versions had to follow -- a version that did not would be two
+    // different wire shapes wearing one number.
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 2)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -438,11 +451,10 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // theirs -- which is the property that makes a drift anywhere in this
     // vocabulary a red here rather than a surprise on a wire.
     //
-    // VERSION 2, because a published schema is immutable and evolving a shape is
-    // publishing a new one. The list it gained is the region list; the two that
-    // were there are unmoved, which is why every existing canvas value in this
-    // suite still means exactly what it meant.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 2)
+    // VERSION 3, because a published schema is immutable and evolving a shape is
+    // publishing a new one. Version 2 was the region list it gained in HD-1; this
+    // one it gained no field of its own at all, and changed anyway.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 3)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("rects", loom::type_message(rect))
@@ -450,6 +462,15 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                             .list("texts", loom::type_message(text_region))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
+
+    // A ROW WITH NO GROUND IS THE DEFAULT, and `role::kNone` is not one of the four
+    // roles -- it is negative precisely so that a later vocabulary adding a fifth
+    // role cannot collide with it, and so that the unknown-role fallback (kFill)
+    // can never swallow it silently.
+    const SurfaceTextRow plain;
+    CHECK(plain.background == role::kNone);
+    CHECK(role::kNone < 0);
+    CHECK(role::kNone != role::kFill);
 }
 
 // ============================================================================
@@ -601,8 +622,8 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     same_as_labels.height = c.height;
     same_as_labels.rects = c.rects;
     same_as_labels.labels = c.labels;
-    for (const SurfaceLabel& l : project_text_regions(c)) {
-        same_as_labels.labels.push_back(l);
+    for (const ProjectedRow& p : project_text_regions(c)) {
+        same_as_labels.labels.push_back(p.label);
     }
     CHECK(plan_canvas(c) == plan_canvas(same_as_labels));
 }
@@ -1299,8 +1320,13 @@ TEST_CASE("region: the cell projection is what the pane used to do, exactly") {
     r.rows.push_back(SurfaceTextRow{"a much longer row than fits", role::kAlert});
     c.texts.push_back(r);
 
-    const std::vector<SurfaceLabel> out = project_text_regions(c);
-    REQUIRE(out.size() == 4); // EVERY cell row of the region, including the empty ones
+    const std::vector<ProjectedRow> projected = project_text_regions(c);
+    REQUIRE(projected.size() == 4); // EVERY cell row of the region, including the empty ones
+    std::vector<SurfaceLabel> out;
+    for (const ProjectedRow& p : projected) {
+        CHECK(p.background == role::kNone); // no row here asked for a ground
+        out.push_back(p.label);
+    }
 
     // Padded to the region's width -- which is what CLEARS the furniture underneath
     // in a medium whose ink is one character per cell, and which is the job
@@ -1404,6 +1430,143 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
     c.texts[0].x = 9000;
     c.texts[0].y = 9000;
     CHECK(plan_text_regions(c, metric, PlanSize{936, 264}).empty());
+}
+
+// ============================================================================
+// HD-2 — a row may sit on something
+// ============================================================================
+
+TEST_CASE("region: a row's ground travels the cell projection unresolved") {
+    // THE PROJECTION DOES NOT DECIDE WHAT A GROUND LOOKS LIKE, and that is the whole
+    // reason it hands the role out beside the label rather than folding it in: what a
+    // medium makes of a ground is the medium's own answer, and the two media that consume
+    // this projection answer completely differently.
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 10;
+    SurfaceTextRegion r;
+    r.x = 2;
+    r.y = 3;
+    r.w = 6;
+    r.h = 3;
+    r.rows.push_back(SurfaceTextRow{"a", role::kFill, role::kNone});
+    r.rows.push_back(SurfaceTextRow{"b", role::kAccent, role::kMuted});
+    c.texts.push_back(r);
+
+    const std::vector<ProjectedRow> out = project_text_regions(c);
+    REQUIRE(out.size() == 3);
+    CHECK(out[0].background == role::kNone);
+    CHECK(out[1].background == role::kMuted);
+    CHECK(out[1].label.role == role::kAccent);
+    // A ROW WITH NOTHING BEHIND IT ASKS FOR NOTHING. The region's blank rows are the
+    // region's own emptiness, not a row that was selected and forgot to say so.
+    CHECK(out[2].background == role::kNone);
+    // ...and the ground does not change what a row SAYS: still padded to the width.
+    CHECK(out[1].label.text == "b     ");
+}
+
+TEST_CASE("region plan: a ground resolves against the region it is in, once") {
+    // ON THE WIRE `kNone` IS AN ABSENCE; IN A PLAN IT IS A COLOUR. By the time a medium
+    // is drawing there is no such thing as a strip with nothing behind it, so the plan
+    // resolves the absence to the region's own ground -- which is exactly what lets the
+    // renderer tell "selected" from "ordinary" by comparing two inks it already has.
+    SurfaceCanvas c;
+    c.width = 80;
+    c.height = 24;
+    SurfaceTextRegion r;
+    r.x = 2;
+    r.y = 2;
+    r.w = 20;
+    r.h = 4;
+    r.rows.push_back(SurfaceTextRow{"plain", role::kFill, role::kNone});
+    r.rows.push_back(SurfaceTextRow{"chosen", role::kAccent, role::kMuted});
+    c.texts.push_back(r);
+
+    const std::vector<PlanTextRegion> plan =
+        plan_text_regions(c, SurfaceExtent{80, 24, 8, 18}, PlanSize{960, 288});
+    REQUIRE(plan.size() == 1);
+    REQUIRE(plan[0].rows.size() == 2);
+    CHECK(plan[0].rows[0].background == plan[0].background); // the region's own ground
+    CHECK(plan[0].rows[1].background == ink_for_role(role::kMuted));
+    CHECK(plan[0].rows[1].ink == ink_for_role(role::kAccent));
+    // The comparison the renderer makes is the one that decides whether to fill a strip.
+    CHECK(plan[0].rows[0].background == kCanvasBackground);
+    CHECK_FALSE(plan[0].rows[1].background == plan[0].background);
+}
+
+TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad") {
+    // A LABEL CELL WAS ALREADY CLEARED BEFORE ITS GLYPH WAS DRAWN, so a ground is that
+    // same clear in a different ink -- no new pass, no new shape, and the fallback face
+    // keeps drawing the same picture the terminal does.
+    SurfaceCanvas c;
+    c.width = 10;
+    c.height = 4;
+    SurfaceTextRegion r;
+    r.x = 0;
+    r.y = 0;
+    r.w = 3;
+    r.h = 2;
+    r.rows.push_back(SurfaceTextRow{"ab", role::kFill, role::kMuted});
+    r.rows.push_back(SurfaceTextRow{"cd", role::kFill, role::kNone});
+    c.texts.push_back(r);
+
+    const std::vector<PlanRect> quads = plan_canvas(c);
+    const PlanInk muted = ink_for_role(role::kMuted);
+    const auto quad_at = [&](std::int64_t x, std::int64_t y) {
+        for (const PlanRect& q : quads) {
+            if (q.x == x && q.y == y && q.w == kCanvasCellPx && q.h == kCanvasCellPx) {
+                return PlanInk{q.r, q.g, q.b};
+            }
+        }
+        return PlanInk{1, 2, 3}; // no whole-cell quad here at all
+    };
+    // Every cell of the grounded row wears it -- including the one padded to the region's
+    // width, which is what makes a selection bar a BAR rather than the length of its text.
+    CHECK(quad_at(0, 0) == muted);
+    CHECK(quad_at(kCanvasCellPx, 0) == muted);
+    CHECK(quad_at(2 * kCanvasCellPx, 0) == muted);
+    // ...and the row that asked for nothing is the canvas background, exactly as before.
+    CHECK(quad_at(0, kCanvasCellPx) == kCanvasBackground);
+}
+
+TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it back") {
+    // THE CHARACTER MEDIUM'S HONEST ANSWER. One attribute per cell became two, and the
+    // second is emitted only where a row asked for one -- which is what makes this
+    // addition invisible to every canvas that does not use it.
+    SurfaceCanvas c;
+    c.width = 6;
+    c.height = 3;
+    SurfaceTextRegion r;
+    r.x = 0;
+    r.y = 0;
+    r.w = 4;
+    r.h = 2;
+    r.rows.push_back(SurfaceTextRow{"ab", role::kAccent, role::kMuted});
+    r.rows.push_back(SurfaceTextRow{"cd", role::kFill, role::kNone});
+    c.texts.push_back(r);
+
+    const std::string body = canvas_body(c);
+    // The selected row: its ink, then its ground, then the characters -- and the ground
+    // is stated once for the whole run rather than once per cell.
+    CHECK(body.find("\x1b[36m\x1b[100mab") != std::string::npos);
+    std::size_t grounds = 0;
+    for (std::size_t at = body.find("\x1b[100m"); at != std::string::npos;
+         at = body.find("\x1b[100m", at + 1)) {
+        ++grounds;
+    }
+    CHECK(grounds == 1);
+    // AND IT IS PUT BACK. `\x1b[0m` at the end of the row is all-attributes, which is what
+    // stops the bar bleeding into the row underneath.
+    CHECK(body.find("\x1b[100mab  \x1b[0m") != std::string::npos);
+
+    // THE SAME CANVAS WITH NO GROUND EMITS NOT ONE BACKGROUND BYTE. This is the assertion
+    // that says the third grid costs nothing to a picture that does not use it -- and the
+    // whole-screen goldens elsewhere in this file are the same claim at scale.
+    c.texts[0].rows[0].background = role::kNone;
+    const std::string plain = canvas_body(c);
+    CHECK(plain.find("\x1b[100m") == std::string::npos);
+    CHECK(plain.find("\x1b[49m") == std::string::npos);
+    CHECK(plain.find("\x1b[4") == std::string::npos); // no background SGR of any colour
 }
 
 TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
@@ -2359,6 +2522,31 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     // about the frame, so a still window with an open font is silent.
     r.intent(skin, c);
     CHECK(heard.size() == 1);
+
+    // DRAWING A REGION LEAVES THE RENDERER WITH NO VIEWPORT OF ITS OWN (HD-2's repair of
+    // an HD-1 defect). SDL keeps two states here and `SDL_GetRenderViewport` flattens
+    // them -- a renderer with no viewport answers with the whole target's rectangle -- so
+    // save-and-restore through that call alone turned the implicit state into an explicit
+    // one, after which SDL stopped growing it when the window did. The picture was a
+    // Workshop dragged larger whose panels were still clipped to the old window's width;
+    // reproduced on the pristine tree first, with nothing typed. `SDL_RenderViewportSet`
+    // is SDL's own answer to the question, and this is that answer.
+    int count = 0;
+    SDL_Window** windows = SDL_GetWindows(&count);
+    REQUIRE(windows != nullptr);
+    REQUIRE(count == 1);
+    SDL_Renderer* ren = SDL_GetRenderer(windows[0]);
+    SDL_free(windows);
+    REQUIRE(ren != nullptr);
+    CHECK_FALSE(SDL_RenderViewportSet(ren));
+
+    // ...and it is still false after a canvas with NO region at all, which is the control:
+    // a pass that came from never having drawn one would prove nothing.
+    SurfaceCanvas plain;
+    plain.width = 78;
+    plain.height = 22;
+    r.intent(skin, plain);
+    CHECK_FALSE(SDL_RenderViewportSet(ren));
 }
 
 #endif // SURFACE_HAS_SDL

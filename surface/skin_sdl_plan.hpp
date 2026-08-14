@@ -264,16 +264,24 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
     // With a real metric the regions are absent from this list entirely: they
     // are the SDL edge's to draw in type (`plan_text_regions`), and rasterizing
     // them here as well would paint the same words twice at two sizes.
-    std::vector<SurfaceLabel> projected;
+    std::vector<ProjectedRow> projected;
     if (metric.text_advance_px <= 0 || metric.text_line_px <= 0) {
         projected = project_text_regions(c);
     }
 
-    const auto draw_label = [&](const SurfaceLabel& l) {
+    // A GROUND IS THE CELL'S OWN QUAD, which is the whole of what this face has to
+    // change to honour one (HD-2): a label cell is already cleared before its glyph
+    // is drawn, so a row that asked to sit on something is that same clear in a
+    // different ink. `role::kNone` -- every label, and every region row that did not
+    // ask -- is the canvas background, which is exactly the quad that was there
+    // before this parameter existed.
+    const auto draw_label = [&](const SurfaceLabel& l,
+                                std::int64_t ground = role::kNone) {
         if (l.y < 0 || l.y >= h) {
             return; // no row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
+        const PlanInk under = ground < 0 ? kCanvasBackground : ink_for_role(ground);
         const std::int64_t cell_y = l.y * kCanvasCellPx;
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t cx = add_cells(l.x, static_cast<std::int64_t>(i));
@@ -284,7 +292,7 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
                 break; // every remaining character is further right still
             }
             const std::int64_t cell_x = cx * kCanvasCellPx;
-            quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, kCanvasBackground);
+            quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
             const Glyph& g = glyph_of(static_cast<unsigned char>(l.text[i]));
             for (int gy = 0; gy < kGlyphRows; ++gy) {
                 int gx = 0;
@@ -307,8 +315,8 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
     for (const SurfaceLabel& l : c.labels) {
         draw_label(l);
     }
-    for (const SurfaceLabel& l : projected) {
-        draw_label(l); // last: a region is the topmost thing on a canvas
+    for (const ProjectedRow& p : projected) {
+        draw_label(p.label, p.background); // last: a region is the topmost thing on a canvas
     }
     return out;
 }
@@ -329,10 +337,20 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
 // local coordinates in these inks" -- which is the same division skin_sdl.cpp
 // already lives by, one shape further out.
 
-/// One row of a resolved region: what it says, and in which ink.
+/// One row of a resolved region: what it says, in which ink, and on what.
+///
+/// `background` IS ALWAYS A REAL INK HERE, never an absence — `role::kNone`
+/// resolves to the region's own ground before it reaches this struct. That is the
+/// difference between the wire and the plan: a publisher says "no ground of my
+/// own", and a plan says "this exact colour", because by the time a medium is
+/// drawing there is no such thing as a strip with no colour behind it. A row whose
+/// ground equals its region's is a row the medium need not fill separately, which
+/// is precisely how the renderer tells "selected" from "ordinary" without a second
+/// field to keep in step.
 struct PlanTextRow {
     std::string text;
     PlanInk ink{};
+    PlanInk background = kCanvasBackground;
 
     friend bool operator==(const PlanTextRow&, const PlanTextRow&) = default;
 };
@@ -406,6 +424,12 @@ inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
         p.origin_x = sub_px(add_cells(fit.view.x, fit.origin_x), clipped.x);
         p.origin_y = sub_px(add_cells(fit.view.y, fit.origin_y), clipped.y);
         p.line_px = fit.line_px;
+        // THE REGION'S OWN GROUND, read once and named, because it is what a row
+        // that asked for none resolves to. Reading `p.background` inside the loop
+        // would work today and would silently follow any later line that set it
+        // AFTER the rows were built -- an ordering dependency with nothing holding
+        // it in place.
+        const PlanInk region_ground = p.background;
         const std::size_t take = r.rows.size() < static_cast<std::size_t>(fit.rows)
                                      ? r.rows.size()
                                      : static_cast<std::size_t>(fit.rows);
@@ -416,7 +440,9 @@ inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
             if (text.size() > width) {
                 text.resize(width);
             }
-            p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role)});
+            const std::int64_t ground = r.rows[i].background;
+            p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role),
+                                         ground < 0 ? region_ground : ink_for_role(ground)});
         }
         out.push_back(std::move(p));
     }

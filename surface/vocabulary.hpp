@@ -81,6 +81,21 @@ inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
 inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
 inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
 inline constexpr std::int64_t kAlert = 3;  ///< something the maker must see
+
+/// NO ROLE AT ALL — the ABSENCE of one, and deliberately not a fifth role.
+///
+/// It exists because a background is the one place in this vocabulary where
+/// "nothing" is a real, common and different answer from "ordinary": a row with
+/// no background shows whatever ground it is sitting on, which is not the same
+/// picture as a row painted in `kFill`. Every other field here names ink and has
+/// no use for it, so it is only ever read where a shape says so.
+///
+/// It is NEGATIVE on purpose. The unknown-role fallback is `kFill` (see above),
+/// so a positive sentinel would be indistinguishable from a role a later
+/// vocabulary added — and the failure would be silent, in the widening
+/// direction. Nothing may pass this to a Skin's role→ink table; a consumer tests
+/// for it first.
+inline constexpr std::int64_t kNone = -1;
 } // namespace role
 
 /// One filled rectangle, in CANVAS CELLS — the canvas's own square unit, which
@@ -120,11 +135,33 @@ struct SurfaceLabel {
     ZEN_SHAPE(SurfaceLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
-/// ONE ROW OF PROSE inside a bounded text region. Plain text and a semantic
-/// role, exactly as `SurfaceLabel` carries them — and, deliberately, nothing
-/// else: no x, no y, no width. A row's PLACE is its index in its region's list,
-/// which is what makes the region a bounded presentation rather than a second
+/// ONE ROW OF PROSE inside a bounded text region. Plain text, a semantic role,
+/// and — since HD-2 — a semantic GROUND to set it on. Deliberately nothing else:
+/// no x, no y, no width. A row's PLACE is its index in its region's list, which
+/// is what makes the region a bounded presentation rather than a second
 /// coordinate system.
+///
+/// `background` IS THE WHOLE OF HD-2's VOCABULARY ADDITION, and it is here rather
+/// than anywhere richer because of what a person cannot otherwise be told: which
+/// row of a list they are on. A selected row, a pressed control and an error
+/// highlight are all one question — "this row, not those rows" — and ink alone
+/// cannot answer it, because ink alone is already spoken for by what a row MEANS
+/// (`role`). `role::kNone`, the default, is the absence of a ground: the row
+/// shows whatever its region is sitting on, which is exactly the picture every
+/// row drew before this field existed.
+///
+/// IT IS A ROLE, NOT A COLOUR, for the same reason `role` is — the Skin owns the
+/// palette, so one selected row reads correctly in a monochrome terminal and in a
+/// themed window. And it is emphatically not a theme system: there is one new
+/// value (`kNone`) and no new role, so the number of things a medium must know
+/// how to paint has not changed.
+///
+/// COLOUR ALONE IS NOT ENOUGH IN A CHARACTER MEDIUM, and this vocabulary already
+/// knows it — `glyph_for_role` exists in the terminal Skin precisely because four
+/// roles would otherwise paint four identical cells on a monochrome terminal. A
+/// background inherits that argument whole, which is why a publisher marking a
+/// row as selected should also SAY so in the row's own text rather than relying
+/// on this field to carry the meaning by itself.
 ///
 /// Plain ASCII, the same house rule `SurfaceLabel` states, and for the same
 /// reason: the cell projection is one cell per BYTE, so a multi-byte sequence
@@ -134,7 +171,8 @@ struct SurfaceLabel {
 struct SurfaceTextRow {
     std::string text;
     std::int64_t role = role::kFill;
-    ZEN_SHAPE(SurfaceTextRow, 1, ZEN_FIELD(text), ZEN_FIELD(role));
+    std::int64_t background = role::kNone;
+    ZEN_SHAPE(SurfaceTextRow, 2, ZEN_FIELD(text), ZEN_FIELD(role), ZEN_FIELD(background));
 };
 
 /// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
@@ -162,13 +200,20 @@ struct SurfaceTextRow {
 /// rect is: publishers truncate because the cell projection needs them to, and a
 /// graphical medium clips as well because it cannot have its overflow predicted
 /// by anybody else.
+/// VERSION 2 BECAUSE ITS ROWS ARE, and that is the honest bookkeeping rather than
+/// ceremony: this shape's wire identity is computed from its field types, one of
+/// which is a list of `SurfaceTextRow`, so a row gaining a field changed what a
+/// region IS on the wire. Leaving the declared version at 1 would have meant two
+/// different content-ids wearing one version number — which is the exact failure
+/// a version exists to prevent. The same sentence one layer out makes
+/// `SurfaceCanvas` version 3.
 struct SurfaceTextRegion {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
     std::vector<SurfaceTextRow> rows;
-    ZEN_SHAPE(SurfaceTextRegion, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    ZEN_SHAPE(SurfaceTextRegion, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(rows));
 };
 
@@ -193,13 +238,19 @@ struct SurfaceTextRegion {
 /// because a region is an overlay: it is granted bounds and owns what is inside
 /// them, which is exactly what would be untrue if a label could land on top of
 /// one.
+///
+/// VERSION 3 SINCE HD-2, and it gained no field of its own. Its identity is
+/// derived from the three lists it carries, so a `SurfaceTextRow` gaining a
+/// background changed this shape on the wire whether or not anything here was
+/// edited. A version that did not follow would be a promise this shape cannot
+/// keep — see `SurfaceTextRegion` above, which is the same sentence one layer in.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceCanvas, 2, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
+    ZEN_SHAPE(SurfaceCanvas, 3, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
               ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 

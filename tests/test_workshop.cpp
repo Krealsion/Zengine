@@ -132,8 +132,8 @@ void type_all(Row& row, const std::string& text) {
 /// Regions come LAST because a region is the topmost thing on a canvas.
 std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCanvas& c) {
     std::vector<surface::SurfaceLabel> out = c.labels;
-    for (surface::SurfaceLabel& l : surface::project_text_regions(c)) {
-        out.push_back(std::move(l));
+    for (surface::ProjectedRow& p : surface::project_text_regions(c)) {
+        out.push_back(std::move(p.label));
     }
     return out;
 }
@@ -5500,7 +5500,11 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     Live t;
     (void)t.mount_terminal();
     t.toggle_terminal();
-    t.text("z");
+    // ESCAPE FIRST, so this case measures the PANE and not the pane plus the completion
+    // list HD-2 put over it -- which is a second region belonging to this same pane, and
+    // is asserted where it belongs, a few cases down.
+    t.text("s");
+    t.key(input::scan::kEscape);
     const surface::SurfaceCanvas& c = t.canvases.back();
 
     // ONE REGION, AND ONLY THE TERMINAL'S. No other panel migrated; the workspace, the
@@ -5528,7 +5532,7 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     CHECK(pane.rows[0].text.rfind("TERMINAL -- weave #", 0) == 0);
     CHECK(pane.rows[0].role == surface::role::kAccent);
     CHECK(pane.rows[1].text.rfind(terminal_legend(), 0) == 0);
-    CHECK(pane.rows[pane.rows.size() - 1].text.rfind("> z_", 0) == 0);
+    CHECK(pane.rows[pane.rows.size() - 1].text.rfind("> s_", 0) == 0);
 
     // A ROW IS TRUNCATED BY THE PUBLISHER AND PADDED BY THE PROJECTION. The pane decides
     // what it can show (a presentation decision); making a space erase the furniture
@@ -5536,8 +5540,8 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     for (const surface::SurfaceTextRow& row : pane.rows) {
         CHECK(static_cast<std::int64_t>(row.text.size()) <= kMinScreen.terminal_cols);
     }
-    for (const surface::SurfaceLabel& l : surface::project_text_regions(c)) {
-        CHECK(static_cast<std::int64_t>(l.text.size()) == kMinScreen.terminal_w);
+    for (const surface::ProjectedRow& p : surface::project_text_regions(c)) {
+        CHECK(static_cast<std::int64_t>(p.label.text.size()) == kMinScreen.terminal_w);
     }
 
     // ...and with the pane closed there is no region at all.
@@ -5557,7 +5561,10 @@ TEST_CASE("a medium that sets real type reflows the pane, and the omission stays
         (void)me->record_notice("entry " + std::to_string(i) +
                                 ": a sentence of some length, wrapping at the cell width");
     }
+    // `x` completes nothing, and HD-2's truthful "nothing here begins with that" is a
+    // second region. Dismissed, so this case still measures the pane on its own.
     t.text("x");
+    t.key(input::scan::kEscape);
     const std::size_t cell_shown = t.pane().shown.size();
     const std::uint64_t cell_earlier = t.pane().earlier;
 
@@ -5931,6 +5938,629 @@ TEST_CASE("the pane's interior follows the metric, and its placement does not") 
                                                       typed.terminal_w, typed.terminal_h, 8, 18);
     CHECK(fit.columns == typed.terminal_cols);
     CHECK(static_cast<std::size_t>(fit.rows) == typed.terminal_lines);
+}
+
+// ============================================================================
+// HD-2 — what this terminal can say next
+// ============================================================================
+//
+// The pure half first (the model), then the pane (the picture), then the two
+// claims that are about EFFECTS rather than about either: browsing authors
+// nothing, and the list does not touch what the transcript says it is omitting.
+
+namespace {
+
+/// A participant with a vocabulary this file chose — so a case can pin the
+/// duplicate-version behaviour the live Workshop's own catalog happens not to
+/// exercise, without pretending the live catalog has one.
+///
+/// UNATTACHED, DELIBERATELY. Completion never authors, so it never needs a
+/// channel; a session with none is the sharpest possible statement of that, and
+/// every case below that only reads candidates uses one.
+struct Vocab {
+    static std::shared_ptr<const loom::Schema> ping(std::uint32_t version) {
+        return loom::SchemaBuilder("Ping", version).field("seq", loom::Kind::Int).build();
+    }
+};
+
+loom::TerminalVocabulary two_versions() {
+    loom::TerminalVocabulary v;
+    v.knows(Vocab::ping(1)).knows(Vocab::ping(2)).accepts(loom::schema_of<loom::Ack>());
+    return v;
+}
+
+loom::TerminalVocabulary workshop_vocab() {
+    loom::TerminalVocabulary v;
+    v.knows(loom::schema_of<surface::SurfaceText>())
+        .knows(loom::schema_of<surface::SurfaceCanvas>())
+        .accepts(loom::schema_of<loom::Ack>());
+    return v;
+}
+
+std::vector<std::string> displays(const Completion& c) {
+    std::vector<std::string> out;
+    for (const Candidate& k : c.candidates) {
+        out.push_back(k.display);
+    }
+    return out;
+}
+
+/// The completion list on a canvas, or nullptr — the SECOND region, by position:
+/// it is the one that is not the pane itself.
+const surface::SurfaceTextRegion* list_of(const surface::SurfaceCanvas& c) {
+    return c.texts.size() >= 2 ? &c.texts[1] : nullptr;
+}
+
+} // namespace
+
+TEST_CASE("a half-typed line says which part of it the maker is standing in") {
+    // THE ONE THING A SUBMITTER NEVER HAS TO ASK, and the whole of what HD-2 added to the
+    // grammar: not what the line SAYS but which slot the caret is in. The token positions
+    // are `submit_terminal_line`'s own -- verb, address, shape, version, then arguments.
+    CHECK(read_command_line("").slot == LineSlot::Verb);
+    CHECK(read_command_line("se").slot == LineSlot::Verb);
+    CHECK(read_command_line("se").partial == "se");
+    // A SEPARATOR IS WHAT MOVES THE CARET ON. `send` is still the verb being typed; `send `
+    // is a finished verb and an address about to start, and the difference is one space.
+    CHECK(read_command_line("send").slot == LineSlot::Verb);
+    CHECK(read_command_line("send ").slot == LineSlot::Address);
+    CHECK(read_command_line("send ").partial.empty());
+    CHECK(read_command_line("send #1").slot == LineSlot::Address);
+    CHECK(read_command_line("send #1 ").slot == LineSlot::Shape);
+    CHECK(read_command_line("send #1 Pi").slot == LineSlot::Shape);
+    CHECK(read_command_line("send #1 Ping ").slot == LineSlot::Version);
+    CHECK(read_command_line("send #1 Ping 2 ").slot == LineSlot::Arguments);
+    CHECK(read_command_line("send #1 Ping 2 a=1 b=").slot == LineSlot::Arguments);
+
+    // WHAT HAS ALREADY BEEN SAID, as far as it parses -- and `has_version` is a real
+    // question rather than a formality: the fourth word is a `std::uint32_t` on the wire.
+    const CommandLine done = read_command_line("send @office Ping 2 ");
+    CHECK(done.verb == "send");
+    CHECK(done.shape == "Ping");
+    CHECK(done.has_version);
+    CHECK(done.version == 2);
+    CHECK_FALSE(read_command_line("send @office Ping x ").has_version);
+    CHECK_FALSE(read_command_line("send @office Ping -1 ").has_version);
+    CHECK_FALSE(read_command_line("send @office Ping 4294967296 ").has_version);
+}
+
+TEST_CASE("the verbs a maker is offered are the verbs the submitter runs") {
+    // ONE TABLE, TWO CONSUMERS. `submit_terminal_line` resolves through `terminal_verb`
+    // and reads `ask`; the completer lists the same rows. A third verb is one line here
+    // and cannot be learned by only one of them -- which is the whole reason the two
+    // string literals became a table.
+    REQUIRE(kTerminalVerbCount == 2);
+    REQUIRE(terminal_verb("send") != nullptr);
+    REQUIRE(terminal_verb("ask") != nullptr);
+    CHECK_FALSE(terminal_verb("send")->ask);
+    CHECK(terminal_verb("ask")->ask);
+    // EXACT, NEVER A PREFIX. An abbreviation that ran a different verb than the maker
+    // typed is the one convenience this pane must not have.
+    CHECK(terminal_verb("sen") == nullptr);
+    CHECK(terminal_verb("") == nullptr);
+    CHECK(terminal_verb("SEND") == nullptr);
+
+    loom::TerminalSession me("t", workshop_vocab());
+    CHECK(displays(complete_line(me, "")) == std::vector<std::string>{"send", "ask"});
+    CHECK(displays(complete_line(me, "a")) == std::vector<std::string>{"ask"});
+    CHECK(displays(complete_line(me, "s")) == std::vector<std::string>{"send"});
+    // ...and every candidate's INSERT is what the submitter would then read as that verb.
+    for (const Candidate& c : complete_line(me, "").candidates) {
+        const std::vector<loom::Token> tok = loom::tokenize(c.insert);
+        REQUIRE(tok.size() == 1);
+        CHECK(terminal_verb(tok[0].text) != nullptr);
+    }
+}
+
+TEST_CASE("an address offers the three forms and never pretends to know the values") {
+    loom::TerminalSession me("t", workshop_vocab());
+
+    // THE THREE FORMS, and the two of them that are FORMS say so. This participant holds
+    // no weave directory and no role directory -- deliberately, session.hpp -- so `#12`
+    // and `@office` are shapes of an answer and never a list of answers.
+    const Completion at = complete_line(me, "send ");
+    CHECK(displays(at) == std::vector<std::string>{"*", "#<id>", "@<office>"});
+    CHECK(at.candidates[0].insert == "* ");
+    CHECK(at.candidates[1].insert == "#"); // no separator: an id follows immediately
+    CHECK(at.candidates[2].insert == "@");
+    CHECK(at.candidates[1].detail.find("cannot list") != std::string::npos);
+
+    // A SIGIL ALREADY CHOSEN IS SILENCE, NOT A REFUSAL. `#1` is a perfectly good address
+    // and a list that answered "no match" to it would be wrong; what the heading offers
+    // instead is Loom's own grammar (`parse_address`) saying whether it is one YET.
+    const Completion typed = complete_line(me, "send #1");
+    CHECK(typed.candidates.empty());
+    CHECK(typed.heading == "'#1' is an address");
+    CHECK(complete_line(me, "send #").heading.find("not an address yet") != std::string::npos);
+    CHECK(complete_line(me, "send @").heading.find("not an address yet") != std::string::npos);
+    CHECK(complete_line(me, "send @skin").heading == "'@skin' is an address");
+
+    // A BAREWORD IS NONE OF THE THREE, and that is the one address answer that IS a
+    // refusal -- `12` is not an address, because the sigil is what says which kind it is.
+    const Completion bare = complete_line(me, "send 12");
+    CHECK(bare.candidates.empty());
+    CHECK(bare.heading.find("#12, @office or *") != std::string::npos);
+}
+
+TEST_CASE("shape candidates are the catalog, in the host's order, and versions stay apart") {
+    loom::TerminalSession me("t", workshop_vocab());
+
+    // THE HOST'S DECLARED ORDER, preserved -- no ranking, no sorting, no learned order.
+    const Completion all = complete_line(me, "send * ");
+    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v3",
+                                                    "zen.Ack v1"});
+    // ACCEPTANCE WRITES THE VERSION TOO, because a shape without one is never a command
+    // this pane can run: the grammar wants four words and the version is the fourth.
+    CHECK(all.candidates[0].insert == "SurfaceText 1 ");
+    CHECK(all.candidates[0].detail.find("slot:Text") != std::string::npos);
+
+    // CASE FOLLOWS THE WIRE. A schema name is identity; matching `surfacetext` against
+    // `SurfaceText` would offer a completion that composes to UnknownShape.
+    CHECK(displays(complete_line(me, "send * Surface")) ==
+          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v3"});
+    CHECK(complete_line(me, "send * surface").candidates.empty());
+    CHECK(complete_line(me, "send * surface").heading.find("(3 known)") != std::string::npos);
+
+    // A DOOR IS THE ONE AUTHORITY-ADJACENT FACT THAT IS HONESTLY KNOWABLE, and it is
+    // about the direction that cannot be mistaken for permission: `zen.Ack` may ARRIVE
+    // here. Whether any of these may be SENT is the Kernel's answer at delivery.
+    CHECK_FALSE(all.candidates[0].door);
+    CHECK(all.candidates[2].door);
+    CHECK(all.candidates[2].detail.find("[door]") != std::string::npos);
+    CHECK(all.heading.find("knowing one is not authority to send it") != std::string::npos);
+
+    // TWO VERSIONS OF ONE NAME STAY TWO ANSWERS. The Workshop host's own catalog happens
+    // to hold no such pair, so this is the vocabulary a test chose -- and the mechanism is
+    // the thing being pinned, not the host's inventory.
+    loom::TerminalSession twice("t", two_versions());
+    const Completion pings = complete_line(twice, "send * Pi");
+    CHECK(displays(pings) == std::vector<std::string>{"Ping v1", "Ping v2"});
+    CHECK(pings.candidates[0].insert == "Ping 1 ");
+    CHECK(pings.candidates[1].insert == "Ping 2 ");
+
+    // ...and the VERSION slot answers the same question for a hand-typed name.
+    CHECK(displays(complete_line(twice, "send * Ping ")) == std::vector<std::string>{"v1", "v2"});
+    CHECK(displays(complete_line(twice, "send * Ping 2")) == std::vector<std::string>{"v2"});
+    CHECK(complete_line(twice, "send * Pong ").candidates.empty());
+}
+
+TEST_CASE("arguments offer field NAMES, never values, and the heading is compose()'s verdict") {
+    loom::TerminalSession me("t", workshop_vocab());
+
+    const Completion fresh = complete_line(me, "send * SurfaceText 1 ");
+    CHECK(displays(fresh) == std::vector<std::string>{"slot=", "text="});
+    // NO TRAILING SEPARATOR on a field, because a value follows immediately -- the one
+    // slot where the grammar's separator rule differs, honoured per slot.
+    CHECK(fresh.candidates[0].insert == "slot=");
+    CHECK(fresh.candidates[0].detail.find("required") != std::string::npos);
+    // THE HEADING IS THE LADDER'S OWN VERDICT, run over the arguments already finished.
+    CHECK(fresh.heading == "SurfaceText v1 -- missing: slot, text");
+
+    // ONCE THERE IS AN `=` THE MAKER IS TYPING A VALUE, and this file has nothing to say
+    // about values. The preview stays; the list stops.
+    const Completion valuing = complete_line(me, "send * SurfaceText 1 slot=sc");
+    CHECK(valuing.candidates.empty());
+    CHECK(valuing.heading == "SurfaceText v1 -- missing: slot, text");
+
+    // A FIELD ALREADY NAMED IS NOT OFFERED AGAIN: the composer refuses a double
+    // assignment, and offering one would be offering a command that cannot run.
+    CHECK(displays(complete_line(me, "send * SurfaceText 1 slot=score ")) ==
+          std::vector<std::string>{"text="});
+    CHECK(complete_line(me, "send * SurfaceText 1 slot=score ").heading ==
+          "SurfaceText v1 -- missing: text");
+
+    // READY IS A REAL VERDICT AND IT MEANS WHAT SUBMISSION WILL MEAN, because it is the
+    // same ladder -- `compose()` stopped one step before anything is authored.
+    CHECK(complete_line(me, "send * SurfaceText 1 slot=score text=hi ").heading ==
+          "SurfaceText v1 -- ready; Return submits it");
+    CHECK(complete_line(me, "send * SurfaceText 1 score hi ").heading ==
+          "SurfaceText v1 -- ready; Return submits it");
+
+    // ...and an ERROR is the ladder's words, not a second vocabulary invented here.
+    CHECK(complete_line(me, "send * SurfaceText 1 nope=1 ").heading.find("no field 'nope'") !=
+          std::string::npos);
+    // A shape this terminal does not know has no fields to offer and says so.
+    CHECK(complete_line(me, "send * Nothing 1 ").candidates.empty());
+    CHECK(complete_line(me, "send * Nothing 1 ").heading.find("does not know Nothing v1") !=
+          std::string::npos);
+    // A version that is not a number never reaches the ladder at all.
+    CHECK(complete_line(me, "send * SurfaceText x ").heading.find("fourth word") !=
+          std::string::npos);
+}
+
+TEST_CASE("a quoted token is left alone, because the quote is not on the line the completer sees") {
+    // `loom::tokenize` drops the quote characters, so the partial this completer can see
+    // (`Sur`) is not the text on the line (`"Sur`). Replacing one with the other would
+    // leave a dangling quote in a line the maker can no longer see the whole of.
+    loom::TerminalSession me("t", workshop_vocab());
+    const Completion quoted = complete_line(me, "send * \"Sur");
+    CHECK_FALSE(quoted.open);
+    CHECK(quoted.candidates.empty());
+    CHECK(quoted.heading.empty());
+    // ...and the same prefix unquoted is completed normally, which is what says the
+    // refusal is about the quote rather than about the text.
+    CHECK(complete_line(me, "send * Sur").candidates.size() == 2);
+}
+
+TEST_CASE("browsing candidates authors NOTHING -- no traffic, no ask, no transcript entry") {
+    // THE PHASE'S LOAD-BEARING NEGATIVE. Completion runs on every keystroke against a
+    // participant that CAN author, so the claim has to be measured against a real bus with
+    // a real listener rather than argued from the const qualifiers alone.
+    Live t;
+    SkinSeat* seat = t.mount_skin_seat();
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    // COUNTED BY SENDER, and that is not a nicety. Workshop's own weave publishes a
+    // status line on every repaint and it lands on the same office, so a bare count of
+    // what the seat heard measures how many times the screen was painted. `mail.sender()`
+    // is the BUS STAMP -- it cannot be written by a payload and cannot be chosen by
+    // whoever composed the message -- which is what makes "did the PARTICIPANT speak" a
+    // different question from "did anything arrive".
+    const auto from_participant = [&] {
+        std::size_t n = 0;
+        for (const loom::WeaveId& who : seat->from) {
+            if (who == t.terminal_id) {
+                ++n;
+            }
+        }
+        return n;
+    };
+    REQUIRE(from_participant() == 0);
+    const std::size_t record_before = me->transcript().size();
+
+    // Type a whole command, one character at a time, and browse at every stage: the
+    // verb list, the address forms, the shapes, the versions, the fields. Move the
+    // selection, accept candidates, dismiss, ask again.
+    // Addressed to the ONE office this participant's grant names, so the submission at
+    // the end is a real authored delivery rather than a refusal that would prove nothing.
+    const auto browse = [&](const std::string& text) {
+        for (const char ch : text) {
+            t.text(std::string(1, ch));
+            t.key(input::scan::kDown);
+            t.key(input::scan::kUp);
+        }
+    };
+    browse("send ");
+    t.key(input::scan::kEscape); // the address list is showing: dismissed, line untouched
+    t.key(input::scan::kTab);    // nothing showing: asked for again, line untouched
+    REQUIRE(t.pane().input == "send ");
+    browse("@zengine.skin SurfaceText 1 slot=score text=hi");
+    t.bus.pump();
+
+    CHECK(from_participant() == 0); // nothing of ITS landed on the office it may reach
+    CHECK(me->outstanding() == 0);  // no ask was created
+    CHECK_FALSE(me->awaiting());
+    CHECK(me->pending().empty());
+    // AND THE PARTICIPANT'S OWN RECORD IS UNTOUCHED. The transcript is where an authored
+    // act would appear even if nothing were listening, so this is the check that does not
+    // depend on anybody being there to hear it.
+    CHECK(me->transcript().size() == record_before);
+    CHECK(of_kind(*me, loom::TranscriptKind::Submitted).empty());
+    CHECK(of_kind(*me, loom::TranscriptKind::LocalCommand).empty());
+
+    // ...AND THE ORDINARY SUBMISSION STILL AUTHORS, which is what makes the zeros above a
+    // measurement rather than a broken pane. The canary: delete the send and this fails.
+    t.key(input::scan::kReturn);
+    t.bus.pump();
+    CHECK(from_participant() == 1);
+    CHECK(of_kind(*me, loom::TranscriptKind::Submitted).size() == 1);
+    CHECK(of_kind(*me, loom::TranscriptKind::LocalCommand).size() == 1);
+}
+
+TEST_CASE("accepting a candidate edits the line, and the grammar's separators stay right") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+
+    // AN END-OF-LINE EDIT, which is what makes this compatible with the caret this pane
+    // actually has: the token being completed is the last one and the caret is at the end,
+    // so accepting is "drop what has been typed of this token, append what it was to be".
+    t.text("s");
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input == "send ");
+
+    // A FORM, ACCEPTED WITH NO SEPARATOR, because an id follows it immediately. This is
+    // the address slot on purpose: it is the one this fixture's vocabulary makes three
+    // candidates deep, so the selection has somewhere to move.
+    REQUIRE(t.pane().completion.candidates.size() == 3);
+    t.key(input::scan::kDown);
+    CHECK(t.pane().completion.selected == 1);
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input == "send #");
+    t.text("7 ");
+
+    // A SHAPE, ACCEPTED WITH ITS VERSION, because four words is what the grammar wants.
+    t.text("Surface");
+    CHECK(t.pane().completion.slot == LineSlot::Shape);
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input == "send #7 SurfaceText 1 ");
+    t.key(input::scan::kTab); // the first field
+    CHECK(t.pane().input == "send #7 SurfaceText 1 slot=");
+
+    // NO SEPARATOR WAS DUPLICATED AND NONE WAS SWALLOWED -- the line still tokenizes to
+    // exactly the words that were meant, which is the only definition of that claim that
+    // does not depend on counting spaces by eye.
+    const std::vector<loom::Token> tok = loom::tokenize(t.pane().input);
+    REQUIRE(tok.size() == 5);
+    CHECK(tok[0].text == "send");
+    CHECK(tok[1].text == "#7");
+    CHECK(tok[2].text == "SurfaceText");
+    CHECK(tok[3].text == "1");
+    CHECK(tok[4].text == "slot=");
+
+    // AND SURROUNDING AUTHORED TEXT SURVIVES. Accepting a shape after an address the maker
+    // typed by hand leaves the address exactly as they wrote it.
+    t.key(input::scan::kEscape); // dismiss
+    t.key(input::scan::kEscape); // clear the line
+    CHECK(t.pane().input.empty());
+    for (const char ch : std::string("ask @loom.weaver Surface")) {
+        t.text(std::string(1, ch));
+    }
+    t.key(input::scan::kTab);
+    CHECK(t.pane().input == "ask @loom.weaver SurfaceText 1 ");
+}
+
+TEST_CASE("the completion keys were unbound in this mode, and the ones that were not still work") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+
+    // TAB ON AN EMPTY LINE IS THE ONE GESTURE DISCOVERY NEEDS. Typing is the other entry
+    // point, and an untouched line asks nothing -- see the case below on why.
+    CHECK_FALSE(t.pane().completion.open);
+    t.key(input::scan::kTab);
+    CHECK(t.pane().completion.open);
+    CHECK(t.pane().completion.candidates.size() == 2);
+    CHECK(t.pane().completion.selected == 0);
+
+    // UP AND DOWN MOVE AND DO NOT WRAP. A list that wrapped would answer Up on the first
+    // row by scrolling the whole thing out from under the maker's eye.
+    t.key(input::scan::kUp);
+    CHECK(t.pane().completion.selected == 0);
+    t.key(input::scan::kDown);
+    CHECK(t.pane().completion.selected == 1);
+    t.key(input::scan::kDown);
+    CHECK(t.pane().completion.selected == 1);
+    t.key(input::scan::kUp);
+    CHECK(t.pane().completion.selected == 0);
+    // ...and neither touched the line.
+    CHECK(t.pane().input.empty());
+
+    // ESCAPE DISMISSES THE LIST AND LEAVES THE LINE; a second Escape clears the line;
+    // NEITHER closes the pane, which is the property that makes this key safe to press.
+    t.text("s");
+    CHECK(t.pane().completion.candidates.size() == 1);
+    t.key(input::scan::kEscape);
+    CHECK(t.pane().input == "s");
+    CHECK(t.pane().dismissed);
+    CHECK(t.canvases.back().texts.size() == 1); // the list is gone from the picture
+    t.key(input::scan::kEscape);
+    CHECK(t.pane().input.empty());
+    CHECK(t.pane().open);
+
+    // A DISMISSAL BELONGS TO THE PART OF THE LINE IT WAS MADE IN. More of the same word
+    // leaves it dismissed; the next word is a new question and brings the list back.
+    CHECK_FALSE(t.pane().dismissed); // clearing the line abandoned the dismissal with it
+    for (const char ch : std::string("sen")) {
+        t.text(std::string(1, ch));
+    }
+    t.key(input::scan::kEscape);
+    CHECK(t.pane().dismissed);
+    t.text("d");
+    CHECK(t.pane().dismissed); // still the verb
+    t.text(" ");
+    CHECK_FALSE(t.pane().dismissed); // the address is a different question
+    CHECK(t.canvases.back().texts.size() == 2);
+
+    // AND THE THREE KEYS THIS MODE ALREADY OWNED ARE UNCHANGED.
+    t.key(input::scan::kBackspace);
+    CHECK(t.pane().input == "send");
+    t.key(input::scan::kReturn);
+    CHECK(t.pane().input.empty());
+    t.toggle_terminal();
+    CHECK_FALSE(t.pane().open); // shift+space still closes it
+}
+
+TEST_CASE("an untouched line asks nothing, so the answer to the last command stays readable") {
+    // MEASURED, NOT REASONED. Submitting clears the line, so "show candidates whenever
+    // there are any" put the verb list on top of the reply to the command just typed --
+    // found by the case that asserts the pane states its whole grammar with nothing
+    // elided, which began finding `...` in a pane that had elided nothing.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.type_line("help");
+    t.bus.pump();
+    CHECK(t.pane().input.empty());
+    CHECK_FALSE(t.pane().completion.open);
+    CHECK(t.canvases.back().texts.size() == 1);
+
+    // ...and the gesture that asks anyway is on the input row, where it erases itself the
+    // moment there is anything to erase it.
+    const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+    CHECK(pane.rows.back().text.find("tab: what can this terminal say?") != std::string::npos);
+    t.text("s");
+    CHECK(t.canvases.back().texts[0].rows.back().text.rfind("> s_", 0) == 0);
+}
+
+TEST_CASE("the list is a bounded region inside the pane, and never over the input line") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.text("s");
+
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    REQUIRE(c.texts.size() == 2);
+    const surface::SurfaceTextRegion& pane = c.texts[0];
+    const surface::SurfaceTextRegion* list = list_of(c);
+    REQUIRE(list != nullptr);
+
+    // INSIDE THE PANE'S OWN BOUNDS, on every edge. The Terminal owns this interior, which
+    // is what makes an internal overlay allowed without a z-order framework anywhere.
+    CHECK(list->x >= pane.x);
+    CHECK(list->y > pane.y); // below the header naming the identity
+    CHECK(list->x + list->w <= pane.x + pane.w);
+    CHECK(list->y + list->h <= pane.y + pane.h);
+
+    // AND ABOVE THE TWO ROWS THE PANE ALWAYS SPENDS ON ITSELF. Those are cell rows here
+    // because this medium has no metric; the same claim under a real metric is the case
+    // below, and it is the one where the two lattices differ.
+    const Screen sc = screen_of(t.session());
+    CHECK(list->y + list->h <= sc.terminal_y +
+                                   static_cast<std::int64_t>(sc.terminal_lines) - 2);
+
+    // THE LIST IS LAST, so it is the topmost thing on the canvas -- painter's order across
+    // `texts` is list order, the same rule every other list already states.
+    CHECK(&c.texts.back() == list);
+    CHECK(list->rows[0].text.rfind("verbs", 0) == 0);
+    CHECK(list->rows[1].text.rfind("> send", 0) == 0);
+
+    // THE SELECTED ROW IS UNAMBIGUOUS IN BOTH DIRECTIONS A MEDIUM MIGHT HAVE: a ground for
+    // one that paints, and a marker for one that has only characters. Colour alone would
+    // be a lie on a monochrome terminal, which is the argument `glyph_for_role` already
+    // makes in the Skin next door.
+    CHECK(list->rows[1].background == surface::role::kMuted);
+    CHECK(list->rows[1].role == surface::role::kAccent);
+    CHECK(list->rows[0].background == surface::role::kNone);
+    for (std::size_t i = 2; i < list->rows.size(); ++i) {
+        CHECK(list->rows[i].background == surface::role::kNone);
+        CHECK(list->rows[i].text.rfind("  ", 0) == 0);
+    }
+
+    // AND IT DISAPPEARS CLEANLY. Nothing is left behind on the next repaint.
+    t.key(input::scan::kEscape);
+    CHECK(t.canvases.back().texts.size() == 1);
+}
+
+TEST_CASE("the list clears the input line under a real metric too, where a row is not a cell") {
+    // THE CASE THE TWO LATTICES MAKE INTERESTING. A region is placed in CELLS and filled
+    // in PROSE ROWS, and under a real metric the pane's input row begins part-way down
+    // some cell -- so "above the input line" is arithmetic rather than a subtraction.
+    for (const std::int64_t line_px : {14, 18, 23, 31}) {
+        const Screen sc = screen_of(140, 60, 8, line_px);
+        REQUIRE(sc.terminal_lines >= kTerminalChrome + 1);
+        const CompletionPlace p = completion_place(sc, 6);
+        REQUIRE(p.visible);
+        CHECK(p.x == sc.terminal_x);
+        CHECK(p.w == sc.terminal_w);
+        CHECK(p.y > sc.terminal_y);
+        CHECK(p.y + p.h <= sc.terminal_y + sc.terminal_h);
+
+        // The pane's omission row and its input row both begin below the list's last
+        // pixel -- which is the claim, in the unit the medium actually draws in.
+        const surface::RegionFit pane = surface::fit_region(
+            sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h, 8, line_px);
+        const std::int64_t omission_top_px =
+            surface::px_of_cells(sc.terminal_y) + pane.origin_y +
+            (static_cast<std::int64_t>(sc.terminal_lines) - 2) * pane.line_px;
+        CHECK(surface::px_of_cells(p.y + p.h) <= omission_top_px);
+
+        // ...and the list's own interior was resolved with the SAME metric, so what it
+        // says it can show is what a medium will draw.
+        const surface::RegionFit fit =
+            surface::fit_region(p.x, p.y, p.w, p.h, 8, line_px);
+        CHECK(static_cast<std::size_t>(fit.rows) == p.rows);
+    }
+}
+
+TEST_CASE("the list says which slice of a long vocabulary it is showing") {
+    // A LIST THAT SCROLLED WITHOUT SAYING SO WOULD BE THE OMISSION LIE ONE REGION OVER.
+    Completion comp;
+    comp.heading = "shapes";
+    for (int i = 0; i < 9; ++i) {
+        Candidate c;
+        c.display = "S" + std::to_string(i);
+        comp.candidates.push_back(c);
+    }
+
+    // Room for the heading and three candidates.
+    const std::vector<surface::SurfaceTextRow> top = completion_rows(comp, 4, 60);
+    REQUIRE(top.size() == 4);
+    CHECK(top[0].text.rfind("1-3 of 9  shapes", 0) == 0);
+    CHECK(top[1].text.rfind("> S0", 0) == 0);
+
+    // WINDOWED AROUND THE SELECTION, so a maker on the seventh candidate can see it.
+    comp.selected = 6;
+    const std::vector<surface::SurfaceTextRow> mid = completion_rows(comp, 4, 60);
+    REQUIRE(mid.size() == 4);
+    CHECK(mid[0].text.rfind("5-7 of 9  shapes", 0) == 0);
+    CHECK(mid[3].text.rfind("> S6", 0) == 0);
+
+    // AND THE SLICE THAT IS NOTHING AT ALL still says so, which is what a pane too short
+    // for one candidate row shows.
+    const std::vector<surface::SurfaceTextRow> none = completion_rows(comp, 1, 60);
+    REQUIRE(none.size() == 1);
+    CHECK(none[0].text.rfind("none of 9  shapes", 0) == 0);
+
+    // A vocabulary that FITS says nothing about slices at all.
+    comp.candidates.resize(2);
+    comp.selected = 0;
+    CHECK(completion_rows(comp, 4, 60)[0].text.rfind("shapes", 0) == 0);
+}
+
+TEST_CASE("the list covers transcript rows and changes nothing about what the pane omits") {
+    // THE HD-2 §22 CLAIM, and the reason the list is a second region rather than rows
+    // taken out of the pane's own budget: covering and taking are different acts, and
+    // only one of them leaves "... N earlier" meaning what it meant.
+    Live t;
+    loom::TerminalSession* me = t.mount_terminal();
+    t.toggle_terminal();
+    for (int i = 0; i < 30; ++i) {
+        me->record_notice("entry number " + std::to_string(i));
+    }
+    t.key(input::scan::kBackspace); // a no-op that refreshes the snapshot
+    const std::uint64_t earlier = t.pane().earlier;
+    const std::size_t shown = t.pane().shown.size();
+    const std::string omission = terminal_omission(t.pane());
+    REQUIRE(earlier > 0);
+
+    t.text("s"); // the list opens over the transcript
+    REQUIRE(t.canvases.back().texts.size() == 2);
+    CHECK(t.pane().earlier == earlier);
+    CHECK(t.pane().shown.size() == shown);
+    CHECK(terminal_omission(t.pane()) == omission);
+
+    // ...and the pane's OWN region is unchanged: same rows, same words, same count. The
+    // list is on top of it, not inside it.
+    const surface::SurfaceTextRegion& pane = t.canvases.back().texts[0];
+    const Screen sc = screen_of(t.session());
+    CHECK(pane.rows.size() == sc.terminal_lines);
+    CHECK(pane.rows[sc.terminal_lines - 2].text.rfind(omission, 0) == 0);
+}
+
+TEST_CASE("the terminal medium projects the list honestly, ground and all") {
+    // A CHARACTER MEDIUM HAS ONE ATTRIBUTE PER CELL AND NOW HAS TWO. What it does with a
+    // ground is its own answer -- an SGR background -- and what it does with the rest is
+    // exactly what it did before, which is why every existing golden is unmoved.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    t.text("s");
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    const surface::SurfaceTextRegion* list = list_of(c);
+    REQUIRE(list != nullptr);
+
+    const std::vector<std::string> rows = rasterized(c);
+    const std::size_t heading_row = static_cast<std::size_t>(list->y);
+    CHECK(rows[heading_row].substr(static_cast<std::size_t>(list->x), 5) == "verbs");
+    CHECK(rows[heading_row + 1].substr(static_cast<std::size_t>(list->x), 6) == "> send");
+
+    // THE GROUND IS IN THE BYTES, once, at the start of the selected row's run, and is put
+    // back afterwards. `\x1b[100m` is bright black -- the selection bar.
+    const std::string body = surface::canvas_body(c);
+    CHECK(body.find("\x1b[100m") != std::string::npos);
+    // ...and the row above it asked for none, so nothing between them says otherwise.
+    const std::size_t bar = body.find("\x1b[100m");
+    const std::size_t verbs = body.find("verbs");
+    REQUIRE(verbs != std::string::npos);
+    CHECK(verbs < bar);
+    CHECK(body.find("\x1b[100m", bar + 1) == std::string::npos); // exactly one row wears it
+
+    // AND A CANVAS WITH NO GROUND ANYWHERE EMITS NOT ONE BACKGROUND BYTE -- which is the
+    // whole of why this addition is invisible to every golden this repository holds.
+    t.key(input::scan::kEscape);
+    CHECK(surface::canvas_body(t.canvases.back()).find("\x1b[100m") == std::string::npos);
+    CHECK(surface::canvas_body(t.canvases.back()).find("\x1b[49m") == std::string::npos);
 }
 
 TEST_CASE("taking the room refits the workspace, and says whether anything moved") {
