@@ -41,6 +41,7 @@
 
 #include "timer/vocabulary.hpp"
 
+#include <zen/recorder/recorder.hpp>
 #include <zen/schema.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -1223,4 +1224,134 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     // cancellation -- the operation stopped existing, and the only honest number
     // for facts published about that is zero.
     CHECK(ledger.endings == 0);
+}
+
+namespace {
+
+/// The operation identity the runner published, read out of the retained
+/// `BuildStarted` payload. It is a payload field and not a header, which is
+/// exactly ASYNC-1's point.
+std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder& history) {
+    const loom::PayloadLookup body = history.payload(started.record_seq);
+    REQUIRE(body.state == loom::PayloadState::Retained);
+    loom::Unverified u = loom::parse(body.bytes);
+    loom::Admission a = loom::admit(u, loom::schema_of<BuildStarted>());
+    REQUIRE(a.ok());
+    return a.value().get("op")->as_int();
+}
+
+} // namespace
+
+// ============================================================================
+// Tier 5 -- what the HOST remembers about a build (RTH-1)
+// ============================================================================
+//
+// The recorder is Loom's, and its own suite proves what a record holds. What
+// belongs HERE is the claim only a real held build can make: that dispatch
+// ancestry tells the truth about an operation that outlived the turn that asked
+// for it, and that a burst of one shape does not cost another shape its memory.
+
+TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
+    Live live("slow", {slow("slow", 4, "0.15")});
+    loom::RecorderPolicy policy = loom::default_policy();
+    // The host's shape, reduced to what this case needs: the beat is noise, the
+    // four observations get a window of their own.
+    policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name),
+                                               loom::RetentionClass::NotRetained, 0, false});
+    for (const char* shape : {BuildStarted::zen_name, BuildOutput::zen_name,
+                              BuildFinished::zen_name, RunBuild::zen_name}) {
+        policy.rules.push_back(
+            loom::RetentionRule{std::string(shape), loom::RetentionClass::Dedicated, 64, true});
+    }
+    loom::Recorder history(live.bus);
+    history.apply_policy(policy);
+
+    live.tell_tool(BuildRequested{"slow"});
+    live.carry_until_over();
+
+    const std::vector<loom::HistoryRecord> all = history.snapshot();
+    const auto find_one = [&all](const char* shape) -> const loom::HistoryRecord* {
+        for (const loom::HistoryRecord& r : all) {
+            if (r.shape == shape) {
+                return &r;
+            }
+        }
+        return nullptr;
+    };
+    const loom::HistoryRecord* order = find_one(RunBuild::zen_name);
+    const loom::HistoryRecord* started = find_one(BuildStarted::zen_name);
+    const loom::HistoryRecord* output = find_one(BuildOutput::zen_name);
+    const loom::HistoryRecord* finished = find_one(BuildFinished::zen_name);
+    REQUIRE(order != nullptr);
+    REQUIRE(started != nullptr);
+    REQUIRE(output != nullptr);
+    REQUIRE(finished != nullptr);
+
+    // SYNCHRONOUS ANCESTRY IS EXACT. `BuildStarted` was authored from inside the
+    // handling of the `RunBuild` that asked for it.
+    CHECK(started->dispatch_parent == order->seq);
+
+    // ...AND ASYNC ANCESTRY DOES NOT LIE ABOUT ITSELF. Output arrived on a LATER
+    // beat, so its dispatch parent is that beat -- not the order, and not the
+    // request. This is the field's whole discipline in one assertion: it says
+    // what was being dispatched, never what a thing is "about".
+    CHECK(output->dispatch_parent != order->seq);
+    CHECK(output->dispatch_parent > started->seq);
+    CHECK(finished->dispatch_parent != order->seq);
+
+    // AND THE SEMANTIC RELATION IS INTACT, in the payload, where the operation
+    // identity lives (ASYNC-1: `op` is not a correlation and not an ancestry).
+    const loom::PayloadLookup body = history.payload(output->record_seq);
+    REQUIRE(body.state == loom::PayloadState::Retained);
+    loom::Unverified u = loom::parse(body.bytes);
+    loom::Admission a = loom::admit(u, loom::schema_of<BuildOutput>());
+    REQUIRE(a.ok());
+    CHECK(a.value().get("op")->as_int() == started_op(*started, history));
+
+    // THE BEATS THAT CARRIED IT ARE COUNTED, NOT KEPT -- and the difference is
+    // visible without asking anyone.
+    CHECK(history.counters().declined_by_policy > 0);
+    bool beats_declined = false;
+    for (const loom::ShapeTally& t : history.tallies()) {
+        if (t.shape == timer::TimerFired::zen_name) {
+            beats_declined = true;
+            CHECK(t.observed > 0);
+            CHECK(t.recorded == 0);
+            CHECK(t.declined == t.observed);
+        }
+    }
+    CHECK(beats_declined);
+
+    // THE POLICY THAT DECIDED ALL OF THAT IS ITSELF REMEMBERED, once, and no
+    // message was sent to remember it.
+    std::size_t policy_records = 0;
+    for (const loom::HistoryRecord& r : all) {
+        policy_records += r.kind == loom::RecordKind::RecorderPolicy ? 1u : 0u;
+    }
+    CHECK(policy_records == 1);
+}
+
+TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
+    // THE CLAIM A DEDICATED WINDOW MAKES, measured against a shared one that is
+    // deliberately too small. Without it, a talkative build erases the record of
+    // its own start; with it, the start is still there when the maker looks.
+    Live live("chatty", {slow("chatty", 6, "0.05")});
+    loom::RecorderPolicy policy = loom::default_policy();
+    policy.shared_capacity = 4;
+    policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name),
+                                               loom::RetentionClass::NotRetained, 0, false});
+    policy.rules.push_back(loom::RetentionRule{std::string(BuildStarted::zen_name),
+                                               loom::RetentionClass::Dedicated, 32, true});
+    loom::Recorder history(live.bus);
+    history.apply_policy(policy);
+
+    live.tell_tool(BuildRequested{"chatty"});
+    live.carry_until_over();
+
+    std::size_t starts = 0;
+    for (const loom::HistoryRecord& r : history.snapshot()) {
+        starts += r.shape == BuildStarted::zen_name ? 1u : 0u;
+    }
+    CHECK(starts == 1);                      // still there
+    CHECK(history.bounds().forgotten > 0);   // ...and the shared window did lose things
 }

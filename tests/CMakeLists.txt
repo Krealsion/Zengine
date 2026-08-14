@@ -399,7 +399,7 @@ zengine_doctest_test(workshop zengine-workshop-tests)
 # because this whole directory is gated on a Loom that can host weaves (POP-03).
 add_executable(zengine-builder-tests test_builder.cpp doctest_main.cpp)
 target_link_libraries(zengine-builder-tests
-    PRIVATE loom::switchboard loom::core zengine-builder-vocabulary
+    PRIVATE loom::switchboard loom::core loom::recorder zengine-builder-vocabulary
             zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-builder-tests PRIVATE

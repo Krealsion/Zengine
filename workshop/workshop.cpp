@@ -36,6 +36,8 @@
 
 #include <zen/host/terminal_wiring.hpp>
 #include <zen/kernel/control.hpp>
+#include <zen/recorder/dump.hpp>
+#include <zen/recorder/recorder.hpp>
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -58,6 +60,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -203,23 +206,34 @@ std::string exe_dir() {
 /// Loom would refuse the second anyway -- `zengine.input` is a singleton role --
 /// so the guarantee is doubled rather than assumed, and neither half rests on OS
 /// focus deciding who hears what.
+///
+/// `--history <path>` is the fourth of the same shape, and the only optional one.
+/// It turns on the host's RECORDER: a bounded, structured memory of what this
+/// bus did, persisted to `<path>` and dumped to `<path>.dump` when Workshop
+/// quits. Absent, the recorder still runs in memory (it costs a fraction of one
+/// per cent of dispatch) and simply persists nothing -- so `q` always leaves a
+/// live process that could have been asked what happened, and only a maker who
+/// asked for a file gets one.
 struct Arguments {
     bool ok = true;
     std::string complaint;
     std::string document = zengine::workshop::persist::kDefaultDocumentName;
     std::string skin = "zengine-skin-tui-classic";
     std::string input = "zengine-input";
+    std::string history; ///< empty = remember in memory only, persist nothing
 };
 
 Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document" || arg == "--skin" || arg == "--input") {
+        if (arg == "--document" || arg == "--skin" || arg == "--input" ||
+            arg == "--history") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint =
-                    arg + " needs a " + (arg == "--document" ? "path" : "weave stem");
+                    arg + " needs a " +
+                    (arg == "--document" || arg == "--history" ? "path" : "weave stem");
                 return args;
             }
             const std::string value = argv[++i];
@@ -227,6 +241,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.skin = value;
             } else if (arg == "--input") {
                 args.input = value;
+            } else if (arg == "--history") {
+                args.history = value;
             } else {
                 args.document = value;
             }
@@ -254,7 +270,7 @@ int main(int argc, char** argv) {
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--skin <weave stem>]\n"
-                    "                        [--input <weave stem>]\n"
+                    "                        [--input <weave stem>] [--history <path>]\n"
                     "the graphical Workshop is:\n"
                     "  zengine-workshop --skin zengine-skin-sdl --input zengine-input-sdl\n",
                     args.complaint.c_str());
@@ -270,6 +286,76 @@ int main(int argc, char** argv) {
     std::fflush(stdout);
 
     loom::Switchboard bus;
+
+    // ---- WHAT THIS HOST REMEMBERS (RTH-1) ------------------------------------
+    //
+    // FIRST, before the Kernel and before any weave, because a recorder attached
+    // later would have a first record that is not the first fact. It is not a
+    // participant: it holds no identity, accepts nothing, sends nothing, and
+    // cannot be addressed. It is the host's own lens, exactly as a ConsoleEngine
+    // would be, and it is here because a Workshop that could not say what just
+    // happened has been the recurring cost of every phase since BLD-0 -- a build
+    // that finished while its panel was closed finished silently, and a maker
+    // had nowhere to look.
+    //
+    // THE POLICY IS THIS HOST'S, and it is written here rather than defaulted
+    // because the numbers that justify it are this application's: RTH-0 measured
+    // an idle Zengine app at ~300 deliveries/s, essentially all of it the Timer's
+    // own heartbeat, and one interactive SurfaceCanvas at up to 2.75 KiB and
+    // ~90% of interactive bytes.
+    loom::RecorderPolicy history_policy = loom::default_policy();
+    // THE BEATS. A heartbeat is a real fact and this is not a claim that it is
+    // not -- it is a claim that four thousand of them are not four thousand
+    // facts. Unfiltered they cover the shared window in about fourteen seconds,
+    // so a maker looking for the build they started a minute ago would find
+    // every trace of it gone. Counted, never silent: `counters()` still says how
+    // many were declined, and `tallies()` says so per shape.
+    history_policy.rules.push_back(loom::RetentionRule{
+        std::string(timer::TimerFired::zen_name), loom::RetentionClass::NotRetained, 0, false});
+    history_policy.rules.push_back(loom::RetentionRule{
+        std::string(timer::Drive::zen_name), loom::RetentionClass::NotRetained, 0, false});
+    // THE PICTURES. A frame is worth remembering AS AN EVENT -- that Workshop
+    // repainted, when, and how long the Skin took over it -- and is not worth
+    // remembering as bytes. Retaining them would make this history mostly a
+    // screenshot log, which is the other way to lose a build's story.
+    history_policy.rules.push_back(loom::RetentionRule{
+        std::string(surface::SurfaceCanvas::zen_name), loom::RetentionClass::Shared, 0, false});
+    // THE BUILD. Its four observations are rare, they arrive in bursts, and they
+    // are the thing a maker actually goes looking for. A window of their own
+    // means a burst of output cannot push the build's own start out of memory,
+    // and ordinary Workshop noise cannot push out the burst.
+    for (const char* shape :
+         {builder::BuildStarted::zen_name, builder::BuildOutput::zen_name,
+          builder::BuildFinished::zen_name, builder::BuildNotStarted::zen_name,
+          builder::RunBuild::zen_name, builder::BuildRequested::zen_name}) {
+        history_policy.rules.push_back(
+            loom::RetentionRule{std::string(shape), loom::RetentionClass::Dedicated, 512, true});
+    }
+    // ...AND IT IS APPLIED AS A CHANGE, not handed over at construction, so that
+    // the FIRST thing this run remembers is what it was told to remember. A
+    // recorder whose policy arrived silently could not answer the one question
+    // every later absence raises -- "was that never recorded, or was I told not
+    // to?" -- and the answer is a record like any other, written to the log and
+    // costing not one message on the bus.
+    loom::Recorder history(bus);
+    // THE LOG IS OPENED BEFORE THE POLICY IS APPLIED, so the persisted record's
+    // FIRST line is the policy that produced every line after it. A log that
+    // began with its first delivery would leave a later reader unable to tell a
+    // shape that was never sent from one this run was told not to keep.
+    if (!args.history.empty()) {
+        std::string complaint;
+        if (!history.open_log(args.history, &complaint)) {
+            std::printf("zengine-workshop - history: %s\n", complaint.c_str());
+        } else {
+            std::printf("zengine-workshop - history: %s (dump at exit: %s.dump)\n",
+                        args.history.c_str(), args.history.c_str());
+        }
+    } else {
+        std::printf("zengine-workshop - history: in memory only (--history <path> to keep it)\n");
+    }
+    history.apply_policy(std::move(history_policy));
+    std::fflush(stdout);
+
     loom::Kernel kernel(bus);
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
@@ -473,5 +559,29 @@ int main(int argc, char** argv) {
             break;
         }
     }
+
+    // ---- what this run remembered --------------------------------------------
+    //
+    // On a normal final shutdown the recorder flushes and closes what it owns.
+    // The dump beside it is a WITNESS and not a product: it is the smallest thing
+    // that makes the memory readable without a query surface, and a Terminal, a
+    // Workshop panel or a debugger would read the same records and format them
+    // for itself.
+    const loom::RecorderBounds b = history.bounds();
+    const loom::RecorderCounters c = history.counters();
+    std::printf("zengine-workshop - history: %zu retained, %llu forgotten, %llu observed, "
+                "%llu declined by policy\n",
+                b.retained, static_cast<unsigned long long>(b.forgotten),
+                static_cast<unsigned long long>(c.observed),
+                static_cast<unsigned long long>(c.declined_by_policy));
+    if (!args.history.empty()) {
+        std::ofstream dump(args.history + ".dump");
+        if (dump) {
+            loom::DumpOptions opts;
+            opts.payloads = false;
+            loom::dump_history(history, dump, opts);
+        }
+    }
+    history.close_log();
     return 0;
 }

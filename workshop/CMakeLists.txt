@@ -60,7 +60,7 @@ endif()
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
-    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
+    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::recorder
             zengine-workshop-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
