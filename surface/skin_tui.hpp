@@ -155,6 +155,27 @@ inline const char* sgr_for_role(int role) noexcept {
     }
 }
 
+/// This medium's GROUND for each role — the same table one attribute over, and
+/// the terminal's honest answer to a row that asked to be set on something (HD-2).
+///
+/// SGR 40–47 are the eight background colours and 100–107 their bright halves,
+/// which is the whole of what an ANSI terminal has to say here; `role::kNone` is
+/// not in this table at all, because it is the ABSENCE of a ground and is spelled
+/// by not emitting anything (`\x1b[49m`, the default background, restores it).
+///
+/// The pairs are chosen so a row's own ink stays legible on top of its ground —
+/// `kMuted` is the selection ground precisely because every foreground in
+/// `sgr_for_role` reads on it. That is a MEDIUM's judgement about its own
+/// palette, which is what the role vocabulary exists to keep out of publishers.
+inline const char* sgr_bg_for_role(int role) noexcept {
+    switch (role) {
+    case 1: return "\x1b[46m";  // kAccent — cyan ground
+    case 2: return "\x1b[100m"; // kMuted  — bright black: the selection bar
+    case 3: return "\x1b[41m";  // kAlert  — red ground
+    default: return "\x1b[47m"; // kFill and anything unknown — plain ground
+    }
+}
+
 /// And this medium's GLYPH for each role — because colour alone would be a lie
 /// on a monochrome terminal, where four roles would paint four identical `#`s.
 /// A publisher ships intent; a medium is responsible for making that intent
@@ -204,15 +225,30 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     // below is the correctness; this is what lets anything prove it is still there.
     const std::size_t cells = static_cast<std::size_t>(w * h);
     std::vector<char> glyphs(cells, ' ');
-    std::vector<char> roles(cells, static_cast<char>(-1)); // -1 = untouched background
+    // SIGNED, EXPLICITLY. These two hold a sentinel of -1 and are read back with a
+    // `< 0` test; plain `char` is unsigned on some targets (ARM by default), where
+    // -1 would come back as 255, the test would be false, and an untouched cell
+    // would paint in the unknown-role fallback instead of resetting. Nothing this
+    // repository builds on today is such a target, which is exactly why it is worth
+    // spelling rather than relying on.
+    std::vector<signed char> roles(cells, static_cast<signed char>(-1)); // -1 = untouched
+    // A THIRD GRID, AND ONLY A TEXT REGION'S ROWS EVER WRITE IT (HD-2). Rects and
+    // labels have no ground to say -- `SurfaceRect` IS a ground and a
+    // `SurfaceLabel` deliberately has none -- so every cell they touch carries
+    // `role::kNone` and this grid emits nothing at all for them. That is what
+    // makes the addition byte-invisible to every canvas that does not use it,
+    // which the unchanged goldens are the proof of.
+    std::vector<signed char> grounds(cells, static_cast<signed char>(zengine::surface::role::kNone));
 
-    const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role) {
+    const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
+                         std::int64_t ground = zengine::surface::role::kNone) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
             return;
         }
         const std::size_t i = static_cast<std::size_t>(y * w + x);
         glyphs[i] = g;
-        roles[i] = static_cast<char>(role);
+        roles[i] = static_cast<signed char>(role);
+        grounds[i] = static_cast<signed char>(ground);
     };
 
     // CLIPPED BEFORE ITERATING. `put` already refuses every cell off the canvas,
@@ -234,9 +270,10 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
             }
         }
     }
-    const auto write_label = [&](const zengine::surface::SurfaceLabel& l) {
+    const auto write_label = [&](const zengine::surface::SurfaceLabel& l,
+                                 std::int64_t ground = zengine::surface::role::kNone) {
         for (std::size_t i = 0; i < l.text.size(); ++i) {
-            put(add_cells(l.x, static_cast<std::int64_t>(i)), l.y, l.text[i], l.role);
+            put(add_cells(l.x, static_cast<std::int64_t>(i)), l.y, l.text[i], l.role, ground);
         }
     };
     for (const zengine::surface::SurfaceLabel& l : c.labels) {
@@ -249,8 +286,8 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     // region.hpp -- one row per cell row, cut at the region's width, dropped past
     // its height -- and it lands through the SAME `put` every label goes through,
     // last, because a region is the topmost thing on a canvas.
-    for (const zengine::surface::SurfaceLabel& l : project_text_regions(c)) {
-        write_label(l);
+    for (const ProjectedRow& p : project_text_regions(c)) {
+        write_label(p.label, p.background);
     }
 
     std::string out;
@@ -264,16 +301,32 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // whatever the terminal happened to be wearing: the canvas would have
         // been describing a picture it did not fully determine.
         int open = -2;
+        // AND THE GROUND IN EFFECT, tracked separately because it changes
+        // separately -- but reset TOGETHER, because `\x1b[0m` is all-attributes and
+        // clears a ground that is still meant to be showing. So an ink change to
+        // the untouched background re-states the ground after it, and a run of
+        // cells that carry a ground and no role gets one `\x1b[0m` and one ground
+        // rather than one per cell. With no row asking for a ground this whole
+        // branch never fires and the bytes are the ones every golden already holds.
+        int open_bg = zengine::surface::role::kNone;
         for (std::int64_t x = 0; x < w; ++x) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
             const int role = static_cast<int>(roles[i]);
+            const int ground = static_cast<int>(grounds[i]);
             if (role != open) {
                 out += role < 0 ? "\x1b[0m" : sgr_for_role(role);
+                if (role < 0) {
+                    open_bg = zengine::surface::role::kNone; // the reset took the ground too
+                }
                 open = role;
+            }
+            if (ground != open_bg) {
+                out += ground < 0 ? "\x1b[49m" : sgr_bg_for_role(ground);
+                open_bg = ground;
             }
             out += glyphs[i];
         }
-        if (open >= 0) {
+        if (open >= 0 || open_bg >= 0) {
             out += "\x1b[0m";
         }
         out += "\r\n";

@@ -425,8 +425,18 @@ int main(int argc, char** argv) {
         .knows(loom::schema_of<surface::SurfaceText>())
         // ...and the one it must never be able to USE. Knowing SurfaceCanvas is
         // what makes the refusal below a real measurement instead of a shape this
-        // participant could not spell: `send * zengine.SurfaceCanvas 1` composes
+        // participant could not spell: `send * SurfaceCanvas <version>` composes
         // and is then refused by the Kernel, which is exactly the demonstration.
+        //
+        // THE VERSION IS NOT WRITTEN HERE ANY MORE, and neither is a namespace that
+        // never existed. This comment used to read `zengine.SurfaceCanvas 1`, which
+        // was wrong in both halves -- `ZEN_SHAPE` stringizes the struct name, so the
+        // wire name is `SurfaceCanvas` with no prefix, and the version has since
+        // moved twice. Nobody noticed because nothing showed a maker either fact.
+        // HD-2's completion list now does, which is exactly why a comment that
+        // spells a shape is a comment with a live owner: the pane says the name and
+        // the version, out of the catalog, and this line is under no obligation to
+        // repeat either.
         .knows(loom::schema_of<surface::SurfaceCanvas>())
         .accepts(loom::schema_of<loom::Ack>())
         .accepts(loom::schema_of<loom::Result>())

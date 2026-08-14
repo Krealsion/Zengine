@@ -355,6 +355,11 @@ public:
         // keys, same reason, and the inspector draft underneath is untouched.
         if (session_.terminal.open) {
             session_.terminal.input += t.text;
+            // The line changed, so what could be said next changed with it (HD-2).
+            // Typing IS the completion gesture -- there is no second key that
+            // summons the list, because a maker who has to ask for discovery has to
+            // know discovery is there.
+            refresh_terminal();
             repaint(mail);
             return;
         }
@@ -650,20 +655,135 @@ private:
         refresh_terminal();
     }
 
-    /// Editing mode for the command line: the three keys that are controls
-    /// rather than text, exactly as the inspector's editor has.
+    /// Editing mode for the command line: the keys that are controls rather than
+    /// text, exactly as the inspector's editor has.
     ///
     /// Escape CLEARS THE LINE AND DOES NOT CLOSE THE PANE. One gesture opens and
     /// closes this thing, and giving Escape a second way out would mean a maker
     /// who wanted to abandon a half-typed command sometimes lost the pane too.
+    ///
+    /// SINCE HD-2 IT HAS ONE MORE JOB BEFORE THAT ONE: dismissing the completion
+    /// list. The ordering is what a maker means by pressing it -- the list is the
+    /// most recent thing that appeared, so the first Escape puts it away and the
+    /// second abandons the line. Neither ever closes the pane, which is still the
+    /// property that makes this key safe to press.
+    ///
+    /// THE THREE NEW KEYS WERE ALL UNBOUND IN THIS MODE, source-traced before they
+    /// were taken: `terminal_key`'s switch had exactly Return, Backspace and
+    /// Escape, and everything else fell through `default: break`. Up/Down step the
+    /// INSPECTOR's rows and Tab selects the next OBJECT -- both in command mode,
+    /// which is a different mode and is not reachable while the pane is open. So
+    /// no gesture changed meaning anywhere.
     void terminal_key(const zengine::input::KeyPressed& k) {
+        TerminalPane& pane = session_.terminal;
         switch (k.scancode) {
         case input::scan::kReturn: submit_terminal_line(); break;
-        case input::scan::kBackspace: erase_one_character(session_.terminal.input); break;
-        case input::scan::kEscape: session_.terminal.input.clear(); break;
+        case input::scan::kBackspace: erase_one_character(pane.input); break;
+        case input::scan::kEscape:
+            if (completion_selectable()) {
+                // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted
+                // the line gone presses it again; a maker who wanted only the list
+                // gone has not lost the word they were half-way through.
+                pane.dismissed = true;
+                pane.dismissed_at = pane.completion.slot;
+                pane.asked = false;
+            } else {
+                // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was
+                // made against a word; there is no longer a word, so keeping it would
+                // leave the list hidden for the whole of the next command with nothing
+                // on screen to explain why. (Measured: after Escape-Escape the next
+                // three characters produced no list at all.)
+                pane.input.clear();
+                pane.dismissed = false;
+            }
+            break;
+        case input::scan::kUp: move_completion(-1); return;   // the line did not change
+        case input::scan::kDown: move_completion(+1); return; // ...so nothing is recomputed
+        case input::scan::kTab:
+            // ONE KEY, ONE MEANING: "help me here". With a list on screen that is
+            // taking the selected candidate; with nothing on screen it is asking
+            // for one, which is the only gesture discovery needs because every
+            // other entry point is ordinary typing.
+            if (completion_selectable()) {
+                accept_completion();
+            } else {
+                pane.asked = true;
+                pane.dismissed = false;
+            }
+            break;
         default: break;
         }
         refresh_terminal();
+    }
+
+    /// IS THERE A LIST ON SCREEN WITH SOMETHING IN IT TO CHOOSE?
+    ///
+    /// The three completion keys all ask this one question, and the "something to
+    /// choose" half is what keeps Escape's old meaning intact. A HEADING-ONLY list
+    /// -- "no shape here begins with that" -- is a real and useful answer, and it is
+    /// also transient: it goes away the moment the prefix changes, so a maker never
+    /// needs a gesture to be rid of it and Escape can go on meaning "clear the line"
+    /// there, exactly as it always did. A list with candidates in it is a chooser
+    /// sitting over the record, which is a thing a maker may genuinely want gone
+    /// while keeping what they have typed.
+    ///
+    /// Asked rather than assumed, because "there is something to say" and "a list is
+    /// showing" are different: a dismissed list still has candidates and is not there.
+    bool completion_selectable() const {
+        const TerminalPane& pane = session_.terminal;
+        return pane.open && pane.completion.open && !pane.dismissed &&
+               !pane.completion.candidates.empty();
+    }
+
+    /// Move the selection, and stop at the ends.
+    ///
+    /// It does not wrap. A list that wrapped would answer Up on the first row by
+    /// jumping to the last, which in a windowed list scrolls the whole thing out
+    /// from under the maker's eye -- and the gesture that recovers from it is the
+    /// one they just pressed.
+    void move_completion(int by) {
+        if (!completion_selectable()) {
+            return;
+        }
+        Completion& comp = session_.terminal.completion;
+        const std::size_t last = comp.candidates.size() - 1;
+        if (by < 0) {
+            comp.selected = comp.selected == 0 ? 0 : comp.selected - 1;
+        } else {
+            comp.selected = comp.selected >= last ? last : comp.selected + 1;
+        }
+    }
+
+    /// TAKE THE SELECTED CANDIDATE INTO THE LINE.
+    ///
+    /// The edit is an ordinary end-of-line edit, which is what makes it compatible
+    /// with the caret this pane actually has: the token being completed is always
+    /// the LAST one, and the caret is always at the end, so accepting is "drop
+    /// what has been typed of this token, append what it was going to be". No
+    /// cursor position is needed, none is invented, and the trailing `_` still
+    /// sits exactly where the next keystroke lands.
+    ///
+    /// THE SEPARATOR COMES FROM THE CANDIDATE, not from here. `insert` carries the
+    /// trailing space where the grammar wants one and carries none after `field=`,
+    /// where a value follows immediately -- so acceptance can neither duplicate a
+    /// separator nor swallow one.
+    void accept_completion() {
+        if (!completion_selectable()) {
+            return;
+        }
+        TerminalPane& pane = session_.terminal;
+        const Completion& comp = pane.completion;
+        const Candidate& c = comp.candidates[comp.selected];
+        // `partial` is a TOKEN of this very line, so it can never be longer than the
+        // line -- `tokenize` drops quote characters, which only ever makes a token
+        // shorter than the text it came from, and a quoted token is refused by the
+        // completer outright. The `min` is written anyway rather than as an `if`,
+        // because the alternative to clamping is appending without stripping, which
+        // is a doubled word on a line nobody could explain.
+        const std::size_t typed =
+            comp.partial.size() < pane.input.size() ? comp.partial.size() : pane.input.size();
+        pane.input.resize(pane.input.size() - typed);
+        pane.input += c.insert;
     }
 
     /// AUTHOR ONE LINE THROUGH THE PARTICIPANT'S OWN DOOR.
@@ -688,6 +808,12 @@ private:
     void submit_terminal_line() {
         const std::string line = session_.terminal.input;
         session_.terminal.input.clear();
+        // A SUBMITTED LINE ENDS BOTH PIECES OF COMPLETION STATE. Escape said "not for
+        // this word" and Tab said "show me anyway"; the next line is neither, and a
+        // maker who pressed one of them once should not find its effect still in
+        // force three commands later.
+        session_.terminal.dismissed = false;
+        session_.terminal.asked = false;
         if (line.empty()) {
             return;
         }
@@ -702,19 +828,24 @@ private:
         me.record_command(line);
 
         const std::vector<loom::Token> tok = loom::tokenize(line);
-        const std::string verb = tok.empty() ? std::string() : tok[0].text;
+        // THE VERB TABLE IS THE COMPLETER'S TOO (HD-2, complete.hpp). It used to be
+        // two string literals in the condition below, which was one answer while
+        // one thing asked the question; a list a maker can be SHOWN is a second
+        // asker, and two lists of two verbs is how the third verb gets learned by
+        // only one of them.
+        const TerminalVerb* verb =
+            tok.empty() ? nullptr : terminal_verb(tok[0].text);
         loom::Address to;
         std::uint64_t version = 0;
-        if ((verb == "send" || verb == "ask") && tok.size() >= 4 &&
-            loom::parse_address(tok[1].text, to) && loom::parse_u64(tok[3].text, version) &&
-            version <= kMaxVersion) {
+        if (verb != nullptr && tok.size() >= 4 && loom::parse_address(tok[1].text, to) &&
+            loom::parse_u64(tok[3].text, version) && version <= kMaxVersion) {
             std::vector<loom::Arg> args;
             for (std::size_t i = 4; i < tok.size(); ++i) {
                 args.push_back(loom::lex_arg(tok[i]));
             }
             const loom::TerminalResult r =
-                verb == "ask" ? me.ask(to, tok[2].text, static_cast<std::uint32_t>(version), args)
-                              : me.send(to, tok[2].text, static_cast<std::uint32_t>(version), args);
+                verb->ask ? me.ask(to, tok[2].text, static_cast<std::uint32_t>(version), args)
+                          : me.send(to, tok[2].text, static_cast<std::uint32_t>(version), args);
             if (!r) {
                 // A LOCAL refusal, and it is recorded as this participant's own
                 // notice rather than dressed up as an answer: nothing was
@@ -754,8 +885,64 @@ private:
         pane.shown.clear();
         pane.earlier = 0;
         pane.dropped = 0;
+        // TAKEN BEFORE THE CLEAR, because the clear is what this function does to
+        // everything derived and the selection is the one thing that is not. See the
+        // note below `complete_line` for what happens when these four are read after it.
+        const LineSlot was_slot = pane.completion.slot;
+        const std::string was_partial = pane.completion.partial;
+        const bool was_open = pane.completion.open;
+        const std::size_t was_selected = pane.completion.selected;
+        pane.completion = Completion{};
         if (!pane.attached || !pane.open) {
-            return; // nothing is painted from it, so nothing is copied
+            pane.dismissed = false; // a closed pane has no half-typed word to remember one for
+            return;                 // nothing is painted from it, so nothing is copied
+        }
+        // WHAT COULD BE SAID NEXT, RECOMPUTED WITH THE LINE. It is derived from the
+        // input and the participant's vocabulary and from nothing else, so it is
+        // rebuilt rather than patched -- which is the same reason `shown` is a fresh
+        // copy every time and not a list somebody maintains.
+        //
+        // AND IT AUTHORS NOTHING. `complete_line` takes the participant by const
+        // reference; every method it reaches (`vocabulary()`, `describe()`,
+        // `compose()`) is const, and the only path that authors goes through the
+        // participant's own channel, which a const reference cannot touch. This is
+        // the one call in this file that runs on every keystroke, and it is the one
+        // that must never send.
+        pane.completion = complete_line(*host_->terminal, pane.input);
+        // THE SELECTION SURVIVES A REPAINT AND NOT A CHANGE OF QUESTION.
+        //
+        // This function runs on every repaint, not only when the line changes -- the pane
+        // is a snapshot and a snapshot is only true when taken -- so a freshly computed
+        // Completion arrives with `selected` at zero every time. Without this the arrow
+        // keys appeared to do nothing at all: the move landed, the repaint immediately
+        // after it undid the move, and the next Tab took the first candidate. (Found in
+        // the live SDL run and reproduced headlessly, which is what said it was never the
+        // driver -- and then reproduced a SECOND time, because the first repair read the
+        // previous selection AFTER this function had already cleared it. A rebuild-from-
+        // scratch function has exactly one place a survivor can be read, and it is the
+        // top.)
+        //
+        // The question is the SLOT and the PARTIAL together. Same question, same
+        // selection; a different word or a different part of the line is a new list and
+        // starts at the top. Clamped either way, because a list can shrink under an
+        // unchanged partial -- name a field and the field that was selected leaves.
+        if (was_open && pane.completion.open && pane.completion.slot == was_slot &&
+            pane.completion.partial == was_partial && !pane.completion.candidates.empty()) {
+            const std::size_t last = pane.completion.candidates.size() - 1;
+            pane.completion.selected = was_selected < last ? was_selected : last;
+        }
+        // A DISMISSAL BELONGS TO THE PART OF THE LINE IT WAS MADE IN. Moving on to
+        // the next word is a new question, so the list comes back for it.
+        if (pane.dismissed && pane.completion.slot != pane.dismissed_at) {
+            pane.dismissed = false;
+        }
+        // AN UNTOUCHED LINE ASKS NOTHING. See `TerminalPane::asked`: the line is
+        // empty immediately after a submit, and a list there covers the answer the
+        // pane just gave. Typing is the gesture; Tab is the way to ask anyway.
+        if (!pane.input.empty()) {
+            pane.asked = false;
+        } else if (!pane.asked) {
+            pane.completion = Completion{};
         }
         // AS MANY ENTRIES AS THIS PANE CAN SHOW WHOLE, which is no longer the same as "as
         // many entries as it has rows": since G-2 a line too long for the pane WRAPS rather

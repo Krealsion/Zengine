@@ -64,6 +64,30 @@ resolve_extent without its guard        ordinary PASSES   UBSan signed integer o
   where a leak or a misuse in that lifetime would be named. It was, at the point
   of writing, clean.
 
+## A row may sit on something, and it is one field (HD-2)
+
+`SurfaceTextRow` carries `background`, a semantic role defaulting to `role::kNone` — the
+**absence** of a ground, negative on purpose so the unknown-role fallback (`kFill`) can never
+swallow it and a later fifth role cannot collide with it. Nothing passes it to a Skin's
+role→ink table; a consumer tests for it first. It made `SurfaceTextRow` v2,
+`SurfaceTextRegion` v2 and `SurfaceCanvas` **v3** — the latter two gained no field of their
+own and changed anyway, because their wire identity is computed from the types they carry.
+`project_text_regions` therefore returns `ProjectedRow{label, background}` rather than bare
+labels; the ground travels **unresolved** through the cell projection and each medium answers
+for itself.
+
+**A canvas with no ground emits not one background byte**, which is why every pre-existing
+terminal golden is unmoved — the assertion is in `test_surface.cpp`, and it is the thing to
+re-check if this ever grows.
+
+**Do not save and restore a renderer viewport through `SDL_GetRenderViewport` alone.** SDL
+keeps two states and that call flattens them: a renderer with no viewport of its own answers
+with the whole target's rectangle, and setting *that* back makes the viewport explicit, after
+which SDL stops growing it when the output does. HD-1 shipped that; the symptom is a window
+dragged larger whose picture is still clipped to the old size, one frame after the part drawn
+inside a region has already reflowed. Ask `SDL_RenderViewportSet` first and restore `nullptr`
+when it says false (`surface/skin_sdl_text.hpp`, pinned in the `sdl` gate).
+
 ## The graphical Skin carries a typeface (HD-1)
 
 `ZENGINE_SDL_SKIN=ON` now fetches **three** pinned-and-checksummed dependencies,
@@ -125,9 +149,11 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~30,700 over the seven doctest suites, SDL lane, measured
-  2026-08-14) are evidence to report. They are **not** a population, never an
-  acceptance oracle, and not coverage. The figure is configuration-dependent —
+- Assertion totals (~31,000 over the **eight** doctest suites, SDL lane, measured
+  2026-08-14 after HD-2) are evidence to report. They are **not** a population, never an
+  acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
+  counted them, which is the same decay this bullet warns about arriving in the sentence
+  that warns about it. The figure is configuration-dependent —
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no
   contract file holds assertion counts, and a phase that adds a case moves this

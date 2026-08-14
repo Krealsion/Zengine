@@ -38,6 +38,7 @@
 // the two are not competitors, and neither replaces the other
 // (README.md#ui--the-authoredresolved-vocabulary).
 
+#include "complete.hpp"
 #include "document.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -253,6 +254,14 @@ struct Screen {
     std::int64_t terminal_cols = 0;  ///< characters that fit across the pane
     std::size_t terminal_lines = 0;  ///< rows of prose the pane holds, chrome included
     std::size_t terminal_rows = 0;   ///< ...of which these many carry the transcript
+    /// THE METRIC THIS SCREEN WAS RESOLVED WITH, carried rather than looked up
+    /// (HD-2). A second bounded region INSIDE the pane -- the completion list --
+    /// has to know where the pane's prose rows fall in CELLS, which is a question
+    /// only the metric answers. Carrying it here is what keeps that a re-derivation
+    /// from the same numbers rather than a second path to them: everything that
+    /// resolves the pane's geometry already holds a `Screen`.
+    std::int64_t text_advance_px = 0;
+    std::int64_t text_line_px = 0;
 };
 
 /// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
@@ -294,6 +303,11 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
         fit.rows > kTerminalChrome + 1 ? fit.rows : kTerminalChrome + 1;
     s.terminal_lines = static_cast<std::size_t>(lines);
     s.terminal_rows = static_cast<std::size_t>(lines - kTerminalChrome);
+    // The metric AS THE FIT RESOLVED IT, not as it arrived: `fit_region` already
+    // spelled a non-positive advance or line height as "text is a cell" and
+    // answered zero for both, so a screen never carries half a metric.
+    s.text_advance_px = fit.advance_px;
+    s.text_line_px = fit.line_px;
     return s;
 }
 
@@ -556,6 +570,29 @@ struct TerminalPane {
     std::vector<loom::TranscriptEntry> shown; ///< the newest entries that FIT, oldest first
     std::uint64_t earlier = 0; ///< kept by the participant, above the top of this pane
     std::uint64_t dropped = 0; ///< evicted from the transcript entirely -- gone, not scrolled
+    /// WHAT THE PARTICIPANT COULD SAY NEXT, for the line above (HD-2). Derived from
+    /// `input` and the participant's own vocabulary, recomputed whenever the line
+    /// changes, and holding no fact that is not readable from those two -- so it is a
+    /// snapshot in exactly the sense `shown` is, and for the same reason.
+    Completion completion;
+    /// THE ONE PIECE OF COMPLETION STATE THAT IS NOT DERIVED: the maker pressed Escape
+    /// and does not want the list for this part of the line. It is remembered against
+    /// the SLOT rather than against the text, so typing more of the same word leaves it
+    /// dismissed and moving on to the next word brings it back -- a dismissal that
+    /// survived one keystroke would be a gesture with no effect, and one that survived
+    /// the whole line would make the list unreachable without retyping.
+    bool dismissed = false;
+    LineSlot dismissed_at = LineSlot::Verb;
+    /// ...and the other direction: the maker pressed the completion key on an EMPTY line,
+    /// which is the one place discovery needs a gesture (HD-2 §14).
+    ///
+    /// A LIST OVER AN EMPTY LINE WOULD COVER THE ANSWER THE PANE JUST GAVE. Submitting
+    /// clears the line, so "show candidates whenever there are any" put the verb list on
+    /// top of the reply to the command that had just been typed -- measured, on the case
+    /// that asserts the pane states its whole grammar with nothing elided. So an untouched
+    /// line asks nothing and typing is the gesture; this flag is the deliberate way to ask
+    /// anyway, and any change to the line ends it.
+    bool asked = false;
 };
 
 /// The session: what a maker is currently doing, as opposed to what they have
@@ -1715,6 +1752,168 @@ inline std::string terminal_omission(const TerminalPane& t) {
     return text;
 }
 
+// ---- The completion list, inside the pane it belongs to (HD-2) --------------------------
+//
+// A SECOND BOUNDED REGION, PLACED OVER THE FIRST, AND NOT A SECOND PANEL. It is the
+// Terminal's own discovery surface: it appears while a line is being composed, covers some
+// transcript rows while it is there, and is gone on the next repaint when it is not. Nothing
+// about it is a Workshop entity -- no panel kind, no picker row, no placement rule, no
+// presence to remember -- because a maker never opens or closes it. It is what the pane is
+// SAYING, and the pane already owns its own interior.
+//
+// IT COVERS ROWS; IT DOES NOT TAKE THEM. The transcript snapshot and the omission marker are
+// computed from `terminal_rows` exactly as they were before this existed, so "... 4 earlier"
+// counts what the pane could not SHOW rather than what the list happened to be sitting on. A
+// list that shrank the transcript budget would be the honest alternative and it would make
+// the pane's own sentence depend on how much a maker had typed; covering is the reading in
+// which the two facts stay independent.
+
+/// WHERE THE COMPLETION LIST SITS, in canvas cells, and how much prose it holds.
+///
+/// THE HARD PART IS THAT A REGION IS PLACED IN CELLS AND FILLED IN PROSE ROWS, and on a
+/// medium that sets real type those two are different lattices. The pane's input line is its
+/// LAST prose row, which in a window begins part-way down some cell; a list anchored to a
+/// cell boundary can therefore only guarantee it clears the input line by ending at the top
+/// of the cell that row begins in. That is what this computes, and it errs upward on purpose
+/// -- a few pixels of the pane showing under the list is a gap, and a few pixels of the list
+/// over the input line is a maker who cannot see what they are typing.
+///
+/// TOTAL over every std::int64_t on both arguments: the metric on the screen arrived on the
+/// bus, and `wanted` is a count of candidates a vocabulary produced.
+struct CompletionPlace {
+    std::int64_t x = 0; ///< canvas cells, exactly like every other placement here
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+    std::size_t rows = 0; ///< prose rows the list can actually show, heading included
+    bool visible = false;
+};
+
+/// The cell row, relative to the pane's top, that the pane's prose row `n` begins on.
+///
+/// With no metric a prose row IS a cell row and this is the identity -- which is what makes
+/// the whole arrangement fall back to the arithmetic every terminal golden already holds.
+inline constexpr std::int64_t pane_prose_top_cell(const Screen& sc, std::int64_t prose_row) noexcept {
+    if (sc.text_advance_px <= 0 || sc.text_line_px <= 0) {
+        return prose_row > 0 ? prose_row : 0;
+    }
+    const std::int64_t top =
+        surface::add_cells(surface::kTextInsetPx, surface::mul_px(prose_row, sc.text_line_px));
+    return surface::floor_div_px(top, surface::kCanvasCellPx);
+}
+
+/// The list is at least this tall in prose rows before it is worth showing at all — and it
+/// is ONE, because a heading with nothing under it is a complete answer rather than an
+/// empty box.
+///
+/// MEASURED, NOT REASONED: with a floor of two, `send * s` showed nothing at all. Five
+/// shapes are known, none begins with a lowercase `s`, so there were no candidate rows to
+/// pair with the heading and the region was refused for being one row tall — leaving a
+/// maker who had just been told nothing to distinguish "your prefix matches nothing here"
+/// from "completion is broken". That sentence is the single most useful thing this list
+/// ever says, because it is the one that tells a maker the vocabulary does not hold what
+/// they are reaching for.
+inline constexpr std::size_t kCompletionMinRows = 1;
+
+/// How much of the pane the list may take. The pane is a record a maker is reading and a
+/// line they are writing; a list that grew to fill it would answer the second question by
+/// erasing the first. Half, rounded down, is the same share rule the pane itself takes from
+/// a growing screen.
+inline constexpr CompletionPlace completion_place(const Screen& sc, std::size_t wanted) noexcept {
+    CompletionPlace p;
+    if (wanted == 0 || sc.terminal_lines < kTerminalChrome + 1) {
+        return p;
+    }
+    // The list ends where the pane's second-from-last prose row begins -- the omission
+    // marker's row -- so the marker and the input line below it are never covered.
+    const std::int64_t bottom_cell =
+        pane_prose_top_cell(sc, static_cast<std::int64_t>(sc.terminal_lines) - 2);
+    // ...and starts no higher than the pane's second cell row, so the header naming the
+    // identity whose record this is stays visible whatever is being typed.
+    const std::int64_t highest = 1;
+    if (bottom_cell <= highest) {
+        return p; // the pane has no room between its own two ends
+    }
+    const std::int64_t room_cells = bottom_cell - highest;
+    const std::int64_t half = room_cells / 2 > 0 ? room_cells / 2 : 1;
+    // Cells enough for `wanted` prose rows, in whichever lattice this medium has.
+    const std::int64_t want_cells =
+        (sc.text_advance_px <= 0 || sc.text_line_px <= 0)
+            ? static_cast<std::int64_t>(wanted)
+            : surface::floor_div_px(
+                  surface::add_cells(surface::mul_px(static_cast<std::int64_t>(wanted),
+                                                     sc.text_line_px),
+                                     2 * surface::kTextInsetPx + surface::kCanvasCellPx - 1),
+                  surface::kCanvasCellPx);
+    const std::int64_t h = want_cells < half ? want_cells : half;
+    if (h <= 0) {
+        return p;
+    }
+    p.x = sc.terminal_x;
+    p.w = sc.terminal_w;
+    p.h = h;
+    p.y = surface::add_cells(sc.terminal_y, bottom_cell - h);
+    const surface::RegionFit fit =
+        surface::fit_region(p.x, p.y, p.w, p.h, sc.text_advance_px, sc.text_line_px);
+    p.rows = fit.rows > 0 ? static_cast<std::size_t>(fit.rows) : 0;
+    p.visible = p.rows >= kCompletionMinRows;
+    return p;
+}
+
+/// THE LIST AS ROWS — heading first, then as many candidates as the place holds, with the
+/// selected one marked.
+///
+/// WINDOWED AROUND THE SELECTION, and the heading says which slice it is showing. A list
+/// that scrolled without saying so would be the omission lie one region over: a maker on
+/// candidate seven of nine, looking at three rows, must be able to tell that from a
+/// vocabulary with three entries in it.
+///
+/// THE MARKER IS NOT DECORATION. `>` is what says "this one" on a medium with no colour at
+/// all, which is the same argument `glyph_for_role` makes in the terminal Skin and the
+/// reason a background alone would not be enough. The background is the graphical answer to
+/// the same question; both are said, so neither has to carry it alone.
+inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& comp,
+                                                            std::size_t capacity,
+                                                            std::int64_t width) {
+    std::vector<surface::SurfaceTextRow> rows;
+    if (capacity == 0) {
+        return rows;
+    }
+    const std::size_t room = capacity - 1; // the heading always costs one
+    std::size_t first = 0;
+    if (room > 0 && comp.selected >= room) {
+        first = comp.selected - room + 1;
+    }
+    const std::size_t last = comp.candidates.size() < first + room ? comp.candidates.size()
+                                                                   : first + room;
+    std::string heading = comp.heading;
+    if (comp.candidates.size() > room) {
+        // WHICH SLICE, SAID OUT LOUD -- including the slice that is nothing at all, which is
+        // what a pane too short for a single candidate row shows. "none of 5" is a worse
+        // picture than five rows and a far better sentence than five rows' worth of silence.
+        heading = (room == 0 ? std::string("none")
+                             : std::to_string(first + 1) + "-" + std::to_string(last)) +
+                  " of " + std::to_string(comp.candidates.size()) + "  " + heading;
+    }
+    rows.push_back(surface::SurfaceTextRow{detail::fit(heading, width), surface::role::kMuted,
+                                           surface::role::kNone});
+    for (std::size_t i = first; i < last; ++i) {
+        const Candidate& c = comp.candidates[i];
+        const bool chosen = i == comp.selected;
+        std::string text = (chosen ? "> " : "  ") + c.display;
+        if (!c.detail.empty()) {
+            // The detail is what a candidate MEANS, and it is the first thing a narrow pane
+            // gives up: `detail::fit` cuts the whole row, so a list in a small window shows
+            // names and a list in a large one shows names and meanings.
+            text += "   " + c.detail;
+        }
+        rows.push_back(surface::SurfaceTextRow{
+            detail::fit(text, width), chosen ? surface::role::kAccent : surface::role::kFill,
+            chosen ? surface::role::kMuted : surface::role::kNone});
+    }
+    return rows;
+}
+
 /// The overlay, painted OVER the finished screen.
 ///
 /// SINCE HD-1 THIS PANE IS THE ONE PLACE IN WORKSHOP THAT PUBLISHES A TEXT REGION, and it is
@@ -1789,10 +1988,43 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
     row(sc.terminal_lines - 2, terminal_omission(t), surface::role::kMuted);
     // The cursor is a character, for the same reason the size handle is: this canvas has no
     // notion of a caret, and a maker needs to see where the next keystroke lands.
-    row(sc.terminal_lines - 1, "> " + t.input + "_",
+    //
+    // AND WHILE THERE IS NOTHING ON IT, IT NAMES THE GESTURE THAT ANSWERS "what can I
+    // say here" (HD-2). It is on this row rather than in the legend because it is
+    // about what to do NEXT rather than about what a word means, and because it
+    // erases itself: the moment a maker types anything the line has their text on it
+    // and the list is doing the same job better. A tool whose discovery gesture is
+    // itself undiscoverable has moved the problem rather than solved it.
+    const bool prompting = t.input.empty() && !t.completion.open;
+    row(sc.terminal_lines - 1,
+        prompting ? "> _   tab: what can this terminal say?" : "> " + t.input + "_",
         t.attached ? surface::role::kAccent : surface::role::kAlert);
 
     c.texts.push_back(std::move(pane));
+
+    // THE COMPLETION LIST, LAST, SO IT IS ON TOP OF THE PANE IT BELONGS TO. Painter's order
+    // across `texts` is list order, the same rule every other list on a canvas already
+    // states, so "the list covers the transcript" needs no z-order and no framework -- it
+    // needs the push to come second.
+    //
+    // AND ONE MEASURER, AGAIN. `completion_place` decides how many rows there are and
+    // `completion_rows` fills exactly that many; nothing upstream was told a number it could
+    // disagree with, which is why the list can say "3-5 of 9" and be right.
+    if (!t.completion.open || t.dismissed) {
+        return;
+    }
+    const CompletionPlace place =
+        completion_place(sc, t.completion.candidates.size() + 1 /*the heading*/);
+    if (!place.visible) {
+        return; // a pane too small to hold a heading and a candidate shows neither
+    }
+    surface::SurfaceTextRegion list;
+    list.x = place.x;
+    list.y = place.y;
+    list.w = place.w;
+    list.h = place.h;
+    list.rows = completion_rows(t.completion, place.rows, sc.terminal_cols);
+    c.texts.push_back(std::move(list));
 }
 
 // ---- The dynamic panels, painted -------------------------------------------------------
