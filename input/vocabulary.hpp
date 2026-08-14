@@ -135,6 +135,27 @@ inline constexpr std::int64_t kGrave = 53;
 inline constexpr std::int64_t kComma = 54;
 inline constexpr std::int64_t kPeriod = 55;
 inline constexpr std::int64_t kSlash = 56;
+/// THE EDITING KEYS, NAMED SINCE HD-3 — and naming is the whole of what was
+/// added. These three values already arrived on this wire: the SDL backend
+/// passes SDL's scancode through untranslated (translate_sdl.hpp says so in as
+/// many words), so a maker pressing Delete has always produced
+/// `KeyPressed{76, "", …}`. What did not exist was a name for it, which meant a
+/// consumer could only bind it by writing the number down — the one thing this
+/// namespace exists to stop.
+///
+/// WHAT THEY DO NOT MEAN, stated because a bare constant otherwise implies more
+/// than it is: this is not a claim that every backend can produce them. The
+/// POSIX terminal backend recognises four CSI sequences and drops the rest, so
+/// `\x1b[3~` (Delete) and `\x1b[H` (Home) are consumed and never named; the
+/// Win32 console backend's VK table maps VK_HOME/VK_END/VK_DELETE to
+/// `kUnknown`. HD-3 deliberately did NOT widen either — its own surface is the
+/// graphical Terminal, both terminal paths would need their own evidence, and
+/// widening an input backend "for symmetry" is how a backend acquires a key
+/// nobody has ever pressed on it. Each backend's honest reach is in
+/// translate.hpp, exactly as it was.
+inline constexpr std::int64_t kHome = 74;
+inline constexpr std::int64_t kDelete = 76;
+inline constexpr std::int64_t kEnd = 77;
 inline constexpr std::int64_t kRight = 79;
 inline constexpr std::int64_t kLeft = 80;
 inline constexpr std::int64_t kDown = 81;

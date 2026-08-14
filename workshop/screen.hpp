@@ -544,6 +544,102 @@ struct Drag {
     std::int64_t grab_dy = 0;
 };
 
+/// THE LINE A MAKER IS TYPING, AND WHERE IN IT THE NEXT KEYSTROKE LANDS (HD-3).
+///
+/// A CLASS RATHER THAN TWO FIELDS, and that is the whole of how the invariant is kept:
+///
+///     0 <= caret() <= text().size(), and caret() is never inside a character
+///
+/// holds after every operation because the operations are the ONLY way the text changes.
+/// Before HD-3 the caret was implicit — always the end — so "keep them in step" was free;
+/// making it explicit as a second public field would have made it free to forget, once per
+/// call site, silently, in the direction that shows up as a caret sitting inside bytes that
+/// are no longer there. `set()` is the door for replacing the line wholesale, and it cannot
+/// be walked through without saying where the caret goes.
+///
+/// IT IS WORKSHOP'S, NOT THE PARTICIPANT'S. `loom::TerminalSession` knows nothing about a
+/// caret and gains nothing from one: it receives whole lines. This is presentation and
+/// editing, and it lives with the pane that draws it.
+///
+/// A BYTE INDEX, DELIBERATELY, and the reason is the one-measurer rule rather than
+/// convenience. Every step of this application's presentation is one column per BYTE —
+/// `detail::fit` cuts at a byte, `project_text_regions` cuts "on a byte boundary: one cell
+/// per byte, as ever", and the graphical face draws the row it is handed. A caret that
+/// counted codepoints would be measuring the line differently from the thing that DRAWS it,
+/// and would drift from the picture on the first multi-byte character. So the column IS the
+/// byte index. What the operations refuse to do is stop half-way through a character:
+/// `character_before`/`character_after` (property.hpp) own that, and they are the same two
+/// functions the inspector's backspace spends.
+///
+/// NO CODEPOINT OR GRAPHEME CORRECTNESS IS CLAIMED. A two-byte character occupies two
+/// columns in this presentation, because that is what the projection draws; combining marks,
+/// double-width glyphs and grapheme clusters are not modelled anywhere in Workshop and are
+/// not modelled here.
+class TerminalInput {
+public:
+    const std::string& text() const noexcept { return text_; }
+    std::size_t caret() const noexcept { return caret_; }
+    bool empty() const noexcept { return text_.empty(); }
+    std::size_t size() const noexcept { return text_.size(); }
+
+    /// Is the caret where HD-2's completion assumed it always was? The completer answers
+    /// about the END of a line, so this is the question that decides whether it may be asked.
+    bool at_end() const noexcept { return caret_ == text_.size(); }
+
+    /// Insert what the platform said the maker typed, at the caret, and step over it.
+    void type(const std::string& utf8) {
+        text_.insert(caret_, utf8);
+        caret_ += utf8.size();
+    }
+
+    /// Erase the character immediately BEFORE the caret, and follow it back.
+    void backspace() {
+        if (caret_ == 0) {
+            return;
+        }
+        const std::size_t from = character_before(text_, caret_);
+        text_.erase(from, caret_ - from);
+        caret_ = from;
+    }
+
+    /// Erase the character AT the caret. The caret does not move -- the text after it comes
+    /// back to meet it, which is what makes this a different gesture from backspace rather
+    /// than the same one aimed differently.
+    void erase_forward() {
+        if (caret_ >= text_.size()) {
+            return;
+        }
+        text_.erase(caret_, character_after(text_, caret_) - caret_);
+    }
+
+    void left() noexcept { caret_ = character_before(text_, caret_); }
+    void right() noexcept { caret_ = character_after(text_, caret_); }
+    void home() noexcept { caret_ = 0; }
+    void end() noexcept { caret_ = text_.size(); }
+
+    /// PUT THE CARET AT A POSITION THAT CAME FROM OUTSIDE THE TEXT — a pointer press,
+    /// resolved to a column. Clamped into the line and snapped to a character boundary, so
+    /// there is no index a press can produce that this type will hold.
+    void place(std::size_t at) noexcept { caret_ = character_boundary(text_, at); }
+
+    void clear() noexcept {
+        text_.clear();
+        caret_ = 0;
+    }
+
+    /// REPLACE THE WHOLE LINE, saying where the caret goes. The one door for an edit that is
+    /// not a keystroke -- accepting a completion candidate -- and the reason it takes two
+    /// arguments is that the alternative is a call site that changes the text and forgets.
+    void set(std::string line, std::size_t at) {
+        text_ = std::move(line);
+        caret_ = character_boundary(text_, at);
+    }
+
+private:
+    std::string text_;
+    std::size_t caret_ = 0;
+};
+
 /// THE TERMINAL OVERLAY'S VIEW OF A PARTICIPANT — session, emphatically, and a SNAPSHOT.
 ///
 /// Workshop presents an ordinary `loom::TerminalSession` that its host mounted on the one bus
@@ -566,7 +662,10 @@ struct TerminalPane {
     bool open = false;         ///< shift+space, and nothing else, decides this
     bool attached = false;     ///< is there a participant at all (a host may mount none)
     loom::WeaveId id{};        ///< the participant's identity, for the header
-    std::string input;         ///< the line being typed, before Return authors anything
+    /// The line being typed, before Return authors anything — AND THE CARET IN IT (HD-3).
+    /// One object, because the two are one fact: see `TerminalInput` for why the caret is
+    /// not a second field beside a `std::string`.
+    TerminalInput input;
     std::vector<loom::TranscriptEntry> shown; ///< the newest entries that FIT, oldest first
     std::uint64_t earlier = 0; ///< kept by the participant, above the top of this pane
     std::uint64_t dropped = 0; ///< evicted from the transcript entirely -- gone, not scrolled
@@ -1467,6 +1566,43 @@ inline PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_
     return PointedAt{};
 }
 
+/// WHERE A POINTER LANDED INSIDE A BOUNDED TEXT REGION, in that region's own prose (HD-3).
+///
+/// `canvas_point_of` one lattice finer, and the SAME pairing statement: which transform
+/// applies is decided from the `space` the backend stamped, because nothing in this process
+/// can ask the active Skin what its layout is.
+///
+/// THE RAW PIXEL IS USED AS A RAW PIXEL AND IS NEVER ROUNDED TO A CELL FIRST. That is the
+/// whole reason the sub-cell precision is on the wire (`input::PointerButton`'s kPixels): a
+/// press at pixel 271 on a face whose advance is 8 is a column, exactly, and converting to a
+/// cell of twelve pixels and back would lose the answer and then invent a worse one.
+/// `prose_column_of_pixel`/`prose_row_of_pixel` (surface/pointing.hpp) are the pure
+/// arithmetic, pinned since HD-1 and wired here for the first time.
+///
+/// A CELL MEDIUM'S POSITION IS ALREADY A CHARACTER, so it takes the other route entirely --
+/// `canvas_of_terminal_cells` and a subtraction, with no division by a pixel size that its
+/// numbers were never in. Feeding a terminal's column to the pixel helper would divide a
+/// column by twelve, which is the exact class of mistake `space` exists to prevent.
+struct ProseAt {
+    bool understood = false;
+    std::int64_t column = 0;
+    std::int64_t row = 0;
+};
+
+inline ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
+                        std::int64_t region_x, std::int64_t region_y,
+                        const surface::RegionFit& fit) noexcept {
+    if (space == input::space::kPixels) {
+        return ProseAt{true, surface::prose_column_of_pixel(x, region_x, fit),
+                       surface::prose_row_of_pixel(y, region_y, fit)};
+    }
+    if (space == input::space::kCells) {
+        const surface::CanvasPoint at = surface::canvas_of_terminal_cells(x, y);
+        return ProseAt{true, surface::sub_px(at.x, region_x), surface::sub_px(at.y, region_y)};
+    }
+    return ProseAt{};
+}
+
 /// The workspace cell a CANVAS cell lands on -- Workshop's own composition, and
 /// nothing else.
 ///
@@ -1752,6 +1888,96 @@ inline std::string terminal_omission(const TerminalPane& t) {
     return text;
 }
 
+// ---- The editable line, resolved ONCE (HD-3) --------------------------------------------
+//
+// THE GEOMETRY THAT DREW A THING AND THE GEOMETRY THAT HITS IT MUST BE THE SAME GEOMETRY.
+// That is the one-measurer rule (G-2, HD-1) arriving at interaction, and it is the same
+// argument in a new place: the pane's omission marker is only true if one party measured the
+// wrap, and a pointer only lands where a maker aimed if one party measured the input row.
+// So there is no `paint_input_bounds()` beside a `click_input_bounds()` here -- there is
+// `terminal_input_place`, and the painter, the caret and the press all call it.
+
+/// THE PROMPT, in columns: the `> ` before the editable text.
+///
+/// It is a constant rather than a `strlen` at each site because it is the offset between
+/// "the third column of this row" and "the first byte of the line", which is a fact three
+/// different pieces of arithmetic need and none of them owns.
+inline constexpr std::int64_t kTerminalPromptCols = 2;
+
+/// WHERE THE PANE'S EDITABLE LINE IS — the pane's region, the row inside it, and the column
+/// its first byte starts at.
+///
+/// `fit` is the pane's own `RegionFit`: the same resolution `screen_of` performed to decide
+/// how much prose the pane holds, recomputed from the same `Screen` rather than carried, so
+/// there is exactly one function that can be wrong. Everything a caret or a press needs is
+/// derivable from these five numbers and nothing else.
+struct TerminalInputPlace {
+    std::int64_t region_x = 0; ///< the pane's own cell origin — a region coordinate
+    std::int64_t region_y = 0;
+    surface::RegionFit fit{};
+    std::int64_t prose_row = 0;   ///< the pane's LAST prose row: the line being typed
+    std::int64_t first_column = kTerminalPromptCols; ///< where the line's first byte sits
+    std::int64_t columns = 0;     ///< columns the line itself may occupy, prompt excluded
+};
+
+inline constexpr TerminalInputPlace terminal_input_place(const Screen& sc) noexcept {
+    TerminalInputPlace p;
+    p.region_x = sc.terminal_x;
+    p.region_y = sc.terminal_y;
+    p.fit = surface::fit_region(sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h,
+                                sc.text_advance_px, sc.text_line_px);
+    p.prose_row = static_cast<std::int64_t>(sc.terminal_lines) - 1;
+    p.columns = sc.terminal_cols - kTerminalPromptCols;
+    if (p.columns < 0) {
+        p.columns = 0; // a pane too narrow for its own prompt shows no line, and says so
+    }
+    return p;
+}
+
+/// THE PROSE COLUMN A BYTE INDEX SITS AT. One column per byte, which is what every other
+/// step of this presentation counts (`detail::fit` cuts at a byte, the cell projection is
+/// "one cell per byte, as ever") — so this is not a simplification, it is the same measurer.
+inline constexpr std::int64_t terminal_caret_column(const TerminalInputPlace& p,
+                                                    std::size_t caret) noexcept {
+    return surface::add_cells(p.first_column, static_cast<std::int64_t>(caret));
+}
+
+/// THE BYTE INDEX A PROSE COLUMN NAMES, clamped into a line of this length.
+///
+/// The boundary answers, written down rather than left to arithmetic:
+///
+///     a column before the prompt   -> 0             (the maker aimed at the start)
+///     a column inside the prompt   -> 0
+///     a column past the last byte  -> line length   (the maker aimed past the end)
+///
+/// Both ends clamp rather than refuse, because a press that landed on the row IS a statement
+/// about where in the line the maker wants to be; whether it landed on the row at all is
+/// `terminal_input_hit`'s question and is asked first. Snapping off a character's middle is
+/// `TerminalInput::place`'s, so this returns a byte index and never pretends to be one.
+inline constexpr std::size_t terminal_caret_of_column(const TerminalInputPlace& p,
+                                                      std::int64_t column,
+                                                      std::size_t length) noexcept {
+    const std::int64_t offset = surface::sub_px(column, p.first_column);
+    if (offset <= 0) {
+        return 0;
+    }
+    return static_cast<std::uint64_t>(offset) < static_cast<std::uint64_t>(length)
+               ? static_cast<std::size_t>(offset)
+               : length;
+}
+
+/// IS THIS PROSE POSITION ON THE EDITABLE LINE AT ALL?
+///
+/// The row is the whole test, and the column is deliberately NOT: a press anywhere along the
+/// pane's last prose row is a press on the line, including the inset before the prompt and
+/// the empty room past the last character. A maker aiming at the end of a short command
+/// clicks in the empty space after it, and refusing that would be refusing the most obvious
+/// gesture the row has.
+inline constexpr bool terminal_input_hit(const TerminalInputPlace& p, std::int64_t column,
+                                         std::int64_t row) noexcept {
+    return row == p.prose_row && column >= 0 && column <= p.fit.columns;
+}
+
 // ---- The completion list, inside the pane it belongs to (HD-2) --------------------------
 //
 // A SECOND BOUNDED REGION, PLACED OVER THE FIRST, AND NOT A SECOND PANEL. It is the
@@ -1872,6 +2098,23 @@ inline constexpr CompletionPlace completion_place(const Screen& sc, std::size_t 
 /// all, which is the same argument `glyph_for_role` makes in the terminal Skin and the
 /// reason a background alone would not be enough. The background is the graphical answer to
 /// the same question; both are said, so neither has to carry it alone.
+/// WHICH CANDIDATE THE FIRST VISIBLE ROW SHOWS — the windowing, written once (HD-3).
+///
+/// It used to live inside `completion_rows` and had one consumer. A pointer press has to ask
+/// the same question backwards ("which candidate is this row?"), and a second copy of this
+/// arithmetic is how a maker comes to click one row and select another — a defect that would
+/// appear only after the list had scrolled, which is to say only when nobody was looking for
+/// it. `capacity` is the whole list's, heading included, exactly as `completion_rows` takes
+/// it.
+inline constexpr std::size_t completion_first_shown(std::size_t selected,
+                                                    std::size_t capacity) noexcept {
+    if (capacity <= 1) {
+        return 0; // no room for a candidate row at all: the heading is the whole list
+    }
+    const std::size_t room = capacity - 1; // the heading always costs one
+    return selected >= room ? selected - room + 1 : 0;
+}
+
 inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& comp,
                                                             std::size_t capacity,
                                                             std::int64_t width) {
@@ -1880,10 +2123,7 @@ inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& co
         return rows;
     }
     const std::size_t room = capacity - 1; // the heading always costs one
-    std::size_t first = 0;
-    if (room > 0 && comp.selected >= room) {
-        first = comp.selected - room + 1;
-    }
+    const std::size_t first = completion_first_shown(comp.selected, capacity);
     const std::size_t last = comp.candidates.size() < first + room ? comp.candidates.size()
                                                                    : first + room;
     std::string heading = comp.heading;
@@ -1986,8 +2226,14 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
         row(2 + i, i < lines.size() ? lines[i] : std::string(), surface::role::kFill);
     }
     row(sc.terminal_lines - 2, terminal_omission(t), surface::role::kMuted);
-    // The cursor is a character, for the same reason the size handle is: this canvas has no
-    // notion of a caret, and a maker needs to see where the next keystroke lands.
+    // THE LINE BEING TYPED, AND THE CARET SAID SEPARATELY FROM IT (HD-3).
+    //
+    // Until HD-3 the caret was a `_` this function appended, which was truthful only because
+    // the caret could only ever be at the end. It can be anywhere now, so the position is
+    // published as a fact ABOUT the region (`caret_row`/`caret_col`) and each medium answers
+    // it in its own type: a window fills a bar between two characters, and the cell
+    // projection inserts `_` at the same column -- which, for a caret at the end of the line,
+    // is byte-for-byte the row this function used to write itself.
     //
     // AND WHILE THERE IS NOTHING ON IT, IT NAMES THE GESTURE THAT ANSWERS "what can I
     // say here" (HD-2). It is on this row rather than in the legend because it is
@@ -1995,10 +2241,16 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
     // erases itself: the moment a maker types anything the line has their text on it
     // and the list is doing the same job better. A tool whose discovery gesture is
     // itself undiscoverable has moved the problem rather than solved it.
+    const TerminalInputPlace typing = terminal_input_place(sc);
     const bool prompting = t.input.empty() && !t.completion.open;
     row(sc.terminal_lines - 1,
-        prompting ? "> _   tab: what can this terminal say?" : "> " + t.input + "_",
+        prompting ? ">    tab: what can this terminal say?" : "> " + t.input.text(),
         t.attached ? surface::role::kAccent : surface::role::kAlert);
+    // ONE MEASURER: the column comes from the same resolution the row was written against,
+    // and the same one a press is answered with, so a caret cannot land where the text is
+    // not and a click cannot land where the caret would not.
+    pane.caret_row = typing.prose_row;
+    pane.caret_col = terminal_caret_column(typing, t.input.caret());
 
     c.texts.push_back(std::move(pane));
 

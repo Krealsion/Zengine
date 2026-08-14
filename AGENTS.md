@@ -80,6 +80,35 @@ for itself.
 terminal golden is unmoved — the assertion is in `test_surface.cpp`, and it is the thing to
 re-check if this ever grows.
 
+## A region may have a caret, and it is said in PROSE (HD-3)
+
+`SurfaceTextRegion` carries `caret_row`/`caret_col` — a row and a column into the rows the
+region carries, never a pixel and never a canvas cell. That is what lets each medium answer
+with the metric it already resolved: `plan_caret` (`surface/skin_sdl_plan.hpp`) turns them
+into a `kCaretWidthPx` bar off the same `RegionFit` the rows were positioned with, and
+`project_text_regions` *inserts* `kCaretGlyph` at the same column, which for a caret at the
+end of a line is byte-for-byte the row the Terminal used to append for itself. `kNoCaret` is
+**negative** for `role::kNone`'s reason — a row index is non-negative by construction, so an
+absence cannot collide with a row anybody meant. It made `SurfaceTextRegion` **v3** and
+`SurfaceCanvas` **v4**; the canvas has now changed three times and never gained a field.
+
+**A caret is an insertion point, so it is a bar and never a block**, and it is not a
+selection, not a focus fact and not a clock. Two regions on one canvas may each carry one.
+
+**The geometry that draws a thing and the geometry that hits it must be the same geometry.**
+`terminal_input_place` (`workshop/screen.hpp`) is the pane's editable line resolved once, and
+`paint_terminal`, the caret and `terminal_press` all call it. `completion_first_shown` was
+lifted out of `completion_rows` for the same reason — a second copy of the list's windowing
+is right until the first scroll, which is to say wrong only when nobody is looking. Do not
+add a `click_*_bounds()` beside a `paint_*_bounds()` here.
+
+**`scan::kHome`/`kDelete`/`kEnd` are NAMES for values that already arrived**, not new reach.
+`translate_sdl.hpp` passes SDL's scancode through untranslated, so the SDL backend has always
+delivered them unnamed; the POSIX terminal backend drops their CSI sequences and the Win32
+console backend maps their VKs to `kUnknown`. Neither was widened, and a constant here is not
+a claim that every backend can produce one — `translate.hpp` remains where each backend's
+honest reach is written.
+
 **Do not save and restore a renderer viewport through `SDL_GetRenderViewport` alone.** SDL
 keeps two states and that call flattens them: a renderer with no viewport of its own answers
 with the whole target's rectangle, and setting *that* back makes the viewport explicit, after
@@ -149,8 +178,8 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (~31,000 over the **eight** doctest suites, SDL lane, measured
-  2026-08-14 after HD-2) are evidence to report. They are **not** a population, never an
+- Assertion totals (~31,700 over the **eight** doctest suites, SDL lane, measured
+  2026-08-14 after HD-3) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it. The figure is configuration-dependent —

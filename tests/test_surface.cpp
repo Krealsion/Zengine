@@ -438,12 +438,20 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // regions. So a row gaining a field changed all three content-ids, and all
     // three declared versions had to follow -- a version that did not would be two
     // different wire shapes wearing one number.
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 2)
+    //
+    // VERSION 3 SINCE HD-3, and its two bumps are two different KINDS of bump: version 2
+    // was a row gaining a field underneath it, and version 3 is this shape gaining two of
+    // its own (the caret). Both had to happen; only one of them is visible in the field
+    // list below, which is exactly why the identity is built out of the pieces rather than
+    // spelled independently.
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 3)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
                                  .field("h", Kind::Int)
                                  .list("rows", loom::type_message(text_row))
+                                 .field("caret_row", Kind::Int)
+                                 .field("caret_col", Kind::Int)
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
@@ -451,10 +459,11 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // theirs -- which is the property that makes a drift anywhere in this
     // vocabulary a red here rather than a surprise on a wire.
     //
-    // VERSION 3, because a published schema is immutable and evolving a shape is
-    // publishing a new one. Version 2 was the region list it gained in HD-1; this
-    // one it gained no field of its own at all, and changed anyway.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 3)
+    // VERSION 4, because a published schema is immutable and evolving a shape is
+    // publishing a new one. Version 2 was the region list it gained in HD-1; versions 3
+    // (HD-2's row background) and 4 (HD-3's caret) it gained no field of its own at all,
+    // and changed both times.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 4)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("rects", loom::type_message(rect))
@@ -1608,6 +1617,169 @@ TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
     CHECK(prose_column_of_pixel(kMax, kMin, fit) > 0);
     CHECK(prose_row_of_pixel(kMin, kMax, cells) < 0);
     CHECK(prose_row_of_pixel(kMax, kMin, cells) > 0);
+}
+
+TEST_CASE("region: a caret is a character in the cell projection, at its own column") {
+    // HD-3. A cell medium has no sub-cell position, so the honest lower-fidelity answer to
+    // "the next keystroke lands between these two characters" is a mark BETWEEN them. This
+    // is also, exactly, what the Workshop Terminal did for itself before HD-3 -- which is
+    // the argument that this is a projection rather than a stub.
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 8;
+    SurfaceTextRegion r;
+    r.x = 2;
+    r.y = 1;
+    r.w = 10;
+    r.h = 2;
+    r.rows.push_back(SurfaceTextRow{"> abc", role::kAccent});
+    r.rows.push_back(SurfaceTextRow{"other", role::kFill});
+    r.caret_row = 0;
+    r.caret_col = 5;
+    c.texts.push_back(r);
+
+    std::vector<ProjectedRow> rows = project_text_regions(c);
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == "> abc_    "); // at the end, padded to the region's width
+    CHECK(rows[1].label.text == "other     "); // the other row is untouched
+
+    // IN THE MIDDLE, the rest of the row moves right by one. That is what an inserted mark
+    // does, and it is the whole cost of a character medium having no space between cells.
+    c.texts[0].caret_col = 3;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> a_bc    ");
+
+    // AT COLUMN 0, before everything.
+    c.texts[0].caret_col = 0;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "_> abc    ");
+
+    // NO CARET IS THE DEFAULT AND DRAWS NOTHING -- kNoCaret, and any other row.
+    c.texts[0].caret_row = kNoCaret;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> abc     ");
+    c.texts[0].caret_row = 1;
+    c.texts[0].caret_col = 2;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> abc     ");
+    CHECK(rows[1].label.text == "ot_her    ");
+
+    // A CARET THIS ROW CANNOT HOLD IS NOT DRAWN, and never throws: `caret_col` is a number
+    // off the wire, so past-the-text and negative are both answers rather than errors.
+    c.texts[0].caret_row = 0;
+    c.texts[0].caret_col = 99;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> abc     ");
+    c.texts[0].caret_col = -4;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> abc     ");
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    c.texts[0].caret_row = kMax;
+    c.texts[0].caret_col = kMin;
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "> abc     ");
+
+    // INSERTED BEFORE THE CUT, so a caret past the region's width falls off the row like
+    // any other character. This projection does not scroll, and rescuing the caret here
+    // would be inventing a scroll for every consumer at once.
+    c.texts[0].caret_row = 0;
+    c.texts[0].caret_col = 2;
+    c.texts[0].rows[0].text = "0123456789";
+    rows = project_text_regions(c);
+    CHECK(rows[0].label.text == "01_2345678"); // ten wide; the '9' went
+}
+
+TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that drew the rows") {
+    // HD-3, and the whole one-measurer claim in one case: the caret's x comes out of the
+    // SAME `RegionFit` the rows' baselines do, so a bar cannot land where the text is not.
+    const RegionFit fit = fit_region(22, 9, 56, 13, 8, 18);
+    REQUIRE(fit.advance_px == 8);
+    REQUIRE(fit.line_px == 18);
+
+    const PlanInk ink = ink_for_role(role::kAccent);
+    const PlanCaret at0 = plan_caret(fit, fit.origin_x, fit.origin_y, 0, 0, ink);
+    CHECK(at0.present);
+    CHECK(at0.x == kTextInsetPx);
+    CHECK(at0.y == kTextInsetPx);
+    CHECK(at0.w == kCaretWidthPx);
+    CHECK(at0.h == 18);
+    CHECK(at0.ink == ink);
+
+    // COLUMN * ADVANCE and ROW * LINE, and nothing else -- the same two multiplies the
+    // text is positioned with.
+    CHECK(plan_caret(fit, fit.origin_x, fit.origin_y, 0, 7, ink).x == kTextInsetPx + 7 * 8);
+    CHECK(plan_caret(fit, fit.origin_x, fit.origin_y, 3, 0, ink).y == kTextInsetPx + 3 * 18);
+
+    // AT THE FAR COLUMN IT IS STILL INSIDE THE REGION. That is not luck: the interior is
+    // `columns * advance` wide inside a 2*inset margin, so a kCaretWidthPx bar at column
+    // `columns` ends inside the region's own viewport while kCaretWidthPx <= kTextInsetPx.
+    const PlanCaret last = plan_caret(fit, fit.origin_x, fit.origin_y, 0, fit.columns, ink);
+    CHECK(last.present);
+    CHECK(last.x + last.w <= fit.view.w);
+
+    // PAST THE PROSE THIS REGION HAS, there is no caret. Resolved here rather than in the
+    // renderer, because it is arithmetic over the fit and a renderer's copy would be the
+    // second answer.
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, kNoCaret, 0, ink).present);
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, fit.rows, 0, ink).present);
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, 0, fit.columns + 1, ink).present);
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, 0, -1, ink).present);
+
+    // SEVERAL METRICS, not only the live 8x18 face. The arithmetic is what is being pinned,
+    // and a case written against one face would pass for a reason it does not claim.
+    struct Face {
+        std::int64_t advance;
+        std::int64_t line;
+    };
+    for (const Face f : {Face{6, 14}, Face{8, 18}, Face{11, 23}, Face{15, 31}}) {
+        const RegionFit any = fit_region(22, 9, 56, 13, f.advance, f.line);
+        for (const std::int64_t col :
+             {std::int64_t{0}, std::int64_t{1}, any.columns / 2, any.columns}) {
+            const PlanCaret p = plan_caret(any, any.origin_x, any.origin_y, 0, col, ink);
+            REQUIRE(p.present);
+            CHECK(p.x == kTextInsetPx + col * f.advance);
+            CHECK(p.h == f.line);
+            CHECK(p.x + p.w <= any.view.w); // never outside the region it belongs to
+        }
+        CHECK(plan_caret(any, any.origin_x, any.origin_y, any.rows - 1, 0, ink).y ==
+              kTextInsetPx + (any.rows - 1) * f.line);
+    }
+
+    // TOTAL over the wire: `caret_row`/`caret_col` are published numbers.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, kMax, kMax, ink).present);
+    CHECK_FALSE(plan_caret(fit, fit.origin_x, fit.origin_y, kMin, kMin, ink).present);
+
+    // ...and through the whole planner, where the ink comes from the row it sits on.
+    SurfaceCanvas c;
+    c.width = 100;
+    c.height = 30;
+    SurfaceTextRegion r;
+    r.x = 22;
+    r.y = 9;
+    r.w = 56;
+    r.h = 13;
+    r.rows.push_back(SurfaceTextRow{"first", role::kMuted});
+    r.rows.push_back(SurfaceTextRow{"> typed", role::kAccent});
+    r.caret_row = 1;
+    r.caret_col = 7;
+    c.texts.push_back(r);
+    const std::vector<PlanTextRegion> planned =
+        plan_text_regions(c, SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400});
+    REQUIRE(planned.size() == 1);
+    CHECK(planned[0].caret.present);
+    CHECK(planned[0].caret.x == planned[0].origin_x + 7 * 8);
+    CHECK(planned[0].caret.y == planned[0].origin_y + 1 * 18);
+    CHECK(planned[0].caret.ink == ink_for_role(role::kAccent)); // the row's own ink
+    CHECK(planned[0].caret.ink == planned[0].rows[1].ink);
+
+    // A REGION WITH NO CARET PLANS NONE, which is every region this application publishes
+    // except the Terminal's pane.
+    c.texts[0].caret_row = kNoCaret;
+    CHECK_FALSE(plan_text_regions(c, SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400})[0]
+                    .caret.present);
 }
 
 TEST_CASE("the shell says hello exactly once, and delegates every intent") {

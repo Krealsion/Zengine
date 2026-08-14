@@ -50,6 +50,7 @@
 //     crosses the bus, nothing lower than Workshop knows it exists, and if the
 //     idea turns out to be wrong it can be deleted without a migration.
 
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <string>
@@ -254,25 +255,70 @@ enum class Commit {
     Refused      ///< it is a value of this type, and the property said no
 };
 
-/// ERASE ONE CHARACTER FROM A TYPED LINE, not one byte.
+/// IS THIS BYTE THE MIDDLE OF A CHARACTER? UTF-8 continuation bytes are 10xxxxxx, and this
+/// one predicate is the whole of what "not a character boundary" means in this application.
+inline bool is_continuation_byte(char b) noexcept {
+    return (static_cast<unsigned char>(b) & 0xC0u) == 0x80u;
+}
+
+/// THE BYTE INDEX ONE CHARACTER BEFORE `at`, and 0 when there is none.
 ///
-/// A line a maker types is a byte string, so a naive `pop_back` over `é` would leave half a
-/// character behind -- a value that is not text and that no setter could parse. Continuation
-/// bytes (10xxxxxx) go with their lead byte. This is the whole of Workshop's Unicode editing:
-/// transport is honest, erase is character-shaped, and NOTHING here claims grapheme clusters,
-/// combining marks or display width.
+/// A line a maker types is a byte string, so stepping back one BYTE over `é` would land
+/// between its two bytes -- a position that is not anywhere in the text, and from which an
+/// erase leaves half a character behind. Continuation bytes go with their lead byte.
 ///
-/// IT IS A FREE FUNCTION because Workshop now has two places a maker types -- an inspector
-/// draft and the terminal overlay's command line (WT-1) -- and a second copy of this loop is a
-/// second answer to "what is a character", which would be right in one place and wrong in the
-/// other on the first day somebody improved one of them.
+/// AN INDEX RATHER THAN AN ERASE, since HD-3. `erase_one_character` used to be the only
+/// consumer and did its own walking; a caret needs the same walk to MOVE without erasing, and
+/// a second copy of the loop would be a second answer to "what is a character" -- right in one
+/// place and wrong in the other the first day somebody improved one of them.
+inline std::size_t character_before(const std::string& line, std::size_t at) noexcept {
+    std::size_t i = at < line.size() ? at : line.size();
+    while (i > 0 && is_continuation_byte(line[i - 1])) {
+        --i;
+    }
+    return i > 0 ? i - 1 : 0;
+}
+
+/// THE BYTE INDEX ONE CHARACTER AFTER `at`, and `line.size()` when there is none. The other
+/// direction of `character_before`, same rule, same reason.
+inline std::size_t character_after(const std::string& line, std::size_t at) noexcept {
+    std::size_t i = at;
+    if (i >= line.size()) {
+        return line.size();
+    }
+    ++i;
+    while (i < line.size() && is_continuation_byte(line[i])) {
+        ++i;
+    }
+    return i;
+}
+
+/// THE NEAREST CHARACTER BOUNDARY AT OR BEFORE `at`, clamped into the line.
+///
+/// The one place a position that came from OUTSIDE the text -- a pointer press resolved to a
+/// column -- is made into a position the text actually has. Snapping backwards rather than
+/// forwards is what makes a press on the second byte of a two-byte character mean the
+/// character it landed on rather than the one after it.
+inline std::size_t character_boundary(const std::string& line, std::size_t at) noexcept {
+    std::size_t i = at < line.size() ? at : line.size();
+    while (i > 0 && is_continuation_byte(line[i])) {
+        --i;
+    }
+    return i;
+}
+
+/// ERASE ONE CHARACTER FROM THE END OF A TYPED LINE, not one byte.
+///
+/// This is the whole of Workshop's Unicode editing: transport is honest, erase is
+/// character-shaped, and NOTHING here claims grapheme clusters, combining marks or display
+/// width.
+///
+/// IT IS A FREE FUNCTION because Workshop has two places a maker types -- an inspector draft
+/// and the terminal overlay's command line (WT-1). The terminal's line reaches it through
+/// `TerminalInput::backspace`, which erases before a CARET rather than at the end; both spend
+/// `character_before`, which is why they cannot disagree.
 inline void erase_one_character(std::string& line) {
-    while (!line.empty() && (static_cast<unsigned char>(line.back()) & 0xC0u) == 0x80u) {
-        line.pop_back();
-    }
-    if (!line.empty()) {
-        line.pop_back();
-    }
+    line.erase(character_before(line, line.size()));
 }
 
 /// One inspector line over one property, with an editor draft.

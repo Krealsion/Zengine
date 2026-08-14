@@ -100,6 +100,9 @@ inline std::string scancode_name(std::int64_t sc) {
     case scan::kComma: return ",";
     case scan::kPeriod: return ".";
     case scan::kSlash: return "/";
+    case scan::kHome: return "Home";
+    case scan::kDelete: return "Delete";
+    case scan::kEnd: return "End";
     case scan::kRight: return "Right";
     case scan::kLeft: return "Left";
     case scan::kDown: return "Down";

@@ -175,6 +175,22 @@ struct SurfaceTextRow {
     ZEN_SHAPE(SurfaceTextRow, 2, ZEN_FIELD(text), ZEN_FIELD(role), ZEN_FIELD(background));
 };
 
+/// A REGION THAT HAS NO CARET SAYS SO WITH THIS — negative for the reason
+/// `role::kNone` is: a prose row index is non-negative by construction, so the
+/// sentinel cannot collide with any row a publisher might one day mean, and a
+/// consumer reading it as a row would land far outside the region rather than on
+/// its first line.
+inline constexpr std::int64_t kNoCaret = -1;
+
+/// WHAT A CARET IS IN A MEDIUM WHOSE CHARACTER IS A CELL.
+///
+/// One character, INSERTED at the caret's column — which is exactly the picture
+/// the Workshop Terminal drew before HD-3, when the caret could only ever be at
+/// the end of the line and the pane appended this byte itself. Making the cell
+/// projection do it is what keeps the character medium's answer honest for a
+/// caret that can now be anywhere, without teaching it what a pixel is.
+inline constexpr char kCaretGlyph = '_';
+
 /// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
 /// and filled with rows the active medium sets in its OWN text metric.
 ///
@@ -200,21 +216,46 @@ struct SurfaceTextRow {
 /// rect is: publishers truncate because the cell projection needs them to, and a
 /// graphical medium clips as well because it cannot have its overflow predicted
 /// by anybody else.
-/// VERSION 2 BECAUSE ITS ROWS ARE, and that is the honest bookkeeping rather than
-/// ceremony: this shape's wire identity is computed from its field types, one of
-/// which is a list of `SurfaceTextRow`, so a row gaining a field changed what a
-/// region IS on the wire. Leaving the declared version at 1 would have meant two
-/// different content-ids wearing one version number — which is the exact failure
-/// a version exists to prevent. The same sentence one layer out makes
-/// `SurfaceCanvas` version 3.
+/// VERSION 3, AND IT HAS BEEN BUMPED TWICE FOR TWO DIFFERENT REASONS. Version 2
+/// was bookkeeping rather than ceremony: this shape's wire identity is computed
+/// from its field types, one of which is a list of `SurfaceTextRow`, so a row
+/// gaining a background changed what a region IS on the wire even though nothing
+/// here was edited. Version 3 is the ordinary kind — HD-3 added the two caret
+/// fields below. Either way, leaving the declared version alone would have meant
+/// two different content-ids wearing one version number, which is the exact
+/// failure a version exists to prevent. The same sentence one layer out makes
+/// `SurfaceCanvas` version 4.
+///
+/// A REGION MAY HAVE A CARET, AND IT IS SAID IN THE REGION'S OWN PROSE LATTICE
+/// (HD-3). `caret_row`/`caret_col` are a row index and a column index into this
+/// region's rows — the same two numbers a row's text is written in — and never a
+/// pixel, a cell or a coordinate on the canvas. That is what lets each medium
+/// answer for itself with the metric it already resolved: a window that sets real
+/// type fills a bar at `origin_x + caret_col * advance_px`, and a medium whose
+/// character IS a cell puts a character there instead. Neither is asked to
+/// convert anything the other did.
+///
+/// `kNoCaret` IS NEGATIVE ON PURPOSE, the same argument `role::kNone` makes one
+/// field up: the absence of a caret must not be a value a later vocabulary could
+/// collide with, and a row index is non-negative by construction, so the whole
+/// negative half of the number line is free and unambiguous. A publisher that
+/// says nothing gets exactly the picture every region drew before this existed.
+///
+/// WHAT IT IS NOT. It is not a selection (there is no range, and no anchor), not
+/// a focus fact (a canvas has no focus, and two regions may each carry one), not
+/// blinking (there is no clock on this shape), and not a promise about where a
+/// medium's own text cursor is. It is one insertion point in one region's prose,
+/// which is exactly what a publisher knows and a medium does not.
 struct SurfaceTextRegion {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
     std::vector<SurfaceTextRow> rows;
-    ZEN_SHAPE(SurfaceTextRegion, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
-              ZEN_FIELD(rows));
+    std::int64_t caret_row = kNoCaret; ///< the prose row it is on; kNoCaret = there is none
+    std::int64_t caret_col = 0;        ///< ...and the prose column it sits BEFORE
+    ZEN_SHAPE(SurfaceTextRegion, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col));
 };
 
 /// A whole canvas: an extent in cells, filled rectangles, and text over them.
@@ -239,18 +280,19 @@ struct SurfaceTextRegion {
 /// them, which is exactly what would be untrue if a label could land on top of
 /// one.
 ///
-/// VERSION 3 SINCE HD-2, and it gained no field of its own. Its identity is
-/// derived from the three lists it carries, so a `SurfaceTextRow` gaining a
-/// background changed this shape on the wire whether or not anything here was
-/// edited. A version that did not follow would be a promise this shape cannot
-/// keep — see `SurfaceTextRegion` above, which is the same sentence one layer in.
+/// VERSION 4 SINCE HD-3, and it has never gained a field of its own. Its identity
+/// is derived from the three lists it carries, so a `SurfaceTextRow` gaining a
+/// background (HD-2) and a `SurfaceTextRegion` gaining a caret (HD-3) each
+/// changed this shape on the wire whether or not anything here was edited. A
+/// version that did not follow would be a promise this shape cannot keep — see
+/// `SurfaceTextRegion` above, which is the same sentence one layer in.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceCanvas, 3, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
+    ZEN_SHAPE(SurfaceCanvas, 4, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
               ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
