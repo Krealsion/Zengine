@@ -41,7 +41,8 @@
 
 #include "timer/vocabulary.hpp"
 
-#include <zen/recorder/recorder.hpp>
+#include <zen/history/logger.hpp>
+#include <zen/history/recorder.hpp>
 #include <zen/schema.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
@@ -1254,14 +1255,15 @@ std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder
 TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     Live live("slow", {slow("slow", 4, "0.15")});
     loom::RecorderPolicy policy = loom::default_policy();
-    // The host's shape, reduced to what this case needs: the beat is noise, the
-    // four observations get a window of their own.
+    // The host's shape, reduced to what this case needs: the beat takes no recent
+    // context and keeps no bytes (but stays findable), and the four observations
+    // get a deep last-call slot of their own.
     policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name),
-                                               loom::RetentionClass::NotRetained, 0, false});
+                                               /*last_n=*/1, /*in_recent=*/false,
+                                               /*retain_payload=*/false});
     for (const char* shape : {BuildStarted::zen_name, BuildOutput::zen_name,
                               BuildFinished::zen_name, RunBuild::zen_name}) {
-        policy.rules.push_back(
-            loom::RetentionRule{std::string(shape), loom::RetentionClass::Dedicated, 64, true});
+        policy.rules.push_back(loom::RetentionRule{std::string(shape), 64, true, true});
     }
     loom::Recorder history(live.bus);
     history.apply_policy(policy);
@@ -1308,19 +1310,37 @@ TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
     REQUIRE(a.ok());
     CHECK(a.value().get("op")->as_int() == started_op(*started, history));
 
-    // THE BEATS THAT CARRIED IT ARE COUNTED, NOT KEPT -- and the difference is
-    // visible without asking anyone.
-    CHECK(history.counters().declined_by_policy > 0);
-    bool beats_declined = false;
+    // THE BEATS THAT CARRIED IT TOOK NO RECENT CONTEXT AND ARE STILL FINDABLE
+    // (RTH-1a). Under RTH-1's policy vocabulary this had to be said as "counted,
+    // not kept", which also meant a maker could not ask whether a beat had ever
+    // arrived. Both halves are asserted here because both matter: the build's
+    // story is legible, AND the heartbeat did not become invisible to buy that.
+    for (const loom::HistoryRecord& r : history.recent()) {
+        CHECK(r.shape != timer::TimerFired::zen_name);
+    }
+    const loom::Lookup last_beat = history.last_of(timer::TimerFired::zen_name);
+    REQUIRE(last_beat.horizon == loom::Horizon::Retained);
+    CHECK(loom::held_in(last_beat.record->held, loom::Held::LastCall));
+    CHECK(!loom::held_in(last_beat.record->held, loom::Held::Recent));
+    CHECK(last_beat.record->payload == loom::PayloadDisposition::NotRetained);
+    bool beats_seen = false;
     for (const loom::ShapeTally& t : history.tallies()) {
         if (t.shape == timer::TimerFired::zen_name) {
-            beats_declined = true;
+            beats_seen = true;
             CHECK(t.observed > 0);
-            CHECK(t.recorded == 0);
-            CHECK(t.declined == t.observed);
+            CHECK(t.last_call_held == 1);
         }
     }
-    CHECK(beats_declined);
+    CHECK(beats_seen);
+    // ...and the build's own observations DID take their place in recent context,
+    // because the order they arrived in relative to everything else is the story.
+    bool build_in_context = false;
+    for (const loom::HistoryRecord& r : history.recent()) {
+        if (r.shape == BuildFinished::zen_name) {
+            build_in_context = true;
+        }
+    }
+    CHECK(build_in_context);
 
     // THE POLICY THAT DECIDED ALL OF THAT IS ITSELF REMEMBERED, once, and no
     // message was sent to remember it.
@@ -1332,16 +1352,16 @@ TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
 }
 
 TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
-    // THE CLAIM A DEDICATED WINDOW MAKES, measured against a shared one that is
+    // THE CLAIM A LAST-CALL SLOT MAKES, measured against a recent FIFO that is
     // deliberately too small. Without it, a talkative build erases the record of
     // its own start; with it, the start is still there when the maker looks.
     Live live("chatty", {slow("chatty", 6, "0.05")});
     loom::RecorderPolicy policy = loom::default_policy();
-    policy.shared_capacity = 4;
-    policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name),
-                                               loom::RetentionClass::NotRetained, 0, false});
-    policy.rules.push_back(loom::RetentionRule{std::string(BuildStarted::zen_name),
-                                               loom::RetentionClass::Dedicated, 32, true});
+    policy.recent_capacity = 4;
+    policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name), 1,
+                                              false, false});
+    policy.rules.push_back(
+        loom::RetentionRule{std::string(BuildStarted::zen_name), 32, true, true});
     loom::Recorder history(live.bus);
     history.apply_policy(policy);
 
@@ -1352,6 +1372,47 @@ TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
     for (const loom::HistoryRecord& r : history.snapshot()) {
         starts += r.shape == BuildStarted::zen_name ? 1u : 0u;
     }
-    CHECK(starts == 1);                      // still there
-    CHECK(history.bounds().forgotten > 0);   // ...and the shared window did lose things
+    CHECK(starts == 1);                    // still there
+    CHECK(history.bounds().forgotten > 0); // ...and the recent window did lose things
+}
+
+// ============================================================================
+// Tier 5b -- what the host CHOSE NOT TO FORGET about a build (RTH-1a)
+// ============================================================================
+
+TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed are not") {
+    // THE HOST'S OWN SELECTION, made falsifiable by a real held build. `Workshop`
+    // adds exactly two application shapes to Loom's default -- the two a maker
+    // asks about tomorrow -- and deliberately not `BuildOutput`, which is working
+    // memory by the ton.
+    Live live("chatty", {slow("chatty", 6, "0.05")});
+    const std::string path = "zengine-rth1a-build.log";
+    std::remove(path.c_str());
+
+    loom::LoggerSelection selection = loom::default_selection();
+    selection.shapes.push_back(loom::LogRule{std::string(BuildFinished::zen_name), 0});
+    selection.shapes.push_back(loom::LogRule{std::string(BuildNotStarted::zen_name), 0});
+    {
+        loom::Logger journal(live.bus, std::move(selection));
+        REQUIRE(journal.open(path));
+        live.tell_tool(BuildRequested{"chatty"});
+        live.carry_until_over();
+        CHECK(journal.appended_of(BuildOutput::zen_name) == 0);
+        CHECK(journal.appended_of(std::string(timer::TimerFired::zen_name)) == 0);
+    }
+
+    std::vector<loom::LogRecord> back;
+    std::string error;
+    REQUIRE(loom::Logger::read(path, &back, &error));
+    std::size_t finished = 0;
+    for (const loom::LogRecord& r : back) {
+        CHECK(r.origin == loom::LogOrigin::BusObservation);
+        // Nothing that was not selected reached the stream -- including every beat
+        // that carried the build and every line it printed.
+        CHECK(r.observation.shape != BuildOutput::zen_name);
+        CHECK(r.observation.shape != timer::TimerFired::zen_name);
+        finished += r.observation.shape == BuildFinished::zen_name ? 1u : 0u;
+    }
+    CHECK(finished == 1);
+    std::remove(path.c_str());
 }
