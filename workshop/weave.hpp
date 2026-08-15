@@ -484,6 +484,17 @@ public:
                 repaint(mail);
                 return;
             }
+            // THEN THE ACTION CONTROLS (HD-8). Same order, same reason, and the three runs of
+            // the body cannot fight over a press: the footer, the object list and a live
+            // draft's own row are disjoint runs of ONE row budget, which is the property HD-7
+            // bought by making the body one region rather than two. So this ordering is
+            // written down for the same reason HD-5's four modes are -- an ordering that rests
+            // on a disjointness proof is one refactor from being silently wrong -- and not
+            // because two of these could otherwise both answer.
+            if (actions_press(b)) {
+                repaint(mail);
+                return;
+            }
             // AND THEN THE OBJECT LIST, for the same reason and in the same order (HD-7): the
             // innermost thing that owns the pointer where it landed answers before the thing
             // around it, and a press it declines falls through to the panel's own answer
@@ -833,6 +844,69 @@ private:
         return false;
     }
 
+    /// A PRESS ON AN ACTION CONTROL PERFORMS THE ACT THE CONTROL NAMES (HD-8).
+    ///
+    /// THE GEOMETRY IS THE PAINTER'S, one run down from the two lists and with the same
+    /// pipeline, no step reconstructed from a coarser one:
+    ///
+    ///     the raw pointer fact (its own space, its own numbers)
+    ///         -> the resolved Info panel body       info_body_place
+    ///         -> a row and a column of ITS prose    prose_at
+    ///         -> a control of the footer            action_press_at
+    ///         -> availability                       action_availability
+    ///         -> the SAME operation `n` and `d` call
+    ///
+    /// `action_press_at` inverts `prose_row_of_action`, the function the painter placed the
+    /// control with, so what a maker aims at is what answers. It is never rounded to a
+    /// Workshop cell, for the reason the other two presses are not: a graphical body row is
+    /// eighteen device pixels against a twelve-pixel cell.
+    ///
+    /// **IT INVENTS NO SECOND PATH INTO THE DOCUMENT.** `create_object()` and
+    /// `delete_object()` are the operations `command()` binds `n` and `d` to, called here
+    /// unchanged -- so the pointer and the keyboard cannot come to create differently, delete
+    /// differently, select differently afterwards, or describe what they did in different
+    /// words. There is no copy of the create algorithm here and there is no registry, no
+    /// command id, no callback and no action bus: this function is a switch over two indices
+    /// of a table, which is what two controls actually cost.
+    ///
+    /// THE TWO REFUSALS ARE HANDLED DIFFERENTLY AND THAT IS THE POINT (`Availability`'s own
+    /// comment carries the argument). A live draft is refused HERE, because the operations
+    /// know nothing about one and would rebuild the inspector's rows out from under it. No
+    /// target is passed THROUGH, because `doc::remove` already refuses it, changes nothing,
+    /// and says so in the document's own words -- and a second sentence for one state is the
+    /// thing this file spends `move_notice` and `kNoDocumentFile` avoiding.
+    ///
+    /// AND A PRESS ON A CONTROL IS CONSUMED WHATEVER IT DECIDES. Returning false for an
+    /// unavailable control would drop the press through to the object list and then to the
+    /// panel's occupancy answer, which would put a sentence about the panel on the notice line
+    /// in place of the reason the maker actually needs. One gesture, one owner.
+    bool actions_press(const zengine::input::PointerButton& b) {
+        const Screen sc = screen_of(session_);
+        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
+        if (!info.open) {
+            return false;
+        }
+        const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
+        const ProseAt at = prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
+        if (!at.understood) {
+            return false;
+        }
+        const std::size_t which = action_press_at(body, at.column, at.row);
+        if (which == kNoAction) {
+            return false; // a list row, the heading, a spare row, or off the body entirely
+        }
+        if (action_availability(which, state_, session_) == Availability::kDraftLive) {
+            say(kFinishDraftFirst, true);
+            return true;
+        }
+        if (which == kActionCreate) {
+            create_object();
+        } else {
+            delete_object();
+        }
+        return true;
+    }
+
     /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there
     /// (HD-7).
     ///
@@ -879,11 +953,9 @@ private:
         if (which == kNoObject || which >= state_.elements.size()) {
             return false; // a marker, the heading, a property row, a spare row, or off the body
         }
-        for (const Row& row : session_.rows) {
-            if (row.editing()) {
-                say("finish the draft first -- enter commits it, esc cancels", true);
-                return true; // handled: nothing moved, and the reason is on the notice line
-            }
+        if (draft_live(session_)) {
+            say(kFinishDraftFirst, true);
+            return true; // handled: nothing moved, and the reason is on the notice line
         }
         const std::int64_t id = state_.elements[which].id;
         if (id == session_.selected) {
@@ -1933,6 +2005,14 @@ private:
     /// wonder whether they met two different problems.
     static constexpr const char* kNoDocumentFile =
         "no document file -- start Workshop with --document <path>";
+
+    /// What to say to a gesture that would have changed the document or the
+    /// selection out from under a live property draft. HD-7 wrote it for a press
+    /// on the object list; HD-8's action controls are the second gesture to meet
+    /// the same wall, which is the duplication that turns a literal into a name.
+    /// Same sentence, same reason, same two ways out.
+    static constexpr const char* kFinishDraftFirst =
+        "finish the draft first -- enter commits it, esc cancels";
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
     /// a schema version is 32, so a wider number is REFUSED rather than
