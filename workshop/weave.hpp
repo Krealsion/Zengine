@@ -484,6 +484,16 @@ public:
                 repaint(mail);
                 return;
             }
+            // AND THEN THE OBJECT LIST, for the same reason and in the same order (HD-7): the
+            // innermost thing that owns the pointer where it landed answers before the thing
+            // around it, and a press it declines falls through to the panel's own answer
+            // unchanged. It is asked SECOND because a live draft's own row is the narrower
+            // claim -- and `objects_press` refuses outright while any draft is live, so the
+            // two can never both want the same press.
+            if (objects_press(b)) {
+                repaint(mail);
+                return;
+            }
             // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
             // whole of it: the press is asked what it landed on before the
             // document is asked anything, and a press that landed on a panel
@@ -724,7 +734,7 @@ private:
     /// given presentation state it is not using.
     ///
     /// A CLOSED PANEL IS NOT A ZERO CAPACITY. `bounds_of` answers with an empty rectangle for
-    /// a panel nobody has open and `inspector_body_place` refuses it, so the reconcile is
+    /// a panel nobody has open and `info_body_place` refuses it, so the reconcile is
     /// skipped rather than run against no room -- the draft is untouched, and the next
     /// repaint after the panel comes back resolves the window against the room it then has.
     ///
@@ -743,7 +753,7 @@ private:
             if (!session_.rows[i].editing()) {
                 continue;
             }
-            const InspectorBodyPlace body = inspector_body_place(info.rect, sc, session_);
+            const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
             if (body.present) {
                 session_.rows[i].keep_caret_visible(body.value_columns);
             }
@@ -757,7 +767,7 @@ private:
     /// coarser one:
     ///
     ///     the raw pointer fact (its own space, its own numbers)
-    ///         -> the resolved Inspector body        inspector_body_place
+    ///         -> the resolved Info panel body       info_body_place
     ///         -> a row and a column of ITS prose    prose_at
     ///         -> a semantic property row            property_at_prose_row
     ///         -> a column of that row's VALUE       property_value_column
@@ -797,7 +807,7 @@ private:
             if (!row.editing()) {
                 continue;
             }
-            const InspectorBodyPlace body = inspector_body_place(info.rect, sc, session_);
+            const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
             const ProseAt at =
                 prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
             if (!at.understood || !property_row_hit(body, i, at.column, at.row)) {
@@ -821,6 +831,67 @@ private:
             return row.editor().caret() != was;
         }
         return false;
+    }
+
+    /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there
+    /// (HD-7).
+    ///
+    /// THE GEOMETRY IS THE PAINTER'S, with no step reconstructed from a coarser one and no
+    /// second copy of the window arithmetic:
+    ///
+    ///     the raw pointer fact (its own space, its own numbers)
+    ///         -> the resolved Info panel body       info_body_place
+    ///         -> a row and a column of ITS prose    prose_at
+    ///         -> a visible object                   object_press_at
+    ///         -> the document's own identity        select
+    ///
+    /// `object_press_at` inverts `prose_row_of_object`, the same function the painter placed
+    /// the name with, so the row a maker sees IS the row the press names -- including when the
+    /// list has scrolled and an `... N earlier` marker is spending the body's first row, which
+    /// is the case a second copy of the arithmetic would get wrong. It is never rounded to a
+    /// Workshop cell: a graphical name row is eighteen device pixels tall against a
+    /// twelve-pixel cell, so a cell-rounded press names the wrong object for most of the list.
+    ///
+    /// THE MODE LAW, STATED ONCE AND PINNED: **while a property draft is live, a press on the
+    /// object list changes no selection and says so.** Changing objects rebuilds the inspector
+    /// rows, which is exactly what a live draft cannot survive -- and the three answers a
+    /// press could give instead (commit it, cancel it, carry it to a different object's `Name`)
+    /// are three different sentences about a maker's unfinished work that nothing has measured
+    /// a preference between. HD-6 refused the mirror of this question (a press does not BEGIN
+    /// an edit) for the same reason. `Esc` cancels, `Return` commits, and then the list is
+    /// live again; the notice says which.
+    ///
+    /// AND IT SELECTS, WHICH IS ALL IT DOES. It does not open the Builder, begin a drag, take
+    /// hold, rename, or start editing a property -- `select` is the same call `Tab` makes, so
+    /// a pointer and a key reach the document through one door.
+    bool objects_press(const zengine::input::PointerButton& b) {
+        const Screen sc = screen_of(session_);
+        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
+        if (!info.open) {
+            return false;
+        }
+        const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
+        const ProseAt at = prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
+        if (!at.understood) {
+            return false;
+        }
+        const std::size_t which = object_press_at(body, at.column, at.row);
+        if (which == kNoObject || which >= state_.elements.size()) {
+            return false; // a marker, the heading, a property row, a spare row, or off the body
+        }
+        for (const Row& row : session_.rows) {
+            if (row.editing()) {
+                say("finish the draft first -- enter commits it, esc cancels", true);
+                return true; // handled: nothing moved, and the reason is on the notice line
+            }
+        }
+        const std::int64_t id = state_.elements[which].id;
+        if (id == session_.selected) {
+            return false; // already there: let the panel answer as it does for any other press
+        }
+        select(id);
+        say("selected #" + std::to_string(id), false);
+        return true;
     }
 
     // ---- The terminal overlay ------------------------------------------------

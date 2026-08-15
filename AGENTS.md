@@ -212,13 +212,15 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   Neither consumer has asked, and the pre-Zen `Zen::TextBox` in `reference/` had four of those
   and could not move its caret.
 
-## The Inspector's property BODY, resolved once (HD-5, widened by HD-6)
+## The Info panel BODY, resolved once (HD-5, widened by HD-6 and again by HD-7)
 
-`inspector_body_place(panel_bounds, screen, session)` (`workshop/screen.hpp`) is the whole
-property body — where it is, how many rows of the ACTIVE medium's type fit in it, how wide a
-value may be, and which properties the window is showing. The painter, the caret,
-`refresh_inspector`, the vertical window and `info_press` all call it. Do not add a
-`click_property_bounds()` beside a `paint_property_bounds()` here.
+`info_body_place(panel_bounds, screen, document, session)` (`workshop/screen.hpp`) is the whole
+Info panel body — where it is, how many rows of the ACTIVE medium's type fit in it, how those
+rows are shared between the OBJECTS list and the property list, how wide a value may be, and
+which members each window is showing. The painter, the caret, `refresh_inspector`, both
+vertical windows, `info_press` and `objects_press` all call it. Do not add a
+`click_property_bounds()` beside a `paint_property_bounds()` here, and do not add an
+`object_row_bounds()` beside either.
 
 - **The body is ONE region and a property row is one of its rows**, mark and name included.
   HD-5's shape was the other way round — the mark and the name were labels beside a
@@ -268,6 +270,57 @@ value may be, and which properties the window is showing. The painter, the caret
   pane must ask for it by its PLACE (`Screen::terminal_x`/`terminal_y`) and not as `texts[0]`.
   Painter's order is: panels first, then the overlay, then the completion list.
 
+## Both of the Info panel's lists are rows of ONE region (HD-7)
+
+`kListRows = 5` and `kRowsY = 8` are **gone**. How many objects the panel shows and where
+`PROPERTIES` begins under them are answers about the room the active medium reports, and a
+constant cannot hold either: on the pristine tree the list was five rows at 78×25, at 120×40
+and at 240×80 while the property body beside it went from nine rows to sixty-four.
+
+```text
+row 0 .. objects_rows-1        the OBJECTS list, its markers included
+row objects_rows               `PROPERTIES` -- a heading that MOVES with the composition
+the next properties_rows       the property list, its markers included
+everything after that          spare, and it is allowed to stay spare
+```
+
+- **One region rather than two, and the reason is arithmetic.** Splitting the panel's CELLS
+  between two regions needs to know how many cells a run of rows costs, which is `fit_region`
+  read backwards — a second arithmetic beside the one function that turns a metric into a
+  capacity. One region asks `fit_region` once, gets a budget in PROSE ROWS, and spends it. The
+  two sections then cannot overlap: they are disjoint runs of one budget, not two rectangles
+  somebody has to keep apart.
+- **`share_body_rows` is the whole composition policy**, and it is max-min fair sharing:
+  *each list is given the rows its own population needs; what neither needs stays spare; and
+  what they cannot both have is shared equally, with any part of a half a list does not need
+  going to the other.* Four things follow and each is pinned as a property over every budget
+  from 0 to 200: a list that fits gets exactly what it needs, spare room stays spare, growing
+  the panel never shrinks either list, and **the 50/50 case is a consequence rather than a
+  decision** — it is what "share what is contested equally" produces when both want more than
+  half, and it stops the moment either wants less.
+- **`OBJECTS` stays chrome on the panel's row 0** and `PROPERTIES` is a row of the body. That
+  asymmetry is not an oversight: row 0 is SHARED with the screen's own `shift+space terminal`
+  hint, and a region owns its interior. `OBJECTS` names the panel's column; `PROPERTIES` names
+  a section inside the body whose position moves.
+- **`prose_row_in_window`/`item_at_prose_row` are the one copy of the row arithmetic**, called
+  twice. They own no items, no selection, no capacity and no keys — a helper, deliberately not
+  a component, and deliberately not called `List`.
+- **An object row is fitted WHOLE** (`object_row_text`). There is no `kObjectNameCols` beside
+  the property row's mark and label columns, because an object row has no fixed column after
+  the name to protect: cutting the row at the body's width cuts exactly the name and leaves the
+  mark and the identity intact by construction. The identity comes before the name because a
+  name is not an identity here — every object `n` makes is called `panel`.
+- **A press on a visible object row selects it, in command mode only** (`objects_press`). The
+  mode law: *while a property draft is live, a press on the object list changes no selection
+  and says so.* Changing objects rebuilds the inspector rows, which is what a live draft cannot
+  survive, and the three answers a press could give instead are three different sentences about
+  a maker's unfinished work that nothing has measured a preference between. HD-6 refused the
+  mirror of this question (a press does not BEGIN an edit) for the same reason.
+- **`list_window`'s `rows < 3` branch is reachable now.** It was unreachable at `kListRows = 5`;
+  a short panel gives a list a share of one or two rows, and what a maker then reads is
+  `... 20 more` where the names would be — this place cannot show you an object AND tell you
+  what it is hiding, so it tells you.
+
 ## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is now anything with `write(std::string_view)` **and**
@@ -305,9 +358,10 @@ SkinT::report_extent     unchanged: publish on change, never publish "no opinion
 - **A shrinking canvas hands its rows back.** `canvas()` appends one erase-below when the canvas it
   just drew is shorter than the one before it — the cursor is already one row past the last row
   written, so it erases precisely the difference. A steady frame writes the bytes it always wrote.
-- **Workshop received no new code at all.** `adopt_screen`, `screen_of`, `inspector_body_place`,
-  `list_window` and `component::TextBox` are byte-identical; a terminal that grew is the same
-  message a window that grew has published since G-2.
+- **Workshop received no new code at all** *(in TUI-0 — HD-7 then changed the panel this bullet
+  names)*. `adopt_screen`, `screen_of`, the Inspector body place, `list_window` and
+  `component::TextBox` were byte-identical; a terminal that grew is the same message a window
+  that grew has published since G-2.
 
 ## A region too small for the face is a CELL region (HD-5)
 
@@ -359,14 +413,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**36,130** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-14 after TUI-0) are evidence to report. They are **not** a population, never an
+- Assertion totals (**48,738** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-14 after HD-7) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 19,594 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 32,202 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -377,7 +431,11 @@ the tests themselves pass
   the two gated suites carry fewer cases where SDL is off — so it travels with
   the lane it was measured on, and it is dated because nothing enforces it: no
   contract file holds assertion counts, and a phase that adds a case moves this
-  number without anything noticing.
+  number without anything noticing. **HD-7 is the clearest demonstration yet that
+  the figure is not an oracle:** it added fifteen cases and moved the total from
+  36,130 to **48,738**, because two of those cases assert a *property* over every
+  budget from zero to two hundred. A third of the repository's assertions now come
+  from six loops.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose
