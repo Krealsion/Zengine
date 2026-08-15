@@ -502,14 +502,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**48,738** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-14 after HD-7) are evidence to report. They are **not** a population, never an
+- Assertion totals (**58,713** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-15 after HD-8) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 32,202 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 42,177 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -522,9 +522,10 @@ the tests themselves pass
   contract file holds assertion counts, and a phase that adds a case moves this
   number without anything noticing. **HD-7 is the clearest demonstration yet that
   the figure is not an oracle:** it added fifteen cases and moved the total from
-  36,130 to **48,738**, because two of those cases assert a *property* over every
-  budget from zero to two hundred. A third of the repository's assertions now come
-  from six loops.
+  36,130 to 48,738, because two of those cases assert a *property* over every
+  budget from zero to two hundred. HD-8 then added sixteen cases and 9,975 assertions
+  the same way, for the same reason, and the figure crossed fifty thousand without
+  anything in this repository being any better tested for the crossing.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose
