@@ -1600,8 +1600,8 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 //
 // So the bound stays exactly where it was, and only the silence goes.
 
-/// Which authored objects the OBJECTS panel is showing, and how many it is
-/// leaving out on each side of them.
+/// Which members of an ordered collection a bounded place is showing, and how
+/// many it is leaving out on each side of them.
 ///
 /// WORKSHOP PRESENTATION, like `Handle`: derived every paint and stored nowhere.
 /// It is not in `ui/`, because a shared vocabulary should not learn one
@@ -1614,26 +1614,42 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 /// this is four numbers instead of a scroll view -- a stored scroll offset would
 /// be a second opinion about where a maker is looking, and it is the copy that
 /// goes stale.
+///
+/// TWO CONSUMERS SINCE HD-6, and the second is what turned the words above from
+/// "the OBJECTS panel's window" into a rule. The Inspector's property body is
+/// bounded for the first time in HD-6 and needed exactly this: an ordered
+/// collection, one member that must stay on screen, a capacity that the active
+/// medium decides, and every omission counted on the side it happened. It reuses
+/// the FUNCTION rather than the shape of it -- see `inspector_body_place` -- so
+/// there is one rule about what a bounded list may hide and one wording for
+/// saying so (`omitted_text`), and a change to either moves both panels.
+///
+/// THE COMPLETION LIST IS NOT A THIRD CONSUMER, and the difference is worth
+/// naming rather than glossing: `completion_first_shown` anchors to the TAIL and
+/// never draws a `before` marker, because that list spends its first row on a
+/// heading which already says `3-5 of 9`. Same problem, genuinely different
+/// rule; sharing them would mean one of the two lying about what it is showing.
 struct ListWindow {
-    std::size_t first = 0;  ///< the first object shown, as a position in DOCUMENT order
+    std::size_t first = 0;  ///< the first member shown, as a position in the collection's order
     std::size_t count = 0;  ///< how many are shown, contiguously, in that order
-    std::size_t before = 0; ///< how many the panel left out ahead of them
+    std::size_t before = 0; ///< how many the place left out ahead of them
     std::size_t after = 0;  ///< how many it left out behind them
 };
 
-/// What `rows` lines can honestly show of `total` objects while the
+/// What `rows` lines can honestly show of `total` members while the
 /// `selected_at`'th is selected.
 ///
 /// THREE RULES, in this order:
 ///
-///   1. A document that FITS is shown whole, with no marker and no chrome at
-///      all. The simple case stays the simple case: zero through `kListRows`
-///      objects look exactly as they did before this function existed.
-///   2. The SELECTED object is always in the window. It is the object the status
-///      line and the inspector are both already naming, so a list that omits it
-///      does not merely hide an object -- it contradicts the rest of the screen,
+///   1. A collection that FITS is shown whole, with no marker and no chrome at
+///      all. The simple case stays the simple case: zero through `rows`
+///      members look exactly as they did before this function existed.
+///   2. The SELECTED member is always in the window. It is the object the status
+///      line and the inspector are both already naming -- or, for the Inspector,
+///      the row a maker's cursor or live draft is on -- so a list that omits it
+///      does not merely hide a member: it contradicts the rest of the screen,
 ///      which is the defect rather than a symptom of it.
-///   3. Every object left out is COUNTED, on the side it was left out on, and
+///   3. Every member left out is COUNTED, on the side it was left out on, and
 ///      each count spends one of the `rows`. The markers come out of the budget
 ///      rather than being extra lines beneath it: a bound that grows when it is
 ///      exceeded is not a bound.
@@ -2494,38 +2510,45 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     }
 }
 
-// ---- The Inspector's editable value, resolved ONCE (HD-5) --------------------------------
+// ---- The Inspector's property BODY, resolved ONCE (HD-5, widened by HD-6) -----------------
 //
 // THE GEOMETRY THAT DRAWS A THING AND THE GEOMETRY THAT HITS IT MUST BE THE SAME GEOMETRY.
-// That is the one-measurer rule (G-2, HD-1) as HD-3 brought it to interaction, arriving at
-// the SECOND editor this application has. So there is no `paint_property_edit_bounds()`
-// beside a `click_property_edit_bounds()` here -- there is `property_edit_place`, and the
-// painter, the caret, the viewport reconcile and the press all call it, with the same panel
-// bounds `bounds_of` gave the painter and the same `Screen` everything else is resolved from.
-// A resize of the Info panel therefore moves what is drawn and what a press means in one
-// edit, because there is one edit to make.
+// That is the one-measurer rule (G-2, HD-1) as HD-3 brought it to interaction. HD-5 obeyed it
+// for the one row a maker was editing; HD-6 obeys it for the whole property body, because the
+// body is now the thing with a capacity, a window and a caret in it. So there is no
+// `paint_property_bounds()` beside a `click_property_bounds()` here -- there is
+// `inspector_body_place`, and the painter, the caret, the viewport reconcile, the vertical
+// window and the press all call it, with the same panel bounds `bounds_of` gave the painter
+// and the same `Screen` everything else is resolved from.
+//
+// WHAT HD-6 CHANGED, AND WHY IT HAD TO BE THE BODY RATHER THAN THE ROW. HD-5 made the editing
+// row's VALUE a `SurfaceTextRegion` one cell tall and measured the wall that put it against: a
+// region one cell tall holds `(12 - 2*inset) / 18` = ZERO rows of this repository's face, so
+// `fit_region` answered with the cell projection and the editor got the mark a cell medium
+// makes rather than the bar it was built for. The row could not simply be given two cells --
+// a two-cell region covers the property beneath it, which is a property of the object the
+// maker is editing, hidden at the moment they are working on it.
+//
+// So the room is taken ONCE, for all the rows together: the body is a single region spanning
+// the panel from `kRowsY` to its bottom edge, and the semantic property rows are the region's
+// ROWS. `fit_region` then answers the whole question in one equation -- how many rows of the
+// active medium's type fit in that rectangle, and how many characters fit across it -- with
+// the inset already inside it. Nothing here multiplies a font metric, and there is no
+// Inspector row height to keep in step with a renderer's.
+//
+//     a graphical medium   25 cells tall = 300 px, less 2*2 inset, / 18 px line  -> 16 rows
+//     a cell medium        25 cells tall                                         -> 25 rows
+//
+// Two honest projections of one body. A semantic property row is not one cell tall and never
+// was; what was one cell tall is the cell medium's PICTURE of it.
 
 /// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
 ///
 /// Constants rather than a `strlen` at each site for `kTerminalPromptCols`' reason: the sum
 /// is the offset between "the first column of this row" and "the first byte of the VALUE",
-/// which is a fact the painter, the region and a press each need and none of them owns.
+/// which is a fact the painter, the caret and a press each need and none of them owns.
 inline constexpr std::int64_t kPropertyMarkCols = 1;
 inline constexpr std::int64_t kPropertyLabelCols = 9;
-
-/// HOW TALL THE EDITABLE VALUE'S REGION IS, in cells: exactly the row it belongs to.
-///
-/// One, and it is load-bearing rather than obvious. A property row IS one cell tall, and a
-/// region that took two would cover the row beneath it -- which is a property of the object a
-/// maker is editing, hidden at the moment they are working on it. The consequence is that
-/// this medium cannot set the row in its own type (its face's line is 18 device pixels
-/// against a 12-pixel cell), so `fit_region` answers with the CELL projection and the row is
-/// drawn in the same glyphs, at the same pitch, as every other row of the panel -- aligned
-/// with its neighbours, with the caret as the mark a cell medium makes. That is HD-5's honest
-/// fidelity answer and it is recorded in surface/region.hpp, not decided here: the day the
-/// Inspector's rows are given the room a face needs, this publisher gets real type and a
-/// caret BAR with no change at all.
-inline constexpr std::int64_t kPropertyEditRows = 1;
 
 /// THE COLUMN THE INSERTION POINT SITS IN, kept out of the value's own budget.
 ///
@@ -2536,63 +2559,182 @@ inline constexpr std::int64_t kPropertyEditRows = 1;
 /// cell is cut off with it. One rule for both media, deliberately, exactly as there.
 inline constexpr std::int64_t kPropertyCaretCols = 1;
 
-/// WHERE A PROPERTY ROW'S EDITABLE VALUE IS — its region, and how much of the draft that
-/// region can show.
+/// "This prose row shows no property" — a marker row, a blank row, or a row nobody has.
 ///
-/// `present` is false when there is nowhere to put it: the Info panel is not open (its bounds
-/// are empty by `bounds_of`'s own rule) or it is too narrow for a mark, a label and a value.
-/// A caller that forgets to ask gets a region of no width, which draws nothing and contains no
-/// press, rather than a rectangle somewhere it is not.
-struct PropertyEditPlace {
+/// A count-sized sentinel rather than a signed index, because every other property position in
+/// this file is a `std::size_t` into `Session::rows` and converting at the boundary is where
+/// an off-by-one hides. `position_of` uses `elements.size()` for the same job one shape over;
+/// this one cannot, because the body's own row population is not the collection being indexed.
+inline constexpr std::size_t kNoProperty = static_cast<std::size_t>(-1);
+
+/// WHERE THE INSPECTOR'S PROPERTY ROWS ARE, HOW MANY OF THEM FIT, AND WHICH ONES ARE SHOWN.
+///
+/// `present` is false when there is nowhere to put a body: the Info panel is not open (its
+/// bounds are empty by `bounds_of`'s own rule), it is too narrow for a mark, a label and a
+/// value, or it is too short to have any room under `PROPERTIES` at all. A caller that forgets
+/// to ask gets a region of no width, which draws nothing and contains no press, rather than a
+/// rectangle somewhere it is not.
+struct InspectorBodyPlace {
     bool present = false;
-    std::int64_t region_x = 0; ///< the value's own cell origin — a region coordinate
+    std::int64_t region_x = 0; ///< the body's own cell origin — a region coordinate
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
+    std::int64_t region_h = 0;
     surface::RegionFit fit{}; ///< what this medium makes of those bounds
-    /// COLUMNS THE VISIBLE PART OF THE DRAFT MAY OCCUPY — the caret's own column excluded.
-    /// It is the ONE capacity: the slice the painter cuts, the window `keep_caret_visible`
-    /// reconciles and the room a press is answered against are all this number.
+    /// COLUMNS ONE BODY ROW HAS, mark and label included — `fit.columns`, named so a reader
+    /// does not have to know which of the fit's numbers is the prose width.
     std::int64_t columns = 0;
+    /// COLUMNS A VALUE MAY OCCUPY — the mark, the label and the caret's own column taken off.
+    /// It is the ONE capacity for a value: the slice the painter cuts of a live draft, the
+    /// window `keep_caret_visible` reconciles, the width a RESTING value is fitted to, and
+    /// the room a press is answered against are all this number.
+    std::int64_t value_columns = 0;
+    /// PROSE ROWS THE BODY HOLDS, omission markers included. `list_window`'s `rows`.
+    std::size_t capacity = 0;
+    /// WHICH PROPERTIES ARE SHOWN, and how many are hidden on each side of them.
+    ListWindow window{};
 };
 
-/// THE REGION IS THE VALUE, and that is why there is no `first_column` here beside the
-/// Terminal's. The pane's region carries a `> ` prompt as well as the line, so a caret column
-/// there is the prompt plus the component's answer; this region begins where the value begins,
-/// so the component's answer IS the column and a pressed column IS the offset into the slice.
-/// The mark and the label stay ordinary labels on the same row, which is what keeps the
-/// editing row's NAME lined up with every other row of the panel.
-inline PropertyEditPlace property_edit_place(const ui::Rect& panel, const Screen& sc,
-                                             std::size_t row) noexcept {
-    PropertyEditPlace p;
+/// THE PROPERTY ROW THAT MUST STAY ON SCREEN: the one being edited, or the cursor's.
+///
+/// They are the same row today and the function is written anyway. `begin_edit` opens a draft
+/// on `Session::cursor` and `move_cursor` is reachable only from command mode, which is
+/// exactly the state in which no row is being edited -- so the two indices cannot drift apart
+/// by any gesture this application has. That is a REACHABILITY proof, and HD-5 already wrote
+/// down why one of those is not a thing to build a window on: it is one refactor away from
+/// being silently wrong, and the symptom here would be a maker's live draft scrolled off the
+/// body while the highlight sat somewhere else. A live draft wins, because it is the thing
+/// that cannot be reconstructed by looking.
+inline std::size_t inspector_focus(const Session& s) {
+    for (std::size_t i = 0; i < s.rows.size(); ++i) {
+        if (s.rows[i].editing()) {
+            return i;
+        }
+    }
+    return s.cursor;
+}
+
+/// THE BODY IS THE VALUE COLUMN'S OWNER, and that is why there is no `first_column` here
+/// beside the Terminal's. The pane's region carries a `> ` prompt as well as the line, so a
+/// caret column there is the prompt plus the component's answer; a body row carries the mark
+/// and the property's NAME as well as the value, so a caret column here is
+/// `kPropertyMarkCols + kPropertyLabelCols` plus the component's answer. The name stays in the
+/// row rather than beside it because it is what tells a maker WHICH property they are typing
+/// into; what the TextBox owns is the value draft and nothing else.
+///
+/// `total` and `focus` are the property population and the row that must stay visible. They
+/// are arguments rather than a `Session` so this is pure over the two numbers the window
+/// actually depends on -- the overload below is the one a painter calls.
+inline InspectorBodyPlace inspector_body_place(const ui::Rect& panel, const Screen& sc,
+                                               std::size_t total, std::size_t focus) {
+    InspectorBodyPlace p;
     const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
-    if (panel.w <= used || panel.h <= 0) {
-        return p; // no panel, or no room for a value beside the name
+    if (panel.w <= used || panel.h <= kRowsY) {
+        return p; // no panel, no room for a value beside a name, or no rows under the heading
     }
-    const std::int64_t index = row > static_cast<std::size_t>(kScreenMaxH)
-                                   ? kScreenMaxH
-                                   : static_cast<std::int64_t>(row);
-    p.region_x = surface::add_cells(panel.x, used);
-    p.region_y = surface::add_cells(panel.y, kRowsY + index);
-    p.region_w = panel.w - used;
-    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, kPropertyEditRows,
+    p.region_x = panel.x;
+    p.region_y = surface::add_cells(panel.y, kRowsY);
+    p.region_w = panel.w;
+    p.region_h = panel.h - kRowsY;
+    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
                                 sc.text_advance_px, sc.text_line_px);
-    p.columns = p.fit.columns - kPropertyCaretCols;
-    if (p.columns < 0) {
-        p.columns = 0;
+    p.columns = p.fit.columns;
+    p.value_columns = p.fit.columns - used - kPropertyCaretCols;
+    if (p.value_columns < 0) {
+        p.value_columns = 0;
     }
+    p.capacity = p.fit.rows > 0 ? static_cast<std::size_t>(p.fit.rows) : 0;
+    p.window = list_window(total, focus, p.capacity);
     p.present = true;
     return p;
 }
 
-/// IS THIS PROSE POSITION ON A ROW'S EDITABLE VALUE AT ALL?
+/// The same resolution for the session a painter is holding. One call, so nothing can resolve
+/// the body against a population or a focus the rest of the screen does not have.
+inline InspectorBodyPlace inspector_body_place(const ui::Rect& panel, const Screen& sc,
+                                               const Session& s) {
+    return inspector_body_place(panel, sc, s.rows.size(), inspector_focus(s));
+}
+
+/// WHICH PROSE ROW OF THE BODY SHOWS PROPERTY `index`, or a negative when the window is not
+/// showing it.
+///
+/// The `... N earlier` marker spends the first prose row when there is one, so this is not
+/// `index - first` and the difference is exactly the defect a second copy of it would be:
+/// off by one, only once the body has scrolled, which is to say only when nobody is looking.
+/// The painter positions the caret with it and `property_at_prose_row` inverts it, so the row
+/// a caret lands on and the row a press resolves to cannot come from two hands.
+inline constexpr std::int64_t kNoProseRow = -1;
+inline std::int64_t prose_row_of_property(const InspectorBodyPlace& p, std::size_t index) {
+    if (index < p.window.first || index - p.window.first >= p.window.count) {
+        return kNoProseRow;
+    }
+    return static_cast<std::int64_t>(index - p.window.first) + (p.window.before > 0 ? 1 : 0);
+}
+
+/// WHICH PROPERTY A PROSE ROW OF THE BODY SHOWS, or `kNoProperty` for a marker row, a blank
+/// row, or a row outside the body. The inverse of the function above, and its only inverse.
+inline std::size_t property_at_prose_row(const InspectorBodyPlace& p, std::int64_t row) {
+    if (!p.present || row < 0 || row >= static_cast<std::int64_t>(p.capacity)) {
+        return kNoProperty;
+    }
+    const std::int64_t first = p.window.before > 0 ? 1 : 0;
+    const std::int64_t at = row - first;
+    if (at < 0 || at >= static_cast<std::int64_t>(p.window.count)) {
+        return kNoProperty; // an omission marker, or past the last property shown
+    }
+    return p.window.first + static_cast<std::size_t>(at);
+}
+
+/// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
+/// body has room for.
+///
+/// THE TWO HALVES OF THE VALUE ARE DIFFERENT ACTS AND GET DIFFERENT ANSWERS. A RESTING value
+/// is fitted (`detail::fit`), so a value longer than the row ends in the `...` this whole
+/// canvas already uses to say "there was more" -- HD-5 left ordinary rows alone and HD-5's own
+/// live run then showed `the-quick-brown-fo` at the panel edge with nothing to say it had been
+/// cut. A LIVE DRAFT is windowed (`TextBox::visible`), because a draft has an insertion point
+/// and a maker is moving it: the caret staying put is what tells them the value moved, and a
+/// `...` on a row that is being typed into would be a second thing to keep true whose width
+/// would come out of this same one capacity (HD-4's rule, unchanged).
+inline std::string property_row_text(const Row& row, bool here, std::int64_t value_columns) {
+    std::string text = std::string(here ? ">" : " ") +
+                       detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
+    if (row.editing()) {
+        return text + row.editor().visible(value_columns);
+    }
+    return text + detail::fit(row.value(), value_columns);
+}
+
+/// THE CARET'S COLUMN IN A BODY ROW: the mark and the name, plus the component's own answer.
+///
+/// The component reports a column into the WINDOW it is showing (`caret - first_visible`), so
+/// this is the one place the row's prose offset is added -- the same shape
+/// `terminal_caret_column` has for the pane's `> ` prompt, and for the same reason.
+inline std::int64_t property_caret_column(const Row& row) {
+    return kPropertyMarkCols + kPropertyLabelCols +
+           static_cast<std::int64_t>(row.editor().caret_column());
+}
+
+/// IS THIS PROSE POSITION ON THE BODY ROW SHOWING PROPERTY `index` AT ALL?
 ///
 /// `terminal_input_hit`'s rule, one editor over: the ROW is the whole test and the column is
-/// deliberately not. A press anywhere along the value's row is a press on the value,
+/// deliberately not. A press anywhere along a property's row is a press on that property,
 /// including the empty room past the last character -- a maker aiming at the end of a short
 /// value clicks after it, and refusing that would refuse the most obvious gesture the row has.
-inline constexpr bool property_edit_hit(const PropertyEditPlace& p, std::int64_t column,
-                                        std::int64_t row) noexcept {
-    return p.present && row == 0 && column >= 0 && column <= p.fit.columns;
+/// A press to the LEFT of the value, on the mark or the name, is on the row too, and the
+/// component clamps it to the start of what is shown; the alternative is a strip of a live
+/// draft's own row that answers nothing.
+inline bool property_row_hit(const InspectorBodyPlace& p, std::size_t index, std::int64_t column,
+                             std::int64_t row) {
+    return p.present && column >= 0 && column <= p.fit.columns &&
+           property_at_prose_row(p, row) == index && index != kNoProperty;
+}
+
+/// A PRESSED COLUMN AS A COLUMN OF THE VALUE. Negative to the left of the value, which
+/// `TextBox::position_at_column` reads as "the start of what is shown".
+inline constexpr std::int64_t property_value_column(std::int64_t row_column) noexcept {
+    return row_column - (kPropertyMarkCols + kPropertyLabelCols);
 }
 
 /// THE INFO PANEL — the OBJECTS list and the PROPERTIES inspector, in the column they have
@@ -2693,11 +2835,51 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     }
 
     // The inspector.
+    //
+    // THE BODY IS ONE BOUNDED REGION, AND ITS ROWS ARE THE PROPERTIES (HD-6). `PROPERTIES`
+    // above it stays ordinary chrome -- a label in the panel's own cells, like OBJECTS -- and
+    // everything under it belongs to the region: how many rows there are, how wide a value
+    // may be, where the caret is, and what the body is not showing. A region is the only
+    // shape on this canvas that can be set in the active medium's own type and the only one
+    // that can carry an insertion point, and this is the whole property body asking for both.
+    //
+    // NOTHING BELOW MULTIPLIES A FONT METRIC. `inspector_body_place` asked `fit_region` once;
+    // the loop spends `window`, `columns` and `value_columns` and knows nothing about pixels,
+    // faces, insets or line heights. That is what makes "the graphical body shows five rows
+    // and the terminal body shows nine" one publisher rather than two.
+    //
+    // AND NO ROW IS PAINTED THAT THE BODY CANNOT HOLD. Before HD-6 this loop ran over every
+    // property and wrote a label per row, so a population taller than the panel ran off its
+    // bottom edge and over whatever was beneath it -- measured at the minimum screen, twelve
+    // rows, three of them below the panel and one on the notice band. The bound is the
+    // window's, the omission is counted on the side it happened, and both are the OBJECTS
+    // list's own rules reached through the OBJECTS list's own two functions.
     label(b.x, b.y + kRowsY - 1, "PROPERTIES", surface::role::kAccent);
-    if (s.rows.empty()) {
-        label(b.x, b.y + kRowsY, "(nothing selected)", surface::role::kMuted);
+    const InspectorBodyPlace body = inspector_body_place(b, sc, s);
+    if (!body.present || body.capacity == 0) {
+        return; // a panel with no room under its heading says nothing rather than lying
     }
-    for (std::size_t i = 0; i < s.rows.size(); ++i) {
+    surface::SurfaceTextRegion props;
+    props.x = body.region_x;
+    props.y = body.region_y;
+    props.w = body.region_w;
+    props.h = body.region_h;
+    const auto say_row = [&props](std::string text, std::int64_t role) {
+        props.rows.push_back(surface::SurfaceTextRow{std::move(text), role, surface::role::kNone});
+    };
+    if (s.rows.empty()) {
+        say_row(detail::fit("(nothing selected)", body.columns), surface::role::kMuted);
+        c.texts.push_back(std::move(props));
+        return;
+    }
+    // The markers are in the panel's own muted role for the OBJECTS list's reason: they are
+    // the tool's furniture and not authored material.
+    if (body.window.before > 0) {
+        say_row(detail::fit(omitted_text(body.window.before, "earlier"), body.columns),
+                surface::role::kMuted);
+    }
+    for (std::size_t n = 0; n < body.window.count; ++n) {
+        const std::size_t i = body.window.first + n;
         const Row& row = s.rows[i];
         const bool here = i == s.cursor;
         std::int64_t role = surface::role::kFill;
@@ -2706,48 +2888,22 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
         } else if (!row.editable()) {
             role = surface::role::kMuted; // not the maker's to author
         }
-        const std::int64_t y = b.y + kRowsY + static_cast<std::int64_t>(i);
-        const std::string named = std::string(here ? ">" : " ") +
-                                  detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
-        const PropertyEditPlace place = property_edit_place(b, sc, i);
-        if (!row.editing() || !place.present) {
-            label(b.x, y, named + row.display(), role);
-            continue;
+        say_row(property_row_text(row, here, body.value_columns), role);
+        if (row.editing()) {
+            // ONE MEASURER, TWICE OVER. The prose ROW is `prose_row_of_property` -- the same
+            // function `property_at_prose_row` inverts for a press -- and the COLUMN is
+            // `property_caret_column`, the same offset the row's own text was built with. So
+            // a caret cannot land where the text is not, and a click cannot land where the
+            // caret would not, on either axis.
+            props.caret_row = prose_row_of_property(body, i);
+            props.caret_col = property_caret_column(row);
         }
-        // THE ROW BEING EDITED IS TWO THINGS ON ONE LINE (HD-5), and the split is exactly the
-        // line between what a maker READS and what a maker is CHANGING. The mark and the
-        // property's name stay ordinary labels, so the editing row is lined up, letter for
-        // letter, with the rows above and below it. The VALUE becomes a bounded region,
-        // because a region is the only shape on this canvas that can carry an insertion point
-        // -- `caret_row`/`caret_col`, published as a FACT about the region rather than drawn
-        // as a character by this function, so each medium answers it in its own type.
-        //
-        // AND IT IS A WINDOW ONTO THE DRAFT RATHER THAN THE WHOLE OF IT. `visible` is the
-        // slice the region has room for; the authored draft is untouched behind it, and
-        // nothing in the row says how much is off either side -- no marker, no arrow, no
-        // ellipsis, for the reason HD-4 wrote down: the caret staying put is what tells a
-        // maker the value moved, and an indicator would be a second thing to keep true whose
-        // width would come out of this same one capacity.
-        //
-        // Before this, the whole row was one label carrying the draft plus a trailing `_`,
-        // and `canvas_body`'s `put` (and `plan_canvas`'s matching `break`) dropped every
-        // character past the canvas edge with no mark at all -- 52 of them on the value HD-5
-        // reproduced with, the cursor among them.
-        label(b.x, y, named, role);
-        surface::SurfaceTextRegion value;
-        value.x = place.region_x;
-        value.y = place.region_y;
-        value.w = place.region_w;
-        value.h = kPropertyEditRows;
-        value.rows.push_back(surface::SurfaceTextRow{row.editor().visible(place.columns), role,
-                                                     surface::role::kNone});
-        // ONE MEASURER: the column comes from the same resolution the slice was cut with, and
-        // the same one a press is answered with, so a caret cannot land where the text is not
-        // and a click cannot land where the caret would not.
-        value.caret_row = 0;
-        value.caret_col = static_cast<std::int64_t>(row.editor().caret_column());
-        c.texts.push_back(std::move(value));
     }
+    if (body.window.after > 0) {
+        say_row(detail::fit(omitted_text(body.window.after, "more"), body.columns),
+                surface::role::kMuted);
+    }
+    c.texts.push_back(std::move(props));
 }
 
 /// Every open panel, then the picker over them. The one call `paint` makes.

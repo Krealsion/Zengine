@@ -724,9 +724,15 @@ private:
     /// given presentation state it is not using.
     ///
     /// A CLOSED PANEL IS NOT A ZERO CAPACITY. `bounds_of` answers with an empty rectangle for
-    /// a panel nobody has open and `property_edit_place` refuses it, so the reconcile is
+    /// a panel nobody has open and `inspector_body_place` refuses it, so the reconcile is
     /// skipped rather than run against no room -- the draft is untouched, and the next
     /// repaint after the panel comes back resolves the window against the room it then has.
+    ///
+    /// SINCE HD-6 THE CAPACITY IS THE BODY'S, NOT THE ROW'S, and it is the same number for
+    /// every row: the body is one region and `value_columns` is what any of its rows has left
+    /// after the mark, the name and the caret's own column. A resize therefore reconciles the
+    /// horizontal window of a live draft and the vertical window of the body from ONE resolved
+    /// place, which is the whole of what "one resize reconciles all of it" costs here.
     void refresh_inspector() {
         const Screen sc = screen_of(session_);
         const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
@@ -737,9 +743,9 @@ private:
             if (!session_.rows[i].editing()) {
                 continue;
             }
-            const PropertyEditPlace place = property_edit_place(info.rect, sc, i);
-            if (place.present) {
-                session_.rows[i].keep_caret_visible(place.columns);
+            const InspectorBodyPlace body = inspector_body_place(info.rect, sc, session_);
+            if (body.present) {
+                session_.rows[i].keep_caret_visible(body.value_columns);
             }
             return;
         }
@@ -751,10 +757,23 @@ private:
     /// coarser one:
     ///
     ///     the raw pointer fact (its own space, its own numbers)
-    ///         -> the resolved editing region        property_edit_place
-    ///         -> a column of THAT region's prose    prose_at
+    ///         -> the resolved Inspector body        inspector_body_place
+    ///         -> a row and a column of ITS prose    prose_at
+    ///         -> a semantic property row            property_at_prose_row
+    ///         -> a column of that row's VALUE       property_value_column
     ///         -> a byte of the WHOLE draft          TextBox::position_at_column
     ///         -> the caret                          Row::place
+    ///
+    /// THE VERTICAL HALF IS HD-6'S, and it is the half a bounded body made necessary: a prose
+    /// row is no longer the property's own index, because the body may be showing rows 4..7 of
+    /// eight with a `... 4 earlier` marker spending the first of them. `property_at_prose_row`
+    /// is the inverse of the function the painter positioned the caret with, so there is no
+    /// second copy of the window arithmetic to go one row out once the body has scrolled.
+    ///
+    /// AND IT IS STILL NOT ROUNDED TO A WORKSHOP CELL. A graphical body row is 18 device
+    /// pixels tall against a 12-pixel cell, so a press resolved through cells would name the
+    /// wrong property for two thirds of the body. `prose_at` divides by the resolution the
+    /// rows were DRAWN with -- `fit.line_px` -- which is the same fit the painter spent.
     ///
     /// THE RAW PIXEL IS USED AS A RAW PIXEL. `prose_at` branches on the `space` the backend
     /// stamped, exactly as the Terminal's press does: a window's pixel is divided by the
@@ -778,10 +797,10 @@ private:
             if (!row.editing()) {
                 continue;
             }
-            const PropertyEditPlace place = property_edit_place(info.rect, sc, i);
+            const InspectorBodyPlace body = inspector_body_place(info.rect, sc, session_);
             const ProseAt at =
-                prose_at(b.space, b.x, b.y, place.region_x, place.region_y, place.fit);
-            if (!at.understood || !property_edit_hit(place, at.column, at.row)) {
+                prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
+            if (!at.understood || !property_row_hit(body, i, at.column, at.row)) {
                 return false;
             }
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
@@ -790,8 +809,15 @@ private:
             // to leave out for exactly as long as no value is long enough to scroll. The
             // component holds the offset the last repaint resolved, which is the one the
             // maker is looking at.
+            //
+            // AND THE ROW'S OWN PROSE OFFSET COMES OFF FIRST (HD-6). A body row carries the
+            // mark and the property's name before the value, exactly as the pane's row
+            // carries `> ` before the command, so a pressed column is a column of the ROW and
+            // the value's column is that minus what the name spent. `property_value_column`
+            // is the one subtraction and it is the inverse of the one
+            // `property_caret_column` added.
             const std::size_t was = row.editor().caret();
-            row.place(row.editor().position_at_column(at.column));
+            row.place(row.editor().position_at_column(property_value_column(at.column)));
             return row.editor().caret() != was;
         }
         return false;

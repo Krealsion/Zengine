@@ -107,6 +107,13 @@
 # genuinely cannot exist without SDL -- one case per suite, each driving a real SDL against
 # a real weave library.
 #
+# HD-6 put its whole tier in `always` for the reason that keeps recurring here: the Inspector
+# body's capacity, its vertical window, its omission markers, its resting-value fitting and
+# both projections of its caret are arithmetic over a metric that arrives as a NUMBER, so a
+# lane with no font engine proves every one of them by publishing the metric a font engine
+# would have measured. The one thing SDL adds is the measurement itself, and `surface`'s sdl
+# row has owned that since HD-1.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -123,7 +130,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  261
+workshop                          doctest           always  274
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
