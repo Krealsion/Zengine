@@ -2986,6 +2986,47 @@ inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
                            s.rows.size(), inspector_focus(s));
 }
 
+/// WHERE A POINTER FACT LANDED IN THE INFO PANEL'S BODY — the resolve-and-locate answer the
+/// three body handlers all begin from (QR-2).
+///
+/// IT ANSWERS **WHERE**, AND NOTHING ABOUT WHAT THAT MEANS. There is no routing priority in
+/// here, no property, action or object semantics, no refusal and no consumption: those are the
+/// three handlers' own, and each still asks its own inverse (`property_row_hit`,
+/// `action_press_at`, `object_press_at`) of the place this returns. The extraction is the same
+/// one `draft_live` earned in HD-8 — duplicate lines removed, ownership unmoved.
+struct InfoBodyAt {
+    /// THE PANEL IS OPEN, THE BODY RESOLVED, AND THE POSITION UNDERSTOOD — the one bit that
+    /// says the two fields below are worth asking anything. It is deliberately the conjunction
+    /// of all three: a closed panel, a panel too small to seat a body and a position in a
+    /// `space` this application does not recognise are three different facts about the
+    /// picture and exactly one fact about this press, which is that it named nothing here.
+    bool present = false;
+    InfoBodyPlace body{}; ///< the body the painter resolved, not a second reading of it
+    ProseAt at{};         ///< and where the fact landed in ITS prose
+};
+
+/// The preamble itself: the Info panel's body resolved from the same `bounds_of` the painter
+/// used, and this pointer fact located in it by the same `prose_at` every region press goes
+/// through. Three copies of these six lines lived in `info_press`, `actions_press` and
+/// `objects_press`; a fourth pressable place would have made it four.
+///
+/// IT IS DELIBERATELY NOT GENERIC OVER REGIONS. The terminal pane and the completion list
+/// resolve differently — their own places, their own conditions — and a helper they shared
+/// would be a name over three unrelated resolutions rather than one repeated one.
+inline InfoBodyAt info_body_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
+                               std::int64_t x, std::int64_t y) {
+    const Screen sc = screen_of(s);
+    const PanelBounds info = bounds_of(s.panels, panel::kInfo, sc);
+    if (!info.open) {
+        return InfoBodyAt{};
+    }
+    InfoBodyAt where;
+    where.body = info_body_place(info.rect, sc, d, s);
+    where.at = prose_at(space, x, y, where.body.region_x, where.body.region_y, where.body.fit);
+    where.present = where.body.present && where.at.understood;
+    return where;
+}
+
 // ---- One windowed list's rows, mapped both ways ------------------------------------------
 //
 // TWO LISTS NOW SHARE ONE PROSE LATTICE, so the arithmetic that turns a member's index into a
