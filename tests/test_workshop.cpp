@@ -5824,14 +5824,20 @@ TEST_CASE("a fresh skin's hello does NOT clear the presentation context -- measu
     // a metric-reporting graphical skin disappears and a non-reporting one becomes active in
     // the same process, and the answer is: NOTHING HAPPENS, which is the problem.
     //
-    // A terminal medium publishes no `SurfaceExtent` at all -- deliberately, because "I have
-    // no opinion" and "there is no room" are different sentences -- so after a live swap the
-    // only thing that could correct Workshop's presentation context never arrives, and the
-    // session keeps the dead window's cell extent AND, since HD-1, its text metric. The
-    // second is new; the FIRST has been true since G-2, and that is why this is reported here
-    // rather than repaired here: fixing it means deciding what a skin's hello does to a
-    // screen, which is a skin-handoff decision with its own evidence, not a detail of the
-    // extent's lifetime.
+    // A skin's HELLO carries no room and no metric -- it is one sentence, "I have claimed a
+    // surface" -- so nothing about it can correct a presentation context left behind by a
+    // skin that is gone, and the session keeps the dead window's cell extent AND, since HD-1,
+    // its text metric. That is why this is reported here rather than repaired here: fixing it
+    // through the hello means deciding what a skin's hello does to a screen, which is a
+    // skin-handoff decision with its own evidence, not a detail of the extent's lifetime.
+    //
+    // TUI-0 NARROWED THIS WITHOUT CLOSING IT, and the distinction is worth keeping exact. A
+    // terminal skin that can measure its terminal now publishes its own extent on its first
+    // pump, which arrives within a beat of the swap and overwrites both numbers -- so the
+    // window a maker actually swaps into a real terminal repairs itself. What is unrepaired
+    // is the swap into a medium with NO opinion (a piped run, a captured run), where the
+    // silence below is still the whole of what arrives. The seam moved from "always" to
+    // "when the new medium cannot measure itself", and this case pins the second.
     Live t;
     (void)t.mount_terminal();
     t.toggle_terminal();
@@ -6895,11 +6901,19 @@ TEST_CASE("`]` reaches the room a bigger surface gave, and `[` still narrows") {
 }
 
 TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
-    // THE TERMINAL PROJECTION'S POLICY, from the application's side. The terminal skins have
-    // no opinion about how much room there is and publish no extent, so a terminal Workshop
-    // never hears this message -- and what it paints is the minimum screen, which is the
-    // 78x22 composition, unchanged. `paint` is the whole of the evidence: a default Session
-    // is what a run with no medium opinion has.
+    // THE DETERMINISTIC FALLBACK, from the application's side. Since TUI-0 a terminal skin
+    // DOES have an opinion when there is a terminal to measure -- but a run whose output is
+    // a pipe, a file, a capture or a CI log has none, the medium says so, and
+    // `SkinT::report_extent` turns "no opinion" into SILENCE rather than into a claim. So
+    // this Workshop never hears the message and paints the minimum screen: the 78x22
+    // composition, unchanged, which is what keeps every golden projection in this repository
+    // independent of the machine that runs it. `paint` is the whole of the evidence: a
+    // default Session is what a run with no medium opinion has.
+    //
+    // THE FALLBACK IS NOT A MEASUREMENT AND IS NOT SPELLED LIKE ONE. Nothing anywhere
+    // manufactures a 78x22 terminal; this is Workshop's own documented minimum standing
+    // because nobody offered anything else, which is a different fact and stays legible as
+    // one (`kScreenMinW`/`kScreenMinH`, screen.hpp).
     WorkshopDoc d = two_panels();
     Session s;
     refocus(d, s);
@@ -11156,4 +11170,326 @@ TEST_CASE("HD-6: the property layer never learned that graphical rows got taller
     CHECK(t.doc().elements[0].width.amount == 40);
     CHECK(t.notice() == "committed Width = 40%");
     CHECK(t.doc().elements[0].width.mode == ui::kExtentPercent);
+}
+
+// ---- tier 8: the terminal is a medium with a size (TUI-0) ---------------------------------
+//
+// Every case below is written in TERMINAL sizes, because that is what a maker has, and turns
+// them into canvas extents through `surface::tui_canvas_extent` -- the medium's own arithmetic
+// -- rather than through a second copy of it. A case that wrote `SurfaceExtent{120, 37}` would
+// be asserting against a number this suite had computed for itself, and would keep passing on
+// the day the medium's own answer changed.
+
+TEST_CASE("TUI-0: the terminal's own size becomes Workshop's screen, growing and shrinking") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.canvases.empty());
+
+    // BEFORE ANY MEDIUM SPEAKS: the documented minimum, which is what a redirected run keeps
+    // for its whole life.
+    CHECK(t.canvases.back().width == kScreenMinW);
+    CHECK(t.canvases.back().height == kScreenMinH);
+
+    struct Want {
+        std::int64_t cols;
+        std::int64_t rows;
+        std::int64_t screen_w;
+        std::int64_t screen_h;
+    };
+    // The four sizes TUI-0 measured on a real pty, plus one absurd one as a canary for a
+    // fixed constant hiding in a responsive path (§26).
+    for (const Want& want : {Want{120, 40, 120, 37}, Want{160, 50, 160, 47},
+                             Want{90, 28, 90, 25}, Want{240, 80, 240, 77},
+                             Want{78, 25, kScreenMinW, kScreenMinH}}) {
+        CAPTURE(want.cols);
+        CAPTURE(want.rows);
+        const std::size_t before = t.canvases.size();
+        t.publish(loom::to_value(
+            surface::tui_canvas_extent(surface::TerminalSize{want.cols, want.rows})));
+        REQUIRE(t.canvases.size() > before);
+
+        CHECK(t.session().screen_w == want.screen_w);
+        CHECK(t.session().screen_h == want.screen_h);
+
+        // THE CANVAS IS THE SCREEN, and the screen FITS IN THE TERMINAL: what a publisher
+        // paints plus what the layout spends on itself is never more than the room there is.
+        const surface::SurfaceCanvas& c = t.canvases.back();
+        CHECK(c.width == want.screen_w);
+        CHECK(c.height == want.screen_h);
+        CHECK(c.width <= want.cols);
+        CHECK(c.height + surface::kTuiReservedRows <= want.rows);
+
+        // A CELL MEDIUM STAYS A CELL MEDIUM. No pixel is invented at any size.
+        CHECK(t.session().text_advance_px == 0);
+        CHECK(t.session().text_line_px == 0);
+
+        // NO ROW PAINTS OUTSIDE ITS BOUNDS: the rasterized picture is exactly as many rows as
+        // the canvas claims, each exactly as wide.
+        const std::vector<std::string> rows = rasterized(c);
+        REQUIRE(rows.size() == static_cast<std::size_t>(c.height));
+        for (const std::string& row : rows) {
+            CHECK(row.size() == static_cast<std::size_t>(c.width));
+        }
+
+        // AND THE SAME EXTENT AGAIN IS NOT A REPAINT. The skin already guards its publishing;
+        // this second guard is what makes a maker dragging an edge across a clamp boundary
+        // see one screen rather than a flicker.
+        const std::size_t settled = t.canvases.size();
+        t.publish(loom::to_value(
+            surface::tui_canvas_extent(surface::TerminalSize{want.cols, want.rows})));
+        CHECK(t.canvases.size() == settled);
+    }
+
+    // GROWING AND SHRINKING ARE ONE MECHANISM, walked as a hand on an edge would walk it.
+    for (std::int64_t rows = 30; rows <= 44; ++rows) {
+        t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{100, rows})));
+        CHECK(t.session().screen_h == rows - surface::kTuiReservedRows);
+    }
+    for (std::int64_t rows = 44; rows >= 30; --rows) {
+        t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{100, rows})));
+        CHECK(t.session().screen_h == rows - surface::kTuiReservedRows);
+    }
+}
+
+TEST_CASE("TUI-0: a terminal below the composition's minimum is published, not fictionalised") {
+    // §8. The medium's job is to say what it measured; the clamp is Workshop's own policy and
+    // has been since G-2. Keeping them separate is what makes the small case honest: nothing
+    // anywhere claims a 60x15 terminal is 78x22, and what a maker sees is the documented
+    // consequence of a composition with a stated minimum meeting a surface below it.
+    Live t;
+    const surface::SurfaceExtent small =
+        surface::tui_canvas_extent(surface::TerminalSize{60, 15});
+
+    // THE MEASUREMENT IS THE TRUTH AND IT IS SMALL. 15 rows less the layout's three is 12,
+    // and the medium says twelve rather than rounding up to a number that would fit.
+    CHECK(small.width == 60);
+    CHECK(small.height == 12);
+
+    t.publish(loom::to_value(small));
+
+    // WORKSHOP CLAMPS, VISIBLY, TO THE COMPOSITION IT IS HONEST ON. `adopt_screen` bounds an
+    // extent into [minimum, maximum] and the terminal clips whatever does not fit, which is
+    // what a terminal has always done with output too wide for it.
+    CHECK(t.session().screen_w == kScreenMinW);
+    CHECK(t.session().screen_h == kScreenMinH);
+
+    // ...AND THE CLAMP IS NOT A SECOND MEASUREMENT. Every terminal below the minimum resolves
+    // to the one screen, so a maker dragging an edge around inside that region sees no
+    // flicker, and Workshop never paints a size no medium reported.
+    const std::size_t settled = t.canvases.size();
+    for (const surface::TerminalSize& tiny :
+         {surface::TerminalSize{40, 10}, surface::TerminalSize{78, 24},
+          surface::TerminalSize{20, 5}}) {
+        t.publish(loom::to_value(surface::tui_canvas_extent(tiny)));
+    }
+    CHECK(t.canvases.size() == settled);
+    CHECK(t.session().screen_w == kScreenMinW);
+
+    // A TERMINAL WITH NO ROOM AT ALL SAYS NOTHING, and nothing is exactly what a publisher
+    // should hear: `{0,0}` off the bus is refused by `adopt_screen` for the same reason the
+    // medium never publishes it -- "there is no room" is a sentence nobody may say.
+    CHECK(surface::tui_canvas_extent(surface::TerminalSize{120, 2}).height == 0);
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{120, 2})));
+    CHECK(t.canvases.size() == settled);
+    CHECK(t.session().screen_w == kScreenMinW);
+}
+
+TEST_CASE("TUI-0: a terminal resize is presentation context, never an authored act") {
+    // §12. A hand on a terminal edge must not become a gesture aimed at the document.
+    Live t;
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{90, 28})));
+    t.key(input::scan::kN); // a second object, so a SELECTION is a real choice
+    t.key(input::scan::kTab);
+
+    const std::int64_t selected = t.session().selected;
+    const std::string authored = persist::to_text(t.doc());
+
+    // A LIVE DRAFT, MID-EDIT, WITH A CARET THAT IS NOT AT THE END.
+    t.begin_editing("Name");
+    while (!t.row("Name")->draft().empty()) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("edge");
+    t.key(input::scan::kLeft);
+    t.key(input::scan::kLeft);
+    const std::size_t cursor = t.session().cursor;
+    const std::size_t caret = t.row("Name")->editor().caret();
+    REQUIRE(t.row("Name")->editing());
+    REQUIRE(t.row("Name")->draft() == "edge");
+
+    for (const surface::TerminalSize& size :
+         {surface::TerminalSize{160, 50}, surface::TerminalSize{78, 24},
+          surface::TerminalSize{120, 40}, surface::TerminalSize{90, 28}}) {
+        CAPTURE(size.cols);
+        t.publish(loom::to_value(surface::tui_canvas_extent(size)));
+
+        // NOTHING AUTHORED MOVED -- compared as the bytes that would be SAVED, so a change
+        // anywhere in the document would show up here whether or not a test knew to look.
+        CHECK(persist::to_text(t.doc()) == authored);
+        // ...AND NO DOCUMENT WAS REBUILT UNDER THE MAKER: the selection, the cursor, the
+        // draft, the caret and the editing state all survive.
+        CHECK(t.session().selected == selected);
+        CHECK(t.session().cursor == cursor);
+        REQUIRE(t.row("Name") != nullptr);
+        CHECK(t.row("Name")->editing());
+        CHECK(t.row("Name")->draft() == "edge");
+        CHECK(t.row("Name")->editor().caret() == caret);
+    }
+
+    // A REFUSAL SURVIVES ONE TOO, and a refusal is the most fragile thing on this screen:
+    // it is the notice AND the row still being editable that together say "try again".
+    t.key(input::scan::kEscape);
+    t.begin_editing("Width");
+    while (!t.row("Width")->draft().empty()) {
+        t.key(input::scan::kBackspace);
+    }
+    for (const char c : std::string("500%")) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kReturn);
+    const std::string refusal = t.notice();
+    const std::string on_the_row = t.row("Width")->refusal();
+    REQUIRE_FALSE(refusal.empty());
+    REQUIRE_FALSE(on_the_row.empty());
+    REQUIRE(t.row("Width")->editing());
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{200, 60})));
+    CHECK(t.notice() == refusal);
+    CHECK(t.row("Width")->editing());
+    CHECK(t.row("Width")->draft() == "500%");
+    CHECK(t.row("Width")->refusal() == on_the_row);
+    // ...AND THE PROPERTY IT WOULD HAVE WRITTEN IS STILL WHAT IT WAS.
+    CHECK(persist::to_text(t.doc()) == authored);
+}
+
+TEST_CASE("TUI-0: more terminal is more Inspector, and the marker still tells the truth") {
+    // §13. The Inspector gained no TUI-specific layout: `inspector_body_place` and
+    // `fit_region` answer a bigger question with the same equation, and the omission marker
+    // appears and disappears because the room genuinely changed.
+    Live t;
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
+    const InspectorBodyPlace minimum = body_place(t);
+    const std::size_t properties = t.session().rows.size();
+    REQUIRE(properties > 0);
+
+    // A BIG TERMINAL FITS MORE ROWS...
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{120, 50})));
+    const InspectorBodyPlace roomy = body_place(t);
+    CHECK(roomy.capacity > minimum.capacity);
+
+    // ...AND A SMALL ONE FITS FEWER, WITH A MARKER SAYING SO. The minimum TUI screen already
+    // shows all eight properties, so the witness for a marker has to come from a genuinely
+    // short terminal rather than from a manufactured row list.
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
+    REQUIRE(body_place(t).capacity >= properties);
+    CHECK(body_place(t).window.before == 0);
+    CHECK(body_place(t).window.after == 0);
+
+    // Shorten the panel until the body genuinely cannot hold every property. The extent is
+    // clamped at the minimum screen, so the room has to come out of the SESSION the same way
+    // a below-minimum medium would leave it -- which is why this drives `paint` directly.
+    WorkshopDoc d = one_object();
+    Session s;
+    s.selected = 1;
+    s.screen_w = kScreenMinW;
+    s.screen_h = kScreenMinH;
+    refocus(d, s);
+    REQUIRE(s.rows.size() == 8);
+    const InspectorBodyPlace cells = inspector_body_place(
+        bounds_of(s.panels, panel::kInfo, screen_of(s)).rect, screen_of(s), s);
+    // A CELL MEDIUM AT THE MINIMUM HOLDS ALL EIGHT -- HD-6's own measurement, restated here
+    // because it is the reason a TUI marker needs a shorter terminal to appear at all.
+    CHECK(cells.capacity >= 8);
+    CHECK(cells.window.before == 0);
+    CHECK(cells.window.after == 0);
+
+    // AND THE ROWS THE BODY PUBLISHES ARE THE ROWS IT SAID IT WOULD.
+    //
+    // THE CANVAS IS NAMED, and that is not a style choice: `body_on` hands back a pointer
+    // INTO the canvas it was given, so passing `paint(d, s)` directly would leave `shown`
+    // pointing at a temporary that died at the semicolon. The ordinary lane passed over
+    // exactly that; the sanitizer lane named it as a heap-use-after-free, which is the
+    // second kind of evidence W-3a built this lane to be.
+    const surface::SurfaceCanvas painted = paint(d, s);
+    const surface::SurfaceTextRegion* shown = body_on(painted, cells);
+    REQUIRE(shown != nullptr);
+    CHECK(shown->rows.size() == cells.window.count);
+}
+
+TEST_CASE("TUI-0: a wider terminal is a wider command line, and the draft survives it") {
+    // §14. The pane's prose width is `screen_of(session).terminal_cols`, and a TextBox is
+    // handed that number as an ARGUMENT -- so `component/text_box.hpp` gains room without
+    // gaining a line of code, which is the second component witness this saga has.
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
+    t.toggle_terminal();
+    REQUIRE(t.pane().open);
+
+    const std::string command = "send SurfaceText slot=status text=the-quick-brown-fox-jumps";
+    for (const char c : command) {
+        t.text(std::string(1, c));
+    }
+    REQUIRE(t.pane().input.text() == command);
+
+    const std::int64_t narrow_cols = screen_of(t.session()).terminal_cols;
+    const std::size_t narrow_visible = t.pane().input.visible(narrow_cols).size();
+    // THE LINE IS LONGER THAN THE ROOM, which is what makes this a window at all.
+    REQUIRE(narrow_visible < command.size());
+    CHECK(t.pane().input.first_visible() > 0);
+
+    // A BIGGER TERMINAL: more of the same authored text is visible, and not one byte of it
+    // was lost or committed on the way.
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{160, 50})));
+    const std::int64_t wide_cols = screen_of(t.session()).terminal_cols;
+    CHECK(wide_cols > narrow_cols);
+    CHECK(t.pane().input.text() == command);
+    CHECK(t.pane().input.caret() == command.size());
+    CHECK(t.pane().input.visible(wide_cols).size() > narrow_visible);
+    // Wide enough for the whole line: the window slid all the way home by itself.
+    CHECK(t.pane().input.first_visible() == 0);
+
+    // NARROWING AGAIN RECONCILES THE WINDOW AND KEEPS THE CARET IN SIGHT -- HD-4's rule,
+    // reached by a terminal edge instead of a window edge, with no path of its own.
+    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{78, 25})));
+    const std::int64_t back_cols = screen_of(t.session()).terminal_cols;
+    CHECK(back_cols == narrow_cols);
+    CHECK(t.pane().input.text() == command);
+    CHECK(t.pane().input.caret() == command.size());
+    CHECK(t.pane().input.first_visible() > 0);
+    CHECK(t.pane().input.caret() - t.pane().input.first_visible() <=
+          static_cast<std::size_t>(back_cols));
+    CHECK(t.pane().open);
+}
+
+TEST_CASE("TUI-0: the OBJECTS list is unchanged, and says so at every terminal size") {
+    // §15. Observation only -- no migration. The list's five rows are `kListRows`, a FIXED
+    // size, so a bigger terminal buys the OBJECTS panel exactly nothing, and its omission
+    // marker is the same sentence at every size. That is the HD-7 pressure, measured rather
+    // than asserted: the list is the one bounded region on this screen that does not spend
+    // the room the medium now reports.
+    Live t;
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kN);
+    }
+    REQUIRE(t.doc().elements.size() > kListRows);
+
+    std::vector<std::string> seen;
+    for (const surface::TerminalSize& size :
+         {surface::TerminalSize{78, 25}, surface::TerminalSize{120, 40},
+          surface::TerminalSize{240, 80}}) {
+        CAPTURE(size.rows);
+        t.publish(loom::to_value(surface::tui_canvas_extent(size)));
+        const Screen sc = screen_of(t.session());
+        std::string tail;
+        for (std::int64_t row = kListY; row < kListY + kListRows + 1; ++row) {
+            tail += label_at(t.canvases.back(), sc.panel_x, row) + "|";
+        }
+        seen.push_back(tail);
+    }
+    // Three terminals, one list: the same rows, the same marker, the same wording.
+    CHECK(seen[0] == seen[1]);
+    CHECK(seen[1] == seen[2]);
+    // ...INCLUDING THE MARKER, which is a count and a direction and is the same one at 25
+    // rows as at 80. A list that spent the room would have dropped it somewhere in between.
+    CHECK(seen[0].find("... ") != std::string::npos);
 }

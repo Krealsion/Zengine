@@ -369,11 +369,26 @@ big one character of its own type is, in its own device pixels. Every other shap
 publisher → skin; this is the only one flowing skin → publisher, and it exists because
 "how many cells is there room for" is a fact **only the medium holds**. The active skin
 publishes it when the answer CHANGES and at no other time (its own 10ms beat is what notices
-a person dragging a window edge), and a medium with no answer — every terminal skin, and a
-window skin before its window exists — publishes **nothing** rather than publishing zeroes:
+a person dragging a window edge), and a medium with no answer — a window skin before its window
+exists, a terminal skin with no terminal — publishes **nothing** rather than publishing zeroes:
 "I have no opinion" and "there is no room" are different sentences. It is an *offer*: a
 publisher that ignores it keeps publishing whatever extent it likes and the skin clips, which
 is the contract `SurfaceCanvas` already states.
+
+**A terminal skin answers too, since TUI-0.** It owns a stream rather than a drawable, so it asks
+the operating system about the far end of it — `ioctl(TIOCGWINSZ)` on POSIX,
+`GetConsoleScreenBufferInfo`'s **visible window** on Windows (never `dwSize`, which is the
+9,001-row scrollback buffer) — through `surface/terminal_size.hpp`, the one place in this
+repository that names an operating system for this. The question is asked of the **Sink**, because
+the Sink is the thing that holds the terminal: `TuiTerminal` has a real console and answers, a
+`std::string` in a suite has none and says so, and a pipe is a far end that is not a terminal at
+all. What the medium then reports is not the terminal's size but what a **canvas** fits in it:
+`kTuiReservedRows` (3) come off the top — two for the status and score slots, and one because
+`canvas_body` ends its last row with a feed and a feed on a terminal's bottom row *scrolls*. The
+text metric stays `0 / 0`, which is not a missing measurement: in a terminal a character IS a
+cell. So a redirected, piped, captured or CI run measures nothing, says nothing, and paints
+Workshop's own documented 78×22 minimum exactly as it always did — and an interactive one paints
+the terminal a maker actually gave it.
 
 **The metric exists because exactly one party may measure in a sizing conversation**, and for
 text that party has to be the application: the Terminal pane chooses which transcript entries

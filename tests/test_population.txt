@@ -107,6 +107,17 @@
 # genuinely cannot exist without SDL -- one case per suite, each driving a real SDL against
 # a real weave library.
 #
+# TUI-0 made the same placement decision a SIXTH time, and its split is the cleanest of them.
+# The terminal medium now measures its own terminal, which is the one thing in the phase that
+# needs an operating system -- and it is precisely the thing no case asserts a value for,
+# because a suite that depended on the developer's window is a suite that fails on a pipe. What
+# the `always` row proves instead is everything ELSE: how a measured size becomes a canvas
+# extent, that an unmeasurable one becomes silence, that the shell publishes on change and only
+# on change, that a shrunken canvas hands back the rows it stopped using, and every one of
+# Workshop's reactions to a terminal that grew or shrank. The one case that does call the real
+# query asserts only the SHAPE of its answer -- no terminal, or a positive one -- which is true
+# on a pty, a pipe and a CI runner alike.
+#
 # HD-6 put its whole tier in `always` for the reason that keeps recurring here: the Inspector
 # body's capacity, its vertical window, its omission markers, its resting-value fitting and
 # both projections of its caret are arithmetic over a metric that arrives as a NUMBER, so a
@@ -125,12 +136,12 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  54
+surface                           doctest           always  59
 surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  274
+workshop                          doctest           always  280
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
