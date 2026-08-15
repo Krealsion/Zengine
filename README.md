@@ -359,9 +359,12 @@ list's. A bounded region that silently vanishes is the one answer `region.hpp` e
 impossible, so `fit_region` falls back — and because the publisher asks the same function for
 its capacity, the publisher, the window and the terminal all get one answer. The split between
 the two draw lists is now the predicate `fit_region(r, metric).graphical()` rather than a test
-on the metric alone, so they remain exactly disjoint and exactly complete. The Inspector's
-editable row is one cell tall and reaches this; the Terminal pane and its completion list are
-not and do not.
+on the metric alone, so they remain exactly disjoint and exactly complete. HD-5's one-cell
+editable row is what reached it and was measured against it; that row is gone — HD-6 gave the
+whole property body one region and HD-7 gave that region both of the Info panel's lists — so
+what reaches the fallback now is a panel too short for one line of the face, which the
+composition minimum keeps off the shipped screens. The Terminal pane and its completion list
+are not and do not.
 
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and (since HD-1) how

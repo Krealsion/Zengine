@@ -125,6 +125,12 @@
 # would have measured. The one thing SDL adds is the measurement itself, and `surface`'s sdl
 # row has owned that since HD-1.
 #
+# HD-7 did it again, and its own claim is the sharpest case for the rule so far: the whole
+# side-panel composition -- how the two lists share one row budget, that the sharing is
+# monotonic in the room, that neither list paints through the other, and that a press names
+# the row a maker sees -- is arithmetic over three counts and one metric. Not one of its
+# fifteen cases needs a font engine, so the Windows stranger lane proves the entire phase.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -141,7 +147,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  280
+workshop                          doctest           always  295
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

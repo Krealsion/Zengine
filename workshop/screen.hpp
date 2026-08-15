@@ -137,15 +137,19 @@ inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a 
 inline constexpr std::int64_t kPanelCols = 28;
 inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
 
-/// The rows INSIDE the side region's bounds: where the object list starts, how many names
-/// it shows, and where the inspector starts under it. They are the same three numbers they
-/// have always been, because the region begins at the top of the canvas -- what PNL-1
-/// changed is what they are measured FROM, so the panel painted here reads its own column's
-/// x and y off the bounds it was handed and knows nothing about the screen around it.
+/// The rows INSIDE the side region's bounds. There used to be four of them and now there
+/// are two, which is the measurable half of HD-7: `kListRows = 5` and `kRowsY = 8` were a
+/// fixed OBJECTS height and a fixed PROPERTIES origin, and both are gone. How many objects
+/// the panel shows and where the inspector begins under them are answers about the ROOM the
+/// active medium reports, resolved by `info_body_place`, and a constant cannot hold either.
+///
+/// WHAT SURVIVES IS WHERE THE PANEL'S OWN CHROME IS. `kSideY` is the region's top edge and
+/// `kInfoBodyY` is the first row under the `OBJECTS` heading -- the heading stays an ordinary
+/// label on the panel's row 0 because that row is SHARED with the screen's own
+/// `shift+space terminal` hint, which is not this panel's to cover. Everything below it
+/// belongs to one bounded region.
 inline constexpr std::int64_t kSideY = 0; ///< the region's top edge: the canvas's own
-inline constexpr std::int64_t kListY = 1;
-inline constexpr std::int64_t kListRows = 5;
-inline constexpr std::int64_t kRowsY = 8;
+inline constexpr std::int64_t kInfoBodyY = 1; ///< the body's first row, under `OBJECTS`
 
 /// The band under the workspace: a spare row, the notice, a spare row, and the two help
 /// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
@@ -1581,7 +1585,7 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 
 // ---- What the OBJECTS panel can show, and what it must SAY it cannot ---------------------
 //
-// The panel is `kListRows` lines tall and a document is any size, so some
+// A bounded place is any number of lines tall and a document is any size, so some
 // documents do not fit. That was always true and is still fine. What was not
 // fine is what the panel did about it: it stopped after the fifth line and said
 // nothing. A maker with six objects saw five of them, with no marker -- and with
@@ -1599,6 +1603,11 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 // is BOUNDED, and its truncation is OBSERVABLE.
 //
 // So the bound stays exactly where it was, and only the silence goes.
+//
+// HD-7 MOVED THE BOUND AND NOT THE RULE. `kListRows = 5` is gone: how many objects the panel
+// shows is `InfoBodyPlace::objects_rows`, resolved from the room the active medium reports.
+// This function did not change a line for that -- it always took its capacity as an argument,
+// which is why a fixed five and a measured twenty are the same call.
 
 /// Which members of an ordered collection a bounded place is showing, and how
 /// many it is leaving out on each side of them.
@@ -1620,9 +1629,14 @@ inline std::int64_t workspace_cell_y(std::int64_t canvas_y) noexcept {
 /// bounded for the first time in HD-6 and needed exactly this: an ordered
 /// collection, one member that must stay on screen, a capacity that the active
 /// medium decides, and every omission counted on the side it happened. It reuses
-/// the FUNCTION rather than the shape of it -- see `inspector_body_place` -- so
+/// the FUNCTION rather than the shape of it -- see `info_body_place` -- so
 /// there is one rule about what a bounded list may hide and one wording for
-/// saying so (`omitted_text`), and a change to either moves both panels.
+/// saying so (`omitted_text`), and a change to either moves both sections.
+///
+/// SINCE HD-7 BOTH CONSUMERS ARE IN ONE REGION and both capacities come from one
+/// `fit_region`, which is the first time the two calls have been visibly the same
+/// call. Nothing here changed for it. The one thing that DID change is that a
+/// capacity below three is now reachable -- see the `rows < 3` branch.
 ///
 /// THE COMPLETION LIST IS NOT A THIRD CONSUMER, and the difference is worth
 /// naming rather than glossing: `completion_first_shown` anchors to the TAIL and
@@ -1682,8 +1696,12 @@ inline ListWindow list_window(std::size_t total, std::size_t selected_at, std::s
         // Too few lines to seat one object between two markers, so no window can
         // obey rules 2 and 3 together. It spends what it has on the omission,
         // because the one thing this panel may not do is drop objects quietly.
-        // Unreachable at kListRows = 5; here so the arithmetic below may assume
-        // the room it needs rather than underflow looking for it.
+        //
+        // IT WAS UNREACHABLE AT `kListRows = 5` AND IT IS REACHABLE NOW (HD-7). A share of
+        // one or two rows is what a short panel gives a list whose population wants more,
+        // so a body of three or four prose rows lands here -- and what a maker then reads is
+        // `... 20 more` where the names would be, which is the honest answer: this place
+        // cannot show you an object AND tell you what it is hiding, so it tells you.
         w.after = total;
         return w;
     }
@@ -2510,16 +2528,17 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     }
 }
 
-// ---- The Inspector's property BODY, resolved ONCE (HD-5, widened by HD-6) -----------------
+// ---- The Info panel's BODY, resolved ONCE (HD-5, widened by HD-6, widened again by HD-7) --
 //
 // THE GEOMETRY THAT DRAWS A THING AND THE GEOMETRY THAT HITS IT MUST BE THE SAME GEOMETRY.
 // That is the one-measurer rule (G-2, HD-1) as HD-3 brought it to interaction. HD-5 obeyed it
-// for the one row a maker was editing; HD-6 obeys it for the whole property body, because the
-// body is now the thing with a capacity, a window and a caret in it. So there is no
-// `paint_property_bounds()` beside a `click_property_bounds()` here -- there is
-// `inspector_body_place`, and the painter, the caret, the viewport reconcile, the vertical
-// window and the press all call it, with the same panel bounds `bounds_of` gave the painter
-// and the same `Screen` everything else is resolved from.
+// for the one row a maker was editing; HD-6 obeyed it for the whole property body; HD-7 obeys
+// it for the OBJECTS list beside it, because both lists are now rows of ONE bounded region.
+// So there is no `paint_property_bounds()` beside a `click_property_bounds()` and no
+// `paint_object_bounds()` beside either -- there is `info_body_place`, and the painter, the
+// caret, the viewport reconcile, both vertical windows and both presses all call it, with the
+// same panel bounds `bounds_of` gave the painter and the same `Screen` everything else is
+// resolved from.
 //
 // WHAT HD-6 CHANGED, AND WHY IT HAD TO BE THE BODY RATHER THAN THE ROW. HD-5 made the editing
 // row's VALUE a `SurfaceTextRegion` one cell tall and measured the wall that put it against: a
@@ -2529,18 +2548,41 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
 // a two-cell region covers the property beneath it, which is a property of the object the
 // maker is editing, hidden at the moment they are working on it.
 //
-// So the room is taken ONCE, for all the rows together: the body is a single region spanning
-// the panel from `kRowsY` to its bottom edge, and the semantic property rows are the region's
-// ROWS. `fit_region` then answers the whole question in one equation -- how many rows of the
-// active medium's type fit in that rectangle, and how many characters fit across it -- with
-// the inset already inside it. Nothing here multiplies a font metric, and there is no
-// Inspector row height to keep in step with a renderer's.
+// So the room is taken ONCE, for all the rows together: `fit_region` answers the whole
+// question in one equation -- how many rows of the active medium's type fit in that
+// rectangle, and how many characters fit across it -- with the inset already inside it.
+// Nothing here multiplies a font metric, and there is no Inspector row height to keep in step
+// with a renderer's.
 //
 //     a graphical medium   25 cells tall = 300 px, less 2*2 inset, / 18 px line  -> 16 rows
 //     a cell medium        25 cells tall                                         -> 25 rows
 //
-// Two honest projections of one body. A semantic property row is not one cell tall and never
-// was; what was one cell tall is the cell medium's PICTURE of it.
+// Two honest projections of one body. A semantic row is not one cell tall and never was; what
+// was one cell tall is the cell medium's PICTURE of it.
+//
+// WHAT HD-7 CHANGED: THE BODY IS THE WHOLE PANEL, AND IT HOLDS TWO LISTS.
+//
+// HD-6 left the panel with one bounded section and one unbounded one. `OBJECTS` was five cell
+// rows (`kListRows`) whatever the medium reported -- five at 78x25, five at 120x40, five at
+// 240x80 -- while the property body beneath it went from five rows to sixty-four over the same
+// range. Both facts were on one screen: at 240x80 the body had fifty-six blank rows under
+// eight properties while the list three rows above it said `... 16 more`.
+//
+// ONE REGION RATHER THAN TWO, and the reason is that two regions cannot share a column without
+// somebody inverting the metric. Splitting the panel's CELLS between two regions requires
+// knowing how many cells a list's rows need, which is `fit_region` read backwards -- a second
+// arithmetic beside the one function that turns a metric into a capacity, and the exact thing
+// HD-6 refused. One region asks `fit_region` once, gets a budget in PROSE ROWS, and spends it:
+//
+//     row 0 .. objects_rows-1        the OBJECTS list, its markers included
+//     row objects_rows               `PROPERTIES` -- a heading that MOVES with the composition
+//     the next properties_rows       the property list, its markers included
+//     everything after that          spare, and it is allowed to stay spare
+//
+// So the two sections cannot overlap: they are not two rectangles that must be kept apart,
+// they are disjoint runs of one row budget. The `OBJECTS` heading stays an ordinary label on
+// the panel's row 0, because that row is shared with the screen's own `shift+space terminal`
+// hint and a region owns its interior.
 
 /// THE CURSOR MARK AND THE LABEL, in columns: `>` (or a space) and the padded property name.
 ///
@@ -2559,7 +2601,8 @@ inline constexpr std::int64_t kPropertyLabelCols = 9;
 /// cell is cut off with it. One rule for both media, deliberately, exactly as there.
 inline constexpr std::int64_t kPropertyCaretCols = 1;
 
-/// "This prose row shows no property" — a marker row, a blank row, or a row nobody has.
+/// "This prose row shows no property" — a marker row, the `PROPERTIES` heading, an object
+/// row, a blank row, or a row nobody has.
 ///
 /// A count-sized sentinel rather than a signed index, because every other property position in
 /// this file is a `std::size_t` into `Session::rows` and converting at the boundary is where
@@ -2567,32 +2610,121 @@ inline constexpr std::int64_t kPropertyCaretCols = 1;
 /// this one cannot, because the body's own row population is not the collection being indexed.
 inline constexpr std::size_t kNoProperty = static_cast<std::size_t>(-1);
 
-/// WHERE THE INSPECTOR'S PROPERTY ROWS ARE, HOW MANY OF THEM FIT, AND WHICH ONES ARE SHOWN.
+/// "This prose row shows no object" — a marker row, the `PROPERTIES` heading, a property
+/// row, a blank row, or a row nobody has. `kNoProperty`'s twin, one list over.
+inline constexpr std::size_t kNoObject = static_cast<std::size_t>(-1);
+
+/// "This member is not on screen" — the window is not showing it.
+///
+/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason: a prose row index is non-negative by
+/// construction, so an absence spelled this way cannot collide with a row anybody meant.
+inline constexpr std::int64_t kNoProseRow = -1;
+
+/// HOW MANY PROSE ROWS EACH LIST GETS, and the whole of HD-7's composition policy.
+///
+/// THE POLICY, IN ONE SENTENCE: **each list is given the rows its own population needs; what
+/// neither needs stays spare; and what they cannot both have is shared equally, with any part
+/// of a half a list does not need going to the other.**
+///
+/// It is max-min fair sharing, which is worth naming because it is a rule with a name rather
+/// than a ratio somebody picked. Four things follow from it and each is one of the truths the
+/// panel has to keep:
+///
+///   1. A list that FITS gets exactly what it needs and no more. A maker with two objects and
+///      a sixty-row panel does not get a fifty-eight-row object list with two names in it and
+///      the properties pushed to the floor -- OBJECTS takes two rows and PROPERTIES sits under
+///      them, where an eye that just read a name expects to find what it is a name OF.
+///   2. Spare room stays SPARE. Nothing is invented to fill it and no list is inflated into
+///      it. It is the honest picture of a panel with more room than material.
+///   3. Growing the panel never SHRINKS either list. Both shares are non-decreasing in the
+///      budget -- pinned as a property over every budget from zero to two hundred, for four
+///      demand pairs, rather than spot-checked at the extents this phase happened to run.
+///   4. The 50/50 case is a CONSEQUENCE, not a decision. Two lists that both want more than
+///      half end up with half each because that is what "share what is contested equally"
+///      produces; the moment either wants less, it takes what it wants and the rest goes to
+///      the other. There is no fixed split anywhere in this file.
+///
+/// AND IT IS IN PROSE ROWS, NOT CELLS, which is the reason it can be this small. Splitting the
+/// panel's CELLS between two sections needs to know how many cells a run of rows costs, which
+/// is `fit_region` read backwards -- a second arithmetic beside the one function that turns a
+/// metric into a capacity. One region asks `fit_region` once and this function spends the
+/// answer, so no medium metric appears here at all: it is arithmetic over three counts.
+struct BodyShare {
+    std::size_t objects = 0;    ///< prose rows the OBJECTS list may spend, markers included
+    std::size_t properties = 0; ///< prose rows the property list may spend, markers included
+};
+
+/// TOTAL over all three counts, because the budget comes from a metric that arrived on the bus
+/// and the two demands come from a document a file can have written.
+inline BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
+                                 std::size_t want_properties) {
+    BodyShare s;
+    if (budget == 0) {
+        return s;
+    }
+    if (want_properties <= budget && want_objects <= budget - want_properties) {
+        s.objects = want_objects; // both whole; the rest of the body stays spare
+        s.properties = want_properties;
+        return s;
+    }
+    const std::size_t half = budget / 2;
+    if (want_objects <= half) {
+        s.objects = want_objects; // it needs less than its share, so it takes what it needs
+        s.properties = budget - s.objects;
+    } else if (want_properties <= budget - half) {
+        s.properties = want_properties;
+        s.objects = budget - s.properties;
+    } else {
+        s.objects = half; // both want more than half: the contested room is shared
+        s.properties = budget - half;
+    }
+    return s;
+}
+
+/// THE SMALLEST BODY THAT CAN SAY ANYTHING: one object row, the `PROPERTIES` heading, one
+/// property row.
+///
+/// Below it the body is not `present` and the panel paints nothing under its heading, which is
+/// what this file already did for a body with no rows at all -- a panel with room for a
+/// heading and one line cannot show a maker where they are in either list, and half a picture
+/// of two lists is worse than the honest absence of both. Unreachable at any screen this
+/// composition supports (the minimum panel is seventeen cells and the shortest body this
+/// repository's face resolves to is ten rows); here because the metric arrives on the bus.
+inline constexpr std::size_t kInfoBodyMinRows = 3;
+
+/// WHERE THE INFO PANEL'S TWO LISTS ARE, HOW MANY ROWS EACH GETS, AND WHICH MEMBERS ARE SHOWN.
 ///
 /// `present` is false when there is nowhere to put a body: the Info panel is not open (its
 /// bounds are empty by `bounds_of`'s own rule), it is too narrow for a mark, a label and a
-/// value, or it is too short to have any room under `PROPERTIES` at all. A caller that forgets
-/// to ask gets a region of no width, which draws nothing and contains no press, rather than a
-/// rectangle somewhere it is not.
-struct InspectorBodyPlace {
+/// value, or it is too short to seat both lists and the heading between them. A caller that
+/// forgets to ask gets a region of no width, which draws nothing and contains no press, rather
+/// than a rectangle somewhere it is not.
+struct InfoBodyPlace {
     bool present = false;
     std::int64_t region_x = 0; ///< the body's own cell origin — a region coordinate
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
     surface::RegionFit fit{}; ///< what this medium makes of those bounds
-    /// COLUMNS ONE BODY ROW HAS, mark and label included — `fit.columns`, named so a reader
-    /// does not have to know which of the fit's numbers is the prose width.
+    /// COLUMNS ONE BODY ROW HAS — `fit.columns`, named so a reader does not have to know which
+    /// of the fit's numbers is the prose width. An OBJECT row is fitted to this whole width;
+    /// a PROPERTY row spends part of it on the mark and the name.
     std::int64_t columns = 0;
-    /// COLUMNS A VALUE MAY OCCUPY — the mark, the label and the caret's own column taken off.
-    /// It is the ONE capacity for a value: the slice the painter cuts of a live draft, the
-    /// window `keep_caret_visible` reconciles, the width a RESTING value is fitted to, and
-    /// the room a press is answered against are all this number.
+    /// COLUMNS A PROPERTY VALUE MAY OCCUPY — the mark, the label and the caret's own column
+    /// taken off. It is the ONE capacity for a value: the slice the painter cuts of a live
+    /// draft, the window `keep_caret_visible` reconciles, the width a RESTING value is fitted
+    /// to, and the room a press is answered against are all this number.
     std::int64_t value_columns = 0;
-    /// PROSE ROWS THE BODY HOLDS, omission markers included. `list_window`'s `rows`.
+    /// PROSE ROWS THE WHOLE BODY HOLDS, both lists, the heading and the spare rows together.
     std::size_t capacity = 0;
-    /// WHICH PROPERTIES ARE SHOWN, and how many are hidden on each side of them.
-    ListWindow window{};
+    std::size_t objects_rows = 0;    ///< of those, the OBJECTS list's share
+    std::size_t properties_rows = 0; ///< of those, the property list's share
+    ListWindow objects{};            ///< which objects are shown, and what is left out
+    ListWindow properties{};         ///< which properties are shown, and what is left out
+    /// THE PROSE ROW CARRYING `PROPERTIES`. It MOVES: it is exactly the number of rows the
+    /// object list was given, so a panel that can show more objects pushes it down and a panel
+    /// that can show fewer pulls it up. `kRowsY = 8` was this number when it could not move.
+    std::int64_t heading_row = kNoProseRow;
 };
 
 /// THE PROPERTY ROW THAT MUST STAY ON SCREEN: the one being edited, or the cursor's.
@@ -2614,28 +2746,33 @@ inline std::size_t inspector_focus(const Session& s) {
     return s.cursor;
 }
 
-/// THE BODY IS THE VALUE COLUMN'S OWNER, and that is why there is no `first_column` here
-/// beside the Terminal's. The pane's region carries a `> ` prompt as well as the line, so a
-/// caret column there is the prompt plus the component's answer; a body row carries the mark
-/// and the property's NAME as well as the value, so a caret column here is
-/// `kPropertyMarkCols + kPropertyLabelCols` plus the component's answer. The name stays in the
-/// row rather than beside it because it is what tells a maker WHICH property they are typing
-/// into; what the TextBox owns is the value draft and nothing else.
+/// WHAT A LIST ASKS THE BODY FOR: one row per member, and never zero.
 ///
-/// `total` and `focus` are the property population and the row that must stay visible. They
-/// are arguments rather than a `Session` so this is pure over the two numbers the window
-/// actually depends on -- the overload below is the one a painter calls.
-inline InspectorBodyPlace inspector_body_place(const ui::Rect& panel, const Screen& sc,
-                                               std::size_t total, std::size_t focus) {
-    InspectorBodyPlace p;
+/// An empty list still has a sentence to say -- `(none) -- n makes one` for a document a maker
+/// has emptied with their own hand, `(nothing selected)` for an inspector with no object under
+/// it -- and a list given no rows would say it silently. Both are ordinary reachable states
+/// (`delete_object` empties a document; deleting the last one leaves nothing selected), so
+/// they are floors here rather than special cases in the painter.
+inline constexpr std::size_t list_demand(std::size_t members) noexcept {
+    return members == 0 ? 1 : members;
+}
+
+/// THE BODY, RESOLVED. `total_objects`/`selected_at` and `total_properties`/`focus` are the two
+/// populations and the two members that must stay on screen. They are arguments rather than a
+/// document and a session so this is pure over the four numbers the composition depends on --
+/// the overload below is the one a painter calls.
+inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+                                     std::size_t total_objects, std::size_t selected_at,
+                                     std::size_t total_properties, std::size_t focus) {
+    InfoBodyPlace p;
     const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
-    if (panel.w <= used || panel.h <= kRowsY) {
+    if (panel.w <= used || panel.h <= kInfoBodyY) {
         return p; // no panel, no room for a value beside a name, or no rows under the heading
     }
     p.region_x = panel.x;
-    p.region_y = surface::add_cells(panel.y, kRowsY);
+    p.region_y = surface::add_cells(panel.y, kInfoBodyY);
     p.region_w = panel.w;
-    p.region_h = panel.h - kRowsY;
+    p.region_h = panel.h - kInfoBodyY;
     p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
                                 sc.text_advance_px, sc.text_line_px);
     p.columns = p.fit.columns;
@@ -2644,46 +2781,132 @@ inline InspectorBodyPlace inspector_body_place(const ui::Rect& panel, const Scre
         p.value_columns = 0;
     }
     p.capacity = p.fit.rows > 0 ? static_cast<std::size_t>(p.fit.rows) : 0;
-    p.window = list_window(total, focus, p.capacity);
+    if (p.capacity < kInfoBodyMinRows) {
+        return p; // not enough to seat a row of each list around the heading between them
+    }
+    // ONE ROW OFF THE TOP FOR THE HEADING, before either list is offered anything. It is
+    // chrome and it is bought at the same price as a row of material, which is the same rule
+    // `list_window` follows for its own markers: a bound that grows when it is exceeded is not
+    // a bound.
+    const BodyShare share = share_body_rows(p.capacity - 1, list_demand(total_objects),
+                                            list_demand(total_properties));
+    p.objects_rows = share.objects;
+    p.properties_rows = share.properties;
+    p.objects = list_window(total_objects, selected_at, p.objects_rows);
+    p.properties = list_window(total_properties, focus, p.properties_rows);
+    p.heading_row = static_cast<std::int64_t>(p.objects_rows);
     p.present = true;
     return p;
 }
 
-/// The same resolution for the session a painter is holding. One call, so nothing can resolve
-/// the body against a population or a focus the rest of the screen does not have.
-inline InspectorBodyPlace inspector_body_place(const ui::Rect& panel, const Screen& sc,
-                                               const Session& s) {
-    return inspector_body_place(panel, sc, s.rows.size(), inspector_focus(s));
+/// The same resolution for the document and session a painter is holding. One call, so nothing
+/// can resolve the body against a population, a selection or a focus the rest of the screen
+/// does not have.
+inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+                                     const WorkshopDoc& d, const Session& s) {
+    return info_body_place(panel, sc, d.elements.size(), position_of(d, s.selected),
+                           s.rows.size(), inspector_focus(s));
 }
 
-/// WHICH PROSE ROW OF THE BODY SHOWS PROPERTY `index`, or a negative when the window is not
-/// showing it.
+// ---- One windowed list's rows, mapped both ways ------------------------------------------
+//
+// TWO LISTS NOW SHARE ONE PROSE LATTICE, so the arithmetic that turns a member's index into a
+// row and back is written ONCE and called twice rather than copied. HD-6 wrote it once for the
+// property body and predicted the shape of the second copy exactly: "off by one, only once the
+// body has scrolled, which is to say only when nobody is looking."
+//
+// IT IS A HELPER AND IT IS NOT A COMPONENT. It owns no items, no selection, no capacity and no
+// keys; it takes a window somebody else resolved and a row somebody else's list begins at, and
+// answers a question about rows. See the report-back's List readiness section -- this is
+// exactly the kind of extraction that is earned (duplicate arithmetic removed, ownership
+// unmoved) and exactly the kind that must not be called `List`.
+
+/// WHICH PROSE ROW SHOWS ITEM `index` OF A LIST THAT BEGINS AT `first_row`, or `kNoProseRow`
+/// when the window is not showing it.
 ///
-/// The `... N earlier` marker spends the first prose row when there is one, so this is not
-/// `index - first` and the difference is exactly the defect a second copy of it would be:
-/// off by one, only once the body has scrolled, which is to say only when nobody is looking.
-/// The painter positions the caret with it and `property_at_prose_row` inverts it, so the row
-/// a caret lands on and the row a press resolves to cannot come from two hands.
-inline constexpr std::int64_t kNoProseRow = -1;
-inline std::int64_t prose_row_of_property(const InspectorBodyPlace& p, std::size_t index) {
-    if (index < p.window.first || index - p.window.first >= p.window.count) {
+/// The `... N earlier` marker spends the list's first row when there is one, so this is not
+/// `index - first` and the difference is exactly the defect a second copy of it would be.
+inline std::int64_t prose_row_in_window(const ListWindow& w, std::int64_t first_row,
+                                        std::size_t index) {
+    if (index < w.first || index - w.first >= w.count) {
         return kNoProseRow;
     }
-    return static_cast<std::int64_t>(index - p.window.first) + (p.window.before > 0 ? 1 : 0);
+    return first_row + static_cast<std::int64_t>(index - w.first) + (w.before > 0 ? 1 : 0);
 }
 
-/// WHICH PROPERTY A PROSE ROW OF THE BODY SHOWS, or `kNoProperty` for a marker row, a blank
-/// row, or a row outside the body. The inverse of the function above, and its only inverse.
-inline std::size_t property_at_prose_row(const InspectorBodyPlace& p, std::int64_t row) {
-    if (!p.present || row < 0 || row >= static_cast<std::int64_t>(p.capacity)) {
+/// WHICH ITEM A PROSE ROW SHOWS, or `count` positions past the window's own end for a marker
+/// row, a row outside the list's run, or a row nobody has. The inverse of the function above,
+/// and its only inverse; callers turn "not an item" into their own sentinel.
+inline bool item_at_prose_row(const ListWindow& w, std::int64_t first_row, std::size_t rows,
+                              std::int64_t row, std::size_t& out) {
+    if (row < first_row || row >= first_row + static_cast<std::int64_t>(rows)) {
+        return false;
+    }
+    const std::int64_t at = row - first_row - (w.before > 0 ? 1 : 0);
+    if (at < 0 || at >= static_cast<std::int64_t>(w.count)) {
+        return false; // an omission marker, or past the last item shown
+    }
+    out = w.first + static_cast<std::size_t>(at);
+    return true;
+}
+
+/// WHICH PROSE ROW OF THE BODY SHOWS OBJECT `index`, and which object a prose row shows. The
+/// object list begins at the body's first row, so its `first_row` is zero.
+inline std::int64_t prose_row_of_object(const InfoBodyPlace& p, std::size_t index) {
+    return p.present ? prose_row_in_window(p.objects, 0, index) : kNoProseRow;
+}
+
+inline std::size_t object_at_prose_row(const InfoBodyPlace& p, std::int64_t row) {
+    std::size_t at = 0;
+    if (!p.present || !item_at_prose_row(p.objects, 0, p.objects_rows, row, at)) {
+        return kNoObject;
+    }
+    return at;
+}
+
+/// WHICH PROSE ROW OF THE BODY SHOWS PROPERTY `index`, and which property a prose row shows.
+/// The property list begins one row under the `PROPERTIES` heading, which is itself one row
+/// under the object list's last row -- so both answers move when the composition does, and
+/// they move together because they are the same two calls.
+inline std::int64_t prose_row_of_property(const InfoBodyPlace& p, std::size_t index) {
+    if (!p.present) {
+        return kNoProseRow;
+    }
+    return prose_row_in_window(p.properties, p.heading_row + 1, index);
+}
+
+inline std::size_t property_at_prose_row(const InfoBodyPlace& p, std::int64_t row) {
+    std::size_t at = 0;
+    if (!p.present ||
+        !item_at_prose_row(p.properties, p.heading_row + 1, p.properties_rows, row, at)) {
         return kNoProperty;
     }
-    const std::int64_t first = p.window.before > 0 ? 1 : 0;
-    const std::int64_t at = row - first;
-    if (at < 0 || at >= static_cast<std::int64_t>(p.window.count)) {
-        return kNoProperty; // an omission marker, or past the last property shown
-    }
-    return p.window.first + static_cast<std::size_t>(at);
+    return at;
+}
+
+/// ONE SEMANTIC OBJECT ROW AS PROSE — the selection mark, the identity, and as much of the
+/// authored name as the body has room for (HD-7).
+///
+/// THE MARK IS TEXT AND NOT A COLOUR, deliberately and unchanged: `> ` is what a maker reads
+/// in a terminal that has no ground to tint, and the accent role a graphical medium adds is
+/// the second signal rather than the only one.
+///
+/// THE IDENTITY COMES BEFORE THE NAME because a name is not an identity in this document --
+/// every object `n` makes is called `panel`, so a list of names alone would be a column of the
+/// same word. It is the same reason the notice line says `created #4 -- a new identity, not a
+/// new name`.
+///
+/// AND THE WHOLE ROW IS FITTED, not the name alone. There is no `kObjectNameCols` beside the
+/// property row's mark and label columns, because an object row has no fixed column after the
+/// name to protect: the name is the last field, so cutting the row at the body's width cuts
+/// exactly the name and leaves the mark and the identity -- the two things a maker needs to
+/// know WHICH row they are looking at -- intact by construction. The cut says so with the
+/// `...` this canvas has used since W-6, and the authored name is untouched: `detail::fit`
+/// takes a copy, the document is `const` here, and a wider surface shows more of it.
+inline std::string object_row_text(const ui::Element& e, bool chosen, std::int64_t columns) {
+    return detail::fit(std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " +
+                           e.label,
+                       columns);
 }
 
 /// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
@@ -2725,10 +2948,26 @@ inline std::int64_t property_caret_column(const Row& row) {
 /// A press to the LEFT of the value, on the mark or the name, is on the row too, and the
 /// component clamps it to the start of what is shown; the alternative is a strip of a live
 /// draft's own row that answers nothing.
-inline bool property_row_hit(const InspectorBodyPlace& p, std::size_t index, std::int64_t column,
+inline bool property_row_hit(const InfoBodyPlace& p, std::size_t index, std::int64_t column,
                              std::int64_t row) {
     return p.present && column >= 0 && column <= p.fit.columns &&
            property_at_prose_row(p, row) == index && index != kNoProperty;
+}
+
+/// WHICH OBJECT A PRESS INSIDE THE BODY NAMES, or `kNoObject` (HD-7).
+///
+/// `property_row_hit`'s rule, one list up, and the same one-measurer claim: the row a press
+/// resolves to is the row `prose_row_of_object` positioned, so a maker's finger and the mark
+/// they are aiming at cannot come from two hands. The COLUMN is deliberately not part of the
+/// test -- a press anywhere along a name's row is a press on that object, including the room
+/// past a short name -- and a press on a marker row, on the heading, on a property row or on
+/// the body's spare rows names no object at all.
+inline std::size_t object_press_at(const InfoBodyPlace& p, std::int64_t column,
+                                   std::int64_t row) {
+    if (!p.present || column < 0 || column > p.fit.columns) {
+        return kNoObject;
+    }
+    return object_at_prose_row(p, row);
 }
 
 /// A PRESSED COLUMN AS A COLUMN OF THE VALUE. Negative to the left of the value, which
@@ -2782,104 +3021,103 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// or by a new role once something has measured that they must be. Neither is this phase's to
 /// decide, and what it is worth is the observation that a filled region is no longer a hole.
 ///
-/// EVERY COORDINATE BELOW IS RELATIVE TO `b`. `kListY` and `kRowsY` are rows within this
-/// panel; `b.x` is its column. There is no `Screen` here any more, which is the measurable
-/// half of PNL-1 for this kind: what used to be "the painter reads `sc.panel_x`, the same
-/// number `screen_of` gives the workspace to measure against" is now "the painter is told
-/// where it is".
+/// EVERY COORDINATE BELOW IS RELATIVE TO `b`. `kInfoBodyY` is a row within this panel; `b.x`
+/// is its column. There is no `Screen` here any more, which is the measurable half of PNL-1
+/// for this kind: what used to be "the painter reads `sc.panel_x`, the same number `screen_of`
+/// gives the workspace to measure against" is now "the painter is told where it is".
 inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                        const ui::Rect& b, const Screen& sc) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
     // presentations make.
     paint_panel_frame(c, b);
-    const auto label = [&c](std::int64_t x, std::int64_t y, std::string text, std::int64_t role) {
-        c.labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
-    };
 
-    // The object list: the same objects, named by identity, pointing at the same
-    // selection the ring in the workspace does -- and, when there are more of
-    // them than the panel is tall, SAYING how many it is not showing and on
-    // which side. The markers are in the panel's own muted role because they are
-    // the tool's furniture and not authored material: nothing here mints an
-    // identity, invents a name, or reorders a document to make a screen fit.
-    label(b.x, b.y + kListY - 1, "OBJECTS", surface::role::kAccent);
-    const ListWindow window = list_window(d.elements.size(), position_of(d, s.selected),
-                                          static_cast<std::size_t>(kListRows));
-    std::int64_t line = 0;
-    if (window.before > 0) {
-        label(b.x, b.y + kListY + line, omitted_text(window.before, "earlier"),
-              surface::role::kMuted);
-        ++line;
-    }
-    for (std::size_t i = 0; i < window.count; ++i) {
-        const ui::Element& e = d.elements[window.first + i];
-        const bool chosen = e.id == s.selected;
-        label(b.x, b.y + kListY + line,
-              std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label,
-              chosen ? surface::role::kAccent : surface::role::kFill);
-        ++line;
-    }
-    if (window.after > 0) {
-        label(b.x, b.y + kListY + line, omitted_text(window.after, "more"),
-              surface::role::kMuted);
-        ++line;
-    }
-    // An empty document SAYS it is empty. A maker can reach this state with their
-    // own hand by deleting their work, and a panel that merely goes blank is
-    // indistinguishable from a tool that has broken. It also says what to do
-    // next, because the answer is one
-    // key and the alternative is a maker who thinks they have destroyed it.
-    if (d.elements.empty()) {
-        label(b.x, b.y + kListY, "(none) -- n makes one", surface::role::kMuted);
-    }
+    // `OBJECTS` STAYS CHROME ON THE PANEL'S OWN ROW 0, and it is the one thing in this panel
+    // that is not a row of the body (HD-7). That row is SHARED: `paint` writes the screen's
+    // `shift+space terminal` hint eight cells to the right of it, and a region owns its
+    // interior -- a body starting here would blank a sentence that is not this panel's.
+    c.labels.push_back(surface::SurfaceLabel{b.x, b.y + kInfoBodyY - 1, "OBJECTS",
+                                             surface::role::kAccent});
 
-    // The inspector.
+    // THE BODY IS ONE BOUNDED REGION AND IT HOLDS BOTH LISTS (HD-7, widening HD-6).
     //
-    // THE BODY IS ONE BOUNDED REGION, AND ITS ROWS ARE THE PROPERTIES (HD-6). `PROPERTIES`
-    // above it stays ordinary chrome -- a label in the panel's own cells, like OBJECTS -- and
-    // everything under it belongs to the region: how many rows there are, how wide a value
-    // may be, where the caret is, and what the body is not showing. A region is the only
-    // shape on this canvas that can be set in the active medium's own type and the only one
-    // that can carry an insertion point, and this is the whole property body asking for both.
+    // Everything under `OBJECTS` belongs to it: how many object names there are, where
+    // `PROPERTIES` falls, how many properties there are, how wide a value may be, where the
+    // caret is, and what neither list is showing. A region is the only shape on this canvas
+    // that can be set in the active medium's own type and the only one that can carry an
+    // insertion point, and both lists want the first.
     //
-    // NOTHING BELOW MULTIPLIES A FONT METRIC. `inspector_body_place` asked `fit_region` once;
-    // the loop spends `window`, `columns` and `value_columns` and knows nothing about pixels,
-    // faces, insets or line heights. That is what makes "the graphical body shows five rows
-    // and the terminal body shows nine" one publisher rather than two.
+    // NOTHING BELOW MULTIPLIES A FONT METRIC. `info_body_place` asked `fit_region` once; the
+    // loops spend `objects`/`properties`, `columns` and `value_columns` and know nothing about
+    // pixels, faces, insets or line heights. That is what makes "the graphical body shows
+    // eleven objects and the terminal body shows twenty" one publisher rather than two.
     //
-    // AND NO ROW IS PAINTED THAT THE BODY CANNOT HOLD. Before HD-6 this loop ran over every
-    // property and wrote a label per row, so a population taller than the panel ran off its
-    // bottom edge and over whatever was beneath it -- measured at the minimum screen, twelve
-    // rows, three of them below the panel and one on the notice band. The bound is the
-    // window's, the omission is counted on the side it happened, and both are the OBJECTS
-    // list's own rules reached through the OBJECTS list's own two functions.
-    label(b.x, b.y + kRowsY - 1, "PROPERTIES", surface::role::kAccent);
-    const InspectorBodyPlace body = inspector_body_place(b, sc, s);
-    if (!body.present || body.capacity == 0) {
+    // AND NO ROW IS PAINTED THAT THE BODY CANNOT HOLD. Before HD-6 the property loop ran over
+    // every property and wrote a label per row, so a population taller than the panel ran off
+    // its bottom edge; before HD-7 the object loop was bounded, but by a CONSTANT rather than
+    // by the room. Both bounds are windows now, both omissions are counted on the side they
+    // happened, and both come from the OBJECTS list's own two functions.
+    const InfoBodyPlace body = info_body_place(b, sc, d, s);
+    if (!body.present) {
         return; // a panel with no room under its heading says nothing rather than lying
     }
-    surface::SurfaceTextRegion props;
-    props.x = body.region_x;
-    props.y = body.region_y;
-    props.w = body.region_w;
-    props.h = body.region_h;
-    const auto say_row = [&props](std::string text, std::int64_t role) {
-        props.rows.push_back(surface::SurfaceTextRow{std::move(text), role, surface::role::kNone});
+    surface::SurfaceTextRegion region;
+    region.x = body.region_x;
+    region.y = body.region_y;
+    region.w = body.region_w;
+    region.h = body.region_h;
+    const auto say_row = [&region](std::string text, std::int64_t role) {
+        region.rows.push_back(
+            surface::SurfaceTextRow{std::move(text), role, surface::role::kNone});
     };
+    // The markers are in the panel's own muted role because they are the tool's furniture and
+    // not authored material: nothing here mints an identity, invents a name, or reorders a
+    // document to make a screen fit.
+    const auto say_omission = [&](std::size_t how_many, const char* which) {
+        if (how_many > 0) {
+            say_row(detail::fit(omitted_text(how_many, which), body.columns),
+                    surface::role::kMuted);
+        }
+    };
+
+    // ---- the objects, named by identity, pointing at the same selection the ring does ----
+    //
+    // An empty document SAYS it is empty. A maker can reach this state with their own hand by
+    // deleting their work, and a panel that merely goes blank is indistinguishable from a tool
+    // that has broken. It also says what to do next, because the answer is one key and the
+    // alternative is a maker who thinks they have destroyed it. It is a ROW of the body rather
+    // than a label beside it, so it is bounded and set in type like everything else here.
+    if (d.elements.empty()) {
+        say_row(detail::fit("(none) -- n makes one", body.columns), surface::role::kMuted);
+    } else {
+        say_omission(body.objects.before, "earlier");
+        for (std::size_t n = 0; n < body.objects.count; ++n) {
+            const ui::Element& e = d.elements[body.objects.first + n];
+            const bool chosen = e.id == s.selected;
+            say_row(object_row_text(e, chosen, body.columns),
+                    chosen ? surface::role::kAccent : surface::role::kFill);
+        }
+        say_omission(body.objects.after, "more");
+    }
+    // The object list's share is spent whether or not it had that much to say, because the
+    // heading below it is at a row the composition chose and not at the row this loop happened
+    // to reach. A list that says less than its share leaves blank rows under itself.
+    while (region.rows.size() < body.objects_rows) {
+        say_row(std::string(), surface::role::kFill);
+    }
+
+    // ---- `PROPERTIES`, a row of the body, at the row the composition put it ----
+    say_row("PROPERTIES", surface::role::kAccent);
+
+    // ---- the properties ----
     if (s.rows.empty()) {
         say_row(detail::fit("(nothing selected)", body.columns), surface::role::kMuted);
-        c.texts.push_back(std::move(props));
+        c.texts.push_back(std::move(region));
         return;
     }
-    // The markers are in the panel's own muted role for the OBJECTS list's reason: they are
-    // the tool's furniture and not authored material.
-    if (body.window.before > 0) {
-        say_row(detail::fit(omitted_text(body.window.before, "earlier"), body.columns),
-                surface::role::kMuted);
-    }
-    for (std::size_t n = 0; n < body.window.count; ++n) {
-        const std::size_t i = body.window.first + n;
+    say_omission(body.properties.before, "earlier");
+    for (std::size_t n = 0; n < body.properties.count; ++n) {
+        const std::size_t i = body.properties.first + n;
         const Row& row = s.rows[i];
         const bool here = i == s.cursor;
         std::int64_t role = surface::role::kFill;
@@ -2895,15 +3133,12 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
             // `property_caret_column`, the same offset the row's own text was built with. So
             // a caret cannot land where the text is not, and a click cannot land where the
             // caret would not, on either axis.
-            props.caret_row = prose_row_of_property(body, i);
-            props.caret_col = property_caret_column(row);
+            region.caret_row = prose_row_of_property(body, i);
+            region.caret_col = property_caret_column(row);
         }
     }
-    if (body.window.after > 0) {
-        say_row(detail::fit(omitted_text(body.window.after, "more"), body.columns),
-                surface::role::kMuted);
-    }
-    c.texts.push_back(std::move(props));
+    say_omission(body.properties.after, "more");
+    c.texts.push_back(std::move(region));
 }
 
 /// Every open panel, then the picker over them. The one call `paint` makes.
