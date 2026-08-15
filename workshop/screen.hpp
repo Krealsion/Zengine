@@ -2690,7 +2690,160 @@ inline BodyShare share_body_rows(std::size_t budget, std::size_t want_objects,
 /// of two lists is worse than the honest absence of both. Unreachable at any screen this
 /// composition supports (the minimum panel is seventeen cells and the shortest body this
 /// repository's face resolves to is ten rows); here because the metric arrives on the bus.
+///
+/// SINCE HD-8 THE FOOTER IS BOUGHT ON TOP OF IT: a body must seat this much material AND
+/// `kActionRows` of controls, because a panel that shows a maker a list and no way to act on
+/// it is the discoverability problem this phase exists to fix, arriving at the one size where
+/// it is hardest to argue with. The sum is the floor `info_body_place` actually tests.
 inline constexpr std::size_t kInfoBodyMinRows = 3;
+
+// ---- The Info panel's ACTION CONTROLS (HD-8) ----------------------------------------------
+//
+// WHAT A CONTROL IS HERE: a row of the body that a maker can PRESS, carrying the name of an
+// act this application already performs and a visible answer about whether it can be
+// performed now. It is not a widget, it has no identity, it holds no callback and it owns no
+// state -- `kActionCount` of them exist, they are a TABLE, and everything below is a function
+// of an index into that table plus the document and session everything else on this screen is
+// derived from. Removing the Info panel removes all of it, because there is nothing to remove.
+//
+// WHY THEY ARE ROWS OF THE BODY RATHER THAN A THIRD REGION. Exactly HD-7's argument, and it is
+// the one that decided one region over two: splitting the panel's CELLS between sections needs
+// `fit_region` read backwards. As rows of the one budget the three runs -- objects, properties,
+// controls -- are disjoint by construction, so no press can be claimed by two of them and no
+// control can be painted over a property. `info_press`, `objects_press` and `actions_press`
+// cannot fight over a press for the same reason the lists cannot overlap.
+//
+// AND THEY ARE NOT A THIRD LIST. They do not go through `list_window`, they have no omission
+// marker and they cannot scroll: a list windows a population a document decides the size of,
+// and this is a fixed set of controls the APPLICATION declares. A `... 1 more` under a Create
+// button would be this file pretending it had been handed material.
+
+/// The two acts a maker can reach without knowing a key. Indices into one table, in the order
+/// the footer paints them.
+inline constexpr std::size_t kActionCreate = 0;
+inline constexpr std::size_t kActionDelete = 1;
+inline constexpr std::size_t kActionCount = 2;
+
+/// "This prose row carries no control" — `kNoProperty`'s and `kNoObject`'s twin, one run over.
+inline constexpr std::size_t kNoAction = static_cast<std::size_t>(-1);
+
+/// PROSE ROWS THE FOOTER COSTS: one per control, and the count is the table's.
+///
+/// One row apiece rather than two side by side, and that is the smallest truthful shape rather
+/// than a style: putting two controls on one row means a second axis -- a horizontal split
+/// with its own paint answer and its own hit answer -- and this file has exactly one
+/// segmentation rule today (a row) with exactly one inverse pair per run. A column of controls
+/// needs no new arithmetic at all, and a panel twenty-eight cells wide has no room to spare
+/// sideways anyway.
+inline constexpr std::size_t kActionRows = kActionCount;
+
+/// WHY AN ACTION CANNOT RUN RIGHT NOW, or that it can.
+///
+/// TWO REASONS, ONE BIT, TWO OWNERS -- and that is HD-8's finding rather than a shape it
+/// inherited. The PRESENTATION needs one bit: a control either reads as pressable or reads as
+/// present-but-not-pressable, and no third appearance was earned. The ROUTING needs the
+/// distinction, because the two reasons are owned by different parts of this tool:
+///
+///   kDraftLive   the APPLICATION owns it. `create_object`/`delete_object` know nothing about
+///                a live property draft and would happily rebuild the rows out from under
+///                one, so the press must be held back BEFORE the operation, and the notice is
+///                the one HD-7 already wrote for a press on the object list.
+///   kNoTarget    the DOCUMENT owns it. `doc::remove` already refuses `no such object` and
+///                changes nothing, so holding the press back here would be a second copy of a
+///                refusal that exists -- and a second sentence for one state. The press goes
+///                through and the document answers in its own words.
+///
+/// So the rule is one sentence: **a control never invents a reason; it defers to whoever owns
+/// the refusal, and holds a press back only when nobody downstream would.** That is why this
+/// is not a `disabled` flag. A flag would have collapsed a fact the application must act on
+/// and a fact the document must speak for into one word, and the collapse is invisible until
+/// a maker presses a control that then quietly does nothing.
+///
+/// AND IT IS NOT A PREDICTION OF EVERY REFUSAL. An object something else measures against
+/// cannot be deleted (`doc::remove`'s dependents policy), and a document can arrive from a
+/// file with its mint spent so that `create` refuses too. Neither makes a control unavailable:
+/// answering them here would put a copy of the document's policy in the panel's presentation,
+/// re-run on every paint, going stale the first time that policy changed. Availability is
+/// whether the act has a TARGET and whether the maker is FREE to act -- never whether the
+/// document will say yes.
+enum class Availability {
+    kAvailable, ///< press it and the operation runs
+    kNoTarget,  ///< there is no object for this act to be about
+    kDraftLive, ///< the maker has unfinished work this act would destroy
+};
+
+inline constexpr bool available(Availability a) noexcept {
+    return a == Availability::kAvailable;
+}
+
+/// IS A PROPERTY DRAFT LIVE? One copy of a loop this file was about to write a third time.
+///
+/// `objects_press` had it inline and `actions_press` needs the same question about the same
+/// rows, which is the duplication test a helper is earned by (HD-7). It is deliberately not a
+/// session FIELD: `Row::editing()` is the fact, a bool beside it would be a second opinion
+/// about the same state, and `refocus_keeping_draft` would have to remember to carry it.
+inline bool draft_live(const Session& s) {
+    for (const Row& row : s.rows) {
+        if (row.editing()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// AVAILABILITY OVER THE TWO FACTS IT DEPENDS ON, so the whole rule is readable in one place
+/// and testable without a document. The overload below is what a painter and a press call.
+inline constexpr Availability action_availability(std::size_t which, bool editing,
+                                                  bool has_target) noexcept {
+    if (editing) {
+        return Availability::kDraftLive; // both controls; the reason is about the MAKER
+    }
+    if (which == kActionDelete && !has_target) {
+        return Availability::kNoTarget;
+    }
+    return Availability::kAvailable;
+}
+
+/// THE SAME QUESTION ABOUT THE DOCUMENT AND SESSION EVERYTHING ELSE HERE IS DERIVED FROM.
+///
+/// The target is asked for BY IDENTITY (`doc::find`) rather than by `s.selected != 0`, because
+/// a selection can outlive the object it names -- which is exactly the state `delete_selected`
+/// refuses in, so a control that read the raw number would offer a press the document has
+/// already decided against.
+inline Availability action_availability(std::size_t which, const WorkshopDoc& d,
+                                        const Session& s) {
+    return action_availability(which, draft_live(s), doc::find(d, s.selected) != nullptr);
+}
+
+/// THE NAME A MAKER READS. Application words, in the application's file: a control does not
+/// know the key that also performs its act (`n`, `d`), and a shortcut hint is not written
+/// here -- the two help lines at the bottom of the screen are where this tool says what its
+/// keys do, and a second copy beside every control is a second thing to keep true.
+inline constexpr const char* action_label(std::size_t which) noexcept {
+    return which == kActionCreate ? "Create" : "Delete";
+}
+
+/// ONE CONTROL AS PROSE — and the availability is said in CHARACTERS, not in colour.
+///
+///     [ Create ]     pressable
+///     ( Delete )     present, and not pressable right now
+///
+/// THE BRACKETS ARE THE STATEMENT AND THE ROLE IS THE SECOND SIGNAL, which is the same rule
+/// the object list's `> ` mark has followed since HD-7 and the same reason: a terminal with no
+/// ground to tint must be able to tell a maker the two states apart, so the difference cannot
+/// live in a Skin's ink. A graphical medium adds the muted role on top and reads at a glance;
+/// a character medium reads the brackets and loses nothing.
+///
+/// `[ ... ]` is also this tool's existing word for "a thing that can be pressed": the Builder
+/// panel has painted `[ Build ]` since BLD-0. What HD-8 changes is that one of them finally is.
+///
+/// FITTED LIKE EVERY OTHER ROW OF THIS BODY, so a panel too narrow for a label cuts it with
+/// the `...` the rest of the canvas uses rather than running off the region's edge.
+inline std::string action_row_text(std::size_t which, bool pressable, std::int64_t columns) {
+    const std::string open = pressable ? "[ " : "( ";
+    const std::string close = pressable ? " ]" : " )";
+    return detail::fit(open + action_label(which) + close, columns);
+}
 
 /// WHERE THE INFO PANEL'S TWO LISTS ARE, HOW MANY ROWS EACH GETS, AND WHICH MEMBERS ARE SHOWN.
 ///
@@ -2725,6 +2878,15 @@ struct InfoBodyPlace {
     /// object list was given, so a panel that can show more objects pushes it down and a panel
     /// that can show fewer pulls it up. `kRowsY = 8` was this number when it could not move.
     std::int64_t heading_row = kNoProseRow;
+    /// THE FIRST OF THE `kActionRows` CONTROL ROWS, and the one number the footer needs (HD-8).
+    ///
+    /// It is ANCHORED TO THE FOOT of the body -- `capacity - kActionRows` -- and not to the
+    /// row the property list happened to stop at. Both are deterministic; only one puts the
+    /// controls in the same place from one paint to the next. A footer that floated up and
+    /// down as a maker selected objects with different property counts would be a target that
+    /// moves under the hand aiming at it, which is a worse fault than an empty strip above it.
+    /// So the spare room, when there is any, falls BETWEEN the properties and the controls.
+    std::int64_t action_row = kNoProseRow;
 };
 
 /// THE PROPERTY ROW THAT MUST STAY ON SCREEN: the one being edited, or the cursor's.
@@ -2781,20 +2943,36 @@ inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
         p.value_columns = 0;
     }
     p.capacity = p.fit.rows > 0 ? static_cast<std::size_t>(p.fit.rows) : 0;
-    if (p.capacity < kInfoBodyMinRows) {
-        return p; // not enough to seat a row of each list around the heading between them
+    if (p.capacity < kInfoBodyMinRows + kActionRows) {
+        return p; // not enough to seat a row of each list, the heading, and the controls
     }
-    // ONE ROW OFF THE TOP FOR THE HEADING, before either list is offered anything. It is
-    // chrome and it is bought at the same price as a row of material, which is the same rule
-    // `list_window` follows for its own markers: a bound that grows when it is exceeded is not
-    // a bound.
-    const BodyShare share = share_body_rows(p.capacity - 1, list_demand(total_objects),
+    // ONE ROW OFF THE TOP FOR THE HEADING AND `kActionRows` OFF THE FOOT FOR THE CONTROLS,
+    // before either list is offered anything. Both are chrome and both are bought at the same
+    // price as a row of material, which is the same rule `list_window` follows for its own
+    // markers: a bound that grows when it is exceeded is not a bound.
+    //
+    // THE WHOLE COMPOSITION POLICY IS THIS ONE SUBTRACTION AND THE ONE CALL UNDER IT (HD-8).
+    // The controls are a FIXED demand and the lists are VARIABLE ones, so they are not three
+    // claimants on `share_body_rows`: sharing is what two parties do when they both want more
+    // than there is, and a control wants exactly one row at every size this panel has. Giving
+    // the footer a share would have made it grow into a tall panel's spare room for no reason
+    // anybody could state. So the fixed demand comes off the top of the budget and the
+    // variable ones share what is left -- and every property HD-7 pinned survives it, because
+    // a budget reduced by a constant is still a budget: growing the panel still grows both
+    // shares, a list that fits still gets exactly what it needs, and spare room is still spare.
+    //
+    // There is no `-2 for buttons` anywhere else in this file. This line is the reservation,
+    // `action_row` below is where the reserved rows are, and the painter and the press both
+    // ask for that number rather than recomputing it.
+    const BodyShare share = share_body_rows(p.capacity - 1 - kActionRows,
+                                            list_demand(total_objects),
                                             list_demand(total_properties));
     p.objects_rows = share.objects;
     p.properties_rows = share.properties;
     p.objects = list_window(total_objects, selected_at, p.objects_rows);
     p.properties = list_window(total_properties, focus, p.properties_rows);
     p.heading_row = static_cast<std::int64_t>(p.objects_rows);
+    p.action_row = static_cast<std::int64_t>(p.capacity - kActionRows);
     p.present = true;
     return p;
 }
@@ -2882,6 +3060,46 @@ inline std::size_t property_at_prose_row(const InfoBodyPlace& p, std::int64_t ro
         return kNoProperty;
     }
     return at;
+}
+
+/// WHICH PROSE ROW OF THE BODY CARRIES CONTROL `which`, and which control a prose row carries
+/// (HD-8). The footer's inverse pair, beside the two the lists have — and it is a pair rather
+/// than one function used two ways for the reason HD-6 wrote down: the painter positions with
+/// the first and a press resolves with the second, and a single copy of the arithmetic is what
+/// stops a click landing one row off the control it is aimed at.
+///
+/// There is no window here, so this is `first + index` and nothing more. That is the visible
+/// difference between a fixed set of controls and a list: `prose_row_in_window` exists because
+/// a list's first row may be spent on `... N earlier`, and a footer has nothing to omit.
+inline std::int64_t prose_row_of_action(const InfoBodyPlace& p, std::size_t which) {
+    if (!p.present || which >= kActionCount) {
+        return kNoProseRow;
+    }
+    return p.action_row + static_cast<std::int64_t>(which);
+}
+
+inline std::size_t action_at_prose_row(const InfoBodyPlace& p, std::int64_t row) {
+    if (!p.present || row < p.action_row ||
+        row >= p.action_row + static_cast<std::int64_t>(kActionRows)) {
+        return kNoAction;
+    }
+    return static_cast<std::size_t>(row - p.action_row);
+}
+
+/// WHICH CONTROL A PRESS INSIDE THE BODY NAMES, or `kNoAction`.
+///
+/// `object_press_at`'s rule, one run down, and the same one-measurer claim: the row a press
+/// resolves to is the row `prose_row_of_action` painted. THE COLUMN IS DELIBERATELY NOT PART
+/// OF THE TEST, exactly as it is not for an object row or a property row — a press anywhere
+/// along a control's row is a press on that control, including the room past `]`. Refusing the
+/// room beside a six-letter label on a twenty-eight-cell panel would make the target smaller
+/// than the row a maker can see, and the row is what they are aiming at.
+inline std::size_t action_press_at(const InfoBodyPlace& p, std::int64_t column,
+                                   std::int64_t row) {
+    if (!p.present || column < 0 || column > p.fit.columns) {
+        return kNoAction;
+    }
+    return action_at_prose_row(p, row);
 }
 
 /// ONE SEMANTIC OBJECT ROW AS PROSE — the selection mark, the identity, and as much of the
@@ -3079,6 +3297,31 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
                     surface::role::kMuted);
         }
     };
+    // ---- THE FOOTER, WRITTEN ONCE AND EMITTED ON EVERY PATH OUT OF THIS PAINTER (HD-8) ----
+    //
+    // The body has two early exits -- an empty document's `(nothing selected)` and the
+    // ordinary end -- and a maker in either of those states is exactly the maker who most
+    // needs to see that `Create` exists. So the footer is a closure both of them call rather
+    // than two copies, and this painter now finishes in one place.
+    //
+    // THE BLANK ROWS ARE THE SPARE ROOM, and they are written rather than left off because the
+    // controls are anchored to `action_row` and a region's rows are positional. It is the same
+    // padding the object list's share already gets when it has less to say than it was given.
+    const auto say_footer = [&] {
+        while (region.rows.size() < static_cast<std::size_t>(body.action_row)) {
+            say_row(std::string(), surface::role::kFill);
+        }
+        for (std::size_t which = 0; which < kActionCount; ++which) {
+            const bool pressable = available(action_availability(which, d, s));
+            // THE ROLE IS THE SECOND SIGNAL AND NEVER THE ONLY ONE. `kMuted` is this panel's
+            // existing word for "furniture, not the maker's material", which is what a control
+            // a maker cannot use currently is; the brackets in the text carry the same fact to
+            // a medium with no ink to spend. No role was added and none was widened.
+            say_row(action_row_text(which, pressable, body.columns),
+                    pressable ? surface::role::kFill : surface::role::kMuted);
+        }
+        c.texts.push_back(std::move(region));
+    };
 
     // ---- the objects, named by identity, pointing at the same selection the ring does ----
     //
@@ -3112,7 +3355,7 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     // ---- the properties ----
     if (s.rows.empty()) {
         say_row(detail::fit("(nothing selected)", body.columns), surface::role::kMuted);
-        c.texts.push_back(std::move(region));
+        say_footer();
         return;
     }
     say_omission(body.properties.before, "earlier");
@@ -3138,7 +3381,7 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
         }
     }
     say_omission(body.properties.after, "more");
-    c.texts.push_back(std::move(region));
+    say_footer();
 }
 
 /// Every open panel, then the picker over them. The one call `paint` makes.

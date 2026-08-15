@@ -945,6 +945,39 @@ and no window itself.
   and Workshop's existing four modes still answer unambiguously which one hears a keystroke:
   the terminal overlay while it is open, then the picker, then the editing row, then command
   mode. One `if` each.
+- **A maker can now SEE something to do, and press it** (HD-8). The Info panel's body ends in
+  two rows a pointer can activate — `[ Create ]` and `[ Delete ]` — and they perform exactly
+  the acts `n` and `d` have always performed, through the same `create_object()` /
+  `delete_object()` calls the keys are bound to. Before this, every gesture Workshop had was
+  something a maker had to already know: the two help lines at the bottom of the screen were
+  the only place the tool said that making an object was a thing it did.
+  **The controls are a FOOTER of the one body, not a third list.** They are the last
+  `kActionRows` rows of the same budget the OBJECTS and PROPERTIES lists share, reserved by one
+  subtraction before either list is offered anything — a fixed demand rather than a third
+  claimant, because a control wants exactly one row at every size this panel has. Anchoring
+  them to the foot rather than to wherever the property list stopped is what keeps the target
+  still under a maker's hand; the spare room a tall panel has falls *between* the properties
+  and the controls and is still spare. The price is honest and visible: at the minimum
+  graphical screen with six objects, each list gave up one row.
+  **Availability is two reasons, one bit and two owners.** A control reads as `[ Create ]` or
+  `( Delete )` — brackets, not colour, so a terminal says it too — and the muted role is the
+  second signal. A press while a property draft is live is refused *before* the operation, with
+  the sentence the object list already uses, because the operations know nothing about a draft
+  and would rebuild the inspector's rows out from under one. A press on Delete with nothing
+  selected goes *through*: the document already refuses it, changes nothing and says so, and a
+  second sentence for one state is what this tool spends `move_notice` avoiding. So a control
+  never invents a reason — it defers to whoever owns the refusal, and holds a press back only
+  when nobody downstream would. It is deliberately **not** a prediction of every refusal: an
+  object something else measures against stays deletable-looking, and the document's own
+  dependents policy answers, once, where it lives.
+  **No `Button` component was extracted**, and that is a measured result rather than a deferral:
+  what the two controls share is a label, a bit, a bracket convention and a row — presentation
+  with no invariant to keep — and consumer #2 cost four lines and no new geometry, input or
+  paint path. A `TextBox` owns `0 <= first_visible <= caret <= size()`; a button of `{label,
+  available}` owns nothing, and `press()` returning `available` is a tautology.
+  **No focus framework, and none was earned.** The controls are pointer-activated, `n` and `d`
+  are unchanged and application-owned, and a `TextBox` still owns typing while it is editing —
+  so there is no keyboard gesture two owners could want.
 - **The command may be longer than the pane, and the caret stays in sight** (HD-4). The input
   line has a horizontal viewport: `TerminalInput` gained `first_visible`, a byte index the row
   begins at, and the authored command never changes because the window moved. It is a third

@@ -321,6 +321,95 @@ everything after that          spare, and it is allowed to stay spare
   `... 20 more` where the names would be — this place cannot show you an object AND tell you
   what it is hiding, so it tells you.
 
+## The Info panel's third run is a FOOTER of controls, not a third list (HD-8)
+
+The body's row budget now carries three runs, and the last of them is two rows a maker can
+press: `[ Create ]` and `[ Delete ]`, the pointer's way to the acts `n` and `d` have always
+performed.
+
+```text
+row 0 .. objects_rows-1        the OBJECTS list, its markers included
+row objects_rows               `PROPERTIES`
+the next properties_rows       the property list, its markers included
+... spare, and still allowed to stay spare ...
+capacity-kActionRows .. end    the controls -- anchored to the FOOT
+```
+
+- **The reservation is ONE subtraction and it happens before either list is offered anything**
+  (`info_body_place`: `share_body_rows(capacity - 1 - kActionRows, ...)`). Controls are a
+  FIXED demand and the lists are VARIABLE ones, so they are not a third claimant on
+  `share_body_rows` — sharing is what two parties do when both want more than there is, and a
+  control wants exactly one row at every size this panel has. There is no `-2 for buttons`
+  anywhere else in the file; `InfoBodyPlace::action_row` is where the reserved rows are, and
+  the painter and the press both ask for that number. Every HD-7 property survives the
+  reduction, because a budget reduced by a constant is still a budget.
+- **The footer is anchored to the FOOT, so the spare room falls between the properties and the
+  controls.** Anchoring it to the row the property list happened to stop at is equally
+  deterministic and puts the target somewhere new every time a maker selects an object with a
+  different property count. A control that moves under the hand aiming at it is worse than an
+  empty strip above it.
+- **The body now publishes exactly `capacity` rows**, with the spare ones written as blank
+  rows, because a region's rows are positional and the controls are at the end. That is the
+  padding the object list's own share already used; what it costs is measured (a whole `paint`
+  of a 74-row TUI body is 4.6 µs) and what it buys is that a second region — which would need
+  to know how many CELLS a run of prose rows costs, i.e. `fit_region` read backwards — is not
+  needed. HD-7 refused that arithmetic and HD-8 did not reintroduce it.
+- **The minimum body grew by `kActionRows`** (`kInfoBodyMinRows + kActionRows`), and at the
+  minimum graphical screen with six objects the two lists lost one row each — 4/5 became 3/4.
+  That is the honest price and it is paid where a maker can see it, rather than by hiding the
+  controls at small sizes.
+
+**Availability is TWO REASONS, ONE BIT and TWO OWNERS**, and that distinction is the phase's
+finding rather than a shape it inherited. The presentation needs one bit; the routing needs the
+distinction, because the two reasons belong to different parts of the tool:
+
+```text
+kDraftLive   the APPLICATION owns it -- `actions_press` refuses BEFORE the operation, because
+             `create_object`/`delete_object` know nothing about a live draft and would rebuild
+             the inspector's rows out from under one. The sentence is `kFinishDraftFirst`, the
+             one HD-7 wrote for a press on the object list.
+kNoTarget    the DOCUMENT owns it -- the press goes THROUGH. `doc::remove` already refuses
+             `no such object`, changes nothing and says so, so holding it back here would be a
+             second copy of a refusal that exists and a second sentence for one state.
+```
+
+So: **a control never invents a reason; it defers to whoever owns the refusal, and holds a
+press back only when nobody downstream would.** That is why this is not a `disabled` flag —
+a flag collapses a fact the application must act on and a fact the document must speak for.
+
+**And availability is not a prediction of every refusal.** An object something else measures
+against cannot be deleted (`doc::remove`'s dependents policy) and a document can arrive from a
+file with its mint spent. Neither makes a control unavailable: answering them in the
+presentation would put a copy of the document's policy on the paint path, re-run every frame.
+Availability is whether the act has a TARGET and whether the maker is FREE to act.
+
+- **Unavailable is said in CHARACTERS**: `[ Create ]` is pressable and `( Delete )` is not, the
+  same width either way. The muted role is the second signal and never the only one — the
+  object list's `> ` mark, one run down, for the same reason: a terminal has no ground to tint.
+  `[ ... ]` is also this tool's existing word for a pressable thing (`[ Build ]`, BLD-0); HD-8
+  is the phase where one of them finally is.
+- **The controls do not own the acts.** `actions_press` calls `create_object()` and
+  `delete_object()` — the operations `command()` binds `n` and `d` to — so the two gestures
+  converge on one document write, one selection rule and one sentence. There is no callback, no
+  command id, no action registry and no `std::function`: the whole thing is a switch over two
+  indices of a table. `n` and `d` are unchanged and a control does not know they exist.
+- **`prose_row_of_action` / `action_at_prose_row` are inverses and there is no third copy**, the
+  same pair the two lists have. A press is never rounded to a Workshop cell, and the footer is
+  where that error would be largest.
+- **Pointer order:** the terminal overlay (a MODE), then the active property editor, then the
+  action controls, then the object list, then the panel's occupancy, then the workspace. The
+  three runs inside the body are disjoint by construction, so the ordering among them is
+  written down for HD-5's reason rather than because two of them could both answer.
+- **`component::Button` was NOT extracted, and that is the reported result.** What Create and
+  Delete share is a label, a bit, a bracket convention and a row — presentation with no
+  invariant to keep. Consumer #2 cost four lines (an index, a label arm, an availability arm,
+  a press arm) and no new geometry, input or paint path, which is what says the shape is a
+  TABLE rather than a component. See `Zen/reportbacks/HD-8-RB.md` for the full comparison
+  against the TextBox standard. Do not add `Button` until something owns a rule.
+- **No focus framework, and none was earned.** The controls are pointer-only, keyboard command
+  routing is untouched, and a `TextBox` still owns typing while editing. There is no
+  keyboard-activation gesture for a control, so there is nothing for two owners to want.
+
 ## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is now anything with `write(std::string_view)` **and**

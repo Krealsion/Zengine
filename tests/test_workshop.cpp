@@ -2295,9 +2295,10 @@ TEST_CASE("an object past the list's share cannot vanish: it says what it left o
     // said nothing -- at the population that reaches it now.
     //
     // HD-7 MOVED THE NUMBER AND NOT THE RULE. The list's share was `kListRows = 5` at every
-    // extent; it is now what the room affords, which at the minimum screen with eight
-    // properties beside it is seven rows. So the smallest document that overflows here is
-    // eight objects rather than six, and everything else about this case is what it was.
+    // extent; it is now what the room affords. HD-8 moved it once more and for the same kind
+    // of reason: the footer's two control rows come off the budget before either list is
+    // offered anything, so the minimum screen's share is six rather than seven. The rule is
+    // untouched -- a list that cannot show everything says what it left out.
     WorkshopDoc d = many(9);
     Session s;
     s.selected = d.elements.back().id; // #9
@@ -2305,11 +2306,11 @@ TEST_CASE("an object past the list's share cannot vanish: it says what it left o
 
     const surface::SurfaceCanvas c = paint(d, s);
     const std::vector<std::string> lines = object_lines(c, d, s);
-    REQUIRE(lines.size() == 7);
-    CHECK(lines[0] == "... 3 earlier");
-    CHECK(lines[1] == "  #4 panel");
-    CHECK(lines[5] == "  #8 panel");
-    CHECK(lines[6] == "> #9 panel");
+    REQUIRE(lines.size() == 6);
+    CHECK(lines[0] == "... 4 earlier");
+    CHECK(lines[1] == "  #5 panel");
+    CHECK(lines[4] == "  #8 panel");
+    CHECK(lines[5] == "> #9 panel");
 
     // The three on-screen statements that used to disagree. Before the bound existed the
     // panel showed the first five with the marker on NONE of them, while the object count and
@@ -2332,19 +2333,20 @@ TEST_CASE("a selection in the middle of a long document names BOTH walls") {
     // is the same defect. 6 + 5 shown + 9 accounts for all twenty, with nothing counted twice.
     //
     // A MIDDLE WINDOW NEEDS A DOCUMENT MORE THAN TWICE THE SHARE, which is another number
-    // HD-7 moved: at a five-row list nine objects reached it, and at a seven-row one it takes
-    // more than twelve.
+    // HD-7 moved and HD-8 moved again: at a five-row list nine objects reached it, at a
+    // seven-row one it took more than twelve, and at HD-8's six-row share it takes more than
+    // ten. 7 + 4 shown + 9 accounts for all twenty, with nothing counted twice.
     WorkshopDoc d = many(20);
     Session s;
     s.selected = 11;
     refocus(d, s);
 
     const std::vector<std::string> lines = object_lines(paint(d, s), d, s);
-    REQUIRE(lines.size() == 7);
-    CHECK(lines[0] == "... 6 earlier");
-    CHECK(lines[1] == "  #7 panel");
-    CHECK(lines[5] == "> #11 panel");
-    CHECK(lines[6] == "... 9 more");
+    REQUIRE(lines.size() == 6);
+    CHECK(lines[0] == "... 7 earlier");
+    CHECK(lines[1] == "  #8 panel");
+    CHECK(lines[4] == "> #11 panel");
+    CHECK(lines[5] == "... 9 more");
 }
 
 TEST_CASE("a selection near the end keeps the document's tail visible") {
@@ -2356,11 +2358,11 @@ TEST_CASE("a selection near the end keeps the document's tail visible") {
     refocus(d, s);
 
     const std::vector<std::string> lines = object_lines(paint(d, s), d, s);
-    REQUIRE(lines.size() == 7);
-    CHECK(lines[0] == "... 3 earlier");
-    CHECK(lines[1] == "  #4 panel");
-    CHECK(lines[5] == "> #8 panel");
-    CHECK(lines[6] == "  #9 panel");
+    REQUIRE(lines.size() == 6);
+    CHECK(lines[0] == "... 4 earlier");
+    CHECK(lines[1] == "  #5 panel");
+    CHECK(lines[4] == "> #8 panel");
+    CHECK(lines[5] == "  #9 panel");
 }
 
 TEST_CASE("the visible window is a RUN of document order, never a reordering of it") {
@@ -2382,14 +2384,13 @@ TEST_CASE("the visible window is a RUN of document order, never a reordering of 
     refocus(d, s);
 
     const std::vector<std::string> lines = object_lines(paint(d, s), d, s);
-    REQUIRE(lines.size() == 7);
-    CHECK(lines[0] == "... 3 earlier");
-    CHECK(lines[1] == "  #20 panel");
-    CHECK(lines[2] == "  #60 panel");
-    CHECK(lines[3] == "  #30 panel");
-    CHECK(lines[4] == "  #50 panel");
-    CHECK(lines[5] == "> #40 panel");
-    CHECK(lines[6] == "  #80 panel");
+    REQUIRE(lines.size() == 6);
+    CHECK(lines[0] == "... 4 earlier");
+    CHECK(lines[1] == "  #60 panel");
+    CHECK(lines[2] == "  #30 panel");
+    CHECK(lines[3] == "  #50 panel");
+    CHECK(lines[4] == "> #40 panel");
+    CHECK(lines[5] == "  #80 panel");
     // Sorted by identity the window would have run #30 #40 #50 #60 #70; sorted by
     // anything else it would have begun somewhere else again. It runs the way
     // the file runs.
@@ -10794,20 +10795,24 @@ TEST_CASE("HD-6: one body, two media, different row counts and the same property
     const InfoBodyPlace cs = body_of(d, sdl);
     REQUIRE(ct.capacity == 16); // sixteen cell rows of body at the minimum screen
     REQUIRE(cs.capacity == 10); // (16 * 12 - 4) / 18
-    REQUIRE(ct.properties_rows == 8); // the cell body seats all eight beside all six objects
-    REQUIRE(cs.properties_rows == 5); // the graphical one cannot, and shares what it has
+    // HD-8's footer comes off both budgets, so both shares are two rows smaller than HD-6
+    // measured them and the CELL body no longer seats all eight properties either. What the
+    // case is about is unmoved: two media, two capacities, one set of semantic rows.
+    REQUIRE(ct.properties_rows == 7);
+    REQUIRE(cs.properties_rows == 4);
     REQUIRE(tui.rows.size() == 8);
 
-    // THE TERMINAL SHOWS THEM ALL AND SAYS NOTHING, because there is nothing to say.
-    CHECK(ct.properties.count == 8);
+    // THE TERMINAL SHOWS SIX AND SAYS SO. Before HD-8 it showed all eight and said nothing;
+    // the two rows it lost are the two the maker can now press.
+    CHECK(ct.properties.count == 6);
     CHECK(ct.properties.before == 0);
-    CHECK(ct.properties.after == 0);
+    CHECK(ct.properties.after == 2);
 
-    // THE WINDOW SHOWS FOUR AND SAYS SO -- the marker spends one of the five rows, which is
+    // THE WINDOW SHOWS THREE AND SAYS SO -- the marker spends one of the four rows, which is
     // `list_window`'s rule and not a second one.
-    CHECK(cs.properties.count == 4);
+    CHECK(cs.properties.count == 3);
     CHECK(cs.properties.before == 0);
-    CHECK(cs.properties.after == 4);
+    CHECK(cs.properties.after == 5);
 
     const surface::SurfaceCanvas tui_canvas = paint(d, tui);
     const surface::SurfaceCanvas sdl_canvas = paint(d, sdl);
@@ -10815,11 +10820,17 @@ TEST_CASE("HD-6: one body, two media, different row counts and the same property
     const surface::SurfaceTextRegion* sdl_body = body_on(sdl_canvas, cs);
     REQUIRE(tui_body != nullptr);
     REQUIRE(sdl_body != nullptr);
-    // The region carries BOTH lists since HD-7, so its published rows are the object rows,
-    // the heading, and the property rows.
-    CHECK(tui_body->rows.size() == ct.objects_rows + 1 + ct.properties.count);
-    CHECK(sdl_body->rows.size() == cs.objects_rows + 1 + cs.properties.count + 1);
-    CHECK(sdl_body->rows.back().text == "... 4 more");
+    // The region carries BOTH lists since HD-7 and the FOOTER since HD-8, and the footer is
+    // anchored to the foot -- so the body now publishes exactly its capacity in every medium,
+    // with the spare room written as the blank rows it is.
+    CHECK(tui_body->rows.size() == ct.capacity);
+    CHECK(sdl_body->rows.size() == cs.capacity);
+    CHECK(tui_body->rows[static_cast<std::size_t>(ct.action_row)].text == "[ Create ]");
+    CHECK(sdl_body->rows.back().text == "[ Delete ]");
+    // ...and the omission marker is still the last thing the property list says, one row
+    // under the properties rather than at the end of the region.
+    CHECK(sdl_body->rows[static_cast<std::size_t>(cs.heading_row) + cs.properties_rows]
+              .text == "... 5 more");
 
     // SAME PROPERTY FACTS, in the same order, for the rows both are showing. The value
     // columns differ because the media differ; the property does not.
@@ -10885,7 +10896,7 @@ TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it 
     s.text_line_px = 18;
     refocus(d, s);
     REQUIRE(s.rows.size() == 8);
-    REQUIRE(body_of(d, s).properties_rows == 5);
+    REQUIRE(body_of(d, s).properties_rows == 4); // HD-8: two rows of it are the footer's now
 
     struct Want {
         std::size_t cursor;
@@ -10894,10 +10905,13 @@ TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it 
         const char* first_row;
         const char* last_row;
     };
-    for (const Want& w : {Want{0, 0, 4, ">Identity #1", "... 4 more"},
-                          Want{3, 0, 4, " Identity #1", "... 4 more"},
-                          Want{4, 4, 0, "... 4 earlier", " Resolved 28 x 6 cells"},
-                          Want{7, 4, 0, "... 4 earlier", ">Resolved 28 x 6 cells"}}) {
+    // A FOUR-ROW WINDOW ONTO EIGHT PROPERTIES CAN SAY BOTH THINGS AT ONCE, which HD-6's
+    // five-row one could not reach with this population: at the cursors in the middle the
+    // list spends a row on `... N earlier` AND a row on `... N more` and shows two.
+    for (const Want& w : {Want{0, 0, 5, ">Identity #1", "... 5 more"},
+                          Want{3, 2, 4, "... 2 earlier", "... 4 more"},
+                          Want{4, 3, 3, "... 3 earlier", "... 3 more"},
+                          Want{7, 5, 0, "... 5 earlier", ">Resolved 28 x 6 cells"}}) {
         CAPTURE(w.cursor);
         s.cursor = w.cursor;
         const InfoBodyPlace body = body_of(d, s);
@@ -10911,9 +10925,13 @@ TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it 
         const surface::SurfaceCanvas c = paint(d, s);
         const surface::SurfaceTextRegion* shown = body_on(c, body);
         REQUIRE(shown != nullptr);
-        CHECK(shown->rows.size() == body.objects_rows + 1 + body.properties_rows);
+        CHECK(shown->rows.size() == body.capacity); // HD-8: the footer is anchored to the foot
         CHECK(shown->rows[static_cast<std::size_t>(body.heading_row) + 1].text == w.first_row);
-        CHECK(shown->rows.back().text == w.last_row);
+        // THE LAST ROW OF THE PROPERTY RUN, which is no longer the last row of the region --
+        // the footer is under it. Asked for by the run's own arithmetic rather than by
+        // `back()`, so this case cannot come to be about the control rows by accident.
+        CHECK(shown->rows[static_cast<std::size_t>(body.heading_row) + body.properties_rows]
+                  .text == w.last_row);
 
         // EVERY MARKER IS A COUNT AND A DIRECTION, and it comes out of the row budget -- the
         // PROPERTY list's share of it since HD-7, which is the number the markers are bounded
@@ -10924,8 +10942,10 @@ TEST_CASE("HD-6: what the body cannot show, it counts -- on the side it left it 
             CHECK(shown->rows[first].role == surface::role::kMuted);
         }
         if (w.after > 0) {
-            CHECK(shown->rows.back().text == omitted_text(w.after, "more"));
-            CHECK(shown->rows.back().role == surface::role::kMuted);
+            const std::size_t last =
+                static_cast<std::size_t>(body.heading_row) + body.properties_rows;
+            CHECK(shown->rows[last].text == omitted_text(w.after, "more"));
+            CHECK(shown->rows[last].role == surface::role::kMuted);
         }
         CHECK(body.properties.count + (w.before > 0 ? 1u : 0u) + (w.after > 0 ? 1u : 0u) ==
               body.properties_rows);
@@ -10943,7 +10963,7 @@ TEST_CASE("HD-6: the selected row stays visible across the boundary, by keys onl
     // somewhere to move to. HD-7's composition decides the number and this case does not
     // depend on which number it is.
     REQUIRE(body_place(t).properties_rows < t.session().rows.size());
-    CHECK(body_place(t).properties_rows == 7);
+    CHECK(body_place(t).properties_rows == 5); // HD-8: two of the seven are the footer's
 
     // DOWN through the whole population, one row at a time.
     std::vector<std::string> reached;
@@ -11257,9 +11277,24 @@ TEST_CASE("HD-6: a panel with no room for a body publishes no body at all") {
     CHECK_FALSE(info_body_place(ui::Rect{50, 0, kPropertyMarkCols + kPropertyLabelCols, 30}, sc,
                                 d, s)
                     .present);
-    // HD-7: one cell of body is one prose row here and the body needs three.
+    // HD-7: one cell of body is one prose row here and the body needs three. HD-8: it needs
+    // `kActionRows` more, because a panel that shows a maker two lists and no way to act on
+    // either is the state this phase exists to end -- so the controls are bought at the same
+    // price as the material, and the floor moves rather than the footer being dropped.
+    // Unreachable at every screen this composition supports (the shortest body a face
+    // resolves to here is ten prose rows); asserted because the metric arrives on the bus.
     CHECK_FALSE(info_body_place(ui::Rect{50, 0, 28, kInfoBodyY + 2}, sc, d, s).present);
-    CHECK(info_body_place(ui::Rect{50, 0, 28, kInfoBodyY + 3}, sc, d, s).present);
+    CHECK_FALSE(info_body_place(ui::Rect{50, 0, 28, kInfoBodyY + 3}, sc, d, s).present);
+    CHECK_FALSE(info_body_place(ui::Rect{50, 0, 28,
+                                         kInfoBodyY + static_cast<std::int64_t>(
+                                                          kInfoBodyMinRows + kActionRows) - 1},
+                                sc, d, s)
+                    .present);
+    CHECK(info_body_place(ui::Rect{50, 0, 28,
+                                   kInfoBodyY +
+                                       static_cast<std::int64_t>(kInfoBodyMinRows + kActionRows)},
+                          sc, d, s)
+              .present);
 
     // A CLOSED INFO PANEL PAINTS NO BODY, which is what keeps the caret count honest.
     Session closed;
@@ -11540,9 +11575,18 @@ TEST_CASE("TUI-0: more terminal is more Inspector, and the marker still tells th
     const surface::SurfaceCanvas painted = paint(d, s);
     const surface::SurfaceTextRegion* shown = body_on(painted, cells);
     REQUIRE(shown != nullptr);
-    // HD-7: the region carries BOTH lists now, so its published rows are the object rows,
-    // the heading and the property rows together.
-    CHECK(shown->rows.size() == cells.objects_rows + 1 + cells.properties.count);
+    // HD-7: the region carries BOTH lists now. HD-8: it carries the footer too, anchored to
+    // the foot, so what it publishes is exactly the capacity -- the two lists, the heading,
+    // the spare room written as blank rows, and the two controls.
+    CHECK(shown->rows.size() == cells.capacity);
+    // The MATERIAL is still exactly the object rows, the heading and the property rows, and
+    // everything after it to the footer is blank -- which is what "spare room stays spare"
+    // looks like once a footer forces the spare rows to be written down.
+    for (std::size_t i = cells.objects_rows + 1 + cells.properties.count;
+         i < static_cast<std::size_t>(cells.action_row); ++i) {
+        CAPTURE(i);
+        CHECK(shown->rows[i].text.empty());
+    }
 }
 
 TEST_CASE("TUI-0: a wider terminal is a wider command line, and the draft survives it") {
@@ -11728,12 +11772,16 @@ TEST_CASE("HD-7: the OBJECTS list spends the room the medium reports, not a cons
         std::size_t objects_rows;
         std::size_t properties_rows;
     };
+    // HD-8 TOOK TWO ROWS OFF EVERY ONE OF THESE BUDGETS, and the three that had room to
+    // spare did not move at all -- which is the composition policy working: a fixed demand
+    // reduces the budget, and a budget reduced by a constant still gives a list that FITS
+    // exactly what it asked for.
     std::size_t previous = 0;
-    for (const Want& want : {Want{78, 22, 0, 0, 7, 8},   // the minimum TUI screen
+    for (const Want& want : {Want{78, 22, 0, 0, 6, 7},   // the minimum TUI screen
                              Want{120, 37, 0, 0, 20, 8}, // a 120x40 terminal: ALL twenty
                              Want{240, 77, 0, 0, 20, 8}, // and a 240x80 one, with room over
-                             Want{78, 22, 8, 18, 4, 5},  // the minimum graphical screen
-                             Want{80, 38, 8, 18, 12, 8}, // the ordinary window
+                             Want{78, 22, 8, 18, 3, 4},  // the minimum graphical screen
+                             Want{80, 38, 8, 18, 10, 8}, // the ordinary window
                              Want{80, 70, 8, 18, 20, 8}}) {
         CAPTURE(want.h);
         CAPTURE(want.line);
@@ -11742,8 +11790,11 @@ TEST_CASE("HD-7: the OBJECTS list spends the room the medium reports, not a cons
         REQUIRE(body.present);
         CHECK(body.objects_rows == want.objects_rows);
         CHECK(body.properties_rows == want.properties_rows);
-        // The two lists and the heading between them never exceed the body.
-        CHECK(body.objects_rows + 1 + body.properties_rows <= body.capacity);
+        // The two lists, the heading between them and the footer under them never exceed the
+        // body -- and the footer is always inside it, at every extent.
+        CHECK(body.objects_rows + 1 + body.properties_rows + kActionRows <= body.capacity);
+        CHECK(body.action_row + static_cast<std::int64_t>(kActionRows) ==
+              static_cast<std::int64_t>(body.capacity));
         if (want.advance == 0) {
             CHECK(body.objects_rows >= previous); // the cell lane, growing with the terminal
             previous = body.objects_rows;
@@ -11767,10 +11818,20 @@ TEST_CASE("HD-7: spare room stays spare, and the heading sits under the last nam
     const surface::SurfaceCanvas c = paint(p.d, p.s);
     const surface::SurfaceTextRegion* shown = body_on(c, body);
     REQUIRE(shown != nullptr);
-    CHECK(shown->rows.size() == 11); // two names, the heading, eight properties -- and no more
     CHECK(shown->rows[0].text == "> #1 panel");
     CHECK(shown->rows[2].text == "PROPERTIES");
     CHECK(shown->rows[3].text.rfind(" Identity", 0) == 0);
+    // ELEVEN ROWS OF MATERIAL AND NO MORE. HD-7 asserted that as `rows.size() == 11`, which
+    // HD-8's foot-anchored footer makes false about the REGION and still true about the
+    // material: everything from the eleventh row to the controls is blank, and the controls
+    // are the last two rows whatever the document does.
+    CHECK(shown->rows.size() == body.capacity);
+    for (std::size_t i = spent; i < static_cast<std::size_t>(body.action_row); ++i) {
+        CAPTURE(i);
+        CHECK(shown->rows[i].text.empty());
+    }
+    CHECK(shown->rows[static_cast<std::size_t>(body.action_row)].text == "[ Create ]");
+    CHECK(shown->rows.back().text == "[ Delete ]");
 }
 
 TEST_CASE("HD-7: neither list paints through the other, at any extent") {
@@ -12234,4 +12295,550 @@ TEST_CASE("HD-7: the object list's omission is counted and directional, in the p
     REQUIRE(here != kNoProseRow);
     CHECK(shown->rows[static_cast<std::size_t>(here)].text.rfind("> ", 0) == 0);
     CHECK(shown->rows[static_cast<std::size_t>(here)].role == surface::role::kAccent);
+}
+
+// ---- HD-8: the Info panel gets action controls -------------------------------------------
+//
+// THE PHASE'S CLAIM, IN ONE SENTENCE: a maker who does not know that `n` creates an object
+// can now see that creating one is a thing this tool does, press it, and get exactly what the
+// key would have given them. Everything below is that claim taken apart.
+//
+// THERE IS NO `component::Button`, so there is no component suite for one and every case is
+// here. That is not less verification -- it is the verification arriving where the behaviour
+// actually lives. What HD-5 put in the component suite was a state machine with an invariant;
+// a control is a label, a bit and a row, and all three of those are Workshop's.
+
+TEST_CASE("HD-8: the footer is reserved off the budget, and every HD-7 property survives it") {
+    // The composition answer is one subtraction, so the way to prove it did not break the
+    // sharing policy is to re-run HD-7's own property over the budget the lists actually get,
+    // which is `capacity - 1 - kActionRows`.
+    for (const std::pair<std::size_t, std::size_t>& want :
+         {std::pair<std::size_t, std::size_t>{1, 1}, {2, 8}, {20, 8}, {200, 8}, {1, 300}}) {
+        CAPTURE(want.first);
+        CAPTURE(want.second);
+        BodyShare last{};
+        for (std::size_t capacity = kInfoBodyMinRows + kActionRows; capacity <= 200; ++capacity) {
+            CAPTURE(capacity);
+            const std::size_t budget = capacity - 1 - kActionRows;
+            const BodyShare share = share_body_rows(budget, want.first, want.second);
+
+            // THE FOOTER IS ALWAYS AFFORDED. Whatever the lists take, the two control rows and
+            // the heading are still inside the body -- which is the reason the reservation is
+            // a subtraction rather than a third claimant on the sharing.
+            CHECK(share.objects + share.properties + 1 + kActionRows <= capacity);
+            // AND EVERY HD-7 PROPERTY STILL HOLDS OF THE REDUCED BUDGET. A budget reduced by a
+            // constant is still a budget: monotonic in the room, never more than a list asked
+            // for, and never starving either.
+            CHECK(share.objects >= last.objects);
+            CHECK(share.properties >= last.properties);
+            CHECK(share.objects <= want.first);
+            CHECK(share.properties <= want.second);
+            CHECK(share.objects >= 1);
+            CHECK(share.properties >= 1);
+            last = share;
+        }
+    }
+}
+
+TEST_CASE("HD-8: the controls are the last two rows of the body, at every extent and size") {
+    // The footer is anchored to the FOOT, so it is in the same place whatever the document
+    // does -- and nothing else is ever painted there, which is structural rather than checked
+    // (three disjoint runs of one budget) and checked anyway, because "structural" is a claim.
+    for (const std::size_t objects : std::vector<std::size_t>{0, 1, 6, 20, 100}) {
+        for (const std::int64_t h : std::vector<std::int64_t>{22, 30, 45, 77}) {
+            for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+                CAPTURE(objects);
+                CAPTURE(h);
+                CAPTURE(line);
+                Sample p = panel_of(objects, objects / 2, 80, h, line == 0 ? 0 : 8, line);
+                const InfoBodyPlace body = body_of(p.d, p.s);
+                REQUIRE(body.present);
+
+                // THE FOOTER IS INSIDE THE BODY AND AT ITS FOOT.
+                REQUIRE(body.action_row != kNoProseRow);
+                CHECK(body.action_row + static_cast<std::int64_t>(kActionRows) ==
+                      static_cast<std::int64_t>(body.capacity));
+                // NEITHER LIST REACHES IT, and neither does the heading.
+                CHECK(static_cast<std::int64_t>(body.objects_rows) <= body.action_row);
+                CHECK(body.heading_row < body.action_row);
+                CHECK(body.heading_row + static_cast<std::int64_t>(body.properties_rows) <
+                      body.action_row);
+                // NO PROSE ROW IS CLAIMED BY A LIST AND BY THE FOOTER BOTH.
+                for (std::int64_t row = 0; row < static_cast<std::int64_t>(body.capacity);
+                     ++row) {
+                    const bool is_action = action_at_prose_row(body, row) != kNoAction;
+                    const bool is_object = object_at_prose_row(body, row) != kNoObject;
+                    const bool is_property = property_at_prose_row(body, row) != kNoProperty;
+                    const bool clash = is_action && (is_object || is_property);
+                    CHECK_FALSE(clash);
+                }
+
+                // AND THE PAINTER PUT THEM THERE. Both labels are on the rows the geometry
+                // named, in every medium and at every population -- including the empty
+                // document, which is the maker who most needs to see `Create`.
+                const surface::SurfaceCanvas c = paint(p.d, p.s);
+                const surface::SurfaceTextRegion* shown = body_on(c, body);
+                REQUIRE(shown != nullptr);
+                REQUIRE(shown->rows.size() == body.capacity);
+                for (std::size_t which = 0; which < kActionCount; ++which) {
+                    const std::int64_t at = prose_row_of_action(body, which);
+                    REQUIRE(at != kNoProseRow);
+                    CHECK(shown->rows[static_cast<std::size_t>(at)].text.find(
+                              action_label(which)) != std::string::npos);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("HD-8: the action row maps are inverses, and nothing else is a control") {
+    // One resolved answer used by paint and by hit, and no third copy -- the same claim HD-6
+    // made for properties and HD-7 for objects, at the third and last run of this body.
+    Sample p = panel_of(6, 0, 80, 38, 8, 18);
+    const InfoBodyPlace body = body_of(p.d, p.s);
+    REQUIRE(body.present);
+
+    for (std::size_t which = 0; which < kActionCount; ++which) {
+        CAPTURE(which);
+        const std::int64_t at = prose_row_of_action(body, which);
+        REQUIRE(at != kNoProseRow);
+        CHECK(action_at_prose_row(body, at) == which);
+        CHECK(action_press_at(body, 0, at) == which);
+        CHECK(action_press_at(body, body.fit.columns, at) == which); // the whole ROW is target
+    }
+    CHECK(prose_row_of_action(body, kActionCount) == kNoProseRow);
+
+    // EVERY OTHER ROW OF THE BODY NAMES NO CONTROL, including the spare ones just above it.
+    for (std::int64_t row = -3; row < body.action_row; ++row) {
+        CAPTURE(row);
+        CHECK(action_at_prose_row(body, row) == kNoAction);
+    }
+    CHECK(action_at_prose_row(body, static_cast<std::int64_t>(body.capacity)) == kNoAction);
+    // A COLUMN OUTSIDE THE BODY NAMES NOTHING, on either side.
+    CHECK(action_press_at(body, -1, body.action_row) == kNoAction);
+    CHECK(action_press_at(body, body.fit.columns + 1, body.action_row) == kNoAction);
+    // AND A BODY THAT IS NOT PRESENT ANSWERS NOTHING RATHER THAN A ROW SOMEWHERE IT IS NOT.
+    const InfoBodyPlace absent;
+    CHECK(prose_row_of_action(absent, kActionCreate) == kNoProseRow);
+    CHECK(action_at_prose_row(absent, 0) == kNoAction);
+    CHECK(action_press_at(absent, 0, 0) == kNoAction);
+}
+
+TEST_CASE("HD-8: availability is two reasons, one bit, and no prediction of a refusal") {
+    // The pure table. `Create` is unavailable for exactly one reason and `Delete` for two,
+    // and neither answer knows anything about what the document will say.
+    CHECK(action_availability(kActionCreate, false, true) == Availability::kAvailable);
+    CHECK(action_availability(kActionCreate, false, false) == Availability::kAvailable);
+    CHECK(action_availability(kActionDelete, false, true) == Availability::kAvailable);
+    CHECK(action_availability(kActionDelete, false, false) == Availability::kNoTarget);
+    // A LIVE DRAFT OUTRANKS THE TARGET QUESTION, for both controls: it is a fact about the
+    // MAKER, and it is the one this application has to hold a press back for.
+    CHECK(action_availability(kActionCreate, true, true) == Availability::kDraftLive);
+    CHECK(action_availability(kActionDelete, true, true) == Availability::kDraftLive);
+    CHECK(action_availability(kActionDelete, true, false) == Availability::kDraftLive);
+    CHECK(available(Availability::kAvailable));
+    CHECK_FALSE(available(Availability::kNoTarget));
+    CHECK_FALSE(available(Availability::kDraftLive));
+
+    // AND THE DOCUMENT OVERLOAD ASKS BY IDENTITY. A selection that has outlived its object is
+    // exactly the state `delete_selected` refuses in, so a control reading the raw number
+    // would offer a press the document has already decided against.
+    WorkshopDoc d = one_object();
+    Session s;
+    s.selected = 1;
+    refocus(d, s);
+    CHECK(action_availability(kActionDelete, d, s) == Availability::kAvailable);
+    s.selected = 4242; // an identity this document does not have
+    CHECK(action_availability(kActionDelete, d, s) == Availability::kNoTarget);
+    s.selected = 0;
+    CHECK(action_availability(kActionDelete, d, s) == Availability::kNoTarget);
+    CHECK(action_availability(kActionCreate, d, s) == Availability::kAvailable);
+}
+
+TEST_CASE("HD-8: unavailable is said in CHARACTERS, so a colourless medium reads it too") {
+    // The brackets are the statement and the role is the second signal, which is the object
+    // list's `> ` mark one run down and the same argument: a terminal has no ground to tint,
+    // so the difference may not live in a Skin's ink.
+    CHECK(action_row_text(kActionCreate, true, 40) == "[ Create ]");
+    CHECK(action_row_text(kActionCreate, false, 40) == "( Create )");
+    CHECK(action_row_text(kActionDelete, true, 40) == "[ Delete ]");
+    CHECK(action_row_text(kActionDelete, false, 40) == "( Delete )");
+    // THE TWO STATES DIFFER AS TEXT, which is the whole claim, and they are the same WIDTH so
+    // nothing under them moves when one changes.
+    CHECK(action_row_text(kActionDelete, true, 40) != action_row_text(kActionDelete, false, 40));
+    CHECK(action_row_text(kActionDelete, true, 40).size() ==
+          action_row_text(kActionDelete, false, 40).size());
+    // AND A CONTROL IS FITTED LIKE EVERY OTHER ROW OF THIS BODY.
+    CHECK(action_row_text(kActionCreate, true, 6) == "[ C...");
+    CHECK(action_row_text(kActionCreate, true, 0).empty());
+
+    // ON THE CANVAS, in both media, an unavailable control is muted and an available one is
+    // not -- the panel's existing roles, with nothing added and nothing widened.
+    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+        CAPTURE(line);
+        Sample p = panel_of(0, 0, 80, 38, line == 0 ? 0 : 8, line);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        const surface::SurfaceCanvas c = paint(p.d, p.s);
+        const surface::SurfaceTextRegion* shown = body_on(c, body);
+        REQUIRE(shown != nullptr);
+        const surface::SurfaceTextRow& create_row =
+            shown->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionCreate))];
+        const surface::SurfaceTextRow& delete_row =
+            shown->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionDelete))];
+        CHECK(create_row.text == "[ Create ]");
+        CHECK(create_row.role == surface::role::kFill);
+        CHECK(delete_row.text == "( Delete )"); // an empty document has nothing to delete
+        CHECK(delete_row.role == surface::role::kMuted);
+        // NO GROUND WAS SPENT ON EITHER. `SurfaceTextRow::background` is still unused by this
+        // repository, so no canvas gained a background byte and no terminal golden moved.
+        CHECK(create_row.background == surface::role::kNone);
+        CHECK(delete_row.background == surface::role::kNone);
+    }
+}
+
+TEST_CASE("HD-8: pressing Create is the SAME operation the `n` key performs") {
+    // Two gestures, one meaning: the pointer path and the key path are driven separately from
+    // identical starts and their whole outcome is compared -- document bytes, selection,
+    // inspector, notice.
+    Live keyed;
+    keyed.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    keyed.key(input::scan::kN);
+
+    Live pressed;
+    pressed.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    const InfoBodyPlace body = body_place(pressed);
+    const std::int64_t at = prose_row_of_action(body, kActionCreate);
+    REQUIRE(at != kNoProseRow);
+    pressed.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
+
+    CHECK(persist::to_text(pressed.doc()) == persist::to_text(keyed.doc()));
+    CHECK(pressed.session().selected == keyed.session().selected);
+    CHECK(pressed.notice() == keyed.notice());
+    CHECK(pressed.notice() == "created #3 -- a new identity, not a new name");
+    CHECK(pressed.row("Identity")->value() == keyed.row("Identity")->value());
+    CHECK(pressed.doc().elements.size() == 3); // the boot document's two, plus exactly one
+}
+
+TEST_CASE("HD-8: pressing Delete is the SAME operation the `d` key performs") {
+    // Same shape as Create's, at a document with something to delete and a selection the
+    // post-delete rule has to move.
+    Live keyed;
+    Live pressed;
+    for (int pass = 0; pass < 2; ++pass) {
+        Live& t = pass == 0 ? keyed : pressed;
+        t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+        for (int i = 0; i < 3; ++i) {
+            t.key(input::scan::kN);
+        }
+        t.key(input::scan::kTab); // wrap onto #1, so the selection has somewhere to go
+        REQUIRE(t.session().selected == 1);
+        if (pass == 0) {
+            t.key(input::scan::kD);
+        } else {
+            const InfoBodyPlace body = body_place(t);
+            const std::int64_t at = prose_row_of_action(body, kActionDelete);
+            REQUIRE(at != kNoProseRow);
+            t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
+        }
+    }
+
+    CHECK(persist::to_text(pressed.doc()) == persist::to_text(keyed.doc()));
+    CHECK(pressed.session().selected == keyed.session().selected);
+    CHECK(pressed.notice() == keyed.notice());
+    CHECK(pressed.notice() == "deleted #1 -- now on #2");
+    CHECK(pressed.doc().elements.size() == 4);
+    CHECK(pressed.row("Identity")->value() == "#2");
+}
+
+TEST_CASE("HD-8: an unavailable Delete presents as unavailable and mutates nothing") {
+    // The control stays VISIBLE with nothing to delete -- a maker has to be able to discover
+    // that the act exists -- and reads as not pressable before they try it.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    for (int guard = 0; guard < 40 && !t.doc().elements.empty(); ++guard) {
+        t.key(input::scan::kD);
+    }
+    REQUIRE(t.doc().elements.empty());
+    REQUIRE(t.session().selected == 0);
+
+    const InfoBodyPlace body = body_place(t);
+    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
+    REQUIRE(shown != nullptr);
+    // STILL THERE, and saying which of the two it is.
+    CHECK(shown->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionCreate))].text ==
+          "[ Create ]");
+    CHECK(shown->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionDelete))].text ==
+          "( Delete )");
+    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kNoTarget);
+
+    // AND A PRESS ON IT CHANGES NOTHING. The refusal comes from the DOCUMENT, in the
+    // document's own words -- the same sentence `d` gets, because it is the same call.
+    const std::string before = persist::to_text(t.doc());
+    const std::int64_t at = prose_row_of_action(body, kActionDelete);
+    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
+    CHECK(persist::to_text(t.doc()) == before);
+    CHECK(t.doc().elements.empty());
+    CHECK(t.session().selected == 0);
+    const std::string by_pointer = t.notice();
+    t.key(input::scan::kD);
+    CHECK(by_pointer == t.notice()); // one state, one sentence, two gestures
+
+    // AND CREATE IS STILL REACHABLE FROM THE EMPTY DOCUMENT, which is the only way out of
+    // this state with a pointer.
+    const InfoBodyPlace now = body_place(t);
+    t.press_at(body_pixel_x(now, 3),
+               body_pixel_y(now, prose_row_of_action(now, kActionCreate)),
+               input::space::kPixels);
+    CHECK(t.doc().elements.size() == 1);
+}
+
+TEST_CASE("HD-8: a live property draft survives both controls, with no implicit commit") {
+    // The phase's critical interaction case. A nontrivial draft (a moved caret, a scrolled
+    // window) meets each control in turn and comes back untouched, and the reason is on the
+    // notice line.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.begin_editing("Name");
+    for (int i = 0; i < 5; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    for (const char c : kLongValue) {
+        t.text(std::string(1, c));
+    }
+    for (int i = 0; i < 6; ++i) {
+        t.key(input::scan::kLeft);
+    }
+    REQUIRE(t.row("Name")->editing());
+    REQUIRE(t.row("Name")->editor().first_visible() > 0); // the window really has scrolled
+
+    const std::string draft = t.row("Name")->draft();
+    const std::size_t caret = t.row("Name")->editor().caret();
+    const std::size_t window = t.row("Name")->editor().first_visible();
+    const std::int64_t selected = t.session().selected;
+    const std::size_t cursor = t.session().cursor;
+    const std::size_t objects = t.doc().elements.size();
+    const std::string document = persist::to_text(t.doc());
+
+    for (const std::size_t which : {kActionCreate, kActionDelete}) {
+        CAPTURE(which);
+        // BOTH READ AS UNAVAILABLE while the draft is live -- visible and temporarily not
+        // pressable, rather than hidden.
+        const InfoBodyPlace body = body_place(t);
+        CHECK(action_availability(which, t.doc(), t.session()) == Availability::kDraftLive);
+        const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
+        REQUIRE(shown != nullptr);
+        CHECK(shown->rows[static_cast<std::size_t>(prose_row_of_action(body, which))].text ==
+              action_row_text(which, false, body.columns));
+
+        const std::int64_t at = prose_row_of_action(body, which);
+        t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
+
+        CHECK(t.row("Name")->editing());
+        CHECK(t.row("Name")->draft() == draft);
+        CHECK(t.row("Name")->editor().caret() == caret);
+        CHECK(t.row("Name")->editor().first_visible() == window);
+        CHECK(t.session().selected == selected);
+        CHECK(t.session().cursor == cursor);
+        CHECK(t.doc().elements.size() == objects);
+        CHECK(persist::to_text(t.doc()) == document);
+        // THE SAME SENTENCE THE OBJECT LIST SAYS, because it is the same wall and one
+        // constant (HD-7 wrote it; HD-8 named it).
+        CHECK(t.notice() == "finish the draft first -- enter commits it, esc cancels");
+    }
+
+    // ESC RESOLVES THE DRAFT AND THE CONTROLS COME BACK -- nothing about the draft was
+    // resolved for the maker, and the way out is the way it always was.
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.row("Name")->editing());
+    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kAvailable);
+    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kAvailable);
+    const InfoBodyPlace free_now = body_place(t);
+    const surface::SurfaceTextRegion* after = body_region(t.canvases.back(), free_now);
+    REQUIRE(after != nullptr);
+    CHECK(after->rows[static_cast<std::size_t>(prose_row_of_action(free_now, kActionCreate))]
+              .text == "[ Create ]");
+    t.press_at(body_pixel_x(free_now, 3),
+               body_pixel_y(free_now, prose_row_of_action(free_now, kActionCreate)),
+               input::space::kPixels);
+    CHECK(t.doc().elements.size() == objects + 1);
+
+    // AND A COMMITTED DRAFT DOES THE SAME. `Return` writes the value, and the controls are
+    // live again immediately after it.
+    t.begin_editing("Name");
+    t.text("x");
+    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kDraftLive);
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(t.row("Name")->editing());
+    CHECK(action_availability(kActionCreate, t.doc(), t.session()) == Availability::kAvailable);
+}
+
+TEST_CASE("HD-8: availability is not a prediction of what the document will say") {
+    // The third classification, found in source rather than in the prompt: `doc::remove`
+    // refuses an object something else measures against. That is the DOCUMENT's policy, so
+    // Delete stays AVAILABLE, the press goes through, and the refusal arrives in the
+    // document's own words -- byte-for-byte what pressing `d` does. A control that predicted
+    // it would be a second copy of that policy, re-run on every paint.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    t.key(input::scan::kN); // #3, which will take its context from #1
+    REQUIRE(t.session().selected == 3);
+    t.begin_editing("Context");
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.type_line("#1");
+    REQUIRE(t.row("Context")->value() == "#1");
+
+    t.key(input::scan::kTab); // onto #1, which #3 now depends on
+    REQUIRE(t.session().selected == 1);
+    CHECK(action_availability(kActionDelete, t.doc(), t.session()) == Availability::kAvailable);
+    const InfoBodyPlace body = body_place(t);
+    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
+    REQUIRE(shown != nullptr);
+    CHECK(shown->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionDelete))].text ==
+          "[ Delete ]");
+
+    const std::string before = persist::to_text(t.doc());
+    t.press_at(body_pixel_x(body, 3),
+               body_pixel_y(body, prose_row_of_action(body, kActionDelete)),
+               input::space::kPixels);
+    CHECK(persist::to_text(t.doc()) == before); // refused, and nothing was written
+    CHECK(t.notice() == "#3 takes context from #1 -- change or delete it first");
+}
+
+TEST_CASE("HD-8: a press on a control never reaches the object list or the workspace") {
+    // One gesture, one semantic owner. A press that fell through would put the panel's own
+    // `... is here` sentence on the notice line in place of the operation's own answer.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    for (int i = 0; i < 4; ++i) {
+        t.key(input::scan::kN);
+    }
+
+    for (const std::size_t which : {kActionCreate, kActionDelete}) {
+        CAPTURE(which);
+        const InfoBodyPlace now = body_place(t);
+        const std::size_t before = t.doc().elements.size();
+        t.press_at(body_pixel_x(now, 3),
+                   body_pixel_y(now, prose_row_of_action(now, which)), input::space::kPixels);
+        // THE ACT HAPPENED...
+        CHECK(t.doc().elements.size() == (which == kActionCreate ? before + 1 : before - 1));
+        // ...AND NOTHING ELSE DID: no drag began, and the notice is the operation's own.
+        CHECK_FALSE(t.session().drag.active);
+        CHECK(t.notice().find("is here") == std::string::npos);
+        CHECK(t.notice().find("holding #") == std::string::npos);
+        CHECK(t.notice().find("selected #") == std::string::npos);
+    }
+}
+
+TEST_CASE("HD-8: a cell medium's press takes the other branch and lands on the same control") {
+    // A terminal reports a character position and a window reports a pixel; the two go down
+    // different arms of `prose_at` and must name the same control. Driving only the pixel arm
+    // would leave the TUI's own answer unproven.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 0, 0}));
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE_FALSE(body.fit.graphical());
+    const std::int64_t at = prose_row_of_action(body, kActionCreate);
+    REQUIRE(at != kNoProseRow);
+
+    const std::size_t before = t.doc().elements.size();
+    t.press_at(body.region_x + 3, body.region_y + at + surface::kTuiCanvasTopRow,
+               input::space::kCells);
+    CHECK(t.doc().elements.size() == before + 1);
+    CHECK(t.notice().rfind("created #", 0) == 0);
+}
+
+TEST_CASE("HD-8: the graphical press is not rounded to a Workshop cell") {
+    // A body row is eighteen device pixels against a twelve-pixel cell, so a press resolved
+    // through cells names the wrong row for most of the body -- and the footer, at the very
+    // bottom, is where that error is largest. Asserted at the pixel it presses.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.fit.graphical());
+    const std::int64_t at = prose_row_of_action(body, kActionCreate);
+    const std::int64_t y = body_pixel_y(body, at);
+    const std::int64_t cell_row = y / surface::kCanvasCellPx - body.region_y;
+    CHECK(cell_row != at); // the two genuinely disagree here
+
+    const std::size_t before = t.doc().elements.size();
+    t.press_at(body_pixel_x(body, 3), y, input::space::kPixels);
+    CHECK(t.doc().elements.size() == before + 1);
+}
+
+TEST_CASE("HD-8: the terminal overlay still owns the pointer entirely") {
+    // The first rule of the routing order, re-proven now that a third thing inside the Info
+    // panel wants presses. The overlay is a MODE: it takes every pointer event anywhere.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    const InfoBodyPlace body = body_place(t);
+    const std::int64_t at = prose_row_of_action(body, kActionCreate);
+    t.toggle_terminal();
+    REQUIRE(t.session().terminal.open);
+
+    const std::size_t before = t.doc().elements.size();
+    t.press_at(body_pixel_x(body, 3), body_pixel_y(body, at), input::space::kPixels);
+    CHECK(t.doc().elements.size() == before); // the mode had it; nothing was created
+
+    t.toggle_terminal();
+    const InfoBodyPlace now = body_place(t);
+    t.press_at(body_pixel_x(now, 3),
+               body_pixel_y(now, prose_row_of_action(now, kActionCreate)),
+               input::space::kPixels);
+    CHECK(t.doc().elements.size() == before + 1); // and closing it restores the gesture
+}
+
+TEST_CASE("HD-8: growing the panel gives the lists more room and the footer exactly two rows") {
+    // A control asks for the room it needs. Nothing here stretches, and the spare room a tall
+    // panel has stays spare -- it simply falls between the properties and the footer.
+    std::size_t objects = 0;
+    std::size_t properties = 0;
+    for (const std::int64_t h : std::vector<std::int64_t>{22, 30, 40, 55, 70, 77}) {
+        CAPTURE(h);
+        Sample p = panel_of(20, 0, 80, h, 8, 18);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        REQUIRE(body.present);
+        CHECK(body.objects_rows >= objects);       // monotonic...
+        CHECK(body.properties_rows >= properties); // ...on both
+        CHECK(static_cast<std::int64_t>(body.capacity) - body.action_row ==
+              static_cast<std::int64_t>(kActionRows)); // ...and the footer never grows
+        objects = body.objects_rows;
+        properties = body.properties_rows;
+    }
+
+    // AND AT THE TALLEST, THE SPARE ROOM IS REAL AND IT IS SPARE.
+    Sample tall = panel_of(2, 0, 240, 77);
+    const InfoBodyPlace body = body_of(tall.d, tall.s);
+    const std::size_t spent = body.objects_rows + 1 + body.properties_rows;
+    REQUIRE(body.capacity > spent + kActionRows + 40);
+    const surface::SurfaceCanvas c = paint(tall.d, tall.s);
+    const surface::SurfaceTextRegion* shown = body_on(c, body);
+    REQUIRE(shown != nullptr);
+    for (std::size_t i = spent; i < static_cast<std::size_t>(body.action_row); ++i) {
+        CAPTURE(i);
+        CHECK(shown->rows[i].text.empty());
+    }
+}
+
+TEST_CASE("HD-8: a resize moves the footer and changes no document and no draft") {
+    // The footer is derived from the capacity every paint, so a new extent moves it with no
+    // path of its own -- and a window dragged is still not an edit.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.key(input::scan::kN);
+    t.begin_editing("Name");
+    t.text("q");
+    const std::string draft = t.row("Name")->draft();
+    const std::string document = persist::to_text(t.doc());
+    const std::int64_t small = body_place(t).action_row;
+
+    t.publish(loom::to_value(surface::SurfaceExtent{140, 60, 8, 18}));
+    const InfoBodyPlace big = body_place(t);
+    CHECK(big.action_row > small); // a taller body puts the footer lower
+    CHECK(big.action_row + static_cast<std::int64_t>(kActionRows) ==
+          static_cast<std::int64_t>(big.capacity));
+    CHECK(t.row("Name")->editing());
+    CHECK(t.row("Name")->draft() == draft);
+    CHECK(persist::to_text(t.doc()) == document);
 }
