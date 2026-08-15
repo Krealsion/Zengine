@@ -410,6 +410,54 @@ Availability is whether the act has a TARGET and whether the maker is FREE to ac
   routing is untouched, and a `TextBox` still owns typing while editing. There is no
   keyboard-activation gesture for a control, so there is nothing for two owners to want.
 
+## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
+
+The three handlers under `if (b.pressed)` in `WorkshopWeave::on(const input::PointerButton&)`
+answer exactly one question, and it is a routing question:
+
+```text
+true   this layer CONSUMED the press -- stop routing
+false  this layer did NOT consume it -- carry on to the next
+```
+
+Nothing else. Not acceptance, not success, not "something changed", and not target identity.
+**A consumed press does not have to change anything; it only has to have reached the layer that
+owns what the press means.** `info_press` used to answer *the caret MOVED*, which agrees with
+that contract for exactly as long as every press landing on a live draft also moves it — so a
+maker pressing where the caret already was fell through the whole chain and got
+`Info is here -- nothing under it can be taken hold of` written over the notice they were
+reading. The failure was a NAME, not a missing type: a three-valued disposition would have
+hidden it under a plausible shape, and INT-R0's two-cases-per-word test earns exactly two words.
+
+- **A deliberate `false` is a decision and reads as one.** `objects_press` still declines a
+  press on the row of the object that is ALREADY selected, so the panel answers it as it
+  answers every other press on that rectangle. That is the same *shape* `info_press` had by
+  accident, which is why naming the bit — rather than making the two symmetrical — was the
+  repair. Both dispositions are now pinned by a case of their own.
+- **`terminal_press` is NOT part of this contract and must not be unified with it.** Its bool
+  is *is a repaint owed*; consumption inside the overlay was already decided one layer up by
+  the MODE, and a `false` there means "consumed, and nothing moved" — the opposite of a `false`
+  in the chain. The caller names the result `repaint_needed` at the one place both kinds of
+  bool are in view. Two questions with two answers each are not one question.
+- **`info_body_at` (`workshop/screen.hpp`) is the resolve-and-locate preamble, owned once.**
+  `bounds_of` → is Info open? → `info_body_place` → `prose_at` → is the position understood?
+  was six lines inside each of the three handlers; a fourth pressable place would have copied
+  it again. It answers **where** and nothing about what that means: no routing priority, no
+  property/action/object semantics, no refusal and no consumption policy — each handler still
+  asks its own inverse (`property_row_hit`, `action_press_at`, `object_press_at`) of the place
+  it returns. `present` is the conjunction *panel open ∧ body resolved ∧ position understood*,
+  one bit because it is one fact about the press: it named nothing here.
+- **The body is resolved ONCE PER PRESS, in the route, beside the canvas point** — the chain
+  already carried one resolved pointer fact (`PointedAt`) and now carries two, rather than each
+  handler re-resolving (up to three resolutions of one body for one press). Holding it across
+  the chain is sound for a stated reason and not an assumed one: **every one of the three
+  handlers changes nothing on the paths where it declines**, so a "not mine" cannot have moved
+  the picture the next handler is about to ask about. Keep that true when adding a fourth.
+- No `Disposition`, no `InteractionResult`, no `Handled/Refused/Ignored`, no target enum and no
+  interaction package. The richer answers already exist where richer answers matter (`Written`,
+  `Handled`, `Commit`, `Availability`, `Occupancy`) and they are all on SEMANTIC paths; the
+  bare bool survives only on the routing path, which is the one place it is adequate.
+
 ## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is now anything with `write(std::string_view)` **and**
@@ -502,14 +550,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**58,713** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-15 after HD-8) are evidence to report. They are **not** a population, never an
+- Assertion totals (**58,813** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-15 after QR-2) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 42,177 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 42,277 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318

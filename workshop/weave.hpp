@@ -457,8 +457,19 @@ public:
                 end_drag(session_);
                 return;
             }
-            if (b.pressed && b.button == 1 && terminal_press(b)) {
-                repaint(mail);
+            // AND THE BOOL BELOW IS NOT THE PRESS-CHAIN'S BOOL, which is why it is given a
+            // name here (QR-2). The three handlers under `if (b.pressed)` answer whether they
+            // CONSUMED the press, and the chain stops on a true. `terminal_press` answers
+            // whether anything CHANGED, and the answer does not decide anything about routing:
+            // the mode consumed the press the moment `session_.terminal.open` was true, three
+            // lines up, and a press that lands on none of the pane's regions is consumed there
+            // just the same. Two different questions, two bools, and unifying them would put a
+            // repaint decision on the routing path or a routing decision on the repaint path.
+            if (b.pressed && b.button == 1) {
+                const bool repaint_needed = terminal_press(b);
+                if (repaint_needed) {
+                    repaint(mail);
+                }
             }
             return;
         }
@@ -467,20 +478,40 @@ public:
             return;
         }
         if (b.pressed) {
+            // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON (QR-2).
+            // That is the whole meaning of the three bools below, and it is the only meaning
+            // any of them has -- not "something changed", not "the act succeeded", not "the
+            // press was accepted". A layer that consumes may refuse in its own words, may say
+            // nothing at all, and may leave every fact in this application exactly as it found
+            // it; what it may not do is let a press it owns be answered by the layer around
+            // it. A consumed press does not have to change anything -- it only has to have
+            // reached the layer that owns what the press means.
+            //
+            // AND THE BODY IS RESOLVED ONCE, HERE, beside the canvas point above it (QR-2).
+            // The three handlers under it are three questions about ONE place, and they used
+            // to resolve it separately -- the same six lines three times, and up to three
+            // resolutions of one body for one press. Holding it across the chain is safe for a
+            // reason worth writing down rather than assuming: every one of the three changes
+            // nothing on the paths where it declines, so a handler that says "not mine" has
+            // not moved the picture the next handler is about to ask about.
+            const InfoBodyAt where = info_body_at(state_, session_, b.space, b.x, b.y);
             // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
             // rather than a mode (HD-5). The order is the same one the pane and the
             // completion list already have: the innermost thing that owns the pointer where
             // it landed answers before the thing around it, and a press it declines falls
             // through to the panel's own answer unchanged.
             //
-            // IT SAYS NOTHING. Every other press on this panel writes the notice line,
-            // because a press that changed nothing and said nothing would leave the previous
-            // gesture's sentence sitting beside a maker who has just done something else.
-            // Moving a caret is the one press where that argument runs the other way: the
-            // caret IS the statement, it is on screen, and a sentence repeating it would push
-            // the refusal a maker may still need to read off the line for a gesture they can
-            // already see the result of.
-            if (info_press(b)) {
+            // IT SAYS NOTHING, AND IT CONSUMES WHETHER OR NOT THE CARET MOVED. Every other
+            // press on this panel writes the notice line, because a press that changed nothing
+            // and said nothing would leave the previous gesture's sentence sitting beside a
+            // maker who has just done something else. A press on the draft's own row is the
+            // one press where that argument runs the other way: the caret IS the statement, it
+            // is on screen, and a sentence repeating it would push the refusal a maker may
+            // still need to read off the line for a gesture they can already see the result
+            // of. That argument never depended on the caret MOVING -- a maker who presses
+            // where the caret already is has aimed at the draft and hit it, and the caret is
+            // still the answer (QR-2).
+            if (info_press(where)) {
                 repaint(mail);
                 return;
             }
@@ -491,7 +522,7 @@ public:
             // written down for the same reason HD-5's four modes are -- an ordering that rests
             // on a disjointness proof is one refactor from being silently wrong -- and not
             // because two of these could otherwise both answer.
-            if (actions_press(b)) {
+            if (actions_press(where)) {
                 repaint(mail);
                 return;
             }
@@ -501,7 +532,7 @@ public:
             // unchanged. It is asked SECOND because a live draft's own row is the narrower
             // claim -- and `objects_press` refuses outright while any draft is live, so the
             // two can never both want the same press.
-            if (objects_press(b)) {
+            if (objects_press(where)) {
                 repaint(mail);
                 return;
             }
@@ -807,10 +838,17 @@ private:
     /// this phase has no measurement for and did not invent. `Return` opens a draft, and this
     /// only moves the insertion point inside the one that is open. A press anywhere else on
     /// the panel is answered by the panel exactly as it was.
-    bool info_press(const zengine::input::PointerButton& b) {
-        const Screen sc = screen_of(session_);
-        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
-        if (!info.open) {
+    ///
+    /// **TRUE MEANS CONSUMED — STOP ROUTING. FALSE MEANS NOT CONSUMED — CARRY ON (QR-2).**
+    /// It used to answer whether the CARET MOVED, and the two agree for exactly as long as
+    /// every press that lands on the draft also moves it -- which is to say until a maker
+    /// presses where the caret already is. Measured on the pristine tree: that press fell
+    /// through this handler, through the controls, through the object list, and was answered
+    /// by the panel with `Info is here -- nothing under it can be taken hold of`, over a
+    /// notice the maker was still reading. A press that reached the layer that owns what it
+    /// means is that layer's, whether or not anything moved.
+    bool info_press(const InfoBodyAt& where) {
+        if (!where.present) {
             return false;
         }
         for (std::size_t i = 0; i < session_.rows.size(); ++i) {
@@ -818,11 +856,8 @@ private:
             if (!row.editing()) {
                 continue;
             }
-            const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
-            const ProseAt at =
-                prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
-            if (!at.understood || !property_row_hit(body, i, at.column, at.row)) {
-                return false;
+            if (!property_row_hit(where.body, i, where.at.column, where.at.row)) {
+                return false; // on the panel, but not on the draft's row: not consumed
             }
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH. A visible column names
             // `first_visible + offset` of the WHOLE draft, never the offset alone -- the one
@@ -837,11 +872,10 @@ private:
             // the value's column is that minus what the name spent. `property_value_column`
             // is the one subtraction and it is the inverse of the one
             // `property_caret_column` added.
-            const std::size_t was = row.editor().caret();
-            row.place(row.editor().position_at_column(property_value_column(at.column)));
-            return row.editor().caret() != was;
+            row.place(row.editor().position_at_column(property_value_column(where.at.column)));
+            return true; // consumed: the press was on the draft's own row
         }
-        return false;
+        return false; // no draft is live, so this panel has no editor to press
     }
 
     /// A PRESS ON AN ACTION CONTROL PERFORMS THE ACT THE CONTROL NAMES (HD-8).
@@ -876,35 +910,32 @@ private:
     /// and says so in the document's own words -- and a second sentence for one state is the
     /// thing this file spends `move_notice` and `kNoDocumentFile` avoiding.
     ///
-    /// AND A PRESS ON A CONTROL IS CONSUMED WHATEVER IT DECIDES. Returning false for an
-    /// unavailable control would drop the press through to the object list and then to the
-    /// panel's occupancy answer, which would put a sentence about the panel on the notice line
-    /// in place of the reason the maker actually needs. One gesture, one owner.
-    bool actions_press(const zengine::input::PointerButton& b) {
-        const Screen sc = screen_of(session_);
-        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
-        if (!info.open) {
+    /// AND A PRESS ON A CONTROL IS CONSUMED WHATEVER IT DECIDES — **true means consumed, stop
+    /// routing; false means not consumed, carry on** (QR-2, naming what this already did).
+    /// Returning false for an unavailable control would drop the press through to the object
+    /// list and then to the panel's occupancy answer, which would put a sentence about the
+    /// panel on the notice line in place of the reason the maker actually needs. One gesture,
+    /// one owner. This is the handler that was already answering the routing question the
+    /// chain asks, which is why nothing about it changes here beyond where its place comes
+    /// from.
+    bool actions_press(const InfoBodyAt& where) {
+        if (!where.present) {
             return false;
         }
-        const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
-        const ProseAt at = prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
-        if (!at.understood) {
-            return false;
-        }
-        const std::size_t which = action_press_at(body, at.column, at.row);
+        const std::size_t which = action_press_at(where.body, where.at.column, where.at.row);
         if (which == kNoAction) {
             return false; // a list row, the heading, a spare row, or off the body entirely
         }
         if (action_availability(which, state_, session_) == Availability::kDraftLive) {
             say(kFinishDraftFirst, true);
-            return true;
+            return true; // consumed, and refused in this application's own words
         }
         if (which == kActionCreate) {
             create_object();
         } else {
             delete_object();
         }
-        return true;
+        return true; // consumed, whatever the document then made of it
     }
 
     /// A PRESS ON A VISIBLE OBJECT NAME SELECTS THAT OBJECT — in command mode, and only there
@@ -938,32 +969,39 @@ private:
     /// AND IT SELECTS, WHICH IS ALL IT DOES. It does not open the Builder, begin a drag, take
     /// hold, rename, or start editing a property -- `select` is the same call `Tab` makes, so
     /// a pointer and a key reach the document through one door.
-    bool objects_press(const zengine::input::PointerButton& b) {
-        const Screen sc = screen_of(session_);
-        const PanelBounds info = bounds_of(session_.panels, panel::kInfo, sc);
-        if (!info.open) {
+    ///
+    /// **TRUE MEANS CONSUMED — STOP ROUTING. FALSE MEANS NOT CONSUMED — CARRY ON (QR-2).**
+    /// AND ONE OF THE FALSES BELOW IS DELIBERATE RATHER THAN GEOMETRIC: a press on the row of
+    /// the object that is ALREADY selected lands squarely on this list and is still not
+    /// consumed, because there is nothing here for it to do and the sentence a maker should
+    /// get is the panel's -- the same one every other press on this rectangle gets. That is
+    /// the shape `info_press` had by accident and this one has on purpose, and the difference
+    /// is exactly why one bit could not be repaired by copying the other site: one of them was
+    /// answering the wrong question and the other was answering this one with a considered
+    /// `no`. Naming the bit does not merge them; it makes the deliberate `no` legible as a
+    /// choice instead of leaving it indistinguishable from a defect.
+    bool objects_press(const InfoBodyAt& where) {
+        if (!where.present) {
             return false;
         }
-        const InfoBodyPlace body = info_body_place(info.rect, sc, state_, session_);
-        const ProseAt at = prose_at(b.space, b.x, b.y, body.region_x, body.region_y, body.fit);
-        if (!at.understood) {
-            return false;
-        }
-        const std::size_t which = object_press_at(body, at.column, at.row);
+        const std::size_t which = object_press_at(where.body, where.at.column, where.at.row);
         if (which == kNoObject || which >= state_.elements.size()) {
             return false; // a marker, the heading, a property row, a spare row, or off the body
         }
         if (draft_live(session_)) {
             say(kFinishDraftFirst, true);
-            return true; // handled: nothing moved, and the reason is on the notice line
+            return true; // consumed: nothing moved, and the reason is on the notice line
         }
         const std::int64_t id = state_.elements[which].id;
         if (id == session_.selected) {
-            return false; // already there: let the panel answer as it does for any other press
+            // NOT CONSUMED, DELIBERATELY. The press is on this list and this list has nothing
+            // to do with it; letting it through is how a maker gets the panel's answer rather
+            // than silence.
+            return false;
         }
         select(id);
         say("selected #" + std::to_string(id), false);
-        return true;
+        return true; // consumed
     }
 
     // ---- The terminal overlay ------------------------------------------------
@@ -1069,10 +1107,19 @@ private:
 
     /// A PRESS INSIDE THE TERMINAL MODE — the first place-within-a-mode (HD-3).
     ///
-    /// Answers whether anything changed, so the caller repaints for a press that did
+    /// Answers whether anything CHANGED, so the caller repaints for a press that did
     /// something and stays quiet for one that landed on the pane's furniture. It never
     /// answers "not mine": the mode consumes every press either way, which is what makes
     /// click-through impossible without a z-order service to prevent it.
+    ///
+    /// **SO THIS BOOL IS NOT THE PRESS CHAIN'S BOOL, AND IT MUST NOT BE UNIFIED WITH IT**
+    /// (QR-2). `info_press`, `actions_press` and `objects_press` answer *did I consume this
+    /// press* and the chain stops on a true; this answers *is a repaint owed*, and consumption
+    /// was already decided one layer up by the MODE. A `false` here means "consumed by the
+    /// terminal, and nothing moved" -- the opposite of what a `false` means in the chain. Two
+    /// questions that happen to have two answers each are not one question, and the caller
+    /// names the result `repaint_needed` so the difference is visible at the only place both
+    /// kinds of bool are in view.
     ///
     /// THE ORDER IS THE PAINTER'S ORDER, BACKWARDS, and that is the whole of the arbitration:
     /// `paint_terminal` pushes the pane and then the completion list, and painter's order

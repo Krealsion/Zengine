@@ -12842,3 +12842,203 @@ TEST_CASE("HD-8: a resize moves the footer and changes no document and no draft"
     CHECK(t.row("Name")->draft() == draft);
     CHECK(persist::to_text(t.doc()) == document);
 }
+
+// ============================================================================
+// QR-2 — a press is consumed by the layer that owns what it means
+// ============================================================================
+//
+// INT-R0 measured one defect in this chain and one duplication under it, and these cases are
+// both. `info_press` answered *the caret MOVED* where its caller asks *did you CONSUME this
+// press*, and the two agree for exactly as long as every press that lands on the draft also
+// moves it -- which is to say until a maker presses where the caret already is. Measured on
+// the pristine tree, that press fell through the property editor, the controls and the object
+// list and was answered by the panel with `Info is here -- nothing under it can be taken hold
+// of`, written over a notice the maker was still reading.
+//
+// THE CONTRACT AT EVERY BOOL OF THE PRESS CHAIN IS NOW ONE SENTENCE: true means consumed, stop
+// routing; false means not consumed, carry on. Nothing about acceptance, nothing about
+// success, and nothing about anything having changed --
+//
+//     A CONSUMED PRESS DOES NOT HAVE TO CHANGE ANYTHING.
+//     IT ONLY HAS TO HAVE REACHED THE LAYER THAT OWNS WHAT THE PRESS MEANS.
+//
+// `terminal_press` is deliberately NOT part of that contract and is not unified with it: its
+// bool is *is a repaint owed*, and consumption there was already decided one layer up by the
+// MODE (HD-3's `session_.terminal.open`). Two questions with two answers each are not one
+// question.
+
+TEST_CASE("QR-2: a press where the caret already is is CONSUMED, and the panel never answers") {
+    // THE REPRODUCTION, AND THE STOP CONDITION. Everything the maker can see is unchanged by
+    // this press -- and that is precisely why the old bit got it wrong.
+    Live t;
+    t.begin_editing("Name");
+    const InfoBodyPlace place = body_place(t);
+    REQUIRE(place.present);
+    const std::int64_t at_row = editing_prose_row(t, place);
+    REQUIRE(at_row != kNoProseRow);
+    const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
+    const std::int64_t y = place.region_y + at_row + surface::kTuiCanvasTopRow;
+
+    // The caret at a known column, put there by the same gesture this case is about.
+    t.press_at(value_x + 2, y, input::space::kCells);
+    REQUIRE(t.row("Name")->editor().caret() == 2);
+
+    // A NOTICE WHOSE PRESERVATION IS OBSERVABLE, and one this press did not write: a press on
+    // empty workspace is the LAST thing in the chain, so a sentence it left behind is proof
+    // that a later press reached nothing further along than the draft.
+    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    REQUIRE(t.notice() == "nothing there");
+    REQUIRE(t.row("Name")->editing()); // and it took no hands off the draft
+    const std::string document = persist::to_text(t.doc());
+    const std::int64_t selected = t.session().selected;
+
+    // THE PRESS THIS PHASE EXISTS FOR: the same column of the same row, with the caret
+    // already on it.
+    t.press_at(value_x + 2, y, input::space::kCells);
+
+    CHECK(t.row("Name")->editor().caret() == 2);  // the caret did not move...
+    CHECK(t.row("Name")->editing());              // ...the draft is still live...
+    CHECK(t.row("Name")->draft() == "panel");     // ...and unedited...
+    CHECK(persist::to_text(t.doc()) == document); // ...nothing was authored...
+    CHECK(t.session().selected == selected);      // ...nothing was selected...
+    CHECK_FALSE(t.session().drag.active);         // ...no gesture began...
+    CHECK(t.notice() == "nothing there");         // ...and NOTHING was said over the line.
+
+    // Before QR-2 the line above read `Info is here -- nothing under it can be taken hold of`:
+    // the press fell past `info_press` because the caret had not moved, past the controls and
+    // the object list because it is on neither, and into the panel's occupancy answer.
+    CHECK(t.notice().find("nothing under it can be taken hold of") == std::string::npos);
+}
+
+TEST_CASE("QR-2: consumed and not-consumed are told apart by WHERE, not by what changed") {
+    // The two halves of the contract in one case: a press that moves the caret and a press
+    // that does not are the SAME answer to the routing question, and a press one row off the
+    // draft is the other answer -- which is the fall-through the repair had to keep.
+    Live t;
+    t.begin_editing("Name");
+    const InfoBodyPlace place = body_place(t);
+    REQUIRE(place.present);
+    const std::int64_t at_row = editing_prose_row(t, place);
+    REQUIRE(at_row != kNoProseRow);
+    const std::int64_t value_x = place.region_x + kPropertyMarkCols + kPropertyLabelCols;
+    const std::int64_t y = place.region_y + at_row + surface::kTuiCanvasTopRow;
+
+    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    REQUIRE(t.notice() == "nothing there");
+
+    // MOVING THE CARET IS CONSUMED, and says nothing -- the caret is the statement.
+    t.press_at(value_x + 1, y, input::space::kCells);
+    CHECK(t.row("Name")->editor().caret() == 1);
+    CHECK(t.notice() == "nothing there");
+
+    // NOT MOVING IT IS THE SAME ANSWER.
+    t.press_at(value_x + 1, y, input::space::kCells);
+    CHECK(t.row("Name")->editor().caret() == 1);
+    CHECK(t.notice() == "nothing there");
+
+    // A ROW OF THIS PANEL THAT IS NOT THE DRAFT'S IS NOT CONSUMED, and the panel answers it
+    // exactly as it always has. Asserted to be a row no other run of the body claims, so what
+    // this measures is the property editor declining rather than the footer or the list
+    // taking it.
+    const std::int64_t elsewhere = at_row + 3;
+    REQUIRE(object_at_prose_row(place, elsewhere) == kNoObject);
+    REQUIRE(action_at_prose_row(place, elsewhere) == kNoAction);
+    REQUIRE(property_at_prose_row(place, elsewhere) != editing_index(t));
+    t.press_at(value_x + 2, place.region_y + elsewhere + surface::kTuiCanvasTopRow,
+               input::space::kCells);
+    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
+    CHECK(t.row("Name")->editor().caret() == 1); // and the caret did not move
+    CHECK(t.row("Name")->editing());
+}
+
+TEST_CASE("QR-2: a press on the ALREADY selected object row is deliberately not consumed") {
+    // THE CONTRAST INT-R0 FOUND, PINNED FOR THE FIRST TIME. `objects_press` has the shape
+    // `info_press` had -- a press that lands squarely on it and changes nothing -- and here it
+    // is a decision: there is nothing for this list to do with the press, so it goes through
+    // and the maker gets the panel's sentence rather than silence. Naming the bit did not
+    // merge the two sites; it made this one legible as a choice.
+    Live t;
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    std::size_t at = 0;
+    while (at < t.doc().elements.size() && t.doc().elements[at].id != t.session().selected) {
+        ++at;
+    }
+    REQUIRE(at < t.doc().elements.size());
+    const std::int64_t row = prose_row_of_object(body, at);
+    REQUIRE(row != kNoProseRow);
+
+    t.press(kWorkspaceW - 1, kWorkspaceH - 1);
+    REQUIRE(t.notice() == "nothing there");
+    const std::int64_t selected = t.session().selected;
+
+    t.press_at(body.region_x + 3, body.region_y + row + surface::kTuiCanvasTopRow,
+               input::space::kCells);
+    CHECK(t.session().selected == selected); // it selects nothing, because it is already there
+    CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
+    CHECK_FALSE(t.session().drag.active); // and the panel stopped it before the workspace
+}
+
+TEST_CASE("QR-2: the body's resolve-and-locate is ONE answer, and it is the painter's") {
+    // `info_body_at` is the six lines `info_press`, `actions_press` and `objects_press` each
+    // carried. It answers WHERE and nothing about what that means, and it resolves the body
+    // through the same `bounds_of` + `info_body_place` the painter published -- which is what
+    // this case measures, against the region actually on the canvas rather than against a
+    // second call of the same formula.
+    Live t;
+    t.press(kWorkspaceW - 1, kWorkspaceH - 1); // any gesture, so there is a canvas to read
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    REQUIRE_FALSE(t.canvases.empty());
+    const surface::SurfaceTextRegion* shown = body_region(t.canvases.back(), body);
+    REQUIRE(shown != nullptr);
+
+    const InfoBodyAt where =
+        info_body_at(t.doc(), t.session(), input::space::kCells, body.region_x + 3,
+                     body.region_y + 1 + surface::kTuiCanvasTopRow);
+    CHECK(where.present);
+    CHECK(where.body.region_x == shown->x); // the geometry the maker is looking at
+    CHECK(where.body.region_y == shown->y);
+    CHECK(where.body.capacity == body.capacity);
+    CHECK(where.body.action_row == body.action_row);
+    CHECK(where.at.column == 3); // and located in ITS prose, not in cells of the screen
+    CHECK(where.at.row == 1);
+
+    // `present` IS THE CONJUNCTION, and it is one bit because it is one fact about the PRESS:
+    // it named nothing in this body. A `space` this application does not recognise is a
+    // question it did not hear...
+    CHECK_FALSE(info_body_at(t.doc(), t.session(), input::space::kUnknown, body.region_x + 3,
+                             body.region_y + 1 + surface::kTuiCanvasTopRow)
+                    .present);
+    // ...and a panel a maker has removed has no body to press. (The third arm -- a panel with
+    // no room for a body -- is `info_body_place`'s own refusal, pinned by HD-6.)
+    Session closed = t.session();
+    (void)close_panel(closed.panels, panel::kInfo);
+    CHECK_FALSE(info_body_at(t.doc(), closed, input::space::kCells, body.region_x + 3,
+                             body.region_y + 1 + surface::kTuiCanvasTopRow)
+                    .present);
+}
+
+TEST_CASE("QR-2: no press inside the Info body begins a workspace gesture, on any row") {
+    // Every prose row of the body, including the two control rows and the object list, while
+    // a draft is live: no drag, no resize, no selection, nothing authored, and the draft still
+    // in the maker's hands at the end of it.
+    Live t;
+    t.begin_editing("Name");
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    REQUIRE(body.capacity > 0);
+    const std::string document = persist::to_text(t.doc());
+    const std::int64_t selected = t.session().selected;
+
+    for (std::size_t row = 0; row < body.capacity; ++row) {
+        t.press_at(body.region_x + 3,
+                   body.region_y + static_cast<std::int64_t>(row) + surface::kTuiCanvasTopRow,
+                   input::space::kCells);
+        CHECK_FALSE(t.session().drag.active);
+        CHECK(t.session().selected == selected);
+        CHECK(persist::to_text(t.doc()) == document);
+    }
+    CHECK(t.row("Name")->editing()); // and every refusal along the way left the draft alone
+    CHECK(t.row("Name")->draft() == "panel");
+}
