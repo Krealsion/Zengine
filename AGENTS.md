@@ -268,6 +268,47 @@ value may be, and which properties the window is showing. The painter, the caret
   pane must ask for it by its PLACE (`Screen::terminal_x`/`terminal_y`) and not as `texts[0]`.
   Painter's order is: panels first, then the overlay, then the completion list.
 
+## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
+
+`TuiMedium::extent()` asks its `Sink`. A Sink is now anything with `write(std::string_view)` **and**
+`TerminalSize size() const` — required, not detected, because a Sink that quietly lacked the method
+would be a Sink whose terminal is permanently unmeasurable, which is an ordinary honest state a pipe
+reaches every day; the mistake would look exactly like the truth on every lane, forever.
+
+```text
+native_terminal_size()   surface/terminal_size.hpp -- the ONE #if defined(_WIN32) any of this needs
+TuiTerminal::size()      gated on the same `ok_` the alternate-screen CLAIM is
+tui_canvas_extent()      pure: a terminal size -> what a CANVAS fits in it
+SkinT::report_extent     unchanged: publish on change, never publish "no opinion"
+```
+
+- **The medium answers about a CANVAS, not about the terminal.** `kTuiReservedRows` is 3: two for
+  the status and score slots (`kTuiCanvasTopRow`, consulted from `pointing.hpp` rather than
+  restated) and one because `canvas_body` ends **every** row with CRLF, so a canvas whose last row
+  lands on the terminal's last row feeds past the bottom — and a feed there SCROLLS, taking the two
+  slots with it. Buying that row back by not feeding after the last row would move every terminal
+  golden in this repository; a row is cheaper than a byte-exact projection.
+- **`{0,0}` still means "no opinion" and is still never published.** An unmeasurable terminal and a
+  terminal with no room left both reach it — two sentences the medium cannot tell apart to its
+  shell, and both correctly become SILENCE. Silence leaves Workshop on `kScreenMinW`/`kScreenMinH`,
+  which is why every golden, every CI run and every redirected run is byte-for-byte what it was.
+  **Nothing manufactures a 78×22 terminal**; that number is a composition minimum standing because
+  nobody offered anything else, and it stays legible as a different kind of fact.
+- **Non-positive is the absence, and there is no `bool measured` beside it.** A flag would be a
+  marker that fails OPEN — a console API answering successfully with a degenerate window would be
+  believed by anything testing the flag instead of the number. `TerminalSize::measured()` is that
+  test, written once.
+- **`GetConsoleScreenBufferInfo`'s `srWindow`, never `dwSize`.** `dwSize` is the scrollback buffer —
+  9,001 rows on a stock console — and a medium that believed it would report a nine-thousand-row
+  surface into a thirty-row window. Measured: with the buffer set to 120×40 behind a 120×30 window,
+  the reported room stayed 27 canvas rows.
+- **A shrinking canvas hands its rows back.** `canvas()` appends one erase-below when the canvas it
+  just drew is shorter than the one before it — the cursor is already one row past the last row
+  written, so it erases precisely the difference. A steady frame writes the bytes it always wrote.
+- **Workshop received no new code at all.** `adopt_screen`, `screen_of`, `inspector_body_place`,
+  `list_window` and `component::TextBox` are byte-identical; a terminal that grew is the same
+  message a window that grew has published since G-2.
+
 ## A region too small for the face is a CELL region (HD-5)
 
 `fit_region` falls back to the region's own cell bounds when a real metric yields no rows or no

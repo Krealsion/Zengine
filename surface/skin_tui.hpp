@@ -23,12 +23,27 @@
 //                              old Screen class, moved to where it now
 //                              belongs: whoever paints owns the terminal.
 //
+// A Sink is anything with:
+//
+//   void write(std::string_view);   // put these bytes on my stream
+//   TerminalSize size() const;      // how big the terminal on the other end is,
+//                                   // in cells; {0,0} = there is none to ask
+//
+// `size()` is REQUIRED of a Sink rather than detected on one, and that is why the
+// contract is spelled here at all (TUI-0). A Sink that quietly lacked the method
+// would be a Sink whose terminal is permanently unmeasurable — which is an
+// ordinary, honest state a pipe reaches every day — so the mistake would look
+// exactly like the truth, on every lane, forever. Requiring it makes a forgetful
+// Sink a compile error instead of a silent fixed-size TUI.
+//
 // The suite injects a string Sink and pins the exact bytes; the two .so skins
 // (skin_tui_classic.cpp / skin_tui_block.cpp) plug in TuiTerminal and ship.
 
 #include "cells.hpp"
+#include "pointing.hpp"
 #include "region.hpp"
 #include "skin.hpp"
+#include "terminal_size.hpp"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -334,6 +349,55 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     return out;
 }
 
+/// THE ROWS A TUI SKIN SPENDS ON BEING A TUI SKIN — the whole of the difference
+/// between "how big is this terminal" and "how much canvas fits in it" (TUI-0).
+///
+/// TWO OF THEM ARE FURNITURE, and they are not counted again here: row 1 is the status
+/// slot and row 2 the score slot, which is exactly what `kTuiCanvasTopRow` already says
+/// (pointing.hpp) and why `frame` and `canvas` below both begin at row 3. That constant
+/// is the pointer path's answer to "where does canvas row 0 land", and this is the same
+/// fact read from the other end — so it is consulted rather than restated. A second `2`
+/// here would be a second opinion about the same two rows.
+///
+/// THE THIRD IS ARITHMETIC ABOUT THE LAST ROW, and it is the one worth writing down.
+/// `canvas_body` ends EVERY row with CRLF, the last one included, so a canvas whose
+/// final row lands on the terminal's final row moves the cursor one row past the
+/// bottom — and a line feed at the bottom of a terminal SCROLLS. One row of the picture
+/// would leave at the top of every single frame, and the two slots above would be the
+/// first things off the screen.
+///
+/// The other way to buy that row back is to stop feeding after the last row, and it is
+/// deliberately not taken: those bytes are what every terminal golden in this
+/// repository pins, and one row of a forty-row terminal is a cheaper thing to spend
+/// than the meaning of a byte-exact projection.
+inline constexpr std::int64_t kTuiScrollGuardRows = 1; ///< where the last row's CRLF lands
+inline constexpr std::int64_t kTuiReservedRows = kTuiCanvasTopRow + kTuiScrollGuardRows;
+
+/// WHAT A TERMINAL OF THIS SIZE HAS ROOM FOR, AS A CANVAS EXTENT. Pure, so every lane
+/// pins it — including the ones with no terminal anywhere near them, which is the whole
+/// reason the measurement and the arithmetic are two functions rather than one.
+///
+/// A CHARACTER IS A CELL HERE, so the columns pass through untouched and the text
+/// metric is ZERO on both axes. That is not a placeholder and not a measurement this
+/// medium failed to take: `SurfaceExtent`'s own vocabulary spells zero as "this medium
+/// presents text in cells", which is the truth in a terminal and the thing every
+/// consumer of the metric already knows how to read. A TUI answering in pixels would be
+/// claiming a face it does not own.
+///
+/// AN UNMEASURED TERMINAL AND A TERMINAL WITH NO ROOM LEFT BOTH ANSWER `{}`, and they
+/// are two different sentences — "nobody could tell me" and "there is not one row over"
+/// — that this medium has no way to say apart to its shell. `SkinT::report_extent`
+/// turns either into SILENCE, and silence leaves a publisher on whatever extent it
+/// already had, which for a fresh Workshop is its own documented minimum. The third
+/// sentence, "there is no room", is the one nobody may say: it is what publishing zero
+/// would mean, and it is false in both cases.
+inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept {
+    if (!t.measured() || t.rows <= kTuiReservedRows) {
+        return SurfaceExtent{};
+    }
+    return SurfaceExtent{t.cols, t.rows - kTuiReservedRows, 0, 0};
+}
+
 /// The terminal layout — the shared convention, now in exactly one place:
 /// rows 1 and 2 are the "status" and "score" slots, the canvas starts at row
 /// 3 and claims everything below it on the Skin's first frame. Slots the
@@ -357,11 +421,36 @@ public:
     /// from row 3 down, claimed on the first frame. Same layout convention, one
     /// different body.
     void canvas(const zengine::surface::SurfaceCanvas& c, bool first) {
+        const std::int64_t rows = c.height > 0 ? c.height : 0;
         std::string out = "\x1b[3;1H";
         if (first) {
             out += "\x1b[0J";
         }
         out += canvas_body(c);
+        // GIVE BACK THE ROWS THIS CANVAS STOPPED USING (TUI-0). The first frame CLAIMS
+        // everything below row 3; a later frame SHORTER than the one before it has to
+        // hand the difference back, or the tail of the taller picture stays on the
+        // screen underneath the shorter one — which is exactly what a maker sees when
+        // they drag a terminal's bottom edge upwards and the canvas follows it in.
+        //
+        // The cursor is one row past the last row just written (every row ends with a
+        // feed), so erase-below erases precisely the difference and nothing else.
+        //
+        // ONLY ON A SHRINK, and that is what keeps this honest rather than merely
+        // convenient: a steady frame writes the bytes it has always written, so every
+        // golden in this repository is unmoved and the erase can only appear where
+        // something genuinely needed erasing. It costs one integer, a plain member for
+        // `SkinT::reported_`'s reason — the screen belongs to an INCARNATION, and a
+        // fresh one begins on an alternate screen its own constructor just cleared,
+        // having painted nothing into it.
+        //
+        // There is no damage tracking here and no dirty-region system: a terminal
+        // canvas repaints itself whole every frame already, so the only thing that can
+        // go stale is the part it stopped painting at all.
+        if (!first && rows < painted_rows_) {
+            out += "\x1b[0J";
+        }
+        painted_rows_ = rows;
         sink_.write(out);
     }
 
@@ -385,34 +474,38 @@ public:
     /// media's lifeline (see vocabulary.hpp), honestly idle here.
     void pump() {}
 
-    /// NO OPINION ABOUT HOW MUCH ROOM THERE IS — this projection's policy, stated
-    /// rather than defaulted.
+    /// HOW MUCH ROOM THERE IS — ASKED OF THE SINK, BECAUSE THE SINK IS THE TERMINAL.
     ///
-    /// A window Skin owns a drawable whose size is its own to read; a terminal
-    /// Skin owns no such thing. It writes into a stream, from row 3 down, and how
-    /// many rows and columns are on the other end of that stream is the
-    /// TERMINAL'S fact, not this medium's — it belongs to a `Sink` that may be a
-    /// std::string in a suite, a pipe, or a real console, and only the last of
-    /// those has an answer at all.
+    /// G-2 left this answering `{0,0}` forever and named the trigger for changing it:
+    /// "a real terminal size arriving with a real consumer for it: a `Sink` that can be
+    /// ASKED its extent". Both halves arrived. HD-1 through HD-6 made every bounded
+    /// region in Workshop spend the room its medium reports — the Inspector's property
+    /// body, the pane's prose, the omission markers, a TextBox's window — so a terminal
+    /// keeping its size to itself became the one medium withholding cells a publisher
+    /// would have used. And the layer that owns the terminal is the layer that can be
+    /// asked about it, which is the Sink (TUI-0).
     ///
-    /// So this projection keeps the extent its publisher already authors, and a
-    /// terminal too small simply shows less of it — which is what it did before
-    /// G-2 and what a terminal has always done to output too wide for it. Saying
-    /// {0,0} here is not a stub: it is the honest sentence "I have no opinion",
-    /// and `SkinT::report_extent` publishes nothing for it, so a publisher hears
-    /// no claim rather than a wrong one.
+    /// A window Skin owns a drawable whose size is its own to read; this one owns a
+    /// stream and asks the operating system about the far end of it. The distinction
+    /// that survives is about WHO answers, not about whether anyone can: `TuiTerminal`
+    /// holds a real console and answers, a std::string in a suite holds nothing and says
+    /// so, and a pipe is a far end that is not a terminal at all. One call, three honest
+    /// answers.
     ///
-    /// THE TRIGGER for changing that is a real terminal size arriving with a real
-    /// consumer for it: a `Sink` that can be ASKED its extent (and a rule for what
-    /// a resize of a live terminal means, which SIGWINCH-less Windows consoles and
-    /// pipes answer differently). G-2 deliberately did not invent one to be
-    /// symmetrical with the window medium.
-    SurfaceExtent extent() const { return SurfaceExtent{}; }
+    /// STILL NO OPINION WHEN THERE IS NOTHING TO HAVE ONE ABOUT. `tui_canvas_extent`
+    /// turns an unmeasurable terminal back into `{0,0}`, `SkinT::report_extent` publishes
+    /// nothing for it, and a publisher hears no claim rather than a wrong one — so a
+    /// redirected, piped, captured or headless run is byte-for-byte the run it was
+    /// before this phase.
+    SurfaceExtent extent() const { return tui_canvas_extent(sink_.size()); }
 
     Sink& sink() { return sink_; }
 
 private:
     Sink sink_;
+    /// How many rows the canvas this medium last painted had — per incarnation, never
+    /// state, and read by exactly one branch. See `canvas` above.
+    std::int64_t painted_rows_ = 0;
 };
 
 /// The terminal modes a TUI Skin claims, as bytes — pure, so the claim is a
@@ -533,6 +626,19 @@ public:
         std::fwrite(s.data(), 1, s.size(), stdout);
         std::fflush(stdout);
     }
+
+    /// HOW BIG THE TERMINAL IS, at the moment of asking (TUI-0).
+    ///
+    /// GATED ON THE SAME `ok_` THE CLAIM IS, so the two facts cannot drift apart: a run
+    /// that found no terminal to take does not have one to measure. On POSIX that is
+    /// `isatty(STDOUT)`; on Windows it is a console mode this handle actually has. So a
+    /// redirected, piped or captured run answers "no terminal" here for precisely the
+    /// reason it drew no alternate screen, rather than for a second reason that might
+    /// one day disagree with the first.
+    ///
+    /// The measurement itself is `native_terminal_size()`, in its own header, because it
+    /// is the one thing in this file that has to know which operating system it is on.
+    TerminalSize size() const { return ok_ ? native_terminal_size() : TerminalSize{}; }
 
 private:
     static void enter() {

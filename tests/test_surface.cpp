@@ -68,6 +68,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -83,6 +84,17 @@ namespace {
 struct StringSink {
     std::string out;
     void write(std::string_view s) { out += s; }
+
+    /// THE QUERY SEAM (TUI-0). A Sink is asked how big the terminal on the far end of
+    /// its stream is; this one holds a std::string, so the honest default is `{}` --
+    /// "there is no terminal to ask" -- and a case that wants a 120x40 terminal says
+    /// so by writing it here.
+    ///
+    /// This is the whole of the injection, and it is deliberately not a framework: the
+    /// suite never resizes the runner's real terminal, never reads one, and never
+    /// depends on whether ctest gave this process a tty at all.
+    TerminalSize room{};
+    TerminalSize size() const { return room; }
 };
 
 SnakeVisual small_visual() {
@@ -689,6 +701,62 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     TuiMedium<ClassicStyle, StringSink> m3;
     m3.canvas(blank, /*first=*/false);
     CHECK(m3.sink().out == "\x1b[3;1H\x1b[2K\x1b[0m  \r\n");
+}
+
+TEST_CASE("golden: a canvas that shrank gives back the rows it stopped using") {
+    // TUI-0. A terminal repaints its whole canvas every frame, so the only thing that can go
+    // stale is the part it STOPS painting -- which is exactly what a maker produces by
+    // dragging a terminal's bottom edge upwards.
+    SurfaceCanvas tall;
+    tall.width = 2;
+    tall.height = 3;
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.canvas(tall, /*first=*/true);
+    // The first frame CLAIMS the area below row 3, which it has always done.
+    CHECK(m.sink().out ==
+          "\x1b[3;1H\x1b[0J"
+          "\x1b[2K\x1b[0m  \r\n"
+          "\x1b[2K\x1b[0m  \r\n"
+          "\x1b[2K\x1b[0m  \r\n");
+
+    // A STEADY FRAME IS BYTE-FOR-BYTE THE FRAME IT ALWAYS WAS. No erase appears where
+    // nothing needed erasing, which is what keeps every other golden in this file unmoved.
+    m.sink().out.clear();
+    m.canvas(tall, /*first=*/false);
+    CHECK(m.sink().out ==
+          "\x1b[3;1H"
+          "\x1b[2K\x1b[0m  \r\n"
+          "\x1b[2K\x1b[0m  \r\n"
+          "\x1b[2K\x1b[0m  \r\n");
+
+    // A SHORTER ONE HANDS THE DIFFERENCE BACK. The cursor is one row past the last row
+    // written, so erase-below erases precisely the rows this canvas no longer owns.
+    SurfaceCanvas shorter;
+    shorter.width = 2;
+    shorter.height = 1;
+    m.sink().out.clear();
+    m.canvas(shorter, /*first=*/false);
+    CHECK(m.sink().out ==
+          "\x1b[3;1H"
+          "\x1b[2K\x1b[0m  \r\n"
+          "\x1b[0J");
+
+    // ...ONCE. The next frame at the new height has nothing to give back.
+    m.sink().out.clear();
+    m.canvas(shorter, /*first=*/false);
+    CHECK(m.sink().out == "\x1b[3;1H\x1b[2K\x1b[0m  \r\n");
+
+    // GROWING NEEDS NO ERASE: the rows it is about to occupy are the rows it is about to
+    // paint over.
+    m.sink().out.clear();
+    m.canvas(tall, /*first=*/false);
+    CHECK(m.sink().out.find("\x1b[0J") == std::string::npos);
+
+    // A CANVAS OF NOTHING IS A SHRINK LIKE ANY OTHER -- it stops painting every row it had.
+    SurfaceCanvas empty;
+    m.sink().out.clear();
+    m.canvas(empty, /*first=*/false);
+    CHECK(m.sink().out == "\x1b[3;1H\x1b[0J");
 }
 
 TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
@@ -1999,21 +2067,236 @@ TEST_CASE("the shell says how much room there is - on change, and never says non
     CHECK(heard[3].width == 100);
 }
 
-TEST_CASE("a terminal medium has no opinion about how much room there is") {
-    // THE TUI PROJECTION'S POLICY, asserted rather than described. A terminal skin writes into
-    // a stream from row 3 down and owns no drawable whose size is its to read, so it declines
-    // the question -- and `report_extent` turns a declined question into SILENCE, which is
-    // what keeps a terminal Workshop painting exactly the screen it painted before G-2.
+TEST_CASE("a terminal of this size has room for this canvas, and the arithmetic is pure") {
+    // TUI-0. The measurement and what a layout makes of it are two functions, and this is
+    // the second one: no terminal is involved, so every lane proves it -- including the ones
+    // that build no console path at all.
+
+    // A MEASURED TERMINAL LOSES EXACTLY THE ROWS THIS LAYOUT SPENDS. Two for the status and
+    // score slots (the canvas starts at row 3, which is `kTuiCanvasTopRow` read from the
+    // other end) and one for where the last row's CRLF lands, because a line feed on a
+    // terminal's bottom row scrolls the picture and takes the slots with it.
+    CHECK(kTuiReservedRows == kTuiCanvasTopRow + kTuiScrollGuardRows);
+    CHECK(tui_canvas_extent(TerminalSize{120, 40}).width == 120);
+    CHECK(tui_canvas_extent(TerminalSize{120, 40}).height == 37);
+    CHECK(tui_canvas_extent(TerminalSize{80, 25}).height == 22);
+    CHECK(tui_canvas_extent(TerminalSize{240, 80}).width == 240);
+    CHECK(tui_canvas_extent(TerminalSize{240, 80}).height == 77);
+
+    // COLUMNS PASS THROUGH UNTOUCHED. `canvas_body` writes one character per cell and then
+    // returns the cursor with a CR, so the far column is usable and nothing is reserved on
+    // this axis. The rows are the asymmetric ones, and the comment above says why.
+    for (std::int64_t cols = 1; cols < 400; ++cols) {
+        CHECK(tui_canvas_extent(TerminalSize{cols, 30}).width == cols);
+    }
+
+    // A WIDTH-ONLY AND A HEIGHT-ONLY CHANGE ARE BOTH CHANGES.
+    CHECK(tui_canvas_extent(TerminalSize{100, 30}).width !=
+          tui_canvas_extent(TerminalSize{101, 30}).width);
+    CHECK(tui_canvas_extent(TerminalSize{100, 30}).height !=
+          tui_canvas_extent(TerminalSize{100, 31}).height);
+
+    // NO TERMINAL IS `{}`, WHICH THE SHELL TURNS INTO SILENCE. Redirected output, a pipe, a
+    // file, a CI runner and a platform with no console API all arrive as this one value.
+    CHECK_FALSE(TerminalSize{}.measured());
+    CHECK(tui_canvas_extent(TerminalSize{}).width == 0);
+    CHECK(tui_canvas_extent(TerminalSize{}).height == 0);
+
+    // A MALFORMED ANSWER IS AN ABSENT ONE. A console API can succeed and describe a window
+    // with no extent; `measured()` reads the NUMBER rather than the fact that somebody
+    // answered, so a degenerate or negative window needs no second rule.
+    CHECK_FALSE(TerminalSize{0, 40}.measured());
+    CHECK_FALSE(TerminalSize{120, 0}.measured());
+    CHECK_FALSE(TerminalSize{-1, -1}.measured());
+    CHECK(tui_canvas_extent(TerminalSize{0, 40}).width == 0);
+    CHECK(tui_canvas_extent(TerminalSize{120, 0}).height == 0);
+    CHECK(tui_canvas_extent(TerminalSize{-5, -5}).width == 0);
+
+    // A TERMINAL TOO SHORT TO HOLD ONE CANVAS ROW ANSWERS `{}` TOO -- a different sentence
+    // ("there is not one row over") that this medium cannot say apart to its shell, and
+    // which reaches the same silence. What it must NOT do is answer a negative height for
+    // somebody downstream to subtract from.
+    for (std::int64_t rows = 1; rows <= kTuiReservedRows; ++rows) {
+        CHECK(tui_canvas_extent(TerminalSize{120, rows}).height == 0);
+        CHECK(tui_canvas_extent(TerminalSize{120, rows}).width == 0);
+    }
+    CHECK(tui_canvas_extent(TerminalSize{120, kTuiReservedRows + 1}).height == 1);
+
+    // AND NEVER A PIXEL, at any size. A terminal's character IS its cell; it owns no face
+    // whose metric would be its to report, and zero on both axes is the vocabulary's own
+    // word for exactly that -- the truth in a terminal, not a placeholder for a measurement
+    // this medium failed to take.
+    for (const TerminalSize& t :
+         {TerminalSize{}, TerminalSize{78, 25}, TerminalSize{240, 80}, TerminalSize{1, 1}}) {
+        CHECK(tui_canvas_extent(t).text_advance_px == 0);
+        CHECK(tui_canvas_extent(t).text_line_px == 0);
+    }
+}
+
+TEST_CASE("the terminal medium takes its room from its sink, and says nothing without one") {
+    // A Sink holding a std::string has no terminal, so the medium has no opinion -- which is
+    // what keeps a redirected, piped or headless run byte-for-byte the run it was before
+    // TUI-0, and what every golden above rests on.
     TuiMedium<ClassicStyle, StringSink> medium;
     CHECK(medium.extent().width == 0);
     CHECK(medium.extent().height == 0);
-
-    // AND NO OPINION ABOUT TYPE EITHER (HD-1). A terminal's character IS its cell; it owns no
-    // face whose metric would be its to report, and answering anything else would be this
-    // medium claiming a capability it does not have. Zero here is the same word the extent
-    // uses -- "text is a cell" -- and it is the truth in a terminal rather than a placeholder.
     CHECK(medium.extent().text_advance_px == 0);
     CHECK(medium.extent().text_line_px == 0);
+
+    // TELL THE SINK IT IS ON A TERMINAL AND THE MEDIUM ANSWERS FOR IT. The medium adds no
+    // measurement of its own and keeps no copy: it asks, every time.
+    medium.sink().room = TerminalSize{120, 40};
+    CHECK(medium.extent().width == 120);
+    CHECK(medium.extent().height == 37);
+    CHECK(medium.extent().text_advance_px == 0);
+    CHECK(medium.extent().text_line_px == 0);
+
+    medium.sink().room = TerminalSize{90, 28};
+    CHECK(medium.extent().width == 90);
+    CHECK(medium.extent().height == 25);
+
+    // ...INCLUDING WHEN THE TERMINAL GOES AWAY. Nothing is remembered here; remembering is
+    // the shell's job, and it remembers in order to notice a CHANGE rather than to keep a
+    // last known good answer alive.
+    medium.sink().room = TerminalSize{};
+    CHECK(medium.extent().width == 0);
+
+    // THE REAL SINK CARRIES THE SAME METHOD, pinned at compile time rather than by
+    // construction: building a `TuiTerminal` would claim this process's actual terminal --
+    // alternate screen, hidden cursor, pointer reporting -- in the middle of a test suite.
+    // What matters here is that the contract is REQUIRED of a Sink, so a Sink that forgot it
+    // is a build failure rather than a TUI that is silently unmeasurable forever.
+    static_assert(std::is_same_v<decltype(std::declval<const TuiTerminal&>().size()),
+                                 TerminalSize>,
+                  "a Sink answers how big its terminal is");
+}
+
+TEST_CASE("asking this machine for a terminal size is honest whatever this machine is") {
+    // THE ONE CASE THAT TOUCHES THE REAL QUERY, and it deliberately asserts nothing about
+    // this runner's terminal -- there may not be one, and a suite that depended on the
+    // developer's window would be a suite that fails on a pipe. What is true in EVERY
+    // environment is the shape of the answer: either there is no terminal, or there is one
+    // with a positive extent, and nothing in between.
+    const TerminalSize now = native_terminal_size();
+    if (now.measured()) {
+        CHECK(now.cols > 0);
+        CHECK(now.rows > 0);
+        const SurfaceExtent room = tui_canvas_extent(now);
+        CHECK(room.width == now.cols);
+        CHECK(room.height == now.rows - kTuiReservedRows);
+    } else {
+        CHECK(tui_canvas_extent(now).width == 0);
+        CHECK(tui_canvas_extent(now).height == 0);
+    }
+    // A METRIC IS NEVER INVENTED, whichever branch this machine took.
+    CHECK(tui_canvas_extent(now).text_advance_px == 0);
+    CHECK(tui_canvas_extent(now).text_line_px == 0);
+
+    // ASKING TWICE IN A ROW AGREES. Not a promise about a terminal nobody is resizing -- it
+    // is that the query is a pure read of OS state with no handle to leak and no mode to
+    // leave behind, so a second answer differs only if the terminal actually moved.
+    const TerminalSize again = native_terminal_size();
+    CHECK(again.measured() == now.measured());
+}
+
+TEST_CASE("a terminal skin publishes the room it measured, on change and only on change") {
+    // TUI-0's publication contract, driven end to end through the real shell with a fake
+    // terminal on the far end of the sink.
+    using Tui = SkinT<TuiMedium<ClassicStyle, StringSink>>;
+    loom::Switchboard bus;
+    std::vector<SurfaceExtent> heard;
+    loom::WeaveId skin{};
+    Tui* raw = nullptr;
+    {
+        auto weave = std::make_unique<Tui>();
+        raw = weave.get();
+        loom::Grant grant = loom::emit_default_grant(*raw);
+        skin = bus.register_weave(std::move(weave), std::move(grant));
+        raw->zen_set_self(skin);
+    }
+    (void)loom::mount<RoomEars>(bus, heard);
+
+    const auto pump = [&] {
+        bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+        bus.pump();
+    };
+
+    // NO TERMINAL: SILENCE. This is the redirected/piped/headless run, and it is the reason
+    // every golden projection in this repository is unmoved by this phase.
+    for (int i = 0; i < 10; ++i) {
+        pump();
+    }
+    CHECK(heard.empty());
+
+    // A TERMINAL APPEARED: SAID ONCE, in cells, with no metric.
+    raw->medium().sink().room = TerminalSize{120, 40};
+    pump();
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].width == 120);
+    CHECK(heard[0].height == 37);
+    CHECK(heard[0].text_advance_px == 0);
+    CHECK(heard[0].text_line_px == 0);
+
+    // ...AND NOT AGAIN WHILE IT IS THE SAME SIZE. The beat is 10ms, so without this guard a
+    // still terminal would publish a hundred times a second at a publisher that repaints on
+    // each one -- a busy loop wearing a message's clothes.
+    for (int i = 0; i < 50; ++i) {
+        pump();
+    }
+    CHECK(heard.size() == 1);
+
+    // A WIDTH-ONLY CHANGE IS A CHANGE.
+    raw->medium().sink().room = TerminalSize{121, 40};
+    pump();
+    REQUIRE(heard.size() == 2);
+    CHECK(heard[1].width == 121);
+    CHECK(heard[1].height == 37);
+
+    // A HEIGHT-ONLY CHANGE IS A CHANGE.
+    raw->medium().sink().room = TerminalSize{121, 41};
+    pump();
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[2].height == 38);
+
+    // GROWING AND SHRINKING ARE THE SAME MACHINERY -- this is not grow-only.
+    raw->medium().sink().room = TerminalSize{200, 60};
+    pump();
+    raw->medium().sink().room = TerminalSize{80, 25};
+    pump();
+    REQUIRE(heard.size() == 5);
+    CHECK(heard[3].width == 200);
+    CHECK(heard[3].height == 57);
+    CHECK(heard[4].width == 80);
+    CHECK(heard[4].height == 22);
+
+    // A HAND ON A TERMINAL EDGE PASSES THROUGH SIZES, and each one is said once. No
+    // debouncing and no throttling: a publisher already knows how to reconcile an extent,
+    // and inventing a policy here would be inventing a problem to have one about.
+    const std::size_t before = heard.size();
+    for (std::int64_t r = 26; r <= 45; ++r) {
+        raw->medium().sink().room = TerminalSize{80, r};
+        pump();
+    }
+    CHECK(heard.size() == before + 20);
+
+    // A TERMINAL THAT WENT AWAY IS STILL NOT "NO ROOM": nothing is published, and the value
+    // is remembered, so coming back at the same size speaks again.
+    const std::size_t settled = heard.size();
+    raw->medium().sink().room = TerminalSize{};
+    pump();
+    pump();
+    CHECK(heard.size() == settled);
+    raw->medium().sink().room = TerminalSize{80, 45};
+    pump();
+    REQUIRE(heard.size() == settled + 1);
+    CHECK(heard.back().width == 80);
+    CHECK(heard.back().height == 42);
+}
+
+TEST_CASE("a terminal medium says nothing when a suite's sink has no terminal") {
+    TuiMedium<ClassicStyle, StringSink> medium;
+    CHECK(medium.extent().width == 0);
+    CHECK(medium.extent().height == 0);
 
     loom::Switchboard bus;
     std::vector<SurfaceExtent> heard;
