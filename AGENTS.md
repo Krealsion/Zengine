@@ -212,24 +212,48 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   Neither consumer has asked, and the pre-Zen `Zen::TextBox` in `reference/` had four of those
   and could not move its caret.
 
-## The Inspector's editable row, resolved once (HD-5)
+## The Inspector's property BODY, resolved once (HD-5, widened by HD-6)
 
-`property_edit_place(panel_bounds, screen, row)` (`workshop/screen.hpp`) is the editing row's
-value region, and the painter, the caret, `refresh_inspector` and `info_press` all call it. Do
-not add a `click_property_edit_bounds()` beside a `paint_property_edit_bounds()` here.
+`inspector_body_place(panel_bounds, screen, session)` (`workshop/screen.hpp`) is the whole
+property body — where it is, how many rows of the ACTIVE medium's type fit in it, how wide a
+value may be, and which properties the window is showing. The painter, the caret,
+`refresh_inspector`, the vertical window and `info_press` all call it. Do not add a
+`click_property_bounds()` beside a `paint_property_bounds()` here.
 
-- **The row is TWO shapes.** The cursor mark and the padded name stay ordinary `SurfaceLabel`s
-  so the editing row stays aligned with its neighbours; the VALUE is a `SurfaceTextRegion`,
-  because a region is the only shape on a canvas that can carry an insertion point.
-- **`kPropertyEditRows` is 1 and that is load-bearing.** A property row IS one cell tall, and a
-  region two cells tall would cover the row beneath — a property of the object the maker is
-  editing, hidden at the moment they are working on it. One cell is smaller than this face's
-  line, so `fit_region` answers with the CELL projection and the row is drawn in the same
-  glyphs, at the same pitch, as every other row of the panel. The day the Inspector's rows are
-  given the room a face needs, this publisher gets real type and a caret BAR with no change.
+- **The body is ONE region and a property row is one of its rows**, mark and name included.
+  HD-5's shape was the other way round — the mark and the name were labels beside a
+  one-cell-tall region carrying only the value — and that is the shape that could not hold a
+  line of the face (`(12 - 2*inset) / 18` = **zero** rows). A property row could not simply be
+  given two cells: a two-cell region covers the property beneath it. Taking the room once, for
+  all the rows together, is what let `fit_region` answer the whole question in one equation.
+- **Nothing in Workshop multiplies a font metric.** `fit_region` returns `rows` and `columns`
+  with `kTextInsetPx` already inside them, so there is no Inspector row height, no second font
+  path and no `22px` constant. 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a
+  cell medium — two honest projections of one body (`value_columns` moves with them:
+  `fit.columns - kPropertyMarkCols - kPropertyLabelCols - kPropertyCaretCols`).
 - **`kPropertyCaretCols` is one column of the row the value may not use**, for
   `kTerminalCaretCols`' reason: a caret is *between* characters and a cell medium has no
   half-cells.
+- **The vertical window is `list_window`, the OBJECTS list's own function** — the same three
+  rules (a population that fits is shown whole; the focused row is always in the window; every
+  omission is counted on its own side and spends a row of the budget) and the same wording
+  (`omitted_text`). It is derived every paint and stored nowhere: there is no scroll offset,
+  no session field and no scroll gesture. `completion_first_shown` is deliberately NOT the
+  same function — that list anchors to the tail and never says `before`, because its heading
+  already reads `3-5 of 9`.
+- **`inspector_focus` is the row that must stay visible: the editing row, else the cursor.**
+  They are the same row today by a reachability argument, and the function exists anyway —
+  HD-5's lesson about orderings that rest on reachability proofs, one refactor from being
+  silently wrong.
+- **`prose_row_of_property` and `property_at_prose_row` are inverses and there is no third
+  copy.** The painter positions the caret with the first and a press resolves with the second,
+  so a scrolled body cannot land a click one row off the caret. A press is never rounded to a
+  Workshop cell: an 18-pixel row against a 12-pixel cell would name the wrong property for
+  most of the body.
+- **A resting value is FITTED and a live draft is WINDOWED**, and the difference is the point:
+  `detail::fit` marks what it cut (`the-quick-brow...`) because a committed value has no caret
+  to tell a maker it moved; `TextBox::visible` does not, because a draft has one (HD-4's rule).
+  Before HD-6 a committed value simply ran off the canvas — 14 characters, unmarked, measured.
 - **`refresh_inspector` reconciles the draft's window once per repaint**, beside
   `refresh_terminal` and for the same reason: the window a press is answered with must be the
   window the last repaint drew, and a resize is not an edit. At most one row is ever editing —
@@ -240,6 +264,9 @@ not add a `click_property_edit_bounds()` beside a `paint_property_edit_bounds()`
   back. Every *other* `rebuild_rows` caller follows a change of selection or of document, where
   dropping it is right — `Name` is a row every object has, so a draft carried across a selection
   would arrive on a different object's property wearing the same label.
+- **The Info panel publishes a region on every paint now**, so a test that wants the Terminal's
+  pane must ask for it by its PLACE (`Screen::terminal_x`/`terminal_y`) and not as `texts[0]`.
+  Painter's order is: panels first, then the overlay, then the completion list.
 
 ## A region too small for the face is a CELL region (HD-5)
 
@@ -249,6 +276,10 @@ rather than on the metric alone. Before this, a region one cell tall was in **ne
 was drawn by nobody — reachable, and reached, by the Inspector's editable row. `fit_region`'s
 answer is byte-for-byte the one a faceless medium gets, so no canvas painted in a character
 medium moved.
+
+HD-6 did **not** special-case the Inspector past this. It succeeded by granting the body enough
+room, not by lying to the Surface layer, and a body still too short for one line of the face
+still resolves to cells and is still drawn by exactly one of the two lists.
 
 ## The population contract (C4, POP-01/POP-02)
 
@@ -287,14 +318,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**34,975** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-14 after HD-5) are evidence to report. They are **not** a population, never an
+- Assertion totals (**35,278** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-14 after HD-6) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,226 · `zengine-workshop-tests` 18,912 ·
+  reproduce it: `zengine-surface-tests` 6,226 · `zengine-workshop-tests` 19,215 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
