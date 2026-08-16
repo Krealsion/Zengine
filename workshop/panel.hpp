@@ -124,14 +124,53 @@ inline constexpr std::int64_t kSideRegion = 0;
 inline constexpr std::int64_t kOverlayStack = 1;
 } // namespace placement
 
-/// One entry in the catalog: what a maker sees in the picker, and where the
-/// thing they open will be.
+/// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
+/// below carries, and the first half of a durable `PaneRef` (setup.hpp).
+///
+/// IT IS A ROUTE AND NOT A CREDENTIAL, and the distinction is worth stating here
+/// because the string is about to be written into a maker's file where a later
+/// reader will meet it with no context. It says WHICH NAMESPACE a pane key is
+/// to be read in. It does not say which package author created the pane, which
+/// binary is running, that the same author came back after a restart, that a
+/// live Loom office answers to this name, or that anything claiming this string
+/// is authentic. Nothing in WS-0 checks any of those, because nothing in WS-0
+/// can: provenance is an OFFICE's to stamp on a delivery, not a file's to
+/// assert about itself.
+inline constexpr const char* kWorkshopProvider = "zengine.workshop";
+
+/// One entry in the catalog: what a maker sees in the picker, where the thing
+/// they open will be, and WHAT TO CALL IT IN A FILE.
+///
+/// THE DURABLE REFERENCE IS A FIELD OF THE CATALOG ROW (WS-0), beside the
+/// internal kind rather than in a table next to it. That is the whole of how
+/// `PaneRef <-> PanelKind` is kept from drifting: there is one array, so there
+/// is nothing for a second array to disagree with. A third kind declares its
+/// provider and its pane key in the same braces it declares its place in, and a
+/// row that forgot to is caught by the assertions under the catalog rather than
+/// by a maker whose saved setup came back empty.
+///
+/// `provider`/`pane` are DURABLE and `kind` is not: the integer is this build's
+/// index into its own vocabulary and may be renumbered by an edit to the two
+/// lines above, while the two strings are a promise to a file somebody owns.
+/// That is the same split `persist.hpp` makes about an extent mode, made about
+/// an identity instead of about a word.
 struct PanelKind {
     std::int64_t kind = panel::kBuilder;
     std::int64_t placed_in = placement::kOverlayStack; ///< which of the two places it is in
+    const char* provider = kWorkshopProvider; ///< the durable provider/service key
+    const char* pane = "";    ///< the durable pane key, in that provider's namespace
     const char* name = "";    ///< what the picker lists
     const char* summary = ""; ///< one line, so a maker can tell what they are opening
 };
+
+/// The pane keys the built-ins are spelled with in a saved setup. Named
+/// constants rather than literals in the catalog, because the suite and the
+/// file format both have to say them and a typo in one of three copies is a
+/// setup that loads as unresolved.
+namespace pane_key {
+inline constexpr const char* kBuilder = "builder";
+inline constexpr const char* kInfo = "info";
+} // namespace pane_key
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
 /// opened, because the picker is the only door and the picker walks this array.
@@ -148,8 +187,10 @@ struct PanelKind {
 /// application can move a panel, so a coordinate stored per open panel would be
 /// a field whose only possible value is the one this table already holds.
 inline constexpr PanelKind kPanelCatalog[] = {
-    {panel::kBuilder, placement::kOverlayStack, "Builder", "build one known target"},
-    {panel::kInfo, placement::kSideRegion, "Info", "objects and properties"},
+    {panel::kBuilder, placement::kOverlayStack, kWorkshopProvider, pane_key::kBuilder, "Builder",
+     "build one known target"},
+    {panel::kInfo, placement::kSideRegion, kWorkshopProvider, pane_key::kInfo, "Info",
+     "objects and properties"},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -199,6 +240,65 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
 static_assert(kinds_placed_in(placement::kSideRegion) == 1,
               "the side region has room for one panel: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
+
+namespace detail {
+
+/// Two catalog keys, compared. A `constexpr` walk rather than `std::strcmp`,
+/// which is not usable in a constant expression on every supported toolchain.
+inline constexpr bool same_key(const char* a, const char* b) noexcept {
+    if (a == nullptr || b == nullptr) {
+        return a == b;
+    }
+    while (*a != '\0' && *a == *b) {
+        ++a;
+        ++b;
+    }
+    return *a == *b;
+}
+
+inline constexpr bool blank_key(const char* a) noexcept { return a == nullptr || *a == '\0'; }
+
+} // namespace detail
+
+/// Does every catalog row carry a durable reference at all, and is no two rows'
+/// reference the same one?
+///
+/// Only ever asked at compile time, by the two assertions under them, and they
+/// are here for the reason every other `static_assert` in this file is: THE
+/// FAILURE THEY PREVENT IS SILENT. A row with an empty pane key resolves from
+/// no file and is saved into a setup as an empty string; two rows sharing a
+/// reference make one of them unreachable through a saved setup and the other
+/// one arbitrary. Neither says anything at runtime — a maker's setup simply
+/// comes back missing a panel — and both are one editing mistake away from a
+/// third author who is otherwise only asked to fill in six braces.
+inline constexpr bool every_kind_is_referable() noexcept {
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        if (detail::blank_key(kPanelCatalog[i].provider) ||
+            detail::blank_key(kPanelCatalog[i].pane)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline constexpr bool every_reference_is_one_kind() noexcept {
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        for (std::size_t j = i + 1; j < kPanelKinds; ++j) {
+            if (detail::same_key(kPanelCatalog[i].provider, kPanelCatalog[j].provider) &&
+                detail::same_key(kPanelCatalog[i].pane, kPanelCatalog[j].pane)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static_assert(every_kind_is_referable(),
+              "every panel kind needs a durable provider/pane reference: a kind without one "
+              "cannot be named in a saved setup, and nothing at runtime would say so");
+static_assert(every_reference_is_one_kind(),
+              "two panel kinds share one durable reference: a saved setup naming it would "
+              "resolve to whichever of them the catalog happens to list first");
 
 /// The `+ panel` picker: open or not, and which entry a maker is on.
 ///
@@ -277,7 +377,27 @@ struct Panel {
 /// always measured: a default-constructed `Session` has Info open, so the
 /// migration changed where those two columns are painted from and not whether
 /// they are painted.
-inline std::vector<Panel> default_panels() { return {Panel{panel::kInfo}}; }
+///
+/// WS-0 GAVE THE SAME DECISION A SECOND READER, and this array is what stops
+/// the two from drifting. A fresh Workshop now has an authored SETUP as well as
+/// an open panel list, and "a fresh Workshop shows Info" is one sentence that
+/// both of them have to say: `default_panels()` below turns this array into
+/// open presentations, and `default_setup()` (setup.hpp) turns the SAME array
+/// into the authored references a fresh setup carries. Neither is free to say
+/// something else, because neither of them holds the answer -- this line does.
+inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo};
+
+inline constexpr std::size_t kDefaultPanelCount =
+    sizeof(kDefaultPanels) / sizeof(kDefaultPanels[0]);
+
+inline std::vector<Panel> default_panels() {
+    std::vector<Panel> open;
+    open.reserve(kDefaultPanelCount);
+    for (const std::int64_t kind : kDefaultPanels) {
+        open.push_back(Panel{kind});
+    }
+    return open;
+}
 
 /// Every dynamic panel this session has open, plus the picker and the per-kind
 /// views. Session, never document.

@@ -467,16 +467,28 @@ struct FileText {
 };
 
 /// The whole file, or why not. Refusals are the ordinary ones a maker meets:
-/// the file is not there, it cannot be opened, it is too big to be a document.
-inline FileText read_file(const std::string& path) {
+/// the file is not there, it cannot be opened, it is too big to be what it
+/// claims to be.
+///
+/// THE CEILING AND THE WORD FOR WHAT IS BEING READ ARE ARGUMENTS (WS-0), and
+/// that is the whole of what this function gained when a second artifact needed
+/// it. The INVARIANT is identical for both -- refuse a file too large to be the
+/// thing before reading it into memory, so a hostile file does not get to choose
+/// the cost -- and it is the only thing they share; the two ceilings are
+/// different numbers and the refusal names which thing it was measuring against.
+/// Defaulted to the document's, so every existing caller and every existing
+/// sentence is unmoved.
+inline FileText read_file(const std::string& path,
+                          std::uintmax_t most = kMaxDocumentBytes,
+                          const char* what = "a Workshop document") {
     std::error_code ec;
     const std::uintmax_t size = std::filesystem::file_size(path, ec);
     if (ec) {
         return FileText{Written::no("cannot read " + path + ": " + ec.message()), {}};
     }
-    if (size > kMaxDocumentBytes) {
+    if (size > most) {
         return FileText{Written::no("cannot read " + path + ": " + std::to_string(size) +
-                                    " bytes is larger than a Workshop document can be"),
+                                    " bytes is larger than " + what + " can be"),
                         {}};
     }
     std::ifstream in(path, std::ios::binary);

@@ -47,6 +47,8 @@
 #include "workshop/persist.hpp"
 #include "workshop/property.hpp"
 #include "workshop/screen.hpp"
+#include "workshop/setup.hpp"
+#include "workshop/setup_persist.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
 
@@ -13805,4 +13807,1424 @@ TEST_CASE("HD-10: the same composition truth in a medium that sets type") {
     CHECK(rows[static_cast<std::size_t>(body.region_y +
                                         prose_row_of_action(body, kActionDelete))]
               .substr(static_cast<std::size_t>(body.region_x), 10) == "[ Delete ]");
+}
+
+// ============================================================================
+// Tier 13 — the SETUP: a maker names the arrangement they are working in (WS-0)
+// ============================================================================
+//
+// The question this tier answers is the one the phase set out to ask:
+//
+//     what is the smallest thing a maker can NAME, LEAVE, and COME BACK TO,
+//     and how does it stay honest when one of the panes it names is one this
+//     build has never heard of?
+//
+// The answer is a human name and an ordered list of two-string references, and
+// the cases below are arranged so that every way of getting it wrong is visible:
+//
+//   PURE       the value, its law, its bounds, and the fallible resolution that
+//              is the whole reason a reference is text rather than an ordinal.
+//   RECONCILED authored intent onto resolved presentations, with the Builder and
+//              Info as deliberately opposite witnesses -- one has a provider to
+//              ask and a copy to forget, the other has neither.
+//   PERSISTED  the file's own identity, its refusals, and the round trip.
+//   LIVE       through the real weave on a real bus, driven by published input,
+//              including two processes' worth of it.
+//
+// WHAT IS DELIBERATELY ABSENT from every case here: a rectangle, a placement, a
+// screen extent, a WeaveId, a picker cursor, an integer panel kind, and any
+// assertion that a provider exists.
+
+namespace {
+
+/// The reference a built-in kind is spelled with, as a case says it -- through
+/// the catalog, never as a literal, so a case cannot agree with a typo.
+PaneRef ref_of(std::int64_t kind) { return pane_ref_of(kind); }
+
+/// A reference to a pane no build of this Workshop has ever had. The
+/// third-party entry every unresolved case is built on.
+PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
+
+/// A setup, spelled the way a case reads: a name and the kinds it means.
+Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
+    Setup s;
+    s.name = name;
+    for (const std::int64_t k : kinds) {
+        s.panes.push_back(ref_of(k));
+    }
+    return s;
+}
+
+/// The kinds a session currently has open, in open order -- what the authored
+/// order is supposed to have produced.
+std::vector<std::int64_t> open_kinds(const Panels& panels) {
+    std::vector<std::int64_t> out;
+    for (const Panel& p : panels.open) {
+        out.push_back(p.kind);
+    }
+    return out;
+}
+
+/// A setup file's text with one substring replaced -- how the refusal cases
+/// forge a file the honest writer could never produce. The document tier's own
+/// `forged`, asked about the other artifact.
+std::string forged_setup(const Setup& s, const std::string& from, const std::string& to) {
+    std::string text = setup_persist::to_text(s);
+    const std::size_t at = text.find(from);
+    INFO("looking for `", from, "` in: ", text);
+    REQUIRE(at != std::string::npos);
+    text.replace(at, from.size(), to);
+    return text;
+}
+
+/// Name the setup and save it, the way a maker does: `s`, the character that
+/// key produced, clear what is there, type a name, Return.
+///
+/// IT SENDS THE TRIGGER'S OWN TEXT EVERY TIME, deliberately. The backends report
+/// `s` as `KeyPressed{S}` AND `TextEntered{"s"}`, and a fixture that sent only
+/// the first would make the swallow untestable from every case that uses it.
+void name_setup(Live& t, const std::string& name) {
+    t.key(input::scan::kS);
+    t.text("s");
+    REQUIRE(t.session().setup.naming.open);
+    for (int guard = 0; guard < 64 && !t.session().setup.naming.line.empty(); ++guard) {
+        t.key(input::scan::kBackspace);
+    }
+    REQUIRE(t.session().setup.naming.line.empty());
+    for (const char c : name) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kReturn);
+}
+
+/// The setup line as a maker reads it, off the canvas at the place the painter
+/// put it -- never rebuilt here, so a case cannot pass while the screen says
+/// something else.
+std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) {
+    return label_at(c, 0, sc.notice_y - 1);
+}
+
+/// Make this Workshop paint once, the way a Skin claiming the surface makes it:
+/// a weave runs only on message, so a session nobody has spoken to has published
+/// no canvas at all.
+const surface::SurfaceCanvas& first_frame(Live& t) {
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.canvases.empty());
+    return t.canvases.back();
+}
+
+} // namespace
+
+// ---- The value, its law and its bounds ---------------------------------------
+
+TEST_CASE("a pane reference is two strings, and the pair is the identity") {
+    const PaneRef info = ref_of(panel::kInfo);
+    CHECK(info.provider == std::string(kWorkshopProvider));
+    CHECK(info.pane == std::string(pane_key::kInfo));
+    CHECK(info == PaneRef{kWorkshopProvider, pane_key::kInfo});
+
+    // NEITHER HALF ALONE IS THE IDENTITY. The same pane key under another
+    // provider is a different pane, and that is the property that lets a later
+    // provider have an `info` of its own without colliding with this one.
+    CHECK_FALSE(info == PaneRef{"third.party.tools", pane_key::kInfo});
+    CHECK_FALSE(info == PaneRef{kWorkshopProvider, "builder"});
+
+    // And nothing is normalised: a reference comes back exactly as it went in.
+    const PaneRef odd{"Third.Party.Tools", "History"};
+    CHECK_FALSE(odd == stranger());
+    CHECK(ref_text(odd) == "Third.Party.Tools/History");
+}
+
+TEST_CASE("two setups are the same setup when they name the same panes in the same order") {
+    const Setup a = setup_of("Build", {panel::kInfo, panel::kBuilder});
+    Setup b = setup_of("Build", {panel::kInfo, panel::kBuilder});
+    CHECK(a == b);
+
+    // THE NAME IS PART OF IT: renaming a setup makes it a different setup, which
+    // is what makes `saved()` say UNSAVED after a rename that moved no pane.
+    b.name = "Analysis";
+    CHECK_FALSE(a == b);
+
+    // ...AND SO IS THE ORDER. Today's two built-ins occupy different places so
+    // the order changes no rectangle; the value still distinguishes them,
+    // because the day a second kind is placed in the stack the order IS which
+    // slot each one takes (`bounds_of`).
+    const Setup other_way = setup_of("Build", {panel::kBuilder, panel::kInfo});
+    CHECK_FALSE(a == other_way);
+}
+
+TEST_CASE("a fresh Workshop's setup and its open panels are ONE decision") {
+    // The drift this case exists to prevent is silent: `default_setup()` saying
+    // Info while `default_panels()` said something else would give a maker a
+    // screen that disagreed with the setup line above it from the first frame.
+    // Both are derived from `kDefaultPanels`, and this is the proof.
+    const Setup fresh = default_setup();
+    CHECK(fresh.name == std::string(kDefaultSetupName));
+    REQUIRE(fresh.panes.size() == kDefaultPanelCount);
+
+    std::vector<std::int64_t> from_setup;
+    for (const PaneRef& p : fresh.panes) {
+        const std::optional<std::int64_t> kind = resolve_pane(p);
+        REQUIRE(kind.has_value());
+        from_setup.push_back(*kind);
+    }
+    CHECK(from_setup == open_kinds(Panels{}));
+
+    // And the product default itself, named rather than merely derived: Info.
+    CHECK(from_setup == std::vector<std::int64_t>{panel::kInfo});
+
+    // A default session agrees with both.
+    const Session s;
+    CHECK(s.setup.active == fresh);
+    CHECK(open_kinds(s.panels) == from_setup);
+}
+
+TEST_CASE("every catalog row carries a durable reference that resolves back to it") {
+    // Over the POPULATION, not over its size: a third kind is proved by this
+    // case without being mentioned in it.
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        const PanelKind& row = kPanelCatalog[i];
+        INFO("catalog entry ", i, ": ", std::string(row.name));
+        REQUIRE(row.provider != nullptr);
+        REQUIRE(row.pane != nullptr);
+        CHECK_FALSE(std::string(row.provider).empty());
+        CHECK_FALSE(std::string(row.pane).empty());
+
+        // The two directions compose: a kind's reference resolves to that kind.
+        const PaneRef ref = pane_ref_of(row.kind);
+        CHECK(ref.provider == std::string(row.provider));
+        CHECK(ref.pane == std::string(row.pane));
+        const std::optional<std::int64_t> back = resolve_pane(ref);
+        REQUIRE(back.has_value());
+        CHECK(*back == row.kind);
+
+        // And it is legal as a reference, by the same law a file's is judged by.
+        CHECK(check_pane_ref(ref).accepted);
+    }
+
+    // The built-ins are spelled the way the phase promised a maker could read.
+    CHECK(ref_text(ref_of(panel::kInfo)) == "zengine.workshop/info");
+    CHECK(ref_text(ref_of(panel::kBuilder)) == "zengine.workshop/builder");
+}
+
+TEST_CASE("an unknown reference resolves to NOTHING, and never to the Builder") {
+    // THE WHOLE REASON THE FALLIBLE DOOR EXISTS. `panel_kind` answers with the
+    // catalog's first row for an unknown kind, which is right for its callers
+    // and would be a lie here: an unknown reference routed through it would
+    // paint a maker's third-party pane as Workshop's build tool.
+    CHECK_FALSE(resolve_pane(stranger()).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"third.party.tools", pane_key::kInfo}).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kWorkshopProvider, "history"}).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"", ""}).has_value());
+    CHECK_FALSE(resolvable(stranger()));
+
+    // The negative control, stated as its own claim: the total lookup DOES
+    // answer Builder for an unknown kind, and it is still allowed to, because
+    // nothing that meets a file goes through it.
+    CHECK(panel_kind(9999).kind == panel::kBuilder);
+    CHECK(resolve_pane(stranger()).value_or(panel::kInfo) != panel::kBuilder);
+}
+
+TEST_CASE("what this application accepts as a setup name") {
+    CHECK(check_setup_name("Default").accepted);
+    CHECK(check_setup_name("Morning build").accepted);                    // spaces allowed
+    CHECK(check_setup_name(std::string(kMaxSetupNameLen, 'x')).accepted); // exactly the bound
+
+    CHECK_FALSE(check_setup_name("").accepted);
+    CHECK_FALSE(check_setup_name("   ").accepted); // more than spaces
+    CHECK_FALSE(check_setup_name(std::string(kMaxSetupNameLen + 1, 'x')).accepted);
+    // A control character can only arrive from a forged file, and what it would
+    // do is move a terminal's cursor out of the line it was given.
+    CHECK_FALSE(check_setup_name("Build\nmore").accepted);
+    CHECK_FALSE(check_setup_name(std::string("Build\x1b[2J")).accepted);
+    CHECK_FALSE(check_setup_name(std::string("Build\x7f")).accepted);
+
+    // The refusals name what is wrong, because the reason IS the feature.
+    CHECK(check_setup_name("").refusal.find("empty") != std::string::npos);
+    CHECK(check_setup_name(std::string(kMaxSetupNameLen + 1, 'x'))
+              .refusal.find(std::to_string(kMaxSetupNameLen)) != std::string::npos);
+    CHECK(check_setup_name("a\tb").refusal.find("control") != std::string::npos);
+}
+
+TEST_CASE("what this application accepts as either half of a reference") {
+    CHECK(check_pane_key("zengine.workshop", "provider").accepted);
+    CHECK(check_pane_key(std::string(kMaxPaneKeyLen, 'a'), "pane key").accepted);
+
+    CHECK_FALSE(check_pane_key("", "provider").accepted);
+    CHECK_FALSE(check_pane_key(std::string(kMaxPaneKeyLen + 1, 'a'), "provider").accepted);
+    CHECK_FALSE(check_pane_key("two words", "pane key").accepted);
+    CHECK_FALSE(check_pane_key("line\nbreak", "pane key").accepted);
+
+    // The refusal says WHICH half, because `provider` and `pane key` are two
+    // fields a maker looking at their own file has to tell apart.
+    CHECK(check_pane_ref(PaneRef{"", "info"}).refusal.find("provider") != std::string::npos);
+    CHECK(check_pane_ref(PaneRef{"zengine.workshop", ""}).refusal.find("pane key") !=
+          std::string::npos);
+}
+
+TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list") {
+    CHECK(check_setup(default_setup()).accepted);
+
+    // AN EMPTY PANE LIST IS LEGAL. "I want nothing open" is reachable through
+    // the picker already, so refusing to save it would make one arrangement a
+    // maker can produce impossible to name.
+    Setup empty;
+    empty.name = "Nothing";
+    CHECK(check_setup(empty).accepted);
+
+    // AN UNRESOLVED REFERENCE IS LEGAL, and this is the case that says the law
+    // and the resolution are different questions.
+    Setup future;
+    future.name = "Later";
+    future.panes.push_back(stranger());
+    CHECK(check_setup(future).accepted);
+    CHECK_FALSE(resolvable(future.panes.front()));
+
+    // A DUPLICATE IS NOT. A kind is open or it is not; a file naming one twice
+    // was written by somebody who believed in a policy this application does not
+    // have, and silently keeping one of the two would hide that.
+    Setup twice = setup_of("Twice", {panel::kInfo});
+    twice.panes.push_back(ref_of(panel::kInfo));
+    CHECK_FALSE(check_setup(twice).accepted);
+    CHECK(check_setup(twice).refusal.find("twice") != std::string::npos);
+    CHECK(check_setup(twice).refusal.find("zengine.workshop/info") != std::string::npos);
+
+    // ...and neither is more than a setup may hold. THE BOUND IS NOT THE
+    // CATALOG'S POPULATION, deliberately: a setup must be able to retain
+    // references to panes this build has never heard of, so a limit cut to
+    // `kPanelKinds` would refuse the one case the design exists to allow.
+    CHECK(kMaxSetupPanes > kPanelKinds);
+    Setup many_panes;
+    many_panes.name = "Many";
+    for (std::size_t i = 0; i < kMaxSetupPanes; ++i) {
+        many_panes.panes.push_back(PaneRef{"third.party.tools", "p" + std::to_string(i)});
+    }
+    CHECK(check_setup(many_panes).accepted);
+    many_panes.panes.push_back(PaneRef{"third.party.tools", "one-too-many"});
+    CHECK_FALSE(check_setup(many_panes).accepted);
+    CHECK(check_setup(many_panes).refusal.find(std::to_string(kMaxSetupPanes)) !=
+          std::string::npos);
+
+    // A bad name and a bad reference are both refused by the one whole-setup
+    // law, so a caller cannot check one and forget the other.
+    const Setup unnamed = setup_of("", {panel::kInfo});
+    CHECK_FALSE(check_setup(unnamed).accepted);
+    Setup bad_ref = setup_of("Bad", {});
+    bad_ref.panes.push_back(PaneRef{"has space", "info"});
+    CHECK_FALSE(check_setup(bad_ref).accepted);
+}
+
+TEST_CASE("adding and removing a pane preserves order and never duplicates") {
+    Setup s;
+    s.name = "Work";
+    CHECK(add_pane(s, ref_of(panel::kInfo)));
+    CHECK(add_pane(s, ref_of(panel::kBuilder)));
+    CHECK_FALSE(add_pane(s, ref_of(panel::kInfo))); // already there, and it says so
+    REQUIRE(s.panes.size() == 2);
+    CHECK(s.panes[0] == ref_of(panel::kInfo));
+    CHECK(s.panes[1] == ref_of(panel::kBuilder));
+    CHECK(check_setup(s).accepted);
+
+    // ADDED AT THE END, which is where `open_panel` has always put a newly
+    // opened panel -- so the authored order agrees with the resolved order a
+    // maker was already watching.
+    CHECK(remove_pane(s, ref_of(panel::kInfo)));
+    REQUIRE(s.panes.size() == 1);
+    CHECK(s.panes[0] == ref_of(panel::kBuilder));
+    CHECK_FALSE(remove_pane(s, ref_of(panel::kInfo)));
+
+    // An unresolved reference is an ordinary member: it can be added, found and
+    // removed by exactly the same three functions.
+    CHECK(add_pane(s, stranger()));
+    CHECK(has_pane(s, stranger()));
+    CHECK(remove_pane(s, stranger()));
+    CHECK_FALSE(has_pane(s, stranger()));
+}
+
+TEST_CASE("the unresolved panes are reported in the setup's own order") {
+    Setup s;
+    s.name = "Mixed";
+    s.panes.push_back(ref_of(panel::kInfo));
+    s.panes.push_back(stranger());
+    s.panes.push_back(PaneRef{"other.tools", "graph"});
+    s.panes.push_back(ref_of(panel::kBuilder));
+
+    const std::vector<PaneRef> waiting = unresolved_panes(s);
+    REQUIRE(waiting.size() == 2);
+    CHECK(waiting[0] == stranger());
+    CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
+    CHECK(unresolved_panes(default_setup()).empty());
+}
+
+// ---- Authored intent, reconciled onto resolved presentations ------------------
+
+TEST_CASE("reconciling opens what the setup names, in the setup's order") {
+    Panels panels;
+    REQUIRE(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
+
+    const Reconciled done = reconcile(panels, setup_of("Both", {panel::kBuilder, panel::kInfo}));
+    CHECK(done.opened == std::vector<std::int64_t>{panel::kBuilder});
+    CHECK(done.closed.empty());
+    CHECK(done.unresolved == 0);
+    // THE ORDER IS THE SETUP'S, not the order things happened to be opened in.
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kBuilder, panel::kInfo});
+
+    // The other way round, from the same starting point, produces the other order.
+    Panels again;
+    (void)reconcile(again, setup_of("Both", {panel::kInfo, panel::kBuilder}));
+    CHECK(open_kinds(again) == std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+}
+
+TEST_CASE("reconciling closes what the setup does not name, through the existing door") {
+    Panels panels;
+    REQUIRE(open_panel(panels, panel::kBuilder));
+    panels.builder.heard = true;
+    panels.builder.shown.target = "zengine-snake";
+
+    const Reconciled done = reconcile(panels, setup_of("Info only", {panel::kInfo}));
+    CHECK(done.closed == std::vector<std::int64_t>{panel::kBuilder});
+    CHECK(done.opened.empty());
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
+
+    // THE PANEL'S COPY IS FORGOTTEN BY THE SAME ACT, because the close goes
+    // through `close_panel` rather than through a loop that rebuilt the vector.
+    // A removed Builder whose copied status outlived it would make a reopened
+    // panel look instantly informed about something minutes stale.
+    CHECK_FALSE(panels.builder.heard);
+    CHECK(panels.builder.shown.target.empty());
+}
+
+TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing") {
+    // OPEN BEFORE, OPEN AFTER -- the case that says a reconcile is not a rebuild.
+    // Restoring the setup you are already in must not be a visible event.
+    Panels panels;
+    REQUIRE(open_panel(panels, panel::kBuilder));
+    panels.builder.heard = true;
+    panels.builder.shown.target = "zengine-snake";
+    panels.builder.shown.builds = 3;
+
+    const Setup same = setup_of("Both", {panel::kInfo, panel::kBuilder});
+    const Reconciled done = reconcile(panels, same);
+    CHECK(done.opened.empty());
+    CHECK(done.closed.empty());
+    CHECK(panels.builder.heard);
+    CHECK(panels.builder.shown.target == "zengine-snake");
+    CHECK(panels.builder.shown.builds == 3);
+
+    // ...and doing it a second time changes nothing at all.
+    const Reconciled twice = reconcile(panels, same);
+    CHECK(twice.opened.empty());
+    CHECK(twice.closed.empty());
+    CHECK(panels.builder.shown.builds == 3);
+}
+
+TEST_CASE("an unresolved reference is counted, and produces no panel of any kind") {
+    Panels panels;
+    Setup s = setup_of("Mixed", {panel::kInfo});
+    s.panes.push_back(stranger());
+    s.panes.push_back(PaneRef{"other.tools", "graph"});
+
+    const Reconciled done = reconcile(panels, s);
+    CHECK(done.unresolved == 2);
+    // NO PLACEHOLDER, NO SLOT, NO FALL-THROUGH TO THE BUILDER. The only kind
+    // available to paint an unknown pane with is the Builder, which is exactly
+    // why the resolution had to be fallible before this line could be written.
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
+    CHECK_FALSE(panels.has(panel::kBuilder));
+    // And the setup still holds all three: reconciling takes it by const
+    // reference and could not drop one if it wanted to.
+    CHECK(s.panes.size() == 3);
+    CHECK(s.panes[1] == stranger());
+}
+
+TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
+    Panels panels;
+    REQUIRE(open_panel(panels, panel::kBuilder));
+    Setup nothing;
+    nothing.name = "Nothing";
+
+    const Reconciled done = reconcile(panels, nothing);
+    CHECK(done.closed.size() == 2);
+    CHECK(panels.open.empty());
+    CHECK(done.unresolved == 0);
+
+    // And back again from empty, which is the case that proves `opened` names
+    // every kind rather than only the ones that were never open.
+    const Reconciled back = reconcile(panels, setup_of("Both", {panel::kInfo, panel::kBuilder}));
+    CHECK(back.opened.size() == 2);
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+}
+
+TEST_CASE("reconciling touches the picker, the document and the screen not at all") {
+    Panels panels;
+    panels.picker.open = true;
+    panels.picker.cursor = 1;
+    (void)reconcile(panels, setup_of("Builder", {panel::kBuilder}));
+    // The picker is INTERACTION STATE. It is not setup intent, it is not in the
+    // file, and reconciling is not a reason to open or close it.
+    CHECK(panels.picker.open);
+    CHECK(panels.picker.cursor == 1);
+}
+
+// ---- The setup's own file ------------------------------------------------------
+
+TEST_CASE("a setup file says what it is, in words a maker can read") {
+    const std::string text = setup_persist::to_text(default_setup());
+    INFO(text);
+
+    // ITS OWN FORMAT IDENTITY, beside the document's and not equal to it.
+    CHECK(text.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"1\"") != std::string::npos);
+    CHECK(text.find("\"name\":\"Default\"") != std::string::npos);
+    CHECK(text.find("\"provider\":\"zengine.workshop\"") != std::string::npos);
+    CHECK(text.find("\"pane\":\"info\"") != std::string::npos);
+
+    // NO INTEGER PANEL KIND ANYWHERE IN IT. This is the assertion to check this
+    // format against first: the file names panes the way a person and a future
+    // provider would, and never the way this build's own vocabulary does.
+    CHECK(text.find("\"kind\"") == std::string::npos);
+    CHECK(text.find("placement") == std::string::npos);
+    CHECK(text.find("rect") == std::string::npos);
+    CHECK(text.find("weave") == std::string::npos);
+
+    // ...and it is not the document's format, which is the whole point of it
+    // having one of its own: handing Workshop the wrong one of its own two
+    // files is named rather than half-read.
+    CHECK(std::string(setup_persist::kFormat) != std::string(persist::kFormat));
+}
+
+TEST_CASE("every shape of setup survives a round trip through its file") {
+    struct Case {
+        const char* what;
+        Setup setup;
+    };
+    std::vector<Case> cases;
+    cases.push_back({"the default, Info only", default_setup()});
+    cases.push_back({"Builder only", setup_of("Build", {panel::kBuilder})});
+    cases.push_back({"both, in a deliberate order",
+                     setup_of("Everything", {panel::kBuilder, panel::kInfo})});
+    cases.push_back({"both, in the other order",
+                     setup_of("Everything", {panel::kInfo, panel::kBuilder})});
+    Setup nothing;
+    nothing.name = "Nothing at all";
+    cases.push_back({"an empty pane list", nothing});
+    cases.push_back({"a human name with spaces in it", setup_of("Morning build", {panel::kInfo})});
+    cases.push_back({"a name at the bound",
+                     setup_of(std::string(kMaxSetupNameLen, 'n'), {panel::kInfo})});
+    Setup mixed = setup_of("Mixed", {panel::kInfo});
+    mixed.panes.push_back(stranger());
+    mixed.panes.push_back(ref_of(panel::kBuilder));
+    cases.push_back({"a reference this build cannot resolve, between two it can", mixed});
+
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        const std::string a = setup_persist::to_text(c.setup);
+        const setup_persist::LoadedSetup read = setup_persist::from_text(a);
+        REQUIRE(read.outcome.accepted);
+        CHECK(read.setup == c.setup);
+
+        // SAVE -> LOAD -> SAVE IS BYTE-IDENTICAL. No canonicalisation framework
+        // and no sorting: the codec's output is deterministic and nothing here
+        // reorders, normalises or resolves a value on its way through.
+        const std::string b = setup_persist::to_text(read.setup);
+        CHECK(a == b);
+    }
+}
+
+TEST_CASE("saving never sorts, normalises, resolves or drops a reference") {
+    // The strongest version of the claim: a setup whose order is NOT the
+    // catalog's, containing an entry this build cannot present, in the middle.
+    Setup s;
+    s.name = "Deliberate";
+    s.panes.push_back(ref_of(panel::kBuilder));
+    s.panes.push_back(stranger());
+    s.panes.push_back(ref_of(panel::kInfo));
+
+    const setup_persist::LoadedSetup read = setup_persist::from_text(setup_persist::to_text(s));
+    REQUIRE(read.outcome.accepted);
+    REQUIRE(read.setup.panes.size() == 3);
+    CHECK(read.setup.panes[0] == ref_of(panel::kBuilder));
+    CHECK(read.setup.panes[1] == stranger());
+    CHECK(read.setup.panes[2] == ref_of(panel::kInfo));
+
+    // The unresolved entry's bytes are exactly the bytes that went in.
+    const std::string text = setup_persist::to_text(read.setup);
+    CHECK(text.find("\"provider\":\"third.party.tools\"") != std::string::npos);
+    CHECK(text.find("\"pane\":\"history\"") != std::string::npos);
+}
+
+TEST_CASE("a malformed setup file is refused, and the live setup is untouched") {
+    // The claim is not "the parser returned an error". It is that the setup a
+    // maker is in is exactly what it was.
+    const Setup good = setup_of("Everything", {panel::kInfo, panel::kBuilder});
+    const std::string valid = setup_persist::to_text(good);
+
+    struct Case {
+        const char* what;
+        std::string text;
+    };
+    std::vector<Case> cases;
+    cases.push_back({"not JSON at all", "{ this is not a setup"});
+    cases.push_back({"an empty file", ""});
+    cases.push_back({"a JSON array", "[1,2,3]"});
+    cases.push_back({"someone else's value",
+                     loom::compat::serialize(loom::to_value(ui::Extent{0, 4}))});
+    cases.push_back({"a Workshop DOCUMENT handed to the setup reader",
+                     persist::to_text(two_panels())});
+    cases.push_back({"a valid setup with a tail after it", valid + "x"});
+    cases.push_back({"the wrong format identity",
+                     forged_setup(good, "\"zengine-workshop-setup\"", "\"someone-elses-tool\"")});
+    cases.push_back({"an unsupported format version",
+                     forged_setup(good, "\"format_version\":\"1\"", "\"format_version\":\"2\"")});
+    cases.push_back({"a missing required field",
+                     forged_setup(good, "\"name\":\"Everything\",", "")});
+    cases.push_back({"a field of the wrong kind",
+                     forged_setup(good, "\"format_version\":\"1\"", "\"format_version\":1")});
+    cases.push_back({"a field the setup does not declare",
+                     forged_setup(good, "\"name\":", "\"colour\":\"red\",\"name\":")});
+    cases.push_back({"a field a pane reference does not declare",
+                     forged_setup(good, "\"provider\":", "\"rect\":\"1\",\"provider\":")});
+    cases.push_back({"a name that is not a name",
+                     forged_setup(good, "\"name\":\"Everything\"", "\"name\":\"\"")});
+    cases.push_back({"a name that is only spaces",
+                     forged_setup(good, "\"name\":\"Everything\"", "\"name\":\"   \"")});
+    cases.push_back({"a name longer than a name",
+                     forged_setup(good, "\"name\":\"Everything\"",
+                                  "\"name\":\"" + std::string(kMaxSetupNameLen + 1, 'x') +
+                                      "\"")});
+    cases.push_back({"a name carrying a control character",
+                     forged_setup(good, "\"name\":\"Everything\"", "\"name\":\"Ever\\ttime\"")});
+    cases.push_back({"an empty provider key",
+                     forged_setup(good, "\"provider\":\"zengine.workshop\"", "\"provider\":\"\"")});
+    cases.push_back({"an empty pane key",
+                     forged_setup(good, "\"pane\":\"info\"", "\"pane\":\"\"")});
+    cases.push_back({"a provider key longer than a key",
+                     forged_setup(good, "\"provider\":\"zengine.workshop\"",
+                                  "\"provider\":\"" + std::string(kMaxPaneKeyLen + 1, 'p') +
+                                      "\"")});
+    cases.push_back({"a pane key with a space in it",
+                     forged_setup(good, "\"pane\":\"info\"", "\"pane\":\"two words\"")});
+    cases.push_back({"the same pane named twice",
+                     forged_setup(good, "\"pane\":\"builder\"", "\"pane\":\"info\"")});
+
+    // ...and one that has to be built rather than forged: more panes than a
+    // setup may hold.
+    Setup crowd;
+    crowd.name = "Crowd";
+    for (std::size_t i = 0; i <= kMaxSetupPanes; ++i) {
+        crowd.panes.push_back(PaneRef{"third.party.tools", "p" + std::to_string(i)});
+    }
+    cases.push_back({"more panes than a setup may hold", setup_persist::to_text(crowd)});
+
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        const setup_persist::LoadedSetup refused = setup_persist::from_text(c.text);
+        CHECK_FALSE(refused.outcome.accepted);
+        CHECK_FALSE(refused.outcome.refusal.empty()); // a refusal without a reason is not one
+        // And nothing was carried out of it: the candidate a caller would have
+        // reconciled is empty, which is what makes "never halfway restored"
+        // structural rather than careful.
+        CHECK(refused.setup.name.empty());
+        CHECK(refused.setup.panes.empty());
+    }
+
+    // The control: the file these were all forged from still loads.
+    const setup_persist::LoadedSetup ok = setup_persist::from_text(valid);
+    CHECK(ok.outcome.accepted);
+    CHECK(ok.setup == good);
+}
+
+TEST_CASE("a setup file on disk is the setup read back from it") {
+    TempDir dir("setup-roundtrip");
+    const std::string path = dir.file("setup.json");
+    const Setup original = setup_of("Everything", {panel::kBuilder, panel::kInfo});
+    REQUIRE(setup_persist::save_file(path, original).accepted);
+
+    const setup_persist::LoadedSetup read = setup_persist::load_file(path);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.setup == original);
+
+    // The bytes on disk are the bytes the writer produced -- no wrapper, no
+    // trailer, nothing added by the file layer -- and the sibling is gone.
+    CHECK(slurp(path) == setup_persist::to_text(original));
+    CHECK_FALSE(std::filesystem::exists(persist::pending_path(path)));
+
+    // Saving again over an existing setup replaces it.
+    const Setup second = setup_of("Info only", {panel::kInfo});
+    REQUIRE(setup_persist::save_file(path, second).accepted);
+    CHECK(setup_persist::load_file(path).setup == second);
+}
+
+TEST_CASE("a missing setup file is an ordinary refusal, not an empty setup") {
+    TempDir dir("setup-missing");
+    const setup_persist::LoadedSetup refused = setup_persist::load_file(dir.file("never.json"));
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal.find("never.json") != std::string::npos);
+}
+
+TEST_CASE("a file too large to be a setup is refused before it is read") {
+    TempDir dir("setup-huge");
+    const std::string path = dir.file("setup.json");
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        const std::string chunk(1u << 12, 'x');
+        for (int i = 0; i < 32; ++i) { // 128 KiB, past the 64 KiB ceiling
+            out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+        }
+    }
+    REQUIRE(std::filesystem::file_size(path) > setup_persist::kMaxSetupBytes);
+
+    const setup_persist::LoadedSetup refused = setup_persist::load_file(path);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal.find("larger") != std::string::npos);
+    // It names WHICH of the two artifacts it was measuring against, because a
+    // maker with two files needs to know which ceiling they met.
+    CHECK(refused.outcome.refusal.find("setup") != std::string::npos);
+}
+
+TEST_CASE("a detected setup write failure leaves the last good setup file untouched") {
+    // The reason the writer never opens the destination, asked about the second
+    // artifact: a save that fails must not be able to turn a maker's saved
+    // arrangement into an empty or half-written file.
+    TempDir dir("setup-failsave");
+    const std::string path = dir.file("setup.json");
+    const Setup first = setup_of("Good", {panel::kInfo});
+    REQUIRE(setup_persist::save_file(path, first).accepted);
+    const std::string good_bytes = slurp(path);
+    REQUIRE_FALSE(good_bytes.empty());
+
+    // A controlled, deterministic, non-destructive failure: the sibling path the
+    // writer must use is occupied by a DIRECTORY, so the write cannot open.
+    std::filesystem::create_directories(persist::pending_path(path));
+
+    const Setup second = setup_of("Better", {panel::kBuilder, panel::kInfo});
+    const Written refused = setup_persist::save_file(path, second);
+    CHECK_FALSE(refused.accepted);
+    CHECK_FALSE(refused.refusal.empty());
+
+    // The last good save is intact, byte for byte, and still loads.
+    CHECK(slurp(path) == good_bytes);
+    const setup_persist::LoadedSetup reloaded = setup_persist::load_file(path);
+    REQUIRE(reloaded.outcome.accepted);
+    CHECK(reloaded.setup == first);
+
+    std::error_code ec;
+    std::filesystem::remove_all(persist::pending_path(path), ec);
+    CHECK(setup_persist::save_file(path, second).accepted); // and it works again
+    CHECK(setup_persist::load_file(path).setup == second);
+}
+
+TEST_CASE("the document's file and the setup's file cannot be mistaken for each other") {
+    TempDir dir("two-files");
+    const std::string doc_path = dir.document();
+    const std::string setup_path = dir.file("setup.json");
+    REQUIRE(persist::save_file(doc_path, rich_document()).accepted);
+    REQUIRE(setup_persist::save_file(setup_path, default_setup()).accepted);
+
+    // Each reader refuses the other's file, by name, rather than half-reading it.
+    CHECK_FALSE(setup_persist::load_file(doc_path).outcome.accepted);
+    WorkshopDoc live = two_panels();
+    const WorkshopDoc before = live;
+    CHECK_FALSE(persist::load_file(setup_path, live).accepted);
+    CHECK(live == before);
+
+    // And writing one leaves the other's bytes alone -- which is what "two
+    // artifacts" is worth, said in the only way that could fail.
+    const std::string doc_bytes = slurp(doc_path);
+    REQUIRE(setup_persist::save_file(setup_path, setup_of("Other", {panel::kBuilder})).accepted);
+    CHECK(slurp(doc_path) == doc_bytes);
+}
+
+// ---- Through the real weave: the picker moves the intent -------------------------
+
+TEST_CASE("a fresh Workshop's active setup and its open panels agree from the first frame") {
+    Live t;
+    CHECK(t.session().setup.active == default_setup());
+    CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+    // UNSAVED, and structurally so: nothing has been written, and the copy the
+    // comparison is made against has an empty name no legal setup can equal.
+    CHECK_FALSE(t.session().setup.saved());
+}
+
+TEST_CASE("opening a panel through the picker moves the setup's intent, not only the screen") {
+    // THE COHERENCE CLAIM. Before WS-0 the picker called `open_panel` directly;
+    // if it still did, the active setup would go on describing an arrangement
+    // the screen had stopped showing the moment a maker pressed `p`.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+
+    REQUIRE(t.session().panels.has(panel::kBuilder));
+    CHECK(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+    // At the END of the authored order, which is where the screen put it.
+    REQUIRE(t.session().setup.active.panes.size() == 2);
+    CHECK(t.session().setup.active.panes[1] == ref_of(panel::kBuilder));
+    // ...and the resolved open order agrees with the resolved order of the refs.
+    CHECK(open_kinds(t.session().panels) ==
+          std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+
+    // Removing it takes the reference back out.
+    pick(t, panel::kBuilder);
+    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+
+    // And so does removing Info, which has no provider to make it a special case.
+    pick(t, panel::kInfo);
+    CHECK_FALSE(t.session().panels.has(panel::kInfo));
+    CHECK(t.session().setup.active.panes.empty());
+}
+
+TEST_CASE("a panel change makes the setup UNSAVED, and changing it back makes it saved again") {
+    TempDir dir("setup-saved-truth");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    (void)mount_tool(t, "zengine-snake");
+
+    name_setup(t, "Working");
+    REQUIRE(t.session().setup.saved());
+    CHECK(t.session().setup.active.name == "Working");
+    CHECK(t.notice().find("saved setup \"Working\"") == 0);
+
+    open_builder(t);
+    CHECK_FALSE(t.session().setup.saved());
+
+    // OPENING THEN CLOSING BACK TO THE SAVED INTENT SAYS SAVED AGAIN, which is
+    // what a comparison buys and a dirty flag could not: there is no hand to
+    // forget to unset.
+    pick(t, panel::kBuilder);
+    CHECK(t.session().setup.saved());
+
+    // A rename with no pane moved is still a change, because the name is part of
+    // the value.
+    Setup renamed = t.session().setup.active;
+    renamed.name = "Other";
+    CHECK_FALSE(renamed == t.session().setup.on_file);
+}
+
+TEST_CASE("the `s` that opens the name editor does not type itself into the name") {
+    // The trap WG-0 measured and named: a key transition and the character it
+    // produced are two facts that were simultaneously true, and both arrive.
+    TempDir dir("setup-swallow");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+
+    t.key(input::scan::kS);
+    t.text("s");
+    REQUIRE(t.session().setup.naming.open);
+    // IT OPENED ON THE NAME THE SETUP ALREADY HAS, with no `s` appended.
+    CHECK(t.session().setup.naming.line.text() == "Default");
+    CHECK(t.session().setup.naming.line.caret() == std::string("Default").size());
+
+    // A real keystroke arriving straight after IS taken -- the swallow belongs
+    // to one moment and cannot eat the next character a maker meant.
+    t.text("s");
+    CHECK(t.session().setup.naming.line.text() == "Defaults");
+
+    // And the capital the same key produces under Shift is owed too: the
+    // trigger said which KEY changed, and the case is the platform's answer.
+    Live shifted;
+    shifted.host.setup_path = dir.file("other.json");
+    shifted.key(input::scan::kS, input::mod::kShift);
+    shifted.text("S");
+    REQUIRE(shifted.session().setup.naming.open);
+    CHECK(shifted.session().setup.naming.line.text() == "Default");
+}
+
+TEST_CASE("escape leaves the setup name exactly as it was, and saves nothing") {
+    TempDir dir("setup-cancel");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+
+    t.key(input::scan::kS);
+    t.text("s");
+    t.text("!");
+    REQUIRE(t.session().setup.naming.line.text() == "Default!");
+    t.key(input::scan::kEscape);
+
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().setup.active.name == "Default");
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    CHECK(t.notice().find("unchanged") != std::string::npos);
+}
+
+TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
+    TempDir dir("setup-badname");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+
+    t.key(input::scan::kS);
+    t.text("s");
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    REQUIRE(t.session().setup.naming.line.empty());
+    t.key(input::scan::kReturn);
+
+    // STILL OPEN, so a maker fixes what they typed rather than retyping it, and
+    // nothing was written.
+    CHECK(t.session().setup.naming.open);
+    CHECK(t.session().setup.active.name == "Default");
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("empty") != std::string::npos);
+
+    // ...and typing a legal one from there works.
+    for (const char c : std::string("Fixed")) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().setup.active.name == "Fixed");
+    CHECK(t.session().setup.saved());
+}
+
+TEST_CASE("with no setup file, naming and restoring say so and change nothing") {
+    Live t; // no --setup was given
+    t.key(input::scan::kS);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("--setup") != std::string::npos);
+
+    const Setup before = t.session().setup.active;
+    t.key(input::scan::kR);
+    CHECK(t.session().setup.active == before);
+    CHECK(t.notice().find("--setup") != std::string::npos);
+    // ...and it is a DIFFERENT sentence from the document's, because a maker
+    // with one file and not the other has to know which one they are missing.
+    CHECK(t.notice().find("--document") == std::string::npos);
+}
+
+TEST_CASE("restoring a setup returns the intent that was saved") {
+    TempDir dir("setup-restore");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    (void)mount_tool(t, "zengine-snake");
+
+    open_builder(t);
+    pick(t, panel::kInfo); // Builder open, Info removed
+    name_setup(t, "Build only");
+    REQUIRE(t.session().setup.saved());
+
+    // Wander away from it.
+    pick(t, panel::kInfo);
+    pick(t, panel::kBuilder);
+    REQUIRE_FALSE(t.session().setup.saved());
+    REQUIRE(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+
+    t.key(input::scan::kR);
+    CHECK(t.session().setup.active.name == "Build only");
+    CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
+    CHECK(t.session().setup.saved());
+    CHECK(t.notice().find("restored setup \"Build only\"") == 0);
+    CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
+}
+
+TEST_CASE("a malformed setup file is refused without closing a single panel") {
+    TempDir dir("setup-refuse-live");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    open_builder(t);
+    name_setup(t, "Good");
+    const Setup saved = t.session().setup.active;
+    const std::vector<std::int64_t> panels_before = open_kinds(t.session().panels);
+    const BuilderPane pane_before = t.session().panels.builder;
+    const WorkshopDoc doc_before = t.doc();
+    const std::int64_t asked_before = tool->described;
+
+    // A file whose LAST field is the broken one, so a loader that acted as it
+    // read would already have closed something by the time it noticed.
+    spillout(t.host.setup_path,
+             forged_setup(saved, "\"pane\":\"builder\"", "\"pane\":\"two words\""));
+    t.key(input::scan::kR);
+
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.session().setup.active == saved);
+    CHECK(open_kinds(t.session().panels) == panels_before);
+    CHECK(t.session().panels.builder.heard == pane_before.heard);
+    CHECK(t.session().panels.builder.shown.target == pane_before.shown.target);
+    CHECK(t.doc() == doc_before);
+    // NOTHING WAS ASKED OF ANYBODY either: a refused restore is not a reason to
+    // send a message on behalf of a panel that did not open.
+    CHECK(tool->described == asked_before);
+}
+
+// ---- Lifecycle: the Builder and Info as opposite witnesses ------------------------
+
+TEST_CASE("a restore that OPENS the Builder asks the tool what it is") {
+    TempDir dir("setup-life-open");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    REQUIRE(setup_persist::save_file(t.host.setup_path,
+                                     setup_of("Build", {panel::kBuilder}))
+                .accepted);
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+    const std::int64_t before = tool->described;
+
+    t.key(input::scan::kR);
+    CHECK(t.session().panels.has(panel::kBuilder));
+    // CLOSED BEFORE, OPEN AFTER: it performs the same asking opening it through
+    // the picker has always performed, through the same one path.
+    CHECK(tool->described == before + 1);
+    CHECK(t.session().panels.builder.heard);
+    CHECK(t.session().panels.builder.shown.target == "zengine-snake");
+}
+
+TEST_CASE("a restore that leaves the Builder open does not ask again or lose its view") {
+    TempDir dir("setup-life-same");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    open_builder(t);
+    REQUIRE(t.session().panels.builder.heard);
+    const std::int64_t asked = tool->described;
+    const zengine::builder::BuildStatus shown = t.session().panels.builder.shown;
+
+    REQUIRE(setup_persist::save_file(t.host.setup_path,
+                                     setup_of("Same", {panel::kInfo, panel::kBuilder}))
+                .accepted);
+    t.key(input::scan::kR);
+
+    // OPEN BEFORE, OPEN AFTER: the presentation is left alone. No duplicate
+    // refresh ceremony, and the copy it was showing is the copy it is showing.
+    CHECK(tool->described == asked);
+    CHECK(t.session().panels.builder.heard);
+    CHECK(t.session().panels.builder.shown.target == shown.target);
+    CHECK(t.session().panels.builder.shown.builds == shown.builds);
+}
+
+TEST_CASE("a restore that CLOSES the Builder forgets its copy and leaves the tool alive") {
+    TempDir dir("setup-life-close");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    open_builder(t);
+    REQUIRE(t.session().panels.builder.heard);
+
+    REQUIRE(setup_persist::save_file(t.host.setup_path, setup_of("Info", {panel::kInfo}))
+                .accepted);
+    t.key(input::scan::kR);
+
+    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    // OPEN BEFORE, CLOSED AFTER: the per-kind view is forgotten by the same act,
+    // exactly as the picker's removal forgets it.
+    CHECK_FALSE(t.session().panels.builder.heard);
+    CHECK(t.session().panels.builder.shown.target.empty());
+
+    // THE TOOL IS UNTOUCHED. Nothing was unloaded, nothing was told, and it
+    // answers the very next ask with its own running total.
+    const std::int64_t asked = tool->described;
+    tool->next.builds = 7;
+    open_builder(t);
+    CHECK(tool->described == asked + 1);
+    CHECK(t.session().panels.builder.shown.builds == 7);
+}
+
+TEST_CASE("Info opens and closes through a restore with no message and no document change") {
+    TempDir dir("setup-life-info");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    const WorkshopDoc doc_before = t.doc();
+    const std::int64_t selected = t.session().selected;
+    REQUIRE(t.session().panels.has(panel::kInfo));
+
+    // OPEN BEFORE, CLOSED AFTER: the document and the selection are untouched,
+    // because Info holds no copy of anything -- what it presents outlives it and
+    // belongs to somebody else.
+    Setup nothing;
+    nothing.name = "Nothing";
+    REQUIRE(setup_persist::save_file(t.host.setup_path, nothing).accepted);
+    t.key(input::scan::kR);
+    CHECK(t.session().panels.open.empty());
+    CHECK(t.doc() == doc_before);
+    CHECK(t.session().selected == selected);
+    CHECK(tool->described == 0);
+
+    // CLOSED BEFORE, OPEN AFTER: it opens, and it asks nobody. A Workshop
+    // hosting no tools at all does this and it works.
+    REQUIRE(setup_persist::save_file(t.host.setup_path, default_setup()).accepted);
+    t.key(input::scan::kR);
+    CHECK(t.session().panels.has(panel::kInfo));
+    CHECK(tool->described == 0);
+    CHECK(t.doc() == doc_before);
+    CHECK(t.session().selected == selected);
+}
+
+// ---- The unresolved reference, end to end ------------------------------------------
+
+TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, and says so") {
+    // ONE OF THE PHASE'S PRIMARY ACCEPTANCE PROOFS, and not a future-only unit
+    // test: the branch is written and exercised while it is still unreachable by
+    // any file this build can produce.
+    TempDir dir("setup-unresolved");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    ToolSeat* tool = mount_tool(t, "zengine-snake");
+
+    Setup authored;
+    authored.name = "Future";
+    authored.panes.push_back(ref_of(panel::kInfo));
+    authored.panes.push_back(stranger());
+    authored.panes.push_back(ref_of(panel::kBuilder));
+    const std::string bytes = setup_persist::to_text(authored);
+    spillout(t.host.setup_path, bytes);
+
+    t.key(input::scan::kR);
+
+    // IT LOADED. An unresolved reference is not a load failure.
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.session().setup.active == authored);
+    // THE UNKNOWN REFERENCE IS STILL THERE, still between the two that resolved,
+    // still byte-for-byte what it was.
+    REQUIRE(t.session().setup.active.panes.size() == 3);
+    CHECK(t.session().setup.active.panes[1] == stranger());
+
+    // The two that resolve are open, in file order relative to each other.
+    CHECK(open_kinds(t.session().panels) ==
+          std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+
+    // AND NOTHING WAS PAINTED ON THE UNKNOWN REFERENCE'S BEHALF. The only kind
+    // available to paint an unknown pane with is the Builder, and there is
+    // exactly one Builder, in the stack's FIRST slot -- the second slot, where a
+    // placeholder would have gone, is empty.
+    const Screen sc = screen_of(t.session());
+    const PanelBounds builder_at = bounds_of(t.session().panels, panel::kBuilder, sc);
+    REQUIRE(builder_at.open);
+    CHECK(builder_at.rect == placement_bounds(placement::kOverlayStack, 0, sc));
+    CHECK(t.session().panels.open.size() == 2);
+    // ...and the slot a placeholder would have taken is not occupied by anything:
+    // a hand reaching into it meets the workspace, not a pane painted on behalf
+    // of a reference nothing could resolve.
+    const ui::Rect second = placement_bounds(placement::kOverlayStack, 1, sc);
+    CHECK_FALSE(occupied_at(t.session().panels, sc, second.x + 1, second.y + 1).occupied);
+
+    // The notice says UNRESOLVED and names the reference, and never says
+    // unavailable -- Workshop knows it has no catalog row for this, and knows
+    // nothing whatever about whoever could present it.
+    CHECK(t.notice().find("unresolved") != std::string::npos);
+    CHECK(t.notice().find("third.party.tools/history") != std::string::npos);
+    CHECK(t.notice().find("unavailable") == std::string::npos);
+
+    // The setup LINE says it too, as a count beside the name.
+    CHECK(setup_row(t.canvases.back(), sc).find("1 unresolved") != std::string::npos);
+
+    // NO PROVIDER TRAFFIC WAS CREATED. The one ask that happened is the Builder
+    // panel's own, and nothing was sent on the unknown reference's behalf.
+    CHECK(tool->described == 1);
+
+    // AND RE-SAVING RETAINS IT EXACTLY. The maker renames the setup and saves;
+    // the stranger's entry comes through untouched.
+    name_setup(t, "Future kept");
+    Setup expected = authored;
+    expected.name = "Future kept";
+    CHECK(t.session().setup.active == expected);
+    CHECK(slurp(t.host.setup_path) == setup_persist::to_text(expected));
+    CHECK(slurp(t.host.setup_path).find("third.party.tools") != std::string::npos);
+
+    // ...and it survives a picker gesture on either built-in.
+    pick(t, panel::kBuilder);
+    CHECK(has_pane(t.session().setup.active, stranger()));
+    pick(t, panel::kInfo);
+    CHECK(has_pane(t.session().setup.active, stranger()));
+    CHECK(t.session().setup.active.panes.front() == stranger());
+}
+
+// ---- Authored versus resolved -------------------------------------------------------
+
+TEST_CASE("the same setup resolves to different bounds under a different extent") {
+    // THE AUTHORED/RESOLVED PROOF FOR WS-0, and its GREEN CONTROL in one case:
+    // change only the surface extent and the setup stays SAVED while every
+    // rectangle it resolves to moves.
+    TempDir dir("setup-extent");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    (void)mount_tool(t, "zengine-snake");
+
+    open_builder(t);
+    name_setup(t, "Both");
+    REQUIRE(t.session().setup.saved());
+    const std::string bytes = slurp(t.host.setup_path);
+    const Setup authored = t.session().setup.active;
+
+    const Screen small = screen_of(t.session());
+    const ui::Rect info_small = bounds_of(t.session().panels, panel::kInfo, small).rect;
+    const ui::Rect builder_small = bounds_of(t.session().panels, panel::kBuilder, small).rect;
+
+    t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0}));
+
+    const Screen large = screen_of(t.session());
+    const ui::Rect info_large = bounds_of(t.session().panels, panel::kInfo, large).rect;
+    const ui::Rect builder_large = bounds_of(t.session().panels, panel::kBuilder, large).rect;
+
+    // THE RESOLVED GEOMETRY MOVED...
+    CHECK(large.w != small.w);
+    CHECK_FALSE(info_large == info_small);
+    CHECK(info_large.x != info_small.x);
+    CHECK(builder_large.h == builder_small.h); // the stack's slot is a fixed size...
+    CHECK(large.room_w != small.room_w);       // ...and the room around it is not
+
+    // ...AND NOTHING AUTHORED DID. Same value, same references, same bytes, and
+    // still saved -- which is the control that makes this a claim about
+    // persisted geometry rather than about recomposition.
+    CHECK(t.session().setup.active == authored);
+    CHECK(t.session().setup.saved());
+    CHECK(slurp(t.host.setup_path) == bytes);
+
+    // Restoring under the new extent produces the same intent and the current
+    // rectangles, never the ones the file was written under.
+    t.key(input::scan::kR);
+    CHECK(t.session().setup.active == authored);
+    CHECK(bounds_of(t.session().panels, panel::kInfo, large).rect == info_large);
+
+    // A text metric moves the same picture again, and the setup is untouched.
+    t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 8, 18}));
+    CHECK(t.session().setup.active == authored);
+    CHECK(t.session().setup.saved());
+    CHECK(slurp(t.host.setup_path) == bytes);
+
+    // And no rectangle, placement, column, row or metric is in the file at all.
+    for (const char* forbidden : {"\"x\"", "\"y\"", "\"w\"", "\"h\"", "rect", "columns", "rows",
+                                  "advance", "extent", "placement", "slot"}) {
+        CAPTURE(forbidden);
+        CHECK(bytes.find(forbidden) == std::string::npos);
+    }
+}
+
+// ---- Two processes ------------------------------------------------------------------
+
+TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop") {
+    // THE PRODUCT OUTCOME, deterministically: two independent Workshops, two
+    // independent buses, one file between them.
+    TempDir dir("setup-two-runs");
+    const std::string path = dir.file("setup.json");
+
+    std::string bytes;
+    {
+        // RUN A: a fresh Workshop opens with Info; the maker opens Builder,
+        // removes Info, names the setup and saves.
+        Live a;
+        a.host.setup_path = path;
+        (void)mount_tool(a, "zengine-snake");
+        REQUIRE(open_kinds(a.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+
+        open_builder(a);
+        pick(a, panel::kInfo);
+        name_setup(a, "Morning build");
+
+        REQUIRE(a.session().setup.saved());
+        REQUIRE(open_kinds(a.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
+        bytes = slurp(path);
+        REQUIRE_FALSE(bytes.empty());
+    }
+
+    {
+        // RUN B: a fresh Workshop begins from its ordinary default, and the
+        // maker restores.
+        Live b;
+        b.host.setup_path = path;
+        ToolSeat* tool = mount_tool(b, "zengine-snake");
+        REQUIRE(b.session().setup.active == default_setup());
+        REQUIRE(open_kinds(b.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+        const WorkshopDoc opening_document = b.doc();
+        const std::int64_t opening_workspace = b.session().workspace_w;
+
+        b.key(input::scan::kR);
+
+        CHECK(b.session().setup.active.name == "Morning build");
+        CHECK(b.session().panels.has(panel::kBuilder));
+        CHECK_FALSE(b.session().panels.has(panel::kInfo));
+        CHECK(b.session().setup.saved());
+
+        // BUILDER ASKS ITS STILL-INDEPENDENT TOOL FOR CURRENT STATUS -- the
+        // tool's own answer, not a copy that rode the file.
+        CHECK(tool->described == 1);
+        CHECK(b.session().panels.builder.shown.target == "zengine-snake");
+
+        // AND NEITHER DOCUMENT CONTENT NOR THE CURRENT SCREEN EXTENT CAME OUT OF
+        // THE SETUP. Both are what this run had before the restore.
+        CHECK(b.doc() == opening_document);
+        CHECK(b.session().workspace_w == opening_workspace);
+
+        // The file is unchanged by having been read.
+        CHECK(slurp(path) == bytes);
+    }
+}
+
+TEST_CASE("saving and restoring a setup does not touch the document or its saved status") {
+    TempDir dir("setup-doc-separation");
+    Live t;
+    t.host.document_path = dir.document();
+    t.host.setup_path = dir.file("setup.json");
+    (void)mount_tool(t, "zengine-snake");
+
+    // Save the document, then do a whole setup round trip over the top of it.
+    t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE(t.notice().find("saved " + t.host.document_path) == 0);
+    const std::string document_bytes = slurp(t.host.document_path);
+    const WorkshopDoc document = t.doc();
+
+    open_builder(t);
+    name_setup(t, "Build");
+    t.key(input::scan::kR);
+
+    CHECK(t.doc() == document);
+    CHECK(slurp(t.host.document_path) == document_bytes);
+    // The document status line still says the document is saved -- a setup round
+    // trip is not a document edit.
+    CHECK(t.notes.back().text.find(t.host.document_path + " saved") != std::string::npos);
+
+    // And the two commands stayed apart: `^o` loads the document and leaves the
+    // setup exactly where it was.
+    const Setup setup_before = t.session().setup.active;
+    t.key(input::scan::kO, input::mod::kCtrl);
+    CHECK(t.notice().find("loaded " + t.host.document_path) == 0);
+    CHECK(t.session().setup.active == setup_before);
+    CHECK(t.session().setup.saved());
+}
+
+// ---- What a maker reads --------------------------------------------------------------
+
+TEST_CASE("the setup line names the setup, its file, whether it is saved, and its gestures") {
+    TempDir dir("setup-line");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    const Screen sc = screen_of(t.session());
+    const std::string fresh = setup_row(first_frame(t), sc);
+    INFO(fresh);
+    CHECK(fresh.find("setup \"Default\"") == 0);
+    CHECK(fresh.find("UNSAVED") != std::string::npos);
+
+    name_setup(t, "Named");
+    const std::string saved = setup_row(t.canvases.back(), sc);
+    CHECK(saved.find("setup \"Named\" saved") == 0);
+
+    // AT THE MINIMUM COMPOSITION WITH THE DEFAULT FILE NAME THE WHOLE LINE FITS,
+    // and that is the measurement the ORDER of that line was chosen against: the
+    // name, the marker, the file and both gestures, in 78 cells with room over.
+    Live plain;
+    plain.host.setup_path = kDefaultSetupFileName;
+    const std::string minimal = setup_row(first_frame(plain), screen_of(plain.session()));
+    INFO(minimal);
+    CHECK(minimal.find("setup \"Default\" UNSAVED") == 0);
+    CHECK(minimal.find(kDefaultSetupFileName) != std::string::npos);
+    CHECK(minimal.find("s name/save") != std::string::npos);
+    CHECK(minimal.find("r restore") != std::string::npos);
+    CHECK(static_cast<std::int64_t>(minimal.size()) <= kMinScreen.w);
+    CHECK(minimal.find("...") == std::string::npos);
+
+    // AND A LINE TOO LONG FOR THE ROOM IS CUT WITH A MARK rather than silently --
+    // which is what a canvas label buys that the status slot could not, and the
+    // reason the identity is at the front: it is never what elides.
+    Live wordy;
+    wordy.host.setup_path = std::string(90, 'p');
+    const std::string cut = setup_row(first_frame(wordy), screen_of(wordy.session()));
+    CHECK(static_cast<std::int64_t>(cut.size()) == kMinScreen.w);
+    CHECK(cut.substr(cut.size() - 3) == "...");
+    CHECK(cut.find("setup \"Default\" UNSAVED") == 0);
+
+    // A wider surface spends the room it gained on the rest of the sentence,
+    // which needs nothing from anybody but room.
+    wordy.publish(loom::to_value(surface::SurfaceExtent{160, 40, 0, 0}));
+    const std::string roomy = setup_row(wordy.canvases.back(), screen_of(wordy.session()));
+    CHECK(roomy.find("...") == std::string::npos);
+    CHECK(roomy.find(std::string(90, 'p')) != std::string::npos);
+    CHECK(roomy.find("r restore") != std::string::npos);
+}
+
+TEST_CASE("the setup line becomes the name editor while a maker is typing") {
+    TempDir dir("setup-editor-line");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    t.key(input::scan::kS);
+    t.text("s");
+    const Screen sc = screen_of(t.session());
+    const std::string row = setup_row(t.canvases.back(), sc);
+    INFO(row);
+    CHECK(row.find("setup name> Default") == 0);
+    // THE CARET IS IN THE TEXT, at the end where `s` left it. A one-cell-tall
+    // bounded region would hold zero rows of a real face (HD-6), so this editor
+    // says its caret the way the cell projection says a region's.
+    CHECK(row.find(std::string("Default") + surface::kCaretGlyph) != std::string::npos);
+    CHECK(row.find("enter saves") != std::string::npos);
+    CHECK(row.find("esc cancels") != std::string::npos);
+    CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
+
+    // The caret follows the maker's hand, and a character typed at it lands there.
+    t.key(input::scan::kLeft);
+    t.key(input::scan::kLeft);
+    t.text("X");
+    CHECK(t.session().setup.naming.line.text() == "DefauXlt");
+    CHECK(setup_row(t.canvases.back(), sc).find(std::string("DefauX") + surface::kCaretGlyph) !=
+          std::string::npos);
+}
+
+TEST_CASE("the name editor takes the keys, and the picker and the document keep theirs") {
+    TempDir dir("setup-modes");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    t.key(input::scan::kS);
+    t.text("s");
+    REQUIRE(t.session().setup.naming.open);
+
+    // `p` DOES NOT OPEN THE PICKER while the editor has the keys: it is a
+    // character, and the editor is the mode above command mode.
+    t.text("p");
+    CHECK_FALSE(t.session().panels.picker.open);
+    CHECK(t.session().setup.naming.line.text() == "Defaultp");
+
+    // ...and `q` does not quit.
+    t.text("q");
+    CHECK_FALSE(t.host.quit);
+    CHECK(t.session().setup.naming.line.text() == "Defaultpq");
+
+    // The two commands that mean the same thing in every mode still do: `^s`
+    // saves the DOCUMENT, from inside the setup-name editor, and says so.
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice().find("no document file") == 0);
+
+    // The picker and the name editor cannot both be open: `s` is a command, and
+    // the picker takes the keys before command mode is reached.
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.session().setup.naming.open);
+    t.key(input::scan::kP);
+    REQUIRE(t.session().panels.picker.open);
+    t.key(input::scan::kS);
+    t.text("s");
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().panels.picker.open);
+}
+
+TEST_CASE("the picker's own state never reaches the setup file") {
+    TempDir dir("setup-no-picker");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    // Leave the picker's cursor somewhere deliberate, then save.
+    t.key(input::scan::kP);
+    t.key(input::scan::kDown);
+    REQUIRE(t.session().panels.picker.cursor == 1);
+    t.key(input::scan::kEscape);
+    name_setup(t, "Clean");
+
+    const std::string bytes = slurp(t.host.setup_path);
+    CHECK(bytes.find("cursor") == std::string::npos);
+    CHECK(bytes.find("picker") == std::string::npos);
+    CHECK(bytes.find("terminal") == std::string::npos);
+    CHECK(bytes.find("selected") == std::string::npos);
+    CHECK(bytes.find("notice") == std::string::npos);
+
+    // And restoring opens no picker: `r` is a command, so the picker was closed
+    // before it could run, and nothing in a restore opens one.
+    t.key(input::scan::kR);
+    CHECK_FALSE(t.session().panels.picker.open);
 }

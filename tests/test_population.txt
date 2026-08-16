@@ -137,6 +137,14 @@
 # phase genuinely could not assert without SDL is what the slab LOOKS like, and that is a live
 # witness in the report rather than a case pretending to be one.
 #
+# WS-0 raised the workshop floor 333 -> 379, and its split needed no new row anywhere for a
+# different reason from the seven above: the phase adds no medium-dependent fact at all. A
+# setup is a name and a list of two-string references; resolving one is a comparison, saving
+# one is the Loom's own codec, reconciling one is a vector, and the one thing it paints is a
+# single line of the bottom band. Not one of its 46 cases needs a font engine or an SDL, and
+# the eight that do involve a screen ask the SAME arithmetic question the rest of this suite
+# asks -- which is why the Windows stranger lane proves the whole phase.
+#
 # HD-10 is the eighth, 324 -> 333, and it is the same story once more: where a bounded region
 # is PLACED is canvas-cell arithmetic settled before any metric is consulted, so the nine cases
 # that pin the reserved column -- disjointness over eleven extents and three metrics, the
@@ -160,7 +168,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  333
+workshop                          doctest           always  379
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
