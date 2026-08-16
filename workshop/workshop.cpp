@@ -174,6 +174,15 @@ std::string exe_dir() {
 /// default file is exactly the kind of quiet wrong answer persistence makes
 /// expensive.
 ///
+/// `--setup <path>`, defaulted to `workshop-setup.json`, is the SECOND file of
+/// the same shape and is a different file on purpose (WS-0). A document is what a
+/// maker made; a setup is the arrangement of panes they were looking at while
+/// they made it. The same document is worth opening in two arrangements and the
+/// same arrangement is worth using over two documents, so folding them into one
+/// project container would make both unsayable. Workshop manages ONE active
+/// setup path: no catalog, no recent list, no profile manager. An empty path is
+/// refused by name, exactly as an empty `--document` is.
+///
 /// `--skin <stem>`, defaulted to the classic terminal Skin, is deliberately the
 /// same shape. BUILDING a Skin and CHOOSING one are different acts:
 /// `ZENGINE_SDL_SKIN=ON` only makes the window Skin exist, and without this flag
@@ -223,6 +232,10 @@ struct Arguments {
     bool ok = true;
     std::string complaint;
     std::string document = zengine::workshop::persist::kDefaultDocumentName;
+    /// The setup file, beside the document's and never inside it (WS-0). Same
+    /// shape as `--document` for the same reasons; a different file because a
+    /// document and the arrangement it is looked at in are different facts.
+    std::string setup = zengine::workshop::kDefaultSetupFileName;
     std::string skin = "zengine-skin-tui-classic";
     std::string input = "zengine-input";
     std::string log;  ///< empty = keep nothing durably
@@ -233,8 +246,8 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document" || arg == "--skin" || arg == "--input" || arg == "--log" ||
-            arg == "--dump") {
+        if (arg == "--document" || arg == "--setup" || arg == "--skin" || arg == "--input" ||
+            arg == "--log" || arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint =
@@ -251,6 +264,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.log = value;
             } else if (arg == "--dump") {
                 args.dump = value;
+            } else if (arg == "--setup") {
+                args.setup = value;
             } else {
                 args.document = value;
             }
@@ -263,6 +278,9 @@ Arguments parse_arguments(int argc, char** argv) {
     if (args.document.empty()) {
         args.ok = false;
         args.complaint = "--document needs a path";
+    } else if (args.setup.empty()) {
+        args.ok = false;
+        args.complaint = "--setup needs a path";
     } else if (args.skin.empty()) {
         args.ok = false;
         args.complaint = "--skin needs a weave stem";
@@ -277,8 +295,8 @@ int main(int argc, char** argv) {
     const Arguments args = parse_arguments(argc, argv);
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
-                    "usage: zengine-workshop [--document <path>] [--skin <weave stem>]\n"
-                    "                        [--input <weave stem>]\n"
+                    "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
+                    "                        [--skin <weave stem>] [--input <weave stem>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
                     "the graphical Workshop is:\n"
                     "  zengine-workshop --skin zengine-skin-sdl --input zengine-input-sdl\n",
@@ -290,6 +308,7 @@ int main(int argc, char** argv) {
     // this host isolates nothing.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
+    std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
     std::printf("zengine-workshop - skin: %s\n", args.skin.c_str());
     std::printf("zengine-workshop - input: %s\n", args.input.c_str());
     std::fflush(stdout);
@@ -382,8 +401,9 @@ int main(int argc, char** argv) {
         } else {
             std::printf("zengine-workshop - log: %s (durable, selected facts only)\n",
                         args.log.c_str());
-            journal.info("zengine.workshop", "session started: document " + args.document +
-                                                 ", skin " + args.skin + ", input " + args.input);
+            journal.info("zengine.workshop",
+                         "session started: document " + args.document + ", setup " +
+                             args.setup + ", skin " + args.skin + ", input " + args.input);
         }
     } else {
         std::printf("zengine-workshop - log: nothing durable (--log <path> to keep one)\n");
@@ -401,6 +421,7 @@ int main(int argc, char** argv) {
     HostContext host;
     host.dir = exe_dir();
     host.document_path = args.document;
+    host.setup_path = args.setup;
     host.request_stop = [&bus] { bus.stop(); };
 
     // ---- The terminal participant Workshop presents (WT-1) -------------------

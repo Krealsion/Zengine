@@ -98,6 +98,7 @@
 
 #include "persist.hpp"
 #include "screen.hpp"
+#include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -161,6 +162,21 @@ struct HostContext {
     /// Empty means no document file was chosen, and save/load say so rather
     /// than guessing one.
     std::string document_path;
+
+    /// The one file this Workshop's SETUP saves to and restores from (WS-0).
+    ///
+    /// A SECOND PATH BESIDE THE DOCUMENT'S, AND NOT A PROJECT. It is the host's
+    /// to choose (`--setup <path>`, defaulted) for the same reasons the
+    /// document's is, and it is a different file for the reason setup_persist.hpp
+    /// gives: the same document is worth opening in two arrangements and the
+    /// same arrangement is worth using over two documents, and a single
+    /// container would make both unsayable.
+    ///
+    /// WORKSHOP MANAGES ONE ACTIVE PATH. Several setup files may exist because a
+    /// maker can launch with a different one; there is no catalog, no recent
+    /// list, no picker and no import. Empty means no setup file was chosen, and
+    /// naming/restoring say so rather than guessing one.
+    std::string setup_path;
 
     /// A weave stem, as this platform spells a shared library.
     std::string so(const char* stem) const {
@@ -285,7 +301,13 @@ public:
         // that reports the key and no text at all.
         const bool toggling =
             k.scancode == input::scan::kSpace && held(k.modifiers, input::mod::kShift);
-        swallow_toggle_text_ = toggling;
+        // THE SWALLOW IS A STRING SINCE WS-0, and the widening is the whole of what a SECOND
+        // printable trigger cost. `s` opens a one-line name editor exactly as Shift+Space
+        // opens the pane, and the same two facts arrive: the key transition, and the `s` the
+        // platform's layout made of it. One flag hard-coded to `" "` could not have covered
+        // both, and a second flag beside it would have been the same mechanism written twice.
+        // Cleared here, on every key, for the reason it always was: it belongs to one moment.
+        swallow_text_ = toggling ? " " : "";
         if (toggling) {
             toggle_terminal();
             repaint(mail);
@@ -331,8 +353,18 @@ public:
         // one line. It is NOT a focus framework: there is no focused panel, no
         // z-order and no capture -- one `if` per mode, the same shape the
         // overlay's was.
+        //
+        // FIVE MODES SINCE WS-0, and the new one sits SECOND for the picker's own reason.
+        // The setup-name editor is reachable only from command mode -- `s` is a command --
+        // so "naming" and "a draft is live" cannot both be true, and neither can "naming"
+        // and "the picker is open". The order is written anyway rather than left to that
+        // argument, because an ordering that depends on a reachability proof is one refactor
+        // away from being wrong silently, and this costs one line. It is still not a focus
+        // framework: one `if` per mode, and nothing captures anything.
         if (session_.terminal.open) {
             terminal_key(k);
+        } else if (session_.setup.naming.open) {
+            naming_key(k, mail);
         } else if (session_.panels.picker.open) {
             picker_key(k, mail);
         } else if (editing_row() != nullptr) {
@@ -350,13 +382,23 @@ public:
     ///
     /// Workshop maps no key to any character. `%` arrives here as "%".
     void on(const zengine::input::TextEntered& t, loom::Mail& mail) {
-        if (swallow_toggle_text_) {
-            swallow_toggle_text_ = false;
-            if (t.text == " ") {
-                return; // the space Shift+Space produced belongs to the toggle
+        if (!swallow_text_.empty()) {
+            const std::string owed = swallow_text_;
+            swallow_text_.clear();
+            if (same_keystroke(t.text, owed)) {
+                return; // the character the trigger produced belongs to the trigger
             }
         }
         if (t.text.empty()) {
+            return;
+        }
+        // THE NAME EDITOR TAKES TEXT WHEREVER THE KEYS GO. It sits under the overlay for the
+        // same reason an inspector draft does -- the pane is what a maker most recently asked
+        // for -- and above everything else, because while it is open there is nothing else
+        // for a character to mean.
+        if (!session_.terminal.open && session_.setup.naming.open) {
+            session_.setup.naming.line.type(t.text);
+            repaint(mail);
             return;
         }
         // The overlay is where typing goes while it is open. Same rule as the
@@ -694,6 +736,30 @@ public:
     const WorkshopDoc& document() const { return state_; }
 
 private:
+    /// IS THIS THE CHARACTER THAT KEY PRODUCED?
+    ///
+    /// Byte equality, and one deliberate widening: a single ASCII LETTER matches
+    /// in either case. A trigger says which KEY changed; what character the
+    /// platform's layout made of it is a second fact, and Shift or a caps lock
+    /// makes it the capital. `s` opening the name editor and then typing an `S`
+    /// into it is the same defect as it typing an `s`, so both are owed.
+    ///
+    /// Nothing broader: this is not a case-folding rule for text, it is a
+    /// question about ONE keystroke that has already happened.
+    static bool same_keystroke(const std::string& text, const std::string& owed) {
+        if (text == owed) {
+            return true;
+        }
+        if (text.size() != 1 || owed.size() != 1) {
+            return false;
+        }
+        const auto lower = [](char c) {
+            return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+        };
+        const char a = lower(text[0]);
+        return a >= 'a' && a <= 'z' && a == lower(owed[0]);
+    }
+
     static bool held(std::int64_t modifiers, std::int64_t which) {
         return (modifiers & which) != 0;
     }
@@ -1547,6 +1613,13 @@ private:
         case input::scan::kRightBracket: resize_workspace(+4); break;
         case input::scan::kP: open_picker(); break;
         case input::scan::kB: build_now(mail); break;
+        // THE TWO SETUP GESTURES (WS-0). They are commands rather than another `^`-pair
+        // beside the document's, and that is the visible half of the separation: `^s`/`^o`
+        // are the DOCUMENT's two keys and mean the same thing in every mode, while naming and
+        // restoring a setup are ordinary maker gestures that belong beside `p`. Both were
+        // unbound before this phase, so nothing a maker knew changed meaning.
+        case input::scan::kS: open_setup_name(); break;
+        case input::scan::kR: restore_setup(mail); break;
         case input::scan::kQ: quit(); break;
         default: break;
         }
@@ -1630,11 +1703,24 @@ private:
     /// showing it. Nothing here guards against that, because nothing can reach
     /// it -- and if the routing ever changes, this paragraph is the thing that
     /// stops being true, which is why it names the routing rather than the fact.
+    /// THE PICKER NOW MOVES THE INTENT, AND THE INTENT MOVES THE PANELS (WS-0).
+    /// One line changed shape and it is the phase's coherence claim: this
+    /// gesture used to call `open_panel`/`close_panel` directly, which would
+    /// have left the active setup describing an arrangement the screen had
+    /// stopped showing the moment a maker pressed `p`. So the picker edits
+    /// `setup.active` and `apply_setup` is the only thing that opens or closes
+    /// anything -- the same path a restore goes through, so the two cannot
+    /// diverge about what "Builder is open" costs.
+    ///
+    /// A REMOVAL AND AN OPEN ARE STILL THE SAME TWO CASES a maker sees; what
+    /// changed is which value they are asked of.
     void choose_panel(loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
         const PanelKind& chosen = kPanelCatalog[picker.cursor];
         picker.open = false;
-        if (close_panel(session_.panels, chosen.kind)) {
+        const PaneRef ref = pane_ref_of(chosen.kind);
+        if (remove_pane(session_.setup.active, ref)) {
+            apply_setup(mail);
             // WHAT IT WAS PRESENTING IS UNTOUCHED, and one sentence covers both
             // kinds because it is the same sentence: the Builder tool keeps its
             // target, its history and its running count of asks; the document
@@ -1645,21 +1731,193 @@ private:
                 false);
             return;
         }
-        (void)open_panel(session_.panels, chosen.kind);
-        say(std::string("opened ") + chosen.name + " -- p removes it", false);
-        // AND THE PANEL ASKS THE TOOL WHAT IT IS. A presentation that was handed
-        // its subject's facts by whoever built it would be showing the builder's
+        (void)add_pane(session_.setup.active, ref);
+        // AND THE PANEL ASKS THE TOOL WHAT IT IS -- inside `apply_setup`, for
+        // every kind it newly opened. A presentation that was handed its
+        // subject's facts by whoever built it would be showing the builder's
         // opinion; this one shows the tool's answer, and shows nothing until it
         // has one.
         //
-        // INFO ASKS NOBODY, and the absence of an `else` here is the phase's
-        // structural claim: opening it sends no message, touches no role and
-        // needs no weave mounted anywhere. A Workshop hosting no tools at all
-        // opens Info and it works.
-        if (chosen.kind == panel::kBuilder) {
-            (void)mail.send_to_role(zengine::builder::kBuilderRole,
-                                    zengine::builder::StatusRequested{});
+        // INFO ASKS NOBODY, and the absence of a second branch there is the
+        // phase's structural claim, unchanged: opening it sends no message,
+        // touches no role and needs no weave mounted anywhere. A Workshop
+        // hosting no tools at all opens Info and it works.
+        apply_setup(mail);
+        say(std::string("opened ") + chosen.name + " -- p removes it", false);
+    }
+
+    // ---- The setup: name it, save it, restore it ------------------------------
+    //
+    // A SETUP IS AUTHORED CONFIGURATION AND THE DOCUMENT IS AUTHORED CONTENT, and
+    // everything below keeps them apart by the strongest means available: a
+    // different value, a different law, a different file, a different format
+    // identity and a different pair of gestures. Nothing here reads, writes,
+    // normalises or dirties `state_`, and `save_document`/`load_document` above
+    // are untouched.
+
+    /// MAKE THE OPEN PANELS BE WHAT THE ACTIVE SETUP SAYS -- the one owner, and
+    /// the only thing in this file that opens or closes a panel.
+    ///
+    /// The presentation half is `reconcile` (setup.hpp), which is pure and takes
+    /// no bus. What it hands back is what it CHANGED, and this is where that
+    /// becomes speech: a kind that was closed and is now open performs whatever
+    /// asking that kind does on open, which for the Builder is the same
+    /// `StatusRequested` opening it through the picker has always sent, and for
+    /// Info is nothing at all.
+    void apply_setup(loom::Mail& mail) {
+        const Reconciled done = reconcile(session_.panels, session_.setup.active);
+        for (const std::int64_t kind : done.opened) {
+            if (kind == panel::kBuilder) {
+                (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                        zengine::builder::StatusRequested{});
+            }
         }
+    }
+
+    /// OPEN THE ONE-LINE SETUP-NAME EDITOR, on the name the setup already has.
+    ///
+    /// IT OPENS ON THE CURRENT NAME RATHER THAN ON NOTHING, because the common
+    /// gesture is "save this again" and retyping `Morning build` to do it would
+    /// make the shortest path the least likely one. Enter commits and saves;
+    /// Escape leaves the name exactly as it was.
+    ///
+    /// AND IT SWALLOWS ITS OWN `s`. The key transition and the character it
+    /// produced are two facts that were simultaneously true and both arrive --
+    /// the trap WG-0 measured and named -- so without this the gesture that
+    /// opened the editor would also type an `s` into the name it opened.
+    void open_setup_name() {
+        if (host_->setup_path.empty()) {
+            say(kNoSetupFile, true);
+            return;
+        }
+        SetupNaming& naming = session_.setup.naming;
+        naming.open = true;
+        naming.line.set(session_.setup.active.name, session_.setup.active.name.size());
+        swallow_text_ = "s";
+        say("name this setup -- enter saves it, esc cancels", false);
+    }
+
+    /// The name editor's keys. Return commits and saves; Escape cancels and
+    /// changes nothing; the rest is the ordinary editing of one line, through
+    /// the component that owns the text, the caret and the window together.
+    void naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
+        SetupNaming& naming = session_.setup.naming;
+        switch (k.scancode) {
+        case input::scan::kReturn: commit_setup_name(); break;
+        case input::scan::kEscape:
+            naming.open = false;
+            naming.line.clear();
+            say("the setup name is unchanged", false);
+            break;
+        case input::scan::kBackspace: naming.line.backspace(); break;
+        case input::scan::kDelete: naming.line.erase_forward(); break;
+        case input::scan::kLeft: naming.line.left(); break;
+        case input::scan::kRight: naming.line.right(); break;
+        case input::scan::kHome: naming.line.home(); break;
+        case input::scan::kEnd: naming.line.end(); break;
+        default: break;
+        }
+    }
+
+    /// TAKE THE TYPED NAME AND WRITE THE SETUP.
+    ///
+    /// The name meets `check_setup_name` -- the SAME function a file's name
+    /// meets -- and a refusal leaves the editor open with the text still in it,
+    /// so a maker fixes what they typed rather than retyping it. Nothing is
+    /// written and the active setup's name does not move until the whole thing
+    /// is legal AND the file has been replaced.
+    void commit_setup_name() {
+        SetupNaming& naming = session_.setup.naming;
+        const std::string wanted = naming.line.text();
+        const Written legal = check_setup_name(wanted);
+        if (!legal.accepted) {
+            say(legal.refusal + " -- enter tries again, esc cancels", true);
+            return;
+        }
+        Setup candidate = session_.setup.active;
+        candidate.name = wanted;
+        const Written whole = check_setup(candidate);
+        if (!whole.accepted) {
+            say(whole.refusal, true);
+            return;
+        }
+        const Written written = setup_persist::save_file(host_->setup_path, candidate);
+        if (!written.accepted) {
+            // THE LAST GOOD SETUP FILE IS INTACT and so is the live one: the
+            // writer never opened the destination, and this function has not
+            // assigned anything yet. The editor stays open over the name the
+            // maker was trying to save.
+            say(written.refusal, true);
+            return;
+        }
+        session_.setup.active = candidate;
+        // What is on disk is now what is in memory. A COPY, never a flag --
+        // `SetupState::saved()` compares, so it cannot drift.
+        session_.setup.on_file = candidate;
+        naming.open = false;
+        naming.line.clear();
+        say("saved setup \"" + candidate.name + "\" to " + host_->setup_path +
+                unresolved_note(candidate),
+            false);
+    }
+
+    /// RESTORE THE SETUP IN THE SELECTED FILE.
+    ///
+    /// A TRANSACTION, and structurally so: `setup_persist::load_file` RETURNS a
+    /// candidate rather than writing into anything, so there is no path here by
+    /// which a panel closes before a bad field near the end of the file has been
+    /// met. A refusal costs a maker the notice and nothing else -- the active
+    /// setup, the open panels, the Builder panel's copied status and the document
+    /// are all exactly as they were.
+    ///
+    /// AN UNRESOLVED REFERENCE IS NOT A FAILURE. It loads, it stays in the setup,
+    /// it is counted, it is named, and it is saved again unchanged. A malformed
+    /// candidate is a failure; a reference to a pane this build has never heard
+    /// of is a setup that means more than this build can show.
+    ///
+    /// NO DRAFT AND NO HALF-FINISHED NAME CAN BE ORPHANED BY THIS, and the
+    /// reason is reachability rather than a guard: `r` is a command, command
+    /// mode is by definition the state in which no inspector row is being edited,
+    /// and the key routing puts the name editor and the picker ahead of it. So a
+    /// maker cannot be part-way through typing anything when this runs.
+    void restore_setup(loom::Mail& mail) {
+        if (host_->setup_path.empty()) {
+            say(kNoSetupFile, true);
+            return;
+        }
+        const setup_persist::LoadedSetup loaded = setup_persist::load_file(host_->setup_path);
+        if (!loaded.outcome.accepted) {
+            say(loaded.outcome.refusal, true);
+            return;
+        }
+        session_.setup.active = loaded.setup;
+        session_.setup.on_file = loaded.setup;
+        apply_setup(mail);
+        say("restored setup \"" + loaded.setup.name + "\" from " + host_->setup_path +
+                unresolved_note(loaded.setup),
+            false);
+    }
+
+    /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
+    /// there are none, and the first one BY NAME when there are.
+    ///
+    /// `unresolved`, and never `unavailable`. Workshop knows one thing here: it
+    /// has no catalog row for this reference. It does not know whether whoever
+    /// could present it exists, is loading, has been unloaded, or was never
+    /// installed -- and silence is not evidence of absence. Naming the reference
+    /// is what lets a maker tell a typo from a pane they have not installed yet.
+    static std::string unresolved_note(const Setup& s) {
+        const std::vector<PaneRef> waiting = unresolved_panes(s);
+        if (waiting.empty()) {
+            return {};
+        }
+        std::string note = " -- " + std::to_string(waiting.size()) +
+                           (waiting.size() == 1 ? " pane" : " panes") + " unresolved: " +
+                           ref_text(waiting.front());
+        if (waiting.size() > 1) {
+            note += ", ...";
+        }
+        return note;
     }
 
     /// ASK FOR A BUILD -- by the name the TOOL gave, never by one of Workshop's.
@@ -2006,6 +2264,19 @@ private:
     /// the old builder's per-row plumbing, also gone.
     void rebuild_rows() { refocus(state_, session_); }
 
+    /// KEEP THE NAME EDITOR'S WINDOW TRUE AGAINST THE ROOM IT HAS NOW -- the
+    /// same call `refresh_inspector` makes for a property draft and the terminal
+    /// makes for its command line, against the same one measurer
+    /// (`setup_name_columns`). A surface that got narrower while a maker was
+    /// typing must not leave the caret drawn off the end of its own row (HD-4).
+    void refresh_setup_name() {
+        if (!session_.setup.naming.open) {
+            return;
+        }
+        session_.setup.naming.line.keep_caret_visible(
+            setup_name_columns(screen_of(session_)));
+    }
+
     void say(std::string text, bool bad) {
         session_.notice = std::move(text);
         session_.notice_is_bad = bad;
@@ -2035,7 +2306,8 @@ private:
     void repaint(loom::Mail& mail) {
         refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
         refresh_inspector(); // and a draft's window is only true against the room it has now
-        mail.publish(paint(state_, session_));
+        refresh_setup_name(); // ...and so is the name editor's, against the same room
+        mail.publish(paint(state_, session_, host_->setup_path));
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     }
@@ -2053,6 +2325,12 @@ private:
     static constexpr const char* kNoDocumentFile =
         "no document file -- start Workshop with --document <path>";
 
+    /// The same sentence for the OTHER file, and it is a different sentence
+    /// rather than a shared one because a maker who has a document file and no
+    /// setup file must be told which of the two they are missing.
+    static constexpr const char* kNoSetupFile =
+        "no setup file -- start Workshop with --setup <path>";
+
     /// What to say to a gesture that would have changed the document or the
     /// selection out from under a live property draft. HD-7 wrote it for a press
     /// on the object list; HD-8's action controls are the second gesture to meet
@@ -2069,11 +2347,15 @@ private:
     HostContext* host_;
     Session session_;
 
-    /// One moment's worth of memory: the toggle's own keystroke produced a
-    /// space, and that space is not text a maker typed. Set by the toggle,
-    /// cleared by the next key or the next text, so it can never outlive its
-    /// moment.
-    bool swallow_toggle_text_ = false;
+    /// One moment's worth of memory: the character the gesture's OWN keystroke
+    /// produced, which is not text a maker typed. Set by a gesture that opens a
+    /// mode which takes text, cleared by the next key or the next text, so it
+    /// can never outlive the moment it belongs to.
+    ///
+    /// Empty means nothing is owed. It holds the character rather than a bare
+    /// flag so that a backend which reports the key and NO text cannot make the
+    /// next real keystroke disappear.
+    std::string swallow_text_;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
     /// written yet. Session, emphatically: it is a copy kept so the status line

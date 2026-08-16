@@ -1101,6 +1101,9 @@ and no window itself.
 Keys: `n` makes an object, `d` deletes the selected one, `hjkl` moves it a cell at a time,
 `Shift+hjkl` resizes it, `tab` cycles objects, `up`/`down` walks inspector rows, `enter` edits,
 `esc` cancels, `[`/`]` resizes the workspace, `Ctrl+S` saves, `Ctrl+O` opens, `q` quits.
+`s` names and saves the setup and `r` restores it (WS-0, below) — the setup's two gestures,
+kept apart from the document's `Ctrl+S`/`Ctrl+O` because a setup and a document are different
+facts.
 `Ctrl+S` is byte 0x13 — XOFF — and reaches the application only because the Input weave's
 terminal reader clears `IXON` when it takes raw mode; the modifier is then *measured*, not
 inferred. The move gesture is `hjkl` and not the arrows because the arrows already step the rows and
@@ -1273,6 +1276,92 @@ suite mounts it on a real bus and walks `input message -> gesture -> semantic op
 end (W-4, closing P16). It is mounted **in-process**: nothing asks to unload it, so the
 reloadable-weave machinery would be ceremony bought with nothing. The weaves it *loads* are
 other packages'. The host gates on `if(TARGET loom::kernel)` like snake's.
+
+### A setup has a name (WS-0)
+
+A maker can **name the arrangement they are working in, save it, close Workshop, start a fresh
+one, and get the same panes back**. That arrangement is a **setup**, and in this phase it is
+deliberately two things and nothing else:
+
+```text
+Setup
+    a human name
+    an ordered list of PaneRefs
+```
+
+- **A `PaneRef` is a provider/service key plus a pane key**, both text
+  (`workshop/setup.hpp`). The built-ins are `zengine.workshop/info` and
+  `zengine.workshop/builder`, and a saved file spells them that way — never `panel::kInfo`, never
+  a catalog ordinal, never a `WeaveId`. Two reasons, and the second is the load-bearing one: an
+  ordinal is not durable (renumber the constants and every saved setup opens the other panel),
+  and **an ordinal cannot be absent** — there is no integer meaning *a pane this build has never
+  heard of*, so a setup built on one would have to drop such an entry on load, which is a saved
+  file quietly editing itself.
+- **The durable reference lives on the catalog row** (`workshop/panel.hpp`), beside the internal
+  kind rather than in a table next to it, so there is nothing for a second table to disagree
+  with. Two `static_assert`s over the catalog say every row has a reference and no two rows share
+  one — both failures are otherwise silent.
+- **Resolution is fallible, and internal lookup stayed total.** `panel_kind(unknown)` still
+  answers with the Builder, which is correct for its callers (they derive a kind from a picker
+  cursor or an open panel). `resolve_pane(PaneRef)` is a **second, narrower door** that answers
+  with *nothing*: an unknown provider or an unknown pane key resolves to no kind, and **an
+  unknown reference never becomes the Builder**. Nothing that meets a file goes through the total
+  one.
+- **An unresolved reference is kept, said, and saved again unchanged.** A setup naming
+  `third.party.tools/history` loads, stays exactly as authored, produces no panel and no
+  placeholder, is counted on the setup line (`1 unresolved`) and named in the notice. The word is
+  **unresolved**, never *unavailable*: Workshop knows it has no catalog row for the reference and
+  knows nothing whatever about whoever could present it. A setup can be **saved and have an
+  unresolved pane at the same time** — `setup "Future" saved | 1 unresolved` is a coherent line.
+- **The provider key is a route, not a credential.** It says which namespace to read a pane key
+  in. It does not say which package author created the pane, which binary is running, that the
+  same author returned after a restart, that a live office answers to the name, or that anything
+  claiming the string is authentic. There is no role, no office, no discovery message and no
+  registry in this phase.
+- **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
+  is which panes a maker *meant*; `panels.open` is which presentations this build could make of
+  that intent on this screen. `reconcile` (`workshop/setup.hpp`) is the only thing that opens or
+  closes a panel on a setup's behalf, and the picker now edits the **setup** rather than the panel
+  list — so a `p` gesture cannot leave the two describing different arrangements. Three cases are
+  distinguished on purpose: a panel open on both sides is *left alone* (no lost view, no duplicate
+  refresh), one that closes goes through `close_panel` (so a removed Builder's copied status is
+  forgotten by the same act), and one that opens performs whatever asking that kind does — which
+  for the Builder is the `StatusRequested` the picker has always sent, and for Info is nothing.
+- **The setup is a separate value and a separate file from the document.** The same document is
+  worth opening in two arrangements and the same arrangement is worth using over two documents, so
+  a single project container would make both unsayable. `--setup <path>` (default
+  `workshop-setup.json`) is the setup's; `--document <path>` is the document's; `Ctrl+S`/`Ctrl+O`
+  remain **document** commands and touch no setup byte. Each reader refuses the other's file by
+  name rather than half-reading it.
+- **`s` opens a one-line name editor; `enter` validates the name and saves; `esc` cancels. `r`
+  restores.** Both were unbound before this phase. The editor opens on the name the setup already
+  has (the common gesture is *save this again*), reuses `component::TextBox` for the text, the
+  caret and the window, and **swallows the `s` its own keystroke produced** — the key transition
+  and the character are two facts that both arrive. It is a fifth mode, reachable only from
+  command mode, so it cannot coexist with the picker or with a live inspector draft.
+- **The setup line is the band's first row**, which was blank: `setup "Name" saved|UNSAVED [| N
+  unresolved] | <path> | s name/save  r restore`, fitted with `detail::fit` so a cut is *marked*.
+  The name is first because it is the identity and must never be the thing that elides. `saved` is
+  **computed by comparing** the active setup with the one last written or read — never a dirty
+  flag, which would need a hand at every place a pane is added or removed.
+- **The file has its own format identity and its own bounds**
+  (`workshop/setup_persist.hpp`): `"format":"zengine-workshop-setup"`, one version, the Loom's own
+  compat codec, deterministic output so `save -> load -> save` is byte-identical, unknown fields
+  rejected, and a name/key/count/byte ceiling refused *before* anything is copied into the live
+  setup. Loading **returns** a candidate rather than writing into anything, so "a malformed file
+  never leaves Workshop halfway restored" is structural: a refusal changes no panel, no setup, no
+  Builder view and no document byte. Saving goes through the document's own safe write, so a
+  detected failure leaves the last good setup file byte-identical.
+- **No placement, no rectangle, no extent, no metric, and no session interaction state is
+  persisted.** The picker's cursor, the Terminal's draft, the Builder's copied status, the
+  selection and the workspace extent are all session; the same setup file restored under a
+  different `SurfaceExtent` yields the same references and different bounds, which is WS-0's
+  authored/resolved proof.
+
+Deliberately absent, so the absences are decisions: no external provider, office, discovery
+protocol or runtime catalog; no opaque provider configuration; no multiple pane instances; no
+setup catalog, recent list, autosave or import/export; no tabs, docking, panel drag/resize,
+authored panel geometry, arrange mode or layout weave. Workshop manages **one** active setup path.
 
 ## Working in this tree
 

@@ -42,6 +42,7 @@
 #include "document.hpp"
 #include "panel.hpp"
 #include "property.hpp"
+#include "setup.hpp"
 #include "vocabulary.hpp"
 
 #include "component/text_box.hpp" // the editable line, the caret in it, and its window
@@ -719,6 +720,23 @@ struct Session {
     /// that rode the document would make "which tools were showing" part of the file --
     /// a persistence decision arriving as a side effect of where a vector was declared.
     Panels panels;
+    /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
+    /// one-line editor over its name (setup.hpp). WS-0's new fact, and the only member of
+    /// this struct that is genuinely AUTHORED rather than session -- which is why it is worth
+    /// saying here what it is doing here.
+    ///
+    /// IT IS BESIDE `panels` BECAUSE IT IS `panels`' TWIN, and the pair is the whole of the
+    /// phase's authored/resolved split: `setup.active.panes` is which panes a maker MEANT,
+    /// durably and in their own words; `panels.open` is which presentations this build could
+    /// make of that intent, on this screen, in this run. `reconcile` is the one path between
+    /// them, and the reason they are members of one struct is that a reader who finds one
+    /// should find the other before they write a gesture that moves only half of the pair.
+    ///
+    /// IT IS EMPHATICALLY NOT `WorkshopDoc`, and the boundary that matters is that one. The
+    /// document is what a maker MADE; this is what they were looking at while they made it.
+    /// The two persist to different files through different functions, and neither save
+    /// touches the other's bytes.
+    SetupState setup;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -3547,6 +3565,106 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     paint_picker(c, panels, sc);
 }
 
+// ---- THE SETUP LINE: which arrangement this is, and whether it is written down (WS-0) ----
+//
+// ONE ROW OF THE BOTTOM BAND, the one directly under the workspace, which was blank. The
+// band has always been five rows -- a spare, the notice, a spare, and two help lines -- and
+// this spends the first spare on the one fact WS-0 adds that a maker needs CONTINUOUSLY
+// rather than at the moment they act: which setup they are in, whether it matches its file,
+// and whether any of its panes could not be presented.
+//
+// WHY NOT THE STATUS SLOT. That line is the DOCUMENT's -- object count, selection, document
+// path, document saved marker -- and it is already 56 cells with the default path and past
+// 78 with any real one, so a setup half appended to it would be clipped by the terminal with
+// no mark at all. `SurfaceText` carries no width and the medium clips in silence; a canvas
+// label goes through `detail::fit`, which SAYS it cut something. The choice is therefore
+// between two silences and one honest elision, and this is the honest one.
+//
+// WHY NOT A BOUNDED REGION WITH A REAL CARET (HD-3). Because the row is ONE CELL TALL, and
+// HD-6 measured what that means: `fit_region` over a one-cell-high rectangle answers ZERO
+// rows of a real face, so a graphical medium would draw nothing at all there. A caret said
+// in prose needs a region with room for prose. So the editor below writes its caret INTO the
+// text as `surface::kCaretGlyph` -- which is byte-for-byte what the cell projection does with
+// a region's caret anyway -- and both media show the same row.
+//
+// IT OCCUPIES NO POINTER SPACE. There is no hit test here, no press, no pointer editing:
+// `occupied_at` answers about panels and the picker, and this line is furniture beside the
+// notice, exactly as the help lines are.
+
+/// What the one-line name editor puts before and after the name a maker is typing.
+inline constexpr const char* kSetupNamePrompt = "setup name> ";
+inline constexpr const char* kSetupNameHint = "  enter saves  esc cancels";
+
+/// The two gestures the setup line advertises, on the line the thing they act on is on --
+/// the `[+ panel]  p` precedent, and for the same measured reason: the two help lines at the
+/// bottom are 68 and 73 cells of a 78-cell minimum screen, so neither has room for a gesture
+/// pair, and abbreviating one a maker uses constantly to advertise one they may not would be
+/// paying for the new thing with the old.
+inline constexpr const char* kSetupHints = "s name/save  r restore";
+
+/// What the line says where a path would be when the host chose none.
+inline constexpr const char* kNoSetupFileShown = "no setup file";
+
+/// The fewest columns the name editor will claim for the name itself, so that a surface
+/// narrow enough for the chrome to exceed it still shows some of what is being typed.
+inline constexpr std::int64_t kSetupNameMinCols = 8;
+
+/// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
+/// the window the `component::TextBox` is kept against and the slice the painter cuts are the
+/// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
+/// the row it is drawn on (HD-4).
+inline std::int64_t setup_name_columns(const Screen& sc) noexcept {
+    const std::int64_t chrome =
+        static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
+        static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNameHint)) + 1;
+    const std::int64_t room = sc.w - chrome;
+    return room > kSetupNameMinCols ? room : kSetupNameMinCols;
+}
+
+/// The name being typed, windowed, with the caret in it.
+inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc) {
+    std::string shown = naming.line.visible(setup_name_columns(sc));
+    const std::size_t at = naming.line.caret_column();
+    shown.insert(at < shown.size() ? at : shown.size(), 1, surface::kCaretGlyph);
+    return std::string(kSetupNamePrompt) + shown + kSetupNameHint;
+}
+
+/// WHICH SETUP THIS IS, IN THE ORDER A MAKER NEEDS IT.
+///
+/// The name first, because it is the identity and must never be the thing that elides; then
+/// the saved marker, computed by comparison and never flagged; then the unresolved count,
+/// which is the only dynamic truth on the line; then the file; then the two gestures.
+///
+/// MEASURED AT THE MINIMUM COMPOSITION: with the default name and the default file name and
+/// nothing unresolved the whole line is 70 of 78 cells. A setup with an unresolved reference
+/// runs 15 cells longer and `detail::fit` marks the cut, which falls on the tail of the
+/// static hint rather than on any of the truths above it -- which is why they are in this
+/// order rather than in the order they were designed in.
+inline std::string setup_status_text(const SetupState& setup, const std::string& path) {
+    std::string line =
+        "setup \"" + setup.active.name + "\" " + (setup.saved() ? "saved" : "UNSAVED");
+    const std::vector<PaneRef> waiting = unresolved_panes(setup.active);
+    if (!waiting.empty()) {
+        // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these
+        // references; it knows nothing whatever about whoever could, and a word implying
+        // otherwise would be a claim made out of silence.
+        line += " | " + std::to_string(waiting.size()) + " unresolved";
+    }
+    line += " | ";
+    line += path.empty() ? std::string(kNoSetupFileShown) : path;
+    line += " | ";
+    line += kSetupHints;
+    return line;
+}
+
+/// The setup line as it is painted: the editor while a maker is naming, and the identity
+/// otherwise. Fitted here, at the presentation boundary and nowhere upstream.
+inline std::string setup_line(const Session& s, const std::string& path, const Screen& sc) {
+    return detail::fit(s.setup.naming.open ? setup_naming_text(s.setup.naming, sc)
+                                           : setup_status_text(s.setup, path),
+                       sc.w);
+}
+
 /// The whole screen as one published canvas.
 ///
 /// Painter's order, which is list order: the workspace backdrop, then each
@@ -3557,7 +3675,15 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
 /// The picture is derived from `workspace_scene()` and from nothing else, which
 /// is what makes "what you see is what the hit test answers about" structural
 /// rather than a claim: the two read one value.
-inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
+///
+/// THE SETUP PATH IS AN ARGUMENT (WS-0), and it is the only thing this function has ever
+/// needed that is neither authored content nor session. It is the HOST's choice, exactly as
+/// `document_path` is, and the document's path avoids this by only ever being said in the
+/// status slot, which the weave composes. The setup's identity is painted ON the canvas, so
+/// the canvas has to be told. It is defaulted so that a caller with no host -- every screen
+/// case in the suite -- paints a truthful line saying no setup file was chosen.
+inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
+                                    const std::string& setup_path = std::string()) {
     const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
     c.width = sc.w;
@@ -3666,6 +3792,12 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s) {
         paint_terminal(c, s.terminal, sc);
         return c;
     }
+
+    // WHICH SETUP THIS IS -- the band's first row, which was blank, and the one fact this
+    // phase adds that a maker needs continuously rather than at the moment they act. Painted
+    // with the notice and the help lines rather than with the panels, because it is the
+    // screen's own furniture and no panel's: removing every panel does not remove it.
+    label(0, sc.notice_y - 1, setup_line(s, setup_path, sc), surface::role::kMuted);
 
     // The notice, fitted to the one line it has. `Session::notice` keeps the
     // whole sentence -- the fit happens HERE, at the presentation boundary, and
