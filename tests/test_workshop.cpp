@@ -6824,22 +6824,37 @@ TEST_CASE("the terminal medium projects the list honestly, ground and all") {
     CHECK(rows[heading_row].substr(static_cast<std::size_t>(list->x), 5) == "verbs");
     CHECK(rows[heading_row + 1].substr(static_cast<std::size_t>(list->x), 6) == "> send");
 
-    // THE GROUND IS IN THE BYTES, once, at the start of the selected row's run, and is put
-    // back afterwards. `\x1b[100m` is bright black -- the selection bar.
+    // THE GROUND IS IN THE BYTES, at the start of the selected row's run, and is put back
+    // afterwards. `\x1b[100m` is bright black -- the selection bar.
     const std::string body = surface::canvas_body(c);
     CHECK(body.find("\x1b[100m") != std::string::npos);
     // ...and the row above it asked for none, so nothing between them says otherwise.
-    const std::size_t bar = body.find("\x1b[100m");
     const std::size_t verbs = body.find("verbs");
     REQUIRE(verbs != std::string::npos);
-    CHECK(verbs < bar);
-    CHECK(body.find("\x1b[100m", bar + 1) == std::string::npos); // exactly one row wears it
+    CHECK(verbs < body.find("\x1b[100m", verbs));
 
-    // AND A CANVAS WITH NO GROUND ANYWHERE EMITS NOT ONE BACKGROUND BYTE -- which is the
-    // whole of why this addition is invisible to every golden this repository holds.
+    // EXACTLY ONE ROW OF THE LIST WEARS IT, which is the claim this case owns and is asserted
+    // over the LIST's rows rather than over the whole canvas. Since HD-9 the Info panel below
+    // sets its `PROPERTIES` heading and its available controls on the same ground, so a
+    // whole-canvas count would now be counting somebody else's rows.
+    std::size_t grounded = 0;
+    for (const surface::SurfaceTextRow& row : list->rows) {
+        if (row.background != surface::role::kNone) {
+            ++grounded;
+        }
+    }
+    CHECK(grounded == 1);
+
+    // AND CLOSING THE LIST TAKES ITS GROUND WITH IT -- nothing is left behind on the next
+    // repaint. (The canvas still carries the Info panel's, which is why this asks the list.
+    // The claim that a canvas with NO ground emits not one background byte is owned by
+    // test_surface.cpp, over a canvas built by hand for exactly that question.)
     t.key(input::scan::kEscape);
-    CHECK(surface::canvas_body(t.canvases.back()).find("\x1b[100m") == std::string::npos);
-    CHECK(surface::canvas_body(t.canvases.back()).find("\x1b[49m") == std::string::npos);
+    CHECK(list_of(t.canvases.back(), kMinScreen) == nullptr);
+    const Screen closed = screen_of(t.session());
+    for (const surface::SurfaceTextRow& row : pane_of(t.canvases.back(), closed)->rows) {
+        CHECK(row.background == surface::role::kNone); // and the pane never had one
+    }
 }
 
 TEST_CASE("taking the room refits the workspace, and says whether anything moved") {
@@ -12489,9 +12504,14 @@ TEST_CASE("HD-8: unavailable is said in CHARACTERS, so a colourless medium reads
         CHECK(create_row.role == surface::role::kFill);
         CHECK(delete_row.text == "( Delete )"); // an empty document has nothing to delete
         CHECK(delete_row.role == surface::role::kMuted);
-        // NO GROUND WAS SPENT ON EITHER. `SurfaceTextRow::background` is still unused by this
-        // repository, so no canvas gained a background byte and no terminal golden moved.
-        CHECK(create_row.background == surface::role::kNone);
+        // AND SINCE HD-9 THE AVAILABLE ONE SITS ON SOMETHING AND THE UNAVAILABLE ONE DOES
+        // NOT. The text above is what HD-8 proved and it is unchanged by that: a medium with
+        // no ground at all still reads the two states apart, which is why this case still
+        // asserts the characters first. (HD-8 recorded here that the field was unused by this
+        // repository; that was not so even then -- the Terminal's completion list has set its
+        // selected row on `kMuted` since HD-2. What HD-9 changed is that the Info panel
+        // spends it too.)
+        CHECK(create_row.background == surface::role::kMuted);
         CHECK(delete_row.background == surface::role::kNone);
     }
 }
@@ -13041,4 +13061,313 @@ TEST_CASE("QR-2: no press inside the Info body begins a workspace gesture, on an
     }
     CHECK(t.row("Name")->editing()); // and every refusal along the way left the draft alone
     CHECK(t.row("Name")->draft() == "panel");
+}
+
+// ---- HD-9: the Info panel's structural rows get a GROUND -----------------------------------
+//
+// Two consumers of `SurfaceTextRow::background`, one panel: the available action controls and
+// the `PROPERTIES` heading. Everything below asserts the SEMANTIC row values a publisher
+// produces -- not a renderer's pixels and not a screenshot -- because the ground travels
+// unresolved and each medium answers for itself (`project_text_regions` keeps it, the SDL plan
+// resolves it against the region's own).
+
+TEST_CASE("HD-9: an available control sits on a ground and an unavailable one does not") {
+    // BOTH MEDIA, because the row is the publisher's answer and the publisher has one. The
+    // first extent is a cell medium (no metric), the second a graphical one.
+    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+        CAPTURE(line);
+        // A document with something to delete: both controls available.
+        Sample p = panel_of(3, 0, 80, 38, line == 0 ? 0 : 8, line);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        const surface::SurfaceCanvas c = paint(p.d, p.s);
+        const surface::SurfaceTextRegion* shown = body_on(c, body);
+        REQUIRE(shown != nullptr);
+        for (const std::size_t which : {kActionCreate, kActionDelete}) {
+            const surface::SurfaceTextRow& row =
+                shown->rows[static_cast<std::size_t>(prose_row_of_action(body, which))];
+            CHECK(row.text == action_row_text(which, true, body.columns));
+            CHECK(row.role == surface::role::kFill);
+            CHECK(row.background == surface::role::kMuted);
+        }
+
+        // AND WITH NOTHING TO DELETE, the one that cannot run loses the ground rather than
+        // being handed a quieter one. That is the whole of what makes a ground mean
+        // "actionable": availability is not a matter of degree here.
+        Sample empty = panel_of(0, 0, 80, 38, line == 0 ? 0 : 8, line);
+        const InfoBodyPlace eb = body_of(empty.d, empty.s);
+        const surface::SurfaceCanvas ec = paint(empty.d, empty.s);
+        const surface::SurfaceTextRegion* e = body_on(ec, eb);
+        REQUIRE(e != nullptr);
+        const surface::SurfaceTextRow& create_row =
+            e->rows[static_cast<std::size_t>(prose_row_of_action(eb, kActionCreate))];
+        const surface::SurfaceTextRow& delete_row =
+            e->rows[static_cast<std::size_t>(prose_row_of_action(eb, kActionDelete))];
+        CHECK(create_row.background == surface::role::kMuted);
+        CHECK(delete_row.background == surface::role::kNone);
+        // THE TEXT STILL CARRIES IT ALONE, unchanged by HD-9 and asserted here rather than
+        // only next door, because the ground is what could have tempted this to be dropped.
+        CHECK(create_row.text == "[ Create ]");
+        CHECK(delete_row.text == "( Delete )");
+        // AND THE UNAVAILABLE CONTROL IS NOT SIMPLY MISSING: it is a row, in its own ink, in
+        // exactly the place the available one would be.
+        CHECK(delete_row.role == surface::role::kMuted);
+    }
+}
+
+TEST_CASE("HD-9: a live draft takes the ground off BOTH controls, and gives it back") {
+    // The other unavailability, and the one that moves both controls at once (`kDraftLive`).
+    Live t;
+    t.begin_editing("Name");
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    const surface::SurfaceTextRegion* drafting = body_region(t.canvases.back(), body);
+    REQUIRE(drafting != nullptr);
+    for (const std::size_t which : {kActionCreate, kActionDelete}) {
+        const surface::SurfaceTextRow& row =
+            drafting->rows[static_cast<std::size_t>(prose_row_of_action(body, which))];
+        CHECK(row.background == surface::role::kNone);
+        CHECK(row.role == surface::role::kMuted);
+        CHECK(row.text == action_row_text(which, false, body.columns));
+    }
+    // AND THE ACTIVE EDIT IS STILL THE LOUDEST THING IN THE PANEL. A ground on a control while
+    // a draft is live would have put a second bright row beside the one the maker is typing
+    // into; the availability rule and the ground rule agree here rather than competing.
+    const surface::SurfaceTextRow& editing =
+        drafting->rows[static_cast<std::size_t>(editing_prose_row(t, body))];
+    CHECK(editing.role == surface::role::kAlert);
+    CHECK(editing.background == surface::role::kNone);
+
+    t.key(input::scan::kEscape); // cancel: the controls come back, ground and all
+    const InfoBodyPlace after = body_place(t);
+    const surface::SurfaceTextRegion* back = body_region(t.canvases.back(), after);
+    REQUIRE(back != nullptr);
+    CHECK(back->rows[static_cast<std::size_t>(prose_row_of_action(after, kActionCreate))]
+              .background == surface::role::kMuted);
+}
+
+TEST_CASE("HD-9: `PROPERTIES` is set on a ground, and the row above it is not") {
+    // THE HD-7 OBSERVATION, PINNED. The row immediately above the heading is the SELECTED
+    // object, which carries accent ink too -- so before HD-9 the boundary and the thing it
+    // was not were the same colour on adjacent rows. The ground is what tells them apart, and
+    // this case asserts BOTH halves so a later phase cannot buy the heading's distinction by
+    // grounding the selection as well.
+    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+        CAPTURE(line);
+        Sample p = panel_of(3, 2, 80, 38, line == 0 ? 0 : 8, line);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        const surface::SurfaceCanvas c = paint(p.d, p.s);
+        const surface::SurfaceTextRegion* shown = body_on(c, body);
+        REQUIRE(shown != nullptr);
+        const surface::SurfaceTextRow& heading =
+            shown->rows[static_cast<std::size_t>(body.heading_row)];
+        CHECK(heading.text == "PROPERTIES");
+        CHECK(heading.role == surface::role::kAccent); // unchanged: the ink still says what
+        CHECK(heading.background == surface::role::kMuted);
+
+        const surface::SurfaceTextRow& selected =
+            shown->rows[static_cast<std::size_t>(prose_row_of_object(body, 2))];
+        CHECK(selected.role == surface::role::kAccent);
+        CHECK(selected.background == surface::role::kNone);
+        CHECK(selected.text.rfind("> ", 0) == 0); // and the mark is still what a cell reads
+    }
+}
+
+TEST_CASE("HD-9: no other row of the body was given a ground") {
+    // THE BLAST RADIUS, ASSERTED RATHER THAN INTENDED. Two consumers were earned; every other
+    // row of this body -- object rows, property rows, both omission markers, the spare rows,
+    // the two empty-state sentences -- shows whatever the region is sitting on, exactly as it
+    // did before HD-9.
+    for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+        CAPTURE(line);
+        // Enough objects that the object list omits on both sides at the graphical minimum,
+        // so the marker rows are really in the picture being asserted.
+        Sample p = panel_of(20, 10, 78, 22, line == 0 ? 0 : 8, line);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        const surface::SurfaceCanvas c = paint(p.d, p.s);
+        const surface::SurfaceTextRegion* shown = body_on(c, body);
+        REQUIRE(shown != nullptr);
+        REQUIRE(shown->rows.size() == body.capacity);
+        std::size_t grounded = 0;
+        for (std::size_t i = 0; i < shown->rows.size(); ++i) {
+            CAPTURE(i);
+            const std::size_t which = action_at_prose_row(body, static_cast<std::int64_t>(i));
+            const bool structural =
+                static_cast<std::int64_t>(i) == body.heading_row ||
+                (which != kNoAction && available(action_availability(which, p.d, p.s)));
+            if (structural) {
+                CHECK(shown->rows[i].background == surface::role::kMuted);
+                ++grounded;
+            } else {
+                CHECK(shown->rows[i].background == surface::role::kNone);
+            }
+        }
+        // THE HEADING AND BOTH AVAILABLE CONTROLS, AND NOTHING ELSE.
+        CHECK(grounded == 1 + kActionCount);
+        CHECK(body.objects.before + body.objects.after > 0); // the markers were really there
+        CHECK(body.properties.after > 0);
+    }
+}
+
+TEST_CASE("HD-9: the ground reaches the whole row in a CELL medium, not just its characters") {
+    // WHAT THE EXISTING SURFACE CONTRACT ACTUALLY BACKGROUNDS, measured through the shared
+    // cell projection rather than assumed from the field's name. `project_one_text_region`
+    // pads every row to the region's full width and carries the ground on the padding too, so
+    // a character medium's answer to "this row, all of it" really is all of it.
+    Sample p = panel_of(3, 0, 80, 38);
+    const InfoBodyPlace body = body_of(p.d, p.s);
+    const surface::SurfaceCanvas c = paint(p.d, p.s);
+    const surface::SurfaceTextRegion* shown = body_on(c, body);
+    REQUIRE(shown != nullptr);
+
+    surface::SurfaceCanvas only;
+    only.width = c.width;
+    only.height = c.height;
+    only.texts.push_back(*shown);
+    const std::vector<surface::ProjectedRow> rows = surface::project_text_regions(only);
+    REQUIRE(rows.size() == static_cast<std::size_t>(shown->h));
+
+    const std::size_t heading = static_cast<std::size_t>(body.heading_row);
+    CHECK(rows[heading].background == surface::role::kMuted);
+    CHECK(rows[heading].label.text.size() == static_cast<std::size_t>(shown->w));
+    CHECK(rows[heading].label.text.rfind("PROPERTIES", 0) == 0);
+    CHECK(rows[heading].label.text.back() == ' '); // padded, and the ground rides the padding
+
+    const std::size_t create =
+        static_cast<std::size_t>(prose_row_of_action(body, kActionCreate));
+    CHECK(rows[create].background == surface::role::kMuted);
+    CHECK(rows[create].label.text.size() == static_cast<std::size_t>(shown->w));
+
+    // AND THE TERMINAL REALLY EMITS IT. `sgr_bg_for_role(kMuted)` is the bright-black ground,
+    // and this is the first Info-panel byte of it -- exactly three runs, one per grounded row,
+    // because a grounded row is one role and one ground from the region's first column to its
+    // last and the writer opens each run once.
+    const std::string bytes = surface::canvas_body(c);
+    std::size_t runs = 0;
+    for (std::size_t at = bytes.find("\x1b[100m"); at != std::string::npos;
+         at = bytes.find("\x1b[100m", at + 1)) {
+        ++runs;
+    }
+    CHECK(runs == 1 + kActionCount);
+    // AND NOTHING AFTER A GROUNDED ROW WEARS IT. There is no `\x1b[49m` here and that is not
+    // an omission: the ground reaches the region's last column, and the writer restarts every
+    // canvas row from no-role/no-ground, so the reset that ends the run is the row itself.
+    // (`\x1b[49m` is the branch a ground FOLLOWED by ungrounded cells on the same row takes;
+    // the Info body has none, and the Terminal's completion list is the case that does.)
+    CHECK(bytes.find("\x1b[49m") == std::string::npos);
+}
+
+TEST_CASE("HD-9: the ground resolves to a real ink for a graphical medium, per row") {
+    // THE OTHER MEDIUM'S ANSWER TO THE SAME PUBLISHED FACT. `plan_text_regions` resolves
+    // `role::kNone` to the REGION's own ground, so "has a ground of its own" is spelled as
+    // "differs from the region's" in the renderer -- which is what makes the absence an
+    // absence rather than a second flag to keep in step.
+    Sample p = panel_of(3, 0, 80, 38, 8, 18);
+    const InfoBodyPlace body = body_of(p.d, p.s);
+    REQUIRE(body.fit.graphical());
+    const surface::SurfaceCanvas c = paint(p.d, p.s);
+    const std::vector<surface::PlanTextRegion> plan = surface::plan_text_regions(
+        c, surface::SurfaceExtent{80, 38, 8, 18},
+        surface::PlanSize{80 * surface::kCanvasCellPx, 38 * surface::kCanvasCellPx});
+    const surface::PlanTextRegion* planned = nullptr;
+    for (const surface::PlanTextRegion& r : plan) {
+        if (r.view.y == body.region_y * surface::kCanvasCellPx) {
+            planned = &r;
+        }
+    }
+    REQUIRE(planned != nullptr);
+    REQUIRE(planned->rows.size() > static_cast<std::size_t>(body.action_row) + 1);
+
+    const surface::PlanTextRow& heading =
+        planned->rows[static_cast<std::size_t>(body.heading_row)];
+    const surface::PlanTextRow& create =
+        planned->rows[static_cast<std::size_t>(prose_row_of_action(body, kActionCreate))];
+    CHECK(heading.background == surface::ink_for_role(surface::role::kMuted));
+    CHECK(create.background == surface::ink_for_role(surface::role::kMuted));
+    CHECK_FALSE(heading.background == planned->background); // so the strip is really drawn
+    CHECK_FALSE(create.background == planned->background);
+    // AND THE INK ON TOP IS STILL THE ROW'S OWN ROLE -- two independent fields, which is what
+    // lets a grounded heading keep its accent and a grounded control keep its fill.
+    CHECK(heading.ink == surface::ink_for_role(surface::role::kAccent));
+    CHECK(create.ink == surface::ink_for_role(surface::role::kFill));
+
+    // AN ORDINARY ROW RESOLVES TO THE REGION'S OWN GROUND and costs the renderer no strip.
+    const surface::PlanTextRow& ordinary = planned->rows[0];
+    CHECK(ordinary.background == planned->background);
+}
+
+TEST_CASE("HD-9: the grounded strip is exactly the prose row a press resolves to") {
+    // THE HUMAN-FACTOR GUARD. A ground that looked like a larger target than the one that
+    // answers would be presentation lying about interaction, so the two are compared as
+    // NUMBERS: the strip the renderer fills for prose row `i` is
+    // [origin_y + i*line_px, origin_y + (i+1)*line_px) local to the region's viewport, and
+    // `prose_row_of_pixel` partitions the identical pixels. Every pixel of the slab, top edge
+    // and bottom edge included, names the control it is drawn under.
+    Sample p = panel_of(3, 0, 80, 38, 8, 18);
+    const InfoBodyPlace body = body_of(p.d, p.s);
+    REQUIRE(body.fit.graphical());
+    for (const std::size_t which : {kActionCreate, kActionDelete}) {
+        const std::int64_t row = prose_row_of_action(body, which);
+        const std::int64_t top = body.region_y * surface::kCanvasCellPx + body.fit.origin_y +
+                                 row * body.fit.line_px;
+        for (const std::int64_t py :
+             {top, top + body.fit.line_px / 2, top + body.fit.line_px - 1}) {
+            CAPTURE(py);
+            CHECK(surface::prose_row_of_pixel(py, body.region_y, body.fit) == row);
+            CHECK(action_press_at(
+                      body, 0, surface::prose_row_of_pixel(py, body.region_y, body.fit)) ==
+                  which);
+        }
+        // AND ONE PIXEL PAST EITHER END OF THE STRIP IS THE NEIGHBOURING ROW, never this one.
+        CHECK(surface::prose_row_of_pixel(top - 1, body.region_y, body.fit) == row - 1);
+        CHECK(surface::prose_row_of_pixel(top + body.fit.line_px, body.region_y, body.fit) ==
+              row + 1);
+    }
+
+    // HORIZONTALLY THE SLAB IS THE VIEWPORT AND THE TARGET IS THE COLUMNS INSIDE IT, and the
+    // difference is exactly `kTextInsetPx` at the left end -- the margin `fit_region` has
+    // always held back and which no glyph was ever drawn in either. It is asserted rather than
+    // waved at, because the ground is the first thing to make it visible.
+    const std::int64_t left = body.region_x * surface::kCanvasCellPx;
+    CHECK(surface::prose_column_of_pixel(left, body.region_x, body.fit) == -1);
+    CHECK(action_press_at(body, -1, body.action_row) == kNoAction);
+    CHECK(surface::prose_column_of_pixel(left + surface::kTextInsetPx, body.region_x,
+                                         body.fit) == 0);
+    CHECK(action_press_at(body, 0, body.action_row) == kActionCreate);
+    CHECK(action_press_at(body, body.fit.columns, body.action_row) == kActionCreate);
+    CHECK(action_press_at(body, body.fit.columns + 1, body.action_row) == kNoAction);
+}
+
+TEST_CASE("HD-9: a ground changed no composition, no row index and no hit mapping") {
+    // A STYLING PHASE MUST NOT BECOME A LAYOUT PHASE. Every number HD-7 and HD-8 established
+    // is re-measured here across the extents those phases quoted, so a later reader can see
+    // that the capacities did not move under the paint.
+    struct Case {
+        std::int64_t w, h, advance, line;
+    };
+    for (const Case& k : std::vector<Case>{{78, 22, 8, 18}, {78, 25, 8, 18}, {120, 40, 8, 18},
+                                           {240, 80, 8, 18}, {80, 38, 0, 0}, {80, 70, 0, 0}}) {
+        CAPTURE(k.w);
+        CAPTURE(k.h);
+        CAPTURE(k.line);
+        Sample p = panel_of(6, 0, k.w, k.h, k.advance, k.line);
+        const InfoBodyPlace body = body_of(p.d, p.s);
+        REQUIRE(body.present);
+        const surface::SurfaceCanvas c = paint(p.d, p.s);
+        const surface::SurfaceTextRegion* shown = body_on(c, body);
+        REQUIRE(shown != nullptr);
+
+        // THE FOOTER IS STILL EXACTLY TWO ROWS, ANCHORED TO THE FOOT.
+        CHECK(body.action_row == static_cast<std::int64_t>(body.capacity - kActionRows));
+        CHECK(shown->rows.size() == body.capacity);
+        // THE HEADING IS STILL WHERE THE SHARE PUT IT, and the three runs are still disjoint.
+        CHECK(body.heading_row == static_cast<std::int64_t>(body.objects_rows));
+        CHECK(body.objects_rows + 1 + body.properties_rows <= body.capacity - kActionRows);
+        // AND THE INVERSES ARE STILL INVERSES ON EVERY ROW OF THE BODY.
+        for (std::size_t which = 0; which < kActionCount; ++which) {
+            CHECK(action_at_prose_row(body, prose_row_of_action(body, which)) == which);
+        }
+        CHECK(action_at_prose_row(body, body.heading_row) == kNoAction);
+        CHECK(property_at_prose_row(body, body.heading_row) == kNoProperty);
+        CHECK(object_at_prose_row(body, body.heading_row) == kNoObject);
+    }
 }

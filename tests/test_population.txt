@@ -131,6 +131,12 @@
 # the row a maker sees -- is arithmetic over three counts and one metric. Not one of its
 # fifteen cases needs a font engine, so the Windows stranger lane proves the entire phase.
 #
+# HD-9 is the seventh, and it needed no new row anywhere. Its eight cases all sit in
+# `workshop`'s always row, because giving a row a GROUND is a published field, a shared cell
+# projection and a pure plan -- none of which has ever needed a font engine. The one thing the
+# phase genuinely could not assert without SDL is what the slab LOOKS like, and that is a live
+# witness in the report rather than a case pretending to be one.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -147,7 +153,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  316
+workshop                          doctest           always  324
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -3325,9 +3325,17 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
-    const auto say_row = [&region](std::string text, std::int64_t role) {
-        region.rows.push_back(
-            surface::SurfaceTextRow{std::move(text), role, surface::role::kNone});
+    // A ROW MAY BE SET ON A GROUND, AND ALMOST NONE OF THEM IS (HD-9). The ground is
+    // defaulted rather than spelled at every call because `role::kNone` is not a value a row
+    // could be wrong about -- it is the absence of one, and the picture it draws is the
+    // picture every row of this body drew before HD-9. That is the opposite of HD-4's
+    // `first_visible`, where a default would have let a call site keep an old spelling and be
+    // silently right until the first line long enough to scroll: here the two sites that pass
+    // one are the whole of what this phase changed, and the default is what makes them read
+    // as the exception they are.
+    const auto say_row = [&region](std::string text, std::int64_t role,
+                                   std::int64_t ground = surface::role::kNone) {
+        region.rows.push_back(surface::SurfaceTextRow{std::move(text), role, ground});
     };
     // The markers are in the panel's own muted role because they are the tool's furniture and
     // not authored material: nothing here mints an identity, invents a name, or reorders a
@@ -3358,8 +3366,25 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
             // existing word for "furniture, not the maker's material", which is what a control
             // a maker cannot use currently is; the brackets in the text carry the same fact to
             // a medium with no ink to spend. No role was added and none was widened.
+            //
+            // AND A CONTROL A MAKER CAN USE SITS ON SOMETHING (HD-9), which is the THIRD
+            // signal and still not the only one: `[ ... ]` is what a medium with no ground at
+            // all reads, and it is unchanged. The ground is `kMuted` -- the same value the
+            // Terminal's completion list has spent on its selected row since HD-2 -- and the
+            // reason is a legibility fact each MEDIUM owns rather than a semantic one: it is
+            // the one ground in either palette that every ink in `sgr_for_role` /
+            // `ink_for_role` reads on, so a publisher may set a row on it without knowing
+            // what ink the row's own role resolved to. (Pairing a role with its OWN ground is
+            // the mistake this avoids -- `kFill` on `kFill` is white on white in a terminal.)
+            //
+            // AN UNAVAILABLE CONTROL IS GIVEN NO GROUND AT ALL, which is the whole of what
+            // makes the ground say "actionable" rather than "a control is here". Handing it
+            // the same slab and a quieter ink would make availability a matter of degree, and
+            // a maker would be reading two shades of grey to learn a fact the brackets state
+            // outright.
             say_row(action_row_text(which, pressable, body.columns),
-                    pressable ? surface::role::kFill : surface::role::kMuted);
+                    pressable ? surface::role::kFill : surface::role::kMuted,
+                    pressable ? surface::role::kMuted : surface::role::kNone);
         }
         c.texts.push_back(std::move(region));
     };
@@ -3391,7 +3416,21 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
     }
 
     // ---- `PROPERTIES`, a row of the body, at the row the composition put it ----
-    say_row("PROPERTIES", surface::role::kAccent);
+    //
+    // AND IT IS SET ON A GROUND (HD-9), because accent ink alone was not enough to say
+    // "a section begins here". HD-7 predicted this and a live run confirmed it: the row
+    // immediately above `PROPERTIES` is the SELECTED object, which is accent ink too, so the
+    // heading and the thing it is not were the same colour on adjacent rows. A ground is the
+    // one signal in this vocabulary that says "this row, all of it" -- which is what a
+    // boundary is -- and it takes no room, so HD-7's spent separator row stays spent.
+    //
+    // THE SAME `kMuted` THE CONTROLS BELOW USE, and that is agreement rather than sharing:
+    // the two consumers arrive at one value because each medium offers exactly one ground
+    // every ink reads on, not because a heading and a control mean the same thing. What
+    // distinguishes them is what each already carried -- accent ink and a section's name
+    // against fill ink and a bracketed verb -- so no role was added, none was widened, and
+    // there is no `kSectionGround` constant pretending the two decisions are one.
+    say_row("PROPERTIES", surface::role::kAccent, surface::role::kMuted);
 
     // ---- the properties ----
     if (s.rows.empty()) {

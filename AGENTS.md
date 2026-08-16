@@ -77,8 +77,11 @@ labels; the ground travels **unresolved** through the cell projection and each m
 for itself.
 
 **A canvas with no ground emits not one background byte**, which is why every pre-existing
-terminal golden is unmoved — the assertion is in `test_surface.cpp`, and it is the thing to
-re-check if this ever grows.
+terminal golden is unmoved — the assertion is in `test_surface.cpp`, over a canvas built by
+hand for exactly that question, and it is the thing to re-check if this ever grows. It is
+deliberately NOT asserted over a whole Workshop screen any more: HD-2 gave the Terminal's
+completion list a `kMuted` ground for its selected row and HD-9 gave the Info panel three, so a
+Workshop canvas now carries background bytes as a matter of course.
 
 ## A region may have a caret, and it is said in PROSE (HD-3)
 
@@ -409,6 +412,52 @@ Availability is whether the act has a TARGET and whether the maker is FREE to ac
 - **No focus framework, and none was earned.** The controls are pointer-only, keyboard command
   routing is untouched, and a `TextBox` still owns typing while editing. There is no
   keyboard-activation gesture for a control, so there is nothing for two owners to want.
+
+## The Info panel's structural rows sit on a GROUND (HD-9)
+
+Two rows of the Info body are set on something now, and they are the first consumers of
+`SurfaceTextRow::background` outside the Terminal's completion list:
+
+```text
+`PROPERTIES`              role kAccent   background kMuted    a section BOUNDARY
+[ Create ] / [ Delete ]   role kFill     background kMuted    a control that can be pressed
+( Create ) / ( Delete )   role kMuted    background kNone     present, and not pressable now
+every other row           role as before background kNone     whatever the region sits on
+```
+
+- **`surface/` did not change, and that is the phase's result.** No field, no role, no wire
+  version, no renderer line. HD-2 shipped the capability and it stayed dormant in this panel
+  for seven phases until two real consumers asked; what HD-9 spends is the vocabulary that was
+  already there. (HD-7's and HD-8's notes that the field had *never* been used were wrong even
+  when written — `completion_rows` has set its selected candidate on `kMuted` since HD-2.)
+- **A ground is the WHOLE ROW in both media, and neither was taught that.** The cell
+  projection pads every row to the region's width and carries the ground onto the padding
+  (`project_one_text_region`); the SDL renderer fills a strip spanning the region's whole
+  viewport (`skin_sdl_text.hpp`). Both were written that way by HD-2 for a *selected row*, and
+  a control and a heading turn out to want exactly the same sentence: **this row, all of it.**
+- **The two consumers use ONE ground, and that is agreement rather than sharing.** Each
+  medium's palette offers exactly one ground that every ink reads on — `sgr_bg_for_role` says
+  so in its own comment and `ink_for_role` bears it out — so a publisher that wants a legible
+  grounded row has one honest choice. **Never pair a role with its own ground**: `kFill` on
+  `kFill` is white on white in a terminal, and nothing refuses it. What tells the heading from
+  the controls is what each already carried: accent ink and a section's name against fill ink
+  and a bracketed verb. There is no `kSectionGround` constant, because two decisions that land
+  on one value are not one decision.
+- **An unavailable control loses the ground entirely rather than getting a quieter one.** That
+  is what makes the ground mean *actionable* instead of *a control is here*, and it keeps
+  availability out of being a matter of degree. HD-8's characters are untouched and still the
+  first signal — `[ … ]` is what a medium with no ground reads, and `say_row`'s ground is the
+  third signal after the brackets and the role, never a replacement for either.
+- **The ground is presentation and it moved no geometry.** `kActionRows`, `share_body_rows`,
+  the heading's row, the footer's foot anchor, all three inverse pairs, `info_body_at` and
+  `actions_press` are byte-identical. The grounded strip a maker sees for prose row `i` is
+  `[origin_y + i*line_px, origin_y + (i+1)*line_px)`, which is the identical partition
+  `prose_row_of_pixel` inverts — pinned, boundary pixels included. Horizontally the slab is the
+  region's viewport and the target is `0 <= column <= fit.columns` inside it, so a
+  `kTextInsetPx` margin of the slab names no control; that margin predates HD-9 and the ground
+  is merely the first thing that made it visible.
+- **`component::Button` is still not earned** and neither is any interaction abstraction. A
+  ground is a value on a row.
 
 ## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
 
