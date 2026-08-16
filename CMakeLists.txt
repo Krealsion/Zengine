@@ -104,11 +104,24 @@ target_compile_options(zengine-warnings INTERFACE
 #
 # UNCONDITIONAL ON MINGW rather than applied to the one file that overflowed, because the
 # ceiling is not that file's property: it is the toolchain's, and the next phase to add a
-# template to a shared header would meet it somewhere else. It is scoped to MinGW because
-# nothing else has the limit -- MSVC has its own object format and its own `/bigobj`, and ELF
-# has no such ceiling at all.
+# template to a shared header would meet it somewhere else.
+#
+# AND MSVC HAS THE SAME CEILING, WHICH HD-1 GUESSED WRONG AND HD-10 MEASURED. The sentence
+# here used to read "scoped to MinGW because nothing else has the limit -- MSVC has its own
+# object format and its own `/bigobj`", which is half right: the flag is MSVC's own, and the
+# LIMIT is the same COFF limit, because MSVC emits COFF too. HD-10 added nine cases to
+# `tests/test_workshop.cpp` and the MSVC stranger lane stopped on a file that had compiled
+# there the phase before, with
+#
+#   fatal error C1128: number of sections exceeded object file format limit: compile with /bigobj
+#
+# Same ceiling, same repair, said in each toolchain's own spelling. ELF has no such ceiling,
+# so the GCC/Linux lanes ask for nothing.
 if(MINGW)
     target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
+endif()
+if(MSVC)
+    target_compile_options(zengine-warnings INTERFACE /bigobj)
 endif()
 
 # ---- The standing sanitizer witness (W-3a) ---------------------------------------------

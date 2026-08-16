@@ -459,6 +459,73 @@ every other row           role as before background kNone     whatever the regio
 - **`component::Button` is still not earned** and neither is any interaction abstraction. A
   ground is a value on a row.
 
+## The reserved column is nobody's to spend (HD-10)
+
+The terminal pane's right edge is the **workspace's** right edge — `Screen::room_w` — and not the
+screen's. Two expressions in `screen_of`, and they are the whole of the phase:
+
+```text
+pane_want    kTerminalWantW + (w - kScreenMinW)/2     G-2's half-share, unchanged
+terminal_w   min(pane_want, room_w)                   the room is the ceiling
+terminal_x   room_w - terminal_w                      anchored to the ROOM's corner
+```
+
+- **The defect this repairs is HD-9's, and it predates HD-9 by eight phases.** At *every* extent
+  this composition lays out, the pane covered the whole 28-column width of the side region and
+  between 8 and 37 of its rows — so the Info panel published its properties and its
+  `[ Create ]` / `[ Delete ]` footer, and a later region cleared those cells to
+  `kCanvasBackground` at the same moment. The eraser was the same colour as the canvas, so the
+  panel read as *stopped* rather than *covered*, and a maker could not tell omitted from hidden
+  from destroyed.
+- **Nothing escaped its grant, and paint order was not the fault.** The Info body region is
+  exactly its granted bounds less the heading row (`info_body_place`: `region_x = panel.x`,
+  `region_w = panel.w`). Two *rectangles* claimed the same cells, and publication order was
+  merely what decided the argument.
+- **`screen_of` already knew the answer and was not asking itself.** It computes
+  `room_w = panel_x - kPanelGap` for the workspace three lines above where it placed the pane,
+  and `placement_bounds` puts the overlay stack inside the same number — asserted since PNL-1
+  (`kMinStack.x + kMinStack.w == kMinScreen.room_w`). The pane was the one placement in the file
+  older than that discipline. HD-10 invented no law; it brought the last presentation under the
+  one that was already written down.
+- **The law is about the RESERVATION, not about overlap.** Three overlaps remain and all three
+  are intentional, each inside one owner's room: the completion list over the pane's transcript,
+  the picker over the stack slot beneath it, and the pane itself over the workspace and the
+  bottom band (which the screen answers for by not painting the notice or the help lines at all
+  while the pane is open — the precedent this repair was modelled on). What is forbidden is
+  reaching into the column the screen subtracted for somebody else. A test that forbade overlap
+  generally would forbid all three.
+- **Said twice, on purpose.** `terminal_x + terminal_w == room_w` and
+  `terminal_x + terminal_w <= panel_x - kPanelGap` are both asserted, at `kMinScreen` in the type
+  system and over eleven extents × three metrics in the suite. They are not redundant: a pane
+  whose right edge sits exactly on `panel_x` shares no *cell* with the side region and is still
+  wrong, and that mutation was measured passing the cell count while both edge assertions
+  reddened.
+- **`kTerminalMinW` is now `kTerminalWantW`, because the value stopped being a floor.** At 78, 79
+  and 80 columns the room is narrower than 56 and the pane gets the room; the want and the room
+  agree from 94 columns up, so the ceiling binds only where there is no half to take. The price
+  is eight cells of pane at the minimum extent, and it is visible: the pane's standing statement
+  (`SUBMITTED = authored; a sender is not told its fate`, 51 characters) is elided by
+  `detail::fit` below 81 columns. That is pinned in both directions — the *answer* to `help` is
+  still asserted whole, the legend's cut is asserted as present, and the extent where it stops
+  being cut is named.
+- **The Info panel did not move, reflow or shrink.** Every field of `info_body_place` and every
+  published row — text, role and HD-9's grounds — is byte-identical with the pane open and with
+  it closed, at every extent. The footer is a *fixed* demand anchored to the foot (HD-8) and a
+  mode opening is not a reason for a target to move under the hand aiming at it.
+- **One overlap between independent presentations is left, and it is measured rather than
+  hoped:** at `kScreenMinH` exactly, the pane's top row is the overlay stack's first slot's last
+  row (one row, the slot's full width; nothing at any greater height, and the second slot is
+  unreachable with one overlay kind in the catalog). Both are overlays in the room the workspace
+  has — the stack grows down from the top-left, the pane up from the bottom-right. Repairing it
+  would mean reserving the stack's rows from the pane, which is a *second* reservation
+  `screen_of` does not make and which would tie the pane's height to `kStackRows`. Pinned as a
+  case so it is a known fact.
+- **The composition answer is medium-independent by construction**, not by parity work: it is
+  settled in canvas cells before any metric is consulted, and a metric only ever changes how much
+  prose fits inside a placement it did not choose. Measured at 98×60 with the shipped face, the
+  pane's clear rectangle ends at device pixel 816 and the Info body's viewport begins at 840; on
+  the pristine tree the pane cleared 384..1176 and the body sat inside it.
+
 ## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
 
 The three handlers under `if (b.pressed)` in `WorkshopWeave::on(const input::PointerButton&)`
@@ -599,14 +666,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**58,813** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-15 after QR-2) are evidence to report. They are **not** a population, never an
+- Assertion totals (**64,891** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-15 after HD-10) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 42,277 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 48,355 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -622,7 +689,10 @@ the tests themselves pass
   36,130 to 48,738, because two of those cases assert a *property* over every
   budget from zero to two hundred. HD-8 then added sixteen cases and 9,975 assertions
   the same way, for the same reason, and the figure crossed fifty thousand without
-  anything in this repository being any better tested for the crossing.
+  anything in this repository being any better tested for the crossing. HD-10 added nine
+  cases and 6,078 assertions, again for the same reason -- four of them sweep eleven extents
+  against three metrics, and one walks every width from 78 to 200 -- and the honest reading is
+  still that the phase pinned one law, not six thousand facts.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose
