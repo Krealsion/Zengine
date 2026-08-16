@@ -15228,3 +15228,408 @@ TEST_CASE("the picker's own state never reaches the setup file") {
     t.key(input::scan::kR);
     CHECK_FALSE(t.session().panels.picker.open);
 }
+
+// ---- WS-0a: the sentence that quotes a name owns the escaping ------------------
+//
+// WS-0 accepts `"` and `\` in a setup name and persists those bytes exactly, which is
+// the right law and stays the law. What it did not own was the PROSE: three callers
+// spelled the quoted token by hand, so a legal name could manufacture the delimiter a
+// maker uses to tell an identity from the status beside it. These cases pin the
+// spelling, all three callers, the authored bytes on both sides of it, and the unit the
+// two existing bounds have always been counted in.
+
+namespace {
+
+/// READ ONE QUOTED TOKEN BACK THE WAY A MAKER'S EYE DOES -- and deliberately written
+/// against the RULE rather than against `quoted_setup_name`, so that this is a second,
+/// independent implementation and not a mirror of the first. An opening quote, then
+/// bytes in which a backslash escapes whatever follows it, and the first UNESCAPED
+/// quote ends the name.
+///
+/// It is what makes "the name cannot terminate its own token" a measurable claim
+/// instead of a hopeful one: with the token built by raw interpolation this recovers
+/// the wrong name, which is exactly the ambiguity WS-0a exists to close.
+struct QuotedToken {
+    bool well_formed = false;
+    std::string name; ///< the bytes the token means
+    std::size_t end = 0; ///< one past the token's closing quote
+};
+
+QuotedToken read_quoted(const std::string& line, std::size_t at) {
+    QuotedToken t;
+    if (at >= line.size() || line[at] != '"') {
+        return t;
+    }
+    for (std::size_t i = at + 1; i < line.size(); ++i) {
+        if (line[i] == '\\') {
+            if (i + 1 >= line.size()) {
+                return t; // a trailing escape is not a finished token
+            }
+            t.name += line[++i];
+            continue;
+        }
+        if (line[i] == '"') {
+            t.well_formed = true;
+            t.end = i + 1;
+            return t;
+        }
+        t.name += line[i];
+    }
+    return t;
+}
+
+/// A name of `n` repetitions of one byte -- the pathological shapes, said once.
+std::string repeated(std::size_t n, char c) { return std::string(n, c); }
+
+/// U+1F680, written as its four UTF-8 bytes rather than as a source character, so
+/// nothing here depends on this file's execution encoding or on `char8_t`. Four bytes,
+/// one code point, one character a maker would count.
+constexpr const char* kFourByteChar = "\xF0\x9F\x9A\x80";
+
+std::string four_byte_chars(std::size_t count) {
+    std::string out;
+    for (std::size_t i = 0; i < count; ++i) {
+        out += kFourByteChar;
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("WS-0a: a setup name is spelled into prose as one unambiguous quoted token") {
+    // ORDINARY NAMES ARE UNCHANGED, exactly, and this is the control the whole cleanup
+    // is measured against: the sentence a maker has been reading since WS-0 must come
+    // back byte-for-byte.
+    CHECK(quoted_setup_name("Default") == "\"Default\"");
+    CHECK(quoted_setup_name("Morning build") == "\"Morning build\"");
+    CHECK(quoted_setup_name(repeated(kMaxSetupNameLen, 'n')) ==
+          "\"" + repeated(kMaxSetupNameLen, 'n') + "\"");
+
+    // A QUOTE CANNOT TERMINATE THE TOKEN. The exact output, because a case that only
+    // looked for `\"` somewhere in the string would pass with a second, unescaped quote
+    // still sitting further along it.
+    CHECK(quoted_setup_name("Ops\" UNSAVED | decoy") == "\"Ops\\\" UNSAVED | decoy\"");
+
+    // A BACKSLASH CANNOT DISGUISE WHETHER THE QUOTE AFTER IT WAS AUTHORED.
+    CHECK(quoted_setup_name("A\\B") == "\"A\\\\B\"");
+    CHECK(quoted_setup_name("A\\\"B") == "\"A\\\\\\\"B\"");
+
+    // TOTAL, including on input no valid `Setup` can hold: the law refuses an empty
+    // name, so this is a helper's boundary rather than a reachable state, and a
+    // presentation spelling that had an opinion about which inputs it would answer for
+    // would be a second law in a second place.
+    CHECK(quoted_setup_name("") == "\"\"");
+    CHECK_FALSE(check_setup_name("").accepted);
+
+    // THE SUBSTITUTION IS INJECTIVE, which is the property a lossy repair (rendering a
+    // quote as an apostrophe) would give up: two names a maker can tell apart must not
+    // present as one.
+    CHECK(quoted_setup_name("A\"B") != quoted_setup_name("A\\\"B"));
+
+    // ...and the whole of it, stated once: applying the escape rule in reverse recovers
+    // the authored bytes, for every shape this phase is about.
+    const std::vector<std::string> names = {
+        "Default",       "Morning build", "Ops\" UNSAVED | decoy", "A\\B",
+        "A\\\"B",        "\"",            "\\",                    "\\\\\"\"",
+        "quote\"in\"it", repeated(kMaxSetupNameLen, '"'),
+    };
+    for (const std::string& authored : names) {
+        CAPTURE(authored);
+        const QuotedToken read = read_quoted(quoted_setup_name(authored), 0);
+        CHECK(read.well_formed);
+        CHECK(read.name == authored);
+        CHECK(read.end == quoted_setup_name(authored).size());
+
+        // The raw interpolation this replaced, asked the same question: it is a token a
+        // reader recovers the WRONG name from the moment the name carries a quote.
+        const QuotedToken naive = read_quoted("\"" + authored + "\"", 0);
+        if (authored.find('"') != std::string::npos ||
+            authored.find('\\') != std::string::npos) {
+            CHECK((!naive.well_formed || naive.name != authored));
+        }
+    }
+}
+
+TEST_CASE("WS-0a: a name that could impersonate the setup line is one token on it") {
+    TempDir dir("ws0a-status");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    // A NAME BUILT TO LIE. Every byte of it is legal under WS-0's law and stays legal:
+    // this case is about the sentence, not about the name.
+    const std::string authored = "Ops\" UNSAVED | decoy";
+    REQUIRE(check_setup_name(authored).accepted);
+    name_setup(t, authored);
+    REQUIRE(t.session().setup.active.name == authored);
+    REQUIRE(t.session().setup.saved());
+
+    const Screen sc = screen_of(t.session());
+    const std::string row = setup_row(t.canvases.back(), sc);
+    INFO(row);
+
+    // THE IDENTITY IS ONE TOKEN, and a reader applying the escape rule gets the maker's
+    // own bytes back out of it.
+    REQUIRE(row.compare(0, 6, "setup ") == 0);
+    const QuotedToken read = read_quoted(row, 6);
+    REQUIRE(read.well_formed);
+    CHECK(read.name == authored);
+
+    // ...AND EXACTLY ONE SAVED MARKER, the real one, OUTSIDE the token. The decoy word
+    // inside the name is not it, and the proof is positional rather than a search: the
+    // status begins where the token ends.
+    CHECK(row.compare(read.end, 6, " saved") == 0);
+    CHECK(row.find("UNSAVED", read.end) == std::string::npos);
+
+    // The row is still one bounded row of the band, and the file is still named on it.
+    CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
+
+    // AND THE AUTHORED BYTES NEVER MOVED. The escaped spelling is prose and reaches
+    // neither the live setup nor the copy `saved()` compares against.
+    CHECK(t.session().setup.active.name == authored);
+    CHECK(t.session().setup.on_file.name == authored);
+    CHECK(slurp(t.host.setup_path).find("\\\" UNSAVED") != std::string::npos);
+}
+
+TEST_CASE("WS-0a: the save notice and the restore notice spell the name the same way") {
+    TempDir dir("ws0a-notices");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    const std::string authored = "Ops \"A\\B\"";
+    REQUIRE(check_setup_name(authored).accepted);
+
+    name_setup(t, authored);
+    const std::string saved = t.notice();
+    INFO(saved);
+    REQUIRE(saved.compare(0, 12, "saved setup ") == 0);
+    const QuotedToken after_save = read_quoted(saved, 12);
+    REQUIRE(after_save.well_formed);
+    CHECK(after_save.name == authored);
+    // The PATH is named the ordinary way -- it is not a setup name and gains no
+    // escaping from this phase.
+    CHECK(saved.compare(after_save.end, 4, " to ") == 0);
+    CHECK(saved.find(t.host.setup_path) != std::string::npos);
+
+    t.key(input::scan::kR);
+    const std::string restored = t.notice();
+    INFO(restored);
+    REQUIRE(restored.compare(0, 15, "restored setup ") == 0);
+    const QuotedToken after_restore = read_quoted(restored, 15);
+    REQUIRE(after_restore.well_formed);
+    // NOT REINTERPRETED AND NOT NORMALISED on the way back: the name that comes out of
+    // the file is the name that went into it, and the notice says those bytes.
+    CHECK(after_restore.name == authored);
+    CHECK(restored.compare(after_restore.end, 6, " from ") == 0);
+    CHECK(t.session().setup.active.name == authored);
+
+    // ONE OWNER, PROVEN BY AGREEMENT: both notices and the status line carry the
+    // identical token, so a caller that resumed improvising its own would be named here
+    // rather than only in whichever case happened to cover it.
+    const std::string token = quoted_setup_name(authored);
+    CHECK(saved.find(token) == 12);
+    CHECK(restored.find(token) == 15);
+    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find(token) == 6);
+}
+
+TEST_CASE("WS-0a: the name editor edits the authored bytes, never the escaped spelling") {
+    TempDir dir("ws0a-editor");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    // TYPED FROM SCRATCH, character by character, exactly as a maker produces it: the
+    // quote and the backslash arrive as ordinary text and are stored as themselves.
+    const std::string authored = "Ops \"A\\B\"";
+    name_setup(t, authored);
+    REQUIRE(t.session().setup.active.name == authored);
+
+    // REOPENED ON THE NAME IT ALREADY HAS -- and what the editor holds is the ORIGINAL
+    // bytes. A maker does not have to type `\"` to mean `"` in their own name.
+    t.key(input::scan::kS);
+    t.text("s");
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.line.text() == authored);
+    CHECK(t.session().setup.naming.line.text()[6] == '\\'); // the raw backslash, stored as one
+
+    const Screen sc = screen_of(t.session());
+    const std::string row = setup_row(t.canvases.back(), sc);
+    INFO(row);
+    // The editing row is not a quoted sentence, so it is not an escaped one either: the
+    // prompt, the raw name, the caret where the maker's hand left it, and the hint.
+    CHECK(row.find(std::string("setup name> ") + authored + surface::kCaretGlyph) == 0);
+    CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
+
+    // ESCAPE CHANGES NOTHING, and the name is still the authored one.
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().setup.active.name == authored);
+    CHECK(t.session().setup.saved());
+
+    // AND ENTER SAVES THE AUTHORED BYTES, not the spelling they are presented with.
+    t.key(input::scan::kS);
+    t.text("s");
+    t.text("!");
+    t.key(input::scan::kReturn);
+    const std::string grown = authored + "!";
+    CHECK(t.session().setup.active.name == grown);
+    const setup_persist::LoadedSetup back = setup_persist::load_file(t.host.setup_path);
+    REQUIRE(back.outcome.accepted);
+    CHECK(back.setup.name == grown);
+    CHECK(back.setup.name.find("\\\"") == std::string::npos); // no escape was stored
+}
+
+TEST_CASE("WS-0a: an ordinary setup name presents exactly as it did before") {
+    // THE GREEN CONTROL FOR THE WHOLE CLEANUP. Not one byte of the sentence a maker
+    // without a quote in their name reads may have moved, and every one of these
+    // strings is spelled out here rather than composed, so that a change to the
+    // presentation owner cannot quietly agree with itself.
+    TempDir dir("ws0a-ordinary");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    const Screen sc = screen_of(t.session());
+    const std::string fresh = setup_row(first_frame(t), sc);
+    CHECK(fresh.find("setup \"Default\" UNSAVED") == 0);
+
+    name_setup(t, "Morning build");
+    CHECK(t.notice().find("saved setup \"Morning build\" to ") == 0);
+    CHECK(setup_row(t.canvases.back(), sc).find("setup \"Morning build\" saved") == 0);
+
+    t.key(input::scan::kR);
+    CHECK(t.notice().find("restored setup \"Morning build\" from ") == 0);
+
+    // ...and the name a fresh Workshop carries is spelled the way the constant is.
+    CHECK(quoted_setup_name(kDefaultSetupName) == "\"Default\"");
+}
+
+TEST_CASE("WS-0a: an escaped name that outgrows the row is cut with the mark") {
+    TempDir dir("ws0a-fit");
+
+    // EXPANSION ALONE IS NOT A PROBLEM. Twelve quotes double to twenty-four and the
+    // whole sentence still fits, which is the control that keeps the case below about
+    // the BOUND rather than about escaping.
+    Live modest;
+    modest.host.setup_path = dir.file("m.json");
+    name_setup(modest, repeated(12, '"'));
+    const std::string easy = setup_row(modest.canvases.back(), screen_of(modest.session()));
+    INFO(easy);
+    CHECK(read_quoted(easy, 6).name == repeated(12, '"'));
+    CHECK(easy.find(" saved") != std::string::npos);
+
+    // THE PATHOLOGICAL LEGAL NAME: thirty-two bytes at the bound, every one of them a
+    // quote, so the token is sixty-six cells of a seventy-eight cell row.
+    Live t;
+    t.host.setup_path = dir.file("p.json");
+    const std::string authored = repeated(kMaxSetupNameLen, '"');
+    REQUIRE(check_setup_name(authored).accepted);
+    name_setup(t, authored);
+    REQUIRE(t.session().setup.active.name == authored);
+    REQUIRE(t.session().setup.saved());
+
+    const std::string cut = setup_row(t.canvases.back(), screen_of(t.session()));
+    INFO(cut);
+    CHECK(static_cast<std::int64_t>(cut.size()) == kMinScreen.w);
+    CHECK(cut.substr(cut.size() - 3) == "...");
+    // IT CANNOT RUN UNMARKED INTO WHAT COMES AFTER IT. The existing `detail::fit` is
+    // the whole of the answer -- the sentence is fitted once, at the presentation
+    // boundary, after the token is formed -- so nothing downstream of the identity is
+    // shown as though it were complete.
+    CHECK(cut.find("s name/save") == std::string::npos);
+    CHECK(cut.find(t.host.setup_path) == std::string::npos);
+
+    // THE CUT IS PRESENTATION AND NOTHING ELSE: the name, the saved comparison and the
+    // file are all untouched by it, and a wider surface spends the room on the rest of
+    // the same sentence.
+    CHECK(t.session().setup.active.name == authored);
+    CHECK(t.session().setup.saved());
+    CHECK(setup_persist::load_file(t.host.setup_path).setup.name == authored);
+
+    t.publish(loom::to_value(surface::SurfaceExtent{240, 40, 0, 0}));
+    const std::string roomy = setup_row(t.canvases.back(), screen_of(t.session()));
+    INFO(roomy);
+    CHECK(roomy.find("...") == std::string::npos);
+    CHECK(read_quoted(roomy, 6).name == authored);
+    CHECK(roomy.find("s name/save") != std::string::npos);
+    // ...and the extent changed what fits, never the setup or its saved status.
+    CHECK(t.session().setup.active.name == authored);
+    CHECK(t.session().setup.saved());
+}
+
+TEST_CASE("WS-0a: a name carrying a quote and a backslash survives its file exactly") {
+    TempDir dir("ws0a-persist");
+    const std::string authored = "Ops \"A\\B\"";
+    const Setup s = setup_of(authored, {panel::kInfo, panel::kBuilder});
+    REQUIRE(check_setup(s).accepted);
+
+    // THE FILE IS UNCHANGED BY THIS PHASE. Its identity, its version and its writer are
+    // the ones accepted WS-0 shipped -- setup_persist.hpp is not touched -- so the bytes
+    // this writes ARE a WS-0 file, and reading them back is the compatibility witness.
+    CHECK(setup_persist::kFormatVersion == 1);
+    CHECK(std::string(setup_persist::kFormat) == "zengine-workshop-setup");
+
+    const std::string path = dir.file("q.json");
+    REQUIRE(setup_persist::save_file(path, s).accepted);
+    const std::string a = slurp(path);
+    INFO(a);
+    CHECK(a.find("\"format\":\"zengine-workshop-setup\"") != std::string::npos);
+    CHECK(a.find("\"format_version\":\"1\"") != std::string::npos);
+
+    const setup_persist::LoadedSetup read = setup_persist::load_file(path);
+    REQUIRE(read.outcome.accepted);
+    // EXACT AUTHORED BYTES, and not the spelling any sentence presents them with.
+    CHECK(read.setup.name == authored);
+    CHECK(read.setup == s);
+
+    REQUIRE(setup_persist::save_file(path, read.setup).accepted);
+    const std::string b = slurp(path);
+    CHECK(a == b); // save -> load -> save, byte-identical, with a quote in the name
+
+    // THE COMPAT CODEC OWNS THE FILE'S OWN ESCAPING and always did; nothing here
+    // hand-authored a second one, and the escaped PROSE spelling was never stored.
+    CHECK(a.find("Ops \\\"A\\\\B\\\"") != std::string::npos);
+    CHECK(quoted_setup_name(read.setup.name) == "\"Ops \\\"A\\\\B\\\"\"");
+}
+
+TEST_CASE("WS-0a: the name and key bounds are BYTES, and the refusal says bytes") {
+    // THE BOUNDS THEMSELVES ARE UNCHANGED. WS-0a corrects a false unit in a sentence
+    // and nothing about what is accepted.
+    CHECK(kMaxSetupNameLen == 32);
+    CHECK(kMaxPaneKeyLen == 64);
+
+    // EIGHT FOUR-BYTE CHARACTERS ARE THIRTY-TWO BYTES -- eight characters a maker
+    // counts, and exactly the bound `std::string::size()` measures.
+    const std::string at_bound = four_byte_chars(8);
+    REQUIRE(at_bound.size() == kMaxSetupNameLen);
+    CHECK(check_setup_name(at_bound).accepted);
+
+    // ...AND ONE MORE BYTE IS REFUSED, saying the unit it was refused in.
+    const Written over = check_setup_name(at_bound + "x");
+    CHECK_FALSE(over.accepted);
+    CHECK(over.refusal == "a setup name is at most 32 bytes");
+
+    // THE SHARPEST ILLUSTRATION OF THE UNIT: nine characters, thirty-six bytes, refused
+    // -- so a refusal saying "at most 32 characters" would be a false sentence about a
+    // true refusal. That is the whole of what this correction is.
+    const std::string nine = four_byte_chars(9);
+    CHECK(nine.size() == 36);
+    CHECK_FALSE(check_setup_name(nine).accepted);
+    CHECK(check_setup_name(nine).refusal == "a setup name is at most 32 bytes");
+
+    // THE SAME QUESTION OF THE KEY BOUND, both halves of a reference.
+    const std::string key_at_bound = four_byte_chars(16);
+    REQUIRE(key_at_bound.size() == kMaxPaneKeyLen);
+    CHECK(check_pane_key(key_at_bound, "provider").accepted);
+    CHECK(check_pane_key(key_at_bound + "x", "provider").refusal ==
+          "a pane reference's provider is at most 64 bytes");
+    CHECK(check_pane_key(key_at_bound + "x", "pane key").refusal ==
+          "a pane reference's pane key is at most 64 bytes");
+    CHECK(check_pane_ref(PaneRef{"zengine.workshop", four_byte_chars(17)}).refusal ==
+          "a pane reference's pane key is at most 64 bytes");
+
+    // NO UNICODE POLICY WAS BOUGHT WITH THIS, and the absence is asserted rather than
+    // merely intended. Workshop counts bytes and nothing else: it has no opinion about
+    // how many code points, graphemes or CELLS a name occupies, and a thirty-third byte
+    // is refused whatever a character count would have said about it.
+    CHECK(check_setup_name(four_byte_chars(1)).accepted);   // 4 bytes, 1 character
+    CHECK(check_setup_name(repeated(4, 'a')).accepted);     // 4 bytes, 4 characters
+    CHECK_FALSE(check_setup_name(at_bound + " ").accepted); // 9 characters, 33 bytes
+}

@@ -3641,8 +3641,8 @@ inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc
 /// static hint rather than on any of the truths above it -- which is why they are in this
 /// order rather than in the order they were designed in.
 inline std::string setup_status_text(const SetupState& setup, const std::string& path) {
-    std::string line =
-        "setup \"" + setup.active.name + "\" " + (setup.saved() ? "saved" : "UNSAVED");
+    std::string line = "setup " + quoted_setup_name(setup.active.name) + " " +
+                       (setup.saved() ? "saved" : "UNSAVED");
     const std::vector<PaneRef> waiting = unresolved_panes(setup.active);
     if (!waiting.empty()) {
         // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these

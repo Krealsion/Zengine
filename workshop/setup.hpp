@@ -235,6 +235,57 @@ inline bool resolvable(const PaneRef& ref) { return resolve_pane(ref).has_value(
 /// halves with a slash between them, which is how this phase's prose spells one.
 inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + ref.pane; }
 
+/// A SETUP'S NAME AS ONE QUOTED TOKEN OF MAKER-FACING PROSE (WS-0a).
+///
+/// AUTHORED NAMES STAY AUTHORED; THE SENTENCE THAT QUOTES ONE OWNS THE ESCAPING.
+/// Nothing here mutates a setup, nothing here reaches a file, and no string this
+/// returns is ever written back into a `Setup` -- it is a spelling, built at the
+/// moment a sentence is and discarded with it.
+///
+/// WHY IT EXISTS. `check_setup_name` accepts ordinary punctuation, `"` and `\`
+/// included, and it is right to: `Ops" run` is a name a maker may mean, and
+/// narrowing the law after version 1 shipped would make a file that accepted
+/// WS-0 wrote unreadable to the build that reads it next. The BYTES were never
+/// the problem -- a control character is already refused, so no name can move a
+/// terminal's cursor out of the line it was given. The SENTENCE was: three
+/// callers spelled this token by hand as a quote, the name, and a quote, so a
+/// name carrying a quote could manufacture the very delimiter a maker uses to
+/// tell an identity from the status beside it, and a setup honestly named
+/// `Ops" UNSAVED | decoy` read back as
+///
+///     setup "Ops" UNSAVED | decoy" saved | <path> | s name/save  r restore
+///
+/// THE OWNER HOLDS THE QUOTES, not only the escaping, and that is the
+/// load-bearing half of the shape: a caller handed an escaped INTERIOR could
+/// still improvise its own boundary around it, which is the same defect one
+/// indirection further away. There is one implementation, and the setup status
+/// line, the save notice and the restore notice all spend it.
+///
+/// ONE PASS, WITH THE ESCAPE WRITTEN BEFORE THE BYTE IT ESCAPES, so a backslash
+/// this function inserts is never itself examined -- which is what makes an
+/// authored backslash followed by an authored quote come back as two backslashes
+/// and then an escaped quote, rather than collapsing into a spelling that some
+/// other authored name also has. The substitution is INJECTIVE on purpose:
+/// rendering a quote as an apostrophe would be shorter and would make two names
+/// a maker can tell apart present as one.
+///
+/// NO POLICY OF ANY OTHER KIND. No locale, no normalisation, no case folding, no
+/// width, no JSON. Two bytes mean something to this sentence; every other
+/// accepted byte is itself.
+inline std::string quoted_setup_name(const std::string& name) {
+    std::string quoted;
+    quoted.reserve(name.size() + 2);
+    quoted += '"';
+    for (const char c : name) {
+        if (c == '\\' || c == '"') {
+            quoted += '\\';
+        }
+        quoted += c;
+    }
+    quoted += '"';
+    return quoted;
+}
+
 // ---- The law: what this application will accept as a setup -------------------
 //
 // ONE LAW, REACHED TWO WAYS -- W-5's discipline, applied to the second artifact
@@ -264,13 +315,21 @@ inline std::string ref_text(const PaneRef& ref) { return ref.provider + "/" + re
 /// answer on the way in from a file, and the platform's own answer on the way in
 /// from a keyboard; normalisation, width, case and script are questions this
 /// phase has no consumer for and would get wrong by guessing.
+///
+/// THE LENGTH IS A BYTE COUNT, AND THE REFUSAL SAYS SO (WS-0a).
+/// `std::string::size()` is the whole of the measurement, so a nine-character
+/// name written in four-byte UTF-8 is thirty-six bytes and this law refuses it --
+/// and telling that maker they had exceeded thirty-two CHARACTERS would be a
+/// false sentence about a true refusal. Saying `bytes` corrects the wording and
+/// is emphatically not a new text policy: nothing here counts a code point, a
+/// grapheme or a cell, which is the same absence the paragraph above declares.
 inline Written check_setup_name(const std::string& name) {
     if (name.empty()) {
         return Written::no("a setup name cannot be empty");
     }
     if (name.size() > kMaxSetupNameLen) {
         return Written::no("a setup name is at most " + std::to_string(kMaxSetupNameLen) +
-                           " characters");
+                           " bytes");
     }
     bool anything = false;
     for (const char c : name) {
@@ -295,13 +354,18 @@ inline Written check_setup_name(const std::string& name) {
 /// whitespace and control characters so that `provider/pane` remains one legible
 /// token in a notice. Whether the key names anything is `resolve_pane`'s
 /// question and is not an error.
+///
+/// ITS LENGTH IS A BYTE COUNT TOO, and its refusal says so for
+/// `check_setup_name`'s reason (WS-0a): `kMaxPaneKeyLen` is spent against
+/// `std::string::size()`, and a key is a routing name a provider may write in
+/// any script the Loom's UTF-8 gate accepts.
 inline Written check_pane_key(const std::string& key, const char* which) {
     if (key.empty()) {
         return Written::no(std::string("a pane reference's ") + which + " cannot be empty");
     }
     if (key.size() > kMaxPaneKeyLen) {
         return Written::no(std::string("a pane reference's ") + which + " is at most " +
-                           std::to_string(kMaxPaneKeyLen) + " characters");
+                           std::to_string(kMaxPaneKeyLen) + " bytes");
     }
     for (const char c : key) {
         const unsigned char byte = static_cast<unsigned char>(c);

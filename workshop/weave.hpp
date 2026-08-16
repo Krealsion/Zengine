@@ -1856,7 +1856,7 @@ private:
         session_.setup.on_file = candidate;
         naming.open = false;
         naming.line.clear();
-        say("saved setup \"" + candidate.name + "\" to " + host_->setup_path +
+        say("saved setup " + quoted_setup_name(candidate.name) + " to " + host_->setup_path +
                 unresolved_note(candidate),
             false);
     }
@@ -1893,8 +1893,8 @@ private:
         session_.setup.active = loaded.setup;
         session_.setup.on_file = loaded.setup;
         apply_setup(mail);
-        say("restored setup \"" + loaded.setup.name + "\" from " + host_->setup_path +
-                unresolved_note(loaded.setup),
+        say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " +
+                host_->setup_path + unresolved_note(loaded.setup),
             false);
     }
 
