@@ -5711,8 +5711,11 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     t.bus.pump();
     const surface::SurfaceCanvas& c = t.canvases.back();
 
-    // ANCHORED TO THE CANVAS'S BOTTOM-RIGHT CORNER, exactly.
-    CHECK(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinScreen.w);
+    // ANCHORED TO THE BOTTOM-RIGHT CORNER OF THE ROOM, exactly (HD-10). The bottom edge is
+    // still the screen's; the right edge is the WORKSPACE's, which is the whole of what this
+    // phase moved -- the 28 columns beyond it are reserved for the side region and are not
+    // this pane's to spend, whether or not anything is standing in them.
+    CHECK(kMinScreen.terminal_x + kMinScreen.terminal_w == kMinScreen.room_w);
     CHECK(kMinScreen.terminal_y + kMinScreen.terminal_h == kMinScreen.h);
     CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y).rfind("TERMINAL -- weave #", 0) == 0);
     CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y).find(std::to_string(t.terminal_id.value)) !=
@@ -5726,10 +5729,23 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     // SUBMITTED IS NOT DELIVERED, and a renderer is the one place that contract can be broken
     // by prose alone. The pane says what SUBMITTED means, once, on a row it always shows --
     // and nowhere on it does it say the other thing.
+    //
+    // AND AT THIS EXTENT IT IS ELIDED BY THREE CHARACTERS, WHICH IS HD-10'S PRICE AND IS
+    // MEASURED HERE RATHER THAN DISCOVERED. The statement is 51 characters and the narrowest
+    // pane is now 48, so `detail::fit` marks it -- the same mark it puts on every other row
+    // it cuts. What is asserted is therefore the row the pane actually writes, and the two
+    // halves of the contract are asserted separately: the word SUBMITTED survives the cut at
+    // every width this pane has, and the word `delivered` appears nowhere at any width.
     CHECK(body.find("SUBMITTED") != std::string::npos);
-    CHECK(body.find(terminal_legend()) != std::string::npos);
+    CHECK(body.find(detail::fit(terminal_legend(), kMinScreen.terminal_cols)) != std::string::npos);
     CHECK(body.find("delivered") == std::string::npos);
-    CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y + 1).rfind(terminal_legend(), 0) == 0);
+    CHECK(label_at(c, kMinScreen.terminal_x, kMinScreen.terminal_y + 1)
+              .rfind(detail::fit(terminal_legend(), kMinScreen.terminal_cols), 0) == 0);
+    // The whole statement is on the row from 81 columns up, where the room first holds it.
+    CHECK(static_cast<std::int64_t>(terminal_legend().size()) == 51);
+    CHECK(screen_of(81, kScreenMinH).terminal_cols == 51);
+    CHECK(detail::fit(terminal_legend(), screen_of(81, kScreenMinH).terminal_cols) ==
+          terminal_legend());
 
     // The cursor row shows what is being typed, and every row is exactly the pane's width --
     // which is what clears the furniture underneath in a medium whose ink is one cell.
@@ -5745,8 +5761,13 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     // The bottom band is the pane's while it is open: the notice and the two help lines are
     // not painted under it, because their right-hand two thirds would be covered and a
     // sentence beheaded mid-word is worse than no sentence.
-    CHECK(label_at(c2, 0, kMinScreen.help_y).empty());
-    CHECK(label_at(c2, 0, kMinScreen.help_y + 1).empty());
+    //
+    // SAID AS CONTENT AND NOT AS POSITION (HD-10). It used to be `nothing is at column 0 on
+    // those rows`, which was true only because the pane began at column 22; the pane begins
+    // at column 0 on the minimum screen now, so that spelling would have been asking whether
+    // the PANE was there. What the claim was always about is the two sentences.
+    CHECK(label_at(c2, 0, kMinScreen.help_y).rfind("n new | d delete", 0) != 0);
+    CHECK(label_at(c2, 0, kMinScreen.help_y + 1).rfind("enter edit | esc cancel", 0) != 0);
     // ...and with the pane closed they are exactly as they were.
     t.toggle_terminal();
     CHECK(label_at(t.canvases.back(), 0, kMinScreen.help_y).rfind("n new | d delete", 0) == 0);
@@ -5789,7 +5810,9 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     // The chrome is where it has always been, counted in the pane's own rows.
     CHECK(pane.rows[0].text.rfind("TERMINAL -- weave #", 0) == 0);
     CHECK(pane.rows[0].role == surface::role::kAccent);
-    CHECK(pane.rows[1].text.rfind(terminal_legend(), 0) == 0);
+    // Fitted to the pane's own columns since HD-10 -- 48 of them on the minimum screen, three
+    // short of this statement, so the row carries the mark `detail::fit` leaves.
+    CHECK(pane.rows[1].text == detail::fit(terminal_legend(), kMinScreen.terminal_cols));
     // THE LINE, AND THE CARET SAID SEPARATELY FROM IT (HD-3). The row no longer carries a
     // trailing `_`: the caret is a fact ABOUT the region, in the region's own prose
     // lattice, so each medium can answer it in its own type. The projection below is where
@@ -5824,9 +5847,11 @@ TEST_CASE("a medium that sets real type reflows the pane, and the omission stays
     loom::TerminalSession* me = t.mount_terminal();
     t.toggle_terminal();
 
-    // Forty entries, each a sentence long enough to WRAP at 56 cells and not at 83
+    // Forty entries, each a sentence long enough to WRAP at 48 cells and not at 71
     // columns -- which is exactly the width difference the metric buys, so the same
-    // record produces a different number of rows in the two media.
+    // record produces a different number of rows in the two media. (56 and 83 before
+    // HD-10 narrowed the pane's placement by eight cells at this extent; the difference
+    // the case is about is between the two MEDIA and is unmoved by that.)
     for (int i = 0; i < 40; ++i) {
         (void)me->record_notice("entry " + std::to_string(i) +
                                 ": a sentence of some length, wrapping at the cell width");
@@ -5841,7 +5866,7 @@ TEST_CASE("a medium that sets real type reflows the pane, and the omission stays
     // THE MEDIUM SAYS IT HAS TYPE. Same cells, a real advance and a real line height.
     t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
     const Screen sc = screen_of(t.session());
-    REQUIRE(sc.terminal_cols == 83);
+    REQUIRE(sc.terminal_cols == 71);
     REQUIRE(sc.terminal_rows == 4);
 
     // THE SNAPSHOT AND THE PICTURE AGREE, which is the whole of HD-1's correctness
@@ -5878,9 +5903,10 @@ TEST_CASE("a medium that sets real type reflows the pane, and the omission stays
     CHECK(cell_shown >= 1);
     CHECK(cell_earlier > 0);
 
-    // A LONGER LINE IS THE PROOF THE WIDTH IS REAL: at 83 columns this is one row, and at
-    // 56 cells it is more than one.
-    const std::string long_line(70, 'w');
+    // A LONGER LINE IS THE PROOF THE WIDTH IS REAL: at 71 columns this is one row, and at
+    // 48 cells it is more than one. (Sixty characters and a three-character sigil, chosen
+    // against the two widths HD-10 left this pane rather than the two it had before.)
+    const std::string long_line(60, 'w');
     (void)me->record_notice(long_line);
     t.text("y");
     const loom::TranscriptEntry newest = me->transcript().tail(1)[0];
@@ -6070,8 +6096,8 @@ TEST_CASE("the overlay a maker actually sees: a solid pane, through the real ras
     // ...and it says the things it is for.
     CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y)].find("TERMINAL -- weave #3") !=
           std::string::npos);
-    CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y) + 1].find(terminal_legend()) !=
-          std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y) + 1].find(
+              detail::fit(terminal_legend(), kMinScreen.terminal_cols)) != std::string::npos);
     CHECK(rows[static_cast<std::size_t>(kMinScreen.terminal_y) + 2].find("> send @zengine.skin") !=
           std::string::npos);
     CHECK(rows[static_cast<std::size_t>(kMinScreen.h) - 1].find("> send @_") != std::string::npos);
@@ -6149,7 +6175,13 @@ TEST_CASE("the screen's extent is TOTAL over whatever a medium published") {
         CHECK(sc.panel_x > 0);
         CHECK(sc.terminal_x >= 0);
         CHECK(sc.terminal_y >= 0);
-        CHECK(sc.terminal_x + sc.terminal_w == sc.w);
+        // THE RESERVATION, OVER EVERY EXTENT THIS SCREEN CAN BE ASKED FOR (HD-10). The pane's
+        // right edge is the WORKSPACE's, so the reserved side column is never any part of it
+        // -- said twice on purpose, because the two say different things: the first is where
+        // the pane's edge IS, the second is the law that edge exists to keep, and a later
+        // placement rule that satisfied one without the other would be caught by the other.
+        CHECK(sc.terminal_x + sc.terminal_w == sc.room_w);
+        CHECK(sc.terminal_x + sc.terminal_w <= sc.panel_x - kPanelGap);
         CHECK(sc.terminal_y + sc.terminal_h == sc.h);
         CHECK(sc.terminal_rows >= 1);
         CHECK(sc.notice_y < sc.h);
@@ -6189,10 +6221,12 @@ TEST_CASE("the pane's interior follows the metric, and its placement does not") 
     CHECK(typed.terminal_w == cells.terminal_w);
     CHECK(typed.terminal_h == cells.terminal_h);
 
-    // 56 cells is 672 device pixels; less the inset, at 8 px a character, that is 83
+    // 48 cells is 576 device pixels; less the inset, at 8 px a character, that is 71
     // columns -- half again as much of every transcript line as the cell grid could show.
-    CHECK(cells.terminal_cols == 56);
-    CHECK(typed.terminal_cols == 83);
+    // (56 and 83 before HD-10; the RATIO this case is about is a fact about the metric and
+    // is what survives the pane getting eight cells narrower at this extent.)
+    CHECK(cells.terminal_cols == 48);
+    CHECK(typed.terminal_cols == 71);
     // ...and 156 pixels at an 18 px line is 8 rows where 13 cells used to be, which is the
     // measured cost of real type at the minimum window and is stated rather than hidden.
     CHECK(cells.terminal_lines == 13);
@@ -7130,9 +7164,25 @@ TEST_CASE("the pane states its whole grammar, wrapped, with nothing elided") {
     CHECK(flat.find("* for everyone") != std::string::npos);
     CHECK(flat.find("`ask` takes the same form as `send`") != std::string::npos);
 
-    // ...AND NOTHING WAS ELIDED TO PUT IT THERE. `...` is the mark a one-row fit leaves, and
-    // its absence is the difference between an answer and the beginning of one.
-    CHECK(pane.find("...") == std::string::npos);
+    // ...AND NOTHING OF THE ANSWER WAS ELIDED TO PUT IT THERE. `...` is the mark a one-row
+    // fit leaves, and its absence on the transcript is the difference between an answer and
+    // the beginning of one.
+    //
+    // THE CHROME IS ASKED SEPARATELY, AND ONE ROW OF IT DOES CARRY THE MARK (HD-10). The
+    // pane's standing statement is 51 characters and the pane is 48 cells wide at this
+    // extent, so `detail::fit` cuts it -- which is why this claim is now made over the
+    // TRANSCRIPT rows rather than over the whole pane. The distinction is the point: an
+    // elided ANSWER is the failure this case exists to catch, and an elided legend is a
+    // three-character price the phase paid deliberately and pinned above. Asserted both
+    // ways, so neither can drift into the other.
+    std::string transcript;
+    for (std::int64_t y = sc.terminal_y + 2; y < sc.h - 2; ++y) {
+        transcript += rows[static_cast<std::size_t>(y)].substr(
+            static_cast<std::size_t>(sc.terminal_x), static_cast<std::size_t>(sc.terminal_w));
+        transcript += "\n";
+    }
+    CHECK(transcript.find("...") == std::string::npos);
+    CHECK(rows[static_cast<std::size_t>(sc.terminal_y) + 1].find("...") != std::string::npos);
 
     // The command a maker typed is above the answer, and every row is still the pane's width.
     CHECK(pane.find("> help") != std::string::npos);
@@ -7187,11 +7237,17 @@ TEST_CASE("the pane keeps its corner and gains its half of a bigger surface") {
     t.toggle_terminal();
 
     const Screen sc = screen_of(t.session());
-    // BOTTOM-RIGHT IS STILL BOTTOM-RIGHT: the pane's edges ARE the screen's edges.
-    CHECK(sc.terminal_x + sc.terminal_w == sc.w);
+    // BOTTOM-RIGHT IS STILL BOTTOM-RIGHT -- OF THE ROOM (HD-10). The bottom edge is the
+    // screen's; the right edge is the workspace's, and the 28 reserved columns beyond it are
+    // not the pane's at any extent.
+    CHECK(sc.terminal_x + sc.terminal_w == sc.room_w);
     CHECK(sc.terminal_y + sc.terminal_h == sc.h);
-    // ...and it took half the new room, so both it and the workspace are better off.
-    CHECK(sc.terminal_w == kMinScreen.terminal_w + 11);
+    // ...and it took half the new room, so both it and the workspace are better off. At 100
+    // columns the want (56 + 11) is 67 and the room is 70, so the want is what it gets: this
+    // is an extent where HD-10's ceiling does NOT bind, which is what makes it the right
+    // witness for the half-share rule still being the rule.
+    CHECK(sc.terminal_w == kTerminalWantW + 11);
+    CHECK(sc.terminal_w < sc.room_w);
     CHECK(sc.terminal_h == kMinScreen.terminal_h + 5);
     CHECK(sc.terminal_rows == kMinScreen.terminal_rows + 5);
     CHECK(sc.terminal_x > kMinScreen.terminal_x); // the workspace to its left grew too
@@ -9731,7 +9787,7 @@ TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret 
     // projection's `_` lands in the same place a window's bar would.
     Live t;
     (void)t.mount_terminal();
-    t.toggle_terminal(); // no SurfaceExtent: a character IS a cell, 53 columns of line
+    t.toggle_terminal(); // no SurfaceExtent: a character IS a cell, 45 columns of line
     for (const char c : kLongLine) {
         t.text(std::string(1, c));
     }
@@ -9739,16 +9795,18 @@ TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret 
 
     const Screen sc = screen_of(t.session());
     const TerminalInputPlace p = terminal_input_place(sc);
-    REQUIRE(p.columns == 53);
+    // FORTY-FIVE, and it was fifty-three until HD-10 stopped the pane reaching into the
+    // reserved side column: 48 cells of pane, less the prompt's two and the caret's one.
+    REQUIRE(p.columns == 45);
     REQUIRE(t.pane().input.text() == kLongLine); // the whole command is still here
     REQUIRE(t.pane().input.at_end());
-    REQUIRE(t.pane().input.first_visible() == 35); // 88 - 53, the tail
+    REQUIRE(t.pane().input.first_visible() == 43); // 88 - 45, the tail
 
     {
         const surface::SurfaceTextRegion& pane =
             *pane_of(t.canvases.back(), screen_of(t.session()));
-        CHECK(pane.rows.back().text == "> ot=1 text=the quick brown fox jumps over the lazy dog");
-        CHECK(pane.caret_col == kTerminalPromptCols + 53);
+        CHECK(pane.rows.back().text == "> t=the quick brown fox jumps over the lazy dog");
+        CHECK(pane.caret_col == kTerminalPromptCols + 45);
         CHECK(pane.caret_row == p.prose_row);
         // THE ROW IS SHORTER THAN THE REGION BY EXACTLY THE CARET'S OWN COLUMN, which is what
         // `kTerminalCaretCols` buys: in a cell medium the mark is a character and the last
@@ -9760,7 +9818,7 @@ TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret 
         const std::vector<surface::ProjectedRow> shown =
             surface::project_text_regions(only_pane);
         CHECK(shown[static_cast<std::size_t>(p.prose_row)].label.text ==
-              "> ot=1 text=the quick brown fox jumps over the lazy dog_");
+              "> t=the quick brown fox jumps over the lazy dog_");
     }
 
     // HOME BRINGS THE BEGINNING BACK, and the caret with it.
@@ -9769,40 +9827,40 @@ TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret 
     {
         const surface::SurfaceTextRegion& pane =
             *pane_of(t.canvases.back(), screen_of(t.session()));
-        CHECK(pane.rows.back().text == "> send @zengine.skin SurfaceText 1 slot=1 text=the quic");
+        CHECK(pane.rows.back().text == "> send @zengine.skin SurfaceText 1 slot=1 text=");
         CHECK(pane.caret_col == kTerminalPromptCols);
         surface::SurfaceCanvas only_pane = t.canvases.back();
         only_pane.texts = {pane}; // the pane alone: the list and the property body are others
         const std::vector<surface::ProjectedRow> shown =
             surface::project_text_regions(only_pane);
         CHECK(shown[static_cast<std::size_t>(p.prose_row)].label.text ==
-              "> _send @zengine.skin SurfaceText 1 slot=1 text=the quic");
+              "> _send @zengine.skin SurfaceText 1 slot=1 text=");
     }
 
     // END TAKES IT BACK TO THE TAIL, and the authored line never changed once.
     t.key(input::scan::kEnd);
-    CHECK(t.pane().input.first_visible() == 35);
+    CHECK(t.pane().input.first_visible() == 43);
     CHECK(t.pane().input.text() == kLongLine);
 
     // A CARET IN THE MIDDLE OF THE HIDDEN LEFT drags the window to meet it, minimally: the
     // window's start becomes the caret and not one byte further.
-    // FIFTY-THREE OF THEM ARE FREE -- the window is 53 columns wide and the caret starts at
+    // FORTY-FIVE OF THEM ARE FREE -- the window is 45 columns wide and the caret starts at
     // its right edge, so it walks the whole width before the window has to move at all.
-    for (int i = 0; i < 53; ++i) {
+    for (int i = 0; i < 45; ++i) {
         t.key(input::scan::kLeft);
     }
-    CHECK(t.pane().input.caret() == 35);
-    CHECK(t.pane().input.first_visible() == 35);
+    CHECK(t.pane().input.caret() == 43);
+    CHECK(t.pane().input.first_visible() == 43);
     for (int i = 0; i < 7; ++i) {
         t.key(input::scan::kLeft);
     }
-    CHECK(t.pane().input.caret() == 28);
-    CHECK(t.pane().input.first_visible() == 28); // one character per keystroke, from here
+    CHECK(t.pane().input.caret() == 36);
+    CHECK(t.pane().input.first_visible() == 36); // one character per keystroke, from here
     {
         const surface::SurfaceTextRegion& pane =
             *pane_of(t.canvases.back(), screen_of(t.session()));
         CHECK(pane.caret_col == kTerminalPromptCols); // ...at the left edge of the row
-        CHECK(pane.rows.back().text == "> xt 1 slot=1 text=the quick brown fox jumps over the l");
+        CHECK(pane.rows.back().text == "> t=1 text=the quick brown fox jumps over the l");
     }
 
     // THE GRAPHICAL MEDIUM IS THE SAME ANSWER IN ITS OWN NUMBERS. A wider row means a
@@ -9811,14 +9869,14 @@ TEST_CASE("HD-4: a long line is shown as a slice, and both media draw the caret 
     t.key(input::scan::kEnd);
     const TerminalInputPlace g = terminal_input_place(screen_of(t.session()));
     REQUIRE(g.fit.graphical());
-    REQUIRE(g.columns == 80);
-    CHECK(t.pane().input.first_visible() == 8); // 88 - 80
+    REQUIRE(g.columns == 68);
+    CHECK(t.pane().input.first_visible() == 20); // 88 - 68
     {
         const surface::SurfaceTextRegion& pane =
             *pane_of(t.canvases.back(), screen_of(t.session()));
         CHECK(pane.rows.back().text ==
-              "> ngine.skin SurfaceText 1 slot=1 text=the quick brown fox jumps over the lazy dog");
-        CHECK(pane.caret_col == kTerminalPromptCols + 80);
+              "> urfaceText 1 slot=1 text=the quick brown fox jumps over the lazy dog");
+        CHECK(pane.caret_col == kTerminalPromptCols + 68);
         // ...AND THE BAR IS ACTUALLY DRAWN, which is the half of this the cell projection
         // cannot answer: `plan_caret` refuses a column the region has no room for, and that
         // refusal is exactly what the defect looked like before HD-4.
@@ -9846,7 +9904,7 @@ TEST_CASE("HD-4: a press on a SCROLLED line lands in the full authored string") 
 
     // THE PREMISE, ASSERTED BEFORE ANYTHING ELSE. Without this the case would pass against a
     // hit test that ignores the window, for the most boring reason there is.
-    REQUIRE(t.pane().input.first_visible() == 35);
+    REQUIRE(t.pane().input.first_visible() == 43);
     const std::size_t from = t.pane().input.first_visible();
 
     // EVERY VISIBLE COLUMN, and each one resolves to the byte of the WHOLE line that is
@@ -9860,21 +9918,21 @@ TEST_CASE("HD-4: a press on a SCROLLED line lands in the full authored string") 
         CHECK(t.pane().input.first_visible() == from);
     }
 
-    // THE FIRST VISIBLE CHARACTER, BY NAME. Column 2 of the row is byte 35, which is the `o`
-    // of `slot=1` -- not byte 0, which is what a viewport-blind hit test would answer.
+    // THE FIRST VISIBLE CHARACTER, BY NAME. Column 2 of the row is byte 43, which is the `t`
+    // of `text=` -- not byte 0, which is what a viewport-blind hit test would answer.
     t.press_at(pane_cell_x(p, p.first_column), pane_cell_y(p, p.prose_row),
                input::space::kCells);
-    REQUIRE(t.pane().input.caret() == 35);
-    CHECK(kLongLine[35] == 'o');
+    REQUIRE(t.pane().input.caret() == 43);
+    CHECK(kLongLine[43] == 't');
 
     // A PRESS IN THE PROMPT, OR LEFT OF IT, MEANS THE START OF WHAT THE MAKER CAN SEE, which
     // on a scrolled line is not the start of the line. Clamping to 0 there would jump the
     // window a screenful away from where the press landed.
     t.key(input::scan::kEnd);
-    REQUIRE(t.pane().input.first_visible() == 35);
+    REQUIRE(t.pane().input.first_visible() == 43);
     t.press_at(pane_cell_x(p, 0), pane_cell_y(p, p.prose_row), input::space::kCells);
-    CHECK(t.pane().input.caret() == 35);
-    CHECK(t.pane().input.first_visible() == 35);
+    CHECK(t.pane().input.caret() == 43);
+    CHECK(t.pane().input.first_visible() == 43);
 
     // A PRESS PAST THE LAST VISIBLE CHARACTER MEANS THE END OF THE LINE. On a scrolled line
     // the last visible character IS the last character, because the window never sits
@@ -9914,9 +9972,11 @@ TEST_CASE("HD-4: the window follows the caret across a resize") {
         std::int64_t columns;
         std::size_t first;
     };
-    // 80 columns, then 57, then 107 -- the last of which is wider than the whole command, so
-    // the window has to come all the way back to the beginning.
-    for (const Step s : {Step{{78, 22, 8, 18}, 80, 8}, Step{{78, 22, 11, 23}, 57, 31},
+    // 68 columns, then 49, then 107 -- the last of which is wider than the whole command, so
+    // the window has to come all the way back to the beginning. (The first two were 80 and 57
+    // before HD-10 narrowed the pane's placement by eight cells at the minimum extent; the
+    // third is unmoved, because at 115 columns the room is wider than the pane's want.)
+    for (const Step s : {Step{{78, 22, 8, 18}, 68, 20}, Step{{78, 22, 11, 23}, 49, 39},
                          Step{{115, 63, 8, 18}, 107, 0}}) {
         t.publish(loom::to_value(s.extent));
         const Screen sc = screen_of(t.session());
@@ -9961,7 +10021,7 @@ TEST_CASE("HD-4: completion sees the whole line, and acceptance brings the tail 
     // prefix that only looks like the end of the line.
     Live t;
     loom::TerminalSession* me = t.mount_terminal();
-    t.toggle_terminal(); // 53 columns
+    t.toggle_terminal(); // 45 columns
     // FIFTY-EIGHT BYTES, ending in a token the completer answers: the length is spent in a
     // field VALUE so the line scrolls while the thing being completed is still a field name.
     const std::string prefix =
@@ -9970,7 +10030,7 @@ TEST_CASE("HD-4: completion sees the whole line, and acceptance brings the tail 
         t.text(std::string(1, c));
     }
     REQUIRE(prefix.size() == 58);
-    REQUIRE(t.pane().input.first_visible() == 5); // 58 - 53: the line has scrolled
+    REQUIRE(t.pane().input.first_visible() == 13); // 58 - 45: the line has scrolled
     REQUIRE(t.pane().input.at_end());
 
     // THE PARTIAL IS A TOKEN OF THE WHOLE LINE, not of the row: `send *` has already
@@ -10115,7 +10175,7 @@ TEST_CASE("HD-4: clicking a SCROLLED multibyte line snaps exactly as HD-3's did"
     // the `é` it landed on -- scrolled or not.
     Live t;
     (void)t.mount_terminal();
-    t.toggle_terminal(); // 53 columns
+    t.toggle_terminal(); // 45 columns
     for (int i = 0; i < 30; ++i) {
         t.text("\xC3\xA9"); // a whole character per TextEntered, as a backend reports it
     }
@@ -10123,10 +10183,10 @@ TEST_CASE("HD-4: clicking a SCROLLED multibyte line snaps exactly as HD-3's did"
 
     const Screen sc = screen_of(t.session());
     const TerminalInputPlace p = terminal_input_place(sc);
-    // 60 - 53 = 7, which is the second byte of an `é` -- so the window snaps FORWARD to 8
+    // 60 - 45 = 15, which is the second byte of an `é` -- so the window snaps FORWARD to 16
     // and shows one character fewer rather than half of one.
-    REQUIRE(t.pane().input.first_visible() == 8);
-    CHECK(t.pane().input.visible(p.columns).size() == 52);
+    REQUIRE(t.pane().input.first_visible() == 16);
+    CHECK(t.pane().input.visible(p.columns).size() == 44);
     CHECK_FALSE(component::is_continuation_byte(t.pane().input.visible(p.columns)[0]));
 
     // EVERY VISIBLE COLUMN, and the caret only ever lands between characters -- at an even
@@ -10139,7 +10199,7 @@ TEST_CASE("HD-4: clicking a SCROLLED multibyte line snaps exactly as HD-3's did"
         // ...and it is the character the press landed ON: an odd column is the second byte
         // of the character at the even column before it.
         CHECK(t.pane().input.caret() ==
-              8 + static_cast<std::size_t>(k) - static_cast<std::size_t>(k % 2));
+              16 + static_cast<std::size_t>(k) - static_cast<std::size_t>(k % 2));
     }
 
     // AND THE HIDDEN CHARACTERS ARE STILL THERE, whole, in the authored line.
@@ -13370,4 +13430,379 @@ TEST_CASE("HD-9: a ground changed no composition, no row index and no hit mappin
         CHECK(property_at_prose_row(body, body.heading_row) == kNoProperty);
         CHECK(object_at_prose_row(body, body.heading_row) == kNoObject);
     }
+}
+
+// ============================================================================================
+// HD-10 — the reserved column is nobody's to spend
+// ============================================================================================
+//
+// HD-9's live run recorded a defect it did not cause: with the Terminal open, the Info panel
+// published its lower rows -- properties, and the whole `[ Create ]` / `[ Delete ]` footer --
+// and the pane's region, later in `c.texts`, erased them. In canvas-coloured ground, so what a
+// maker saw was a panel that STOPPED rather than a panel something was covering, and the three
+// answers they could not tell apart were `omitted`, `hidden` and `destroyed`.
+//
+// WHERE THE OVERLAP CAME FROM, measured before anything was designed:
+//
+//     the Info panel's REGION is exactly its granted bounds less the heading row
+//         (`info_body_place`: region_x = panel.x, region_w = panel.w) -- nothing escaped
+//     the two RECTANGLES overlapped, at every extent this composition lays out
+//         78x22   pane 56x13 at (22, 9)    side region 28x17 at (50, 0)   overlap 28 x 8
+//         98x60   pane 66x32 at (32, 28)   side region 28x55 at (70, 0)   overlap 28 x 27
+//         240x80  pane 137x42 at (103, 38) side region 28x75 at (212, 0)  overlap 28 x 37
+//
+// So it was never an internal presentation exceeding its grant, and never a rule about paint
+// order: it was two rectangles claiming the same cells, and publication order was the only
+// thing deciding which one a maker got to see.
+//
+// THE OWNER OF THAT CONFLICT IS `screen_of`, AND IT ALREADY KNEW THE ANSWER. It reserves the
+// side column and hands the workspace `room_w = panel_x - kPanelGap` three lines before it
+// places the pane; `placement_bounds` puts the overlay stack inside that same number and
+// asserts it. The pane was the one placement in the file older than that discipline. HD-10 is
+// two expressions: the pane's want is bounded by the room, and its right edge IS the room's.
+//
+// WHAT THIS IS NOT. It is not a rule that regions may not overlap -- three of them still do,
+// every one on purpose and every one inside a single owner's room (the completion list over
+// the pane's transcript, the picker over the stack slot beneath it, and the pane itself over
+// the workspace and the bottom band). It is the narrower claim that the room reserved BESIDE
+// the workspace is nobody's, which is the one overlap that had no owner and no reason.
+
+namespace {
+
+/// A screen and the two rectangles HD-10 is about, so a case can ask about their relationship
+/// without either of them computing a rectangle for itself.
+struct Places {
+    Screen sc{};
+    ui::Rect pane{};
+    ui::Rect side{};
+};
+Places places_of(std::int64_t w, std::int64_t h, std::int64_t advance = 0,
+                 std::int64_t line = 0) {
+    Places p;
+    p.sc = screen_of(w, h, advance, line);
+    p.pane = ui::Rect{p.sc.terminal_x, p.sc.terminal_y, p.sc.terminal_w, p.sc.terminal_h};
+    p.side = placement_bounds(placement::kSideRegion, 0, p.sc);
+    return p;
+}
+
+/// How many CELLS two rectangles share. Zero is the answer HD-10 requires of the pane and the
+/// side region; it is COUNTED rather than compared as edges so a case that gets the arithmetic
+/// subtly wrong reports how badly rather than passing.
+std::int64_t shared_cells(const ui::Rect& a, const ui::Rect& b) {
+    std::int64_t n = 0;
+    for (std::int64_t y = b.y; y < b.y + b.h; ++y) {
+        for (std::int64_t x = b.x; x < b.x + b.w; ++x) {
+            if (a.contains(x, y)) {
+                ++n;
+            }
+        }
+    }
+    return n;
+}
+
+/// A document and a session with Info open and `n` objects, at a stated extent.
+struct Room {
+    WorkshopDoc d;
+    Session s;
+};
+Room room_of(std::size_t n, std::int64_t w, std::int64_t h, std::int64_t advance = 0,
+             std::int64_t line = 0) {
+    Room r;
+    for (std::size_t i = 0; i < n; ++i) {
+        REQUIRE(doc::add_default(r.d) != 0);
+    }
+    adopt_screen(r.s, w, h, advance, line);
+    if (!r.d.elements.empty()) {
+        r.s.selected = r.d.elements.back().id;
+    }
+    refocus(r.d, r.s);
+    return r;
+}
+
+/// The extents HD-10 measures over: the minimum, the widths where the room is narrower than
+/// the pane's want, the width where the two first agree, and up to the largest surface this
+/// composition lays out.
+const std::vector<std::pair<std::int64_t, std::int64_t>> kHd10Extents = {
+    {78, 22},  {79, 22},  {80, 23},  {81, 24},  {94, 30},  {98, 60},
+    {100, 33}, {120, 40}, {160, 60}, {240, 80}, {640, 400}};
+
+} // namespace
+
+TEST_CASE("HD-10: the pane and the side region share no cell, at any extent or metric") {
+    // THE PHASE'S WHOLE CLAIM, counted in cells rather than compared as edges -- the same
+    // question a maker's eye asks, and the one the pristine tree answered with 224 shared
+    // cells at the minimum extent and 1,036 at 240x80.
+    for (const auto& wh : kHd10Extents) {
+        for (const auto& metric : std::vector<std::pair<std::int64_t, std::int64_t>>{
+                 {0, 0}, {8, 18}, {11, 23}}) {
+            CAPTURE(wh.first);
+            CAPTURE(wh.second);
+            CAPTURE(metric.first);
+            const Places p = places_of(wh.first, wh.second, metric.first, metric.second);
+            CHECK(shared_cells(p.pane, p.side) == 0);
+            // ...and the two ways of saying it agree, which is what stops a later placement
+            // rule from satisfying the arithmetic while breaking the law.
+            CHECK(p.pane.x + p.pane.w == p.sc.room_w);
+            CHECK(p.pane.x + p.pane.w <= p.side.x - kPanelGap);
+            CHECK(p.pane.x >= 0);
+            // THE PANE IS NEVER NARROWER THAN THE WORKSPACE'S OWN FLOOR, so the clamp has no
+            // degenerate end: the room it is bounded by is the room the workspace has.
+            CHECK(p.pane.w >= kWorkspaceMinW);
+        }
+    }
+}
+
+TEST_CASE("HD-10: the want is unchanged and the room is the ceiling") {
+    // G-2'S HALF-SHARE RULE SURVIVED. What HD-10 added is a ceiling, and the two agree from 94
+    // columns up -- so the rule a maker experiences on any ordinary window is the rule G-2
+    // wrote, and the ceiling is what happens on a surface with no half to give away.
+    for (std::int64_t w = kScreenMinW; w <= 200; ++w) {
+        CAPTURE(w);
+        const Screen sc = screen_of(w, kScreenMinH);
+        const std::int64_t want = kTerminalWantW + (w - kScreenMinW) / 2;
+        CHECK(sc.terminal_w == (want < sc.room_w ? want : sc.room_w));
+        CHECK(sc.terminal_w == (w < 94 ? sc.room_w : want));
+    }
+    // The extents where the ceiling actually binds, named, because "only the narrowest
+    // screens" is a claim and these are the whole of it.
+    CHECK(screen_of(78, 22).terminal_w == 48);
+    CHECK(screen_of(79, 22).terminal_w == 49);
+    CHECK(screen_of(80, 22).terminal_w == 50);
+    CHECK(screen_of(81, 22).terminal_w == 51); // want 57, room 51
+    CHECK(screen_of(94, 22).terminal_w == 64); // want 64, room 64 -- they meet
+    CHECK(screen_of(95, 22).terminal_w == 64); // want 64, room 65 -- the want, from here on
+}
+
+TEST_CASE("HD-10: the reservation is the SCREEN's, and holds with no panel in it") {
+    // THE TEST FOR THE WRONG OWNER, AS A CASE. If the repair had been "the pane must not cover
+    // Info", closing Info would hand the pane the column back -- and the column is reserved
+    // whether or not anything is standing in it (PNL-0's own decision, and the reason hiding
+    // Info moves nothing). Nothing in `screen_of` can see a panel, and this says so.
+    Session open_info;
+    Session no_info;
+    REQUIRE(close_panel(no_info.panels, panel::kInfo));
+    REQUIRE(no_info.panels.open.empty());
+    for (const auto& wh : kHd10Extents) {
+        CAPTURE(wh.first);
+        CAPTURE(wh.second);
+        adopt_screen(open_info, wh.first, wh.second, 0, 0);
+        adopt_screen(no_info, wh.first, wh.second, 0, 0);
+        const Screen a = screen_of(open_info);
+        const Screen b = screen_of(no_info);
+        CHECK(a.terminal_x == b.terminal_x);
+        CHECK(a.terminal_w == b.terminal_w);
+        CHECK(b.terminal_x + b.terminal_w == b.room_w);
+    }
+}
+
+TEST_CASE("HD-10: the Info panel is byte-identical with the pane open") {
+    // THE OTHER HALF OF THE OWNERSHIP ANSWER. The repair moved the PANE; it did not make the
+    // panel reflow, shrink, or float its footer upwards. So the composition a maker reads on
+    // the right is the same composition whether the Terminal is open or closed -- which is
+    // what stops opening a mode from moving a target under the hand aiming at it.
+    for (const auto& wh : kHd10Extents) {
+        for (const std::int64_t line : std::vector<std::int64_t>{0, 18}) {
+            CAPTURE(wh.first);
+            CAPTURE(wh.second);
+            CAPTURE(line);
+            Room closed = room_of(6, wh.first, wh.second, line == 0 ? 0 : 8, line);
+            Room opened = room_of(6, wh.first, wh.second, line == 0 ? 0 : 8, line);
+            opened.s.terminal.open = true;
+            opened.s.terminal.attached = true;
+
+            const InfoBodyPlace a = body_of(closed.d, closed.s);
+            const InfoBodyPlace b = body_of(opened.d, opened.s);
+            REQUIRE(a.present);
+            REQUIRE(b.present);
+            CHECK(a.region_x == b.region_x);
+            CHECK(a.region_y == b.region_y);
+            CHECK(a.region_w == b.region_w);
+            CHECK(a.region_h == b.region_h);
+            CHECK(a.capacity == b.capacity);
+            CHECK(a.objects_rows == b.objects_rows);
+            CHECK(a.properties_rows == b.properties_rows);
+            CHECK(a.heading_row == b.heading_row);
+            CHECK(a.action_row == b.action_row);
+
+            // AND THE ROWS THEMSELVES, one by one, published on both canvases -- HD-9's
+            // grounds included, so an occlusion repair cannot quietly regress them.
+            const surface::SurfaceCanvas ca = paint(closed.d, closed.s);
+            const surface::SurfaceCanvas cb = paint(opened.d, opened.s);
+            const surface::SurfaceTextRegion* ra = body_on(ca, a);
+            const surface::SurfaceTextRegion* rb = body_on(cb, b);
+            REQUIRE(ra != nullptr);
+            REQUIRE(rb != nullptr);
+            REQUIRE(ra->rows.size() == rb->rows.size());
+            for (std::size_t i = 0; i < ra->rows.size(); ++i) {
+                CAPTURE(i);
+                CHECK(ra->rows[i].text == rb->rows[i].text);
+                CHECK(ra->rows[i].role == rb->rows[i].role);
+                CHECK(ra->rows[i].background == rb->rows[i].background);
+            }
+        }
+    }
+}
+
+TEST_CASE("HD-10: the footer a maker can SEE, with the pane open, on the real rasterizer") {
+    // THE DEFECT ITSELF, AS A PICTURE. Everything above is arithmetic; this is the thing HD-9
+    // photographed. The screen is rasterized by the terminal medium's own pure function, the
+    // Info column is cut out of it, and the rows that used to be erased are read back.
+    for (const auto& wh : kHd10Extents) {
+        CAPTURE(wh.first);
+        CAPTURE(wh.second);
+        Room r = room_of(4, wh.first, wh.second);
+        r.s.terminal.open = true;
+        r.s.terminal.attached = true;
+        r.s.terminal.id = loom::WeaveId{3};
+        const InfoBodyPlace body = body_of(r.d, r.s);
+        REQUIRE(body.present);
+        const surface::SurfaceCanvas c = paint(r.d, r.s);
+        const std::vector<std::string> rows = rasterized(c);
+        REQUIRE(rows.size() == static_cast<std::size_t>(screen_of(r.s).h));
+
+        const auto column = [&rows, &body](std::int64_t prose_row) {
+            const std::int64_t y = body.region_y + prose_row;
+            return rows[static_cast<std::size_t>(y)].substr(
+                static_cast<std::size_t>(body.region_x),
+                static_cast<std::size_t>(body.region_w));
+        };
+        CHECK(column(prose_row_of_action(body, kActionCreate)).rfind("[ Create ]", 0) == 0);
+        CHECK(column(prose_row_of_action(body, kActionDelete)).rfind("[ Delete ]", 0) == 0);
+        CHECK(column(body.heading_row).rfind("PROPERTIES", 0) == 0);
+        CHECK(column(0).find("panel") != std::string::npos);
+        // ...AND NOT ONE ROW OF THE BODY IS BLANKED BY SOMETHING ELSE. Every row the region
+        // published is the row the screen shows, which is the sentence the pristine tree
+        // could not say for anything below the pane's top edge.
+        const surface::SurfaceTextRegion* published = body_on(c, body);
+        REQUIRE(published != nullptr);
+        for (std::size_t i = 0; i < published->rows.size(); ++i) {
+            CAPTURE(i);
+            CHECK(column(static_cast<std::int64_t>(i)).rfind(published->rows[i].text, 0) == 0);
+        }
+    }
+}
+
+TEST_CASE("HD-10: what the pane DOES cover is unchanged, and is on purpose") {
+    // THE CLASSIFICATION, MEASURED. Forbidding overlap globally would forbid three things this
+    // application does deliberately, so the three are asserted as still true rather than left
+    // to a reader to notice they survived.
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    const Screen sc = screen_of(t.session());
+
+    // ONE: the pane covers the WORKSPACE, which is what an overlay over the material IS.
+    const ui::Rect pane{sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h};
+    const ui::Rect workspace{kWorkspaceX, kWorkspaceY, sc.room_w, sc.room_h};
+    CHECK(shared_cells(pane, workspace) > 0);
+
+    // TWO: the pane covers the bottom band, and the SCREEN answers for that by not painting
+    // the notice or the help lines at all while it is open -- an occlusion with an owner, and
+    // the precedent HD-10's own answer was modelled on.
+    CHECK(sc.terminal_y + sc.terminal_h == sc.h);
+    CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("n new | d delete", 0) != 0);
+
+    // THREE: the completion list covers the pane's own transcript, inside one owner's room.
+    t.text("s");
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    const surface::SurfaceTextRegion* list = list_of(c, sc);
+    REQUIRE(list != nullptr);
+    const surface::SurfaceTextRegion* body = pane_of(c, sc);
+    REQUIRE(body != nullptr);
+    const ui::Rect list_rect{list->x, list->y, list->w, list->h};
+    const ui::Rect pane_rect{body->x, body->y, body->w, body->h};
+    CHECK(shared_cells(list_rect, pane_rect) > 0);
+    CHECK(list->x >= body->x);
+    CHECK(list->x + list->w <= body->x + body->w);
+    // ...and NONE of them reaches the side region.
+    const ui::Rect side = placement_bounds(placement::kSideRegion, 0, sc);
+    CHECK(shared_cells(list_rect, side) == 0);
+    CHECK(shared_cells(pane_rect, side) == 0);
+}
+
+TEST_CASE("HD-10: the pane and the overlay stack meet on one row, at one height, and only there") {
+    // THE ONE OVERLAP HD-10 LEAVES BETWEEN TWO INDEPENDENT PRESENTATIONS, measured exactly so
+    // that it is a known fact rather than a later discovery. Both are OVERLAYS in the room the
+    // workspace has: the stack grows down from the top-left, the pane up from the bottom-right,
+    // and at the shortest screen this composition lays out their edges touch for one row.
+    //
+    // IT IS NOT REPAIRED HERE, and the reason is that repairing it means reserving the stack's
+    // rows from the pane -- a SECOND reservation, which `screen_of` does not make and which
+    // would tie the pane's height to `kStackRows`. The reserved side column is a subtraction
+    // the screen already performs; the overlay stack is not. HD-10's report says the rest.
+    for (std::int64_t h = kScreenMinH; h <= 40; ++h) {
+        CAPTURE(h);
+        const Places p = places_of(kScreenMinW, h);
+        const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, p.sc);
+        CHECK(shared_cells(p.pane, slot) == (h == kScreenMinH ? slot.w : 0));
+    }
+    // And the row they share is the stack slot's LAST row, which the Builder spends on
+    // `[ Build ]` -- a label naming the key `b` rather than a control, since `[ Build ]` has
+    // never been pressable (PNL-2 says so in its own words).
+    const Places min = places_of(kScreenMinW, kScreenMinH);
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, min.sc);
+    CHECK(min.pane.y == slot.y + slot.h - 1);
+}
+
+TEST_CASE("HD-10: the composition is DERIVED, and a resize recomputes all of it") {
+    // Nothing is stored: no occlusion state, no remembered rectangle, no cached room. The
+    // proof is that walking a live session through seven extents and back gives, at each one,
+    // exactly what a freshly computed screen of that extent gives.
+    Live t;
+    (void)t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const auto& wh : std::vector<std::pair<std::int64_t, std::int64_t>>{
+             {78, 22}, {240, 80}, {94, 30}, {78, 22}, {160, 45}, {80, 23}, {78, 22}}) {
+        CAPTURE(wh.first);
+        CAPTURE(wh.second);
+        t.publish(loom::to_value(surface::SurfaceExtent{wh.first, wh.second}));
+        const Screen live = screen_of(t.session());
+        const Places fresh = places_of(wh.first, wh.second);
+        CHECK(live.terminal_x == fresh.sc.terminal_x);
+        CHECK(live.terminal_w == fresh.sc.terminal_w);
+        CHECK(live.terminal_y == fresh.sc.terminal_y);
+        CHECK(live.terminal_h == fresh.sc.terminal_h);
+        CHECK(shared_cells(fresh.pane, fresh.side) == 0);
+        // AND THE PICTURE AGREES WITH THE PLACEMENT at every one of them: the pane's own
+        // header is at the pane's corner and the panel's footer is readable beside it.
+        const std::vector<std::string> rows = rasterized(t.canvases.back());
+        REQUIRE(rows.size() == static_cast<std::size_t>(live.h));
+        CHECK(rows[static_cast<std::size_t>(live.terminal_y)].substr(
+                  static_cast<std::size_t>(live.terminal_x), 8) == "TERMINAL");
+        const InfoBodyPlace body = body_of(t.doc(), t.session());
+        REQUIRE(body.present);
+        CHECK(rows[static_cast<std::size_t>(body.region_y +
+                                            prose_row_of_action(body, kActionCreate))]
+                  .substr(static_cast<std::size_t>(body.region_x), 10) == "[ Create ]");
+    }
+}
+
+TEST_CASE("HD-10: the same composition truth in a medium that sets type") {
+    // THE ANSWER IS MEDIUM-INDEPENDENT because it is made ENTIRELY in canvas cells, before any
+    // metric is consulted: `screen_of` places the pane against `room_w`, and a metric only ever
+    // changes how much PROSE fits inside a placement it did not choose. So the disjointness is
+    // the same fact in both media, and the graphical medium's own resolution says it in device
+    // pixels without anybody converting a rectangle twice.
+    Room r = room_of(6, 120, 40, 8, 18);
+    r.s.terminal.open = true;
+    r.s.terminal.attached = true;
+    const Screen sc = screen_of(r.s);
+    const surface::SurfaceCanvas c = paint(r.d, r.s);
+    const InfoBodyPlace body = body_of(r.d, r.s);
+    REQUIRE(body.present);
+
+    const surface::RegionFit pane_fit =
+        surface::fit_region(sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h,
+                            sc.text_advance_px, sc.text_line_px);
+    REQUIRE(pane_fit.graphical());
+    REQUIRE(body.fit.graphical());
+    CHECK(pane_fit.view.x + pane_fit.view.w <= body.fit.view.x);
+
+    // AND THE CELL PROJECTION SAYS THE SAME THING: every row of the body is on the screen.
+    const std::vector<std::string> rows = rasterized(c);
+    CHECK(rows[static_cast<std::size_t>(body.region_y +
+                                        prose_row_of_action(body, kActionDelete))]
+              .substr(static_cast<std::size_t>(body.region_x), 10) == "[ Delete ]");
 }

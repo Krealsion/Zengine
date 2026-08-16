@@ -994,6 +994,26 @@ and no window itself.
   `( Delete )` and loses nothing, which is the same rule the object list's `> ` mark has
   followed since HD-7. An unavailable control loses its ground entirely rather than being given
   a quieter one, so availability never becomes a matter of degree.
+- **The terminal pane stops at the workspace's edge, and the panel beside it survives** (HD-10).
+  The pane is anchored to the bottom-right corner of the ROOM rather than of the screen: its
+  width is the smaller of G-2's half-share want and `Screen::room_w`, and its right edge IS
+  `room_w`. Before this it reached the screen's right edge and stood in the 28 reserved columns
+  the side region occupies — at *every* extent — so with the Terminal open the Info panel
+  published its properties and its `[ Create ]` / `[ Delete ]` footer and the pane's region
+  cleared those cells to the canvas colour a moment later. The panel looked like it had
+  *stopped*, and a maker could not tell rows omitted from rows hidden from rows destroyed.
+  **The answer was already in the file.** `screen_of` subtracts the side column for the
+  workspace three lines above where it placed the pane, and `placement_bounds` has asserted the
+  overlay stack inside that same number since PNL-1. The pane was simply older than the rule.
+  **The law is about the reservation and not about overlap**: the completion list still covers
+  the pane's transcript, the picker still covers the stack slot, and the pane still covers the
+  workspace and the bottom band — three deliberate overlaps, each inside one owner's room. What
+  no presentation may do is spend the room the screen reserved for another.
+  **The panel did not move to make it work.** Every field of the resolved body and every
+  published row, HD-9's grounds included, is byte-identical with the pane open and with it
+  closed. What the repair costs is eight cells of pane on the three narrowest screens, where the
+  room is smaller than the pane's want — enough that the pane's standing statement about
+  SUBMITTED is elided there, marked, by the same `detail::fit` that marks every other cut.
 - **The command may be longer than the pane, and the caret stays in sight** (HD-4). The input
   line has a horizontal viewport: `TerminalInput` gained `first_visible`, a byte index the row
   begins at, and the authored command never changes because the window moved. It is a third
