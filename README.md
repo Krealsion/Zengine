@@ -978,6 +978,22 @@ and no window itself.
   **No focus framework, and none was earned.** The controls are pointer-activated, `n` and `d`
   are unchanged and application-owned, and a `TextBox` still owns typing while it is editing —
   so there is no keyboard gesture two owners could want.
+- **The panel says which rows are structure, by setting them on something** (HD-9). `PROPERTIES`
+  and each control a maker can actually press are drawn on a ground now: `[ Create ]` sits on a
+  slab, `( Delete )` does not, and the row above the heading — the selected object, which
+  carries the same accent ink — does not either. A section boundary and a pressable thing were
+  both being said in ink alone, and ink alone is already spoken for by what a row MEANS.
+  **Nothing in `surface/` changed.** `SurfaceTextRow::background` has carried a semantic ground
+  since HD-2 and the Info panel simply began spending it; the whole difference in a terminal
+  frame is three bright-black SGR runs, and in a window three filled strips. The ground reaches
+  the WHOLE row in both media, which is what makes it say *this row, all of it* rather than
+  *these characters* — and the pressable target has always been the whole row too, so for the
+  first time the panel looks like what it does.
+  **The brackets still carry it alone.** A ground is a third signal after the characters and
+  the role, never a replacement: a medium with no ground to tint reads `[ Create ]` against
+  `( Delete )` and loses nothing, which is the same rule the object list's `> ` mark has
+  followed since HD-7. An unavailable control loses its ground entirely rather than being given
+  a quieter one, so availability never becomes a matter of degree.
 - **The command may be longer than the pane, and the caret stays in sight** (HD-4). The input
   line has a horizontal viewport: `TerminalInput` gained `first_visible`, a byte index the row
   begins at, and the authored command never changes because the window moved. It is a third
