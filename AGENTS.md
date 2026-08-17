@@ -519,9 +519,10 @@ terminal_x   room_w - terminal_w                      anchored to the ROOM's cor
   and it is where the worst case lives. WIND-1 widened the slot and therefore this overlap, and
   swept it: **504 shared cells** at worst, e.g. slot 1 at 640×26, against 432 before — bounded
   because the pane's left edge moves right at exactly the rate the slot's right edge does, so the
-  contested columns never exceed `kTerminalWantW` at any extent. A full-width slot would have
-  made it 3,033 and growing, which is why it is a half-share.) Both are overlays in the room the
-  workspace has — the stack grows down from the top-left, the pane up from the bottom-right.
+  contested columns never exceed `kTerminalWantW` at any extent. A full-width slot would make the
+  overlap grow with the supported surface, reaching 3,033 cells at the 640-column maximum, which
+  is why it is a half-share.) Both are overlays in the room the workspace has — the stack grows
+  down from the top-left, the pane up from the bottom-right.
   Repairing it would mean reserving the stack's rows from the pane, which is a *second*
   reservation `screen_of` does not make and which would tie the pane's height to `kStackRows`.
   Pinned as a case so it is a known fact.

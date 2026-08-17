@@ -14038,7 +14038,8 @@ TEST_CASE("WIND-1: the stack/pane overlap grew by a bounded amount, and stayed i
     // THE BOUND IS A CONSTANT AND NOT A SHARE OF THE SURFACE, which is the whole point: the
     // pane's own left edge moves right at exactly the rate the stack's right edge does, so
     // the columns they contest never exceed `kTerminalWantW` however large the surface gets.
-    // A full-width stack would contest the pane's ENTIRE width, which grows without end.
+    // A full-width stack would contest the pane's ENTIRE width, growing with the supported
+    // surface and reaching 3,033 shared cells at the 640-column maximum.
     const auto columns_shared = [](std::int64_t stack_w, const Screen& sc) {
         const std::int64_t lo = sc.terminal_x > kStackX ? sc.terminal_x : kStackX;
         const std::int64_t hi = (kStackX + stack_w) < (sc.terminal_x + sc.terminal_w)
