@@ -7423,10 +7423,24 @@ std::string info_text(const surface::SurfaceCanvas& c, const Screen& sc) {
 
 } // namespace
 
-TEST_CASE("the catalog is what the picker offers, and it says which kinds are open") {
-    // The catalog is Workshop's own and complete: the picker walks it, so a kind
-    // that is not here cannot be opened by any gesture at all.
-    REQUIRE(kPanelKinds == 2);
+TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and its state") {
+    // THE COMPILE-TIME CATALOG IS THE PICKER'S BUILT-IN HALF, and this case is asked in the
+    // control where it is the whole of what the picker shows: a `Session` no office has
+    // offered anything to. Since WP-0 the picker walks `combined_catalog` -- these rows, in
+    // this order, and then whatever runtime panes this session admitted -- so "a kind that is
+    // not in `kPanelCatalog` cannot be opened" is no longer the sentence. What is still true
+    // and is what this case owes: every row that IS here reaches the picker, and the runtime
+    // half's own coverage is the WP-0 tier's (`the combined picker lists an offered pane...`).
+    //
+    // ASSERTED OVER THE WHOLE CATALOG RATHER THAN OVER ITS LENGTH (WG-0). This case used to
+    // open `REQUIRE(kPanelKinds == 2)` and then name two entries by hand, which made the
+    // CENSUS of the catalog part of the claim: adding a panel kind reddened this case for no
+    // reason to do with the kind being added, and it still said nothing about whether a third
+    // row reached the picker. What the picker owes is one row per catalog entry carrying that
+    // entry's name, its summary and its current state, and that is a claim over `kPanelKinds`
+    // entries rather than over the number two. Measured: with the loop below bounded at two
+    // instead of `kPanelKinds`, the old spelling passed and this one names every missing row.
+    REQUIRE(kPanelKinds >= 2);
     CHECK(kPanelCatalog[0].kind == panel::kBuilder);
     CHECK(std::string(kPanelCatalog[0].name) == "Builder");
     CHECK(kPanelCatalog[1].kind == panel::kInfo);
@@ -7438,13 +7452,19 @@ TEST_CASE("the catalog is what the picker offers, and it says which kinds are op
     paint_picker(c, s.panels, screen_of(s));
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
-    CHECK(shown.find("Builder") != std::string::npos);
-    CHECK(shown.find(kPanelCatalog[0].summary) != std::string::npos);
-    CHECK(shown.find("Info") != std::string::npos);
-    CHECK(shown.find(kPanelCatalog[1].summary) != std::string::npos);
-    // THE STATE COLUMN, and it is what makes the picker usable as the one owner
-    // of presence: Return does one of two opposite things, so the list has to
-    // say which one it is about to do.
+    // EVERY BUILT-IN ENTRY, WITH ITS SUMMARY AND ITS STATE BESIDE IT. The state column is what
+    // makes the picker usable as the one owner of presence: Return does one of two opposite
+    // things, so the list has to say which one it is about to do. The two `detail::pad` widths
+    // are the picker's own, and reading them back here pins the COLUMN rather than merely the
+    // word. `closed` rather than `picker_state_word` is right in THIS session: nothing here is
+    // waiting, because nothing is authored beyond what the minimum screen seats.
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        const PanelKind& k = kPanelCatalog[i];
+        const std::string state = s.panels.has(k.kind) ? "open" : "closed";
+        INFO("catalog entry ", i, ": ", std::string(k.name));
+        CHECK(shown.find(detail::pad(k.name, 10) + detail::pad(state, 8) + k.summary) !=
+              std::string::npos);
+    }
     CHECK(shown.find("Builder   closed") != std::string::npos);
     CHECK(shown.find("Info      open") != std::string::npos);
 }
@@ -7787,7 +7807,26 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     CHECK(placement_of(panel::kBuilder) == placement::kOverlayStack);
     CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
     CHECK(kinds_placed_in(placement::kSideRegion) == 1); // asserted at compile time too
-    CHECK(kinds_placed_in(placement::kOverlayStack) == 1);
+    // AND THE TWO PLACES PARTITION THE BUILT-IN CATALOG (WG-0). This used to read
+    // `kinds_placed_in(kOverlayStack) == 1`, which is a census of the place whose whole
+    // purpose is to hold several -- so it reddened for any kind added to the stack while
+    // saying nothing about a law. The law is that every COMPILE-TIME kind declares one of the
+    // two: a row whose `placed_in` is neither is counted by nobody and silently resolved by
+    // `placement_bounds`'s fall-through, which is the stack's rectangle under another name.
+    // Measured against current source: a catalog row declaring a third place value reddens
+    // this. WG-0 recorded "and nothing else" and that half is no longer true -- since WP-0 a
+    // kind outside the stack takes no SLOT in `seat_panes`, so the same mutant also moves the
+    // capacity and waiting cases. The law still catches what it names; it is simply no longer
+    // the only thing watching `placed_in`.
+    //
+    // IT IS ABOUT `placed_in` AND THEREFORE ABOUT ROWS, NOT ABOUT EVERY KIND (WP-0). A runtime
+    // pane has no catalog row to declare anything in: `placement_of` branches on
+    // `is_runtime_kind` BEFORE it reaches `panel_kind`, so an external pane is placed in the
+    // stack by Workshop and asks for nothing. That branch is the WP-0 tier's claim (`an
+    // unknown runtime reference never becomes the Builder`); `kinds_placed_in` walks
+    // `kPanelCatalog` and could not see it.
+    CHECK(kinds_placed_in(placement::kSideRegion) + kinds_placed_in(placement::kOverlayStack) ==
+          kPanelKinds);
 
     // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and they are the two places
     // Workshop has always had: the column beside the workspace, and the top of

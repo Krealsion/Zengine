@@ -5,6 +5,19 @@ lifecycle, replacement, capabilities — lives in
 [Loom's docs](../../Loom/docs/README.md); machine collaborators start at
 [Loom's CONTEXT.md](../../Loom/docs/CONTEXT.md).
 
+**Making a Workshop tool:**
+[guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) — the two authoring paths and
+which one you are on. A **compiled-in panel** is source-contributor work: identity, the room
+Workshop grants it, publishing rows into it, one operation reached by a pointer and a hotkey,
+when a component is worth holding, and where each kind of state belongs. An **office-authored
+external pane** is the bounded read-only provider protocol: four shapes, a prose budget, no
+input, and no plugin/installation story yet. The exact wire shapes are
+[`workshop/pane_vocabulary.hpp`](../workshop/pane_vocabulary.hpp) and the reference account is
+the repo README's [A weave may offer a pane](../README.md#a-weave-may-offer-a-pane-wp-0);
+[`tests/weavelib/workshop_hello.cpp`](../tests/weavelib/workshop_hello.cpp) is its smallest
+complete witness, and a test fixture rather than a product plugin. For built-in examples read
+`Info` and `Builder` in [`workshop/screen.hpp`](../workshop/screen.hpp).
+
 **Using time:** [guides/timers.md](guides/timers.md) (order a timer, receipts,
 the `TimerReady` rule) · [guides/timed-weaves.md](guides/timed-weaves.md)
 (a weave with an authored rhythm).
