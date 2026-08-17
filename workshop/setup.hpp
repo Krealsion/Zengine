@@ -181,7 +181,10 @@ inline constexpr std::size_t kMaxSetupPanes = 32;
 /// THIRTY-TWO FOR A NAME, for `kMaxSetupNameLen`'s reason measured against a
 /// different line: the picker pads a name into a ten-column field and then writes
 /// a state column and a summary after it, so a name is a thing a maker reads
-/// across one row of a 48-cell overlay. Sixty-four for a summary, the same
+/// across one row of the NARROWEST overlay this composition lays out -- 48 cells,
+/// at the 78x22 minimum, which is where the bound has to hold (a wider surface
+/// gives the slot more, WIND-1, and a bound measured there would be too loose to
+/// mean anything). Sixty-four for a summary, the same
 /// `kMaxPaneKeyLen` order of magnitude, because a summary is one sentence and the
 /// picker fits what it can (`detail::fit` marks the rest). Both are BYTE counts,
 /// spent against `std::string::size()`, and their refusals say so (WS-0a).

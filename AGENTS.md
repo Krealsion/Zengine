@@ -514,17 +514,63 @@ terminal_x   room_w - terminal_w                      anchored to the ROOM's cor
   mode opening is not a reason for a target to move under the hand aiming at it.
 - **One overlap between independent presentations is left, and it is measured rather than
   hoped:** at `kScreenMinH` exactly, the pane's top row is the overlay stack's first slot's last
-  row (one row, the slot's full width; nothing at any greater height, and the second slot is
-  unreachable with one overlay kind in the catalog). Both are overlays in the room the workspace
-  has — the stack grows down from the top-left, the pane up from the bottom-right. Repairing it
-  would mean reserving the stack's rows from the pane, which is a *second* reservation
-  `screen_of` does not make and which would tie the pane's height to `kStackRows`. Pinned as a
-  case so it is a known fact.
+  row — one row, and at the minimum width the slot's full width. (Nothing at any greater height
+  *for the first slot*; a second slot is reachable since WP-0 put runtime panes in this stack,
+  and it is where the worst case lives. WIND-1 widened the slot and therefore this overlap, and
+  swept it: **504 shared cells** at worst, e.g. slot 1 at 640×26, against 432 before — bounded
+  because the pane's left edge moves right at exactly the rate the slot's right edge does, so the
+  contested columns never exceed `kTerminalWantW` at any extent. A full-width slot would have
+  made it 3,033 and growing, which is why it is a half-share.) Both are overlays in the room the
+  workspace has — the stack grows down from the top-left, the pane up from the bottom-right.
+  Repairing it would mean reserving the stack's rows from the pane, which is a *second*
+  reservation `screen_of` does not make and which would tie the pane's height to `kStackRows`.
+  Pinned as a case so it is a known fact.
 - **The composition answer is medium-independent by construction**, not by parity work: it is
   settled in canvas cells before any metric is consulted, and a metric only ever changes how much
   prose fits inside a placement it did not choose. Measured at 98×60 with the shipped face, the
   pane's clear rectangle ends at device pixel 816 and the Info body's viewport begins at 840; on
   the pristine tree the pane cleared 384..1176 and the body sat inside it.
+
+## A wider room is shared by the pane and the maker (WIND-1)
+
+An overlay-stack slot is no longer the same rectangle at every extent. `placement_bounds`
+resolves its width to `kStackW + (sc.room_w - kStackW)/2` — the minimum composition's 48 cells
+plus **half** the room's surplus over that, floored — while its column, its row, its height and
+the blank row between slots are untouched.
+
+```text
+x       kStackX == 0                        unchanged
+y       kStackY + clamped_slot*10           unchanged
+width   48 + floor((room_w - 48)/2)         WIND-1
+height  kStackRows == 9                     unchanged
+```
+
+- **It is `screen_of`'s own rule, not a new policy.** `pane_want = kTerminalWantW + (w -
+  kScreenMinW)/2` is G-2's half-share for the terminal pane, three lines up; the base here is
+  `kStackW` and the surplus is measured against `kMinScreen.room_w`, which the file has asserted
+  are the same number since PNL-1. One expression, no threshold, no cap, no new constant.
+- **The FLOOR is load-bearing.** At 79 columns the room is 49 and the surplus is exactly one;
+  rounding up would spend it and leave nothing reachable. Floored, the odd column stays the
+  maker's. `kMinScreen` is byte-identical — `{0,1,48,9}`, every `static_assert` unmoved.
+- **A width is not a height.** `stack_slots_that_fit` reads `y` and `h`, so the vertical capacity
+  is identical on the narrowest screen and the widest at every height. A width edit must not buy
+  a slot, and the suite sweeps that.
+- **Every added cell is paint AND pointer.** `paint_panel_frame` fills the whole rectangle,
+  `occupied_at` owns the whole rectangle, and a press inside it is answered with the panel's
+  sentence rather than reaching `take_hold`. So the honest half of the phrase is the *other*
+  half: `room_w > kStackW` implies `x + w < room_w`, i.e. columns of the panel's own rows are
+  still reachable at every extent above the minimum (1, 9, 21, 61, 281 at 79, 96, 120, 200, 640
+  columns of surface). A full-width slot leaves zero, which is what this width was chosen
+  against. A drag begun in that band still walks under the panel and releases normally (PNL-2).
+- **An external pane's room follows it.** `external_body_place` is the slot less its header row
+  and `refresh_external_rooms` grants `fit_region`'s answer over it, so a *wider surface* now
+  moves a provider's budget where only a text metric could before — `8×48` at the minimum,
+  `8×109` at 200×60; `5×71` and `5×163` under the 8×18 face. It is republished exactly when the
+  capacity changes and never otherwise, and every grant clears the retained rows first, so a
+  dragged window edge briefly shows `(waiting for the provider)`.
+
+Setup bytes, the provider protocol, `PaneRef` identity, pane ordering, selection, and every
+public API are untouched. There is still no authored size, no docking and no maker override.
 
 ## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
 
@@ -666,14 +712,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**64,891** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-15 after HD-10) are evidence to report. They are **not** a population, never an
+- Assertion totals (**80,283** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-17 after WIND-1) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 48,355 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 63,747 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -692,7 +738,10 @@ the tests themselves pass
   anything in this repository being any better tested for the crossing. HD-10 added nine
   cases and 6,078 assertions, again for the same reason -- four of them sweep eleven extents
   against three metrics, and one walks every width from 78 to 200 -- and the honest reading is
-  still that the phase pinned one law, not six thousand facts.
+  still that the phase pinned one law, not six thousand facts. WIND-1 is the same story once
+  more and more starkly: **four** cases moved Workshop's total from 48,355 to 63,747, because
+  one of them states the width law over every width the composition lays out at three heights
+  and another sweeps every extent against every seated slot. The phase pinned one expression.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose

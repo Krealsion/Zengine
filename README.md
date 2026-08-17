@@ -1192,9 +1192,15 @@ migration moved is where they are painted from; what a maker sees at boot is byt
                                                                            handed that rect
   ```
 
-  The **overlay stack** is anchored to the canvas's top-left, exactly the workspace's width at
-  the minimum screen, stacked downwards — the terminal overlay's mechanism pointed at the other
-  corner — and it covers the top of the material a maker is building. The **side region** is
+  The **overlay stack** is anchored to the canvas's top-left, stacked downwards — the terminal
+  overlay's mechanism pointed at the other corner — and it covers the top of the material a
+  maker is building. It is **48 cells wide at the 78×22 minimum, where that is exactly the
+  workspace's width, and 48 plus half the room's surplus over that anywhere wider** (WIND-1,
+  floored: 59 cells at 100 columns of surface, 109 at 200, 329 at 640). *A wider room is shared
+  by the pane and the maker* — the same half-share the terminal overlay takes at the other
+  corner — so the columns the panel does not take stay reachable at every extent, and the ones
+  it does take are its own for paint **and** for the pointer. Its height, its column, its row
+  and the blank row between slots do not move with the surface. The **side region** is
   the fixed right-hand column `Info` has always been; it holds exactly one panel, and a second
   kind declaring it is a compile-time refusal rather than two panels painting over each other.
   A slot is earned by being *placed in the stack*, so an `Info` ahead of a `Builder` in the open
@@ -1435,10 +1441,12 @@ PaneContent            provider  ->  Workshop   "here is what it says."
   pane and its office, and grants the body beneath it as *prose rows and columns* — never a
   rectangle, a cell, a pixel, a font or the identity of the medium that answered. It is sent when
   the pane opens, when a valid re-offer refreshes it, and when the resolved capacity changes, and
-  at no other time. (An overlay slot's rectangle is the same rectangle at every extent, so in
-  practice a real text metric is the only thing that moves an external pane's budget.) A grant
-  clears the cached rows *before* it is sent, so the cache can never hold rows admitted under a
-  wider room.
+  at no other time. Two things move that capacity: a **wider surface**, because a stack slot
+  takes half the room's surplus (WIND-1) — at 200×60 the grant is `8×109` where the minimum
+  composition's is `8×48` — and a real **text metric**, because a face that is not a cell fits a
+  different amount of prose in the same rectangle. A *taller* surface moves neither: a slot's
+  height is fixed. A grant clears the cached rows *before* it is sent, so the cache can never
+  hold rows admitted under a wider room.
 - **Over-budget content is refused whole, never truncated.** Too many rows, one row too wide, or a
   byte outside `SurfaceTextRow`'s plain-ASCII contract, and *not one row* is kept: the pane clears
   what it was showing, leaves one bounded Workshop-owned refusal, names only the already-admitted
