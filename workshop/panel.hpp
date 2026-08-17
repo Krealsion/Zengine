@@ -80,6 +80,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace zengine::workshop {
@@ -445,7 +446,14 @@ struct RuntimeCatalog {
     /// distinct `PaneRef` and is bounded by `kMaxPaneCatalogEntries`.
     std::int64_t next_kind = kFirstRuntimeKind;
 
-    const RuntimePane* find(const std::string& provider, const std::string& pane) const {
+    /// THE LOOKUP TAKES VIEWS (WP-0a), so that asking whether a pane was already
+    /// admitted costs no allocation and, more to the point, needs no owned copy of
+    /// an office that has not yet been judged. The `PaneContent` door reads Loom's
+    /// stamp as a `std::string_view` and asks here with it directly; what it
+    /// compares against is the row's OWN string, admitted under `check_pane_key`
+    /// and owned by this vector. Views are compared, ownership is not moved, and
+    /// nothing here retains the caller's bytes.
+    const RuntimePane* find(std::string_view provider, std::string_view pane) const {
         for (const RuntimePane& r : entries) {
             if (r.provider == provider && r.pane == pane) {
                 return &r;

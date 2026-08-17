@@ -79,6 +79,7 @@
 #include <memory>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -14087,6 +14088,33 @@ TEST_CASE("what this application accepts as either half of a reference") {
     CHECK(check_pane_ref(PaneRef{"", "info"}).refusal.find("provider") != std::string::npos);
     CHECK(check_pane_ref(PaneRef{"zengine.workshop", ""}).refusal.find("pane key") !=
           std::string::npos);
+
+    // AND IT JUDGES A `std::string_view` (WP-0a), which is the whole of what that
+    // phase changed about this law. The two boundaries are asserted through a view
+    // to say so: exactly `kMaxPaneKeyLen` bytes accepted, one more refused, in the
+    // wording WS-0a fixed.
+    const std::string one_over(kMaxPaneKeyLen + 1, 'a');
+    const std::string_view exactly(one_over.data(), kMaxPaneKeyLen);
+    REQUIRE(exactly.size() == kMaxPaneKeyLen);
+    CHECK(check_pane_key(exactly, "provider").accepted);
+    CHECK_FALSE(check_pane_key(std::string_view(one_over), "provider").accepted);
+    CHECK(check_pane_key(std::string_view(one_over), "provider").refusal ==
+          "a pane reference's provider is at most 64 bytes");
+
+    // A VIEW IS LENGTH-BEARING AND THIS LAW SPENDS ITS LENGTH. `exactly` is a
+    // window onto the first sixty-four bytes of a sixty-five-byte string, so there
+    // is no terminator where the view ends -- a checker that read to one would have
+    // seen the sixty-fifth byte and refused. Accepting it is the assertion that the
+    // size, and only the size, was measured.
+    CHECK(exactly.data()[exactly.size()] == 'a');
+
+    // ...AND EMPTY, SPACE AND CONTROL ARE THE ANSWERS THEY WERE, asked with a view.
+    CHECK_FALSE(check_pane_key(std::string_view(""), "provider").accepted);
+    CHECK(check_pane_key(std::string_view(""), "provider").refusal ==
+          "a pane reference's provider cannot be empty");
+    CHECK_FALSE(check_pane_key(std::string_view("two words"), "pane key").accepted);
+    CHECK_FALSE(check_pane_key(std::string_view("line\nbreak"), "pane key").accepted);
+    CHECK(check_pane_key(std::string_view("zengine.workshop"), "provider").accepted);
 }
 
 TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list") {
@@ -15899,7 +15927,12 @@ struct PaneRig {
 
     /// A native provider in an office of its own, granted exactly the two sentences
     /// the pane protocol has and nothing else.
-    ProviderSeat* mount_provider(const char* office) {
+    ///
+    /// THE OFFICE IS A VIEW (WP-0a) so a case can seat a weave in an office longer
+    /// than Workshop's own key bound. The `const char*` spelling every existing case
+    /// uses converts and is unchanged; what this buys is one case that could not be
+    /// written at all before, and it is not a second rig.
+    ProviderSeat* mount_provider(std::string_view office) {
         auto seat = std::make_unique<ProviderSeat>(std::string(office));
         ProviderSeat* raw = seat.get();
         loom::Grant grant;
@@ -16347,6 +16380,48 @@ TEST_CASE("the runtime catalog is beside the compile-time one and never inside i
     CHECK(std::string(kPanelCatalog[1].name) == "Info");
 }
 
+TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
+    // WP-0a. `RuntimeCatalog::find` takes two `std::string_view`s so that the
+    // `PaneContent` door can ask WHO THIS IS with Loom's stamp exactly as it arrived,
+    // owning nothing to do it. What it compares against is the row's own string --
+    // admitted under `check_pane_key` and owned by the vector -- so the comparison
+    // moves no ownership in either direction.
+    RuntimeCatalog cat;
+    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
+    REQUIRE(admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Theirs", "theirs"})
+                .written.accepted);
+
+    // THE EXACT PAIR, AND IT IS THE PAIR: each office finds its own row and neither
+    // finds the other's, which is the identity claim said through the lookup itself.
+    const RuntimePane* mine = cat.find(std::string_view(kHelloOffice), std::string_view("hello"));
+    REQUIRE(mine != nullptr);
+    CHECK(mine->name == "Hello");
+    const RuntimePane* theirs = cat.find(std::string_view(kOtherOffice), std::string_view("hello"));
+    REQUIRE(theirs != nullptr);
+    CHECK(theirs->name == "Theirs");
+    CHECK(mine->kind != theirs->kind);
+
+    // A NEAR MISS IS NOTHING, and the two directions of near are both asked: a
+    // prefix of a real office, and a real office with an unoffered pane key.
+    const std::string almost = std::string(kHelloOffice) + "x";
+    CHECK(cat.find(std::string_view(almost), std::string_view("hello")) == nullptr);
+    CHECK(cat.find(std::string_view(kHelloOffice), std::string_view("hell")) == nullptr);
+    CHECK(cat.find(std::string_view(kHelloOffice), std::string_view("")) == nullptr);
+    CHECK(cat.find(std::string_view(""), std::string_view("hello")) == nullptr);
+
+    // AND THE VIEW'S LENGTH IS WHAT IS COMPARED, not a terminator the lookup has no
+    // right to assume is there. `window` is `zengine.test.workshop-hello` spelled as
+    // a slice of a LONGER buffer, so the byte after the view is a real byte -- and it
+    // finds the same row a null-terminated spelling finds.
+    const std::string_view window(almost.data(), std::string(kHelloOffice).size());
+    REQUIRE(window == std::string_view(kHelloOffice));
+    REQUIRE(window.data()[window.size()] == 'x');
+    CHECK(cat.find(window, std::string_view("hello")) == mine);
+    // ...and the same buffer read one byte longer is the near miss above.
+    CHECK(cat.find(std::string_view(almost.data(), window.size() + 1),
+                   std::string_view("hello")) == nullptr);
+}
+
 TEST_CASE("an unknown runtime reference never becomes the Builder") {
     Panels panels;
     RuntimeCatalog& cat = panels.runtime;
@@ -16390,6 +16465,63 @@ TEST_CASE("a personal offer from the actual role holder registers nothing") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     REQUIRE(r.session().panels.runtime.entries.size() == 1);
     CHECK(r.session().panels.runtime.entries[0].provider == std::string(kHelloOffice));
+}
+
+TEST_CASE("an office longer than the key bound is delivered whole and admitted by nobody") {
+    // WP-0a, AND IT IS THE CASE THAT SAYS THE BOUNDARY IS REACHABLE. Loom preserves a
+    // role name of any length and proves it does -- its own `R2E-0a/v6` carries one
+    // past two hundred bytes across a dynamic seam whole -- so sixty-four bytes is
+    // THIS application's law and nothing about the substrate enforces it. The only
+    // honest way to ask is to seat a real weave in a real office too long for that
+    // law and have it author a perfectly valid offer as itself.
+    const std::string long_office = "zengine.test." + std::string(kMaxPaneKeyLen, 'z');
+    REQUIRE(long_office.size() > kMaxPaneKeyLen);
+
+    // FIRST, THAT THE SUBSTRATE CARRIES IT WHOLE -- measured, not assumed, and
+    // measured where the office actually lands. A watcher holding `zengine.workshop`
+    // INSTEAD of Workshop reads the same stamp off the same wire, so if this were a
+    // truncation somewhere under Workshop the refusal below would be about the wrong
+    // thing entirely.
+    {
+        PaneRig probe;
+        PaneWatcher* watcher = probe.mount_watcher();
+        // NOT `far`: it is an empty macro in the Windows SDK's `minwindef.h`, so a
+        // variable of that name vanishes mid-declaration under MSVC (MSVC-0).
+        ProviderSeat* distant = probe.mount_provider(long_office);
+        probe.drive(distant, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+        REQUIRE(watcher->offers.size() == 1);
+        REQUIRE(watcher->offer_authors.size() == 1);
+        CHECK(watcher->offer_authors[0] == long_office);
+        CHECK(watcher->offer_authors[0].size() == long_office.size());
+    }
+
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(long_office);
+    const std::size_t panels_before = r.session().panels.open.size();
+    const Setup setup_before = r.session().setup.active;
+
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    // AND WORKSHOP HELD ITS OWN LINE.
+    CHECK(r.session().panels.runtime.entries.empty()); // NOTHING WAS ADMITTED
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds);
+    CHECK(r.session().panels.open.size() == panels_before); // no panel moved
+    CHECK(r.session().setup.active == setup_before);        // and no authored intent did
+
+    // THE REFUSAL IS THE EXISTING PROVIDER-KEY BYTE LAW, in the wording WS-0a fixed.
+    CHECK(r.last_notice() == "a pane reference's provider is at most 64 bytes");
+    // AND THE UNVALIDATED OFFICE IS NOT IN IT. A notice that echoed the bytes it had
+    // just refused would put an unbounded stranger's string on a maker's one line.
+    CHECK(r.last_notice().find(long_office) == std::string::npos);
+    CHECK(r.last_notice().find("zzzz") == std::string::npos);
+
+    // THE SAME OFFICE, ONE BYTE SHORTER THAN THE BOUND, IS ADMITTED -- so what was
+    // refused was the length and not the office being a stranger.
+    ProviderSeat* fits = r.mount_provider(std::string_view(long_office.data(), kMaxPaneKeyLen));
+    r.drive(fits, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].provider.size() == kMaxPaneKeyLen);
 }
 
 TEST_CASE("one office cannot overwrite another office's descriptor") {
