@@ -111,6 +111,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <string_view>
 
 namespace zengine::workshop {
 
@@ -798,7 +799,13 @@ public:
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
     void on(const PaneOffered& offer, loom::Mail& mail) {
-        const std::string office(mail.authored_role());
+        // READ AS A VIEW AND KEPT AS ONE (WP-0a). The stamp belongs to the delivery
+        // being handled and outlives every line below it; nothing here stores it, so
+        // no view survives this handler. Making an owned string of it HERE would put
+        // the copy before the law -- `admit_pane_offer` is the one place that decides
+        // whether these bytes are a provider key at all, and it now gets them
+        // unowned.
+        const std::string_view office = mail.authored_role();
         if (office.empty()) {
             // PERSONAL SPEECH. Not an error to report to a maker -- an unauthenticated
             // message is not a fact about their arrangement -- and emphatically not a
@@ -852,16 +859,26 @@ public:
     /// decode-memory bound, and describing it as the latter would be claiming a Loom
     /// property this phase did not build.
     void on(const PaneContent& content, loom::Mail& mail) {
-        const std::string office(mail.authored_role());
+        const std::string_view office = mail.authored_role();
         if (office.empty()) {
             return; // personal speech: no cache, no notice, no catalog change
         }
-        const std::optional<std::int64_t> kind =
-            resolve_pane(PaneRef{office, content.pane}, session_.panels.runtime);
-        if (!kind.has_value() || !is_runtime_kind(*kind)) {
+        // IDENTITY IS ASKED OF WHAT WAS ALREADY ADMITTED, WITH VIEWS (WP-0a). The pair
+        // is compared against rows this session accepted under `check_pane_key`, so
+        // the question is answered without owning either half and without building a
+        // `PaneRef` out of an office no law here has judged. THIS IS NOT A SECOND
+        // ADMISSION LAW: a pair that matches no row returns nothing and retains
+        // nothing, which is the same answer the built-in-first `resolve_pane` gave --
+        // admission refuses a runtime offer that would shadow a built-in, so no
+        // built-in reference can be a row here to find.
+        const RuntimePane* row = session_.panels.runtime.find(office, content.pane);
+        if (row == nullptr) {
             return; // an office speaking about a pane it never offered, or about a built-in
         }
-        ExternalPane* pane = session_.panels.external_pane(*kind);
+        // THE HANDLE, TAKEN NOW. Nothing holds a pointer into `entries` (panel.hpp),
+        // and the row is looked up again by handle at the moment a notice needs it.
+        const std::int64_t kind = row->kind;
+        ExternalPane* pane = session_.panels.external_pane(kind);
         if (pane == nullptr || !pane->granted) {
             // CONTENT FOR A CLOSED PANE, OR FOR ONE THAT HAS NOT BEEN GRANTED A ROOM YET.
             // Nothing is cached and nothing is opened: a provider cannot make a panel appear
@@ -879,8 +896,8 @@ public:
             pane->refusal = kExternalRefused;
             // THE MAKER-FACING NOTICE NAMES ONLY THE ALREADY-ADMITTED `PaneRef` and carries
             // none of the refused message: what was wrong with it was its content.
-            if (const RuntimePane* row = session_.panels.runtime.of_kind(*kind)) {
-                say("`" + ref_text(PaneRef{row->provider, row->pane}) + "` " + judged.refusal,
+            if (const RuntimePane* named = session_.panels.runtime.of_kind(kind)) {
+                say("`" + ref_text(PaneRef{named->provider, named->pane}) + "` " + judged.refusal,
                     true);
             }
             repaint(mail);

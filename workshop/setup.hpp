@@ -489,9 +489,18 @@ inline Written check_setup_name(const std::string& name) {
 ///
 /// ITS LENGTH IS A BYTE COUNT TOO, and its refusal says so for
 /// `check_setup_name`'s reason (WS-0a): `kMaxPaneKeyLen` is spent against
-/// `std::string::size()`, and a key is a routing name a provider may write in
-/// any script the Loom's UTF-8 gate accepts.
-inline Written check_pane_key(const std::string& key, const char* which) {
+/// `size()`, and a key is a routing name a provider may write in any script the
+/// Loom's UTF-8 gate accepts.
+///
+/// IT JUDGES A `std::string_view` (WP-0a), and that is the whole of what WP-0a
+/// changed about this law -- the empty test, the byte bound and the byte walk are
+/// the ones WS-0a left here. Taking a view is what lets the offer door apply this
+/// bound to Loom's stamp BEFORE anything owns a copy of it: a checker that took an
+/// owned string would have made the copy the precondition of the check that
+/// decides whether the copy is allowed. An owned `std::string` caller converts and
+/// still meets exactly one law -- there is no second checker to drift from this
+/// one, and `check_pane_ref` and the persisted grammar reach it unchanged.
+inline Written check_pane_key(std::string_view key, const char* which) {
     if (key.empty()) {
         return Written::no(std::string("a pane reference's ") + which + " cannot be empty");
     }
@@ -610,13 +619,19 @@ struct Admission {
 inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
                                   const PaneOffered& offer) {
     Admission out;
-    // THE STAMP IS JUDGED FIRST AND AS A STRING_VIEW, before anything owns a copy
-    // of it. An empty authored role is personal speech -- Loom writes the field
-    // only for a verified office authorship -- and it is refused here as well as
-    // at the door, because this function must be safe to call with whatever a
-    // caller read off a delivery.
-    const std::string provider(stamped_office);
-    const Written office = check_pane_key(provider, "provider");
+    // THE STAMP IS JUDGED FIRST AND AS A `std::string_view`, before anything owns a
+    // copy of it -- the view goes straight into `check_pane_key`, and WP-0a is
+    // exactly the phase in which that sentence became true of the statement under
+    // it rather than only of the paragraph over it. An empty authored role is
+    // personal speech -- Loom writes the field only for a verified office
+    // authorship -- and it is refused here as well as at the door, because this
+    // function must be safe to call with whatever a caller read off a delivery.
+    //
+    // AN OFFICE LOOM PRESERVES IS NOT AN OFFICE THIS APPLICATION WILL HOLD. The
+    // substrate imposes no bound on a role's length and proves it does not
+    // (Loom's `R2E-0a/v6` carries a role past two hundred bytes whole), so a
+    // provider's stamp is a stranger's bytes until this line has judged them.
+    const Written office = check_pane_key(stamped_office, "provider");
     if (!office.accepted) {
         out.written = office;
         return out;
@@ -636,7 +651,12 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
         out.written = said;
         return out;
     }
-    const PaneRef ref{provider, offer.pane};
+    // THE FIRST APPLICATION-OWNED COPY OF THE OFFICE, and it is made here rather
+    // than at the top: every one of the four fields has now passed its law, so this
+    // is the earliest line at which a copy of any of them could be retained -- and
+    // the last at which one is still cheap to abandon. The two refusals below still
+    // need the pair to NAME, and both name it from bytes this function has judged.
+    const PaneRef ref{std::string(stamped_office), offer.pane};
     if (resolve_builtin_pane(ref).has_value()) {
         out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
         return out;
