@@ -68,6 +68,26 @@
 // occupancy, picker or painter path can be reached through it without the
 // caller having said what to do about the nothing.
 //
+// WP-0 WIDENED WHAT THAT DOOR CONSULTS AND NOT WHAT IT PROMISES. It now asks the
+// compile-time catalog AND this session's runtime catalog -- the panes some
+// office actually offered this run -- and the runtime half is a REQUIRED
+// argument, never a default and never a second overload. The reason is the one
+// HD-4 wrote down about `first_visible`: a spelling a caller can keep is a
+// spelling that stays silently right until the first case that needed the new
+// argument, and here that case is a maker's open external pane counted as
+// unresolved on the line beneath it. `resolve_builtin_pane` is the narrow
+// question under its own name, so the two cannot be reached by accident.
+//
+// ---- What an external pane added, and what it did NOT ----------------------
+//
+// A runtime pane is admitted from a LIVE OFFER under the office Loom stamped on
+// it (`admit_pane_offer`), held in session state that no file and no document
+// sees, and bounded in every field before a byte of it is retained. What did NOT
+// change is the persisted grammar: `PaneRef` is the same two strings,
+// `check_pane_key` is the same law, `kMaxSetupPanes` is the same number, and
+// setup_persist.hpp was not edited. An external reference saves, loads and saves
+// again byte-identically whether or not anybody is currently offering it.
+//
 // ---- What a setup deliberately does not have ------------------------------
 //
 // No placement, no rectangle, no screen extent, no text metric, no pane-instance
@@ -77,6 +97,7 @@
 // screen -- and would go stale the moment the window changed -- or a decision
 // the first provider that actually needs it should get to make.
 
+#include "pane_vocabulary.hpp"
 #include "panel.hpp"
 #include "property.hpp"
 
@@ -86,6 +107,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -148,6 +170,23 @@ inline constexpr std::size_t kMaxPaneKeyLen = 64;
 /// eight kinds. Thirty-two is four times the largest catalog this composition
 /// could present and still bounds a file at a few kilobytes.
 inline constexpr std::size_t kMaxSetupPanes = 32;
+
+/// How long a RUNTIME pane descriptor's two prose fields may be (WP-0).
+///
+/// THESE BOUND A LIVE MESSAGE, NOT A FILE, and that is why they are here beside
+/// the file's bounds rather than folded into them: a descriptor never reaches the
+/// setup, so no saved byte depends on either number, and a later phase may move
+/// one without touching the version-1 grammar at all.
+///
+/// THIRTY-TWO FOR A NAME, for `kMaxSetupNameLen`'s reason measured against a
+/// different line: the picker pads a name into a ten-column field and then writes
+/// a state column and a summary after it, so a name is a thing a maker reads
+/// across one row of a 48-cell overlay. Sixty-four for a summary, the same
+/// `kMaxPaneKeyLen` order of magnitude, because a summary is one sentence and the
+/// picker fits what it can (`detail::fit` marks the rest). Both are BYTE counts,
+/// spent against `std::string::size()`, and their refusals say so (WS-0a).
+inline constexpr std::size_t kMaxPaneNameLen = 32;
+inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
 // ---- The value ---------------------------------------------------------------
 
@@ -219,7 +258,7 @@ inline PaneRef pane_ref_of(std::int64_t kind) {
 /// AN UNKNOWN REFERENCE NEVER BECOMES THE BUILDER. That is the whole of what
 /// this function is for; `panel_kind`'s fall-through is correct where it is and
 /// would be a lie here.
-inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref) {
+inline std::optional<std::int64_t> resolve_builtin_pane(const PaneRef& ref) {
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         if (ref.provider == kPanelCatalog[i].provider && ref.pane == kPanelCatalog[i].pane) {
             return kPanelCatalog[i].kind;
@@ -228,8 +267,101 @@ inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref) {
     return std::nullopt;
 }
 
+/// WHICH KIND THIS REFERENCE NAMES ON THIS SCREEN, IN THIS RUN, OR NOTHING --
+/// asked of the compile-time catalog and of what this session has been offered.
+///
+/// THE RUNTIME CATALOG IS A REQUIRED ARGUMENT AND IT IS NOT DEFAULTED (WP-0),
+/// which is HD-4's rule about `first_visible` applied to a resolution instead of
+/// to a window: a default would let a production caller keep the one-argument
+/// spelling and be silently right until the first external offer, and the symptom
+/// would be a maker's visibly open pane counted as `1 unresolved` on the setup
+/// line beneath it. When the compiler stopped every such site, that was the
+/// parameter doing its job. `resolve_builtin_pane` above is the narrower question
+/// and answers it under a different name, so neither can be reached by accident.
+///
+/// BUILT-INS FIRST, and it is not merely an ordering. Admission refuses an offer
+/// whose `PaneRef` would shadow a compile-time row (`admit_pane_offer`), so no
+/// runtime entry can ever match here -- this order is what that refusal would
+/// otherwise have to be trusted to have enforced, said a second time in the one
+/// place a shadow would do damage.
+inline std::optional<std::int64_t> resolve_pane(const PaneRef& ref,
+                                                const RuntimeCatalog& runtime) {
+    const std::optional<std::int64_t> built_in = resolve_builtin_pane(ref);
+    if (built_in.has_value()) {
+        return built_in;
+    }
+    if (const RuntimePane* row = runtime.find(ref.provider, ref.pane)) {
+        return row->kind;
+    }
+    return std::nullopt;
+}
+
 /// Whether this build can currently present the pane this reference names.
-inline bool resolvable(const PaneRef& ref) { return resolve_pane(ref).has_value(); }
+inline bool resolvable(const PaneRef& ref, const RuntimeCatalog& runtime) {
+    return resolve_pane(ref, runtime).has_value();
+}
+
+// ---- THE COMBINED CATALOG: what the picker offers, built-ins and offers -------
+
+/// ONE ROW OF THE COMBINED PICKER POPULATION -- a compile-time kind or a runtime
+/// one, said in one shape so the picker, the cursor, the selection and the
+/// pointer all read one list.
+///
+/// IT CARRIES COPIES AND NOT VIEWS, deliberately: a runtime row's strings live in
+/// a vector that a later offer may reallocate, and a `const char*` taken out of
+/// one is a dangling pointer waiting for a repaint. The built-in half's `const
+/// char*`s are static and would have been safe; making both halves the same shape
+/// is what stops a reader having to know which half they are holding.
+struct CatalogRow {
+    std::int64_t kind = panel::kBuilder;
+    PaneRef ref;
+    std::string name;
+    std::string summary;
+};
+
+/// THE WHOLE POPULATION A MAKER MAY CHOOSE FROM, in the one order:
+///
+///     every compile-time built-in, in the catalog's own order
+///     then every admitted runtime pane, in first-accepted-offer order
+///
+/// BUILT AS A VALUE RATHER THAN WALKED TWICE. Two loops over two arrays is how
+/// the picker's painter, its cursor bound and its selection come to disagree
+/// about which row index means what -- the exact class of defect PNL-1 removed
+/// from placement by resolving it in one path. It is at most
+/// `kMaxPaneCatalogEntries` small rows and it is derived on demand and cached
+/// nowhere, which is the same discipline `Screen` and `workspace_scene()` are
+/// under.
+inline std::vector<CatalogRow> combined_catalog(const Panels& panels) {
+    std::vector<CatalogRow> rows;
+    rows.reserve(kPanelKinds + panels.runtime.entries.size());
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        rows.push_back(CatalogRow{kPanelCatalog[i].kind,
+                                  PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane},
+                                  kPanelCatalog[i].name, kPanelCatalog[i].summary});
+    }
+    for (const RuntimePane& r : panels.runtime.entries) {
+        rows.push_back(CatalogRow{r.kind, PaneRef{r.provider, r.pane}, r.name, r.summary});
+    }
+    return rows;
+}
+
+/// The NAME a maker reads for a kind that may be a runtime one -- the catalog's
+/// own for a built-in, the offered descriptor's for a runtime pane, and empty for
+/// a kind neither knows. A COPY, for `CatalogRow`'s reason.
+///
+/// IT IS NOT `panel_kind(kind).name`, and that is the whole of why it exists: the
+/// total lookup answers `Builder` for anything it does not recognise, which is
+/// correct for its own bounded callers and is a lie about a pane some office
+/// offered.
+inline std::string kind_name(const Panels& panels, std::int64_t kind) {
+    if (is_runtime_kind(kind)) {
+        if (const RuntimePane* row = panels.runtime.of_kind(kind)) {
+            return row->name;
+        }
+        return std::string();
+    }
+    return std::string(panel_kind(kind).name);
+}
 
 /// A reference as a person reads it, for a notice or a status line: the two
 /// halves with a slash between them, which is how this phase's prose spells one.
@@ -385,6 +517,157 @@ inline Written check_pane_ref(const PaneRef& ref) {
     return check_pane_key(ref.pane, "pane key");
 }
 
+// ---- ADMITTING ONE LIVE OFFER INTO THE RUNTIME CATALOG (WP-0) ----------------
+//
+// EVERYTHING BELOW BOUNDS MATERIAL BEFORE IT IS RETAINED, and the ordering is the
+// contract rather than an implementation detail: a descriptor is judged WHOLE and
+// only then copied, so an offer that is wrong in its fourth field leaves nothing
+// of its first three behind. The Loom's decoder has already refused a payload
+// that would materialise more than its own budget; these say what THIS
+// application will additionally hold on to, and Surface's clipping is not one of
+// them -- a Skin cutting a row at a viewport edge happens long after the bytes
+// are in this session's memory.
+
+/// What this application accepts as a runtime descriptor's prose -- a pane's
+/// display name or its one-line summary.
+///
+/// ONE OWNER FOR BOTH, because they are one kind of fact: a short line a maker
+/// reads in the picker, arriving from a party this build has never met. The
+/// rules are `check_setup_name`'s, minus the one that does not apply -- it must
+/// be there, it must be more than spaces, it must carry no control byte, and it
+/// must be short enough to read. A name that rendered as nothing would leave a
+/// picker row that a maker cannot tell from a blank line; a control byte would
+/// move a terminal's cursor out of the row it was given, which is precisely what
+/// a forged offer would try.
+///
+/// THE LENGTH IS A BYTE COUNT AND THE REFUSAL SAYS SO (WS-0a). Nothing here
+/// counts a code point, a grapheme or a cell.
+inline Written check_pane_text(const std::string& text, const char* which,
+                               std::size_t limit) {
+    if (text.empty()) {
+        return Written::no(std::string("a pane's ") + which + " cannot be empty");
+    }
+    if (text.size() > limit) {
+        return Written::no(std::string("a pane's ") + which + " is at most " +
+                           std::to_string(limit) + " bytes");
+    }
+    bool anything = false;
+    for (const char c : text) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (byte < 0x20u || byte == 0x7Fu) {
+            return Written::no(std::string("a pane's ") + which +
+                               " cannot contain control characters");
+        }
+        if (byte != ' ') {
+            anything = true;
+        }
+    }
+    if (!anything) {
+        return Written::no(std::string("a pane's ") + which + " needs more than spaces in it");
+    }
+    return Written::ok();
+}
+
+/// WHAT ADMITTING AN OFFER DID: whether it was accepted, whether it was the first
+/// time this `PaneRef` was seen, and which kind now presents it.
+///
+/// `refreshed` is separate from `accepted` because the two lead somewhere
+/// different: a first acceptance may make an authored-but-unresolved setup
+/// reference resolve, and a refresh must clear whatever an already-open pane was
+/// showing and ask for its room again.
+struct Admission {
+    Written written = Written::ok();
+    bool refreshed = false;                  ///< an existing PaneRef, updated in place
+    std::int64_t kind = kFirstRuntimeKind;   ///< valid only when `written.accepted`
+};
+
+/// ADMIT ONE `PaneOffered`, UNDER THE OFFICE LOOM STAMPED ON IT.
+///
+/// `stamped_office` is `mail.authored_role()` and nothing else. This function
+/// cannot be given a provider from a payload because `PaneOffered` has no such
+/// field; the caller's only other option would be `mail.sender()`, which is a
+/// WeaveId rather than a durable route and would make a reloaded provider a
+/// different pane.
+///
+/// ATOMIC, IN BOTH DIRECTIONS:
+///
+///   a first offer that is invalid       adds no row and no byte
+///   a refresh that is invalid           leaves the last accepted descriptor whole
+///   a first offer at capacity           is refused, visibly, and changes nothing
+///   a refresh at capacity               is still allowed -- capacity bounds how many
+///                                       DISTINCT panes are held, not how often a
+///                                       provider may correct itself
+///
+/// A RUNTIME OFFER MAY NOT SHADOW A BUILT-IN. `zengine.workshop/info` offered by
+/// some other office is a different `PaneRef` and is admitted normally; offered
+/// by whoever holds `zengine.workshop` it names the row this build compiled in,
+/// and letting a live message move that row would make the picker's first two
+/// entries a thing a message could rewrite.
+///
+/// TWO OFFICES OFFERING ONE PANE KEY ARE TWO PANES. The `PaneRef` is the pair, so
+/// `a.tools/hello` and `b.tools/hello` are two rows, two handles and two
+/// presentations, and neither office can refresh or overwrite the other's.
+inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stamped_office,
+                                  const PaneOffered& offer) {
+    Admission out;
+    // THE STAMP IS JUDGED FIRST AND AS A STRING_VIEW, before anything owns a copy
+    // of it. An empty authored role is personal speech -- Loom writes the field
+    // only for a verified office authorship -- and it is refused here as well as
+    // at the door, because this function must be safe to call with whatever a
+    // caller read off a delivery.
+    const std::string provider(stamped_office);
+    const Written office = check_pane_key(provider, "provider");
+    if (!office.accepted) {
+        out.written = office;
+        return out;
+    }
+    const Written key = check_pane_key(offer.pane, "pane key");
+    if (!key.accepted) {
+        out.written = key;
+        return out;
+    }
+    const Written named = check_pane_text(offer.name, "name", kMaxPaneNameLen);
+    if (!named.accepted) {
+        out.written = named;
+        return out;
+    }
+    const Written said = check_pane_text(offer.summary, "summary", kMaxPaneSummaryLen);
+    if (!said.accepted) {
+        out.written = said;
+        return out;
+    }
+    const PaneRef ref{provider, offer.pane};
+    if (resolve_builtin_pane(ref).has_value()) {
+        out.written = Written::no("`" + ref_text(ref) + "` is a built-in pane");
+        return out;
+    }
+    // EVERY FIELD HAS PASSED; ONLY NOW IS ANYTHING WRITTEN.
+    for (RuntimePane& row : runtime.entries) {
+        if (row.provider == ref.provider && row.pane == ref.pane) {
+            row.name = offer.name;       // in place: the position and the handle are kept,
+            row.summary = offer.summary; // so an open pane stays the pane it was
+            out.refreshed = true;
+            out.kind = row.kind;
+            return out;
+        }
+    }
+    if (kPanelKinds + runtime.entries.size() >= kMaxPaneCatalogEntries) {
+        out.written = Written::no("Workshop holds at most " +
+                                  std::to_string(kMaxPaneCatalogEntries) +
+                                  " panes -- `" + ref_text(ref) + "` was not added");
+        return out;
+    }
+    RuntimePane row;
+    row.kind = runtime.next_kind++;
+    row.provider = ref.provider;
+    row.pane = ref.pane;
+    row.name = offer.name;
+    row.summary = offer.summary;
+    out.kind = row.kind;
+    runtime.entries.push_back(std::move(row));
+    return out;
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 ///
 /// It judges the name, every reference, how many there are, and whether any two
@@ -455,10 +738,14 @@ inline bool remove_pane(Setup& s, const PaneRef& ref) {
 /// HOLDS THEM. Asked by the status line and by the notice a restore leaves, so
 /// that "unresolved" is a thing a maker can be told the identity of rather than
 /// only the count of.
-inline std::vector<PaneRef> unresolved_panes(const Setup& s) {
+/// THE RUNTIME CATALOG IS REQUIRED HERE FOR THE SHARPEST OF THE REASONS (WP-0).
+/// This is the function the setup line and the restore notice ask, so a defaulted
+/// or built-in-only spelling would put `1 unresolved` on the row beneath a pane a
+/// maker can see. An admitted offer makes its reference resolve, and this says so.
+inline std::vector<PaneRef> unresolved_panes(const Setup& s, const RuntimeCatalog& runtime) {
     std::vector<PaneRef> out;
     for (const PaneRef& p : s.panes) {
-        if (!resolvable(p)) {
+        if (!resolvable(p, runtime)) {
             out.push_back(p);
         }
     }
@@ -494,6 +781,30 @@ struct Reconciled {
     std::vector<std::int64_t> opened;
     std::vector<std::int64_t> closed;
     std::size_t unresolved = 0;
+    /// THE KINDS THIS SCREEN HAD NO ROOM FOR (WP-0), in setup order -- resolved,
+    /// known, and not presented. A fourth outcome and not a flavour of the other
+    /// three: the reference is not unresolved (this build knows exactly what it
+    /// would draw), it is not closed (the maker authored it and it is still
+    /// authored), and it is not opened.
+    std::vector<std::int64_t> waiting;
+};
+
+/// HOW MANY OVERLAY SLOTS FIT ABOVE THE BOTTOM BAND -- Workshop's current spatial
+/// capacity, as one number.
+///
+/// A `std::size_t` RATHER THAN A `Screen`, and the choice is what keeps this file
+/// where it is: `Screen` lives in screen.hpp, which includes this one, so a
+/// reconcile that took a screen would invert the include order. What reconcile
+/// actually needs is not a screen -- it is the answer to "is there a slot n", and
+/// that answer is one integer that the placement path resolves. screen.hpp
+/// computes it (`stack_slots_that_fit`) from the same `placement_bounds` the
+/// painter and the pointer use, so there is no second geometry here and could not
+/// be: this file has no rectangle in it at all.
+///
+/// IT IS NOT DEFAULTED, for `resolve_pane`'s reason. A default would be the
+/// composition's capacity guessed by whoever forgot to pass one.
+struct StackCapacity {
+    std::size_t slots = 0;
 };
 
 /// MAKE THE OPEN PANELS BE WHAT THE SETUP SAYS -- the one path, and the only
@@ -521,18 +832,76 @@ struct Reconciled {
 /// if it wanted to -- and they produce no panel, no placeholder, no slot and no
 /// message. That last is the point: a placeholder would have to be painted by
 /// somebody, and the only kind available to paint it with is the Builder.
-inline Reconciled reconcile(Panels& panels, const Setup& setup) {
-    Reconciled done;
-    std::vector<std::int64_t> wanted;
-    wanted.reserve(setup.panes.size());
+/// AND SINCE WP-0 IT ALSO REFUSES WHAT THE SCREEN CANNOT HOLD, which is the
+/// FOURTH case and the one an external pane made reachable:
+///
+///   resolved, and it fits    presented -- `opened`, or left alone if already open
+///   resolved, no room        NOT presented, retained in `waiting`, and the
+///                            authored reference is untouched. It is not deleted,
+///                            not remapped, not given a fake panel and not given
+///                            an off-screen placeholder.
+///   unresolved               counted, as before
+///
+/// AUTHORED VALIDITY DOES NOT DEPEND ON EXTENT. A setup legal on a tall screen is
+/// legal on a short one -- `check_setup` never sees a `Screen` and this function
+/// takes the setup by const reference, so neither could delete a reference if it
+/// wanted to. What changes with the room is which references are PRESENTED, which
+/// is exactly the authored/resolved split W-1 established, said about a pane.
+///
+/// CAPACITY IS SPENT IN SETUP ORDER, first come first served. That is what makes
+/// the answer stable: a maker who authored `A, B` on a screen with room for one
+/// sees A, and growing the screen adds B beneath it rather than rearranging both.
+/// WHICH AUTHORED REFERENCES THIS BUILD WOULD PRESENT AT THIS CAPACITY, and which
+/// it would not -- resolution and seating, decided together and changing nothing.
+///
+/// IT IS PURE, AND THAT IS WHY IT EXISTS SEPARATELY (WP-0). Two parties ask it:
+/// `reconcile`, which then performs the answer, and the PICKER, which must know
+/// whether a row it is about to add could be seated BEFORE it edits the active
+/// setup. A picker that added first and read `waiting` afterwards would have
+/// authored a pane the maker never saw; a picker that computed seating its own
+/// way would be a second copy of this arithmetic, which is the defect PNL-1
+/// removed from placement and HD-3 from the caret.
+struct Seating {
+    std::vector<std::int64_t> wanted;  ///< resolved and seated, in setup order
+    std::vector<std::int64_t> waiting; ///< resolved and out of room, in setup order
+    std::size_t unresolved = 0;
+};
+
+inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
+                          StackCapacity room) {
+    Seating out;
+    out.wanted.reserve(setup.panes.size());
+    std::size_t stack_used = 0;
     for (const PaneRef& ref : setup.panes) {
-        const std::optional<std::int64_t> kind = resolve_pane(ref);
+        const std::optional<std::int64_t> kind = resolve_pane(ref, runtime);
         if (!kind.has_value()) {
-            ++done.unresolved;
+            ++out.unresolved;
             continue;
         }
-        wanted.push_back(*kind);
+        // THE SLOT THIS PANE WOULD TAKE, counted the way `bounds_of` counts it --
+        // over the panels actually placed in the stack, in order -- because that
+        // is the number the rectangle is resolved from. A side-region pane takes
+        // no slot and always fits: its rectangle ends exactly where the workspace
+        // does, asserted in screen.hpp against the minimum composition.
+        if (placement_of(*kind) == placement::kOverlayStack) {
+            if (stack_used >= room.slots) {
+                out.waiting.push_back(*kind);
+                continue;
+            }
+            ++stack_used;
+        }
+        out.wanted.push_back(*kind);
     }
+    return out;
+}
+
+inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {
+    Reconciled done;
+    const Seating seating = seat_panes(setup, panels.runtime, room);
+    const std::vector<std::int64_t>& wanted = seating.wanted;
+    done.unresolved = seating.unresolved;
+    done.waiting = seating.waiting;
+    panels.waiting_for_room = done.waiting;
 
     const auto wants = [&wanted](std::int64_t kind) {
         for (const std::int64_t k : wanted) {
@@ -572,6 +941,17 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup) {
         }
         if (!was_open) {
             done.opened.push_back(kind);
+            // AND A NEWLY OPENED EXTERNAL PANE GETS ITS VIEW HERE, because this
+            // loop assigns `panels.open` wholesale rather than calling
+            // `open_panel` -- which is the very thing that keeps the authored
+            // ORDER (open_panel appends). One line rather than a restructure, and
+            // it says the same sentence `open_panel` says: a presentation and its
+            // copy of what it presents begin together.
+            if (is_runtime_kind(kind) && panels.external_pane(kind) == nullptr) {
+                ExternalPane fresh;
+                fresh.kind = kind;
+                panels.external.push_back(std::move(fresh));
+            }
         }
         now.push_back(Panel{kind});
     }

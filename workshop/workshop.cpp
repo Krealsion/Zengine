@@ -582,6 +582,33 @@ int main(int argc, char** argv) {
     // `to_any`, so Workshop can put these two sentences in front of the Builder
     // office and nowhere else -- not to the runner, not to the Manager, not to a
     // stranger who happens to accept the shape.
+    //
+    // WP-0 ADDED TWO RULES AND NO POWERS, and both are `to_any` for reasons that are
+    // written down rather than convenient:
+    //
+    //   PaneCatalogRequested  the ask is a PUBLICATION, because knowing which offices have
+    //                         panes is the very thing it is asking. There is no role to
+    //                         scope it to until somebody has answered.
+    //   PaneRoom              Workshop still sends this to exactly ONE resolved role -- the
+    //                         office the accepted descriptor came in under -- but that role
+    //                         is RUNTIME DATA, so no rule written here at boot can name it.
+    //
+    // Everything else stays exactly as narrow as it was: the two Builder sentences are
+    // still `to_role(builder)`, and Workshop still commands no lifecycle, loads no weave,
+    // reaches no Manager, holds no observation authority and touches no filesystem,
+    // process or network.
+    //
+    // AND IT IS MOUNTED IN AN OFFICE NOW, which is what makes the pane protocol sayable at
+    // all: a provider addresses `zengine.workshop`, and Workshop authors its ask and its
+    // grants deliberately AS that office so a provider can verify them. HOLDING THE OFFICE
+    // IS NOT A SUPER-GRANT (MSG-07): every one of the rules above is still checked at every
+    // send, and `mail.as_role(...)` adds a provenance stamp rather than a capability.
+    //
+    // THE OFFICE NAME IS `kWorkshopProvider` -- the SAME string the built-in catalog rows
+    // carry as their provider key, and deliberately not a second constant that could drift
+    // from it. That equality is a fact about the CURRENT trusted host composition (the
+    // party that compiled the built-in panes is the party holding the office) and is
+    // emphatically not a credential, not a signature, and not a cross-restart author claim.
     loom::Grant speak;
     speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
     speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
@@ -589,7 +616,9 @@ int main(int argc, char** argv) {
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
     speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,
                         builder::kBuilderRole);
-    loom::mount_granted<WorkshopWeave>(bus, std::move(speak), host);
+    speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
+    speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+    mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // The boot weave's reach: the Manager, target-scoped, plus the right to speak
     // a status line. This is the dangerous grant in this process, and it is held

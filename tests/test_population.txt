@@ -152,6 +152,21 @@
 # back off the real cell rasterizer -- all sit in the always row. The graphical half is one
 # `fit_region` comparison over the same two rectangles, which needs no font engine either.
 #
+# WP-0 raised the workshop floor 387 -> 431, and it is the FIRST Workshop phase whose
+# claim genuinely needs a shared library. Forty-four cases: the protocol's four schemas,
+# the descriptor and catalog bounds, the office-provenance negatives, both discovery load
+# orders, the windowed combined picker, runtime spatial capacity, the room contract and the
+# retained-content bound. Five of them drive `zengine-workshop-hello` -- a real weave loaded
+# through the real Kernel and Manager -- which is why this suite now defines a `_SO` path it
+# never had; a mock loader would have proved nothing about the ABI it exists to exercise.
+#
+# It still needed no new row and no gate. The metric half of the phase is one `fit_region`
+# comparison over two rectangles (an overlay slot's rectangle is the same rectangle at every
+# extent, so a REAL FACE is the only thing that moves an external pane's prose budget), and
+# the loaded fixture is medium-independent by construction: it is handed two integers and
+# answers with rows. So the Windows stranger lane proves the whole phase, exactly as it
+# proved the eight before it.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -168,7 +183,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  387
+workshop                          doctest           always  431
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

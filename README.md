@@ -1140,9 +1140,12 @@ still speaks two verbs.
 > A weave may provide a tool; a **panel** is its presentation.
 
 `[+ panel]` on the screen's title row (`p`) opens a small picker over the catalog of panel
-kinds Workshop knows how to present (`panel.hpp`). The catalog is a constant array of
-Workshop's own — a panel that is not in it cannot be opened, because the picker is the only
-door — and it holds two kinds, chosen to be unalike:
+kinds Workshop knows how to present (`panel.hpp`). The picker is still the only door — a pane
+that is not in the catalog cannot be opened by any gesture at all — and since WP-0 the catalog
+has **two halves**: a compile-time constant array of Workshop's own, and a bounded
+**session-local runtime catalog** of panes some office actually offered this run (see
+*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The two built-ins are
+chosen to be unalike:
 
 | kind | presents | behind it |
 |---|---|---|
@@ -1303,10 +1306,15 @@ Setup
   one — both failures are otherwise silent.
 - **Resolution is fallible, and internal lookup stayed total.** `panel_kind(unknown)` still
   answers with the Builder, which is correct for its callers (they derive a kind from a picker
-  cursor or an open panel). `resolve_pane(PaneRef)` is a **second, narrower door** that answers
-  with *nothing*: an unknown provider or an unknown pane key resolves to no kind, and **an
+  cursor or an open panel). `resolve_pane(ref, runtime)` is a **second, narrower door** that
+  answers with *nothing*: an unknown provider or an unknown pane key resolves to no kind, and **an
   unknown reference never becomes the Builder**. Nothing that meets a file goes through the total
-  one.
+  one. Since WP-0 it consults the built-in catalog **and** this session's runtime catalog, and the
+  runtime half is a **required argument** rather than a default or a second overload —
+  `resolve_builtin_pane` is the narrow question under its own name, so neither can be reached by
+  accident. (The parameter earns itself on one line: the setup status text asks this function, and
+  a spelling a caller could forget would count a pane a maker can *see* as `1 unresolved` on the
+  row directly beneath it.)
 - **An unresolved reference is kept, said, and saved again unchanged.** A setup naming
   `third.party.tools/history` loads, stays exactly as authored, produces no panel and no
   placeholder, is counted on the setup line (`1 unresolved`) and named in the notice. The word is
@@ -1315,9 +1323,10 @@ Setup
   unresolved pane at the same time** — `setup "Future" saved | 1 unresolved` is a coherent line.
 - **The provider key is a route, not a credential.** It says which namespace to read a pane key
   in. It does not say which package author created the pane, which binary is running, that the
-  same author returned after a restart, that a live office answers to the name, or that anything
-  claiming the string is authentic. There is no role, no office, no discovery message and no
-  registry in this phase.
+  same author returned after a restart, or that anything claiming the string is authentic. WS-0
+  added no role, office, discovery message or registry; WP-0 added a *live* office and a discovery
+  message and **changed none of those non-claims** — a Loom role is a replacement-stable service
+  route on this bus in this process, and never an author identity across a restart.
 - **Authored intent and resolved presentation have one path between them.** `setup.active.panes`
   is which panes a maker *meant*; `panels.open` is which presentations this build could make of
   that intent on this screen. `reconcile` (`workshop/setup.hpp`) is the only thing that opens or
@@ -1358,10 +1367,116 @@ Setup
   different `SurfaceExtent` yields the same references and different bounds, which is WS-0's
   authored/resolved proof.
 
-Deliberately absent, so the absences are decisions: no external provider, office, discovery
-protocol or runtime catalog; no opaque provider configuration; no multiple pane instances; no
-setup catalog, recent list, autosave or import/export; no tabs, docking, panel drag/resize,
-authored panel geometry, arrange mode or layout weave. Workshop manages **one** active setup path.
+Deliberately absent, so the absences are decisions: no opaque provider configuration; no multiple
+pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking, panel
+drag/resize, authored panel geometry, arrange mode or layout weave. Workshop manages **one** active
+setup path. (The external provider, office and discovery protocol this list used to exclude arrived
+in WP-0, bounded — the section below says exactly how far.)
+
+### A weave may offer a pane (WP-0)
+
+> **The office authors the pane; Workshop grants the room.**
+
+A weave that is not Workshop can offer Workshop a **read-only pane**: a row in the picker, a panel
+a maker can open, and a bounded budget of prose to fill it with. Four shapes are the entire
+protocol (`workshop/pane_vocabulary.hpp`):
+
+```text
+PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
+PaneOffered            provider  ->  Workshop   "I have this one."
+PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
+PaneContent            provider  ->  Workshop   "here is what it says."
+```
+
+- **`PaneOffered` and `PaneContent` carry no provider field, and the absence is the enforcement.**
+  The provider half of a `PaneRef` is `mail.authored_role()` — the office Loom *verified at the
+  moment the sentence was authored*, carried as delivery provenance that no payload can write and
+  no sender can choose (MSG-07). There is nothing to compare against the stamp because there is
+  nothing to compare. **Holding an office is not speaking as one**: a provider that reaches for
+  `mail.send_to_role` instead of `mail.as_role(R).send_to_role` registers nothing, *even though it
+  currently holds the office* — which is the sharpest negative case in the suite.
+- **What a Loom role proves, exactly.** That the sender held this office at this moment, on this
+  bus, in this process. It is a live, replacement-stable **service route**. It is not a package
+  author, a signature, a publisher, or evidence that the same author returned after a restart.
+  WP-0 makes none of those claims and adds no mechanism that could grow into one.
+- **Discovery converges in either load order**, with no polling and no timer. A provider loaded
+  *first* announces on its attested `zen.Activated` to an office nobody holds yet, and that
+  sentence is simply gone; Workshop then office-publishes `PaneCatalogRequested` on `SurfaceReady`
+  — its ordinary startup hook, because Loom deliberately sends no `zen.Activated` to a *native*
+  mount and inventing one would be a fake lifecycle event — and every provider that verifies the
+  authorship re-offers. Repetition is harmless: identity de-duplicates, so a re-offer refreshes a
+  descriptor in place and grows the catalog by nothing.
+- **Everything a live message can make Workshop retain is bounded before a byte is kept.** A
+  provider key and a pane key by the setup file's own `check_pane_key`; a name at 32 bytes and a
+  summary at 64, neither empty, neither all spaces, neither carrying a control byte; the combined
+  catalog at **32 total entries**, built-ins included, so at most thirty distinct runtime
+  `PaneRef`s. Admission is atomic in both directions — an invalid first offer adds nothing, an
+  invalid *refresh* leaves the last accepted descriptor whole, and a refresh is still allowed while
+  full because the bound is on how many distinct panes are held rather than on how often a provider
+  may correct itself.
+- **A runtime offer cannot shadow a built-in**, and two offices offering one pane key stay two
+  panes: the `PaneRef` is the *pair*, so neither office can refresh or overwrite the other's row.
+- **The setup file did not move.** `setup_persist.hpp` is untouched, the schema is the same version
+  1, and no descriptor, content, room, handle or liveness fact is saved. A setup naming
+  `third.party/hello` loads, stays exactly as authored, resolves the moment that office offers the
+  pane — *without the file being touched* — and is unresolved again in a fresh process where the
+  provider is absent.
+- **Workshop chooses the placement and refuses what will not fit.** Every external pane goes in the
+  overlay stack, and a presentation may only enter `Panels::open` if its rectangle ends at or above
+  `kWorkspaceY + room_h`, which *is* `notice_y - 1` — the row WS-0 spent on the setup line. At the
+  78×22 minimum only one overlay slot fits. A resolved reference that does not fit is **waiting**,
+  a third picker state that is neither `open` nor `closed`: the authored intent is retained and
+  named, growth opens it with no gesture, and a shrink closes the presentation through the ordinary
+  close door and destroys its cache.
+- **The picker windows the combined population** through `list_window` — the OBJECTS list's own
+  function, its own three rules and its own `omitted_text` wording. It did not get taller: the
+  markers come *out* of the eight-row budget.
+- **The room is `fit_region`'s answer and nothing else.** Workshop owns one header row naming the
+  pane and its office, and grants the body beneath it as *prose rows and columns* — never a
+  rectangle, a cell, a pixel, a font or the identity of the medium that answered. It is sent when
+  the pane opens, when a valid re-offer refreshes it, and when the resolved capacity changes, and
+  at no other time. (An overlay slot's rectangle is the same rectangle at every extent, so in
+  practice a real text metric is the only thing that moves an external pane's budget.) A grant
+  clears the cached rows *before* it is sent, so the cache can never hold rows admitted under a
+  wider room.
+- **Over-budget content is refused whole, never truncated.** Too many rows, one row too wide, or a
+  byte outside `SurfaceTextRow`'s plain-ASCII contract, and *not one row* is kept: the pane clears
+  what it was showing, leaves one bounded Workshop-owned refusal, names only the already-admitted
+  `PaneRef` in the notice, and stays open so a later valid update recovers it. A pane showing eight
+  rows of a twelve-row answer, unmarked, would present a partial sentence as the provider's whole
+  one.
+- **Silence is `waiting`, and never `unavailable`.** Loom gives Workshop no participant-visible
+  provider-unload notification and a sender's silence does not prove a delivery's fate — so nothing
+  times out, nothing polls, no catalog row is withdrawn and no setup reference is deleted. If a
+  provider disappears after sending valid content, Workshop **cannot know that happened** and goes
+  on showing the last rows that office reported. That is a stated limit, not liveness.
+- **Closing destroys only Workshop's copy.** The provider's weave, its office, its semantic state
+  and its catalog row all outlive the presentation; no unload is sent and the picker remains the one
+  owner of presence in both directions.
+- **Workshop gained two grant rules and no powers.** `PaneCatalogRequested` and `PaneRoom`, both
+  `allow_to_any` — the first because the ask *is* the discovery and there is no role to scope it to
+  yet, the second because Workshop sends to one resolved role that is runtime data. The Builder
+  sentences stay role-scoped; Workshop still commands no lifecycle, loads no weave, reaches no
+  Manager, and holds no observation, filesystem, process or network authority. Workshop is now
+  mounted **in** the `zengine.workshop` office so a provider can verify its ask — and holding an
+  office is not a super-grant: every rule is still checked at every send.
+- **The pane protocol grants a provider nothing either** — no canvas speech, no document, no
+  filesystem, no process, no network, no screen, no input, no lifecycle. That is a fact about the
+  *protocol*. It is **not** a containment claim: a trusted in-process dynamic library already shares
+  this process's memory, and Loom's current default grant for a normally loaded in-process weave is
+  `allow_any`. Visibility did not create those facts and WP-0 does not solve them.
+- **The witness is a real shared library.** `tests/weavelib/workshop_hello.cpp` is loaded through
+  the real Kernel and Manager under a real attested activation, and it is a **fixture, not a
+  product**: no host boots it, and Workshop still ships exactly two panes. A registration hook would
+  have proved nothing about the ABI it exists to exercise.
+
+Deliberately absent, and each one is a decision: no `PanePressed` or provider input of any kind; no
+keyboard, focus, capture, drag or pointer forwarding; no multiple instances of one `PaneRef`; no
+provider-owned placement, coordinates, docking, tabs or resize handles; no compositor or second
+canvas publisher; no unload notification, timeout, heartbeat, liveness query, `unavailable` state or
+catalog retraction; no `QueryRole`, `ListLoaded`, Senses or service registry; no package identity,
+signature, marketplace or cross-restart author claim; no out-of-process provider support; no
+provider scan directory, autoload list or plugin SDK. **No Loom change of any kind.**
 
 ## Working in this tree
 

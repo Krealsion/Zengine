@@ -77,6 +77,20 @@ target_link_libraries(zengine-probe-required PRIVATE zengine-timer-vocabulary ze
 target_include_directories(zengine-probe-required PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
 target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVATION=1)
 
+#   zengine-workshop-hello  WP-0's external witness: a real dynamic weave that offers
+#                           Workshop one read-only pane under its own Loom office. It is a
+#                           FIXTURE and not a product -- no host boots it and Workshop ships
+#                           two panes, neither of which is this. It goes through
+#                           `zengine_weave` for the reason every other one does, and it
+#                           carries `zengine-warnings` and `zengine-sanitize` so the
+#                           standing ASan+UBSan lane sees the new target rather than
+#                           silently omitting it (AGENTS.md: that is the one way this lane
+#                           degrades).
+zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
+target_link_libraries(zengine-workshop-hello
+    PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
+            zengine-warnings zengine-sanitize)
+
 # doctest_main.cpp rides every runtime suite: one shared main() that refuses a run which
 # selected zero test cases (POP-01 / COLD-2 C-4). Stock doctest calls that SUCCESS.
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
@@ -374,11 +388,15 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # resolution and hit testing DO is the ui suite's claim; that Workshop gets its
 # answers from there is this one's.
 #
-# It links no weave library and defines no _SO path, which is the honest shape of
-# what W-0 built: Workshop's own weave is mounted in-process, so there is no
-# artifact of Workshop's for the kernel to load. What it does need is the surface
-# vocabulary and the terminal rasterizer, because the last case runs a real
-# painted screen through the medium's own pure function.
+# Workshop's OWN weave is still mounted in-process, so there is still no artifact of
+# Workshop's for the kernel to load — but since WP-0 this suite DOES define a `_SO` path,
+# and the comment that used to say otherwise is corrected rather than deleted. The path is
+# a PROVIDER's: `zengine-workshop-hello` is a real dynamic library the suite loads through
+# the real Kernel and Manager, because the claim WP-0 has to make is about the real ABI and
+# load path and a mock loader would prove nothing about either.
+#
+# What it also needs is the surface vocabulary and the terminal rasterizer, because one case
+# runs a real painted screen through the medium's own pure function.
 add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
@@ -387,6 +405,9 @@ target_link_libraries(zengine-workshop-tests
             zengine-sanitize)
 target_include_directories(zengine-workshop-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+target_compile_definitions(zengine-workshop-tests PRIVATE
+    "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\"")
+add_dependencies(zengine-workshop-tests zengine-workshop-hello)
 
 zengine_doctest_test(workshop zengine-workshop-tests)
 

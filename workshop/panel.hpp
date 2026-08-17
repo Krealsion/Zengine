@@ -75,9 +75,11 @@
 // is a gesture a maker has to guess at.
 
 #include "builder/vocabulary.hpp"
+#include "surface/vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace zengine::workshop {
@@ -207,9 +209,44 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
     return kPanelCatalog[0];
 }
 
+/// WHERE THE SESSION-LOCAL KINDS BEGIN (WP-0), and the whole of how a runtime
+/// pane is told from a built-in one.
+///
+/// A RUNTIME KIND IS A HANDLE AND NOT AN IDENTITY. The durable identity of an
+/// external pane is its `PaneRef` -- the office Loom stamped, plus the pane key
+/// that office offered -- and that is what a setup file holds. This integer is
+/// what `Panels::open`, `bounds_of` and `occupied_at` carry in the same field
+/// the two built-ins carry `panel::kBuilder` and `panel::kInfo` in, so the whole
+/// presentation path needs no second vocabulary. It is minted by this session,
+/// spent by this session, and never written to a file, never read off a message
+/// and never compared across processes.
+///
+/// THE GAP IS DELIBERATE AND SO IS ITS SIZE. The built-ins are 0 and 1 and this
+/// build's own vocabulary may grow; starting a thousand above leaves no arithmetic
+/// by which a runtime handle and a future built-in could collide, and the
+/// predicate below is the one place either question is asked.
+inline constexpr std::int64_t kFirstRuntimeKind = 1024;
+
+/// Is this a session-local runtime kind rather than a compile-time one?
+inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
+    return kind >= kFirstRuntimeKind;
+}
+
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column. Total, for the same reason `panel_kind` is.
+///
+/// AN EXTERNAL PANE IS PLACED BY WORKSHOP AND ASKS FOR NOTHING (WP-0), and this
+/// branch is where that is decided rather than negotiated: `PaneOffered` carries
+/// no placement field, so every runtime kind goes in the overlay stack. The
+/// branch is here rather than left to `panel_kind`'s fall-through on purpose --
+/// that fall-through answers with `kPanelCatalog[0]`, which is the BUILDER, and
+/// a runtime pane silently inheriting the Builder's row is exactly the lie
+/// `resolve_pane` was made fallible to prevent one layer up. `panel_kind` stays
+/// total for its own bounded built-in callers and never sees a runtime kind.
 inline constexpr std::int64_t placement_of(std::int64_t kind) noexcept {
+    if (is_runtime_kind(kind)) {
+        return placement::kOverlayStack;
+    }
     return panel_kind(kind).placed_in;
 }
 
@@ -353,6 +390,112 @@ struct BuilderPane {
     builder::BuildStatus shown{};
 };
 
+/// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG (WP-0): a pane some office
+/// offered this run, admitted under that office's stamped authorship.
+///
+/// IT IS SESSION STATE AND NOTHING ELSE. Not global, not document, not setup, not
+/// persisted, and not shared between processes: a fresh Workshop starts with an
+/// empty one and earns every row again from a live offer. The `Setup` a maker
+/// saves holds the two strings and never a row of this.
+///
+/// `provider` IS THE OFFICE LOOM STAMPED ON THE OFFER, copied out of
+/// `mail.authored_role()` after it passed the same `check_pane_key` law the
+/// persisted grammar uses. It is never read from a payload, because the payload
+/// has no such field to read (pane_vocabulary.hpp).
+struct RuntimePane {
+    std::int64_t kind = kFirstRuntimeKind; ///< the session-local handle; see `is_runtime_kind`
+    std::string provider;                  ///< the Loom-stamped office that offered it
+    std::string pane;                      ///< the pane key, in that office's namespace
+    std::string name;                      ///< what the picker lists
+    std::string summary;                   ///< one line, beside the name
+};
+
+/// HOW MANY CATALOG ROWS THIS SESSION WILL HOLD IN TOTAL -- built-ins included.
+///
+/// A RUNTIME-CATALOG POLICY CONSTANT, AND DELIBERATELY NOT AN ALIAS OF
+/// `kMaxSetupPanes` even though both are thirty-two today. The two answer
+/// different questions: that one bounds what a FILE may name and is a promise to
+/// a maker's saved bytes, this one bounds what LIVE OFFERS may make this session
+/// retain. Spelling one as the other would make a later phase's change to either
+/// silently move the other, which is the shape of a bound that stops meaning
+/// anything.
+///
+/// Thirty-two against two built-ins leaves thirty distinct runtime `PaneRef`s. It
+/// is four times the tallest picker this composition can show, which is the same
+/// argument `kMaxSetupPanes` is chosen by, and it bounds what a chatty or
+/// malicious provider can make this session hold to a few kilobytes.
+inline constexpr std::size_t kMaxPaneCatalogEntries = 32;
+
+/// THE RUNTIME CATALOG, and the mint for its handles.
+///
+/// ORDER IS FIRST-ACCEPTED-OFFER ORDER and is never sorted -- not by role, not by
+/// name, not by arrival time, not by display text. The combined picker walks the
+/// compile-time catalog and then this, so a maker who opens Workshop twice with
+/// the same providers sees the same list in the same order, and a provider cannot
+/// buy itself the top of the list by choosing a name.
+///
+/// NOTHING HOLDS A POINTER INTO `entries`. A later offer may grow the vector and
+/// reallocate it, so every consumer looks a row up by handle or by reference at
+/// the moment it needs one, and `Occupancy` carries a `std::string` copy rather
+/// than a `const char*` into a row that may move (screen.hpp).
+struct RuntimeCatalog {
+    std::vector<RuntimePane> entries;
+    /// The next handle to mint. Monotonic within a session; a refreshed offer
+    /// keeps the handle it already had, so this advances at most once per
+    /// distinct `PaneRef` and is bounded by `kMaxPaneCatalogEntries`.
+    std::int64_t next_kind = kFirstRuntimeKind;
+
+    const RuntimePane* find(const std::string& provider, const std::string& pane) const {
+        for (const RuntimePane& r : entries) {
+            if (r.provider == provider && r.pane == pane) {
+                return &r;
+            }
+        }
+        return nullptr;
+    }
+
+    const RuntimePane* of_kind(std::int64_t kind) const {
+        for (const RuntimePane& r : entries) {
+            if (r.kind == kind) {
+                return &r;
+            }
+        }
+        return nullptr;
+    }
+};
+
+/// AN OPEN EXTERNAL PANEL'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
+///
+/// The Builder pane's shape, one provider further out, and the two facts that
+/// are genuinely this panel's own are the same two: `heard` distinguishes "the
+/// provider says nothing" from "the provider has not answered yet", and
+/// `awaiting` records that a room was granted and no valid content has arrived
+/// since. A pane whose provider has gone quiet reads WAITING; it never reads
+/// unavailable, because Loom gives Workshop no participant-visible unload
+/// notification and silence is not evidence of one.
+///
+/// `rows`/`columns` are the LAST ROOM GRANTED, kept so a re-grant can be told
+/// from a repeat: a screen that changed cells but not prose capacity sends
+/// nothing, and a metric change that moved the capacity sends exactly once.
+///
+/// `shown` NEVER EXCEEDS THE ROOM IT WAS ADMITTED UNDER. Every row in it passed
+/// the row count, the column width and the plain-ASCII contract at the moment it
+/// arrived, and a new grant clears it before the new room is sent -- so a shrink
+/// cannot leave yesterday's wider rows sitting in a narrower budget.
+struct ExternalPane {
+    std::int64_t kind = kFirstRuntimeKind;
+    std::int64_t rows = 0;    ///< the last prose rows granted
+    std::int64_t columns = 0; ///< ...and the last prose columns
+    bool granted = false;     ///< whether any room has been sent for this presentation
+    bool heard = false;       ///< whether valid content has ever arrived under it
+    bool awaiting = true;     ///< a room is out and no valid content has answered it
+    /// WORKSHOP'S OWN SENTENCE ABOUT A REFUSED UPDATE, bounded and written here
+    /// rather than anywhere a provider's bytes could reach. Empty when there is
+    /// nothing to refuse.
+    std::string refusal;
+    std::vector<surface::SurfaceTextRow> shown;
+};
+
 /// One panel a maker has opened.
 ///
 /// It carries a KIND and nothing else. Per-panel view state lives beside the
@@ -405,6 +548,28 @@ struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
     BuilderPane builder;
+    /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones (WP-0). It
+    /// lives here rather than in `Session` for one measured reason: every
+    /// presentation question that has to know a runtime pane's NAME or its PLACE
+    /// -- the picker's rows, `occupied_at`'s answer, `bounds_of`'s slot -- is
+    /// already handed a `Panels`, so putting the catalog anywhere else would have
+    /// added a parameter to each of them and given a caller a chance to forget it.
+    RuntimeCatalog runtime;
+    /// The per-pane view of each OPEN external panel: its granted room, its copy
+    /// of what the provider last said, and whether it is waiting. One entry per
+    /// open external kind, created by the open door and destroyed by the close
+    /// door — the `BuilderPane` rule, for a population rather than for one kind.
+    std::vector<ExternalPane> external;
+    /// AUTHORED INTENT THIS SCREEN HAS NO ROOM FOR, as resolved kinds, in setup
+    /// order. `open`'s twin and derived by the same one path: `reconcile` is the
+    /// only writer, and it runs on every change to the setup and on every change
+    /// of extent, so this cannot describe a screen that has since moved.
+    ///
+    /// WAITING IS NOT UNRESOLVED AND NOT CLOSED. The reference resolves, this
+    /// build knows exactly what it would present, and the current composition
+    /// has nowhere to put it. Saying `closed` would invite a maker to press the
+    /// picker again; saying `unresolved` would blame the provider for the screen.
+    std::vector<std::int64_t> waiting_for_room;
 
     bool has(std::int64_t kind) const {
         for (const Panel& p : open) {
@@ -413,6 +578,36 @@ struct Panels {
             }
         }
         return false;
+    }
+
+    bool waiting(std::int64_t kind) const {
+        for (const std::int64_t k : waiting_for_room) {
+            if (k == kind) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// The open external panel's view, or nothing. Const and mutable doors, both
+    /// by handle, because nothing may hold one across an offer that could grow
+    /// `external` or `runtime`.
+    ExternalPane* external_pane(std::int64_t kind) {
+        for (ExternalPane& e : external) {
+            if (e.kind == kind) {
+                return &e;
+            }
+        }
+        return nullptr;
+    }
+
+    const ExternalPane* external_pane(std::int64_t kind) const {
+        for (const ExternalPane& e : external) {
+            if (e.kind == kind) {
+                return &e;
+            }
+        }
+        return nullptr;
     }
 };
 
@@ -425,6 +620,16 @@ inline bool open_panel(Panels& panels, std::int64_t kind) {
         return false;
     }
     panels.open.push_back(Panel{kind});
+    // AND AN EXTERNAL PANE GETS ITS VIEW BY THE SAME ACT (WP-0), for the reason
+    // the Builder's is forgotten by the closing one: a presentation and its copy
+    // of what it presents have one lifetime, and two doors would eventually be
+    // walked through in the wrong order. A fresh view is AWAITING with no room
+    // granted, which is exactly true -- nothing has been asked for yet.
+    if (is_runtime_kind(kind) && panels.external_pane(kind) == nullptr) {
+        ExternalPane fresh;
+        fresh.kind = kind;
+        panels.external.push_back(std::move(fresh));
+    }
     return true;
 }
 
@@ -457,6 +662,21 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
             // of those outlive it and belong to somebody else. A panel with no
             // state of its own is the case that proves the branch above is one
             // kind's business rather than a slot in a framework.
+            //
+            // AND AN EXTERNAL PANE FORGETS EVERYTHING IT WAS SHOWING (WP-0):
+            // its granted room, its copy of the provider's rows, whether it had
+            // heard, whether it was waiting, and any refusal. What it does NOT
+            // touch is the provider weave, its office, its semantic state, or
+            // its row in the runtime catalog -- closing a presentation sends no
+            // unload and retracts no offer, so the same pane reopens from the
+            // catalog and asks for room again. The Builder's rule, whole.
+            for (std::size_t e = 0; e < panels.external.size(); ++e) {
+                if (panels.external[e].kind == kind) {
+                    panels.external.erase(panels.external.begin() +
+                                          static_cast<std::ptrdiff_t>(e));
+                    break;
+                }
+            }
             return true;
         }
     }
