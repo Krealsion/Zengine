@@ -505,6 +505,54 @@ inline constexpr ui::Rect picker_bounds(const Screen& sc) noexcept {
     return placement_bounds(placement::kOverlayStack, 0, sc);
 }
 
+/// HOW MANY OVERLAY SLOTS THIS SCREEN ACTUALLY HAS ROOM FOR (WP-0) -- the one
+/// answer to "may another panel be presented", asked before anything reaches
+/// `Panels::open`.
+///
+/// THE FLOOR IS THE WORKSPACE'S BOTTOM AND NOT THE NOTICE LINE, and the
+/// difference is one row that carries a sentence:
+///
+///     kWorkspaceY + sc.room_h  ==  sc.notice_y - 1
+///
+/// -- the row directly under the workspace, which WS-0 spent on the SETUP LINE.
+/// A capacity checked against `notice_y` would call a second slot legal at the
+/// minimum composition and let it erase the line naming the arrangement a maker
+/// is in. The two expressions are equal by `screen_of`'s own arithmetic
+/// (`room_h = h - kWorkspaceY - kBottomRows`, `notice_y = h - 4`), asserted
+/// under this function, and the one written here is the one that says WHY: the
+/// stack lives in the workspace's room and the bottom band is somebody else's.
+///
+/// THE SLOTS ARE ASKED OF `placement_bounds`, NOT COMPUTED FROM `kStackRows`.
+/// There is no second arithmetic here and there must not be: whatever moves a
+/// slot's rectangle moves this count with it, which is the same one-measurer rule
+/// `occupied_at` follows for the pointer. The loop is bounded by
+/// `kMaxSetupPanes` because a setup cannot author more references than that, and
+/// a screen this composition lays out never reaches even four.
+inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
+    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+    std::size_t fit = 0;
+    while (fit < kMaxSetupPanes) {
+        const ui::Rect b = placement_bounds(placement::kOverlayStack, fit, sc);
+        if (b.y + b.h > floor_y) {
+            break;
+        }
+        ++fit;
+    }
+    return fit;
+}
+
+/// The same answer in the shape `reconcile` takes, so no call site spells the
+/// conversion itself.
+inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
+    return StackCapacity{stack_slots_that_fit(sc)};
+}
+
+static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y - 1,
+              "the overlay floor is the row under the workspace, which is the setup line: "
+              "a capacity measured against notice_y would let a second slot erase it");
+static_assert(stack_slots_that_fit(kMinScreen) == 1,
+              "the minimum composition has room for exactly one overlay panel");
+
 // ---- PLACEMENT SPENT ON THE POINTER: a place a maker can see is a place a hand meets ------
 //
 // PNL-1 MADE THE DEFECT SAYABLE AND PNL-2 SAYS IT. With bounds resolved in one path, "did this
@@ -530,7 +578,15 @@ struct Occupancy {
     /// The name a maker reads on those cells -- the catalog's own for a panel, the picker's
     /// own for the picker. Empty when nothing is there, and never a kind a caller has to
     /// switch on: what it is FOR is a sentence.
-    const char* what = "";
+    ///
+    /// A `std::string` SINCE WP-0, AND THE CHANGE IS A LIFETIME RATHER THAN A TASTE.
+    /// A runtime pane's name lives in a `std::vector<RuntimePane>` that the next accepted
+    /// offer may grow and reallocate, so a `const char*` taken out of one would dangle at
+    /// the next offer -- a defect whose symptom is a correct-looking notice printed from
+    /// freed memory, which is exactly the class the sanitizer lane exists to name (W-3a).
+    /// The built-ins' names are static and would have been safe either way; one shape for
+    /// both is what stops a reader having to know which half they are holding.
+    std::string what;
 };
 
 /// DOES ANY VISIBLE PRESENTATION OCCUPY THIS CANVAS CELL — the one question the pointer asks
@@ -549,14 +605,19 @@ struct Occupancy {
 /// pane that answered here as well would be the same rule written twice, and the second copy is
 /// the one that would go stale.
 inline Occupancy occupied_at(const Panels& panels, const Screen& sc, std::int64_t cx,
-                             std::int64_t cy) noexcept {
+                             std::int64_t cy) {
     if (panels.picker.open && picker_bounds(sc).contains(cx, cy)) {
         return Occupancy{true, kPickerName};
     }
     for (std::size_t i = panels.open.size(); i > 0; --i) {
         const std::int64_t kind = panels.open[i - 1].kind;
         if (bounds_of(panels, kind, sc).rect.contains(cx, cy)) {
-            return Occupancy{true, panel_kind(kind).name};
+            // `kind_name` AND NOT `panel_kind(kind).name` (WP-0). The total lookup answers
+            // `Builder` for anything outside the compile-time catalog, so an external pane
+            // would tell a maker their hand was on the build tool -- the same lie
+            // `resolve_pane` is fallible to prevent, arriving through the pointer instead
+            // of through a file. Built-ins are unchanged: `kind_name` reads the same row.
+            return Occupancy{true, kind_name(panels, kind)};
         }
     }
     return Occupancy{};
@@ -2576,6 +2637,37 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
 /// it through `picker_bounds`, because the pointer has to ask the same question: a box a maker
 /// can read through is one defect and a box a maker can press through is another, and both are
 /// answered by the same rectangle.
+/// WHAT THE PICKER SAYS ABOUT ONE ROW'S PRESENCE -- three words since WP-0, and
+/// the third is the one an external pane made reachable.
+///
+///     open      the active setup names it and a presentation currently fits
+///     waiting   the active setup names it and this screen has no room for it
+///     closed    the active setup does not name it
+///
+/// WAITING IS NOT SILENCE AND IT IS NOT ABSENCE. It is the one state where Return
+/// does neither of the two things the heading promises -- selecting it REMOVES
+/// the authored intent, exactly as selecting an open row does, because the maker
+/// asked for it and Workshop is the party that could not seat it. Calling it
+/// `closed` would invite a maker to press again and watch nothing happen; calling
+/// it `unresolved` would blame a provider for a screen (see `kWorkshopProvider`:
+/// silence proves unresolved, never unavailable, and a want of room proves
+/// neither).
+inline const char* picker_state_word(const Panels& panels, std::int64_t kind) {
+    if (panels.has(kind)) {
+        return "open";
+    }
+    if (panels.waiting(kind)) {
+        return "waiting";
+    }
+    return "closed";
+}
+
+/// The one row-body spelling, so the painter and any reader of the picker's
+/// columns spend the same two `detail::pad` widths.
+inline std::string picker_entry_text(const CatalogRow& row, const char* state) {
+    return detail::pad(row.name, 10) + detail::pad(state, 8) + row.summary;
+}
+
 inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Screen& sc) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
@@ -2585,19 +2677,47 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     paint_panel_frame(c, b);
     paint_panel_row(c, b, 0, "+ PANEL -- up/down, enter opens or removes",
                     surface::role::kAccent);
-    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+    // THE POPULATION IS THE COMBINED CATALOG AND THE BUDGET IS THE SLOT'S (WP-0).
+    // Before this the list was `kPanelKinds` long and the picker's height was a
+    // constant derived from it, which is a catalog census standing in for a
+    // capacity -- it was right for exactly as long as no catalog could outgrow
+    // the box, and a runtime offer is precisely a catalog that can. So the rows
+    // under the heading are `list_window`'s to spend: the OBJECTS list's own
+    // function, its own three rules and its own wording (`omitted_text`), which
+    // is the second consumer HD-6 established the rule with and the fourth
+    // overall. There is no second scrolling algorithm here and the picker did not
+    // get taller.
+    const std::vector<CatalogRow> rows = combined_catalog(panels);
+    const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
+    const ListWindow win = list_window(rows.size(), picker.cursor, budget);
+    std::int64_t line = 1;
+    const auto say = [&](const std::string& text, std::int64_t role) {
+        paint_panel_row(c, b, line, text, role);
+        ++line;
+    };
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == picker.cursor;
-        paint_panel_row(c, b, 1 + static_cast<std::int64_t>(i),
-                        std::string(here ? "> " : "  ") + detail::pad(kPanelCatalog[i].name, 10) +
-                            detail::pad(panels.has(kPanelCatalog[i].kind) ? "open" : "closed", 8) +
-                            kPanelCatalog[i].summary,
-                        here ? surface::role::kAccent : surface::role::kFill);
+        say(std::string(here ? "> " : "  ") +
+                picker_entry_text(rows[i], picker_state_word(panels, rows[i].kind)),
+            here ? surface::role::kAccent : surface::role::kFill);
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
     // THE REST OF THE SLOT, PADDED AND BLANK. In a character medium those spaces are what
     // erase the panel underneath; without them the panel's own rows read as more of this
     // list. See kPickerRows.
-    for (std::int64_t row = kPickerRows; row < b.h; ++row) {
-        paint_panel_row(c, b, row, std::string(), surface::role::kFill);
+    //
+    // IT PADS FROM WHERE THE LIST STOPPED rather than from `kPickerRows`, which is
+    // the one line the windowing changed here: the constant is `1 + kPanelKinds`
+    // and stopped being the number of rows written the moment the population could
+    // exceed the budget. With the two built-ins and nothing offered, `line` is
+    // exactly `kPickerRows` and every pre-existing picture is byte-identical.
+    for (; line < b.h; ++line) {
+        paint_panel_row(c, b, line, std::string(), surface::role::kFill);
     }
 }
 
@@ -3551,6 +3671,134 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
 /// kind is DECLARED rather than where it is drawn, so the third one does not arrive with a
 /// third set of constants. What it still cannot do is ask for somewhere neither place is --
 /// that is the layout phase, and it now has two named places to argue from.
+// ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region (WP-0) --------
+//
+// WORKSHOP OWNS EVERY RECTANGLE AND THE PROVIDER OWNS EVERY SENTENCE. That split is the
+// whole of the phase's presentation claim, and the shape below is what makes it structural
+// rather than promised: the provider is handed two integers and hands back rows, so there is
+// no coordinate, no cell, no pixel and no metric anywhere in the conversation for it to
+// disagree with this application about.
+//
+// THE ROOM IS `fit_region`'S ANSWER AND NOBODY MULTIPLIES A METRIC. Same function, same one
+// call, same discipline as the Info body (HD-6) and the terminal pane (HD-1): 8 cells of body
+// is 5 rows of an 18-pixel face and 8 rows of a cell medium, and the two are honest
+// projections of one body rather than two arithmetics that happen to agree today.
+
+/// One header row, Workshop's own, so the provenance of what follows is legible.
+inline constexpr std::int64_t kExternalHeaderRows = 1;
+
+/// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING. The Builder pane's
+/// distinction, one provider further out: this is a fact about THIS PANEL -- a
+/// room has been granted and nothing valid has answered it -- and it is not a
+/// fact about the provider. It is never `unavailable`, because Loom gives
+/// Workshop no participant-visible unload notification and a sender's silence
+/// does not prove a delivery's fate.
+inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
+
+/// WHAT A PANE SAYS AFTER AN UPDATE IT COULD NOT KEEP. Workshop's sentence,
+/// Workshop's bytes -- nothing of the refused message is echoed, because the
+/// thing that was wrong with it was its content.
+inline constexpr const char* kExternalRefused =
+    "(the last update did not fit this pane's room -- none of it was kept)";
+
+/// THE BODY OF AN EXTERNAL PANEL, RESOLVED ONCE. Where it is, and how much prose the
+/// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
+struct ExternalBodyPlace {
+    bool present = false;
+    std::int64_t region_x = 0;
+    std::int64_t region_y = 0;
+    std::int64_t region_w = 0;
+    std::int64_t region_h = 0;
+    surface::RegionFit fit{};
+    std::int64_t rows = 0;    ///< prose rows -- the `PaneRoom` budget's first half
+    std::int64_t columns = 0; ///< ...and its second
+};
+
+/// The body under an external panel's header row: the panel's bounds less that row.
+///
+/// TOTAL over the rectangle it is handed, because a closed panel answers with an empty one
+/// (`bounds_of`) and a screen may be small enough that a header leaves nothing beneath it.
+/// `present` is false in both cases and no room is ever granted from a body that is not
+/// there -- which is what keeps `PaneRoom` from carrying a zero somebody downstream would
+/// subtract from.
+inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen& sc) {
+    ExternalBodyPlace p;
+    if (panel.w <= 0 || panel.h <= kExternalHeaderRows) {
+        return p;
+    }
+    p.region_x = panel.x;
+    p.region_y = surface::add_cells(panel.y, kExternalHeaderRows);
+    p.region_w = panel.w;
+    p.region_h = panel.h - kExternalHeaderRows;
+    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
+                                sc.text_advance_px, sc.text_line_px);
+    p.rows = p.fit.rows;
+    p.columns = p.fit.columns;
+    p.present = p.rows > 0 && p.columns > 0;
+    return p;
+}
+
+/// THE HEADER: what this pane is, and WHOSE it is.
+///
+/// The Builder panel's rule (`BUILDER @zengine.builder`), which the terminal pane follows
+/// too: a presentation showing somebody else's facts without saying whose is a presentation
+/// that will eventually be read as its own. Here it is load-bearing rather than good manners
+/// -- the rows underneath were written by a party this build has never met, and the office
+/// that authored them is the only thing about that party Workshop actually knows.
+///
+/// BOTH HALVES WERE VALIDATED AT ADMISSION and neither is echoed raw: the name passed
+/// `check_pane_text` and the office passed `check_pane_key`, so no control byte and no
+/// row-breaking sequence can reach this line. `paint_panel_row` fits it to the panel's width,
+/// which marks its own cut.
+inline std::string external_header(const RuntimePane& row) {
+    return row.name + " @" + row.provider;
+}
+
+/// ONE EXTERNAL PANEL: Workshop's backdrop, Workshop's header, and ONE region carrying
+/// whatever that office last validly said inside the room it was granted.
+///
+/// THE CACHED ROWS ARE PAINTED WITHOUT BEING RE-JUDGED, and that is sound rather than lax:
+/// nothing enters `ExternalPane::shown` without having passed the CURRENT room's row count,
+/// column width and plain-ASCII contract, and every new grant clears the cache before the new
+/// room is sent. So the invariant this painter rests on is maintained at the retention
+/// boundary where the bytes arrive, not re-derived on the paint path every frame.
+///
+/// NO CARET. A caret is an insertion point and nothing here is editable; there is no input
+/// path to an external pane at all (weave.hpp's occupancy wall consumes every press that
+/// lands on one).
+inline void paint_external(surface::SurfaceCanvas& c, const Panels& panels, std::int64_t kind,
+                           const ui::Rect& b, const Screen& sc) {
+    paint_panel_frame(c, b);
+    const RuntimePane* row = panels.runtime.of_kind(kind);
+    if (row == nullptr) {
+        return; // an open kind with no catalog row cannot happen; drawing a lie could
+    }
+    paint_panel_row(c, b, 0, external_header(*row), surface::role::kAccent);
+    const ExternalBodyPlace body = external_body_place(b, sc);
+    if (!body.present) {
+        return; // no room under the heading: say nothing rather than lie about the room
+    }
+    surface::SurfaceTextRegion region;
+    region.x = body.region_x;
+    region.y = body.region_y;
+    region.w = body.region_w;
+    region.h = body.region_h;
+    const ExternalPane* pane = panels.external_pane(kind);
+    if (pane == nullptr) {
+        return;
+    }
+    if (!pane->refusal.empty()) {
+        region.rows.push_back(surface::SurfaceTextRow{detail::fit(pane->refusal, body.columns),
+                                                      surface::role::kAlert});
+    } else if (!pane->heard) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            detail::fit(kExternalWaiting, body.columns), surface::role::kMuted});
+    } else {
+        region.rows = pane->shown;
+    }
+    c.texts.push_back(std::move(region));
+}
+
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc) {
     const Panels& panels = s.panels;
@@ -3560,6 +3808,14 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
             paint_builder(c, panels.builder, b);
         } else if (p.kind == panel::kInfo) {
             paint_info(c, d, s, b, sc);
+        } else if (is_runtime_kind(p.kind)) {
+            // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to add.
+            // The branch above chooses a PAINTER, which PNL-1 named as the one thing about a
+            // panel kind that genuinely cannot be shared -- and this arm is the case where
+            // it can be, because every external pane is presented identically: a header
+            // Workshop writes and a region the provider fills. A second provider costs this
+            // function nothing at all.
+            paint_external(c, panels, p.kind, b, sc);
         }
     }
     paint_picker(c, panels, sc);
@@ -3640,10 +3896,16 @@ inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc
 /// runs 15 cells longer and `detail::fit` marks the cut, which falls on the tail of the
 /// static hint rather than on any of the truths above it -- which is why they are in this
 /// order rather than in the order they were designed in.
-inline std::string setup_status_text(const SetupState& setup, const std::string& path) {
+inline std::string setup_status_text(const SetupState& setup, const std::string& path,
+                                     const RuntimeCatalog& runtime) {
     std::string line = "setup " + quoted_setup_name(setup.active.name) + " " +
                        (setup.saved() ? "saved" : "UNSAVED");
-    const std::vector<PaneRef> waiting = unresolved_panes(setup.active);
+    // THE RUNTIME CATALOG IS ASKED, AND THIS IS THE LINE THAT MADE IT A REQUIRED ARGUMENT
+    // (WP-0). A pane a maker can SEE must not be counted as unresolved on the row directly
+    // beneath it, and the built-in-only resolver would have said exactly that about every
+    // admitted external offer -- silently, and only in the configuration where somebody had
+    // actually loaded a provider.
+    const std::vector<PaneRef> waiting = unresolved_panes(setup.active, runtime);
     if (!waiting.empty()) {
         // UNRESOLVED, NEVER UNAVAILABLE. Workshop knows that it cannot present these
         // references; it knows nothing whatever about whoever could, and a word implying
@@ -3661,7 +3923,8 @@ inline std::string setup_status_text(const SetupState& setup, const std::string&
 /// otherwise. Fitted here, at the presentation boundary and nowhere upstream.
 inline std::string setup_line(const Session& s, const std::string& path, const Screen& sc) {
     return detail::fit(s.setup.naming.open ? setup_naming_text(s.setup.naming, sc)
-                                           : setup_status_text(s.setup, path),
+                                           : setup_status_text(s.setup, path,
+                                                               s.panels.runtime),
                        sc.w);
 }
 

@@ -58,6 +58,10 @@
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
+#include <zen/kernel/control.hpp>
+#include <zen/kernel/kernel.hpp>
+#include <zen/kernel/manager.hpp>
+
 #include <zen/host/terminal_wiring.hpp>
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -2673,7 +2677,14 @@ struct Live {
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
         loom::allow_poke_answers(grant);
-        const loom::WeaveId id = bus.register_weave(std::move(weave), std::move(grant));
+        // IN THE OFFICE, AS THE HOST MOUNTS IT (WP-0). Workshop's own weave now holds
+        // `zengine.workshop`, because the pane protocol is authored AS that office and a
+        // rig that mounted it anonymously would silently produce a Workshop whose ask and
+        // whose room grants are refused at the bus -- a difference no pre-WP-0 case could
+        // see and every WP-0 case depends on. The three-argument `register_weave` is the
+        // Loom's own way to bind one, which is what `mount_in_office` spells in the host.
+        const loom::WeaveId id =
+            bus.register_weave(std::move(weave), std::move(grant), std::string(kWorkshopProvider));
         w->zen_set_self(id);
         workshop_id = id;
         (void)loom::mount<Painter>(bus, canvases, notes);
@@ -13845,6 +13856,22 @@ PaneRef ref_of(std::int64_t kind) { return pane_ref_of(kind); }
 /// third-party entry every unresolved case is built on.
 PaneRef stranger() { return PaneRef{"third.party.tools", "history"}; }
 
+/// NOBODY HAS OFFERED ANYTHING -- the state every case in this tier was written
+/// in, said out loud since WP-0 made the runtime catalog a required argument to
+/// the resolution door rather than something a caller could forget. Passing an
+/// empty one is what keeps these cases' claims exactly what they were: this is
+/// what the BUILT-IN half answers, with no provider in the process.
+const RuntimeCatalog& no_providers() {
+    static const RuntimeCatalog empty;
+    return empty;
+}
+
+/// The room the minimum composition actually has: one overlay slot, resolved
+/// through `placement_bounds` rather than written down here (screen.hpp says
+/// why it is one). Every case below reconciles at most one stacked panel, so
+/// this is the capacity they were all written under.
+StackCapacity min_room() { return stack_capacity(kMinScreen); }
+
 /// A setup, spelled the way a case reads: a name and the kinds it means.
 Setup setup_of(const std::string& name, const std::vector<std::int64_t>& kinds) {
     Setup s;
@@ -13964,7 +13991,7 @@ TEST_CASE("a fresh Workshop's setup and its open panels are ONE decision") {
 
     std::vector<std::int64_t> from_setup;
     for (const PaneRef& p : fresh.panes) {
-        const std::optional<std::int64_t> kind = resolve_pane(p);
+        const std::optional<std::int64_t> kind = resolve_pane(p, no_providers());
         REQUIRE(kind.has_value());
         from_setup.push_back(*kind);
     }
@@ -13994,7 +14021,7 @@ TEST_CASE("every catalog row carries a durable reference that resolves back to i
         const PaneRef ref = pane_ref_of(row.kind);
         CHECK(ref.provider == std::string(row.provider));
         CHECK(ref.pane == std::string(row.pane));
-        const std::optional<std::int64_t> back = resolve_pane(ref);
+        const std::optional<std::int64_t> back = resolve_pane(ref, no_providers());
         REQUIRE(back.has_value());
         CHECK(*back == row.kind);
 
@@ -14012,17 +14039,17 @@ TEST_CASE("an unknown reference resolves to NOTHING, and never to the Builder") 
     // catalog's first row for an unknown kind, which is right for its callers
     // and would be a lie here: an unknown reference routed through it would
     // paint a maker's third-party pane as Workshop's build tool.
-    CHECK_FALSE(resolve_pane(stranger()).has_value());
-    CHECK_FALSE(resolve_pane(PaneRef{"third.party.tools", pane_key::kInfo}).has_value());
-    CHECK_FALSE(resolve_pane(PaneRef{kWorkshopProvider, "history"}).has_value());
-    CHECK_FALSE(resolve_pane(PaneRef{"", ""}).has_value());
-    CHECK_FALSE(resolvable(stranger()));
+    CHECK_FALSE(resolve_pane(stranger(), no_providers()).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"third.party.tools", pane_key::kInfo}, no_providers()).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{kWorkshopProvider, "history"}, no_providers()).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"", ""}, no_providers()).has_value());
+    CHECK_FALSE(resolvable(stranger(), no_providers()));
 
     // The negative control, stated as its own claim: the total lookup DOES
     // answer Builder for an unknown kind, and it is still allowed to, because
     // nothing that meets a file goes through it.
     CHECK(panel_kind(9999).kind == panel::kBuilder);
-    CHECK(resolve_pane(stranger()).value_or(panel::kInfo) != panel::kBuilder);
+    CHECK(resolve_pane(stranger(), no_providers()).value_or(panel::kInfo) != panel::kBuilder);
 }
 
 TEST_CASE("what this application accepts as a setup name") {
@@ -14078,7 +14105,7 @@ TEST_CASE("the whole-setup law: duplicates, the count bound, and an empty list")
     future.name = "Later";
     future.panes.push_back(stranger());
     CHECK(check_setup(future).accepted);
-    CHECK_FALSE(resolvable(future.panes.front()));
+    CHECK_FALSE(resolvable(future.panes.front(), no_providers()));
 
     // A DUPLICATE IS NOT. A kind is open or it is not; a file naming one twice
     // was written by somebody who believed in a policy this application does not
@@ -14149,11 +14176,11 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
     s.panes.push_back(PaneRef{"other.tools", "graph"});
     s.panes.push_back(ref_of(panel::kBuilder));
 
-    const std::vector<PaneRef> waiting = unresolved_panes(s);
+    const std::vector<PaneRef> waiting = unresolved_panes(s, no_providers());
     REQUIRE(waiting.size() == 2);
     CHECK(waiting[0] == stranger());
     CHECK(waiting[1] == PaneRef{"other.tools", "graph"});
-    CHECK(unresolved_panes(default_setup()).empty());
+    CHECK(unresolved_panes(default_setup(), no_providers()).empty());
 }
 
 // ---- Authored intent, reconciled onto resolved presentations ------------------
@@ -14162,7 +14189,7 @@ TEST_CASE("reconciling opens what the setup names, in the setup's order") {
     Panels panels;
     REQUIRE(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
 
-    const Reconciled done = reconcile(panels, setup_of("Both", {panel::kBuilder, panel::kInfo}));
+    const Reconciled done = reconcile(panels, setup_of("Both", {panel::kBuilder, panel::kInfo}), min_room());
     CHECK(done.opened == std::vector<std::int64_t>{panel::kBuilder});
     CHECK(done.closed.empty());
     CHECK(done.unresolved == 0);
@@ -14171,7 +14198,7 @@ TEST_CASE("reconciling opens what the setup names, in the setup's order") {
 
     // The other way round, from the same starting point, produces the other order.
     Panels again;
-    (void)reconcile(again, setup_of("Both", {panel::kInfo, panel::kBuilder}));
+    (void)reconcile(again, setup_of("Both", {panel::kInfo, panel::kBuilder}), min_room());
     CHECK(open_kinds(again) == std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
 }
 
@@ -14181,7 +14208,7 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     panels.builder.heard = true;
     panels.builder.shown.target = "zengine-snake";
 
-    const Reconciled done = reconcile(panels, setup_of("Info only", {panel::kInfo}));
+    const Reconciled done = reconcile(panels, setup_of("Info only", {panel::kInfo}), min_room());
     CHECK(done.closed == std::vector<std::int64_t>{panel::kBuilder});
     CHECK(done.opened.empty());
     CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
@@ -14204,7 +14231,7 @@ TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing")
     panels.builder.shown.builds = 3;
 
     const Setup same = setup_of("Both", {panel::kInfo, panel::kBuilder});
-    const Reconciled done = reconcile(panels, same);
+    const Reconciled done = reconcile(panels, same, min_room());
     CHECK(done.opened.empty());
     CHECK(done.closed.empty());
     CHECK(panels.builder.heard);
@@ -14212,7 +14239,7 @@ TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing")
     CHECK(panels.builder.shown.builds == 3);
 
     // ...and doing it a second time changes nothing at all.
-    const Reconciled twice = reconcile(panels, same);
+    const Reconciled twice = reconcile(panels, same, min_room());
     CHECK(twice.opened.empty());
     CHECK(twice.closed.empty());
     CHECK(panels.builder.shown.builds == 3);
@@ -14224,7 +14251,7 @@ TEST_CASE("an unresolved reference is counted, and produces no panel of any kind
     s.panes.push_back(stranger());
     s.panes.push_back(PaneRef{"other.tools", "graph"});
 
-    const Reconciled done = reconcile(panels, s);
+    const Reconciled done = reconcile(panels, s, min_room());
     CHECK(done.unresolved == 2);
     // NO PLACEHOLDER, NO SLOT, NO FALL-THROUGH TO THE BUILDER. The only kind
     // available to paint an unknown pane with is the Builder, which is exactly
@@ -14243,14 +14270,14 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
     Setup nothing;
     nothing.name = "Nothing";
 
-    const Reconciled done = reconcile(panels, nothing);
+    const Reconciled done = reconcile(panels, nothing, min_room());
     CHECK(done.closed.size() == 2);
     CHECK(panels.open.empty());
     CHECK(done.unresolved == 0);
 
     // And back again from empty, which is the case that proves `opened` names
     // every kind rather than only the ones that were never open.
-    const Reconciled back = reconcile(panels, setup_of("Both", {panel::kInfo, panel::kBuilder}));
+    const Reconciled back = reconcile(panels, setup_of("Both", {panel::kInfo, panel::kBuilder}), min_room());
     CHECK(back.opened.size() == 2);
     CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
 }
@@ -14259,7 +14286,7 @@ TEST_CASE("reconciling touches the picker, the document and the screen not at al
     Panels panels;
     panels.picker.open = true;
     panels.picker.cursor = 1;
-    (void)reconcile(panels, setup_of("Builder", {panel::kBuilder}));
+    (void)reconcile(panels, setup_of("Builder", {panel::kBuilder}), min_room());
     // The picker is INTERACTION STATE. It is not setup intent, it is not in the
     // file, and reconciling is not a reason to open or close it.
     CHECK(panels.picker.open);
@@ -15632,4 +15659,1702 @@ TEST_CASE("WS-0a: the name and key bounds are BYTES, and the refusal says bytes"
     CHECK(check_setup_name(four_byte_chars(1)).accepted);   // 4 bytes, 1 character
     CHECK(check_setup_name(repeated(4, 'a')).accepted);     // 4 bytes, 4 characters
     CHECK_FALSE(check_setup_name(at_bound + " ").accepted); // 9 characters, 33 bytes
+}
+
+// ============================================================================
+// WP-0 — the office authors the pane; Workshop grants the room
+// ============================================================================
+//
+// One dynamically loaded external weave offers a read-only pane; Workshop
+// discovers it in either load order, resolves it through the unchanged two-string
+// `PaneRef`, lists it in the existing picker, opens it in Workshop-chosen room,
+// grants it a prose budget, shows the rows it answers with, and closes it without
+// touching the provider.
+//
+// WHAT EVERY CASE HERE IS ARRANGED AGAINST, and what makes them evidence rather
+// than description:
+//
+//   PROVENANCE      no payload carries a provider. The office is Loom's stamp, so
+//                   the negative cases -- personal speech from the actual holder,
+//                   a different office, a forged room -- are the cases that say
+//                   what the design bought.
+//   BOUNDS          a descriptor, a catalog, a row count and a column width each
+//                   have a number, and each has a case that exceeds it by one.
+//   SILENCE         waiting and unresolved are said; unavailable is never said,
+//                   because nothing in this process can prove it.
+//   THE REAL SEAM   the Hello provider is a real shared library loaded through the
+//                   real Kernel and Manager under an ATTESTED activation. A mock
+//                   loader would prove nothing about the ABI, and a registration
+//                   hook would prove nothing about the protocol.
+
+namespace {
+
+/// The Hello fixture's identity, spelled as a STRANGER would have to spell it --
+/// by string. Nothing here includes the fixture's source, because a provider is a
+/// stranger to Workshop and the whole claim is that two strings are enough.
+constexpr const char* kHelloOffice = "zengine.test.workshop-hello";
+constexpr const char* kHelloPane = "hello";
+
+PaneRef hello_ref() { return PaneRef{kHelloOffice, kHelloPane}; }
+
+/// A SECOND OFFICE, for the cases about two providers and one pane key.
+constexpr const char* kOtherOffice = "zengine.test.other-provider";
+
+/// The nudge that makes a native seat speak at an instant a case chooses. It is
+/// the seat's own private shape and no part of the pane protocol -- a case must
+/// be able to make a real weave author a real sentence without that mechanism
+/// being reachable by anything else.
+struct SeatDo {
+    ZEN_SHAPE(SeatDo, 1);
+};
+
+struct SeatState {
+    std::int64_t said = 0;
+    ZEN_SHAPE(SeatState, 1, ZEN_FIELD(said));
+};
+
+/// A NATIVE PROVIDER SEAT: a weave that holds an office and can be made to say
+/// anything at all, deliberately or personally.
+///
+/// IT IS EVIDENCE OF A DIFFERENT KIND FROM THE DYNAMIC FIXTURE, and the two are
+/// kept apart on purpose. The `.so` proves the real ABI, the real load path and a
+/// real attested activation; this proves the AUTHORITY cases, because a case must
+/// be able to send the exact wrong sentence at the exact wrong moment -- personal
+/// speech from the actual role holder, one office speaking about another's pane, a
+/// content message one column too wide -- and a shipped fixture that could be
+/// talked into those would not be a fixture worth shipping.
+class ProviderSeat : public loom::WeaveBase<ProviderSeat, SeatState,
+                                            loom::Accept<PaneCatalogRequested, PaneRoom, SeatDo>,
+                                            loom::Emit<PaneOffered, PaneContent>> {
+public:
+    explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
+
+    void on(const PaneCatalogRequested&, loom::Mail& mail) {
+        ++state_.said;
+        ++said;
+        asks.push_back(std::string(mail.authored_role()));
+    }
+    void on(const PaneRoom& r, loom::Mail& mail) {
+        ++state_.said;
+        ++said;
+        rooms.push_back(r);
+        room_authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(ProviderSeat&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+
+    /// Offer, deliberately AS this office -- the ordinary, correct spelling.
+    void offer(loom::Mail& mail, const PaneOffered& o) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, o);
+    }
+    /// Offer PERSONALLY, from the very weave that holds the office. Holding is not
+    /// speaking-for (MSG-07), and this is the sentence that says so.
+    void offer_personally(loom::Mail& mail, const PaneOffered& o) {
+        (void)mail.send_to_role(kWorkshopProvider, o);
+    }
+    void say(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, c);
+    }
+    void say_personally(loom::Mail& mail, const PaneContent& c) {
+        (void)mail.send_to_role(kWorkshopProvider, c);
+    }
+
+    /// EVERYTHING THIS SEAT WAS EVER TOLD, counted. It is what lets a case say
+    /// "closing a presentation reached the provider not at all" as a number rather
+    /// than as an absence somebody has to trust.
+    std::int64_t said = 0;
+    std::vector<PaneRoom> rooms;
+    std::vector<std::string> room_authors;
+    std::vector<std::string> asks;
+    std::function<void(ProviderSeat&, loom::Mail&)> next;
+
+private:
+    std::string office_;
+};
+
+
+/// A WEAVE THAT HOLDS `zengine.workshop` AND IS NOT WORKSHOP -- the instrument for
+/// measuring a PROVIDER's own authorship checks.
+///
+/// It exists because the fixture's refusals are invisible from Workshop's side: a
+/// room the provider declined to believe and a room it answered into a pane nobody
+/// has open both look like silence there. Holding the office lets this author a real
+/// `PaneRoom` deliberately, and holding it lets it also send one PERSONALLY -- which
+/// is exactly the sentence a weave that merely held the office would produce by
+/// reaching for `send_to_role`. Two spellings, one holder, opposite outcomes.
+class PaneWatcher : public loom::WeaveBase<PaneWatcher, SeatState,
+                                           loom::Accept<PaneOffered, PaneContent, SeatDo>,
+                                           loom::Emit<PaneCatalogRequested, PaneRoom>> {
+public:
+    void on(const PaneOffered& o, loom::Mail& mail) {
+        offers.push_back(o);
+        offer_authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const PaneContent& c, loom::Mail& mail) {
+        content.push_back(c);
+        content_authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(PaneWatcher&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+
+    void grant(loom::Mail& mail, const char* office, const PaneRoom& room) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, room);
+    }
+    void grant_personally(loom::Mail& mail, const char* office, const PaneRoom& room) {
+        (void)mail.send_to_role(office, room);
+    }
+    void ask(loom::Mail& mail) {
+        (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
+    }
+    void ask_personally(loom::Mail& mail) { (void)mail.publish(PaneCatalogRequested{}); }
+
+    std::vector<PaneOffered> offers;
+    std::vector<std::string> offer_authors;
+    std::vector<PaneContent> content;
+    std::vector<std::string> content_authors;
+    std::function<void(PaneWatcher&, loom::Mail&)> next;
+};
+
+struct BootState {
+    std::int64_t n = 0;
+    ZEN_SHAPE(BootState, 1, ZEN_FIELD(n));
+};
+
+/// The weave that commands the Weave Manager and HEARS ITS ANSWERS -- the host's
+/// own boot shape, because a load whose refusal is addressed to nobody looks
+/// exactly like a load that worked.
+class Booter : public loom::WeaveBase<Booter, BootState,
+                                      loom::Accept<loom::Result, loom::Refused>,
+                                      loom::Emit<loom::LoadWeave>> {
+public:
+    Booter(std::vector<std::string>& ok, std::vector<std::string>& no) : ok_(&ok), no_(&no) {}
+    void on(const loom::Result& r, loom::Mail&) { ok_->push_back(r.value); }
+    void on(const loom::Refused& r, loom::Mail&) { no_->push_back(r.reason); }
+
+private:
+    std::vector<std::string>* ok_;
+    std::vector<std::string>* no_;
+};
+
+/// A live Workshop that can be handed providers -- native ones always, and the real
+/// dynamic Hello when a case asks for it.
+///
+/// THE MOUNT ORDER IS THE CASE'S TO CHOOSE, which is why this is its own rig and not
+/// a flag on `Live`: the whole discovery claim is that neither load order loses an
+/// offer, and a rig that always mounted Workshop first could only ever prove one of
+/// the two.
+struct PaneRig {
+    loom::Switchboard bus;
+    loom::Kernel kernel{bus};
+    loom::WeaveId control = loom::mount_control(kernel, bus);
+    loom::WeaveId manager = loom::mount_manager(control, bus);
+    HostContext host;
+    std::vector<surface::SurfaceCanvas> canvases;
+    std::vector<surface::SurfaceText> notes;
+    WorkshopWeave* w = nullptr;
+    loom::WeaveId workshop_id{};
+    std::vector<std::string> loaded;
+    std::vector<std::string> load_refusals;
+
+    PaneRig() { (void)loom::mount<Painter>(bus, canvases, notes); }
+
+    /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` office, with
+    /// the exact production grant.
+    ///
+    /// THE RULES ARE SPELLED OUT RATHER THAN MINTED FROM THE EMIT SET, and that is
+    /// half of why this rig exists beside `Live`. `emit_default_grant` gives a weave
+    /// `to_any` for everything it declares, which is wider than what workshop.cpp
+    /// writes -- and the two Builder sentences being ROLE-SCOPED is a claim WP-0 must
+    /// not quietly relax. These six lines are the host's, copied deliberately so a
+    /// case can assert what Workshop may and may not say.
+    WorkshopWeave* mount_workshop() {
+        auto weave = std::make_unique<WorkshopWeave>(host);
+        w = weave.get();
+        loom::Grant speak;
+        speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
+        speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
+        speak.allow_to_role(zengine::builder::StatusRequested::zen_name,
+                            zengine::builder::StatusRequested::zen_version,
+                            zengine::builder::kBuilderRole);
+        speak.allow_to_role(zengine::builder::BuildRequested::zen_name,
+                            zengine::builder::BuildRequested::zen_version,
+                            zengine::builder::kBuilderRole);
+        speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
+        speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+        workshop_id =
+            bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
+        w->zen_set_self(workshop_id);
+        return w;
+    }
+
+    /// A native provider in an office of its own, granted exactly the two sentences
+    /// the pane protocol has and nothing else.
+    ProviderSeat* mount_provider(const char* office) {
+        auto seat = std::make_unique<ProviderSeat>(std::string(office));
+        ProviderSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+        grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), std::string(office));
+        raw->zen_set_self(id);
+        seat_ids.push_back(id);
+        seats_.push_back(raw);
+        return raw;
+    }
+
+    /// Make a seat perform one sentence INSIDE ITS OWN DELIVERY, which is what gives
+    /// `mail.as_role(...)` a real authorship moment for Loom to verify.
+    void drive(ProviderSeat* seat, std::function<void(ProviderSeat&, loom::Mail&)> what) {
+        seat->next = std::move(what);
+        loom::WeaveId id{};
+        for (std::size_t i = 0; i < seats_.size(); ++i) {
+            if (seats_[i] == seat) {
+                id = seat_ids[i];
+            }
+        }
+        (void)bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                         loom::WeaveId{}, 0));
+        bus.pump();
+    }
+
+    /// LOAD A REAL SHARED LIBRARY THROUGH THE REAL KERNEL AND MANAGER, exactly as a
+    /// host does: an ordinary `LoadWeave` command sent as a weave that can hear the
+    /// answer. There is no direct `Kernel::load` here and no test-only door -- the
+    /// artifact goes through the same path `zengine-workshop` sends its Skin through,
+    /// and the activation the loaded weave receives is Loom's own, attested.
+    loom::WeaveId load(const char* name, const char* path, const char* role) {
+        loom::Grant reach;
+        reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+        const std::size_t before = loaded.size();
+        const loom::WeaveId booter =
+            loom::mount_granted<Booter>(bus, std::move(reach), loaded, load_refusals);
+        bus.send_as(booter, manager,
+                    loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
+                                  booter, 0));
+        bus.pump();
+        if (loaded.size() <= before) {
+            return loom::WeaveId{};
+        }
+        return loom::WeaveId{static_cast<std::uint64_t>(std::stoll(loaded.back()))};
+    }
+
+
+    /// A watcher in the `zengine.workshop` office, INSTEAD of Workshop. Only one weave
+    /// may hold a role, so a case uses this OR `mount_workshop`, never both.
+    PaneWatcher* mount_watcher() {
+        auto seat = std::make_unique<PaneWatcher>();
+        PaneWatcher* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
+        grant.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
+        raw->zen_set_self(id);
+        watcher_id = id;
+        return raw;
+    }
+
+    void drive_watcher(PaneWatcher* watch, std::function<void(PaneWatcher&, loom::Mail&)> what) {
+        watch->next = std::move(what);
+        (void)bus.send(watcher_id,
+                       loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        bus.pump();
+    }
+
+    loom::WeaveId watcher_id{};
+
+    void publish(const loom::Value& v) {
+        (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
+        bus.pump();
+    }
+
+    /// The Skin says hello -- Workshop's startup hook, and where it asks the room who
+    /// has panes.
+    void ready() { publish(loom::to_value(surface::SurfaceReady{})); }
+
+    void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
+                std::int64_t line = 0) {
+        publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line}));
+    }
+
+    void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
+        publish(loom::to_value(input::KeyPressed{sc, "", mods}));
+    }
+
+    /// Walk the picker to the row naming this reference and press Return.
+    void pick(const PaneRef& ref) {
+        key(input::scan::kP);
+        const std::vector<CatalogRow> rows = combined_catalog(session().panels);
+        std::size_t want = 0;
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].ref == ref) {
+                want = i;
+            }
+        }
+        while (session().panels.picker.cursor < want) {
+            key(input::scan::kDown);
+        }
+        key(input::scan::kReturn);
+    }
+
+    Session& session() { return const_cast<Session&>(w->session()); }
+    const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
+    /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the
+    /// canvas, not published as a `SurfaceText` -- the published texts are the status
+    /// slot, which is the document's line and says nothing about a pane.
+    const std::string& last_notice() const { return w->session().notice; }
+
+    std::vector<loom::WeaveId> seat_ids;
+    std::vector<ProviderSeat*> seats_;
+};
+
+/// The rows an external pane is currently showing, read off the published canvas at
+/// the region the pane's body actually occupies -- never off the session directly, so
+/// what a case reads is what a maker would see.
+std::vector<std::string> external_rows(const surface::SurfaceCanvas& c, const ui::Rect& body) {
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRegion& r : c.texts) {
+        if (r.x == body.x && r.y == body.y) {
+            for (const surface::SurfaceTextRow& row : r.rows) {
+                out.push_back(row.text);
+            }
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+// ---- The protocol itself ------------------------------------------------------
+
+TEST_CASE("the pane protocol is four shapes, and none of them carries a provider") {
+    // THE ABSENCE IS THE ENFORCEMENT. Workshop derives the provider half of a
+    // `PaneRef` from `mail.authored_role()` -- Loom's stamp -- and the only way to
+    // guarantee it never reads one off a payload is for there to be no such field
+    // to read. So this case walks the declared schemas rather than trusting the
+    // struct definitions to stay as they are.
+    const std::shared_ptr<const loom::Schema> offered = loom::schema_of<PaneOffered>();
+    REQUIRE(offered != nullptr);
+    CHECK(offered->name() == "PaneOffered");
+    CHECK(offered->version() == 1);
+    REQUIRE(offered->fields().size() == 3);
+    CHECK(offered->fields()[0].name == "pane");
+    CHECK(offered->fields()[1].name == "name");
+    CHECK(offered->fields()[2].name == "summary");
+    for (const loom::Field& f : offered->fields()) {
+        CHECK(f.type.kind == loom::Kind::Text);
+        CHECK(f.name != "provider");
+        CHECK(f.name != "author");
+        CHECK(f.name != "weave");
+        CHECK(f.name != "placement");
+    }
+
+    const std::shared_ptr<const loom::Schema> content = loom::schema_of<PaneContent>();
+    REQUIRE(content != nullptr);
+    CHECK(content->name() == "PaneContent");
+    CHECK(content->version() == 1);
+    REQUIRE(content->fields().size() == 2);
+    CHECK(content->fields()[0].name == "pane");
+    CHECK(content->fields()[0].type.kind == loom::Kind::Text);
+    // THE ROWS ARE `surface::SurfaceTextRow` AND NOT A PARALLEL TYPE, so a
+    // provider's row carries the same semantic role and ground every first-party row
+    // does and the Skin's palette answers for it unchanged.
+    CHECK(content->fields()[1].name == "rows");
+    CHECK(content->fields()[1].type.kind == loom::Kind::List);
+    REQUIRE(content->fields()[1].type.element != nullptr);
+    REQUIRE(content->fields()[1].type.element->message != nullptr);
+    CHECK(content->fields()[1].type.element->message->name() == "SurfaceTextRow");
+    for (const loom::Field& f : content->fields()) {
+        CHECK(f.name != "provider");
+    }
+
+    const std::shared_ptr<const loom::Schema> room = loom::schema_of<PaneRoom>();
+    REQUIRE(room != nullptr);
+    CHECK(room->name() == "PaneRoom");
+    CHECK(room->version() == 1);
+    REQUIRE(room->fields().size() == 3);
+    CHECK(room->fields()[0].name == "pane");
+    CHECK(room->fields()[1].name == "rows");
+    CHECK(room->fields()[1].type.kind == loom::Kind::Int);
+    CHECK(room->fields()[2].name == "columns");
+    CHECK(room->fields()[2].type.kind == loom::Kind::Int);
+    // NO GEOMETRY OF ANY KIND. A budget of prose, and not a rectangle, a cell, a
+    // pixel, an extent, a font or the identity of the medium that answered.
+    for (const loom::Field& f : room->fields()) {
+        CHECK(f.name != "x");
+        CHECK(f.name != "y");
+        CHECK(f.name != "width");
+        CHECK(f.name != "height");
+        CHECK(f.name != "text_advance_px");
+        CHECK(f.name != "text_line_px");
+    }
+
+    const std::shared_ptr<const loom::Schema> ask = loom::schema_of<PaneCatalogRequested>();
+    REQUIRE(ask != nullptr);
+    CHECK(ask->name() == "PaneCatalogRequested");
+    CHECK(ask->version() == 1);
+    CHECK(ask->fields().empty()); // a filter would be a policy nobody asked for
+}
+
+TEST_CASE("a pane's content round-trips through the wire with its semantics intact") {
+    PaneContent said;
+    said.pane = "hello";
+    said.rows.push_back(surface::SurfaceTextRow{"first", surface::role::kAccent,
+                                                surface::role::kMuted});
+    said.rows.push_back(surface::SurfaceTextRow{"second", surface::role::kMuted});
+    const loom::Value v = loom::to_value(said);
+    const PaneContent back = loom::from_value<PaneContent>(v);
+    CHECK(back.pane == "hello");
+    REQUIRE(back.rows.size() == 2);
+    CHECK(back.rows[0].text == "first");
+    CHECK(back.rows[0].role == surface::role::kAccent);
+    CHECK(back.rows[0].background == surface::role::kMuted);
+    CHECK(back.rows[1].text == "second");
+    CHECK(back.rows[1].background == surface::role::kNone);
+
+    PaneOffered offer{"hello", "Hello", "a bounded external greeting"};
+    const PaneOffered offer_back = loom::from_value<PaneOffered>(loom::to_value(offer));
+    CHECK(offer_back.pane == "hello");
+    CHECK(offer_back.name == "Hello");
+    CHECK(offer_back.summary == "a bounded external greeting");
+
+    const PaneRoom room_back =
+        loom::from_value<PaneRoom>(loom::to_value(PaneRoom{"hello", 7, 46}));
+    CHECK(room_back.pane == "hello");
+    CHECK(room_back.rows == 7);
+    CHECK(room_back.columns == 46);
+}
+
+// ---- Descriptor law and the catalog bound ---------------------------------------
+
+namespace {
+
+PaneOffered good_offer() { return PaneOffered{"hello", "Hello", "a bounded external greeting"}; }
+
+std::string bytes(std::size_t n, char c) { return std::string(n, c); }
+
+} // namespace
+
+TEST_CASE("a valid offer is admitted under the office that stamped it") {
+    RuntimeCatalog cat;
+    const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
+    REQUIRE(a.written.accepted);
+    CHECK_FALSE(a.refreshed);
+    REQUIRE(cat.entries.size() == 1);
+    CHECK(cat.entries[0].provider == std::string(kHelloOffice));
+    CHECK(cat.entries[0].pane == "hello");
+    CHECK(cat.entries[0].name == "Hello");
+    CHECK(cat.entries[0].summary == "a bounded external greeting");
+    // THE HANDLE IS SESSION-LOCAL AND OUTSIDE THE BUILT-IN NUMBER SPACE, which is
+    // what stops it reaching `panel_kind`'s Builder fall-through.
+    CHECK(is_runtime_kind(a.kind));
+    CHECK(a.kind >= kFirstRuntimeKind);
+    CHECK(cat.entries[0].kind == a.kind);
+    // AND THE DURABLE IDENTITY IS THE STAMPED OFFICE PLUS THE PAYLOAD'S PANE KEY.
+    CHECK(resolve_pane(hello_ref(), cat).value_or(0) == a.kind);
+}
+
+TEST_CASE("an offer with no stamped office is refused, and retains nothing") {
+    RuntimeCatalog cat;
+    const Admission a = admit_pane_offer(cat, "", good_offer());
+    CHECK_FALSE(a.written.accepted);
+    CHECK(cat.entries.empty());
+}
+
+TEST_CASE("a descriptor's name and summary are bounded, and a refusal keeps nothing") {
+    RuntimeCatalog cat;
+    const auto refused = [&cat](const PaneOffered& o) {
+        const std::size_t before = cat.entries.size();
+        const Admission a = admit_pane_offer(cat, kHelloOffice, o);
+        CHECK_FALSE(a.written.accepted);
+        CHECK(cat.entries.size() == before);
+        return a.written.refusal;
+    };
+
+    CHECK(refused(PaneOffered{"hello", "", "fine"}) == "a pane's name cannot be empty");
+    CHECK(refused(PaneOffered{"hello", "   ", "fine"}) ==
+          "a pane's name needs more than spaces in it");
+    CHECK(refused(PaneOffered{"hello", std::string("Hel\nlo"), "fine"}) ==
+          "a pane's name cannot contain control characters");
+    CHECK(refused(PaneOffered{"hello", bytes(kMaxPaneNameLen + 1, 'n'), "fine"}) ==
+          "a pane's name is at most 32 bytes");
+    CHECK(refused(PaneOffered{"hello", "Hello", ""}) == "a pane's summary cannot be empty");
+    CHECK(refused(PaneOffered{"hello", "Hello", "  "}) ==
+          "a pane's summary needs more than spaces in it");
+    CHECK(refused(PaneOffered{"hello", "Hello", std::string("a\x7F" "b")}) ==
+          "a pane's summary cannot contain control characters");
+    CHECK(refused(PaneOffered{"hello", "Hello", bytes(kMaxPaneSummaryLen + 1, 's')}) ==
+          "a pane's summary is at most 64 bytes");
+
+    // THE BOUNDS ARE BYTE COUNTS AND THE LAST ACCEPTED BYTE IS ACCEPTED.
+    CHECK(admit_pane_offer(cat, kHelloOffice,
+                           PaneOffered{"hello", bytes(kMaxPaneNameLen, 'n'),
+                                       bytes(kMaxPaneSummaryLen, 's')})
+              .written.accepted);
+    REQUIRE(cat.entries.size() == 1);
+}
+
+TEST_CASE("a descriptor's two keys are judged by the setup file's own law") {
+    RuntimeCatalog cat;
+    // THE SAME `check_pane_key` THE PERSISTED GRAMMAR USES, and it is the same
+    // function rather than a second one: a runtime key that a saved setup could not
+    // spell would be an identity a maker could never keep.
+    CHECK(admit_pane_offer(cat, "has space", good_offer()).written.refusal ==
+          "a pane reference's provider cannot contain spaces or control characters");
+    CHECK(admit_pane_offer(cat, bytes(kMaxPaneKeyLen + 1, 'p'), good_offer()).written.refusal ==
+          "a pane reference's provider is at most 64 bytes");
+    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{"", "Hello", "fine"})
+              .written.refusal == "a pane reference's pane key cannot be empty");
+    CHECK(admit_pane_offer(cat, kHelloOffice,
+                           PaneOffered{bytes(kMaxPaneKeyLen + 1, 'k'), "Hello", "fine"})
+              .written.refusal == "a pane reference's pane key is at most 64 bytes");
+    CHECK(cat.entries.empty());
+}
+
+TEST_CASE("a runtime offer cannot shadow a built-in pane") {
+    RuntimeCatalog cat;
+    // Offered by whoever holds `zengine.workshop`, `info` names the row this build
+    // compiled in -- and a live message may not move it.
+    CHECK(admit_pane_offer(cat, kWorkshopProvider,
+                           PaneOffered{pane_key::kInfo, "Not Info", "a forgery"})
+              .written.refusal == "`zengine.workshop/info` is a built-in pane");
+    CHECK(admit_pane_offer(cat, kWorkshopProvider,
+                           PaneOffered{pane_key::kBuilder, "Not Builder", "a forgery"})
+              .written.accepted == false);
+    CHECK(cat.entries.empty());
+    // ...and the built-ins still resolve to themselves.
+    CHECK(resolve_pane(PaneRef{kWorkshopProvider, pane_key::kInfo}, cat).value_or(-1) ==
+          panel::kInfo);
+
+    // A DIFFERENT OFFICE OFFERING THE SAME PANE KEY IS A DIFFERENT PANE, and is
+    // admitted normally -- the `PaneRef` is the PAIR.
+    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{pane_key::kInfo, "Info", "theirs"})
+              .written.accepted);
+    REQUIRE(cat.entries.size() == 1);
+    CHECK(is_runtime_kind(cat.entries[0].kind));
+}
+
+TEST_CASE("re-offering one reference refreshes it in place and grows nothing") {
+    RuntimeCatalog cat;
+    const Admission first = admit_pane_offer(cat, kHelloOffice, good_offer());
+    REQUIRE(first.written.accepted);
+    const std::int64_t handle = first.kind;
+
+    const Admission again =
+        admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "Hello!", "a better line"});
+    CHECK(again.written.accepted);
+    CHECK(again.refreshed);
+    CHECK(again.kind == handle); // THE HANDLE IS KEPT, so an open pane stays the pane it was
+    REQUIRE(cat.entries.size() == 1);
+    CHECK(cat.entries[0].name == "Hello!");
+    CHECK(cat.entries[0].summary == "a better line");
+
+    // AN INVALID REFRESH LEAVES THE LAST ACCEPTED DESCRIPTOR WHOLE.
+    CHECK_FALSE(admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "", "x"})
+                    .written.accepted);
+    REQUIRE(cat.entries.size() == 1);
+    CHECK(cat.entries[0].name == "Hello!");
+    CHECK(cat.entries[0].summary == "a better line");
+}
+
+TEST_CASE("two offices offering one pane key stay two panes, and neither can move the other") {
+    RuntimeCatalog cat;
+    const Admission a = admit_pane_offer(cat, kHelloOffice, good_offer());
+    const Admission b =
+        admit_pane_offer(cat, kOtherOffice, PaneOffered{"hello", "Hello", "somebody else's"});
+    REQUIRE(a.written.accepted);
+    REQUIRE(b.written.accepted);
+    CHECK(a.kind != b.kind);
+    REQUIRE(cat.entries.size() == 2);
+
+    // Office A refreshing its own row leaves office B's untouched.
+    CHECK(admit_pane_offer(cat, kHelloOffice, PaneOffered{"hello", "Hello", "mine, corrected"})
+              .refreshed);
+    CHECK(cat.entries.size() == 2);
+    CHECK(cat.find(kHelloOffice, "hello")->summary == "mine, corrected");
+    CHECK(cat.find(kOtherOffice, "hello")->summary == "somebody else's");
+    CHECK(resolve_pane(PaneRef{kHelloOffice, "hello"}, cat).value() == a.kind);
+    CHECK(resolve_pane(PaneRef{kOtherOffice, "hello"}, cat).value() == b.kind);
+}
+
+TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included") {
+    RuntimeCatalog cat;
+    // THIRTY RUNTIME ROWS, because the two compile-time ones are part of the total.
+    for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kPanelKinds; ++i) {
+        const Admission a = admit_pane_offer(
+            cat, kHelloOffice, PaneOffered{"pane" + std::to_string(i), "P", "one of many"});
+        INFO("offer ", i);
+        REQUIRE(a.written.accepted);
+    }
+    CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kPanelKinds);
+    CHECK(cat.entries.size() + kPanelKinds == kMaxPaneCatalogEntries);
+
+    // THE THIRTY-THIRD TOTAL ROW IS REFUSED, VISIBLY, AND CHANGES NOTHING.
+    const Admission over =
+        admit_pane_offer(cat, kHelloOffice, PaneOffered{"one-too-many", "Extra", "over"});
+    CHECK_FALSE(over.written.accepted);
+    CHECK(over.written.refusal ==
+          "Workshop holds at most 32 panes -- `zengine.test.workshop-hello/one-too-many` was "
+          "not added");
+    CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kPanelKinds);
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "one-too-many"}, cat).has_value());
+
+    // ...AND AN EXISTING ENTRY MAY STILL BE REFRESHED WHILE FULL. The bound is on how
+    // many DISTINCT panes are held, not on how often a provider may correct itself.
+    const Admission refresh =
+        admit_pane_offer(cat, kHelloOffice, PaneOffered{"pane0", "P0", "corrected"});
+    CHECK(refresh.written.accepted);
+    CHECK(refresh.refreshed);
+    CHECK(cat.entries.size() == kMaxPaneCatalogEntries - kPanelKinds);
+    CHECK(cat.find(kHelloOffice, "pane0")->summary == "corrected");
+}
+
+TEST_CASE("the runtime catalog is beside the compile-time one and never inside it") {
+    RuntimeCatalog cat;
+    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
+
+    Panels panels;
+    panels.runtime = cat;
+    const std::vector<CatalogRow> rows = combined_catalog(panels);
+    REQUIRE(rows.size() == kPanelKinds + 1);
+    // BUILT-INS FIRST, IN THE CATALOG'S OWN ORDER...
+    CHECK(rows[0].kind == panel::kBuilder);
+    CHECK(rows[0].name == "Builder");
+    CHECK(rows[0].ref == PaneRef{kWorkshopProvider, pane_key::kBuilder});
+    CHECK(rows[1].kind == panel::kInfo);
+    CHECK(rows[1].name == "Info");
+    // ...THEN THE RUNTIME ROWS, IN FIRST-ACCEPTED-OFFER ORDER.
+    CHECK(rows[2].ref == hello_ref());
+    CHECK(rows[2].name == "Hello");
+    CHECK(rows[2].summary == "a bounded external greeting");
+    CHECK(is_runtime_kind(rows[2].kind));
+
+    // AND THE COMPILE-TIME CATALOG IS UNMOVED. A runtime offer is not an edit to the
+    // constant array, which is what keeps a built-in's identity a compile-time fact.
+    CHECK(kPanelKinds == 2);
+    CHECK(std::string(kPanelCatalog[0].name) == "Builder");
+    CHECK(std::string(kPanelCatalog[1].name) == "Info");
+}
+
+TEST_CASE("an unknown runtime reference never becomes the Builder") {
+    Panels panels;
+    RuntimeCatalog& cat = panels.runtime;
+    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
+    const std::int64_t hello = cat.entries[0].kind;
+
+    // THE NEGATIVE CONTROL THE FALLIBLE DOOR EXISTS FOR, said about a runtime kind.
+    CHECK_FALSE(resolve_pane(PaneRef{kHelloOffice, "never-offered"}, cat).has_value());
+    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "hello"}, cat).has_value());
+    CHECK_FALSE(resolve_builtin_pane(hello_ref()).has_value());
+
+    // AND `placement_of` DOES NOT REACH THE BUILDER'S ROW FOR A RUNTIME KIND. The
+    // total lookup still answers Builder for an unknown kind and is still allowed to;
+    // what changed is that a runtime handle never gets there.
+    CHECK(panel_kind(hello).kind == panel::kBuilder); // the fall-through, still total
+    CHECK(placement_of(hello) == placement::kOverlayStack);
+    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
+    // ...and the NAME a maker reads is the offered one rather than the fall-through's.
+    CHECK(kind_name(panels, hello) == "Hello");
+    CHECK(kind_name(panels, panel::kBuilder) == "Builder");
+    CHECK(kind_name(panels, 9999).empty());
+}
+
+// ---- Provenance: the office authors, and holding is not speaking-for --------------
+
+TEST_CASE("a personal offer from the actual role holder registers nothing") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+
+    // THE SHARPEST NEGATIVE THIS PHASE HAS. This weave HOLDS `zengine.test.workshop-hello`
+    // at this instant -- Loom would confirm it -- and it speaks with `mail.send_to_role`,
+    // which is personal speech. `authored_role()` is empty, so there is no office to
+    // derive a `PaneRef`'s provider half from, and the offer is not a fact about
+    // anybody's arrangement.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer_personally(m, good_offer()); });
+    CHECK(r.session().panels.runtime.entries.empty());
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds);
+
+    // THE SAME SENTENCE, DELIBERATELY AUTHORED, IS ADMITTED. One `as_role` apart.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].provider == std::string(kHelloOffice));
+}
+
+TEST_CASE("one office cannot overwrite another office's descriptor") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* mine = r.mount_provider(kHelloOffice);
+    ProviderSeat* theirs = r.mount_provider(kOtherOffice);
+
+    r.drive(mine, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.drive(theirs, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"hello", "Hello", "somebody else's greeting"});
+    });
+    const RuntimeCatalog& cat = r.session().panels.runtime;
+    REQUIRE(cat.entries.size() == 2);
+    CHECK(cat.find(kHelloOffice, "hello")->summary == "a bounded external greeting");
+    CHECK(cat.find(kOtherOffice, "hello")->summary == "somebody else's greeting");
+
+    // AND NEITHER CAN REACH THE OTHER'S ROW. The office is stamped by Loom, so the
+    // second provider cannot name the first even by trying: there is no field for it.
+    r.drive(theirs, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"hello", "Hijacked", "theirs, rewritten"});
+    });
+    REQUIRE(cat.entries.size() == 2);
+    CHECK(cat.find(kHelloOffice, "hello")->name == "Hello");
+    CHECK(cat.find(kHelloOffice, "hello")->summary == "a bounded external greeting");
+    CHECK(cat.find(kOtherOffice, "hello")->name == "Hijacked");
+}
+
+TEST_CASE("personal and wrong-office content cannot alter a valid cache") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* mine = r.mount_provider(kHelloOffice);
+    ProviderSeat* theirs = r.mount_provider(kOtherOffice);
+    r.drive(mine, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+
+    PaneContent real;
+    real.pane = kHelloPane;
+    real.rows.push_back(surface::SurfaceTextRow{"the true row", surface::role::kFill});
+    r.drive(mine, [real](ProviderSeat& s, loom::Mail& m) { s.say(m, real); });
+
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->heard);
+    REQUIRE(pane->shown.size() == 1);
+    CHECK(pane->shown[0].text == "the true row");
+
+    // PERSONAL SPEECH from the actual holder changes nothing...
+    PaneContent forged;
+    forged.pane = kHelloPane;
+    forged.rows.push_back(surface::SurfaceTextRow{"a forged row", surface::role::kFill});
+    r.drive(mine, [forged](ProviderSeat& s, loom::Mail& m) { s.say_personally(m, forged); });
+    CHECK(r.session().panels.external_pane(kind)->shown[0].text == "the true row");
+
+    // ...and neither does another office speaking about this pane key. Its own
+    // `PaneRef` is a different one and it has no open pane, so there is nothing for
+    // this to land on at all.
+    r.drive(theirs, [forged](ProviderSeat& s, loom::Mail& m) { s.say(m, forged); });
+    CHECK(r.session().panels.external_pane(kind)->shown[0].text == "the true row");
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+}
+
+// ---- Discovery, through the REAL dynamic seam -------------------------------------
+
+TEST_CASE("Workshop first, then the provider: an attested activation announces the pane") {
+    PaneRig r;
+    r.mount_workshop();
+    // Workshop asks before anybody can answer. The ask reaches nobody and is gone --
+    // nothing is retried, buffered or queued for a provider that does not exist yet.
+    r.ready();
+    CHECK(r.session().panels.runtime.entries.empty());
+
+    // THE REAL LIBRARY, THROUGH THE REAL KERNEL AND MANAGER. Loom sends the freshly
+    // committed incarnation an ATTESTED `zen.Activated`, `ActivationCursor` accepts it,
+    // and the provider announces.
+    const loom::WeaveId hello =
+        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(r.load_refusals.empty());
+    REQUIRE(hello.valid());
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].provider == std::string(kHelloOffice));
+    CHECK(r.session().panels.runtime.entries[0].pane == std::string(kHelloPane));
+    CHECK(r.session().panels.runtime.entries[0].name == "Hello");
+    CHECK(r.session().panels.runtime.entries[0].summary == "a bounded external greeting");
+}
+
+TEST_CASE("the provider first, then Workshop: the catalog request recovers the lost offer") {
+    PaneRig r;
+    // THE AWKWARD ORDER, and the one ask-and-announce exists for. The provider's
+    // activation offer is addressed to the `zengine.workshop` office, which nobody
+    // holds yet -- so it reaches nobody and is gone.
+    const loom::WeaveId hello =
+        r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(hello.valid());
+    r.mount_workshop();
+    CHECK(r.session().panels.runtime.entries.empty()); // the first offer really was lost
+
+    // ...and Workshop's own startup ask brings it back, because the provider verifies
+    // the authorship and re-offers.
+    r.ready();
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].name == "Hello");
+}
+
+TEST_CASE("asking twice and announcing twice still yields one catalog row") {
+    PaneRig r;
+    r.mount_workshop();
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    const std::int64_t handle = r.session().panels.runtime.entries[0].kind;
+
+    r.ready();
+    r.ready();
+    r.ready();
+    // REPETITION IS HARMLESS BY CONSTRUCTION: identity does the de-duplication, so the
+    // protocol needs none of its own.
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].kind == handle);
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 1);
+}
+
+TEST_CASE("the provider answers Workshop and nobody else") {
+    PaneRig r;
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.mount_workshop();
+    REQUIRE(r.session().panels.runtime.entries.empty());
+
+    // AN UNAUTHENTICATED CATALOG REQUEST -- a root publication, carrying no authored
+    // role at all. A provider that answered this would hand its catalog to whoever
+    // asked, including a weave holding no office.
+    r.publish(loom::to_value(PaneCatalogRequested{}));
+    CHECK(r.session().panels.runtime.entries.empty());
+
+    // The same shape, authored as `zengine.workshop`, is answered.
+    r.ready();
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+}
+
+TEST_CASE("a forged room grants the provider nothing") {
+    // THE PROVIDER'S OWN CHECK, MEASURED FROM THE OTHER SIDE. A watcher holds
+    // `zengine.workshop` so it can author a room deliberately, and can also send one
+    // personally -- which is exactly the sentence a weave that merely held the office
+    // would produce by reaching for `send_to_role`.
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(watch->offers.size() == 1); // the activation announcement landed here
+
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant_personally(m, kHelloOffice, PaneRoom{kHelloPane, 4, 20});
+    });
+    CHECK(watch->content.empty()); // no room was believed, so no content was produced
+
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kHelloOffice, PaneRoom{kHelloPane, 4, 20});
+    });
+    REQUIRE(watch->content.size() == 1);
+    REQUIRE(watch->content[0].rows.size() == 4);
+    CHECK(watch->content[0].rows[0].text == "hello -- 4x20");
+}
+
+// ---- The picker, over the combined population -------------------------------------
+
+TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
+    // THE CONTROL FOR THE WHOLE WINDOWING CHANGE. A population that fits renders
+    // exactly as it did before `list_window` was spent here.
+    Session before;
+    before.panels.picker.open = true;
+    surface::SurfaceCanvas c;
+    paint_picker(c, before.panels, screen_of(before));
+    const std::string shown = stack_text(c);
+    CHECK(shown.find("+ PANEL") != std::string::npos);
+    CHECK(shown.find("Builder   closed") != std::string::npos);
+    CHECK(shown.find("Info      open") != std::string::npos);
+    CHECK(shown.find("... ") == std::string::npos); // no omission marker at this population
+}
+
+TEST_CASE("the combined picker lists an offered pane with its name, summary and state") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    r.key(input::scan::kP);
+    const std::string closed = stack_text(r.last_canvas());
+    CHECK(closed.find(detail::pad("Hello", 10) + detail::pad("closed", 8) +
+                      "a bounded external greeting") != std::string::npos);
+
+    r.key(input::scan::kEscape);
+    r.pick(hello_ref());
+    r.key(input::scan::kP);
+    const std::string open = stack_text(r.last_canvas());
+    CHECK(open.find("Hello     open") != std::string::npos);
+    r.key(input::scan::kEscape);
+
+    // AND SELECTING IT AGAIN REMOVES IT -- the picker is still the one owner of
+    // presence, and an external pane earns no second door.
+    r.pick(hello_ref());
+    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    r.key(input::scan::kP);
+    CHECK(stack_text(r.last_canvas()).find("Hello     closed") != std::string::npos);
+}
+
+TEST_CASE("a picker population larger than its rows is windowed, not truncated") {
+    Panels panels;
+    // EIGHTEEN OFFERED PANES plus the two built-ins: twenty rows into a budget of
+    // eight. Before WP-0 the picker's height was `1 + kPanelKinds`, a catalog census
+    // standing in for a capacity -- which is right until a catalog can outgrow the box.
+    //
+    // TWENTY RATHER THAN FOURTEEN, and the number is not arbitrary: `list_window`'s
+    // two-marker branch needs a selection that neither end can reach, which at a
+    // budget of eight means a population above fourteen. At fourteen exactly, every
+    // cursor lands on a single-marker window and the middle case is unreachable --
+    // which is a fact about the shared function rather than about this list.
+    for (std::size_t i = 0; i < 18; ++i) {
+        REQUIRE(admit_pane_offer(panels.runtime, kHelloOffice,
+                                 PaneOffered{"p" + std::to_string(i),
+                                             "Pane" + std::to_string(i), "one of many"})
+                    .written.accepted);
+    }
+    REQUIRE(combined_catalog(panels).size() == kPanelKinds + 18);
+    panels.picker.open = true;
+    const Screen sc = kMinScreen;
+    const std::int64_t budget = picker_bounds(sc).h - 1;
+    REQUIRE(budget == 8);
+
+    const auto rows_of = [&](std::size_t cursor) {
+        panels.picker.cursor = cursor;
+        surface::SurfaceCanvas c;
+        paint_picker(c, panels, sc);
+        std::vector<std::string> out;
+        for (const surface::SurfaceLabel& l : c.labels) {
+            out.push_back(l.text);
+        }
+        return out;
+    };
+
+    // AT THE HEAD: no `earlier` marker, an `more` marker, and the cursor visible.
+    std::vector<std::string> head = rows_of(0);
+    REQUIRE(head.size() == static_cast<std::size_t>(picker_bounds(sc).h));
+    CHECK(head[1].find("> Builder") == 0);
+    CHECK(head[8].find("... 13 more") != std::string::npos);
+    for (const std::string& row : head) {
+        CHECK(row.find("earlier") == std::string::npos);
+    }
+
+    // AT THE TAIL: an `earlier` marker, no `more`, and the cursor visible.
+    std::vector<std::string> tail = rows_of(19);
+    CHECK(tail[1].find("... 13 earlier") != std::string::npos);
+    CHECK(tail[8].find("> Pane17") == 0);
+    for (const std::string& row : tail) {
+        CHECK(row.find(" more") == std::string::npos);
+    }
+
+    // IN THE MIDDLE: both walls said, both counts exact, and both markers paid for out
+    // of the same eight rows rather than added beneath them.
+    std::vector<std::string> mid = rows_of(10);
+    CHECK(mid[1].find("... 5 earlier") != std::string::npos);
+    CHECK(mid[8].find("... 9 more") != std::string::npos);
+    CHECK(mid[7].find("> Pane8") == 0);
+    // 5 omitted before + 6 rows shown + 9 omitted after == 20, and the box is 9 rows:
+    // the two markers come OUT of the eight-row budget rather than being added beneath
+    // it, which is `list_window`'s third rule and the reason the picker did not grow.
+    CHECK(mid.size() == static_cast<std::size_t>(picker_bounds(sc).h));
+    CHECK(5 + 6 + 9 == static_cast<int>(kPanelKinds + 18));
+
+    // THE PICKER DID NOT GET TALLER. Every row is inside the first overlay slot.
+    surface::SurfaceCanvas c;
+    panels.picker.cursor = 10;
+    paint_picker(c, panels, sc);
+    const ui::Rect box = picker_bounds(sc);
+    for (const surface::SurfaceLabel& l : c.labels) {
+        CHECK(l.y >= box.y);
+        CHECK(l.y < box.y + box.h);
+    }
+}
+
+TEST_CASE("the picker cursor is bounded by the combined population") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    r.key(input::scan::kP);
+    for (int i = 0; i < 10; ++i) {
+        r.key(input::scan::kDown);
+    }
+    // THREE ROWS NOW, and the cursor stops on the last of them rather than on the last
+    // BUILT-IN, which is what `kPanelKinds` would have bounded it to.
+    CHECK(r.session().panels.picker.cursor == kPanelKinds);
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 1);
+}
+
+// ---- Setup resolution: an unchanged reference, resolved later ---------------------
+
+TEST_CASE("an authored external reference is unresolved until its office offers it") {
+    PaneRig r;
+    r.mount_workshop();
+    // The maker authored this before any provider existed -- which is exactly the
+    // shape WS-0 made legal and WP-0 finally has a consumer for.
+    r.session().setup.active.panes.push_back(hello_ref());
+    r.session().setup.on_file = r.session().setup.active;
+    r.key(input::scan::kP);
+    r.key(input::scan::kEscape); // a repaint, so the setup line is current
+
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).size() == 1);
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+              .find("1 unresolved") != std::string::npos);
+    CHECK_FALSE(r.session().panels.has(kFirstRuntimeKind));
+
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    // THE SAME UNCHANGED REFERENCE NOW RESOLVES, and reconciliation opened it through
+    // the one path -- the file was not touched and no second door exists.
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    CHECK(r.session().setup.active.panes.back() == hello_ref());
+    CHECK(r.session().panels.has(kind));
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+    // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT.
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+              .find("unresolved") == std::string::npos);
+    // THE SETUP IS STILL SAVED: resolving is not an edit.
+    CHECK(r.session().setup.saved());
+}
+
+TEST_CASE("a fresh session with no provider leaves the same reference unresolved again") {
+    // A SECOND PROCESS, spelled the only way a suite can: a second everything. The
+    // runtime catalog is session state and earns nothing from the last run.
+    Setup saved;
+    saved.name = "Future";
+    saved.panes.push_back(ref_of(panel::kInfo));
+    saved.panes.push_back(hello_ref());
+    REQUIRE(check_setup(saved).accepted);
+
+    PaneRig fresh;
+    fresh.mount_workshop();
+    fresh.session().setup.active = saved;
+    fresh.session().setup.on_file = saved;
+    CHECK(fresh.session().panels.runtime.entries.empty());
+    const std::vector<PaneRef> waiting =
+        unresolved_panes(saved, fresh.session().panels.runtime);
+    REQUIRE(waiting.size() == 1);
+    CHECK(waiting[0] == hello_ref());
+    // NOT DROPPED, NOT REMAPPED, AND NOT CALLED UNAVAILABLE. Workshop knows it has no
+    // row for the reference and knows nothing at all about whoever could present it.
+    CHECK(fresh.session().setup.active.panes.size() == 2);
+    CHECK(fresh.session().setup.active.panes[1] == hello_ref());
+    CHECK(setup_status_text(fresh.session().setup, "", fresh.session().panels.runtime)
+              .find("unavailable") == std::string::npos);
+}
+
+TEST_CASE("version-1 setup bytes are unchanged, and carry no descriptor, room or handle") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"cached prose", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(r.session().panels.runtime.entries[0].kind)->heard);
+
+    const std::string text = setup_persist::to_text(r.session().setup.active);
+    // THE FILE IS EXACTLY WHAT WS-0 WROTE. Two strings per pane and no fourth field.
+    CHECK(text.find("\"zengine-workshop-setup\"") != std::string::npos);
+    CHECK(text.find("\"version\"") != std::string::npos);
+    CHECK(text.find(kHelloOffice) != std::string::npos);
+    CHECK(text.find("\"hello\"") != std::string::npos);
+    // ...AND NOT ONE BYTE OF WHAT THIS SESSION LEARNED AT RUNTIME.
+    CHECK(text.find("\"Hello\"") == std::string::npos); // the display name is not saved
+    CHECK(text.find("a bounded external greeting") == std::string::npos);
+    CHECK(text.find("cached prose") == std::string::npos);
+    CHECK(text.find("rows") == std::string::npos);
+    CHECK(text.find("columns") == std::string::npos);
+    CHECK(text.find(std::to_string(kFirstRuntimeKind)) == std::string::npos);
+
+    // SAVE -> LOAD -> SAVE IS BYTE-IDENTICAL, with an external reference in it.
+    const setup_persist::LoadedSetup back = setup_persist::from_text(text);
+    REQUIRE(back.outcome.accepted);
+    CHECK(back.setup == r.session().setup.active);
+    CHECK(setup_persist::to_text(back.setup) == text);
+    // AND THE VERSION DID NOT MOVE.
+    CHECK(setup_persist::kFormatVersion == 1);
+}
+
+// ---- Runtime spatial capacity -----------------------------------------------------
+
+TEST_CASE("the overlay floor is the setup line's row, not the notice line's") {
+    // THE BOUNDARY, STATED IN BOTH SPELLINGS AND MEASURED AGAINST THE COMPOSITION.
+    // Checking only against `notice_y` would call a second slot legal at the minimum
+    // extent and let it erase the row naming the arrangement a maker is in.
+    for (std::int64_t h : {22, 23, 24, 30, 40, 60}) {
+        const Screen sc = screen_of(78, h);
+        INFO("height ", h);
+        CHECK(kWorkspaceY + sc.room_h == sc.notice_y - 1);
+        const std::size_t fits = stack_slots_that_fit(sc);
+        for (std::size_t slot = 0; slot < fits; ++slot) {
+            const ui::Rect b = placement_bounds(placement::kOverlayStack, slot, sc);
+            CHECK(b.y + b.h <= kWorkspaceY + sc.room_h);
+        }
+        const ui::Rect over = placement_bounds(placement::kOverlayStack, fits, sc);
+        CHECK(over.y + over.h > kWorkspaceY + sc.room_h);
+    }
+    CHECK(stack_slots_that_fit(kMinScreen) == 1);
+    CHECK(stack_slots_that_fit(screen_of(78, 42)) >= 2);
+}
+
+TEST_CASE("a second overlay at the minimum screen is refused before it reaches Panels::open") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(r.session().panels.has(hello));
+    const Setup before = r.session().setup.active;
+
+    // The Builder is placed in the same stack, and there is room for one slot.
+    r.pick(ref_of(panel::kBuilder));
+    CHECK_FALSE(r.session().panels.has(panel::kBuilder));
+    // THE REFUSAL IS VISIBLE...
+    CHECK(r.last_notice().find("no room for Builder") != std::string::npos);
+    // ...AND IT DID NOT MUTATE THE AUTHORED SETUP. A picker that added first and read
+    // `waiting` afterwards would have authored a pane the maker never saw.
+    CHECK(r.session().setup.active == before);
+    CHECK_FALSE(has_pane(r.session().setup.active, ref_of(panel::kBuilder)));
+    // NO PANEL INTERSECTS THE SETUP ROW OR THE BOTTOM BAND.
+    const Screen sc = screen_of(r.session());
+    for (const Panel& p : r.session().panels.open) {
+        const ui::Rect b = bounds_of(r.session().panels, p.kind, sc).rect;
+        INFO("kind ", p.kind);
+        CHECK(b.y + b.h <= kWorkspaceY + sc.room_h);
+        CHECK(b.y + b.h < sc.notice_y);
+    }
+}
+
+TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting for room") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+
+    // AUTHORED FIRST, THEN OFFERED -- the order a restored file meets a provider that
+    // loads afterwards, and the one the picker cannot produce (it refuses to author a
+    // pane it could not seat). The offer's own admission runs the ONE reconciliation
+    // path, so nothing here reaches past a message boundary to open anything.
+    Setup both = r.session().setup.active;
+    (void)add_pane(both, ref_of(panel::kBuilder));
+    (void)add_pane(both, hello_ref());
+    r.session().setup.active = both;
+    r.session().setup.on_file = both;
+    ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
+    (void)seat2;
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
+    CHECK(r.session().panels.has(panel::kBuilder));  // first come, first served
+    CHECK_FALSE(r.session().panels.has(hello));
+    CHECK(r.session().panels.waiting(hello));
+    // NOT UNRESOLVED: this build knows exactly what it would draw.
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+    // AND THE AUTHORED REFERENCE IS UNTOUCHED -- authored validity does not depend on
+    // extent, so a setup legal on a tall screen is legal on a short one.
+    CHECK(has_pane(r.session().setup.active, hello_ref()));
+    CHECK(check_setup(r.session().setup.active).accepted);
+    CHECK(r.session().setup.saved());
+
+    // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`.
+    r.key(input::scan::kP);
+    const std::string shown = stack_text(r.last_canvas());
+    CHECK(shown.find("Hello     waiting") != std::string::npos);
+    CHECK(shown.find("Builder   open") != std::string::npos);
+    r.key(input::scan::kEscape);
+
+    // GROWTH OPENS IT, with no gesture at all.
+    r.extent(78, 42);
+    CHECK(r.session().panels.has(hello));
+    CHECK_FALSE(r.session().panels.waiting(hello));
+
+    // ...AND A SHRINK CLOSES THE PRESENTATION, DESTROYS ITS CACHE AND RETAINS THE REF.
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"present", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(hello) != nullptr);
+    r.extent(78, 22);
+    CHECK_FALSE(r.session().panels.has(hello));
+    CHECK(r.session().panels.external_pane(hello) == nullptr); // the copy is gone
+    CHECK(has_pane(r.session().setup.active, hello_ref()));    // the intent is not
+    CHECK(r.session().panels.runtime.of_kind(hello) != nullptr); // nor is the catalog row
+}
+
+TEST_CASE("selecting a waiting row removes the intent, exactly as selecting an open one does") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    Setup both = r.session().setup.active;
+    (void)add_pane(both, ref_of(panel::kBuilder));
+    (void)add_pane(both, hello_ref());
+    r.session().setup.active = both;
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    const std::int64_t hello = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(r.session().panels.waiting(hello));
+
+    r.pick(hello_ref());
+    // THE MAKER AUTHORED IT; WHETHER THIS SCREEN CAN SEAT IT IS WORKSHOP'S PROBLEM AND
+    // NOT A REASON TO MAKE THE INTENT UNREMOVABLE.
+    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    CHECK_FALSE(r.session().panels.waiting(hello));
+    r.key(input::scan::kP);
+    CHECK(stack_text(r.last_canvas()).find("Hello     closed") != std::string::npos);
+}
+
+// ---- The room contract ------------------------------------------------------------
+
+namespace {
+
+/// The body bounds an open external pane resolves to -- read through the very
+/// functions the painter and the pointer use, so a case cannot measure a rectangle
+/// nothing draws in.
+ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
+    const Screen sc = screen_of(s);
+    const ExternalBodyPlace body = external_body_place(bounds_of(s.panels, kind, sc).rect, sc);
+    return ui::Rect{body.region_x, body.region_y, body.region_w, body.region_h};
+}
+
+} // namespace
+
+TEST_CASE("opening an external pane grants exactly the fit_region room, authored as Workshop") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+
+    REQUIRE(seat->rooms.size() == 1);
+    CHECK(seat->rooms[0].pane == std::string(kHelloPane));
+    // AUTHORED AS `zengine.workshop` -- which is what lets the provider verify the ask.
+    REQUIRE(seat->room_authors.size() == 1);
+    CHECK(seat->room_authors[0] == std::string(kWorkshopProvider));
+
+    // THE NUMBERS ARE `fit_region`'S AND NOBODY MULTIPLIES A METRIC. At the minimum
+    // composition the pane's body is the first overlay slot less its header row.
+    const Screen sc = screen_of(r.session());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = bounds_of(r.session().panels, kind, sc).rect;
+    CHECK(panel == ui::Rect{0, 1, 48, 9});
+    const ExternalBodyPlace body = external_body_place(panel, sc);
+    CHECK(body.region_x == 0);
+    CHECK(body.region_y == 2);
+    CHECK(body.region_w == 48);
+    CHECK(body.region_h == 8);
+    const surface::RegionFit fit = surface::fit_region(0, 2, 48, 8, sc.text_advance_px,
+                                                       sc.text_line_px);
+    CHECK(seat->rooms[0].rows == fit.rows);
+    CHECK(seat->rooms[0].columns == fit.columns);
+    CHECK(seat->rooms[0].rows == 8);
+    CHECK(seat->rooms[0].columns == 48);
+}
+
+TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends exactly one") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    REQUIRE(seat->rooms.size() == 1);
+
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    // REPAINTS ALONE SAY NOTHING. The room is a fact about the screen, not about how
+    // many frames were drawn.
+    r.key(input::scan::kP);
+    r.key(input::scan::kEscape);
+    r.ready();
+    CHECK(seat->rooms.size() == 1);
+
+    // NEITHER DOES A LARGER SCREEN, AND THAT IS A REAL PROPERTY OF THIS COMPOSITION
+    // RATHER THAN A GAP IN THE CASE. An overlay slot's rectangle is `kStackW` by
+    // `kStackRows` at every extent (`placement_bounds`), so a wider or taller surface
+    // gives the workspace more room and gives this panel exactly as much as it had --
+    // the same rule the side region and the bottom band follow. The prose capacity is
+    // therefore unchanged, and an unchanged capacity says nothing.
+    r.extent(100, 40);
+    CHECK(screen_of(r.session()).w == 100);
+    CHECK(bounds_of(r.session().panels, kind, screen_of(r.session())).rect ==
+          ui::Rect{0, 1, 48, 9});
+    CHECK(seat->rooms.size() == 1);
+
+    // A TEXT METRIC IS WHAT MOVES IT: the same cells, set in a real face, hold fewer
+    // rows and more columns. Said exactly once.
+    r.extent(100, 40, 9, 18);
+    REQUIRE(seat->rooms.size() == 2);
+    const Screen typed = screen_of(r.session());
+    CHECK(typed.text_advance_px == 9);
+    const ui::Rect graphical = external_body_rect(r.session(), kind);
+    const surface::RegionFit gfit = surface::fit_region(graphical.x, graphical.y, graphical.w,
+                                                        graphical.h, 9, 18);
+    CHECK(gfit.graphical());
+    CHECK(seat->rooms[1].rows == gfit.rows);
+    CHECK(seat->rooms[1].columns == gfit.columns);
+    CHECK(seat->rooms[1].rows != seat->rooms[0].rows);       // a real face fits fewer rows
+    CHECK(seat->rooms[1].columns != seat->rooms[0].columns); // ...and more of them across
+
+    // ...and repeating that exact metric says nothing at all.
+    r.extent(100, 40, 9, 18);
+    CHECK(seat->rooms.size() == 2);
+}
+
+TEST_CASE("a new room clears the old rows before it is sent") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{std::string(48, 'w'), surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(kind)->shown.size() == 1);
+
+    // A REAL FACE. The cached row was admitted under 48 columns and 8 rows; the new
+    // room is a different shape, so keeping the old rows would put material admitted
+    // under one budget into another -- which is the one thing this design must not do.
+    // (The METRIC and not the extent, because an overlay slot's rectangle is the same
+    // rectangle at every extent; the case above measures that.)
+    r.extent(78, 22, 9, 18);
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    CHECK(pane->shown.empty());
+    CHECK_FALSE(pane->heard);
+    CHECK(pane->awaiting);
+    for (const surface::SurfaceTextRow& row : pane->shown) {
+        CHECK(static_cast<std::int64_t>(row.text.size()) <= pane->columns);
+    }
+}
+
+// ---- Retained content, bounded before it is kept ----------------------------------
+
+TEST_CASE("valid content is shown through a region at the exact granted body bounds") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    // BEFORE ANYTHING ARRIVES the pane says it is waiting -- a fact about this PANEL,
+    // never about the provider.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    std::vector<std::string> shown = external_rows(r.last_canvas(), body);
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0] == std::string(kExternalWaiting));
+
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"one", surface::role::kAccent,
+                                                surface::role::kMuted});
+    said.rows.push_back(surface::SurfaceTextRow{"two", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+
+    shown = external_rows(r.last_canvas(), body);
+    REQUIRE(shown.size() == 2);
+    CHECK(shown[0] == "one");
+    CHECK(shown[1] == "two");
+    // THE SEMANTIC ROLE AND GROUND SURVIVE UNTRANSLATED. Workshop makes no palette
+    // decision for a provider and mints no provider theme.
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    CHECK(pane->shown[0].role == surface::role::kAccent);
+    CHECK(pane->shown[0].background == surface::role::kMuted);
+    CHECK(pane->shown[1].background == surface::role::kNone);
+
+    // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A maker can tell whose pane this is.
+    const std::string stack = stack_text(r.last_canvas());
+    CHECK(stack.find("Hello @zengine.test.workshop-hello") != std::string::npos);
+}
+
+TEST_CASE("content beyond the granted room is not cached, and cannot leave stale rows") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane->rows == 8);
+    REQUIRE(pane->columns == 48);
+
+    PaneContent good;
+    good.pane = kHelloPane;
+    good.rows.push_back(surface::SurfaceTextRow{"a good row", surface::role::kFill});
+    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
+    REQUIRE(external_rows(r.last_canvas(), body).size() == 1);
+
+    // ONE ROW TOO MANY.
+    PaneContent tall;
+    tall.pane = kHelloPane;
+    for (int i = 0; i < 9; ++i) {
+        tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
+    }
+    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
+    pane = r.session().panels.external_pane(kind);
+    CHECK(pane->shown.empty()); // NOT ONE of the nine rows was kept
+    CHECK_FALSE(pane->heard);
+    CHECK_FALSE(pane->refusal.empty());
+    CHECK(r.last_notice().find("zengine.test.workshop-hello/hello") != std::string::npos);
+    CHECK(r.last_notice().find("9 rows into a pane granted 8") != std::string::npos);
+    // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
+    std::vector<std::string> after = external_rows(r.last_canvas(), body);
+    REQUIRE(after.size() == 1);
+    CHECK(after[0] == detail::fit(kExternalRefused, 48)); // fitted, and it marks its cut
+    CHECK(after[0].find("a good row") == std::string::npos);
+
+    // A LATER VALID UPDATE RECOVERS THE PANE -- it stayed open throughout.
+    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
+    pane = r.session().panels.external_pane(kind);
+    CHECK(pane->heard);
+    CHECK(pane->refusal.empty());
+    CHECK(external_rows(r.last_canvas(), body)[0] == "a good row");
+
+    // ONE BYTE TOO WIDE, on the LAST row -- so the earlier rows would have been kept
+    // by anything that copied as it validated.
+    PaneContent wide;
+    wide.pane = kHelloPane;
+    wide.rows.push_back(surface::SurfaceTextRow{"fits", surface::role::kFill});
+    wide.rows.push_back(surface::SurfaceTextRow{std::string(49, 'x'), surface::role::kFill});
+    r.drive(seat, [wide](ProviderSeat& s, loom::Mail& m) { s.say(m, wide); });
+    pane = r.session().panels.external_pane(kind);
+    CHECK(pane->shown.empty());
+    CHECK(r.last_notice().find("49 bytes into a pane granted 48 columns") != std::string::npos);
+    // ...and the 48-byte row on the boundary IS accepted.
+    PaneContent edge;
+    edge.pane = kHelloPane;
+    edge.rows.push_back(surface::SurfaceTextRow{std::string(48, 'e'), surface::role::kFill});
+    r.drive(seat, [edge](ProviderSeat& s, loom::Mail& m) { s.say(m, edge); });
+    CHECK(r.session().panels.external_pane(kind)->shown.size() == 1);
+}
+
+TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    // `SurfaceTextRow`'S EXISTING PLAIN-ASCII CONTRACT, enforced at the one boundary
+    // where a publisher this application did not write meets a canvas. The cell
+    // projection is one cell per BYTE, so a multi-byte sequence is split there and a
+    // control byte would move a terminal's cursor out of the row it was given.
+    for (const std::string& bad : {std::string("a\033[2Jb"), std::string("tab\there"),
+                                   std::string("caf\xC3\xA9"), std::string("del\x7F")}) {
+        PaneContent said;
+        said.pane = kHelloPane;
+        said.rows.push_back(surface::SurfaceTextRow{bad, surface::role::kFill});
+        r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+        INFO("row bytes: ", bad.size());
+        CHECK(r.session().panels.external_pane(kind)->shown.empty());
+        CHECK(r.last_notice().find("a byte a canvas cannot draw") != std::string::npos);
+    }
+}
+
+TEST_CASE("content for a closed or never-offered pane does nothing at all") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    const std::size_t catalog_before = r.session().panels.runtime.entries.size();
+
+    // THE PANE IS IN THE CATALOG AND NOT OPEN. A provider cannot make a panel appear
+    // by talking about it: discovery and presentation are two doors.
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"unasked for", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    CHECK(r.session().panels.open.size() == 1); // Info, and only Info
+    CHECK(r.session().panels.external.empty());
+    CHECK(r.session().panels.runtime.entries.size() == catalog_before);
+
+    // A PANE KEY THIS OFFICE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
+    PaneContent unknown;
+    unknown.pane = "never-offered";
+    unknown.rows.push_back(surface::SurfaceTextRow{"nor this", surface::role::kFill});
+    r.drive(seat, [unknown](ProviderSeat& s, loom::Mail& m) { s.say(m, unknown); });
+    CHECK(r.session().panels.runtime.entries.size() == catalog_before);
+    CHECK(r.session().panels.external.empty());
+}
+
+// ---- Presentation and the pointer --------------------------------------------------
+
+TEST_CASE("an external pane occupies its whole panel, and forwards nothing") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const Screen sc = screen_of(r.session());
+    const ui::Rect panel = bounds_of(r.session().panels, kind, sc).rect;
+
+    // THE SAME RECTANGLE THE PAINTER WAS HANDED. One geometry, and the occupancy
+    // answer names the OFFERED pane rather than `panel_kind`'s Builder fall-through.
+    CHECK(occupied_at(r.session().panels, sc, panel.x, panel.y).occupied);
+    CHECK(occupied_at(r.session().panels, sc, panel.x, panel.y).what == "Hello");
+    CHECK(occupied_at(r.session().panels, sc, panel.x + panel.w - 1, panel.y + panel.h - 1)
+              .what == "Hello");
+    CHECK_FALSE(occupied_at(r.session().panels, sc, panel.x, panel.y + panel.h).occupied);
+    CHECK_FALSE(occupied_at(r.session().panels, sc, panel.x + panel.w, panel.y).occupied);
+
+    // AND NOTHING IS FORWARDED. The seat hears asks and rooms; a press produces
+    // neither, because there is no input path to an external pane at all.
+    const std::size_t said_before = seat->rooms.size() + seat->asks.size();
+    r.publish(loom::to_value(input::PointerButton{1, true, panel.x, panel.y,
+                                                  input::space::kCells, input::mod::kNone}));
+    CHECK(seat->rooms.size() + seat->asks.size() == said_before);
+    CHECK_FALSE(r.session().drag.active);
+}
+
+// ---- Lifecycle, and the exact limit of what silence proves --------------------------
+
+TEST_CASE("closing an external pane destroys only Workshop's copy") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"remembered", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(kind)->heard);
+    const std::int64_t said_count = seat->said;
+
+    r.pick(hello_ref()); // the picker is still the one door, in both directions
+    CHECK_FALSE(r.session().panels.has(kind));
+    CHECK(r.session().panels.external_pane(kind) == nullptr); // room, cache, heard, refusal
+
+    // THE PROVIDER IS UNTOUCHED: no unload, no lifecycle operation, no retraction of
+    // the catalog row, and its own semantic state outlives the presentation entirely.
+    CHECK(seat->said == said_count);
+    CHECK(r.session().panels.runtime.of_kind(kind) != nullptr);
+    CHECK(resolve_pane(hello_ref(), r.session().panels.runtime).has_value());
+
+    // REOPENING ASKS AGAIN AND STARTS WAITING -- it does not resurrect the old copy.
+    const std::size_t rooms_before = seat->rooms.size();
+    r.pick(hello_ref());
+    REQUIRE(r.session().panels.external_pane(kind) != nullptr);
+    CHECK_FALSE(r.session().panels.external_pane(kind)->heard);
+    CHECK(r.session().panels.external_pane(kind)->awaiting);
+    CHECK(seat->rooms.size() == rooms_before + 1);
+}
+
+TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without duplicating") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    PaneContent said;
+    said.pane = kHelloPane;
+    said.rows.push_back(surface::SurfaceTextRow{"the old answer", surface::role::kFill});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(kind)->heard);
+    const std::size_t rooms_before = seat->rooms.size();
+
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"hello", "Hello", "a corrected line"});
+    });
+    // ONE ROW, ONE HANDLE, ONE PRESENTATION -- and the descriptor updated in place.
+    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.runtime.entries[0].kind == kind);
+    CHECK(r.session().panels.runtime.entries[0].summary == "a corrected line");
+    CHECK(r.session().panels.has(kind));
+    // THE OLD PRESENTATION COPY IS CLEARED AND THE ROOM IS GRANTED AGAIN.
+    const ExternalPane* pane = r.session().panels.external_pane(kind);
+    CHECK(pane->shown.empty());
+    CHECK_FALSE(pane->heard);
+    CHECK(pane->awaiting);
+    CHECK(seat->rooms.size() == rooms_before + 1);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    CHECK(external_rows(r.last_canvas(), body)[0] == std::string(kExternalWaiting));
+}
+
+TEST_CASE("silence is waiting, and Workshop never says unavailable") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    // MANY REPAINTS AND NO ANSWER. Nothing times out, nothing polls, no catalog row is
+    // withdrawn and no setup reference is deleted -- because sender silence does not
+    // prove a delivery's fate and Loom gives Workshop no unload notification at all.
+    for (int i = 0; i < 20; ++i) {
+        r.key(input::scan::kP);
+        r.key(input::scan::kEscape);
+    }
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    CHECK(external_rows(r.last_canvas(), body)[0] == std::string(kExternalWaiting));
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+    CHECK(has_pane(r.session().setup.active, hello_ref()));
+    CHECK(r.session().panels.has(kind));
+
+    // THE WORD IS NEVER SAID, on the pane or on the setup line.
+    for (const surface::SurfaceText& note : r.notes) {
+        CHECK(note.text.find("unavailable") == std::string::npos);
+    }
+    CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+              .find("unavailable") == std::string::npos);
+}
+
+TEST_CASE("one provider offering several panes is still one weave") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"hello", "Hello", "one"});
+        s.offer(m, PaneOffered{"goodbye", "Goodbye", "two"});
+    });
+    REQUIRE(r.session().panels.runtime.entries.size() == 2);
+    CHECK(r.session().panels.runtime.entries[0].provider ==
+          r.session().panels.runtime.entries[1].provider);
+    CHECK(r.session().panels.runtime.entries[0].kind !=
+          r.session().panels.runtime.entries[1].kind);
+    // TWO CATALOG ROWS, ONE OFFICE, AND NOTHING ANYWHERE THAT COUNTS PROVIDERS. Closing
+    // one presentation could not unload a weave even if this file wanted it to.
+    CHECK(combined_catalog(r.session().panels).size() == kPanelKinds + 2);
+}
+
+// ---- The built-ins, unmoved --------------------------------------------------------
+
+TEST_CASE("the built-in panels behave exactly as they did, with a provider in the room") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.extent(120, 44); // room for both stack slots, so nothing here is a capacity case
+
+    // INFO STILL USES NO BUS and is open at boot.
+    CHECK(r.session().panels.has(panel::kInfo));
+    const std::size_t said_before = static_cast<std::size_t>(seat->said);
+
+    r.pick(ref_of(panel::kBuilder));
+    CHECK(r.session().panels.has(panel::kBuilder));
+    CHECK(r.last_notice().find("opened Builder") != std::string::npos);
+    r.pick(ref_of(panel::kBuilder));
+    CHECK_FALSE(r.session().panels.has(panel::kBuilder));
+    CHECK(r.last_notice().find("removed Builder") != std::string::npos);
+
+    // NOTHING THE BUILT-INS DID REACHED THE PROVIDER.
+    CHECK(static_cast<std::size_t>(seat->said) == said_before);
+
+    // AND `panel_kind` IS STILL TOTAL ON ITS OWN BOUNDED PATH, which is what WS-0
+    // established and WP-0 was required to leave standing.
+    CHECK(panel_kind(9999).kind == panel::kBuilder);
+    CHECK(placement_of(panel::kInfo) == placement::kSideRegion);
+    CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panels.runtime)
+                    .has_value());
 }

@@ -198,11 +198,15 @@ class WorkshopWeave
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfaceCloseRequested,
-                                          zengine::builder::BuildStatus>,
+                                          zengine::builder::BuildStatus,
+                                          zengine::workshop::PaneOffered,
+                                          zengine::workshop::PaneContent>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::builder::StatusRequested,
-                                        zengine::builder::BuildRequested>> {
+                                        zengine::builder::BuildRequested,
+                                        zengine::workshop::PaneCatalogRequested,
+                                        zengine::workshop::PaneRoom>> {
 public:
     explicit WorkshopWeave(HostContext& host) : host_(&host) {
         // The document a maker opens onto. Deliberately boring, and deliberately
@@ -220,7 +224,38 @@ public:
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
     /// paint for the first time -- so load order decides nothing here either.
-    void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) { repaint(mail); }
+    /// AND IT IS WHERE WORKSHOP ASKS THE ROOM WHO HAS PANES (WP-0).
+    ///
+    /// DISCOVERY MUST CONVERGE IN BOTH LOAD ORDERS, and this is the half that answers the
+    /// awkward one. A provider loaded BEFORE Workshop announces itself on its own attested
+    /// activation, and that announcement is addressed to the `zengine.workshop` office --
+    /// which, if Workshop is not mounted yet, is held by nobody, so the sentence reaches
+    /// nobody and is gone. Nothing is retried, nothing is queued and nothing is buffered;
+    /// what happens instead is that Workshop asks once it exists, and every provider that
+    /// verified the ask answers again.
+    ///
+    /// WHY `SurfaceReady` AND NOT AN ACTIVATION. Workshop's weave is mounted IN-PROCESS by
+    /// its host, and Loom deliberately does not send `zen.Activated` to a native mount --
+    /// so this weave has no first breath to hang anything on, and manufacturing one would
+    /// be a fake lifecycle event in the one application that is meant to demonstrate the
+    /// real ones. `SurfaceReady` is the startup fact this file has always had: it is the
+    /// signal that a medium exists, which is also the first moment a pane could be shown.
+    ///
+    /// IT IS OFFICE-PUBLISHED, and the publication is the one broadcast in this protocol.
+    /// Workshop cannot address it -- knowing which offices have panes is the very thing it
+    /// is asking -- so it speaks to everyone, deliberately as `zengine.workshop`, and a
+    /// provider verifies that authorship before answering. Answering an unauthenticated
+    /// broadcast would let any weave granted the shape harvest a provider's catalog.
+    ///
+    /// REPETITION IS HARMLESS BY CONSTRUCTION. A medium may say hello more than once (a
+    /// Skin replacement does), so this may ask more than once, and a provider re-offers
+    /// every time; `admit_pane_offer` refreshes an existing `PaneRef` in place and grows the
+    /// catalog by nothing. The protocol needs no de-duplication of its own because identity
+    /// does the work.
+    void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
+        (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
+        repaint(mail);
+    }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
     ///
@@ -255,6 +290,15 @@ public:
         // `rebuild_rows` follows a change of selection or of document, where dropping the
         // draft is the right answer and carrying it would put it on a different object.
         refocus_keeping_draft(state_, session_);
+        // AND THE COMPOSITION IS RECONCILED AGAINST THE ROOM IT NOW HAS (WP-0). A screen
+        // that grew may have gained an overlay slot, and one that shrank may have lost the
+        // one a panel was standing in -- so this is the second reason a reconcile happens
+        // and the only one that is not a maker's gesture. Growth opens an authored pane that
+        // was waiting for room; a shrink closes the presentation through the ordinary close
+        // door, destroys its cache, and leaves the authored reference exactly where it was.
+        // `apply_setup` is the one path either way, so a resize cannot open or close a panel
+        // by some route the picker and a restore do not share.
+        apply_setup(mail);
         repaint(mail);
     }
 
@@ -728,6 +772,166 @@ public:
         default: break;
         }
         repaint(mail);
+    }
+
+    // ---- THE EXTERNAL PANE SEAM: an office offers, Workshop grants, an office says (WP-0)
+    //
+    // TWO DOORS AND THEY ARE DIFFERENT DOORS. Discovery adds a row a maker may choose;
+    // content fills a pane a maker has already opened. `PaneContent` never creates a
+    // catalog row and `PaneOffered` never becomes a presentation by itself -- a provider
+    // cannot put a pane on the screen, only into the list.
+    //
+    // BOTH ARE AUTHENTICATED BY THE SAME ONE FACT, and it is the phase's whole trust story:
+    // `mail.authored_role()` is the office LOOM VERIFIED at the moment the sentence was
+    // authored, carried as delivery provenance. It cannot be written by a payload, cannot be
+    // chosen by a sender, and is EMPTY for personal speech -- including personal speech from
+    // the very weave that currently holds the office. Holding an office is not speaking as
+    // one (MSG-07), so a provider that reaches for `mail.send` instead of
+    // `mail.as_role(...).send` registers nothing, and that is a refusal rather than a
+    // leniency.
+    //
+    // WHAT IT DOES NOT PROVE, said here because the temptation to read more into it is the
+    // failure mode WP-R0 was corrected for: a role is a LIVE, REPLACEMENT-STABLE SERVICE
+    // ROUTE on this bus in this process. It is not a package author, not a signature, not a
+    // publisher, and not evidence that the same author came back after a restart.
+
+    /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
+    /// is bounded before a byte is retained.
+    void on(const PaneOffered& offer, loom::Mail& mail) {
+        const std::string office(mail.authored_role());
+        if (office.empty()) {
+            // PERSONAL SPEECH. Not an error to report to a maker -- an unauthenticated
+            // message is not a fact about their arrangement -- and emphatically not a
+            // catalog change. `mail.sender()` is deliberately not consulted: it is a
+            // WeaveId, so a reloaded provider would be a different pane, and it is not the
+            // durable route a saved setup names.
+            return;
+        }
+        const Admission admitted = admit_pane_offer(session_.panels.runtime, office, offer);
+        if (!admitted.written.accepted) {
+            // THE REFUSAL IS WORKSHOP'S SENTENCE ABOUT ITS OWN LAW and interpolates no
+            // field that failed one: `admit_pane_offer` names a `PaneRef` only after both
+            // halves have passed `check_pane_key`, so no unvalidated byte reaches the
+            // notice line a maker is reading.
+            say(admitted.written.refusal, true);
+            repaint(mail);
+            return;
+        }
+        if (admitted.refreshed) {
+            // A RE-OFFER IS A CORRECTION, AND AN OPEN PANE MUST NOT KEEP ANSWERING WITH THE
+            // OLD ONE. The descriptor was updated in place; what this clears is the
+            // PRESENTATION's copy, so the pane returns to waiting and the repaint below
+            // grants the current room again. Nothing is closed and no catalog position
+            // moves -- a provider correcting its own summary is not a reason for a maker's
+            // panel to vanish.
+            if (ExternalPane* pane = session_.panels.external_pane(admitted.kind)) {
+                pane->shown.clear();
+                pane->refusal.clear();
+                pane->heard = false;
+                pane->awaiting = true;
+                pane->granted = false;
+            }
+        }
+        // AND THE OFFER MAY RESOLVE AUTHORED INTENT THAT WAS WAITING FOR IT. This is the
+        // one path -- the same `apply_setup` the picker and a restore go through -- so a
+        // setup naming `third.party/hello` opens the moment that office offers it, without
+        // the file having been touched and without a second way to open a panel existing.
+        apply_setup(mail);
+        repaint(mail);
+    }
+
+    /// AN OFFICE SAYS WHAT ITS PANE SAYS. Validated WHOLE against the room this pane was
+    /// last granted, and only then copied.
+    ///
+    /// THE ORDER IS THE CONTRACT: authorship, then identity, then the room, then every row.
+    /// Nothing is retained until all four have passed, so an update whose last row is one
+    /// column too wide leaves not one of its earlier rows behind.
+    ///
+    /// WHAT THIS BOUND IS, EXACTLY. The Loom's decoder has already materialised the value
+    /// by the time this handler runs -- this is an APPLICATION RETENTION bound and not a
+    /// decode-memory bound, and describing it as the latter would be claiming a Loom
+    /// property this phase did not build.
+    void on(const PaneContent& content, loom::Mail& mail) {
+        const std::string office(mail.authored_role());
+        if (office.empty()) {
+            return; // personal speech: no cache, no notice, no catalog change
+        }
+        const std::optional<std::int64_t> kind =
+            resolve_pane(PaneRef{office, content.pane}, session_.panels.runtime);
+        if (!kind.has_value() || !is_runtime_kind(*kind)) {
+            return; // an office speaking about a pane it never offered, or about a built-in
+        }
+        ExternalPane* pane = session_.panels.external_pane(*kind);
+        if (pane == nullptr || !pane->granted) {
+            // CONTENT FOR A CLOSED PANE, OR FOR ONE THAT HAS NOT BEEN GRANTED A ROOM YET.
+            // Nothing is cached and nothing is opened: a provider cannot make a panel appear
+            // by talking about it, which is what keeps discovery and presentation two doors.
+            return;
+        }
+        const Written judged = judge_content(content, *pane);
+        if (!judged.accepted) {
+            // THE OLD ROWS GO WITH THE REFUSAL. Leaving them would present a previous
+            // answer as the current one at the exact moment this pane knows it is not --
+            // the `awaiting` distinction the Builder panel established, one provider out.
+            pane->shown.clear();
+            pane->heard = false;
+            pane->awaiting = true;
+            pane->refusal = kExternalRefused;
+            // THE MAKER-FACING NOTICE NAMES ONLY THE ALREADY-ADMITTED `PaneRef` and carries
+            // none of the refused message: what was wrong with it was its content.
+            if (const RuntimePane* row = session_.panels.runtime.of_kind(*kind)) {
+                say("`" + ref_text(PaneRef{row->provider, row->pane}) + "` " + judged.refusal,
+                    true);
+            }
+            repaint(mail);
+            return;
+        }
+        pane->shown = content.rows; // only the validated rows, and only now
+        pane->heard = true;
+        pane->awaiting = false;
+        pane->refusal.clear();
+        repaint(mail);
+    }
+
+    /// IS THIS UPDATE INSIDE THE ROOM THIS PANE WAS GRANTED, and is every row of it
+    /// something a canvas can carry?
+    ///
+    /// PURE, AND JUDGED BEFORE ANYTHING IS COPIED. Three rules and no more: the rows fit the
+    /// granted count, each row's text fits the granted columns, and each row's text obeys
+    /// `SurfaceTextRow`'s existing plain-ASCII contract. The last is not a new text policy --
+    /// the cell projection is one cell per BYTE, so a multi-byte sequence is split there and
+    /// a control byte would move a terminal's cursor out of the row it was given. Every
+    /// first-party publisher already honours it; a provider is the first publisher this
+    /// application did not write.
+    ///
+    /// TRUNCATION IS NOT AN OPTION HERE. A pane showing the first eight rows of a
+    /// twelve-row answer, unmarked, presents a partial sentence as the provider's whole one
+    /// -- the failure `detail::fit` exists to prevent one row at a time. So the update is
+    /// refused as a unit and the pane says so.
+    ///
+    /// THE ROLE AND THE GROUND ARE NOT JUDGED, deliberately. They are SEMANTIC Surface
+    /// values and the Surface package already answers for an unknown one (`ink_for_role`'s
+    /// fallback); re-deciding that here would be a second palette policy and the beginning
+    /// of a provider theme.
+    static Written judge_content(const PaneContent& content, const ExternalPane& pane) {
+        if (static_cast<std::int64_t>(content.rows.size()) > pane.rows) {
+            return Written::no("sent " + std::to_string(content.rows.size()) +
+                               " rows into a pane granted " + std::to_string(pane.rows));
+        }
+        for (const surface::SurfaceTextRow& row : content.rows) {
+            if (static_cast<std::int64_t>(row.text.size()) > pane.columns) {
+                return Written::no("sent a row of " + std::to_string(row.text.size()) +
+                                   " bytes into a pane granted " +
+                                   std::to_string(pane.columns) + " columns");
+            }
+            for (const char c : row.text) {
+                const unsigned char byte = static_cast<unsigned char>(c);
+                if (byte < 0x20u || byte >= 0x7Fu) {
+                    return Written::no("sent a row carrying a byte a canvas cannot draw");
+                }
+            }
+        }
+        return Written::ok();
     }
 
     /// The session, for a suite that wants to check where a gesture left things.
@@ -1661,7 +1865,9 @@ private:
             }
             break;
         case input::scan::kDown:
-            if (picker.cursor + 1 < kPanelKinds) {
+            // THE BOUND IS THE COMBINED POPULATION (WP-0), not the compile-time catalog's
+            // census. `kPanelKinds` was the whole list until an office could offer one.
+            if (picker.cursor + 1 < combined_catalog(session_.panels).size()) {
                 ++picker.cursor;
             }
             break;
@@ -1716,22 +1922,47 @@ private:
     /// changed is which value they are asked of.
     void choose_panel(loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
-        const PanelKind& chosen = kPanelCatalog[picker.cursor];
+        const std::vector<CatalogRow> rows = combined_catalog(session_.panels);
         picker.open = false;
-        const PaneRef ref = pane_ref_of(chosen.kind);
+        if (picker.cursor >= rows.size()) {
+            return; // the cursor is bounded where it moves; this is the belt, not the door
+        }
+        const CatalogRow chosen = rows[picker.cursor];
+        const PaneRef ref = chosen.ref;
         if (remove_pane(session_.setup.active, ref)) {
+            // A REMOVAL WORKS ON A WAITING ROW EXACTLY AS ON AN OPEN ONE (WP-0). The maker
+            // authored the intent; whether this screen currently has room to seat it is
+            // Workshop's problem and not a reason to make the intent unremovable.
             apply_setup(mail);
             // WHAT IT WAS PRESENTING IS UNTOUCHED, and one sentence covers both
             // kinds because it is the same sentence: the Builder tool keeps its
             // target, its history and its running count of asks; the document
             // keeps every object, the selection and the inspector's rows. A
             // panel is a presentation, and removing one removes a presentation.
-            say(std::string("removed ") + chosen.name +
+            say("removed " + chosen.name +
                     " -- p brings it back; nothing behind it was touched",
                 false);
             return;
         }
-        (void)add_pane(session_.setup.active, ref);
+        // A NEW ROW IS REFUSED BEFORE THE SETUP MOVES IF IT COULD NOT BE SEATED (WP-0).
+        // The order is the whole of the guarantee: the capacity question is asked against
+        // the setup this gesture WOULD produce, and the active setup is left untouched when
+        // the answer is no. Adding first and letting `reconcile` drop it into `waiting`
+        // would leave a maker with an authored pane they never saw and did not knowingly
+        // author, which is a picker that edits a file behind its own refusal.
+        Setup candidate = session_.setup.active;
+        (void)add_pane(candidate, ref);
+        const Seating trial = seat_panes(candidate, session_.panels.runtime,
+                                         stack_capacity(screen_of(session_)));
+        for (const std::int64_t k : trial.waiting) {
+            if (k == chosen.kind) {
+                say("no room for " + chosen.name +
+                        " on this screen -- make the window taller, then p again",
+                    true);
+                return;
+            }
+        }
+        session_.setup.active = std::move(candidate);
         // AND THE PANEL ASKS THE TOOL WHAT IT IS -- inside `apply_setup`, for
         // every kind it newly opened. A presentation that was handed its
         // subject's facts by whoever built it would be showing the builder's
@@ -1764,8 +1995,20 @@ private:
     /// asking that kind does on open, which for the Builder is the same
     /// `StatusRequested` opening it through the picker has always sent, and for
     /// Info is nothing at all.
+    /// SINCE WP-0 IT ALSO CARRIES THE SCREEN'S CURRENT CAPACITY, and it is the only
+    /// place that number is spent. `stack_capacity(screen_of(session_))` resolves it
+    /// from the same `placement_bounds` the painter and the pointer use, so a panel
+    /// cannot enter `Panels::open` unless the rectangle it would be drawn in fits above
+    /// the setup line. What does not fit is retained as authored intent and named --
+    /// never deleted, never remapped, and never given a placeholder.
+    ///
+    /// AND A NEWLY OPENED EXTERNAL PANE ASKS FOR NOTHING HERE. Its room is resolved on
+    /// the repaint path (`refresh_external_rooms`), because the room is a fact about the
+    /// screen this frame and not about the moment the panel opened -- and resolving it
+    /// twice, once here and once there, is exactly the two-measurers defect HD-1 named.
     void apply_setup(loom::Mail& mail) {
-        const Reconciled done = reconcile(session_.panels, session_.setup.active);
+        const Reconciled done = reconcile(session_.panels, session_.setup.active,
+                                          stack_capacity(screen_of(session_)));
         for (const std::int64_t kind : done.opened) {
             if (kind == panel::kBuilder) {
                 (void)mail.send_to_role(zengine::builder::kBuilderRole,
@@ -1906,8 +2149,8 @@ private:
     /// could present it exists, is loading, has been unloaded, or was never
     /// installed -- and silence is not evidence of absence. Naming the reference
     /// is what lets a maker tell a typo from a pane they have not installed yet.
-    static std::string unresolved_note(const Setup& s) {
-        const std::vector<PaneRef> waiting = unresolved_panes(s);
+    std::string unresolved_note(const Setup& s) const {
+        const std::vector<PaneRef> waiting = unresolved_panes(s, session_.panels.runtime);
         if (waiting.empty()) {
             return {};
         }
@@ -2303,10 +2546,79 @@ private:
         return line;
     }
 
+    /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
+    /// only when the answer has changed (WP-0).
+    ///
+    /// IT IS CALLED FROM `repaint` AND NEVER FROM `paint`, and the separation is the rule
+    /// this file has kept since BLD-0: `paint` is a pure function of document and session
+    /// that PUBLISHES a picture, and a painter that sent messages would make the picture a
+    /// side effect of describing it. So the room is reconciled on the path that owns `Mail`,
+    /// beside `refresh_terminal` and `refresh_inspector`, for the identical reason those two
+    /// are there: the answer a maker is looking at must be the answer resolved against the
+    /// room the last frame drew.
+    ///
+    /// THE ROOM IS `external_body_place`'S, WHICH IS `fit_region`'S. One measurer. The
+    /// provider is told `rows` and `columns` and nothing else -- no rectangle, no cell, no
+    /// pixel, no font, no extent, no medium identity -- so it cannot compute a second layout
+    /// and cannot disagree with this one.
+    ///
+    /// A GRANT IS SENT ON EXACTLY THREE OCCASIONS and no others:
+    ///
+    ///     the pane first opens                   `granted` is false
+    ///     a valid re-offer refreshed it          the handler cleared `granted`
+    ///     the resolved rows or columns moved     the comparison below
+    ///
+    /// So a screen that changed CELLS but not prose capacity says nothing, and a text metric
+    /// that changed the capacity says it exactly once. A pane that has no room under its
+    /// header at all is granted nothing rather than granted zero -- a budget of zero is a
+    /// number somebody downstream would subtract from.
+    ///
+    /// AND EVERY GRANT CLEARS WHAT CAME BEFORE IT. The cached rows, the refusal, `heard`
+    /// and `awaiting` are reset BEFORE the send, so the cache can never hold rows admitted
+    /// under a wider room than the one currently in force, and an answer to the previous
+    /// room can never be presented as an answer to this one.
+    void refresh_external_rooms(loom::Mail& mail) {
+        const Screen sc = screen_of(session_);
+        for (const Panel& p : session_.panels.open) {
+            if (!is_runtime_kind(p.kind)) {
+                continue;
+            }
+            const PanelBounds where = bounds_of(session_.panels, p.kind, sc);
+            const ExternalBodyPlace body = external_body_place(where.rect, sc);
+            if (!body.present) {
+                continue;
+            }
+            const RuntimePane* row = session_.panels.runtime.of_kind(p.kind);
+            ExternalPane* pane = session_.panels.external_pane(p.kind);
+            if (row == nullptr || pane == nullptr) {
+                continue;
+            }
+            if (pane->granted && pane->rows == body.rows && pane->columns == body.columns) {
+                continue; // the same room: saying so again would be noise a provider must parse
+            }
+            const std::string office = row->provider;
+            const std::string key = row->pane;
+            pane->rows = body.rows;
+            pane->columns = body.columns;
+            pane->granted = true;
+            pane->shown.clear();
+            pane->refusal.clear();
+            pane->heard = false;
+            pane->awaiting = true;
+            // DELIBERATELY AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE THE
+            // DESCRIPTOR CAME IN UNDER. The authorship is what lets the provider verify the
+            // ask (its side refuses a room from anyone else); the destination is a ROLE
+            // rather than a WeaveId, so a provider that was replaced still gets its room.
+            (void)mail.as_role(kWorkshopProvider)
+                .send_to_role(office, PaneRoom{key, body.rows, body.columns});
+        }
+    }
+
     void repaint(loom::Mail& mail) {
         refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
         refresh_inspector(); // and a draft's window is only true against the room it has now
         refresh_setup_name(); // ...and so is the name editor's, against the same room
+        refresh_external_rooms(mail); // ...and an external pane's room, against the same one
         mail.publish(paint(state_, session_, host_->setup_path));
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
