@@ -16393,30 +16393,61 @@ TEST_CASE("the combined catalog stops at thirty-two entries, built-ins included"
 }
 
 TEST_CASE("the runtime catalog is beside the compile-time one and never inside it") {
-    RuntimeCatalog cat;
-    REQUIRE(admit_pane_offer(cat, kHelloOffice, good_offer()).written.accepted);
+    // THE BUILT-IN HALF IS MEASURED, NOT COUNTED (WG-1a). This case used to name two rows
+    // by hand, call `rows[2]` the first RUNTIME row and close with `CHECK(kPanelKinds == 2)`
+    // -- a catalog census, which is the ceremony WG-0 removed from its own tier and this
+    // one reintroduced in order to compute an index. What is actually claimed here is an
+    // ORDER: every compile-time row, in the catalog's own order, and then the runtime rows
+    // AFTER them. A third built-in satisfies that for free, and nothing below is told how
+    // many built-ins there are or what any of them is called.
+    Panels bare;
+    const std::vector<CatalogRow> before = combined_catalog(bare);
+    REQUIRE(before.size() == kPanelKinds);
+    // THE PRIOR FACT IS ANCHORED IN THE CONSTANT ARRAY rather than in the function under
+    // test, so the comparison further down is not `combined_catalog` agreeing with itself.
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        INFO("built-in row ", i);
+        CHECK(before[i].kind == kPanelCatalog[i].kind);
+        CHECK(before[i].ref == PaneRef{kPanelCatalog[i].provider, kPanelCatalog[i].pane});
+        CHECK(before[i].name == kPanelCatalog[i].name);
+        CHECK(before[i].summary == kPanelCatalog[i].summary);
+        CHECK_FALSE(is_runtime_kind(before[i].kind));
+    }
 
     Panels panels;
-    panels.runtime = cat;
+    REQUIRE(admit_pane_offer(panels.runtime, kHelloOffice, good_offer()).written.accepted);
     const std::vector<CatalogRow> rows = combined_catalog(panels);
     REQUIRE(rows.size() == kPanelKinds + 1);
-    // BUILT-INS FIRST, IN THE CATALOG'S OWN ORDER...
-    CHECK(rows[0].kind == panel::kBuilder);
-    CHECK(rows[0].name == "Builder");
-    CHECK(rows[0].ref == PaneRef{kWorkshopProvider, pane_key::kBuilder});
-    CHECK(rows[1].kind == panel::kInfo);
-    CHECK(rows[1].name == "Info");
-    // ...THEN THE RUNTIME ROWS, IN FIRST-ACCEPTED-OFFER ORDER.
-    CHECK(rows[2].ref == hello_ref());
-    CHECK(rows[2].name == "Hello");
-    CHECK(rows[2].summary == "a bounded external greeting");
-    CHECK(is_runtime_kind(rows[2].kind));
 
-    // AND THE COMPILE-TIME CATALOG IS UNMOVED. A runtime offer is not an edit to the
-    // constant array, which is what keeps a built-in's identity a compile-time fact.
-    CHECK(kPanelKinds == 2);
-    CHECK(std::string(kPanelCatalog[0].name) == "Builder");
-    CHECK(std::string(kPanelCatalog[1].name) == "Info");
+    // BUILT-INS FIRST AND UNTOUCHED -- an EXACT PREFIX of what the catalog offered before
+    // any offer arrived: same rows, same fields, same order. A runtime offer is not an edit
+    // to the constant array, so it cannot replace a built-in row, rewrite one, or be
+    // interleaved among them; it can only follow them.
+    for (std::size_t i = 0; i < kPanelKinds; ++i) {
+        INFO("built-in row ", i);
+        CHECK(rows[i].kind == before[i].kind);
+        CHECK(rows[i].ref == before[i].ref);
+        CHECK(rows[i].name == before[i].name);
+        CHECK(rows[i].summary == before[i].summary);
+        CHECK_FALSE(is_runtime_kind(rows[i].kind));
+    }
+
+    // ...THEN THE RUNTIME ROWS, IN FIRST-ACCEPTED-OFFER ORDER, BEGINNING AT `kPanelKinds`.
+    CHECK(rows[kPanelKinds].ref == hello_ref());
+    CHECK(rows[kPanelKinds].name == "Hello");
+    CHECK(rows[kPanelKinds].summary == "a bounded external greeting");
+    CHECK(is_runtime_kind(rows[kPanelKinds].kind));
+    CHECK(rows[kPanelKinds].kind == panels.runtime.entries[0].kind);
+
+    // AND EXACTLY ONE ROW OF THE COMBINED POPULATION IS A RUNTIME ONE, so `kPanelKinds` is
+    // where the runtime TAIL begins rather than merely where one runtime row happens to sit.
+    std::size_t runtime_rows = 0;
+    for (const CatalogRow& row : rows) {
+        if (is_runtime_kind(row.kind)) {
+            ++runtime_rows;
+        }
+    }
+    CHECK(runtime_rows == 1);
 }
 
 TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
@@ -16766,27 +16797,50 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
 }
 
 TEST_CASE("a picker population larger than its rows is windowed, not truncated") {
+    // THE POPULATION IS THE CATALOG'S OWN CAPACITY, NOT A CENSUS (WG-1a). This case used
+    // to be written around "the two built-ins plus eighteen offers", with every cursor,
+    // marker count and conservation sum computed by hand from that twenty. That is the
+    // same defect as `kPanelKinds == 2` one tier over: an unrelated new built-in moves the
+    // arithmetic and reddens a law that is still perfectly true. So the offers fill the
+    // combined catalog to `kMaxPaneCatalogEntries` instead -- a later built-in simply takes
+    // one runtime row's place and the total does not move.
     Panels panels;
-    // EIGHTEEN OFFERED PANES plus the two built-ins: twenty rows into a budget of
-    // eight. Before WP-0 the picker's height was `1 + kPanelKinds`, a catalog census
-    // standing in for a capacity -- which is right until a catalog can outgrow the box.
-    //
-    // TWENTY RATHER THAN FOURTEEN, and the number is not arbitrary: `list_window`'s
-    // two-marker branch needs a selection that neither end can reach, which at a
-    // budget of eight means a population above fourteen. At fourteen exactly, every
-    // cursor lands on a single-marker window and the middle case is unreachable --
-    // which is a fact about the shared function rather than about this list.
-    for (std::size_t i = 0; i < 18; ++i) {
+    for (std::size_t i = 0; i < kMaxPaneCatalogEntries - kPanelKinds; ++i) {
         REQUIRE(admit_pane_offer(panels.runtime, kHelloOffice,
                                  PaneOffered{"p" + std::to_string(i),
                                              "Pane" + std::to_string(i), "one of many"})
                     .written.accepted);
     }
-    REQUIRE(combined_catalog(panels).size() == kPanelKinds + 18);
+    const std::vector<CatalogRow> catalog = combined_catalog(panels);
+    const std::size_t total = catalog.size();
+    REQUIRE(total == kMaxPaneCatalogEntries);
+
     panels.picker.open = true;
     const Screen sc = kMinScreen;
-    const std::int64_t budget = picker_bounds(sc).h - 1;
+    const ui::Rect box = picker_bounds(sc);
+    const std::size_t budget = static_cast<std::size_t>(box.h - 1);
+    // A CAPACITY FACT AND NOT A CATALOG ONE. The picker asks for the stack's first slot and
+    // spends its top row on the heading; eight is what this composition leaves for the list.
+    // It is asserted because everything below is derived from it, and it moves only when the
+    // composition does. Before WP-0 the picker's height was `1 + kPanelKinds` -- a catalog
+    // census standing in for a capacity, right until a catalog could outgrow the box.
     REQUIRE(budget == 8);
+
+    // THE WINDOW RULES, STATED HERE rather than borrowed from `list_window`: an expected
+    // value computed by the function under test is not an expectation. A budget of `budget`
+    // rows shows `budget - 1` names beside ONE marker and `budget - 2` between TWO, because
+    // a marker is paid for OUT of the budget rather than added beneath it; the window is a
+    // contiguous run of the catalog's order; and every omitted row is counted on the side it
+    // was omitted on.
+    const std::size_t one_marker = budget - 1;
+    const std::size_t two_markers = budget - 2;
+    const std::size_t tail_first = total - one_marker;
+    // ...AND THE TWO-MARKER BRANCH MUST BE REACHABLE, which needs a cursor neither end's
+    // window can reach. If a future catalog capacity or picker height ever left no such
+    // cursor, this fails LOUDLY here rather than quietly testing a single-marker window
+    // twice: at a budget of eight it wants a population above fourteen.
+    REQUIRE(one_marker < tail_first);
+    const std::size_t mid_cursor = (one_marker + tail_first) / 2;
 
     const auto rows_of = [&](std::size_t cursor) {
         panels.picker.cursor = cursor;
@@ -16794,49 +16848,78 @@ TEST_CASE("a picker population larger than its rows is windowed, not truncated")
         paint_picker(c, panels, sc);
         std::vector<std::string> out;
         for (const surface::SurfaceLabel& l : c.labels) {
+            // THE PICKER DID NOT GET TALLER, asserted at every cursor this case takes --
+            // markers coming out of the budget rather than being added beneath it is
+            // exactly what would fail here.
+            CHECK(l.y >= box.y);
+            CHECK(l.y < box.y + box.h);
             out.push_back(l.text);
         }
         return out;
     };
+    const auto earlier_marker = [](std::size_t n) {
+        return "... " + std::to_string(n) + " earlier";
+    };
+    const auto more_marker = [](std::size_t n) { return "... " + std::to_string(n) + " more"; };
+    // WHAT THIS CASE MEANS BY A WINDOW: `count` names from the catalog's order beginning at
+    // `first`, on consecutive rows from `line0`, with the cursor's row marked `> ` and every
+    // other `  ` -- and the cursor INSIDE that run, which is the rule a truncating list
+    // breaks.
+    const auto check_window = [&](const std::vector<std::string>& out, std::size_t line0,
+                                  std::size_t first, std::size_t count, std::size_t cursor) {
+        CHECK(cursor >= first);
+        CHECK(cursor < first + count);
+        for (std::size_t k = 0; k < count; ++k) {
+            const std::size_t at = first + k;
+            INFO("catalog row ", at, " on picker line ", line0 + k);
+            CHECK(out[line0 + k].find((at == cursor ? "> " : "  ") +
+                                      detail::pad(catalog[at].name, 10)) == 0);
+        }
+        std::size_t marked = 0;
+        for (const std::string& row : out) {
+            if (row.rfind("> ", 0) == 0) {
+                ++marked;
+            }
+        }
+        CHECK(marked == 1);
+    };
 
-    // AT THE HEAD: no `earlier` marker, an `more` marker, and the cursor visible.
-    std::vector<std::string> head = rows_of(0);
-    REQUIRE(head.size() == static_cast<std::size_t>(picker_bounds(sc).h));
-    CHECK(head[1].find("> Builder") == 0);
-    CHECK(head[8].find("... 13 more") != std::string::npos);
+    // AT THE HEAD: no `earlier` marker, one `more` marker on the budget's last row, and the
+    // window anchored at the top -- `one_marker` names beginning at the first.
+    const std::vector<std::string> head = rows_of(0);
+    REQUIRE(head.size() == static_cast<std::size_t>(box.h));
+    check_window(head, 1, 0, one_marker, 0);
+    CHECK(head[1 + one_marker].find(more_marker(total - one_marker)) != std::string::npos);
     for (const std::string& row : head) {
         CHECK(row.find("earlier") == std::string::npos);
     }
+    CHECK(0 + one_marker + (total - one_marker) == total);
 
-    // AT THE TAIL: an `earlier` marker, no `more`, and the cursor visible.
-    std::vector<std::string> tail = rows_of(19);
-    CHECK(tail[1].find("... 13 earlier") != std::string::npos);
-    CHECK(tail[8].find("> Pane17") == 0);
+    // AT THE TAIL: an `earlier` marker on the first row, no `more`, and the window anchored
+    // at the bottom -- `one_marker` names ending on the last of the population.
+    const std::vector<std::string> tail = rows_of(total - 1);
+    REQUIRE(tail.size() == static_cast<std::size_t>(box.h));
+    CHECK(tail[1].find(earlier_marker(tail_first)) != std::string::npos);
+    check_window(tail, 2, tail_first, one_marker, total - 1);
     for (const std::string& row : tail) {
         CHECK(row.find(" more") == std::string::npos);
     }
+    CHECK(tail_first + one_marker + 0 == total);
 
-    // IN THE MIDDLE: both walls said, both counts exact, and both markers paid for out
-    // of the same eight rows rather than added beneath them.
-    std::vector<std::string> mid = rows_of(10);
-    CHECK(mid[1].find("... 5 earlier") != std::string::npos);
-    CHECK(mid[8].find("... 9 more") != std::string::npos);
-    CHECK(mid[7].find("> Pane8") == 0);
-    // 5 omitted before + 6 rows shown + 9 omitted after == 20, and the box is 9 rows:
-    // the two markers come OUT of the eight-row budget rather than being added beneath
-    // it, which is `list_window`'s third rule and the reason the picker did not grow.
-    CHECK(mid.size() == static_cast<std::size_t>(picker_bounds(sc).h));
-    CHECK(5 + 6 + 9 == static_cast<int>(kPanelKinds + 18));
-
-    // THE PICKER DID NOT GET TALLER. Every row is inside the first overlay slot.
-    surface::SurfaceCanvas c;
-    panels.picker.cursor = 10;
-    paint_picker(c, panels, sc);
-    const ui::Rect box = picker_bounds(sc);
-    for (const surface::SurfaceLabel& l : c.labels) {
-        CHECK(l.y >= box.y);
-        CHECK(l.y < box.y + box.h);
-    }
+    // IN THE MIDDLE: both walls are real so both are said, both counts are exact, and both
+    // markers are paid for out of the same budget rather than added beneath it. The window
+    // is the earliest run that reaches the cursor, so the cursor is its LAST name.
+    const std::size_t mid_first = mid_cursor + 1 - two_markers;
+    const std::size_t mid_after = total - mid_first - two_markers;
+    const std::vector<std::string> mid = rows_of(mid_cursor);
+    REQUIRE(mid.size() == static_cast<std::size_t>(box.h));
+    CHECK(mid[1].find(earlier_marker(mid_first)) != std::string::npos);
+    check_window(mid, 2, mid_first, two_markers, mid_cursor);
+    CHECK(mid[1 + 1 + two_markers].find(more_marker(mid_after)) != std::string::npos);
+    // CONSERVATION: omitted-before + shown + omitted-after is the WHOLE population, and the
+    // box is still `box.h` rows. That is `list_window`'s third rule and the reason the
+    // picker did not grow to fit what it could not show.
+    CHECK(mid_first + two_markers + mid_after == total);
 }
 
 TEST_CASE("the picker cursor is bounded by the combined population") {

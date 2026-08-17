@@ -407,8 +407,8 @@ next text. Shift+Space sets it to `" "` and the `s` that opens the setup-name ed
 
 ## A8. Keep state in the layer that owns its meaning
 
-There are now **five** kinds of state around a panel, and the ones that look alike are the ones
-worth telling apart:
+These are the kinds of state around a panel, and the ones that look alike are the ones worth
+telling apart:
 
 | kind of state | where it lives | survives |
 |---|---|---|
@@ -506,27 +506,37 @@ red cases and a decision about whether they had broken something. Prefer a claim
 *population* — a walk asserting every built-in row reaches the picker, and the partition law
 `side + stack == kPanelKinds` — which a new kind satisfies for free.
 
-**And expect two red cases anyway, today.** The example above was recreated against current
-source and the whole Workshop suite run over it: a third built-in kind reddens exactly two
-cases, both in the external-pane tier, for eleven assertions in total.
+**And a census comes back through whoever needs a fixed population to compute an expected
+value.** The example above was recreated against current source and the whole Workshop suite run
+over it, and the first time that was done a third built-in kind reddened exactly two cases — both
+in the external-pane tier, eleven assertions between them. Neither was a census by intention;
+both were arithmetic anchored to one:
 
 ```text
 the runtime catalog is beside the compile-time one and never inside it
-    `rows[2]` is the first RUNTIME row only while there are two built-ins,
-    and the case closes with `CHECK(kPanelKinds == 2)`
+    `rows[2]` was the first RUNTIME row only while there were two built-ins,
+    and the case closed with `CHECK(kPanelKinds == 2)`
 
 a picker population larger than its rows is windowed, not truncated
-    the window arithmetic (13 / 5 / 9 omitted, `> Pane17`, `> Pane8`) is
-    computed by hand from a population of exactly two built-ins plus eighteen offers
+    the window arithmetic was computed by hand from a population of exactly
+    two built-ins plus eighteen offers
 ```
 
-Neither is a defect in your panel and neither means the catalog is wrong. Read the case, move
-the index off the constant two, and re-derive the arithmetic from `kPanelKinds` — the same
-repair this section describes, one tier over.
+Both have since been repaired the way this section describes: the first captures the built-in
+prefix before any offer arrives and proves the whole of it survives one, without being told how
+long it is; the second takes its population from the catalog's own capacity and its cursors and
+omission counts from the picker's measured row budget. **Re-measured against the repaired suite,
+a third built-in kind reddens no case at all.**
+
+Take the measurement rather than the number. WG-0 wrote that adding a panel kind cost zero red
+cases, and it was true when written; the phase that added external panes made it false in its own
+tier without touching a word of it, and nothing announced the change. Add your kind, run the
+suite, and believe the run.
 
 ## A10. Common mistakes
 
-Each of these was reproduced while writing this page. Four of the five are **silent**.
+Each of these was reproduced while writing this page. Several fail **silently** — each row says
+which.
 
 | what you did | what happens |
 |---|---|
