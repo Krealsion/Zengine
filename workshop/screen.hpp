@@ -71,18 +71,22 @@ namespace zengine::workshop {
 // so a larger window is a larger Workshop rather than a larger copy of one.
 //
 // WHAT THE EXTRA ROOM IS SPENT ON is this application's composition and nobody else's, and
-// it is spent in exactly two places: the WORKSPACE takes the extra columns and rows, and the
-// terminal overlay takes half of them back while it is open. The panel column beside the
+// the WORKSPACE takes the extra columns and rows. Two overlays then take a HALF-SHARE of the
+// surplus back out of the room: the terminal pane while it is open (G-2, bounded by HD-10),
+// and an overlay-stack slot whenever one is (WIND-1). Both are the same sentence about the
+// same surplus -- every two columns the surface gains are one column of workspace and one
+// column of overlay -- and neither ever takes a whole row. The panel column beside the
 // workspace keeps its width, the inspector keeps its rows, and the bottom band keeps its
 // shape -- their sizes are decisions about how much of each thing is worth showing, not
 // shares of a screen, and turning them into shares would be inventing a layout policy this
 // phase has no evidence for.
 //
 // EVERY CONSTANT BELOW THAT SURVIVED IS ONE OF TWO KINDS: a MINIMUM (the smallest surface
-// this composition is honest on), or a FIXED SIZE (something whose right size does not
-// depend on how much room there is). `Screen` holds what is derived, `screen_of` is the one
-// place the derivation happens, and the static_asserts underneath it pin that the minimum
-// screen is byte-for-byte the 78x22 composition that existed before this phase.
+// this composition is honest on, and the base a half-share is measured from), or a FIXED
+// SIZE (something whose right size does not depend on how much room there is). `Screen`
+// holds what is derived, `screen_of` is the one place the derivation happens, and the
+// static_asserts underneath it pin that the minimum screen is byte-for-byte the 78x22
+// composition that existed before this phase.
 
 /// The smallest surface this screen is laid out on -- and, deliberately, the extent it uses
 /// when nothing tells it otherwise. It is not a taste: at 78x22 every piece of furniture
@@ -181,9 +185,24 @@ inline constexpr std::int64_t kBottomRows = 5;
 // building. That awkwardness is the evidence rather than the embarrassment -- inventing
 // docking would be answering a demand ahead of anybody feeling it. What using it actually
 // felt like is in the reports.
+//
+// A WIDER ROOM IS SHARED BY THE PANE AND THE MAKER (WIND-1). The width below is the
+// MINIMUM and no longer the whole answer: `placement_bounds` resolves a slot to
+// `kStackW + (room_w - kStackW)/2`, so the surplus a bigger surface gives the workspace is
+// split evenly between the panel and the material underneath it. It is the terminal pane's
+// own rule (`pane_want`, three lines into `screen_of`) pointed at the other corner, and the
+// two bases are the same number -- `kMinStack.x + kMinStack.w == kMinScreen.room_w` has been
+// asserted under `placement_bounds` since PNL-1. What it buys is measured: at 200x60 an
+// external pane's granted columns go from 48 to 109 without a threshold. What it costs is
+// that every added cell is the panel's for PAINT and for the POINTER both, so the honest
+// half of the sentence is that the maker keeps the OTHER half -- 1, 9, 21, 61 and 281 free
+// columns of the panel's own rows at 79, 96, 120, 200 and 640 columns of surface. A full
+// width would leave zero at every extent, which is the rule this one was chosen against.
 inline constexpr std::int64_t kStackX = 0;
 inline constexpr std::int64_t kStackY = kWorkspaceY; ///< directly under the screen's title row
-inline constexpr std::int64_t kStackW = 48;          ///< wide enough for a build recipe's tail
+/// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
+/// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
+inline constexpr std::int64_t kStackW = 48;
 inline constexpr std::int64_t kStackRows = 9; ///< every panel placed here is this tall, for now
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panels
 
@@ -413,6 +432,12 @@ static_assert(kMinScreen.terminal_lines == static_cast<std::size_t>(kMinScreen.t
 /// slot is a signed multiply that leaves the number line. Nothing reachable passes one (the
 /// open list is bounded by the catalog), which is exactly the argument W-1 measured wrong
 /// once already.
+///
+/// AND IT IS A PURE FUNCTION OF PLACE, SLOT AND SCREEN (WIND-1) -- not of the panel's kind,
+/// its provider, what it is showing, how wide it was a frame ago, or whether a maker
+/// selected it. That is what keeps the width below one law rather than a policy: the same
+/// rectangle answers the painter, the pointer, the capacity count and an external pane's
+/// grant, and none of them can be told a different number.
 inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                                            const Screen& sc) noexcept {
     if (where == placement::kSideRegion) {
@@ -423,7 +448,16 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
                                : static_cast<std::int64_t>(slot);
-    return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap), kStackW, kStackRows};
+    // THE WIDTH IS THE MINIMUM PLUS HALF THE ROOM'S SURPLUS OVER IT, floored (WIND-1). The
+    // floor is the whole of the difference at an odd surplus and it is deliberate: rounding
+    // up would take the odd column from the maker, and at 79 columns of surface -- a room of
+    // 49, a surplus of exactly one -- that is the difference between a panel that leaves a
+    // reachable column and one that does not. `room_w` is clamped to at least
+    // `kMinScreen.room_w`, which IS `kStackW`, so the subtraction is never negative and this
+    // needs no guard; the x is 0, so `x + w <= room_w` holds at every extent, and strictly
+    // below it wherever there is any surplus at all.
+    return ui::Rect{kStackX, kStackY + n * (kStackRows + kStackGap),
+                    kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
 
 /// What the one narrow path answers with: whether this kind is open, where its kind is
@@ -461,12 +495,13 @@ inline PanelBounds bounds_of(const Panels& panels, std::int64_t kind, const Scre
     return PanelBounds{false, placement_of(kind), ui::Rect{}};
 }
 
-// The two places fit the SMALLEST screen this composition is honest on, which is the only
-// extent they have to fit: a wider surface gives the workspace more room and gives each of
-// these exactly as much as it had, the same rule the bottom band follows. Asserted over the
-// RESOLVED rectangles rather than over the constants behind them, which is what PNL-1 bought
-// -- "these two places do not overlap" is now one comparison of two rectangles instead of a
-// hand-checked relation between four separate numbers.
+// The two places fit the SMALLEST screen this composition is honest on, which is where they
+// are tightest: the side region keeps its reservation at every extent (a wider surface gives
+// it exactly as much as it had, the same rule the bottom band follows), and a stack slot
+// takes half the room's surplus and so grows strictly slower than the room does (WIND-1).
+// Asserted over the RESOLVED rectangles rather than over the constants behind them, which is
+// what PNL-1 bought -- "these two places do not overlap" is now one comparison of two
+// rectangles instead of a hand-checked relation between four separate numbers.
 inline constexpr ui::Rect kMinSide = placement_bounds(placement::kSideRegion, 0, kMinScreen);
 inline constexpr ui::Rect kMinStack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
 
@@ -475,6 +510,21 @@ static_assert(kMinStack.x + kMinStack.w <= kMinSide.x - kPanelGap,
 static_assert(kMinStack.x + kMinStack.w == kMinScreen.room_w,
               "the stack is exactly the minimum screen's workspace width -- it covers the top "
               "of the workspace and nothing else");
+// AND THE HALF-SHARE NEVER SPENDS WHAT IS NOT THE STACK'S (WIND-1). The reserved column is
+// the law HD-10 brought the pane under, and the stack has to keep it at every extent rather
+// than only at the one the rectangles above are resolved on. Three witnesses in the type
+// system -- the minimum, an ODD surplus, and a wide surface -- say the two halves of the
+// rule: a slot never reaches past the room, and wherever there is any surplus at all it
+// stops strictly short of it, so a column of its own rows is always still the maker's. The
+// exhaustive version, over the whole clamped width domain, is in the suite.
+static_assert(kMinStack.w == kStackW, "the minimum composition is byte-identical");
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(79, 22)).w == kStackW,
+              "an odd surplus of one is FLOORED: the odd column stays the maker's");
+static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w == 109,
+              "48 + (170 - 48)/2 -- the half-share, spelled out");
+static_assert(placement_bounds(placement::kOverlayStack, 3, screen_of(200, 60)).w ==
+                  placement_bounds(placement::kOverlayStack, 0, screen_of(200, 60)).w,
+              "the width is a fact about the SCREEN, not about which slot a panel sits in");
 static_assert(kMinStack.y + kMinStack.h <= kMinScreen.notice_y,
               "the stack's first slot stays clear of the notice line");
 static_assert(kMinSide.x + kMinSide.w == kMinScreen.w,

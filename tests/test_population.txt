@@ -161,11 +161,23 @@
 # never had; a mock loader would have proved nothing about the ABI it exists to exercise.
 #
 # It still needed no new row and no gate. The metric half of the phase is one `fit_region`
-# comparison over two rectangles (an overlay slot's rectangle is the same rectangle at every
-# extent, so a REAL FACE is the only thing that moves an external pane's prose budget), and
-# the loaded fixture is medium-independent by construction: it is handed two integers and
-# answers with rows. So the Windows stranger lane proves the whole phase, exactly as it
-# proved the eight before it.
+# comparison over two rectangles, and the loaded fixture is medium-independent by
+# construction: it is handed two integers and answers with rows. So the Windows stranger lane
+# proves the whole phase, exactly as it proved the eight before it.
+#
+# (WP-0's own note here read "an overlay slot's rectangle is the same rectangle at every
+# extent, so a REAL FACE is the only thing that moves an external pane's prose budget". WIND-1
+# ended that: a slot takes half the room's surplus, so a WIDER SURFACE moves the budget too.
+# The placement claim moved; the gate argument did not, because a room's share is still
+# arithmetic over integers.)
+#
+# WIND-1 raised the workshop floor 431 -> 435, and it is the ninth phase to need no new row.
+# Four cases: the half-share stated over the whole clamped width domain, the byte-identical
+# minimum with its capacity control, both sides of the paint/pointer trade at 200x60 read
+# through the live doors, the external grant followed through `fit_region` in both media, and
+# the stack/pane overlap swept and bounded. Every one of them is cell arithmetic or a message
+# on a bus; the graphical half is the same `fit_region` call with a metric published as a
+# NUMBER, so the lane with no font engine proves the phase entire.
 #
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
@@ -183,7 +195,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  431
+workshop                          doctest           always  435
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

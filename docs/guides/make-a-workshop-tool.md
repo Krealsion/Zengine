@@ -209,7 +209,7 @@ A kind **declares an intent**, not a coordinate. There are exactly two places:
 | `placement::` | where | rectangle |
 |---|---|---|
 | `kSideRegion` | the reserved column beside the workspace | 28 cells wide, as tall as the workspace |
-| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 48 × 9 cells per slot, one blank row between slots |
+| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 9 cells tall; 48 cells wide at the minimum composition and wider on a wider surface (below), one blank row between slots |
 
 `placement_bounds(where, slot, screen)` turns an intent into a rectangle and `bounds_of(panels,
 kind, screen)` is what a painter and a press both call. **Your painter is handed the
@@ -232,13 +232,25 @@ Four things follow that are easy to get wrong by assuming otherwise:
     unresolved (this build knows exactly what it would draw) and not closed (the maker authored
     it). Growth opens it with no gesture; a shrink closes the presentation through the ordinary
     close door.
-- **Both places are a fixed WIDTH.** Only the side region's *height* follows the screen. A wider
-  window gives your stacked panel exactly the room it already had.
+- **A wider window widens your stacked panel, and by half.** The side region keeps its width at
+  every extent and only its *height* follows the screen. An overlay slot's width is
+  `48 + (room_w - 48)/2`, floored — 48 cells at the 78 × 22 minimum, 59 at 100 columns of
+  surface, 69 at 120, 109 at 200 — so the surplus a bigger surface gives the workspace is split
+  evenly between your panel and the material underneath it. Its **height does not follow the
+  screen at all**, and neither does the number of slots: those answer to `kStackRows` and to how
+  much room is left above the setup line.
+- **Every cell of your rectangle is yours for the POINTER as well as the paint.** A press inside
+  your bounds never reaches the document under it — it is answered with *"<your panel> is here"*
+  — so a wider panel is a wider thing standing between a maker and their work. That is the price
+  of the width and it is the reason the share is a half rather than the whole room: at every
+  extent above the minimum, columns of your own rows are still the maker's to press.
 
 **A resolved rectangle is not authored and is not a maker's to move.** There is no docking, no
 dragging and no saved layout; the catalog row is the whole of a kind's say in where it goes. The
-48 × 9 overlay rectangle is current behaviour, not a promise — a later layout phase may move it,
-and the one-measurer rule above is what makes that a change to one function.
+overlay rectangle — its height, and the half-share its width is resolved by — is current
+behaviour, not a promise; it is a pure function of the place, the seated slot and the screen, and
+never of your panel's kind, its content or its size a frame ago. A later layout phase may change
+it, and the one-measurer rule above is what makes that a change to one function.
 
 ## A4. Publish meaning
 
