@@ -171,6 +171,26 @@
 # The placement claim moved; the gate argument did not, because a room's share is still
 # arithmetic over integers.)
 #
+# WIND-2 raised the workshop floor 435 -> 473, and it is the TENTH phase to need no new row --
+# which is worth reading, because it is by far the largest of the ten. Setup format version 2,
+# an authored place and size per axis, a canonical `front` permutation, a recovery inventory
+# over seven states, a sixth keyboard mode and a pane gesture with its own custody are
+# thirty-eight cases, and not one of them needs a font engine or an SDL:
+#
+#   the FORMAT is bytes through the Loom's own codec -- three mode words, a version refused by
+#   its number before its rows are read, and a round trip that keeps a `pixels` amount nothing
+#   in this build can project;
+#   the RESOLUTION is canvas-cell arithmetic settled before any metric is consulted (HD-10's
+#   law), so the clipping, the off-room rectangle and the per-axis independence are the same
+#   integers in both media -- and the two cases that DO vary the metric vary it as a NUMBER,
+#   which is how every phase since HD-6 has proved a medium-dependent claim on a lane with no
+#   font;
+#   the ORDER is a permutation over a vector, and its 10,000-operation bound is a loop;
+#   the GESTURES go through the real input path on the real weave, and a terminal press is
+#   cells.
+#
+# So the Windows stranger lane proves the whole phase, exactly as it proved the nine before it.
+#
 # WIND-1 raised the workshop floor 431 -> 435, and it is the ninth phase to need no new row.
 # Four cases: the half-share stated over the whole clamped width domain, the byte-identical
 # minimum with its capacity control, both sides of the paint/pointer trade at 200x60 read
@@ -195,7 +215,7 @@ surface                           doctest           sdl     5
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  435
+workshop                          doctest           always  473
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -41,13 +41,26 @@
 //
 // WHAT IS DELIBERATELY ABSENT, so the absences are decisions and not omissions:
 //
-//   - no docking, no tabs, no dragging, no resizing, no saved layout. A panel
-//     kind DECLARES one of the two places this Workshop has (`placement` below)
-//     and that is the whole of its say in where it goes. Neither place was chosen
-//     for being good — one covers the material a maker is building and the other
-//     is a column that was furniture until PNL-0 — and the reports say what
-//     using them felt like.
-//   - no focus framework. There is no focused panel, no z-order and no capture.
+//   - no docking and no tabs. A panel kind DECLARES one of the two places this
+//     Workshop has (`placement` below) and that is the whole of its say in where
+//     it goes. Neither place was chosen for being good — one covers the material
+//     a maker is building and the other is a column that was furniture until
+//     PNL-0 — and the reports say what using them felt like.
+//
+//     WIND-2 ENDED THREE OF THIS BULLET'S ABSENCES and left the rest standing, so
+//     they are named rather than quietly deleted: dragging, resizing and a saved
+//     layout now exist. What did NOT change is the sentence above them — a KIND
+//     still declares a place and nothing more. What a maker may then do to the
+//     rectangle that place resolves to is authored SETUP intent (setup.hpp) and
+//     is resolved by the host (screen.hpp); no field of this file moved, and a
+//     panel kind still cannot ask for a coordinate.
+//   - no focus framework. There is still no focused panel and no capture: one
+//     `if` per mode in the key routing, and a pointer gesture that holds an
+//     IDENTITY rather than owning the device. WIND-2 added a SELECTED pane and a
+//     canonical front order, which are different things — a selection is a fact
+//     about what a maker is arranging and grants no priority outside the mode
+//     that arranges it, and the order is authored intent on a setup row rather
+//     than a z-stack somebody maintains.
 //     What there is: while the picker is open it has the keys, and while a
 //     Builder panel is open one key that was previously unbound means something.
 //     That is one conditional in `command()`, and it is the same answer the
@@ -186,9 +199,13 @@ inline constexpr const char* kInfo = "info";
 /// A KIND'S PLACE IS ONE OF THE FOUR THINGS WRITTEN DOWN HERE (PNL-1), beside
 /// its name and its one-line summary, because that is what it is: a fact about
 /// the kind, known before anything is open, changed only by editing this array.
-/// It is not per-instance state and not authored by a maker — nothing in this
-/// application can move a panel, so a coordinate stored per open panel would be
-/// a field whose only possible value is the one this table already holds.
+/// It is not per-instance state and not authored by a maker. A maker CAN move a
+/// panel since WIND-2 — but what they move is not this: this is the DEVELOPER'S
+/// DEFAULT, the answer a pane takes when its maker has said nothing, and the
+/// maker's override lives on their own setup row and is laid over the rectangle
+/// this place resolves to. A coordinate stored per open panel would still be a
+/// field with one possible value, and it would now also be a second owner of a
+/// question the setup already answers.
 inline constexpr PanelKind kPanelCatalog[] = {
     {panel::kBuilder, placement::kOverlayStack, kWorkshopProvider, pane_key::kBuilder, "Builder",
      "build one known target"},
@@ -232,6 +249,21 @@ inline constexpr std::int64_t kFirstRuntimeKind = 1024;
 inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
     return kind >= kFirstRuntimeKind;
 }
+
+/// NO KIND AT ALL -- what a pane this build cannot present answers with (WIND-2).
+///
+/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason, which is the sharpest
+/// one available here: every kind this build can name is non-negative by
+/// construction (the built-ins are 0 and 1, runtime handles start a thousand
+/// above), so an absence CANNOT collide with a kind anybody meant. Zero would
+/// have been `panel::kBuilder`, which is the exact lie `resolve_pane` is fallible
+/// to prevent -- a maker's unresolved third-party reference presented as
+/// Workshop's own build tool.
+///
+/// It is spent by the one inventory row an unresolved authored reference gets
+/// (`inventory_rows`, setup.hpp). Nothing paints it, nothing places it, nothing
+/// opens it.
+inline constexpr std::int64_t kNoPaneKind = -1;
 
 /// WHERE THIS KIND IS PRESENTED — the question a painter asks instead of knowing
 /// a column. Total, for the same reason `panel_kind` is.

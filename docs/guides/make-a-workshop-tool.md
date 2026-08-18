@@ -29,7 +29,7 @@ Both are real, current, tested code. Neither is a plugin system — see
 | who paints it? | a painter you write, in `workshop/screen.hpp` | Workshop's one generic external-pane painter |
 | can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **no.** A press that lands on it is consumed by the occupancy wall and forwarded nowhere |
 | durable identity | the catalog row's `provider` + `pane` | the Loom-stamped provider office + the pane key that office offered |
-| saved setup | an ordered `PaneRef` | the same ordered `PaneRef`, unresolved until some office offers it |
+| saved setup | a `PaneRef` and the maker's authored window | the same, unresolved until some office offers it |
 | what state is retained? | whatever Workshop session structures you add | Workshop's bounded cache of the rows you last validly sent |
 | where does it go? | `kSideRegion` or `kOverlayStack`, declared in the row | always the overlay stack; you do not ask |
 | install / plugin story | none needed — you compiled it in | **none exists** |
@@ -209,11 +209,16 @@ A kind **declares an intent**, not a coordinate. There are exactly two places:
 | `placement::` | where | rectangle |
 |---|---|---|
 | `kSideRegion` | the reserved column beside the workspace | 28 cells wide, as tall as the workspace |
-| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 9 cells tall; 48 cells wide at the minimum composition and wider on a wider surface (below), one blank row between slots |
+| `kOverlayStack` | over the workspace, from the top-left, stacked downwards | 9 cells tall; 48 cells wide at the minimum composition and wider on a wider surface (below), one blank row between slots — **and all of it a default a maker may override** (WIND-2) |
 
-`placement_bounds(where, slot, screen)` turns an intent into a rectangle and `bounds_of(panels,
-kind, screen)` is what a painter and a press both call. **Your painter is handed the
-rectangle**; it never computes one. Read `b.x`, `b.y`, `b.w`, `b.h` and stay inside them.
+`placement_bounds(where, slot, screen)` turns an intent into the DEVELOPER'S DEFAULT rectangle;
+`bounds_of(panels, setup, kind, screen)` lays the maker's authored override over it, per axis, and
+clips the result to the canvas. That second one is what a painter and a press both call. **Your
+painter is handed the rectangle**; it never computes one. Read `b.x`, `b.y`, `b.w`, `b.h` and stay
+inside them — and note that since WIND-2 those four numbers may be **anything a maker asked for**,
+including a rectangle much narrower or much shorter than the default you were designed against, and
+including one clipped at the screen's edge. A panel that fits its default and not a maker's is a
+panel that will look broken the first time somebody drags its corner.
 
 Four things follow that are easy to get wrong by assuming otherwise:
 
@@ -232,6 +237,26 @@ Four things follow that are easy to get wrong by assuming otherwise:
     unresolved (this build knows exactly what it would draw) and not closed (the maker authored
     it). Growth opens it with no gesture; a shrink closes the presentation through the ordinary
     close door.
+  - Since WIND-2 there are **seven** such words rather than three, and they are one classifier's:
+    `closed`, `unresolved`, `refused` (an authored unit this medium cannot project — today, any
+    `pixels` amount), `waiting`, `off-room` (the authored place put it off this canvas),
+    `covered` (every visible cell is behind the union of what is in front) and `open`. Every pane
+    the setup names has exactly one row in the picker and in pane management, **whatever state it
+    is in** — which is the promise that a maker can never lose one.
+- **A maker may move and resize your panel, and reset it back.** Setup version 2 carries an
+  authored `place`, `width` and `height` per pane row, each with a MODE — `default` means *no
+  override, keep taking whatever the developer's answer becomes*. Every axis is independent, so a
+  maker who moved your panel has said nothing about its size, and it goes on following the rule
+  below. `w` opens pane management; `0` inside it resets one dimension at a time. **You author
+  nothing about this and there is nothing to opt into**: a kind declares a `placement::` and the
+  rest is Workshop's and the maker's.
+- **A maker may also change what is in FRONT of what.** Panes can overlap now, so `bounds_of` is
+  no longer a promise that your cells are visible. The order is a canonical rank on the setup row
+  (`front`), paint walks it back-to-front and the pointer walks it front-to-back, and reordering
+  writes nothing that moves, resizes, seats or regrants anything.
+- **An authored place takes your panel out of the tiling.** A pane the maker put somewhere spends
+  no stack slot and cannot become `waiting` — which is what frees the tile for whatever was
+  waiting behind it. Resetting the place puts it back.
 - **A wider window widens your stacked panel, and by half.** The side region keeps its width at
   every extent and only its *height* follows the screen. An overlay slot's width is
   `48 + (room_w - 48)/2`, floored — 48 cells at the 78 × 22 minimum, 59 at 100 columns of
@@ -859,8 +884,14 @@ I need to talk to another weave
        and record whether you have been answered yet
 
 I want a maker's arrangement to come back
-    -> nothing. Pane presence is already authored setup intent and is already saved.
-       What your panel was SHOWING is session state and is not, deliberately
+    -> nothing. Pane presence, place, size and front order are all already authored
+       setup intent and are already saved (WIND-2). What your panel was SHOWING is
+       session state and is not, deliberately
+
+I want to remember where MY panel was
+    -> nothing, and do not. The rectangle is Workshop's answer, recomputed every paint
+       and stored nowhere; a copy inside your panel is the stale number the whole tool
+       is arranged against
 ```
 
 # Where to look next
@@ -890,6 +921,8 @@ I want a maker's arrangement to come back
    `reconcile`, which is where an authored reference becomes a presentation or does not.
 
 For the arrangement a maker saves, the root README's
-[A setup has a name](../../README.md#a-setup-has-a-name-ws-0) is the reference; for the panel
+[A setup has a name](../../README.md#a-setup-has-a-name-ws-0) is the reference, and
+[The code authors a default; the maker authors an override; the host resolves the room](../../README.md#the-code-authors-a-default-the-maker-authors-an-override-the-host-resolves-the-room-wind-2)
+is the reference for what a maker may then do to your panel's rectangle; for the panel
 system itself it is
 [Dynamic panels: Builder and Info](../../README.md#dynamic-panels-builder-and-info-bld-0-pnl-0-pnl-1-pnl-2-pnl-2a).

@@ -571,7 +571,116 @@ height  kStackRows == 9                     unchanged
   dragged window edge briefly shows `(waiting for the provider)`.
 
 Setup bytes, the provider protocol, `PaneRef` identity, pane ordering, selection, and every
-public API are untouched. There is still no authored size, no docking and no maker override.
+public API were untouched by WIND-1 itself. What it left absent — an authored size, a maker
+override, a saved order — is what WIND-2 spends, below; docking is still absent and still refused.
+
+## The code authors a default; the maker authors an override (WIND-2)
+
+Setup format **version 2**. Each pane row carries a durable `PaneRef` plus the smallest authored
+difference from the developer's answer, and nothing else:
+
+```text
+place  {mode, x, y}       mode: default | cells          absolute canvas cells, never an offset
+width  {mode, amount}     mode: default | cells | pixels  per axis, independently
+height {mode, amount}     mode: default | cells | pixels
+front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
+```
+
+- **`default` is a VALUE, and its unused numbers must be zero.** Loom's admission refuses an
+  unknown field and has no optional, so absence cannot be spelled by omitting one; and a magic
+  coordinate is a value a maker could otherwise mean. Requiring the zeros is what gives absent
+  intent exactly ONE canonical spelling — a file carrying `{"mode":"default","x":7}` would
+  round-trip a number that means nothing, and the first reader to wonder what it meant would be
+  right to.
+- **The mode is a WORD in the file and a closed set**, `persist.hpp`'s own shipped decision about
+  an extent mode, applied to the setup: the in-memory 0/1/2 are arbitrary and a renumber would
+  silently change every saved arrangement. An unrecognised word refuses the WHOLE candidate and
+  names both what it found and what would have worked. A PLACE has two words and a SIZE has three
+  — `pixels` offered to a place is a word that field's vocabulary does not have.
+- **The version and the envelope's shape version are ONE NUMBER**, with a `static_assert` making
+  that a compile error to break. That is what buys the ORDERING the format needs: a version-1
+  file's bytes claim `WorkshopSetup v1`, so the gate refuses it on the CLAIM before it has read a
+  single pane row — and a version-1 file can therefore never be reported as *a pane row is missing
+  `place`*, which is a true sentence about a false cause. `from_text`'s preflight reads that
+  claimed version and says it in Workshop's own words, by number. The `format_version` FIELD is
+  still checked afterwards, for the forgery only a reader of this format would produce.
+- **`pixels` is declared, valid on every medium, and refused at PROJECTION on all of them.** No
+  medium here publishes a trustworthy per-axis device-pixel scale for a canvas cell, and both
+  near-misses are traps: `RegionFit::graphical()` identifies a medium that sets real *type* (a
+  window whose font failed to open publishes `{w,h,0,0}` and still lays its canvas out at
+  `kCanvasCellPx`), and `kCanvasCellPx` is ONE Skin's layout number that `surface/pointing.hpp`
+  forbids Workshop to hold as a standing fact — a pointer may spend it only because the event
+  carries `input::space::kPixels`, a stamp on that moment, and `SurfaceExtent` carries no such
+  stamp. So the refusal is WHOLE, per `doc::resize`'s and `PaneContent`'s law: a pane with either
+  axis in pixels is **not presented**, never presented at the default width with an honoured
+  height. **Do not add a per-axis fallback**; it is exactly the silent default this refuses.
+- **`front` is a canonical rank and never an accumulating counter.** `max + 1` is an operation
+  TRACE: alternating `front(A)`/`front(B)` produces the same two semantic orders forever while the
+  integers grow, so a legal gesture would eventually fail on a setup for which a bounded spelling
+  always existed. A permutation of `0..n-1` is *unique* for a given order, so reset writes bytes
+  identical to a setup that was never reordered — measured, not argued — and ten thousand
+  alternating operations never leave the bound. There is no tie, so the resolved order needs no
+  secondary key at all.
+- **The rank is over ALL authored rows, including unresolved ones.** The presented order is that
+  permutation RESTRICTED to what was seated, and a restriction of a total order is a total order —
+  so a pane that stops resolving keeps its exact place for free and gets it back, with no byte of
+  the file changing either way.
+- **`panels.open` is NEVER reordered, and that is the whole of "raising a pane cannot move it".**
+  `seat_panes` walks the setup LIST, `reconcile` assigns `panels.open` from that answer, and
+  `bounds_of` counts a reactive slot over `panels.open`. No ordering operation writes anything any
+  of the three reads. It is the absence of a write, not a rule somebody maintains. `presentation_order`
+  is the one new pure function; paint walks it ascending and `occupied_at` descending.
+- **An authored place spends no reactive slot and cannot WAIT for one.** A pane the maker put
+  somewhere is not in the tiling, so asking the stack's slot arithmetic whether there is room for
+  it is asking the wrong question — which narrows `waiting` to exactly what it has always meant:
+  the reactive default ran out of tiles. Both `seat_panes` and `bounds_of`'s slot counter say it,
+  and both are pinned.
+- **The override is spent on `kOverlayStack` and nowhere else.** `screen_of` reserves the side
+  column whether or not Info is open and `room_w` is what every share of the workspace resolves
+  against, so a movable Info would change the resolved size of objects in a maker's document —
+  PNL-0's refusal, unchanged. A side-region row's authored geometry is retained in the file, never
+  rewritten, and never spent; management refuses to author one and says which reservation it hit.
+- **The host clips and never rewrites.** `bounds_of` answers with the VISIBLE rectangle (resolved,
+  then intersected with the canvas), so every consumer that already read an empty rectangle as
+  "nowhere" is correct for an off-room pane with no branch of its own; `PanelBounds::resolved`
+  carries the unclipped ask for the state classifier, which has to tell *partly cut off* from *not
+  on this screen at all*.
+- **Seven states, one classifier, and a precedence.** `closed`, `unresolved`, `refused`,
+  `waiting`, `off-room`, `covered`, `open`. A UNIT outranks a want of room: a pane with a pixel
+  axis and no tile left is `refused`, because a taller window would give it the tile and it still
+  would not be presented. `covered` means every visible cell is behind the **union** of what is in
+  front — two panes that each cover half of a third leave nothing showing, and a test that asked
+  "is it inside some ONE pane" would call that `open`. One visible cell is enough to be `open`.
+- **The state column is ELEVEN cells now, up from eight**, because `detail::pad` truncates and
+  `unresolved` is ten bytes — an eight-column field would have presented it as `unresolv`. The
+  price is measured and visible: at the 78×22 minimum a picker row two cells longer than the slot
+  is fitted and the cut is marked.
+- **The picker and pane management share one list and NOT one purpose.** `inventory_rows` is the
+  combined catalog UNION every reference the setup names, so an unresolved pane finally has a row
+  and can be removed by the gesture that removes any other; an unresolved row carries
+  `kNoPaneKind` (negative, for `role::kNone`'s reason) so nothing can present it as the Builder.
+  The picker keeps PRESENCE — selecting an open row removes it, PNL-0 — and management owns
+  ARRANGEMENT and **binds no toggle at all**.
+- **`w` enters pane management from command mode**, paying the `swallow_text_` rule once, after
+  which its own keys need no modifier: `tab`/`up` select, `m` move, `s` size, `f`/`b` front/back,
+  `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one
+  level. It is the sixth mode, below the Terminal and above ordinary command handling.
+- **AN EDGE NAMES AN AXIS AND A DIRECTION — IT IS NOT AN ANCHOR.** A resize writes size and never
+  place, so a pane's top-left corner is its authored place and stays where the maker put it
+  whichever edge is pulled; what the left edge buys over the right one is the DIRECTION a hand
+  means. Making the left edge move the place would turn one gesture into two authored writes and
+  put a refused height beside a moved corner — the exact refusal-beside-a-successful-write
+  `doc::resize` exists to refuse.
+- **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is reversible
+  only by performing the inverse, and there is no undo. The help says `esc back`.
+- **One press claims one gesture until release.** `PaneGesture` holds an identity, an edge and the
+  size at the moment of the press — no rectangle and no live position, `Drag`'s own law — so
+  crossing another pane, crossing the Terminal, and reordering mid-drag change nothing about who
+  is being moved, and every motion proposes `base + (pointer - press)` rather than accumulating.
+  **Management owns the pointer while it is open**, the Terminal's own shape; outside it nothing
+  changed, so a selected pane behind another claims no press and no selection auto-raises.
+- **Pane rectangles are CANVAS cells.** Do not pass one through `workspace_cell_x/y`; that
+  conversion belongs to authored document objects.
 
 ## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
 
@@ -713,14 +822,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**80,283** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-17 after WIND-1) are evidence to report. They are **not** a population, never an
+- Assertion totals (**91,038** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-17 after WIND-2) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 63,747 ·
+  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 74,502 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -743,6 +852,12 @@ the tests themselves pass
   more and more starkly: **four** cases moved Workshop's total from 48,355 to 63,747, because
   one of them states the width law over every width the composition lays out at three heights
   and another sweeps every extent against every seated slot. The phase pinned one expression.
+  WIND-2 then added **thirty-eight** cases for 10,755 assertions -- a ratio of about 280 to 1,
+  where WIND-1's was 3,850 to 1 -- and it is the same lesson read from the other end: a phase
+  whose claims are mostly DISTINCT LAWS rather than SWEPT DOMAINS moves this number hardly at
+  all while changing far more of the repository. Ten thousand of those assertions come from ONE
+  case, the bounded-ordering loop, which is worth knowing before anybody reads the delta as a
+  measure of anything at all.
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose

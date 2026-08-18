@@ -1295,7 +1295,7 @@ deliberately two things and nothing else:
 ```text
 Setup
     a human name
-    an ordered list of PaneRefs
+    an ordered list of PaneRefs        <- WIND-2 gave each row an authored WINDOW; see below
 ```
 
 - **A `PaneRef` is a provider/service key plus a pane key**, both text
@@ -1374,10 +1374,85 @@ Setup
   authored/resolved proof.
 
 Deliberately absent, so the absences are decisions: no opaque provider configuration; no multiple
-pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking, panel
-drag/resize, authored panel geometry, arrange mode or layout weave. Workshop manages **one** active
-setup path. (The external provider, office and discovery protocol this list used to exclude arrived
-in WP-0, bounded — the section below says exactly how far.)
+pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
+layout weave. Workshop manages **one** active setup path. (The external provider, office and
+discovery protocol this list used to exclude arrived in WP-0, bounded — the section below says
+exactly how far. Panel drag/resize, authored panel geometry and an arrange mode arrived in
+WIND-2, equally bounded — the section after that says how far.)
+
+### The code authors a default; the maker authors an override; the host resolves the room (WIND-2)
+
+A maker can **select a pane, move it, resize it by an edge or corner, change what is in front of
+what, reset any of that, and save the arrangement by name** — with the keyboard alone, or with a
+pointer, reaching the same doors. Panes may overlap, and **every pane the setup names is reachable
+whether or not it can currently be seen.** Setup format is **version 2**, a clean break: a
+version-1 file is refused by its number.
+
+```text
+authored setup                 resolved presentation          session interaction
+    PaneRef                        current seat                   selected PaneRef
+    place  {mode, x, y}            current rectangle              management step
+    width  {mode, amount}          current clipping               chosen edge/corner
+    height {mode, amount}          projection / refusal           pointer gesture custody
+    front  (a canonical rank)      visibility and hit order
+                                   external PaneRoom
+```
+
+**Only the first column persists.**
+
+- **Sparse, so a default stays a default.** Each geometry field carries a **mode**, and
+  `default` means *no override — the developer's answer, whatever it becomes in a later build*.
+  A full snapshot would convert every developer default into a maker decision at the moment of
+  first save, which is the defect W-5 removed from the document's saved flag. The unused numbers
+  of a `default` must be zero, so absent intent has exactly one canonical spelling.
+- **Each axis is independent.** Moving a pane freezes neither size axis; resizing one axis freezes
+  neither the place nor the other axis. A default-width pane goes on taking WIND-1's half-share of
+  the room after a place edit.
+- **`cells` on a place is absolute, not an offset** from where the developer put it. An offset is
+  authored against a default a later build may change, so the same saved bytes would silently
+  mean somewhere else. **Resetting** is what gives back "wherever the default puts it".
+- **`pixels` is declared, valid everywhere, and currently unprojectable.** No medium in this build
+  publishes a trustworthy per-axis device-pixel scale for a canvas cell — the text metric
+  identifies a medium that sets real *type*, which is a different fact, and `kCanvasCellPx` is one
+  Skin's layout number that `surface/pointing.hpp` forbids Workshop to hold as a standing fact. So
+  a pixel axis **saves, loads and round-trips exactly**, and is **refused at projection**, whole:
+  the pane is not presented, rather than presented at the default width with an honoured height.
+  There is no fallback. The future rule, once a real scale exists, is
+  `cells = max(1, pixels / scale)`, floored, per axis.
+- **`front` is a canonical rank, not an accumulating counter.** Over `n` rows the set of ranks is
+  exactly `{0 … n-1}` — 0 back-most, `n-1` front-most, no tie and therefore no secondary key.
+  Paint walks it ascending, the pointer descending. A permutation of `0..n-1` is *unique* for a
+  given order, so reset writes bytes identical to a setup that was never reordered, and ten
+  thousand alternating "send to front" operations leave every rank inside the bound.
+- **Reordering moves nothing else.** `seat_panes`, `reconcile` and `bounds_of` all read the
+  setup's LIST, and no ordering operation writes anything any of them reads — so "raising a pane
+  cannot move, resize, mount, unmount, reseat or regrant it" is the *absence of a write*.
+- **An authored place spends no reactive slot.** A pane the maker put somewhere is not in the
+  tiling, so it neither consumes a tile nor can be made to *wait* for one. Resetting its place
+  puts it back.
+- **The host clips; it never rewrites.** A rectangle running past the canvas is legal authored
+  intent, drawn and met and granted room for the part this screen has, and saved exactly as the
+  maker said it.
+- **Info stays in its reserved column and the Terminal stays a mode.** `screen_of` reserves the
+  side column whether or not Info is open, and `room_w` is what every share of the workspace
+  resolves against — so a movable Info would change the resolved size of objects in a maker's
+  document. Management refuses to author its geometry and says why.
+- **`w` opens pane management**, from command mode. Inside it: `tab`/`up` select, `m` move,
+  `s` size (`tab` cycles the eight edges and corners, arrows resize), `f`/`b` front/back,
+  `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one
+  level. **An edge names an axis and a direction, not an anchor** — a resize writes size and never
+  place, so the pane grows from its own corner whichever edge is pulled. Edits commit
+  immediately; `esc` is *back*, not *cancel*, and there is no undo.
+- **A pointer press claims one gesture until release.** Crossing another pane, crossing the
+  Terminal's rectangle, and reordering mid-drag all change nothing about who is being moved.
+  Outside management mode nothing about the pointer changed: a selected pane behind another one
+  claims no press, so a selection never becomes a click-through, and no selection auto-raises.
+- **The picker and management share one list and not one purpose.** The inventory is the union of
+  the combined catalog and every `PaneRef` the setup names, so an unresolved pane finally has a
+  row. The picker keeps *presence* (selecting an open row removes it, PNL-0); management owns
+  *arrangement* and binds no toggle. Seven states, one classifier: `closed`, `unresolved`,
+  `refused`, `waiting`, `off-room`, `covered`, `open` — `covered` means every visible cell is
+  behind the **union** of what is in front, and one visible cell is enough to be `open`.
 
 ### A weave may offer a pane (WP-0)
 
