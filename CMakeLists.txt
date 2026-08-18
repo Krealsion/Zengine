@@ -391,6 +391,9 @@ add_subdirectory(input)
 add_subdirectory(ui)
 add_subdirectory(component)
 add_subdirectory(builder)
+# introspection before workshop: the Workshop host names its stem in its boot list,
+# so the executable depends on the library being a target by the time it is read.
+add_subdirectory(introspection)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

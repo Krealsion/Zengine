@@ -219,6 +219,26 @@
 # overlap, a clipped resolved size, a release under a mode, a removed selection, one picker
 # inventory, a pixel axis and a hint on row 0 are all cell arithmetic or a message on a bus.
 #
+# INTR-0 raised the workshop floor 482 -> 504, and it is the ELEVENTH phase to need no new row.
+# Twenty-two cases, and the split is the same rule once more with an extra reason of its own:
+#
+#   WHAT A READING MEANS is a pure function over a value. Parsing the Weave Manager's blob,
+#   the last-at-sign rule, an observed empty map, a role the kernel bound nowhere, the row
+#   budget swept over four populations and six column widths, the reserved caveat, the counted
+#   omission and the marked cut -- none of it touches a bus, a medium or a font, and
+#   `introspection/loaded.hpp` links nothing so that this stays true.
+#
+#   WHERE THE FACT COMES FROM is not pure, and no case pretends it is: eleven of the twenty-two
+#   load the REAL `zengine-introspection` shared library through the real Kernel and Manager and
+#   read its rows off a published canvas. That is why this suite now defines a SECOND `_SO` path.
+#   The two are different kinds of artifact -- `zengine-workshop-hello` is a fixture built by
+#   tests/, `zengine-introspection` is a package the host stages and boots -- so a case here that
+#   reads a row is reading the shipped tool's own answer.
+#
+# The medium-dependent case is the usual one and needed no gate: a graphical metric arrives as a
+# NUMBER, moves the granted budget, and the projection answers the new room. So the Windows
+# stranger lane proves the whole phase, exactly as it proved the ten before it.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -235,7 +255,7 @@ surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  482
+workshop                          doctest           always  504
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

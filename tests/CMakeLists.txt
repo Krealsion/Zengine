@@ -397,17 +397,27 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 #
 # What it also needs is the surface vocabulary and the terminal rasterizer, because one case
 # runs a real painted screen through the medium's own pure function.
+#
+# INTR-0 gave it a SECOND `_SO` path, and the two are different KINDS of artifact rather
+# than two of a kind. `zengine-workshop-hello` is a fixture this directory builds, whose
+# whole job is to be the smallest thing that exercises the protocol. `zengine-introspection`
+# is a PRODUCT — a package beside timer/ and input/, staged and booted by the real Workshop
+# host — and the suite loads the very library a maker runs. So a case here that reads its
+# rows is reading the shipped tool's answer, not a stand-in's, which is the only way the
+# claim "every displayed fact is true" can be tested at all.
 add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
             zengine-workshop-vocabulary
-            zengine-surface-vocabulary zengine-ui-vocabulary zengine-warnings
+            zengine-surface-vocabulary zengine-ui-vocabulary
+            zengine-introspection-view zengine-warnings
             zengine-sanitize)
 target_include_directories(zengine-workshop-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 target_compile_definitions(zengine-workshop-tests PRIVATE
-    "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\"")
-add_dependencies(zengine-workshop-tests zengine-workshop-hello)
+    "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+    "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\"")
+add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection)
 
 zengine_doctest_test(workshop zengine-workshop-tests)
 

@@ -65,6 +65,11 @@ target_link_libraries(zengine-workshop
             zengine-workshop-vocabulary
             zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
+            # The two durable names in Introspection's boot line, and NOTHING of its
+            # view: the host says which stem to load and into which office, exactly as
+            # it does for the Timer. It does not include `loaded.hpp` and could not
+            # present a row of it.
+            zengine-introspection-view
             zengine-warnings zengine-sanitize)
 
 # ---- The one build recipe this host hands its build runner (BLD-0) ----------------------
@@ -120,7 +125,13 @@ target_compile_definitions(zengine-workshop PRIVATE
 # (workshop.cpp) is what SELECTS one at launch; staging is what makes the chosen
 # stem resolvable beside the host. Both halves are needed and they are different
 # acts — that split is the whole of what P29 measured.
-set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer)
+# `zengine-introspection` is the fourth, and the first entry here that is a TOOL
+# rather than a service the application cannot run without. It is staged and booted
+# on the same terms as the other three because that is what the host's boot list is
+# for; what makes it different is on the other side of the pane seam, where Workshop
+# never learns what it presents (INTR-0).
+set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer
+                            zengine-introspection)
 if(TARGET zengine-skin-sdl)
     list(APPEND zengine_workshop_weaves zengine-skin-sdl)
 endif()

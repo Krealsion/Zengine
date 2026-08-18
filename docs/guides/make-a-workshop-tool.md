@@ -678,14 +678,29 @@ Discovery converges in either load order, with no polling and no timer:
 - repetition is harmless: `admit_pane_offer` refreshes an existing `PaneRef` in place and grows
   the catalog by nothing, so identity does the de-duplication and the protocol needs none.
 
-**And here is the limit, immediately.** The existing Hello provider is a dynamic library loaded
-by the Workshop **test fixture**. The production host (`workshop/workshop.cpp`) mounts its own
-weave, the build runner and the Builder tool, and a terminal participant in-process, and then
-boots exactly three dynamic weaves through the Weave Manager: the Skin named by `--skin`, the
-input weave named by `--input`, and `zengine-timer`. That list is the whole of it. The host does
-**not** scan a directory for providers, does not take a `--provider` flag, does not stage the
-Hello library, and publishes no SDK or installation workflow. Dropping a shared library beside
-`zengine-workshop` does not make it a plugin.
+**And here is the limit, immediately.** The production host (`workshop/workshop.cpp`) mounts its
+own weave, the build runner and the Builder tool, and a terminal participant in-process, and then
+boots exactly **four** dynamic weaves through the Weave Manager: the Skin named by `--skin`, the
+input weave named by `--input`, `zengine-timer`, and — since INTR-0 — `zengine-introspection`,
+the first shipped tool that arrives through this protocol. That list is the whole of it, and it
+is a **compile-time list in the host**. The host does **not** scan a directory for providers,
+does not take a `--provider` flag, and publishes no SDK or installation workflow. Dropping a
+shared library beside `zengine-workshop` does not make it a plugin.
+
+So read the split precisely, because the two halves are in different places:
+
+```text
+WORKSHOP           needs no change for a new pane, and INTR-0 proved it: not one
+                   line of weave.hpp, panel.hpp or screen.hpp names Introspection,
+                   no kind was minted for it, and the picker learned its row from a
+                   live offer
+THE HOST           still names every stem it boots. A FIRST-PARTY tool is a line
+                   beside `zengine-timer`; a THIRD PARTY has no door at all
+```
+
+The Hello provider is the other kind of artifact and is unchanged: a dynamic library loaded by the
+Workshop **test fixture**, built by `tests/`, named in no host's boot list, and a protocol
+reference rather than a product.
 
 ## B4. Room and content
 

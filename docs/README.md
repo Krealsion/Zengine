@@ -16,7 +16,15 @@ input, and no plugin/installation story yet. The exact wire shapes are
 the repo README's [A weave may offer a pane](../README.md#a-weave-may-offer-a-pane-wp-0);
 [`tests/weavelib/workshop_hello.cpp`](../tests/weavelib/workshop_hello.cpp) is its smallest
 complete witness, and a test fixture rather than a product plugin. For built-in examples read
-`Info` and `Builder` in [`workshop/screen.hpp`](../workshop/screen.hpp).
+`Info` and `Builder` in [`workshop/screen.hpp`](../workshop/screen.hpp), and for a shipped
+external one read [reference/introspection.md](reference/introspection.md) beside
+[`introspection/`](../introspection/loaded.hpp).
+
+**Seeing what is running:** [reference/introspection.md](reference/introspection.md) — the
+`Loaded` pane. What it shows, where each fact's authority lives, what it deliberately does not
+show, why it is a snapshot rather than a feed, what happens when its provider disappears, and the
+exact authority it holds. It is also the first tool that reaches Workshop entirely through the
+external pane protocol, so it is worth reading beside the guide above.
 
 **Using time:** [guides/timers.md](guides/timers.md) (order a timer, receipts,
 the `TimerReady` rule) · [guides/timed-weaves.md](guides/timed-weaves.md)

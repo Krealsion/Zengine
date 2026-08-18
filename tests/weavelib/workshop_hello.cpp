@@ -5,10 +5,16 @@
 // read-only pane, and the whole of WP-0's external witness.
 //
 // IT IS A FIXTURE AND NOT A PRODUCT. It is built by `tests/`, loaded only by the
-// Workshop suite, and named in no host's boot list. Workshop ships two panes and
-// this is not one of them; what it exists to prove is that the SEAM works through
-// the real ABI, the real Kernel and a real `.so`/`.dll`, rather than through a
-// registration callback a test could reach for and production could not.
+// Workshop suite, and named in no host's boot list; what it exists to prove is that
+// the SEAM works through the real ABI, the real Kernel and a real `.so`/`.dll`,
+// rather than through a registration callback a test could reach for and production
+// could not.
+//
+// THE SHIPPED TOOL THAT USES THIS SEAM IS `introspection/` (INTR-0), and the two are
+// deliberately different artifacts rather than two of a kind. That one is a package
+// beside timer/ and input/, staged and booted by the real host, and its rows are
+// facts about the running system. This one answers with the room it was granted,
+// because the room contract is what a fixture can pin and a product cannot.
 //
 // WHAT IT DELIBERATELY DOES NOT DO. It writes no file, starts no process, opens
 // no socket, holds no timer, publishes no canvas, and asks Workshop for nothing.

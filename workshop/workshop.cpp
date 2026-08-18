@@ -31,6 +31,7 @@
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
 #include "input/vocabulary.hpp"
+#include "introspection/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -72,6 +73,7 @@ namespace {
 using namespace zengine::workshop;
 namespace builder = zengine::builder;
 namespace input = zengine::input;
+namespace introspection = zengine::introspection;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 
@@ -643,6 +645,28 @@ int main(int argc, char** argv) {
     boot(args.skin.c_str(), surface::kSkinRole);
     boot(args.input.c_str(), input::kInputRole);
     boot("zengine-timer", timer::kTimerRole);
+    // ---- The fourth boot, and the honest shape of what it costs (INTR-0) ------
+    //
+    // The Introspection tool. It reaches Workshop only through the pane protocol's
+    // four shapes: nothing in `weave.hpp`, `panel.hpp` or `screen.hpp` names it, no
+    // `panel::k*` was minted for it, and Workshop discovers its pane from a live
+    // offer exactly as it would a stranger's. That is the claim INTR-0 set out to
+    // prove and it is proven on the other side of this line.
+    //
+    // WHAT IS NOT PROVEN IS ON THIS SIDE OF IT, so it is said here rather than in a
+    // report: the HOST still names the stem. There is no provider scan directory, no
+    // autoload list and no `--provider` flag, and dropping a shared library beside
+    // this executable still does not make it a plugin. A first-party tool booted
+    // beside the Timer is exactly as far as the current loader goes; a third party's
+    // would need a door that does not exist. Adding one is a phase, not a line here.
+    //
+    // IT IS BOOTED LAST, AND THAT IS NOT ARBITRARY. Every stem above it is already a
+    // fact by the time it announces, which is what makes the pane's first reading a
+    // reading of a system rather than of a boot in progress. Nothing depends on the
+    // order -- a provider that arrives before Workshop is recovered by Workshop's own
+    // catalog ask, and one that arrives after announces on its attested activation --
+    // so this buys legibility rather than correctness.
+    boot(introspection::kIntrospectionStem, introspection::kIntrospectionRole);
 
     // Everything runs inside pump(): the input weave's own beat keeps the queue
     // alive, the Timer service's nap paces it, and `q` stops the bus. A pump
