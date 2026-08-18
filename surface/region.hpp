@@ -389,7 +389,9 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
             r.caret_col <= static_cast<std::int64_t>(text.size())) {
             text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
         }
-        const bool takes_the_cells = r.ground == kGroundOwn || back != role::kNone;
+        // `!= kGroundBeneath`, never `== kGroundOwn`: an unknown ground reads as OWNING its
+        // room, so a number nobody chose cannot stop a region padding. See vocabulary.hpp.
+        const bool takes_the_cells = r.ground != kGroundBeneath || back != role::kNone;
         if (text.size() > width) {
             text.resize(width); // cut on a byte boundary: one cell per byte, as ever
         } else if (takes_the_cells) {

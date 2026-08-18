@@ -3192,6 +3192,40 @@ TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its 
     CHECK(planned.regions.front().rows[1].background == ink_for_role(role::kMuted)); // a strip
 }
 
+TEST_CASE("TYPE-1: a ground this vocabulary does not know OWNS its room") {
+    // The same posture `role` takes: an unknown value is still a region somebody meant to be
+    // seen, so the safe reading is the one every region had before the field existed. It is
+    // asserted in BOTH media because the two tests are written in two files, and a `== own`
+    // in one beside a `!= beneath` in the other is how they come to disagree about a number
+    // nobody chose -- which is reachable, because a canvas is a ZEN_SHAPE and this is a poke
+    // and a wire field.
+    SurfaceCanvas c;
+    c.width = 8;
+    c.height = 4;
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(SurfaceRect{0, 0, 8, 4, role::kFill});
+    SurfaceTextRegion odd;
+    odd.x = 1;
+    odd.y = 1;
+    odd.w = 6;
+    odd.h = 2;
+    odd.ground = 7; // not a value this vocabulary has ever minted
+    odd.rows.push_back(SurfaceTextRow{"hi", role::kAccent});
+    c.layers.back().texts.push_back(odd);
+
+    const std::vector<ProjectedRow> rows = project_text_regions(c.layers.front());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == "hi    "); // padded: it owns its room
+    CHECK(rows[1].label.text == "      ");
+    CHECK(canvas_body(c).find("[36mhi    [37m#") != std::string::npos);
+
+    const PlanLayer planned =
+        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCanvasCellPx, 4 * kCanvasCellPx})
+            .front();
+    REQUIRE(planned.regions.size() == 1);
+    CHECK(planned.regions.front().ground == kGroundOwn); // normalized before the edge sees it
+}
+
 TEST_CASE("TYPE-1: an ordinary region keeps every byte of its old behaviour, by DEFAULT") {
     // THE PRESERVATION PROOF. Terminal, Info, picker, pane management, notices and external
     // panes ask for nothing new and must get exactly what they got; the DEFAULT is the whole of

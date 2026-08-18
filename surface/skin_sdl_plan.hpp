@@ -303,7 +303,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
             return; // no row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
-        const bool takes_the_cell = background >= 0 || region_ground == kGroundOwn;
+        const bool takes_the_cell = background >= 0 || region_ground != kGroundBeneath;
         const PlanInk under = background < 0 ? kCanvasBackground : ink_for_role(background);
         const std::int64_t cell_y = l.y * kCanvasCellPx;
         for (std::size_t i = 0; i < l.text.size(); ++i) {

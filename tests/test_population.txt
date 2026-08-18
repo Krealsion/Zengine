@@ -249,8 +249,8 @@
 # the Windows stranger lane prove the phase in full, including the pictures a maker only ever
 # sees through SDL.
 #
-# TYPE-1 raised the surface floor 66 -> 70 and the workshop floor 510 -> 517, and it is the
-# THIRTEENTH phase to need no new row. Eleven cases, and the split between the two suites is the
+# TYPE-1 raised the surface floor 66 -> 71 and the workshop floor 510 -> 517, and it is the
+# THIRTEENTH phase to need no new row. Twelve cases, and the split between the two suites is the
 # phase's own claim about where a contract lives: `surface` carries the four that are about the
 # VOCABULARY -- what an ordinary region does to material under it, what a region whose ground is
 # beneath does instead, what a row's own ground means inside one, and that the default is
@@ -276,7 +276,7 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  70
+surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
