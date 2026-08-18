@@ -109,7 +109,7 @@ struct Placed {
 
 /// A resolved scene: the viewport it was resolved against, and every element's
 /// place in it, in AUTHORED ORDER — which is paint order, said once (the same
-/// rule SurfaceCanvas states about its own rects). Later is in front.
+/// rule a SurfaceLayer states about its own rects). Later is in front.
 ///
 /// AUTHORED ORDER SURVIVES COMPOSITION, and that is a finding rather than an
 /// accident. Composition introduces a second ordering concern -- an

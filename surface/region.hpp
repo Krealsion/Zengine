@@ -211,7 +211,7 @@ inline constexpr RegionViewport viewport_of_cells(std::int64_t x, std::int64_t y
 /// A face's line is not a cell: this repository's measures 18 device pixels
 /// against a 12-pixel cell, so a region ONE CELL TALL holds `(12 - 2*inset) / 18`
 /// = zero rows of it. Before HD-5 such a region resolved to a graphical fit with
-/// no capacity, and both media then drew NOTHING — `plan_text_regions` skips a
+/// no capacity, and both media then drew NOTHING — `plan_layer_regions` skips a
 /// fit with no rows and `plan_canvas` had already decided the regions were the
 /// other list's. A bounded region that silently vanishes is the one answer this
 /// header exists to make impossible, so the fallback is here, in the ONE function
@@ -367,11 +367,18 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
     }
 }
 
-/// EVERY REGION ON A CANVAS, AS CELLS — a character medium's whole answer, because a
-/// character medium has no second one to partition against.
-inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
+/// EVERY REGION OF ONE LAYER, AS CELLS — a character medium's whole answer for that
+/// layer, because a character medium has no second list to partition against.
+///
+/// A LAYER AND NOT A CANVAS SINCE WIND-2a, and the argument is the whole of that phase.
+/// A canvas-wide version of this function is a FLATTENER: it returns every region of
+/// every plane as one run, which is precisely the global band that let a back-ranked
+/// region cover a front-ranked label. There is deliberately no overload taking a
+/// `SurfaceCanvas`, so no consumer — renderer, plan or test helper — can ask for the
+/// order this vocabulary stopped having.
+inline std::vector<ProjectedRow> project_text_regions(const SurfaceLayer& l) {
     std::vector<ProjectedRow> out;
-    for (const SurfaceTextRegion& r : c.texts) {
+    for (const SurfaceTextRegion& r : l.texts) {
         project_one_text_region(r, out);
     }
     return out;
@@ -380,7 +387,7 @@ inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
 /// THE REGIONS THIS MEDIUM CANNOT SET IN ITS OWN TYPE, as cells (HD-5).
 ///
 /// The partition a graphical medium draws from, and it is one predicate rather than a global
-/// test: a region belongs to `plan_text_regions` when `fit_region` says its bounds hold type,
+/// test: a region belongs to `plan_layer_regions` when `fit_region` says its bounds hold type,
 /// and to this list when they do not. With a zero metric that is EVERY region, byte-for-byte
 /// what the single-argument overload above returns, which is why no canvas this repository
 /// paints in a character medium moves.
@@ -388,12 +395,16 @@ inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c) {
 /// Before HD-5 the split was made once for the whole canvas — regions were cells when the
 /// medium had no face and type when it had one — and a region too small for the face was
 /// therefore in neither list. See `fit_region` for the measurement that made that reachable.
-inline std::vector<ProjectedRow> project_text_regions(const SurfaceCanvas& c,
+///
+/// PER LAYER SINCE WIND-2a, for the overload above's reason exactly: the partition is
+/// between two lists of ONE plane, and a canvas-wide answer would put every plane's typed
+/// regions after every plane's cells.
+inline std::vector<ProjectedRow> project_text_regions(const SurfaceLayer& l,
                                                      const SurfaceExtent& metric) {
     std::vector<ProjectedRow> out;
-    for (const SurfaceTextRegion& r : c.texts) {
+    for (const SurfaceTextRegion& r : l.texts) {
         if (fit_region(r, metric).graphical()) {
-            continue; // this medium sets this one in type: plan_text_regions has it
+            continue; // this medium sets this one in type: plan_layer_regions has it
         }
         project_one_text_region(r, out);
     }

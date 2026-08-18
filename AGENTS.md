@@ -70,7 +70,7 @@ resolve_extent without its guard        ordinary PASSES   UBSan signed integer o
 **absence** of a ground, negative on purpose so the unknown-role fallback (`kFill`) can never
 swallow it and a later fifth role cannot collide with it. Nothing passes it to a Skin's
 role→ink table; a consumer tests for it first. It made `SurfaceTextRow` v2,
-`SurfaceTextRegion` v2 and `SurfaceCanvas` **v3** — the latter two gained no field of their
+`SurfaceTextRegion` v2 and `SurfaceCanvas` **v3** (v5 since WIND-2a) — the latter two gained no field of their
 own and changed anyway, because their wire identity is computed from the types they carry.
 `project_text_regions` therefore returns `ProjectedRow{label, background}` rather than bare
 labels; the ground travels **unresolved** through the cell projection and each medium answers
@@ -93,7 +93,8 @@ into a `kCaretWidthPx` bar off the same `RegionFit` the rows were positioned wit
 end of a line is byte-for-byte the row the Terminal used to append for itself. `kNoCaret` is
 **negative** for `role::kNone`'s reason — a row index is non-negative by construction, so an
 absence cannot collide with a row anybody meant. It made `SurfaceTextRegion` **v3** and
-`SurfaceCanvas` **v4**; the canvas has now changed three times and never gained a field.
+`SurfaceCanvas` **v4**; the canvas had by then changed three times and never gained a field.
+WIND-2a is the first time it gained and lost some -- see the plane section below.
 
 **A caret is an insertion point, so it is a bar and never a block**, and it is not a
 selection, not a focus fact and not a clock. Two regions on one canvas may each carry one.
@@ -682,6 +683,107 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
 - **Pane rectangles are CANVAS cells.** Do not pass one through `workspace_cell_x/y`; that
   conversion belongs to authored document objects.
 
+## The front the host hits is the front the medium paints (WIND-2a)
+
+A canvas is an ordered list of **planes** now, and that is the whole of the depth model:
+
+```text
+SurfaceLayer v1        rects[], labels[], texts[]   -- a nested value, never a message
+SurfaceCanvas v5       width, height, layers[]      -- layers[0] back-most
+
+inside one plane       rects in list order, then labels over them, then regions over those
+between two planes     the complete earlier plane, then the complete later one over it
+```
+
+- **The defect it repairs was WIND-2's, and it was a MISMATCH rather than a missing feature.**
+  WIND-2 authored a canonical `front` rank and correctly walked it ascending to paint and
+  descending to hit. It could not make either shipped Skin execute it: the canvas held three
+  ROOT lists, so painter's order was global across KINDS -- every rect, then every label, then
+  every text region. Place the Builder over the Info column and send it to front, and
+  `occupied_at` answered `Builder` while the terminal drew Info's prose in the same cell.
+  Measured, both directions: with Info in front the picture was right, with the Builder in
+  front it was wrong -- which is why a case that reversed a vector and asked about two cells
+  each covered by ONE pane had passed.
+- **`SurfaceLayer` is a nested value and not a surface message.** Nothing sends one, nothing
+  grants one, and it is in no ordinary vocabulary -- it exists because `SurfaceCanvas` carries
+  a list of them, exactly as `SurfaceTextRow` exists because a region carries a list of those.
+- **It is not a compositor and must not become one.** No transform, no opacity, no blending, no
+  clipping tree, no layer identity/name/handle/key, no numeric z or depth, no sorting, no ties,
+  no epochs, no accumulating counter, no hit testing, no window-manager behaviour. A layer is a
+  position in a vector; the publisher supplies an already-ordered list and the Skin executes it.
+  **No primitive gained a field** -- `SurfaceRect`, `SurfaceLabel`, `SurfaceTextRow` and
+  `SurfaceTextRegion` are byte-identical, which is what makes this an ORDERING change.
+- **A clean break, on purpose.** There is no `SurfaceCanvas::rects`/`labels`/`texts`, no v4
+  reader, no dual writer, no implicit base layer beside the explicit ones, and no
+  `project_text_regions(const SurfaceCanvas&)` -- a canvas-wide projection IS the flattener the
+  phase removed, so the overload does not exist and cannot be called. Zero layers is a valid
+  blank picture; so is a plane with any empty subset of its three lists.
+- **Both media execute planes, and the SDL edge no longer decides the order.** `canvas_body`
+  rasterizes one whole plane at a time into the same two grids it always used.
+  `plan_canvas(canvas, metric, surface)` returns one `PlanLayer{quads, regions}` per plane and
+  the edge walks it -- the old shape handed the edge two canvas-wide lists, which is the same
+  two global bands in a different type. `plan_layer_quads` / `plan_layer_regions` are the
+  per-plane halves every lane pins.
+
+**Workshop's plane sequence, and it is the whole layout of the screen:**
+
+```text
+the workspace       its backdrop, the scene, the size handle
+one plane per pane  presentation_order(setup, panels), ascending by canonical `front`
+the affordances     over the selected pane's own content, so no handle is hidden
+picker / management over the panes they cover -- a provider's text cannot bury the row that
+                    recovers it
+the screen's chrome the shared top row and the bottom band
+the Terminal        the final modal plane
+```
+
+- **The screen's chrome is in FRONT of the panes, and that is a decision with a reason.** Row 0
+  is shared with the side region by design (HD-7: `OBJECTS` names the panel's column and
+  `shift+space terminal` names a mode, on one row neither owns outright), and the bottom band is
+  where the tool SPEAKS. A panel backdrop drawn over either would erase the notice that just told
+  a maker what happened. Panes are in front of the DOCUMENT, which is what `occupied_at` has
+  answered since PNL-2; they are not in front of the tool's own voice.
+- `presentation_order` is still the one order helper, paint still walks it ascending and
+  `occupied_at` its exact reverse. Nothing derives hit order from canvas layers, and Surface
+  learns nothing about panes, setup, selection, rooms or input. **No layer fact persists.**
+
+**The five other review findings, each a one-owner repair:**
+
+- **A resize begins from the RESOLVED size** (`managed_bounds`). `rect` is the visible
+  intersection and owns painting, occupancy, coverage, affordance placement and whether geometry
+  is reachable; `resolved` is the unclipped ask and is what a first edit captures. WIND-2 captured
+  the visible one: a default pane resolving to 89 cells with four on screen answered one rightward
+  step by authoring **five**. The affordance stays on the visible boundary -- that is where the
+  eye and the hand are -- and its delta applies to the resolved size, for the key and the pointer
+  alike.
+- **`end_held_gestures()` is the one release owner**, called by the Terminal branch, the
+  management branch and the ordinary path. A gesture begins under one mode and is released under
+  another, so whichever mode answers a release first must end them all; WIND-2's Terminal branch
+  ended only the document's, and a pane gesture survived with the button up and followed the
+  pointer afterwards. It says nothing -- what to tell a maker is the caller's, because the answer
+  genuinely differs. It is not a capture framework: two records and one function.
+- **`forget_removed_selection()` clears on MEMBERSHIP, never on presentation.** A pane that
+  becomes waiting, refused, covered, off-room or **unresolved** keeps its selection -- every one
+  is a pane the setup still names and whose management row is still reachable, which is WIND-2's
+  recovery claim. A reference LEAVING the setup clears the selection, the submode, the edge and
+  the gesture. It runs inside `apply_setup`, the one door membership changes through.
+- **One picker inventory.** `picker_population()` is `inventory_rows(active, panels)` and the
+  painter, the cursor bound, the Return action and the cursor repair all spend it. WIND-2 widened
+  the PAINTER to the union and left the bound and the action on `combined_catalog`, so an
+  unresolved row was painted and unreachable -- a maker could see the row the phase had added for
+  them and could not remove it without editing the file.
+- **`pane_unit_projectable(authored)` takes no placement.** A pane with either axis in pixels is
+  projection-refused in every current medium, **Info included**; the old spelling exempted every
+  non-overlay placement, so a setup could carry `240px` for Info and Info went on being presented
+  at the developer's width, silently ignoring it. Fixed placement is not permission to present an
+  unsupported unit as understood. Authored bytes are exact through the refusal, and reset and
+  order still recover. A unit outranks a reservation in `manage_geometry_ready`, the same
+  precedence `pane_state_of` already spends between a unit and a want of room.
+- **`w` is on screen before the mode is entered.** Row 0 carries one label,
+  `[+ panel]  p  [window]  w` -- 25 cells at column 24, ending at 48, one clear of `OBJECTS` at
+  the minimum composition's column 50. One string rather than two labels, because what has to be
+  true is a fact about the whole run and a single string cannot be half-moved.
+
 ## A press-chain bool means CONSUMED, and the Terminal's does not (QR-2)
 
 The three handlers under `if (b.pressed)` in `WorkshopWeave::on(const input::PointerButton&)`
@@ -822,14 +924,14 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**91,038** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-17 after WIND-2) are evidence to report. They are **not** a population, never an
+- Assertion totals (**91,441** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-17 after WIND-2a) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,699 · `zengine-workshop-tests` 74,502 ·
+  reproduce it: `zengine-surface-tests` 6,962 · `zengine-workshop-tests` 74,642 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
@@ -857,7 +959,11 @@ the tests themselves pass
   whose claims are mostly DISTINCT LAWS rather than SWEPT DOMAINS moves this number hardly at
   all while changing far more of the repository. Ten thousand of those assertions come from ONE
   case, the bounded-ordering loop, which is worth knowing before anybody reads the delta as a
-  measure of anything at all.
+  measure of anything at all. WIND-2a is the smallest delta of the lot and the plainest reading
+  of this bullet: **sixteen** new cases -- a whole vocabulary version, both media's execution
+  order and six behavioural repairs -- moved the figure by **403**, because what they assert is
+  LAWS rather than swept domains. Nobody should read 403 as "less was proved here than by
+  WIND-1's four cases and fifteen thousand".
 - Configuration-dependent populations are **declared**, not absorbed: the
   SDL-gated cases in `test_surface.cpp` — and, since G-1, in `test_input.cpp` —
   are their own manifest rows, so a suite's floor is the SUM of the rows whose

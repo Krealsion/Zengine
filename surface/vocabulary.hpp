@@ -105,7 +105,7 @@ inline constexpr std::int64_t kNone = -1;
 /// in cells lands somewhere real in every medium instead of being pixel-exact
 /// in one and rounded into mush in the other.
 ///
-/// Painter's order: `SurfaceCanvas::rects` is drawn front-to-back in list
+/// Painter's order: `SurfaceLayer::rects` is drawn front-to-back in list
 /// order, so a publisher expresses "behind" by publishing earlier. There is no
 /// z field and no explicit stacking policy — list order already says it, and a
 /// second way to say the same thing is how two orderings come to disagree.
@@ -223,8 +223,8 @@ inline constexpr char kCaretGlyph = '_';
 /// here was edited. Version 3 is the ordinary kind — HD-3 added the two caret
 /// fields below. Either way, leaving the declared version alone would have meant
 /// two different content-ids wearing one version number, which is the exact
-/// failure a version exists to prevent. The same sentence one layer out makes
-/// `SurfaceCanvas` version 4.
+/// failure a version exists to prevent. The same sentence one layer out made
+/// `SurfaceCanvas` version 4, and WIND-2a's own field change made it version 5.
 ///
 /// A REGION MAY HAVE A CARET, AND IT IS SAID IN THE REGION'S OWN PROSE LATTICE
 /// (HD-3). `caret_row`/`caret_col` are a row index and a column index into this
@@ -258,7 +258,41 @@ struct SurfaceTextRegion {
               ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col));
 };
 
-/// A whole canvas: an extent in cells, filled rectangles, and text over them.
+/// ONE ORDERED PAINTER PLANE: the three primitive kinds, drawn as one complete
+/// picture before the next plane is drawn over it (WIND-2a).
+///
+/// WHY IT EXISTS, AND IT IS ONE SENTENCE: a publisher that has decided which of
+/// two presentations is IN FRONT had no way to say so. The three lists used to
+/// sit on the canvas itself, so painter's order across KINDS was global — every
+/// rect, then every label, then every region — and a text region belonging to a
+/// pane a maker had sent to the BACK still covered a label belonging to the pane
+/// they had sent to the FRONT. Workshop's hit test answered with the front pane
+/// and the medium painted the back one. The order was authored and unsayable.
+///
+/// WHAT IT IS NOT, and the list is the design. There is no coordinate transform,
+/// no opacity, no blending, no clipping tree, no layer identity, name, handle or
+/// persisted key, no numeric z or depth, no sorting, no ties, no epochs, no
+/// accumulating counter, no hit testing and no window-manager behaviour. A layer
+/// is a position in a vector. The publisher supplies an ALREADY ORDERED list and
+/// the Skin executes it in that order — which is the same "list order is painter's
+/// order" rule `SurfaceRect` has always stated, applied once more, one level out.
+///
+/// SO THIS IS NOT A COMPOSITOR AND MUST NOT BECOME ONE. Every field a compositor
+/// has is a fact a publisher would then have to hold, and this vocabulary's whole
+/// claim is that a publisher holds the PICTURE and the medium holds the pixels.
+///
+/// A NESTED VALUE, NEVER A MESSAGE. Nothing sends a `SurfaceLayer`; it exists
+/// because `SurfaceCanvas` carries a list of them, exactly as `SurfaceTextRow`
+/// exists because a region carries a list of those. It is not in any ordinary
+/// vocabulary and no grant names it.
+struct SurfaceLayer {
+    std::vector<SurfaceRect> rects;
+    std::vector<SurfaceLabel> labels;
+    std::vector<SurfaceTextRegion> texts;
+    ZEN_SHAPE(SurfaceLayer, 1, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
+};
+
+/// A whole canvas: an extent in cells, and the ordered planes that fill it.
 /// The complete general drawing intent — and deliberately no more than that.
 /// It is not a layout system and not a widget tree: it carries no parent/child
 /// relationship, no anchors, no percentages, no policy. Whoever publishes it
@@ -270,30 +304,38 @@ struct SurfaceTextRegion {
 /// medium must PAINT.
 ///
 /// Elements outside the extent are the Skin's to clip. An empty canvas (no
-/// rects, no labels, no text regions) is a legitimate picture — it means
-/// "nothing", not "no intent" — and clears whatever the previous canvas drew.
+/// layers at all) is a legitimate picture — it means "nothing", not "no intent" —
+/// and clears whatever the previous canvas drew. So is a canvas of layers that
+/// are themselves empty.
 ///
-/// PAINTER'S ORDER ACROSS THE THREE LISTS is rects, then labels, then text
-/// regions — the same "later wins" rule list order already states, extended once
-/// rather than qualified per element. A region is the topmost thing on a canvas
-/// because a region is an overlay: it is granted bounds and owns what is inside
-/// them, which is exactly what would be untrue if a label could land on top of
-/// one.
+/// PAINTER'S ORDER IS TWO LEVELS AND THE WHOLE OF IT IS THIS (WIND-2a):
 ///
-/// VERSION 4 SINCE HD-3, and it has never gained a field of its own. Its identity
-/// is derived from the three lists it carries, so a `SurfaceTextRow` gaining a
-/// background (HD-2) and a `SurfaceTextRegion` gaining a caret (HD-3) each
-/// changed this shape on the wire whether or not anything here was edited. A
-/// version that did not follow would be a promise this shape cannot keep — see
-/// `SurfaceTextRegion` above, which is the same sentence one layer in.
+///     layers[0]              back-most
+///     layers[n-1]            front-most
+///     inside one layer       rects in list order, then labels over them, then
+///                            text regions over those
+///     between two layers     the complete earlier layer, then the complete
+///                            later one over it
+///
+/// A region is the topmost thing IN ITS OWN LAYER because a region is an overlay:
+/// it is granted bounds and owns what is inside them, which is exactly what would
+/// be untrue if a label of the same presentation could land on top of one. What
+/// changed in WIND-2a is that this stopped being a claim about the whole canvas —
+/// a region belonging to a presentation somebody put BEHIND another one is behind
+/// it, kind for kind, and no primitive had to gain a field to say so.
+///
+/// VERSION 5 SINCE WIND-2a, and this is the first time it has gained and lost
+/// fields of its own. Versions 2, 3 and 4 it gained nothing at all and changed
+/// anyway, because its identity is derived from what it carries; version 5 is the
+/// ordinary kind. There is no v4 reader, no compatibility root list, no implicit
+/// base layer beside the explicit ones and no second spelling of one picture —
+/// two valid ways to say the same thing is how two orderings come to disagree,
+/// which is the defect this version exists to end.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
-    std::vector<SurfaceRect> rects;
-    std::vector<SurfaceLabel> labels;
-    std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceCanvas, 4, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(rects),
-              ZEN_FIELD(labels), ZEN_FIELD(texts));
+    std::vector<SurfaceLayer> layers;
+    ZEN_SHAPE(SurfaceCanvas, 5, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
 /// One canvas cell in a graphical medium. The terminal needs no such number —

@@ -79,6 +79,38 @@ using loom::schema_of;
 
 namespace {
 
+// ---- canvases, now that a canvas is a LIST OF PLANES (WIND-2a) -------------------
+//
+// Most cases in this file are about what ONE plane does -- clipping, inks, glyph runs,
+// a region's projection -- and were written when the canvas held the three primitive
+// lists itself. They build on one plane, through `plane()`, and go on saying exactly
+// what they said. The cases that are about ORDER build a second plane with `next_plane()`
+// and are the only ones that need to know layers exist.
+//
+// THERE IS DELIBERATELY NO HELPER THAT FLATTENS THE PLANES BACK INTO THREE LISTS. That
+// shape is precisely what WIND-2a removed, and a test-side copy of it would let a case
+// go on passing about a picture nothing paints.
+
+/// THE PLANE A ONE-PLANE CASE BUILDS ON, created on first use.
+SurfaceLayer& plane(SurfaceCanvas& c) {
+    if (c.layers.empty()) {
+        c.layers.emplace_back();
+    }
+    return c.layers.back();
+}
+
+/// A FRESH PLANE IN FRONT OF EVERYTHING ALREADY ON THIS CANVAS.
+SurfaceLayer& next_plane(SurfaceCanvas& c) {
+    c.layers.emplace_back();
+    return c.layers.back();
+}
+
+/// THE SAME PLANE, READ-ONLY — for a case (or a fake medium) that only looks at one.
+const SurfaceLayer& plane(const SurfaceCanvas& c) {
+    static const SurfaceLayer kBlank;
+    return c.layers.empty() ? kBlank : c.layers.back();
+}
+
 // ---- tier 2 rig ----------------------------------------------------------------
 
 struct StringSink {
@@ -118,9 +150,15 @@ struct FakeMedium {
         log->push_back("frame w=" + std::to_string(v.width) + " first=" + (first ? "1" : "0"));
     }
     void canvas(const SurfaceCanvas& c, bool first) {
+        std::size_t rects = 0;
+        std::size_t labels = 0;
+        for (const SurfaceLayer& l : c.layers) {
+            rects += l.rects.size();
+            labels += l.labels.size();
+        }
         log->push_back("canvas w=" + std::to_string(c.width) + " rects=" +
-                       std::to_string(c.rects.size()) + " labels=" +
-                       std::to_string(c.labels.size()) + " first=" + (first ? "1" : "0"));
+                       std::to_string(rects) + " labels=" + std::to_string(labels) +
+                       " first=" + (first ? "1" : "0"));
     }
     void note(std::string_view slot, std::string_view text) {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
@@ -467,20 +505,20 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
-    // The canvas carries lists of the three above, so its identity depends on
-    // theirs -- which is the property that makes a drift anywhere in this
-    // vocabulary a red here rather than a surprise on a wire.
-    //
-    // VERSION 4, because a published schema is immutable and evolving a shape is
-    // publishing a new one. Version 2 was the region list it gained in HD-1; versions 3
-    // (HD-2's row background) and 4 (HD-3's caret) it gained no field of its own at all,
-    // and changed both times.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 4)
+    // The three above are carried by a LAYER since WIND-2a, and the canvas carries a list
+    // of those -- so its identity still depends on all four, which is the property that
+    // makes a drift anywhere in this vocabulary a red here rather than a surprise on a
+    // wire. The layer's own spelling and the canvas's version are pinned in this file's
+    // WIND-2a tier, built out of these same pieces for this same reason.
+    const auto layer = SchemaBuilder("SurfaceLayer", 1)
+                           .list("rects", loom::type_message(rect))
+                           .list("labels", loom::type_message(label))
+                           .list("texts", loom::type_message(text_region))
+                           .build();
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 5)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
-                            .list("rects", loom::type_message(rect))
-                            .list("labels", loom::type_message(label))
-                            .list("texts", loom::type_message(text_region))
+                            .list("layers", loom::type_message(layer))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
 
@@ -575,10 +613,10 @@ TEST_CASE("golden: a canvas rasterizes to exact bytes -- roles, paint order, lab
     c.width = 6;
     c.height = 3;
     // Painter's order is list order: the muted backdrop first, the fill over it.
-    c.rects.push_back(SurfaceRect{0, 0, 6, 3, role::kMuted});
-    c.rects.push_back(SurfaceRect{1, 1, 3, 1, role::kFill});
+    plane(c).rects.push_back(SurfaceRect{0, 0, 6, 3, role::kMuted});
+    plane(c).rects.push_back(SurfaceRect{1, 1, 3, 1, role::kFill});
     // A label wins over every rect it crosses.
-    c.labels.push_back(SurfaceLabel{2, 1, "ab", role::kAlert});
+    plane(c).labels.push_back(SurfaceLabel{2, 1, "ab", role::kAlert});
 
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(c, /*first=*/true);
@@ -608,10 +646,10 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     SurfaceCanvas c;
     c.width = 6;
     c.height = 4;
-    c.rects.push_back(SurfaceRect{0, 0, 6, 4, role::kMuted});
+    plane(c).rects.push_back(SurfaceRect{0, 0, 6, 4, role::kMuted});
     // A label UNDER the region, in the cells the region owns: the region wins,
     // because a region is a grant of bounds and the topmost thing on a canvas.
-    c.labels.push_back(SurfaceLabel{1, 1, "ZZZZ", role::kAlert});
+    plane(c).labels.push_back(SurfaceLabel{1, 1, "ZZZZ", role::kAlert});
 
     SurfaceTextRegion r;
     r.x = 1;
@@ -621,7 +659,7 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     r.rows.push_back(SurfaceTextRow{"ab", role::kAccent});
     r.rows.push_back(SurfaceTextRow{"toolong", role::kFill});
     r.rows.push_back(SurfaceTextRow{"never", role::kAlert}); // past the region's height
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(c, /*first=*/true);
@@ -641,12 +679,12 @@ TEST_CASE("golden: a text region rasterizes to cells, over everything, bounded")
     SurfaceCanvas same_as_labels;
     same_as_labels.width = c.width;
     same_as_labels.height = c.height;
-    same_as_labels.rects = c.rects;
-    same_as_labels.labels = c.labels;
-    for (const ProjectedRow& p : project_text_regions(c)) {
-        same_as_labels.labels.push_back(p.label);
+    plane(same_as_labels).rects = plane(c).rects;
+    plane(same_as_labels).labels = plane(c).labels;
+    for (const ProjectedRow& p : project_text_regions(plane(c))) {
+        plane(same_as_labels).labels.push_back(p.label);
     }
-    CHECK(plan_canvas(c) == plan_canvas(same_as_labels));
+    CHECK(plan_layer_quads(plane(c), c.width, c.height) == plan_layer_quads(plane(same_as_labels), same_as_labels.width, same_as_labels.height));
 }
 
 TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a picture") {
@@ -661,16 +699,16 @@ TEST_CASE("canvas: elements are clipped to the extent, and an empty canvas is a 
     c.width = 4;
     c.height = 3;
     // A rect hanging off the LEFT and TOP, and one hanging off the RIGHT.
-    c.rects.push_back(SurfaceRect{-2, -1, 3, 2, role::kFill});
-    c.rects.push_back(SurfaceRect{2, 0, 4, 1, role::kMuted});
+    plane(c).rects.push_back(SurfaceRect{-2, -1, 3, 2, role::kFill});
+    plane(c).rects.push_back(SurfaceRect{2, 0, 4, 1, role::kMuted});
     // A label running off the right edge, on its own row.
-    c.labels.push_back(SurfaceLabel{2, 1, "abcd", role::kAccent});
+    plane(c).labels.push_back(SurfaceLabel{2, 1, "abcd", role::kAccent});
     // And one hanging off the BOTTOM. It contributes nothing a reader can see --
     // that is the point of it. It exists so that the bottom-edge guard has
     // something to guard against in this suite's data at all: without an element
     // down here, deleting that guard is not merely invisible, it is INERT, and a
     // sanitizer lane would have nothing to catch either.
-    c.rects.push_back(SurfaceRect{0, 2, 2, 3, role::kAlert});
+    plane(c).rects.push_back(SurfaceRect{0, 2, 2, 3, role::kAlert});
 
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(c, /*first=*/false);
@@ -763,7 +801,7 @@ TEST_CASE("canvas: an unknown role paints as kFill rather than vanishing") {
     SurfaceCanvas c;
     c.width = 2;
     c.height = 1;
-    c.rects.push_back(SurfaceRect{0, 0, 2, 1, 99}); // a role no Skin knows
+    plane(c).rects.push_back(SurfaceRect{0, 0, 2, 1, 99}); // a role no Skin knows
 
     TuiMedium<ClassicStyle, StringSink> m;
     m.canvas(c, /*first=*/false);
@@ -852,7 +890,7 @@ public:
     explicit Raster(const SurfaceCanvas& c)
         : w_(canvas_extent(c.width) * kCanvasCellPx), h_(canvas_extent(c.height) * kCanvasCellPx),
           px_(static_cast<std::size_t>(w_ * h_), PlanInk{0, 0, 0}) {
-        for (const PlanRect& r : plan_canvas(c)) {
+        for (const PlanRect& r : plan_layer_quads(plane(c), c.width, c.height)) {
             // A quad outside the surface it claims to be drawing on is the defect
             // this rasterizer exists to catch, so it is an assertion and not a
             // clamp -- clamping here would hide exactly what a sanitizer sees.
@@ -964,11 +1002,11 @@ TEST_CASE("canvas: a published coordinate cannot overflow or outrun the canvas")
     SurfaceCanvas c;
     c.width = 4;
     c.height = 2;
-    c.rects.push_back(SurfaceRect{kMax, 0, kMax, 1, role::kFill});
-    c.rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kMuted});
-    c.rects.push_back(SurfaceRect{0, 0, kMax, kMax, role::kAlert}); // covers the canvas
-    c.labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
-    c.labels.push_back(SurfaceLabel{kMin, 1, "AB", role::kFill});
+    plane(c).rects.push_back(SurfaceRect{kMax, 0, kMax, 1, role::kFill});
+    plane(c).rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kMuted});
+    plane(c).rects.push_back(SurfaceRect{0, 0, kMax, kMax, role::kAlert}); // covers the canvas
+    plane(c).labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
+    plane(c).labels.push_back(SurfaceLabel{kMin, 1, "AB", role::kFill});
 
     // It returns, it is bounded, and the one rect that does reach the canvas
     // covers it exactly: clipping changed what is WALKED, never what is DRAWN.
@@ -988,7 +1026,7 @@ TEST_CASE("canvas: a published coordinate cannot overflow or outrun the canvas")
 
 TEST_CASE("canvas plan: a label reaches pixels, in the cell the publisher named") {
     SurfaceCanvas c = canvas_of(8, 3);
-    c.labels.push_back(SurfaceLabel{2, 1, "AB", role::kFill});
+    plane(c).labels.push_back(SurfaceLabel{2, 1, "AB", role::kFill});
     const Raster r(c);
 
     // THE LABELS-REACH-PIXELS CASE. Ink exists where the label was published and nowhere else on
@@ -1012,8 +1050,8 @@ TEST_CASE("canvas plan: a label reaches pixels, in the cell the publisher named"
 
 TEST_CASE("canvas plan: a label takes its whole cell, and lands over the rects") {
     SurfaceCanvas c = canvas_of(4, 1);
-    c.rects.push_back(SurfaceRect{0, 0, 4, 1, role::kAlert});
-    c.labels.push_back(SurfaceLabel{1, 0, "i", role::kAccent});
+    plane(c).rects.push_back(SurfaceRect{0, 0, 4, 1, role::kAlert});
+    plane(c).labels.push_back(SurfaceLabel{1, 0, "i", role::kAccent});
     const Raster r(c);
 
     // The rect is under everything...
@@ -1029,18 +1067,18 @@ TEST_CASE("canvas plan: a label takes its whole cell, and lands over the rects")
 
 TEST_CASE("canvas plan: later labels win, exactly as the terminal's do") {
     SurfaceCanvas c = canvas_of(2, 1);
-    c.labels.push_back(SurfaceLabel{0, 0, "X", role::kMuted});
-    c.labels.push_back(SurfaceLabel{0, 0, "X", role::kAlert});
+    plane(c).labels.push_back(SurfaceLabel{0, 0, "X", role::kMuted});
+    plane(c).labels.push_back(SurfaceLabel{0, 0, "X", role::kAlert});
     const Raster r(c);
     CHECK(r.ink_colour(0, 0) == ink_for_role(role::kAlert));
 }
 
 TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn") {
     SurfaceCanvas c = canvas_of(4, 1);
-    c.labels.push_back(SurfaceLabel{0, 0, "A", role::kAccent});
-    c.labels.push_back(SurfaceLabel{1, 0, "A", role::kMuted});
-    c.labels.push_back(SurfaceLabel{2, 0, "A", role::kAlert});
-    c.labels.push_back(SurfaceLabel{3, 0, "A", 99}); // no such role
+    plane(c).labels.push_back(SurfaceLabel{0, 0, "A", role::kAccent});
+    plane(c).labels.push_back(SurfaceLabel{1, 0, "A", role::kMuted});
+    plane(c).labels.push_back(SurfaceLabel{2, 0, "A", role::kAlert});
+    plane(c).labels.push_back(SurfaceLabel{3, 0, "A", 99}); // no such role
     const Raster r(c);
     CHECK(r.ink_colour(0, 0) == PlanInk{112, 232, 240});
     CHECK(r.ink_colour(1, 0) == PlanInk{96, 96, 108});
@@ -1053,36 +1091,38 @@ TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn
 TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing else") {
     SUBCASE("a label running off the right edge keeps the cells that fit") {
         SurfaceCanvas c = canvas_of(3, 1);
-        c.labels.push_back(SurfaceLabel{1, 0, "ABCDEFGH", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{1, 0, "ABCDEFGH", role::kFill});
         const Raster r(c); // the Raster's own REQUIREs are the out-of-bounds proof
         CHECK(r.ink_in_cell(1, 0) > 0);
         CHECK(r.ink_in_cell(2, 0) > 0);
     }
     SUBCASE("a negative origin drops the cells before the canvas and keeps the rest") {
         SurfaceCanvas c = canvas_of(3, 1);
-        c.labels.push_back(SurfaceLabel{-2, 0, "ABCD", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{-2, 0, "ABCD", role::kFill});
         const Raster r(c);
         // 'A' and 'B' are off the canvas; 'C' lands in cell 0.
         SurfaceCanvas just_c = canvas_of(3, 1);
-        just_c.labels.push_back(SurfaceLabel{0, 0, "C", role::kFill});
+        plane(just_c).labels.push_back(SurfaceLabel{0, 0, "C", role::kFill});
         const Raster expected(just_c);
         CHECK(r.ink_in_cell(0, 0) == expected.ink_in_cell(0, 0));
         CHECK(r.ink_in_cell(0, 0) > 0);
     }
     SUBCASE("a label below or above the canvas draws nothing at all") {
         SurfaceCanvas c = canvas_of(3, 2);
-        c.labels.push_back(SurfaceLabel{0, 2, "A", role::kFill});  // one row past
-        c.labels.push_back(SurfaceLabel{0, -1, "A", role::kFill}); // one row before
+        plane(c).labels.push_back(SurfaceLabel{0, 2, "A", role::kFill});  // one row past
+        plane(c).labels.push_back(SurfaceLabel{0, -1, "A", role::kFill}); // one row before
         const Raster r(c);
         CHECK(r.ink_in_cell(0, 0) == 0);
         CHECK(r.ink_in_cell(0, 1) == 0);
     }
     SUBCASE("an empty label and an empty canvas are both legitimate pictures") {
         SurfaceCanvas c = canvas_of(2, 1);
-        c.labels.push_back(SurfaceLabel{0, 0, "", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{0, 0, "", role::kFill});
         CHECK(Raster(c).ink_in_cell(0, 0) == 0);
-        CHECK(plan_canvas(canvas_of(0, 0)).empty());
-        CHECK(plan_canvas(canvas_of(-5, -5)).empty());
+        SurfaceCanvas no_room = canvas_of(0, 0);
+        SurfaceCanvas negative = canvas_of(-5, -5);
+        CHECK(plan_layer_quads(plane(no_room), no_room.width, no_room.height).empty());
+        CHECK(plan_layer_quads(plane(negative), negative.width, negative.height).empty());
     }
     SUBCASE("the saturated ends of the number line clip like any other coordinate") {
         constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
@@ -1090,12 +1130,12 @@ TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing els
         SurfaceCanvas c = canvas_of(4, 2);
         // Every one of these would be undefined behaviour under a naive
         // `x + i` or `cell * kCanvasCellPx`; all of them must simply clip.
-        c.labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
-        c.labels.push_back(SurfaceLabel{kMin, 0, "AB", role::kFill});
-        c.labels.push_back(SurfaceLabel{0, kMax, "AB", role::kFill});
-        c.labels.push_back(SurfaceLabel{0, kMin, "AB", role::kFill});
-        c.rects.push_back(SurfaceRect{kMax, kMax, kMax, kMax, role::kFill});
-        c.rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{kMin, 0, "AB", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{0, kMax, "AB", role::kFill});
+        plane(c).labels.push_back(SurfaceLabel{0, kMin, "AB", role::kFill});
+        plane(c).rects.push_back(SurfaceRect{kMax, kMax, kMax, kMax, role::kFill});
+        plane(c).rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kFill});
         const Raster r(c);
         CHECK(r.ink_in_cell(0, 0) == 0);
         CHECK(r.ink_in_cell(3, 1) == 0);
@@ -1112,7 +1152,7 @@ TEST_CASE("canvas plan: a byte with no glyph is SEEN, never dropped") {
     // character that silently disappears is invisible to the publisher, so an
     // unsupported byte draws a box instead.
     SurfaceCanvas c = canvas_of(6, 1);
-    c.labels.push_back(SurfaceLabel{0, 0, "A\x01\xC3\xA9 B", role::kFill}); // 'e-acute' in UTF-8
+    plane(c).labels.push_back(SurfaceLabel{0, 0, "A\x01\xC3\xA9 B", role::kFill}); // 'e-acute' in UTF-8
     const Raster r(c);
     CHECK(r.ink_in_cell(0, 0) > 0); // 'A'
     CHECK(r.ink_in_cell(1, 0) > 0); // a control byte -- drawn as the box
@@ -1123,7 +1163,7 @@ TEST_CASE("canvas plan: a byte with no glyph is SEEN, never dropped") {
 
     // All three unsupported bytes draw the SAME thing, and it is the box.
     SurfaceCanvas box = canvas_of(1, 1);
-    box.labels.push_back(SurfaceLabel{0, 0, "\x01", role::kFill});
+    plane(box).labels.push_back(SurfaceLabel{0, 0, "\x01", role::kFill});
     const int box_ink = Raster(box).ink_in_cell(0, 0);
     CHECK(r.ink_in_cell(1, 0) == box_ink);
     CHECK(r.ink_in_cell(2, 0) == box_ink);
@@ -1159,8 +1199,8 @@ TEST_CASE("canvas plan: the promise is printable ASCII, and every character of i
 
 TEST_CASE("canvas plan: rectangles are clipped to the canvas, like the terminal's") {
     SurfaceCanvas c = canvas_of(3, 2);
-    c.rects.push_back(SurfaceRect{-1, -1, 10, 10, role::kFill});
-    const std::vector<PlanRect> quads = plan_canvas(c);
+    plane(c).rects.push_back(SurfaceRect{-1, -1, 10, 10, role::kFill});
+    const std::vector<PlanRect> quads = plan_layer_quads(plane(c), c.width, c.height);
     REQUIRE(quads.size() == 1);
     CHECK(quads[0].x == 0);
     CHECK(quads[0].y == 0);
@@ -1169,10 +1209,10 @@ TEST_CASE("canvas plan: rectangles are clipped to the canvas, like the terminal'
 
     // An empty or inverted rect is nothing, not a negative quad.
     SurfaceCanvas none = canvas_of(3, 2);
-    none.rects.push_back(SurfaceRect{1, 1, 0, 5, role::kFill});
-    none.rects.push_back(SurfaceRect{1, 1, -4, 5, role::kFill});
-    none.rects.push_back(SurfaceRect{9, 9, 5, 5, role::kFill});
-    CHECK(plan_canvas(none).empty());
+    plane(none).rects.push_back(SurfaceRect{1, 1, 0, 5, role::kFill});
+    plane(none).rects.push_back(SurfaceRect{1, 1, -4, 5, role::kFill});
+    plane(none).rects.push_back(SurfaceRect{9, 9, 5, 5, role::kFill});
+    CHECK(plan_layer_quads(plane(none), none.width, none.height).empty());
 }
 
 TEST_CASE("canvas plan: the two media place the same label in the same cell") {
@@ -1181,7 +1221,7 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
     // a character lands in is a fact both must agree on, and it is the fact a
     // publisher relies on when it puts a panel at column 50.
     SurfaceCanvas c = canvas_of(6, 2);
-    c.labels.push_back(SurfaceLabel{2, 1, "Hi", role::kFill});
+    plane(c).labels.push_back(SurfaceLabel{2, 1, "Hi", role::kFill});
     const Raster r(c);
 
     // The terminal: row 1, columns 2 and 3 carry 'H' and 'i'.
@@ -1340,7 +1380,7 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
     // negative somebody downstream would subtract -- and zero was reachable in a running
     // application: a region ONE CELL TALL holds (12 - 2*inset) / 18 = no rows of this
     // repository's own face, which is the Inspector's editable row. Both media then drew
-    // NOTHING, because `plan_text_regions` skips a fit with no rows and `plan_canvas` had
+    // NOTHING, because `plan_layer_regions` skips a fit with no rows and the quads had
     // already decided the regions belonged to the other list. A bounded region that silently
     // vanishes is the one answer this header exists to prevent, so the fit falls back to the
     // sentence a zero metric already means: text is a cell here.
@@ -1384,7 +1424,7 @@ TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") 
 
 TEST_CASE("region: the two projections partition every region on a canvas, exactly") {
     // HD-5's other half. `plan_canvas` draws the regions this medium cannot set in type and
-    // `plan_text_regions` draws the ones it can; before HD-5 the split was made once for the
+    // `plan_layer_regions` draws the ones it can; before HD-5 the split was made once for the
     // WHOLE canvas -- regions were cells when the medium had no face and type when it had one
     // -- so a region too small for the face was in neither list and was drawn by nobody.
     SurfaceCanvas c;
@@ -1404,26 +1444,26 @@ TEST_CASE("region: the two projections partition every region on a canvas, exact
     thin.rows.push_back(SurfaceTextRow{"a value", role::kAlert, role::kNone});
     thin.caret_row = 0;
     thin.caret_col = 3;
-    c.texts.push_back(tall);
-    c.texts.push_back(thin);
+    plane(c).texts.push_back(tall);
+    plane(c).texts.push_back(thin);
 
     const SurfaceExtent face{80, 40, 8, 18};
     const SurfaceExtent none{80, 40, 0, 0};
 
     // WITH A FACE: the pane is type, the one-cell row is cells, and the caret comes with it.
-    const std::vector<ProjectedRow> as_cells = project_text_regions(c, face);
+    const std::vector<ProjectedRow> as_cells = project_text_regions(plane(c), face);
     CHECK(as_cells.size() == 1); // the thin region's single row, and nothing of the pane
     CHECK(as_cells[0].label.y == 30);
     CHECK(as_cells[0].label.text == "a v_alue          "); // the caret, INSERTED at column 3
     CHECK(as_cells[0].label.role == role::kAlert);
-    const std::vector<PlanTextRegion> as_type = plan_text_regions(c, face, PlanSize{960, 480});
+    const std::vector<PlanTextRegion> as_type = plan_layer_regions(plane(c), face, PlanSize{960, 480});
     CHECK(as_type.size() == 1); // the pane, and nothing of the thin row
     CHECK(as_type[0].rows.size() == 1);
     CHECK(as_type[0].rows[0].text == "a pane");
 
     // NEITHER IS DRAWN TWICE and neither is dropped: one region in each list, two on the
     // canvas. That is the partition, asserted as a partition rather than as two behaviours.
-    CHECK(as_cells.size() + as_type.size() == c.texts.size());
+    CHECK(as_cells.size() + as_type.size() == plane(c).texts.size());
 
     // WITH NO FACE: both are cells, which is byte-for-byte what the one-argument overload
     // says, and the type list is empty. Every canvas this repository paints in a character
@@ -1437,9 +1477,9 @@ TEST_CASE("region: the two projections partition every region on a canvas, exact
         }
         return out;
     };
-    CHECK(as_text(project_text_regions(c, none)) == as_text(project_text_regions(c)));
-    CHECK(project_text_regions(c, none).size() == 13 + 1);
-    CHECK(plan_text_regions(c, none, PlanSize{960, 480}).empty());
+    CHECK(as_text(project_text_regions(plane(c), none)) == as_text(project_text_regions(plane(c))));
+    CHECK(project_text_regions(plane(c), none).size() == 13 + 1);
+    CHECK(plan_layer_regions(plane(c), none, PlanSize{960, 480}).empty());
 }
 
 TEST_CASE("region: the clip is the surface's business and never the capacity's") {
@@ -1483,9 +1523,9 @@ TEST_CASE("region: the cell projection is what the pane used to do, exactly") {
     r.h = 4;
     r.rows.push_back(SurfaceTextRow{"abc", role::kAccent});
     r.rows.push_back(SurfaceTextRow{"a much longer row than fits", role::kAlert});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
-    const std::vector<ProjectedRow> projected = project_text_regions(c);
+    const std::vector<ProjectedRow> projected = project_text_regions(plane(c));
     REQUIRE(projected.size() == 4); // EVERY cell row of the region, including the empty ones
     std::vector<SurfaceLabel> out;
     for (const ProjectedRow& p : projected) {
@@ -1514,12 +1554,12 @@ TEST_CASE("region: the cell projection is what the pane used to do, exactly") {
     CHECK(out[2].role == role::kFill);
 
     // More rows than the region is tall: the extra ones are simply not there.
-    c.texts[0].rows.resize(99, SurfaceTextRow{"x", role::kFill});
-    CHECK(project_text_regions(c).size() == 4);
+    plane(c).texts[0].rows.resize(99, SurfaceTextRow{"x", role::kFill});
+    CHECK(project_text_regions(plane(c)).size() == 4);
 
     // A region with no bounds projects nothing, and says nothing about it.
-    c.texts[0].w = 0;
-    CHECK(project_text_regions(c).empty());
+    plane(c).texts[0].w = 0;
+    CHECK(project_text_regions(plane(c)).empty());
 }
 
 TEST_CASE("region plan: a region resolves to a viewport, a local origin and rows") {
@@ -1534,10 +1574,10 @@ TEST_CASE("region plan: a region resolves to a viewport, a local origin and rows
     r.rows.push_back(SurfaceTextRow{"TERMINAL", role::kAccent});
     r.rows.push_back(SurfaceTextRow{"", role::kFill});
     r.rows.push_back(SurfaceTextRow{"> _", role::kAccent});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
     const SurfaceExtent metric{78, 22, 8, 18};
-    const std::vector<PlanTextRegion> plan = plan_text_regions(c, metric, PlanSize{936, 264});
+    const std::vector<PlanTextRegion> plan = plan_layer_regions(plane(c), metric, PlanSize{936, 264});
     REQUIRE(plan.size() == 1);
     CHECK(plan[0].view == RegionViewport{264, 108, 672, 156});
     CHECK(plan[0].origin_x == kTextInsetPx);
@@ -1551,9 +1591,16 @@ TEST_CASE("region plan: a region resolves to a viewport, a local origin and rows
     // WITH NO METRIC THERE IS NO GRAPHICAL REGION AT ALL, and `plan_canvas` has the
     // words instead. One list or the other; never both, so the same sentence can
     // never be painted twice at two sizes.
-    CHECK(plan_text_regions(c, SurfaceExtent{78, 22, 0, 0}, PlanSize{936, 264}).empty());
-    CHECK(plan_canvas(c, SurfaceExtent{78, 22, 8, 18}).size() ==
-          plan_canvas(SurfaceCanvas{c.width, c.height, c.rects, c.labels, {}}).size());
+    CHECK(plan_layer_regions(plane(c), SurfaceExtent{78, 22, 0, 0}, PlanSize{936, 264}).empty());
+    SurfaceCanvas without_regions;
+    without_regions.width = c.width;
+    without_regions.height = c.height;
+    plane(without_regions).rects = plane(c).rects;
+    plane(without_regions).labels = plane(c).labels;
+    CHECK(plan_layer_quads(plane(c), c.width, c.height, SurfaceExtent{78, 22, 8, 18}).size() ==
+          plan_layer_quads(plane(without_regions), without_regions.width,
+                           without_regions.height)
+              .size());
 }
 
 TEST_CASE("region plan: the plan bounds its own work, and carries the clip in its origin") {
@@ -1566,10 +1613,10 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
     r.w = 56;
     r.h = 13;
     r.rows.resize(400, SurfaceTextRow{std::string(4000, 'x'), role::kFill});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
     const SurfaceExtent metric{78, 22, 8, 18};
-    const std::vector<PlanTextRegion> plan = plan_text_regions(c, metric, PlanSize{936, 264});
+    const std::vector<PlanTextRegion> plan = plan_layer_regions(plane(c), metric, PlanSize{936, 264});
     REQUIRE(plan.size() == 1);
     // NEVER MORE ROWS THAN THE FIT SAID, and never a longer row than fits either.
     // A publisher that oversends cannot make this medium draw what it claimed it
@@ -1582,9 +1629,9 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
 
     // A region hanging off the top-left: the CLIP moved and the text did not, which
     // is what the local origin going negative means.
-    c.texts[0].x = -1;
-    c.texts[0].y = -1;
-    const std::vector<PlanTextRegion> off = plan_text_regions(c, metric, PlanSize{936, 264});
+    plane(c).texts[0].x = -1;
+    plane(c).texts[0].y = -1;
+    const std::vector<PlanTextRegion> off = plan_layer_regions(plane(c), metric, PlanSize{936, 264});
     REQUIRE(off.size() == 1);
     CHECK(off[0].view.x == 0);
     CHECK(off[0].view.y == 0);
@@ -1592,9 +1639,9 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
     CHECK(off[0].origin_y == kTextInsetPx - kCanvasCellPx);
 
     // A region entirely off the surface is not in the plan at all.
-    c.texts[0].x = 9000;
-    c.texts[0].y = 9000;
-    CHECK(plan_text_regions(c, metric, PlanSize{936, 264}).empty());
+    plane(c).texts[0].x = 9000;
+    plane(c).texts[0].y = 9000;
+    CHECK(plan_layer_regions(plane(c), metric, PlanSize{936, 264}).empty());
 }
 
 // ============================================================================
@@ -1616,9 +1663,9 @@ TEST_CASE("region: a row's ground travels the cell projection unresolved") {
     r.h = 3;
     r.rows.push_back(SurfaceTextRow{"a", role::kFill, role::kNone});
     r.rows.push_back(SurfaceTextRow{"b", role::kAccent, role::kMuted});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
-    const std::vector<ProjectedRow> out = project_text_regions(c);
+    const std::vector<ProjectedRow> out = project_text_regions(plane(c));
     REQUIRE(out.size() == 3);
     CHECK(out[0].background == role::kNone);
     CHECK(out[1].background == role::kMuted);
@@ -1645,10 +1692,10 @@ TEST_CASE("region plan: a ground resolves against the region it is in, once") {
     r.h = 4;
     r.rows.push_back(SurfaceTextRow{"plain", role::kFill, role::kNone});
     r.rows.push_back(SurfaceTextRow{"chosen", role::kAccent, role::kMuted});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
     const std::vector<PlanTextRegion> plan =
-        plan_text_regions(c, SurfaceExtent{80, 24, 8, 18}, PlanSize{960, 288});
+        plan_layer_regions(plane(c), SurfaceExtent{80, 24, 8, 18}, PlanSize{960, 288});
     REQUIRE(plan.size() == 1);
     REQUIRE(plan[0].rows.size() == 2);
     CHECK(plan[0].rows[0].background == plan[0].background); // the region's own ground
@@ -1673,9 +1720,9 @@ TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad")
     r.h = 2;
     r.rows.push_back(SurfaceTextRow{"ab", role::kFill, role::kMuted});
     r.rows.push_back(SurfaceTextRow{"cd", role::kFill, role::kNone});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
-    const std::vector<PlanRect> quads = plan_canvas(c);
+    const std::vector<PlanRect> quads = plan_layer_quads(plane(c), c.width, c.height);
     const PlanInk muted = ink_for_role(role::kMuted);
     const auto quad_at = [&](std::int64_t x, std::int64_t y) {
         for (const PlanRect& q : quads) {
@@ -1708,7 +1755,7 @@ TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it b
     r.h = 2;
     r.rows.push_back(SurfaceTextRow{"ab", role::kAccent, role::kMuted});
     r.rows.push_back(SurfaceTextRow{"cd", role::kFill, role::kNone});
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
     const std::string body = canvas_body(c);
     // The selected row: its ink, then its ground, then the characters -- and the ground
@@ -1727,7 +1774,7 @@ TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it b
     // THE SAME CANVAS WITH NO GROUND EMITS NOT ONE BACKGROUND BYTE. This is the assertion
     // that says the third grid costs nothing to a picture that does not use it -- and the
     // whole-screen goldens elsewhere in this file are the same claim at scale.
-    c.texts[0].rows[0].background = role::kNone;
+    plane(c).texts[0].rows[0].background = role::kNone;
     const std::string plain = canvas_body(c);
     CHECK(plain.find("\x1b[100m") == std::string::npos);
     CHECK(plain.find("\x1b[49m") == std::string::npos);
@@ -1792,57 +1839,57 @@ TEST_CASE("region: a caret is a character in the cell projection, at its own col
     r.rows.push_back(SurfaceTextRow{"other", role::kFill});
     r.caret_row = 0;
     r.caret_col = 5;
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
 
-    std::vector<ProjectedRow> rows = project_text_regions(c);
+    std::vector<ProjectedRow> rows = project_text_regions(plane(c));
     REQUIRE(rows.size() == 2);
     CHECK(rows[0].label.text == "> abc_    "); // at the end, padded to the region's width
     CHECK(rows[1].label.text == "other     "); // the other row is untouched
 
     // IN THE MIDDLE, the rest of the row moves right by one. That is what an inserted mark
     // does, and it is the whole cost of a character medium having no space between cells.
-    c.texts[0].caret_col = 3;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_col = 3;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> a_bc    ");
 
     // AT COLUMN 0, before everything.
-    c.texts[0].caret_col = 0;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_col = 0;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "_> abc    ");
 
     // NO CARET IS THE DEFAULT AND DRAWS NOTHING -- kNoCaret, and any other row.
-    c.texts[0].caret_row = kNoCaret;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_row = kNoCaret;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
-    c.texts[0].caret_row = 1;
-    c.texts[0].caret_col = 2;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_row = 1;
+    plane(c).texts[0].caret_col = 2;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
     CHECK(rows[1].label.text == "ot_her    ");
 
     // A CARET THIS ROW CANNOT HOLD IS NOT DRAWN, and never throws: `caret_col` is a number
     // off the wire, so past-the-text and negative are both answers rather than errors.
-    c.texts[0].caret_row = 0;
-    c.texts[0].caret_col = 99;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_row = 0;
+    plane(c).texts[0].caret_col = 99;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
-    c.texts[0].caret_col = -4;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_col = -4;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    c.texts[0].caret_row = kMax;
-    c.texts[0].caret_col = kMin;
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_row = kMax;
+    plane(c).texts[0].caret_col = kMin;
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "> abc     ");
 
     // INSERTED BEFORE THE CUT, so a caret past the region's width falls off the row like
     // any other character. This projection does not scroll, and rescuing the caret here
     // would be inventing a scroll for every consumer at once.
-    c.texts[0].caret_row = 0;
-    c.texts[0].caret_col = 2;
-    c.texts[0].rows[0].text = "0123456789";
-    rows = project_text_regions(c);
+    plane(c).texts[0].caret_row = 0;
+    plane(c).texts[0].caret_col = 2;
+    plane(c).texts[0].rows[0].text = "0123456789";
+    rows = project_text_regions(plane(c));
     CHECK(rows[0].label.text == "01_2345678"); // ten wide; the '9' went
 }
 
@@ -1921,9 +1968,9 @@ TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that dr
     r.rows.push_back(SurfaceTextRow{"> typed", role::kAccent});
     r.caret_row = 1;
     r.caret_col = 7;
-    c.texts.push_back(r);
+    plane(c).texts.push_back(r);
     const std::vector<PlanTextRegion> planned =
-        plan_text_regions(c, SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400});
+        plan_layer_regions(plane(c), SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400});
     REQUIRE(planned.size() == 1);
     CHECK(planned[0].caret.present);
     CHECK(planned[0].caret.x == planned[0].origin_x + 7 * 8);
@@ -1933,8 +1980,8 @@ TEST_CASE("region plan: a caret resolves to a bar, positioned by the fit that dr
 
     // A REGION WITH NO CARET PLANS NONE, which is every region this application publishes
     // except the Terminal's pane.
-    c.texts[0].caret_row = kNoCaret;
-    CHECK_FALSE(plan_text_regions(c, SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400})[0]
+    plane(c).texts[0].caret_row = kNoCaret;
+    CHECK_FALSE(plan_layer_regions(plane(c), SurfaceExtent{100, 30, 8, 18}, PlanSize{1200, 400})[0]
                     .caret.present);
 }
 
@@ -2324,8 +2371,8 @@ TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
     SurfaceCanvas c;
     c.width = 8;
     c.height = 2;
-    c.rects.push_back(SurfaceRect{0, 0, 2, 2, role::kFill});
-    c.labels.push_back(SurfaceLabel{3, 0, "hi", role::kAccent});
+    plane(c).rects.push_back(SurfaceRect{0, 0, 2, 2, role::kFill});
+    plane(c).labels.push_back(SurfaceLabel{3, 0, "hi", role::kAccent});
 
     bus.send(skin, loom::Message(loom::to_value(c)));
     bus.pump();
@@ -2671,6 +2718,301 @@ TEST_CASE("the Skin's terminal claim includes pointer reporting, and leave undoe
 // ============================================================================
 // Tier 4b — the SDL skin, where this lane built it (dummy video driver)
 // ============================================================================
+
+
+// ============================================================================
+// Tier — WIND-2a: ONE ORDERED LIST OF PLANES
+// ============================================================================
+//
+// The canvas used to hold three lists and every medium drew all the rects, then all the
+// labels, then all the text regions. That is a painter's order across KINDS, and a
+// publisher that had decided which of two PRESENTATIONS was in front had no way to say so:
+// a region belonging to the back one covered a label belonging to the front one. These
+// cases are the contract that replaces it, and every one of them reads the picture through
+// the medium's own rasterizer rather than through the canvas.
+
+namespace {
+
+/// ONE CELL OF A CANVAS AS THE TERMINAL MEDIUM DRAWS IT — the escapes taken out, so what
+/// is left is the picture. The Skin's own `canvas_body`, never a second reading.
+char terminal_cell(const SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+    const std::string body = canvas_body(c);
+    std::vector<std::string> rows;
+    std::size_t at = 0;
+    while (at < body.size()) {
+        const std::size_t end = body.find("\r\n", at);
+        if (end == std::string::npos) {
+            break;
+        }
+        std::string row;
+        for (std::size_t i = at; i < end; ++i) {
+            if (body[i] == '\x1b') {
+                while (i < end && body[i] != 'm' && body[i] != 'K') {
+                    ++i;
+                }
+                continue;
+            }
+            row += body[i];
+        }
+        rows.push_back(row);
+        at = end + 2;
+    }
+    REQUIRE(static_cast<std::size_t>(y) < rows.size());
+    REQUIRE(static_cast<std::size_t>(x) < rows[static_cast<std::size_t>(y)].size());
+    return rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
+}
+
+/// A REGION OF ONE ROW at a cell, saying one thing — the smallest region a case can put in
+/// a plane to find out which plane won.
+SurfaceTextRegion one_row_region(std::int64_t x, std::int64_t y, const std::string& text) {
+    SurfaceTextRegion r;
+    r.x = x;
+    r.y = y;
+    r.w = static_cast<std::int64_t>(text.size());
+    r.h = 1;
+    r.rows.push_back(SurfaceTextRow{text, role::kFill});
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("contract: the layer shapes derive their declared spellings exactly") {
+    using loom::Kind;
+    using loom::SchemaBuilder;
+    const auto rect = SchemaBuilder("SurfaceRect", 1)
+                          .field("x", Kind::Int)
+                          .field("y", Kind::Int)
+                          .field("w", Kind::Int)
+                          .field("h", Kind::Int)
+                          .field("role", Kind::Int)
+                          .build();
+    const auto label = SchemaBuilder("SurfaceLabel", 1)
+                           .field("x", Kind::Int)
+                           .field("y", Kind::Int)
+                           .field("text", Kind::Text)
+                           .field("role", Kind::Int)
+                           .build();
+    const auto text_row = SchemaBuilder("SurfaceTextRow", 2)
+                              .field("text", Kind::Text)
+                              .field("role", Kind::Int)
+                              .field("background", Kind::Int)
+                              .build();
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 3)
+                                 .field("x", Kind::Int)
+                                 .field("y", Kind::Int)
+                                 .field("w", Kind::Int)
+                                 .field("h", Kind::Int)
+                                 .list("rows", loom::type_message(text_row))
+                                 .field("caret_row", Kind::Int)
+                                 .field("caret_col", Kind::Int)
+                                 .build();
+
+    // THE PLANE ITSELF: the three lists the canvas used to carry, in the order a medium
+    // executes them, and NOTHING ELSE. No name, no handle, no key, no z, no opacity, no
+    // transform -- every one of those is a fact a compositor holds and a publisher would
+    // then have to hold with it. Version 1, because it is new.
+    const auto layer = SchemaBuilder("SurfaceLayer", 1)
+                           .list("rects", loom::type_message(rect))
+                           .list("labels", loom::type_message(label))
+                           .list("texts", loom::type_message(text_region))
+                           .build();
+    CHECK(schema_of<SurfaceLayer>()->content_id() == layer->content_id());
+    CHECK(std::string(SurfaceLayer::zen_name) == "SurfaceLayer");
+    CHECK(SurfaceLayer::zen_version == 1);
+
+    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 5, and the first
+    // of its five that is the ordinary kind: versions 2, 3 and 4 it gained no field at all
+    // and changed anyway, because its identity is computed from what it carries.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 5)
+                            .field("width", Kind::Int)
+                            .field("height", Kind::Int)
+                            .list("layers", loom::type_message(layer))
+                            .build();
+    CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
+    CHECK(SurfaceCanvas::zen_version == 5);
+
+    // NO PRIMITIVE GAINED ANYTHING. A layer is a position in a vector, so a rect, a label,
+    // a row and a region are byte-identical to what they were -- which is what makes this
+    // an ordering change rather than a depth model.
+    CHECK(SurfaceRect::zen_version == 1);
+    CHECK(SurfaceLabel::zen_version == 1);
+    CHECK(SurfaceTextRow::zen_version == 2);
+    CHECK(SurfaceTextRegion::zen_version == 3);
+}
+
+TEST_CASE("canvas: no layers and empty layers are both legitimate pictures") {
+    SurfaceCanvas nothing;
+    nothing.width = 3;
+    nothing.height = 2;
+    CHECK(nothing.layers.empty());
+    CHECK(canvas_body(nothing) == "\x1b[2K\x1b[0m   \r\n\x1b[2K\x1b[0m   \r\n");
+    CHECK(plan_canvas(nothing, SurfaceExtent{}, PlanSize{36, 24}).empty());
+
+    // AND A CANVAS OF EMPTY PLANES DRAWS THE SAME NOTHING, byte for byte. An empty subset
+    // of a layer's three lists is legal; a publisher that offered a plane and put nothing
+    // on it has said "nothing", which is the sentence an empty canvas has always meant.
+    SurfaceCanvas blanks = nothing;
+    blanks.layers.resize(3);
+    CHECK(canvas_body(blanks) == canvas_body(nothing));
+    const std::vector<PlanLayer> planned = plan_canvas(blanks, SurfaceExtent{}, PlanSize{36, 24});
+    REQUIRE(planned.size() == 3);
+    for (const PlanLayer& l : planned) {
+        CHECK(l.quads.empty());
+        CHECK(l.regions.empty());
+    }
+}
+
+TEST_CASE("canvas: one plane keeps the rect-then-label-then-region order it always had") {
+    // THE CONTROL FOR THE WHOLE PHASE. Every canvas this repository painted before WIND-2a
+    // was one plane, so the local order inside a plane must be exactly what it was: a label
+    // over a rect, and a region over both.
+    SurfaceCanvas c;
+    c.width = 8;
+    c.height = 2;
+    plane(c).rects.push_back(SurfaceRect{0, 0, 8, 2, role::kMuted});
+    plane(c).labels.push_back(SurfaceLabel{0, 0, "LLLL", role::kFill});
+    plane(c).texts.push_back(one_row_region(2, 0, "RR"));
+
+    CHECK(terminal_cell(c, 0, 0) == 'L');  // a label over the rect
+    CHECK(terminal_cell(c, 2, 0) == 'R');  // a region over the label
+    CHECK(terminal_cell(c, 6, 0) == '.');  // the rect where nothing else landed
+    CHECK(terminal_cell(c, 6, 1) == '.');
+}
+
+TEST_CASE("canvas: a later plane covers an earlier one, kind for kind") {
+    // THE FOUR CROSS-KIND PAIRS, each on its own column so one case reads as four claims.
+    // Every one of them was IMPOSSIBLE to state before WIND-2a: the three lists were the
+    // canvas's, so a region was topmost whatever the publisher meant.
+    SurfaceCanvas c;
+    c.width = 12;
+    c.height = 1;
+    SurfaceLayer& back = plane(c);
+    back.texts.push_back(one_row_region(0, 0, "RR"));   // a region at columns 0..1
+    back.labels.push_back(SurfaceLabel{4, 0, "LL", role::kFill});
+    back.rects.push_back(SurfaceRect{8, 0, 2, 1, role::kAlert});
+
+    SurfaceLayer& front = next_plane(c);
+    front.rects.push_back(SurfaceRect{0, 0, 1, 1, role::kMuted});      // rect over region
+    front.labels.push_back(SurfaceLabel{1, 0, "X", role::kFill});      // label over region
+    front.texts.push_back(one_row_region(4, 0, "Y"));                  // region over label
+    front.texts.push_back(one_row_region(8, 0, "Z"));                  // region over rect
+
+    CHECK(terminal_cell(c, 0, 0) == '.');  // the later RECT, not the earlier region
+    CHECK(terminal_cell(c, 1, 0) == 'X');  // the later LABEL, not the earlier region
+    CHECK(terminal_cell(c, 4, 0) == 'Y');  // the later REGION, not the earlier label
+    CHECK(terminal_cell(c, 8, 0) == 'Z');  // the later REGION, not the earlier rect
+
+    // AND THE CONTROL, WHICH IS THE HALF THAT MAKES THE FOUR ABOVE MEAN SOMETHING (Z0a):
+    // reverse the two planes and every one of them reverses. A picture that answered the
+    // same way in both orders would be a picture nobody had ordered at all.
+    SurfaceCanvas reversed = c;
+    std::swap(reversed.layers[0], reversed.layers[1]);
+    CHECK(terminal_cell(reversed, 0, 0) == 'R');
+    CHECK(terminal_cell(reversed, 1, 0) == 'R');
+    CHECK(terminal_cell(reversed, 4, 0) == 'L');
+    CHECK(terminal_cell(reversed, 8, 0) == '!');
+}
+
+TEST_CASE("golden: the terminal medium rasterizes planes in list order, exactly") {
+    // THE BYTES, so the claim above is about what a terminal receives and not only about
+    // what a helper read back out of it.
+    SurfaceCanvas c;
+    c.width = 4;
+    c.height = 1;
+    plane(c).texts.push_back(one_row_region(0, 0, "abcd"));
+    next_plane(c).labels.push_back(SurfaceLabel{1, 0, "XY", role::kAccent});
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[37ma\x1b[36mXY\x1b[37md\x1b[0m\r\n");
+
+    // The same two planes the other way round: the region wins its own columns back, and
+    // the accent run is gone from the bytes entirely.
+    std::swap(c.layers[0], c.layers[1]);
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[37mabcd\x1b[0m\r\n");
+}
+
+TEST_CASE("canvas plan: the SDL plan carries the plane order, with and without a face") {
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 6;
+    // TWO CELLS TALL, because one is not enough for a face whose line is 18 pixels against
+    // a 12-pixel cell -- HD-5's fallback would put this region in the QUADS on the typed
+    // run, and the case would then be measuring the fallback rather than the order.
+    SurfaceTextRegion behind = one_row_region(0, 0, "behind");
+    behind.h = 2;
+    plane(c).texts.push_back(behind);
+    next_plane(c).rects.push_back(SurfaceRect{0, 0, 6, 1, role::kAccent});
+
+    // NO FACE: every region is cells, so both planes are quads -- and they are still TWO
+    // planes, in order, because the partition is per-plane and the ordering survives it.
+    const std::vector<PlanLayer> cells = plan_canvas(c, SurfaceExtent{}, PlanSize{480, 72});
+    REQUIRE(cells.size() == 2);
+    CHECK_FALSE(cells[0].quads.empty());
+    CHECK(cells[0].regions.empty());
+    CHECK_FALSE(cells[1].quads.empty());
+    CHECK(cells[1].regions.empty());
+
+    // A REAL FACE: the region is set in type and is its OWN plane's business, drawn before
+    // the next plane's quads rather than after every plane's. That interleaving is the
+    // whole of what the edge would otherwise have had to get right by hand.
+    const SurfaceExtent face{40, 6, 8, 18};
+    const std::vector<PlanLayer> typed = plan_canvas(c, face, PlanSize{480, 72});
+    REQUIRE(typed.size() == 2);
+    CHECK(typed[0].quads.empty());
+    REQUIRE(typed[0].regions.size() == 1);
+    CHECK(typed[0].regions[0].rows[0].text == "behind");
+    CHECK_FALSE(typed[1].quads.empty());
+    CHECK(typed[1].regions.empty());
+
+    // A REGION IS STILL IN EXACTLY ONE PARTITION, per plane and per medium (HD-5).
+    for (const std::vector<PlanLayer>& planned : {cells, typed}) {
+        std::size_t regions = 0;
+        for (const PlanLayer& l : planned) {
+            regions += l.regions.size();
+        }
+        CHECK(regions <= 1);
+    }
+
+    // AND REVERSING THE PLANES REVERSES THE PLAN, which is the same control the terminal
+    // medium's case makes, asked of the other medium's pure half.
+    std::swap(c.layers[0], c.layers[1]);
+    const std::vector<PlanLayer> swapped = plan_canvas(c, face, PlanSize{480, 72});
+    REQUIRE(swapped.size() == 2);
+    CHECK_FALSE(swapped[0].quads.empty());
+    CHECK(swapped[0].regions.empty());
+    REQUIRE(swapped[1].regions.size() == 1);
+}
+
+TEST_CASE("canvas: clipping and the ends of the number line are bounded PER PLANE") {
+    // cells.hpp's bound is a per-element rule, so a canvas that spends it many times over
+    // must still be bounded many times over -- and a publisher chooses how many planes it
+    // sends exactly as it chooses how many rects.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    SurfaceCanvas c;
+    c.width = 4;
+    c.height = 2;
+    for (int i = 0; i < 3; ++i) {
+        SurfaceLayer& l = next_plane(c);
+        l.rects.push_back(SurfaceRect{kMin, kMin, kMax, kMax, role::kMuted});
+        l.rects.push_back(SurfaceRect{kMax, 0, kMax, 1, role::kFill});
+        l.labels.push_back(SurfaceLabel{kMax, 0, "AB", role::kFill});
+        l.labels.push_back(SurfaceLabel{kMin, 1, "AB", role::kFill});
+        SurfaceTextRegion huge = one_row_region(0, 0, "q");
+        huge.w = kMax;
+        huge.h = kMax;
+        l.texts.push_back(huge);
+    }
+    // It answers, it answers in bounded time, and every cell it drew is on the canvas.
+    const std::string body = canvas_body(c);
+    CHECK(body.size() < 200);
+    for (const PlanLayer& l : plan_canvas(c, SurfaceExtent{}, PlanSize{48, 24})) {
+        for (const PlanRect& r : l.quads) {
+            CHECK(r.x >= 0);
+            CHECK(r.y >= 0);
+            CHECK(r.x + r.w <= 48);
+            CHECK(r.y + r.h <= 24);
+        }
+    }
+}
 
 #if defined(SURFACE_HAS_SDL)
 
@@ -3031,7 +3373,7 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     pane.h = 13;
     pane.rows.push_back(SurfaceTextRow{"TERMINAL -- weave #3", role::kAccent});
     pane.rows.push_back(SurfaceTextRow{"gjpqy Ill1 O0o ceao weave", role::kFill});
-    c.texts.push_back(pane);
+    plane(c).texts.push_back(pane);
     r.intent(skin, c);
 
     REQUIRE(heard.size() == 1);
@@ -3090,6 +3432,82 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     plain.height = 22;
     r.intent(skin, plain);
     CHECK_FALSE(SDL_RenderViewportSet(ren));
+}
+
+
+TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real renderer") {
+    // WIND-2a's SDL half, live: the real weave library, a real window, a real renderer and
+    // a real face under the dummy driver -- only the photons are missing.
+    //
+    // WHAT A CASE LIKE THIS CAN AND CANNOT SAY. It cannot read the pixels back and judge
+    // which plane won; SDL's own frame is not a value this suite holds. What it CAN say is
+    // the two things that together decide the answer: the plan this canvas produces carries
+    // the planes in order with the regions interleaved into them (asserted here, over the
+    // very canvas that is then published), and the edge consumes exactly that plan -- one
+    // loop, `for (layer : plan_canvas(...)) { quads; regions; }`, with no second list for a
+    // second loop to drain in the wrong order. Before WIND-2a the edge drew every layer's
+    // quads and then every layer's real-face regions from two canvas-wide lists, which is
+    // the same two global bands the terminal medium had, in a different type.
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
+    ::_putenv_s("SDL_VIDEODRIVER", "dummy");
+#else
+    ::setenv("SDL_VIDEO_DRIVER", "dummy", 1);
+    ::setenv("SDL_VIDEODRIVER", "dummy", 1);
+#endif
+    Rig r;
+    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+
+    // A BACK PLANE THAT SETS PROSE AND A FRONT PLANE THAT COVERS IT. Three cells tall so
+    // the region holds a row of a real 18-pixel face rather than falling back to cells.
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 8;
+    SurfaceTextRegion behind;
+    behind.x = 0;
+    behind.y = 0;
+    behind.w = 20;
+    behind.h = 3;
+    behind.rows.push_back(SurfaceTextRow{"behind", role::kFill});
+    c.layers.emplace_back();
+    c.layers.back().texts.push_back(behind);
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(SurfaceRect{0, 0, 20, 3, role::kAccent});
+
+    r.intent(skin, c);
+    CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "1");
+
+    // A SECOND FRAME WITH THE PLANES REVERSED goes through the same loop and the same
+    // window: what changed is the order the edge was handed, which is the only thing that
+    // decides the picture.
+    std::swap(c.layers[0], c.layers[1]);
+    r.intent(skin, c);
+    CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "2");
+
+    // AND THE PLAN THE EDGE WALKED, for both metrics a real window can report -- a face it
+    // opened, and the cell fallback of a window whose font failed to open.
+    for (const SurfaceExtent& metric : {SurfaceExtent{40, 8, 8, 18}, SurfaceExtent{40, 8, 0, 0}}) {
+        CAPTURE(metric.text_advance_px);
+        const std::vector<PlanLayer> planned = plan_canvas(c, metric, PlanSize{480, 96});
+        REQUIRE(planned.size() == 2);
+        // The rect is now the BACK plane, so its quads come first and nothing of the
+        // region's is drawn before them.
+        CHECK_FALSE(planned[0].quads.empty());
+        CHECK(planned[0].regions.empty());
+        if (metric.text_advance_px > 0) {
+            REQUIRE(planned[1].regions.size() == 1);
+            CHECK(planned[1].regions[0].rows[0].text == "behind");
+            CHECK(planned[1].quads.empty());
+        } else {
+            CHECK(planned[1].regions.empty());
+            CHECK_FALSE(planned[1].quads.empty()); // the same words, as bitmap cells
+        }
+    }
+
+    // The window is still a good citizen after both frames.
+    r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
+    r.pump();
+    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 
 #endif // SURFACE_HAS_SDL

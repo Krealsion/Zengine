@@ -230,8 +230,9 @@ inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 ///                                                to keep the integer safe and
 ///                                                the file bounded.
 ///   it is not a screen size                      it is far above one on
-///                                                purpose -- eight times the
-///                                                row count of an 8K panel --
+///                                                purpose -- eight times 8,192,
+///                                                the horizontal pixel count
+///                                                commonly called 8K --
 ///                                                so it never becomes the thing
 ///                                                that decides what a maker may
 ///                                                author on hardware nobody has

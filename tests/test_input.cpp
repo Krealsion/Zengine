@@ -1875,7 +1875,8 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     zengine::surface::SurfaceCanvas canvas;
     canvas.width = 8;
     canvas.height = 4;
-    canvas.rects.push_back(zengine::surface::SurfaceRect{0, 0, 2, 2, 0});
+    canvas.layers.emplace_back();
+    canvas.layers.back().rects.push_back(zengine::surface::SurfaceRect{0, 0, 2, 2, 0});
     r.publish_root(loom::to_value(canvas));
     CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "1");
 
