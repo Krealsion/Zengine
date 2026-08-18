@@ -460,6 +460,132 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                     kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
 
+// ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN (WIND-2) ----------------------------
+//
+// ONE OVERRIDE-AWARE RESOLVER, AND EVERYTHING CONSUMES ITS ANSWER: the painter, the
+// pointer, the selected pane's affordances, an external pane's body and the room that body
+// is granted. There is no second geometry here for the same reason PNL-1 removed the last
+// one -- what is painted and what is met must be the same rectangle, and a second copy is
+// right until the first thing moves.
+//
+// THE OVERRIDE IS SPENT ON THE OVERLAY STACK AND NOWHERE ELSE, and that is a law rather
+// than a fallback. `screen_of` RESERVES the side column (`panel_x`, `room_w`) whether or
+// not Info is open, and `room_w` is what a share of the workspace resolves against -- so a
+// movable Info would change the resolved size of every share-width object in a maker's
+// document, which is exactly the outcome PNL-0 refuses when it leaves the vacated column
+// empty. A side-region row's authored geometry is therefore RETAINED in the file, never
+// rewritten, and never spent; pane management refuses to author one and says why.
+
+/// WHAT ONE PANE'S AUTHORED INTENT RESOLVES TO ON THIS SCREEN.
+///
+/// `projected` is false when this medium cannot honour an authored unit, and it is the
+/// third thing a pane can be after "open" and "waiting" -- see `pane_state` below. The
+/// authored value is untouched by it: the intent survives the refusal, exactly as
+/// `reconcile`'s law already says of a setup legal on a tall screen and shown on a short
+/// one.
+struct PaneProjection {
+    bool projected = true;
+    /// WHAT THE AUTHORED INTENT ASKS FOR, before the canvas gets a say. May run past the
+    /// screen's right or bottom edge, which is legal authored intent and is not rewritten.
+    ui::Rect resolved{};
+    /// ...AND THE PART OF IT THIS CANVAS ACTUALLY HAS. Empty when nothing of the pane is on
+    /// screen, which is what `off-room` means and how it is told from `waiting`.
+    ui::Rect visible{};
+};
+
+/// The part of a rectangle this canvas has. A pure intersection, and the one place a pane's
+/// rectangle meets the screen's edge.
+inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) noexcept {
+    const std::int64_t x0 = r.x < 0 ? 0 : r.x;
+    const std::int64_t y0 = r.y < 0 ? 0 : r.y;
+    const std::int64_t x1 = r.x + r.w < sc.w ? r.x + r.w : sc.w;
+    const std::int64_t y1 = r.y + r.h < sc.h ? r.y + r.h : sc.h;
+    if (x1 <= x0 || y1 <= y0) {
+        return ui::Rect{};
+    }
+    return ui::Rect{x0, y0, x1 - x0, y1 - y0};
+}
+
+/// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
+///
+/// `authored` is the setup row, or nothing for a pane the setup does not name. The order is
+/// the whole of the model:
+///
+///     place default    ->  `placement_bounds(place, seated slot, Screen)`, unchanged
+///     place cells      ->  the absolute authored x/y, NOT an offset from the default
+///     width default    ->  the developer's reactive answer for that axis (WIND-1's
+///     height default        half-share for the overlay stack, untouched)
+///     width cells      ->  the authored count, for THAT AXIS ONLY
+///     height cells
+///
+/// EACH AXIS IS INDEPENDENT, so a place-only edit leaves a default width still reacting to
+/// the room and a width-only edit moves neither the place nor the height. Freezing all
+/// three on the first edit would convert two developer defaults into maker decisions the
+/// maker never made, which is `default_setup`'s own argument said about geometry.
+///
+/// ---- Why a pixel amount is refused HERE, on every medium in this build ----
+///
+/// No medium publishes a trustworthy per-axis device-pixel scale for a canvas cell, and the
+/// two near-misses are traps rather than answers:
+///
+///   `RegionFit::graphical()` (a positive TEXT metric) identifies a medium that sets real
+///   TYPE, which is a different fact -- `skin_sdl.cpp`'s own comment says a window whose
+///   font failed to open publishes `{w, h, 0, 0}` while still laying its canvas out at
+///   `kCanvasCellPx` device pixels per cell.
+///
+///   `kCanvasCellPx` itself is a constant of THE ONE GRAPHICAL SKIN THAT EXISTS, and
+///   `surface/pointing.hpp` says so in the sharpest terms this tree uses. Workshop is
+///   allowed to apply it to a POINTER only because the event arrives carrying
+///   `input::space::kPixels` -- a stamp on that moment, made by the backend. `SurfaceExtent`
+///   carries no such stamp, and there is no way to ask the active Skin what its presentation
+///   context is.
+///
+/// So a pixel axis is a LEGAL, PERMANENTLY RETAINED authored value with an honest
+/// per-projection refusal, and the refusal is WHOLE: a pane with either axis in pixels is
+/// not presented at all, rather than presented at the default width with an honoured
+/// height. Two precedents, both load-bearing -- `doc::resize` checks both extents before
+/// writing either, and `PaneContent` is judged whole before a byte is retained. A per-axis
+/// fallback would be exactly the silent default this contract refuses.
+///
+/// The future rule, once a real per-axis scale is published, is `cells = max(1, pixels /
+/// scale)`, floored and independently per axis. That is documentation and not code: WIND-2
+/// invents no scale and widens no shape in `surface/`.
+///
+/// `pane_unit_projectable` is that refusal as ONE predicate, because two parties ask it: the
+/// projection below, and the state classifier, which has to answer `refused` for a pane
+/// whose reactive tile also ran out -- a question about a unit outranks a question about
+/// room, and a second copy of the test is how the two would come to disagree.
+inline bool pane_unit_projectable(std::int64_t where, const SetupPane* authored) noexcept {
+    if (where != placement::kOverlayStack || authored == nullptr) {
+        return true;
+    }
+    return authored->width.mode != pane_unit::kPixels &&
+           authored->height.mode != pane_unit::kPixels;
+}
+
+inline PaneProjection project_pane(std::int64_t where, std::size_t slot,
+                                   const SetupPane* authored, const Screen& sc) {
+    PaneProjection out;
+    out.resolved = placement_bounds(where, slot, sc);
+    if (where == placement::kOverlayStack && authored != nullptr) {
+        if (!pane_unit_projectable(where, authored)) {
+            return PaneProjection{false, ui::Rect{}, ui::Rect{}};
+        }
+        if (authored->place.mode == pane_unit::kCells) {
+            out.resolved.x = authored->place.x;
+            out.resolved.y = authored->place.y;
+        }
+        if (authored->width.mode == pane_unit::kCells) {
+            out.resolved.w = authored->width.amount;
+        }
+        if (authored->height.mode == pane_unit::kCells) {
+            out.resolved.h = authored->height.amount;
+        }
+    }
+    out.visible = clip_to_canvas(out.resolved, sc);
+    return out;
+}
+
 /// What the one narrow path answers with: whether this kind is open, where its kind is
 /// placed, and the rectangle it occupies if it is open at all.
 struct PanelBounds {
@@ -471,7 +597,18 @@ struct PanelBounds {
     /// gets a rectangle that contains nothing (`ui::Rect::contains` says so for w/h <= 0)
     /// rather than the first slot's, which would be a closed panel answering as though it
     /// were somewhere.
+    ///
+    /// IT IS THE VISIBLE RECTANGLE SINCE WIND-2 -- resolved, then clipped to the canvas --
+    /// so every consumer that already treated an empty rectangle as "nowhere" answers
+    /// correctly for a pane whose authored place is off-room, with no branch of its own.
     ui::Rect rect{};
+    /// ...and what the authored intent ASKED for, unclipped. Read by the state classifier,
+    /// which has to tell "partly cut off" from "not on this screen at all".
+    ui::Rect resolved{};
+    /// FALSE WHEN THIS MEDIUM CANNOT PROJECT THE AUTHORED UNIT. `rect` is then empty too,
+    /// so nothing paints, nothing is met and no room is granted -- but the reason is a
+    /// different one from off-room and a maker is told which.
+    bool projected = true;
 };
 
 /// WHERE AN OPEN PANEL IS RIGHT NOW — the one narrow path, and the only thing that knows how
@@ -481,18 +618,39 @@ struct PanelBounds {
 /// ahead of a Builder in the open list never pushes it down a slot it does not occupy. That
 /// rule used to be a counter inside the painting loop that named a kind; it is stated here
 /// once, and a third kind is counted by it without being mentioned in it.
-inline PanelBounds bounds_of(const Panels& panels, std::int64_t kind, const Screen& sc) noexcept {
+///
+/// AND ONLY A REACTIVE PANE EARNS ONE (WIND-2), which is `seat_panes`' rule said in the
+/// place the rectangle is actually resolved. A pane the maker PLACED is not in the tiling,
+/// so counting a slot for it would push every reactive pane below it down a row for a
+/// rectangle that is not in the stack at all.
+///
+/// THE SETUP IS A REQUIRED ARGUMENT AND IT IS NOT DEFAULTED, for `resolve_pane`'s reason
+/// and HD-4's: a default would let a call site keep the three-argument spelling and be
+/// silently right until the first authored override, and the symptom would be a maker's
+/// moved pane painted in one place and met in another.
+inline PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int64_t kind,
+                             const Screen& sc) {
     std::size_t slot = 0;
     for (const Panel& p : panels.open) {
         const std::int64_t where = placement_of(p.kind);
-        if (p.kind == kind) {
-            return PanelBounds{true, where, placement_bounds(where, slot, sc)};
+        const SetupPane* authored = nullptr;
+        for (const SetupPane& row : setup.panes) {
+            const std::optional<std::int64_t> named = resolve_pane(row.ref, panels.runtime);
+            if (named.has_value() && *named == p.kind) {
+                authored = &row;
+                break;
+            }
         }
-        if (where == placement::kOverlayStack) {
+        if (p.kind == kind) {
+            const PaneProjection got = project_pane(where, slot, authored, sc);
+            return PanelBounds{true, where, got.visible, got.resolved, got.projected};
+        }
+        if (where == placement::kOverlayStack &&
+            (authored == nullptr || authored->place.mode == pane_unit::kDefault)) {
             ++slot;
         }
     }
-    return PanelBounds{false, placement_of(kind), ui::Rect{}};
+    return PanelBounds{false, placement_of(kind), ui::Rect{}, ui::Rect{}, true};
 }
 
 // The two places fit the SMALLEST screen this composition is honest on, which is where they
@@ -654,14 +812,22 @@ struct Occupancy {
 /// is a strictly wider rule than occupancy and is enforced ahead of this call (weave.hpp). A
 /// pane that answered here as well would be the same rule written twice, and the second copy is
 /// the one that would go stale.
-inline Occupancy occupied_at(const Panels& panels, const Screen& sc, std::int64_t cx,
-                             std::int64_t cy) {
+///
+/// IT WALKS THE PRESENTATION ORDER SINCE WIND-2, NOT THE OPEN LIST. `presentation_order`
+/// is the setup's canonical `front` ranks restricted to what is seated, and this walks it
+/// BACKWARD -- so the topmost pane answers first, which is the same law `ui::hit` states
+/// for the document one layer down. Before overlap was reachable the two orders were the
+/// same list and the choice changed no answer; a maker who raises a pane makes it the
+/// answer, which is what raising one means.
+inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+                             std::int64_t cx, std::int64_t cy) {
     if (panels.picker.open && picker_bounds(sc).contains(cx, cy)) {
         return Occupancy{true, kPickerName};
     }
-    for (std::size_t i = panels.open.size(); i > 0; --i) {
-        const std::int64_t kind = panels.open[i - 1].kind;
-        if (bounds_of(panels, kind, sc).rect.contains(cx, cy)) {
+    const std::vector<std::int64_t> order = presentation_order(setup, panels);
+    for (std::size_t i = order.size(); i > 0; --i) {
+        const std::int64_t kind = order[i - 1];
+        if (bounds_of(panels, setup, kind, sc).rect.contains(cx, cy)) {
             // `kind_name` AND NOT `panel_kind(kind).name` (WP-0). The total lookup answers
             // `Builder` for anything outside the compile-time catalog, so an external pane
             // would tell a maker their hand was on the build tool -- the same lie
@@ -794,6 +960,207 @@ struct TerminalPane {
     bool asked = false;
 };
 
+// ---- PANE MANAGEMENT: what a maker is ARRANGING, and how (WIND-2) ---------------------
+//
+// ALL OF IT IS SESSION AND NONE OF IT REACHES A FILE. Which pane is selected, which step of
+// the arrangement a maker is on, which edge they chose and which gesture their hand is
+// holding are four facts that die with the process, exactly as `PanelPicker` and
+// `SetupNaming` do. What SURVIVES is what the gestures WROTE, which is the authored setup.
+
+namespace pane_manage {
+inline constexpr std::int64_t kSelect = 0; ///< choosing which pane; ordering acts from here
+inline constexpr std::int64_t kMove = 1;   ///< arrows author an absolute place
+inline constexpr std::int64_t kSize = 2;   ///< an edge is chosen; arrows author that axis
+inline constexpr std::int64_t kReset = 3;  ///< one key per authored dimension
+} // namespace pane_manage
+
+/// THE EIGHT MANIPULATION AFFORDANCES of a rectangle, and there is not a ninth.
+///
+/// AN EDGE NAMES AN AXIS AND A DIRECTION -- IT IS NOT AN ANCHOR, and that is the phase's
+/// one genuinely surprising rule, so it is written where the constants are. A resize writes
+/// SIZE and never PLACE (`doc::resize`'s law, carried), so a pane's top-left corner is its
+/// authored place and stays exactly where the maker put it whichever edge they pull. What
+/// the left edge buys over the right one is the DIRECTION a hand means: pulling left widens,
+/// pulling right narrows, and the pane grows from its own corner either way. Making the left
+/// edge move the place instead would turn one gesture into two authored writes and put a
+/// refused height beside a moved corner, which is the exact refusal-beside-a-successful-write
+/// `doc::resize` exists to refuse.
+namespace pane_edge {
+inline constexpr std::int64_t kLeft = 0;
+inline constexpr std::int64_t kRight = 1;
+inline constexpr std::int64_t kTop = 2;
+inline constexpr std::int64_t kBottom = 3;
+inline constexpr std::int64_t kTopLeft = 4;
+inline constexpr std::int64_t kTopRight = 5;
+inline constexpr std::int64_t kBottomLeft = 6;
+inline constexpr std::int64_t kBottomRight = 7;
+inline constexpr std::int64_t kCount = 8;
+} // namespace pane_edge
+
+/// NO EDGE. Negative, for `role::kNone`'s reason: every edge is a non-negative index into a
+/// table, so an absence cannot collide with one.
+inline constexpr std::int64_t kNoPaneEdge = -1;
+
+/// The edge a maker reads, and the mark they read it BY.
+///
+/// TWO SIGNALS, AND THE CHARACTER IS THE FIRST OF THEM (HD-8's law). A terminal has no
+/// ground to tint and a maker may have no colour at all, so the accent role is the SECOND
+/// signal and never the only one -- which is why an edge has a name AND a mark rather than a
+/// highlight.
+inline constexpr const char* pane_edge_name(std::int64_t edge) noexcept {
+    switch (edge) {
+    case pane_edge::kLeft: return "left";
+    case pane_edge::kRight: return "right";
+    case pane_edge::kTop: return "top";
+    case pane_edge::kBottom: return "bottom";
+    case pane_edge::kTopLeft: return "top-left";
+    case pane_edge::kTopRight: return "top-right";
+    case pane_edge::kBottomLeft: return "bottom-left";
+    case pane_edge::kBottomRight: return "bottom-right";
+    default: return "none";
+    }
+}
+
+/// Plain ASCII, because this canvas is plain ASCII by contract and a glyph a medium cannot
+/// draw is a mark a maker cannot read (`detail::kElided`'s reason).
+inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
+    switch (edge) {
+    case pane_edge::kLeft: return "<";
+    case pane_edge::kRight: return ">";
+    case pane_edge::kTop: return "^";
+    case pane_edge::kBottom: return "v";
+    case pane_edge::kTopLeft: return "<^";
+    case pane_edge::kTopRight: return "^>";
+    case pane_edge::kBottomLeft: return "<v";
+    case pane_edge::kBottomRight: return "v>";
+    default: return "-";
+    }
+}
+
+/// THE ONE CELL AN AFFORDANCE IS DRAWN ON. Derived every time it is wanted and stored
+/// nowhere, so what is painted and what is met are the same arithmetic -- `size_handle`'s
+/// law, and the reason there is no `click_edge_bounds()` beside a `paint_edge_bounds()`.
+/// An edge's mark sits at the MIDDLE of its run, which is the cell furthest from the two
+/// corners it shares its run with.
+inline ui::Rect pane_edge_cell(const ui::Rect& r, std::int64_t edge) noexcept {
+    const std::int64_t x0 = r.x;
+    const std::int64_t x1 = r.x + r.w - 1;
+    const std::int64_t y0 = r.y;
+    const std::int64_t y1 = r.y + r.h - 1;
+    const std::int64_t xm = r.x + r.w / 2;
+    const std::int64_t ym = r.y + r.h / 2;
+    switch (edge) {
+    case pane_edge::kLeft: return ui::Rect{x0, ym, 1, 1};
+    case pane_edge::kRight: return ui::Rect{x1, ym, 1, 1};
+    case pane_edge::kTop: return ui::Rect{xm, y0, 1, 1};
+    case pane_edge::kBottom: return ui::Rect{xm, y1, 1, 1};
+    case pane_edge::kTopLeft: return ui::Rect{x0, y0, 1, 1};
+    case pane_edge::kTopRight: return ui::Rect{x1, y0, 1, 1};
+    case pane_edge::kBottomLeft: return ui::Rect{x0, y1, 1, 1};
+    case pane_edge::kBottomRight: return ui::Rect{x1, y1, 1, 1};
+    default: return ui::Rect{};
+    }
+}
+
+/// ONE CHARACTER, for the cell an affordance is drawn on. The two-character spelling
+/// `pane_edge_mark` returns is PROSE -- it reads in a heading and would not fit in the one
+/// cell a corner has. `+` is `kHandleGlyph`, this tool's existing word for "take hold here",
+/// and the four corners share it because their POSITIONS already tell them apart.
+inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
+    switch (edge) {
+    case pane_edge::kLeft: return "<";
+    case pane_edge::kRight: return ">";
+    case pane_edge::kTop: return "^";
+    case pane_edge::kBottom: return "v";
+    default: return kHandleGlyph;
+    }
+}
+
+/// WHICH AFFORDANCE OF THIS RECTANGLE A CANVAS CELL IS ON, or `kNoPaneEdge`.
+///
+/// THE RING IS THE OUTERMOST CELL, derived every time it is wanted and stored nowhere --
+/// `size_handle`'s law, said about eight cells instead of one. A CORNER WINS over the two
+/// edges it belongs to, because a corner cell is genuinely in both and a maker aiming at one
+/// means the corner; without the precedence a diagonal gesture would be unreachable at
+/// exactly the cell it is drawn on.
+inline std::int64_t pane_edge_at(const ui::Rect& r, std::int64_t cx, std::int64_t cy) noexcept {
+    if (!r.contains(cx, cy)) {
+        return kNoPaneEdge;
+    }
+    const bool left = cx == r.x;
+    const bool right = cx == r.x + r.w - 1;
+    const bool top = cy == r.y;
+    const bool bottom = cy == r.y + r.h - 1;
+    if (top && left) {
+        return pane_edge::kTopLeft;
+    }
+    if (top && right) {
+        return pane_edge::kTopRight;
+    }
+    if (bottom && left) {
+        return pane_edge::kBottomLeft;
+    }
+    if (bottom && right) {
+        return pane_edge::kBottomRight;
+    }
+    if (left) {
+        return pane_edge::kLeft;
+    }
+    if (right) {
+        return pane_edge::kRight;
+    }
+    if (top) {
+        return pane_edge::kTop;
+    }
+    if (bottom) {
+        return pane_edge::kBottom;
+    }
+    return kNoPaneEdge;
+}
+
+/// WHICH PANE A MAKER IS ARRANGING, AND WHICH STEP THEY ARE ON.
+///
+/// THE SELECTION IS A `PaneRef` AND NOT A KIND, and that is the identity law spent where it
+/// matters most: a runtime kind is session-local and a pane a maker selected may stop
+/// resolving between two frames, while the reference they chose is the durable thing they
+/// meant. It is also what lets an UNRESOLVED pane be selected at all, which is the whole of
+/// the recovery path -- a maker cannot reset the place of a pane they cannot name.
+///
+/// AN EMPTY `provider` MEANS NOTHING IS SELECTED. `check_pane_key` refuses an empty key, so
+/// no reference a file or a catalog can produce is ever equal to it.
+struct PaneManagement {
+    bool open = false;
+    PaneRef selected;
+    std::int64_t doing = pane_manage::kSelect;
+    std::int64_t edge = pane_edge::kBottomRight;
+
+    bool has_selection() const { return !selected.provider.empty(); }
+};
+
+/// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
+///
+/// ONE PRESS CLAIMS ONE GESTURE UNTIL RELEASE, and everything below is what that costs: the
+/// IDENTITY being manipulated, which edge it was taken by, and the two numbers a proposal is
+/// measured FROM. It holds no rectangle and no live position -- `Drag`'s own law -- so a
+/// motion that crosses another pane, the Terminal, or an ordering change cannot transfer
+/// custody, because there is nothing here for a different pane to become.
+///
+/// `base_w`/`base_h` ARE THE SIZE AT THE MOMENT OF THE PRESS, and they are why a resize is
+/// deterministic rather than accumulated: every motion proposes `base + (pointer - press)`,
+/// so the same hand position always means the same size no matter how the pointer got there.
+struct PaneGesture {
+    bool active = false;
+    PaneRef pane;
+    bool sizing = false;
+    std::int64_t edge = kNoPaneEdge;
+    std::int64_t grab_dx = 0; ///< move: where inside the pane's rectangle the hand took hold
+    std::int64_t grab_dy = 0;
+    std::int64_t from_x = 0;  ///< size: the canvas cell the press landed on
+    std::int64_t from_y = 0;
+    std::int64_t base_w = 0;  ///< size: the pane's resolved size at that moment
+    std::int64_t base_h = 0;
+};
+
 /// The session: what a maker is currently doing, as opposed to what they have
 /// authored. Kept out of WorkshopDoc deliberately (see vocabulary.hpp) so the
 /// two kinds of fact cannot be mistaken for each other -- selection is not
@@ -848,6 +1215,16 @@ struct Session {
     /// The two persist to different files through different functions, and neither save
     /// touches the other's bytes.
     SetupState setup;
+    /// WHICH PANE A MAKER IS ARRANGING AND WHICH STEP THEY ARE ON (WIND-2). Session, beside
+    /// `panels` and `setup` rather than inside either: it is neither a presentation nor
+    /// authored intent -- it is the maker's hand halfway through a sentence, and it dies
+    /// with the process exactly as `PanelPicker` and `SetupNaming` do.
+    PaneManagement manage;
+    /// ...and the pane gesture their pointer is holding, if any. Deliberately NOT `drag`:
+    /// a document object and a pane are two different things to be holding, and one
+    /// variable for both would make "a release ends the gesture it began" a question about
+    /// which kind of thing was underneath rather than a fact about the press.
+    PaneGesture pane_drag;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1202,6 +1579,41 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 }
 
 } // namespace detail
+
+/// A PANE SIZE PROPOSAL, IN CELLS (WIND-2). Saturating on both axes, so a delta arriving off
+/// the wire can never leave the number line before the law that judges it gets to see it --
+/// which is the one thing `detail::step`/`detail::minus` exist for, and the reason no branch
+/// here relies on signed overflow to notice a silly number.
+///
+/// IT LIVES HERE, BELOW `detail`, ONLY BECAUSE IT SPENDS IT. Everything else about a pane
+/// edge is up beside `pane_edge`, where a reader looks for it.
+struct PaneSizeProposal {
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+};
+
+inline PaneSizeProposal pane_size_proposal(std::int64_t edge, std::int64_t base_w,
+                                           std::int64_t base_h, std::int64_t dx,
+                                           std::int64_t dy) noexcept {
+    PaneSizeProposal out{base_w, base_h};
+    const bool wide = edge == pane_edge::kLeft || edge == pane_edge::kRight ||
+                      edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
+                      edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
+    const bool tall = edge == pane_edge::kTop || edge == pane_edge::kBottom ||
+                      edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
+                      edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
+    const bool leftwards = edge == pane_edge::kLeft || edge == pane_edge::kTopLeft ||
+                           edge == pane_edge::kBottomLeft;
+    const bool upwards = edge == pane_edge::kTop || edge == pane_edge::kTopLeft ||
+                         edge == pane_edge::kTopRight;
+    if (wide) {
+        out.w = detail::step(base_w, leftwards ? detail::minus(0, dx) : dx);
+    }
+    if (tall) {
+        out.h = detail::step(base_h, upwards ? detail::minus(0, dy) : dy);
+    }
+    return out;
+}
 
 // ---- Direct manipulation, and the boundary policy it needs -----------------------------
 //
@@ -2687,38 +3099,166 @@ inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
 /// it through `picker_bounds`, because the pointer has to ask the same question: a box a maker
 /// can read through is one defect and a box a maker can press through is another, and both are
 /// answered by the same rectangle.
-/// WHAT THE PICKER SAYS ABOUT ONE ROW'S PRESENCE -- three words since WP-0, and
-/// the third is the one an external pane made reachable.
-///
-///     open      the active setup names it and a presentation currently fits
-///     waiting   the active setup names it and this screen has no room for it
-///     closed    the active setup does not name it
-///
-/// WAITING IS NOT SILENCE AND IT IS NOT ABSENCE. It is the one state where Return
-/// does neither of the two things the heading promises -- selecting it REMOVES
-/// the authored intent, exactly as selecting an open row does, because the maker
-/// asked for it and Workshop is the party that could not seat it. Calling it
-/// `closed` would invite a maker to press again and watch nothing happen; calling
-/// it `unresolved` would blame a provider for a screen (see `kWorkshopProvider`:
-/// silence proves unresolved, never unavailable, and a want of room proves
-/// neither).
-inline const char* picker_state_word(const Panels& panels, std::int64_t kind) {
-    if (panels.has(kind)) {
-        return "open";
+// ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word (WIND-2) --------
+//
+// SEVEN STATES, ONE CLASSIFIER, AND A DELIBERATE PRECEDENCE. Before WIND-2 there were
+// three, and that was enough for exactly as long as no two panes could overlap and no
+// authored place could leave the screen. Each of the four new ones is a different thing for
+// a maker to DO about it, which is the whole reason they are not collapsed into one
+// "not showing" bit:
+//
+//     closed        the active setup does not name it            -- open it
+//     unresolved    named, and this build cannot resolve it      -- a typo, or not installed
+//     refused       named, resolved, and this medium cannot      -- reset the size, or open
+//                   project an authored unit                        the other medium
+//     waiting       named, resolved, and the reactive stack      -- make the window taller,
+//                   had no tile left                                or place it yourself
+//     off-room      named, resolved, projected, and no cell of   -- reset the place
+//                   its rectangle is on this canvas
+//     covered       named, resolved, projected, on screen, and   -- raise it
+//                   every visible cell is behind another pane
+//     open          none of the above                            -- nothing
+//
+// A WANT OF ROOM IS NOT AN UNSUPPORTED UNIT AND NEITHER IS AN UNRESOLVED REFERENCE, and
+// `picker_state_word`'s own note already made the neighbouring distinction for the right
+// reason: calling a want of room `unresolved` would blame a provider for a screen.
+
+namespace pane_state {
+inline constexpr std::int64_t kClosed = 0;
+inline constexpr std::int64_t kUnresolved = 1;
+inline constexpr std::int64_t kRefused = 2;
+inline constexpr std::int64_t kWaiting = 3;
+inline constexpr std::int64_t kOffRoom = 4;
+inline constexpr std::int64_t kCovered = 5;
+inline constexpr std::int64_t kOpen = 6;
+} // namespace pane_state
+
+/// The word a maker reads. Total over the integer, for `panel_kind`'s reason.
+inline const char* pane_state_word(std::int64_t state) {
+    switch (state) {
+    case pane_state::kUnresolved: return "unresolved";
+    case pane_state::kRefused: return "refused";
+    case pane_state::kWaiting: return "waiting";
+    case pane_state::kOffRoom: return "off-room";
+    case pane_state::kCovered: return "covered";
+    case pane_state::kOpen: return "open";
+    default: return "closed";
     }
-    if (panels.waiting(kind)) {
-        return "waiting";
+}
+
+/// HOW WIDE THE STATE COLUMN IS.
+///
+/// ELEVEN, and it moved from eight in WIND-2 because the honest words outgrew it:
+/// `unresolved` is ten bytes and `detail::pad` TRUNCATES at its width, so an eight-column
+/// field would have presented it as `unresolv` -- a word that is not a state and not a
+/// truncation a reader could recognise. Ten plus one, because a column exactly the length
+/// of its longest word butts that word against the summary beside it. The price is measured
+/// and visible: at the 78x22 minimum a picker row two cells longer than the slot is FITTED
+/// and the cut is MARKED, which is `detail::fit` doing exactly its job.
+inline constexpr std::size_t kPaneStateCols = 11;
+
+/// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
+///
+/// THE UNION, NOT CONTAINMENT BY ONE PANE. Two panes that each cover half of a third leave
+/// nothing of it showing, and a maker cannot see it -- so a test that asked "is it inside
+/// some single pane" would call that one `open` and leave the maker with a row that says
+/// their pane is fine and a screen on which it is not there.
+///
+/// PARTIAL COVERAGE IS NOT COVERAGE. One visible cell is enough to be `open`: a maker can
+/// see the pane, so the word for it is not the word for a pane they cannot.
+///
+/// IT ASKS ONLY WHAT IS IN FRONT. `presentation_order` is back-to-front, so the panes that
+/// can cover this one are exactly the ones after it -- which is the same sentence
+/// `occupied_at` spends when it walks that order backward.
+inline bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
+                            std::int64_t kind, const ui::Rect& mine) {
+    if (mine.w <= 0 || mine.h <= 0) {
+        return false; // nothing visible is OFF-ROOM, which is a different word
     }
-    return "closed";
+    const std::vector<std::int64_t> order = presentation_order(setup, panels);
+    std::size_t me = order.size();
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == kind) {
+            me = i;
+            break;
+        }
+    }
+    if (me == order.size()) {
+        return false;
+    }
+    std::vector<ui::Rect> ahead;
+    for (std::size_t i = me + 1; i < order.size(); ++i) {
+        const ui::Rect r = bounds_of(panels, setup, order[i], sc).rect;
+        if (r.w > 0 && r.h > 0) {
+            ahead.push_back(r);
+        }
+    }
+    if (ahead.empty()) {
+        return false;
+    }
+    for (std::int64_t y = mine.y; y < mine.y + mine.h; ++y) {
+        for (std::int64_t x = mine.x; x < mine.x + mine.w; ++x) {
+            bool hidden = false;
+            for (const ui::Rect& r : ahead) {
+                if (r.contains(x, y)) {
+                    hidden = true;
+                    break;
+                }
+            }
+            if (!hidden) {
+                return false; // one cell a maker can see is enough
+            }
+        }
+    }
+    return true;
+}
+
+/// THE ONE STATE CLASSIFIER. Asked of an inventory row -- which is the union of the catalog
+/// and everything the setup names -- so every authored pane gets exactly one answer and no
+/// row is silently omitted because the runtime catalog lacks it.
+inline std::int64_t pane_state_of(const Panels& panels, const Setup& setup, const Screen& sc,
+                                  const CatalogRow& row) {
+    if (!has_pane(setup, row.ref)) {
+        return pane_state::kClosed;
+    }
+    if (row.kind == kNoPaneKind || !resolvable(row.ref, panels.runtime)) {
+        return pane_state::kUnresolved;
+    }
+    // A UNIT OUTRANKS A WANT OF ROOM, and this is where that precedence is spent. A pane
+    // with a pixel axis AND no tile left is refused rather than waiting: a taller window
+    // would give it the tile and it still would not be presented, so telling the maker to
+    // make the window taller would be a true sentence about the wrong problem.
+    if (!pane_unit_projectable(placement_of(row.kind), pane_of(setup, row.ref))) {
+        return pane_state::kRefused;
+    }
+    const PanelBounds where = bounds_of(panels, setup, row.kind, sc);
+    if (!where.open) {
+        // Named, resolved, projectable and not presented -- which is what `waiting` has
+        // always meant here. `seat_panes` is the only thing that produces it and it is
+        // medium-independent, which is why this branch does not consult one.
+        return pane_state::kWaiting;
+    }
+    if (!where.projected) {
+        return pane_state::kRefused;
+    }
+    if (where.rect.w <= 0 || where.rect.h <= 0) {
+        return pane_state::kOffRoom;
+    }
+    if (pane_is_covered(panels, setup, sc, row.kind, where.rect)) {
+        return pane_state::kCovered;
+    }
+    return pane_state::kOpen;
 }
 
 /// The one row-body spelling, so the painter and any reader of the picker's
 /// columns spend the same two `detail::pad` widths.
-inline std::string picker_entry_text(const CatalogRow& row, const char* state) {
-    return detail::pad(row.name, 10) + detail::pad(state, 8) + row.summary;
+inline std::string picker_entry_text(const std::string& name, const char* state,
+                                     const std::string& tail) {
+    return detail::pad(name, 10) + detail::pad(state, kPaneStateCols) + tail;
 }
 
-inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Screen& sc) {
+inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Setup& setup,
+                         const Screen& sc) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
         return;
@@ -2737,7 +3277,11 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     // is the second consumer HD-6 established the rule with and the fourth
     // overall. There is no second scrolling algorithm here and the picker did not
     // get taller.
-    const std::vector<CatalogRow> rows = combined_catalog(panels);
+    //
+    // AND SINCE WIND-2 THE POPULATION IS THE SHARED INVENTORY -- the catalog UNION every
+    // reference the setup names -- so a pane a maker authored and this build cannot resolve
+    // has a row here too, and can be removed with the gesture that removes any other.
+    const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
     const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
     const ListWindow win = list_window(rows.size(), picker.cursor, budget);
     std::int64_t line = 1;
@@ -2751,7 +3295,9 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == picker.cursor;
         say(std::string(here ? "> " : "  ") +
-                picker_entry_text(rows[i], picker_state_word(panels, rows[i].kind)),
+                picker_entry_text(rows[i].name,
+                                  pane_state_word(pane_state_of(panels, setup, sc, rows[i])),
+                                  rows[i].summary),
             here ? surface::role::kAccent : surface::role::kFill);
     }
     if (win.after > 0) {
@@ -2766,6 +3312,111 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     // and stopped being the number of rows written the moment the population could
     // exceed the budget. With the two built-ins and nothing offered, `line` is
     // exactly `kPickerRows` and every pre-existing picture is byte-identical.
+    for (; line < b.h; ++line) {
+        paint_panel_row(c, b, line, std::string(), surface::role::kFill);
+    }
+}
+
+// ---- PANE MANAGEMENT, PRESENTED (WIND-2) ----------------------------------------------
+//
+// THE PICKER'S OWN SURFACE, WITH A DIFFERENT PURPOSE. It is the same slot, the same frame,
+// the same `list_window`, the same omission wording, the same two padded columns and the
+// same shared inventory -- what differs is the HEADING, what the third column says, and what
+// Return means. There is no warning pane, no notification queue, no second pane list and no
+// independent inventory widget, because there is no question here the picker's list could
+// not already answer once its population became the union.
+//
+// WHY IT IS A SEPARATE MODE AND NOT A SECOND KEY ON THE PICKER. Selecting an open row in the
+// picker REMOVES it -- PNL-0's resolution of the `x` key, and still the right one for a
+// surface whose single ownership is PRESENCE. The gesture a maker reaches for on an open row
+// while they are arranging is `raise`, not `remove`, so the two live in modes with different
+// purposes and neither gesture changed meaning. Management binds no toggle at all.
+
+/// WHAT A MAKER AUTHORED FOR ONE PANE'S WINDOW, as one line of prose.
+///
+/// A DEFAULT IS SAID IN CHARACTERS rather than left blank, because a blank third column reads
+/// as "this row has nothing to say" and the whole point of the column is that a reactive pane
+/// and an arranged one are different things a maker should be able to tell apart at a glance.
+/// A pane the setup does not name has no row of authored intent at all, and says so.
+inline std::string pane_window_text(const SetupPane* row) {
+    if (row == nullptr) {
+        return "--";
+    }
+    const auto axis = [](const PaneSize& s) -> std::string {
+        if (s.mode == pane_unit::kCells) {
+            return std::to_string(s.amount);
+        }
+        if (s.mode == pane_unit::kPixels) {
+            return std::to_string(s.amount) + "px";
+        }
+        return std::string("-");
+    };
+    std::string text;
+    if (row->place.mode == pane_unit::kCells) {
+        text += "@" + std::to_string(row->place.x) + "," + std::to_string(row->place.y) + " ";
+    }
+    text += axis(row->width) + "x" + axis(row->height);
+    text += " f" + std::to_string(row->front);
+    return text;
+}
+
+/// The heading, which is where the SUBMODE and the chosen edge are said. One row, because
+/// the surface has one -- and the edge is named AND marked, so a medium with no colour
+/// carries the whole answer.
+inline std::string management_heading(const PaneManagement& manage, const std::string& what) {
+    switch (manage.doing) {
+    case pane_manage::kMove:
+        return "+ WINDOW move " + what + " -- arrows place, esc back";
+    case pane_manage::kSize:
+        return std::string("+ WINDOW size ") + pane_edge_mark(manage.edge) + " " +
+               pane_edge_name(manage.edge) + " -- tab edge, arrows size, esc back";
+    case pane_manage::kReset:
+        return "+ WINDOW reset " + what + " -- p place, w width, h height, o order, esc back";
+    default:
+        return "+ WINDOW -- m move, s size, f/b front/back, r/l raise/lower, 0 reset";
+    }
+}
+
+inline void paint_management(surface::SurfaceCanvas& c, const Panels& panels,
+                             const Setup& setup, const PaneManagement& manage,
+                             const Screen& sc) {
+    if (!manage.open) {
+        return;
+    }
+    const ui::Rect b = picker_bounds(sc);
+    paint_panel_frame(c, b);
+    const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
+    std::size_t cursor = 0;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (manage.has_selection() && rows[i].ref == manage.selected) {
+            cursor = i;
+            break;
+        }
+    }
+    const std::string what =
+        manage.has_selection() ? quoted_setup_name(ref_text(manage.selected)) : std::string();
+    paint_panel_row(c, b, 0, management_heading(manage, what), surface::role::kAccent);
+    const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
+    const ListWindow win = list_window(rows.size(), cursor, budget);
+    std::int64_t line = 1;
+    const auto say = [&](const std::string& text, std::int64_t role) {
+        paint_panel_row(c, b, line, text, role);
+        ++line;
+    };
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const bool here = i == cursor && manage.has_selection();
+        say(std::string(here ? "> " : "  ") +
+                picker_entry_text(rows[i].name,
+                                  pane_state_word(pane_state_of(panels, setup, sc, rows[i])),
+                                  pane_window_text(pane_of(setup, rows[i].ref))),
+            here ? surface::role::kAccent : surface::role::kFill);
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+    }
     for (; line < b.h; ++line) {
         paint_panel_row(c, b, line, std::string(), surface::role::kFill);
     }
@@ -3259,7 +3910,7 @@ struct InfoBodyAt {
 inline InfoBodyAt info_body_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
                                std::int64_t x, std::int64_t y) {
     const Screen sc = screen_of(s);
-    const PanelBounds info = bounds_of(s.panels, panel::kInfo, sc);
+    const PanelBounds info = bounds_of(s.panels, s.setup.active, panel::kInfo, sc);
     if (!info.open) {
         return InfoBodyAt{};
     }
@@ -3849,11 +4500,61 @@ inline void paint_external(surface::SurfaceCanvas& c, const Panels& panels, std:
     c.texts.push_back(std::move(region));
 }
 
+/// THE EIGHT AFFORDANCES OF THE SELECTED PANE, drawn only while a maker is arranging.
+///
+/// GLYPHS OVER THE PANE, not rectangles, and for `size_handle`'s reason exactly: the pane's
+/// own backdrop already fills these cells, so a rect here would be invisible, and an
+/// affordance a maker cannot tell from the furniture is not an affordance. The chosen one is
+/// in the accent role and the other seven are muted -- the SECOND signal, after the marks
+/// themselves, never the only one.
+///
+/// NOTHING IS DRAWN FOR A PANE WITH NO PRESENTATION. A pane that is off-room, unprojectable,
+/// waiting or unresolved has no rectangle to ring, which is exactly why the management LIST
+/// is the recovery surface and the ring is not: a maker reaches an invisible pane by its row,
+/// and the row is always there.
+inline void paint_pane_affordances(surface::SurfaceCanvas& c, const Session& s,
+                                   const Screen& sc) {
+    if (!s.manage.open || !s.manage.has_selection()) {
+        return;
+    }
+    const std::optional<std::int64_t> kind =
+        resolve_pane(s.manage.selected, s.panels.runtime);
+    if (!kind.has_value()) {
+        return;
+    }
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
+    if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
+        return;
+    }
+    for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
+        const ui::Rect at = pane_edge_cell(where.rect, edge);
+        const bool chosen = s.manage.doing == pane_manage::kSize && s.manage.edge == edge;
+        c.labels.push_back(surface::SurfaceLabel{
+            at.x, at.y, std::string(pane_edge_glyph(edge)),
+            chosen ? surface::role::kAccent : surface::role::kMuted});
+    }
+}
+
+/// EVERY PRESENTED PANE, BACK TO FRONT.
+///
+/// IT WALKS THE PRESENTATION ORDER (WIND-2), ASCENDING, so a later-ranked pane is drawn
+/// OVER an earlier one -- the exact reverse of the order `occupied_at` walks, from the one
+/// helper, so what a maker sees on top is what their hand meets. Painter's order is list
+/// order across the canvas's three lists, and this is what decides the list.
+///
+/// A PANE WITH NOTHING ON SCREEN PAINTS NOTHING AT ALL, and the guard is one comparison
+/// rather than three: `bounds_of` answers with an empty rectangle for a pane that is
+/// off-room and for one whose authored unit this medium cannot project, so a pane with no
+/// cells here never reaches a painter that would push a degenerate `SurfaceRect`.
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc) {
     const Panels& panels = s.panels;
-    for (const Panel& p : panels.open) {
-        const ui::Rect b = bounds_of(panels, p.kind, sc).rect;
+    for (const std::int64_t kind : presentation_order(s.setup.active, panels)) {
+        const Panel p{kind};
+        const ui::Rect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
+        if (b.w <= 0 || b.h <= 0) {
+            continue;
+        }
         if (p.kind == panel::kBuilder) {
             paint_builder(c, panels.builder, b);
         } else if (p.kind == panel::kInfo) {
@@ -3868,7 +4569,9 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
             paint_external(c, panels, p.kind, b, sc);
         }
     }
-    paint_picker(c, panels, sc);
+    paint_picker(c, panels, s.setup.active, sc);
+    paint_pane_affordances(c, s, sc);
+    paint_management(c, panels, s.setup.active, s.manage, sc);
 }
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down (WS-0) ----

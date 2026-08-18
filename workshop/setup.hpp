@@ -7,15 +7,18 @@
 // WHAT A MAKER CALLS THE ARRANGEMENT THEY ARE WORKING IN, and the whole of what
 // that is allowed to mean in WS-0.
 //
-// A SETUP IS A NAME AND AN ORDERED LIST OF PANE REFERENCES. Nothing else. It is
-// the third kind of fact this application has, and the only interesting thing
-// about it is where its edges are:
+// A SETUP IS A NAME AND AN ORDERED LIST OF AUTHORED PANE ROWS. Each row is a
+// durable reference plus the SMALLEST DIFFERENCE FROM THE DEVELOPER'S DEFAULT a
+// maker has asked for -- where it sits, how wide, how tall, and how far forward
+// (WIND-2). It is the third kind of fact this application has, and the only
+// interesting thing about it is where its edges are:
 //
 //   DOCUMENT   the objects a maker authored (vocabulary.hpp, persist.hpp). A
 //              setup neither contains nor touches one, and saving or restoring
 //              a setup changes no document byte.
-//   SETUP      the human name, and which panes the maker meant to have open, in
-//              order. Authored, persisted, and this file.
+//   SETUP      the human name, which panes the maker meant to have open, and the
+//              window intent they authored for each. Authored, persisted, and
+//              this file.
 //   SESSION    the picker's cursor, a Builder panel's copy of a tool's status, a
 //              Terminal's draft, a drag, a notice. Belongs to the run.
 //   DERIVED    every rectangle a pane resolves to on the current screen. Never
@@ -90,13 +93,29 @@
 //
 // ---- What a setup deliberately does not have ------------------------------
 //
-// No placement, no rectangle, no screen extent, no text metric, no pane-instance
+// No RESOLVED rectangle, no screen extent, no text metric, no pane-instance
 // identity, no opaque provider configuration, no focus, no tabs, no docking, no
 // layout tree, no plugin manifest, no schema field of its own beyond the file's
 // (setup_persist.hpp). Every one of those is either DERIVED from the current
 // screen -- and would go stale the moment the window changed -- or a decision
 // the first provider that actually needs it should get to make.
+//
+// WIND-2 ADDED AUTHORED WINDOW INTENT AND NOT RESOLVED GEOMETRY, and the line
+// between them is the whole of the phase. What a row carries is what a MAKER
+// SAID: a place in canvas cells, a width and a height each in their own unit, and
+// a canonical rank saying how far forward this pane sits. What no row carries,
+// and what `check_setup` still cannot see, is a `Screen`: a setup legal on a tall
+// screen is legal on a short one, a setup legal on a terminal is legal on a
+// window, and the rectangle any of it resolves to is computed on every paint by
+// screen.hpp and stored nowhere.
+//
+// SPARSE, SO A DEFAULT STAYS A DEFAULT. Every one of the three geometry fields
+// carries a MODE, and the mode `default` means "no override -- the developer's
+// answer, whatever it becomes in a later build". A full snapshot would silently
+// convert every developer default into a maker decision at the moment of first
+// save, which is the same defect W-5 removed from the document's saved flag.
 
+#include "document.hpp" // `doc::kMaxCells` -- the bound an authored cell count already has
 #include "pane_vocabulary.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -191,6 +210,38 @@ inline constexpr std::size_t kMaxSetupPanes = 32;
 inline constexpr std::size_t kMaxPaneNameLen = 32;
 inline constexpr std::size_t kMaxPaneSummaryLen = 64;
 
+/// THE LARGEST DEVICE-PIXEL AMOUNT A PANE MAY BE AUTHORED AT (WIND-2).
+///
+/// SIXTY-FIVE THOUSAND FIVE HUNDRED AND THIRTY-SIX, and the three things it is
+/// NOT are what make it the right kind of number:
+///
+///   it is not `doc::kMaxCells * kCanvasCellPx`   a file's validity must not
+///                                                depend on a medium's cell
+///                                                scale, which is the same
+///                                                sentence as "`check_setup`
+///                                                never sees a `Screen`". The
+///                                                SDL Skin's twelve is one
+///                                                Skin's layout number and this
+///                                                file may not hold it.
+///   it is not a capacity                         no medium is promised to be
+///                                                able to show this; the CELL
+///                                                bound does the real work at
+///                                                projection, and this only has
+///                                                to keep the integer safe and
+///                                                the file bounded.
+///   it is not a screen size                      it is far above one on
+///                                                purpose -- eight times the
+///                                                row count of an 8K panel --
+///                                                so it never becomes the thing
+///                                                that decides what a maker may
+///                                                author on hardware nobody has
+///                                                built yet.
+///
+/// A power of two, so the one arithmetic a projection would ever do to it (an
+/// integer division by a per-axis cell scale) stays nowhere near the end of the
+/// number line.
+inline constexpr std::int64_t kMaxPanePixels = 65536;
+
 // ---- The value ---------------------------------------------------------------
 
 /// WHICH PANE A MAKER MEANT -- durably, and without naming a catalog slot.
@@ -211,17 +262,137 @@ struct PaneRef {
     friend bool operator==(const PaneRef&, const PaneRef&) = default;
 };
 
+// ---- THE AUTHORED WINDOW: the smallest difference from a default (WIND-2) -----
+//
+// A UNIT IS A MODE BESIDE AN AMOUNT, NEVER A FIELD NAME. `ui::Extent` already
+// makes the argument for this shape in its own words -- "It is one property, not
+// two. A maker does not author a type and then author a value; they author a
+// width" -- and names the historical builder's separate `Width Type` / `Width
+// Value` inspector rows as the mistake it exists to refuse.
+//
+// AND IT IS WORKSHOP'S OWN TYPE, NOT `ui::Extent`. Two measured reasons, either
+// of which is sufficient. `kExtentPercent` means *a share of the context frame*,
+// and a pane has no context element to take a share of. And `resolve_extent`'s
+// first line is `if (e.mode != kExtentPercent) return e.amount;`, so a third mode
+// added to `ui::Extent` would resolve AS CELLS in every existing caller --
+// silently, in the widening direction, in a shared package whose values also
+// arrive off the document's wire.
+
+/// THE UNITS A PANE'S AUTHORED WINDOW MAY BE SAID IN, and there is not a fourth.
+///
+/// A CLOSED SET, and `default` is a VALUE rather than an absent field. Loom's
+/// admission has no optional and refuses an unknown field, so absence cannot be
+/// spelled by omitting one; and a magic coordinate is a value a maker could
+/// otherwise mean. The precedent is doubled in this repository already --
+/// `role::kNone` and `kNoCaret` are both "the absence of one, deliberately not a
+/// further member of the set".
+///
+/// `kDefault == 0` SO A DEFAULT-CONSTRUCTED ROW MEANS "NO OVERRIDE", which is
+/// what makes a fresh setup's bytes the smallest spelling of a setup that has
+/// never been arranged.
+namespace pane_unit {
+inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
+inline constexpr std::int64_t kCells = 1;   ///< an absolute count of canvas cells
+/// DEVICE PIXELS, declared from the beginning and currently unprojectable.
+///
+/// It is a LEGAL authored value on every medium and is refused at PROJECTION on
+/// every medium this build has, because no medium publishes a trustworthy
+/// per-axis device-pixel scale for a canvas cell -- see `project_pane`
+/// (screen.hpp), which owns that refusal and states why the near-misses are
+/// traps. Declaring it now rather than later is what makes the refusal branch
+/// reachable and tested on day one instead of dead code waiting for a medium.
+inline constexpr std::int64_t kPixels = 2;
+} // namespace pane_unit
+
+/// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
+///
+/// ONE MODE FOR THE PAIR, because `doc::move` proves a position is one operation:
+/// "a diagonal drag into the top-left corner would slide the object down the edge
+/// while reporting a refusal". A width and a height are two values under one
+/// rule; an x and a y are one value.
+///
+/// ABSOLUTE CANVAS CELLS, NOT AN OFFSET FROM THE DEVELOPER'S PLACEMENT. An offset
+/// is authored against a default a later build may change, so the same saved
+/// bytes would silently mean a different place in the next version. Absolute
+/// intent is what `ui::Element` already authors, and RESETTING is what gives back
+/// "wherever the default puts it".
+struct PanePlace {
+    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kCells`; never `kPixels`
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+
+    friend bool operator==(const PanePlace&, const PanePlace&) = default;
+};
+
+/// HOW BIG A MAKER MADE ONE AXIS OF A PANE.
+///
+/// PER AXIS, AND IT MUST BE. A maker who says "as wide as the pane needs, as tall
+/// as the screen allows" is saying two things, and one mode for both would make
+/// the narrower of the two intents unsayable.
+struct PaneSize {
+    std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kCells` or `kPixels`
+    std::int64_t amount = 0;
+
+    friend bool operator==(const PaneSize&, const PaneSize&) = default;
+};
+
+/// ONE ROW OF A SETUP: which pane, and the smallest thing a maker said about its
+/// window.
+///
+/// THE OVERRIDE LIVES BESIDE THE REFERENCE, in the same row, and that is the
+/// choice the whole grammar rests on. A separate map keyed by `PaneRef` would
+/// create a SECOND POPULATION naming references, and `check_setup` would then owe
+/// orphan detection, missing-member detection, and a repair rule for a file
+/// carrying both -- a whole second validity surface bought for nothing.
+///
+/// `front` IS A CANONICAL RANK AND NOT AN ACCUMULATING COUNTER. Over a setup's
+/// `n` rows the set of ranks is exactly `{0 .. n-1}`: 0 is back-most, `n-1` is
+/// front-most, and there is no tie and therefore no secondary key. A permutation
+/// of `0..n-1` is UNIQUE for a given order, so one semantic order has exactly one
+/// persisted spelling and reset writes bytes identical to a setup that was never
+/// reordered. An accumulating `max + 1` would be an operation TRACE rather than an
+/// order: alternating "send A to front" and "send B to front" produces the same two
+/// semantic orders forever while the integers grow without bound, so a legal
+/// gesture would eventually fail on a setup for which a bounded spelling always
+/// existed.
+///
+/// THE RANK IS OVER ALL AUTHORED ROWS, INCLUDING UNRESOLVED ONES, and that is
+/// load-bearing. The presented order is this permutation RESTRICTED to what this
+/// build seated, and a restriction of a total order is a total order -- so a pane
+/// that stops resolving keeps its exact place for free, and gets it back when it
+/// resolves again, with no byte of the file changing either way.
+///
+/// A DEFAULT-CONSTRUCTED ROW CARRIES `front = 0`, WHICH IS VALID ONLY FOR A
+/// ONE-ROW SETUP. That is the one wart of this representation and it is named
+/// rather than hidden: `check_setup` judges a completed candidate and never
+/// repairs one, so every producer of a row -- `add_pane`, `default_setup`, and any
+/// test constructing a candidate by hand -- assigns the rank deliberately.
+struct SetupPane {
+    PaneRef ref;
+    PanePlace place;
+    PaneSize width;
+    PaneSize height;
+    std::int64_t front = 0;
+
+    friend bool operator==(const SetupPane&, const SetupPane&) = default;
+};
+
 /// A setup: what a maker calls this arrangement, and which panes it has, in
 /// order.
 ///
 /// ORDER IS PRESERVED AND IT IS MEANING, not tidiness -- the same claim
 /// `persist.hpp` makes about the objects in a document, and for a smaller but
-/// real version of the same reason. An open panel placed in the overlay stack
-/// takes the next SLOT in that stack, counted over the open list in order
-/// (`bounds_of`), so with two stacked kinds the order of this list is the order
-/// they appear down the screen. Today's two built-ins are placed in different
-/// regions and cannot demonstrate it; the list is still never sorted, because a
-/// save that tidied would silently choose a future stacking a maker did not.
+/// real version of the same reason. An open panel placed in the overlay stack and
+/// carrying NO authored place takes the next SLOT in that stack, counted over the
+/// open list in order (`bounds_of`), so the order of this list is the order the
+/// reactive panes appear down the screen. The list is never sorted, because a save
+/// that tidied would silently choose a stacking a maker did not.
+///
+/// THE LIST'S ORDER IS NOT THE PAINT ORDER (WIND-2). `front` is, and the
+/// separation is the whole reason the rank exists: `seat_panes`, `reconcile` and
+/// `bounds_of` all read the LIST, so reordering it would move a reactive pane's
+/// rectangle -- and "raising a pane must not move it" is then not a discipline
+/// somebody keeps but the absence of a write.
 ///
 /// AN EMPTY PANE LIST IS A LEGAL SETUP. "I want nothing open" is a thing a maker
 /// can mean and a thing this application can present -- the picker removes the
@@ -229,7 +400,7 @@ struct PaneRef {
 /// arrangement unnameable.
 struct Setup {
     std::string name;
-    std::vector<PaneRef> panes;
+    std::vector<SetupPane> panes;
 
     friend bool operator==(const Setup&, const Setup&) = default;
 };
@@ -529,6 +700,99 @@ inline Written check_pane_ref(const PaneRef& ref) {
     return check_pane_key(ref.pane, "pane key");
 }
 
+// ---- What this application accepts as authored window intent (WIND-2) --------
+//
+// THE UNUSED NUMBERS OF A `default` MUST BE ZERO, and that is one rule with one
+// reason: there is then exactly ONE smallest canonical spelling of absent intent.
+// A file carrying `{"mode":"default","x":7,"y":3}` would round-trip a number that
+// means nothing, and the first reader to wonder what it meant would be right to.
+//
+// NEITHER LAW SEES A `Screen`. A cell coordinate past the right or bottom edge of
+// the current canvas is VALID AUTHORED INTENT and is clipped at projection -- the
+// document already allows exactly this ("the canvas clips, and a maker dragging
+// something half out of view has not made a mistake"), and a second, stricter law
+// for a pane would be the same situation answered twice.
+
+/// A PLACE: default with nothing said, or an absolute canvas cell.
+inline Written check_pane_place(const PanePlace& p) {
+    if (p.mode == pane_unit::kDefault) {
+        if (p.x != 0 || p.y != 0) {
+            return Written::no("a default pane place carries no coordinates");
+        }
+        return Written::ok();
+    }
+    if (p.mode != pane_unit::kCells) {
+        return Written::no("a pane place is either default or cells");
+    }
+    // NEGATIVE IS REFUSED AT THE ROOT, `doc::check_coord`'s own rule and its own
+    // reason: the canvas has no cells there.
+    if (p.x < 0 || p.y < 0) {
+        return Written::no("a pane place cannot be negative");
+    }
+    if (p.x > doc::kMaxCells || p.y > doc::kMaxCells) {
+        return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
+                           " cells");
+    }
+    return Written::ok();
+}
+
+/// ONE AXIS OF A SIZE: default, a count of cells, or a count of device pixels.
+///
+/// `pixels` IS ACCEPTED HERE AND REFUSED AT PROJECTION, and the two are not in
+/// tension -- they are `reconcile`'s existing law with a unit substituted for a
+/// height. A setup legal on a tall screen is legal on a short one; a setup legal
+/// on a window is legal on a terminal. What changes with the medium is which
+/// authored intent can be PRESENTED, never which can be held.
+inline Written check_pane_size(const PaneSize& s, const char* which) {
+    if (s.mode == pane_unit::kDefault) {
+        if (s.amount != 0) {
+            return Written::no(std::string("a default pane ") + which + " carries no amount");
+        }
+        return Written::ok();
+    }
+    if (s.mode == pane_unit::kCells) {
+        if (s.amount < ui::kMinCells) {
+            return Written::no(std::string("a pane ") + which + " is at least " +
+                               std::to_string(ui::kMinCells) + " cell");
+        }
+        if (s.amount > doc::kMaxCells) {
+            return Written::no(std::string("a pane ") + which + " is at most " +
+                               std::to_string(doc::kMaxCells) + " cells");
+        }
+        return Written::ok();
+    }
+    if (s.mode == pane_unit::kPixels) {
+        if (s.amount < 1) {
+            return Written::no(std::string("a pane ") + which + " is at least 1 pixel");
+        }
+        if (s.amount > kMaxPanePixels) {
+            return Written::no(std::string("a pane ") + which + " is at most " +
+                               std::to_string(kMaxPanePixels) + " pixels");
+        }
+        return Written::ok();
+    }
+    return Written::no(std::string("a pane ") + which + " is default, cells or pixels");
+}
+
+/// EVERY LAW ONE AUTHORED ROW MEETS, minus the two that are about the WHOLE setup
+/// (no duplicate reference, and the rank permutation). One function so a typed
+/// gesture and a loaded file cannot come to disagree about a row.
+inline Written check_setup_pane(const SetupPane& row) {
+    const Written legal = check_pane_ref(row.ref);
+    if (!legal.accepted) {
+        return legal;
+    }
+    const Written placed = check_pane_place(row.place);
+    if (!placed.accepted) {
+        return placed;
+    }
+    const Written wide = check_pane_size(row.width, "width");
+    if (!wide.accepted) {
+        return wide;
+    }
+    return check_pane_size(row.height, "height");
+}
+
 // ---- ADMITTING ONE LIVE OFFER INTO THE RUNTIME CATALOG (WP-0) ----------------
 //
 // EVERYTHING BELOW BOUNDS MATERIAL BEFORE IT IS RETAINED, and the ordering is the
@@ -693,12 +957,24 @@ inline Admission admit_pane_offer(RuntimeCatalog& runtime, std::string_view stam
 
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 ///
-/// It judges the name, every reference, how many there are, and whether any two
-/// are the same one. A DUPLICATE IS REFUSED rather than collapsed: a kind is
-/// open or it is not (there is no multi-instance policy to make a second entry
-/// mean anything), so a file naming one twice is a file whose author believed
-/// something this application does not do, and silently keeping one of the two
-/// would hide that.
+/// It judges the name, every row, how many there are, whether any two name the
+/// same pane, and whether the ranks are a permutation. A DUPLICATE IS REFUSED
+/// rather than collapsed: a kind is open or it is not (there is no multi-instance
+/// policy to make a second entry mean anything), so a file naming one twice is a
+/// file whose author believed something this application does not do, and silently
+/// keeping one of the two would hide that.
+///
+/// THE RANK LAW IS THE DUPLICATE LAW'S OWN SHAPE, ASKED OF A NUMBER (WIND-2):
+/// every `front` in `[0, n)`, and no two equal. Those two together are exactly
+/// "the set of ranks is `{0..n-1}`", because `n` values drawn from `n` slots with
+/// no repeat leave no gap. It is bounded structurally rather than by a chosen
+/// ceiling -- the bound is the setup's own size -- and it is medium-independent
+/// for the same reason every other law here is: this function never sees a
+/// `Screen` and could not be given one without inverting the include order.
+///
+/// IT JUDGES A COMPLETED CANDIDATE AND NEVER REPAIRS ONE. A public aggregate is
+/// not valid by construction, so a producer that appends a row assigns its rank;
+/// see `add_pane` and `default_setup`.
 inline Written check_setup(const Setup& s) {
     const Written named = check_setup_name(s.name);
     if (!named.accepted) {
@@ -708,14 +984,26 @@ inline Written check_setup(const Setup& s) {
         return Written::no("a setup holds at most " + std::to_string(kMaxSetupPanes) +
                            " panes -- this one names " + std::to_string(s.panes.size()));
     }
+    const std::int64_t n = static_cast<std::int64_t>(s.panes.size());
     for (std::size_t i = 0; i < s.panes.size(); ++i) {
-        const Written legal = check_pane_ref(s.panes[i]);
+        const Written legal = check_setup_pane(s.panes[i]);
         if (!legal.accepted) {
             return legal;
         }
+        if (s.panes[i].front < 0 || s.panes[i].front >= n) {
+            return Written::no("a pane's front order is 0 to " + std::to_string(n - 1) +
+                               " -- `" + ref_text(s.panes[i].ref) + "` says " +
+                               std::to_string(s.panes[i].front));
+        }
         for (std::size_t j = 0; j < i; ++j) {
-            if (s.panes[j] == s.panes[i]) {
-                return Written::no("`" + ref_text(s.panes[i]) + "` is named twice");
+            if (s.panes[j].ref == s.panes[i].ref) {
+                return Written::no("`" + ref_text(s.panes[i].ref) + "` is named twice");
+            }
+            if (s.panes[j].front == s.panes[i].front) {
+                return Written::no("two panes claim front order " +
+                                   std::to_string(s.panes[i].front) + " -- `" +
+                                   ref_text(s.panes[j].ref) + "` and `" +
+                                   ref_text(s.panes[i].ref) + "`");
             }
         }
     }
@@ -724,13 +1012,37 @@ inline Written check_setup(const Setup& s) {
 
 // ---- Operations on the authored intent ---------------------------------------
 
-inline bool has_pane(const Setup& s, const PaneRef& ref) {
-    for (const PaneRef& p : s.panes) {
-        if (p == ref) {
-            return true;
+/// WHICH ROW OF THE SETUP NAMES THIS PANE, or `kNoPaneRow`.
+///
+/// The one lookup, so a selection, a geometry edit and an ordering operation all
+/// find a pane the same way -- by the `PaneRef` that IS its identity, never by a
+/// newly minted one and never by a runtime kind, which is a resolved view of the
+/// identity rather than the identity itself.
+inline constexpr std::size_t kNoPaneRow = static_cast<std::size_t>(-1);
+
+inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {
+    for (std::size_t i = 0; i < s.panes.size(); ++i) {
+        if (s.panes[i].ref == ref) {
+            return i;
         }
     }
-    return false;
+    return kNoPaneRow;
+}
+
+inline bool has_pane(const Setup& s, const PaneRef& ref) {
+    return pane_row(s, ref) != kNoPaneRow;
+}
+
+/// The authored row for this reference, or nothing. By handle, and nothing may
+/// hold one across an edit that could grow `panes`.
+inline const SetupPane* pane_of(const Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    return at == kNoPaneRow ? nullptr : &s.panes[at];
+}
+
+inline SetupPane* pane_of(Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    return at == kNoPaneRow ? nullptr : &s.panes[at];
 }
 
 /// Add a reference to the end of the setup's order, or say it was already there.
@@ -739,22 +1051,249 @@ inline bool has_pane(const Setup& s, const PaneRef& ref) {
 /// panel and therefore what a maker has always seen: the panel the picker just
 /// opened takes the last slot of the stack. Making the authored order agree with
 /// the resolved order a maker was already watching is the whole of the choice.
+///
+/// AND IT TAKES THE FRONT-MOST RANK, `n-1` AFTER GROWTH (WIND-2), for the same
+/// sentence said about depth rather than about a slot: the panel a maker just
+/// opened is the one they are already looking at, so it goes in front of what was
+/// there. Every other row's rank is untouched and the result is still a
+/// permutation, because `n-1` is exactly the value the old set of `0..n-2` did not
+/// contain.
+///
+/// IT AUTHORS NO GEOMETRY. A new row is `default` in place, width and height --
+/// which is to say the developer's answer, reactive, and following a later build's
+/// change of mind.
 inline bool add_pane(Setup& s, const PaneRef& ref) {
     if (has_pane(s, ref)) {
         return false;
     }
-    s.panes.push_back(ref);
+    SetupPane row;
+    row.ref = ref;
+    row.front = static_cast<std::int64_t>(s.panes.size()); // == n-1 after the push
+    s.panes.push_back(std::move(row));
     return true;
 }
 
+/// Remove a reference, AND CLOSE THE RANKS OVER IT.
+///
+/// Every rank above the removed one comes down by one, which is what keeps the
+/// remaining `n-1` rows a permutation of `0..n-2`. Without it the set would carry
+/// a hole, `check_setup` would refuse the setup the removal produced, and the
+/// refusal would be Workshop's own.
 inline bool remove_pane(Setup& s, const PaneRef& ref) {
-    for (std::size_t i = 0; i < s.panes.size(); ++i) {
-        if (s.panes[i] == ref) {
-            s.panes.erase(s.panes.begin() + static_cast<std::ptrdiff_t>(i));
-            return true;
+    const std::size_t at = pane_row(s, ref);
+    if (at == kNoPaneRow) {
+        return false;
+    }
+    const std::int64_t gone = s.panes[at].front;
+    s.panes.erase(s.panes.begin() + static_cast<std::ptrdiff_t>(at));
+    for (SetupPane& row : s.panes) {
+        if (row.front > gone) {
+            --row.front;
         }
     }
-    return false;
+    return true;
+}
+
+// ---- THE CANONICAL FRONT ORDER: five operations, all exact permutations ------
+//
+// EVERY ONE OF THESE REWRITES AT MOST `n` RANKS AND LEAVES A PERMUTATION, and
+// none of them writes anything `seat_panes` or `bounds_of` reads. That is why
+// "changing the order cannot move, resize, mount, unmount, reseat or regrant a
+// pane" is not a rule somebody maintains: it is the ABSENCE OF A WRITE.
+//
+// NOTHING ACCUMULATES. Ten thousand alternating "send A to front" / "send B to
+// front" operations leave every rank inside `0..n-1`, so no operation can ever
+// become unavailable and there is no renormalisation threshold, no epoch and no
+// history. `front`/`back` are `O(n)`; `raise`/`lower` touch exactly two rows.
+
+/// The pane that currently sits at this rank, or `kNoPaneRow`. Total, and used by
+/// the two step operations to find the neighbour they swap with.
+inline std::size_t pane_at_front(const Setup& s, std::int64_t rank) {
+    for (std::size_t i = 0; i < s.panes.size(); ++i) {
+        if (s.panes[i].front == rank) {
+            return i;
+        }
+    }
+    return kNoPaneRow;
+}
+
+/// THE AUTHORED ORDER BECOMES THE DEFAULT ORDER: `front[i] = i`, in list order.
+///
+/// It REMOVES the authored difference rather than disguising a default as one --
+/// the identity permutation is byte-for-byte what a setup that was never reordered
+/// carries, which is what makes this a reset in the same sense resetting a place
+/// is one.
+inline void reset_front(Setup& s) {
+    for (std::size_t i = 0; i < s.panes.size(); ++i) {
+        s.panes[i].front = static_cast<std::int64_t>(i);
+    }
+}
+
+/// SEND TO FRONT, or say it is already there.
+///
+/// THE NO-OP IS ANSWERED `false`, exactly as `raise_one`'s is, and the two answers are
+/// different things to tell a maker: "you are already there" is an answer, and a gesture that
+/// reports success and changes nothing is not. Without this the arithmetic below would
+/// silently succeed at the front -- every rank above `n-1` is none of them -- and a maker
+/// pressing `f` twice would get two identical confirmations of one act.
+inline bool send_to_front(Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    if (at == kNoPaneRow) {
+        return false;
+    }
+    if (s.panes[at].front == static_cast<std::int64_t>(s.panes.size()) - 1) {
+        return false;
+    }
+    const std::int64_t was = s.panes[at].front;
+    for (SetupPane& row : s.panes) {
+        if (row.front > was) {
+            --row.front;
+        }
+    }
+    s.panes[at].front = static_cast<std::int64_t>(s.panes.size()) - 1;
+    return true;
+}
+
+/// Send to back, or say it is already there -- `send_to_front`'s mirror, no-op included.
+inline bool send_to_back(Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    if (at == kNoPaneRow) {
+        return false;
+    }
+    if (s.panes[at].front == 0) {
+        return false;
+    }
+    const std::int64_t was = s.panes[at].front;
+    for (SetupPane& row : s.panes) {
+        if (row.front < was) {
+            ++row.front;
+        }
+    }
+    s.panes[at].front = 0;
+    return true;
+}
+
+/// SWAP WITH THE PANE IMMEDIATELY IN FRONT, or say there is none.
+///
+/// A no-op at the front is answered `false` rather than silently accepted,
+/// because the two are different things to tell a maker: "you are already there"
+/// is an answer, and a gesture that reports success and changes nothing is not.
+inline bool raise_one(Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    if (at == kNoPaneRow) {
+        return false;
+    }
+    const std::size_t ahead = pane_at_front(s, s.panes[at].front + 1);
+    if (ahead == kNoPaneRow) {
+        return false;
+    }
+    const std::int64_t was = s.panes[at].front;
+    s.panes[at].front = s.panes[ahead].front;
+    s.panes[ahead].front = was;
+    return true;
+}
+
+inline bool lower_one(Setup& s, const PaneRef& ref) {
+    const std::size_t at = pane_row(s, ref);
+    if (at == kNoPaneRow) {
+        return false;
+    }
+    if (s.panes[at].front == 0) {
+        return false;
+    }
+    const std::size_t behind = pane_at_front(s, s.panes[at].front - 1);
+    if (behind == kNoPaneRow) {
+        return false;
+    }
+    const std::int64_t was = s.panes[at].front;
+    s.panes[at].front = s.panes[behind].front;
+    s.panes[behind].front = was;
+    return true;
+}
+
+// ---- THE GEOMETRY DOORS: what a hand and a key both end at (WIND-2) -----------
+//
+// TWO DOORS, AND BOTH ARE ATOMIC. `doc::move` writes a position and never an
+// extent; `doc::resize` checks BOTH extents before writing EITHER, because "a
+// diagonal resize whose height is illegal would narrow the object AND report a
+// refusal". Both laws carry here verbatim: moving a pane freezes neither size
+// axis, resizing one axis freezes neither the place nor the other axis, and a
+// refused proposal writes nothing at all.
+//
+// THEY TAKE THE WHOLE PROPOSED VALUE AND NOT A DELTA. Saturating the arithmetic is
+// the CALLER's job and is done before the proposal is made (`screen.hpp`'s
+// `detail::step`), so nothing here can be handed a number that overflowed on the
+// way in and nothing here has to guess what a maker meant by one.
+
+/// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else.
+inline Written author_pane_place(Setup& s, const PaneRef& ref, std::int64_t x,
+                                 std::int64_t y) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr) {
+        return Written::no("`" + ref_text(ref) + "` is not in this setup");
+    }
+    const PanePlace proposed{pane_unit::kCells, x, y};
+    const Written legal = check_pane_place(proposed);
+    if (!legal.accepted) {
+        return legal;
+    }
+    row->place = proposed;
+    return Written::ok();
+}
+
+/// AUTHOR BOTH SIZE AXES AT ONCE, each in its own unit.
+///
+/// ONE OPERATION AND NOT TWO, for `doc::resize`'s reason: a maker pulling a CORNER
+/// proposes a size, not a width and then a height. A caller changing one axis
+/// passes the row's current value for the other, which is what makes "resizing one
+/// axis writes only that axis" true through a door that takes both.
+inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& width,
+                                const PaneSize& height) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr) {
+        return Written::no("`" + ref_text(ref) + "` is not in this setup");
+    }
+    const Written wide = check_pane_size(width, "width");
+    if (!wide.accepted) {
+        return wide;
+    }
+    const Written tall = check_pane_size(height, "height");
+    if (!tall.accepted) {
+        return tall;
+    }
+    row->width = width;
+    row->height = height;
+    return Written::ok();
+}
+
+/// THE RESETS. Each removes ONE authored difference and leaves every other
+/// untouched, which is what "reset each authored dimension independently" means
+/// and is why there are three of them rather than one.
+inline bool reset_pane_place(Setup& s, const PaneRef& ref) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr || row->place.mode == pane_unit::kDefault) {
+        return false;
+    }
+    row->place = PanePlace{};
+    return true;
+}
+
+inline bool reset_pane_width(Setup& s, const PaneRef& ref) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr || row->width.mode == pane_unit::kDefault) {
+        return false;
+    }
+    row->width = PaneSize{};
+    return true;
+}
+
+inline bool reset_pane_height(Setup& s, const PaneRef& ref) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr || row->height.mode == pane_unit::kDefault) {
+        return false;
+    }
+    row->height = PaneSize{};
+    return true;
 }
 
 /// The references this build cannot currently present, IN THE ORDER THE SETUP
@@ -767,24 +1306,77 @@ inline bool remove_pane(Setup& s, const PaneRef& ref) {
 /// maker can see. An admitted offer makes its reference resolve, and this says so.
 inline std::vector<PaneRef> unresolved_panes(const Setup& s, const RuntimeCatalog& runtime) {
     std::vector<PaneRef> out;
-    for (const PaneRef& p : s.panes) {
-        if (!resolvable(p, runtime)) {
-            out.push_back(p);
+    for (const SetupPane& row : s.panes) {
+        if (!resolvable(row.ref, runtime)) {
+            out.push_back(row.ref);
         }
     }
     return out;
+}
+
+/// EVERY PANE A MAKER MAY CHOOSE FROM **OR** HAS ALREADY AUTHORED -- the one
+/// inventory, and the population both the picker and pane management spend
+/// (WIND-2).
+///
+/// THE UNION, AND THE SECOND HALF IS THE RECOVERY INVARIANT. `combined_catalog`
+/// answers "what could this build present", which is a fact about the build and
+/// says nothing about a reference the setup names and this build cannot resolve --
+/// so before WIND-2 an unresolved pane had a count on the setup line and NO ROW
+/// ANYWHERE. A maker could not reach it, could not see it and could not remove it
+/// without editing the file. Every pane the setup names now has exactly one row,
+/// whatever its state, and that is what makes "every pane the setup names is
+/// represented in a surface whose contents do not depend on whether the pane can
+/// be seen" true rather than aspirational.
+///
+/// ORDER: THE CATALOG'S, THEN THE SETUP'S. Built-ins in the catalog's own order,
+/// then admitted runtime panes in first-accepted-offer order, then whatever the
+/// setup names that neither half knew about, in setup order. Deliberately NOT the
+/// front order: a list a provider could buy the top of is a list a provider owns,
+/// and a maker looking for a pane looks in the place it has always been.
+///
+/// AN UNRESOLVED ROW WEARS ITS OWN REFERENCE. The pane key is its name -- it is
+/// what a person would call it -- and its whole `provider/pane` identity is the
+/// summary, because that is the string a maker compares against the file when they
+/// are working out whether they have a typo or a pane they have not installed.
+inline std::vector<CatalogRow> inventory_rows(const Setup& setup, const Panels& panels) {
+    std::vector<CatalogRow> rows = combined_catalog(panels);
+    for (const SetupPane& row : setup.panes) {
+        bool known = false;
+        for (const CatalogRow& have : rows) {
+            if (have.ref == row.ref) {
+                known = true;
+                break;
+            }
+        }
+        if (known) {
+            continue;
+        }
+        CatalogRow made;
+        made.kind = kNoPaneKind; // this build cannot present it, so it names no kind
+        made.ref = row.ref;
+        made.name = row.ref.pane;
+        made.summary = ref_text(row.ref);
+        rows.push_back(std::move(made));
+    }
+    return rows;
 }
 
 /// WHAT A FRESH WORKSHOP'S SETUP IS -- derived from `kDefaultPanels`, which is
 /// the ONE place "a fresh Workshop shows Info" is decided (panel.hpp). This
 /// function holds no opinion of its own about which panes those are, which is
 /// what makes it impossible for it to drift from `default_panels()`.
+///
+/// IT GOES THROUGH `add_pane` RATHER THAN THROUGH `push_back` (WIND-2), and that
+/// is the whole of what the canonical rank cost this function: the door assigns
+/// the identity permutation as it appends, so a fresh setup is valid by the same
+/// act that builds it and there is no second place where "the ranks are `0..n-1`"
+/// has to be remembered.
 inline Setup default_setup() {
     Setup s;
     s.name = kDefaultSetupName;
     s.panes.reserve(kDefaultPanelCount);
     for (const std::int64_t kind : kDefaultPanels) {
-        s.panes.push_back(pane_ref_of(kind));
+        (void)add_pane(s, pane_ref_of(kind));
     }
     return s;
 }
@@ -895,8 +1487,8 @@ inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
     Seating out;
     out.wanted.reserve(setup.panes.size());
     std::size_t stack_used = 0;
-    for (const PaneRef& ref : setup.panes) {
-        const std::optional<std::int64_t> kind = resolve_pane(ref, runtime);
+    for (const SetupPane& row : setup.panes) {
+        const std::optional<std::int64_t> kind = resolve_pane(row.ref, runtime);
         if (!kind.has_value()) {
             ++out.unresolved;
             continue;
@@ -906,7 +1498,16 @@ inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
         // is the number the rectangle is resolved from. A side-region pane takes
         // no slot and always fits: its rectangle ends exactly where the workspace
         // does, asserted in screen.hpp against the minimum composition.
-        if (placement_of(*kind) == placement::kOverlayStack) {
+        //
+        // AND ONLY A REACTIVE PANE SPENDS ONE (WIND-2). A pane the maker PLACED
+        // has a rectangle because they said so, and asking the stack's slot
+        // arithmetic whether there is "room" for it is asking the wrong question --
+        // the tiles it is rationing are not the tiles that pane is standing on. So
+        // an authored place takes no slot, and it also cannot be made to WAIT by a
+        // capacity it never spent, which narrows `waiting` to exactly what the word
+        // has always meant here: the reactive default ran out of tiles.
+        if (placement_of(*kind) == placement::kOverlayStack &&
+            row.place.mode == pane_unit::kDefault) {
             if (stack_used >= room.slots) {
                 out.waiting.push_back(*kind);
                 continue;
@@ -914,6 +1515,69 @@ inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
             ++stack_used;
         }
         out.wanted.push_back(*kind);
+    }
+    return out;
+}
+
+/// THE PRESENTED PANES, BACK TO FRONT -- the one presentation-order helper, and
+/// the ONLY thing in this application that reads `front` (WIND-2).
+///
+/// Paint walks the answer ASCENDING (later is drawn over) and the pointer walks it
+/// DESCENDING (topmost answers first), which is `ui::Scene`'s stated law --
+/// authored order is paint order, said once -- with the authored order now being
+/// the rank rather than the list.
+///
+/// IT REORDERS NOTHING. `panels.open` keeps the setup order `reconcile` assigned
+/// it, because that order is what `bounds_of` counts a reactive slot over; this
+/// function returns KINDS and the caller walks them. A sorted `panels.open` would
+/// move a reactive pane's rectangle the moment a maker raised something, which is
+/// exactly the side effect the rank exists to make impossible.
+///
+/// A RESTRICTION OF A TOTAL ORDER. The ranks are a permutation over ALL authored
+/// rows; the seated panes are a subset; so the presented order has no tie in it and
+/// needs no secondary key. A seated kind with no authored row cannot arise from
+/// `reconcile` -- it derives `open` from the setup -- and is answered anyway, at the
+/// front and in open order, because a total function is cheaper here than an
+/// invariant somebody has to maintain.
+inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Panels& panels) {
+    struct Ranked {
+        std::int64_t front;
+        std::int64_t kind;
+    };
+    std::vector<Ranked> ranked;
+    ranked.reserve(panels.open.size());
+    std::vector<std::int64_t> unranked;
+    for (const Panel& p : panels.open) {
+        bool found = false;
+        for (const SetupPane& row : setup.panes) {
+            const std::optional<std::int64_t> kind = resolve_pane(row.ref, panels.runtime);
+            if (kind.has_value() && *kind == p.kind) {
+                ranked.push_back(Ranked{row.front, p.kind});
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            unranked.push_back(p.kind);
+        }
+    }
+    // A selection sort over at most `kMaxSetupPanes` rows, so no `<algorithm>` and
+    // no comparator: the ranks are distinct, so "the smallest remaining" is one
+    // pane and the result is deterministic without a tie-break rule existing.
+    std::vector<std::int64_t> out;
+    out.reserve(ranked.size() + unranked.size());
+    while (!ranked.empty()) {
+        std::size_t least = 0;
+        for (std::size_t i = 1; i < ranked.size(); ++i) {
+            if (ranked[i].front < ranked[least].front) {
+                least = i;
+            }
+        }
+        out.push_back(ranked[least].kind);
+        ranked.erase(ranked.begin() + static_cast<std::ptrdiff_t>(least));
+    }
+    for (const std::int64_t kind : unranked) {
+        out.push_back(kind);
     }
     return out;
 }
