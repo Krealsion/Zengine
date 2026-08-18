@@ -961,7 +961,7 @@ the tests themselves pass
   all while changing far more of the repository. Ten thousand of those assertions come from ONE
   case, the bounded-ordering loop, which is worth knowing before anybody reads the delta as a
   measure of anything at all. WIND-2a is the smallest delta of the lot and the plainest reading
-  of this bullet: **sixteen** new cases -- a whole vocabulary version, both media's execution
+  of this bullet: **seventeen** new cases -- a whole vocabulary version, both media's execution
   order and six behavioural repairs -- moved the figure by **403**, because what they assert is
   LAWS rather than swept domains. Nobody should read 403 as "less was proved here than by
   WIND-1's four cases and fifteen thousand".
