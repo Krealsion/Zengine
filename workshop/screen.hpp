@@ -156,9 +156,20 @@ inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's 
 inline constexpr std::int64_t kSideY = 0; ///< the region's top edge: the canvas's own
 inline constexpr std::int64_t kInfoBodyY = 1; ///< the body's first row, under `OBJECTS`
 
-/// The band under the workspace: a spare row, the notice, a spare row, and the two help
+/// The band under the workspace: the setup line, the notice, a spare row, and the two help
 /// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
+/// (The first row was spare until WS-0 gave it the setup line.)
 inline constexpr std::int64_t kBottomRows = 5;
+
+/// THE NOTICE'S OWN ROOM, IN CELLS: its row and the spare one beneath it (TYPE-0).
+///
+/// TWO, and the number is a measurement rather than a margin. The notice is one sentence and
+/// wants one row -- but a bounded region is set in the ACTIVE medium's type, and a face whose
+/// line is 18 device pixels does not fit in a 12-pixel cell: `fit_region` answers zero rows
+/// for a one-cell region and hands it back to the cell projection (HD-5). Two cells is the
+/// smallest room that holds one row of this repository's face, and the second of them is the
+/// spare row `kBottomRows` already reserves and nothing else paints. Nothing moved to make it.
+inline constexpr std::int64_t kNoticeRows = 2;
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
 //
@@ -2971,11 +2982,69 @@ inline void paint_panel_frame(surface::SurfaceLayer& layer, const ui::Rect& b) {
 }
 
 /// One row of an overlaid panel, fitted and padded to its bounds' width.
+///
+/// THE CELL-LATTICE SPELLING OF A PANEL ROW, and since TYPE-0 it has ONE consumer left: the
+/// Builder, whose nine rows are a fixed composition against a nine-cell slot (see
+/// `paint_builder`). Every other panel says its rows through `panel_prose_place` below, which
+/// is what lets a medium that owns a face set them in it.
 inline void paint_panel_row(surface::SurfaceLayer& layer, const ui::Rect& b, std::int64_t line,
                             const std::string& text, std::int64_t role) {
     layer.labels.push_back(surface::SurfaceLabel{
         b.x, b.y + line, detail::pad(detail::fit(text, b.w), static_cast<std::size_t>(b.w)),
         role});
+}
+
+/// A PANEL WHOSE WHOLE BODY IS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE (TYPE-0).
+///
+/// It is `info_body_place`'s and `external_body_place`'s one shared sentence, for the panels
+/// that have no chrome outside the region: a panel's bounds plus the ACTIVE medium's text
+/// metric become a row budget and a column width, through `fit_region`, which is the same one
+/// call the medium will resolve the same rectangle with. Nothing here multiplies a metric and
+/// nothing downstream is allowed to -- a painter spends `rows` and `columns` and never learns
+/// what a pixel is.
+///
+/// WHY A PANEL IS ONE REGION AND NOT A COLUMN OF LABELS. A label is one cell per byte in every
+/// medium; a region is the one shape on this canvas whose interior a medium may set in its own
+/// type. So the difference between `paint_panel_row` and this is the difference between a
+/// panel a maker reads in a 5x5 bitmap letterform and a panel they read in the face the
+/// Inspector beside it already uses. The cell projection of a region is one row per cell row,
+/// padded to the region's width and cut at it -- byte-for-byte what `paint_panel_row` wrote --
+/// so a character medium cannot tell which spelling a panel chose.
+///
+/// A REGION TAKES ITS RECTANGLE, which is why this is only for panels whose whole bounds are
+/// theirs. The backdrop rect underneath it is erased in both media (spaces in a character
+/// medium, the region's own ground in a graphical one) -- exactly what a panel's padded rows
+/// already did, and exactly what a presentation sharing its rectangle with something else
+/// could not survive.
+struct PanelProsePlace {
+    bool present = false;
+    std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the panel
+    std::int64_t columns = 0; ///< ...and how many characters fit across one of them
+};
+
+/// The one call. TOTAL over the rectangle, because a closed panel answers with an empty one
+/// (`bounds_of`) and a screen may be small enough to hold no row at all.
+inline PanelProsePlace panel_prose_place(const ui::Rect& b, const Screen& sc) {
+    PanelProsePlace p;
+    if (b.w <= 0 || b.h <= 0) {
+        return p;
+    }
+    const surface::RegionFit fit =
+        surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+    p.rows = fit.rows;
+    p.columns = fit.columns;
+    p.present = p.rows > 0 && p.columns > 0;
+    return p;
+}
+
+/// The region a `PanelProsePlace` was resolved for, empty and ready for its rows.
+inline surface::SurfaceTextRegion panel_prose_region(const ui::Rect& b) {
+    surface::SurfaceTextRegion region;
+    region.x = b.x;
+    region.y = b.y;
+    region.w = b.w;
+    region.h = b.h;
+    return region;
 }
 
 /// A panel's own field: a fixed-width label and its value, so the values line up down the
@@ -3313,8 +3382,21 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
     }
     const ui::Rect b = picker_bounds(sc);
     paint_panel_frame(layer, b);
-    paint_panel_row(layer, b, 0, "+ PANEL -- up/down, enter opens or removes",
-                    surface::role::kAccent);
+    // THE PICKER IS ONE BOUNDED REGION OF PROSE (TYPE-0), and the budget it spends is the
+    // ACTIVE medium's row count rather than the slot's cell count. The two are the same
+    // number in a character medium and they are not in one that sets real type -- nine cells
+    // of slot is nine rows of a terminal and five rows of an 18-pixel face -- which is the
+    // same pair of honest projections the Info panel's body has had since HD-6.
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a slot with no room for a row says nothing rather than lying about the room
+    }
+    surface::SurfaceTextRegion region = panel_prose_region(b);
+    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
+        region.rows.push_back(
+            surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+    };
+    say("+ PANEL -- up/down, enter opens or removes", surface::role::kAccent);
     // THE POPULATION IS THE COMBINED CATALOG AND THE BUDGET IS THE SLOT'S (WP-0).
     // Before this the list was `kPanelKinds` long and the picker's height was a
     // constant derived from it, which is a catalog census standing in for a
@@ -3330,13 +3412,9 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
     // reference the setup names -- so a pane a maker authored and this build cannot resolve
     // has a row here too, and can be removed with the gesture that removes any other.
     const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
-    const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
+    const std::size_t budget =
+        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
     const ListWindow win = list_window(rows.size(), picker.cursor, budget);
-    std::int64_t line = 1;
-    const auto say = [&](const std::string& text, std::int64_t role) {
-        paint_panel_row(layer, b, line, text, role);
-        ++line;
-    };
     if (win.before > 0) {
         say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
     }
@@ -3351,18 +3429,14 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
     if (win.after > 0) {
         say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
-    // THE REST OF THE SLOT, PADDED AND BLANK. In a character medium those spaces are what
-    // erase the panel underneath; without them the panel's own rows read as more of this
-    // list. See kPickerRows.
-    //
-    // IT PADS FROM WHERE THE LIST STOPPED rather than from `kPickerRows`, which is
-    // the one line the windowing changed here: the constant is `1 + kPanelKinds`
-    // and stopped being the number of rows written the moment the population could
-    // exceed the budget. With the two built-ins and nothing offered, `line` is
-    // exactly `kPickerRows` and every pre-existing picture is byte-identical.
-    for (; line < b.h; ++line) {
-        paint_panel_row(layer, b, line, std::string(), surface::role::kFill);
-    }
+    // THE REST OF THE SLOT IS THE REGION'S OWN EMPTINESS, and since TYPE-0 nobody writes it.
+    // A region owns what is inside its bounds, so its cell projection already pads every row
+    // it was not given -- the spaces that erase the panel underneath in a character medium are
+    // `project_one_text_region`'s, and the graphical medium clears the same rectangle once
+    // rather than a row at a time. What used to be a loop padding out to `b.h` is now the
+    // primitive's contract, which is why this painter no longer has one. See kPickerRows for
+    // why the whole slot is covered at all.
+    layer.texts.push_back(std::move(region));
 }
 
 // ---- PANE MANAGEMENT, PRESENTED (WIND-2) ----------------------------------------------
@@ -3443,14 +3517,20 @@ inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
     }
     const std::string what =
         manage.has_selection() ? quoted_setup_name(ref_text(manage.selected)) : std::string();
-    paint_panel_row(layer, b, 0, management_heading(manage, what), surface::role::kAccent);
-    const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
-    const ListWindow win = list_window(rows.size(), cursor, budget);
-    std::int64_t line = 1;
+    // ONE BOUNDED REGION OF PROSE, exactly as the picker it shares this slot with (TYPE-0).
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a slot with no room for a row says nothing rather than lying about the room
+    }
+    surface::SurfaceTextRegion region = panel_prose_region(b);
     const auto say = [&](const std::string& text, std::int64_t role) {
-        paint_panel_row(layer, b, line, text, role);
-        ++line;
+        region.rows.push_back(
+            surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
+    say(management_heading(manage, what), surface::role::kAccent);
+    const std::size_t budget =
+        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
+    const ListWindow win = list_window(rows.size(), cursor, budget);
     if (win.before > 0) {
         say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
     }
@@ -3465,9 +3545,7 @@ inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
     if (win.after > 0) {
         say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
-    for (; line < b.h; ++line) {
-        paint_panel_row(layer, b, line, std::string(), surface::role::kFill);
-    }
+    layer.texts.push_back(std::move(region));
 }
 
 // ---- The Info panel's BODY, resolved ONCE (HD-5, widened by HD-6, widened again by HD-7) --
@@ -4434,6 +4512,23 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
 // projections of one body rather than two arithmetics that happen to agree today.
 
 /// One header row, Workshop's own, so the provenance of what follows is legible.
+///
+/// IT IS A PROSE ROW OF THE PANEL'S REGION SINCE TYPE-0, AND IT USED TO BE A CELL ROW ABOVE
+/// IT. The difference is what the header is SET IN: a cell row is one label, one cell per
+/// byte in every medium, so Workshop's own heading was drawn in the bitmap letterform
+/// directly above a provider's rows drawn in a real face -- the tool contradicting itself
+/// about its own typography, on the one panel whose whole purpose is to present somebody
+/// else's words honestly. One region for the whole panel makes the two the same kind of
+/// thing, which is what a header claiming provenance has to be.
+///
+/// WHAT IT COSTS IS ONE PROSE ROW OF THE PROVIDER'S BUDGET, ON A GRAPHICAL MEDIUM ONLY, AND
+/// THE NUMBER IS MEASURED. A nine-cell slot holds nine rows of a character medium and five
+/// of an 18-pixel face. Before: the header took a CELL, and `fit_region` over the remaining
+/// eight cells answered 5 rows -- so the provider got 5 there and 8 in a terminal. After:
+/// `fit_region` over all nine answers 5, less this one, so the provider gets 4 there and 8
+/// in a terminal, which is unchanged. The graphical row is the honest price of the header
+/// being the same text as the body, and the pane's own omission markers spend it truthfully
+/// (INTR-0): a budget that shrank is a budget, and a windowed list says what it left out.
 inline constexpr std::int64_t kExternalHeaderRows = 1;
 
 /// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING. The Builder pane's
@@ -4463,25 +4558,32 @@ struct ExternalBodyPlace {
     std::int64_t columns = 0; ///< ...and its second
 };
 
-/// The body under an external panel's header row: the panel's bounds less that row.
+/// The body under an external panel's header row: the panel's whole bounds, less that row's
+/// share of the PROSE the active medium fits in them (TYPE-0; it used to be less a CELL).
 ///
 /// TOTAL over the rectangle it is handed, because a closed panel answers with an empty one
 /// (`bounds_of`) and a screen may be small enough that a header leaves nothing beneath it.
 /// `present` is false in both cases and no room is ever granted from a body that is not
 /// there -- which is what keeps `PaneRoom` from carrying a zero somebody downstream would
 /// subtract from.
+///
+/// THE REGION IS THE WHOLE PANEL AND THE HEADER IS ITS FIRST ROW, so `region_y` is the
+/// panel's own `y` and the subtraction happens in `rows`. That ordering is the point: the
+/// header is reserved from the budget BEFORE the provider is told what it has (HD-8's
+/// reservation argument, INTR-0's second occurrence), so a provider is never granted a row
+/// Workshop is about to write over.
 inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen& sc) {
     ExternalBodyPlace p;
-    if (panel.w <= 0 || panel.h <= kExternalHeaderRows) {
+    if (panel.w <= 0 || panel.h <= 0) {
         return p;
     }
     p.region_x = panel.x;
-    p.region_y = surface::add_cells(panel.y, kExternalHeaderRows);
+    p.region_y = panel.y;
     p.region_w = panel.w;
-    p.region_h = panel.h - kExternalHeaderRows;
+    p.region_h = panel.h;
     p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
                                 sc.text_advance_px, sc.text_line_px);
-    p.rows = p.fit.rows;
+    p.rows = p.fit.rows > kExternalHeaderRows ? p.fit.rows - kExternalHeaderRows : 0;
     p.columns = p.fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
     return p;
@@ -4522,18 +4624,33 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     if (row == nullptr) {
         return; // an open kind with no catalog row cannot happen; drawing a lie could
     }
-    paint_panel_row(layer, b, 0, external_header(*row), surface::role::kAccent);
     const ExternalBodyPlace body = external_body_place(b, sc);
-    if (!body.present) {
-        return; // no room under the heading: say nothing rather than lie about the room
+    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
+        return; // no room for one row of this medium's type: say nothing at all
     }
     surface::SurfaceTextRegion region;
     region.x = body.region_x;
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
+    // WORKSHOP'S HEADER IS THE REGION'S FIRST ROW (TYPE-0), so the provenance line and the
+    // provider's sentences are the same kind of text in whatever face this medium owns. It is
+    // fitted to the region's own columns, which is what marks its cut.
+    region.rows.push_back(
+        surface::SurfaceTextRow{detail::fit(external_header(*row), body.columns),
+                                surface::role::kAccent});
+    // A PANE WITH ROOM FOR THE HEADER AND NOTHING ELSE STILL SAYS WHOSE IT IS. `present` is
+    // the question "was a body granted", and it is asked AFTER the header is written rather
+    // than before it -- a rectangle showing a maker nothing at all is the worse of the two
+    // answers, and it is what this painter gave for one frame when the header stopped being
+    // a cell row of its own.
+    if (!body.present) {
+        layer.texts.push_back(std::move(region));
+        return; // no room under the heading: the heading, and no invented room
+    }
     const ExternalPane* pane = panels.external_pane(kind);
     if (pane == nullptr) {
+        layer.texts.push_back(std::move(region));
         return;
     }
     if (!pane->refusal.empty()) {
@@ -4543,7 +4660,7 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
         region.rows.push_back(surface::SurfaceTextRow{
             detail::fit(kExternalWaiting, body.columns), surface::role::kMuted});
     } else {
-        region.rows = pane->shown;
+        region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
     }
     layer.texts.push_back(std::move(region));
 }
@@ -4859,14 +4976,31 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // The label, written on the object, clipped to the workspace rather than
         // allowed to run into the panel beside it. The label is authored, so it
         // is read from the element and not from the observation of it.
+        //
+        // AND IT IS CELL TEXT ON PURPOSE (TYPE-0), which is the one place in this tool where
+        // that sentence has to be argued rather than assumed. The name is semantic -- it is
+        // the maker's word for this object and its exact cell occupancy is no part of what
+        // they authored -- so the strong default is a bounded region. It is not one because
+        // A REGION TAKES ITS RECTANGLE, and this rectangle is already full: the object's body
+        // is authored MATERIAL, drawn one line up as a `SurfaceRect`, and a region over it
+        // erases that material in both media (spaces in a character medium, the region's own
+        // ground in a graphical one). Both alternatives were built and run live: a region over
+        // the object's rect turns every object into an empty dark box, and a region whose rows
+        // carry the object's own role as a GROUND leaves the band `12h - 4 - 18*rows` pixels
+        // tall that the row strips cannot reach -- ten pixels of black across the foot of a
+        // default 12x4 object, and `12h - 4 == 18k` has no integer solutions, so SOME remainder
+        // exists at every height. Semantic text names meaning inside room it OWNS; this text
+        // shares its cells with something else that owns them, and that is what cell text is
+        // for. AGENTS.md carries the rule; the phase's report-back carries the pictures.
+        //
+        // THE CUT IS MARKED, and before TYPE-0 it was not. `resize` here was a silent
+        // truncation of a string a MAKER chose (up to `doc::kMaxNameLen`), which is the exact
+        // defect INTR-0 found in the picker's name column and repaired the same way: a shorter
+        // name that looks finished is a lie about the document. `detail::fit` marks it.
         const ui::Element* authored = doc::find(d, p.id);
         const std::int64_t room = s.workspace_w - p.rect.x;
         if (authored != nullptr && room > 0) {
-            std::string shown = authored->label;
-            if (static_cast<std::int64_t>(shown.size()) > room) {
-                shown.resize(static_cast<std::size_t>(room));
-            }
-            label(x, y, shown, surface::role::kMuted);
+            label(x, y, detail::fit(authored->label, room), surface::role::kMuted);
         }
     }
 
@@ -4964,9 +5098,39 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // two are different right now. A wider surface therefore needs nothing from
         // anybody but room, which is what this line said before there was any, and
         // a bigger window now spends that room on more of the sentence.
+        //
+        // IT IS THE ONE PIECE OF SCREEN CHROME THAT COULD MIGRATE (TYPE-0), and the reason is
+        // arithmetic rather than importance. The band under the workspace is FIVE cells for
+        // FOUR sentences and a spare -- the setup line, the notice, that spare, and two help
+        // lines -- and
+        // a graphical face's line is taller than a cell: 18 device pixels against 12, so a
+        // region N cells tall holds `(12N - 4) / 18` rows of type. One cell holds ZERO, which
+        // is why `fit_region` sends a one-cell region back to the cell projection (HD-5) and
+        // why every other row of this band would be block text however it was published. The
+        // notice is the only one with a neighbour to borrow: the spare row beneath it is
+        // reserved by `kBottomRows`, painted by nobody, and two cells hold exactly one row of
+        // the face. So the tool's own VOICE is set in the tool's own type, and nothing moved.
+        //
+        // A REGION TAKES ITS RECTANGLE, and here that is a widening: the label cleared only
+        // the cells its characters landed on, and the region clears both rows across the
+        // canvas. Over the workspace that is invisible in both media (the band is below it);
+        // over a panel in the stack's second slot it erases one row more than the sentence
+        // used to. That is the band doing what a band is for, and it happens only while there
+        // is something to say -- an empty notice publishes no region at all, exactly as it
+        // published no label.
         if (!s.notice.empty()) {
-            label(0, sc.notice_y, detail::fit(s.notice, sc.w),
-                  s.notice_is_bad ? surface::role::kAlert : surface::role::kFill);
+            surface::SurfaceTextRegion notice;
+            notice.x = 0;
+            notice.y = sc.notice_y;
+            notice.w = sc.w;
+            notice.h = kNoticeRows;
+            const surface::RegionFit fit =
+                surface::fit_region(notice.x, notice.y, notice.w, notice.h,
+                                    sc.text_advance_px, sc.text_line_px);
+            notice.rows.push_back(surface::SurfaceTextRow{
+                detail::fit(s.notice, fit.columns),
+                s.notice_is_bad ? surface::role::kAlert : surface::role::kFill});
+            on->texts.push_back(std::move(notice));
         }
         // Two lines, because the canvas clips at its own width and a help line that
         // silently loses its last hint is worse than no hint. The maker's gestures

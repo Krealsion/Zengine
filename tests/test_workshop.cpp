@@ -73,6 +73,7 @@
 #include <zen/terminal/vocabulary.hpp>
 #include <zen/weave.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -295,6 +296,15 @@ std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::
         text.pop_back();
     }
     return text;
+}
+
+/// THE SENTENCE THE TOOL IS SAYING, as a maker reads it (TYPE-0).
+///
+/// The notice is a bounded region since TYPE-0 -- two cells, which is the smallest room
+/// that holds one row of a real face -- so it is read exactly as the Inspector's rows are:
+/// through the cell projection, with the region's padding trimmed off the assertion.
+std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
+    return inspector_row(c, 0, sc.notice_y);
 }
 
 /// THE TERMINAL PANE'S REGION on a canvas, found by the place it was drawn at.
@@ -2289,8 +2299,11 @@ TEST_CASE("a live draft is visible AS a draft, and a refusal reaches the screen"
     s.notice_is_bad = true;
 
     const surface::SurfaceCanvas refused = paint(d, s);
-    CHECK(label_at(refused, 0, kMinScreen.notice_y) == "Width: a share is 1% to 100%");
-    for (const surface::SurfaceLabel& l : all_labels(refused)) {
+    // THE NOTICE IS A BOUNDED REGION SINCE TYPE-0, so it is read the way every other
+    // region is -- through the real cell projection, whose padding this trims exactly as
+    // `inspector_row` does for the Info body.
+    CHECK(notice_line(refused, kMinScreen) == "Width: a share is 1% to 100%");
+    for (const surface::SurfaceLabel& l : cell_text_of(refused)) {
         if (l.y == kMinScreen.notice_y) {
             CHECK(l.role == surface::role::kAlert);
         }
@@ -2309,7 +2322,14 @@ TEST_CASE("a name longer than the workspace is clipped by Workshop, not spilled"
     const surface::SurfaceCanvas c = paint(d, s);
     // 48 - 44 = 4 cells of room. Workshop does its own layout, so the clip is
     // Workshop's job -- the canvas would happily have run it into the panel.
-    CHECK(label_at(c, 44, kWorkspaceY) == "a-na");
+    //
+    // AND THE CUT IS MARKED (TYPE-0). It used to be a silent `resize` to the room, which
+    // handed a maker a shorter name that looked finished -- INTR-0's defect, in the one
+    // place a maker's OWN word is drawn. `detail::fit` spends the room on the mark, so
+    // four cells of room say `a...` rather than `a-na`.
+    CHECK(label_at(c, 44, kWorkspaceY) == "a...");
+    // The document is untouched: what was fitted is the picture, never the name.
+    CHECK(doc::find(d, id)->label == "a-name-far-too-long-for-here");
 }
 
 TEST_CASE("the whole screen survives an empty document, and SAYS it is empty") {
@@ -5987,9 +6007,21 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     // ...and with the pane closed there is no region of ITS but the Info panel's body is
     // still there, because the body is not an overlay: it is what the Info panel has been
     // drawing all along, bounded (HD-6, widened to both lists by HD-7).
+    //
+    // ASKED BY PLACE RATHER THAN BY COUNT (TYPE-0). The screen's own notice is a bounded
+    // region too since TYPE-0, and it is present here because closing the pane says so --
+    // so "the only region on the canvas" stopped being a question about the pane and became
+    // one about how many other things happen to be speaking.
     t.toggle_terminal();
-    CHECK(all_texts(t.canvases.back()).size() == 1);
-    CHECK(all_texts(t.canvases.back()).front().y == body_place(t).region_y);
+    const std::vector<surface::SurfaceTextRegion> left = all_texts(t.canvases.back());
+    CHECK(std::count_if(left.begin(), left.end(),
+                        [&](const surface::SurfaceTextRegion& r) {
+                            return r.x == kMinScreen.terminal_x && r.y == kMinScreen.terminal_y;
+                        }) == 0);
+    CHECK(std::count_if(left.begin(), left.end(),
+                        [&](const surface::SurfaceTextRegion& r) {
+                            return r.y == body_place(t).region_y;
+                        }) == 1);
 }
 
 TEST_CASE("a medium that sets real type reflows the pane, and the omission stays true") {
@@ -16651,18 +16683,42 @@ struct PaneRig {
     std::vector<ProviderSeat*> seats_;
 };
 
-/// The rows an external pane is currently showing, read off the published canvas at
-/// the region the pane's body actually occupies -- never off the session directly, so
-/// what a case reads is what a maker would see.
-std::vector<std::string> external_rows(const surface::SurfaceCanvas& c, const ui::Rect& body) {
+/// Every prose row of the region an external pane occupies -- Workshop's header row
+/// included, and it is row 0 since TYPE-0 folded the header into the same region.
+///
+/// THE FIRST REGION AT THOSE BOUNDS, AND THAT IS A STATEMENT ABOUT ORDER (TYPE-0). The
+/// picker and the pane-management surface open over the overlay stack's FIRST SLOT -- the
+/// same rectangle an external pane in that slot occupies -- and since TYPE-0 both of them
+/// are regions too. `all_texts` walks the planes back to front and `paint_panels` paints
+/// every pane before either of those overlays, so the first match is the PANE's and any
+/// later one is whatever is covering it. That is exactly the fact the Z0a control below
+/// asks about: the provider is still publishing, and something is on top of it.
+std::vector<std::string> external_region_rows(const surface::SurfaceCanvas& c,
+                                              const ui::Rect& body) {
     std::vector<std::string> out;
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
         if (r.x == body.x && r.y == body.y) {
             for (const surface::SurfaceTextRow& row : r.rows) {
                 out.push_back(row.text);
             }
+            return out;
         }
     }
+    return out;
+}
+
+/// The rows an external pane's PROVIDER is currently showing, read off the published
+/// canvas at the region the pane's body actually occupies -- never off the session
+/// directly, so what a case reads is what a maker would see.
+///
+/// Workshop's own header is dropped, because it is Workshop's sentence and not the
+/// provider's: TYPE-0 made it prose row 0 of the same region rather than a cell label
+/// above it, and every case below is asking what the PROVIDER said.
+std::vector<std::string> external_rows(const surface::SurfaceCanvas& c, const ui::Rect& body) {
+    std::vector<std::string> out = external_region_rows(c, body);
+    const std::size_t header = static_cast<std::size_t>(kExternalHeaderRows);
+    out.erase(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(
+                                             out.size() < header ? out.size() : header));
     return out;
 }
 
@@ -17416,7 +17472,10 @@ TEST_CASE("a picker population larger than its rows is windowed, not truncated")
         surface::SurfaceCanvas c;
         paint_picker(plane(c), panels, setup_for(panels), sc);
         std::vector<std::string> out;
-        for (const surface::SurfaceLabel& l : all_labels(c)) {
+        // THROUGH THE REAL CELL PROJECTION (TYPE-0): the picker is one bounded region now,
+        // so what a maker reads at a cell is `project_text_regions`' answer and not a
+        // label the painter wrote. The rows are byte-for-byte the ones it used to write.
+        for (const surface::SurfaceLabel& l : cell_text_of(c)) {
             // THE PICKER DID NOT GET TALLER, asserted at every cursor this case takes --
             // markers coming out of the budget rather than being added beneath it is
             // exactly what would fail here.
@@ -17761,19 +17820,22 @@ TEST_CASE("opening an external pane grants exactly the fit_region room, authored
     CHECK(seat->room_authors[0] == std::string(kWorkshopProvider));
 
     // THE NUMBERS ARE `fit_region`'S AND NOBODY MULTIPLIES A METRIC. At the minimum
-    // composition the pane's body is the first overlay slot less its header row.
+    // composition the pane's region is the WHOLE of the first overlay slot, and the header
+    // row is subtracted from the PROSE the medium fits in it rather than from the cells
+    // (TYPE-0). In a character medium the two spellings answer the same number: nine cells
+    // of slot is nine rows, less one for the header, is the eight the provider always had.
     const Screen sc = screen_of(r.session());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     const ui::Rect panel = bounds_of(r.session().panels, r.session().setup.active, kind, sc).rect;
     CHECK(panel == ui::Rect{0, 1, 48, 9});
     const ExternalBodyPlace body = external_body_place(panel, sc);
     CHECK(body.region_x == 0);
-    CHECK(body.region_y == 2);
+    CHECK(body.region_y == 1);
     CHECK(body.region_w == 48);
-    CHECK(body.region_h == 8);
-    const surface::RegionFit fit = surface::fit_region(0, 2, 48, 8, sc.text_advance_px,
+    CHECK(body.region_h == 9);
+    const surface::RegionFit fit = surface::fit_region(0, 1, 48, 9, sc.text_advance_px,
                                                        sc.text_line_px);
-    CHECK(seat->rooms[0].rows == fit.rows);
+    CHECK(seat->rooms[0].rows == fit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[0].columns == fit.columns);
     CHECK(seat->rooms[0].rows == 8);
     CHECK(seat->rooms[0].columns == 48);
@@ -17838,7 +17900,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     const surface::RegionFit gfit = surface::fit_region(graphical.x, graphical.y, graphical.w,
                                                         graphical.h, 9, 18);
     CHECK(gfit.graphical());
-    CHECK(seat->rooms[2].rows == gfit.rows);
+    CHECK(seat->rooms[2].rows == gfit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[2].columns == gfit.columns);
     CHECK(seat->rooms[2].rows != seat->rooms[1].rows);       // a real face fits fewer rows
     CHECK(seat->rooms[2].columns != seat->rooms[1].columns); // ...and more of them across
@@ -17923,9 +17985,9 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
     for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 8, 69},
                                              {200, 60, 0, 0, 8, 109},
                                              {78, 22, 0, 0, 8, 48},
-                                             {78, 22, 8, 18, 5, 71},
-                                             {120, 40, 8, 18, 5, 103},
-                                             {200, 60, 8, 18, 5, 163}}) {
+                                             {78, 22, 8, 18, 4, 71},
+                                             {120, 40, 8, 18, 4, 103},
+                                             {200, 60, 8, 18, 4, 163}}) {
         CAPTURE(g.w);
         CAPTURE(g.h);
         CAPTURE(g.advance);
@@ -17937,7 +17999,7 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
         const ui::Rect body = external_body_rect(r.session(), kind);
         const surface::RegionFit fit =
             surface::fit_region(body.x, body.y, body.w, body.h, g.advance, g.line);
-        CHECK(seat->rooms.back().rows == fit.rows);
+        CHECK(seat->rooms.back().rows == fit.rows - kExternalHeaderRows);
         CHECK(seat->rooms.back().columns == fit.columns);
         // ...and the answers themselves, so a `fit_region` that changed would be named here
         // rather than agreed with.
@@ -18009,14 +18071,19 @@ TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that rec
     // survive in by luck. Every row is a distinctive byte a case can look for.
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
+    // EVERY ROW OF ITS ROOM, and the room is what the provider was GRANTED -- which since
+    // TYPE-0 is the region's prose rows less Workshop's own header row, not the region's
+    // cell height. Sending `body.h` rows would exceed the grant and be refused whole.
+    const ExternalPane* granted = r.session().panels.external_pane(kind);
+    REQUIRE(granted != nullptr);
     PaneContent loud;
     loud.pane = kHelloPane;
-    for (std::int64_t i = 0; i < body.h; ++i) {
+    for (std::int64_t i = 0; i < granted->rows; ++i) {
         loud.rows.push_back(surface::SurfaceTextRow{"ZZZZZZZZ", surface::role::kFill});
     }
     r.drive(seat, [loud](ProviderSeat& s, loom::Mail& m) { s.say(m, loud); });
     REQUIRE(external_rows(r.last_canvas(), body).size() ==
-            static_cast<std::size_t>(body.h));
+            static_cast<std::size_t>(granted->rows));
 
     // THE PICKER, OVER IT. What a maker reads in that slot is the picker's own list, and
     // not one row of it is the provider's.
@@ -18044,7 +18111,7 @@ TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that rec
     // absences above are a surface covering another and not a pane that stopped saying
     // anything.
     CHECK(external_rows(r.last_canvas(), body).size() ==
-          static_cast<std::size_t>(body.h));
+          static_cast<std::size_t>(granted->rows));
     r.key(input::scan::kEscape);
     CHECK(stack_text(r.last_canvas()).find("ZZZZZZZZ") != std::string::npos);
 }
@@ -20835,4 +20902,364 @@ TEST_CASE("INTR-0: the pane composes as an ordinary saved setup row") {
     fresh.session().setup.active = authored;
     CHECK_FALSE(resolve_pane(intro_ref(), fresh.session().panels.runtime).has_value());
     CHECK(has_pane(fresh.session().setup.active, intro_ref()));
+}
+
+// ---- TYPE-0: WHICH TEXT IS SEMANTIC, AND WHICH TEXT IS CELLS ---------------------------
+//
+// THE ONE QUESTION THIS SECTION ASKS OF EVERY CASE: does this text name MEANING inside room
+// it owns, or glyphs at cells something else owns? The first is a `SurfaceTextRegion`, whose
+// interior a medium may set in its own face; the second is a `SurfaceLabel`, which is one
+// cell per byte in every medium and is exactly right for a mark ON something.
+//
+// AND WHY A ONE-CELL ROW CANNOT BE THE FIRST. A canvas cell is `kCanvasCellPx` and this
+// repository's face has an 18-pixel line, so `fit_region` answers ZERO rows for a region one
+// cell tall and hands it back to the cell projection (HD-5). Publishing a one-cell label as a
+// one-cell region therefore changes nothing a maker can see -- which is why the migrations
+// below are all of runs of rows, and why the retentions below are all of single rows.
+
+namespace {
+
+/// Every region on a canvas whose upper-left corner is this cell.
+std::vector<surface::SurfaceTextRegion> regions_at(const surface::SurfaceCanvas& c,
+                                                   std::int64_t x, std::int64_t y) {
+    std::vector<surface::SurfaceTextRegion> out;
+    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+        if (r.x == x && r.y == y) {
+            out.push_back(r);
+        }
+    }
+    return out;
+}
+
+/// A session with a screen extent and a text metric, and a workspace that fills the room.
+Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advance,
+                       std::int64_t line) {
+    Session s;
+    s.screen_w = w;
+    s.screen_h = h;
+    s.text_advance_px = advance;
+    s.text_line_px = line;
+    const Screen sc = screen_of(s);
+    s.workspace_w = sc.room_w;
+    s.workspace_h = sc.room_h;
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("TYPE-0: the picker is ONE bounded region, and its cells are what it used to write") {
+    Panels panels;
+    panels.picker.open = true;
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    const Screen sc = screen_of(s);
+    const ui::Rect box = picker_bounds(sc);
+
+    surface::SurfaceCanvas c;
+    paint_picker(plane(c), panels, setup_for(panels), sc);
+
+    // ONE REGION AT THE SLOT, AND NOT ONE LABEL. The picker used to be a column of padded
+    // labels; a label is one cell per byte in every medium, so a maker on a surface that owns
+    // a real face read this list in the bitmap letterform beside an Inspector set in type.
+    const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
+    REQUIRE(at_slot.size() == 1);
+    const surface::SurfaceTextRegion& list = at_slot.front();
+    CHECK(list.w == box.w);
+    CHECK(list.h == box.h);
+    CHECK(list.caret_row == surface::kNoCaret); // nothing here is editable
+    for (const surface::SurfaceLayer& l : c.layers) {
+        CHECK(l.labels.empty()); // the backdrop rect is the only other thing this painter says
+    }
+
+    // AND IN A CHARACTER MEDIUM IT IS THE SAME PICTURE, CELL FOR CELL. The projection pads
+    // every row of the region to its width and writes every cell row of it -- which is
+    // byte-for-byte what `paint_panel_row` did for itself, so a terminal cannot tell which
+    // spelling the picker chose.
+    const std::vector<surface::SurfaceLabel> cells = cell_text_of(c);
+    REQUIRE(cells.size() == static_cast<std::size_t>(box.h));
+    for (std::size_t i = 0; i < cells.size(); ++i) {
+        INFO("cell row ", i);
+        CHECK(cells[i].x == box.x);
+        CHECK(cells[i].y == box.y + static_cast<std::int64_t>(i));
+        CHECK(static_cast<std::int64_t>(cells[i].text.size()) == box.w);
+    }
+    CHECK(cells[0].text.rfind("+ PANEL -- up/down, enter opens or removes", 0) == 0);
+    CHECK(cells[0].role == surface::role::kAccent);
+}
+
+TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it omitted") {
+    // THE SAME SLOT, TWO MEDIA, TWO HONEST BUDGETS -- HD-6's sentence pointed at the picker.
+    // Nine cells of slot is nine rows of a character medium and five of an 18-pixel face, and
+    // the list is windowed against whichever it was told rather than against the cells.
+    Panels panels;
+    panels.picker.open = true;
+    const Screen cells = screen_of(screen_session(kScreenMinW, kScreenMinH, 0, 0));
+    const Screen typed = screen_of(screen_session(kScreenMinW, kScreenMinH, 8, 18));
+    const ui::Rect box = picker_bounds(cells);
+    CHECK(picker_bounds(typed) == box); // the SLOT did not move: this is not layout work
+
+    const PanelProsePlace cell_place = panel_prose_place(box, cells);
+    const PanelProsePlace typed_place = panel_prose_place(box, typed);
+    CHECK(cell_place.rows == box.h);
+    CHECK(cell_place.columns == box.w);
+    CHECK(typed_place.rows == (box.h * surface::kCanvasCellPx - 2 * surface::kTextInsetPx) / 18);
+    CHECK(typed_place.rows < cell_place.rows);
+    CHECK(typed_place.columns > cell_place.columns); // ...and more characters across each one
+
+    // A CATALOG TALLER THAN THE GRAPHICAL BUDGET IS WINDOWED THERE AND WHOLE IN CELLS, which
+    // is the assertion that actually spends the difference: six offers plus two built-ins fit
+    // the nine rows a terminal has and not the five an 18-pixel face has, so the two media
+    // show different lists of one population and each says what it left out. The marker is
+    // paid for OUT of the budget rather than added beneath it -- `list_window`'s rule, which
+    // this migration spends rather than reimplements.
+    Panels crowded = panels;
+    for (std::int64_t i = 0; i < 6; ++i) {
+        crowded.runtime.entries.push_back(
+            RuntimePane{kFirstRuntimeKind + i, "zengine.probe",
+                        "p" + std::to_string(i), "Probe" + std::to_string(i), "a summary"});
+    }
+    const std::vector<CatalogRow> crowd = inventory_rows(setup_for(crowded), crowded);
+    REQUIRE(crowd.size() == 8);
+    const auto published = [&](const Screen& medium) {
+        surface::SurfaceCanvas to;
+        paint_picker(plane(to), crowded, setup_for(crowded), medium);
+        const ui::Rect at = picker_bounds(medium);
+        const std::vector<surface::SurfaceTextRegion> found = regions_at(to, at.x, at.y);
+        REQUIRE(found.size() == 1);
+        return found.front().rows;
+    };
+    const std::vector<surface::SurfaceTextRow> crowd_typed = published(typed);
+    const std::vector<surface::SurfaceTextRow> crowd_cells = published(cells);
+    // NEVER MORE ROWS THAN THE MEDIUM SAID IT FITS. A publisher that spent the CELLS here
+    // would hand this medium nine rows for a room that holds five, and the four it could not
+    // draw would vanish with nothing said about them.
+    CHECK(static_cast<std::int64_t>(crowd_typed.size()) <= typed_place.rows);
+    CHECK(static_cast<std::int64_t>(crowd_cells.size()) <= cell_place.rows);
+    CHECK(crowd_typed.size() < crowd_cells.size());
+    // The graphical list is windowed and SAYS SO; the character one holds the whole catalog.
+    const auto marked = [](const std::vector<surface::SurfaceTextRow>& rows) {
+        for (const surface::SurfaceTextRow& row : rows) {
+            if (row.text.find(" more") != std::string::npos ||
+                row.text.find(" earlier") != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+    CHECK(marked(crowd_typed));
+    CHECK_FALSE(marked(crowd_cells));
+    CHECK(crowd_cells.size() == crowd.size() + 1); // heading + every catalog row
+
+    const std::vector<CatalogRow> catalog = inventory_rows(setup_for(panels), panels);
+    REQUIRE(static_cast<std::int64_t>(catalog.size()) <= typed_place.rows - 1);
+
+    surface::SurfaceCanvas c;
+    paint_picker(plane(c), panels, setup_for(panels), typed);
+    const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
+    REQUIRE(at_slot.size() == 1);
+    const surface::SurfaceTextRegion& list = at_slot.front();
+    // Every row the publisher said fits the room it was told about -- the medium truncating
+    // for it would be the second measurer this whole seam exists not to have.
+    CHECK(static_cast<std::int64_t>(list.rows.size()) <= typed_place.rows);
+    for (const surface::SurfaceTextRow& row : list.rows) {
+        CHECK(static_cast<std::int64_t>(row.text.size()) <= typed_place.columns);
+    }
+    // AND A SUMMARY THAT WAS CUT AT 48 CELLS IS WHOLE AT 71 COLUMNS: the same room, read by
+    // a medium that fits more characters into it. Measured on a real offered pane rather than
+    // on the two built-ins, whose summaries are short enough to fit either -- the live case is
+    // exactly INTR-0's `Loaded`, whose sentence a maker read as `what the kernel has lo...`.
+    const surface::RegionFit fit = surface::fit_region(box.x, box.y, box.w, box.h, 8, 18);
+    CHECK(fit.columns == 71);
+    Panels offered = panels;
+    offered.runtime.entries.push_back(
+        RuntimePane{kFirstRuntimeKind, "zengine.introspection", "loaded", "Loaded",
+                    "what the kernel has loaded, and each one's role"});
+    const auto loaded_row = [&](const Screen& medium) {
+        surface::SurfaceCanvas paint_to;
+        paint_picker(plane(paint_to), offered, setup_for(offered), medium);
+        const ui::Rect at = picker_bounds(medium);
+        const std::vector<surface::SurfaceTextRegion> found = regions_at(paint_to, at.x, at.y);
+        REQUIRE(found.size() == 1);
+        std::string out;
+        for (const surface::SurfaceTextRow& row : found.front().rows) {
+            if (row.text.find("Loaded") != std::string::npos) {
+                out = row.text;
+            }
+        }
+        return out;
+    };
+    const std::string in_cells = loaded_row(cells);
+    const std::string in_type = loaded_row(typed);
+    REQUIRE_FALSE(in_cells.empty());
+    REQUIRE_FALSE(in_type.empty());
+    CHECK(in_cells.find(detail::kElided) != std::string::npos); // cut, and MARKED, at 48 cells
+    CHECK(in_type.find(detail::kElided) == std::string::npos);  // whole at 71 columns
+    CHECK(in_type.find("each one's role") != std::string::npos);
+}
+
+TEST_CASE("TYPE-0: the pane-management surface is a region on the same terms") {
+    Panels panels;
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    s.manage.open = true;
+    const Screen sc = screen_of(s);
+    const ui::Rect box = picker_bounds(sc);
+
+    surface::SurfaceCanvas c;
+    paint_management(plane(c), panels, s.setup.active, s.manage, sc);
+    const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
+    REQUIRE(at_slot.size() == 1);
+    const surface::SurfaceTextRegion& list = at_slot.front();
+    CHECK(list.rows[0].text.rfind("+ WINDOW", 0) == 0);
+    CHECK(list.rows[0].role == surface::role::kAccent);
+    for (const surface::SurfaceLayer& l : c.layers) {
+        CHECK(l.labels.empty());
+    }
+}
+
+TEST_CASE("TYPE-0: the notice is a bounded region, and the SENTENCE is never shortened") {
+    WorkshopDoc d;
+    doc::add_default(d);
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    s.selected = d.elements.front().id;
+    refocus(d, s);
+    const Screen sc = screen_of(s);
+
+    // NOTHING TO SAY IS NO REGION AT ALL, exactly as it was no label: an empty band is not a
+    // band containing nothing.
+    CHECK(regions_at(paint(d, s), 0, sc.notice_y).empty());
+
+    // A SENTENCE THAT FITS: one prose row, in the two cells the band already reserved.
+    s.notice = "created #1 -- a new identity, not a new name";
+    const surface::SurfaceCanvas said = paint(d, s);
+    const std::vector<surface::SurfaceTextRegion> at_band = regions_at(said, 0, sc.notice_y);
+    REQUIRE(at_band.size() == 1);
+    const surface::SurfaceTextRegion& band = at_band.front();
+    CHECK(band.w == sc.w);
+    CHECK(band.h == kNoticeRows);
+    CHECK(band.y + band.h == sc.help_y); // it stops where the help lines begin: nothing moved
+    REQUIRE(band.rows.size() == 1);
+    CHECK(band.rows[0].text == s.notice);
+    CHECK(band.rows[0].role == surface::role::kFill);
+    const surface::RegionFit fit = surface::fit_region(0, sc.notice_y, sc.w, kNoticeRows, 8, 18);
+    CHECK(fit.graphical());
+    CHECK(fit.rows == 1); // two cells is the SMALLEST room that holds a row of this face
+    CHECK(surface::fit_region(0, sc.notice_y, sc.w, 1, 8, 18).graphical() == false);
+
+    // A BAD ONE WEARS THE ALERT ROLE, which is the second signal and not a second sentence.
+    s.notice_is_bad = true;
+    const surface::SurfaceCanvas bad = paint(d, s);
+    const std::vector<surface::SurfaceTextRegion> at_bad = regions_at(bad, 0, sc.notice_y);
+    REQUIRE(at_bad.size() == 1);
+    CHECK(at_bad.front().rows[0].role == surface::role::kAlert);
+
+    // A SENTENCE TOO LONG FOR THE ROOM IS MARKED, AND `Session::notice` STILL HOLDS ALL OF
+    // IT. What a maker sees is bounded; what Workshop knows is not.
+    s.notice = std::string(400, 'x') + "-END";
+    s.notice_is_bad = false;
+    const surface::SurfaceCanvas cut = paint(d, s);
+    const std::vector<surface::SurfaceTextRegion> at_cut = regions_at(cut, 0, sc.notice_y);
+    REQUIRE(at_cut.size() == 1);
+    const surface::SurfaceTextRow& row = at_cut.front().rows[0];
+    CHECK(static_cast<std::int64_t>(row.text.size()) == fit.columns);
+    CHECK(row.text.find(detail::kElided) != std::string::npos);
+    CHECK(row.text.find("-END") == std::string::npos);
+    CHECK(s.notice.size() == 404); // the sentence itself was never touched
+
+    // AND THE SAME PUBLICATION IN A CHARACTER MEDIUM: the same cells, cut at the cells the
+    // medium has rather than at the columns the face has. One publisher, two projections.
+    Session cell = s;
+    cell.text_advance_px = 0;
+    cell.text_line_px = 0;
+    const Screen cell_sc = screen_of(cell);
+    const surface::SurfaceCanvas in_cells = paint(d, cell);
+    const std::vector<surface::SurfaceTextRegion> at_cells =
+        regions_at(in_cells, 0, cell_sc.notice_y);
+    REQUIRE(at_cells.size() == 1);
+    const surface::SurfaceTextRow& cell_row = at_cells.front().rows[0];
+    CHECK(static_cast<std::int64_t>(cell_row.text.size()) == cell_sc.w);
+    CHECK(cell_row.text.find(detail::kElided) != std::string::npos);
+    CHECK(cell_row.text.size() < row.text.size()); // fewer cells than the face has columns
+}
+
+TEST_CASE("TYPE-0: cell text is RETAINED where the cells belong to something else") {
+    // THE POSITIVE HALF OF THE PHASE'S LESSON, and it is a real witness rather than a note:
+    // these publications stay `SurfaceLabel` because their glyphs sit ON material somebody
+    // else owns, and one of them is the object name the phase set out to look at.
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "panel", 1, 1, ui::Extent{ui::kExtentCells, 12},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    s.selected = id;
+    refocus(d, s);
+    const surface::SurfaceCanvas c = paint(d, s);
+
+    // THE OBJECT'S NAME, written on the object's own body. A region here would take this
+    // rectangle -- which is what makes a region honest and what makes it wrong here.
+    bool named = false;
+    bool handle = false;
+    for (const surface::SurfaceLabel& l : all_labels(c)) {
+        named = named || (l.text == "panel" && l.x == kWorkspaceX + 1 && l.y == kWorkspaceY + 1);
+        handle = handle || l.text == std::string(kHandleGlyph);
+    }
+    CHECK(named);
+    CHECK(handle); // the size handle: one glyph, at one cell, over the ring that fills it
+
+    // AND NO REGION IS PUBLISHED OVER THE OBJECT -- the assertion that would go red the day
+    // somebody migrates this without deciding what happens to the material underneath.
+    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+        const bool over_object = r.x <= kWorkspaceX + 1 && r.y <= kWorkspaceY + 1 &&
+                                 r.x + r.w > kWorkspaceX + 1 && r.y + r.h > kWorkspaceY + 1;
+        CHECK_FALSE(over_object);
+    }
+
+    // THE NAME IS FITTED, NEVER SILENTLY CUT, and the document keeps every byte of it.
+    WorkshopDoc wide;
+    const std::int64_t long_id =
+        doc::add(wide, "a-name-far-too-long-for-here", 44, 0, ui::Extent{ui::kExtentCells, 2},
+                 ui::Extent{ui::kExtentCells, 1});
+    Session ws = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    ws.selected = long_id;
+    refocus(wide, ws);
+    CHECK(label_at(paint(wide, ws), 44, kWorkspaceY) == "a...");
+    CHECK(doc::find(wide, long_id)->label == "a-name-far-too-long-for-here");
+}
+
+TEST_CASE("TYPE-0: a pane with room for the header and nothing else still says whose it is") {
+    // THE EDGE THE HEADER'S MOVE CREATED, and it is pinned rather than argued: the header used
+    // to be a CELL row written before the body was resolved, so a panel too short for a body
+    // still carried it. Now it is the region's first PROSE row, and reserving it can leave the
+    // provider nothing -- at which point the question "is there a body" must be asked AFTER
+    // the header is written, or a maker gets a rectangle that says nothing at all.
+    Panels panels;
+    panels.runtime.entries.push_back(RuntimePane{kFirstRuntimeKind, "zengine.probe", "p",
+                                                 "Probe", "a summary"});
+    ExternalPane live;
+    live.kind = kFirstRuntimeKind;
+    live.heard = true;
+    live.shown.push_back(surface::SurfaceTextRow{"a provider row", surface::role::kFill});
+    panels.external.push_back(live);
+
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    const Screen sc = screen_of(s);
+    // TWO CELLS: one prose row of an 18-pixel face, which the header takes whole.
+    const ui::Rect tiny{0, 1, 48, 2};
+    const ExternalBodyPlace body = external_body_place(tiny, sc);
+    CHECK(body.fit.rows == 1);
+    CHECK_FALSE(body.present); // no room was granted, and none is invented
+    CHECK(body.rows == 0);
+
+    surface::SurfaceCanvas c;
+    paint_external(plane(c), panels, kFirstRuntimeKind, tiny, sc);
+    const std::vector<surface::SurfaceTextRegion> at = regions_at(c, tiny.x, tiny.y);
+    REQUIRE(at.size() == 1);
+    REQUIRE(at.front().rows.size() == 1);
+    CHECK(at.front().rows[0].text == "Probe @zengine.probe");
+    CHECK(at.front().rows[0].role == surface::role::kAccent);
+
+    // AND WITH NO ROW OF TYPE AT ALL the painter says nothing rather than drawing a header
+    // into a rectangle that cannot hold one.
+    const ui::Rect none{0, 1, 48, 1};
+    CHECK(surface::fit_region(none.x, none.y, none.w, none.h, 8, 18).graphical() == false);
+    surface::SurfaceCanvas flat;
+    paint_external(plane(flat), panels, kFirstRuntimeKind, ui::Rect{0, 1, 0, 0}, sc);
+    CHECK(all_texts(flat).empty());
 }
