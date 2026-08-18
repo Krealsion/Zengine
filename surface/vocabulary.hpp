@@ -210,6 +210,12 @@ inline constexpr std::int64_t kNoCaret = -1;
 /// no order of its own and no second rectangle: the region is in exactly the plane
 /// its publisher put it in, and `kGroundBeneath` removes one fill. Everything a
 /// medium already knew about painter's order still decides what "beneath" is.
+/// AN UNKNOWN GROUND IS `kGroundOwn`, which is the same posture `role` takes one field
+/// up and is chosen for the same reason: a value this vocabulary does not know is still a
+/// region somebody meant to be seen, and the safe reading is the one every region had
+/// before this constant existed. So a medium tests for `kGroundBeneath` EXACTLY and treats
+/// everything else as owning its room -- never the other way round, which would let a
+/// number nobody chose make a panel see-through.
 inline constexpr std::int64_t kGroundOwn = 0;
 inline constexpr std::int64_t kGroundBeneath = 1;
 

@@ -233,7 +233,7 @@ public:
         // what `kGroundBeneath` asks for: the rows are set in the real face over the
         // material this layer already drew, so a maker's name reads as type ON the
         // object rather than as a panel laid over the hole where it used to be.
-        if (p.ground == kGroundOwn) {
+        if (p.ground != kGroundBeneath) {
             SDL_SetRenderDrawColor(renderer, p.background.r, p.background.g, p.background.b,
                                    SDL_ALPHA_OPAQUE);
             const SDL_FRect whole{0.0F, 0.0F, static_cast<float>(p.view.w),
