@@ -105,7 +105,7 @@ inline constexpr std::int64_t kNone = -1;
 /// in cells lands somewhere real in every medium instead of being pixel-exact
 /// in one and rounded into mush in the other.
 ///
-/// Painter's order: `SurfaceLayer::rects` is drawn front-to-back in list
+/// Painter's order: `SurfaceLayer::rects` is drawn back-to-front in list
 /// order, so a publisher expresses "behind" by publishing earlier. There is no
 /// z field and no explicit stacking policy — list order already says it, and a
 /// second way to say the same thing is how two orderings come to disagree.

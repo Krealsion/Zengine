@@ -4914,13 +4914,14 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // prevent one line further down. Half a hint beside a pane is worse than no hint, and
     // the pane's own header carries the one gesture that matters while it is open.
     //
-    // IT IS THE SCREEN'S FURNITURE, SO IT IS ON THE SCREEN'S PLANE (WIND-2a), and it is
-    // written before the panes rather than after them. No panel's reactive rectangle
-    // reaches this band -- `screen_of` reserves it and the assertions above say so -- so
-    // for every arrangement the developer composes the picture is byte-identical. What
-    // changed is the one case a maker can now author: a pane PLACED over the notice line
-    // covers it, which is what `occupied_at` has answered about those cells since the place
-    // could be authored at all.
+    // IT IS THE SCREEN'S FURNITURE, SO IT IS ON THE SCREEN'S PLANE (WIND-2a), and that plane
+    // is written AFTER the panes rather than before them -- the always-on-top host chrome
+    // this function's opening note selects. No panel's reactive rectangle reaches this band
+    // -- `screen_of` reserves it and the assertions above say so -- so for every arrangement
+    // the developer composes the picture is byte-identical. What changed is the one case a
+    // maker can now author: a pane PLACED over the notice line is covered BY it, because the
+    // panes are in front of the DOCUMENT and not in front of the tool's own voice. The band
+    // occupies no pointer space, so `occupied_at` still answers the pane for those cells.
     if (!s.terminal.open) {
         // WHICH SETUP THIS IS -- the band's first row, which was blank, and the one fact
         // WS-0 added that a maker needs continuously rather than at the moment they act.
