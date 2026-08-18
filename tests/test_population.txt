@@ -199,7 +199,7 @@
 # on a bus; the graphical half is the same `fit_region` call with a metric published as a
 # NUMBER, so the lane with no font engine proves the phase entire.
 #
-# WIND-2a raised the workshop floor 473 -> 481 and the surface floors 59 -> 66 (always) and
+# WIND-2a raised the workshop floor 473 -> 482 and the surface floors 59 -> 66 (always) and
 # 5 -> 6 (sdl), and it is the FIRST phase in a long while to move the `sdl` row at all. The
 # split is the same rule read once more, from both ends:
 #

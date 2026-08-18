@@ -924,14 +924,15 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**91,441** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-17 after WIND-2a) are evidence to report. They are **not** a population, never an
+- Assertion totals (**91,496** over the **nine** doctest binaries, SDL lane, measured
+  2026-08-18 after WIND-2b, which added no case at all and 55 assertions to one existing
+  Workshop case) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,962 · `zengine-workshop-tests` 74,642 ·
+  reproduce it: `zengine-surface-tests` 6,962 · `zengine-workshop-tests` 74,697 ·
   `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
   `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
   `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318

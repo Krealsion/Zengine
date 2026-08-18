@@ -19957,43 +19957,172 @@ TEST_CASE("WIND-2a: the picker can reach and remove an unresolved row") {
 }
 
 TEST_CASE("WIND-2a: a clipped default resize begins from the full resolved size") {
-    Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
-    open_pane(t, ref_of(panel::kBuilder));
-    const PaneRef builder = ref_of(panel::kBuilder);
-    REQUIRE(author_pane_place(live(t).setup.active, builder, 156, 2).accepted);
+    // ---- THE RIGHT EDGE. A default width of eighty-nine, four cells of it on the canvas.
+    {
+        Live t;
+        t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+        open_pane(t, ref_of(panel::kBuilder));
+        const PaneRef builder = ref_of(panel::kBuilder);
+        REQUIRE(author_pane_place(live(t).setup.active, builder, 156, 2).accepted);
 
-    const Screen sc = screen_of(t.session());
-    const PanelBounds where =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
-    // THE DEVELOPER'S HALF-SHARE AT THIS EXTENT, of which four cells are on the canvas.
-    REQUIRE(where.resolved.w == 89);
-    REQUIRE(where.rect.w == 4);
+        const Screen sc = screen_of(t.session());
+        const PanelBounds where =
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
+        // THE DEVELOPER'S HALF-SHARE AT THIS EXTENT, of which four cells are on the canvas.
+        REQUIRE(where.resolved.w == 89);
+        REQUIRE(where.rect.w == 4);
 
-    // THE KEY. One cell wider than what the pane RESOLVES to, not one cell wider than the
-    // sliver of it a maker can currently see.
-    enter_management(t);
-    select_pane(t, builder);
-    t.key(input::scan::kS);
-    REQUIRE(t.session().manage.doing == pane_manage::kSize);
-    t.key(input::scan::kRight);
-    const SetupPane* row = pane_of(t.session().setup.active, builder);
-    REQUIRE(row != nullptr);
-    CHECK(row->width.mode == pane_unit::kCells);
-    CHECK(row->width.amount == 90);
+        // THE KEY. One cell wider than what the pane RESOLVES to, not one cell wider than
+        // the sliver of it a maker can currently see.
+        enter_management(t);
+        select_pane(t, builder);
+        t.key(input::scan::kS);
+        REQUIRE(t.session().manage.doing == pane_manage::kSize);
+        t.key(input::scan::kRight);
+        const SetupPane* row = pane_of(t.session().setup.active, builder);
+        REQUIRE(row != nullptr);
+        CHECK(row->width.mode == pane_unit::kCells);
+        CHECK(row->width.amount == where.resolved.w + 1);
+        // AND THE AXIS THE EDGE DID NOT NAME KEEPS EXACTLY WHAT IT HAD, mode included: a
+        // width edit leaves a default height still reacting to the room.
+        CHECK(row->height.mode == pane_unit::kDefault);
+        CHECK(row->height.amount == 0);
 
-    // AND THE HAND, FROM THE SAME BASE. The affordance stays on the VISIBLE boundary -- that
-    // is where a maker's eye and hand are -- and its delta applies to the resolved size.
-    REQUIRE(reset_pane_width(live(t).setup.active, builder));
-    t.key(input::scan::kEscape);
-    const ui::Rect vis =
-        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
-                  screen_of(t.session())).rect;
-    t.press_at(vis.x + vis.w - 1, vis.y + vis.h - 1 + surface::kTuiCanvasTopRow,
-               input::space::kCells);
-    REQUIRE(t.session().pane_drag.active);
-    REQUIRE(t.session().pane_drag.sizing);
-    CHECK(t.session().pane_drag.base_w == 89);
+        // AND THE HAND, FROM THE SAME BASE. The affordance stays on the VISIBLE boundary --
+        // that is where a maker's eye and hand are -- and its delta applies to the resolved
+        // size. THE PRESS RECORDS THAT BASE AND THE MOTION SPENDS IT, and both halves are
+        // asserted: a case that stopped at `base_w` would witness what the gesture
+        // remembered rather than what it authored, which is the half a maker actually sees.
+        REQUIRE(reset_pane_width(live(t).setup.active, builder));
+        t.key(input::scan::kEscape);
+        const ui::Rect vis =
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                      screen_of(t.session())).rect;
+        t.press_at(vis.x + vis.w - 1, vis.y + vis.h - 1 + surface::kTuiCanvasTopRow,
+                   input::space::kCells);
+        REQUIRE(t.session().pane_drag.active);
+        REQUIRE(t.session().pane_drag.sizing);
+        CHECK(t.session().pane_drag.base_w == where.resolved.w);
+        t.publish(loom::to_value(input::PointerMoved{
+            vis.x + vis.w, vis.y + vis.h - 1 + surface::kTuiCanvasTopRow, 0, 0,
+            input::space::kCells, input::mod::kNone}));
+        t.release(0, 0);
+        const SetupPane* pulled = pane_of(t.session().setup.active, builder);
+        REQUIRE(pulled != nullptr);
+        CHECK(pulled->width.mode == pane_unit::kCells);
+        CHECK(pulled->width.amount == where.resolved.w + 1);
+        CHECK(pulled->height.mode == pane_unit::kDefault);
+        CHECK(pulled->height.amount == 0);
+    }
+
+    // ---- THE BOTTOM EDGE. The same sentence about the other axis, on a fresh session so
+    // that nothing the width half authored can answer a default-height question for it: a
+    // default height of nine, two rows of it on the canvas.
+    {
+        Live t;
+        t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+        open_pane(t, ref_of(panel::kBuilder));
+        const PaneRef builder = ref_of(panel::kBuilder);
+        REQUIRE(author_pane_place(live(t).setup.active, builder, 0, 42).accepted);
+
+        const Screen sc = screen_of(t.session());
+        const PanelBounds where =
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
+        // THE DEVELOPER'S STACK HEIGHT, of which two rows are on the canvas.
+        REQUIRE(where.resolved.h == 9);
+        REQUIRE(where.rect.h == 2);
+
+        enter_management(t);
+        select_pane(t, builder);
+        t.key(input::scan::kS);
+        REQUIRE(t.session().manage.doing == pane_manage::kSize);
+        t.key(input::scan::kDown);
+        const SetupPane* row = pane_of(t.session().setup.active, builder);
+        REQUIRE(row != nullptr);
+        CHECK(row->height.mode == pane_unit::kCells);
+        CHECK(row->height.amount == where.resolved.h + 1);
+        CHECK(row->width.mode == pane_unit::kDefault);
+        CHECK(row->width.amount == 0);
+
+        REQUIRE(reset_pane_height(live(t).setup.active, builder));
+        t.key(input::scan::kEscape);
+        const ui::Rect vis =
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                      screen_of(t.session())).rect;
+        // THE MIDDLE OF THE BOTTOM RUN, which is the cell on that edge and on neither of the
+        // corners it shares the run with -- a two-row sliver still has one.
+        const std::int64_t cx = vis.x + vis.w / 2;
+        const std::int64_t cy = vis.y + vis.h - 1;
+        t.press_at(cx, cy + surface::kTuiCanvasTopRow, input::space::kCells);
+        REQUIRE(t.session().pane_drag.active);
+        REQUIRE(t.session().pane_drag.sizing);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kBottom);
+        CHECK(t.session().pane_drag.base_h == where.resolved.h);
+        t.publish(loom::to_value(input::PointerMoved{cx, cy + 1 + surface::kTuiCanvasTopRow, 0,
+                                                     0, input::space::kCells,
+                                                     input::mod::kNone}));
+        t.release(0, 0);
+        const SetupPane* pulled = pane_of(t.session().setup.active, builder);
+        REQUIRE(pulled != nullptr);
+        CHECK(pulled->height.mode == pane_unit::kCells);
+        CHECK(pulled->height.amount == where.resolved.h + 1);
+        CHECK(pulled->width.mode == pane_unit::kDefault);
+        CHECK(pulled->width.amount == 0);
+    }
+
+    // ---- ONE CORNER, ONE ILLEGAL AXIS, AND NEITHER OF THEM WRITTEN. The atomic door has
+    // its own case; what this proves is that the REAL management route still reaches that
+    // door WHOLE, so a corner whose height is illegal cannot widen the pane on its way to
+    // the refusal.
+    {
+        Live t;
+        t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+        open_pane(t, ref_of(panel::kBuilder));
+        const PaneRef builder = ref_of(panel::kBuilder);
+        enter_management(t);
+        select_pane(t, builder);
+        const PanelBounds where =
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                      screen_of(t.session()));
+        REQUIRE(where.rect.w > 2);
+        REQUIRE(where.rect.h > 2);
+        const SetupPane* start = pane_of(t.session().setup.active, builder);
+        REQUIRE(start != nullptr);
+        const SetupPane before = *start;
+
+        // BOTH AXES PARTICIPATE, because a corner names two of them.
+        t.press_at(where.rect.x + where.rect.w - 1,
+                   where.rect.y + where.rect.h - 1 + surface::kTuiCanvasTopRow,
+                   input::space::kCells);
+        REQUIRE(t.session().pane_drag.active);
+        REQUIRE(t.session().pane_drag.sizing);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kBottomRight);
+        REQUIRE(t.session().pane_drag.base_w == where.resolved.w);
+        REQUIRE(t.session().pane_drag.base_h == where.resolved.h);
+
+        // ONE CELL OUT AND A WHOLE HEIGHT UP: a width of ninety, which is legal and changed,
+        // beside a height of zero, which is not a size at all.
+        t.publish(loom::to_value(input::PointerMoved{
+            where.rect.x + where.rect.w,
+            where.rect.y + where.rect.h - 1 - where.resolved.h + surface::kTuiCanvasTopRow, 0,
+            0, input::space::kCells, input::mod::kNone}));
+
+        // THE REFUSAL IS SAID, AND THE WHOLE ROW IS WHAT IT WAS -- the otherwise-legal width
+        // included, which is the half a partial write would have taken.
+        INFO(t.session().notice);
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.session().notice.find("height") != std::string::npos);
+        const SetupPane* held = pane_of(t.session().setup.active, builder);
+        REQUIRE(held != nullptr);
+        CHECK(*held == before);
+        CHECK(held->width.mode == pane_unit::kDefault);
+        CHECK(held->height.mode == pane_unit::kDefault);
+
+        // AND THE GESTURE ENDS THE ORDINARY WAY, because a refusal is an answer rather than
+        // a broken hand.
+        t.release(0, 0);
+        CHECK_FALSE(t.session().pane_drag.active);
+    }
 }
 
 TEST_CASE("WIND-2a: a release ends a pane gesture whatever mode sees it") {
