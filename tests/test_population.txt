@@ -239,6 +239,16 @@
 # NUMBER, moves the granted budget, and the projection answers the new room. So the Windows
 # stranger lane proves the whole phase, exactly as it proved the ten before it.
 #
+# TYPE-0 raised the workshop floor 504 -> 510, and it is the TWELFTH phase to need no new row.
+# Six cases, and every one of them is medium-dependent in the sense that keeps them in the
+# `always` population: the METRIC IS AN ARGUMENT. A case asks for a graphical composition by
+# handing `Session` an advance and a line height -- 8 and 18, the numbers this repository's face
+# measured -- and `fit_region` answers a row budget. No font is opened, no renderer exists, and
+# the SDL skin need not be built: the whole of what a real face changes about a publisher is two
+# integers, which is exactly the property HD-1 arranged the seam to have. So the no-SDL lane and
+# the Windows stranger lane prove the phase in full, including the pictures a maker only ever
+# sees through SDL.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -255,7 +265,7 @@ surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  504
+workshop                          doctest           always  510
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

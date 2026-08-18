@@ -290,30 +290,50 @@ Your painter writes into a `surface::SurfaceCanvas`. **You never write medium-sp
 one painter feeds the terminal Skin and the SDL Skin, and each medium answers for itself how a
 semantic row becomes visible.
 
-There are two ways to say something, and the choice is about **what the medium may do with it**:
+There are two ways to say something, and the rule for choosing is one sentence:
 
-**Labels** — `paint_panel_row(layer, b, line, text, role)` writes one row at cell `b.y + line`,
-`detail::fit`-cut and space-padded to `b.w`. Cell-grained in both media. Use this unless you need
-a caret.
+> **Semantic text names meaning inside room it OWNS; cell text names glyphs at cells something
+> else owns.**
 
-**One bounded region** — a `surface::SurfaceTextRegion` pushed onto your plane's `texts`, carrying
-`rows` of `SurfaceTextRow{text, role, background}`. A region is the only shape on the canvas that
-a graphical medium sets in **real type** and the only one that can carry an **insertion point**
-(`caret_row` / `caret_col`, in rows and columns of *your* prose — never a pixel). Ask
-`surface::fit_region(x, y, w, h, sc.text_advance_px, sc.text_line_px)` **once** for how many rows
-and columns your rectangle holds, spend that budget, and never multiply a font metric yourself.
-The same rectangle honestly holds 25 prose rows in a terminal and 16 of an 18-pixel face; that is
-two projections of one body, not two designs.
+**One bounded region — the default, and what your panel wants.** Push a
+`surface::SurfaceTextRegion` onto your plane's `texts`, carrying `rows` of
+`SurfaceTextRow{text, role, background}`. A region is the only shape on the canvas that a
+graphical medium sets in **real type**, and the only one that can carry an **insertion point**
+(`caret_row` / `caret_col`, in rows and columns of *your* prose — never a pixel). For a panel
+whose whole rectangle is yours, `panel_prose_place(b, sc)` is the one call: it asks
+`surface::fit_region` **once** for how many rows and columns your bounds hold, and
+`panel_prose_region(b)` hands you the region they were resolved for. Spend that budget and never
+multiply a font metric yourself. The same rectangle honestly holds 9 prose rows in a terminal and
+5 of an 18-pixel face; that is two projections of one body, not two designs — so a list of
+unknown length is *windowed* against the budget you were given (`list_window`, `omitted_text`)
+rather than against the cells.
 
-Two facts about the picture that nothing warns you about:
+**Labels — for glyphs that sit ON something.** `paint_panel_row(layer, b, line, text, role)`
+writes one row at cell `b.y + line`, `detail::fit`-cut and space-padded to `b.w`, and a raw
+`layer.labels.push_back(SurfaceLabel{...})` writes text at a cell with no fit and no padding at
+all. Both are one cell per byte in **every** medium. Reach for them when the cells are not yours
+to own: a mark on authored material (the workspace object's name, written on the object's own
+body), a single affordance glyph at one cell (the `+` size handle, the eight pane-edge marks), or
+chrome sharing a row with somebody else's sentence (`OBJECTS`, which shares row 0 with a
+screen-level hint).
 
-- **In a character medium the frame does not erase.** `paint_panel_frame` pushes a
-  `SurfaceRect`, and what actually blanks the workspace underneath is the *padding* on each row.
-  A panel that writes three rows into a nine-row slot shows the workspace through the other six.
-  Pad every row you want opaque (write empty rows for the rest) — or accept the see-through, as
-  the Info panel deliberately does for the row it shares with a screen-level hint.
-- **A bare `c.labels.push_back(SurfaceLabel{...})` is not padded or fitted.** That is the right
-  call for chrome that shares a row with something else, and the wrong one for a panel row.
+Three facts about the picture that nothing warns you about:
+
+- **A region takes its rectangle, and that is what makes it honest.** It clears its whole bounds
+  before a row is drawn — spaces in a character medium, its own ground in a graphical one — so a
+  region is an *overlay* that owns its interior. You get the padding for free (a panel that says
+  three rows into a nine-row slot is opaque for all nine, and `paint_panel_frame`'s backdrop
+  rect underneath it is erased in both media). The same property is why you must **not** put a
+  region over material you meant to keep: it will erase it.
+- **A one-cell-tall region is not semantic text.** A canvas cell is `kCanvasCellPx` (12 device
+  pixels) and this repository's face has an 18-pixel line, so `fit_region` answers *zero* rows
+  for a one-cell region and hands it back to the cell projection (HD-5) — the same bitmap
+  letterform a label draws. Publishing a one-row label as a one-row region changes nothing a
+  maker can see. **Two cells is the smallest room that holds one row of real type**; a run of
+  rows is what makes the region worth having.
+- **A bare `c.labels.push_back(SurfaceLabel{...})` is not padded or fitted.** `detail::fit` marks
+  what it cut; a raw `resize` does not, and a shorter name that looks finished is a lie about the
+  thing it names.
 
 Roles are semantic, not colours: `kAccent` for a heading, `kFill` for material, `kMuted` for the
 panel's own furniture, `kAlert` for something live. A row may also sit on a `background`; the one

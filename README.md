@@ -292,6 +292,18 @@ pixels: a cell is the coarsest unit a terminal can address, so a canvas lands so
 every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
 anchors, no percentages; whoever publishes has already decided where things go.
 
+**Which of the two kinds of text a publisher chooses is one sentence** (TYPE-0): *semantic text
+names meaning inside room it OWNS; cell text names glyphs at cells something else owns.* A
+`SurfaceTextRegion` is the semantic one — it is the only shape a graphical medium sets in real
+type, and it *takes its rectangle*, clearing its whole bounds before a row is drawn. So ordinary
+tool prose, headings, lists and controls are regions, and `SurfaceLabel` stays exactly right for
+glyphs that sit **on** something else: a name written across an authored object's own body, one
+affordance glyph at one cell, chrome sharing a row with another publisher's sentence. Neither is
+deprecated and neither is a fallback for the other. One arithmetic decides most cases for you: a
+canvas cell is `kCanvasCellPx` and this repository's face has an 18-pixel line, so `fit_region`
+answers *zero* rows for a region one cell tall and hands it back to the cell projection — a
+single-row label published as a single-cell region is the same picture it always was.
+
 **Painter's order is two levels, and that is the whole of the depth model** (WIND-2a). Inside a
 plane: rects in list order, then labels over them, then text regions over those. Between planes:
 the complete earlier plane, then the complete later one over it. `layers[0]` is back-most and

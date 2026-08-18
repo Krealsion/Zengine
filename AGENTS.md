@@ -887,6 +887,46 @@ HD-6 did **not** special-case the Inspector past this. It succeeded by granting 
 room, not by lying to the Surface layer, and a body still too short for one line of the face
 still resolves to cells and is still drawn by exactly one of the two lists.
 
+## Semantic text OWNS its room; cell text sits ON somebody else's (TYPE-0)
+
+Which of the two text primitives a publisher reaches for is one sentence, and it is not about
+importance or about how the text looks:
+
+```text
+SurfaceTextRegion   the text OWNS this rectangle -- it clears its whole bounds before a row is
+                    drawn, so nothing else may be under it. Ordinary tool prose, headings,
+                    lists, controls, status. The only shape a medium sets in REAL TYPE.
+SurfaceLabel        the glyphs sit ON cells something ELSE owns -- authored material, one
+                    affordance cell, a row shared with another publisher. One cell per byte in
+                    every medium, and NOT deprecated.
+```
+
+- **A one-cell row cannot be semantic text, whatever it means.** A canvas cell is
+  `kCanvasCellPx` = 12 device pixels and this repository's face has an 18-pixel line, so
+  `fit_region` answers zero rows for a one-cell region and hands it back to the cell projection
+  (HD-5). `floor((12h - 2*kTextInsetPx) / 18)` is the whole table: **h=1 → 0 rows, h=2 and h=3 →
+  1, h=4 and h=5 → 2, h=7 → 4, h=9 → 5.** So a migration is always of a RUN of rows, never of one
+  label, and `12h - 4 == 18k` has no integer solutions — a region's viewport never exactly fits
+  its rows, which is why a row's ground cannot stand in for a rectangle's.
+- **`panel_prose_place(b, sc)` + `panel_prose_region(b)` is the one call for a panel whose whole
+  rectangle is its own** (the picker, the pane-management surface, an external pane). It returns
+  the prose rows and columns the ACTIVE medium fits, and the painter spends them. Its cell
+  projection is byte-for-byte what `paint_panel_row` wrote, so **no terminal picture moved**.
+- **`paint_panel_row` has one consumer left: the Builder.** Its nine rows are a fixed composition
+  against a nine-cell slot and the face holds five, so migrating it would drop four rows —
+  `[ Build ]` among them. Fixed-row panels need a row-budget composition before they can be
+  semantic text; that is a design phase, not a typography one.
+- **The screen's own band is 5 cells for 4 sentences and cannot migrate either**, for the same
+  arithmetic: 5 cells hold 3 rows of the face. The NOTICE is the one piece of it that could,
+  because the spare row beneath it is already reserved and painted by nobody — two cells, one
+  prose row, nothing moved (`kNoticeRows`).
+- **Do not put a region over the workspace object's name.** Both alternatives were built and run
+  live: a region over the object's rect turns every object into an empty dark box, and rows
+  carrying the object's role as a GROUND leave a `12h - 4 - 18*rows` pixel band the strips cannot
+  reach. The name is semantic and its container is authored material; the vocabulary has no way
+  to say "type ON material", and inventing one is a Surface change with a cell-medium cost
+  (`glyph_for_role` replaced by a background colour). See `Zen/reportbacks/TYPE-0-RB.md`.
+
 ## The first tool that reaches Workshop as a stranger (INTR-0)
 
 `introspection/` builds `zengine-introspection`, an ordinary loadable weave beside timer/ and
