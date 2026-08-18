@@ -302,6 +302,15 @@ inline constexpr std::int64_t kMaxProjectedRows = 16384;
 struct ProjectedRow {
     SurfaceLabel label;
     std::int64_t background = role::kNone; ///< role::kNone: whatever is underneath
+    /// AND THE REGION'S OWN ANSWER TO THE SAME QUESTION, carried down beside it
+    /// (TYPE-1) -- because "whatever is underneath" is only half a sentence until a
+    /// medium knows whether the region already covered what was underneath.
+    ///
+    /// The two never disagree and never need reconciling: `background` is the ROW's
+    /// claim and this is the REGION's, so a medium resolves one three-way question
+    /// once -- the row's ground if it named one, otherwise the canvas's own ground
+    /// if the region took its rectangle, otherwise nothing at all.
+    std::int64_t ground = kGroundOwn;
 };
 
 /// A REGION'S ROWS AS ORDINARY CANVAS LABELS — the cell projection, written once
@@ -339,6 +348,29 @@ struct ProjectedRow {
 /// row like any other character rather than being specially rescued: this
 /// projection does not scroll, and inventing a scroll here would be inventing one
 /// for every consumer at once.
+///
+/// AND THE PADDING IS EXACTLY WHAT `kGroundBeneath` TAKES AWAY (TYPE-1). A region
+/// whose ground is whatever is beneath it draws its rows and nothing else, so a row
+/// is cut at the region's width as ever and is NOT padded out to it: the cells its
+/// bytes do not land on are cells it never touches, and whatever a rect wrote there
+/// -- `glyph_for_role`'s `#` for authored material, in a character medium -- is
+/// still what a reader sees. That is the whole of this projection's answer to "type
+/// ON material", and it is byte-for-byte the run of cells a `SurfaceLabel` at the
+/// same origin produces, which is why no character medium's picture moves.
+///
+/// A ROW THAT NAMED ITS OWN GROUND IS PADDED EVEN THEN, and the exception is the
+/// rule rather than a hole in it: such a row asked to be set on something across the
+/// region, which is a claim on those cells, and a graphical medium answers it with a
+/// strip of the region's full width. Padding is how a character medium says the same
+/// thing.
+///
+/// AND A ROW OF SUCH A REGION WITH NOTHING TO DRAW IS NOT A ROW. An ordinary region
+/// emits a label for every cell row it covers INCLUDING the ones nothing was said
+/// for, because those are exactly the rows whose emptiness it has to show. A region
+/// that owns no ground has no emptiness to show: a row with no bytes, no caret and
+/// no ground of its own would be a label that writes not one cell, in either medium.
+/// So it is not produced -- which is also what keeps a name over an authored object
+/// ONE projected row rather than one per cell of the object's height.
 inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<ProjectedRow>& out) {
     if (r.w <= 0 || r.h <= 0) {
         return; // a region with no bounds shows nothing, and says nothing about it
@@ -357,13 +389,16 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
             r.caret_col <= static_cast<std::int64_t>(text.size())) {
             text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
         }
+        const bool takes_the_cells = r.ground == kGroundOwn || back != role::kNone;
         if (text.size() > width) {
             text.resize(width); // cut on a byte boundary: one cell per byte, as ever
-        } else {
+        } else if (takes_the_cells) {
             text.append(width - text.size(), ' ');
+        } else if (text.empty()) {
+            continue; // nothing to write and no cells to claim: not a row at all
         }
-        out.push_back(
-            ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back});
+        out.push_back(ProjectedRow{
+            SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back, r.ground});
     }
 }
 

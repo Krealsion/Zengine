@@ -180,6 +180,55 @@ std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceCanvas& 
     return out;
 }
 
+/// THE SAME CANVAS WITHOUT THE WORKSPACE'S OWN PLANE -- what the screen's panels, panes and
+/// overlays published, and nothing the DOCUMENT published (TYPE-1).
+///
+/// It exists because the workspace plane carries text regions now: one per placed object,
+/// `kGroundBeneath`, holding the maker's authored name over the object's own material. A case
+/// asking "how many bounded regions does this screen's chrome publish", or indexing the
+/// projected rows of a panel, is asking about the planes AFTER the workspace, and before
+/// TYPE-1 that distinction cost nothing because the workspace published none.
+///
+/// A PLANE AND NOT A PREDICATE ON THE REGIONS, because that is the actual fact: `paint`
+/// writes the workspace whole into `layers.front()` before any pane exists (WIND-2a), so
+/// dropping the first plane is exactly "everything a pane or the chrome drew". Cases that ask
+/// about the names themselves read `object_names` below.
+surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c) {
+    surface::SurfaceCanvas out = c;
+    if (!out.layers.empty()) {
+        out.layers.erase(out.layers.begin());
+    }
+    return out;
+}
+
+/// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them (TYPE-1).
+std::vector<surface::SurfaceTextRegion> object_names(const surface::SurfaceCanvas& c) {
+    return c.layers.empty() ? std::vector<surface::SurfaceTextRegion>{} : c.layers.front().texts;
+}
+
+/// WHAT A TERMINAL WITH NO USEFUL COLOUR SHOWS -- the canvas's characters with every SGR
+/// sequence removed (TYPE-1's §14 witness).
+///
+/// It is the whole of the monochrome question and it is worth being able to ask directly: a
+/// role is ink, and ink is the half of a medium's answer that a monochrome terminal does not
+/// receive. `glyph_for_role` is the other half, and a case reading this string is reading
+/// exactly what survives when the first half is thrown away. `\x1b[2K` goes with the rest --
+/// it is an erase, not a character.
+std::string plain_cells(const surface::SurfaceCanvas& c) {
+    const std::string body = surface::canvas_body(c);
+    std::string out;
+    for (std::size_t i = 0; i < body.size(); ++i) {
+        if (body[i] == '\x1b') {
+            while (i < body.size() && body[i] != 'm' && body[i] != 'K') {
+                ++i;
+            }
+            continue; // the terminator itself is consumed by the loop's own ++i
+        }
+        out += body[i];
+    }
+    return out;
+}
+
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
 surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
@@ -5956,9 +6005,11 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     const surface::SurfaceCanvas& c = t.canvases.back();
 
     // TWO REGIONS, AND THE SECOND IS THE INSPECTOR'S PROPERTY BODY (HD-6). No other panel
-    // migrated: the workspace, the object list, the picker and the help band are all still
-    // labels, and the completion list is not on this canvas (Escape dismissed it above).
-    REQUIRE(all_texts(c).size() == 2);
+    // migrated: the object list, the picker and the help band are all still labels, and the
+    // completion list is not on this canvas (Escape dismissed it above). Asked WITHOUT the
+    // workspace plane since TYPE-1, where an authored object's name became a region of its
+    // own -- this case is about the pane, and the document's own text is not a panel.
+    REQUIRE(all_texts(without_workspace(c)).size() == 2);
     CHECK(list_of(c, kMinScreen) == nullptr);
     const surface::SurfaceTextRegion& pane = *pane_of(c, kMinScreen);
     CHECK(pane.x == kMinScreen.terminal_x);
@@ -6572,7 +6623,7 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
 
     // THE HOST'S DECLARED ORDER, preserved -- no ranking, no sorting, no learned order.
     const Completion all = complete_line(me, "send * ");
-    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v5",
+    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v6",
                                                     "zen.Ack v1"});
     // ACCEPTANCE WRITES THE VERSION TOO, because a shape without one is never a command
     // this pane can run: the grammar wants four words and the version is the fourth.
@@ -6582,7 +6633,7 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
     // CASE FOLLOWS THE WIRE. A schema name is identity; matching `surfacetext` against
     // `SurfaceText` would offer a completion that composes to UnknownShape.
     CHECK(displays(complete_line(me, "send * Surface")) ==
-          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v5"});
+          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v6"});
     CHECK(complete_line(me, "send * surface").candidates.empty());
     CHECK(complete_line(me, "send * surface").heading.find("(3 known)") != std::string::npos);
 
@@ -6905,9 +6956,9 @@ TEST_CASE("the list is a bounded region inside the pane, and never over the inpu
     // THE LIST IS LAST, so it is the topmost thing on the canvas -- painter's order across
     // `texts` is list order, the same rule every other list already states. (The Info
     // panel's body is the FIRST since HD-6: the panels are painted, then the overlay.)
-    CHECK(all_texts(c).back().x == list->x);
-    CHECK(all_texts(c).back().y == list->y);
-    CHECK(all_texts(c).front().y == body_place(t).region_y);
+    CHECK(all_texts(without_workspace(c)).back().x == list->x);
+    CHECK(all_texts(without_workspace(c)).back().y == list->y);
+    CHECK(all_texts(without_workspace(c)).front().y == body_place(t).region_y);
     CHECK(list->rows[0].text.rfind("verbs", 0) == 0);
     CHECK(list->rows[1].text.rfind("> send", 0) == 0);
 
@@ -11718,7 +11769,7 @@ TEST_CASE("HD-6: the graphical property caret is a BAR, off the same fit that dr
 
     // AND A CHARACTER MEDIUM STILL ANSWERS WITH THE GLYPH, at the same prose position: two
     // projections of one published fact.
-    const std::vector<surface::ProjectedRow> cells = projected_of(c);
+    const std::vector<surface::ProjectedRow> cells = projected_of(without_workspace(c));
     const std::string& row = cells[static_cast<std::size_t>(editing_prose_row(t, body))].label.text;
     CHECK(row.rfind(">Name     pan_el", 0) == 0);
 }
@@ -11796,8 +11847,8 @@ TEST_CASE("HD-6: the body falls back to cells when it is too short for the face"
     const surface::SurfaceExtent metric{s.screen_w * surface::kCanvasCellPx,
                                         s.screen_h * surface::kCanvasCellPx, 8, 200};
     const std::size_t typed =
-        plan_regions_of(c, metric, surface::PlanSize{4000, 4000}).size();
-    const std::size_t celled = projected_of(c, metric).size();
+        plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000}).size();
+    const std::size_t celled = projected_of(without_workspace(c), metric).size();
     CHECK(typed == 0);
     CHECK(celled == static_cast<std::size_t>(squeezed.region_h));
 }
@@ -11842,7 +11893,7 @@ TEST_CASE("HD-6: a panel with no room for a body publishes no body at all") {
     closed.selected = 1;
     refocus(d, closed);
     (void)close_panel(closed.panels, panel::kInfo);
-    CHECK(all_texts(paint(d, closed)).empty());
+    CHECK(all_texts(without_workspace(paint(d, closed))).empty());
 }
 
 TEST_CASE("HD-6: the property layer never learned that graphical rows got taller") {
@@ -12746,9 +12797,10 @@ TEST_CASE("HD-7: on a graphical medium the object names are set in the SAME type
     const surface::SurfaceExtent metric{80 * surface::kCanvasCellPx, 38 * surface::kCanvasCellPx,
                                         8, 18};
     // THE BODY IS IN THE TYPE LIST AND NOT IN THE CELL LIST -- one region, one partition, and
-    // the object rows are inside it.
+    // the object rows are inside it. One PANEL region: the workspace plane sets each object's
+    // own name in the same type since TYPE-1, and this case is about the Inspector's body.
     const std::vector<surface::PlanTextRegion> typed =
-        plan_regions_of(c, metric, surface::PlanSize{4000, 4000});
+        plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000});
     REQUIRE(typed.size() == 1);
     CHECK(typed.front().line_px == 18);
     bool named = false;
@@ -12756,7 +12808,7 @@ TEST_CASE("HD-7: on a graphical medium the object names are set in the SAME type
         named = named || row.text == "> #1 panel";
     }
     CHECK(named);
-    for (const surface::ProjectedRow& row : projected_of(c, metric)) {
+    for (const surface::ProjectedRow& row : projected_of(without_workspace(c), metric)) {
         CHECK(row.label.text.find("#1 panel") == std::string::npos); // not drawn as cells
     }
     // AND THE ROWS ARE POSITIONED OFF THE SAME FIT: the plan carries ONE line pitch for the
@@ -21180,10 +21232,11 @@ TEST_CASE("TYPE-0: the notice is a bounded region, and the SENTENCE is never sho
     CHECK(cell_row.text.size() < row.text.size()); // fewer cells than the face has columns
 }
 
-TEST_CASE("TYPE-0: cell text is RETAINED where the cells belong to something else") {
-    // THE POSITIVE HALF OF THE PHASE'S LESSON, and it is a real witness rather than a note:
-    // these publications stay `SurfaceLabel` because their glyphs sit ON material somebody
-    // else owns, and one of them is the object name the phase set out to look at.
+TEST_CASE("TYPE-0/TYPE-1: cell text is RETAINED where the CELL is the meaning") {
+    // THE POSITIVE HALF OF TYPE-0's LESSON, and it survives TYPE-1 whole: these publications
+    // stay `SurfaceLabel` because their glyphs sit at ONE cell that something else already
+    // fills, and the cell is the meaning rather than the room. TYPE-1 moved the object NAME
+    // out of this list -- a name is a sentence and not a cell -- and moved nothing else.
     WorkshopDoc d;
     const std::int64_t id = doc::add(d, "panel", 1, 1, ui::Extent{ui::kExtentCells, 12},
                                      ui::Extent{ui::kExtentCells, 4});
@@ -21192,35 +21245,14 @@ TEST_CASE("TYPE-0: cell text is RETAINED where the cells belong to something els
     refocus(d, s);
     const surface::SurfaceCanvas c = paint(d, s);
 
-    // THE OBJECT'S NAME, written on the object's own body. A region here would take this
-    // rectangle -- which is what makes a region honest and what makes it wrong here.
-    bool named = false;
     bool handle = false;
     for (const surface::SurfaceLabel& l : all_labels(c)) {
-        named = named || (l.text == "panel" && l.x == kWorkspaceX + 1 && l.y == kWorkspaceY + 1);
         handle = handle || l.text == std::string(kHandleGlyph);
+        // AND THE NAME IS NOT A LABEL ANY MORE -- the other half of the same partition. A
+        // label here would be back to a bitmap letterform in a medium that owns a real face.
+        CHECK(l.text != "panel");
     }
-    CHECK(named);
     CHECK(handle); // the size handle: one glyph, at one cell, over the ring that fills it
-
-    // AND NO REGION IS PUBLISHED OVER THE OBJECT -- the assertion that would go red the day
-    // somebody migrates this without deciding what happens to the material underneath.
-    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-        const bool over_object = r.x <= kWorkspaceX + 1 && r.y <= kWorkspaceY + 1 &&
-                                 r.x + r.w > kWorkspaceX + 1 && r.y + r.h > kWorkspaceY + 1;
-        CHECK_FALSE(over_object);
-    }
-
-    // THE NAME IS FITTED, NEVER SILENTLY CUT, and the document keeps every byte of it.
-    WorkshopDoc wide;
-    const std::int64_t long_id =
-        doc::add(wide, "a-name-far-too-long-for-here", 44, 0, ui::Extent{ui::kExtentCells, 2},
-                 ui::Extent{ui::kExtentCells, 1});
-    Session ws = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    ws.selected = long_id;
-    refocus(wide, ws);
-    CHECK(label_at(paint(wide, ws), 44, kWorkspaceY) == "a...");
-    CHECK(doc::find(wide, long_id)->label == "a-name-far-too-long-for-here");
 }
 
 TEST_CASE("TYPE-0: a pane with room for the header and nothing else still says whose it is") {
@@ -21262,4 +21294,316 @@ TEST_CASE("TYPE-0: a pane with room for the header and nothing else still says w
     surface::SurfaceCanvas flat;
     paint_external(plane(flat), panels, kFirstRuntimeKind, ui::Rect{0, 1, 0, 0}, sc);
     CHECK(all_texts(flat).empty());
+}
+
+// ---- TYPE-1: SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS -------------------------------
+//
+// THE ONE QUESTION THIS SECTION ASKS: when a maker's own word has to be written ACROSS an
+// authored object, what does each medium show where the word is not?
+//
+// TYPE-0 answered "cells", because the two things a region could be told were "clear this
+// rectangle to the canvas" and "clear this rectangle to the canvas, and paint these row
+// strips" -- and both erase an object drawn one line earlier. `surface::kGroundBeneath` is
+// the third answer and the whole of TYPE-1's vocabulary: the region keeps its BOUNDS, so its
+// rows are fitted and cut against them, and gives up its GROUND, so it paints nothing it was
+// not given. A character medium reaches that by not padding; a graphical one by not filling.
+//
+// THE TWO PROJECTIONS ARE PINNED SEPARATELY AND SAY THE SAME THING, which is the property
+// this whole vocabulary rests on: the terminal keeps `glyph_for_role`'s `#` in every cell the
+// name does not occupy, and the window keeps the object's own quad under every pixel the type
+// does not ink. Neither depends on colour.
+
+TEST_CASE("TYPE-1: the object's name is set in the medium's own type, ON its material") {
+    WorkshopDoc d;
+    const std::int64_t id = doc::add(d, "panel", 1, 1, ui::Extent{ui::kExtentCells, 12},
+                                     ui::Extent{ui::kExtentCells, 4});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    s.selected = id;
+    refocus(d, s);
+    const surface::SurfaceCanvas c = paint(d, s);
+
+    // ONE REGION PER PLACED OBJECT, ON THE WORKSPACE'S OWN PLANE, at the object's resolved
+    // origin -- and its ground is the one thing that makes it legal there.
+    const std::vector<surface::SurfaceTextRegion> names = object_names(c);
+    REQUIRE(names.size() == 1);
+    CHECK(names.front().x == kWorkspaceX + 1);
+    CHECK(names.front().y == kWorkspaceY + 1);
+    CHECK(names.front().h == 4); // the object's own height
+    CHECK(names.front().ground == surface::kGroundBeneath);
+    REQUIRE(names.front().rows.size() == 1);
+    CHECK(names.front().rows.front().text == "panel");
+    CHECK(names.front().rows.front().role == surface::role::kMuted);
+    CHECK(names.front().rows.front().background == surface::role::kNone);
+
+    // IT IS IN THE TYPE LIST, which is the product ask: the real face rather than the 5x5
+    // bitmap letterform every label goes through.
+    const surface::SurfaceExtent metric{kScreenMinW * surface::kCanvasCellPx,
+                                        kScreenMinH * surface::kCanvasCellPx, 8, 18};
+    const surface::PlanLayer planned =
+        surface::plan_canvas(c, metric, surface::PlanSize{4000, 4000}).front();
+    REQUIRE(planned.regions.size() == 1);
+    CHECK(planned.regions.front().line_px == 18);
+    CHECK(planned.regions.front().ground == surface::kGroundBeneath);
+    REQUIRE(planned.regions.front().rows.size() == 1);
+    CHECK(planned.regions.front().rows.front().text == "panel");
+
+    // AND THE MATERIAL UNDER IT IS UNTOUCHED, at the pixel. The object's quad is planned and
+    // there is no quad of canvas ground anywhere inside it -- which is exactly what the six
+    // label cells used to be, one per character of the name.
+    const std::int64_t ox = (kWorkspaceX + 1) * surface::kCanvasCellPx;
+    const std::int64_t oy = (kWorkspaceY + 1) * surface::kCanvasCellPx;
+    bool material = false;
+    bool punched = false;
+    for (const surface::PlanRect& q : planned.quads) {
+        material = material ||
+                   (q == surface::PlanRect{ox, oy, 12 * surface::kCanvasCellPx,
+                                           4 * surface::kCanvasCellPx, 176, 176, 188});
+        const bool inside = q.x >= ox && q.y >= oy && q.x < ox + 12 * surface::kCanvasCellPx &&
+                            q.y < oy + 4 * surface::kCanvasCellPx;
+        const bool cleared = q.r == surface::kCanvasBackground.r &&
+                             q.g == surface::kCanvasBackground.g &&
+                             q.b == surface::kCanvasBackground.b;
+        punched = punched || (inside && cleared);
+    }
+    CHECK(material);
+    CHECK_FALSE(punched);
+}
+
+TEST_CASE("TYPE-1: the character medium's picture did not move, and its `#` is why") {
+    // THE MONOCHROME WITNESS. A terminal that cannot distinguish four colours still knows
+    // there is authored material here, because the material is a GLYPH -- and the name's
+    // migration left every cell of it that the name does not occupy exactly as it was.
+    WorkshopDoc d;
+    (void)doc::add(d, "widget", 1, 1, ui::Extent{ui::kExtentCells, 12},
+                   ui::Extent{ui::kExtentCells, 4});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    const std::string cells = plain_cells(paint(d, s));
+
+    // The name's six cells, then six cells of `#` completing the object's first row...
+    CHECK(cells.find("widget######") != std::string::npos);
+    // ...and its three whole rows below.
+    CHECK(cells.find("############") != std::string::npos);
+    // NOT ONE BACKGROUND BYTE was emitted for any of it: a ground would be colour, and colour
+    // is the thing `glyph_for_role` exists to refuse to depend on.
+    CHECK(surface::canvas_body(paint(d, s)).find("\x1b[47m") == std::string::npos);
+
+    // AND THE SAME OBJECT UNDER A REAL METRIC PROJECTS THE SAME CELLS. The rest of the screen
+    // does not -- the Inspector's body is a region and spends the FACE's rows there -- but the
+    // workspace plane is a cell picture in both, because the region resolves through the same
+    // `fit_region` both media call.
+    Session typed = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    const std::string typed_cells = plain_cells(paint(d, typed));
+    CHECK(typed_cells.find("widget######") != std::string::npos);
+    CHECK(typed_cells.find("############") != std::string::npos);
+}
+
+TEST_CASE("TYPE-1: the name's bound is the WORKSPACE's right edge, not the object's width") {
+    // §6/§17. The extent behaviour TYPE-0 measured is preserved exactly: the region is `room`
+    // cells wide -- workspace width less the object's x -- which is the same number
+    // `detail::fit` was handed before, so a long name still runs out of its object and across
+    // the workspace rather than being cut at a width a maker chose for the BODY.
+    WorkshopDoc d;
+    (void)doc::add(d, "a name much longer than its object", 1, 1,
+                   ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    const std::vector<surface::SurfaceTextRegion> names = object_names(paint(d, s));
+    REQUIRE(names.size() == 1);
+    CHECK(names.front().w == s.workspace_w - 1); // NOT the object's 4 cells
+    CHECK(names.front().rows.front().text == "a name much longer than its object");
+
+    // WHAT A MEDIUM NOW GETS TO SAY IS HOW MANY CHARACTERS THOSE CELLS HOLD, and that is the
+    // one thing about the name that TYPE-1 changed: the bound is cells either way, but a face
+    // whose advance is narrower than a cell fits more of them in it. Both are `fit_region`.
+    const std::int64_t room = s.workspace_w - 1;
+    CHECK(surface::fit_region(1, 2, room, 4, 0, 0).columns == room);
+    CHECK(surface::fit_region(1, 2, room, 4, 8, 18).columns == (room * 12 - 4) / 8);
+
+    // AND A NAME THAT GENUINELY DOES NOT FIT IS MARKED, never silently cut, in either medium.
+    WorkshopDoc edge;
+    const std::int64_t id = doc::add(edge, "a-name-far-too-long-for-here", 44, 0,
+                                     ui::Extent{ui::kExtentCells, 2},
+                                     ui::Extent{ui::kExtentCells, 1});
+    Session es = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    const std::vector<surface::SurfaceTextRegion> cut = object_names(paint(edge, es));
+    REQUIRE(cut.size() == 1);
+    CHECK(cut.front().rows.front().text == "a...");
+    CHECK(doc::find(edge, id)->label == "a-name-far-too-long-for-here"); // the document keeps all
+}
+
+TEST_CASE("TYPE-1: a tiny object shows its name in CELLS, and no rule was written to say so") {
+    // §7. `fit_region` sends a region with no room for one row of the medium's face back to
+    // the cell projection (HD-5), so an object one cell tall is drawn by the same glyph loop
+    // it always was rather than by 18 pixels of type hanging out of a 12-pixel object. There
+    // is no `if (h < N)` anywhere in `paint`: this is the rule both media already resolve
+    // with, applied to a height a maker chose.
+    const surface::SurfaceExtent metric{kScreenMinW * surface::kCanvasCellPx,
+                                        kScreenMinH * surface::kCanvasCellPx, 8, 18};
+    struct Case {
+        std::int64_t height;
+        bool typed;
+    };
+    for (const Case& one : {Case{1, false}, Case{2, true}, Case{3, true}, Case{4, true}}) {
+        CAPTURE(one.height);
+        WorkshopDoc d;
+        (void)doc::add(d, "tiny", 1, 1, ui::Extent{ui::kExtentCells, 8},
+                       ui::Extent{ui::kExtentCells, one.height});
+        Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+        const surface::SurfaceCanvas c = paint(d, s);
+        REQUIRE(object_names(c).size() == 1);
+        CHECK(object_names(c).front().h == one.height);
+        const surface::PlanLayer planned =
+            surface::plan_canvas(c, metric, surface::PlanSize{4000, 4000}).front();
+        CHECK(planned.regions.size() == (one.typed ? 1U : 0U));
+        // AND WHICHEVER LIST IT LANDED IN, THE MATERIAL IS STILL THERE. A one-cell object is
+        // drawn by the bitmap face as cells -- and those cells are NOT cleared first, because
+        // the row carries its region's ground through the projection.
+        const std::int64_t ox = (kWorkspaceX + 1) * surface::kCanvasCellPx;
+        const std::int64_t oy = (kWorkspaceY + 1) * surface::kCanvasCellPx;
+        bool punched = false;
+        for (const surface::PlanRect& q : planned.quads) {
+            const bool inside = q.x >= ox && q.y >= oy &&
+                                q.x < ox + 8 * surface::kCanvasCellPx &&
+                                q.y < oy + one.height * surface::kCanvasCellPx;
+            const bool cleared = q.r == surface::kCanvasBackground.r &&
+                                 q.g == surface::kCanvasBackground.g &&
+                                 q.b == surface::kCanvasBackground.b;
+            punched = punched || (inside && cleared);
+        }
+        CHECK_FALSE(punched);
+    }
+}
+
+TEST_CASE("TYPE-1: an object with no resolved height still shows its name") {
+    // THE FLOOR, AND WHY IT IS NOT A FUDGE. `check_extent` refuses an authored height below
+    // one cell, so this is reachable only from a poke or a hand-built document -- but it was
+    // reachable BEFORE TYPE-1, and such an object's name was the only trace of it on the
+    // workspace. A region with no bounds shows nothing and says nothing about it, so the
+    // name's room is the object's height or one row, whichever is more.
+    WorkshopDoc d;
+    (void)doc::add(d, "bodyless", 1, 1, ui::Extent{ui::kExtentCells, 0},
+                   ui::Extent{ui::kExtentCells, 0});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    const surface::SurfaceCanvas c = paint(d, s);
+    REQUIRE(object_names(c).size() == 1);
+    CHECK(object_names(c).front().h == 1);
+    CHECK(surface::canvas_body(c).find("bodyless") != std::string::npos);
+}
+
+TEST_CASE("TYPE-1: moving and resizing an object move the name and change no authored byte") {
+    // §18. The name is derived from the current resolved placement every time `paint` runs;
+    // there is no cached typography anywhere, which is what makes this a re-derivation rather
+    // than an invalidation problem.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    const std::int64_t id = t.session().selected;
+    REQUIRE(id != 0);
+    t.begin_editing("Name");
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("dial");
+    t.key(input::scan::kReturn);
+    REQUIRE(doc::find(t.doc(), id)->label == "dial");
+
+    // THE OPENING DOCUMENT CARRIES TWO OBJECTS, so the name is found by its own text rather
+    // than by being the only one -- which is also the fixture for "a name is not an identity".
+    const auto name_now = [&t]() {
+        surface::SurfaceTextRegion found;
+        std::size_t how_many = 0;
+        for (const surface::SurfaceTextRegion& r : object_names(t.canvases.back())) {
+            if (!r.rows.empty() && r.rows.front().text == "dial") {
+                found = r;
+                ++how_many;
+            }
+        }
+        REQUIRE(how_many == 1);
+        return found;
+    };
+    const surface::SurfaceTextRegion before = name_now();
+    CHECK(before.rows.front().text == "dial");
+    CHECK(before.ground == surface::kGroundBeneath);
+    const ui::Element started = *doc::find(t.doc(), id); // every authored byte, before a hand
+
+    // A NUDGE, through the same document operation a typed X goes through.
+    t.key(input::scan::kL);
+    const surface::SurfaceTextRegion moved = name_now();
+    CHECK(moved.x == before.x + 1);
+    CHECK(moved.y == before.y);
+    CHECK(moved.w == before.w - 1); // the room to the workspace's right edge shrank with it
+    CHECK(moved.h == before.h);
+
+    // SHORTER, THEN TALLER, through the typed property. The room the name has follows the
+    // material it is written on, and nothing about the name is cached across either.
+    t.begin_editing("Height");
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("2");
+    t.key(input::scan::kReturn);
+    const surface::SurfaceTextRegion shorter = name_now();
+    CHECK(shorter.h == 2);
+    CHECK(shorter.rows.front().text == "dial");
+
+    t.begin_editing("Height");
+    for (int i = 0; i < 8; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("9");
+    t.key(input::scan::kReturn);
+    CHECK(name_now().h == 9);
+
+    // NOT ONE AUTHORED BYTE MOVED for any of it beyond what the gestures themselves wrote,
+    // and the name is still the document's own.
+    const ui::Element* authored = doc::find(t.doc(), id);
+    REQUIRE(authored != nullptr);
+    CHECK(authored->label == "dial");
+    CHECK(authored->width == started.width);  // untouched: only x and the height were authored
+    CHECK(authored->height.mode == ui::kExtentCells);
+    CHECK(authored->height.amount == 9);
+    CHECK(authored->x == started.x + 1);
+    CHECK(authored->y == started.y);
+    CHECK(authored->context == started.context);
+
+    // AND A SAVE/RESTORE ROUND TRIP CARRIES THE SAME NAME, because persistence never learned
+    // that typography exists.
+    const std::string text = persist::to_text(t.doc());
+    const persist::Loaded back = persist::from_text(text);
+    REQUIRE(back.outcome.accepted);
+    CHECK(doc::find(back.document, id)->label == "dial");
+    CHECK(doc::find(back.document, id)->height.amount == 9);
+}
+
+
+TEST_CASE("TYPE-1: the name is over every object's material and under nothing it should be") {
+    // §10. Painter's order inside the workspace plane is rects, then labels, then regions --
+    // so a name is drawn over every object's body, exactly as a label was drawn over every
+    // rect. What changed is that the size handle is now drawn BEFORE the names rather than
+    // after; it never shares a cell with one, because the handle sits at `rect.y + rect.h`,
+    // one row past the region's last.
+    WorkshopDoc d;
+    // NOT `near`: that is a macro in <windows.h>, which the Windows lanes drag in through the
+    // terminal Skin -- and the diagnostic it produces names a line four statements away.
+    const std::int64_t left_id = doc::add(d, "left", 1, 1, ui::Extent{ui::kExtentCells, 6},
+                                          ui::Extent{ui::kExtentCells, 3});
+    (void)doc::add(d, "right", 10, 1, ui::Extent{ui::kExtentCells, 6},
+                   ui::Extent{ui::kExtentCells, 3});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.selected = left_id;
+    refocus(d, s);
+    const surface::SurfaceCanvas c = paint(d, s);
+
+    // BOTH NAMES ARE ON ONE PLANE, in scene order, and the workspace publishes no other.
+    const std::vector<surface::SurfaceTextRegion> names = object_names(c);
+    REQUIRE(names.size() == 2);
+    CHECK(names[0].rows.front().text == "left");
+    CHECK(names[1].rows.front().text == "right");
+
+    // THE HANDLE IS A ROW BELOW THE REGION IT BELONGS TO, so the two never contend.
+    const Handle handle = size_handle(d, s);
+    REQUIRE(handle.shown);
+    CHECK(kWorkspaceY + handle.y == names[0].y + names[0].h);
+
+    // AND A PANE IN FRONT STILL COVERS A NAME WHOLE, because a pane is a later PLANE and a
+    // ground given up changes nothing about which plane is in front (WIND-2a).
+    CHECK(c.layers.size() > 1);
 }

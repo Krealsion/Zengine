@@ -249,6 +249,22 @@
 # the Windows stranger lane prove the phase in full, including the pictures a maker only ever
 # sees through SDL.
 #
+# TYPE-1 raised the surface floor 66 -> 70 and the workshop floor 510 -> 517, and it is the
+# THIRTEENTH phase to need no new row. Eleven cases, and the split between the two suites is the
+# phase's own claim about where a contract lives: `surface` carries the four that are about the
+# VOCABULARY -- what an ordinary region does to material under it, what a region whose ground is
+# beneath does instead, what a row's own ground means inside one, and that the default is
+# byte-for-byte the old behaviour -- and `workshop` carries the seven that are about the one
+# CONSUMER that earned the field. A Surface law pinned only in the Workshop suite would be a
+# Workshop-shaped proof of somebody else's contract.
+#
+# EVERY ONE IS IN THE `always` POPULATION, for TYPE-0's reason unchanged: the metric is an
+# ARGUMENT. A case asks for a graphical composition by handing a `Session` (or `plan_canvas`) an
+# advance of 8 and a line of 18 -- the numbers this repository's face measured -- and
+# `fit_region` answers a row budget. No font is opened and no renderer exists, so the no-SDL
+# lane and the Windows stranger lane prove the phase in full, including the one thing a maker
+# only ever sees through SDL: that the object's material is still under its name.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -260,12 +276,12 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  66
+surface                           doctest           always  70
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  510
+workshop                          doctest           always  517
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

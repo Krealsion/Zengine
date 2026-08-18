@@ -290,10 +290,18 @@ Your painter writes into a `surface::SurfaceCanvas`. **You never write medium-sp
 one painter feeds the terminal Skin and the SDL Skin, and each medium answers for itself how a
 semantic row becomes visible.
 
-There are two ways to say something, and the rule for choosing is one sentence:
+There are three ways to say something, and choosing between them is one question:
 
-> **Semantic text names meaning inside room it OWNS; cell text names glyphs at cells something
-> else owns.**
+> **Is the rectangle mine?**
+>
+> **Yes** — a `SurfaceTextRegion`. It clears its whole bounds first, so nothing may be under it.
+> **No, but I am writing ON it** — the same region with `ground = surface::kGroundBeneath`. Same
+> bounds, same fit, same real type; it draws its rows and nothing else, so whatever is beneath
+> shows wherever a glyph does not.
+> **It is not a rectangle at all — this CELL is the meaning** — a `SurfaceLabel`.
+
+Almost every tool wants the first. The second exists for one shape of problem, described below;
+reach for it only when there is real material underneath that a maker must keep seeing.
 
 **One bounded region — the default, and what your panel wants.** Push a
 `surface::SurfaceTextRegion` onto your plane's `texts`, carrying `rows` of
@@ -308,14 +316,29 @@ multiply a font metric yourself. The same rectangle honestly holds 9 prose rows 
 unknown length is *windowed* against the budget you were given (`list_window`, `omitted_text`)
 rather than against the cells.
 
-**Labels — for glyphs that sit ON something.** `paint_panel_row(layer, b, line, text, role)`
+**A region whose ground is BENEATH — for semantic type ON material somebody else owns.** Set
+`region.ground = surface::kGroundBeneath` and everything else stays exactly as above: the bounds
+are still what `fit_region` resolves and what your rows are cut against, and a graphical medium
+still sets them in real type. What changes is that nothing is painted that you did not write — no
+padding in a character medium, no fill in a graphical one — so a rect published earlier in the
+same plane shows through. Workshop's one consumer is the maker's name written across an authored
+object: the name is semantic (its cell occupancy is no part of what the maker authored) and the
+object's body is authored *material*, so neither of the other two answers was true. Two things to
+know before you reach for it:
+
+- **A row that names its own `background` still paints its strip**, at the region's full width, in
+  both media. Giving up the region's ground does not give up the row's.
+- **You are giving up the erasing, and that is the whole point.** If there is nothing meaningful
+  underneath, an ordinary region is the honest shape and this one just makes your panel
+  see-through.
+
+**Labels — for glyphs whose CELL is the meaning.** `paint_panel_row(layer, b, line, text, role)`
 writes one row at cell `b.y + line`, `detail::fit`-cut and space-padded to `b.w`, and a raw
 `layer.labels.push_back(SurfaceLabel{...})` writes text at a cell with no fit and no padding at
-all. Both are one cell per byte in **every** medium. Reach for them when the cells are not yours
-to own: a mark on authored material (the workspace object's name, written on the object's own
-body), a single affordance glyph at one cell (the `+` size handle, the eight pane-edge marks), or
-chrome sharing a row with somebody else's sentence (`OBJECTS`, which shares row 0 with a
-screen-level hint).
+all. Both are one cell per byte in **every** medium, always, and a label always takes its cell.
+Reach for them when the cell itself is the unit: a single affordance glyph at one cell (the `+`
+size handle, the eight pane-edge marks), or chrome sharing a row with somebody else's sentence
+(`OBJECTS`, which shares row 0 with a screen-level hint).
 
 Three facts about the picture that nothing warns you about:
 
@@ -323,14 +346,19 @@ Three facts about the picture that nothing warns you about:
   before a row is drawn — spaces in a character medium, its own ground in a graphical one — so a
   region is an *overlay* that owns its interior. You get the padding for free (a panel that says
   three rows into a nine-row slot is opaque for all nine, and `paint_panel_frame`'s backdrop
-  rect underneath it is erased in both media). The same property is why you must **not** put a
-  region over material you meant to keep: it will erase it.
-- **A one-cell-tall region is not semantic text.** A canvas cell is `kCanvasCellPx` (12 device
-  pixels) and this repository's face has an 18-pixel line, so `fit_region` answers *zero* rows
-  for a one-cell region and hands it back to the cell projection (HD-5) — the same bitmap
-  letterform a label draws. Publishing a one-row label as a one-row region changes nothing a
-  maker can see. **Two cells is the smallest room that holds one row of real type**; a run of
-  rows is what makes the region worth having.
+  rect underneath it is erased in both media). The same property is why you must **not** put an
+  ordinary region over material you meant to keep: it will erase it. `kGroundBeneath` is the
+  *deliberate* way to say you meant to keep it — never an afterthought when a panel turns out to
+  be covering something.
+- **A one-cell-tall region is not set in the medium's own type.** A canvas cell is
+  `kCanvasCellPx` (12 device pixels) and this repository's face has an 18-pixel line, so
+  `fit_region` answers *zero* rows for a one-cell region and hands it back to the cell projection
+  (HD-5) — the same bitmap letterform a label draws. Publishing a one-row label as a one-row
+  ordinary region therefore changes nothing a maker can see. **Two cells is the smallest room
+  that holds one row of real type**; a run of rows is what makes an ordinary region worth having.
+  (A `kGroundBeneath` region is worth publishing at *any* height, because what it buys you is
+  not only the type — it is that a cell it does not write is a cell it does not touch, in either
+  fidelity.)
 - **A bare `c.labels.push_back(SurfaceLabel{...})` is not padded or fitted.** `detail::fit` marks
   what it cut; a raw `resize` does not, and a shorter name that looks finished is a lie about the
   thing it names.
@@ -920,6 +948,11 @@ I need editable text
 I need real type or a caret
     -> publish one SurfaceTextRegion instead of labels, sized by fit_region, and resolve
        presses with prose_at against the same fit
+
+I need real type ON material somebody else drew
+    -> the same region with ground = surface::kGroundBeneath. It keeps the bounds and gives
+       up the ground, so it draws its rows and touches nothing else. Only when there is
+       real material underneath that a maker must keep seeing
 
 I need to talk to another weave
     -> mail.send_to_role(theirRole, TheirMessage{}), hold a COPY of what they last said,

@@ -292,17 +292,32 @@ pixels: a cell is the coarsest unit a terminal can address, so a canvas lands so
 every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
 anchors, no percentages; whoever publishes has already decided where things go.
 
-**Which of the two kinds of text a publisher chooses is one sentence** (TYPE-0): *semantic text
-names meaning inside room it OWNS; cell text names glyphs at cells something else owns.* A
-`SurfaceTextRegion` is the semantic one — it is the only shape a graphical medium sets in real
-type, and it *takes its rectangle*, clearing its whole bounds before a row is drawn. So ordinary
-tool prose, headings, lists and controls are regions, and `SurfaceLabel` stays exactly right for
-glyphs that sit **on** something else: a name written across an authored object's own body, one
-affordance glyph at one cell, chrome sharing a row with another publisher's sentence. Neither is
-deprecated and neither is a fallback for the other. One arithmetic decides most cases for you: a
-canvas cell is `kCanvasCellPx` and this repository's face has an 18-pixel line, so `fit_region`
-answers *zero* rows for a region one cell tall and hands it back to the cell projection — a
-single-row label published as a single-cell region is the same picture it always was.
+**Which of the two kinds of text a publisher chooses is one question, and it is not about
+importance** (TYPE-0, refined by TYPE-1): *is the rectangle mine?* A `SurfaceTextRegion` is the
+semantic shape — it is the only one a graphical medium sets in real type — and it answers that
+question with its `ground`:
+
+| the rectangle is… | say | what the medium does |
+|---|---|---|
+| **mine** | `kGroundOwn` (the default) | clears the whole of it before a row is drawn: spaces in a character medium, its own fill in a graphical one |
+| **somebody else's, and I am writing ON it** | `kGroundBeneath` | draws the rows and nothing else — no padding, no fill, so material published beneath shows wherever a glyph does not |
+| **not a rectangle at all — this CELL is the meaning** | a `SurfaceLabel` | one cell per byte, in every medium |
+
+So ordinary tool prose, headings, lists and controls are ordinary regions; a maker's name written
+across an authored object is a `kGroundBeneath` region; and `SurfaceLabel` stays exactly right
+where the cell itself is the unit — one affordance glyph over the ring that fills it, chrome
+sharing a row with another publisher's sentence. None of the three is deprecated and none is a
+fallback for the others. One arithmetic decides the rest for you: a canvas cell is
+`kCanvasCellPx` and this repository's face has an 18-pixel line, so `fit_region` answers *zero*
+rows for a region one cell tall and hands it back to the cell projection — a single-row label
+published as a single-cell region is the same picture it always was.
+
+**`ground` is not a row's `background`, and they must not be read as one field** (TYPE-1). A row
+that names no background defers to its region; a region has nothing to defer to, so its two
+answers are about *ownership* rather than about ink — which is why the default here is the
+opposite of the default there, and why `kGroundBeneath` is not spelled `role::kNone`. It is also
+not transparency: there is no blend, no opacity and no order of its own. The region is in exactly
+the plane its publisher put it in, and `kGroundBeneath` removes one fill.
 
 **Painter's order is two levels, and that is the whole of the depth model** (WIND-2a). Inside a
 plane: rects in list order, then labels over them, then text regions over those. Between planes:
@@ -325,7 +340,7 @@ labels-vanish defect again at character granularity. `SurfaceText` — the named
 lines, which are a different shape — still lands in the window's *title*, because the canvas
 occupies the whole window.
 
-`SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col}` is the **one place a canvas admits a medium may be
+`SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col, ground}` is the **one place a canvas admits a medium may be
 finer than a cell** (HD-1). It is placed in cells like everything else — so where it sits is
 the same kind of fact as where a rect sits, and every medium can honour it — and what happens
 *inside* is the medium's: a terminal draws one `SurfaceTextRow{text, role}` per cell row, cut
@@ -374,7 +389,11 @@ range, no anchor), not a focus fact (a canvas has no focus, and two regions may 
 one), and not blinking — there is no clock on this shape. The two fields made
 `SurfaceTextRegion` version **3** and `SurfaceCanvas` version **4**; the canvas had at that
 point changed three times and never gained a field of its own. WIND-2a is the first time it
-gained and lost some: it is version **5**, carrying `layers` in place of the three root lists.
+gained and lost some: it became version **5**, carrying `layers` in place of the three root
+lists. TYPE-1's `ground` then made `SurfaceTextRegion` version **4**, `SurfaceLayer` version
+**2** and `SurfaceCanvas` version **6** — one field, three numbers, because a layer *is* a list
+of regions and a canvas *is* a list of layers. `SurfaceRect`, `SurfaceLabel` and
+`SurfaceTextRow` are untouched.
 
 **A region too small for a medium's own type is a CELL region in that medium** (HD-5), and
 that is the same sentence a zero metric already means rather than a new rule. A face's line is
