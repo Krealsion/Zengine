@@ -887,6 +887,63 @@ HD-6 did **not** special-case the Inspector past this. It succeeded by granting 
 room, not by lying to the Surface layer, and a body still too short for one line of the face
 still resolves to cells and is still drawn by exactly one of the two lists.
 
+## The first tool that reaches Workshop as a stranger (INTR-0)
+
+`introspection/` builds `zengine-introspection`, an ordinary loadable weave beside timer/ and
+input/, and it is the first thing in this repository whose pane arrives entirely through the
+external protocol. **Workshop compiled nothing for it**: `weave.hpp`, `panel.hpp` and `screen.hpp`
+do not name it, no `panel::k*` was minted, and the picker learned its row from a live offer.
+
+```text
+PaneRef      zengine.introspection / loaded         the durable pair a saved setup names
+office       zengine.introspection                  the only address anything reaches it by
+stem         zengine-introspection                  a line in the HOST'S boot list, and that
+                                                    line is the remainder of the plugin story
+```
+
+- **The fact it shows is the KERNEL's, and there is no second copy of it.** `zen.ListLoaded` to
+  the Weave Manager, relayed to `zen.ListLibraries` at the control door, answered from
+  `Kernel::loaded()` — a live map, never a cache. The provider holds no `known_weaves_`, keeps no
+  diff, derives no arrival or departure, and stores no timestamp. `introspection/loaded.hpp` is
+  the pure half (parse the answer, spend the budget) and links nothing, so what a reading MEANS is
+  provable over a value.
+- **The order is the kernel's.** `Kernel::loaded()` walks a `std::map` keyed by library name, so
+  the answer is name-ordered, stable across runs and independent of boot order. Nothing sorts it
+  here; a view that reordered a list its owner already ordered would then window it by a rule the
+  owner never applied.
+- **The wire form has no escaping**, and it is the one thing to know before reading it: the door
+  joins on `,` and `@` and emits no delimiter of its own, so a library name containing either is
+  unrecoverable in principle. `parse_loaded` splits on the LAST `@` — the ambiguity's better half,
+  not a solution — and says so where the reading happens.
+- **`zen.ListLoaded` is not the load capability.** A Loom grant is per `(shape, version, target)`,
+  so asking what is loaded is exactly that one question; `LoadWeave`/`SwapWeave`/`ReloadWeave`/
+  `UnloadLibrary`/`UnloadRole` are absent from this weave's Emit set and from every send it makes.
+  The suite pins that **from a bus tap**, not from the declaration, because `Emit<...>` is
+  informational in this Loom and `Kernel::load` binds `allow_any()` to every library it opens —
+  so a declaration proves nothing on its own and is not quoted as though it did.
+- **THE PANE'S ONE BEAT IS THE ROOM GRANT.** Loom gives a participant no arrival or departure
+  event, so there is nothing to subscribe to and nothing here polls or times out. It re-reads when
+  the pane opens, when a valid re-offer refreshes it, and when the resolved prose capacity moves —
+  and the last row of the pane says `snapshot`, because between two grants that is what it is.
+- **A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT THIS VIEW IS SHAPED AROUND.** `ListLoaded`
+  enumerates kernel-loaded libraries, so every in-process weave — Workshop itself, the Builder, the
+  runner, the terminal participant, the Manager, the control door — is outside it and cannot be
+  spoken about. So `in-process weaves are not in the kernel's map` is reserved out of the row
+  budget BEFORE the list is offered anything but its first row (HD-8's reservation argument, in a
+  second place). Do not make that line conditional on spare room.
+- **An entry and its omission marker are ONE demand on the budget**, and getting that wrong is the
+  arithmetic defect the suite caught: reserving a single row for "the list" bought a row the marker
+  then took, so a four-row body spent two rows on notes and named no weave at all. Showing PART of
+  a list obliges saying how much was hidden.
+
+**And the picker now MARKS a name it cut** (the phase's one adjacent repair). `picker_entry_text`
+runs the name through `detail::fit` before `detail::pad`: fit for the truth, pad for the alignment,
+and `kPaneStateCols` has not moved. `kPickerNameCols` is 10 and admission allows 32, so for two
+phases the cut was arithmetic that never fired — Workshop's own names are `Builder` and `Info` —
+and it fires the moment a name belongs to a party this build never compiled. `pad` still truncates
+in silence and that is still right for a column whose longest word is a constant somebody checked;
+the STATE column is padded and not fitted for exactly that reason.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things

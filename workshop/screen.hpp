@@ -3179,6 +3179,17 @@ inline const char* pane_state_word(std::int64_t state) {
 /// and the cut is MARKED, which is `detail::fit` doing exactly its job.
 inline constexpr std::size_t kPaneStateCols = 11;
 
+/// HOW WIDE THE NAME COLUMN IS -- and it is a bound a party outside this build can
+/// reach, which is what makes it a constant rather than the `10` it used to be.
+///
+/// A NAME HERE IS NOT ALWAYS THIS TOOL'S. Workshop's own two are `Builder` and `Info`,
+/// so for two phases the cut was arithmetic that never fired; an offered pane's name is
+/// admitted at up to THIRTY-TWO bytes (`check_pane_text`), so a provider's name reaching
+/// this column three times too long is the ordinary case rather than the odd one. INTR-0
+/// was the first to do it, on its first live run, and what a maker read was a shorter
+/// name that looked finished.
+inline constexpr std::size_t kPickerNameCols = 10;
+
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
 ///
 /// THE UNION, NOT CONTAINMENT BY ONE PANE. Two panes that each cover half of a third leave
@@ -3273,10 +3284,25 @@ inline std::int64_t pane_state_of(const Panels& panels, const Setup& setup, cons
 }
 
 /// The one row-body spelling, so the painter and any reader of the picker's
-/// columns spend the same two `detail::pad` widths.
+/// columns spend the same two column widths.
+///
+/// THE NAME IS FITTED BEFORE IT IS PADDED (INTR-0), and the two are not the same act.
+/// `pad` aligns -- it is what keeps the state column under the state column -- and it
+/// truncates in SILENCE, which is right for a column whose longest word is a constant
+/// somebody checked and wrong the moment the text belongs to a party this build never
+/// compiled. `fit` is this file's answer for text whose length somebody else decides:
+/// it leaves the mark. So the name passes through `fit` for the truth and `pad` for the
+/// alignment, and the state column has not moved by a cell.
+///
+/// The STATE is padded and not fitted, deliberately: `pane_state_text` returns one of a
+/// closed set of words this build writes, and `kPaneStateCols` is chosen to hold the
+/// longest of them. Fitting it would be a mark that can never appear, guarding a bound
+/// that is checked at the declaration.
 inline std::string picker_entry_text(const std::string& name, const char* state,
                                      const std::string& tail) {
-    return detail::pad(name, 10) + detail::pad(state, kPaneStateCols) + tail;
+    return detail::pad(detail::fit(name, static_cast<std::int64_t>(kPickerNameCols)),
+                       kPickerNameCols) +
+           detail::pad(state, kPaneStateCols) + tail;
 }
 
 inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,

@@ -1565,16 +1565,68 @@ PaneContent            provider  ->  Workshop   "here is what it says."
   `allow_any`. Visibility did not create those facts and WP-0 does not solve them.
 - **The witness is a real shared library.** `tests/weavelib/workshop_hello.cpp` is loaded through
   the real Kernel and Manager under a real attested activation, and it is a **fixture, not a
-  product**: no host boots it, and Workshop still ships exactly two panes. A registration hook would
-  have proved nothing about the ABI it exists to exercise.
+  product**: no host boots it. A registration hook would have proved nothing about the ABI it
+  exists to exercise.
 
 Deliberately absent, and each one is a decision: no `PanePressed` or provider input of any kind; no
 keyboard, focus, capture, drag or pointer forwarding; no multiple instances of one `PaneRef`; no
 provider-owned placement, coordinates, docking, tabs or resize handles; no compositor or second
 canvas publisher; no unload notification, timeout, heartbeat, liveness query, `unavailable` state or
-catalog retraction; no `QueryRole`, `ListLoaded`, Senses or service registry; no package identity,
+catalog retraction; **no observation surface of any kind inside the protocol** — a provider that
+wants to know something asks its owner with its own grant, exactly as any weave would, and the four
+shapes carry no `QueryRole`, no `ListLoaded`, no Senses and no service registry; no package identity,
 signature, marketplace or cross-restart author claim; no out-of-process provider support; no
 provider scan directory, autoload list or plugin SDK. **No Loom change of any kind.**
+
+### The first tool that arrived this way (INTR-0)
+
+> **A maker can see what the running Loom actually loaded, in a pane Workshop was never taught.**
+
+`introspection/` builds `zengine-introspection`, a loadable weave holding `zengine.introspection`
+that offers one pane, `loaded`. The Workshop host boots it beside the Skin, the reader and the
+Timer; from there it is an ordinary pane a maker opens with `p` and keeps in a saved setup.
+
+```text
+Loaded @zengine.introspection
+loaded weaves -- 4
+  zengine-input @zengine.input
+  zengine-introspection @zengine.introspection
+  zengine-skin-tui-classic @zengine.skin
+  zengine-timer @zengine.timer
+
+in-process weaves are not in the kernel's map
+snapshot from zen.ListLoaded, on room grant
+```
+
+The full account — every fact's owner, what the pane deliberately does not show, its exact
+authority, and how it behaves when its provider disappears — is
+[docs/reference/introspection.md](docs/reference/introspection.md). Four things it settles about
+the *protocol* rather than about itself:
+
+- **Workshop needed no recompilation.** Not one line of `weave.hpp`, `panel.hpp` or `screen.hpp`
+  names Introspection, no `panel::k*` was minted, and the picker learned its row from a live offer.
+  What still names it is the **host's boot list** — a first-party tool is a line beside
+  `zengine-timer`, and a third party has no door at all. That limit is stated in
+  `workshop.cpp` where it lives, and it is the honest remainder of the plugin story.
+- **A provider's authority is its own, and it is narrow.** Introspection asks the Weave Manager one
+  shape (`zen.ListLoaded`) and speaks two (`PaneOffered`, `PaneContent`). It sends nothing else across
+  a whole life — pinned from a bus tap rather than from its declaration, because `Emit<...>` is
+  informational and `Kernel::load` binds `allow_any()` to every library it opens. Being able to ask
+  what is loaded is not being able to load anything; a grant is per `(shape, version, target)`.
+- **It sees itself, through the same path as everyone else.** There is no registration mirror to
+  see itself in, and the list moves when the kernel's map moves — load a second library and the
+  next room grant says so.
+- **The one number on the pane means what it says.** `zen.ListLoaded` enumerates *kernel-loaded
+  libraries*, so every in-process weave — Workshop itself included — is outside it. The sentence
+  saying so is reserved out of the row budget before the list is offered anything but its first
+  row: a count with an unstated population is an honest number that leaves a false picture.
+
+**And a repair the first real external tool earned.** The picker's name column is ten cells; a pane
+name is admitted at up to thirty-two. `detail::pad` truncates in *silence*, so `Loaded Weaves` reached
+a maker's eye as `Loaded Wea` — a shorter name that looks finished. `picker_entry_text` now fits
+before it pads: `detail::fit` for the truth, `pad` for the alignment, and the state column has not
+moved a cell. For two phases the cut was arithmetic that never fired, because Workshop's own names
+are `Builder` and `Info`; it fires the moment a name belongs to somebody this build never compiled.
 
 ## Working in this tree
 
