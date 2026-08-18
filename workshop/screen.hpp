@@ -4977,30 +4977,87 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // allowed to run into the panel beside it. The label is authored, so it
         // is read from the element and not from the observation of it.
         //
-        // AND IT IS CELL TEXT ON PURPOSE (TYPE-0), which is the one place in this tool where
-        // that sentence has to be argued rather than assumed. The name is semantic -- it is
-        // the maker's word for this object and its exact cell occupancy is no part of what
-        // they authored -- so the strong default is a bounded region. It is not one because
-        // A REGION TAKES ITS RECTANGLE, and this rectangle is already full: the object's body
-        // is authored MATERIAL, drawn one line up as a `SurfaceRect`, and a region over it
-        // erases that material in both media (spaces in a character medium, the region's own
-        // ground in a graphical one). Both alternatives were built and run live: a region over
-        // the object's rect turns every object into an empty dark box, and a region whose rows
-        // carry the object's own role as a GROUND leaves the band `12h - 4 - 18*rows` pixels
-        // tall that the row strips cannot reach -- ten pixels of black across the foot of a
-        // default 12x4 object, and `12h - 4 == 18k` has no integer solutions, so SOME remainder
-        // exists at every height. Semantic text names meaning inside room it OWNS; this text
-        // shares its cells with something else that owns them, and that is what cell text is
-        // for. AGENTS.md carries the rule; the phase's report-back carries the pictures.
+        // AND IT IS SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS (TYPE-1), which is the
+        // one place in this tool where that sentence has to be argued rather than assumed.
+        // The name is semantic -- it is the maker's word for this object and its exact cell
+        // occupancy is no part of what they authored -- so it belongs in a bounded region.
+        // Its rectangle, though, is already full: the object's body is authored MATERIAL,
+        // drawn one line up as a `SurfaceRect`. An ordinary region over it erases that
+        // material in both media, and rows carrying the object's role as a GROUND leave a
+        // `12h - 4 - 18*rows` pixel band the strips cannot reach (10 px across the foot of a
+        // default 12x4 object; `12h - 4 == 18k` has no integer solutions, so SOME remainder
+        // exists at every height). Both were built and run live, twice -- once by TYPE-0 and
+        // once again by TYPE-1 to re-measure them. `surface::kGroundBeneath` is the third
+        // answer: the region keeps its bounds, so the name is fitted and cut against them,
+        // and gives up the ground, so nothing under it is painted over.
+        //
+        // THE BOUND IS THE WORKSPACE'S RIGHT EDGE AND NOT THE OBJECT'S, and it always has
+        // been: a name longer than the object it names runs out of it and across the
+        // workspace rather than being cut at a width the maker chose for the BODY. TYPE-1
+        // preserved that deliberately -- the region is `room` cells wide, which is exactly
+        // the number `detail::fit` was given before. What a medium now gets to say is how
+        // many CHARACTERS those cells hold: `fit_region` answers 47 cells in cells and 70
+        // columns of a 13pt face, so a name is marked when it genuinely did not fit rather
+        // than when it would not have fitted as bitmap cells.
+        //
+        // AND ITS HEIGHT IS THE OBJECT'S, which is what makes a one-cell object honest for
+        // free. `fit_region` sends a region with no room for a row of the medium's face back
+        // to the cell projection (HD-5), so an object a maker sized to one cell shows its
+        // name in cells -- the same picture a terminal shows -- rather than 18 pixels of type
+        // hanging out of a 12-pixel object. No `if (h < N)` was written here; the rule is the
+        // one both media already resolve with.
+        //
+        // ...OR ONE ROW, WHICHEVER IS MORE, and that floor is not a fudge: a name is written
+        // ON a row, so the room it needs is a row, and an object whose resolved height is
+        // zero still has the row its origin is on. `check_extent` refuses an authored height
+        // below one cell, so this is reachable only from a poke or a hand-built document --
+        // but it WAS reachable before TYPE-1 and such an object's name was the only trace of
+        // it on the workspace, and a region with no bounds shows nothing and says nothing
+        // about it. Measured: without the floor, three zero-height objects lost their names
+        // outright. The floor restores byte-for-byte the run of cells the label drew, in
+        // every medium, because one cell of room is a cell region either way.
         //
         // THE CUT IS MARKED, and before TYPE-0 it was not. `resize` here was a silent
         // truncation of a string a MAKER chose (up to `doc::kMaxNameLen`), which is the exact
         // defect INTR-0 found in the picker's name column and repaired the same way: a shorter
         // name that looks finished is a lie about the document. `detail::fit` marks it.
+        //
+        // AND THE MEASURED COST OF ALL OF IT, WRITTEN HERE BECAUSE IT IS THIS CALL SITE'S:
+        // A NAME LONGER THAN ITS OBJECT IS UNREADABLE WHERE IT LEAVES ONE, in a medium that
+        // paints roles as ink. The name is `kMuted` so it reads quietly on the object's
+        // `kFill` body; the workspace backdrop three statements up is ALSO `kMuted`, so the
+        // overhang is the workspace's exact colour. Before TYPE-1 it was legible for a reason
+        // nobody chose: every label cell was cleared to the canvas background first, which is
+        // the same hole in the workspace that it was in the object. Measured live, both
+        // trees, same document; TYPE-1's report-back carries the pair of pictures.
+        //
+        // IT IS NOT FIXED HERE, AND THE REASON IS THAT NO ROLE FIXES IT. This medium's inks
+        // are kFill 176, kAccent 112/232/240, kMuted 96 and kAlert red: nothing reads on BOTH
+        // a `kFill` body and a `kMuted` backdrop, `kAccent` means "the one thing being pointed
+        // at" and would make every object shout, and a fifth role is exactly what
+        // `surface/vocabulary.hpp` refuses. Contrast is a palette question and the palette is
+        // the medium's -- which is the whole reason a publisher ships roles. The alternatives
+        // are all product decisions with a wider blast radius than this phase has evidence
+        // for: bound the name to the object's own width (a real behaviour change -- the bound
+        // has been the WORKSPACE's right edge since the tool had one), give the workspace a
+        // different role, or give this row a `background` (which paints a strip the full width
+        // of the region and so claims material the object does not have). Reported, not
+        // guessed at.
         const ui::Element* authored = doc::find(d, p.id);
         const std::int64_t room = s.workspace_w - p.rect.x;
         if (authored != nullptr && room > 0) {
-            label(x, y, detail::fit(authored->label, room), surface::role::kMuted);
+            const std::int64_t rows = p.rect.h > 1 ? p.rect.h : 1;
+            const surface::RegionFit fit =
+                surface::fit_region(x, y, room, rows, sc.text_advance_px, sc.text_line_px);
+            surface::SurfaceTextRegion named;
+            named.x = x;
+            named.y = y;
+            named.w = room;
+            named.h = rows;
+            named.ground = surface::kGroundBeneath;
+            named.rows.push_back(surface::SurfaceTextRow{
+                detail::fit(authored->label, fit.columns), surface::role::kMuted});
+            on->texts.push_back(std::move(named));
         }
     }
 

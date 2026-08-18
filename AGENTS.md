@@ -887,19 +887,51 @@ HD-6 did **not** special-case the Inspector past this. It succeeded by granting 
 room, not by lying to the Surface layer, and a body still too short for one line of the face
 still resolves to cells and is still drawn by exactly one of the two lists.
 
-## Semantic text OWNS its room; cell text sits ON somebody else's (TYPE-0)
+## Is the rectangle mine? (TYPE-0, answered in three by TYPE-1)
 
-Which of the two text primitives a publisher reaches for is one sentence, and it is not about
-importance or about how the text looks:
+Which text primitive a publisher reaches for is one question, and it is not about importance or
+about how the text looks. It is about who owns the room:
 
 ```text
-SurfaceTextRegion   the text OWNS this rectangle -- it clears its whole bounds before a row is
-                    drawn, so nothing else may be under it. Ordinary tool prose, headings,
-                    lists, controls, status. The only shape a medium sets in REAL TYPE.
-SurfaceLabel        the glyphs sit ON cells something ELSE owns -- authored material, one
-                    affordance cell, a row shared with another publisher. One cell per byte in
-                    every medium, and NOT deprecated.
+SurfaceTextRegion       the rectangle is MINE. It clears its whole bounds before a row is drawn
+  ground=kGroundOwn     -- spaces in a character medium, its own fill in a graphical one -- so
+  (the default)         nothing may be under it. Ordinary tool prose, headings, lists, controls,
+                        status. The only shape a medium sets in REAL TYPE.
+
+SurfaceTextRegion       the rectangle is SOMEBODY ELSE'S and I am writing ON it. Same bounds,
+  ground=kGroundBeneath same fit, same rows, same real type -- and no padding and no fill, so
+                        material published beneath shows wherever a glyph does not. The maker's
+                        name written across an authored object is the consumer that earned it.
+
+SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. One glyph over
+                        the ring that already fills it, a row shared with another publisher's
+                        sentence. One cell per byte in every medium, and NOT deprecated.
 ```
+
+- **`ground` IS NOT A ROW'S `background`, and the two must not be read as one field.** A row that
+  names no background defers to its region; a region has nothing to defer to, so its two answers
+  are about OWNERSHIP rather than about ink. That is why the default here is the OPPOSITE of the
+  default there, and why `kGroundBeneath` is not spelled `role::kNone`. Inside a `kGroundBeneath`
+  region a row that DOES name a background still gets its strip, at the region's full width, in
+  both media -- a row claiming a ground is claiming those cells, and padding is how a character
+  medium says so.
+- **It is not transparency, alpha or compositing.** No blend, no opacity, no order of its own,
+  no second rectangle. The region is in exactly the plane its publisher put it in (WIND-2a) and
+  `kGroundBeneath` removes one fill. Everything a medium already knew about painter's order still
+  decides what "beneath" is.
+- **The character medium needed no change at all**, and that is the proof the cell projection was
+  already honest: a cell's ground has always been "whatever the terminal is wearing", so the whole
+  of the difference there is that the projection stops PADDING. The run of cells a
+  `kGroundBeneath` region produces is byte-for-byte the run a `SurfaceLabel` at the same origin
+  produced, which is why no terminal picture in this repository moved -- measured across seven
+  Workshop states, byte-identical.
+- **A row of such a region with nothing to draw is not a row.** No bytes, no caret and no ground
+  of its own means no cell is written, so no `ProjectedRow` is produced -- which is also what
+  keeps a name over a four-cell-tall object ONE projected row rather than four.
+- **One field, three version numbers**: `SurfaceTextRegion` v4, `SurfaceLayer` v2,
+  `SurfaceCanvas` v6. A layer IS a list of regions and a canvas IS a list of layers, so their
+  wire identity moved without either gaining a field. `SurfaceRect`, `SurfaceLabel` and
+  `SurfaceTextRow` are byte-identical.
 
 - **A one-cell row cannot be semantic text, whatever it means.** A canvas cell is
   `kCanvasCellPx` = 12 device pixels and this repository's face has an 18-pixel line, so
@@ -920,12 +952,24 @@ SurfaceLabel        the glyphs sit ON cells something ELSE owns -- authored mate
   arithmetic: 5 cells hold 3 rows of the face. The NOTICE is the one piece of it that could,
   because the spare row beneath it is already reserved and painted by nobody — two cells, one
   prose row, nothing moved (`kNoticeRows`).
-- **Do not put a region over the workspace object's name.** Both alternatives were built and run
-  live: a region over the object's rect turns every object into an empty dark box, and rows
-  carrying the object's role as a GROUND leave a `12h - 4 - 18*rows` pixel band the strips cannot
-  reach. The name is semantic and its container is authored material; the vocabulary has no way
-  to say "type ON material", and inventing one is a Surface change with a cell-medium cost
-  (`glyph_for_role` replaced by a background colour). See `Zen/reportbacks/TYPE-0-RB.md`.
+- **The workspace object's name is a `kGroundBeneath` region, and the two things it is NOT were
+  built and run live twice** -- once by TYPE-0 and once again by TYPE-1 to re-measure them. An
+  ordinary region over the object's rect turns every object into an empty dark box; rows carrying
+  the object's role as a GROUND leave a `12h - 4 - 18*rows` pixel band the strips cannot reach
+  (10 px at h=4) AND replace `glyph_for_role`'s `#` with a background colour, which is the exact
+  thing that constant exists to refuse. Its bounds are `[object origin, workspace right edge) x
+  the object's own height, floored at one row` -- the BOUND is the workspace's, as it has always
+  been, and the HEIGHT is the object's, which is what makes a one-cell object fall back to cells
+  through `fit_region` with no `if (h < N)` written anywhere.
+- **A name longer than its object is unreadable where it leaves one, in a medium that paints
+  roles as ink**, and that is TYPE-1's measured product cost rather than a defect in the
+  contract. The name is `kMuted` so it reads on the object's `kFill` body; the workspace backdrop
+  is ALSO `kMuted`. Before TYPE-1 it was legible for a reason nobody chose -- every label cell was
+  cleared to the canvas background first, which is the same hole in the workspace that it was in
+  the object. No role fixes it (nothing this medium has reads on both a `kFill` body and a
+  `kMuted` backdrop, and a fifth role is what `surface/vocabulary.hpp` refuses), so it is a
+  palette or a product decision and is reported rather than guessed at. See
+  `Zen/reportbacks/TYPE-1-RB.md`.
 
 ## The first tool that reaches Workshop as a stranger (INTR-0)
 

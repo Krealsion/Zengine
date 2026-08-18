@@ -182,6 +182,37 @@ struct SurfaceTextRow {
 /// its first line.
 inline constexpr std::int64_t kNoCaret = -1;
 
+/// WHAT A BOUNDED REGION'S RECTANGLE IS MADE OF -- the two, and only two, answers
+/// (TYPE-1).
+///
+/// `kGroundOwn` is what every region drew before this constant existed and is the
+/// default: the region OWNS its rectangle and clears the whole of it before a row
+/// is drawn, so nothing may be underneath. That is not an implementation detail --
+/// it is what makes a region honest about the room it was granted, and it is why
+/// ordinary tool prose, panels, lists and panes are regions.
+///
+/// `kGroundBeneath` is the one thing this vocabulary previously could not say:
+/// SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS. The region keeps its bounds -- they
+/// are still what its rows are fitted and cut against -- but it gives up the ground:
+/// it draws its rows and nothing else, so whatever was published beneath it shows
+/// wherever a glyph does not. A maker's name written across an authored object is
+/// the consumer that earned it: the name is semantic (its cell occupancy is no part
+/// of what a maker authored) and its container is authored MATERIAL, so neither
+/// existing answer was true.
+///
+/// IT IS NOT A ROW'S `background`, AND THE TWO MUST NOT BE READ AS ONE FIELD. A row
+/// that names no background defers to its region; a region has nothing to defer to,
+/// so its two answers are about OWNERSHIP rather than about ink -- it either takes
+/// the rectangle or it does not. That is why this is not spelled with `role::kNone`
+/// and why the default here is the opposite of the default there.
+///
+/// AND IT IS NOT TRANSPARENCY, ALPHA OR COMPOSITING. There is no blend, no opacity,
+/// no order of its own and no second rectangle: the region is in exactly the plane
+/// its publisher put it in, and `kGroundBeneath` removes one fill. Everything a
+/// medium already knew about painter's order still decides what "beneath" is.
+inline constexpr std::int64_t kGroundOwn = 0;
+inline constexpr std::int64_t kGroundBeneath = 1;
+
 /// WHAT A CARET IS IN A MEDIUM WHOSE CHARACTER IS A CELL.
 ///
 /// One character, INSERTED at the caret's column — which is exactly the picture
@@ -254,8 +285,9 @@ struct SurfaceTextRegion {
     std::vector<SurfaceTextRow> rows;
     std::int64_t caret_row = kNoCaret; ///< the prose row it is on; kNoCaret = there is none
     std::int64_t caret_col = 0;        ///< ...and the prose column it sits BEFORE
-    ZEN_SHAPE(SurfaceTextRegion, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
-              ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col));
+    std::int64_t ground = kGroundOwn;  ///< whose rectangle this is; see kGroundOwn above
+    ZEN_SHAPE(SurfaceTextRegion, 4, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground));
 };
 
 /// ONE ORDERED PAINTER PLANE: the three primitive kinds, drawn as one complete
@@ -289,7 +321,7 @@ struct SurfaceLayer {
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceLayer, 1, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
+    ZEN_SHAPE(SurfaceLayer, 2, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
 /// A whole canvas: an extent in cells, and the ordered planes that fill it.
@@ -335,7 +367,7 @@ struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceLayer> layers;
-    ZEN_SHAPE(SurfaceCanvas, 5, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
+    ZEN_SHAPE(SurfaceCanvas, 6, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
 /// One canvas cell in a graphical medium. The terminal needs no such number —

@@ -227,11 +227,19 @@ public:
         // THE REGION TAKES ITS RECTANGLE FIRST. See PlanTextRegion: a region is an
         // overlay, and the canvas's painter's order draws every label after every
         // rect -- so without this the panels underneath show straight through it.
-        SDL_SetRenderDrawColor(renderer, p.background.r, p.background.g, p.background.b,
-                               SDL_ALPHA_OPAQUE);
-        const SDL_FRect whole{0.0F, 0.0F, static_cast<float>(p.view.w),
-                              static_cast<float>(p.view.h)};
-        SDL_RenderFillRect(renderer, &whole);
+        //
+        // UNLESS ITS PUBLISHER SAID THE RECTANGLE IS NOT ITS TO TAKE (TYPE-1), which
+        // is this one `if` and nothing else. Showing straight through is precisely
+        // what `kGroundBeneath` asks for: the rows are set in the real face over the
+        // material this layer already drew, so a maker's name reads as type ON the
+        // object rather than as a panel laid over the hole where it used to be.
+        if (p.ground == kGroundOwn) {
+            SDL_SetRenderDrawColor(renderer, p.background.r, p.background.g, p.background.b,
+                                   SDL_ALPHA_OPAQUE);
+            const SDL_FRect whole{0.0F, 0.0F, static_cast<float>(p.view.w),
+                                  static_cast<float>(p.view.h)};
+            SDL_RenderFillRect(renderer, &whole);
+        }
         for (std::size_t i = 0; i < p.rows.size(); ++i) {
             const PlanTextRow& row = p.rows[i];
             const float top = static_cast<float>(p.origin_y +

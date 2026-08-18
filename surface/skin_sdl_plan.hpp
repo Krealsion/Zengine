@@ -288,13 +288,23 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     // different ink. `role::kNone` -- every label, and every region row that did not
     // ask -- is the canvas background, which is exactly the quad that was there
     // before this parameter existed.
-    const auto draw_label = [&](const SurfaceLabel& l,
-                                std::int64_t ground = role::kNone) {
+    //
+    // ...UNLESS THE ROW'S REGION GAVE UP THE GROUND (TYPE-1), which is the one case
+    // where a cell's quad is not drawn at all. The three-way is resolved here and
+    // exactly once: the ROW's ground if it named one, otherwise the canvas's own if
+    // the region took its rectangle, otherwise NOTHING -- the glyph lands on whatever
+    // this layer already drew there, which is what "type on material" means in the
+    // fidelity a bitmap face has. Both arguments are passed at every call site rather
+    // than defaulted, because "does this text take its cells" is precisely the
+    // question a publisher must have answered and a caller must not be able to skip.
+    const auto draw_label = [&](const SurfaceLabel& l, std::int64_t background,
+                                std::int64_t region_ground) {
         if (l.y < 0 || l.y >= h) {
             return; // no row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
-        const PlanInk under = ground < 0 ? kCanvasBackground : ink_for_role(ground);
+        const bool takes_the_cell = background >= 0 || region_ground == kGroundOwn;
+        const PlanInk under = background < 0 ? kCanvasBackground : ink_for_role(background);
         const std::int64_t cell_y = l.y * kCanvasCellPx;
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t cx = add_cells(l.x, static_cast<std::int64_t>(i));
@@ -305,7 +315,9 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                 break; // every remaining character is further right still
             }
             const std::int64_t cell_x = cx * kCanvasCellPx;
-            quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
+            if (takes_the_cell) {
+                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
+            }
             const Glyph& g = glyph_of(static_cast<unsigned char>(l.text[i]));
             for (int gy = 0; gy < kGlyphRows; ++gy) {
                 int gx = 0;
@@ -326,12 +338,16 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     };
 
     for (const SurfaceLabel& l : layer.labels) {
-        draw_label(l);
+        // A LABEL TAKES ITS CELL, always: `SurfaceLabel` has no ground of its own to
+        // name and no region to have given one up, so it is the ordinary answer on
+        // both counts. TYPE-1 changed nothing here -- the affordance glyphs and the
+        // shared top row are cell text by design and are drawn exactly as before.
+        draw_label(l, role::kNone, kGroundOwn);
     }
     for (const ProjectedRow& p : projected) {
         // Last IN THIS LAYER: a region is the topmost thing its own presentation draws.
         // A later layer still covers it -- see `plan_canvas` below.
-        draw_label(p.label, p.background);
+        draw_label(p.label, p.background, p.ground);
     }
     return out;
 }
@@ -422,6 +438,19 @@ struct PlanTextRegion {
     std::int64_t origin_y = 0;
     std::int64_t line_px = 0;
     PlanInk background = kCanvasBackground;
+    /// ...AND WHETHER THAT GROUND IS PAINTED AT ALL (TYPE-1). `kGroundOwn` is every
+    /// region before TYPE-1 and is what makes a region an overlay; `kGroundBeneath`
+    /// is the publisher saying the rectangle is not its to take, so the renderer
+    /// fills nothing and the material this layer already drew shows through.
+    ///
+    /// It travels beside `background` rather than replacing it because a ROW may
+    /// still name a ground of its own inside such a region, and the renderer's rule
+    /// for that is unchanged and needs both: a row paints a strip when its ground
+    /// differs from the one the region already put down. A region that put nothing
+    /// down leaves `background` at the canvas ground, which no role resolves to, so
+    /// a row that named nothing resolves equal to it and paints nothing -- and a row
+    /// that named something differs from it and paints its strip.
+    std::int64_t ground = kGroundOwn;
     std::vector<PlanTextRow> rows;
     PlanCaret caret{};
 
@@ -495,6 +524,10 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
         p.origin_x = sub_px(add_cells(fit.view.x, fit.origin_x), clipped.x);
         p.origin_y = sub_px(add_cells(fit.view.y, fit.origin_y), clipped.y);
         p.line_px = fit.line_px;
+        // WHOSE RECTANGLE THIS IS, carried through unresolved (TYPE-1). It is the one
+        // thing on a region that is not arithmetic -- the publisher already answered
+        // it and this plan neither second-guesses it nor turns it into a colour.
+        p.ground = r.ground == kGroundBeneath ? kGroundBeneath : kGroundOwn;
         // THE REGION'S OWN GROUND, read once and named, because it is what a row
         // that asked for none resolves to. Reading `p.background` inside the loop
         // would work today and would silently follow any later line that set it

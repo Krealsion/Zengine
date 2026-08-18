@@ -489,12 +489,12 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // three declared versions had to follow -- a version that did not would be two
     // different wire shapes wearing one number.
     //
-    // VERSION 3 SINCE HD-3, and its two bumps are two different KINDS of bump: version 2
-    // was a row gaining a field underneath it, and version 3 is this shape gaining two of
-    // its own (the caret). Both had to happen; only one of them is visible in the field
-    // list below, which is exactly why the identity is built out of the pieces rather than
-    // spelled independently.
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 3)
+    // VERSION 4 SINCE TYPE-1, and its three bumps are two different KINDS of bump: version
+    // 2 was a row gaining a field underneath it, and versions 3 and 4 are this shape gaining
+    // fields of its own (the caret, then the ground). Both kinds had to happen; only one of
+    // them is visible in the field list below, which is exactly why the identity is built
+    // out of the pieces rather than spelled independently.
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 4)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -502,6 +502,7 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                                  .list("rows", loom::type_message(text_row))
                                  .field("caret_row", Kind::Int)
                                  .field("caret_col", Kind::Int)
+                                 .field("ground", Kind::Int)
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
@@ -510,12 +511,12 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // makes a drift anywhere in this vocabulary a red here rather than a surprise on a
     // wire. The layer's own spelling and the canvas's version are pinned in this file's
     // WIND-2a tier, built out of these same pieces for this same reason.
-    const auto layer = SchemaBuilder("SurfaceLayer", 1)
+    const auto layer = SchemaBuilder("SurfaceLayer", 2)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 5)
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 6)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
@@ -2797,7 +2798,7 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                               .field("role", Kind::Int)
                               .field("background", Kind::Int)
                               .build();
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 3)
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 4)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -2805,39 +2806,45 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                                  .list("rows", loom::type_message(text_row))
                                  .field("caret_row", Kind::Int)
                                  .field("caret_col", Kind::Int)
+                                 .field("ground", Kind::Int)
                                  .build();
 
     // THE PLANE ITSELF: the three lists the canvas used to carry, in the order a medium
     // executes them, and NOTHING ELSE. No name, no handle, no key, no z, no opacity, no
     // transform -- every one of those is a fact a compositor holds and a publisher would
-    // then have to hold with it. Version 1, because it is new.
-    const auto layer = SchemaBuilder("SurfaceLayer", 1)
+    // then have to hold with it. VERSION 2 SINCE TYPE-1, and it gained no field of its own:
+    // a region below it did, and a layer IS a list of those. The same sentence this file
+    // has now had to write four times, one level further out each time.
+    const auto layer = SchemaBuilder("SurfaceLayer", 2)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
     CHECK(schema_of<SurfaceLayer>()->content_id() == layer->content_id());
     CHECK(std::string(SurfaceLayer::zen_name) == "SurfaceLayer");
-    CHECK(SurfaceLayer::zen_version == 1);
+    CHECK(SurfaceLayer::zen_version == 2);
 
-    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 5, and the first
-    // of its five that is the ordinary kind: versions 2, 3 and 4 it gained no field at all
+    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 6, of which
+    // exactly one bump (5) was the ordinary kind: 2, 3, 4 and 6 it gained no field at all
     // and changed anyway, because its identity is computed from what it carries.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 5)
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 6)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
-    CHECK(SurfaceCanvas::zen_version == 5);
+    CHECK(SurfaceCanvas::zen_version == 6);
 
-    // NO PRIMITIVE GAINED ANYTHING. A layer is a position in a vector, so a rect, a label,
-    // a row and a region are byte-identical to what they were -- which is what makes this
-    // an ordering change rather than a depth model.
+    // NO PRIMITIVE GAINED ANYTHING IN WIND-2a. A layer is a position in a vector, so a rect,
+    // a label, a row and a region were byte-identical to what they were -- which is what
+    // made that an ordering change rather than a depth model. TYPE-1 moved exactly one of
+    // them, and only the bounded one: a rect, a label and a row are still untouched, which
+    // keeps "type on material" a property of the shape that owns a RECTANGLE rather than a
+    // new rule every primitive has to be read against.
     CHECK(SurfaceRect::zen_version == 1);
     CHECK(SurfaceLabel::zen_version == 1);
     CHECK(SurfaceTextRow::zen_version == 2);
-    CHECK(SurfaceTextRegion::zen_version == 3);
+    CHECK(SurfaceTextRegion::zen_version == 4);
 }
 
 TEST_CASE("canvas: no layers and empty layers are both legitimate pictures") {
@@ -3013,6 +3020,216 @@ TEST_CASE("canvas: clipping and the ends of the number line are bounded PER PLAN
         }
     }
 }
+
+// ---- TYPE-1: A REGION MAY GIVE UP ITS GROUND -------------------------------------------
+//
+// THE ONE THING THIS VOCABULARY COULD NOT SAY BEFORE, and the whole of what TYPE-1 adds to
+// it: SEMANTIC TYPE ON MATERIAL SOMEBODY ELSE OWNS. Every region before this took its
+// rectangle -- it cleared the whole of it before a row was drawn, in every medium -- and that
+// is exactly what makes a region honest about the room it was granted. It is also why a
+// maker's own word written across an authored object could not be one: the rectangle was
+// already full, and the two things a region could be told (clear to the canvas; clear to the
+// canvas and paint these row strips) both erase the object underneath.
+//
+// `kGroundBeneath` keeps the BOUNDS and gives up the GROUND. The rows are still fitted and
+// cut against the rectangle; nothing is painted that was not given. A character medium reaches
+// that by not padding, a graphical one by not filling, and neither needed a new idea to do it.
+
+TEST_CASE("TYPE-1: an ordinary region over material ERASES it, in both media") {
+    // THE REFUSAL THE FIELD EXISTS TO ANSWER, kept as a measurement rather than a memory.
+    // Both canvases are built here because nothing publishes either any more.
+    const auto material = []() {
+        SurfaceCanvas c;
+        c.width = 20;
+        c.height = 10;
+        c.layers.emplace_back();
+        c.layers.back().rects.push_back(SurfaceRect{1, 2, 12, 4, role::kFill});
+        return c;
+    };
+    const SurfaceExtent metric{20, 10, 8, 18};
+    const PlanSize window{20 * kCanvasCellPx, 10 * kCanvasCellPx};
+
+    // ATTEMPT A -- an ordinary region over the material's rectangle. The quad is still planned
+    // and is then covered whole by the region's own ground; the character medium pads twelve
+    // cells of `#` into twelve spaces.
+    SurfaceCanvas a = material();
+    SurfaceTextRegion plain;
+    plain.x = 1;
+    plain.y = 2;
+    plain.w = 12;
+    plain.h = 4;
+    plain.rows.push_back(SurfaceTextRow{"widget", role::kMuted});
+    a.layers.back().texts.push_back(plain);
+    const std::vector<PlanTextRegion> planned_a = plan_canvas(a, metric, window).front().regions;
+    REQUIRE(planned_a.size() == 1);
+    CHECK(planned_a.front().ground == kGroundOwn);
+    CHECK(planned_a.front().view == RegionViewport{12, 24, 144, 48}); // the material's own pixels
+    CHECK(planned_a.front().background == kCanvasBackground);
+    CHECK(canvas_body(a).find("widget      ") != std::string::npos);
+    CHECK(canvas_body(a).find("############") == std::string::npos);
+
+    // ATTEMPT B -- every row carrying the material's own role as a GROUND. The strips come
+    // back and a band of the region's ground survives beneath them, because `12h - 4 == 18k`
+    // has no integer solutions: at h=4 the viewport is 48 px and two 18-px rows from a 2-px
+    // inset reach 38. Ten pixels here; some remainder at every height.
+    SurfaceCanvas b = material();
+    SurfaceTextRegion grounded = plain;
+    grounded.rows.clear();
+    const RegionFit fit = fit_region(1, 2, 12, 4, 8, 18);
+    REQUIRE(fit.rows == 2);
+    for (std::int64_t i = 0; i < fit.rows; ++i) {
+        grounded.rows.push_back(
+            SurfaceTextRow{i == 0 ? "widget" : "", role::kMuted, role::kFill});
+    }
+    b.layers.back().texts.push_back(grounded);
+    const std::vector<PlanTextRegion> planned_b = plan_canvas(b, metric, window).front().regions;
+    REQUIRE(planned_b.size() == 1);
+    const std::int64_t reached =
+        planned_b.front().origin_y +
+        static_cast<std::int64_t>(planned_b.front().rows.size()) * planned_b.front().line_px;
+    CHECK(reached == 38);
+    CHECK(planned_b.front().view.h - reached == 10); // the band the strips cannot reach
+
+    // AND IN A CHARACTER MEDIUM IT IS WORSE, WHICH IS THE HALF THAT DECIDED THE PHASE: the
+    // strips are an SGR BACKGROUND over spaces, so a terminal with no useful colour shows a
+    // blank rectangle where `glyph_for_role(kFill)` used to say "there is material here".
+    CHECK(canvas_body(b).find("\x1b[47m") != std::string::npos);
+    CHECK(canvas_body(b).find("############") == std::string::npos);
+}
+
+TEST_CASE("TYPE-1: a region whose ground is BENEATH draws its rows and disturbs nothing") {
+    SurfaceCanvas c;
+    c.width = 14;
+    c.height = 6;
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(SurfaceRect{1, 1, 12, 4, role::kFill});
+    SurfaceTextRegion on;
+    on.x = 1;
+    on.y = 1;
+    on.w = 12;
+    on.h = 4;
+    on.ground = kGroundBeneath;
+    on.rows.push_back(SurfaceTextRow{"widget", role::kMuted});
+    c.layers.back().texts.push_back(on);
+
+    // THE CHARACTER MEDIUM, TO THE BYTE: the name's six cells in its own ink, and the material
+    // resuming in `kFill`'s at the seventh -- one SGR change, no padding, no ground byte. That
+    // run is exactly what a `SurfaceLabel` at the same origin produces, which is why no picture
+    // this repository draws in a terminal moved.
+    CHECK(canvas_body(c).find("\x1b[90mwidget\x1b[37m######\x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[37m############\x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[47m") == std::string::npos); // no ground: nothing to say
+
+    // ONE PROJECTED ROW, NOT FOUR. A row of such a region with no bytes, no caret and no ground
+    // of its own writes no cell, so it is not a row at all.
+    const std::vector<ProjectedRow> rows = project_text_regions(c.layers.front());
+    REQUIRE(rows.size() == 1);
+    CHECK(rows.front().label.text == "widget"); // cut at the width, never padded to it
+    CHECK(rows.front().ground == kGroundBeneath);
+    CHECK(rows.front().background == role::kNone);
+
+    // THE GRAPHICAL MEDIUM: the material's quad is planned and NOTHING is planned over it.
+    const PlanLayer planned =
+        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCanvasCellPx, 6 * kCanvasCellPx})
+            .front();
+    REQUIRE(planned.regions.size() == 1);
+    CHECK(planned.regions.front().ground == kGroundBeneath);
+    REQUIRE(planned.regions.front().rows.size() == 1);
+    CHECK(planned.regions.front().rows.front().text == "widget");
+    // A row that named no ground of its own resolves EQUAL to the ground the region did not
+    // paint, which is how the renderer's one rule ("a strip when it differs from the region's")
+    // answers both kinds of region without a second flag to keep in step.
+    CHECK(planned.regions.front().rows.front().background == planned.regions.front().background);
+    bool material = false;
+    bool punched = false;
+    for (const PlanRect& q : planned.quads) {
+        material = material || (q == PlanRect{12, 12, 144, 48, 176, 176, 188});
+        const bool inside = q.x >= 12 && q.y >= 12 && q.x < 156 && q.y < 60;
+        const bool cleared = q.r == kCanvasBackground.r && q.g == kCanvasBackground.g &&
+                             q.b == kCanvasBackground.b;
+        punched = punched || (inside && cleared);
+    }
+    CHECK(material);
+    CHECK_FALSE(punched);
+}
+
+TEST_CASE("TYPE-1: a row inside a BENEATH region may still name a ground of its own") {
+    // THE PRECEDENCE, pinned because the new contract makes the combination reachable. A
+    // region that gave up the ground gave up ITS ground; a ROW that names one is making a claim
+    // on those cells, and both media answer it exactly as they always have -- a strip of the
+    // region's full width in a window, that same width padded in a terminal.
+    SurfaceCanvas c;
+    c.width = 14;
+    c.height = 6;
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(SurfaceRect{1, 1, 12, 4, role::kFill});
+    SurfaceTextRegion on;
+    on.x = 1;
+    on.y = 1;
+    on.w = 12;
+    on.h = 4;
+    on.ground = kGroundBeneath;
+    on.rows.push_back(SurfaceTextRow{"widget", role::kMuted});
+    on.rows.push_back(SurfaceTextRow{"lit", role::kFill, role::kMuted});
+    c.layers.back().texts.push_back(on);
+
+    const std::vector<ProjectedRow> rows = project_text_regions(c.layers.front());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == "widget");      // not padded: it claimed only its own bytes
+    CHECK(rows[0].background == role::kNone);
+    CHECK(rows[1].label.text == "lit         "); // PADDED: this row claimed the whole width
+    CHECK(rows[1].background == role::kMuted);
+    // ...and the row below both is still the material's own `#`, untouched by either.
+    CHECK(canvas_body(c).find("\x1b[100mlit         \x1b[0m") != std::string::npos);
+    CHECK(canvas_body(c).find("\x1b[37m############\x1b[0m") != std::string::npos);
+
+    const PlanLayer planned =
+        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCanvasCellPx, 6 * kCanvasCellPx})
+            .front();
+    REQUIRE(planned.regions.size() == 1);
+    REQUIRE(planned.regions.front().rows.size() == 2);
+    CHECK(planned.regions.front().rows[0].background == planned.regions.front().background);
+    CHECK(planned.regions.front().rows[1].background == ink_for_role(role::kMuted)); // a strip
+}
+
+TEST_CASE("TYPE-1: an ordinary region keeps every byte of its old behaviour, by DEFAULT") {
+    // THE PRESERVATION PROOF. Terminal, Info, picker, pane management, notices and external
+    // panes ask for nothing new and must get exactly what they got; the DEFAULT is the whole of
+    // why no consumer had to be migrated and no call site gained an argument.
+    const SurfaceTextRegion fresh;
+    CHECK(fresh.ground == kGroundOwn);
+
+    SurfaceCanvas c;
+    c.width = 8;
+    c.height = 4;
+    c.layers.emplace_back();
+    c.layers.back().rects.push_back(SurfaceRect{0, 0, 8, 4, role::kFill});
+    SurfaceTextRegion owned;
+    owned.x = 1;
+    owned.y = 1;
+    owned.w = 6;
+    owned.h = 2;
+    owned.rows.push_back(SurfaceTextRow{"hi", role::kAccent});
+    c.layers.back().texts.push_back(owned);
+
+    // EVERY CELL ROW GETS A LABEL, PADDED TO THE FULL WIDTH -- including the one nothing was
+    // said for, which is what a region's emptiness looks like in a character medium.
+    const std::vector<ProjectedRow> rows = project_text_regions(c.layers.front());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].label.text == "hi    ");
+    CHECK(rows[1].label.text == "      ");
+    CHECK(rows[0].ground == kGroundOwn);
+    CHECK(canvas_body(c).find("\x1b[36mhi    \x1b[37m#") != std::string::npos); // it ERASED its room
+
+    // AND THE GRAPHICAL MEDIUM STILL CLEARS ITS WHOLE VIEWPORT FIRST.
+    const PlanLayer planned =
+        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCanvasCellPx, 4 * kCanvasCellPx})
+            .front();
+    REQUIRE(planned.regions.size() == 1);
+    CHECK(planned.regions.front().ground == kGroundOwn);
+    CHECK(planned.regions.front().background == kCanvasBackground);
+}
+
 
 #if defined(SURFACE_HAS_SDL)
 
