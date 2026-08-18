@@ -22,7 +22,7 @@
 // for the same element: labels are cells and always were, regions are type when
 // there is type to set them in, and a medium with no face draws a region as
 // labels through the same cell projection a terminal uses. Nothing else changed;
-// `plan_canvas` still hands this file one flat list of opaque quads and this file
+// `plan_canvas` still hands this file flat lists of opaque quads and this file
 // still cannot tell a glyph from a rect.
 //
 // The medium owns the SDL video subsystem RAII-style for the weave's
@@ -195,10 +195,10 @@ public:
     /// The general canvas, in a window — the same three lines `frame` uses, and
     /// deliberately so.
     ///
-    /// `plan_canvas` hands back the rectangles AND the labels as one list of
+    /// `plan_canvas` hands back each layer's rectangles AND labels as one list of
     /// opaque quads, so there is nothing here that knows what a label is. That
     /// is the whole shape of the answer to "rectangles drawn, labels dropped":
-    /// looping over `c.rects` and never reading `c.labels` is a mistake a second
+    /// looping over one primitive list and never reading another is a mistake a second
     /// loop could make again — so the edge has no second thing
     /// to draw. What a glyph looks like, where it lands and what happens to a
     /// byte with no glyph are all decided in skin_sdl_plan.hpp / skin_sdl_glyphs.hpp,
@@ -215,28 +215,34 @@ public:
                                kCanvasBackground.b, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(renderer_);
         const SurfaceExtent metric = extent();
-        for (const PlanRect& r : plan_canvas(c, metric)) {
-            SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
-            const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
-                               static_cast<float>(r.w), static_cast<float>(r.h)};
-            SDL_RenderFillRect(renderer_, &fr);
-        }
-        // THE REGIONS LAST, AND IN TYPE.
+        // ONE WHOLE PLANE AT A TIME, IN THE PUBLISHER'S ORDER (WIND-2a).
         //
-        // Two lists, one picture, and which list a text region lands in is decided
-        // by exactly one fact: whether THIS REGION'S BOUNDS hold a row of the face
-        // this medium is reporting (`fit_region(...).graphical()`, HD-5). With no
-        // face that is false for every region and the quads above contain them all
-        // as bitmap labels; with a face open it is true for every region big
-        // enough, and those are here. A region one cell tall is smaller than the
-        // face's own line, so it stays in the quads and is drawn in cells -- which
-        // is the Inspector's editable row, and which before HD-5 was in neither
-        // list and drawn by nobody. So there is still no configuration in which
-        // the same words are drawn twice, and still no `if` here to get that wrong
-        // -- `plan_canvas` and `plan_text_regions` are handed the same metric and
-        // partition the work between them in pure code every lane pins.
-        for (const PlanTextRegion& p : plan_text_regions(c, metric, drawable())) {
-            text_.draw(renderer_, p);
+        // Two lists per layer, one picture, and which list a text region lands in is
+        // decided by exactly one fact: whether THIS REGION'S BOUNDS hold a row of the face
+        // this medium is reporting (`fit_region(...).graphical()`, HD-5). With no face that
+        // is false for every region and the quads contain them all as bitmap labels; with a
+        // face open it is true for every region big enough, and those are drawn in type. A
+        // region one cell tall is smaller than the face's own line, so it stays in the quads
+        // -- which is the Inspector's editable row, and which before HD-5 was in neither
+        // list and drawn by nobody. So there is still no configuration in which the same
+        // words are drawn twice, and still no `if` here to get that wrong.
+        //
+        // AND THE INTERLEAVING IS THE PLAN'S, NOT THIS LOOP'S. Draining every layer's quads
+        // and then every layer's real-face regions is exactly the two global bands WIND-2a
+        // removed from the terminal medium, and it would be unmeasurable here -- so
+        // `plan_canvas` hands back the layers already ordered and this edge walks them. The
+        // only ordering decision left in this file is the one the compiler enforces: the
+        // quads of a layer, then its regions, then the next layer.
+        for (const PlanLayer& layer : plan_canvas(c, metric, drawable())) {
+            for (const PlanRect& r : layer.quads) {
+                SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
+                const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
+                                   static_cast<float>(r.w), static_cast<float>(r.h)};
+                SDL_RenderFillRect(renderer_, &fr);
+            }
+            for (const PlanTextRegion& p : layer.regions) {
+                text_.draw(renderer_, p);
+            }
         }
         SDL_RenderPresent(renderer_);
     }

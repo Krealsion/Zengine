@@ -495,6 +495,50 @@ public:
         repaint(mail);
     }
 
+    /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed (WIND-2a).
+    ///
+    /// `pane` is meaningful only when `pane_held`; `document_id` only when `document`.
+    struct GesturesEnded {
+        bool document = false;
+        std::int64_t document_id = 0;
+        bool pane_held = false;
+        PaneRef pane;
+    };
+
+    /// END EVERY BUTTON-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
+    ///
+    /// ONE OWNER, THREE CALLERS, AND THAT IS THE WHOLE OF THE REPAIR (WIND-2a). A gesture
+    /// begins under one mode and is released under another: a maker drags a pane, opens the
+    /// Terminal over it with shift+space, and lets go. The mode that sees the release is not
+    /// the mode that owns the gesture, so every mode that answers a release first has to end
+    /// ALL of them -- and WIND-2's Terminal branch ended only the document's, because a
+    /// document drag was the only gesture that existed when that branch was written. The
+    /// symptom is a stranded `active` flag with the button up and a pane that follows the
+    /// pointer afterwards.
+    ///
+    /// IT SAYS NOTHING. What to tell a maker is the caller's, because the answer genuinely
+    /// differs: management names the pane it placed, the ordinary path names the object it
+    /// released, and the Terminal branch says nothing at all -- the notice line is not
+    /// painted while the pane covers it, so a sentence made there is one nobody can read
+    /// that would then reappear, stale, when the pane closes.
+    ///
+    /// IT IS NOT A CAPTURE FRAMEWORK. There is no focus, no target, no capture stack and no
+    /// registry -- two gesture records and one function that clears both.
+    GesturesEnded end_held_gestures() {
+        GesturesEnded out;
+        if (session_.drag.active) {
+            out.document = true;
+            out.document_id = session_.drag.id;
+            end_drag(session_);
+        }
+        if (session_.pane_drag.active) {
+            out.pane_held = true;
+            out.pane = session_.pane_drag.pane;
+            session_.pane_drag = PaneGesture{};
+        }
+        return out;
+    }
+
     /// A pointer button changed, AND the position it changed at.
     ///
     /// Press: take hold of the size handle if the pointer is on it, otherwise of
@@ -557,8 +601,14 @@ public:
             // that would then reappear, stale, when the pane closes -- and closing writes
             // its own notice over it anyway. The gesture is ended; there is nobody to
             // tell.
-            if (!b.pressed && b.button == 1 && session_.drag.active) {
-                end_drag(session_);
+            if (!b.pressed && b.button == 1) {
+                // EVERY BUTTON-1 GESTURE, and not only the document's (WIND-2a). A pane
+                // move or size begun in pane management is held in a second record, and
+                // the overlay used to swallow its release exactly as it once swallowed the
+                // document's: `pane_drag.active` stayed true with the button up, and the
+                // first bare motion after the pane closed moved a window nobody was
+                // holding. Measured -- the pane walked to the pointer.
+                (void)end_held_gestures();
                 return;
             }
             // AND THE BOOL BELOW IS NOT THE PRESS-CHAIN'S BOOL, which is why it is given a
@@ -593,15 +643,11 @@ public:
                 return;
             }
             if (!b.pressed) {
-                if (session_.drag.active) {
-                    end_drag(session_);
-                }
-                if (session_.pane_drag.active) {
-                    const PaneRef done = session_.pane_drag.pane;
-                    session_.pane_drag = PaneGesture{};
+                const GesturesEnded done = end_held_gestures();
+                if (done.pane_held) {
                     // A RELEASE ENDS THE GESTURE WHEREVER THE HAND LANDS, and it is not asked
                     // where that is -- the position is not part of ending something.
-                    say("placed " + ref_text(done) + " -- " + manage_status(), false);
+                    say("placed " + ref_text(done.pane) + " -- " + manage_status(), false);
                     repaint(mail);
                 }
                 return;
@@ -710,7 +756,7 @@ public:
                     say("nothing there", false);
                 }
             }
-        } else if (session_.drag.active) {
+        } else {
             // A RELEASE IS NOT ASKED THE SAME QUESTION, and the asymmetry is the
             // reason no capture state exists here. A gesture that began on the
             // workspace owns the pointer until it ends, so its release must end
@@ -720,9 +766,16 @@ public:
             // other direction needs nothing at all: a press on a panel starts no
             // drag, so a release after one finds none and does nothing at all.
             // The absence of a drag IS the memory.
-            const std::int64_t id = session_.drag.id;
-            end_drag(session_);
-            say("released #" + std::to_string(id), false);
+            //
+            // THROUGH THE SAME OWNER AS EVERY OTHER MODE (WIND-2a), so there is one place
+            // that knows what a button-1 release ends and three places that decide what to
+            // SAY about it. No pane gesture can reach this branch today -- one is begun
+            // only while management is open, which routes above -- and asking the owner
+            // rather than a field is what keeps that a fact rather than an assumption.
+            const GesturesEnded done = end_held_gestures();
+            if (done.document) {
+                say("released #" + std::to_string(done.document_id), false);
+            }
         }
         repaint(mail);
     }
@@ -1935,6 +1988,21 @@ private:
     // clearest evidence available that the panel seam is not a weave seam: the
     // second kind arrived and the grant did not move.
 
+    /// THE PICKER'S POPULATION — the shared recovery inventory, and there is exactly one of
+    /// it (WIND-2a).
+    ///
+    /// WIND-2 widened the picker's PAINTER to the union of the catalog and everything the
+    /// setup names, which is what finally gave an unresolved pane a row. It left the cursor
+    /// bound and the Return action reading `combined_catalog`, which is a fact about the
+    /// BUILD -- so the rows past the catalog were painted and could not be reached, and a
+    /// maker with an unresolved reference in their setup could see the row the phase had
+    /// added for them, read its state word, and not remove it without editing the file by
+    /// hand. Three owners of one population is how a list comes to disagree with itself
+    /// about which index means what; this is the one owner.
+    std::vector<CatalogRow> picker_population() const {
+        return inventory_rows(session_.setup.active, session_.panels);
+    }
+
     /// Open the `+ panel` picker.
     void open_picker() {
         session_.panels.picker.open = true;
@@ -1948,6 +2016,13 @@ private:
     /// the two ways out this particular thing has.
     void picker_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
+        // THE CURSOR IS REPAIRED THROUGH THE POPULATION'S OWN OWNER, BEFORE ANYTHING INDEXES
+        // IT (WIND-2a). The list can shrink under an open picker -- a provider going away
+        // takes its runtime rows with it -- and every question below is about a row.
+        const std::size_t population = picker_population().size();
+        if (picker.cursor >= population) {
+            picker.cursor = population == 0 ? 0 : population - 1;
+        }
         switch (k.scancode) {
         case input::scan::kUp:
             if (picker.cursor > 0) {
@@ -1955,9 +2030,11 @@ private:
             }
             break;
         case input::scan::kDown:
-            // THE BOUND IS THE COMBINED POPULATION (WP-0), not the compile-time catalog's
-            // census. `kPanelKinds` was the whole list until an office could offer one.
-            if (picker.cursor + 1 < combined_catalog(session_.panels).size()) {
+            // THE BOUND IS THE PAINTED POPULATION (WIND-2a), which since WIND-2 is the
+            // shared inventory rather than what this build could present. `kPanelKinds` was
+            // the whole list until an office could offer one, and the combined catalog was
+            // the whole list until the setup could name something neither half knew.
+            if (picker.cursor + 1 < picker_population().size()) {
                 ++picker.cursor;
             }
             break;
@@ -2012,10 +2089,13 @@ private:
     /// changed is which value they are asked of.
     void choose_panel(loom::Mail& mail) {
         PanelPicker& picker = session_.panels.picker;
-        const std::vector<CatalogRow> rows = combined_catalog(session_.panels);
+        const std::vector<CatalogRow> rows = picker_population();
         picker.open = false;
         if (picker.cursor >= rows.size()) {
-            return; // the cursor is bounded where it moves; this is the belt, not the door
+            // THE BELT, NOT THE DOOR. The cursor is bounded where it moves -- through the
+            // same owner this list came from -- and a population that shrank under an open
+            // picker (a provider going away) is the one way it can be past the end.
+            return;
         }
         const CatalogRow chosen = rows[picker.cursor];
         const PaneRef ref = chosen.ref;
@@ -2097,6 +2177,12 @@ private:
     /// screen this frame and not about the moment the panel opened -- and resolving it
     /// twice, once here and once there, is exactly the two-measurers defect HD-1 named.
     void apply_setup(loom::Mail& mail) {
+        // MEMBERSHIP-DEPENDENT SESSION STATE FIRST (WIND-2a). This is the one door a setup's
+        // membership changes through -- the picker's removal, a restore, a geometry edit
+        // that reseats -- so it is the one place that has to notice a selection whose pane
+        // is no longer named. Doing it here rather than at each caller is what keeps a
+        // fourth caller from being the one that forgets.
+        forget_removed_selection();
         const Reconciled done = reconcile(session_.panels, session_.setup.active,
                                           stack_capacity(screen_of(session_)));
         for (const std::int64_t kind : done.opened) {
@@ -2311,6 +2397,34 @@ private:
         say(manage_status(), false);
     }
 
+    /// THE ACTIVE SETUP NO LONGER NAMES THE SELECTED PANE, SO NOTHING DOES (WIND-2a).
+    ///
+    /// MEMBERSHIP IS THE LAW AND PRESENTATION IS NOT. A pane that becomes waiting, refused,
+    /// covered, off-room or UNRESOLVED keeps its selection: every one of those is a pane the
+    /// setup still names, the management row is still there, and the row being reachable
+    /// while the pane is not is the whole of WIND-2's recovery claim. What clears a
+    /// selection is the reference leaving the setup, which is the one event after which
+    /// there is no row to be on.
+    ///
+    /// WHAT WIND-2 CLEARED WAS THE GESTURE ALONE, and the rest went stale in place:
+    /// `manage.selected` went on naming a removed reference and `manage.doing` went on
+    /// being `move` or `size`. The painter then found no row matching the selection,
+    /// defaulted its cursor to zero, and marked the FIRST REMAINING ROW as chosen under a
+    /// heading naming the pane that was gone -- two panes' worth of answer in one surface.
+    ///
+    /// THE EDGE RETURNS TO ITS ORDINARY DEFAULT rather than being left where a size gesture
+    /// on a pane that no longer exists happened to leave it.
+    void forget_removed_selection() {
+        PaneManagement& m = session_.manage;
+        if (!m.has_selection() || has_pane(session_.setup.active, m.selected)) {
+            return;
+        }
+        m.selected = PaneRef{};
+        m.doing = pane_manage::kSelect;
+        m.edge = PaneManagement{}.edge;
+        session_.pane_drag = PaneGesture{};
+    }
+
     void close_management() {
         session_.manage.open = false;
         session_.manage.doing = pane_manage::kSelect;
@@ -2374,6 +2488,14 @@ private:
                                " is unresolved -- its place and size cannot be measured; "
                                "0 resets it and f/b/r/l still order it");
         }
+        // A UNIT OUTRANKS A RESERVATION, the same precedence `pane_state_of` spends between
+        // a unit and a want of room (WIND-2a). Both sentences are true of a fixed pane
+        // sized in pixels, and only one of them tells a maker what to press.
+        if (!pane_unit_projectable(pane_of(session_.setup.active, m.selected))) {
+            return Written::no(kind_name(session_.panels, *kind) +
+                               " is sized in pixels, which no medium here can project -- "
+                               "0 then w or h resets that axis");
+        }
         if (placement_of(*kind) == placement::kSideRegion) {
             return Written::no(kind_name(session_.panels, *kind) +
                                " is in the reserved side column -- the screen owns its place");
@@ -2396,15 +2518,28 @@ private:
         return Written::ok();
     }
 
-    /// The selected pane's resolved rectangle, or an empty one. Through `bounds_of`, never a
-    /// second arithmetic: what a gesture measures from is what the painter drew.
-    ui::Rect managed_rect() const {
+    /// THE SELECTED PANE'S BOUNDS, both rectangles. Through `bounds_of`, never a second
+    /// arithmetic: what a gesture measures from is what the painter drew.
+    ///
+    /// BOTH, AND THEY ARE SPENT ON DIFFERENT QUESTIONS (WIND-2a). `rect` is the VISIBLE
+    /// intersection with the canvas and owns everything about where a hand MEETS this pane:
+    /// painting, occupancy, coverage, where the affordances are drawn, and whether geometry
+    /// can be reached at all. `resolved` is what the pane's authored-or-default intent ASKS
+    /// for, unclipped, and it is the value a first edit captures.
+    ///
+    /// WIND-2 measured the first edit from the VISIBLE rectangle, and that is the finding
+    /// this repairs: a default pane resolving to 89 cells with four of them on screen
+    /// answered one rightward step by authoring FIVE. The maker's one-cell gesture became a
+    /// reduction they never asked for, and the number it produced was a fact about the
+    /// window rather than about the pane. A resize proposes `base + delta`, so the base has
+    /// to be the size the pane actually has.
+    PanelBounds managed_bounds() const {
         const std::optional<std::int64_t> kind =
             resolve_pane(session_.manage.selected, session_.panels.runtime);
         if (!kind.has_value()) {
-            return ui::Rect{};
+            return PanelBounds{};
         }
-        return bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_)).rect;
+        return bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
     }
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller, and
@@ -2439,7 +2574,8 @@ private:
             return;
         }
         const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
-        const ui::Rect now = managed_rect();
+        // THE RESOLVED CORNER, NEVER THE CLIPPED ONE (WIND-2a) -- see `managed_bounds`.
+        const ui::Rect now = managed_bounds().resolved;
         const std::int64_t from_x =
             row != nullptr && row->place.mode == pane_unit::kCells ? row->place.x : now.x;
         const std::int64_t from_y =
@@ -2494,7 +2630,8 @@ private:
             return;
         }
         const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
-        const ui::Rect now = managed_rect();
+        // THE RESOLVED SIZE, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
+        const ui::Rect now = managed_bounds().resolved;
         const std::int64_t base_w =
             row != nullptr && row->width.mode == pane_unit::kCells ? row->width.amount : now.w;
         const std::int64_t base_h =
@@ -2697,14 +2834,18 @@ private:
                         session_.pane_drag.from_x = cx;
                         session_.pane_drag.from_y = cy;
                         const SetupPane* row = pane_of(session_.setup.active, m.selected);
+                        // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the
+                        // eye and the hand are -- AND THE BASE IS THE RESOLVED SIZE
+                        // (WIND-2a). A hand and a key author from the same number, which
+                        // is the pairing this file has kept since both gestures existed.
                         session_.pane_drag.base_w =
                             row != nullptr && row->width.mode == pane_unit::kCells
                                 ? row->width.amount
-                                : mine.rect.w;
+                                : mine.resolved.w;
                         session_.pane_drag.base_h =
                             row != nullptr && row->height.mode == pane_unit::kCells
                                 ? row->height.amount
-                                : mine.rect.h;
+                                : mine.resolved.h;
                         say(std::string("sizing ") + ref_text(m.selected) + " by its " +
                                 pane_edge_name(edge),
                             false);
@@ -2758,6 +2899,7 @@ private:
         // safely rather than writing to a row that is no longer there.
         if (!has_pane(session_.setup.active, g.pane)) {
             g = PaneGesture{};
+            forget_removed_selection();
             return;
         }
         const PaneRef held = g.pane;

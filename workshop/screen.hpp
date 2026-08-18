@@ -555,8 +555,25 @@ inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) no
 /// projection below, and the state classifier, which has to answer `refused` for a pane
 /// whose reactive tile also ran out -- a question about a unit outranks a question about
 /// room, and a second copy of the test is how the two would come to disagree.
-inline bool pane_unit_projectable(std::int64_t where, const SetupPane* authored) noexcept {
-    if (where != placement::kOverlayStack || authored == nullptr) {
+///
+/// IT TAKES NO PLACEMENT, AND THAT IS WIND-2a's CORRECTION (findings 2.6). WIND-2 spelled
+/// it `where != kOverlayStack -> true`, which read as "a fixed pane has no geometry to
+/// project, so nothing to refuse" and was a different sentence from the one the phase
+/// wrote down: *a pane with either axis in pixels is not presented, in every current
+/// build*. A setup could therefore carry `width: 240px` for Info and Info went on being
+/// presented at the developer's width, silently ignoring an authored value in a unit this
+/// build has already decided it cannot honour -- the exact per-axis silent default the
+/// whole-refusal rule exists to prevent, arriving through the one placement that was
+/// exempt from it.
+///
+/// SO THE UNIT IS A FACT ABOUT THE AUTHORED ROW AND THE PLACEMENT IS NOT PART OF IT. Fixed
+/// placement is still fixed: Info's PLACE and SIZE remain the screen's, a side-region row's
+/// retained cell geometry stays inert, and management still refuses to author one and says
+/// which reservation it hit. What fixed placement is not is permission to present an
+/// unsupported unit as though it were understood. Dropping the parameter rather than
+/// ignoring it is what makes the old spelling unsayable at the call sites.
+inline bool pane_unit_projectable(const SetupPane* authored) noexcept {
+    if (authored == nullptr) {
         return true;
     }
     return authored->width.mode != pane_unit::kPixels &&
@@ -567,10 +584,13 @@ inline PaneProjection project_pane(std::int64_t where, std::size_t slot,
                                    const SetupPane* authored, const Screen& sc) {
     PaneProjection out;
     out.resolved = placement_bounds(where, slot, sc);
+    // THE UNIT IS ASKED FIRST AND FOR EVERY PLACEMENT (WIND-2a). A refusal is WHOLE --
+    // no rectangle, resolved or visible -- so every consumer that already reads an empty
+    // rectangle as "nowhere" is right about a pixel-sized pane with no branch of its own.
+    if (!pane_unit_projectable(authored)) {
+        return PaneProjection{false, ui::Rect{}, ui::Rect{}};
+    }
     if (where == placement::kOverlayStack && authored != nullptr) {
-        if (!pane_unit_projectable(where, authored)) {
-            return PaneProjection{false, ui::Rect{}, ui::Rect{}};
-        }
         if (authored->place.mode == pane_unit::kCells) {
             out.resolved.x = authored->place.x;
             out.resolved.y = authored->place.y;
@@ -2801,11 +2821,12 @@ inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& co
 /// land on. What stays here is the truncation, because a row longer than the pane is a
 /// PRESENTATION decision -- the pane is choosing what it can show -- and the number it
 /// truncates to is the same `terminal_cols` its snapshot chose entries with.
-inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, const Screen& sc) {
+inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
+                           const Screen& sc) {
     if (!t.open) {
         return;
     }
-    c.rects.push_back(surface::SurfaceRect{sc.terminal_x, sc.terminal_y, sc.terminal_w,
+    layer.rects.push_back(surface::SurfaceRect{sc.terminal_x, sc.terminal_y, sc.terminal_w,
                                            sc.terminal_h, surface::role::kMuted});
 
     surface::SurfaceTextRegion pane;
@@ -2890,7 +2911,7 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
     pane.caret_row = typing.prose_row;
     pane.caret_col = terminal_caret_column(typing, t.input);
 
-    c.texts.push_back(std::move(pane));
+    layer.texts.push_back(std::move(pane));
 
     // THE COMPLETION LIST, LAST, SO IT IS ON TOP OF THE PANE IT BELONGS TO. Painter's order
     // across `texts` is list order, the same rule every other list on a canvas already
@@ -2914,7 +2935,7 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
     list.w = place.w;
     list.h = place.h;
     list.rows = completion_rows(t.completion, place.rows, sc.terminal_cols);
-    c.texts.push_back(std::move(list));
+    layer.texts.push_back(std::move(list));
 }
 
 // ---- The dynamic panels, painted -------------------------------------------------------
@@ -2945,14 +2966,14 @@ inline void paint_terminal(surface::SurfaceCanvas& c, const TerminalPane& t, con
 /// `paint_panel_row` below is still the OVERLAY's shape and not every panel's -- that half of
 /// BLD-0's prediction is still a prediction. Info writes bare labels, and padding them to the
 /// bounds' width would erase the screen-level hint that shares the side region's top row.
-inline void paint_panel_frame(surface::SurfaceCanvas& c, const ui::Rect& b) {
-    c.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
+inline void paint_panel_frame(surface::SurfaceLayer& layer, const ui::Rect& b) {
+    layer.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
 }
 
 /// One row of an overlaid panel, fitted and padded to its bounds' width.
-inline void paint_panel_row(surface::SurfaceCanvas& c, const ui::Rect& b, std::int64_t line,
+inline void paint_panel_row(surface::SurfaceLayer& layer, const ui::Rect& b, std::int64_t line,
                             const std::string& text, std::int64_t role) {
-    c.labels.push_back(surface::SurfaceLabel{
+    layer.labels.push_back(surface::SurfaceLabel{
         b.x, b.y + line, detail::pad(detail::fit(text, b.w), static_cast<std::size_t>(b.w)),
         role});
 }
@@ -2994,11 +3015,12 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// below is either a row of its own content or a reading off `b` -- there is no `kStackX` in
 /// this function any more, and no `kStackRows`, so what it means to move this panel or to
 /// give it a different amount of room is entirely `placement_bounds`'s business.
-inline void paint_builder(surface::SurfaceCanvas& c, const BuilderPane& pane,
+inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                           const ui::Rect& b) {
-    paint_panel_frame(c, b);
-    const auto row = [&c, &b](std::int64_t line, const std::string& text, std::int64_t role) {
-        paint_panel_row(c, b, line, text, role);
+    paint_panel_frame(layer, b);
+    const auto row = [&layer, &b](std::int64_t line, const std::string& text,
+                                 std::int64_t role) {
+        paint_panel_row(layer, b, line, text, role);
     };
     // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
     // header follows: a presentation that shows somebody else's facts without saying whose
@@ -3228,7 +3250,7 @@ inline std::int64_t pane_state_of(const Panels& panels, const Setup& setup, cons
     // with a pixel axis AND no tile left is refused rather than waiting: a taller window
     // would give it the tile and it still would not be presented, so telling the maker to
     // make the window taller would be a true sentence about the wrong problem.
-    if (!pane_unit_projectable(placement_of(row.kind), pane_of(setup, row.ref))) {
+    if (!pane_unit_projectable(pane_of(setup, row.ref))) {
         return pane_state::kRefused;
     }
     const PanelBounds where = bounds_of(panels, setup, row.kind, sc);
@@ -3257,15 +3279,15 @@ inline std::string picker_entry_text(const std::string& name, const char* state,
     return detail::pad(name, 10) + detail::pad(state, kPaneStateCols) + tail;
 }
 
-inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const Setup& setup,
+inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
                          const Screen& sc) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
         return;
     }
     const ui::Rect b = picker_bounds(sc);
-    paint_panel_frame(c, b);
-    paint_panel_row(c, b, 0, "+ PANEL -- up/down, enter opens or removes",
+    paint_panel_frame(layer, b);
+    paint_panel_row(layer, b, 0, "+ PANEL -- up/down, enter opens or removes",
                     surface::role::kAccent);
     // THE POPULATION IS THE COMBINED CATALOG AND THE BUDGET IS THE SLOT'S (WP-0).
     // Before this the list was `kPanelKinds` long and the picker's height was a
@@ -3286,7 +3308,7 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     const ListWindow win = list_window(rows.size(), picker.cursor, budget);
     std::int64_t line = 1;
     const auto say = [&](const std::string& text, std::int64_t role) {
-        paint_panel_row(c, b, line, text, role);
+        paint_panel_row(layer, b, line, text, role);
         ++line;
     };
     if (win.before > 0) {
@@ -3313,7 +3335,7 @@ inline void paint_picker(surface::SurfaceCanvas& c, const Panels& panels, const 
     // exceed the budget. With the two built-ins and nothing offered, `line` is
     // exactly `kPickerRows` and every pre-existing picture is byte-identical.
     for (; line < b.h; ++line) {
-        paint_panel_row(c, b, line, std::string(), surface::role::kFill);
+        paint_panel_row(layer, b, line, std::string(), surface::role::kFill);
     }
 }
 
@@ -3377,14 +3399,14 @@ inline std::string management_heading(const PaneManagement& manage, const std::s
     }
 }
 
-inline void paint_management(surface::SurfaceCanvas& c, const Panels& panels,
+inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
                              const Setup& setup, const PaneManagement& manage,
                              const Screen& sc) {
     if (!manage.open) {
         return;
     }
     const ui::Rect b = picker_bounds(sc);
-    paint_panel_frame(c, b);
+    paint_panel_frame(layer, b);
     const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
     std::size_t cursor = 0;
     for (std::size_t i = 0; i < rows.size(); ++i) {
@@ -3395,12 +3417,12 @@ inline void paint_management(surface::SurfaceCanvas& c, const Panels& panels,
     }
     const std::string what =
         manage.has_selection() ? quoted_setup_name(ref_text(manage.selected)) : std::string();
-    paint_panel_row(c, b, 0, management_heading(manage, what), surface::role::kAccent);
+    paint_panel_row(layer, b, 0, management_heading(manage, what), surface::role::kAccent);
     const std::size_t budget = b.h > 1 ? static_cast<std::size_t>(b.h - 1) : 0;
     const ListWindow win = list_window(rows.size(), cursor, budget);
     std::int64_t line = 1;
     const auto say = [&](const std::string& text, std::int64_t role) {
-        paint_panel_row(c, b, line, text, role);
+        paint_panel_row(layer, b, line, text, role);
         ++line;
     };
     if (win.before > 0) {
@@ -3418,7 +3440,7 @@ inline void paint_management(surface::SurfaceCanvas& c, const Panels& panels,
         say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
     for (; line < b.h; ++line) {
-        paint_panel_row(c, b, line, std::string(), surface::role::kFill);
+        paint_panel_row(layer, b, line, std::string(), surface::role::kFill);
     }
 }
 
@@ -4178,18 +4200,18 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// is its column. There is no `Screen` here any more, which is the measurable half of PNL-1
 /// for this kind: what used to be "the painter reads `sc.panel_x`, the same number `screen_of`
 /// gives the workspace to measure against" is now "the painter is told where it is".
-inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
+inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const Session& s,
                        const ui::Rect& b, const Screen& sc) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
     // presentations make.
-    paint_panel_frame(c, b);
+    paint_panel_frame(layer, b);
 
     // `OBJECTS` STAYS CHROME ON THE PANEL'S OWN ROW 0, and it is the one thing in this panel
     // that is not a row of the body (HD-7). That row is SHARED: `paint` writes the screen's
     // `shift+space terminal` hint eight cells to the right of it, and a region owns its
     // interior -- a body starting here would blank a sentence that is not this panel's.
-    c.labels.push_back(surface::SurfaceLabel{b.x, b.y + kInfoBodyY - 1, "OBJECTS",
+    layer.labels.push_back(surface::SurfaceLabel{b.x, b.y + kInfoBodyY - 1, "OBJECTS",
                                              surface::role::kAccent});
 
     // THE BODY IS ONE BOUNDED REGION AND IT HOLDS BOTH LISTS (HD-7, widening HD-6).
@@ -4280,7 +4302,7 @@ inline void paint_info(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Se
                     pressable ? surface::role::kFill : surface::role::kMuted,
                     pressable ? surface::role::kMuted : surface::role::kNone);
         }
-        c.texts.push_back(std::move(region));
+        layer.texts.push_back(std::move(region));
     };
 
     // ---- the objects, named by identity, pointing at the same selection the ring does ----
@@ -4467,14 +4489,14 @@ inline std::string external_header(const RuntimePane& row) {
 /// NO CARET. A caret is an insertion point and nothing here is editable; there is no input
 /// path to an external pane at all (weave.hpp's occupancy wall consumes every press that
 /// lands on one).
-inline void paint_external(surface::SurfaceCanvas& c, const Panels& panels, std::int64_t kind,
+inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
                            const ui::Rect& b, const Screen& sc) {
-    paint_panel_frame(c, b);
+    paint_panel_frame(layer, b);
     const RuntimePane* row = panels.runtime.of_kind(kind);
     if (row == nullptr) {
         return; // an open kind with no catalog row cannot happen; drawing a lie could
     }
-    paint_panel_row(c, b, 0, external_header(*row), surface::role::kAccent);
+    paint_panel_row(layer, b, 0, external_header(*row), surface::role::kAccent);
     const ExternalBodyPlace body = external_body_place(b, sc);
     if (!body.present) {
         return; // no room under the heading: say nothing rather than lie about the room
@@ -4497,7 +4519,7 @@ inline void paint_external(surface::SurfaceCanvas& c, const Panels& panels, std:
     } else {
         region.rows = pane->shown;
     }
-    c.texts.push_back(std::move(region));
+    layer.texts.push_back(std::move(region));
 }
 
 /// THE EIGHT AFFORDANCES OF THE SELECTED PANE, drawn only while a maker is arranging.
@@ -4512,7 +4534,7 @@ inline void paint_external(surface::SurfaceCanvas& c, const Panels& panels, std:
 /// waiting or unresolved has no rectangle to ring, which is exactly why the management LIST
 /// is the recovery surface and the ring is not: a maker reaches an invisible pane by its row,
 /// and the row is always there.
-inline void paint_pane_affordances(surface::SurfaceCanvas& c, const Session& s,
+inline void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
                                    const Screen& sc) {
     if (!s.manage.open || !s.manage.has_selection()) {
         return;
@@ -4529,23 +4551,65 @@ inline void paint_pane_affordances(surface::SurfaceCanvas& c, const Session& s,
     for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
         const ui::Rect at = pane_edge_cell(where.rect, edge);
         const bool chosen = s.manage.doing == pane_manage::kSize && s.manage.edge == edge;
-        c.labels.push_back(surface::SurfaceLabel{
+        layer.labels.push_back(surface::SurfaceLabel{
             at.x, at.y, std::string(pane_edge_glyph(edge)),
             chosen ? surface::role::kAccent : surface::role::kMuted});
     }
 }
 
-/// EVERY PRESENTED PANE, BACK TO FRONT.
+namespace detail {
+
+/// ONE PLANE FOR ONE PRESENTATION — offered unconditionally, and taken back if that
+/// presentation turns out to draw nothing (WIND-2a).
+///
+/// It exists so a presentation's own guard stays inside the presentation. `paint_picker`
+/// already knows whether the picker is open, and `paint_pane_affordances` already knows
+/// whether the selected pane resolved to a rectangle worth ringing; testing either of
+/// those a second time out here, merely to decide whether to allocate a plane, would be a
+/// second copy of a condition — which is how a copy and its original come to disagree.
+/// So the caller offers a plane to everything and an unused one is dropped.
+///
+/// A CANVAS THEREFORE CARRIES A LAYER FOR EACH THING ACTUALLY ON IT, which is what makes
+/// "one complete layer per presented pane" a readable property of a published canvas
+/// rather than a claim about which painters happened to run.
+template <typename Paint>
+inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
+    c.layers.emplace_back();
+    paint_it(c.layers.back());
+    const surface::SurfaceLayer& drawn = c.layers.back();
+    if (drawn.rects.empty() && drawn.labels.empty() && drawn.texts.empty()) {
+        c.layers.pop_back();
+    }
+}
+
+} // namespace detail
+
+/// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
 ///
 /// IT WALKS THE PRESENTATION ORDER (WIND-2), ASCENDING, so a later-ranked pane is drawn
 /// OVER an earlier one -- the exact reverse of the order `occupied_at` walks, from the one
-/// helper, so what a maker sees on top is what their hand meets. Painter's order is list
-/// order across the canvas's three lists, and this is what decides the list.
+/// helper, so what a maker sees on top is what their hand meets.
+///
+/// AND SINCE WIND-2a THAT SENTENCE IS TRUE OF THE PICTURE AND NOT ONLY OF THIS LOOP. The
+/// canvas used to hold three root lists, so appending a pane's rects, labels and regions
+/// here put each KIND into a global band: every rect, then every label, then every region.
+/// A pane the maker had sent to the BACK still covered a pane in FRONT of it whenever the
+/// two drew different kinds -- measured, with the Builder placed over the Info column: the
+/// pointer answered `Builder` and the terminal drew Info's prose in the same cell. A layer
+/// per pane is the whole repair; no primitive gained a field and this loop still reads the
+/// same order it always did.
 ///
 /// A PANE WITH NOTHING ON SCREEN PAINTS NOTHING AT ALL, and the guard is one comparison
 /// rather than three: `bounds_of` answers with an empty rectangle for a pane that is
 /// off-room and for one whose authored unit this medium cannot project, so a pane with no
 /// cells here never reaches a painter that would push a degenerate `SurfaceRect`.
+///
+/// THE THREE PRESENTATIONS AFTER THE PANES ARE LATER LAYERS, in the order a maker's
+/// attention is in: the selected pane's affordances go over its own content so that every
+/// handle is visible, and the picker or the management surface goes over the pane it is
+/// covering -- which is what makes the recovery surface readable above an external pane's
+/// text rather than underneath it. The Terminal is later still and is `paint`'s to add,
+/// because it is a MODE that also decides what the rest of the screen does.
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc) {
     const Panels& panels = s.panels;
@@ -4555,23 +4619,31 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }
-        if (p.kind == panel::kBuilder) {
-            paint_builder(c, panels.builder, b);
-        } else if (p.kind == panel::kInfo) {
-            paint_info(c, d, s, b, sc);
-        } else if (is_runtime_kind(p.kind)) {
-            // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to add.
-            // The branch above chooses a PAINTER, which PNL-1 named as the one thing about a
-            // panel kind that genuinely cannot be shared -- and this arm is the case where
-            // it can be, because every external pane is presented identically: a header
-            // Workshop writes and a region the provider fills. A second provider costs this
-            // function nothing at all.
-            paint_external(c, panels, p.kind, b, sc);
-        }
+        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+            if (p.kind == panel::kBuilder) {
+                paint_builder(layer, panels.builder, b);
+            } else if (p.kind == panel::kInfo) {
+                paint_info(layer, d, s, b, sc);
+            } else if (is_runtime_kind(p.kind)) {
+                // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
+                // add. The branch above chooses a PAINTER, which PNL-1 named as the one
+                // thing about a panel kind that genuinely cannot be shared -- and this arm
+                // is the case where it can be, because every external pane is presented
+                // identically: a header Workshop writes and a region the provider fills. A
+                // second provider costs this function nothing at all.
+                paint_external(layer, panels, p.kind, b, sc);
+            }
+        });
     }
-    paint_picker(c, panels, s.setup.active, sc);
-    paint_pane_affordances(c, s, sc);
-    paint_management(c, panels, s.setup.active, s.manage, sc);
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_pane_affordances(layer, s, sc);
+    });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_picker(layer, panels, s.setup.active, sc);
+    });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_management(layer, panels, s.setup.active, s.manage, sc);
+    });
 }
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down (WS-0) ----
@@ -4681,12 +4753,21 @@ inline std::string setup_line(const Session& s, const std::string& path, const S
                        sc.w);
 }
 
-/// The whole screen as one published canvas.
+/// The whole screen as one published canvas — an ORDERED LIST OF PLANES since WIND-2a.
 ///
-/// Painter's order, which is list order: the workspace backdrop, then each
-/// authored element as the scene placed it (with the selected one's ring UNDER
-/// it, so the ring reads as a ring rather than a border the object grew), then
-/// every label over everything.
+///     the workspace       its backdrop, then each authored element as the scene placed it
+///                         (with the selected one's ring UNDER it, so the ring reads as a
+///                         ring rather than a border the object grew), and the size handle
+///     one plane per pane  `presentation_order`, ascending by canonical `front`
+///     the affordances     over the selected pane's own content, so no handle is hidden
+///     picker / management over the panes they are covering
+///     the screen's chrome the shared top row and the bottom band the tool speaks in
+///     the Terminal        the final modal plane, when it is open
+///
+/// Inside any one plane painter's order is list order across its three primitive kinds, as
+/// it always was. BETWEEN planes the later one wins WHOLE, which is the fact WIND-2 could
+/// not express: paint and `occupied_at` walk one `presentation_order` in opposite
+/// directions, and now the medium executes it too.
 ///
 /// The picture is derived from `workspace_scene()` and from nothing else, which
 /// is what makes "what you see is what the hit test answers about" structural
@@ -4705,12 +4786,32 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     c.width = sc.w;
     c.height = sc.h;
 
-    const auto rect = [&c](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h,
-                           std::int64_t role) {
-        c.rects.push_back(surface::SurfaceRect{x, y, w, h, role});
+    // THE WORKSPACE PLANE: what a maker authored, as this workspace places it (WIND-2a).
+    // It is written whole before any pane is, because a pane is a presentation IN FRONT of
+    // the document -- which is what `occupied_at` has answered since PNL-2, and what the
+    // picture now agrees with instead of merely being told.
+    //
+    // THE SCREEN'S OWN CHROME IS NOT HERE. It is a plane of its own, added after the panes,
+    // for a reason worth stating where both are decided: the top row is SHARED with the side
+    // region by design (HD-7 -- `OBJECTS` names the panel's column and the terminal hint
+    // names a mode, on one row that neither owns outright), and the bottom band is where the
+    // tool SPEAKS. Painting a panel's backdrop over either would take the notice that just
+    // told a maker what happened, and the two gestures that open a panel and a window, and
+    // erase them under the furniture they describe.
+    //
+    // A REFERENCE INTO `c.layers` IS SPENT BEFORE ANY OTHER LAYER IS ADDED. That is not a
+    // coincidence to be preserved by care: `paint_panels` is the first thing that grows the
+    // vector, and the two lambdas below are the only writers before it.
+    c.layers.emplace_back();
+    surface::SurfaceLayer* on = &c.layers.back();
+
+    const auto rect = [&on](std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h,
+                            std::int64_t role) {
+        on->rects.push_back(surface::SurfaceRect{x, y, w, h, role});
     };
-    const auto label = [&c](std::int64_t x, std::int64_t y, std::string text, std::int64_t role) {
-        c.labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
+    const auto label = [&on](std::int64_t x, std::int64_t y, std::string text,
+                             std::int64_t role) {
+        on->labels.push_back(surface::SurfaceLabel{x, y, std::move(text), role});
     };
 
     // The workspace, as a thing with edges a maker can see. Its extent is a
@@ -4759,6 +4860,22 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
               surface::role::kAccent);
     }
 
+    // THE DYNAMIC PANELS -- every one of them, INCLUDING the OBJECTS and PROPERTIES columns
+    // a maker has always read on the right. Each takes a PLANE of its own, in canonical
+    // front order, so a later-ranked pane covers an earlier one kind for kind (WIND-2a).
+    //
+    // THIS ONE CALL IS THE WHOLE OF PNL-0 AT THIS LEVEL. What used to be forty lines of
+    // furniture painted unconditionally here is now a panel like any other: present because a
+    // fresh session opens it, absent the moment a maker removes it, and painted by whoever
+    // owns that kind rather than by `paint`.
+    paint_panels(c, d, s, sc);
+
+    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane. See the note at the top of
+    // this function for why it is in front rather than behind: this is the row the
+    // composition shares and the band the tool speaks in.
+    c.layers.emplace_back();
+    on = &c.layers.back();
+
     label(0, 0,
           "WORKSPACE " + std::to_string(s.workspace_w) + "x" + std::to_string(s.workspace_h) +
               " cells",
@@ -4773,72 +4890,81 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // together and the twenty-one cells between them are the same twenty-one cells.
     label(sc.w - 20, 0, "shift+space terminal", surface::role::kMuted);
 
-    // HOW TO OPEN A PANEL, on the same row and for the same reason the terminal hint is
-    // there: the two help lines at the bottom are within a few cells of the canvas width
-    // already, and this row has twenty-nine free cells between the workspace title and
-    // OBJECTS. It is LEFT-anchored beside the title rather than right-anchored beside the
-    // terminal hint, because a maker looking for something to do with the workspace reads
-    // left to right and the stack it opens into is on this side.
-    label(24, 0, "[+ panel]  p", surface::role::kMuted);
-
-    // THE DYNAMIC PANELS -- every one of them, INCLUDING the OBJECTS and PROPERTIES columns
-    // a maker has always read on the right. They come after the scene and the size handle so
-    // that in a character medium a stacked panel's padded rows erase the authored material
-    // behind them rather than being erased by it, and before the notice and help lines, which
-    // no panel reaches.
+    // THE TWO GESTURES THAT OPEN SOMETHING, on the same row and for the same reason the
+    // terminal hint is there: the two help lines at the bottom are within a few cells of the
+    // canvas width already, and this row has twenty-nine free cells between the workspace
+    // title and OBJECTS. They are LEFT-anchored beside the title rather than right-anchored
+    // beside the terminal hint, because a maker looking for something to do with the
+    // workspace reads left to right and the stack `p` opens into is on this side.
     //
-    // THIS ONE CALL IS THE WHOLE OF PNL-0 AT THIS LEVEL. What used to be forty lines of
-    // furniture painted unconditionally here is now a panel like any other: present because a
-    // fresh session opens it, absent the moment a maker removes it, and painted by whoever
-    // owns that kind rather than by `paint`.
-    paint_panels(c, d, s, sc);
+    // `w` IS HERE BECAUSE A MODE WITH NO WAY TO DISCOVER IT IS NOT A FEATURE (WIND-2a).
+    // WIND-2 documented pane management's keys inside the mode and named none of them
+    // outside it, so the one gesture that gets a maker in was reachable only by reading the
+    // source. It is ONE label with both hints rather than two labels, because what has to
+    // be true is a fact about the whole run -- 25 cells beginning at column 24, ending at
+    // 48, one clear of `OBJECTS` at the minimum composition's column 50 -- and a single
+    // string is the only spelling of that fact that cannot be half-moved.
+    label(24, 0, "[+ panel]  p  [window]  w", surface::role::kMuted);
 
-    // THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE IT IS OPEN, and that is why these three
-    // lines are conditional. The pane is anchored to the bottom-right corner and covers most
-    // of the screen's width at every extent, so a notice or a help line painted underneath it
-    // would survive only in the cells to its left -- a sentence beheaded mid-word with nothing
-    // to say so, which is the exact failure `detail::fit` exists to prevent one line further
-    // down. Half a hint beside a pane is worse than no hint, and the pane's own header carries
-    // the one gesture that matters while it is open.
+    // THE BOTTOM BAND, AND IT BELONGS TO THE OVERLAY WHILE THAT IS OPEN, which is why these
+    // three lines are conditional. The pane is anchored to the bottom-right corner and
+    // covers most of the screen's width at every extent, so a notice or a help line painted
+    // underneath it would survive only in the cells to its left -- a sentence beheaded
+    // mid-word with nothing to say so, which is the exact failure `detail::fit` exists to
+    // prevent one line further down. Half a hint beside a pane is worse than no hint, and
+    // the pane's own header carries the one gesture that matters while it is open.
+    //
+    // IT IS THE SCREEN'S FURNITURE, SO IT IS ON THE SCREEN'S PLANE (WIND-2a), and it is
+    // written before the panes rather than after them. No panel's reactive rectangle
+    // reaches this band -- `screen_of` reserves it and the assertions above say so -- so
+    // for every arrangement the developer composes the picture is byte-identical. What
+    // changed is the one case a maker can now author: a pane PLACED over the notice line
+    // covers it, which is what `occupied_at` has answered about those cells since the place
+    // could be authored at all.
+    if (!s.terminal.open) {
+        // WHICH SETUP THIS IS -- the band's first row, which was blank, and the one fact
+        // WS-0 added that a maker needs continuously rather than at the moment they act.
+        // Painted with the notice and the help lines rather than with the panels, because it
+        // is the screen's own furniture and no panel's: removing every panel does not remove
+        // it.
+        label(0, sc.notice_y - 1, setup_line(s, setup_path, sc), surface::role::kMuted);
+
+        // The notice, fitted to the one line it has. `Session::notice` keeps the
+        // whole sentence -- the fit happens HERE, at the presentation boundary, and
+        // nowhere upstream, so no document operation is made less informative
+        // because this screen happens to be as wide as it is. What a maker sees is
+        // bounded; what Workshop knows is not, and the mark is what tells them the
+        // two are different right now. A wider surface therefore needs nothing from
+        // anybody but room, which is what this line said before there was any, and
+        // a bigger window now spends that room on more of the sentence.
+        if (!s.notice.empty()) {
+            label(0, sc.notice_y, detail::fit(s.notice, sc.w),
+                  s.notice_is_bad ? surface::role::kAlert : surface::role::kFill);
+        }
+        // Two lines, because the canvas clips at its own width and a help line that
+        // silently loses its last hint is worse than no hint. The maker's gestures
+        // come first; the tool's own furniture second.
+        //
+        // It advertises `shift+hjkl` and not `,. width | -= height`: those four
+        // literal bindings do not exist, and a help line naming them would be the
+        // tool's own instructions telling a maker to press keys that do nothing.
+        label(0, sc.help_y,
+              "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
+              surface::role::kMuted);
+        label(0, sc.help_y + 1,
+              "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
+              surface::role::kMuted);
+    }
+
     if (s.terminal.open) {
-        // LAST, and that is the whole of what "overlay" means here. Painter's order is list
-        // order, so a pane appended after everything covers whatever it lands on -- and the
-        // screen underneath is composed exactly as it was before this phase, with no row budget
-        // taken from it and no constant moved. A closed pane appends nothing at all.
-        paint_terminal(c, s.terminal, sc);
-        return c;
+        // THE FINAL MODAL PLANE, and that is the whole of what "overlay" means here. A pane
+        // in the last layer covers whatever it lands on -- and the screen underneath is
+        // composed exactly as it was before this phase, with no row budget taken from it and
+        // no constant moved. A closed pane appends no layer at all.
+        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+            paint_terminal(layer, s.terminal, sc);
+        });
     }
-
-    // WHICH SETUP THIS IS -- the band's first row, which was blank, and the one fact this
-    // phase adds that a maker needs continuously rather than at the moment they act. Painted
-    // with the notice and the help lines rather than with the panels, because it is the
-    // screen's own furniture and no panel's: removing every panel does not remove it.
-    label(0, sc.notice_y - 1, setup_line(s, setup_path, sc), surface::role::kMuted);
-
-    // The notice, fitted to the one line it has. `Session::notice` keeps the
-    // whole sentence -- the fit happens HERE, at the presentation boundary, and
-    // nowhere upstream, so no document operation is made less informative
-    // because this screen happens to be as wide as it is. What a maker sees is
-    // bounded; what Workshop knows is not, and the mark is what tells them the
-    // two are different right now. A wider surface therefore needs nothing from
-    // anybody but room, which is what this line said before there was any, and
-    // a bigger window now spends that room on more of the sentence.
-    if (!s.notice.empty()) {
-        label(0, sc.notice_y, detail::fit(s.notice, sc.w),
-              s.notice_is_bad ? surface::role::kAlert : surface::role::kFill);
-    }
-    // Two lines, because the canvas clips at its own width and a help line that
-    // silently loses its last hint is worse than no hint. The maker's gestures
-    // come first; the tool's own furniture second.
-    //
-    // It advertises `shift+hjkl` and not `,. width | -= height`: those four
-    // literal bindings do not exist, and a help line naming them would be the
-    // tool's own instructions telling a maker to press keys that do nothing.
-    label(0, sc.help_y, "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
-          surface::role::kMuted);
-    label(0, sc.help_y + 1,
-          "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
-          surface::role::kMuted);
 
     return c;
 }

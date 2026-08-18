@@ -199,6 +199,26 @@
 # on a bus; the graphical half is the same `fit_region` call with a metric published as a
 # NUMBER, so the lane with no font engine proves the phase entire.
 #
+# WIND-2a raised the workshop floor 473 -> 481 and the surface floors 59 -> 66 (always) and
+# 5 -> 6 (sdl), and it is the FIRST phase in a long while to move the `sdl` row at all. The
+# split is the same rule read once more, from both ends:
+#
+#   the ORDER is arithmetic. That a later plane covers an earlier one, kind for kind, in both
+#   directions, is a claim about a vector and a rasterizer -- so the seven new always-row
+#   cases include the exact terminal bytes, the schema and content-id of `SurfaceLayer v1` and
+#   `SurfaceCanvas v5`, and the SDL PLAN's per-plane interleaving with and without a text
+#   metric. The lane with no font engine proves every one of them.
+#
+#   the EXECUTION is not. What the `sdl` row's one new case adds is the thing that genuinely
+#   cannot exist without SDL: the real skin, over a real renderer, walking a real two-plane
+#   canvas through the one loop that consumes the plan -- and then the same canvas with its
+#   planes reversed. It cannot read the pixels back and does not pretend to; what it proves is
+#   that the loop runs over planes at all, which is the half a pure plan cannot.
+#
+# The nine new workshop cases needed no new row for WIND-2's reason, unchanged: an authored
+# overlap, a clipped resolved size, a release under a mode, a removed selection, one picker
+# inventory, a pixel axis and a hint on row 0 are all cell arithmetic or a message on a bus.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -210,12 +230,12 @@ snake                             doctest           always  22
 timer                             doctest           always  78
 input                             doctest           always  35
 input                             doctest           sdl     2
-surface                           doctest           always  59
-surface                           doctest           sdl     5
+surface                           doctest           always  66
+surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  473
+workshop                          doctest           always  482
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

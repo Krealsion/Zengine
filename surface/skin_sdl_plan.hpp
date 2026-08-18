@@ -16,11 +16,16 @@
 // phase exists to prove.
 //
 // The general canvas is here for the same reason, and gains one property from it
-// that is worth naming: `plan_canvas` returns rectangles and labels as ONE flat
+// that is worth naming: a layer's rectangles and labels come back as ONE flat
 // list of opaque quads, so the SDL edge cannot tell a glyph from a rect.
 // "Rectangles drawn, labels dropped" is therefore not sayable at the edge at
 // all; the only place that distinction exists is in this header, where every
 // lane's suite is already looking.
+//
+// AND SINCE WIND-2a THE ORDER BETWEEN PLANES IS HERE TOO. `plan_canvas` returns one
+// `PlanLayer` per published layer, each holding its own quads and its own real-face
+// regions, so "which of these two presentations is in front" is answered in pure code
+// every lane pins rather than by the sequence of loops somebody wrote at the edge.
 
 #include "cells.hpp"
 #include "region.hpp"
@@ -142,7 +147,7 @@ inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
 }
 
 /// What a cell shows where nothing was published — and what a label's own cell is
-/// cleared to before its glyph is drawn. See `plan_canvas` on why a label takes
+/// cleared to before its glyph is drawn. See `plan_layer_quads` on why a label takes
 /// its whole cell rather than sitting on top of whatever was under it.
 inline constexpr PlanInk kCanvasBackground{18, 18, 24};
 
@@ -200,11 +205,12 @@ inline constexpr SurfaceExtent extent_of_drawable(const PlanSize& px) noexcept {
                          px.h > 0 ? px.h / kCanvasCellPx : 0};
 }
 
-/// The whole canvas as one flat list of opaque quads, in painter's order.
+/// ONE LAYER as one flat list of opaque quads, in painter's order.
 ///
 /// Rectangles first in list order, then every label's cells over them — the same
-/// order `canvas_body` rasterizes for a terminal, so the two media agree about
-/// what is on top without either knowing the other exists.
+/// order `canvas_body` rasterizes each layer for a terminal, so the two media agree
+/// about what is on top without either knowing the other exists. The order BETWEEN
+/// layers is `plan_canvas`'s, below, for the same reason: one owner per question.
 ///
 /// A LABEL TAKES ITS CELL. The terminal's `put` overwrites both the glyph AND the
 /// role of every cell a label lands on, so a label cell there shows the label's
@@ -222,11 +228,12 @@ inline constexpr SurfaceExtent extent_of_drawable(const PlanSize& px) noexcept {
 /// cell is one background quad plus one quad per horizontal run of ink in its
 /// glyph — at most three per glyph row. Nothing is allocated per character, no
 /// texture is created, and there is no state to cache between frames.
-inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
-                                         const SurfaceExtent& metric = SurfaceExtent{}) {
+inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::int64_t width,
+                                             std::int64_t height,
+                                             const SurfaceExtent& metric = SurfaceExtent{}) {
     std::vector<PlanRect> out;
-    const std::int64_t w = canvas_extent(c.width);
-    const std::int64_t h = canvas_extent(c.height);
+    const std::int64_t w = canvas_extent(width);
+    const std::int64_t h = canvas_extent(height);
     if (w == 0 || h == 0) {
         return out; // an empty canvas is a legitimate picture: it draws nothing
     }
@@ -236,7 +243,7 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
         out.push_back(PlanRect{x, y, pw, ph, ink.r, ink.g, ink.b});
     };
 
-    for (const SurfaceRect& r : c.rects) {
+    for (const SurfaceRect& r : layer.rects) {
         // Clipped in CELLS, before any pixel arithmetic — which is what keeps the
         // multiply below inside the number line whatever the wire said. Same
         // helper the terminal Skin clips with, so the two media cannot come to
@@ -262,7 +269,7 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
     // second renderer that would have to be kept in step.
     //
     // With a real metric MOST regions are absent from this list: they are the SDL
-    // edge's to draw in type (`plan_text_regions`), and rasterizing them here as
+    // edge's to draw in type (`plan_layer_regions`), and rasterizing them here as
     // well would paint the same words twice at two sizes.
     //
     // MOST, NOT ALL, SINCE HD-5, and the partition is now one predicate rather
@@ -273,7 +280,7 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
     // before HD-5 it was in neither list and was therefore drawn by nobody. The
     // two lists still partition the work exactly; what changed is what they
     // partition on. See region.hpp's `fit_region`.
-    const std::vector<ProjectedRow> projected = project_text_regions(c, metric);
+    const std::vector<ProjectedRow> projected = project_text_regions(layer, metric);
 
     // A GROUND IS THE CELL'S OWN QUAD, which is the whole of what this face has to
     // change to honour one (HD-2): a label cell is already cleared before its glyph
@@ -318,11 +325,13 @@ inline std::vector<PlanRect> plan_canvas(const SurfaceCanvas& c,
         }
     };
 
-    for (const SurfaceLabel& l : c.labels) {
+    for (const SurfaceLabel& l : layer.labels) {
         draw_label(l);
     }
     for (const ProjectedRow& p : projected) {
-        draw_label(p.label, p.background); // last: a region is the topmost thing on a canvas
+        // Last IN THIS LAYER: a region is the topmost thing its own presentation draws.
+        // A later layer still covers it -- see `plan_canvas` below.
+        draw_label(p.label, p.background);
     }
     return out;
 }
@@ -375,9 +384,9 @@ struct PlanTextRow {
 /// granularity down: a label cell there is cleared to the canvas background so
 /// that text never has to compete with a fill it happens to be sitting on. A
 /// region is that at region scale -- and it is not an aesthetic choice, it is
-/// what makes a region an OVERLAY. `plan_canvas` draws every rect and then every
+/// what makes a region an OVERLAY. Within one layer every rect is drawn and then every
 /// label, so a label belonging to a panel underneath is drawn AFTER the backdrop
-/// rect of a pane on top of it; before HD-1 the pane's own full-width labels
+/// rect of a pane in the same plane; before HD-1 the pane's own full-width labels
 /// cleared those cells one at a time and the question never arose. Measured live
 /// the first time a region drew real type: the object list and the inspector
 /// showed straight through the Terminal, with the Terminal's sentences on top of
@@ -448,10 +457,10 @@ inline constexpr PlanCaret plan_caret(const RegionFit& fit, std::int64_t local_o
     return c;
 }
 
-/// EVERY TEXT REGION ON A CANVAS, RESOLVED AGAINST A MEDIUM'S TEXT METRIC.
+/// EVERY TEXT REGION OF ONE LAYER, RESOLVED AGAINST A MEDIUM'S TEXT METRIC.
 ///
 /// Empty when the metric is zero — there is no such thing as a graphical region
-/// on a medium that sets text in cells, and `plan_canvas` has already drawn them
+/// on a medium that sets text in cells, and `plan_layer_quads` has already drawn them
 /// as labels in that case. One list or the other, never both.
 ///
 /// TRUNCATED TO WHAT FITS, twice over, and neither is redundant. `fit_region`
@@ -462,20 +471,20 @@ inline constexpr PlanCaret plan_caret(const RegionFit& fit, std::int64_t local_o
 /// engine. The medium's clip is a third guarantee and still not a substitute for
 /// either — it stops ink leaving the region, which is not the same as bounding
 /// the work.
-inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
+inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
                                                      const SurfaceExtent& metric,
                                                      const PlanSize& surface) {
     std::vector<PlanTextRegion> out;
     if (metric.text_advance_px <= 0 || metric.text_line_px <= 0) {
-        return out; // text is a cell here: plan_canvas drew them
+        return out; // text is a cell here: plan_layer_quads drew them
     }
-    for (const SurfaceTextRegion& r : c.texts) {
+    for (const SurfaceTextRegion& r : layer.texts) {
         const RegionFit fit = fit_region(r, metric);
         const RegionViewport clipped = clip_viewport(fit.view, surface.w, surface.h);
         if (clipped.empty() || fit.columns <= 0 || fit.rows <= 0 || !fit.graphical()) {
             // Nothing of it is on the surface, or nothing of it fits, or this medium cannot
             // set THIS region in type at all -- the last is HD-5's, and it is the other half
-            // of `plan_canvas`'s partition rather than a second policy: a region whose bounds
+            // of `plan_layer_quads`'s partition rather than a second policy: a region whose bounds
             // hold no row of the face is drawn there, as cells, by the same glyph loop every
             // other label goes through. Asking `graphical()` rather than the metric is what
             // makes the two lists disjoint and complete for every region on the canvas.
@@ -517,6 +526,41 @@ inline std::vector<PlanTextRegion> plan_text_regions(const SurfaceCanvas& c,
                 : ink_for_role(role::kFill);
         p.caret = plan_caret(fit, p.origin_x, p.origin_y, r.caret_row, r.caret_col, caret_ink);
         out.push_back(std::move(p));
+    }
+    return out;
+}
+
+/// ONE PLANE, READY TO EXECUTE: its opaque quads, then the regions it sets in real type.
+///
+/// The two lists PARTITION that layer's work and are ordered against each other, which is
+/// the fact the SDL edge needs and the fact it must not be left to reconstruct.
+struct PlanLayer {
+    std::vector<PlanRect> quads;
+    std::vector<PlanTextRegion> regions;
+
+    friend bool operator==(const PlanLayer&, const PlanLayer&) = default;
+};
+
+/// THE WHOLE CANVAS AS AN ORDERED EXECUTION LIST — one `PlanLayer` per published layer,
+/// in the publisher's own order (WIND-2a).
+///
+/// THIS IS THE ONLY DOOR THE SDL EDGE USES, and that is the phase's structural claim about
+/// this medium. Before WIND-2a the edge drew every layer's quads and then every layer's
+/// real-face regions, because the plan handed it two canvas-wide lists and the ordering
+/// between them was a convention nobody could see. Two global bands is exactly the defect
+/// the terminal medium had, arriving under a different type -- so the plan now carries the
+/// interleaving itself and the edge has no second list to get the order wrong with.
+///
+/// A LAYER'S TWO LISTS ARE STILL DISJOINT AND STILL COMPLETE, per HD-5: a region belongs
+/// to `quads` (as bitmap cells) or to `regions` (in real type) according to whether its own
+/// bounds hold a row of the face, never to both and never to neither.
+inline std::vector<PlanLayer> plan_canvas(const SurfaceCanvas& c, const SurfaceExtent& metric,
+                                          const PlanSize& surface) {
+    std::vector<PlanLayer> out;
+    out.reserve(c.layers.size());
+    for (const SurfaceLayer& layer : c.layers) {
+        out.push_back(PlanLayer{plan_layer_quads(layer, c.width, c.height, metric),
+                                plan_layer_regions(layer, metric, surface)});
     }
     return out;
 }

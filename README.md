@@ -281,14 +281,26 @@ skin's hello, published once per incarnation on its first message; text publishe
 their current line on hearing it, so a fresh painter starts complete — the tally line survives
 the painter being replaced mid-game).
 
-`SurfaceCanvas{width, height, rects, labels}` is the **general** canvas: an extent in cells,
-filled `SurfaceRect`s in painter's (list) order, and `SurfaceLabel` text runs over them. Each
+`SurfaceCanvas{width, height, layers}` is the **general** canvas: an extent in cells and an
+ordered list of `SurfaceLayer{rects, labels, texts}` — each one a complete plane of filled
+`SurfaceRect`s in painter's (list) order, `SurfaceLabel` text runs over them, and bounded text
+regions over those. Each
 element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
 monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Cells, not
 pixels: a cell is the coarsest unit a terminal can address, so a canvas lands somewhere real in
 every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
-anchors, no percentages; whoever publishes has already decided where things go. A skin treats a
+anchors, no percentages; whoever publishes has already decided where things go.
+
+**Painter's order is two levels, and that is the whole of the depth model** (WIND-2a). Inside a
+plane: rects in list order, then labels over them, then text regions over those. Between planes:
+the complete earlier plane, then the complete later one over it. `layers[0]` is back-most and
+`layers[n-1]` front-most. There is deliberately no coordinate transform, no opacity, no clipping
+tree, no layer identity or key, no numeric z, no sorting and no hit testing — a layer is a
+position in a vector, the publisher supplies an already-ordered list, and each Skin executes it.
+It replaced three root lists that made painter's order *global across kinds*, under which a text
+region belonging to a presentation somebody had sent to the back still covered a label belonging
+to the presentation in front. A skin treats a
 canvas exactly as a board (same hello, same first-frame flag, same `frames` counter — it is the
 same act), an unknown role paints as `kFill` rather than vanishing, and elements outside the
 extent are the skin's to clip. **Both media draw labels**: a terminal already owns a font, and
@@ -312,8 +324,10 @@ is never asked to round its type onto a twelve-pixel lattice. The cell projectio
 `surface/region.hpp`'s `project_text_regions`, one function shared by the terminal skins *and*
 by the SDL medium whenever it has no font — so the lower-fidelity answer is not a stub, it is
 literally the arithmetic the Terminal pane performed for itself before regions existed. Regions
-are the topmost thing on a canvas (rects, then labels, then regions), because a region is a
-grant of bounds and owns what is inside them. **How much fits is not on the shape** and that
+are the topmost thing **in their own plane** (rects, then labels, then regions), because a region
+is a grant of bounds and owns what is inside them — and a *later* plane covers an earlier one
+whole, kind for kind, which is how a publisher says which of two presentations is in front
+(WIND-2a; see the painter's-order note above). **How much fits is not on the shape** and that
 absence is load-bearing: `fit_region` resolves the region's bounds against the medium's text
 metric, and the publisher and the medium both call it, so "how many rows and columns" has one
 answer in the process. Workshop's Terminal is the only publisher of one — since HD-2 it
@@ -346,8 +360,9 @@ Terminal used to append for itself. `kNoCaret` is **negative** on purpose, the s
 caret cannot collide with a row anybody might mean. It is emphatically *not* a selection (no
 range, no anchor), not a focus fact (a canvas has no focus, and two regions may each carry
 one), and not blinking — there is no clock on this shape. The two fields made
-`SurfaceTextRegion` version **3** and `SurfaceCanvas` version **4**; the canvas has now
-changed three times and never gained a field of its own.
+`SurfaceTextRegion` version **3** and `SurfaceCanvas` version **4**; the canvas had at that
+point changed three times and never gained a field of its own. WIND-2a is the first time it
+gained and lost some: it is version **5**, carrying `layers` in place of the three root lists.
 
 **A region too small for a medium's own type is a CELL region in that medium** (HD-5), and
 that is the same sentence a zero metric already means rather than a new rule. A face's line is
@@ -900,7 +915,7 @@ and no window itself.
   **Where a press goes is a place *within* the mode, not a focus system.** While the pane is
   open it takes every pointer event, exactly as PNL-2 said; what is new is that it now asks
   whether one of the two regions it owns wants it — the completion list first, because it is
-  drawn last and painter's order across `texts` is list order, then the editable row. A press
+  drawn last and painter's order across a plane's `texts` is list order, then the editable row. A press
   on neither is still **consumed by the mode**, which is the whole of what stops a click on the
   pane's empty middle from selecting an object underneath it. There is no widget registry, no
   z-order service and no focus object: `terminal_press` is one function, and closing the pane

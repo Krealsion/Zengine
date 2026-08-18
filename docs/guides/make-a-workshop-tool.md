@@ -110,18 +110,25 @@ inline constexpr PanelKind kPanelCatalog[] = {
 In `workshop/screen.hpp`, paint it, and add one arm to `paint_panels`:
 
 ```cpp
-inline void paint_status(surface::SurfaceCanvas& c, const ui::Rect& b) {
-    paint_panel_frame(c, b);
-    paint_panel_row(c, b, 0, "STATUS", surface::role::kAccent);
-    paint_panel_row(c, b, 1, "Workshop can see me.", surface::role::kFill);
+inline void paint_status(surface::SurfaceLayer& layer, const ui::Rect& b) {
+    paint_panel_frame(layer, b);
+    paint_panel_row(layer, b, 0, "STATUS", surface::role::kAccent);
+    paint_panel_row(layer, b, 1, "Workshop can see me.", surface::role::kFill);
 }
 
 // ...inside paint_panels, beside the kBuilder and kInfo arms and BEFORE the
 // generic `is_runtime_kind` arm:
-        } else if (p.kind == panel::kStatus) {
-            paint_status(c, b);
-        }
+            } else if (p.kind == panel::kStatus) {
+                paint_status(layer, b);
+            }
 ```
+
+**Your painter is handed a `SurfaceLayer`, not the canvas** (WIND-2a). `paint_panels` gives
+every presented pane a plane of its own, in the setup's canonical `front` order, so a pane a
+maker raised covers the ones behind it *whole* — rects, labels and regions together. You write
+into the plane you were given and never reach for the canvas; that is the entire cost of the
+ordering to you, and it is what makes "the front the host hits is the front the medium paints"
+true of your panel without your panel knowing the rule exists.
 
 Build the host and run it; press `p`, choose **Status**, press Return. Your panel is on screen,
 in both media, and the picker already knows how to remove it again.
@@ -285,11 +292,11 @@ semantic row becomes visible.
 
 There are two ways to say something, and the choice is about **what the medium may do with it**:
 
-**Labels** — `paint_panel_row(c, b, line, text, role)` writes one row at cell `b.y + line`,
+**Labels** — `paint_panel_row(layer, b, line, text, role)` writes one row at cell `b.y + line`,
 `detail::fit`-cut and space-padded to `b.w`. Cell-grained in both media. Use this unless you need
 a caret.
 
-**One bounded region** — a `surface::SurfaceTextRegion` pushed onto `c.texts`, carrying
+**One bounded region** — a `surface::SurfaceTextRegion` pushed onto your plane's `texts`, carrying
 `rows` of `SurfaceTextRow{text, role, background}`. A region is the only shape on the canvas that
 a graphical medium sets in **real type** and the only one that can carry an **insertion point**
 (`caret_row` / `caret_col`, in rows and columns of *your* prose — never a pixel). Ask
