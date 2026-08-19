@@ -265,6 +265,23 @@
 # lane and the Windows stranger lane prove the phase in full, including the one thing a maker
 # only ever sees through SDL: that the object's material is still under its name.
 #
+# QR-3 raised the workshop floor 517 -> 521 and moved NO surface floor, which is the phase's
+# own claim about where it lives: bounding the object name to the object's material is a
+# consumer's decision about its own room, and TYPE-1's Surface contract -- `ground`,
+# `kGroundOwn`, `kGroundBeneath` and all three shape versions -- was not touched at all. Three
+# FOUR cases, and the count is worth reading beside a fifth that only changed its name:
+# TYPE-1's `the name's bound is the WORKSPACE's right edge` became QR-3's `the name's bound is
+# the OBJECT'S resolved width`, carrying the ellipsis ladder a widening object walks up. The
+# four new ones are the PLANNED-PIXEL witness (no part of a name lands outside the material it
+# names), the live one that drives a rename past the OLD bound through the real property editor
+# and then resizes the object four times to watch the mark come and go, and two for the
+# authored-name bound QR-3 source-traced and moved (32 -> 64, an INPUT BOUNDARY and not a screen
+# measurement -- see `doc::kMaxNameLen`).
+#
+# ALL ARE IN THE `always` POPULATION, for TYPE-0's and TYPE-1's reason unchanged: the metric is
+# an ARGUMENT, so the pixel case is proved by `plan_canvas` with no font, no renderer and no SDL
+# skin built.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -281,7 +298,7 @@ surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  517
+workshop                          doctest           always  521
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

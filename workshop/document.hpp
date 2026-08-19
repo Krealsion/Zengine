@@ -96,7 +96,38 @@ namespace zengine::workshop::doc {
 /// spellings of one minimum is how a check and the thing it checks come to
 /// disagree.
 inline constexpr std::int64_t kMaxCells = 4096; ///< an authored size, not a workspace size
-inline constexpr std::size_t kMaxNameLen = 32;  ///< a label, not a document
+
+/// HOW LONG A MAKER'S NAME FOR AN OBJECT MAY BE, in bytes.
+///
+/// SIXTY-FOUR SINCE QR-3, AND IT WAS THIRTY-TWO FROM W-0 UNTIL THEN. The old number is
+/// worth recording because it was traced rather than inherited: W-0 introduced it with the
+/// six words `a label, not a document` and no other rationale in the commit, in any
+/// document, or in any report-back. The only rationale ever written down for a
+/// thirty-two in this application is `setup::kMaxSetupNameLen`'s and
+/// `setup::kMaxPaneNameLen`'s -- a SCREEN measurement, one line of the narrowest
+/// composition -- and WS-0 attributed the same reason to this constant in passing.
+///
+/// THAT REASON WAS MEASURABLY FALSE HERE, which is what settled it. The narrowest place an
+/// object's name is read is the OBJECTS list, whose body is 28 columns at the 78x22
+/// minimum in a character medium; a name AT the old bound already came back
+/// `> #1 xxxxxxxxxxxxxxxxxxxx...`. Thirty-two never bought a whole read anywhere, and
+/// every reader of a name has marked its own cut since INTR-0/TYPE-0/HD-7 -- the workspace
+/// object being the last of them, bounded to its own material by QR-3.
+///
+/// SO WHAT SURVIVES IS THE KIND OF BOUND AND NOT THE NUMBER. It survives for the reason
+/// every other bound in this application has: a document arrives from a FILE, `check_name`
+/// is what `check_document` spends on each one, and a field with no bound at all would be
+/// the only authored string in Workshop without one. Sixty-four is this application's
+/// existing measure for a maker's prose that is not a routing name
+/// (`setup::kMaxPaneSummaryLen`, one sentence), it keeps `a label, not a document` true,
+/// and it is above what the tool itself has already needed: a suite case wanting a
+/// realistically long name reaches past this check with a 43-byte one written straight onto
+/// the element, because a maker could not author it.
+///
+/// NOT A CAPACITY, and no saved byte depends on it: the file's own bounds are
+/// `persist::kMaxDocumentBytes` and the Loom decoder's materialisation budget, and the
+/// format holds a name as an ordinary string.
+inline constexpr std::size_t kMaxNameLen = 64;
 
 /// The last identity this document could ever mint.
 ///
