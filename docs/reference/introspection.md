@@ -3,8 +3,8 @@
 > **What is this Loom actually running?**
 
 Introspection is a Zengine package (`introspection/`) that builds one loadable weave,
-`zengine-introspection`. It holds the office `zengine.introspection` and offers Workshop one
-read-only pane through the [external pane protocol](../guides/make-a-workshop-tool.md#part-b--an-office-authored-external-pane):
+`zengine-introspection`. It holds the office `zengine.introspection` and offers Workshop one pane
+through the [external pane protocol](../guides/make-a-workshop-tool.md#part-b--an-office-authored-external-pane):
 
 ```text
 PaneRef      zengine.introspection / loaded
@@ -76,8 +76,53 @@ happens when the pane opens, when a valid re-offer refreshes it, and when the re
 capacity changes. Between two grants the rows are a reading, not a feed, and the last line of the
 pane says which.
 
-There is no refresh button, because an external pane receives no input of any kind. Closing and
-reopening the pane, or resizing it enough to move its prose capacity, re-reads.
+There is no refresh button. A pane can be pressed (below), but a press is a gesture *about a row*
+and this tool does not read one as "go and look again" — that would be a second beat with no
+sentence saying so. Closing and reopening the pane, or resizing it enough to move its prose
+capacity, re-reads.
+
+## Selecting a row
+
+A maker can press one of the entry rows. The pressed row is marked, and the pane publishes an
+ordinary Loom message saying which entry was selected:
+
+```text
+loaded weaves -- 2
+  zengine-introspection @zengine.introspection
+> zengine-workshop-hello @zengine.test.workshop-hello       <- pressed
+
+    ->  LoadedSelected { pane: "loaded",
+                         library: "zengine-workshop-hello",
+                         role: "zengine.test.workshop-hello" }
+```
+
+- **Published, not addressed.** It is a fact stated into the room, reaching every weave that
+  accepts the shape — today, none. Nothing in this build reacts to it: no pane opens, nothing is
+  inspected, and the selected weave is sent nothing.
+- **The identity is the loaded library's NAME**, which is the key of the kernel's own map. It is
+  not a `WeaveId`, not a participant identity, not a package or publisher, and not proof that
+  anything is alive now — the pane is a snapshot and this fact is about what the snapshot *showed*.
+  An empty `role` is the same observed absence the pane writes as `(no role)`.
+- **The press is read against the rows on screen**, never against a fresh reading. Interpreting a
+  press asks the Weave Manager nothing, so a maker who presses a row always selects the entry that
+  row was showing — including one the kernel has since unloaded.
+- **Selecting is an occurrence, not a state change.** Pressing the same row again publishes again;
+  the picture does not change, because the mark is already there.
+- **Only entry rows select.** The heading, the caveat, the snapshot-source line, the blank
+  separator and the omission marker publish nothing — `... 17 more` is a *population fact*, not a
+  stand-in for one hidden weave. A press on any of them is still consumed by the pane and changes
+  nothing, including the current selection.
+- **The selection is this pane's, and transient.** There is no Workshop-wide or setup-wide "current
+  weave": it lives in the provider, is not snapshotted, is not saved, and is gone if the provider
+  unloads. It is held as a *name*, so it survives a resize that windows the entry out of sight and
+  the mark returns with the entry.
+- **It clears when the absence is observed**, which is the next room grant's reading and not a
+  moment earlier — and clearing publishes nothing, because a library going away is not a maker's
+  gesture.
+- **The fact carries no authority.** A listener that hears a library name and a role has learned
+  two strings a maker was already looking at. It cannot thereby message, interrogate, load, unload
+  or impersonate the thing named; a Loom grant is per `(shape, version, target)` and a value in a
+  message is not one. *Values may flow; authority must not flow implicitly with them.*
 
 ## When the provider disappears
 
@@ -103,8 +148,10 @@ CAN
   ask the Weave Manager one question          zen.ListLoaded
   offer Workshop one pane                     PaneOffered, as its own office
   publish rows inside the grant it was given  PaneContent, as its own office
+  state which row a maker selected            LoadedSelected, as its own office
 
 CANNOT (never sent, and not in its declared Emit set)
+  send the SELECTED weave anything            naming a thing is not reaching it
   load, reload, swap or unload anything       zen.LoadWeave / SwapWeave / ReloadWeave /
                                               UnloadLibrary / UnloadRole
   reach the kernel's control door directly
@@ -140,12 +187,17 @@ change, which is a fresh reading.
 ## Reading the source
 
 ```text
-introspection/vocabulary.hpp   the durable PaneRef halves and the two picker lines
-introspection/loaded.hpp       the pure core: parse the Manager's answer, spend the budget
-introspection/introspection.cpp the weave: when to observe, and whom to believe
+introspection/vocabulary.hpp   the durable PaneRef halves, the two picker lines, LoadedSelected
+introspection/loaded.hpp       the pure core: parse the Manager's answer, spend the budget,
+                               map each row back to the entry it names, move the mark
+introspection/introspection.cpp the weave: when to observe, whom to believe, what a press means
 ```
 
-`loaded.hpp` links nothing and knows no bus, so what a reading *means* is provable over a value.
-The suite's INTR-0 tier does both halves: the pure projection over a swept domain of populations
-and budgets, and the real `zengine-introspection.so` loaded through the real Kernel and Manager
-with its rows read off a published canvas.
+`loaded.hpp` links nothing and knows no bus, so what a reading *means* is provable over a value —
+and the row-to-entry map is returned by the function that *builds* the rows, so there is no second
+calculation for a press to disagree with.
+
+The suite's INTR-0 and SEL-0 tiers do both halves: the pure projection over a swept domain of
+populations and budgets, and the real `zengine-introspection.so` loaded through the real Kernel and
+Manager, pressed through the real input path, with its rows read off a published canvas and its
+selection fact heard by an independent listener.

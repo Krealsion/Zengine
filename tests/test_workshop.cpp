@@ -16475,9 +16475,10 @@ struct SeatState {
 /// speech from the actual role holder, one office speaking about another's pane, a
 /// content message one column too wide -- and a shipped fixture that could be
 /// talked into those would not be a fixture worth shipping.
-class ProviderSeat : public loom::WeaveBase<ProviderSeat, SeatState,
-                                            loom::Accept<PaneCatalogRequested, PaneRoom, SeatDo>,
-                                            loom::Emit<PaneOffered, PaneContent>> {
+class ProviderSeat
+    : public loom::WeaveBase<ProviderSeat, SeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent, PanePressed>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
 
@@ -16491,6 +16492,15 @@ public:
         ++said;
         rooms.push_back(r);
         room_authors.push_back(std::string(mail.authored_role()));
+    }
+    /// A PRESS THIS SEAT WAS TOLD ABOUT (SEL-0), and its author beside it. The seat
+    /// interprets nothing -- it is a recorder, so a case can assert exactly what
+    /// Workshop said and nothing about what a real provider would make of it.
+    void on(const PanePressed& p, loom::Mail& mail) {
+        ++state_.said;
+        ++said;
+        presses.push_back(p);
+        press_authors.push_back(std::string(mail.authored_role()));
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -16515,6 +16525,12 @@ public:
     void say_personally(loom::Mail& mail, const PaneContent& c) {
         (void)mail.send_to_role(kWorkshopProvider, c);
     }
+    /// FORGE A PRESS AT SOMEBODY ELSE'S PANE (SEL-0) -- deliberately authored, and
+    /// deliberately by an office that is not `zengine.workshop`. This is the sentence
+    /// a provider must refuse: a stranger telling it a maker clicked one of its rows.
+    void press_at(loom::Mail& mail, const char* office, const PanePressed& p) {
+        (void)mail.as_role(office_).send_to_role(office, p);
+    }
 
     /// EVERYTHING THIS SEAT WAS EVER TOLD, counted. It is what lets a case say
     /// "closing a presentation reached the provider not at all" as a number rather
@@ -16523,6 +16539,8 @@ public:
     std::vector<PaneRoom> rooms;
     std::vector<std::string> room_authors;
     std::vector<std::string> asks;
+    std::vector<PanePressed> presses;
+    std::vector<std::string> press_authors;
     std::function<void(ProviderSeat&, loom::Mail&)> next;
 
 private:
@@ -16539,9 +16557,10 @@ private:
 /// `PaneRoom` deliberately, and holding it lets it also send one PERSONALLY -- which
 /// is exactly the sentence a weave that merely held the office would produce by
 /// reaching for `send_to_role`. Two spellings, one holder, opposite outcomes.
-class PaneWatcher : public loom::WeaveBase<PaneWatcher, SeatState,
-                                           loom::Accept<PaneOffered, PaneContent, SeatDo>,
-                                           loom::Emit<PaneCatalogRequested, PaneRoom>> {
+class PaneWatcher
+    : public loom::WeaveBase<PaneWatcher, SeatState,
+                             loom::Accept<PaneOffered, PaneContent, SeatDo>,
+                             loom::Emit<PaneCatalogRequested, PaneRoom, PanePressed>> {
 public:
     void on(const PaneOffered& o, loom::Mail& mail) {
         offers.push_back(o);
@@ -16569,6 +16588,15 @@ public:
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     }
     void ask_personally(loom::Mail& mail) { (void)mail.publish(PaneCatalogRequested{}); }
+    /// A PRESS FROM THE OFFICE THIS WATCHER HOLDS (SEL-0) -- the correctly authored
+    /// spelling and the personal one, exactly as `grant`/`grant_personally` are, so a
+    /// provider's own authorship check can be measured from the only side it shows on.
+    void press(loom::Mail& mail, const char* office, const PanePressed& p) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(office, p);
+    }
+    void press_personally(loom::Mail& mail, const char* office, const PanePressed& p) {
+        (void)mail.send_to_role(office, p);
+    }
 
     std::vector<PaneOffered> offers;
     std::vector<std::string> offer_authors;
@@ -16652,6 +16680,7 @@ struct PaneRig {
                             zengine::builder::kBuilderRole);
         speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+        speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         workshop_id =
             bus.register_weave(std::move(weave), std::move(speak), std::string(kWorkshopProvider));
         w->zen_set_self(workshop_id);
@@ -16671,6 +16700,10 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+        // A SEAT MAY FORGE A PRESS (SEL-0). Granted here deliberately, because the
+        // claim under test is that a PROVIDER refuses a press it did not get from
+        // Workshop -- a refusal the bus made unreachable would prove nothing.
+        grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(office));
         raw->zen_set_self(id);
@@ -16741,6 +16774,7 @@ struct PaneRig {
         loom::Grant grant;
         grant.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
         grant.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+        grant.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), std::string(kWorkshopProvider));
         raw->zen_set_self(id);
@@ -16779,6 +16813,26 @@ struct PaneRig {
     /// case that enters pane management has to pay the `swallow_text_` rule the way a real
     /// backend makes it pay: the key transition AND the text, in the order they arrive.
     void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
+
+    /// A PRIMARY PRESS AT A CANVAS CELL, as the TERMINAL medium reports it (SEL-0).
+    ///
+    /// The cases below speak canvas cells rather than workspace cells, because a pane
+    /// is placed on the canvas and never in the document's room -- `Live::term_x/y`
+    /// exists for the other conversation and using it here would be the wrong inverse.
+    void press_cell(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{1, true, cx, cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    /// The same gesture as the WINDOW reports it: an exact device pixel, untranslated.
+    /// A graphical press is finer than a cell, so its cases have to be able to say one.
+    void press_pixel(std::int64_t px, std::int64_t py) {
+        publish(loom::to_value(input::PointerButton{1, true, px, py, input::space::kPixels,
+                                                    input::mod::kNone}));
+    }
+    void release_cell(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{1, false, cx, cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
 
     /// Walk the picker to the row naming this reference and press Return.
     void pick(const PaneRef& ref) {
@@ -18354,7 +18408,7 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
 
 // ---- Presentation and the pointer --------------------------------------------------
 
-TEST_CASE("an external pane occupies its whole panel, and forwards nothing") {
+TEST_CASE("an external pane occupies its whole panel, and takes hold of nothing under it") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -18373,12 +18427,51 @@ TEST_CASE("an external pane occupies its whole panel, and forwards nothing") {
     CHECK_FALSE(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y + panel.h).occupied);
     CHECK_FALSE(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x + panel.w, panel.y).occupied);
 
-    // AND NOTHING IS FORWARDED. The seat hears asks and rooms; a press produces
-    // neither, because there is no input path to an external pane at all.
-    const std::size_t said_before = seat->rooms.size() + seat->asks.size();
-    r.publish(loom::to_value(input::PointerButton{1, true, panel.x, panel.y,
-                                                  input::space::kCells, input::mod::kNone}));
-    CHECK(seat->rooms.size() + seat->asks.size() == said_before);
+    // ...AND IT CARRIES THE HANDLE IT MET SINCE SEL-0, so the one caller that needs a
+    // further question of this answer asks it of THIS walk rather than resolving the
+    // pane a second time. The picker is a presentation with no kind and says so.
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y).kind ==
+          kind);
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, panel.x, panel.y + panel.h)
+              .kind == kNoKind);
+
+    // THE PRESS IS THE PANE'S, WHATEVER ELSE HAPPENS TO IT. Nothing under the pane is
+    // selected, nothing begins a drag, and that is unchanged since PNL-2 -- SEL-0 moved
+    // where a press GOES, never whether a pane swallows one.
+    //
+    // ⚠ THE POSITION IS A TERMINAL POSITION, and this case used to get that wrong: it
+    // published `{panel.x, panel.y}` in `space::kCells`, which the medium's own inverse
+    // reads as canvas row `panel.y - kTuiCanvasTopRow` -- two rows ABOVE the pane. The
+    // press it asserted about never touched the panel, so the assertion held for a
+    // reason that had nothing to do with the claim.
+    const std::int64_t before = r.session().selected;
+    r.press_cell(panel.x, panel.y);
+    CHECK_FALSE(r.session().drag.active);
+    CHECK(r.session().selected == before);
+    r.press_cell(panel.x + 1, panel.y + 1);
+    CHECK_FALSE(r.session().drag.active);
+    CHECK(r.session().selected == before);
+}
+
+TEST_CASE("a read-only pane that ignores presses is unchanged by SEL-0") {
+    // THE HELLO FIXTURE ACCEPTS NO `PanePressed` AT ALL -- it is the WP-0 protocol
+    // witness and SEL-0 deliberately did not widen it. A pane that never asked for
+    // input goes on receiving none: the shape is undeliverable to a weave that does
+    // not accept it, so Workshop resolving and sending one changes nothing about what
+    // this provider does, says, or shows.
+    PaneRig r;
+    r.mount_workshop();
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> before = external_rows(r.last_canvas(), body);
+    REQUIRE_FALSE(before.empty());
+
+    for (std::int64_t row = 0; row < 4; ++row) {
+        r.press_cell(body.x + 2, body.y + kExternalHeaderRows + row);
+    }
+    CHECK(external_rows(r.last_canvas(), body) == before);
     CHECK_FALSE(r.session().drag.active);
 }
 
@@ -20581,7 +20674,7 @@ TEST_CASE("INTR-0: an empty map is an observed zero, and stray commas invent no 
     // ZERO IS SAID, and it is said as a count rather than as a silence: a map that has
     // not been answered yet produces no content at all, so Workshop's own
     // `(waiting for the provider)` is what a maker reads in that state.
-    const std::vector<surface::SurfaceTextRow> none = intro::project_loaded({}, 8, 46);
+    const std::vector<surface::SurfaceTextRow> none = intro::project_loaded({}, 8, 46).rows;
     REQUIRE_FALSE(none.empty());
     CHECK(none[0].text == "loaded weaves -- 0");
     CHECK(any_row(none, intro::kNotInProcess));
@@ -20600,7 +20693,7 @@ TEST_CASE("INTR-0: the split is on the LAST at-sign, and the ambiguity is bounde
 
 TEST_CASE("INTR-0: a weave with no role says so, rather than leaving the column blank") {
     const std::vector<surface::SurfaceTextRow> rows =
-        intro::project_loaded({intro::LoadedWeave{"snake-controls", ""}}, 8, 46);
+        intro::project_loaded({intro::LoadedWeave{"snake-controls", ""}}, 8, 46).rows;
     CHECK(any_row(rows, std::string("snake-controls @") + intro::kNoRole));
 }
 
@@ -20610,7 +20703,7 @@ TEST_CASE("INTR-0: the heading counts the whole population, not the shown part")
     for (const std::int64_t rows : {std::int64_t{4}, std::int64_t{8}, std::int64_t{40}}) {
         CAPTURE(rows);
         const std::vector<surface::SurfaceTextRow> out =
-            intro::project_loaded(loaded_population(9), rows, 46);
+            intro::project_loaded(loaded_population(9), rows, 46).rows;
         REQUIRE_FALSE(out.empty());
         CHECK(out[0].text == "loaded weaves -- 9");
     }
@@ -20626,7 +20719,7 @@ TEST_CASE("INTR-0: what the list is NOT survives every budget that shows a list 
     for (std::int64_t rows = 3; rows <= 40; ++rows) {
         CAPTURE(rows);
         const std::vector<surface::SurfaceTextRow> out =
-            intro::project_loaded(loaded_population(12), rows, 46);
+            intro::project_loaded(loaded_population(12), rows, 46).rows;
         CHECK(any_row(out, intro::kNotInProcess));
         // FROM FOUR ROWS UP THERE IS A NAMED WEAVE, and the reason it is four rather
         // than three is the finding this case exists to hold: showing PART of a list
@@ -20649,7 +20742,7 @@ TEST_CASE("INTR-0: what the list is NOT survives every budget that shows a list 
 
 TEST_CASE("INTR-0: an omission is counted on its own row and the count adds up") {
     const std::vector<surface::SurfaceTextRow> out =
-        intro::project_loaded(loaded_population(20), 8, 46);
+        intro::project_loaded(loaded_population(20), 8, 46).rows;
     // Heading, some entries, the marker, the two notes -- every weave either shown or
     // counted, and nothing quietly dropped.
     std::size_t named = 0;
@@ -20666,7 +20759,7 @@ TEST_CASE("INTR-0: at a budget too small to show and to say, it says") {
     // THE SHORTEST ANSWER THIS VIEW HAS: it cannot show a maker a weave AND tell them
     // what it is hiding, so it tells them.
     const std::vector<surface::SurfaceTextRow> out =
-        intro::project_loaded(loaded_population(20), 3, 46);
+        intro::project_loaded(loaded_population(20), 3, 46).rows;
     REQUIRE(out.size() == 3);
     CHECK(out[0].text == "loaded weaves -- 20");
     CHECK(out[1].text == "  ... 20 more");
@@ -20686,7 +20779,7 @@ TEST_CASE("INTR-0: every projection fits the room it was given, over the whole d
                 CAPTURE(rows);
                 CAPTURE(cols);
                 const std::vector<surface::SurfaceTextRow> out =
-                    intro::project_loaded(loaded_population(n), rows, cols);
+                    intro::project_loaded(loaded_population(n), rows, cols).rows;
                 REQUIRE(static_cast<std::int64_t>(out.size()) <= rows);
                 for (const surface::SurfaceTextRow& r : out) {
                     REQUIRE(static_cast<std::int64_t>(r.text.size()) <= cols);
@@ -20708,7 +20801,7 @@ TEST_CASE("INTR-0: every projection fits the room it was given, over the whole d
 
 TEST_CASE("INTR-0: a long name is cut with a mark rather than silently") {
     const std::vector<surface::SurfaceTextRow> out = intro::project_loaded(
-        {intro::LoadedWeave{"a-library-with-a-very-long-name-indeed", "zengine.role"}}, 8, 20);
+        {intro::LoadedWeave{"a-library-with-a-very-long-name-indeed", "zengine.role"}}, 8, 20).rows;
     REQUIRE(out.size() >= 2);
     CHECK(out[1].text.size() == 20);
     CHECK(out[1].text.find(intro::kElided) != std::string::npos);
@@ -21862,4 +21955,1174 @@ TEST_CASE("TYPE-1: the name is over every object's material and under nothing it
     // AND A PANE IN FRONT STILL COVERS A NAME WHOLE, because a pane is a later PLANE and a
     // ground given up changes nothing about which plane is in front (WIND-2a).
     CHECK(c.layers.size() > 1);
+}
+
+// ============================================================================
+// SEL-0 — a maker presses a row, and the pane says which entry that was
+// ============================================================================
+//
+// THREE TIERS, AND THE SPLIT IS THE PHASE'S CLAIM ABOUT WHERE ITS HALVES LIVE.
+//
+//   THE SEAM      Workshop resolves a press into a place in the room it granted, and
+//                 sends it. All of that is geometry and provenance, and none of it
+//                 knows what a row says -- so it is proved with a recording seat that
+//                 interprets nothing.
+//   THE MEANING   the Loaded provider decides which of its rows name an entry, and
+//                 which entry each one names. That is pure arithmetic over a value and
+//                 is proved without a bus, a Workshop or a library.
+//   THE PRODUCT   the real `zengine-introspection` library, loaded through the real
+//                 Kernel and Manager, pressed through the real input path, publishing a
+//                 real Loom message an independent listener hears. A mock of any of
+//                 those would prove something about the mock.
+
+namespace {
+
+/// A PRESS AT A CANVAS CELL AS THE GRAPHICAL MEDIUM REPORTS IT -- the pixel at the
+/// middle of that cell, which is where a maker's pointer actually is.
+///
+/// It is the inverse of `plan_canvas`'s layout and NOT of the terminal's, because the
+/// two media report different numbers for one place (docs/reference/pointer-spaces.md).
+std::int64_t cell_mid_px(std::int64_t cell) {
+    return cell * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
+}
+
+/// THE PANEL RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
+/// `bounds_of` path, so a case never spells a placement of its own.
+ui::Rect external_panel_rect(const Session& s, std::int64_t kind) {
+    return bounds_of(s.panels, s.setup.active, kind, screen_of(s)).rect;
+}
+
+/// The room Workshop resolved for that pane's body -- the `PaneRoom` a provider was
+/// granted, read from the same function that granted it.
+ExternalBodyPlace external_body_of(const Session& s, std::int64_t kind) {
+    return external_body_place(external_panel_rect(s, kind), screen_of(s));
+}
+
+} // namespace
+
+// ---- Tier one: the seam ------------------------------------------------------------
+
+TEST_CASE("SEL-0: PanePressed is a place in a granted room, and carries nothing else") {
+    // THE FIFTH SHAPE, WALKED AS A SCHEMA rather than trusted as a struct definition --
+    // WP-0's own discipline for the other four, and for its reason: what a later phase
+    // would add here is a field, and a case reading the declaration would not notice.
+    const std::shared_ptr<const loom::Schema> pressed = loom::schema_of<PanePressed>();
+    REQUIRE(pressed != nullptr);
+    CHECK(pressed->name() == "PanePressed");
+    CHECK(pressed->version() == 1);
+    REQUIRE(pressed->fields().size() == 3);
+    CHECK(pressed->fields()[0].name == "pane");
+    CHECK(pressed->fields()[0].type.kind == loom::Kind::Text);
+    CHECK(pressed->fields()[1].name == "row");
+    CHECK(pressed->fields()[1].type.kind == loom::Kind::Int);
+    CHECK(pressed->fields()[2].name == "column");
+    CHECK(pressed->fields()[2].type.kind == loom::Kind::Int);
+    // NAMED NEGATIVELY, because the design of this shape is what it refuses to say. No
+    // provider (Loom's stamp answers that, and a field here would be the forgeable
+    // second answer); no gesture machinery, because one gesture was earned; and no
+    // screen coordinate of any kind, because a provider that could locate itself on a
+    // screen has been handed a layout it is not party to.
+    for (const loom::Field& f : pressed->fields()) {
+        CHECK(f.name != "provider");
+        CHECK(f.name != "button");
+        CHECK(f.name != "pressed");
+        CHECK(f.name != "modifiers");
+        CHECK(f.name != "clicks");
+        CHECK(f.name != "x");
+        CHECK(f.name != "y");
+        CHECK(f.name != "space");
+        CHECK(f.name != "focus");
+    }
+    // AND THE OTHER FOUR DID NOT MOVE. SEL-0 added a shape; it did not revise one, so
+    // every existing provider's four sentences are byte-compatible with what it built
+    // against.
+    CHECK(loom::schema_of<PaneOffered>()->version() == 1);
+    CHECK(loom::schema_of<PaneRoom>()->version() == 1);
+    CHECK(loom::schema_of<PaneContent>()->version() == 1);
+    CHECK(loom::schema_of<PaneCatalogRequested>()->version() == 1);
+}
+
+TEST_CASE("SEL-0: a press in the body names the row under the header, in both media") {
+    // ONE LATTICE, TWO MEDIA, AND THE PROVIDER CANNOT TELL THEM APART. The graphical
+    // half is asked for by handing `Session` an advance and a line height -- 8 and 18,
+    // the numbers this repository's face measured -- so a lane with no font engine
+    // proves the picture a maker only ever sees through SDL (TYPE-0's rule).
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    SUBCASE("a character medium") {
+        const ui::Rect panel = external_panel_rect(r.session(), kind);
+        const ExternalBodyPlace body = external_body_of(r.session(), kind);
+        REQUIRE(body.present);
+        REQUIRE(body.rows >= 3);
+
+        // THE HEADER IS WORKSHOP'S ROW AND IT NAMES NOTHING. The provider was never
+        // granted it, so there is no row of its room for this press to be.
+        seat->presses.clear();
+        r.press_cell(panel.x, panel.y);
+        CHECK(seat->presses.empty());
+
+        // ROW 0 OF THE ROOM IS THE ROW UNDER THE HEADER.
+        r.press_cell(panel.x, panel.y + kExternalHeaderRows);
+        REQUIRE(seat->presses.size() == 1);
+        CHECK(seat->presses[0].pane == std::string(kHelloPane));
+        CHECK(seat->presses[0].row == 0);
+        CHECK(seat->presses[0].column == 0);
+
+        // ...and every further row and column is the same subtraction, swept rather
+        // than sampled, because an off-by-one in one direction only is exactly the
+        // defect that survives a single example.
+        for (std::int64_t row = 0; row < body.rows; ++row) {
+            for (std::int64_t col : {std::int64_t{0}, body.columns / 2, body.columns - 1}) {
+                seat->presses.clear();
+                r.press_cell(panel.x + col, panel.y + kExternalHeaderRows + row);
+                REQUIRE(seat->presses.size() == 1);
+                CHECK(seat->presses[0].row == row);
+                CHECK(seat->presses[0].column == col);
+            }
+        }
+
+        // THE LAST ROW OF THE ROOM IS THE LAST ROW THAT NAMES ANYTHING.
+        seat->presses.clear();
+        r.press_cell(panel.x, panel.y + kExternalHeaderRows + body.rows);
+        CHECK(seat->presses.empty());
+        // ...and so is the last column.
+        r.press_cell(panel.x + body.columns, panel.y + kExternalHeaderRows);
+        CHECK(seat->presses.empty());
+    }
+
+    SUBCASE("a graphical medium, whose line height is not its cell height") {
+        r.extent(1000, 700, 8, 18);
+        const ui::Rect panel = external_panel_rect(r.session(), kind);
+        const ExternalBodyPlace body = external_body_of(r.session(), kind);
+        REQUIRE(body.present);
+        // THE PRECONDITION THIS SUBCASE RESTS ON, ASSERTED RATHER THAN ASSUMED: a
+        // graphical line is NOT a cell row, so a press resolved through the cell
+        // lattice would land on a different row and this case would go red. With a
+        // face of 18 pixels in cells of 12 the two disagree from the second line on.
+        REQUIRE(body.fit.graphical());
+        REQUIRE(body.fit.line_px != surface::kCanvasCellPx);
+
+        for (std::int64_t row = 0; row < body.rows; ++row) {
+            seat->presses.clear();
+            // THE PIXEL AT THE MIDDLE OF THE PROSE LINE -- inside the glyphs a maker is
+            // aiming at, resolved with the same `RegionFit` that positioned them.
+            const std::int64_t y = panel.y * surface::kCanvasCellPx + body.fit.origin_y +
+                                   (row + kExternalHeaderRows) * body.fit.line_px +
+                                   body.fit.line_px / 2;
+            const std::int64_t x = panel.x * surface::kCanvasCellPx + body.fit.origin_x +
+                                   3 * body.fit.advance_px + body.fit.advance_px / 2;
+            r.press_pixel(x, y);
+            REQUIRE(seat->presses.size() == 1);
+            CHECK(seat->presses[0].row == row);
+            CHECK(seat->presses[0].column == 3);
+        }
+
+        // THE TOP INSET IS THE HEADER'S FIRST PIXEL AND NAMES NO PROVIDER ROW.
+        seat->presses.clear();
+        r.press_pixel(panel.x * surface::kCanvasCellPx + 1, panel.y * surface::kCanvasCellPx + 1);
+        CHECK(seat->presses.empty());
+
+        // AND THE PIXEL REMAINDER UNDER THE LAST PROSE LINE IS NOT A ROW. `fit_region`
+        // already decided how many WHOLE lines this rectangle holds; the strip left
+        // over is inside the pane, is painted with nothing, and rounding it to the
+        // nearest row would hand the provider a press at a place it never wrote to.
+        const std::int64_t past = panel.y * surface::kCanvasCellPx + body.fit.origin_y +
+                                  (body.rows + kExternalHeaderRows) * body.fit.line_px + 1;
+        REQUIRE(past < (panel.y + panel.h) * surface::kCanvasCellPx); // genuinely inside the pane
+        r.press_pixel(panel.x * surface::kCanvasCellPx + body.fit.origin_x + 1, past);
+        CHECK(seat->presses.empty());
+    }
+}
+
+TEST_CASE("SEL-0: every forwarded press is inside the room that pane was granted") {
+    // THE BOUND STATED OVER THE WHOLE RECTANGLE rather than at its edges: no position
+    // anywhere in or around the pane, in either medium, produces a coordinate outside
+    // `[0, rows) x [0, columns)`. That is the provider's whole guarantee, and the one
+    // thing it has nothing of its own to check it against.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    for (const bool graphical : {false, true}) {
+        CAPTURE(graphical);
+        if (graphical) {
+            r.extent(1000, 700, 8, 18);
+        }
+        const ui::Rect panel = external_panel_rect(r.session(), kind);
+        const ExternalBodyPlace body = external_body_of(r.session(), kind);
+        REQUIRE(body.present);
+        seat->presses.clear();
+        for (std::int64_t y = panel.y - 2; y < panel.y + panel.h + 2; ++y) {
+            for (std::int64_t x = panel.x - 2; x < panel.x + panel.w + 2; ++x) {
+                if (graphical) {
+                    r.press_pixel(cell_mid_px(x), cell_mid_px(y));
+                } else {
+                    r.press_cell(x, y);
+                }
+            }
+        }
+        REQUIRE_FALSE(seat->presses.empty()); // the sweep really did reach the body
+        for (const PanePressed& p : seat->presses) {
+            CHECK(p.pane == std::string(kHelloPane));
+            CHECK(p.row >= 0);
+            CHECK(p.row < body.rows);
+            CHECK(p.column >= 0);
+            CHECK(p.column < body.columns);
+        }
+    }
+}
+
+TEST_CASE("SEL-0: a press is authored as Workshop and addressed to the offering office") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    ProviderSeat* other = r.mount_provider(kOtherOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.drive(other, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"second", "Second", "another office's pane"});
+    });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = external_panel_rect(r.session(), kind);
+
+    seat->presses.clear();
+    other->presses.clear();
+    r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+
+    // ONE PROVIDER HEARS IT, and it is the one whose pane the hand landed on. The
+    // destination is a ROLE, so a replaced provider would still hear its own pane's
+    // presses; the authorship is Loom's stamp, which is the only thing a provider can
+    // verify and the only thing a forger cannot write.
+    REQUIRE(seat->presses.size() == 1);
+    REQUIRE(seat->press_authors.size() == 1);
+    CHECK(seat->press_authors[0] == std::string(kWorkshopProvider));
+    CHECK(other->presses.empty());
+}
+
+TEST_CASE("SEL-0: management chrome gets first refusal, and a mode takes the press whole") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = external_panel_rect(r.session(), kind);
+    const std::int64_t body_y = panel.y + kExternalHeaderRows;
+
+    // THE CONTROL: with nothing over it, this exact press reaches the provider. Every
+    // negative below is the same press with one thing in the way, so a case that
+    // stopped reaching the pane for an unrelated reason cannot read as a refusal.
+    seat->presses.clear();
+    r.press_cell(panel.x + 1, body_y);
+    REQUIRE(seat->presses.size() == 1);
+
+    SUBCASE("the picker is over the pane") {
+        seat->presses.clear();
+        r.key(input::scan::kP);
+        REQUIRE(r.session().panels.picker.open);
+        r.press_cell(panel.x + 1, body_y);
+        CHECK(seat->presses.empty());
+    }
+    SUBCASE("pane management owns the pointer") {
+        seat->presses.clear();
+        r.key(input::scan::kW);
+        r.text("w");
+        REQUIRE(r.session().manage.open);
+        r.press_cell(panel.x + 1, body_y);
+        CHECK(seat->presses.empty());
+    }
+    SUBCASE("the terminal overlay is a mode and outranks occupancy entirely") {
+        seat->presses.clear();
+        r.key(input::scan::kSpace, input::mod::kShift);
+        REQUIRE(r.session().terminal.open);
+        r.press_cell(panel.x + 1, body_y);
+        CHECK(seat->presses.empty());
+    }
+    SUBCASE("a release is not a press") {
+        seat->presses.clear();
+        r.release_cell(panel.x + 1, body_y);
+        CHECK(seat->presses.empty());
+    }
+    SUBCASE("a second button is not the primary one") {
+        seat->presses.clear();
+        r.publish(loom::to_value(input::PointerButton{3, true, panel.x + 1,
+                                                      body_y + surface::kTuiCanvasTopRow,
+                                                      input::space::kCells, input::mod::kNone}));
+        CHECK(seat->presses.empty());
+    }
+    SUBCASE("a position in a space this application does not recognise") {
+        seat->presses.clear();
+        r.publish(loom::to_value(input::PointerButton{
+            1, true, panel.x + 1, body_y + surface::kTuiCanvasTopRow, 4242, input::mod::kNone}));
+        CHECK(seat->presses.empty());
+    }
+}
+
+TEST_CASE("SEL-0: a pane with no room granted yet is told about no press") {
+    // THE ONE BEAT BETWEEN A PANEL OPENING AND ITS FIRST GRANT. A press then would be a
+    // position in a lattice the provider has never been handed, which is unanswerable
+    // rather than merely unhelpful.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = external_panel_rect(r.session(), kind);
+    ExternalPane* pane = r.session().panels.external_pane(kind);
+    REQUIRE(pane != nullptr);
+    REQUIRE(pane->granted);
+
+    pane->granted = false; // the state a freshly opened, not-yet-repainted panel is in
+    seat->presses.clear();
+    r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+    CHECK(seat->presses.empty());
+}
+
+TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's rows mean") {
+    // THE AUTHORITY AUDIT, FROM THE BUS (INTR-0's discipline). What Workshop says across
+    // a whole life -- discovery, a room, several presses on several different rows, a
+    // resize -- is exactly five shapes, and the one that carries a provider's material
+    // travels in one direction only: Workshop never speaks a `PaneContent`.
+    PaneRig r;
+    std::vector<std::string> said;
+    loom::WeaveId who{};
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (who.valid() && e.sender == who && !e.schema_name.empty()) {
+            said.push_back(e.schema_name);
+        }
+    });
+    r.mount_workshop();
+    who = r.workshop_id;
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.ready();
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = external_panel_rect(r.session(), kind);
+    seat->presses.clear();
+    for (std::int64_t row = 0; row < 3; ++row) {
+        r.press_cell(panel.x + row, panel.y + kExternalHeaderRows + row);
+    }
+    r.extent(140, 40);
+    r.bus.remove_observer(tap);
+
+    std::vector<std::string> distinct = said;
+    std::sort(distinct.begin(), distinct.end());
+    distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+    const std::vector<std::string> allowed{"PaneCatalogRequested", "PanePressed", "PaneRoom",
+                                           "SurfaceCanvas", "SurfaceText"};
+    CHECK(distinct == allowed);
+
+    // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three
+    // presses on three different rows produced three `PanePressed`s that differ only in
+    // where the hand was: no row identity, no selectable flag, no entry name, nothing
+    // Workshop would have had to read a provider's material to know.
+    REQUIRE(seat->presses.size() == 3);
+    for (std::size_t i = 0; i < seat->presses.size(); ++i) {
+        CHECK(seat->presses[i].pane == std::string(kHelloPane));
+        CHECK(seat->presses[i].row == static_cast<std::int64_t>(i));
+        CHECK(seat->presses[i].column == static_cast<std::int64_t>(i));
+    }
+}
+
+TEST_CASE("SEL-0: a press names WHICH pane, when one provider offers two") {
+    // ONE PROVIDER IS NOT ONE PANE, and the shape carries the pane key for exactly this
+    // reason. Introspection offers only `loaded` today; a seam that assumed one apiece
+    // would have to be widened by the second pane rather than merely used by it.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"second", "Second", "the same office's other pane"});
+    });
+    REQUIRE(r.session().panels.runtime.entries.size() == 2);
+    r.extent(160, 60); // room in the stack for two panes at once
+    r.pick(hello_ref());
+    r.pick(PaneRef{kHelloOffice, "second"});
+    REQUIRE(r.session().panels.open.size() == 3); // Info and both panes
+
+    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+        CAPTURE(row.pane);
+        const ui::Rect panel = external_panel_rect(r.session(), row.kind);
+        REQUIRE(panel.w > 0);
+        seat->presses.clear();
+        r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
+        REQUIRE(seat->presses.size() == 1);
+        CHECK(seat->presses[0].pane == row.pane);
+    }
+}
+
+// ---- Tier two: what a row of the Loaded view means ---------------------------------
+
+TEST_CASE("SEL-0: the projection says which entry each row names, and which name none") {
+    const std::vector<intro::LoadedWeave> pop = loaded_population(3);
+    const intro::LoadedView view = intro::project_loaded(pop, 8, 46);
+    REQUIRE(view.rows.size() == view.entry_of_row.size());
+    REQUIRE(view.shown.size() == 3);
+
+    // THE HEADING IS A COUNT AND NAMES NO ENTRY, and neither do the caveat, the source
+    // line or the blank separator. This is the vocabulary Workshop does not have.
+    CHECK(view.entry_of_row[0] == intro::kNoEntry);
+    CHECK(intro::entry_at_row(view, 0) == nullptr);
+    std::size_t named = 0;
+    for (std::size_t i = 0; i < view.rows.size(); ++i) {
+        const intro::LoadedWeave* at = intro::entry_at_row(view, static_cast<std::int64_t>(i));
+        if (at == nullptr) {
+            CHECK(view.rows[i].text.find("weave-") == std::string::npos);
+            continue;
+        }
+        ++named;
+        // THE ENTRY THE MAP POINTS AT IS THE ENTRY THAT ROW DREW.
+        CHECK(view.rows[i].text.find(at->name) != std::string::npos);
+        CHECK(view.rows[i].text.find(at->role) != std::string::npos);
+    }
+    CHECK(named == 3);
+
+    // TOTAL OVER EVERY ROW INDEX, including ones no press can produce. A provider is
+    // handed a row off a wire and must not have to bound it twice -- and an EMPTY view
+    // is the state between a room grant and its answer, when a maker is looking at
+    // Workshop's `(waiting for the provider)` and there is no material to have pressed.
+    CHECK(intro::entry_at_row(view, -1) == nullptr);
+    CHECK(intro::entry_at_row(view, static_cast<std::int64_t>(view.rows.size())) == nullptr);
+    CHECK(intro::entry_at_row(view, 1 << 20) == nullptr);
+    const intro::LoadedView empty;
+    CHECK(intro::entry_at_row(empty, 0) == nullptr);
+}
+
+TEST_CASE("SEL-0: an omission marker is a population fact and names no hidden entry") {
+    // `... 17 more` SAYS HOW MUCH OF THE LIST IS NOT HERE. It is not a stand-in for one
+    // hidden weave, so pressing it selects nothing -- and "select the first hidden one"
+    // is a gesture this pane does not offer and must not invent.
+    const intro::LoadedView view = intro::project_loaded(loaded_population(20), 8, 46);
+    std::size_t marker = view.rows.size();
+    for (std::size_t i = 0; i < view.rows.size(); ++i) {
+        if (view.rows[i].text.find("more") != std::string::npos) {
+            marker = i;
+        }
+    }
+    REQUIRE(marker < view.rows.size());
+    CHECK(view.entry_of_row[marker] == intro::kNoEntry);
+    CHECK(intro::entry_at_row(view, static_cast<std::int64_t>(marker)) == nullptr);
+    // ...and every entry the map DOES name is one of the shown ones, never a hidden one.
+    for (const intro::LoadedWeave& w : view.shown) {
+        CHECK(any_row(view.rows, w.name));
+    }
+    CHECK(view.shown.size() < 20);
+}
+
+TEST_CASE("SEL-0: marking a row changes that row and nothing else about the view") {
+    const std::vector<intro::LoadedWeave> pop = loaded_population(3);
+    const intro::LoadedView before = intro::project_loaded(pop, 8, 46);
+    intro::LoadedView after = before;
+    intro::mark_selected(after, "weave-1", 46);
+
+    REQUIRE(after.rows.size() == before.rows.size());
+    REQUIRE(after.entry_of_row == before.entry_of_row);
+    REQUIRE(after.shown.size() == before.shown.size());
+    std::size_t moved = 0;
+    for (std::size_t i = 0; i < after.rows.size(); ++i) {
+        if (after.rows[i].text == before.rows[i].text &&
+            after.rows[i].role == before.rows[i].role &&
+            after.rows[i].background == before.rows[i].background) {
+            continue;
+        }
+        ++moved;
+        // THE MARK IS THE STATEMENT AND THE INK IS THE SECOND SIGNAL, never the only
+        // one: a maker in a terminal with no colour can still see which row is chosen.
+        CHECK(after.rows[i].text.rfind(intro::kSelectedMark, 0) == 0);
+        CHECK(before.rows[i].text.rfind(intro::kUnselectedMark, 0) == 0);
+        CHECK(after.rows[i].role == surface::role::kAccent);
+        CHECK(after.rows[i].text.find("weave-1") != std::string::npos);
+        // AND THE WIDTH IS UNMOVED, because the mark spends the indent the row already
+        // had. A list cannot start cutting names because something in it was selected.
+        CHECK(after.rows[i].text.size() == before.rows[i].text.size());
+    }
+    CHECK(moved == 1);
+
+    // A NAME NO SHOWN ENTRY CARRIES LEAVES EVERY ROW UNMARKED -- which is exactly what a
+    // pane whose selected entry is currently windowed out looks like. The selection is
+    // still held by its owner; there is simply no row here to put a mark on.
+    intro::LoadedView none = before;
+    intro::mark_selected(none, "not-loaded-here", 46);
+    for (std::size_t i = 0; i < none.rows.size(); ++i) {
+        CHECK(none.rows[i].text == before.rows[i].text);
+    }
+    intro::LoadedView cleared = after;
+    intro::mark_selected(cleared, "", 46);
+    for (std::size_t i = 0; i < cleared.rows.size(); ++i) {
+        CHECK(cleared.rows[i].text == before.rows[i].text);
+        CHECK(cleared.rows[i].role == before.rows[i].role);
+        CHECK(cleared.rows[i].background == before.rows[i].background);
+    }
+}
+
+TEST_CASE("SEL-0: a marked projection still fits the room it was granted") {
+    // THE OBLIGATION `project_loaded` ALREADY HAD, restated for the marked form: a row
+    // one byte too wide is refused WHOLE by Workshop, so a selection that pushed a row
+    // over the budget would blank the pane rather than highlight anything.
+    for (std::size_t n : {std::size_t{1}, std::size_t{4}, std::size_t{20}}) {
+        for (std::int64_t rows = 1; rows <= 12; ++rows) {
+            for (std::int64_t cols : {std::int64_t{6}, std::int64_t{20}, std::int64_t{46}}) {
+                CAPTURE(n);
+                CAPTURE(rows);
+                CAPTURE(cols);
+                intro::LoadedView view = intro::project_loaded(loaded_population(n), rows, cols);
+                const std::size_t was = view.rows.size();
+                for (const intro::LoadedWeave& w : view.shown) {
+                    intro::mark_selected(view, w.name, cols);
+                    REQUIRE(view.rows.size() == was);
+                    REQUIRE(static_cast<std::int64_t>(view.rows.size()) <= rows);
+                    for (const surface::SurfaceTextRow& row : view.rows) {
+                        REQUIRE(static_cast<std::int64_t>(row.text.size()) <= cols);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("SEL-0: the mark a maker reads is `>`, and it is the width of the indent it spends") {
+    // THE ONE CASE THAT SPELLS THE CHARACTERS OUT, and it exists because a canary found
+    // that nothing did. Every other case here says `intro::kSelectedMark`, which is right
+    // -- a magic string in twenty places is how two spellings drift -- but a suite in
+    // which every reference is the constant CANNOT NOTICE THE CONSTANT CHANGING. The
+    // mutation was `> ` -> `* ` and all 547 cases stayed green.
+    //
+    // The value is not arbitrary and is not this tool's to choose freshly: `>` is what
+    // Workshop's own object list and completion list already say (`object_row_text`,
+    // `completion_rows`), and a maker who has learned what a mark means in one list has
+    // learned it for this one. So the character is pinned where a reader can see it.
+    CHECK(std::string(intro::kSelectedMark) == "> ");
+    CHECK(std::string(intro::kUnselectedMark) == "  ");
+    // AND THE TWO ARE THE SAME WIDTH, which is the property the projection rests on: a
+    // selection exchanges the indent for a mark, so no row changes length, no budget
+    // moves, and a list cannot begin cutting names because something in it was selected.
+    REQUIRE(std::char_traits<char>::length(intro::kSelectedMark) ==
+            std::char_traits<char>::length(intro::kUnselectedMark));
+    const intro::LoadedWeave one{"a-weave", "a.role"};
+    CHECK(intro::entry_row(one, false, 46) == "  a-weave @a.role");
+    CHECK(intro::entry_row(one, true, 46) == "> a-weave @a.role");
+    // ...and a weave the kernel bound no role to says so in either form.
+    const intro::LoadedWeave none{"a-weave", ""};
+    CHECK(intro::entry_row(none, false, 46) == "  a-weave @(no role)");
+    CHECK(intro::entry_row(none, true, 46) == "> a-weave @(no role)");
+}
+
+TEST_CASE("SEL-0: a held selection asks the population, not the rows") {
+    // AN ENTRY WINDOWED OUT OF A SHORT PANE IS PRESENT AND MERELY UNSHOWN; an entry the
+    // kernel no longer has is GONE. Confusing the two would clear a maker's selection
+    // every time they made a panel small.
+    const std::vector<intro::LoadedWeave> pop = loaded_population(20);
+    CHECK(intro::names(pop, "weave-19"));
+    CHECK_FALSE(intro::names(pop, "weave-20"));
+    CHECK_FALSE(intro::names(pop, ""));
+    CHECK_FALSE(intro::names({}, "weave-0"));
+
+    const intro::LoadedView small = intro::project_loaded(pop, 5, 46);
+    CHECK_FALSE(any_row(small.rows, "weave-19")); // not on screen...
+    CHECK(intro::names(pop, "weave-19"));         // ...and still loaded
+}
+
+// ---- Tier three: the real tool, pressed through the real input path ----------------
+
+namespace {
+
+/// WHAT AN INDEPENDENT LISTENER HEARD -- kept outside the weave so a case can outlive
+/// the bus that delivered it, which is the same shape `Painter` uses for canvases.
+struct Ears {
+    std::vector<intro::LoadedSelected> heard;
+    std::vector<std::string> authors;
+};
+
+/// AN INDEPENDENT LISTENER, and the point is that it is a STRANGER.
+///
+/// It compiles `introspection/vocabulary.hpp` and nothing else of the tool: no callback
+/// is registered anywhere, no pointer is handed to anybody, and it is not Workshop, not
+/// a provider and not in any office. What it hears, it hears because a weave published
+/// an ordinary Loom message and the bus delivered it -- which is the whole claim
+/// `LoadedSelected` exists to make good on.
+class SelectionListener
+    : public loom::WeaveBase<SelectionListener, SeenState, loom::Accept<intro::LoadedSelected>,
+                             loom::Emit<>> {
+public:
+    explicit SelectionListener(Ears& ears) : ears_(&ears) {}
+    void on(const intro::LoadedSelected& s, loom::Mail& mail) {
+        ++state_.frames;
+        ears_->heard.push_back(s);
+        ears_->authors.push_back(std::string(mail.authored_role()));
+    }
+
+private:
+    Ears* ears_;
+};
+
+/// The prose rows the Loaded pane is currently showing, with Workshop's header dropped
+/// -- said once here so a case below reads as a gesture and an assertion.
+std::vector<std::string> loaded_rows(PaneRig& r, std::int64_t kind) {
+    return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+}
+
+/// The library name an entry row shows, read off the canvas: `  name @role` without
+/// its two-character mark. A case must never assume WHICH weave a row holds -- the
+/// kernel's map decides that -- so it reads the row a maker would have aimed at.
+std::string named_by(const std::string& row) {
+    const std::size_t at = row.find(" @");
+    return at == std::string::npos ? std::string() : row.substr(2, at - 2);
+}
+
+bool is_entry_row(const std::string& row) {
+    return row.size() > 2 && row.find(" @") != std::string::npos &&
+           (row.rfind(intro::kUnselectedMark, 0) == 0 || row.rfind(intro::kSelectedMark, 0) == 0) &&
+           row.find(intro::kElided) == std::string::npos;
+}
+
+} // namespace
+
+TEST_CASE("SEL-0: pressing a loaded row selects the entry that row actually showed") {
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent(140, 40); // a room grant, which is this tool's one beat: two weaves now
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    std::vector<std::string> shown = loaded_rows(r, kind);
+    REQUIRE(shown.size() >= 3);
+    REQUIRE(shown[0] == "loaded weaves -- 2");
+
+    // THE ROW A MAKER WOULD AIM AT, found by reading the canvas rather than by
+    // arithmetic: whatever the pane is showing at prose row 1 is what a press there
+    // must select, and this case does not get to assume which weave that is.
+    REQUIRE(is_entry_row(shown[1]));
+    const std::string named = named_by(shown[1]);
+
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+
+    // THE PANE SAYS SO, ON THE CANVAS A MAKER READS.
+    shown = loaded_rows(r, kind);
+    REQUIRE(shown.size() >= 3);
+    CHECK(shown[1].rfind(intro::kSelectedMark, 0) == 0);
+    CHECK(shown[1].find(named) != std::string::npos);
+    CHECK(shown[2].rfind(intro::kUnselectedMark, 0) == 0); // exactly one row is marked
+
+    // AND AN INDEPENDENT LISTENER HEARD IT THROUGH THE ORDINARY LOOM ROUTE. No
+    // callback, no direct call, no registration with the provider.
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].pane == std::string(kIntroPane));
+    CHECK(ears.heard[0].library == named);
+    CHECK(ears.authors[0] == std::string(kIntroOffice)); // authored as the office, verifiably
+    // THE IDENTITY IS THE LOADED LIBRARY'S NAME, and it is one of the two names the
+    // kernel actually has -- never a WeaveId and never a participant identity.
+    CHECK((named == std::string(intro::kIntrospectionStem) || named == "zengine-workshop-hello"));
+
+    SUBCASE("another row moves the selection, and the mark with it") {
+        REQUIRE(is_entry_row(shown[2]));
+        const std::string second = named_by(shown[2]);
+        REQUIRE(second != named);
+        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 2);
+        const std::vector<std::string> after = loaded_rows(r, kind);
+        CHECK(after[1].rfind(intro::kUnselectedMark, 0) == 0);
+        CHECK(after[2].rfind(intro::kSelectedMark, 0) == 0);
+        REQUIRE(ears.heard.size() == 2);
+        CHECK(ears.heard[1].library == second);
+    }
+
+    SUBCASE("the same row again is a second gesture and is published again") {
+        // AN OCCURRENCE, NOT A TRANSITION. A maker who presses the same weave twice has
+        // selected it twice, and a future trigger reading "whenever the maker selects
+        // this one" is owed both. What does NOT repeat is the picture: the mark is
+        // already where it belongs, so the rows a maker sees are byte-identical.
+        const std::vector<std::string> was = loaded_rows(r, kind);
+        r.press_cell(body.x + 3, body.y + kExternalHeaderRows + 1);
+        REQUIRE(ears.heard.size() == 2);
+        CHECK(ears.heard[1].library == named);
+        CHECK(ears.heard[1].pane == ears.heard[0].pane);
+        CHECK(ears.heard[1].role == ears.heard[0].role);
+        CHECK(loaded_rows(r, kind) == was);
+    }
+}
+
+TEST_CASE("SEL-0: heading, caveat, source note and blank select nothing") {
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> shown = loaded_rows(r, kind);
+    REQUIRE(shown.size() >= 4);
+
+    // EVERY ROW THAT IS NOT AN ENTRY, PRESSED, one at a time, chosen by what the row
+    // SAYS rather than by an index a later projection could move.
+    std::size_t pressed = 0;
+    for (std::size_t i = 0; i < shown.size(); ++i) {
+        if (is_entry_row(shown[i])) {
+            continue;
+        }
+        ++pressed;
+        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(i));
+    }
+    CHECK(pressed >= 3); // the heading, the caveat and the source line at minimum
+    CHECK(ears.heard.empty());
+    // ...and the pane is unmoved: a press on a heading is not a deselection gesture
+    // either, so nothing was cleared and nothing was marked.
+    CHECK(loaded_rows(r, kind) == shown);
+}
+
+TEST_CASE("SEL-0: an omission marker on a live pane selects nothing") {
+    // THE LIVE WITNESS FOR THE PURE CASE, in a room too short to show everything: the
+    // marker is a POPULATION FACT, and pressing it must not select the first hidden
+    // weave -- a gesture this pane does not offer and must not invent.
+    Ears ears;
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(watch->offers.size() >= 1);
+
+    // A ROOM TOO SHORT TO NAME EVERYTHING -- granted directly, so the case owns the
+    // density rather than hoping a screen produces it. At three rows the view spends
+    // one on the heading, one on the caveat and one on the marker, which is INTR-0's
+    // own "at a budget too small to show and to say, it says".
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 3, 46});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    const std::vector<surface::SurfaceTextRow>& rows = watch->content.back().rows;
+    std::size_t marker = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].text.find(intro::kElided) != std::string::npos &&
+            rows[i].text.find("more") != std::string::npos) {
+            marker = i;
+        }
+    }
+    REQUIRE(marker < rows.size());
+
+    const std::size_t content_before = watch->content.size();
+    r.drive_watcher(watch, [marker](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, kIntroOffice, PanePressed{kIntroPane, static_cast<std::int64_t>(marker), 0});
+    });
+    CHECK(ears.heard.empty());
+    CHECK(watch->content.size() == content_before); // nothing re-drawn either
+}
+
+TEST_CASE("SEL-0: a press is read against the snapshot the maker saw, not a fresh one") {
+    // THE LOAD-BEARING CASE. The pane is showing a projection made from population A;
+    // the kernel's map then becomes B; the maker presses a row of what is still on
+    // screen. The fact must name what they SAW -- which is only true because
+    // interpreting a press asks the Weave Manager nothing.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent(140, 40);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> shown = loaded_rows(r, kind);
+    REQUIRE(shown[0] == "loaded weaves -- 2");
+
+    // WHICH ROW SHOWS THE LIBRARY THAT IS ABOUT TO GO AWAY -- read off the canvas,
+    // because the order is the kernel's and this case does not get to assume it.
+    std::size_t which = 0;
+    for (std::size_t i = 1; i < shown.size(); ++i) {
+        if (is_entry_row(shown[i]) && named_by(shown[i]) == "zengine-workshop-hello") {
+            which = i;
+        }
+    }
+    REQUIRE(which != 0);
+
+    // THE POPULATION CHANGES UNDER THE PANE, through the real control door, and Workshop
+    // is told nothing -- Loom has no departure event, so the rows a maker is looking at
+    // are still A's.
+    REQUIRE(r.unload("zengine-workshop-hello"));
+    CHECK(loaded_rows(r, kind) == shown);
+
+    // THE PRESS LANDS ON THE ROW THAT NAMES THE DEPARTED LIBRARY, and the fact says so.
+    // A provider that re-read `zen.ListLoaded` here would answer with B's row instead --
+    // a different weave at the same index, or no row at all.
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(which));
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == "zengine-workshop-hello");
+}
+
+TEST_CASE("SEL-0: interpreting a press asks the Weave Manager nothing") {
+    // THE SAME CLAIM AS A COUNT ON THE BUS. Whatever the provider says while a maker
+    // presses rows, `zen.ListLoaded` is not among it -- a re-read here is exactly the
+    // mutation that would make the case above wrong, and only sometimes.
+    PaneRig r;
+    r.mount_workshop();
+    std::vector<std::string> said;
+    loom::WeaveId who{};
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (who.valid() && e.sender == who && !e.schema_name.empty()) {
+            said.push_back(e.schema_name);
+        }
+    });
+    who = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(who.valid());
+    // THE FIRST OFFER IS SPOKEN BEFORE `who` IS KNOWN -- the weave activates inside the
+    // load, and its id is this call's return value. `ready()` asks the catalog again, so
+    // the audit below sees a discovery sentence rather than silently missing one.
+    r.ready();
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::ptrdiff_t asks_before =
+        std::count(said.begin(), said.end(), std::string("zen.ListLoaded"));
+    REQUIRE(asks_before >= 1); // the room grant did ask, once
+
+    for (std::int64_t i = 0; i < 4; ++i) {
+        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    }
+    r.bus.remove_observer(tap);
+    CHECK(std::count(said.begin(), said.end(), std::string("zen.ListLoaded")) == asks_before);
+
+    // AND THE WHOLE OUTBOUND VOCABULARY IS FOUR SHAPES, one more than INTR-0's three.
+    std::vector<std::string> distinct = said;
+    std::sort(distinct.begin(), distinct.end());
+    distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
+    const std::vector<std::string> allowed{"LoadedSelected", "PaneContent", "PaneOffered",
+                                           "zen.ListLoaded"};
+    CHECK(distinct == allowed);
+    // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
+    // ABSENT. Being able to say which weave a maker pointed at is not being able to
+    // reach it: no lifecycle command, no message addressed to the selected library, and
+    // no canvas of its own was ever spoken.
+    for (const char* forbidden : {"zen.LoadWeave", "zen.SwapWeave", "zen.ReloadWeave",
+                                  "zen.UnloadLibrary", "zen.UnloadRole", "zen.QueryRole",
+                                  "SurfaceCanvas", "PaneRoom", "PanePressed"}) {
+        CHECK(std::find(said.begin(), said.end(), std::string(forbidden)) == said.end());
+    }
+}
+
+TEST_CASE("SEL-0: a forged press selects nothing and publishes nothing") {
+    // MEASURED FROM BOTH WRONG SIDES, through the two instruments the forged-room case
+    // uses: a weave in ANOTHER office authoring a press deliberately, and the holder of
+    // `zengine.workshop` speaking PERSONALLY. Holding an office is not speaking as one,
+    // and neither of these is Workshop.
+    Ears ears;
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    ProviderSeat* stranger = r.mount_provider(kOtherOffice);
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(watch->offers.size() == 1);
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 46});
+    });
+    REQUIRE(watch->content.size() == 1);
+    REQUIRE_FALSE(watch->content[0].rows.empty());
+    const std::size_t content_before = watch->content.size();
+
+    // A STRANGER'S PRESS AT ROW 1 -- the row a real press would have selected.
+    r.drive(stranger, [](ProviderSeat& s, loom::Mail& m) {
+        s.press_at(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    });
+    CHECK(ears.heard.empty());
+    CHECK(watch->content.size() == content_before);
+
+    // THE OFFICE HOLDER, SPEAKING PERSONALLY.
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press_personally(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    });
+    CHECK(ears.heard.empty());
+    CHECK(watch->content.size() == content_before);
+
+    // ...AND THE CORRECTLY AUTHORED ONE IS STILL ANSWERED, so the two refusals above are
+    // about AUTHORSHIP and not about the tool having stopped listening.
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    });
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard[0].library == std::string(intro::kIntrospectionStem));
+    CHECK(watch->content.size() == content_before + 1);
+
+    // A PRESS FOR A PANE THIS PROVIDER DOES NOT HAVE IS NOT ONE OF ITS ROWS EITHER.
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, kIntroOffice, PanePressed{"schemas", 1, 0});
+    });
+    CHECK(ears.heard.size() == 1);
+}
+
+TEST_CASE("SEL-0: a press between a room grant and its answer names nothing") {
+    // THE GAP A MAKER SEES AS `(waiting for the provider)`. Workshop clears its cache
+    // before every grant, so in that window there is no material of this pane's on
+    // screen -- and a press read against the projection from BEFORE the grant would name
+    // an entry from a picture nobody is looking at.
+    //
+    // REACHING IT TAKES ONE TRICK, and it is worth writing down because the obvious rig
+    // cannot: `bus.pump()` drains, so a grant driven on its own is always answered before
+    // anything else can happen. Both sentences are therefore authored inside ONE delivery
+    // -- the grant first, the press second -- so the queue is [room, press] and the
+    // provider's own question to the Manager is enqueued BEHIND the press. The press is
+    // delivered while the answer is still outstanding, which is exactly the live gap.
+    Ears ears;
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 8, 46});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    // ROW 1 IS AN ENTRY IN THE READING NOW ON SCREEN -- the control for what follows.
+    REQUIRE(watch->content.back().rows.size() > 1);
+    REQUIRE(watch->content.back().rows[1].text.find(" @") != std::string::npos);
+    const std::size_t content_before = watch->content.size();
+
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 46});
+        wv.press(m, kIntroOffice, PanePressed{kIntroPane, 1, 0});
+    });
+    // NOTHING WAS SELECTED, because at the moment the press arrived this pane was
+    // showing nothing. The new reading then lands normally, so the pane is not broken --
+    // it simply had no material to have been pressed.
+    CHECK(ears.heard.empty());
+    CHECK(watch->content.size() == content_before + 1);
+    REQUIRE(watch->content.back().rows.size() > 1);
+    CHECK(watch->content.back().rows[1].text.rfind(intro::kUnselectedMark, 0) == 0);
+}
+
+TEST_CASE("SEL-0: a row of the previous room names nothing in the room now in force") {
+    // A GRANT REPLACES THE PROJECTION WHOLE, so a press is always read against the rows
+    // currently on screen. Row 5 of a six-row reading is an entry; the same row number
+    // in a three-row reading is off the end, and the honest answer there is nothing.
+    Ears ears;
+    PaneRig r;
+    PaneWatcher* watch = r.mount_watcher();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 8, 46});
+    });
+    REQUIRE_FALSE(watch->content.empty());
+    const std::size_t tall = watch->content.back().rows.size();
+    REQUIRE(tall >= 3);
+
+    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
+        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 2, 46});
+    });
+    REQUIRE(watch->content.back().rows.size() < tall);
+    const std::size_t content_before = watch->content.size();
+    r.drive_watcher(watch, [tall](PaneWatcher& wv, loom::Mail& m) {
+        wv.press(m, kIntroOffice,
+                 PanePressed{kIntroPane, static_cast<std::int64_t>(tall) - 1, 0});
+    });
+    CHECK(ears.heard.empty());
+    CHECK(watch->content.size() == content_before);
+}
+
+TEST_CASE("SEL-0: a selection is held while its entry is windowed out, and returns with it") {
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent(140, 40);
+    const ui::Rect wide_body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> shown = loaded_rows(r, kind);
+    REQUIRE(shown.size() >= 3);
+    REQUIRE(is_entry_row(shown[2]));
+    const std::string second = named_by(shown[2]);
+    r.press_cell(wide_body.x + 1, wide_body.y + kExternalHeaderRows + 2);
+    REQUIRE(ears.heard.size() == 1);
+    REQUIRE(loaded_rows(r, kind)[2].rfind(intro::kSelectedMark, 0) == 0);
+
+    // A DIFFERENT SCREEN IS A NEW ROOM, WHICH IS A NEW READING. Whether the entry
+    // survives the window or not, a resize is not a gesture and nothing new is said.
+    r.extent(78, 22);
+    const std::vector<std::string> narrow = loaded_rows(r, kind);
+    CHECK(ears.heard.size() == 1);
+    for (const std::string& row : narrow) {
+        // AT MOST ONE MARK, and only ever on the entry that is still selected.
+        if (row.rfind(intro::kSelectedMark, 0) == 0) {
+            CHECK(row.find(second) != std::string::npos);
+        }
+    }
+
+    // ...AND WIDENING BRINGS THE MARK BACK WITH NO GESTURE, because the selection is
+    // held as a NAME and not as a row.
+    r.extent(140, 40);
+    CHECK(any_row(loaded_rows(r, kind), std::string(intro::kSelectedMark) + second));
+    CHECK(ears.heard.size() == 1);
+}
+
+TEST_CASE("SEL-0: a selected library that goes away clears its mark when the absence is seen") {
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent(140, 40);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    const std::vector<std::string> shown = loaded_rows(r, kind);
+    std::size_t which = 0;
+    for (std::size_t i = 1; i < shown.size(); ++i) {
+        if (is_entry_row(shown[i]) && named_by(shown[i]) == "zengine-workshop-hello") {
+            which = i;
+        }
+    }
+    REQUIRE(which != 0);
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(which));
+    REQUIRE(ears.heard.size() == 1);
+
+    // IT LEAVES, AND NOTHING KNOWS YET. The pane is a snapshot and Loom has no departure
+    // event, so the mark stays on the row until this tool observes the absence.
+    REQUIRE(r.unload("zengine-workshop-hello"));
+    CHECK(any_row(loaded_rows(r, kind), intro::kSelectedMark));
+
+    // THE NEXT READING IS THE FIRST MOMENT THE ABSENCE IS OBSERVED, and the mark goes
+    // with it. NOTHING IS PUBLISHED: a library going away is not a maker's gesture, and
+    // inferring a deselection from two snapshots would be a story rather than a fact.
+    r.extent(150, 40);
+    const std::vector<std::string> after = loaded_rows(r, kind);
+    CHECK(after[0] == "loaded weaves -- 1");
+    CHECK_FALSE(any_row(after, intro::kSelectedMark));
+    CHECK(ears.heard.size() == 1);
+
+    // ...and a press now selects what is actually there, with no residue of the old one.
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    REQUIRE(ears.heard.size() == 2);
+    CHECK(ears.heard[1].library == std::string(intro::kIntrospectionStem));
+}
+
+TEST_CASE("SEL-0: the fact travels as data and moves no authority with it") {
+    // A LISTENER HEARS A LIBRARY NAME AND A ROLE. It has learned two strings a maker was
+    // already looking at, and it has acquired nothing: the grant it was mounted with is
+    // the grant it still has, and the named weave is no more reachable to it than
+    // before. VALUES MAY FLOW; AUTHORITY MUST NOT FLOW IMPLICITLY WITH THEM.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    const loom::WeaveId who =
+        r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(who.valid());
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    REQUIRE(ears.heard.size() == 1);
+
+    // THE PAYLOAD IS THREE STRINGS AND ITS SCHEMA SAYS SO -- no id, no handle, no grant,
+    // no token, no capability, and nothing a listener could present to anybody.
+    const std::shared_ptr<const loom::Schema> shape = loom::schema_of<intro::LoadedSelected>();
+    REQUIRE(shape != nullptr);
+    CHECK(shape->name() == "LoadedSelected");
+    CHECK(shape->version() == 1);
+    REQUIRE(shape->fields().size() == 3);
+    CHECK(shape->fields()[0].name == "pane");
+    CHECK(shape->fields()[1].name == "library");
+    CHECK(shape->fields()[2].name == "role");
+    for (const loom::Field& f : shape->fields()) {
+        CHECK(f.type.kind == loom::Kind::Text);
+        CHECK(f.name != "weave");
+        CHECK(f.name != "id");
+        CHECK(f.name != "grant");
+        CHECK(f.name != "token");
+        CHECK(f.name != "capability");
+        CHECK(f.name != "provider"); // Loom's stamp answers that, as everywhere else
+    }
+    // ...AND THE ROLE IS THE OBSERVED ONE. The pane writes `(no role)` for a maker; the
+    // wire carries the observation, so a listener reads the fact and not the prose.
+    CHECK(ears.heard[0].role == std::string(kIntroOffice));
+    CHECK(intro::kNoRole == std::string("(no role)"));
+}
+
+TEST_CASE("SEL-0: the same gesture in a terminal names the same row of the same room") {
+    // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
+    // reporting is already live (DECSET 1002+1006, claimed by the terminal Skin), the
+    // wire already carries a `space`, and `prose_at` branches on that rather than on a
+    // backend -- so a terminal press reaches the same provider row with no parity work
+    // and no new protocol.
+    Ears by_cell;
+    PaneRig cells;
+    cells.mount_workshop();
+    (void)loom::mount<SelectionListener>(cells.bus, by_cell);
+    (void)cells.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    cells.pick(intro_ref());
+    const std::int64_t kind = cells.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(cells.session(), kind);
+    cells.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    REQUIRE(by_cell.heard.size() == 1);
+
+    Ears by_pixel;
+    PaneRig px;
+    px.mount_workshop();
+    (void)loom::mount<SelectionListener>(px.bus, by_pixel);
+    (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    px.pick(intro_ref());
+    const std::int64_t gkind = px.session().panels.runtime.entries[0].kind;
+    px.extent(1000, 700, 8, 18);
+    const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
+    const ui::Rect gpanel = external_panel_rect(px.session(), gkind);
+    REQUIRE(gbody.fit.graphical());
+    px.press_pixel(gpanel.x * surface::kCanvasCellPx + gbody.fit.origin_x + gbody.fit.advance_px +
+                       gbody.fit.advance_px / 2,
+                   gpanel.y * surface::kCanvasCellPx + gbody.fit.origin_y +
+                       (1 + kExternalHeaderRows) * gbody.fit.line_px + gbody.fit.line_px / 2);
+    REQUIRE(by_pixel.heard.size() == 1);
+
+    // ONE FACT, TWO MEDIA. The provider was handed two integers in both runs and cannot
+    // tell which medium answered.
+    CHECK(by_cell.heard[0].library == by_pixel.heard[0].library);
+    CHECK(by_cell.heard[0].pane == by_pixel.heard[0].pane);
+    CHECK(by_cell.heard[0].role == by_pixel.heard[0].role);
+}
+
+TEST_CASE("SEL-0: nothing in this build reacts to a selection") {
+    // THE PHASE'S OWN NON-GOAL, ASSERTED. A selection opens no pane, closes none, moves
+    // no focus, changes no setup, writes no notice, selects no object and sends the
+    // named weave nothing. SEL-0 deliberately leaves the message unanswered.
+    Ears ears;
+    PaneRig r;
+    r.mount_workshop();
+    (void)loom::mount<SelectionListener>(r.bus, ears);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    r.pick(intro_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect body = external_body_rect(r.session(), kind);
+
+    const std::size_t panels_before = r.session().panels.open.size();
+    const std::string notice_before = r.last_notice();
+    const std::int64_t selected_before = r.session().selected;
+    const Setup setup_before = r.session().setup.active;
+
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    REQUIRE(ears.heard.size() == 1);
+
+    CHECK(r.session().panels.open.size() == panels_before);
+    CHECK_FALSE(r.session().panels.picker.open);
+    CHECK_FALSE(r.session().manage.open);
+    CHECK_FALSE(r.session().terminal.open);
+    CHECK(r.session().selected == selected_before);
+    CHECK(r.last_notice() == notice_before);
+    CHECK(r.session().setup.active == setup_before);
 }

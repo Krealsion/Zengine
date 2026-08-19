@@ -4,20 +4,34 @@
 #ifndef ZENGINE_INTROSPECTION_VOCABULARY_HPP
 #define ZENGINE_INTROSPECTION_VOCABULARY_HPP
 
-// The Introspection tool's DURABLE NAMES, and there are only four of them.
+// The Introspection tool's DURABLE NAMES -- four constants, and since SEL-0 exactly
+// ONE shape of its own.
 //
-// It publishes no vocabulary of its own -- no shape, no schema, no request and no
-// answer. Everything it says is somebody else's sentence: the Workshop pane
-// protocol's four shapes (workshop/pane_vocabulary.hpp) and the Weave Manager's
-// `zen.ListLoaded`. So what a consumer needs from this header is exactly the two
-// halves of one durable `PaneRef` plus the two lines a maker reads in the picker.
+// UNTIL SEL-0 IT PUBLISHED NO VOCABULARY AT ALL, and the change is worth reading
+// rather than skimming, because everything else about this tool is unchanged: it
+// still asks nothing new, still answers the same four pane shapes, and still speaks
+// somebody else's sentences for everything it RECEIVES (the Workshop pane protocol,
+// workshop/pane_vocabulary.hpp, and the Weave Manager's `zen.ListLoaded`). What it
+// gained is one thing it can now SAY that nobody else could say for it: that a
+// maker selected one of the entries this pane was showing. No existing sentence
+// carried that, because the fact is about this pane's own material.
+//
+// So what a consumer needs from this header is the two halves of one durable
+// `PaneRef`, the two lines a maker reads in the picker, and -- for a consumer that
+// wants to hear the fact rather than merely open the pane -- `LoadedSelected`.
 //
 // WHY THE OFFICE IS HERE AND NOT ONLY IN THE .cpp. A `PaneRef` is what a saved
 // setup names, so `zengine.introspection/loaded` is a promise to a maker's file --
 // it survives this build, this incarnation and this load order, and it is the one
 // thing about this tool a later phase must not casually rename. A constant a host,
 // a test and the provider all read is what keeps three copies of that promise from
-// drifting into two.
+// drifting into two. The shape is here for the same reason one layer out: a
+// listener is a STRANGER to `introspection.cpp` and must be able to accept the
+// sentence without compiling the tool that says it.
+
+#include <zen/weave/shape.hpp>
+
+#include <string>
 
 namespace zengine::introspection {
 
@@ -63,6 +77,66 @@ inline constexpr const char* kLoadedPaneSummary = "what the kernel has loaded, a
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.
 inline constexpr const char* kIntrospectionStem = "zengine-introspection";
+
+/// A MAKER SELECTED ONE OF THE ENTRIES THIS PANE WAS SHOWING (SEL-0).
+///
+/// ---- IT IS A FACT, NOT A COMMAND ------------------------------------------
+///
+/// It says what HAPPENED and nothing about what should happen next. Nothing in
+/// this build listens to it, and that is deliberate rather than unfinished: the
+/// tool that knows a maker pointed at something is not the tool that knows what
+/// pointing at it should mean, and a pane that decided would be a workflow policy
+/// compiled into an inventory.
+///
+/// ---- IT CARRIES DATA, AND AUTHORITY DOES NOT TRAVEL WITH IT ---------------
+///
+/// A listener that hears `library = "zengine-timer", role = "zengine.timer"` has
+/// learned two strings a maker was already looking at. It has NOT thereby been
+/// permitted to send that weave anything, interrogate it, load, reload, swap or
+/// unload it, read its state, assume its role, or acquire any grant it holds. A
+/// grant in this Loom is per `(shape, version, target)` and is written by whoever
+/// mounts a weave; a value arriving in a message is not one and can never become
+/// one. VALUES MAY FLOW; AUTHORITY MUST NOT FLOW IMPLICITLY WITH THEM -- and the
+/// place that rule is easiest to break is exactly here, where a reference to a
+/// powerful thing looks like a handle on it.
+///
+/// ---- WHAT THE IDENTITY IS, AND WHAT IT IS NOT -----------------------------
+///
+/// `library` is the name the KERNEL LOADED THE LIBRARY UNDER -- the key of
+/// `Kernel::loaded()`'s map, as reported through `zen.ListLoaded`. It is not a
+/// `WeaveId`, not a participant identity, not a package, publisher or signature,
+/// and not proof that anything is alive now: the pane is a snapshot and this fact
+/// is about what the snapshot SHOWED. Loom has no participant enumeration, so
+/// there is no wider identity available to promote it into and none is invented.
+///
+/// `role` is the office the kernel bound at load, and an EMPTY `role` IS AN
+/// OBSERVED ABSENCE rather than a missing reading -- `LoadedWeave`'s own rule
+/// (loaded.hpp), reused rather than re-spelled, because it is the same field
+/// travelling one layer further. The pane writes `(no role)` for a maker; the wire
+/// carries the empty string, so a listener reads the observation and not the
+/// prose.
+///
+/// `pane` says WHICH of this office's panes the selection happened in. It is here
+/// even though only `loaded` exists, for `PaneOffered`'s reason: one provider is
+/// not one pane, and a listener that had to assume it would break on the second.
+/// WHOSE fact it is, is `mail.authored_role()` -- the same Loom stamp the pane
+/// protocol rests on, which no payload can write and no sender can choose, so
+/// there is no `provider` field here either.
+///
+/// ---- WHAT IT IS NOT SHAPED FOR --------------------------------------------
+///
+/// It is not `selection_changed(old, new)`: there is no previous value and no
+/// deselection, because a maker pressing the same row twice performed two
+/// gestures and a future trigger reading "whenever a maker selects this" is owed
+/// both. It carries no row index, because a row is where a thing was drawn and
+/// not what it is; no timestamp, because this weave holds no clock; and no
+/// grants, schemas or state, because the pane never observed any.
+struct LoadedSelected {
+    std::string pane;    ///< the pane key this selection happened in -- `loaded`
+    std::string library; ///< the loaded-library name the selected row named
+    std::string role;    ///< the role observed at load; EMPTY means the kernel bound none
+    ZEN_SHAPE(LoadedSelected, 1, ZEN_FIELD(pane), ZEN_FIELD(library), ZEN_FIELD(role));
+};
 
 } // namespace zengine::introspection
 

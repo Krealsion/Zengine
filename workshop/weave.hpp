@@ -207,7 +207,8 @@ class WorkshopWeave
                                         zengine::builder::StatusRequested,
                                         zengine::builder::BuildRequested,
                                         zengine::workshop::PaneCatalogRequested,
-                                        zengine::workshop::PaneRoom>> {
+                                        zengine::workshop::PaneRoom,
+                                        zengine::workshop::PanePressed>> {
 public:
     explicit WorkshopWeave(HostContext& host) : host_(&host) {
         // The document a maker opens onto. Deliberately boring, and deliberately
@@ -740,7 +741,33 @@ public:
             const Occupancy here =
                 occupied_at(session_.panels, session_.setup.active, screen_of(session_),
                             at.cell.x, at.cell.y);
-            if (here.occupied) {
+            // AND AN EXTERNAL PANE IS THE ONE PRESENTATION WHOSE PRESS GOES SOMEWHERE
+            // (SEL-0). It is the SAME occupancy answer -- one geometry walk, one topmost
+            // rule, the picker still first -- asked one further question: this cell belongs
+            // to a pane Workshop did not compile, so the press is that provider's.
+            //
+            // CONSUMED EITHER WAY, AND DECIDED HERE RATHER THAN THERE. A pane that owns
+            // visible room owns pointer refusal for that room, and the refusal is Workshop's
+            // to make because Workshop is what knows the room exists. Nothing waits for the
+            // provider: there is no reply shape, `external_press` sends and returns, and a
+            // press that named no row of the body (the header, the padding under the last
+            // prose line, the lattice's edge) is consumed exactly the same and simply
+            // travels no further. That is WP-R0's split -- the synchronous half of the
+            // question is geometry Workshop already holds, so `consumed` never crosses the
+            // wire.
+            //
+            // AND WORKSHOP SAYS NOTHING, WHICH IS THE ONE PLACE THE RULE ABOVE INVERTS.
+            // The sentence three lines up is TRUE of a built-in -- there really is nothing
+            // under a Builder to take hold of -- and would be a claim about an OUTCOME here,
+            // made before the outcome exists: what a press on a provider's row means is that
+            // provider's vocabulary, the answer arrives later as ordinary content, and
+            // Workshop cannot name either. So the statement is the pane's to make, in its
+            // own rows, and this layer leaves the line alone rather than writing a sentence
+            // it would have to guess (INT-R0: a refusal belongs to the deepest layer whose
+            // vocabulary contains the reason -- and this one's does not).
+            if (here.occupied && is_runtime_kind(here.kind)) {
+                external_press(here.kind, b, mail);
+            } else if (here.occupied) {
                 say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                     false);
             } else {
@@ -3366,6 +3393,51 @@ private:
             (void)mail.as_role(kWorkshopProvider)
                 .send_to_role(office, PaneRoom{key, body.rows, body.columns});
         }
+    }
+
+    /// TELL A PROVIDER A MAKER PRESSED IN ITS ROOM -- the whole of the input seam (SEL-0).
+    ///
+    /// WHAT WORKSHOP KNOWS WHEN IT SENDS THIS, EXACTLY AND ONLY: that a primary press
+    /// landed on cells this pane occupies, and which row and column of the ROOM IT GRANTED
+    /// those cells are. It does not know what that row says, whether the provider shows a
+    /// list, whether the row is selectable, whether anything is selected now, whether
+    /// anything will change, or whether the provider is even still there. Nothing in this
+    /// function reads `ExternalPane::shown`, and nothing may: the moment Workshop looks at a
+    /// provider's rows to decide what a press means, the rows have become Workshop's
+    /// vocabulary and the seam has stopped being a seam.
+    ///
+    /// THE POSITION IS RESOLVED FROM THE PAINTER'S OWN RECTANGLE, one call, in
+    /// `external_press_at`. A press that names no row of the body sends nothing at all --
+    /// it was already consumed by occupancy, and there is no sentence to make of it.
+    ///
+    /// AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE, exactly as the room
+    /// grant is and for the same two reasons: the authorship is what lets the provider
+    /// refuse a forged press, and the destination is a ROLE so a replaced provider still
+    /// hears its own pane's presses.
+    ///
+    /// NOTHING IS REPAINTED HERE. Workshop's picture did not change -- no selection, no
+    /// cache, no room, no notice -- and if the provider answers, that answer arrives as an
+    /// ordinary `PaneContent` whose own handler repaints. A repaint on this path would
+    /// publish a frame identical to the last one for every press a provider ignores.
+    void external_press(std::int64_t kind, const zengine::input::PointerButton& b,
+                        loom::Mail& mail) {
+        const ExternalPressAt at =
+            external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
+                              b.space, b.x, b.y);
+        if (!at.named) {
+            return;
+        }
+        const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+        const ExternalPane* pane = session_.panels.external_pane(kind);
+        // A ROOM THIS PANE HAS NOT BEEN GRANTED HAS NO LATTICE TO NAME A PLACE IN. `granted`
+        // is false for exactly one beat -- between a panel opening and the repaint that
+        // grants it -- and a press in that beat would be a position in a room the provider
+        // has never been told about.
+        if (row == nullptr || pane == nullptr || !pane->granted) {
+            return;
+        }
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
     }
 
     void repaint(loom::Mail& mail) {

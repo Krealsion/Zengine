@@ -4,13 +4,22 @@
 #ifndef ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_PANE_VOCABULARY_HPP
 
-// THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE (WP-0).
-// Four shapes, and there is not a fifth.
+// THE WHOLE PROTOCOL BETWEEN WORKSHOP AND A WEAVE THAT OFFERS IT A PANE (WP-0,
+// widened once by SEL-0). Five shapes, and there is not a sixth.
 //
 //     PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 //     PaneOffered            provider  ->  Workshop   "I have this one."
 //     PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 //     PaneContent            provider  ->  Workshop   "here is what it says."
+//     PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
+//
+// THE FIFTH IS THE FOURTH'S BUDGET READ BACKWARDS, which is what made it the one
+// worth adding. `PaneRoom` grants a lattice of prose rows and columns; `PanePressed`
+// names a place IN that lattice and says nothing else. Workshop already owns the
+// geometry that answers WHICH pane a press landed on -- `bounds_of` -> `contains`,
+// the same rectangle the painter used -- so the synchronous half of the question
+// never crosses the wire and no `consumed` ever comes back (WP-R0). A press that
+// reaches a provider was consumed at the Workshop boundary before it was sent.
 //
 // ---- THERE IS NO PROVIDER FIELD, AND THAT IS THE POINT ----------------------
 //
@@ -50,15 +59,30 @@
 // `SurfaceTextRegion`, no coordinate, no z-order, no viewport and no caret.
 // Workshop assembles ONE `SurfaceCanvas`; nothing here is a second publisher.
 //
+// ---- WHAT PANEPRESSED IS NOT ------------------------------------------------
+//
+// A PRIMARY PRESS, and the shape says so by having nowhere to say anything else.
+// No button field, no pressed/released field, no modifier field, no timestamp and
+// no gesture identity: SEL-0 earned exactly one gesture, so the shape's ARRIVAL is
+// the gesture and a reader has nothing to switch on. A release, a second button, a
+// wheel, a hover, a double press and a drag all remain unsayable here, which is
+// what keeps "a provider gets input now" from meaning anything wider than the one
+// sentence above.
+//
+// AND IT IS NOT FOCUS. Receiving a press makes a pane the target of nothing else:
+// no keyboard reaches it, no key shape exists to reach it with, no pane is
+// focused, nothing is captured, and Workshop keeps no record of which pane a maker
+// touched last. The press is resolved, sent, and forgotten in the same statement.
+//
 // ---- THE SHAPES THAT ARE DELIBERATELY ABSENT --------------------------------
 //
-// No `PanePressed` and no input of any kind; no focus, capture, hotkey or
-// gesture; no `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives
-// Workshop no participant-visible provider-unload event, and manufacturing one
-// out of silence is the exact dishonesty WP-R0 was corrected for); no
-// `PaneInstance`, because one `PaneRef` is one presentation; no `PaneConfig`,
-// because no consumer has asked; no generic request/response envelope, because
-// four named shapes are four readable sentences and an envelope is a framework.
+// No keyboard, focus, capture, hotkey, wheel or drag shape of any kind; no
+// `PaneClosed`, `PaneUnavailable` or unload notification (Loom gives Workshop no
+// participant-visible provider-unload event, and manufacturing one out of silence
+// is the exact dishonesty WP-R0 was corrected for); no `PaneInstance`, because one
+// `PaneRef` is one presentation; no `PaneConfig`, because no consumer has asked;
+// no generic request/response envelope, because five named shapes are five
+// readable sentences and an envelope is a framework.
 
 #include "surface/vocabulary.hpp"
 
@@ -116,6 +140,37 @@ struct PaneContent {
     std::string pane;
     std::vector<surface::SurfaceTextRow> rows;
     ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
+};
+
+/// A MAKER PRESSED INSIDE THE ROOM THIS PANE WAS GRANTED -- which pane, and where.
+///
+/// `row` AND `column` ARE THE `PaneRoom` LATTICE, AND NOTHING ELSE IS. Row 0 is the
+/// first prose row of the BODY this provider was granted -- under Workshop's header
+/// row, which the provider never received and is never told about -- and the pair
+/// is inside `[0, rows) x [0, columns)` of the room currently in force. Workshop
+/// resolves it through the same `external_body_place` that granted that room and
+/// the same `prose_at` every bounded region in this application locates a press
+/// with, so one measurer answers where a row is drawn and where a hand meets it.
+/// No pixel, no cell, no canvas coordinate, no window origin, no pane rectangle,
+/// no chrome geometry and no medium identity: a provider that learned any of those
+/// could place itself on a screen it has no business seeing.
+///
+/// A PRESS THAT NAMES NO ROW IS NOT SENT. The header row, the padding below the
+/// last prose row of a graphical medium, and anything outside the granted lattice
+/// are all still consumed by the pane -- a pane that owns visible room owns
+/// pointer refusal for that room -- and simply produce no sentence. Workshop does
+/// not round them to a nearest row: a strip too short to fit prose is not a row,
+/// and inventing one would hand a provider a press at a place it never wrote to.
+///
+/// WORKSHOP SENDS IT AND ASKS NOTHING BACK. No reply, no acknowledgement, no
+/// disposition and no `consumed`: what a press MEANS is the provider's vocabulary
+/// and Workshop holds none of it. If the answer is a changed presentation it
+/// arrives as an ordinary `PaneContent`, judged against the same room as any other.
+struct PanePressed {
+    std::string pane;
+    std::int64_t row = 0;
+    std::int64_t column = 0;
+    ZEN_SHAPE(PanePressed, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
 };
 
 } // namespace zengine::workshop

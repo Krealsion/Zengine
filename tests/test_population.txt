@@ -282,6 +282,45 @@
 # an ARGUMENT, so the pixel case is proved by `plan_canvas` with no font, no renderer and no SDL
 # skin built.
 #
+# SEL-0 raised the workshop floor 521 -> 549 and moved no other floor, which is the phase's own
+# claim about where it lives: a bounded pane press is a Workshop/provider protocol question and
+# touched neither Surface nor Loom. Twenty-eight cases in three tiers, and the split is the
+# phase's argument in the population file:
+#
+#   THE SEAM is geometry and provenance. Nine cases drive real pointer events through the real
+#   input path into a recording provider seat: the fifth shape walked as a schema, the row/column
+#   lattice swept at every row and three columns, the whole rectangle swept in BOTH media with the
+#   forwarded coordinate bounded by the grant, the authorship and destination, six kinds of press
+#   that must not be forwarded (picker, management, terminal mode, a release, a second button, an
+#   unknown space), a pane with no room granted, the bus-tap audit of what Workshop says, and one
+#   provider offering two panes.
+#
+#   THE MEANING is a pure function over a value. Six cases ask what a row of the Loaded view IS
+#   -- the entry map, the omission marker as a population fact rather than a hidden weave, marking
+#   as a one-row change of fixed width, the marked form still fitting every room over a swept
+#   domain, a held selection asking the population rather than the rows, and the literal characters
+#   of the mark itself. No bus, no Workshop, no library.
+#
+#   ...AND THE LAST OF THOSE SIX EXISTS BECAUSE A CANARY FOUND ITS ABSENCE. Every case in this
+#   phase says `intro::kSelectedMark`, which is right -- a magic string in twenty places is how two
+#   spellings drift -- but a suite in which EVERY reference is the constant cannot notice the
+#   constant changing. `> ` -> `* ` was invisible to all 547 cases. One case now spells it.
+#
+#   THE PRODUCT is the real `zengine-introspection` shared library through the real Kernel and
+#   Manager. Thirteen cases: the press that selects what was shown, the same row pressed twice,
+#   the non-entry rows, the live omission marker, the SNAPSHOT RACE (a library unloaded under a
+#   pane whose rows still name it), a press arriving in the gap between a room grant and its
+#   answer, the Manager asked nothing to interpret a press, a forged press from two wrong sides, a
+#   row of the previous room, selection held across a resize, a selected library that goes away,
+#   the fact carrying no authority, and the same gesture in both media.
+#
+# EVERY ONE IS IN THE `always` POPULATION, for the reason every phase since TYPE-0 has given: the
+# metric is an ARGUMENT. The graphical half of this phase -- a press inside a rendered prose line
+# landing on the same logical row although the line height is not the cell height -- is asked for
+# by handing `Session` an advance of 8 and a line of 18 and doing arithmetic on the `RegionFit`
+# that answers. No font is opened and no renderer exists, so the no-SDL lane and the Windows
+# stranger lane prove the phase in full, including the picture a maker only ever sees through SDL.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -298,7 +337,7 @@ surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
 builder                           doctest           always  30
-workshop                          doctest           always  521
+workshop                          doctest           always  549
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
