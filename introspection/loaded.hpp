@@ -4,15 +4,33 @@
 #ifndef ZENGINE_INTROSPECTION_LOADED_HPP
 #define ZENGINE_INTROSPECTION_LOADED_HPP
 
-// THE LOADED-WEAVE VIEW, as two pure functions.
+// THE LOADED-WEAVE VIEW, as four pure functions.
 //
 //     parse_loaded    the Weave Manager's answer  ->  the facts it carries
-//     project_loaded  the facts + a prose budget  ->  the rows a maker reads
+//     project_loaded  the facts + a prose budget  ->  the rows a maker reads,
+//                                                     AND which entry each row names
+//     mark_selected   a view + one entry's name   ->  the same view, one row marked
+//     names           the facts + a name          ->  is this entry still among them
 //
-// NEITHER TOUCHES A BUS, and that is the point of the file. The provider weave
-// beside it owns WHEN to observe and WHOM to believe; this owns what the answer
-// MEANS and how it is spent, so both questions can be asked of a value in a test
-// instead of of a running system.
+// NONE OF THEM TOUCHES A BUS, and that is the point of the file. The provider
+// weave beside it owns WHEN to observe and WHOM to believe; this owns what the
+// answer MEANS and how it is spent, so both questions can be asked of a value in
+// a test instead of of a running system.
+//
+// ---- THE ROW MAP IS THE ONE THING SEL-0 ADDED, AND WHY IT IS HERE ------------
+//
+// A press arrives as a ROW of the room this pane was granted, and the pane has to
+// answer which observed entry -- if any -- it drew there. That question is
+// `project_loaded` read backwards, and the whole reason it is answered by
+// `project_loaded` ITSELF rather than by a second function beside it is the rule
+// HD-3 paid for once already: THE GEOMETRY THAT DREW A THING AND THE GEOMETRY
+// THAT HITS IT MUST BE ONE FUNCTION. A separate row-to-entry calculation would
+// agree with the picture until the first list that had to window, which is to say
+// it would be wrong only when nobody was looking.
+//
+// So `project_loaded` returns a `LoadedView`: the rows, the entries that actually
+// reached one, and a per-row index between them. The provider retains that value
+// and NOTHING ELSE -- see the next section, which the retention changes.
 //
 // ---- WHAT IS BEING PROJECTED, EXACTLY ---------------------------------------
 //
@@ -35,11 +53,28 @@
 //
 // ---- WHAT IS NOT HERE -------------------------------------------------------
 //
-// No mirror of the inventory is kept anywhere. `parse_loaded` returns a value the
-// caller spends immediately and drops; there is no `known_weaves_`, no diff
-// against a previous reading, no arrival/departure derivation, and no timestamp --
-// this weave holds no clock, and inventing one out of a message it happened to
-// receive would be a story rather than an observation.
+// STILL NO MIRROR OF THE INVENTORY, and SEL-0 is the phase most likely to be
+// misread as having added one, so the distinction is written here rather than
+// left to be inferred:
+//
+//     an INVENTORY   is a second answer to "what is loaded", which the Kernel's
+//                    map already owns. Keeping one would put a copy beside the
+//                    authority, and the copy is what goes stale.
+//     a PROJECTION   is what THIS PANE IS CURRENTLY SHOWING -- the same kind of
+//                    thing Workshop keeps in `ExternalPane::shown` one layer out,
+//                    and the same kind of thing every list in this application
+//                    holds while a maker is looking at it.
+//
+// The provider retains the second and never the first. It answers "which entry
+// did the maker press" and is incapable of answering "what is loaded now": it is
+// bounded by the granted ROOM rather than by the population, it is dropped the
+// moment a new room is granted, and it is replaced whole by the next reading.
+//
+// `parse_loaded` is still a value the caller spends and drops. There is no
+// `known_weaves_`, no diff against a previous reading, no arrival or departure
+// derivation, and no timestamp -- this weave holds no clock, and inventing one
+// out of a message it happened to receive would be a story rather than an
+// observation.
 
 #include "surface/vocabulary.hpp"
 
@@ -84,6 +119,32 @@ inline constexpr const char* kElided = "...";
 
 /// What a row says instead of a role when the kernel bound none.
 inline constexpr const char* kNoRole = "(no role)";
+
+/// THE TWO CHARACTERS AT THE HEAD OF EVERY ENTRY ROW -- one of them, per row.
+///
+/// `>` IS THE STATEMENT AND THE ACCENT ROLE IS THE SECOND SIGNAL, never the other
+/// way round. Workshop's own two lists (`object_row_text`, `completion_rows`) both
+/// spell selection exactly this way and both write down the reason: a mark is what
+/// says "this one" on a medium with no colour at all, and a colour alone would be a
+/// selection a maker in a monochrome terminal could not see. This provider is a
+/// stranger to those functions and re-spells the convention rather than reaching for
+/// them -- the same trade `fit` below makes and for the same reason.
+///
+/// AND THE MARK COSTS NO COLUMNS. The unselected row was already indented by two, so
+/// selecting one exchanges two spaces for a mark and a space: the width of every row
+/// is identical selected or not, no budget moves, and a list cannot start cutting
+/// names because something in it became selected.
+inline constexpr const char* kSelectedMark = "> ";
+inline constexpr const char* kUnselectedMark = "  ";
+
+/// THE ROW OF A `LoadedView` THAT NAMES NO ENTRY -- a heading, the caveat, the source
+/// line, the blank separator, or the omission marker.
+///
+/// NEGATIVE for `role::kNone`'s and `kNoCaret`'s reason: an index into `shown` is
+/// non-negative by construction, so nothing a later projection might mean can collide
+/// with it, and a consumer that forgot to test would index far outside the vector
+/// rather than into its first entry.
+inline constexpr std::int64_t kNoEntry = -1;
 
 /// Fit `text` into `columns`, AND SAY SO when it did not fit.
 ///
@@ -172,12 +233,129 @@ inline std::vector<LoadedWeave> parse_loaded(std::string_view blob) {
     return out;
 }
 
-/// ONE ROW PER WEAVE: what it is called, and the role it holds.
+/// ONE ROW PER WEAVE: whether it is the selected one, what it is called, and the
+/// role it holds.
 ///
 /// INDENTED BY TWO so the list reads as a list under its heading, which is the
-/// Info panel's own spelling for a run of rows inside a region.
-inline std::string entry_row(const LoadedWeave& w, std::int64_t columns) {
-    return fit("  " + w.name + " @" + (w.role.empty() ? std::string(kNoRole) : w.role), columns);
+/// Info panel's own spelling for a run of rows inside a region -- and since SEL-0
+/// the two characters are a MARK when this is the entry the maker selected.
+///
+/// THE WHOLE ROW IS FITTED, MARK INCLUDED, which is what keeps the marked and
+/// unmarked forms the same width at every column count: `fit` cuts the tail, and
+/// the two characters this list needs in order to be readable at all are at the
+/// head where a cut cannot reach them.
+///
+/// IT IS THE ONLY PLACE AN ENTRY ROW IS SPELLED. `project_loaded` builds rows with
+/// it and `mark_selected` rebuilds rows with it, so there is exactly one answer to
+/// "what does a selected row look like" and no way for the two to drift.
+inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t columns) {
+    return fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + w.name + " @" +
+                   (w.role.empty() ? std::string(kNoRole) : w.role),
+               columns);
+}
+
+/// The semantic roles an entry row carries, selected and not. Two lines, in one
+/// place, for `entry_row`'s reason exactly.
+inline constexpr std::int64_t entry_role(bool chosen) noexcept {
+    return chosen ? surface::role::kAccent : surface::role::kFill;
+}
+inline constexpr std::int64_t entry_ground(bool chosen) noexcept {
+    return chosen ? surface::role::kMuted : surface::role::kNone;
+}
+
+/// IS THIS NAME STILL AMONG THESE ENTRIES -- the one question a held selection asks
+/// of a fresh reading.
+///
+/// IT ASKS THE POPULATION AND NOT THE PROJECTION, which is the whole of why it takes
+/// a `std::vector<LoadedWeave>` rather than a `LoadedView`. An entry that is loaded
+/// but currently windowed out of a short pane is PRESENT and merely unshown; an entry
+/// the kernel no longer has is GONE. Asking the rows would confuse the two and clear a
+/// maker's selection every time they made a pane small.
+///
+/// BY NAME, because a library's name is what the kernel's map is keyed by, and it is
+/// the identity `LoadedSelected` carries. A role is an attribute of an entry: a weave
+/// that was rebound between two readings is the same loaded library, still selected.
+inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name) {
+    if (name.empty()) {
+        return false;
+    }
+    for (const LoadedWeave& w : weaves) {
+        if (w.name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// THE PANE'S CONTENT AND THE MAP BACK FROM IT (SEL-0).
+///
+/// `rows` is what Workshop is sent and what a maker reads. `shown` is the entries
+/// that actually reached one of those rows, in row order. `entry_of_row` is parallel
+/// to `rows` and holds an index into `shown`, or `kNoEntry` for every row that names
+/// no entry -- the heading, the caveat, the source line, the blank separator, and the
+/// omission marker.
+///
+/// THE OMISSION MARKER IS `kNoEntry` AND THAT IS LOAD-BEARING. `... 35 more` is a
+/// POPULATION FACT -- it says how much of the list is not here -- and it is not a
+/// stand-in for one hidden entry. A maker who presses it has pressed a sentence about
+/// a count, and the honest answer is that no entry was selected. Making it select the
+/// first hidden one would invent a gesture nothing in this pane offers.
+///
+/// IT IS BOUNDED BY THE ROOM, NOT BY THE POPULATION. `shown` can never hold more
+/// entries than the granted rows could show, so a provider retaining this value
+/// retains a pane's worth of strings whatever the kernel has loaded.
+struct LoadedView {
+    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<LoadedWeave> shown;
+    std::vector<std::int64_t> entry_of_row;
+};
+
+/// WHICH ENTRY A ROW OF THIS VIEW NAMES, or nothing.
+///
+/// TOTAL over every row index, including ones no press can produce: a row outside the
+/// view is `nullptr`, exactly as a row that names no entry is. A provider is handed a
+/// row off a wire and must not have to bound it twice.
+inline const LoadedWeave* entry_at_row(const LoadedView& view, std::int64_t row) {
+    if (row < 0 || row >= static_cast<std::int64_t>(view.entry_of_row.size())) {
+        return nullptr;
+    }
+    const std::int64_t which = view.entry_of_row[static_cast<std::size_t>(row)];
+    if (which == kNoEntry || which >= static_cast<std::int64_t>(view.shown.size())) {
+        return nullptr;
+    }
+    return &view.shown[static_cast<std::size_t>(which)];
+}
+
+/// MARK THE ROW NAMING `selected`, AND UNMARK EVERY OTHER ENTRY ROW.
+///
+/// THE ONE PLACE SELECTION BECOMES VISIBLE, and it is separate from `project_loaded`
+/// on purpose: a press changes which entry is marked and changes nothing else at all
+/// -- not the population, not the count, not the window, not the omission, not a
+/// single non-entry row. Rebuilding the projection to move a mark would re-read
+/// nothing and re-decide everything, and the first thing it would get wrong is the
+/// snapshot a maker is looking at.
+///
+/// AN EMPTY `selected`, OR A NAME NO SHOWN ENTRY CARRIES, LEAVES EVERY ROW UNMARKED --
+/// which is exactly what a pane whose selected entry is currently windowed out should
+/// look like. The selection is still held by the provider; there is simply no row here
+/// to put a mark on, and the mark returns with the entry.
+///
+/// `columns` IS THE ROOM THE VIEW WAS PROJECTED FOR. It is passed rather than
+/// remembered because a `LoadedView` is not a place and holds no budget; the caller
+/// holds the room, and handing this a different one would produce rows the room it was
+/// built for cannot carry.
+inline void mark_selected(LoadedView& view, std::string_view selected, std::int64_t columns) {
+    for (std::size_t i = 0; i < view.rows.size() && i < view.entry_of_row.size(); ++i) {
+        const std::int64_t which = view.entry_of_row[i];
+        if (which == kNoEntry || which >= static_cast<std::int64_t>(view.shown.size())) {
+            continue;
+        }
+        const LoadedWeave& w = view.shown[static_cast<std::size_t>(which)];
+        const bool chosen = !selected.empty() && w.name == selected;
+        view.rows[i].text = entry_row(w, chosen, columns);
+        view.rows[i].role = entry_role(chosen);
+        view.rows[i].background = entry_ground(chosen);
+    }
 }
 
 /// THE WHOLE VIEW, spent against the room Workshop granted.
@@ -212,19 +390,34 @@ inline std::string entry_row(const LoadedWeave& w, std::int64_t columns) {
 /// and no note, and the population is still stated -- so even there nothing is
 /// hidden without being counted.
 ///
+/// IT PROJECTS UNMARKED AND SAYS WHICH ROW IS WHICH (SEL-0). Selection is applied
+/// afterwards by `mark_selected`, so this function is unchanged in every decision it
+/// ever made: the count, the reservation, the window, the omission and the roles of
+/// every non-entry row are what they were, and a selected pane is the same pane with
+/// two characters and one row's ink different. The map it now returns beside the rows
+/// is what a press is read through.
+///
 /// TOTAL over every budget, including ones no pane has. Zero rows or zero columns
 /// is an empty projection; and being exactly inside the grant is this function's
 /// obligation rather than a courtesy, because Workshop refuses an over-budget
 /// update WHOLE and a provider that does not measure loses everything it said.
-inline std::vector<surface::SurfaceTextRow> project_loaded(const std::vector<LoadedWeave>& weaves,
-                                                           std::int64_t rows,
-                                                           std::int64_t columns) {
-    std::vector<surface::SurfaceTextRow> out;
+inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::int64_t rows,
+                                 std::int64_t columns) {
+    LoadedView view;
+    // EVERY ROW APPENDED IS PAIRED WITH ONE MAP ENTRY, and this closure
+    // is what makes forgetting one impossible rather than merely unlikely: the two
+    // vectors are one row list in two pieces, and a projection whose map was one entry
+    // short would misread every press below the row that went missing.
+    const auto say = [&view](surface::SurfaceTextRow row, std::int64_t which) {
+        view.rows.push_back(std::move(row));
+        view.entry_of_row.push_back(which);
+    };
     if (rows <= 0 || columns <= 0) {
-        return out;
+        return view;
     }
-    out.push_back(surface::SurfaceTextRow{
-        fit("loaded weaves -- " + std::to_string(weaves.size()), columns), surface::role::kAccent});
+    say(surface::SurfaceTextRow{fit("loaded weaves -- " + std::to_string(weaves.size()), columns),
+                                surface::role::kAccent},
+        kNoEntry);
 
     std::int64_t left = rows - 1;
     // The caveat, unless taking it would leave the list with no row at all.
@@ -241,16 +434,24 @@ inline std::vector<surface::SurfaceTextRow> project_loaded(const std::vector<Loa
         const std::size_t room = static_cast<std::size_t>(budget);
         const std::size_t shown = weaves.size() <= room ? weaves.size() : room - 1;
         for (std::size_t i = 0; i < shown; ++i) {
-            out.push_back(
-                surface::SurfaceTextRow{entry_row(weaves[i], columns), surface::role::kFill});
+            // THE ENTRY IS COPIED INTO `shown` AS IT IS DRAWN, so what the map points at
+            // is the observation this row was made from and not a second lookup into a
+            // population the caller may already have dropped. That is the whole of what
+            // makes a later press answer with WHAT THE MAKER SAW.
+            view.shown.push_back(weaves[i]);
+            say(surface::SurfaceTextRow{entry_row(weaves[i], false, columns), entry_role(false),
+                                        entry_ground(false)},
+                static_cast<std::int64_t>(view.shown.size()) - 1);
         }
         budget -= static_cast<std::int64_t>(shown);
         if (shown < weaves.size()) {
-            out.push_back(surface::SurfaceTextRow{
-                fit("  " + std::string(kElided) + " " + std::to_string(weaves.size() - shown) +
-                        " more",
-                    columns),
-                surface::role::kMuted});
+            // `kNoEntry`: a population fact, not a hidden entry. See `LoadedView`.
+            say(surface::SurfaceTextRow{
+                    fit("  " + std::string(kElided) + " " + std::to_string(weaves.size() - shown) +
+                            " more",
+                        columns),
+                    surface::role::kMuted},
+                kNoEntry);
             --budget;
         }
     }
@@ -261,15 +462,16 @@ inline std::vector<surface::SurfaceTextRow> project_loaded(const std::vector<Loa
         // the absence of a BACKGROUND and is negative so an unknown-role fallback
         // cannot swallow it. Nothing may hand it to a Skin's role-to-ink table, and
         // a row's `role` field is exactly that table's argument.
-        out.push_back(surface::SurfaceTextRow{std::string(), surface::role::kFill});
+        say(surface::SurfaceTextRow{std::string(), surface::role::kFill}, kNoEntry);
     }
     if (caveat > 0) {
-        out.push_back(surface::SurfaceTextRow{fit(kNotInProcess, columns), surface::role::kMuted});
+        say(surface::SurfaceTextRow{fit(kNotInProcess, columns), surface::role::kMuted}, kNoEntry);
     }
     if (source > 0) {
-        out.push_back(surface::SurfaceTextRow{fit(kSnapshotSource, columns), surface::role::kMuted});
+        say(surface::SurfaceTextRow{fit(kSnapshotSource, columns), surface::role::kMuted},
+            kNoEntry);
     }
-    return out;
+    return view;
 }
 
 } // namespace zengine::introspection

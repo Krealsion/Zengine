@@ -832,6 +832,60 @@ hidden it under a plausible shape, and INT-R0's two-cases-per-word test earns ex
   `Handled`, `Commit`, `Availability`, `Occupancy`) and they are all on SEMANTIC paths; the
   bare bool survives only on the routing path, which is the one place it is adequate.
 
+## A press on an external pane crosses the seam as a place, never as a meaning (SEL-0)
+
+`PanePressed{pane, row, column}` is the fifth and last shape of the pane protocol. It is the
+`PaneRoom` budget read backwards — a place in the lattice Workshop already granted, and nothing
+that would let a provider locate itself on a screen.
+
+```text
+occupied_at   -> Occupancy{occupied, what, kind}     ONE geometry walk, topmost first
+                 is_runtime_kind(kind)?              -> external_press, and Workshop says NOTHING
+external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{named, row, column}
+                 bounds_of -> external_body_place -> prose_at -> minus kExternalHeaderRows
+                 named == false  =>  no sentence. The press was still the pane's.
+```
+
+- **`Occupancy` carries the KIND it met since SEL-0, and that is the same answer rather than a
+  second one.** The one caller asks a further question of the walk that already decided what is on
+  top; resolving the pane again to locate the press would be two geometries for one press, which is
+  what the `bounds_of`-for-both rule exists to refuse. `kNoKind = -1` for the picker, negative for
+  `role::kNone`'s reason. Nothing switches on a built-in kind — the question asked is
+  `is_runtime_kind`, which is about which SEAM owns the press.
+- **Consumed by occupancy, before anything is sent.** A pane that owns visible room owns pointer
+  refusal for that room, and nothing waits for the provider: there is no reply shape, `consumed`
+  never crosses the wire (WP-R0), and a press that named no row is consumed identically and simply
+  travels no further. The Terminal overlay and pane management still take every press whole, one
+  layer up, and the picker still answers first inside `occupied_at`.
+- **Workshop says NOTHING on the notice line for an external pane, and that inverts the rule three
+  lines above it in `on(PointerButton)`.** `<name> is here -- nothing under it can be taken hold
+  of` is TRUE of a built-in and would be a claim about an OUTCOME here, made before the outcome
+  exists. What a press on a provider's row means is that provider's vocabulary; the answer arrives
+  later as ordinary `PaneContent`. INT-R0's rule decides it: a refusal belongs to the deepest layer
+  whose vocabulary contains the reason, and this layer's does not.
+- **The header row is subtracted in BOTH directions or in neither.** `external_body_place` reserves
+  `kExternalHeaderRows` out of the fit before a provider is told its budget, so the row a provider
+  means by 0 is the region's prose row 1. Forgetting the subtraction on the way back is the
+  off-by-one that would be invisible until a pane had more than one selectable row.
+- **A row that fits no prose is not a row.** Anything outside `[0, rows) × [0, columns)` — the
+  header, the pixel remainder under the last prose line of a graphical medium, an unrecognised
+  `space` — is refused rather than clamped. Rounding to a nearest row hands a provider a press at a
+  place it never wrote to.
+- **Workshop holds no selection, no focus and no memory of the press.** No `Workshop::selected_*`,
+  no pane focus, no capture, no record of which pane a maker touched last, and no repaint on the
+  forwarding path: Workshop's picture did not change, and if the provider answers, its own handler
+  repaints. Nothing here reads `ExternalPane::shown` and nothing may — the moment Workshop looks at
+  a provider's rows to decide what a press means, the seam has stopped being one.
+- **A provider interprets the press against what it is CURRENTLY SHOWING.** `project_loaded`
+  returns the row-to-entry map beside the rows it built (HD-3's one-measurer rule reaching
+  interaction), the provider retains that value and drops it on every room grant, and a press costs
+  one lookup and no observation. **A provider that re-queried its source to interpret a press would
+  let a maker select something they were never shown** — silently, and only sometimes.
+- **The fact a pane publishes carries DATA and no authority.** `LoadedSelected{pane, library, role}`
+  is an occurrence, not a transition, and a listener that hears it has acquired nothing: a grant is
+  per `(shape, version, target)` and a value in a message is not one. Values may flow; authority
+  must not flow implicitly with them.
+
 ## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is now anything with `write(std::string_view)` **and**

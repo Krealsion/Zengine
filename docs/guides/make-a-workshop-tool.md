@@ -13,7 +13,7 @@ a compiled-in Workshop panel        you are editing Workshop's own source
     the picker's built-in half is a compile-time array you add a row to
 
 an office-authored external pane    you are a weave that is not Workshop
-    a bounded, read-only provider protocol: four message shapes and no fifth
+    a bounded provider protocol: five message shapes and no sixth
     you publish semantic rows; Workshop owns the room and the presentation
 ```
 
@@ -27,7 +27,7 @@ Both are real, current, tested code. Neither is a plugin system — see
 | who is this for? | a contributor changing Workshop's source | a weave/host integration using the bounded pane protocol |
 | how is it discovered? | the compile-time built-in catalog (`kPanelCatalog`) | an office-authored runtime offer, this session only |
 | who paints it? | a painter you write, in `workshop/screen.hpp` | Workshop's one generic external-pane painter |
-| can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **no.** A press that lands on it is consumed by the occupancy wall and forwarded nowhere |
+| can it take input? | yes, if you write it: pointer, hotkey, a typing mode | **one bounded primary press**, delivered as a row and column of the room it was granted. No keyboard, focus, capture, hover, release or drag |
 | durable identity | the catalog row's `provider` + `pane` | the Loom-stamped provider office + the pane key that office offered |
 | saved setup | a `PaneRef` and the maker's authored window | the same, unresolved until some office offers it |
 | what state is retained? | whatever Workshop session structures you add | Workshop's bounded cache of the rows you last validly sent |
@@ -38,7 +38,7 @@ Two sentences worth keeping:
 
 > **The external pane seam exists; product distribution and plugin onboarding do not.**
 
-> The seam is not hypothetical. The four shapes, the provenance rule, discovery, room, content
+> The seam is not hypothetical. The five shapes, the provenance rule, discovery, room, content
 > bounds, setup resolution and the generic presentation are current production source with a
 > real dynamically loaded witness. What is missing is everything *around* it — a way for an
 > end user to install or select a provider.
@@ -658,23 +658,26 @@ test them through the suite rather than by hand in a terminal.
 
 # Part B — an office-authored external pane
 
-You are a weave that is **not** Workshop. You can offer Workshop a **read-only pane**: a row in
-the picker, a panel a maker can open, and a bounded budget of prose to fill it with.
+You are a weave that is **not** Workshop. You can offer Workshop a **pane**: a row in the picker,
+a panel a maker can open, and a bounded budget of prose to fill it with — plus, since SEL-0, one
+bounded gesture back out of it.
 
 This is a different contract from Part A, not a lighter version of it. You get no painter, no
-input, no coordinates and no placement. What you get is a budget and a way to speak into it.
+coordinates and no placement. What you get is a budget, a way to speak into it, and a way to be
+told where in it a maker pressed.
 
 The exact reference is `workshop/pane_vocabulary.hpp` and the root README's
 [A weave may offer a pane](../../README.md#a-weave-may-offer-a-pane-wp-0). This section is the
 orientation; that section is the contract.
 
-## B1. Four shapes, and there is no fifth
+## B1. Five shapes, and there is no sixth
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 PaneOffered            provider  ->  Workshop   "I have this one."
 PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 PaneContent            provider  ->  Workshop   "here is what it says."
+PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 ```
 
 with exactly these payloads:
@@ -684,6 +687,7 @@ PaneCatalogRequested   {}
 PaneOffered            { pane, name, summary }
 PaneRoom               { pane, rows, columns }
 PaneContent            { pane, rows<surface::SurfaceTextRow> }
+PanePressed            { pane, row, column }
 ```
 
 - **`PaneCatalogRequested` carries nothing.** A field on it would be a filter, and a filter is a
@@ -692,8 +696,11 @@ PaneContent            { pane, rows<surface::SurfaceTextRow> }
   semantic `role` and `background` every first-party row does and the Skin's palette answers for
   it unchanged. You supply no `SurfaceRect`, no `SurfaceLabel`, no `SurfaceTextRegion`, no
   coordinate, no z-order, no viewport and no caret.
-- **There is no provider field in any payload, and no input shape at all.** Both absences are
-  load-bearing; the next two sections say why.
+- **`PanePressed` is the room you were granted, read backwards** — a row and a column of the same
+  lattice `PaneRoom` gave you, and nothing else. [B5](#b5-one-press-and-nothing-else) is the whole
+  contract.
+- **There is no provider field in any payload.** That absence is load-bearing; the next section
+  says why.
 
 ## B2. Provenance: the office authors, the payload does not
 
@@ -813,16 +820,83 @@ control byte — and the combined catalog at 32 total entries, built-ins include
 atomic in both directions: an invalid first offer adds nothing, and an invalid *refresh* leaves
 the last accepted descriptor whole.
 
-## B5. There is no input path, and none is coming through this seam
+## B5. One press, and nothing else
 
-An external pane receives **no** input of any kind. There is no `PanePressed`, no focus, no
-capture, no hotkey and no gesture forwarding. A press that lands on an open external pane is
-consumed by Workshop's ordinary occupancy wall — the same one every panel is behind — and the
-maker is told `<name> is here -- nothing under it can be taken hold of`.
+### How does my pane receive a maker press?
+
+Accept `PanePressed`. That is the whole of it — there is no registration, no subscription, no
+focus request and no opt-in:
+
+```cpp
+void on(const PanePressed& press, loom::Mail& mail) {
+    if (!mail.authored_from_role("zengine.workshop")) { return; }  // see B2
+    if (press.pane != kMyPaneKey) { return; }
+    // press.row, press.column -- a place in the room YOU were granted
+}
+```
+
+A pane that does not accept the shape receives nothing and is unaffected. `PanePressed` is
+delivered like any other message: **a read-only pane stays read-only by doing nothing.**
+
+- **`row` and `column` are the `PaneRoom` lattice.** Row 0 is the first row of *your* body — under
+  Workshop's header row, which you were never granted and are never told about — and the pair is
+  always inside `[0, rows) × [0, columns)` of the room currently in force.
+- **You are told no screen coordinate at all.** No pixel, no cell, no canvas position, no window
+  origin, no pane rectangle, no chrome geometry and no medium identity. Workshop resolves the press
+  through the same `fit_region` that granted your room, so the same gesture in a terminal and in a
+  window reaches you as the same two numbers.
+- **A press that names no row of your body is not sent.** The header, the pixel remainder under the
+  last prose line of a graphical medium, and anything outside the lattice are all still *consumed*
+  by your pane — a pane that owns visible room owns pointer refusal for that room — and simply
+  produce no message. Workshop does not round them to a nearest row.
+- **Workshop asks nothing back.** There is no reply shape and no `consumed`: which pane owns a
+  press is geometry Workshop already holds, so it is decided there and never asked of you.
+
+### Who interprets the press?
+
+**You do, and only you can.** Workshop knows a hand landed at row 3 of the budget it granted; it
+does not know whether row 3 is a heading, a list item, a note, an omission marker, a blank
+separator or nothing at all. That vocabulary exists in your weave and nowhere else.
+
+Two consequences worth designing for:
+
+- **Interpret the press against the projection currently on screen, not a fresh reading.** If your
+  rows came from a snapshot, keep enough of that snapshot to map its visible rows back to what they
+  represented. Re-querying your source to interpret a press means a maker can select something they
+  were never shown — silently, and only sometimes. `introspection/loaded.hpp` returns its row map
+  *from the function that builds the rows*, so there is no second calculation to drift.
+- **A room grant replaces the projection.** Workshop clears its cache before every grant and shows
+  `(waiting for the provider)` until you answer, so during that gap there is no material of yours on
+  screen — drop your map with the grant rather than reading a press against a picture nobody is
+  looking at.
+
+### What is deliberately absent
+
+Still no keyboard, focus, capture, hover, release, wheel, double-press, drag, hotkey or gesture
+forwarding of any kind, and no reply, disposition or acknowledgement. `PanePressed` carries no
+button, no modifier and no timestamp, because SEL-0 earned exactly one gesture and the shape's
+arrival *is* that gesture.
 
 Everything in [A5](#a5-add-interaction-only-when-you-need-it), [A6](#a6-share-one-semantic-operation-between-the-pointer-and-a-hotkey)
 and [A7](#a7-use-a-component-when-it-owns-a-useful-invariant) is compiled-in-only, and reading it
 as provider guidance is the most likely way to plan a pane that cannot be built.
+
+### Does receiving a reference grant authority over the referenced thing?
+
+**No, and nothing about this seam changes that.** A pane may publish a fact naming something — the
+`Loaded` pane publishes `LoadedSelected{pane, library, role}` when a maker presses one of its rows
+— and a listener that hears it has learned some strings. It has not thereby been permitted to send
+that thing anything, interrogate it, load or unload it, read its state, or assume its role.
+
+> **Values may flow. Authority must not flow implicitly with them.**
+
+A grant in this Loom is per `(shape, version, target)` and is written by whoever mounts a weave. A
+value arriving in a message is not one and can never become one. If your pane publishes a reference
+and something later acts on it, that actor must still hold authority it was legitimately given.
+
+(The standing limit from [B7](#b7-the-reference-implementation) is unchanged and is a different
+statement: an in-process dynamic weave already shares this program's memory. That is the isolation
+tier's problem, it predates this seam, and no protocol rule here solves it.)
 
 ## B6. Your pane in a saved setup
 
@@ -893,7 +967,7 @@ Named here so you do not plan around it, and so a reader can tell a bounded seam
 no public plugin SDK, registry, marketplace or installation workflow
 no provider scan directory, autoload list, or --provider option on the Workshop host
 no package, publisher, signature or cross-restart author identity
-no provider input, focus, keyboard, pointer, capture or hotkey path
+no provider keyboard, focus, capture, hover, release, wheel, drag or hotkey path
 no provider-owned placement, coordinates, docking, tabs, resize handles or geometry
 no multiple instances of one PaneRef
 no unload notification, timeout, heartbeat, liveness query or `unavailable` state
@@ -932,8 +1006,8 @@ to run. You do not need any of that to see your panel work.
 
 ```text
 I am a weave that wants to show a maker some rows
-    -> Part B. Four shapes, an office you author through, a prose budget you must
-       measure against, and no input. Read tests/weavelib/workshop_hello.cpp
+    -> Part B. Five shapes, an office you author through, a prose budget you must
+       measure against, and one bounded press. Read tests/weavelib/workshop_hello.cpp
 
 I am editing Workshop and I only display information
     -> a kind, a pane key, a six-field catalog row, a painter, one arm in paint_panels

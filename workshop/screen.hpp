@@ -811,6 +811,15 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 // answer that says WHICH presentation was met so a maker can be told rather than left with a
 // press that vanished.
 
+/// THE ANSWER `Occupancy` GIVES WHEN WHAT IT MET IS NOT A PANEL AT ALL -- the picker, which
+/// is a presentation with no kind.
+///
+/// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason exactly: a panel kind is
+/// non-negative by construction (`panel::kBuilder` is 0 and `kFirstRuntimeKind` is 1024), so
+/// the sentinel cannot collide with a kind a later catalog might mean, and a consumer that
+/// forgot to test it would fall outside every lookup rather than into the first one.
+inline constexpr std::int64_t kNoKind = -1;
+
 /// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
     bool occupied = false;
@@ -826,6 +835,18 @@ struct Occupancy {
     /// The built-ins' names are static and would have been safe either way; one shape for
     /// both is what stops a reader having to know which half they are holding.
     std::string what;
+    /// WHICH PRESENTATION, as a handle -- `kNoKind` for the picker and for nothing at all.
+    ///
+    /// ADDED BY SEL-0, AND IT IS THE SAME ANSWER RATHER THAN A SECOND ONE. This walk is the
+    /// one place that decides what is on top of a cell, and an external pane's press has to
+    /// ask a further question of exactly that decision -- WHERE in the pane it landed.
+    /// Resolving the pane a second time to find out would be two geometries for one press,
+    /// which is the defect the whole `bounds_of`-for-both rule above exists to refuse.
+    ///
+    /// IT IS STILL NOT A DISPATCH TAG. Nothing switches on a built-in kind here; the one
+    /// caller asks `is_runtime_kind` -- a question about which SEAM owns the press, not about
+    /// which panel it is -- and the sentence a maker reads is still `what`.
+    std::int64_t kind = kNoKind;
 };
 
 /// DOES ANY VISIBLE PRESENTATION OCCUPY THIS CANVAS CELL — the one question the pointer asks
@@ -853,7 +874,7 @@ struct Occupancy {
 inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              std::int64_t cx, std::int64_t cy) {
     if (panels.picker.open && picker_bounds(sc).contains(cx, cy)) {
-        return Occupancy{true, kPickerName};
+        return Occupancy{true, kPickerName, kNoKind};
     }
     const std::vector<std::int64_t> order = presentation_order(setup, panels);
     for (std::size_t i = order.size(); i > 0; --i) {
@@ -864,7 +885,7 @@ inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Scr
             // would tell a maker their hand was on the build tool -- the same lie
             // `resolve_pane` is fallible to prevent, arriving through the pointer instead
             // of through a file. Built-ins are unchanged: `kind_name` reads the same row.
-            return Occupancy{true, kind_name(panels, kind)};
+            return Occupancy{true, kind_name(panels, kind), kind};
         }
     }
     return Occupancy{};
@@ -4589,6 +4610,66 @@ inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen
     return p;
 }
 
+/// WHERE A PRESS LANDED IN AN EXTERNAL PANE'S GRANTED ROOM (SEL-0) -- the `PaneRoom`
+/// lattice, and nothing a provider was not already handed.
+///
+/// `named` IS THE WHOLE QUESTION A CALLER ASKS. False means this press named no row of
+/// this provider's body, which is a legitimate and common answer: the header row, the
+/// pixel remainder under the last prose line of a graphical medium, a `space` this
+/// application does not recognise, and a pane with no body at all. The press is still the
+/// pane's -- occupancy decided that one call earlier -- and a false here means only that
+/// there is no sentence to send.
+struct ExternalPressAt {
+    bool named = false;
+    std::int64_t row = 0;    ///< a prose row of the BODY: 0 is the row under the header
+    std::int64_t column = 0; ///< ...and a prose column of the same region
+};
+
+/// LOCATE A PRESS IN THE ROOM A PANE WAS GRANTED, from the rectangle the painter used.
+///
+/// IT IS `info_body_at`'S SHAPE, ONE PROVIDER FURTHER OUT, and it is deliberately not the
+/// same function: the Info body resolves against a document and a selection and answers in
+/// ITS place's lattice, and a helper covering both would be a name over two unrelated
+/// resolutions rather than one repeated one (the reason `info_body_at` already gives for
+/// not being generic over regions).
+///
+/// THE HEADER ROW IS SUBTRACTED HERE BECAUSE IT WAS SUBTRACTED THERE. `external_body_place`
+/// reserves `kExternalHeaderRows` out of the fit BEFORE the provider is told its budget, so
+/// the row a provider means by 0 is the region's prose row 1. Doing that subtraction in one
+/// direction and forgetting it in the other is precisely the off-by-one that would make a
+/// maker press one row and select another -- and it would be invisible until a pane had
+/// more than one selectable row.
+///
+/// AND THE BOUND IS THE MATERIAL'S. A press outside `[0, rows) x [0, columns)` is refused
+/// rather than clamped: `fit_region` already decided how many whole prose rows the medium
+/// fits in this rectangle, and the strip left over below the last of them is not a row.
+/// Rounding it to the nearest one would hand a provider a press at a place it never wrote
+/// to, which is the imaginary-row failure this seam is bounded to prevent.
+///
+/// TOTAL over every screen, every medium and every position, including ones no pointer
+/// reaches: a closed panel answers with an empty rectangle and an absent body.
+inline ExternalPressAt external_press_at(const Panels& panels, const Setup& setup,
+                                         const Screen& sc, std::int64_t kind,
+                                         std::int64_t space, std::int64_t x, std::int64_t y) {
+    const PanelBounds where = bounds_of(panels, setup, kind, sc);
+    if (!where.open) {
+        return ExternalPressAt{};
+    }
+    const ExternalBodyPlace body = external_body_place(where.rect, sc);
+    if (!body.present) {
+        return ExternalPressAt{};
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    if (!at.understood) {
+        return ExternalPressAt{};
+    }
+    const std::int64_t row = at.row - kExternalHeaderRows;
+    if (row < 0 || row >= body.rows || at.column < 0 || at.column >= body.columns) {
+        return ExternalPressAt{};
+    }
+    return ExternalPressAt{true, row, at.column};
+}
+
 /// THE HEADER: what this pane is, and WHOSE it is.
 ///
 /// The Builder panel's rule (`BUILDER @zengine.builder`), which the terminal pane follows
@@ -4614,9 +4695,11 @@ inline std::string external_header(const RuntimePane& row) {
 /// room is sent. So the invariant this painter rests on is maintained at the retention
 /// boundary where the bytes arrive, not re-derived on the paint path every frame.
 ///
-/// NO CARET. A caret is an insertion point and nothing here is editable; there is no input
-/// path to an external pane at all (weave.hpp's occupancy wall consumes every press that
-/// lands on one).
+/// NO CARET. A caret is an insertion point and nothing here is editable: SEL-0 gave the seam
+/// a bounded primary press and nothing that could put text into a pane, so there is no
+/// keyboard path to an external pane and no insertion point for one to reach. A pressed pane
+/// is told WHERE a hand landed (`external_press_at`) and answers, if at all, with ordinary
+/// rows -- which the branch below paints exactly as it painted them before.
 inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
                            const ui::Rect& b, const Screen& sc) {
     paint_panel_frame(layer, b);

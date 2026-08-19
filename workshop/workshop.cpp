@@ -595,6 +595,18 @@ int main(int argc, char** argv) {
     //                         office the accepted descriptor came in under -- but that role
     //                         is RUNTIME DATA, so no rule written here at boot can name it.
     //
+    // SEL-0 ADDED A THIRD, `to_any` FOR `PaneRoom`'S REASON EXACTLY:
+    //
+    //   PanePressed           the destination is the office that offered the pane a maker
+    //                         pressed, resolved at the moment of the press out of a runtime
+    //                         catalog row. Same one-resolved-role send, same runtime data,
+    //                         same impossibility of naming it here.
+    //
+    // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
+    // carries a row and a column of a room Workshop itself granted; it commands nothing, asks
+    // nothing and returns nothing. Being permitted to tell a provider where a hand landed is
+    // not being permitted to do anything to that provider.
+    //
     // Everything else stays exactly as narrow as it was: the two Builder sentences are
     // still `to_role(builder)`, and Workshop still commands no lifecycle, loads no weave,
     // reaches no Manager, holds no observation authority and touches no filesystem,
@@ -620,6 +632,7 @@ int main(int argc, char** argv) {
                         builder::kBuilderRole);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
+    speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // The boot weave's reach: the Manager, target-scoped, plus the right to speak

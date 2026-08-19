@@ -1504,15 +1504,17 @@ authored setup                 resolved presentation          session interactio
 
 > **The office authors the pane; Workshop grants the room.**
 
-A weave that is not Workshop can offer Workshop a **read-only pane**: a row in the picker, a panel
-a maker can open, and a bounded budget of prose to fill it with. Four shapes are the entire
-protocol (`workshop/pane_vocabulary.hpp`):
+A weave that is not Workshop can offer Workshop a **pane**: a row in the picker, a panel a maker
+can open, and a bounded budget of prose to fill it with. Five shapes are the entire protocol
+(`workshop/pane_vocabulary.hpp`) — four from WP-0, and one bounded press since
+[SEL-0](#a-pane-may-be-pressed-sel-0):
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 PaneOffered            provider  ->  Workshop   "I have this one."
 PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
 PaneContent            provider  ->  Workshop   "here is what it says."
+PanePressed            Workshop  ->  provider   "a maker pressed here, in that room."
 ```
 
 - **`PaneOffered` and `PaneContent` carry no provider field, and the absence is the enforcement.**
@@ -1590,7 +1592,8 @@ PaneContent            provider  ->  Workshop   "here is what it says."
   mounted **in** the `zengine.workshop` office so a provider can verify its ask — and holding an
   office is not a super-grant: every rule is still checked at every send.
 - **The pane protocol grants a provider nothing either** — no canvas speech, no document, no
-  filesystem, no process, no network, no screen, no input, no lifecycle. That is a fact about the
+  filesystem, no process, no network, no screen, no lifecycle, and (since SEL-0) exactly one
+  inbound gesture and nothing that could put text into a pane. That is a fact about the
   *protocol*. It is **not** a containment claim: a trusted in-process dynamic library already shares
   this process's memory, and Loom's current default grant for a normally loaded in-process weave is
   `allow_any`. Visibility did not create those facts and WP-0 does not solve them.
@@ -1599,15 +1602,16 @@ PaneContent            provider  ->  Workshop   "here is what it says."
   product**: no host boots it. A registration hook would have proved nothing about the ABI it
   exists to exercise.
 
-Deliberately absent, and each one is a decision: no `PanePressed` or provider input of any kind; no
-keyboard, focus, capture, drag or pointer forwarding; no multiple instances of one `PaneRef`; no
-provider-owned placement, coordinates, docking, tabs or resize handles; no compositor or second
-canvas publisher; no unload notification, timeout, heartbeat, liveness query, `unavailable` state or
-catalog retraction; **no observation surface of any kind inside the protocol** — a provider that
-wants to know something asks its owner with its own grant, exactly as any weave would, and the four
-shapes carry no `QueryRole`, no `ListLoaded`, no Senses and no service registry; no package identity,
-signature, marketplace or cross-restart author claim; no out-of-process provider support; no
-provider scan directory, autoload list or plugin SDK. **No Loom change of any kind.**
+Deliberately absent, and each one is a decision: no keyboard, focus, capture, hover, release,
+wheel, double-press or drag forwarding, and no reply, disposition or acknowledgement to a press; no
+multiple instances of one `PaneRef`; no provider-owned placement, coordinates, docking, tabs or
+resize handles; no compositor or second canvas publisher; no unload notification, timeout,
+heartbeat, liveness query, `unavailable` state or catalog retraction; **no observation surface of
+any kind inside the protocol** — a provider that wants to know something asks its owner with its
+own grant, exactly as any weave would, and the five shapes carry no `QueryRole`, no `ListLoaded`,
+no Senses and no service registry; no package identity, signature, marketplace or cross-restart
+author claim; no out-of-process provider support; no provider scan directory, autoload list or
+plugin SDK. **No Loom change of any kind.**
 
 ### The first tool that arrived this way (INTR-0)
 
@@ -1658,6 +1662,75 @@ a maker's eye as `Loaded Wea` — a shorter name that looks finished. `picker_en
 before it pads: `detail::fit` for the truth, `pad` for the alignment, and the state column has not
 moved a cell. For two phases the cut was arithmetic that never fired, because Workshop's own names
 are `Builder` and `Info`; it fires the moment a name belongs to somebody this build never compiled.
+
+### A pane may be pressed (SEL-0)
+
+> **Selection is a fact, not a command.**
+
+A maker can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
+Loom message saying which entry that was. **Nothing in this build listens** — and that is the
+phase, not an unfinished half of it.
+
+```text
+maker presses a visible row
+    -> Workshop resolves WHICH pane by geometry it already holds, and WHERE
+       in the room it granted that pane
+    -> PanePressed { pane, row, column }        the fifth and last shape
+    -> the provider maps the row against the projection it is CURRENTLY showing
+    -> LoadedSelected { pane, library, role }   published; nobody answers
+```
+
+- **Workshop learns nothing about what a pane's rows mean.** It sends a row and a column of the
+  budget it granted, and holds no row identities, no selectable flags, no weave metadata and no
+  list-item semantics. Three presses on three different rows produce three messages differing only
+  in where the hand was — pinned from a bus tap, which also shows Workshop's whole outbound
+  vocabulary is five shapes and that `PaneContent` still travels one way only.
+- **The coordinate is the `PaneRoom` lattice and nothing else.** Row 0 is the first row of the
+  provider's body, under Workshop's header row, which the provider was never granted and is never
+  told about. Every forwarded press is inside `[0, rows) × [0, columns)` — swept over the whole
+  rectangle in both media. No pixel, no cell, no canvas coordinate, no window origin and no medium
+  identity crosses the seam, so the same gesture in a terminal and in a window arrives as the same
+  two numbers. **A press that names no row is not sent**: the header row and the pixel remainder
+  under the last prose line of a graphical medium are consumed by the pane and travel no further,
+  because a strip too short to fit prose is not a row and rounding it would invent one.
+- **A pane that owns visible room owns pointer refusal for that room**, and Workshop decides that
+  by occupancy before it sends anything — WP-R0's split, unchanged: which pane owns a press is
+  geometry Workshop already holds, so `consumed` never crosses the wire and nothing waits for a
+  provider. Management chrome still gets first refusal: the picker, the pane-management mode and
+  the Terminal overlay each take the press whole.
+- **The press is read against the snapshot the maker actually saw.** Interpreting one asks the
+  Weave Manager nothing — the row-to-entry map is returned by the same function that *built* the
+  rows, so there is no second calculation to drift. Unload a library under an open pane and press
+  the row that still names it: the fact names what was on screen. That is the load-bearing case.
+- **The identity is what the pane observed**: the loaded library's name, and the role bound at
+  load, with an empty role meaning the kernel bound none. Never a `WeaveId`, never promoted into a
+  participant identity, and never a claim that anything is alive now.
+- **Selecting is an occurrence, not a state transition.** The same row pressed twice publishes
+  twice — a future trigger reading *whenever the maker selects this one* is owed both — while the
+  picture does not change, because the mark is already there. Two questions, two answers.
+- **Only entry rows select.** The heading, the caveat, the source line, the blank separator and the
+  omission marker publish nothing: `... 17 more` is a *population fact*, not a stand-in for one
+  hidden weave, and "select the first hidden one" is a gesture this pane does not offer.
+- **The selection belongs to the pane.** There is no `Workshop::selected_weave`, no setup-wide
+  current selection and no ambient singleton. It is transient runtime UI state, held as a *name* so
+  it survives a resize that windows the entry out of sight, cleared only when the absence is
+  actually observed — and clearing publishes nothing, because a library going away is not a maker's
+  gesture.
+- **Authority does not travel with the value.** A listener that hears a library name and a role has
+  learned two strings. It cannot thereby message, interrogate, load, unload or impersonate the
+  thing named: a grant is per `(shape, version, target)` and is written by whoever mounts a weave.
+  **Values may flow; authority must not flow implicitly with them.**
+- **Through the ordinary Loom route, never a callback.** The fact is *published*, and an
+  independent test listener — one that compiles the vocabulary header and nothing else of the tool,
+  registered with nobody — hears it. There is no `std::function`, no Workshop listener pointer, no
+  observer singleton and no direct call.
+
+Deliberately absent: no callback, trigger, condition, binding graph, reactive variable or action
+pipeline; no Message Composer and no query of what may be sent to the selected thing; no selection
+history; no `Selection<T>`, `SelectionBus` or global selection vocabulary — one list is not
+evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing of Info, the
+Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
+of any kind**, and no setup format movement.
 
 ## Working in this tree
 
