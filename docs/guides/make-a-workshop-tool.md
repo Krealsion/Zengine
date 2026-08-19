@@ -323,14 +323,21 @@ still sets them in real type. What changes is that nothing is painted that you d
 padding in a character medium, no fill in a graphical one — so a rect published earlier in the
 same plane shows through. Workshop's one consumer is the maker's name written across an authored
 object: the name is semantic (its cell occupancy is no part of what the maker authored) and the
-object's body is authored *material*, so neither of the other two answers was true. Two things to
-know before you reach for it:
+object's body is authored *material*, so neither of the other two answers was true. Three things
+to know before you reach for it:
 
 - **A row that names its own `background` still paints its strip**, at the region's full width, in
   both media. Giving up the region's ground does not give up the row's.
 - **You are giving up the erasing, and that is the whole point.** If there is nothing meaningful
   underneath, an ordinary region is the honest shape and this one just makes your panel
   see-through.
+- **Bound it to the material it is written on, and not to the room you happen to have.** An
+  ordinary region carries its own ground, so its ink is guaranteed to read against something you
+  chose; a `kGroundBeneath` region gives that guarantee up along with the ground, and its ink is
+  only as legible as whatever it lands on. Workshop learned this by measurement: the object name
+  was bounded by the *workspace's* right edge, so every character past the object's own edge was
+  set in the backdrop's exact colour and could not be read (QR-3). Give such a region the bounds
+  of the thing it is about, and let `detail::fit` say when they were not enough.
 
 **Labels — for glyphs whose CELL is the meaning.** `paint_panel_row(layer, b, line, text, role)`
 writes one row at cell `b.y + line`, `detail::fit`-cut and space-padded to `b.w`, and a raw

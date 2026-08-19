@@ -957,19 +957,23 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
   ordinary region over the object's rect turns every object into an empty dark box; rows carrying
   the object's role as a GROUND leave a `12h - 4 - 18*rows` pixel band the strips cannot reach
   (10 px at h=4) AND replace `glyph_for_role`'s `#` with a background colour, which is the exact
-  thing that constant exists to refuse. Its bounds are `[object origin, workspace right edge) x
-  the object's own height, floored at one row` -- the BOUND is the workspace's, as it has always
-  been, and the HEIGHT is the object's, which is what makes a one-cell object fall back to cells
-  through `fit_region` with no `if (h < N)` written anywhere.
-- **A name longer than its object is unreadable where it leaves one, in a medium that paints
-  roles as ink**, and that is TYPE-1's measured product cost rather than a defect in the
-  contract. The name is `kMuted` so it reads on the object's `kFill` body; the workspace backdrop
-  is ALSO `kMuted`. Before TYPE-1 it was legible for a reason nobody chose -- every label cell was
-  cleared to the canvas background first, which is the same hole in the workspace that it was in
-  the object. No role fixes it (nothing this medium has reads on both a `kFill` body and a
-  `kMuted` backdrop, and a fifth role is what `surface/vocabulary.hpp` refuses), so it is a
-  palette or a product decision and is reported rather than guessed at. See
-  `Zen/reportbacks/TYPE-1-RB.md`.
+  thing that constant exists to refuse. **Its bounds are the OBJECT'S OWN RECTANGLE since QR-3**
+  -- `min(object width, workspace right edge - x)` by `the object's own height`, each floored at
+  one cell -- so the name is bounded by the material it names and `fit_region` is what makes a
+  one-cell object fall back to cells with no `if (h < N)` written anywhere. Until QR-3 the width
+  half was `workspace right edge - x`, and that is what the next entry is about.
+- **A name is bounded by the material it names, and that is QR-3's repair of TYPE-1's one
+  measured product cost.** TYPE-1 gave the name the room from the object's origin to the
+  workspace's right edge, and in a medium that paints roles as ink every character past the
+  object's own edge was invisible: the name is `kMuted` so it reads on the object's `kFill` body,
+  and the workspace backdrop is ALSO `kMuted`. Measured on the pristine tree: a 6-cell object
+  with a 32-byte name planned a 564 px region over 72 px of material, so 9 characters were
+  legible and 23 were the backdrop's exact colour. No role fixes that -- nothing this medium has
+  reads on both a `kFill` body and a `kMuted` backdrop, and a fifth role is what
+  `surface/vocabulary.hpp` refuses -- so the answer is the BOUND, and a name that does not fit
+  its object says so with `detail::fit`'s mark rather than fading into the backdrop. The authored
+  name is untouched by any of it and widening the object reveals more of the same bytes. See
+  `Zen/reportbacks/TYPE-1-RB.md` for the cost and `Zen/reportbacks/QR-3-RB.md` for the repair.
 
 ## The first tool that reaches Workshop as a stranger (INTR-0)
 

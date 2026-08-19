@@ -759,6 +759,74 @@ TEST_CASE("the name property's own refusals: empty and too long") {
     CHECK(d.elements[0].label == "panel");
 }
 
+TEST_CASE("QR-3: what the authored name bound IS, and what it is not a statement about") {
+    // THE POLICY, PINNED WHERE IT IS DECIDED. QR-3 traced this bound to W-0, where it arrived
+    // as 32 with the words `a label, not a document` and no other rationale anywhere in the
+    // history, the docs or the report-backs. The only rationale ever written for a 32 in this
+    // application is a SCREEN measurement (`setup::kMaxSetupNameLen`), and it was measurably
+    // false for this constant -- so the KIND of bound survived and the number moved.
+    CHECK(doc::kMaxNameLen == 64);
+
+    // IT IS AN INPUT BOUNDARY AND NOT A CAPACITY, which is what makes it one function rather
+    // than two: a maker's rename and a document from a FILE meet the same rule, in the same
+    // words. Exactly at the bound is legal; one byte past it is not, in both directions.
+    CHECK(doc::check_name(std::string(doc::kMaxNameLen, 'x')).accepted);
+    CHECK_FALSE(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).accepted);
+    CHECK(doc::check_name(std::string(doc::kMaxNameLen + 1, 'x')).refusal ==
+          "a name is at most 64 characters");
+    CHECK_FALSE(doc::check_name(std::string()).accepted);
+
+    // A NAME THE OLD BOUND REFUSED IS AUTHORED THROUGH THE ORDINARY OPERATION NOW, and the
+    // one the suite itself has needed since HD-7 is the fixture: 43 bytes, which HD-7 could
+    // only get by writing the element's field directly because no maker could type it.
+    WorkshopDoc d = two_panels();
+    const std::int64_t id = d.elements[0].id;
+    const std::string long_name = "the-quick-brown-fox-jumps-over-the-lazy-dog";
+    REQUIRE(long_name.size() == 43);
+    CHECK(doc::rename(d, id, long_name).accepted);
+    CHECK(doc::find(d, id)->label == long_name);
+    // ...and the whole document is still a document by its own law.
+    CHECK(doc::check_document(d).accepted);
+
+    // AND IT SURVIVES A SAVE AND A RESTORE, byte for byte. A validation policy is not a wire
+    // change: `kFormatVersion` did not move, and a name is an ordinary string in the file.
+    const std::string text = persist::to_text(d);
+    CHECK(text.find(long_name) != std::string::npos);
+    WorkshopDoc back = two_panels();
+    const Written loaded = persist::load_into(back, text);
+    REQUIRE(loaded.accepted);
+    CHECK(doc::find(back, id)->label == long_name);
+    CHECK(back == d);
+    CHECK(persist::kFormatVersion == 1);
+
+    // NOTHING ABOUT THE SETUP'S OWN NAME MOVED WITH IT. Two bounds, two reasons: the setup
+    // line has a width it must fit whole and an object's name no longer has one.
+    CHECK(kMaxSetupNameLen == 32);
+}
+
+TEST_CASE("QR-3: a name past the authored bound is still refused, from a file as from a hand") {
+    // THE OTHER HALF: raising a bound is not removing one. A document from a file meets the
+    // same `check_name`, and a refusal leaves the live document exactly as it was.
+    WorkshopDoc good = two_panels();
+    const std::string text = persist::to_text(good);
+    const std::string over(doc::kMaxNameLen + 1, 'x');
+    std::string forged = text;
+    const std::string was = "\"name\":\"panel\"";
+    const std::size_t at = forged.find(was);
+    REQUIRE(at != std::string::npos);
+    forged.replace(at, was.size(), "\"name\":\"" + over + "\"");
+
+    WorkshopDoc live = two_panels();
+    const Written refused = persist::load_into(live, forged);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal.find("at most 64") != std::string::npos);
+    CHECK(live == good); // not one byte of the live document was written
+
+    // And through the maker's own operation.
+    CHECK_FALSE(doc::rename(live, live.elements[0].id, over).accepted);
+    CHECK(live.elements[0].label == "panel");
+}
+
 TEST_CASE("reuse: two properties of one type share every line of conversion") {
     WorkshopDoc d = two_panels();
     const std::int64_t id = d.elements[0].id;
@@ -2369,14 +2437,18 @@ TEST_CASE("a name longer than the workspace is clipped by Workshop, not spilled"
     refocus(d, s);
 
     const surface::SurfaceCanvas c = paint(d, s);
-    // 48 - 44 = 4 cells of room. Workshop does its own layout, so the clip is
-    // Workshop's job -- the canvas would happily have run it into the panel.
+    // TWO BOUNDS MEET HERE AND THE TIGHTER ONE WINS. The object is 2 cells wide and sits 4
+    // cells from the workspace's right edge (48 - 44), so the name's room is 2: the
+    // MATERIAL's, since QR-3, and never more than the distance to the edge. Workshop does its
+    // own layout, so the clip is Workshop's job either way -- the canvas would happily have
+    // run the name into the panel.
     //
     // AND THE CUT IS MARKED (TYPE-0). It used to be a silent `resize` to the room, which
     // handed a maker a shorter name that looked finished -- INTR-0's defect, in the one
-    // place a maker's OWN word is drawn. `detail::fit` spends the room on the mark, so
-    // four cells of room say `a...` rather than `a-na`.
-    CHECK(label_at(c, 44, kWorkspaceY) == "a...");
+    // place a maker's OWN word is drawn. `detail::fit` spends the room on the mark, and a
+    // room smaller than the mark itself spends all of it: two cells say `..`, which is a
+    // maker's signal that there is a name here and no room to read it, rather than `a-`.
+    CHECK(label_at(c, 44, kWorkspaceY) == "..");
     // The document is untouched: what was fitted is the picture, never the name.
     CHECK(doc::find(d, id)->label == "a-name-far-too-long-for-here");
 }
@@ -21397,26 +21469,61 @@ TEST_CASE("TYPE-1: the character medium's picture did not move, and its `#` is w
     CHECK(typed_cells.find("############") != std::string::npos);
 }
 
-TEST_CASE("TYPE-1: the name's bound is the WORKSPACE's right edge, not the object's width") {
-    // §6/§17. The extent behaviour TYPE-0 measured is preserved exactly: the region is `room`
-    // cells wide -- workspace width less the object's x -- which is the same number
-    // `detail::fit` was handed before, so a long name still runs out of its object and across
-    // the workspace rather than being cut at a width a maker chose for the BODY.
+TEST_CASE("QR-3: the name's bound is the OBJECT'S resolved width, clipped by the workspace") {
+    // THE ONE BEHAVIOUR QR-3 CHANGED, and it is worth stating what it replaced: TYPE-1 gave
+    // the name `workspace_w - x` cells, so a name longer than the object it names ran out of
+    // it and across the backdrop -- where, in a medium that paints roles as ink, it was the
+    // backdrop's exact colour (both are `kMuted`) and could not be read at all. The room is
+    // the MATERIAL's now, because this is type ON material, and material the object does not
+    // have is not the name's to spend.
     WorkshopDoc d;
     (void)doc::add(d, "a name much longer than its object", 1, 1,
                    ui::Extent{ui::kExtentCells, 4}, ui::Extent{ui::kExtentCells, 4});
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     const std::vector<surface::SurfaceTextRegion> names = object_names(paint(d, s));
     REQUIRE(names.size() == 1);
-    CHECK(names.front().w == s.workspace_w - 1); // NOT the object's 4 cells
-    CHECK(names.front().rows.front().text == "a name much longer than its object");
+    CHECK(names.front().w == 4); // the object's own 4 cells, NOT the 47 to the edge
+    CHECK(names.front().h == 4); // and its own height, which TYPE-1 already gave it
+    CHECK(names.front().rows.front().text == "a...");
+    CHECK(doc::find(d, d.elements[0].id)->label == "a name much longer than its object");
 
-    // WHAT A MEDIUM NOW GETS TO SAY IS HOW MANY CHARACTERS THOSE CELLS HOLD, and that is the
-    // one thing about the name that TYPE-1 changed: the bound is cells either way, but a face
-    // whose advance is narrower than a cell fits more of them in it. Both are `fit_region`.
-    const std::int64_t room = s.workspace_w - 1;
-    CHECK(surface::fit_region(1, 2, room, 4, 0, 0).columns == room);
-    CHECK(surface::fit_region(1, 2, room, 4, 8, 18).columns == (room * 12 - 4) / 8);
+    // AND THE WORKSPACE'S EDGE IS STILL A BOUND -- the tighter of the two wins. An object
+    // authored wider than the room to the edge has material the workspace does not show, and
+    // its name is not the panel's to write into either.
+    WorkshopDoc over;
+    (void)doc::add(over, "a name much longer than its object", 44, 0,
+                   ui::Extent{ui::kExtentCells, 12}, ui::Extent{ui::kExtentCells, 1});
+    Session os = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    const std::vector<surface::SurfaceTextRegion> clipped = object_names(paint(over, os));
+    REQUIRE(clipped.size() == 1);
+    CHECK(clipped.front().w == os.workspace_w - 44); // 4, not the object's 12
+
+    // WHAT A MEDIUM GETS TO SAY IS STILL HOW MANY CHARACTERS THOSE CELLS HOLD (TYPE-1,
+    // unchanged): the bound is cells either way, but a face whose advance is narrower than a
+    // cell fits more of them in it. Both are `fit_region`, and QR-3 changed only its `room`.
+    CHECK(surface::fit_region(1, 2, 12, 4, 0, 0).columns == 12);
+    CHECK(surface::fit_region(1, 2, 12, 4, 8, 18).columns == (12 * 12 - 4) / 8); // 17
+
+    // SO A WIDER OBJECT SHOWS MORE OF THE SAME AUTHORED BYTES, which is the whole product
+    // claim: resizing changes how much is visible and never what was written.
+    struct Case {
+        std::int64_t width;
+        const char* shown;
+    };
+    for (const Case& one : {Case{3, "..."}, Case{4, "a..."}, Case{12, "a name mu..."},
+                            Case{34, "a name much longer than its object"},
+                            Case{40, "a name much longer than its object"}}) {
+        CAPTURE(one.width);
+        WorkshopDoc w;
+        const std::int64_t id = doc::add(w, "a name much longer than its object", 1, 1,
+                                         ui::Extent{ui::kExtentCells, one.width},
+                                         ui::Extent{ui::kExtentCells, 4});
+        Session ws = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+        const std::vector<surface::SurfaceTextRegion> shown = object_names(paint(w, ws));
+        REQUIRE(shown.size() == 1);
+        CHECK(shown.front().rows.front().text == one.shown);
+        CHECK(doc::find(w, id)->label == "a name much longer than its object"); // never cut
+    }
 
     // AND A NAME THAT GENUINELY DOES NOT FIT IS MARKED, never silently cut, in either medium.
     WorkshopDoc edge;
@@ -21426,8 +21533,143 @@ TEST_CASE("TYPE-1: the name's bound is the WORKSPACE's right edge, not the objec
     Session es = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     const std::vector<surface::SurfaceTextRegion> cut = object_names(paint(edge, es));
     REQUIRE(cut.size() == 1);
-    CHECK(cut.front().rows.front().text == "a...");
+    CHECK(cut.front().rows.front().text == ".."); // two cells of room, all of it the mark
     CHECK(doc::find(edge, id)->label == "a-name-far-too-long-for-here"); // the document keeps all
+}
+
+TEST_CASE("QR-3: a long name through the REAL property editor, and what each surface shows") {
+    // THE WHOLE PHASE IN ONE MAKER'S HANDS, driven through the live weave: a rename past the
+    // old bound, committed through the same Enter/type/Enter every property takes; the
+    // Inspector holding the complete authored text; the workspace showing a MARKED projection
+    // of it bounded by the object's own material; and a resize revealing more of the same
+    // bytes. No gesture here is special-cased for a name.
+    Live t;
+    const std::int64_t id = t.session().selected;
+    REQUIRE(id != 0);
+
+    // A body to write on, authored through the ordinary Width property. The inspector's
+    // cursor only walks DOWN in `begin_editing`, so each edit starts from the top row.
+    const auto set_property = [&t](const char* which, const std::string& value) {
+        for (int i = 0; i < 12; ++i) {
+            t.key(input::scan::kUp);
+        }
+        t.begin_editing(which);
+        for (int i = 0; i < 12; ++i) {
+            t.key(input::scan::kBackspace);
+        }
+        t.text(value);
+        t.key(input::scan::kReturn);
+    };
+    set_property("Width", "20");
+
+    // TYPED PAST THE OLD BOUND AND ACCEPTED. 43 bytes -- the name HD-7's own case wanted and
+    // could only get by writing the element's field directly, because no maker could type it.
+    const std::string wanted = "the-quick-brown-fox-jumps-over-the-lazy-dog";
+    REQUIRE(wanted.size() > 32);
+    REQUIRE(wanted.size() <= doc::kMaxNameLen);
+    set_property("Name", wanted);
+    REQUIRE(doc::find(t.doc(), id) != nullptr);
+    CHECK(doc::find(t.doc(), id)->label == wanted); // committed, every byte
+    CHECK_FALSE(t.session().notice_is_bad);        // and not by way of a refusal
+
+    // THE INSPECTOR HOLDS THE COMPLETE AUTHORED TEXT -- its row is the property, and what a
+    // narrow panel shows of it is the panel's own fitting/windowing question.
+    const auto inspector_name = [&t]() {
+        for (const Row& r : t.session().rows) {
+            if (r.label() == "Name") {
+                return r.display();
+            }
+        }
+        FAIL("no Name row");
+        return std::string();
+    };
+    CHECK(inspector_name() == wanted);
+
+    // THE WORKSPACE SHOWS A BOUNDED, MARKED PROJECTION OF IT -- 20 cells of material, so 20
+    // characters, the last three of them the mark that says there is more.
+    const auto workspace_name = [&t]() {
+        const std::vector<surface::SurfaceTextRegion> names = object_names(t.canvases.back());
+        REQUIRE(!names.empty());
+        return names.front();
+    };
+    CHECK(workspace_name().w == 20);
+    CHECK(workspace_name().rows.front().text == "the-quick-brown-f...");
+    CHECK(workspace_name().rows.front().text.size() == 20);
+
+    // RESIZING REVEALS MORE OF THE SAME AUTHORED VALUE, and nothing else about it moves.
+    set_property("Width", "30");
+    CHECK(workspace_name().w == 30);
+    CHECK(workspace_name().rows.front().text == "the-quick-brown-fox-jumps-o...");
+    CHECK(doc::find(t.doc(), id)->label == wanted); // not one byte was cut
+
+    set_property("Width", "44");
+    CHECK(workspace_name().w == 44);
+    CHECK(workspace_name().rows.front().text == wanted); // whole, and no mark
+    CHECK(inspector_name() == wanted);
+
+    // AND NARROWING PUTS THE MARK BACK, from the same authored bytes.
+    set_property("Width", "4");
+    CHECK(workspace_name().w == 4);
+    CHECK(workspace_name().rows.front().text == "t...");
+    CHECK(doc::find(t.doc(), id)->label == wanted);
+
+    // A NAME PAST THE NEW BOUND IS STILL REFUSED THROUGH THE SAME EDITOR, and the refusal
+    // leaves the committed value alone -- the draft is what a maker is holding, not the value.
+    set_property("Name", std::string(doc::kMaxNameLen + 1, 'x'));
+    CHECK(doc::find(t.doc(), id)->label == wanted);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.session().notice.find("at most 64") != std::string::npos);
+}
+
+TEST_CASE("QR-3: no part of a name is drawn outside the material it names") {
+    // THE PRODUCT CLAIM, MEASURED IN PIXELS RATHER THAN ARGUED. This is the case that would
+    // have gone red on the pristine tree: a 6-cell object with a 32-byte name planned a
+    // 564 px region against 72 px of material, and 23 of the 32 characters landed on a
+    // backdrop wearing the name's own ink.
+    WorkshopDoc d;
+    (void)doc::add(d, "a long name across the workspace", 1, 1,
+                   ui::Extent{ui::kExtentCells, 6}, ui::Extent{ui::kExtentCells, 4});
+    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    const surface::SurfaceCanvas c = paint(d, s);
+
+    // The region's own bounds first: it is the object's rectangle and nothing more.
+    const std::vector<surface::SurfaceTextRegion> names = object_names(c);
+    REQUIRE(names.size() == 1);
+    CHECK(names.front().w == 6);
+
+    // ...and the PLANNED region, whose viewport is what the renderer sets type inside.
+    const surface::SurfaceExtent metric{kScreenMinW * surface::kCanvasCellPx,
+                                        kScreenMinH * surface::kCanvasCellPx, 8, 18};
+    const surface::PlanLayer planned =
+        surface::plan_canvas(c, metric, surface::PlanSize{4000, 4000}).front();
+    REQUIRE(planned.regions.size() == 1);
+    const surface::PlanTextRegion& region = planned.regions.front();
+    const std::int64_t ox = (kWorkspaceX + 1) * surface::kCanvasCellPx;
+    const std::int64_t oy = (kWorkspaceY + 1) * surface::kCanvasCellPx;
+    const std::int64_t ow = 6 * surface::kCanvasCellPx;
+    const std::int64_t oh = 4 * surface::kCanvasCellPx;
+    CHECK(region.view.x == ox);
+    CHECK(region.view.y == oy);
+    CHECK(region.view.w == ow); // 72 px, the material's own width -- 564 before QR-3
+    CHECK(region.view.h == oh);
+    // Every character the medium was given fits inside that material at the fit's own advance.
+    REQUIRE(region.rows.size() == 1);
+    CHECK(static_cast<std::int64_t>(region.rows.front().text.size()) * 8 <= ow);
+    CHECK(region.rows.front().text == "a lon..."); // 8 columns of the face fit in 6 cells
+    // AND THE MATERIAL IS STILL WHOLE UNDER IT (TYPE-1 preserved): the object's quad is
+    // planned and nothing inside it was cleared to the canvas ground.
+    bool material = false;
+    bool punched = false;
+    for (const surface::PlanRect& q : planned.quads) {
+        material = material || (q == surface::PlanRect{ox, oy, ow, oh, 176, 176, 188});
+        const bool inside = q.x >= ox && q.y >= oy && q.x < ox + ow && q.y < oy + oh;
+        const bool cleared = q.r == surface::kCanvasBackground.r &&
+                             q.g == surface::kCanvasBackground.g &&
+                             q.b == surface::kCanvasBackground.b;
+        punched = punched || (inside && cleared);
+    }
+    CHECK(material);
+    CHECK_FALSE(punched);
 }
 
 TEST_CASE("TYPE-1: a tiny object shows its name in CELLS, and no rule was written to say so") {
@@ -21479,6 +21721,11 @@ TEST_CASE("TYPE-1: an object with no resolved height still shows its name") {
     // reachable BEFORE TYPE-1, and such an object's name was the only trace of it on the
     // workspace. A region with no bounds shows nothing and says nothing about it, so the
     // name's room is the object's height or one row, whichever is more.
+    //
+    // QR-3 GIVES THE OTHER AXIS THE SAME FLOOR, for the same reason and by the same
+    // arithmetic: the room is the object's WIDTH now, and a zero-width object would otherwise
+    // publish no region at all. One column is what `detail::fit` needs to leave a mark, so a
+    // bodyless object is still a thing on the workspace that says "a name is here".
     WorkshopDoc d;
     (void)doc::add(d, "bodyless", 1, 1, ui::Extent{ui::kExtentCells, 0},
                    ui::Extent{ui::kExtentCells, 0});
@@ -21486,7 +21733,12 @@ TEST_CASE("TYPE-1: an object with no resolved height still shows its name") {
     const surface::SurfaceCanvas c = paint(d, s);
     REQUIRE(object_names(c).size() == 1);
     CHECK(object_names(c).front().h == 1);
+    CHECK(object_names(c).front().w == 1);
+    CHECK(object_names(c).front().rows.front().text == "."); // the mark, in the room there is
+    // AND THE OBJECTS LIST STILL NAMES IT WHOLE, which is where a maker reads a name that has
+    // no material to sit on. The two answers are different because the questions are.
     CHECK(surface::canvas_body(c).find("bodyless") != std::string::npos);
+    CHECK(doc::find(d, d.elements[0].id)->label == "bodyless");
 }
 
 TEST_CASE("TYPE-1: moving and resizing an object move the name and change no authored byte") {
@@ -21529,7 +21781,11 @@ TEST_CASE("TYPE-1: moving and resizing an object move the name and change no aut
     const surface::SurfaceTextRegion moved = name_now();
     CHECK(moved.x == before.x + 1);
     CHECK(moved.y == before.y);
-    CHECK(moved.w == before.w - 1); // the room to the workspace's right edge shrank with it
+    // AND ITS ROOM DID NOT CHANGE, which is QR-3's half of this case: the name's room is the
+    // OBJECT'S resolved width now, and a nudge moves an object without resizing it. Before
+    // QR-3 this read `before.w - 1`, because the room was the distance to the workspace's
+    // right edge and moving right spent one cell of it.
+    CHECK(moved.w == before.w);
     CHECK(moved.h == before.h);
 
     // SHORTER, THEN TALLER, through the typed property. The room the name has follows the

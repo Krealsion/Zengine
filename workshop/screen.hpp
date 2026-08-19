@@ -4991,14 +4991,25 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // answer: the region keeps its bounds, so the name is fitted and cut against them,
         // and gives up the ground, so nothing under it is painted over.
         //
-        // THE BOUND IS THE WORKSPACE'S RIGHT EDGE AND NOT THE OBJECT'S, and it always has
-        // been: a name longer than the object it names runs out of it and across the
-        // workspace rather than being cut at a width the maker chose for the BODY. TYPE-1
-        // preserved that deliberately -- the region is `room` cells wide, which is exactly
-        // the number `detail::fit` was given before. What a medium now gets to say is how
-        // many CHARACTERS those cells hold: `fit_region` answers 47 cells in cells and 70
-        // columns of a 13pt face, so a name is marked when it genuinely did not fit rather
-        // than when it would not have fitted as bitmap cells.
+        // THE BOUND IS THE OBJECT'S OWN RESOLVED WIDTH (QR-3), clipped by the workspace's
+        // right edge -- and until QR-3 it was only the second of those. The name used to be
+        // given `workspace_w - x` cells, so a name longer than the object it names ran out of
+        // it and across the backdrop; TYPE-1 preserved that deliberately and then MEASURED
+        // what it costs, which is the paragraph below. The room is the material's, because
+        // this is type ON material and material the object does not have is not this name's
+        // room to spend. The workspace clip stays because it answers a different question --
+        // an object may be authored wider than the room to the edge, and its name is still
+        // not the panel's to write into.
+        //
+        // ...OR ONE COLUMN, WHICHEVER IS MORE, for the row floor's reason said about the
+        // other axis (below): a zero-WIDTH object is reachable from a poke or a hand-built
+        // document exactly as a zero-height one is, and one cell of room leaves `detail::fit`
+        // a mark to put there rather than leaving the object with no trace at all.
+        //
+        // WHAT A MEDIUM STILL GETS TO SAY IS HOW MANY CHARACTERS THOSE CELLS HOLD, and that
+        // half is TYPE-1's and unchanged: `fit_region` answers 12 columns in cells and 17
+        // columns of a 13pt face for a 12-cell object, so a name is marked when it genuinely
+        // did not fit rather than when it would not have fitted as bitmap cells.
         //
         // AND ITS HEIGHT IS THE OBJECT'S, which is what makes a one-cell object honest for
         // free. `fit_region` sends a region with no room for a row of the medium's face back
@@ -5022,29 +5033,30 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // defect INTR-0 found in the picker's name column and repaired the same way: a shorter
         // name that looks finished is a lie about the document. `detail::fit` marks it.
         //
-        // AND THE MEASURED COST OF ALL OF IT, WRITTEN HERE BECAUSE IT IS THIS CALL SITE'S:
-        // A NAME LONGER THAN ITS OBJECT IS UNREADABLE WHERE IT LEAVES ONE, in a medium that
-        // paints roles as ink. The name is `kMuted` so it reads quietly on the object's
-        // `kFill` body; the workspace backdrop three statements up is ALSO `kMuted`, so the
-        // overhang is the workspace's exact colour. Before TYPE-1 it was legible for a reason
-        // nobody chose: every label cell was cleared to the canvas background first, which is
-        // the same hole in the workspace that it was in the object. Measured live, both
-        // trees, same document; TYPE-1's report-back carries the pair of pictures.
+        // AND WHY THE ROOM IS THE MATERIAL'S, WRITTEN HERE BECAUSE IT IS THIS CALL SITE'S.
+        // TYPE-1 measured the cost of the old bound in a medium that paints roles as ink: the
+        // name is `kMuted` so it reads quietly on the object's `kFill` body, and the workspace
+        // backdrop a few statements up is ALSO `kMuted` -- so every character past the
+        // object's own edge was the backdrop's exact colour and could not be read at all. Six
+        // cells of material and a thirty-two byte name meant 9 characters legible and 23
+        // invisible, measured on the pristine tree. Before TYPE-1 the overhang was legible
+        // only for a reason nobody chose: every label cell was cleared to the canvas
+        // background first, which is the same hole in the workspace that it was in the object.
         //
-        // IT IS NOT FIXED HERE, AND THE REASON IS THAT NO ROLE FIXES IT. This medium's inks
-        // are kFill 176, kAccent 112/232/240, kMuted 96 and kAlert red: nothing reads on BOTH
-        // a `kFill` body and a `kMuted` backdrop, `kAccent` means "the one thing being pointed
+        // NO ROLE FIXES THAT, WHICH IS WHY THE ANSWER IS THE BOUND. This medium's inks are
+        // kFill 176, kAccent 112/232/240, kMuted 96 and kAlert red: nothing reads on BOTH a
+        // `kFill` body and a `kMuted` backdrop, `kAccent` means "the one thing being pointed
         // at" and would make every object shout, and a fifth role is exactly what
         // `surface/vocabulary.hpp` refuses. Contrast is a palette question and the palette is
-        // the medium's -- which is the whole reason a publisher ships roles. The alternatives
-        // are all product decisions with a wider blast radius than this phase has evidence
-        // for: bound the name to the object's own width (a real behaviour change -- the bound
-        // has been the WORKSPACE's right edge since the tool had one), give the workspace a
-        // different role, or give this row a `background` (which paints a strip the full width
-        // of the region and so claims material the object does not have). Reported, not
-        // guessed at.
+        // the medium's -- which is the whole reason a publisher ships roles. So the repair is
+        // not a colour and not a ground: it is that a name never leaves the material it names,
+        // and where it does not fit that material it says so with `detail::fit`'s mark. The
+        // authored name is untouched by any of it, and widening the object reveals more of the
+        // same authored bytes -- which is the property the whole arrangement is for.
         const ui::Element* authored = doc::find(d, p.id);
-        const std::int64_t room = s.workspace_w - p.rect.x;
+        const std::int64_t columns = p.rect.w > 1 ? p.rect.w : 1;
+        const std::int64_t to_edge = s.workspace_w - p.rect.x;
+        const std::int64_t room = columns < to_edge ? columns : to_edge;
         if (authored != nullptr && room > 0) {
             const std::int64_t rows = p.rect.h > 1 ? p.rect.h : 1;
             const surface::RegionFit fit =

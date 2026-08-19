@@ -154,13 +154,18 @@ inline constexpr const char* kDefaultSetupFileName = "workshop-setup.json";
 
 /// How long a setup's human name may be.
 ///
-/// THIRTY-TWO, and it is the same number `doc::kMaxNameLen` uses for an object's
-/// label, measured the same way (bytes), because it is the same kind of fact: a
-/// name a maker types and then reads back on one line of a screen. The screen is
-/// the reason it is not larger -- the setup line at the minimum composition
-/// carries the name, the file it is stored in and its saved marker, and a
-/// thirty-two-byte name leaves that line fitting whole at 78 cells with the
-/// default file name (measured, screen.hpp's `setup_line`).
+/// THIRTY-TWO, AND THE SCREEN IS THE WHOLE OF THE REASON: the setup line at the
+/// minimum composition carries the name, the file it is stored in and its saved
+/// marker, and a thirty-two-byte name leaves that line fitting whole at 78 cells
+/// with the default file name (measured, screen.hpp's `setup_line`).
+///
+/// IT IS NO LONGER THE SAME NUMBER `doc::kMaxNameLen` USES, and that divergence is
+/// deliberate rather than drift. WS-0 wrote these as one kind of fact -- a name
+/// typed and read back on one line -- and QR-3 measured that the object label's
+/// half of that claim was never true (the OBJECTS list is 28 columns at the same
+/// minimum, so a name at the old bound was already marked there) and moved that
+/// constant to 64. THIS one still has a line it must fit whole, so it keeps the
+/// number that line measures; see `doc::kMaxNameLen` for why the other does not.
 inline constexpr std::size_t kMaxSetupNameLen = 32;
 
 /// How long either half of a `PaneRef` may be.
