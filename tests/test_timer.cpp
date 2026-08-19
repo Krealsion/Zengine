@@ -2150,13 +2150,24 @@ TEST_CASE("binding: a weave with no activation hook is untouched — the extensi
         joined += n + ";";
     }
     INFO("accepted: " << joined);
-    // The Timer protocol, this weave's own two doors, and the four substrate
-    // poke doors its ZEN_EXPOSE'd state earns — and nothing else. In particular
+    // The Timer protocol, this weave's own two doors, and the FIVE universal
+    // substrate doors every woven weave carries — and nothing else. In particular
     // no trace of the hook's shape, which belongs to a different weave entirely.
+    //
+    // `zen.DescribeAccepted` is the fifth, and it arrived with the Loom rather
+    // than with anything in this repository (`WeaveBase::accepted_schemas`, which
+    // appends `poke_door_schemas()` and then `describe_door_schemas()`
+    // unconditionally). This list was written when there were four and went red
+    // the first time it met a Loom that had five — which is the whole point of
+    // asserting the SET rather than a handful of memberships: a door appearing in
+    // every weave in the process is exactly the kind of change a membership check
+    // cannot see. What the case claims is unchanged and still holds: the
+    // activation-hook extension adds nothing here.
     CHECK(accepted == std::vector<std::string>{
                           "CancelTick", "RestartTick", "TimerFired", "TimerReady",
-                          "TimerResolution", "zen.Activated", "zen.PokeDescribe", "zen.PokeRead",
-                          "zen.PokeResetState", "zen.PokeWrite"});
+                          "TimerResolution", "zen.Activated", "zen.DescribeAccepted",
+                          "zen.PokeDescribe", "zen.PokeRead", "zen.PokeResetState",
+                          "zen.PokeWrite"});
 }
 
 TEST_CASE("binding: an accepted activation reconciles every desired binding exactly once — "
