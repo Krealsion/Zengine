@@ -610,6 +610,29 @@ struct Panels {
     /// has nowhere to put it. Saying `closed` would invite a maker to press the
     /// picker again; saying `unresolved` would blame the provider for the screen.
     std::vector<std::int64_t> waiting_for_room;
+    /// WHICH EXTERNAL PANE A MAKER LAST PRESSED INTO -- the keyboard's CANDIDATE,
+    /// and emphatically not its answer (MSG-0).
+    ///
+    /// IT IS RESOLVED AT EVERY SPEND AND REMEMBERED BY NOBODY, which is
+    /// `bounds_of`'s discipline applied to a focus: `keyboard_pane` (weave.hpp)
+    /// asks whether this kind is still an open external pane holding a granted
+    /// room, and answers `kNoPaneKind` when it is not. So a pane that is closed,
+    /// removed from the setup, left unresolved by a provider that went away, or
+    /// pushed off the screen stops receiving keys with nothing to clear and no
+    /// notification owed to anybody -- and if the same kind comes back, so does
+    /// the keyboard, because the candidate was never a lie in the first place.
+    ///
+    /// THE ONLY WRITER IS A PRESS. `on(PointerButton)` sets it from the occupancy
+    /// walk it already performs, before any layer answers the press, so there is
+    /// one decision rather than one per routing arm; a press Workshop resolves
+    /// that lands anywhere else -- another panel, the workspace, nothing at all --
+    /// clears it by the same line. Modes that own the pointer whole (the Terminal,
+    /// pane management) never reach that line, which is why closing one hands the
+    /// keyboard back exactly where it was.
+    ///
+    /// SESSION, and not even that: it is not in the setup, not in the document,
+    /// not persisted and not restored. `kNoPaneKind` is where every session starts.
+    std::int64_t keyboard = kNoPaneKind;
 
     bool has(std::int64_t kind) const {
         for (const Panel& p : open) {
@@ -650,6 +673,34 @@ struct Panels {
         return nullptr;
     }
 };
+
+/// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind` (MSG-0).
+///
+/// `Panels::keyboard` is a press's MEMORY and this is the ANSWER, resolved fresh at
+/// every spend rather than maintained: a pane that is closed, removed from the setup,
+/// left unresolved by a provider that went away, or granted no room stops being the
+/// target with nothing to clear and no notification owed to anybody. The three
+/// conditions are exactly what `external_press` already requires before it will send
+/// a press, so a pane that can be pressed is a pane that can be typed into and there
+/// is no fourth state between them.
+///
+/// IT IS HERE, AND NOT IN THE WEAVE, BECAUSE TWO PARTIES ASK IT. The router asks in
+/// order to route a key; the PAINTER asks in order to say so -- the pane's header
+/// marks it and the bottom band names it. A second copy of this resolution would be a
+/// screen that says a maker is typing into one pane while the keys go to another,
+/// which is the worst shape this defect could take.
+inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
+    const std::int64_t kind = panels.keyboard;
+    if (!is_runtime_kind(kind) || !panels.has(kind)) {
+        return kNoPaneKind;
+    }
+    const RuntimePane* row = panels.runtime.of_kind(kind);
+    const ExternalPane* pane = panels.external_pane(kind);
+    if (row == nullptr || pane == nullptr || !pane->granted) {
+        return kNoPaneKind;
+    }
+    return kind;
+}
 
 /// Open a panel of this kind, or say why not.
 ///

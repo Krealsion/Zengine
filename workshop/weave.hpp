@@ -208,7 +208,9 @@ class WorkshopWeave
                                         zengine::builder::BuildRequested,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
-                                        zengine::workshop::PanePressed>> {
+                                        zengine::workshop::PanePressed,
+                                        zengine::workshop::PaneKey,
+                                        zengine::workshop::PaneTextInput>> {
 public:
     explicit WorkshopWeave(HostContext& host) : host_(&host) {
         // The document a maker opens onto. Deliberately boring, and deliberately
@@ -415,6 +417,27 @@ public:
         // anyway rather than left to that argument, for the reason every line of this chain
         // is. Terminal behaviour and input ownership are untouched: `shift+space` still
         // outranks all six, three lines up.
+        //
+        // AND SINCE MSG-0 A FOCUSED EXTERNAL PANE SITS BETWEEN THE FIVE MODES AND
+        // WORKSHOP'S OWN COMMANDS -- which is the whole of the priority claim this
+        // phase makes, and the answer to "does typing `p` into a field open the
+        // picker". It does not, because nothing below this line is reached while a
+        // pane holds the keyboard. What is ABOVE it is unchanged and is the whole
+        // list: the four keys that mean the same thing in every mode (three lines
+        // up), then the five modes that own the keyboard whole while they are open.
+        //
+        // IT IS ABOVE A LIVE PROPERTY DRAFT, and that is a decision with a
+        // symmetry behind it rather than a tie broken arbitrarily. Both are PLACES
+        // rather than modes, and both are reached by a maker pressing into them --
+        // so the one that answers is the one the maker pressed into LAST, which is
+        // exactly what `panels.keyboard` records. Pressing back into the Info body
+        // clears the candidate by the same line that set it, and the draft has the
+        // keys again; the draft itself is never cancelled, committed or touched by
+        // any of this, which is the Terminal overlay's own rule for the same state.
+        //
+        // IT IS RESOLVED, NOT READ. `keyboard_pane` re-derives the target from the
+        // open panel list and the granted room every time, so a pane that stopped
+        // being presentable stops being asked with nothing to clear.
         if (session_.terminal.open) {
             terminal_key(k);
         } else if (session_.manage.open) {
@@ -423,6 +446,8 @@ public:
             naming_key(k, mail);
         } else if (session_.panels.picker.open) {
             picker_key(k, mail);
+        } else if (is_runtime_kind(keyboard_pane())) {
+            external_key(keyboard_pane(), k, mail);
         } else if (editing_row() != nullptr) {
             editing_key(k);
         } else {
@@ -486,6 +511,15 @@ public:
         // but the rule is written where a reader looks for it rather than left
         // as a consequence of the branch below.
         if (session_.panels.picker.open) {
+            return;
+        }
+        // A FOCUSED EXTERNAL PANE TAKES THE TEXT, in exactly the position it takes
+        // the keys, and this is the half that makes `%` reach a provider at all:
+        // Workshop maps no key to any character and never has, so a pane that was
+        // sent only `PaneKey` would be a pane a maker could not type into on any
+        // layout this application supports.
+        if (is_runtime_kind(keyboard_pane())) {
+            external_text(keyboard_pane(), t, mail);
             return;
         }
         Row* row = editing_row();
@@ -682,6 +716,34 @@ public:
             // nothing on the paths where it declines, so a handler that says "not mine" has
             // not moved the picture the next handler is about to ask about.
             const InfoBodyAt where = info_body_at(state_, session_, b.space, b.x, b.y);
+            // AND THE OCCUPANCY WALK IS RESOLVED HERE TOO SINCE MSG-0, beside the body and
+            // the canvas point, for the reason QR-2 hoisted the body: it is one question
+            // about one place, every handler below changes nothing on the path where it
+            // declines, and the answer is now needed BEFORE the chain rather than after it.
+            // It is the same pure walk `occupied_at` always was -- the picker first, then
+            // the panes topmost-first, then nothing -- moved, not changed.
+            const Occupancy here =
+                occupied_at(session_.panels, session_.setup.active, screen_of(session_),
+                            at.cell.x, at.cell.y);
+            // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
+            // ANY LAYER ANSWERS IT (MSG-0). Putting it in the routing arms instead would be
+            // four decisions -- one per arm, one of them easy to forget -- about a single
+            // fact: which presentation did the maker just point at. A press on an external
+            // pane points the keyboard there; a press on Workshop's own furniture, on the
+            // workspace, or on nothing at all takes it away again.
+            //
+            // IT IS SET FOR THE WHOLE RECTANGLE, not for the rows inside it. A press on the
+            // pane's header or on the padding under its last prose line names no row and
+            // sends no `PanePressed` -- and it is still unambiguously a maker pointing at
+            // that pane, which is the only question this line asks.
+            //
+            // AND THE MODES ABOVE NEVER REACH IT. The Terminal and pane management take
+            // every press whole, one branch up, so opening either leaves the candidate
+            // exactly where it was and closing it hands the keyboard straight back --
+            // which is the same "closing it restores every gesture exactly" this file
+            // already promises about the pointer.
+            session_.panels.keyboard =
+                here.occupied && is_runtime_kind(here.kind) ? here.kind : kNoPaneKind;
             // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
             // rather than a mode (HD-5). The order is the same one the pane and the
             // completion list already have: the innermost thing that owns the pointer where
@@ -738,9 +800,9 @@ public:
             // which is the one thing this tool is arranged against. It is also
             // the only way a maker learns that the panel is a thing rather than
             // a picture, since `[ Build ]` is not clickable yet.
-            const Occupancy here =
-                occupied_at(session_.panels, session_.setup.active, screen_of(session_),
-                            at.cell.x, at.cell.y);
+            //
+            // (`here` was resolved at the top of this branch since MSG-0 -- one walk, for
+            // two questions that are about the same press.)
             // AND AN EXTERNAL PANE IS THE ONE PRESENTATION WHOSE PRESS GOES SOMEWHERE
             // (SEL-0). It is the SAME occupancy answer -- one geometry walk, one topmost
             // rule, the picker still first -- asked one further question: this cell belongs
@@ -3438,6 +3500,80 @@ private:
         }
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column});
+    }
+
+    /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind` (MSG-0).
+    ///
+    /// THE CANDIDATE IS A PRESS'S MEMORY; THIS IS THE ANSWER. `Panels::keyboard` records
+    /// which pane a maker last pressed into and nothing keeps it true afterwards -- a pane
+    /// closes, a provider stops resolving, a setup is restored, a window shrinks until
+    /// there is no room to grant. Rather than hooking every one of those (four writers for
+    /// one fact, and the fifth is the one nobody adds), the target is DERIVED here from
+    /// the same three things `external_press` requires before it will send a press: the
+    /// panel is open, this build has a runtime kind for it, and a room has been granted.
+    ///
+    /// A ROOM THAT HAS NOT BEEN GRANTED HAS NO PANE TO TYPE INTO. `granted` is false for
+    /// exactly one beat -- between a panel opening and the repaint that grants it -- and
+    /// keys in that beat would be keys sent to a provider that has not been told it has a
+    /// pane on screen at all.
+    ///
+    /// SO NOTHING EVER CLEARS IT, and a pane that becomes presentable again is typed into
+    /// again with no gesture. That is deliberate rather than lazy: the candidate was a
+    /// true statement about a maker's hand when it was written, and it stays true; what
+    /// changes is whether there is a pane for it to name.
+    ///
+    /// THE RESOLUTION ITSELF IS `panel.hpp`'S, because the PAINTER asks it too -- the
+    /// pane's header marks the pane that has the keys and the bottom band names it. Two
+    /// answers to that question would be a screen that tells a maker they are typing
+    /// somewhere the keys do not go.
+    std::int64_t keyboard_pane() const {
+        return zengine::workshop::keyboard_pane(session_.panels);
+    }
+
+    /// TELL A PROVIDER A KEY WENT DOWN WHILE ITS PANE HELD THE KEYBOARD (MSG-0).
+    ///
+    /// WHAT WORKSHOP KNOWS WHEN IT SENDS THIS, EXACTLY AND ONLY: that a key transition
+    /// arrived, and that the pane a maker last pressed into is still on screen with a room.
+    /// It does not know what the pane is showing, whether the key means anything there,
+    /// whether a field is being edited, or whether the provider will answer. Nothing in
+    /// this function reads `ExternalPane::shown` and nothing may -- the moment Workshop
+    /// looks at a provider's rows to decide what a key means, the seam has stopped being
+    /// one (SEL-0's rule, one gesture further on).
+    ///
+    /// THE TWO NUMBERS ARE FORWARDED AND NOT TRANSLATED. `scancode` and `modifiers` are
+    /// `input::KeyPressed`'s own fields, which are already this application's normalized
+    /// answer to "which key"; re-deriving them here would be a second translation table
+    /// beside the one each backend already went through.
+    ///
+    /// AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE, exactly as the room
+    /// grant and the press are, and for the same two reasons: the authorship is what lets
+    /// a provider refuse a forged key, and the destination is a ROLE so a replaced
+    /// provider still hears its own pane's keys.
+    ///
+    /// AND NOTHING IS REPAINTED HERE, for `external_press`'s reason: Workshop's picture did
+    /// not change, and a provider that answers repaints through its own `PaneContent`.
+    void external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
+                      loom::Mail& mail) {
+        const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+        if (row == nullptr) {
+            return;
+        }
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneKey{row->pane, k.scancode, k.modifiers});
+    }
+
+    /// ...AND THE TEXT THE PLATFORM MADE OF IT. `external_key`'s twin in every respect,
+    /// and a separate send because they are separate facts: a key may produce no text and
+    /// text may arrive with no key this application can name. Workshop maps no key to any
+    /// character here any more than it does anywhere else.
+    void external_text(std::int64_t kind, const zengine::input::TextEntered& t,
+                       loom::Mail& mail) {
+        const RuntimePane* row = session_.panels.runtime.of_kind(kind);
+        if (row == nullptr) {
+            return;
+        }
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneTextInput{row->pane, t.text});
     }
 
     void repaint(loom::Mail& mail) {

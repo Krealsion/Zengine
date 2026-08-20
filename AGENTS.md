@@ -1086,6 +1086,143 @@ and it fires the moment a name belongs to a party this build never compiled. `pa
 in silence and that is still right for a column whose longest word is a constant somebody checked;
 the STATE column is padded and not fitted for exactly that reason.
 
+## A pane can be typed into, and Workshop says which one (MSG-0)
+
+Two shapes, `PaneKey v1` and `PaneTextInput v1`, and one integer of session state. The five
+older pane shapes are byte-identical and still v1 — MSG-0 ADDED to the protocol and revised
+nothing, so a provider that knows only WP-0's four and SEL-0's fifth is unchanged and valid.
+
+```text
+Panels::keyboard      a PRESS's memory: which external pane a maker last pressed into
+keyboard_pane(panels) the ANSWER, resolved fresh at every spend -- open, runtime kind,
+                      room granted; the same three `external_press` already requires
+PaneKey               {pane, scancode, modifiers}   input::scan / input::mod, forwarded
+PaneTextInput         {pane, text}                  what the platform committed, forwarded
+```
+
+- **ONE LINE DECIDES WHERE THE KEYBOARD GOES**, at the top of the pressed branch, before any
+  layer answers: `keyboard = occupied ∧ is_runtime_kind ? kind : kNoPaneKind`. Putting it in
+  the routing arms would be four decisions about one fact, and the fourth is the one nobody
+  adds. `occupied_at` moved up beside `info_body_at` to make that possible — QR-2's hoist, one
+  question further on, and the same argument licenses it: every handler below changes nothing
+  on the paths where it declines.
+- **The candidate is never cleared and the target is never stored.** A pane that closes, stops
+  resolving, or loses its room stops being the answer with nothing to clear; if it comes back,
+  so does the keyboard. `bounds_of`'s discipline applied to a focus.
+- **The modes above it never reach that line**, so opening the Terminal or pane management
+  leaves the candidate exactly where it was and closing it hands the keys straight back. That
+  is the same "closing it restores every gesture exactly" this file already promises about the
+  pointer, and it is why the priority reads: the four same-in-every-mode keys, then the five
+  modes, then a focused pane, then a live property draft, then `command()`.
+- **A focused pane sits ABOVE a live property draft**, and the symmetry is what decides it:
+  both are PLACES reached by pressing into them, so the one that answers is the one the maker
+  pressed into LAST. Pressing back into the Info body clears the candidate by the same line
+  that set it. The draft is never cancelled, committed or touched by any of it.
+- **THE PANE GETS EVERY BARE KEY, `q` INCLUDED, AND THAT IS THE DESIGN.** All four survivors
+  are CHORDED (`^c`, `shift+space`, `^s`, `^o`) and that is a rule rather than a coincidence: a
+  bare printable cannot be global once anything on the screen can take text, which is the whole
+  reason typing `p` into a field does not open the picker.
+- **So the screen says so, in two places, in CHARACTERS.** The first live run of the phase
+  produced a Workshop that could not be quit with the key its own help line advertised, for a
+  reason nothing on screen gave. `external_header` now marks the pane that has the keys
+  (`> Loaded @…`, unmarked `  Loaded @…`, the same width either way for `kSelectedMark`'s
+  reason), and the bottom band replaces both help lines with `typing goes to <name> @<office>
+  — press elsewhere for Workshop's keys` and the four that still work. **`keyboard_pane` is in
+  `panel.hpp` because the ROUTER and the PAINTER both ask it**; two answers would be a screen
+  that says a maker is typing somewhere the keys do not go.
+- **Workshop does not ask a provider whether it wants keys, and there is no shape for saying
+  so.** A read-only pane that is pressed does take the keyboard, and Loom's gate refuses the
+  deliveries — the substrate's own correct answer to being sent a shape a weave never declared,
+  visible on the tap. Adding a declaration would be a private per-seam copy of
+  `zen.DescribeAccepted`, which is the door that already answers exactly that question.
+- **No key release, no focus-changed shape, no capture, no hotkey registration, no IME.** The
+  shape's ARRIVAL is the gesture, SEL-0's rule one gesture on.
+
+## The Composer is a tool that WRITES a message (MSG-0)
+
+`composer/` builds `zengine-composer`, an ordinary loadable weave beside timer/, input/ and
+introspection/, and it is the first thing in this repository a maker can TYPE into across the
+pane seam. Workshop compiled nothing for it.
+
+```text
+PaneRef   zengine.composer / compose      the durable pair a saved setup names
+office    zengine.composer                the only address anything reaches it by
+stem      zengine-composer                a line in the HOST'S boot list, and that
+                                          line is the remainder of the plugin story
+```
+
+- **IT PUBLISHES NO VOCABULARY OF ITS OWN, and that absence is the headline.** Introspection
+  needed one shape because it learned a fact nobody else could say for it. This one learns
+  nothing: it hears `LoadedSelected`, asks `zen.DescribeAccepted`, reads `zen.AcceptedShapes`,
+  speaks Workshop's pane sentences, and sends a shape belonging to whoever it is addressed to.
+  Every sentence in its life was already in somebody's vocabulary — which is the strongest
+  available evidence that MSG-1 left nothing missing for a composer to invent.
+- **IT IS A RAW `loom::Weave`, AND IT HAD TO BE.** `zen.AcceptedShapes` is not a ZEN_SHAPE (its
+  fields are lists of `zen.SchemaDesc`), `Accept<...>` takes types, and
+  `WeaveBase::accepted_schemas()` is `final` — so a weave that wants to READ the answer cannot
+  be woven. The cost is stated rather than hidden: this weave advertises no `zen.Poke*` doors
+  and no `zen.DescribeAccepted` door of its own, so **a maker cannot ask the Composer what the
+  Composer accepts.** That is a real asymmetry in a tool whose subject is that question.
+- **THE ONE DECISION `draft.hpp` MAKES** is `lex_value(raw, /*quoted=*/kind == Text)`. The
+  command-line lexer infers a type FROM THE TOKEN because a command line has nothing else;
+  a form knows it from the schema, and those are opposite directions — `1000` typed into a Text
+  field lexes to Int and would be refused for a field it is perfectly good for. Quoting is the
+  command grammar's own way of saying "these bytes are text" and a Text field says the same
+  thing with a schema. **Everything else is Loom's**: `compose_message` places and type-checks,
+  `assemble` builds, and every refusal a maker reads is the ladder's own sentence naming the
+  field and its declared kind. `1O00` in an Int field is caught without this repository knowing
+  what an Int is.
+- **EVERY ARGUMENT IS NAMED**, so the ladder only ever climbs rung 1 (all-or-error, never a
+  guess) and the three guessing rungs are unreachable BY CONSTRUCTION — there is no way to build
+  an unnamed `Arg` in the file.
+- **PRESENCE AND VALUE ARE TWO MEMBERS AND NEVER ONE.** `FieldDraft{present, TextBox}`. An
+  absent field contributes no `Arg`, so `assemble` leaves it out of the Value — which is what
+  makes `Text present with ""` and `Text absent` two different messages on the wire, and
+  `Bool present with false` different from `Bool unset`. `cycle` is the ONE presence gesture and
+  the three-state Bool is what that one rule PRODUCES over a kind with two values, not a rule of
+  its own. The brackets are what say present: `[hello]`, `[]`, against `(required)`/`(absent)`.
+- **A SNAPSHOT IS NOT THE REGISTRY.** `Snapshot{unique_ptr<Registry> deps, roots}` is replaced
+  WHOLE per discovery. `register_schema` takes a claim nobody ever releases, so one long-lived
+  Registry would accumulate every vocabulary a maker ever looked at and become the schema
+  catalog this Loom deliberately does not have. Roots are resolved BEFORE deps, which keeps
+  MSG-1's distinction alive to the send: `deps` is what a root NEEDS, `roots` is what may be SENT.
+- **`RenderedRow{SurfaceTextRow, RowMeaning}` is ONE value**, on SEL-0's own advice: that pane
+  has one interactive row kind and could keep two vectors in step; this one has four across two
+  layouts. One `push_back` carries both halves, so a row without a meaning is unsayable.
+  Provider-local, deliberately not a Surface shape and not a component.
+- **`value_capacity` is asked by the painter AND by the caret-window reconciliation**, HD-4's
+  rule; and **`MessageDraft::desc` holds the schema's type spellings, derived once by
+  `begin_draft`** — deriving them at the point of use made a form projection quadratic in the
+  field count (measured: 4 µs at three fields, **473 µs at forty**, 1.15 ms at a hundred and
+  twenty, on every keystroke; 1.8 µs after). Nothing polled and nothing was wrong; it was the
+  same answer computed `rows × fields` times.
+- **It says `SUBMITTED` and nothing stronger.** Composed, assembled, handed to the bus — not
+  delivered, not accepted, not acted on. The Ticket is deliberately not checked: an office send
+  answers whether the AUTHORSHIP was permitted, which is one of five things that must go right
+  and the most misleading of them to report as success.
+- **The `LoadedSelected` edge is a LOCAL V0 POLICY and is written down as a limitation.** Every
+  Composer in this build follows every Loaded pane, always, because `composer.cpp` says so: not
+  authored by a maker, not switchable, not aimable at a second Loaded pane. What should replace
+  it is maker-authored logic, NOT a binding engine extracted from one edge. It verifies
+  `authored_from_role(zengine.introspection)` — a fact about a maker's gesture is worth exactly
+  as much as the office it came from.
+- **One question outstanding, matched by CORRELATION**, which is Loom's own and already what
+  introspection uses. The bound is stated rather than oversold: the answer is sent PERSONALLY by
+  the construction layer, so there is no authored office to verify, and `send_to_role` never
+  told the asker which incarnation it resolved to, so there is no expected sender either.
+- **`ZEN_FIELD` DERIVES EVERY FIELD REQUIRED**, unconditionally (`build_schema`), and only a
+  woven weave answers the describe door — so **no accept-set the construction layer answers can
+  contain an optional field**, in either repository. An optional field reaches a maker only from
+  a weave that implements `loom::Weave` directly and answers `zen.DescribeAccepted` itself. The
+  Composer's optional machinery is correct and is exercised by exactly such a target
+  (`Optionals` in test_workshop.cpp).
+- **The suite does not load the shipped Timer, and that is measured rather than chosen.** The
+  Timer service re-arms its own beat inside its own handler and `Switchboard::pump()` drains to
+  EMPTY, so loading it into a rig whose every gesture pumps never returns — it hung, at the
+  load. `TimerSeat` holds the Timer's own real SHAPES in the Timer's own office; the real
+  SERVICE is exercised in the live run, where it received a real `StartTimer` and a real
+  `CancelTimer`, both authored `as:zengine.composer` and both Delivered.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things
@@ -1123,18 +1260,24 @@ the tests themselves pass
   `ui` suite's claim, and Workshop kept a case for each proving its own answers
   come from there. A relocation that made the old floor fall would have moved
   the guarantee out of watch, not out of the file.
-- Assertion totals (**91,496** over the **nine** doctest binaries, SDL lane, measured
-  2026-08-18 after WIND-2b, which added no case at all and 55 assertions to one existing
-  Workshop case) are evidence to report. They are **not** a population, never an
+- Assertion totals (**233,925** over the **ten** doctest binaries, SDL lane, measured
+  2026-08-19 after MSG-0, which added a TENTH binary -- `zengine-composer-tests`, 35 cases and
+  95,247 assertions of its own -- and 33 cases to Workshop) are evidence to report. They are **not** a population, never an
   acceptance oracle, and not coverage. The count of suites said "seven" here until HD-2
   counted them, which is the same decay this bullet warns about arriving in the sentence
   that warns about it — and HD-4 found the *arithmetic* had decayed the same way: the
   figure written after HD-3 summed seven of the eight, leaving `audit_probes` out of a
   total that said eight. It is the sum of all of them, named so the next phase can
-  reproduce it: `zengine-surface-tests` 6,962 · `zengine-workshop-tests` 74,697 ·
-  `zengine-component-tests` 2,153 · `zengine-builder-tests` 4,330 · `zengine-input-tests` 1,374 ·
-  `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 · `zengine-ui-tests` 164 ·
-  `zengine-audit-probes` 72. HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
+  reproduce it: `zengine-surface-tests` 7,014 · `zengine-workshop-tests` 121,827 ·
+  `zengine-component-tests` 2,153 · `zengine-composer-tests` 95,247 · `zengine-builder-tests` 4,330 ·
+  `zengine-input-tests` 1,374 · `zengine-timer-tests` 1,380 · `zengine-tests` (snake) 364 ·
+  `zengine-ui-tests` 164 · `zengine-audit-probes` 72. **MSG-0 is the most extreme illustration
+  this bullet has ever had**: its new composer suite is 35 cases and 95,247 assertions, of which
+  a single case -- every projection over five states x fifteen budgets x six widths, each row
+  checked byte by byte against the plain-ASCII contract -- is most of them. The phase's THIRTY-THREE
+  Workshop cases, which are where the pane protocol, the keyboard seam and the whole live product
+  path are pinned, moved that suite by far less per case. Nobody should read 95,247 as "the pure
+  half was proved more thoroughly than the seam". HD-5 added a NINTH binary and Workshop's own total FELL by 1,318
   while the repository's rose by 871, which is the sharpest illustration this bullet has of why
   the figure is not an oracle: four cases moved out of Workshop into the new component suite,
   so a suite losing assertions and a repository gaining them are the same event.
