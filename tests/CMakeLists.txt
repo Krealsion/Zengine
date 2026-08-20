@@ -347,6 +347,28 @@ target_include_directories(zengine-component-tests PRIVATE
 
 zengine_doctest_test(component zengine-component-tests)
 
+# The Composer suite: what a maker has AUTHORED, what it composes to, and what
+# they would see (MSG-0).
+#
+# It links no switchboard, and that absence is the claim. `composer/draft.hpp`
+# and `composer/view.hpp` know nothing about a bus, a Kernel or a medium, so a
+# case here asks a VALUE what a draft means and what a pane would show. Where the
+# fact comes FROM -- a real target's real `zen.AcceptedShapes`, through the real
+# load path, into the real pane protocol -- is the Workshop suite's claim, for
+# INTR-0's reason exactly: a seam is proved where the seam is.
+#
+# It does link loom::terminal, because the typed composer IS the thing under
+# test: every refusal this suite reads back is `compose_message`'s, in its words,
+# and a case that asserted a sentence written in Zengine would be asserting a
+# second copy of a judgement it does not own.
+add_executable(zengine-composer-tests test_composer.cpp doctest_main.cpp)
+target_link_libraries(zengine-composer-tests
+    PRIVATE zengine-composer-draft zengine-warnings zengine-sanitize)
+target_include_directories(zengine-composer-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(composer zengine-composer-tests)
+
 # ---- The fence's compile-negative lane (owned by the UI suite) ---------------
 #
 # The authored/resolved fence is a COMPILE-TIME refusal, so a runtime suite
@@ -410,14 +432,29 @@ target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
             zengine-workshop-vocabulary
             zengine-surface-vocabulary zengine-ui-vocabulary
-            zengine-introspection-view zengine-warnings
+            zengine-introspection-view zengine-composer-vocabulary
+            zengine-timer-vocabulary zengine-warnings
             zengine-sanitize)
 target_include_directories(zengine-workshop-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+# MSG-0 gave it a THIRD `_SO` path, and it is a PRODUCT rather than a fixture -- the
+# same distinction INTR-0 drew for the second. `zengine-composer` is the tool under
+# test, and the cases below load the very library a maker runs: what a maker sees is
+# read off the published canvas at the rectangle Workshop's own painter used, so
+# nothing about the pane is asserted from the inside.
+#
+# THERE IS NO `_SO` FOR THE TIMER, AND THAT ABSENCE IS MEASURED RATHER THAN CHOSEN.
+# The shipped Timer service re-arms its own beat inside its own handler and
+# `Switchboard::pump()` drains to EMPTY, so loading it into a rig whose every gesture
+# pumps never returns -- it hung, at the load. The Timer's real SHAPES are still what
+# these cases compose (see `TimerSeat` in test_workshop.cpp), and the real SERVICE is
+# exercised where a real service can be, which is the live run.
 target_compile_definitions(zengine-workshop-tests PRIVATE
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
-    "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\"")
-add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection)
+    "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
+    "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\"")
+add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection
+                                        zengine-composer)
 
 zengine_doctest_test(workshop zengine-workshop-tests)
 

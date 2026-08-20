@@ -391,9 +391,17 @@ add_subdirectory(input)
 add_subdirectory(ui)
 add_subdirectory(component)
 add_subdirectory(builder)
-# introspection before workshop: the Workshop host names its stem in its boot list,
-# so the executable depends on the library being a target by the time it is read.
+# introspection and composer before workshop: the Workshop host names their stems in
+# its boot list and stages their artifacts beside itself, so both must be TARGETS by
+# the time workshop/CMakeLists.txt is read.
+#
+# The composer links `zengine-workshop-vocabulary`, which workshop/ defines further
+# down -- and that is not the cycle it looks like. A link to a target defined later in
+# the same project is resolved at GENERATE time, while `if(TARGET ...)` and
+# `$<TARGET_FILE:...>` in the host's staging rules are answered when those lines are
+# READ. Only the second kind constrains the order.
 add_subdirectory(introspection)
+add_subdirectory(composer)
 add_subdirectory(snake)
 add_subdirectory(workshop)
 

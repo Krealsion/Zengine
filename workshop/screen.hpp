@@ -4682,8 +4682,25 @@ inline ExternalPressAt external_press_at(const Panels& panels, const Setup& setu
 /// `check_pane_text` and the office passed `check_pane_key`, so no control byte and no
 /// row-breaking sequence can reach this line. `paint_panel_row` fits it to the panel's width,
 /// which marks its own cut.
-inline std::string external_header(const RuntimePane& row) {
-    return row.name + " @" + row.provider;
+/// ...AND SINCE MSG-0 IT SAYS WHETHER TYPING GOES HERE, which is a repair with a live
+/// cost behind it rather than a decoration.
+///
+/// A maker who presses into an external pane gives it the keyboard, after which every
+/// bare Workshop command is that pane's -- `q` included. On the first live run of this
+/// phase that produced a Workshop that could not be quit with the key its own help line
+/// advertises, with nothing on the screen saying why. The gesture was right; the
+/// silence was not.
+///
+/// THE MARK IS THE STATEMENT AND THE ACCENT ROLE IS THE SECOND SIGNAL, this tool's own
+/// convention wherever something is being pointed at -- and it COSTS NO COLUMNS,
+/// because the unmarked form is indented by the same two. So a pane's header is the
+/// same width whether or not it has the keys, and a cut cannot reach the mark.
+inline constexpr const char* kTypingHere = "> ";
+inline constexpr const char* kTypingElsewhere = "  ";
+
+inline std::string external_header(const RuntimePane& row, bool typing) {
+    return std::string(typing ? kTypingHere : kTypingElsewhere) + row.name + " @" +
+           row.provider;
 }
 
 /// ONE EXTERNAL PANEL: Workshop's backdrop, Workshop's header, and ONE region carrying
@@ -4695,11 +4712,13 @@ inline std::string external_header(const RuntimePane& row) {
 /// room is sent. So the invariant this painter rests on is maintained at the retention
 /// boundary where the bytes arrive, not re-derived on the paint path every frame.
 ///
-/// NO CARET. A caret is an insertion point and nothing here is editable: SEL-0 gave the seam
-/// a bounded primary press and nothing that could put text into a pane, so there is no
-/// keyboard path to an external pane and no insertion point for one to reach. A pressed pane
-/// is told WHERE a hand landed (`external_press_at`) and answers, if at all, with ordinary
-/// rows -- which the branch below paints exactly as it painted them before.
+/// NO CARET, EVEN SINCE MSG-0 GAVE A PANE THE KEYBOARD. A `SurfaceTextRegion` carries
+/// `caret_row`/`caret_col` and each medium answers with its own metric; `PaneContent` carries
+/// ROWS and no geometry, so a provider that wanted the graphical bar would need a field on a
+/// shape whose whole discipline is that a provider supplies none. A pane that is being typed
+/// into draws its own caret as a CHARACTER in its own row, which costs it one column of that
+/// row -- the same column `kTerminalCaretCols` costs the Terminal's line, for the same reason.
+/// What Workshop adds is the HEADER's mark, which says which pane the keys are going to.
 inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
                            const ui::Rect& b, const Screen& sc) {
     paint_panel_frame(layer, b);
@@ -4719,9 +4738,9 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     // WORKSHOP'S HEADER IS THE REGION'S FIRST ROW (TYPE-0), so the provenance line and the
     // provider's sentences are the same kind of text in whatever face this medium owns. It is
     // fitted to the region's own columns, which is what marks its cut.
-    region.rows.push_back(
-        surface::SurfaceTextRow{detail::fit(external_header(*row), body.columns),
-                                surface::role::kAccent});
+    region.rows.push_back(surface::SurfaceTextRow{
+        detail::fit(external_header(*row, keyboard_pane(panels) == kind), body.columns),
+        surface::role::kAccent});
     // A PANE WITH ROOM FOR THE HEADER AND NOTHING ELSE STILL SAYS WHOSE IT IS. `present` is
     // the question "was a body granted", and it is asked AFTER the header is written rather
     // than before it -- a rectangle showing a maker nothing at all is the worse of the two
@@ -5291,12 +5310,37 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // It advertises `shift+hjkl` and not `,. width | -= height`: those four
         // literal bindings do not exist, and a help line naming them would be the
         // tool's own instructions telling a maker to press keys that do nothing.
-        label(0, sc.help_y,
-              "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
-              surface::role::kMuted);
-        label(0, sc.help_y + 1,
-              "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
-              surface::role::kMuted);
+        //
+        // ...AND WHILE AN EXTERNAL PANE HOLDS THE KEYBOARD IT SAYS SOMETHING ELSE
+        // ENTIRELY (MSG-0), for exactly that rule's reason one gesture further on.
+        // Every bare key in the two lines above is that pane's while it has the keys --
+        // `q` included -- so leaving them standing would be this tool telling a maker to
+        // press keys that do nothing, which is the one thing this band already refuses
+        // to do. The first live run of the phase produced a Workshop that could not be
+        // quit with the key its own help line advertised.
+        //
+        // WHAT IT NAMES INSTEAD IS EVERYTHING THAT STILL WORKS, and the list is exact:
+        // the four keys that mean the same thing in every mode. All four are CHORDED,
+        // which is not a coincidence -- a bare printable cannot be global once anything
+        // on the screen can take text, and that is the whole reason `q` is the pane's.
+        const std::int64_t typing = keyboard_pane(s.panels);
+        const RuntimePane* typed_into =
+            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+        if (typed_into != nullptr) {
+            label(0, sc.help_y,
+                  "typing goes to " + typed_into->name + " @" + typed_into->provider +
+                      " -- press elsewhere for Workshop's keys",
+                  surface::role::kMuted);
+            label(0, sc.help_y + 1,
+                  "shift+space terminal | ^s save | ^o open | ^c quit", surface::role::kMuted);
+        } else {
+            label(0, sc.help_y,
+                  "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
+                  surface::role::kMuted);
+            label(0, sc.help_y + 1,
+                  "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
+                  surface::role::kMuted);
+        }
     }
 
     if (s.terminal.open) {

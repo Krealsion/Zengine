@@ -30,6 +30,7 @@
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
+#include "composer/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -72,6 +73,7 @@ namespace {
 
 using namespace zengine::workshop;
 namespace builder = zengine::builder;
+namespace composer = zengine::composer;
 namespace input = zengine::input;
 namespace introspection = zengine::introspection;
 namespace surface = zengine::surface;
@@ -602,10 +604,18 @@ int main(int argc, char** argv) {
     //                         catalog row. Same one-resolved-role send, same runtime data,
     //                         same impossibility of naming it here.
     //
+    // MSG-0 ADDED A FOURTH AND A FIFTH, `to_any` FOR THE SAME REASON AGAIN:
+    //
+    //   PaneKey               the destination is the office that offered the pane a maker is
+    //   PaneTextInput         typing into, resolved at the moment of the keystroke out of the
+    //                         same runtime catalog row. Same one-resolved-role send, same
+    //                         runtime data, same impossibility of naming it here.
+    //
     // AND IT IS A RULE ABOUT WHAT WORKSHOP MAY SAY, NOT ABOUT WHAT IT MAY REACH. The sentence
-    // carries a row and a column of a room Workshop itself granted; it commands nothing, asks
-    // nothing and returns nothing. Being permitted to tell a provider where a hand landed is
-    // not being permitted to do anything to that provider.
+    // carries a row and a column of a room Workshop itself granted -- or, since MSG-0, a key
+    // a maker pressed while looking at that room; it commands nothing, asks nothing and
+    // returns nothing. Being permitted to tell a provider where a hand landed, or what a
+    // maker typed at it, is not being permitted to do anything to that provider.
     //
     // Everything else stays exactly as narrow as it was: the two Builder sentences are
     // still `to_role(builder)`, and Workshop still commands no lifecycle, loads no weave,
@@ -633,6 +643,8 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
+    speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
+    speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
     // The boot weave's reach: the Manager, target-scoped, plus the right to speak
@@ -680,6 +692,30 @@ int main(int argc, char** argv) {
     // catalog ask, and one that arrives after announces on its attested activation --
     // so this buys legibility rather than correctness.
     boot(introspection::kIntrospectionStem, introspection::kIntrospectionRole);
+    // ---- The fifth, and the first tool this host boots that a maker can ACT with (MSG-0)
+    //
+    // The Message Composer. It reaches Workshop through the same pane protocol and
+    // is the first provider to spend the two shapes MSG-0 added to it -- so this
+    // host now boots a stranger that a maker can TYPE into, and `workshop.cpp`
+    // still names no pane, no row, no key and no message.
+    //
+    // WHAT THIS LINE ACTUALLY GRANTS IS WIDER THAN WHAT THE TOOL DOES, and the
+    // difference belongs here rather than in a report. `Kernel::load` binds
+    // `Grant{}.allow_any()` to every library it opens, so this weave -- like the
+    // Skin, the reader, the Timer and Introspection before it -- may send anything
+    // to anyone. That is the loader's shape and it predates this tool; what is new
+    // is that this is the first loaded weave whose PURPOSE is to send a shape
+    // chosen at runtime, which makes the gap between "what it does" and "what it
+    // could do" wider here than anywhere else in this host. A restricted host would
+    // write a grant naming the roles and shapes this office may send to, and the
+    // protocol already keeps the three permissions distinct -- asking a target what
+    // it accepts, sending it one of those shapes, and the target's own permission to
+    // answer are three separate grants. Nothing here relies on that separation and
+    // nothing here claims it is being enforced.
+    //
+    // IT IS BOOTED LAST for Introspection's reason: every stem above it is already a
+    // fact by the time it announces, and nothing depends on the order.
+    boot(composer::kComposerStem, composer::kComposerRole);
 
     // Everything runs inside pump(): the input weave's own beat keeps the queue
     // alive, the Timer service's nap paces it, and `q` stops the bus. A pump

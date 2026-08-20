@@ -70,6 +70,11 @@ target_link_libraries(zengine-workshop
             # it does for the Timer. It does not include `loaded.hpp` and could not
             # present a row of it.
             zengine-introspection-view
+            # ...and the Composer's two durable names, on exactly the same terms and
+            # for the same reason: the host says which stem to load and into which
+            # office. It does not include `draft.hpp` or `view.hpp` and could not
+            # present a row of either.
+            zengine-composer-vocabulary
             zengine-warnings zengine-sanitize)
 
 # ---- The one build recipe this host hands its build runner (BLD-0) ----------------------
@@ -130,8 +135,15 @@ target_compile_definitions(zengine-workshop PRIVATE
 # on the same terms as the other three because that is what the host's boot list is
 # for; what makes it different is on the other side of the pane seam, where Workshop
 # never learns what it presents (INTR-0).
+#
+# `zengine-composer` is the fifth, and it is the second TOOL. What makes it worth a
+# line of its own here is that the host boots it exactly as it boots the fourth --
+# one stem, one office -- and gains no knowledge of what it does. Workshop compiled
+# nothing for the Compose pane, mints no kind for it, and learns its row from a live
+# offer; the two tools do not know about each other either, and the fact one reacts
+# to the other is a decision inside `composer.cpp` that this host cannot see.
 set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer
-                            zengine-introspection)
+                            zengine-introspection zengine-composer)
 if(TARGET zengine-skin-sdl)
     list(APPEND zengine_workshop_weaves zengine-skin-sdl)
 endif()
