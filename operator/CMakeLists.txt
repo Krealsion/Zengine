@@ -37,3 +37,42 @@
 add_library(zengine-operator INTERFACE)
 target_include_directories(zengine-operator INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-operator INTERFACE loom::core)
+
+# ---- The consumer half of the operator-host seam (OPH-0) --------------------
+#
+# WHY IT IS ITS OWN TARGET, and the shape is the claim. SEM-0's stranger could
+# only be shown independent by grep, because it received `const op::Catalog&` and
+# the package it linked contained the Catalog. This one links a package that DOES
+# NOT CONTAIN ONE: `host_abi.h` is a C table and `host.hpp` is a codec and a
+# handle, and neither names `op::Catalog`, `OperatorDef`, `make_operator` or a
+# primitive. A dynamically loaded consumer that links this and nothing else has
+# no way to reach the host's operator truth except by asking for it -- not
+# because a link line forbade it, but because the truth lives in another image
+# and this package cannot construct one to stand in for it.
+#
+# It links loom::core and not loom::kernel: `zen/kernel/abi.h` (for ZenByteSink
+# and the export decoration) and `zen/kernel/schema_codec.hpp` (for zen.SchemaDesc)
+# are HEADERS, reachable from the exported include path, exactly as every weave
+# in this repository reaches `zen/kernel/export.hpp` while linking core and
+# switchboard only. The kernel LIBRARY is the host's dependency, never a loaded
+# artifact's.
+#
+# Portable: no kernel, no weave, no bus, no SDL. A consumer of it exists wherever
+# a Loom header does.
+add_library(zengine-operator-consumer INTERFACE)
+target_include_directories(zengine-operator-consumer INTERFACE ${CMAKE_SOURCE_DIR})
+target_link_libraries(zengine-operator-consumer INTERFACE loom::core)
+
+# The HOST side of the same seam rides zengine-operator, because dressing a
+# catalog in a C table is something only an image that HAS a catalog can do. The
+# link is one-directional and says so: the host knows the consumer's descriptor
+# codec (they must agree on the bytes, and one definition of them is the whole
+# point), and the consumer knows nothing of the host.
+target_link_libraries(zengine-operator INTERFACE zengine-operator-consumer)
+if(UNIX)
+    # `OperatorOffer` resolves the optional symbol from the same image the Kernel
+    # opens, which needs the dynamic loader. On glibc 2.34+ dl* lives in libc and
+    # this is a no-op; on older ones it is not, and CMake's own answer is the one
+    # that knows which.
+    target_link_libraries(zengine-operator INTERFACE ${CMAKE_DL_LIBS})
+endif()

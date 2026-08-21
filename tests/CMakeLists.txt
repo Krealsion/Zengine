@@ -77,6 +77,30 @@ target_link_libraries(zengine-probe-required PRIVATE zengine-timer-vocabulary ze
 target_include_directories(zengine-probe-required PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
 target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVATION=1)
 
+#   zengine-operator-consumer-weave  OPH-0's dynamic stranger: a real loadable weave
+#                           that spends the HOST's operator truth through the injected
+#                           surface and cannot reach the catalog behind it. Its link
+#                           line is the phase's product claim and is meant to be read:
+#                           `zengine-operator-consumer` (the C table, the descriptor
+#                           codec and the handle) plus the ask vocabulary, and NOT
+#                           `zengine-operator` -- so no `op::Catalog`, no `OperatorDef`,
+#                           no `make_operator` and no primitive is reachable from this
+#                           image at all. SEM-0's fence had to be a grep because its
+#                           stranger linked the package that contained the class; this
+#                           one links a package that does not contain one.
+#
+#   ...-legacy              THE SAME SOURCE, minus one declaration. A weave that never
+#                           heard of operators: it exports no consumer symbol, receives
+#                           no offer, and loads and runs exactly as it would have before
+#                           this seam existed. What separates the two artifacts is
+#                           `ZENGINE_OPERATOR_CONSUMER();` and nothing else, which is
+#                           what makes "optional" checkable rather than asserted.
+#
+#   ...-abi                 THE SAME SOURCE, exporting the surface at a version this
+#                           host does not speak -- an artifact from another era. The
+#                           host must REFUSE the handoff and name both numbers rather
+#                           than call through a table whose shape it is guessing at.
+#
 #   zengine-workshop-hello  WP-0's external witness: a real dynamic weave that offers
 #                           Workshop one read-only pane under its own Loom office. It is a
 #                           FIXTURE and not a product -- no host boots it and Workshop ships
@@ -86,6 +110,20 @@ target_compile_definitions(zengine-probe-required PRIVATE PROBE_REQUIRE_PRESERVA
 #                           standing ASan+UBSan lane sees the new target rather than
 #                           silently omitting it (AGENTS.md: that is the one way this lane
 #                           degrades).
+foreach(oph_variant IN ITEMS "" "-legacy" "-abi")
+    zengine_weave(zengine-operator-consumer-weave${oph_variant}
+                  weavelib/operator_consumer_weave.cpp)
+    # THE LINK LINE IS THE CLAIM. `zengine-operator-consumer` and the ask
+    # vocabulary; `zengine-operator` is deliberately absent, and adding it would
+    # be the edit that quietly lets this image hold a catalog of its own.
+    target_link_libraries(zengine-operator-consumer-weave${oph_variant}
+        PRIVATE zengine-operator-consumer zengine-warnings zengine-sanitize)
+    target_include_directories(zengine-operator-consumer-weave${oph_variant}
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
+endforeach()
+target_compile_definitions(zengine-operator-consumer-weave-legacy PRIVATE OPH_STRANGER_LEGACY=1)
+target_compile_definitions(zengine-operator-consumer-weave-abi PRIVATE OPH_STRANGER_ABI=1)
+
 zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
 target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
@@ -366,12 +404,37 @@ target_link_libraries(zengine-operator-stranger
     PRIVATE zengine-warnings zengine-sanitize)
 target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(zengine-operator-tests test_operator.cpp doctest_main.cpp)
+# OPH-0 adds a second file to this suite, and the split between them is the
+# difference between the two claims. `test_operator.cpp` asks what an operator IS
+# and what it takes for two consumers to spend one, and needs no kernel at all.
+# `test_operator_host.cpp` asks whether a consumer in ANOTHER IMAGE can spend the
+# host's, and needs the real Kernel, the real Weave Manager and three real
+# artifacts -- so this suite now links loom::kernel and loom::switchboard, which
+# until this phase it deliberately did not.
+add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp doctest_main.cpp)
 target_link_libraries(zengine-operator-tests
-    PRIVATE loom::core zengine-operator zengine-operator-stranger
-            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+    PRIVATE loom::kernel loom::switchboard loom::core zengine-operator
+            zengine-operator-stranger zengine-timer-vocabulary zengine-warnings
+            zengine-sanitize)
 target_include_directories(zengine-operator-tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
+
+target_compile_definitions(zengine-operator-tests PRIVATE
+    "OPH_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
+    "OPH_STRANGER_LEGACY_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-legacy>\""
+    "OPH_STRANGER_ABI_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
+    # A REAL PRE-EXISTING ARTIFACT, untouched by this phase and built by another
+    # package's rules. The `-legacy` fixture proves that dropping one declaration
+    # from an operator-aware source leaves an ordinary weave; this one proves the
+    # thing that actually matters -- that a weave written before this seam existed
+    # meets the offer path and is simply not a consumer.
+    "OPH_UNTOUCHED_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+    # The stranger's SOURCE, for the independence tripwire. The fence is a fact
+    # about what this translation unit can name, and only reading the file can
+    # tell whether it still names nothing from the host's side of the seam --
+    # the same defence-in-depth shape as snake's no-privileged-wind tripwire.
+    "OPH_STRANGER_CPP=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/operator_consumer_weave.cpp\"")
 
 zengine_doctest_test(operator zengine-operator-tests)
 

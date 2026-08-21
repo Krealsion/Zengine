@@ -35,6 +35,16 @@ the `TimerReady` rule) · [guides/timed-weaves.md](guides/timed-weaves.md)
 [reference/timer-continuity.md](reference/timer-continuity.md) ·
 [reference/timer-binding.md](reference/timer-binding.md).
 
+**Spending a rule you did not compile with:**
+[reference/operator-host.md](reference/operator-host.md) — how a dynamically
+loaded weave asks the host to evaluate one of its operators. What a consumer
+writes (one macro and one member), what a host writes (a surface, and an offer
+that brackets the load), what actually crosses the artifact boundary, why it is
+not a message and not an authority question, and the five ways it can fail. Read
+it beside [`operator/host.hpp`](../operator/host.hpp) and
+[`operator/host_abi.h`](../operator/host_abi.h); the rule itself is
+[reference/timer-protocol.md](reference/timer-protocol.md).
+
 **Invariants:** [laws/timer-laws.md](laws/timer-laws.md) (TIMER-01..05).
 
 **Why:** [decisions/](decisions/timer-continuity-carries-remaining-duration.md) ·

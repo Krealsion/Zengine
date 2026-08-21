@@ -66,7 +66,10 @@ evaluator. `StartTimer`, `StartRoleTimer`, the `EnsureTimer` / `EnsureRoleTimer`
 availability comparison, and the adoption of a predecessor's letter all obtain
 their number from it, so there is no second copy of the rule to disagree with —
 and a tool outside the Timer can evaluate the same operator, by identity, without
-compiling against the service.
+compiling against the service. Since OPH-0 that reaches past the process: a
+weave the host **dynamically loaded** can ask for this rule by name and spend it
+synchronously, without a catalog of its own and without a message per evaluation
+— see [operator-host.md](operator-host.md).
 
 **What follows from that, and is worth knowing before reading a receipt:** an
 order is matched against the standing schedule on the NORMALIZED delay, so
