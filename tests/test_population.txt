@@ -329,13 +329,14 @@
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
-timer                             doctest           always  78
+timer                             doctest           always  82
 input                             doctest           always  35
 input                             doctest           sdl     2
 surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
+operator                          doctest           always  13
 composer                          doctest           always  35
 builder                           doctest           always  30
 workshop                          doctest           always  582

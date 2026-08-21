@@ -59,13 +59,13 @@ endif()
 #   zengine-timer-declines    a real artifact that loads, seals and is asked, and then
 #                             refuses to become the Timer. The negative proof of R2B-3.
 zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation)
+target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
 
 zengine_weave(zengine-timer-virtual-v2 weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation)
+target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
 
 zengine_weave(zengine-timer-declines weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation)
+target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
 target_compile_definitions(zengine-timer-declines PRIVATE ZENGINE_TIMER_DECLINES=1)
 
 zengine_weave(zengine-probe-oneshot weavelib/oneshot_probe.cpp)
@@ -131,8 +131,8 @@ zengine_doctest_test(snake zengine-tests)
 add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-warnings
-            zengine-sanitize)
+            zengine-input-vocabulary zengine-surface-vocabulary zengine-operator
+            zengine-operator-stranger zengine-warnings zengine-sanitize)
 target_include_directories(zengine-timer-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
@@ -347,6 +347,34 @@ target_include_directories(zengine-component-tests PRIVATE
 
 zengine_doctest_test(component zengine-component-tests)
 
+# ---- The Operator suite, and the stranger that reads a rule it did not write ----------
+#
+# `zengine-operator-stranger` is its own target on purpose. It is SEM-0's
+# independent consumer, and what makes it independent is visible here: its link
+# line names `zengine-operator` and nothing else -- no timer vocabulary, no timer
+# weave, no `timer/normalize.hpp`. It is handed a catalog and a name and reads
+# every port off the operator's own schema.
+#
+# The fence is honest rather than absolute, and the limit is worth writing down:
+# these are header-only packages, so a link line cannot stop a later edit from
+# including sideways. What it CAN say -- and what a reviewer can check in one
+# grep -- is that this translation unit names no timer symbol and no timer
+# string, which is the claim §10 actually makes.
+add_library(zengine-operator-stranger STATIC operator_stranger.cpp)
+target_link_libraries(zengine-operator-stranger
+    PUBLIC zengine-operator
+    PRIVATE zengine-warnings zengine-sanitize)
+target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(zengine-operator-tests test_operator.cpp doctest_main.cpp)
+target_link_libraries(zengine-operator-tests
+    PRIVATE loom::core zengine-operator zengine-operator-stranger
+            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
+target_include_directories(zengine-operator-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+zengine_doctest_test(operator zengine-operator-tests)
+
 # The Composer suite: what a maker has AUTHORED, what it composes to, and what
 # they would see (MSG-0).
 #
@@ -506,7 +534,7 @@ zengine_doctest_test(builder zengine-builder-tests)
 add_executable(zengine-audit-probes test_audit_probes.cpp doctest_main.cpp)
 target_link_libraries(zengine-audit-probes
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
-            zengine-warnings zengine-sanitize)
+            zengine-operator zengine-warnings zengine-sanitize)
 target_include_directories(zengine-audit-probes PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/snake)

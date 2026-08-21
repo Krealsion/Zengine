@@ -18,4 +18,7 @@ endif()
 
 zengine_weave(zengine-timer timer.cpp)
 # The service authors its beat chain from its own activation, so it reads one.
-target_link_libraries(zengine-timer PRIVATE zengine-activation)
+# It also EXECUTES a semantic rule rather than privately implementing one, so it
+# consumes the operator package — see timer/normalize.hpp for what that buys and
+# what it costs.
+target_link_libraries(zengine-timer PRIVATE zengine-activation zengine-operator)
