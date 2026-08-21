@@ -33,6 +33,13 @@
 // Two of the four already had an owner, so two sentences are written here and
 // there is no operator error enum.
 //
+// TWO ENTRANCES, ONE BODY (OPH-0). `evaluate` takes either a `loom::Value` or
+// the `loom::Unverified` a caller across a module boundary is holding, and both
+// meet at the same admission and the same walk. The second door exists so the
+// dynamic seam does not have to admit for itself and then say, in its own words,
+// what this file already says about a refused pack -- because a second wording
+// of one refusal is a second answer waiting for one of them to be edited.
+//
 // AN OPERATOR'S ANSWER IS RETURNED, NOT DELIVERED. `loom::admit` takes a schema
 // OBJECT the caller already holds, and an `OperatorDef` is where that object
 // lives, so a complete round trip needs no Switchboard, no registration and no
@@ -44,6 +51,7 @@
 
 #include <zen/gate.hpp>
 #include <zen/schema.hpp>
+#include <zen/serialize.hpp>
 #include <zen/value.hpp>
 
 #include <cstddef>
@@ -124,45 +132,77 @@ public:
     std::size_t size() const noexcept { return ops_.size(); }
 
     /// THE one evaluation path. Every consumer -- the Timer's own execution, a
-    /// stranger reading ports off a schema, and a composite's own nodes -- comes
-    /// through here, which is what makes "one semantic path" a fact about the
-    /// code rather than a claim about it.
+    /// stranger reading ports off a schema, a composite's own nodes, and a
+    /// dynamically loaded tool spending this catalog through the operator-host
+    /// seam -- comes through here, which is what makes "one semantic path" a
+    /// fact about the code rather than a claim about it.
     Evaluation evaluate(std::string_view identity, loom::Value args) const {
         const OperatorDef* def = find(identity);
         if (def == nullptr) {
-            return Evaluation::refuse("unresolved operator reference '" + std::string(identity) +
-                                      "'");
+            return unresolved(identity);
         }
-        loom::Admission admitted = loom::admit(std::move(args), *def->inputs());
+        return run(*def, loom::admit(std::move(args), *def->inputs()));
+    }
+
+    /// THE SAME EVALUATION FOR A CALLER HOLDING BYTES (OPH-0) -- the module
+    /// seam's shape, and the only reason it exists.
+    ///
+    /// A caller across a dynamic-library boundary has serialized bytes and no
+    /// `loom::Value`, and the only way from one to the other is the gate. Doing
+    /// that admission at the seam and then calling the overload above would
+    /// admit twice and, worse, would put the seam's own wording beside this
+    /// file's for the same failure -- two sentences for one refusal, drifting
+    /// from the first edit. So the bytes come in here instead, and every word a
+    /// loaded consumer reads about a refusal is the word an in-process caller
+    /// reads.
+    Evaluation evaluate(std::string_view identity, const loom::Unverified& args) const {
+        const OperatorDef* def = find(identity);
+        if (def == nullptr) {
+            return unresolved(identity);
+        }
+        return run(*def, loom::admit(args, def->inputs()));
+    }
+
+private:
+    static Evaluation unresolved(std::string_view identity) {
+        return Evaluation::refuse("unresolved operator reference '" + std::string(identity) + "'");
+    }
+
+    /// What happens once the arguments have met the gate, whichever door they
+    /// came through. The refusal, the native/composite fork and the output check
+    /// are one body, and both public `evaluate`s are its two entrances -- so a
+    /// caller holding bytes and a caller holding a Value get the same answer and
+    /// the same words for it.
+    Evaluation run(const OperatorDef& def, loom::Admission admitted) const {
         if (!admitted) {
-            return Evaluation::refuse("'" + def->identity() +
-                                      "' refused its arguments: " + admitted.first_error().message());
+            return Evaluation::refuse("'" + def.identity() +
+                                      "' refused its arguments: " +
+                                      admitted.first_error().message());
         }
-        loom::Value out(def->outputs());
-        const std::string& out_port = def->outputs()->fields()[0].name;
-        if (def->is_composite()) {
-            Evaluation walked = walk(*def, admitted.value());
+        loom::Value out(def.outputs());
+        const std::string& out_port = def.outputs()->fields()[0].name;
+        if (def.is_composite()) {
+            Evaluation walked = walk(def, admitted.value());
             if (!walked) {
                 return walked;
             }
             out.set(out_port, *walked.value().at(0));
         } else {
-            out.set(out_port, def->invoke_native(admitted.value()));
+            out.set(out_port, def.invoke_native(admitted.value()));
         }
-        loom::Admission checked = loom::admit(std::move(out), *def->outputs());
+        loom::Admission checked = loom::admit(std::move(out), *def.outputs());
         if (!checked) {
             // A native body that answers with the wrong shape is CAUGHT, not
             // believed. Nothing in this repository can reach it today; the gate
             // runs anyway, because the day an operator arrives from somewhere
             // else is not the day to start checking.
-            return Evaluation::refuse("'" + def->identity() +
+            return Evaluation::refuse("'" + def.identity() +
                                       "' produced an answer its own output schema refuses: " +
                                       checked.first_error().message());
         }
         return Evaluation::accept(std::move(checked).value());
     }
 
-private:
     /// Walk one acyclic graph. A node may only name an earlier node, so one
     /// forward pass is the whole evaluation order -- there is no scheduler, no
     /// visited set and no topological sort, because the structure IS the order.

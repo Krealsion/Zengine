@@ -38,7 +38,9 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
   `zengine-operator` and nothing else. The fence is honest rather than absolute —
   these are header-only packages, so no link line can stop a later edit from
   including sideways. What it does say, checkably, is that the translation unit
-  names no timer symbol and no timer string.
+  names no timer symbol and no timer string. OPH-0's stranger is the same idea in
+  another IMAGE and its fence is stronger for it — see the operator-host section
+  below.
 
 ## The sanitizer lane is a SECOND kind of evidence (W-3a)
 
@@ -1302,6 +1304,78 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
   package is not a logic framework: the primitive vocabulary is exactly two powers,
   and everything a future logic system will want — `min`, `clamp`, `and`, `or`,
   `greater_than`, a Float max — is deliberately absent.
+
+## A loaded weave can spend the host's operators (OPH-0)
+
+SEM-0 handed its independent consumer a `const op::Catalog&`, which works in one
+image and nowhere else. A dynamically loaded weave is built by `create(void)`
+with nothing and sees exactly one host table for the rest of its life — Loom's
+`ZenHostApi` — and none of its doors is a callable. `operator/host_abi.h` is the
+fifth option: a consumer image may OPTIONALLY export one symbol saying *I can
+receive an operator host*, and a Zengine host about to load it offers a narrow
+C table with two verbs, `describe` and `evaluate`. Reference:
+[`docs/reference/operator-host.md`](docs/reference/operator-host.md).
+
+- **`zengine-operator-consumer` is a package with no catalog in it**, and the
+  split is the phase's product claim rather than tidiness. A loaded consumer
+  links it and NOT `zengine-operator`, so `op::Catalog`, `OperatorDef`,
+  `make_operator` and the primitives are not merely unused there — they are not
+  in that image at all. **Do not link `zengine-operator` into a loadable
+  consumer**; that is the one edit that quietly gives it a private catalog to
+  disagree with.
+- **The offer BRACKETS the load and is then withdrawn**, and both halves matter.
+  A weave's first legitimate need is inside `create()`, which the Kernel calls
+  and no host can get between — and on the real path (`zen.LoadWeave` → Weave
+  Manager → control door) the load is several deliveries deep. So `OperatorOffer`
+  goes up before the command is sent and comes down after the pump. Its
+  destructor offers `nullptr` unconditionally, which is what makes the module's
+  slot empty outside one load and two instances of one image two separate
+  handoffs rather than one durable module-wide binding. A canary that removes the
+  withdrawal reddens exactly one case, and it is the one that asks.
+- **The host opens the image itself, and that is the phase's one duplication.**
+  Loom's `LoadedLibrary` is defined in its `.cpp` and `lib_symbol` has one caller
+  for one name, so there is NO public door to a second exported symbol of a
+  kernel-loaded image. `OperatorOffer` opens the same path with the same flags
+  (`RTLD_NOW | RTLD_LOCAL` / `LoadLibraryA`), which refcounts to ONE image, and
+  releases its share inside `load()` — so `kernel_lifetime_counts()` sees exactly
+  what it would for a weave that never heard of operators. Do not turn that share
+  into something the host keeps.
+- **`detail::offered_host_slot()` is DECLARED in the header and DEFINED by the
+  macro**, and it must stay that way. A `static` inside an inline function is
+  vague-linkage: on ELF the host executable's copy interposes into an RTLD_LOCAL
+  library and on PE it does not, so the same code would mean different things on
+  the two platforms this project ships. The macro's non-inline definition emits
+  it `STB_LOCAL` in exactly one image on both (`nm` says `b`, not `V`). A
+  consumer that uses `OperatorHost` and forgets the macro gets a link error
+  naming that function, which is the failure to want.
+- **The version rides in a FIELD on both tables and is checked by both sides.**
+  A suffixed symbol name would give a host one bit — the lookup failed — and an
+  absent symbol already means *an ordinary weave, load it normally*. Two
+  different facts must not arrive as the same silence. The host reads the
+  consumer's number before it reads any other field, because every other field's
+  meaning is what the version decides.
+- **`Catalog::evaluate` has two entrances and one body.** The `loom::Unverified`
+  overload exists so the seam does not admit for itself and then say, in its own
+  words, what `catalog.hpp` already says about a refused pack. A case asserts the
+  loaded consumer's refusal string is character-for-character an in-process
+  caller's; two spellings of one refusal is how a caller and a callee stop
+  meaning the same thing.
+- **`describe` derives from the definition `evaluate` resolves.** There is no
+  hand-written descriptor beside an operator and there must never be one — and
+  the gate makes that self-enforcing rather than merely stated: a canary that
+  emits a plausible-but-different descriptor reddens the describe case AND every
+  evaluation, because a pack built from a lying description is refused by the
+  real input schema.
+- **The Timer still holds its own catalog**, built from the same
+  `timer::standard_operators()`. OPH-0 gave the host's catalog a second consumer;
+  it did not make the shipped Timer read the host's. That remains a real
+  distinction and is stated in `Zen/reportbacks/OPH-0-RB.md` rather than smoothed
+  over.
+- **The suite does not depend on the artifacts it loads.** `$<TARGET_FILE:...>`
+  in a `target_compile_definitions` is a path, not a build edge, so
+  `cmake --build build --target zengine-operator-tests` will happily run last
+  build's fixtures. Build the whole tree before believing a result — which the
+  official lane does, and which a hand-run canary loop must be told to do.
 
 ## The population contract (C4, POP-01/POP-02)
 
