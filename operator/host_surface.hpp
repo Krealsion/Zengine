@@ -233,14 +233,14 @@ enum class OfferOutcome : std::uint8_t {
 /// anybody remembering.
 class OperatorOffer {
 public:
-    OperatorOffer(const OperatorHostSurface& surface, const std::string& artifact_path) {
-        handle_ = image_open(artifact_path);
-        if (handle_ == nullptr) {
+    OperatorOffer(const OperatorHostSurface& surface, const std::string& artifact_path)
+        : share_(artifact_path) {
+        if (share_.get() == nullptr) {
             outcome_ = OfferOutcome::NotOpened;
             reason_ = "could not open '" + artifact_path + "' to look for an operator surface";
             return;
         }
-        void* symbol = image_symbol(handle_, ZENGINE_OPERATOR_CONSUMER_SYMBOL);
+        void* symbol = image_symbol(share_.get(), ZENGINE_OPERATOR_CONSUMER_SYMBOL);
         if (symbol == nullptr) {
             // An ordinary weave. Not a diagnostic, and the share is still
             // released by the destructor like every other path.
@@ -295,9 +295,11 @@ public:
         if (offer_ != nullptr) {
             offer_(nullptr);
         }
-        if (handle_ != nullptr) {
-            image_close(handle_);
-        }
+        // The image share needs no line here: `share_` is a member and closes
+        // itself, which is also what covers the one path a destructor cannot --
+        // a foreign `offer` that throws out of the constructor above. The object
+        // is never constructed then, so this body never runs, and only a member
+        // that owns its own handle is released by the unwinding.
     }
 
     OperatorOffer(const OperatorOffer&) = delete;
@@ -318,35 +320,68 @@ private:
     // opens name the same image: RTLD_NOW | RTLD_LOCAL keeps the artifact's
     // symbols out of the global namespace exactly as the Kernel's open does, and
     // LoadLibraryA is the same ANSI-path limitation stated there.
-    static void* image_open(const std::string& path) {
-#if defined(_WIN32)
-        return static_cast<void*>(::LoadLibraryA(path.c_str()));
-#else
-        return ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-#endif
-    }
+    static void* image_open(const std::string& path);
+    static void* image_symbol(void* handle, const char* name);
+    static void image_close(void* handle);
 
-    static void* image_symbol(void* handle, const char* name) {
-#if defined(_WIN32)
-        return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(handle), name));
-#else
-        return ::dlsym(handle, name);
-#endif
-    }
+    /// ONE SHARE OF ONE IMAGE, OWNED FROM THE FIRST MOMENT IT IS OPEN.
+    ///
+    /// `LoadedLibrary`'s shape and `Kernel::load`'s discipline both: every
+    /// refusal in the constructor above simply returns, and the handle closes
+    /// when this member goes -- so there is no failure path that can forget to
+    /// close, none that can close twice, and none (including a foreign `offer`
+    /// that throws) that can leak the mapping on the way out.
+    class ImageShare {
+    public:
+        explicit ImageShare(const std::string& path) : handle_(image_open(path)) {}
+        ~ImageShare() {
+            if (handle_ != nullptr) {
+                image_close(handle_);
+            }
+        }
+        ImageShare(const ImageShare&) = delete;
+        ImageShare& operator=(const ImageShare&) = delete;
+        ImageShare(ImageShare&&) = delete;
+        ImageShare& operator=(ImageShare&&) = delete;
 
-    static void image_close(void* handle) {
-#if defined(_WIN32)
-        ::FreeLibrary(static_cast<HMODULE>(handle));
-#else
-        ::dlclose(handle);
-#endif
-    }
+        void* get() const noexcept { return handle_; }
 
-    void* handle_ = nullptr;
+    private:
+        void* handle_;
+    };
+
+    /// FIRST MEMBER, so it is constructed before the constructor's body runs and
+    /// destroyed last of all -- which is what makes the throwing path above
+    /// safe rather than merely unlikely.
+    ImageShare share_;
     ZengineOperatorStatus (*offer_)(const ZengineOperatorHostApiV1*) = nullptr;
     OfferOutcome outcome_ = OfferOutcome::NotAConsumer;
     std::string reason_;
 };
+
+inline void* OperatorOffer::image_open(const std::string& path) {
+#if defined(_WIN32)
+    return static_cast<void*>(::LoadLibraryA(path.c_str()));
+#else
+    return ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+#endif
+}
+
+inline void* OperatorOffer::image_symbol(void* handle, const char* name) {
+#if defined(_WIN32)
+    return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(handle), name));
+#else
+    return ::dlsym(handle, name);
+#endif
+}
+
+inline void OperatorOffer::image_close(void* handle) {
+#if defined(_WIN32)
+    ::FreeLibrary(static_cast<HMODULE>(handle));
+#else
+    ::dlclose(handle);
+#endif
+}
 
 } // namespace zengine::op
 
