@@ -385,6 +385,7 @@ endfunction()
 # themselves do not, and each still makes its own honest kernel decision.
 
 add_subdirectory(activation)
+add_subdirectory(operator)
 add_subdirectory(timer)
 add_subdirectory(surface)
 add_subdirectory(input)

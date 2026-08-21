@@ -33,6 +33,48 @@ requester crosses the wire as lossless decimal text where it must.
 | `PrepareTimerHandover{transaction, continuity}` | the prepared-replacement ask: `continuity` = `kInheritFromIncumbent` / `kStartFresh`, declared never inferred |
 | `TimerCandidatePrepared{transaction}` / `TimerCandidateDeclined{transaction, reason}` | the candidate's authenticated answer (the `transaction` field is wire legibility; the bus's envelope identity is what authenticates) |
 
+## What the Timer makes of a delay
+
+An authored `delay_ms` is not necessarily the delay that is scheduled. The
+transform is named, and it is the same one everywhere:
+
+```text
+timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
+
+    floor_zero = math.max(delay_ms, 0)
+    floor_one  = math.max(floor_zero, 1)
+    effective  = logic.select_int(repeat, floor_one, floor_zero)
+```
+
+| `delay_ms` | `repeat = false` | `repeat = true` |
+|---|---|---|
+| `-500` | `0` | `1` |
+| `-1` | `0` | `1` |
+| `0` | `0` | `1` |
+| `1` | `1` | `1` |
+| `2` | `2` | `2` |
+| anything larger | unchanged | unchanged |
+
+A repeating delay below 1 ms is a hot spin wearing a timer's clothes; a
+negative delay fires on the next beat. The floor is the only thing the rule
+moves — everything at or above it is returned untouched, in both modes.
+
+**It is an operator, not an implementation detail.** `timer.normalize_delay` is
+a composition over two published primitives ([`operator/`](../../operator/catalog.hpp),
+authored in [`timer/normalize.hpp`](../../timer/normalize.hpp)), evaluated by one
+evaluator. `StartTimer`, `StartRoleTimer`, the `EnsureTimer` / `EnsureRoleTimer`
+availability comparison, and the adoption of a predecessor's letter all obtain
+their number from it, so there is no second copy of the rule to disagree with —
+and a tool outside the Timer can evaluate the same operator, by identity, without
+compiling against the service.
+
+**What follows from that, and is worth knowing before reading a receipt:** an
+order is matched against the standing schedule on the NORMALIZED delay, so
+`EnsureTimer{delay_ms = -500, repeat = true}` against a standing 1 ms repeating
+beat is the SAME schedule and answers `preserved_remaining`. That is agreement,
+not a lie — but it does mean a receipt describes the schedule the Timer
+understood, not the number a maker typed.
+
 ## Constants
 
 `kBeatCapMs = 10` (the longest nap; the beat granularity) ·
@@ -44,7 +86,10 @@ owns it.
 ## Tests
 
 Zengine suite `timer`: protocol, chains, continuity, prepared crossing,
-real-clock pilot. Its case floor is in
+real-clock pilot, and the delay rule — the matrix above read off a real letter,
+and the witnesses that the running service and an independent reader spend one
+definition rather than two that agree. Suite `operator` holds the substrate's
+own contract. Their case floors are in
 [`tests/test_population.txt`](../../tests/test_population.txt), which is the
 contract; a count repeated here would be a second answer that nothing keeps
 current.

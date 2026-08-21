@@ -33,6 +33,12 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
   reintroduce a private compiler flag for it here.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them
   all, plus compile-negative targets judged on their diagnostics.
+- `zengine-operator-stranger` is a static library rather than a source file in a
+  suite, and the shape is the claim: SEM-0's independent consumer links
+  `zengine-operator` and nothing else. The fence is honest rather than absolute —
+  these are header-only packages, so no link line can stop a later edit from
+  including sideways. What it does say, checkably, is that the translation unit
+  names no timer symbol and no timer string.
 
 ## The sanitizer lane is a SECOND kind of evidence (W-3a)
 
@@ -1223,6 +1229,80 @@ stem      zengine-composer                a line in the HOST'S boot list, and th
   SERVICE is exercised in the live run, where it received a real `StartTimer` and a real
   `CancelTimer`, both authored `as:zengine.composer` and both Delivered.
 
+## One semantic rule has an owner, and the Timer is not it (SEM-0)
+
+`clamp_delay` is gone. What a Timer makes of an authored delay is
+`timer.normalize_delay` — a named operator, composed from two published
+primitives, evaluated by one evaluator that every consumer comes through.
+
+```text
+timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
+
+    floor_zero = math.max(delay_ms, 0)
+    floor_one  = math.max(floor_zero, 1)
+    effective  = logic.select_int(repeat, floor_one, floor_zero)
+```
+
+- **An operator's SIGNATURE IS A PAIR OF `loom::Schema`s**, and that one decision
+  is why `operator/` adds no type system. Every port's `TypeRef` comes from
+  `loom::type_ref_for`, the table every `ZEN_SHAPE` field already goes through;
+  the argument pack is admitted by `loom::admit`, so **no arity check is ever
+  written** and a missing port is a `MissingField`; and a signature versions
+  itself, because `Schema::content_id()` already is that number. A derived port
+  schema is byte-for-byte the hand-built one, content id included, and the suite
+  asserts it.
+- **`make_operator<&fn>("id", {"lhs","rhs"}, "result")` is the whole
+  registration.** Arity, every parameter type and the return type are the
+  compiler's; the identity and the PORT NAMES are authored, and they are authored
+  because C++20 has no parameter source names at all — not in `decltype`, not in
+  `__PRETTY_FUNCTION__`, not in `__FUNCSIG__`. A wrong NUMBER of port names does
+  not compile (the parameter is a `std::array` sized by `arity_of<F>`), so that
+  refusal cannot be a runtime case and is not written as one. ⚠ A block-scope
+  lambda cannot be the `<&F>` argument — its `_FUN` has no linkage.
+- **`timer.normalize_delay` carries no native body**, and `is_composite()` is a
+  public question precisely so a suite can say so. A `normalize_delay(delay,
+  repeat)` registered as a native operator would satisfy every other case in the
+  operator suite and would prove only that registration works. Do not "simplify"
+  it into one; and do not add `math.clamp`, which is the same mistake wearing a
+  primitive's clothes.
+- **Composition needs no generated C++ and no compiler.** A graph is data,
+  evaluated directly. Compilation is what introducing a missing native PRIMITIVE
+  costs, never what recomposing existing power costs.
+- **Resolve at spend, never hold.** A node keeps an identity and the two
+  `ContentId`s it was authored against, and nothing caches a resolved operator, an
+  index or a callable. That is not a performance choice — LOG-R1 measured the
+  resolve at ~7-10 ns against a ~590 ns evaluation — it is what makes a
+  disagreement between an executor and a previewer UNREPRESENTABLE. A recorded
+  signature is also what lets a re-shaped step be reported as *found, and not what
+  this was authored against* rather than as *missing*.
+- **One store, read twice.** `Catalog::identities()` walks the same map
+  `evaluate()` resolves through. Do not add a name list beside it.
+- **Four failure modes, two owners.** Unresolved and signature-mismatch are the
+  catalog's sentences; a bad argument pack and a bad answer are `loom::admit`'s,
+  quoted verbatim. There is no operator error enum and none is wanted.
+- **The Timer holds its catalog BY VALUE and takes one in its constructor.** That
+  is not a testing seam bolted on: it is the honest spelling of "the Timer
+  consumes this rule and does not own it", and it is what lets the suite replace
+  `math.max` underneath and watch the running weave and an independent reader move
+  together. Two implementations that merely agreed could not do that. Both halves
+  are pinned — `zengine-operator-tests` for the reader, `zengine-timer-tests` for
+  the weave — and the canary that reverts the delegation reddens exactly three
+  cases while the behaviour matrix stays green, which is the distinction: the
+  witnesses are about the PATH, not the answer.
+- **An operator's answer is RETURNED, not delivered.** It is not an `Emit<>`, no
+  port schema is registered with a Switchboard, and a complete round trip runs
+  with no bus in the process. Do not turn arithmetic into message traffic: a
+  five-node DAG over messages is five sequential pump generations.
+- **`op::invocations()` is `loom::gate_invocations()`'s sibling** and carries its
+  caveats — process-wide, monotonic, read as a DELTA, decides nothing. It counts
+  NATIVE bodies only, so the number does not move when a rule is refactored.
+- **An ordinary helper stays an ordinary C++ function** until two or more surfaces
+  need the same rule and would otherwise each hold a copy. `timer.normalize_delay`
+  is the first thing here to cross that line. This was not a Timer cleanup and the
+  package is not a logic framework: the primitive vocabulary is exactly two powers,
+  and everything a future logic system will want — `min`, `clamp`, `and`, `or`,
+  `greater_than`, a Float max — is deliberately absent.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things
@@ -1362,3 +1442,8 @@ timer/input/surface vocabularies — all header-only). See
 - A raw `on(const loom::Activated&)` is allowed on a `TimedWeave` — it is a
   compile-time refusal; use `on_timed_activation`.
 - Loom laws stop applying here — they all do; see `../Loom/docs/laws/`.
+- The delay a maker authors is the delay that is scheduled — it is normalized,
+  and the rule is `timer.normalize_delay` (above). An `EnsureTimer` comparison
+  runs the same rule, so `-500` repeating really is the standing 1 ms beat.
+- `zengine-operator` is a place to put helpers — it is for rules TWO surfaces
+  need. One consumer is a C++ function.

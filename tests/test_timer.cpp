@@ -38,6 +38,13 @@
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
 
+#include "operator/catalog.hpp"
+#include "operator/operator.hpp"
+#include "operator/primitives.hpp"
+#include "operator_fixture.hpp"
+#include "operator_stranger.hpp"
+#include "timer/normalize.hpp"
+
 #include "input/vocabulary.hpp"
 #include "probe_vocabulary.hpp"
 #include "lifecycle_door.hpp"
@@ -273,12 +280,17 @@ struct FakeRig {
     loom::WeaveId steward{};    ///< mounted only where a test wants one
     std::int64_t next_sequence = 1;
 
-    FakeRig() {
+    FakeRig() : FakeRig(zengine::timer::standard_operators()) {}
+
+    /// A rig whose service spends a catalog the CASE chose. Everything else is
+    /// identical; the only difference under test is which operator truth the
+    /// running Timer executes.
+    explicit FakeRig(zengine::op::Catalog operators) {
         hooks.bus = &bus;
         heard.hooks = &hooks;
         heard.bus = &bus;
         // Into its ROLE — the beat is role-addressed, exactly as the .so's is.
-        service = mount_role<FakeService>(bus, kTimerRole, FakeClock{&hooks});
+        service = mount_role<FakeService>(bus, kTimerRole, FakeClock{&hooks}, std::move(operators));
         ear = loom::mount<Ear>(bus, heard);
         door = zengine::testing::mount_door(bus);
         other_door = zengine::testing::mount_door(bus);
@@ -1112,6 +1124,142 @@ TEST_CASE("an immediate one-shot fires on the first beat; a 0ms repeat is clampe
     CHECK(r.heard.fired_at[1] == 1);
     CHECK(r.heard.fired[2] == "fast");
     CHECK(r.heard.fired_at[2] == 2);
+}
+
+// ---- the delay a Timer INTERPRETS ------------------------------------------
+//
+// THE WHOLE SEMANTIC TRANSFORM, PINNED AS A TABLE (SEM-0). What a maker writes
+// and what the Timer schedules are two different numbers, and until SEM-0 that
+// difference was asserted only sideways -- through firing STAMPS, in the two
+// cases above. A stamp proves the schedule behaved; it cannot state the rule.
+//
+// `TimerHandoffEntry.delay_ms` is the entry's STORED delay, and an entry stores
+// what the normalization answered. So a letter is the one place a suite can read
+// the transform's answer directly, on the wire, through the real gate -- which is
+// why the matrix is pinned here rather than against a helper: a test that called
+// the arithmetic would move with the arithmetic and notice nothing.
+
+namespace {
+
+/// Ask a fresh service to schedule exactly one timer, then ask it to describe
+/// itself, and answer with the delay it recorded.
+std::int64_t interpreted_delay_with(zengine::op::Catalog operators, std::int64_t delay_ms,
+                                    bool repeat) {
+    FakeRig r(std::move(operators));
+    r.mount_steward(Letters::Answer::Refuse);
+    r.run_beats(3, /*start=*/true);
+    // Queued so the letter is written in the SAME pump the ask lands in, before
+    // any beat can fire and retire a one-shot that is already due. Same reason
+    // the due-or-overdue letter case queues its ask this way.
+    r.ask_as(r.ear, StartTimer{"probe", delay_ms, repeat});
+    const std::vector<TimerHandoffEntry> offered = r.prepare_shutdown();
+    REQUIRE(offered.size() == 1);
+    return offered[0].delay_ms;
+}
+
+std::int64_t interpreted_delay(std::int64_t delay_ms, bool repeat) {
+    return interpreted_delay_with(zengine::timer::standard_operators(), delay_ms, repeat);
+}
+
+} // namespace
+
+TEST_CASE("the delay a Timer interprets, over the whole matrix") {
+    // A repeating delay below 1ms is a hot spin wearing a timer's clothes; a
+    // negative delay fires on the next beat. Those two sentences are the rule,
+    // and this is every edge they have.
+    constexpr std::int64_t kBig = 86'400'000;               // a day
+    constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
+
+    CHECK(interpreted_delay(-500, false) == 0);
+    CHECK(interpreted_delay(-500, true) == 1);
+    CHECK(interpreted_delay(-1, false) == 0);
+    CHECK(interpreted_delay(-1, true) == 1);
+    CHECK(interpreted_delay(0, false) == 0);
+    CHECK(interpreted_delay(0, true) == 1);
+    CHECK(interpreted_delay(1, false) == 1);
+    CHECK(interpreted_delay(1, true) == 1);
+    CHECK(interpreted_delay(2, false) == 2);
+    CHECK(interpreted_delay(2, true) == 2);
+    CHECK(interpreted_delay(kBig, false) == kBig);
+    CHECK(interpreted_delay(kBig, true) == kBig);
+    CHECK(interpreted_delay(kMax, false) == kMax);
+    CHECK(interpreted_delay(kMax, true) == kMax);
+
+    // The floor is the ONLY thing the rule moves. Everything at or above it is
+    // returned untouched, in both modes, which is what makes "normalize" an
+    // honest word for it rather than "adjust".
+    CHECK(interpreted_delay(kMax - 1, true) == kMax - 1);
+}
+
+TEST_CASE("a running Timer's delay comes from the operator, and the composition is what runs") {
+    // The same claim the matrix above makes, from the other side: not that the
+    // answer is right, but that it came from `timer.normalize_delay`. A Timer
+    // that had kept a private three-line `clamp_delay` would schedule exactly the
+    // same 1ms and move this counter by ZERO.
+    FakeRig r;
+    const std::uint64_t before = zengine::op::invocations();
+    r.ask_as(r.ear, StartTimer{"beat", -500, true});
+    r.run_beats(4, /*start=*/true);
+
+    // Two maxes and a select: the three nodes of the composition, and nothing
+    // beside them. A fourth node, or a native shortcut, would move this.
+    CHECK(zengine::op::invocations() - before == 3);
+
+    // ...and the number the operator answered is the number that was scheduled.
+    REQUIRE(r.heard.fired_at.size() >= 2);
+    CHECK(r.heard.fired[0] == "beat");
+    CHECK(r.heard.fired_at[0] == 1);
+    CHECK(r.heard.fired_at[1] == 2);
+}
+
+TEST_CASE("the Ensure comparison spends the same operator the write does (SEM-0, on AAF-R0)") {
+    // AAF-R0's finding, now with an owner. `EnsureTimer` decides whether a draft
+    // IS the standing schedule, and it can only be right if it interprets the
+    // draft exactly as the write interpreted the ask. Here the standing beat is
+    // 1ms repeating and the draft says -500 repeating; they are the SAME
+    // schedule, and nothing but the shared rule makes them so.
+    FakeRig r;
+    r.ask_as(r.ear, StartTimer{"beat", 1, true});
+    r.run_beats(3, /*start=*/true);
+    REQUIRE(r.count("active") == 1);
+
+    const std::uint64_t before = zengine::op::invocations();
+    r.ask_as(r.ear, EnsureTimer{"beat", -500, true, kPreserveRemaining, ""});
+    r.run_beats(3);
+
+    // ONE evaluation, three primitive invocations: the comparison normalized the
+    // draft through the composition and then preserved, so no second write
+    // normalized anything again.
+    CHECK(zengine::op::invocations() - before == 3);
+
+    REQUIRE(r.heard.resolutions.size() == 1);
+    CHECK(r.heard.resolutions[0].id == "beat");
+    CHECK(r.heard.resolutions[0].resolved == kResolutionPreserved);
+}
+
+TEST_CASE("replace a primitive under the rule and the RUNNING Timer moves with it") {
+    // THE PHASE'S DECISIVE WITNESS. Everything else here could be produced by two
+    // independent implementations that happen to agree. This cannot: the leaf is
+    // swapped underneath, nothing structural notices, and the Timer's own
+    // scheduling and an independent reader's answer change TOGETHER.
+    const zengine::op::Catalog sabotaged = zengine::testing::sabotaged_operators();
+
+    CHECK(interpreted_delay(-500, true) == 1);
+    CHECK(interpreted_delay_with(sabotaged, -500, true) ==
+          zengine::testing::kSabotagedRepeatingDelay);
+
+    // The stranger shares no line of code with the weave and never heard of it,
+    // and it says the same new thing about the same catalog.
+    const stranger::Reading read = stranger::ask(
+        sabotaged, "timer.normalize_delay", {{"delay_ms", "-500"}, {"repeat", "true"}});
+    REQUIRE_MESSAGE(read.ok, "refused: ", read.reason);
+    CHECK(read.answer == "-500");
+
+    const stranger::Reading honest =
+        stranger::ask(zengine::timer::standard_operators(), "timer.normalize_delay",
+                      {{"delay_ms", "-500"}, {"repeat", "true"}});
+    REQUIRE(honest.ok);
+    CHECK(honest.answer == "1");
 }
 
 TEST_CASE("a repeating timer holds its lattice") {

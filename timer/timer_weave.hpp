@@ -217,9 +217,11 @@
 // The day the steward speaks about lifecycle (a Manager unload notice), the
 // service accepts one more shape and this note shortens.
 
+#include "normalize.hpp"
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "operator/catalog.hpp"
 
 #include <zen/weave.hpp>
 #include <zen/weave/lifecycle.hpp>
@@ -297,6 +299,20 @@ class TimerServiceT
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
+
+    /// WHICH OPERATOR TRUTH THIS TIMER SPENDS. It defaults to the one this
+    /// repository authors, and a consumer may hand it another catalog carrying
+    /// the same identity — which is not a testing seam bolted on, but the honest
+    /// spelling of the fact this phase established: the Timer CONSUMES the delay
+    /// rule and does not own it. It is what lets the suite replace a primitive
+    /// underneath the rule and watch execution and an independent reader move
+    /// together, which two implementations that merely agreed could never do.
+    TimerServiceT(Clock clock, op::Catalog operators)
+        : clock_(std::move(clock)), operators_(std::move(operators)) {}
+
+    /// The rule this Timer runs, for anyone who wants to evaluate it without
+    /// scheduling anything.
+    const op::Catalog& operators() const noexcept { return operators_; }
 
     /// The Loom's control door says this incarnation is committed and live.
     /// That is the whole of what it says — so this is where the service decides
@@ -723,7 +739,7 @@ private:
                 return; // malformed: adopt nothing
             }
             const std::int64_t remaining = std::max<std::int64_t>(t.remaining_ms, 0);
-            restoring_.push_back(Entry{t.id, t.role, *who, clamp_delay(t.delay_ms, t.repeat),
+            restoring_.push_back(Entry{t.id, t.role, *who, effective_delay(t.delay_ms, t.repeat),
                                        t.repeat, add_clamped(now, remaining), false});
         }
         this->state_.inherited = static_cast<std::int64_t>(restoring_.size());
@@ -858,7 +874,7 @@ private:
                              "'; no schedule was created or changed");
             return;
         }
-        const std::int64_t delay = clamp_delay(op.delay_ms, op.repeat);
+        const std::int64_t delay = effective_delay(op.delay_ms, op.repeat);
         Entry* existing = find_entry(op.id, op.role, op.sender);
         const bool can_preserve =
             existing != nullptr && existing->repeat == op.repeat && existing->delay_ms == delay;
@@ -990,7 +1006,7 @@ private:
     /// The one write path for asks.
     void upsert(const std::string& id, const std::string& role, loom::WeaveId requester,
                 std::int64_t delay_ms, bool repeat) {
-        const std::int64_t delay = clamp_delay(delay_ms, repeat);
+        const std::int64_t delay = effective_delay(delay_ms, repeat);
         const std::int64_t due = add_clamped(clock_.now_ms(), delay);
         if (Entry* e = find_entry(id, role, requester)) {
             e->requester = requester;
@@ -1016,13 +1032,24 @@ private:
         this->state_.active = static_cast<std::int64_t>(entries_.size());
     }
 
-    // ---- small total arithmetic ---------------------------------------------
+    // ---- the numbers this service works in ----------------------------------
+    //
+    // One of the three is no longer arithmetic at all: the delay rule moved out
+    // to `timer.normalize_delay` and what is left here is the CALL. The other
+    // two are still total arithmetic and still belong to the Timer, because
+    // saturating a deadline and measuring what is left of one are facts about a
+    // clock rather than semantics a second surface could want.
 
-    /// A repeating delay below 1ms is a hot spin wearing a timer's clothes; a
-    /// negative delay fires on the next beat.
-    static std::int64_t clamp_delay(std::int64_t delay_ms, bool repeat) {
-        delay_ms = std::max<std::int64_t>(delay_ms, 0);
-        return repeat ? std::max<std::int64_t>(delay_ms, 1) : delay_ms;
+    /// What this Timer makes of an authored delay — obtained from
+    /// `timer.normalize_delay`, never re-encoded here.
+    ///
+    /// The rule itself lives in normalize.hpp as a composition of published
+    /// operators, and there is deliberately no arithmetic left in this file to
+    /// disagree with it. The helper survives for a mechanical reason only: three
+    /// paths need the number and one of them needs it before it decides
+    /// anything, so the CALL is written once rather than the RULE.
+    std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
+        return timer::effective_delay(operators_, delay_ms, repeat);
     }
 
     /// now + duration, saturating rather than wrapping. A wrapped deadline would
@@ -1089,6 +1116,14 @@ private:
     std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
 
     Clock clock_{};
+    /// The semantic truth this service executes. Held BY VALUE and built at
+    /// construction, so there is no image to outlive, no handle to invalidate
+    /// and no callable to dangle — LOG-R1's whole custody question does not
+    /// arise for a provider compiled into the same artifact. It is resolved at
+    /// every spend anyway — a lookup is about one percent of an evaluation, and
+    /// what the other ninety-nine buy is that a held resolution can never make
+    /// execution and a preview disagree.
+    op::Catalog operators_ = standard_operators();
     std::vector<Entry> entries_;
 };
 
