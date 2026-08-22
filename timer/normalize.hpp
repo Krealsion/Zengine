@@ -44,6 +44,7 @@
 // second implementation to disagree with.
 
 #include "operator/catalog.hpp"
+#include "operator/host.hpp"
 #include "operator/operator.hpp"
 #include "operator/primitives.hpp"
 
@@ -52,6 +53,8 @@
 #include <zen/value.hpp>
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -102,6 +105,22 @@ inline op::Catalog standard_operators() {
     return catalog;
 }
 
+/// THE ASK, spelled once for both doors (CAT-0). The pack is built against the
+/// INPUT SCHEMA THE AUTHORITY ANSWERED WITH — a definition found in a local
+/// catalog, or a contract described across the operator-host seam — which is why
+/// this takes a schema rather than either of them.
+///
+/// Two consumers of one spelling is the whole reason it is a function: a
+/// host-backed Timer and a fallback Timer must not be two ways of writing down
+/// the same two ports.
+inline loom::Value normalize_ask(const std::shared_ptr<const loom::Schema>& inputs,
+                                 std::int64_t delay_ms, bool repeat) {
+    loom::Value ask(inputs);
+    ask.set(kAuthoredDelayPort, loom::Cell::integer(delay_ms));
+    ask.set(kRepeatPort, loom::Cell::boolean(repeat));
+    return ask;
+}
+
 /// Spell the ask, run it, read the answer. This function knows how to CALL the
 /// rule and nothing about what the rule says — which is exactly the amount an
 /// ordinary helper is allowed to know once the meaning has an owner.
@@ -120,16 +139,159 @@ inline std::int64_t effective_delay(const op::Catalog& catalog, std::int64_t del
         throw std::invalid_argument("this catalog does not carry '" +
                                     std::string(kNormalizeDelay) + "'");
     }
-    loom::Value ask(rule->inputs());
-    ask.set(kAuthoredDelayPort, loom::Cell::integer(delay_ms));
-    ask.set(kRepeatPort, loom::Cell::boolean(repeat));
-
-    const op::Evaluation answer = catalog.evaluate(kNormalizeDelay, std::move(ask));
+    const op::Evaluation answer =
+        catalog.evaluate(kNormalizeDelay, normalize_ask(rule->inputs(), delay_ms, repeat));
     if (!answer) {
         throw std::invalid_argument(answer.reason());
     }
     return answer.value().at(0)->as_int();
 }
+
+/// WHICH SEMANTIC AUTHORITY A TIMER SPENDS (CAT-0) - one of exactly two, chosen
+/// once, and never both.
+///
+/// SEM-0 gave the delay rule ONE AUTHORING. That was not enough, and CAT-0 is
+/// the measurement of why: an authoring instantiated twice is two runtime
+/// catalogs, and the moment either can be REPLACED the two consumers reading
+/// them stop agreeing without anybody editing a rule. Live agreement needs one
+/// CURRENT truth, not one authored one.
+///
+///     HOST-BACKED       a host offered this instance its operator surface, and
+///                       every normalization goes back across that seam to the
+///                       host's own catalog, resolved at the moment of the call.
+///                       There is no catalog in this object at all.
+///
+///     LOCAL-FALLBACK    nobody offered anything, so this Timer carries the
+///                       vocabulary this repository authors and spends that.
+///                       The floor, and a supported arrangement rather than a
+///                       degraded one: `snake` and every host that predates the
+///                       operator seam land here and are not warned at.
+///
+/// THE CHOICE IS THE CONSTRUCTOR'S, and it is fixed for this object's life.
+/// Re-asking on every schedule would mean a Timer whose semantics depend on
+/// which load happened to be in flight, which is the one thing a scoped offer is
+/// arranged to make impossible.
+///
+/// AND A HOST-BACKED TIMER NEVER FALLS BACK. There is no path from a host that
+/// refused to a local evaluation: `local_` is empty in that mode, so "quietly
+/// evaluate our own copy" is not a branch somebody forgot to write - it is
+/// unrepresentable. A host that cannot serve the rule is refused at construction
+/// (below), which is the earliest and deepest place the fact is knowable, and a
+/// host that fails afterwards is a throw rather than a second answer.
+class DelayAuthority {
+public:
+    /// LOCAL-FALLBACK over the vocabulary this repository authors.
+    DelayAuthority() : local_(standard_operators()) {}
+
+    /// LOCAL-FALLBACK over a catalog the caller chose - SEM-0's seam, unchanged.
+    /// It is what lets a suite replace a primitive underneath the rule and watch
+    /// a running weave and an independent reader move together.
+    explicit DelayAuthority(op::Catalog local) : local_(std::move(local)) {}
+
+    /// WHAT A LOADED TIMER DOES WITH WHAT IT WAS OFFERED.
+    ///
+    /// An UNBOUND host is not a failure: it is the ordinary state of a weave
+    /// nobody offered anything to, and it means LOCAL-FALLBACK. That covers the
+    /// host that never heard of operators AND the handoff that was refused on its
+    /// version - in both cases nothing was supplied, which the host knows from
+    /// its own `OperatorOffer::outcome()` and may act on there. Fallback chooses
+    /// an authority only where none arrived; it is never recovery from one that
+    /// arrived and then failed.
+    ///
+    /// A BOUND host is checked before it is accepted, because "not silently" has
+    /// to mean something at a moment somebody can see. The host must publish
+    /// `timer.normalize_delay` and it must publish it at the signature this Timer
+    /// was authored against - same name, same version, same normalized structure,
+    /// which is exactly what `loom::same_identity` already answers and what
+    /// `Schema::content_id()` already versions. No hash of this phase's own
+    /// invention, and no second description of the rule: the expectation is
+    /// derived from `standard_operators()`, the one authoring, and the catalog it
+    /// comes out of dies at the closing brace. A host-backed Timer holds none.
+    ///
+    /// It THROWS, and the throw is the refusal. Inside a loaded artifact it
+    /// travels exactly one frame: `create()` catches it, returns null, and the
+    /// Kernel refuses the load with `library create() returned null`. A Timer
+    /// that could not get the semantics it was promised must not become the
+    /// Timer.
+    explicit DelayAuthority(op::OperatorHost offered) {
+        if (!offered.bound()) {
+            local_.emplace(standard_operators());
+            return;
+        }
+        const op::HostSignature contract = offered.describe(kNormalizeDelay);
+        if (!contract.ok()) {
+            throw std::invalid_argument(
+                "this operator host publishes no '" + std::string(kNormalizeDelay) +
+                "' (status " + std::to_string(static_cast<int>(contract.status)) +
+                "); a Timer offered a host must spend it, so this one refuses to run");
+        }
+        const op::Catalog authored = standard_operators();
+        const op::OperatorDef* mine = authored.find(kNormalizeDelay);
+        if (!loom::same_identity(*contract.inputs, *mine->inputs()) ||
+            !loom::same_identity(*contract.outputs, *mine->outputs())) {
+            throw std::invalid_argument(
+                "this operator host's '" + std::string(kNormalizeDelay) +
+                "' is not the signature this Timer was authored against; a Timer offered a "
+                "host must spend it, so this one refuses to run");
+        }
+        host_ = offered;
+        contract_ = contract;
+    }
+
+    /// Which of the two this is. A diagnostic, never a door: nothing about the
+    /// answer changes what `effective_delay` spends, and no case may prove
+    /// canonicality by reading it.
+    bool host_backed() const noexcept { return !local_.has_value(); }
+
+    /// The catalog this Timer carries - LOCAL-FALLBACK only, because a
+    /// host-backed one carries none. Asking a host-backed authority for a
+    /// catalog is asking for the object CAT-0 exists to stop having two of.
+    const op::Catalog& operators() const {
+        if (!local_) {
+            throw std::invalid_argument(
+                "this Timer is host-backed: its operator truth lives in the host's catalog, "
+                "and there is no local one to hand out");
+        }
+        return *local_;
+    }
+
+    /// WHAT THIS TIMER MAKES OF AN AUTHORED DELAY. The one semantic entrance,
+    /// and the only difference between its two branches is WHERE THE IDENTITY
+    /// RESOLVES. Both spend `timer.normalize_delay`; neither knows what it says.
+    /// There is no arithmetic in this file to disagree with it and no second
+    /// implementation for one of them to reach.
+    std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
+        if (local_) {
+            return timer::effective_delay(*local_, delay_ms, repeat);
+        }
+        // RESOLVED AT SPEND, on the far side. `contract_` is an identity and two
+        // schemas this instance built for itself - never a pointer, an index or a
+        // callable into the host - so the host resolves its own current
+        // definition on every single call, and a rule that changed underneath is
+        // spent as it is now rather than as it was described.
+        const op::HostAnswer answer =
+            host_.evaluate(contract_, normalize_ask(contract_.inputs, delay_ms, repeat));
+        if (!answer.ok()) {
+            // Unreachable against a host whose catalog outlives this Timer and
+            // cannot be edited, which is every arrangement that exists today. It
+            // is written anyway, and it THROWS, because the only other spelling
+            // of this branch is the silent fallback the whole phase forbids.
+            throw std::invalid_argument("'" + std::string(kNormalizeDelay) +
+                                        "' was refused by this Timer's operator host: " +
+                                        answer.reason);
+        }
+        return answer.value->at(0)->as_int();
+    }
+
+private:
+    /// EXACTLY ONE OF THESE IS ENGAGED, and that is the structure doing the work
+    /// rather than a comment asking for care. In HOST-BACKED mode `local_` is
+    /// empty, so there is no local catalog in the object for a later edit to
+    /// reach by accident.
+    std::optional<op::Catalog> local_;
+    op::OperatorHost host_;
+    op::HostSignature contract_;
+};
 
 } // namespace zengine::timer
 

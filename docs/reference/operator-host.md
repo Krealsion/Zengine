@@ -88,6 +88,38 @@ goes first and takes its artifacts with it. Nothing crosses the ABI to enforce
 this, because a lifetime the host already controls does not need a refcount —
 it needs to be got right.
 
+**And the catalog is the host arrangement's, not a singleton.** It is a local of
+the host's own `main` — no static, no process-wide registry, no accessor. A
+second Zengine host in one process owns a second one, correctly, and neither is
+"the" catalog. What makes a catalog canonical is that every consumer expected to
+agree with the others was handed *that* one during its load.
+
+## Every `create()` needs its own offer, including a reload
+
+`Kernel::load` is not the only place the Kernel builds an instance;
+`Kernel::reload_from` is the other. A hot reload snapshots the incumbent, calls
+`create()` on the new image, and revives — so a replacement instance is offered
+nothing unless the host brackets the reload exactly as it brackets a load:
+
+```cpp
+{
+    op::OperatorOffer offer(operators, path_to("my-tool"));
+    send(manager, loom::ReloadWeave{"my-tool", path_to("my-tool")});
+    pump_turns();
+}
+```
+
+No new mechanism: the same object, around the other command. A host that omits
+it gets a replacement that is unbound, which for a consumer with a fallback means
+a silent change of semantics — the host's error, and the same error as omitting
+the bracket at load time.
+
+**There is no way for the artifact to catch that**, and it is worth saying which
+shape the general fix has rather than leaving it implied: the Kernel would have
+to be tellable that an artifact must always be offered something, so that every
+one of its `create()` sites is covered rather than each host remembering. That is
+a loader question (LOAD-0's shape from a third direction), not an operator one.
+
 ## What actually crosses
 
 Not the catalog. Not a callable. Not an index into one.
@@ -169,13 +201,40 @@ needs this exact invariant it may earn a shared component; today it has not, and
 a `PluginServices` grown ahead of its second customer is a framework nobody
 asked for.
 
+## Who consumes this today
+
+The shipped **Timer** (`zengine-timer`) and OPH-0's stranger fixture. The Timer is
+the first artifact to be both halves of this seam at once: it AUTHORS the delay
+vocabulary its package publishes, and it CONSUMES whatever operator surface its
+host offered the instance. Those are different roles and the package keeps them
+apart — `timer::standard_operators()` is what a HOST publishes, and what a Timer
+spends is decided per instance. See
+[timer-protocol.md](timer-protocol.md#what-the-timer-makes-of-a-delay).
+
+A consumer with its own fallback owes one more thing than the stranger does:
+**an accepted offer must be checked before it is accepted.** The Timer describes
+`timer.normalize_delay` across the seam at construction and compares both port
+schemas against the ones its own package authors (`loom::same_identity`, which is
+`Schema::content_id()` doing the versioning it already does). A host that
+publishes no such rule, or publishes it at another signature, is refused — the
+constructor throws, `create()` returns null, and the Kernel refuses the load.
+There is deliberately no path from "the host could not serve it" to "evaluate our
+own copy": a consumer that fell back there would diverge from its host at exactly
+the moment the host became inconsistent.
+
 ## Tests
 
-Zengine suite `operator`, in
+Zengine suite `operator`. In
 [`tests/test_operator_host.cpp`](../../tests/test_operator_host.cpp): an untouched
 pre-existing artifact meeting the offer path, the same fixture source built three
 ways (aware / ordinary / stale-version), the offer reaching `create()`, the
 described contract, the whole normalization matrix across a real module boundary,
 the bus-turn count, unload and reload, the withdrawal, two instances of one
-image, and the decisive one — a primitive replaced in the **host** moving what
-the loaded artifact answers, with its binary unchanged.
+image, and a primitive replaced in the **host** moving what the loaded artifact
+answers, with its binary unchanged.
+
+In [`tests/test_operator_canonical.cpp`](../../tests/test_operator_canonical.cpp):
+the same substitution moving a **real loaded Timer** and that stranger together,
+in one process, off one catalog, with neither artifact rebuilt — plus a Timer
+offered nothing staying where it was, the two refusals above, the bracketed and
+unbracketed reloads, and the traffic count for eight host-backed schedules.

@@ -303,16 +303,30 @@ public:
     /// WHICH OPERATOR TRUTH THIS TIMER SPENDS. It defaults to the one this
     /// repository authors, and a consumer may hand it another catalog carrying
     /// the same identity — which is not a testing seam bolted on, but the honest
-    /// spelling of the fact this phase established: the Timer CONSUMES the delay
+    /// spelling of the fact SEM-0 established: the Timer CONSUMES the delay
     /// rule and does not own it. It is what lets the suite replace a primitive
     /// underneath the rule and watch execution and an independent reader move
     /// together, which two implementations that merely agreed could never do.
     TimerServiceT(Clock clock, op::Catalog operators)
-        : clock_(std::move(clock)), operators_(std::move(operators)) {}
+        : clock_(std::move(clock)), semantics_(std::move(operators)) {}
+
+    /// ...AND WHICH AUTHORITY IT RESOLVES THAT TRUTH THROUGH (CAT-0). A loaded
+    /// artifact builds one from whatever its host offered it — see
+    /// `DelayAuthority` for the two states and why the choice is fixed here
+    /// rather than re-asked per schedule. This is the only door through which a
+    /// Timer becomes host-backed, and there is deliberately no setter beside it.
+    TimerServiceT(Clock clock, DelayAuthority semantics)
+        : clock_(std::move(clock)), semantics_(std::move(semantics)) {}
 
     /// The rule this Timer runs, for anyone who wants to evaluate it without
-    /// scheduling anything.
-    const op::Catalog& operators() const noexcept { return operators_; }
+    /// scheduling anything. LOCAL-FALLBACK only: a host-backed Timer carries no
+    /// catalog at all, and this throws rather than inventing one.
+    const op::Catalog& operators() const { return semantics_.operators(); }
+
+    /// Whether this Timer resolves through a host's catalog or its own. A
+    /// diagnostic and nothing more — what a Timer SCHEDULES is where its
+    /// authority is proven, and this answer changes nothing about it.
+    bool host_backed() const noexcept { return semantics_.host_backed(); }
 
     /// The Loom's control door says this incarnation is committed and live.
     /// That is the whole of what it says — so this is where the service decides
@@ -1048,8 +1062,15 @@ private:
     /// disagree with it. The helper survives for a mechanical reason only: three
     /// paths need the number and one of them needs it before it decides
     /// anything, so the CALL is written once rather than the RULE.
+    ///
+    /// AND IT IS THE ONLY ONE (CAT-0). Every path that depends on delay
+    /// normalization — `StartTimer` and `StartRoleTimer` through `upsert`, the
+    /// `EnsureTimer`/`EnsureRoleTimer` availability comparison, and `adopt` —
+    /// reaches the authority through this function and no other, so there is no
+    /// spelling of a schedule that could reach a different truth than the one
+    /// this instance was built with.
     std::int64_t effective_delay(std::int64_t delay_ms, bool repeat) const {
-        return timer::effective_delay(operators_, delay_ms, repeat);
+        return semantics_.effective_delay(delay_ms, repeat);
     }
 
     /// now + duration, saturating rather than wrapping. A wrapped deadline would
@@ -1116,14 +1137,18 @@ private:
     std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
 
     Clock clock_{};
-    /// The semantic truth this service executes. Held BY VALUE and built at
-    /// construction, so there is no image to outlive, no handle to invalidate
-    /// and no callable to dangle — LOG-R1's whole custody question does not
-    /// arise for a provider compiled into the same artifact. It is resolved at
-    /// every spend anyway — a lookup is about one percent of an evaluation, and
-    /// what the other ninety-nine buy is that a held resolution can never make
-    /// execution and a preview disagree.
-    op::Catalog operators_ = standard_operators();
+    /// WHICH SEMANTIC TRUTH THIS SERVICE EXECUTES (CAT-0), and it is one of two.
+    /// A host that offered this instance its operator surface owns the answer
+    /// for this Timer's whole life; a host that offered nothing leaves it
+    /// carrying the vocabulary this repository authors. Both spellings resolve
+    /// `timer.normalize_delay` at every spend and neither holds a resolution —
+    /// a lookup is about one percent of an evaluation, and what the other
+    /// ninety-nine buy is that a held resolution can never make execution and a
+    /// preview disagree.
+    ///
+    /// It is DEFAULT-CONSTRUCTED here, which is LOCAL-FALLBACK, because that is
+    /// what a Timer built by a host that never heard of operators must be.
+    DelayAuthority semantics_;
     std::vector<Entry> entries_;
 };
 

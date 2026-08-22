@@ -1366,16 +1366,94 @@ C table with two verbs, `describe` and `evaluate`. Reference:
   emits a plausible-but-different descriptor reddens the describe case AND every
   evaluation, because a pack built from a lying description is refused by the
   real input schema.
-- **The Timer still holds its own catalog**, built from the same
-  `timer::standard_operators()`. OPH-0 gave the host's catalog a second consumer;
-  it did not make the shipped Timer read the host's. That remains a real
-  distinction and is stated in `Zen/reportbacks/OPH-0-RB.md` rather than smoothed
-  over.
+- ~~**The Timer still holds its own catalog.**~~ **CAT-0 ended this** — a Timer
+  holds one only where nobody offered it a host. See the next section.
 - **The suite does not depend on the artifacts it loads.** `$<TARGET_FILE:...>`
   in a `target_compile_definitions` is a path, not a build edge, so
   `cmake --build build --target zengine-operator-tests` will happily run last
   build's fixtures. Build the whole tree before believing a result — which the
   official lane does, and which a hand-run canary loop must be told to do.
+
+## One authoring is not one answer (CAT-0)
+
+SEM-0 gave the delay rule one authoring and OPH-0 gave a loaded stranger a way to
+spend a host's catalog — and a process running the shipped Timer beside that
+stranger still had **two live catalogs built from one authoring**. Nothing
+disagreed, because nothing had been replaced yet. CAT-0 closed the split: a
+Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
+`OperatorOffer` resolves `timer.normalize_delay` through that instance.
+
+- **A Timer chooses ONE authority at construction and keeps it for life**
+  (`timer::DelayAuthority`). HOST-BACKED holds a bound `op::OperatorHost` and the
+  contract it described; LOCAL-FALLBACK holds an `op::Catalog`. **Exactly one of
+  the two members is engaged**, and that is the enforcement rather than a comment
+  asking for care: in host-backed mode there is no local catalog in the object for
+  a later edit to reach. Do not add a setter, a rebind, or an
+  opportunistic re-check per schedule — a Timer whose semantics depend on which
+  load happened to be in flight is the one thing a scoped offer exists to prevent.
+- **An offered host is CHECKED before it is accepted, and a failed check refuses
+  the load.** The Timer describes `timer.normalize_delay` across the seam and
+  compares both port schemas against the ones its own package authors
+  (`loom::same_identity`; `Schema::content_id()` already versions a signature —
+  do not invent a second hash). A host with no such rule, or with another
+  signature, makes the constructor throw, `create()` return null, and
+  `Kernel::load` refuse. **There is deliberately no path from a host that failed
+  to a local evaluation**, and adding one is the single edit that reintroduces
+  everything this phase removed: a Timer that diverges from its host exactly when
+  the host became inconsistent. The expectation is derived from
+  `standard_operators()` inside the constructor and the catalog it comes out of
+  dies at the closing brace — a host-backed Timer holds none.
+- **Fallback is a supported arrangement and is not warned at.** `zengine-snake`
+  offers nothing and gets the Timer it always got; so does every host that
+  predates the seam. Do not make the operator host a dependency of using a Timer.
+- **`ZEN_EXPORT_WEAVE` builds its weave with `new S()`, so an artifact that must
+  take an offer needs a class of its own.** `timer/timer.cpp` and
+  `tests/weavelib/timer_virtual.cpp` each derive a six-line `TimerService` whose
+  only member is a constructor passing `DelayAuthority(OperatorHost::offered())`
+  down. It adds no state and overrides nothing; every ABI door is
+  `TimerServiceT`'s. The refusal sentence goes to **stderr** before the throw,
+  because `create()`'s contract is a null pointer and a null pointer carries no
+  reason — the same thing `zengine-skin-sdl` does for a failed init.
+- **Do not write `ZENGINE_OPERATOR_CONSUMER()` in a test binary.**
+  `detail::offered_host_slot()` has default visibility, so an executable that
+  defined it would sit in the lookup scope of every `.so` that also defines it.
+  A suite drives the consumer side with `op::OperatorHost::over(api)`, which is
+  what that spelling is for. For the same reason `timer_weave.hpp` never touches
+  the slot: only artifact sources do.
+- **`zengine-timer` links BOTH operator targets and the pair is the point.** It
+  AUTHORS the delay vocabulary (`zengine-operator`) and CONSUMES a host's runtime
+  surface (`zengine-operator-consumer`). Provider and consumer are different
+  roles and one artifact may be both; do not collapse them, and do not conclude a
+  provider must be the thing that instantiates what it authors. Both targets are
+  header-only INTERFACE targets: the Timer's `ldd` and PE import table are
+  unchanged, and its export table still names `zen_weave_abi` plus
+  `zengine_operator_consumer`.
+- **`workshop.cpp` owns the catalog, and the DECLARATION ORDER is the lifetime
+  claim** — `op::Catalog`, then `OperatorHostSurface`, then `loom::Kernel`, so
+  reverse-order destruction takes the Kernel and its artifacts down first. It is
+  a local of `main`, not a singleton: no static, no registry, no accessor. A case
+  in `test_operator_canonical.cpp` reads that ordering off the SOURCE FILE,
+  because Workshop's `main()` claims a terminal and no case can run it — the same
+  defence in depth as the no-privileged-wind and clock-binding tripwires, and
+  declared as a tripwire rather than a proof.
+- **The boot pump is `pump_pending()`, never `pump()`.** The offer has to be in
+  force when `create()` runs, and the load is several deliveries deep, so the
+  host sends the command and then drains in bounded turns until
+  `kernel.is_loaded(...)`. A drain-to-empty would never return: a Timer that has
+  just gone live re-arms its own beat inside its own handler (MSG-09).
+- **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
+  host owes a reload the same bracket it owes a load. Both are pinned: bracketed
+  keeps the binding, unbracketed comes back a fallback Timer. Nothing in this
+  repository can take the unbracketed path — Workshop's boot weave may send
+  `zen.LoadWeave` and nothing else — and closing it in general means a Kernel that
+  can be TOLD an artifact must always be offered something, which is a loader
+  question rather than an operator one.
+- **A canonicality claim needs a substitution, not a matrix.** `sabotaged_operators()`
+  is invisible to every structural check (same identity, ports, types, content
+  ids), so a host built over it moves a host-backed Timer and a loaded stranger
+  together and leaves a fallback Timer where it was. Observe the Timer through
+  `TimerHandoffEntry.delay_ms` off a real `zen.Bequest` — **never** through
+  `host_backed()`, which is a diagnostic and decides nothing.
 
 ## The population contract (C4, POP-01/POP-02)
 
@@ -1521,3 +1599,9 @@ timer/input/surface vocabularies — all header-only). See
   runs the same rule, so `-500` repeating really is the standing 1 ms beat.
 - `zengine-operator` is a place to put helpers — it is for rules TWO surfaces
   need. One consumer is a C++ function.
+- A Timer evaluates the rule its own image carries — it does **only** where no
+  host offered it one (CAT-0). In `zengine-workshop` the answer comes from the
+  host's catalog, and substituting a primitive there changes what the Timer
+  schedules.
+- An offer covers an artifact — it covers **one load** of one image, and every
+  `create()` the Kernel performs needs its own, `reload_from` included.

@@ -321,6 +321,20 @@
 # that answers. No font is opened and no renderer exists, so the no-SDL lane and the Windows
 # stranger lane prove the phase in full, including the picture a maker only ever sees through SDL.
 #
+# CAT-0 raised the operator floor 30 -> 53, and its 23 cases needed no new row and no gate for
+# a reason none of the phases above could have given: what they prove is which CATALOG INSTANCE a
+# running Timer resolved through, and an instance has no medium. The suite gained a third source
+# file rather than a fourth CTest entry -- `test_operator_canonical.cpp` compiles into the same
+# `zengine-operator-tests` binary -- because the population contract counts ENTRIES, and a phase
+# that added an entry for a tier of an existing suite would be splitting the inventory to record
+# a file.
+#
+# The one thing worth reading beside the number: TWENTY of the 23 drive a REAL dynamically loaded
+# `zengine-timer` beside OPH-0's real loaded stranger, so this suite now defines the `TIMER_SO`
+# path it never had, and one of them reads `workshop/workshop.cpp` as a source file. That last one
+# is declared here as what it is -- a tripwire, not a proof -- because Workshop's `main()` claims a
+# terminal and no case in this repository can run it.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -336,7 +350,7 @@ surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
-operator                          doctest           always  30
+operator                          doctest           always  53
 composer                          doctest           always  35
 builder                           doctest           always  30
 workshop                          doctest           always  582

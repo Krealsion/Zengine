@@ -40,8 +40,11 @@
 // thing — a candidate that COULD have gone live and does not — without the
 // package knowing a broken build exists.
 
+#include "timer/normalize.hpp"
 #include "timer/timer_weave.hpp"
 #include "timer/vocabulary.hpp"
+
+#include "operator/host.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -67,7 +70,20 @@ struct VirtualClock {
     }
 };
 
-using VirtualTimerService = zengine::timer::TimerServiceT<VirtualClock>;
+/// THE SUITE'S TIMER, AND THE SHIPPED ONE'S CONSTRUCTOR (CAT-0).
+///
+/// `timer/timer.cpp` writes exactly this six-line class over `MonotonicClock`,
+/// and the duplication is the same one this whole file is: identical in every
+/// respect but the Clock. It is what lets the canonicality witnesses run on
+/// VIRTUAL time -- a host substitution proved against a wall clock would either
+/// sleep for real or prove less.
+class VirtualTimerService : public zengine::timer::TimerServiceT<VirtualClock> {
+public:
+    VirtualTimerService()
+        : zengine::timer::TimerServiceT<VirtualClock>(
+              VirtualClock{}, zengine::timer::DelayAuthority(zengine::op::OperatorHost::offered())) {
+    }
+};
 
 #if defined(ZENGINE_TIMER_DECLINES)
 
@@ -134,3 +150,10 @@ ZEN_EXPORT_WEAVE(DecliningTimerCandidate)
 #else
 ZEN_EXPORT_WEAVE(VirtualTimerService)
 #endif
+
+/// All three artifacts built from this source declare the consumer surface, for
+/// the reason the shipped Timer does: a host that offers nothing loads them
+/// exactly as it always did. The declining candidate carries it too and does
+/// nothing with it, which is correct -- it is a Timer-shaped artifact whose only
+/// deliberate difference is that it refuses the ROLE.
+ZENGINE_OPERATOR_CONSUMER();
