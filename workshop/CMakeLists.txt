@@ -75,6 +75,20 @@ target_link_libraries(zengine-workshop
             # office. It does not include `draft.hpp` or `view.hpp` and could not
             # present a row of either.
             zengine-composer-vocabulary
+            # ...and the operator package, because since CAT-0 this host OWNS the
+            # process's operator catalog and dresses it in the C table a loaded
+            # consumer can hold. `zengine-operator` is the HOST half of that seam
+            # (the catalog, the definitions, `OperatorHostSurface`, `OperatorOffer`);
+            # a loaded artifact links the consumer half and nothing else. Both are
+            # header-only INTERFACE targets, so this adds no shared object -- what it
+            # adds on UNIX is the dynamic loader, which `OperatorOffer` needs to
+            # resolve a second exported symbol of the image the Kernel opens.
+            # What this host publishes into that catalog is
+            # `timer::standard_operators()` -- the Timer package's own authoring and
+            # not a second definition written here. `timer/normalize.hpp` rides the
+            # include path `zengine-timer-vocabulary` already grants, which is the
+            # same way `tests/` reaches it.
+            zengine-operator
             zengine-warnings zengine-sanitize)
 
 # ---- The one build recipe this host hands its build runner (BLD-0) ----------------------

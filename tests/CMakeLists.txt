@@ -59,13 +59,13 @@ endif()
 #   zengine-timer-declines    a real artifact that loads, seals and is asked, and then
 #                             refuses to become the Timer. The negative proof of R2B-3.
 zengine_weave(zengine-timer-virtual weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
+target_link_libraries(zengine-timer-virtual PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 
 zengine_weave(zengine-timer-virtual-v2 weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
+target_link_libraries(zengine-timer-virtual-v2 PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 
 zengine_weave(zengine-timer-declines weavelib/timer_virtual.cpp)
-target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator)
+target_link_libraries(zengine-timer-declines PRIVATE zengine-timer-vocabulary zengine-activation zengine-operator zengine-operator-consumer)
 target_compile_definitions(zengine-timer-declines PRIVATE ZENGINE_TIMER_DECLINES=1)
 
 zengine_weave(zengine-probe-oneshot weavelib/oneshot_probe.cpp)
@@ -411,7 +411,8 @@ target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOUR
 # host's, and needs the real Kernel, the real Weave Manager and three real
 # artifacts -- so this suite now links loom::kernel and loom::switchboard, which
 # until this phase it deliberately did not.
-add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp doctest_main.cpp)
+add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp
+                                     test_operator_canonical.cpp doctest_main.cpp)
 target_link_libraries(zengine-operator-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-operator
             zengine-operator-stranger zengine-timer-vocabulary zengine-warnings
@@ -421,6 +422,15 @@ target_include_directories(zengine-operator-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/weavelib)
 
 target_compile_definitions(zengine-operator-tests PRIVATE
+    # CAT-0's canary drives the SHIPPED Timer artifact beside OPH-0's stranger in
+    # one process, because "one live catalog" is a claim about the two of them
+    # together and neither one alone can carry it.
+    "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+    # The production host's SOURCE, for CAT-0's ownership tripwire. Workshop's
+    # `main()` claims a terminal, so no case here can run it; what a case CAN do is
+    # read the arrangement off the file, which is the same defence in depth the
+    # no-privileged-wind and clock-binding tripwires already provide next door.
+    "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
     "OPH_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
     "OPH_STRANGER_LEGACY_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-legacy>\""
     "OPH_STRANGER_ABI_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""

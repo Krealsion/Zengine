@@ -71,6 +71,43 @@ weave the host **dynamically loaded** can ask for this rule by name and spend it
 synchronously, without a catalog of its own and without a message per evaluation
 — see [operator-host.md](operator-host.md).
 
+## Which operator truth a Timer spends
+
+One authoring is not one answer once the definitions can be replaced. A Timer
+therefore chooses, once, at construction, and the choice is fixed for the life of
+that instance:
+
+```text
+HOST-BACKED       a host offered this instance its operator surface. Every
+                  normalization goes back across that seam to the HOST'S catalog,
+                  resolved at the moment of the call. This Timer carries none.
+
+LOCAL-FALLBACK    nobody offered anything, so this Timer carries the vocabulary
+                  the package authors and spends that.
+```
+
+Both spellings evaluate `timer.normalize_delay`, and there is no arithmetic in
+the Timer to disagree with either — the only difference is **where the identity
+resolves** (`timer::DelayAuthority`).
+
+**Fallback is a supported arrangement, not a degraded one.** A Loom or Zengine
+host that never heard of operators loads `zengine-timer` exactly as it always
+did, gets exactly the matrix above, and is not warned at. `zengine-snake` is such
+a host; `zengine-workshop` is not, and boots its Timer inside an offer of its own
+catalog.
+
+**A host-backed Timer never quietly becomes a local one.** An offered host that
+cannot publish `timer.normalize_delay`, or publishes it at another signature, is
+refused at construction: the Timer does not load. The alternative — evaluating
+its own copy while a host believes it owns the rule — is a semantic split arriving
+precisely when the host has become inconsistent, which is the worst moment for
+one.
+
+**What survives a replacement.** An unload and a fresh load rebind normally. A
+hot `zen.ReloadWeave` builds a new instance through `create()` too, so an
+operator-supplying host owes the reload the same bracket it owes the load; see
+[operator-host.md](operator-host.md#every-create-needs-its-own-offer-including-a-reload).
+
 **What follows from that, and is worth knowing before reading a receipt:** an
 order is matched against the standing schedule on the NORMALIZED delay, so
 `EnsureTimer{delay_ms = -500, repeat = true}` against a standing 1 ms repeating
@@ -92,7 +129,10 @@ Zengine suite `timer`: protocol, chains, continuity, prepared crossing,
 real-clock pilot, and the delay rule — the matrix above read off a real letter,
 and the witnesses that the running service and an independent reader spend one
 definition rather than two that agree. Suite `operator` holds the substrate's
-own contract. Their case floors are in
+own contract, and — in
+[`tests/test_operator_canonical.cpp`](../../tests/test_operator_canonical.cpp) —
+the authority choice: which catalog a real loaded Timer resolved through, read
+off the delay it actually stored. Their case floors are in
 [`tests/test_population.txt`](../../tests/test_population.txt), which is the
 contract; a count repeated here would be a second answer that nothing keeps
 current.

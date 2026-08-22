@@ -33,7 +33,10 @@
 #include "composer/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
+#include "operator/catalog.hpp"
+#include "operator/host_surface.hpp"
 #include "surface/vocabulary.hpp"
+#include "timer/normalize.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/history/dump.hpp>
@@ -76,6 +79,7 @@ namespace builder = zengine::builder;
 namespace composer = zengine::composer;
 namespace input = zengine::input;
 namespace introspection = zengine::introspection;
+namespace op = zengine::op;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 
@@ -418,6 +422,40 @@ int main(int argc, char** argv) {
     }
     std::fflush(stdout);
 
+    // ---- WHAT `timer.normalize_delay` MEANS IN THIS PROCESS (CAT-0) ----------
+    //
+    // ONE CATALOG, OWNED BY THE HOST ARRANGEMENT, and its being ONE is the whole
+    // of what this phase bought. SEM-0 gave the delay rule a single authoring;
+    // OPH-0 gave a loaded stranger a way to spend a host's catalog -- and the
+    // shipped Timer still carried its own instance of that same authoring, so a
+    // process running both had one rule and two live answers waiting for
+    // somebody to replace a definition in one of them. Below, the Timer this
+    // host boots resolves through THIS object, and so does anything else that
+    // takes the offer.
+    //
+    // IT IS NOT A SINGLETON AND MUST NOT BECOME ONE. There is no process-wide
+    // registry, no static, no accessor and no service locator: it is a local of
+    // the host's own main, and every consumer that spends it does so because
+    // this host handed it over during one load. A second Zengine host in this
+    // process would own a second one, correctly, and neither would be "the"
+    // catalog.
+    //
+    // THE VOCABULARY IS THE PACKAGE'S OWN, unmodified: `standard_operators()` is
+    // the same authoring the Timer would have carried, so the host publishes no
+    // second definition of anything -- `math.max`, `logic.select_int` and the
+    // composition over them, exactly as timer/normalize.hpp writes them. What
+    // moved is WHERE THE INSTANCE LIVES, not what it says.
+    //
+    // ...AND THE DECLARATION ORDER IS THE LIFETIME CLAIM. These two are declared
+    // BEFORE the Kernel, so destruction -- which runs in reverse -- takes the
+    // Kernel down first, and the Kernel destroys every artifact it holds before
+    // the surface those artifacts point at goes anywhere. Nothing across the ABI
+    // takes shared ownership to enforce that, because a lifetime the host
+    // already controls does not need a refcount to be correct; it needs to be
+    // stated, and this is where this host states it.
+    const op::Catalog operators = timer::standard_operators();
+    op::OperatorHostSurface operator_host(operators);
+
     loom::Kernel kernel(bus);
     const loom::WeaveId control = loom::mount_control(kernel, bus);
     const loom::WeaveId manager = loom::mount_manager(control, bus);
@@ -669,7 +707,58 @@ int main(int argc, char** argv) {
     };
     boot(args.skin.c_str(), surface::kSkinRole);
     boot(args.input.c_str(), input::kInputRole);
-    boot("zengine-timer", timer::kTimerRole);
+    // ---- The Timer, offered this host's operator truth (CAT-0) ---------------
+    //
+    // THE OFFER BRACKETS THE LOAD AND IS THEN WITHDRAWN, which is OPH-0's law and
+    // is not relaxed here: `OperatorOffer`'s destructor hands the image a null
+    // table whatever happened, so the slot behind the Timer's exported symbol is
+    // empty everywhere outside these braces. The Timer instance created inside
+    // them keeps its own COPY and goes on working after the withdrawal.
+    //
+    // AND THE PUMP HAS TO BE HERE, because the offer must be in force at
+    // `create()` and no host can get between the Kernel and a constructor. The
+    // load is several deliveries deep -- `zen.LoadWeave` to the Manager, the
+    // Manager to the control door, the door into `Kernel::load` -- so the
+    // command is sent and the queue is then drained, in bounded turns, until the
+    // artifact is live. `pump_pending()` and not `pump()`: a Timer that has just
+    // become live re-arms its own beat inside its own handler, so a drain-to-
+    // empty would never return and this scope would never close.
+    //
+    // BOUNDED BY TURNS AND BY THE ANSWER BOTH. If the load is refused, nothing
+    // ever reports the Timer loaded and the drain ends when the queue does; the
+    // ceiling above that is a hang guard for a bus that somehow never quiesces,
+    // not a schedule. Either way the offer comes down and the main loop below
+    // reports the refusal exactly as it always did.
+    //
+    // THE OTHER FOUR BOOTS ARE UNBRACKETED, and that is the shape rather than an
+    // omission: an offer names ONE image, so the Skin, the Input producer,
+    // Introspection and the Composer meet no offer, export no consumer surface,
+    // and load precisely as they did before this seam existed. They are queued
+    // ahead of / behind this drain and are delivered in the same order they
+    // always were.
+    {
+        constexpr int kBootDrainTurns = 64;
+        op::OperatorOffer offering(operator_host, host.so("zengine-timer"));
+        // SAID HERE, before a single delivery, because the Skin's own load is
+        // already queued and claiming the terminal is the first thing it does.
+        // The offer's outcome is a fact the moment it is constructed -- the
+        // symbol was resolved and the table was handed over, or it was not -- so
+        // nothing is guessed at by saying it early, and saying it after the
+        // drain would be writing over somebody else's screen.
+        std::printf("zengine-workshop - operators: %zu published, %s\n", operators.size(),
+                    offering.offered()
+                        ? "offered to the Timer for this load"
+                        : (offering.reason().empty()
+                               ? "the Timer image declares no operator surface (it keeps its own)"
+                               : offering.reason().c_str()));
+        std::fflush(stdout);
+        boot("zengine-timer", timer::kTimerRole);
+        for (int turn = 0; turn < kBootDrainTurns && !kernel.is_loaded("zengine-timer"); ++turn) {
+            if (bus.pump_pending() == 0) {
+                break;
+            }
+        }
+    }
     // ---- The fourth boot, and the honest shape of what it costs (INTR-0) ------
     //
     // The Introspection tool. It reaches Workshop only through the pane protocol's
