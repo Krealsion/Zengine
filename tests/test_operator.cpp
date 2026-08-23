@@ -140,7 +140,7 @@ TEST_CASE("a missing or mistyped argument is the GATE's refusal, in the gate's o
 // ---- 2. one store, read twice ----------------------------------------------
 
 TEST_CASE("discovery and invocation come from ONE record") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
 
     const std::vector<std::string> names = catalog.identities();
     CHECK(names.size() == catalog.size());
@@ -174,7 +174,7 @@ TEST_CASE("a duplicate identity is refused, and an unresolved one is NAMED") {
 // ---- 3. the rule is a COMPOSITION ------------------------------------------
 
 TEST_CASE("timer.normalize_delay is three nodes over published primitives, and no native body") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
     const op::OperatorDef* rule = catalog.find(tmr::kNormalizeDelay);
     REQUIRE(rule != nullptr);
 
@@ -223,7 +223,7 @@ TEST_CASE("timer.normalize_delay is three nodes over published primitives, and n
 }
 
 TEST_CASE("the composite computes the whole matrix, and computes it with the primitives") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
     constexpr std::int64_t kBig = 86'400'000;
     constexpr std::int64_t kMax = std::numeric_limits<std::int64_t>::max();
 
@@ -346,7 +346,7 @@ TEST_CASE("a step resolved at a DIFFERENT signature is named, never silently spe
 // ---- 4. the independent consumer -------------------------------------------
 
 TEST_CASE("a stranger reads the rule's ports off the rule itself") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
     const stranger::Signature sig = stranger::describe(catalog, "timer.normalize_delay");
 
     REQUIRE(sig.found);
@@ -364,7 +364,7 @@ TEST_CASE("a stranger reads the rule's ports off the rule itself") {
 }
 
 TEST_CASE("a stranger evaluates the rule over the whole matrix, from text") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
 
     struct Case {
         const char* delay;
@@ -389,7 +389,7 @@ TEST_CASE("a stranger evaluates the rule over the whole matrix, from text") {
 }
 
 TEST_CASE("a stranger's refusals belong to whoever owns the reason") {
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
 
     const stranger::Reading unknown =
         stranger::ask(catalog, "timer.no_such_rule", {{"delay_ms", "1"}});
@@ -418,7 +418,7 @@ TEST_CASE("a stranger's refusals belong to whoever owns the reason") {
 // ---- 5. one path, not two that agree ---------------------------------------
 
 TEST_CASE("replace a primitive UNDER the rule and every consumer of it moves together") {
-    const op::Catalog honest = tmr::standard_operators();
+    const op::Catalog honest = tmr::fallback_vocabulary();
     const op::Catalog sabotaged = zengine::testing::sabotaged_operators();
 
     // The saboteur is indistinguishable STRUCTURALLY: same identity, same port

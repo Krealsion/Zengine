@@ -71,8 +71,35 @@ target_link_libraries(zengine-operator-consumer INTERFACE loom::core)
 target_link_libraries(zengine-operator INTERFACE zengine-operator-consumer)
 if(UNIX)
     # `OperatorOffer` resolves the optional symbol from the same image the Kernel
-    # opens, which needs the dynamic loader. On glibc 2.34+ dl* lives in libc and
-    # this is a no-op; on older ones it is not, and CMake's own answer is the one
-    # that knows which.
+    # opens, and `mount_provider` opens a provider artifact outright; both need the
+    # dynamic loader. On glibc 2.34+ dl* lives in libc and this is a no-op; on older
+    # ones it is not, and CMake's own answer is the one that knows which.
     target_link_libraries(zengine-operator INTERFACE ${CMAKE_DL_LIBS})
+endif()
+
+# ---- The BASIC OPERATOR PROVIDER, and it is not a weave (PROV-0) ------------
+#
+# WHAT THIS TARGET IS FOR. Before PROV-0 a host manufactured its operator vocabulary by
+# calling a package's authoring function, which compiled one artifact's semantics into
+# the host and made "a newly loaded artifact brings different semantics" inexpressible.
+# Powers now arrive from PROVIDERS, and this is the first one: an ordinary shared library
+# supplying `math.max` and `logic.select_int` to whoever mounts it.
+#
+# `zengine_provider` RATHER THAN `zengine_weave`, and the difference is the point.
+# There is no `loom::switchboard` on this line, because there is no participant in this
+# image -- no WeaveId, no role, no grant, no manifest, no bus. A host opens the file
+# itself and resolves ONE optional symbol, exactly as `OperatorOffer` already resolves the
+# consumer's; the Kernel is not involved and `zen_weave_abi` is not exported. That is
+# `provider != weave` as a fact about an artifact this repository ships, rather than as a
+# sentence in a report.
+#
+# It links the operator package because a provider AUTHORS: `make_operator` derives the
+# schemas, `ProviderDefinitions` serializes them, and the C table carries the bytes. What
+# it does NOT do is hold anybody's resolution -- that object belongs to the host, and this
+# image has no way to reach one.
+if(TARGET loom::kernel)
+    zengine_provider(zengine-operators-basic basic_provider.cpp)
+    target_link_libraries(zengine-operators-basic PRIVATE zengine-operator)
+else()
+    message(STATUS "zengine: basic operator provider skipped -- this Loom cannot host loadable images (no loom::kernel)")
 endif()

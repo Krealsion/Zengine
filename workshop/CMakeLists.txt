@@ -83,11 +83,13 @@ target_link_libraries(zengine-workshop
             # header-only INTERFACE targets, so this adds no shared object -- what it
             # adds on UNIX is the dynamic loader, which `OperatorOffer` needs to
             # resolve a second exported symbol of the image the Kernel opens.
-            # What this host publishes into that catalog is
-            # `timer::standard_operators()` -- the Timer package's own authoring and
-            # not a second definition written here. `timer/normalize.hpp` rides the
-            # include path `zengine-timer-vocabulary` already grants, which is the
-            # same way `tests/` reaches it.
+            # ...AND SINCE PROV-0 THIS HOST PUBLISHES NOTHING INTO IT. The catalog
+            # starts EMPTY and is filled by mounting provider artifacts, so what
+            # `zengine-operator` supplies here is the machinery -- the layered store,
+            # `OperatorHostSurface`, `OperatorOffer` and `mount_provider` -- and not one
+            # operator. Workshop no longer includes `timer/normalize.hpp` at all: it
+            # knows which artifacts to mount and how to host what they supply, and
+            # nothing about what any of it means.
             zengine-operator
             zengine-warnings zengine-sanitize)
 
@@ -156,13 +158,22 @@ target_compile_definitions(zengine-workshop PRIVATE
 # nothing for the Compose pane, mints no kind for it, and learns its row from a live
 # offer; the two tools do not know about each other either, and the fact one reacts
 # to the other is a decision inside `composer.cpp` that this host cannot see.
-set(zengine_workshop_weaves zengine-skin-tui-classic zengine-input zengine-timer
-                            zengine-introspection zengine-composer)
+#
+# `zengine-operators-basic` is the sixth, and it is the first entry here that is NOT A
+# WEAVE -- which is why this list stopped being called one (PROV-0). No Kernel loads it,
+# it has no role, no office and no line in the boot sequence; the host opens it directly,
+# reads two operator definitions out of it, and holds it. It has to sit beside the binary
+# for exactly the same reason every other entry does, and it is staged by the same rule,
+# because "where do I find the file" is a deployment question and does not care what the
+# file turns out to be.
+set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
+                               zengine-introspection zengine-composer
+                               zengine-operators-basic)
 if(TARGET zengine-skin-sdl)
-    list(APPEND zengine_workshop_weaves zengine-skin-sdl)
+    list(APPEND zengine_workshop_artifacts zengine-skin-sdl)
 endif()
 if(TARGET zengine-input-sdl)
-    list(APPEND zengine_workshop_weaves zengine-input-sdl)
+    list(APPEND zengine_workshop_artifacts zengine-input-sdl)
 endif()
 #
 # STAGED ON THE WEAVE'S OWN CLOCK, not on the host's -- and that is a repair with a measured
@@ -190,14 +201,14 @@ else()
     set(zengine_workshop_dir ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 set(zengine_workshop_staged "")
-foreach(weave IN LISTS zengine_workshop_weaves)
-    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${weave}.stamp)
+foreach(artifact IN LISTS zengine_workshop_artifacts)
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${artifact}.stamp)
     add_custom_command(OUTPUT ${stamp}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:${weave}> ${zengine_workshop_dir}
+                $<TARGET_FILE:${artifact}> ${zengine_workshop_dir}
         COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
-        DEPENDS ${weave}
-        COMMENT "workshop: staging ${weave} beside the host")
+        DEPENDS ${artifact}
+        COMMENT "workshop: staging ${artifact} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
 add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
