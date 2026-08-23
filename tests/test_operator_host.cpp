@@ -137,7 +137,7 @@ struct HostRig {
     /// operator call is a message.
     std::int64_t deliveries = 0;
 
-    explicit HostRig(op::Catalog operators_in = tmr::standard_operators())
+    explicit HostRig(op::Catalog operators_in = tmr::fallback_vocabulary())
         : catalog(std::move(operators_in)) {
         loom::Grant speak;
         speak.allow_to_any(OperatorDescribeAsk::zen_name, OperatorDescribeAsk::zen_version);
@@ -636,7 +636,7 @@ TEST_CASE("the stranger's translation unit cannot name the host's side of the se
     for (const char* forbidden : {"op::Catalog", "OperatorDef", "make_operator",
                                   "operator/catalog.hpp", "operator/primitives.hpp",
                                   "operator/host_surface.hpp", "math.max", "logic.select_int",
-                                  "standard_operators", "timer/"}) {
+                                  "fallback_vocabulary", "timer/"}) {
         INFO("the dynamic stranger must not name: ", forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
     }
@@ -720,7 +720,7 @@ TEST_CASE("an unbound host answers NO_HOST for every verb, and never crashes") {
     CHECK(none.describe(tmr::kNormalizeDelay).status == ZENGINE_OP_ERR_NO_HOST);
 
     // ...including with a contract it could not possibly have obtained.
-    const op::Catalog catalog = tmr::standard_operators();
+    const op::Catalog catalog = tmr::fallback_vocabulary();
     op::OperatorHostSurface surface(catalog);
     const op::OperatorHost real = op::OperatorHost::over(surface.api());
     const op::HostSignature contract = real.describe(tmr::kNormalizeDelay);

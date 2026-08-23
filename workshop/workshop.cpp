@@ -35,8 +35,8 @@
 #include "introspection/vocabulary.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
+#include "operator/provider_host.hpp"
 #include "surface/vocabulary.hpp"
-#include "timer/normalize.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/history/dump.hpp>
@@ -422,16 +422,36 @@ int main(int argc, char** argv) {
     }
     std::fflush(stdout);
 
-    // ---- WHAT `timer.normalize_delay` MEANS IN THIS PROCESS (CAT-0) ----------
+    // ---- WHERE THIS PROCESS'S SEMANTIC POWERS COME FROM (PROV-0) ------------
     //
-    // ONE CATALOG, OWNED BY THE HOST ARRANGEMENT, and its being ONE is the whole
-    // of what this phase bought. SEM-0 gave the delay rule a single authoring;
-    // OPH-0 gave a loaded stranger a way to spend a host's catalog -- and the
-    // shipped Timer still carried its own instance of that same authoring, so a
-    // process running both had one rule and two live answers waiting for
-    // somebody to replace a definition in one of them. Below, the Timer this
-    // host boots resolves through THIS object, and so does anything else that
-    // takes the offer.
+    // POWERS COME FROM PROVIDERS. THIS HOST OWNS ONLY WHICH ONE IS IN FORCE.
+    //
+    // The catalog below starts EMPTY and this file publishes nothing into it. What
+    // fills it is mounting artifacts that say, across a C seam, "I supply these
+    // definitions" -- and what this host then owns is the live resolution: which
+    // contribution currently satisfies each logical power, which are shadowed
+    // beneath it, and what happens to both when a provider goes away.
+    //
+    // WHAT THIS REPLACED, and it is the whole reason for the phase. CAT-0 left one
+    // line here that CALLED a package's authoring function to manufacture the
+    // process's vocabulary. Every power the system had was then a power this
+    // translation unit contained, which made "an artifact loaded tomorrow brings
+    // different semantics" not a hard problem but an inexpressible one. This host
+    // now knows WHICH ARTIFACTS to mount and HOW to host what they supply. It does
+    // not know what any of them means, and since this file no longer includes the
+    // header that defines the delay rule, it could not say.
+    //
+    // TWO MOUNTS, AND THE ORDER IS NOT ARBITRARY. The first supplies the small
+    // arithmetic powers; the second supplies a domain composition BUILT OVER THEM,
+    // which arrives as a graph naming them rather than as an implementation of
+    // them. So the second provider's rule spends the first provider's code, through
+    // this host's resolution, decided afresh at every evaluation -- and neither
+    // artifact was compiled against the other.
+    //
+    // ...AND BOTH ARE MOUNTED BEFORE THE OFFER FURTHER DOWN, which is the ordering
+    // the whole handoff turns on: a Timer that is offered a host VALIDATES the rule
+    // it is being asked to spend, inside its own constructor, so the contribution
+    // has to be in this catalog before the artifact that needs it is created.
     //
     // IT IS NOT A SINGLETON AND MUST NOT BECOME ONE. There is no process-wide
     // registry, no static, no accessor and no service locator: it is a local of
@@ -440,31 +460,43 @@ int main(int argc, char** argv) {
     // process would own a second one, correctly, and neither would be "the"
     // catalog.
     //
-    // THE VOCABULARY IS THE PACKAGE'S OWN, unmodified: `standard_operators()` is
-    // the same authoring the Timer would have carried, so the host publishes no
-    // second definition of anything -- `math.max`, `logic.select_int` and the
-    // composition over them, exactly as timer/normalize.hpp writes them. What
-    // moved is WHERE THE INSTANCE LIVES, not what it says.
-    //
-    // ...AND THE DECLARATION ORDER IS THE LIFETIME CLAIM. These two are declared
+    // ...AND THE DECLARATION ORDER IS THE LIFETIME CLAIM. These are declared
     // BEFORE the Kernel, so destruction -- which runs in reverse -- takes the
     // Kernel down first, and the Kernel destroys every artifact it holds before
     // the surface those artifacts point at goes anywhere. Nothing across the ABI
     // takes shared ownership to enforce that, because a lifetime the host
     // already controls does not need a refcount to be correct; it needs to be
-    // stated, and this is where this host states it.
-    const op::Catalog operators = timer::standard_operators();
-    op::OperatorHostSurface operator_host(operators);
-
-    loom::Kernel kernel(bus);
-    const loom::WeaveId control = loom::mount_control(kernel, bus);
-    const loom::WeaveId manager = loom::mount_manager(control, bus);
-
+    // stated, and this is where this host states it. The catalog also holds each
+    // mounted provider's image open for as long as its contributions are installed,
+    // which is the same promise one layer down and is the catalog's to keep.
     HostContext host;
     host.dir = exe_dir();
     host.document_path = args.document;
     host.setup_path = args.setup;
     host.request_stop = [&bus] { bus.stop(); };
+
+    op::Catalog operators;
+    for (const char* artifact : {"zengine-operators-basic", "zengine-timer"}) {
+        const op::MountResult mounted = op::mount_provider(operators, host.so(artifact));
+        // SAID WHETHER IT WORKED OR NOT. A refused mount is not fatal here and must
+        // not be silent either: what follows is a load that will refuse itself if
+        // the power it needs is missing, and a reader who saw only that second
+        // refusal would be one layer away from the fact that caused it.
+        const std::string outcome =
+            mounted.ok ? "supplied " + std::to_string(mounted.contributed) + " as '" +
+                             mounted.provider + "'"
+                       : "supplied nothing - " + mounted.reason;
+        std::printf("zengine-workshop - operators: %s %s\n", artifact, outcome.c_str());
+    }
+    std::printf("zengine-workshop - operators: %zu resolvable, from %zu provider(s)\n",
+                operators.size(), operators.providers().size());
+    std::fflush(stdout);
+
+    op::OperatorHostSurface operator_host(operators);
+
+    loom::Kernel kernel(bus);
+    const loom::WeaveId control = loom::mount_control(kernel, bus);
+    const loom::WeaveId manager = loom::mount_manager(control, bus);
 
     // ---- The terminal participant Workshop presents (WT-1) -------------------
     //
@@ -745,9 +777,9 @@ int main(int argc, char** argv) {
         // symbol was resolved and the table was handed over, or it was not -- so
         // nothing is guessed at by saying it early, and saying it after the
         // drain would be writing over somebody else's screen.
-        std::printf("zengine-workshop - operators: %zu published, %s\n", operators.size(),
+        std::printf("zengine-workshop - operators: %s\n",
                     offering.offered()
-                        ? "offered to the Timer for this load"
+                        ? "this host's resolution offered to the Timer for this load"
                         : (offering.reason().empty()
                                ? "the Timer image declares no operator surface (it keeps its own)"
                                : offering.reason().c_str()));

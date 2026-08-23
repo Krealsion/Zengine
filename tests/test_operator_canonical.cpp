@@ -193,7 +193,7 @@ struct CanonRig {
     /// the load's.
     op::OfferOutcome offer = op::OfferOutcome::NotAConsumer;
 
-    explicit CanonRig(op::Catalog operators_in = tmr::standard_operators())
+    explicit CanonRig(op::Catalog operators_in = tmr::fallback_vocabulary())
         : catalog(std::move(operators_in)) {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
@@ -362,7 +362,7 @@ constexpr std::int64_t kSubstitutedAnswer = zengine::testing::kSabotagedRepeatin
 TEST_CASE("the host arrangement owns ONE catalog, and it is the package's own authoring") {
     CanonRig r;
 
-    // The vocabulary a host publishes is `timer::standard_operators()` and not a
+    // The vocabulary a host publishes is `timer::fallback_vocabulary()` and not a
     // second definition written in a host: three identities, the two primitives
     // and the composition over them.
     const std::vector<std::string> published = r.catalog.identities();
@@ -414,7 +414,7 @@ TEST_CASE("the authority is chosen at construction and is fixed for the instance
     // The in-process half of the same claim, where both states can be built
     // directly. A `DelayAuthority` has no setter, no rebind and no second door:
     // what it is, it was made.
-    op::Catalog catalog = tmr::standard_operators();
+    op::Catalog catalog = tmr::fallback_vocabulary();
     op::OperatorHostSurface surface(catalog);
 
     const tmr::DelayAuthority backed{op::OperatorHost::over(surface.api())};
@@ -559,7 +559,7 @@ TEST_CASE("the substitution is invisible to every structural check the seam make
     // signature check: same identity, same ports, same types, same content ids.
     // A Timer built against the honest vocabulary accepts the substituted host
     // without noticing anything, and then answers differently.
-    const op::Catalog honest = tmr::standard_operators();
+    const op::Catalog honest = tmr::fallback_vocabulary();
     const op::Catalog substituted = zengine::testing::sabotaged_operators();
     const op::OperatorDef* h = honest.find(tmr::kNormalizeDelay);
     const op::OperatorDef* s = substituted.find(tmr::kNormalizeDelay);
@@ -739,16 +739,20 @@ std::string host_source() {
 
 } // namespace
 
-TEST_CASE("the production host owns a catalog, and owns it for longer than the Kernel") {
+TEST_CASE("the production host owns ONE catalog, and owns it for longer than the Kernel") {
     const std::string host = host_source();
 
-    // It publishes the PACKAGE's authoring, not a second definition of its own.
-    const std::size_t catalog = host.find("op::Catalog operators = timer::standard_operators()");
+    // ONE CATALOG, and only one: CAT-0's claim, unchanged. WHERE ITS CONTENTS COME
+    // FROM stopped being this case's business at PROV-0 -- the host authors nothing
+    // now and `test_operator_provider.cpp` owns that tripwire -- but that there is a
+    // single object, declared here, outliving the Kernel, is still this phase's.
+    const std::size_t catalog = host.find("op::Catalog operators;");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
     const std::size_t kernel = host.find("loom::Kernel kernel(bus)");
     REQUIRE(catalog != std::string::npos);
     REQUIRE(surface != std::string::npos);
     REQUIRE(kernel != std::string::npos);
+    CHECK(host.find("op::Catalog", catalog + 1) == std::string::npos);
 
     // THE LIFETIME CLAIM IS AN ORDER OF DECLARATION and nothing else, so this is
     // the one place it can be read. Destruction runs in reverse: the Kernel goes

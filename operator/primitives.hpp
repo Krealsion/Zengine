@@ -37,6 +37,13 @@
 // the Timer the owner of a power that is nobody's in particular, and the second
 // consumer would then either reach into the Timer or write its own.
 //
+// ...AND SINCE PROV-0 THAT SPLIT IS A PROVIDER SPLIT, not only a file one. These
+// two definitions are what `zengine-operators-basic` -- an artifact that is a
+// PROVIDER and not a weave -- contributes to a host, while the Timer artifact
+// contributes only its own domain composition and NAMES these two. So a running
+// system's `math.max` is somebody's contribution rather than something a host
+// compiled into itself, and replacing it replaces it for the composition too.
+//
 // PURITY IS A CONSTRAINT ON THE DOOR, NOT ON THE ROOM. Registration by value
 // removes the ARGUMENT path -- an operator cannot be HANDED a Bus, a Kernel or a
 // Workshop -- and it does not remove the AMBIENT one: native C++ in the same
@@ -47,6 +54,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 namespace zengine::op {
 
@@ -61,12 +70,27 @@ inline std::int64_t select_int(bool condition, std::int64_t when_true, std::int6
 inline constexpr const char* kMaxInt = "math.max";
 inline constexpr const char* kSelectInt = "logic.select_int";
 
-/// Publish the primitive leaves into a catalog. Two calls, and the only thing
-/// authored in either is the identity and the port names.
+/// THE TWO LEAVES, AUTHORED ONCE (PROV-0). Two calls, and the only thing authored
+/// in either is the identity and the port names.
+///
+/// It answers with DEFINITIONS rather than filling a catalog, because since PROV-0
+/// this authoring has two destinations and neither may be a copy of the other: the
+/// basic provider artifact CONTRIBUTES them to a host, and a Timer with no host at
+/// all assembles them locally. One authoring, two doors -- the second of which is
+/// the two-line `publish_primitives` below.
+inline std::vector<OperatorDef> primitive_definitions() {
+    std::vector<OperatorDef> defs;
+    defs.push_back(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result"));
+    defs.push_back(make_operator<&select_int>(kSelectInt,
+                                              {"condition", "when_true", "when_false"}, "result"));
+    return defs;
+}
+
+/// Publish the primitive leaves into a catalog -- the local-assembly door.
 inline void publish_primitives(Catalog& catalog) {
-    catalog.publish(make_operator<&max_int>(kMaxInt, {"lhs", "rhs"}, "result"));
-    catalog.publish(make_operator<&select_int>(kSelectInt,
-                                               {"condition", "when_true", "when_false"}, "result"));
+    for (OperatorDef& def : primitive_definitions()) {
+        catalog.publish(std::move(def));
+    }
 }
 
 } // namespace zengine::op

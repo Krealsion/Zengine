@@ -24,12 +24,14 @@
 #include "vocabulary.hpp"
 
 #include "operator/host.hpp"
+#include "operator/provider.hpp"
 
 #include <zen/kernel/export.hpp>
 
 #include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <vector>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -121,3 +123,25 @@ ZEN_EXPORT_WEAVE(TimerService)
 /// Timer's behaviour, ABI, dependencies or lifetime moves because this line is
 /// here.
 ZENGINE_OPERATOR_CONSUMER();
+
+/// ...AND THIS IMAGE SUPPLIES A POWER (PROV-0's one line).
+///
+/// THREE RELATIONSHIPS, ONE ARTIFACT, AND THEY ARE INDEPENDENT.
+///
+///     zen_weave_abi                 this image can BE the Timer participant
+///     zengine_operator_provider     this image SUPPLIES `timer.normalize_delay`
+///     zengine_operator_consumer     this image can SPEND a host's operator truth
+///
+/// A host mounts the provider surface FIRST, which is what puts the delay rule
+/// into its resolution; then it offers that resolution to the instance it is about
+/// to create; then Loom constructs the weave, which validates the rule it is being
+/// asked to spend and finds it there. The contribution therefore exists before the
+/// instance that needs it, which is the ordering the whole handoff turns on — and
+/// none of the three requires either of the others. `zengine-operators-basic`
+/// exports only the middle one; `zengine-snake` exports only the first.
+///
+/// WHAT IT CONTRIBUTES IS ONE COMPOSITION AND NOTHING ELSE. `math.max` and
+/// `logic.select_int` are named by the graph and supplied by somebody else, so a
+/// host that mounts a different provider for either of them changes what this
+/// Timer schedules without this artifact being rebuilt, edited or even asked.
+ZENGINE_OPERATOR_PROVIDER("zengine.timer", zengine::timer::provider_contributions)

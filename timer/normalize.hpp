@@ -92,13 +92,49 @@ inline op::OperatorDef normalize_delay(const op::Catalog& primitives) {
     return std::move(rule).result(kEffectiveDelayPort, effective);
 }
 
-/// Everything the Timer's semantics are made of: two primitive powers and the
-/// one rule composed from them.
+/// WHAT THIS PACKAGE CONTRIBUTES TO A HOST (PROV-0) — its domain composition, and
+/// not one primitive.
 ///
-/// It is a VALUE, not a registry and not a singleton. A Timer holds one, a
-/// consumer may hold the same one, and anybody who wants a different vocabulary
-/// builds a different catalog rather than editing somebody else's.
-inline op::Catalog standard_operators() {
+/// The catalog inside is AUTHORING SCAFFOLDING and dies at the closing brace.
+/// `Builder` resolves each step as it is written, so it needs the primitives'
+/// SIGNATURES present to derive the output type and to snapshot the two content ids
+/// each node was authored against — and needing a signature to compose against is
+/// not owning the power. What comes out is a graph whose nodes say `math.max` and
+/// `logic.select_int`, and whoever provides those in the world this rule lands in is
+/// whose implementation it spends.
+///
+/// THAT IS WHY THE TIMER NO LONGER SUPPLIES THEM. Before PROV-0 the host published
+/// `standard_operators()` — the primitives and the rule together, out of this
+/// package — so replacing `math.max` meant replacing something the Timer owned. Now
+/// the Timer artifact contributes exactly one power, the basic provider contributes
+/// the two it names, and the host composes what it was given.
+inline std::vector<op::OperatorDef> provider_contributions() {
+    op::Catalog against;
+    op::publish_primitives(against);
+    std::vector<op::OperatorDef> defs;
+    defs.push_back(normalize_delay(against));
+    return defs;
+}
+
+/// THE NO-HOST ARRANGEMENT'S VOCABULARY: the basic primitive definitions plus this
+/// package's own composition, ASSEMBLED LOCALLY because nobody is claiming semantic
+/// authority here.
+///
+/// It is a VALUE, not a registry and not a singleton. A fallback Timer holds one,
+/// and anybody who wants a different vocabulary builds a different catalog rather
+/// than editing somebody else's.
+///
+/// IT IS NOT A HOST'S CATALOG AND MUST NOT BE MISTAKEN FOR ONE. It used to be
+/// called `standard_operators()`, and the name was a claim this package had stopped
+/// being able to make: Workshop called it to manufacture the whole process's
+/// semantic vocabulary, which meant the Timer package owned every power in the
+/// system. What this function is FOR is the arrangement where there is no host at
+/// all — `snake`, a plain Loom, any program that predates the operator seam — and
+/// where assembling a local vocabulary is the honest thing rather than a fallback
+/// from a failure. It reuses the same two definitions the basic provider
+/// contributes, so a standalone Timer needs no second artifact to keep behaving
+/// exactly as it always did.
+inline op::Catalog fallback_vocabulary() {
     op::Catalog catalog;
     op::publish_primitives(catalog);
     catalog.publish(normalize_delay(catalog));
@@ -181,7 +217,7 @@ inline std::int64_t effective_delay(const op::Catalog& catalog, std::int64_t del
 class DelayAuthority {
 public:
     /// LOCAL-FALLBACK over the vocabulary this repository authors.
-    DelayAuthority() : local_(standard_operators()) {}
+    DelayAuthority() : local_(fallback_vocabulary()) {}
 
     /// LOCAL-FALLBACK over a catalog the caller chose - SEM-0's seam, unchanged.
     /// It is what lets a suite replace a primitive underneath the rule and watch
@@ -205,8 +241,9 @@ public:
     /// which is exactly what `loom::same_identity` already answers and what
     /// `Schema::content_id()` already versions. No hash of this phase's own
     /// invention, and no second description of the rule: the expectation is
-    /// derived from `standard_operators()`, the one authoring, and the catalog it
-    /// comes out of dies at the closing brace. A host-backed Timer holds none.
+    /// derived from `normalize_delay`, the one authoring -- the SAME call this
+    /// package's provider contribution is built from -- and the scaffolding it needs
+    /// dies at the closing brace. A host-backed Timer holds no catalog at all.
     ///
     /// It THROWS, and the throw is the refusal. Inside a loaded artifact it
     /// travels exactly one frame: `create()` catches it, returns null, and the
@@ -215,7 +252,7 @@ public:
     /// Timer.
     explicit DelayAuthority(op::OperatorHost offered) {
         if (!offered.bound()) {
-            local_.emplace(standard_operators());
+            local_.emplace(fallback_vocabulary());
             return;
         }
         const op::HostSignature contract = offered.describe(kNormalizeDelay);
@@ -225,10 +262,11 @@ public:
                 "' (status " + std::to_string(static_cast<int>(contract.status)) +
                 "); a Timer offered a host must spend it, so this one refuses to run");
         }
-        const op::Catalog authored = standard_operators();
-        const op::OperatorDef* mine = authored.find(kNormalizeDelay);
-        if (!loom::same_identity(*contract.inputs, *mine->inputs()) ||
-            !loom::same_identity(*contract.outputs, *mine->outputs())) {
+        op::Catalog against;
+        op::publish_primitives(against);
+        const op::OperatorDef mine = normalize_delay(against);
+        if (!loom::same_identity(*contract.inputs, *mine.inputs()) ||
+            !loom::same_identity(*contract.outputs, *mine.outputs())) {
             throw std::invalid_argument(
                 "this operator host's '" + std::string(kNormalizeDelay) +
                 "' is not the signature this Timer was authored against; a Timer offered a "

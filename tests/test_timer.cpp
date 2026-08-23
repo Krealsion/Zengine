@@ -280,7 +280,7 @@ struct FakeRig {
     loom::WeaveId steward{};    ///< mounted only where a test wants one
     std::int64_t next_sequence = 1;
 
-    FakeRig() : FakeRig(zengine::timer::standard_operators()) {}
+    FakeRig() : FakeRig(zengine::timer::fallback_vocabulary()) {}
 
     /// A rig whose service spends a catalog the CASE chose. Everything else is
     /// identical; the only difference under test is which operator truth the
@@ -1158,7 +1158,7 @@ std::int64_t interpreted_delay_with(zengine::op::Catalog operators, std::int64_t
 }
 
 std::int64_t interpreted_delay(std::int64_t delay_ms, bool repeat) {
-    return interpreted_delay_with(zengine::timer::standard_operators(), delay_ms, repeat);
+    return interpreted_delay_with(zengine::timer::fallback_vocabulary(), delay_ms, repeat);
 }
 
 } // namespace
@@ -1256,7 +1256,7 @@ TEST_CASE("replace a primitive under the rule and the RUNNING Timer moves with i
     CHECK(read.answer == "-500");
 
     const stranger::Reading honest =
-        stranger::ask(zengine::timer::standard_operators(), "timer.normalize_delay",
+        stranger::ask(zengine::timer::fallback_vocabulary(), "timer.normalize_delay",
                       {{"delay_ms", "-500"}, {"repeat", "true"}});
     REQUIRE(honest.ok);
     CHECK(honest.answer == "1");
