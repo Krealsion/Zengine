@@ -56,7 +56,9 @@ to disagree with.
 ## What a host writes
 
 ```cpp
-op::Catalog catalog = timer::standard_operators();
+op::Catalog catalog;                             // authors nothing itself
+op::mount_provider(catalog, path_to("zengine-operators-basic"));
+op::mount_provider(catalog, path_to("zengine-timer"));
 op::OperatorHostSurface operators(catalog);      // declared BEFORE the Kernel
 loom::Kernel kernel(bus);
 // ...
@@ -87,6 +89,11 @@ before the Kernel is what makes reverse-order destruction correct: the Kernel
 goes first and takes its artifacts with it. Nothing crosses the ABI to enforce
 this, because a lifetime the host already controls does not need a refcount —
 it needs to be got right.
+
+**The catalog's CONTENTS are somebody else's.** Since PROV-0 a host does not
+author operators; it mounts artifacts that supply them and owns which contribution
+is currently in force. [operator-providers.md](operator-providers.md) is that half,
+including why the mounts have to come before the offer.
 
 **And the catalog is the host arrangement's, not a singleton.** It is a local of
 the host's own `main` — no static, no process-wide registry, no accessor. A
@@ -204,17 +211,18 @@ asked for.
 ## Who consumes this today
 
 The shipped **Timer** (`zengine-timer`) and OPH-0's stranger fixture. The Timer is
-the first artifact to be both halves of this seam at once: it AUTHORS the delay
-vocabulary its package publishes, and it CONSUMES whatever operator surface its
-host offered the instance. Those are different roles and the package keeps them
-apart — `timer::standard_operators()` is what a HOST publishes, and what a Timer
-spends is decided per instance. See
+the first artifact to be both halves of this seam at once: it SUPPLIES the delay
+composition across the [provider seam](operator-providers.md), and it CONSUMES
+whatever operator surface its host offered the instance. Those are different roles
+and different exported symbols — what the Timer contributes is one composition,
+and what it spends is decided per instance. See
 [timer-protocol.md](timer-protocol.md#what-the-timer-makes-of-a-delay).
 
 A consumer with its own fallback owes one more thing than the stranger does:
 **an accepted offer must be checked before it is accepted.** The Timer describes
 `timer.normalize_delay` across the seam at construction and compares both port
-schemas against the ones its own package authors (`loom::same_identity`, which is
+schemas against the one composition its own package contributes
+(`loom::same_identity`, which is
 `Schema::content_id()` doing the versioning it already does). A host that
 publishes no such rule, or publishes it at another signature, is refused — the
 constructor throws, `create()` returns null, and the Kernel refuses the load.

@@ -45,6 +45,15 @@ it beside [`operator/host.hpp`](../operator/host.hpp) and
 [`operator/host_abi.h`](../operator/host_abi.h); the rule itself is
 [reference/timer-protocol.md](reference/timer-protocol.md).
 
+**Where a host's powers come from:**
+[reference/operator-providers.md](reference/operator-providers.md) — how an
+artifact supplies operator definitions to a host, why a provider need not be a
+weave, how a composition crosses as structure rather than as a callback, and how
+one power may be deliberately shadowed and then revealed again. Read it beside
+[`operator/provider_abi.h`](../operator/provider_abi.h),
+[`operator/provider.hpp`](../operator/provider.hpp) and
+[`operator/catalog.hpp`](../operator/catalog.hpp).
+
 **Invariants:** [laws/timer-laws.md](laws/timer-laws.md) (TIMER-01..05).
 
 **Why:** [decisions/](decisions/timer-continuity-carries-remaining-duration.md) ·
