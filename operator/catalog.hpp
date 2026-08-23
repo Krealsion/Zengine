@@ -4,7 +4,7 @@
 #ifndef ZENGINE_OPERATOR_CATALOG_HPP
 #define ZENGINE_OPERATOR_CATALOG_HPP
 
-// THE STORE, THE AUTHORING BUILDER, AND THE ONE EVALUATOR (SEM-0).
+// THE STORE, THE AUTHORING BUILDER, AND THE ONE EVALUATOR (SEM-0, layered by PROV-0).
 //
 // ONE STORE, READ TWICE. There is no list of names beside a map of callables:
 // `identities()` walks the same map `evaluate()` resolves through, so a name a
@@ -13,6 +13,24 @@
 // `accepted_schemas()`, `Kernel::accepts`, `describe_authority_as` and the
 // Timer's own `find_entry` -- and each says it the same way: share the
 // PREDICATE and the STORE, never a copy of the ANSWER.
+//
+// ...AND SINCE PROV-0 THE STORE IS LAYERED, which is the same law read once more.
+// An identity does not hold a definition; it holds the STACK of contributions
+// eligible to satisfy it, and the last one is ACTIVE. `find` answers the active
+// one, so `evaluate`, `describe`, a composite's own nodes and a loaded consumer
+// across the ABI all resolve the same contribution for the same reason they always
+// did -- they ask the one store, at the moment they ask.
+//
+//     math.max
+//         active     zengine.operators.test.min   <- what find() answers
+//         shadowed   zengine.operators.basic      <- still resident, still here
+//
+// SHADOWING IS INTENTIONAL. A second ordinary contribution to a taken identity is
+// REFUSED, exactly as a duplicate `publish` always was; only an explicit OVERLAY
+// mount may cover one, and only where the ports are structurally the contract
+// existing compositions were authored against. And it COVERS rather than replaces:
+// unmounting the overlay reveals what was underneath, unchanged and unrebuilt,
+// which is what makes replacement reversible at all.
 //
 // RESOLVE AT SPEND. A composition holds an operator's IDENTITY and the two
 // `ContentId`s it was authored against, and resolves everything else at the
@@ -55,9 +73,12 @@
 #include <zen/value.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -87,34 +108,223 @@ inline bool same_type(const loom::TypeRef& a, const loom::TypeRef& b) {
 
 } // namespace detail
 
+// ---- who contributed a definition, and under what terms ---------------------
+
+/// ONE CONTRIBUTION: a definition, and which provider supplied it.
+///
+/// The definition is held by SHARED POINTER and that is load-bearing rather than
+/// tidy. A shadowed contribution has to stay the SAME OBJECT while something else
+/// is active over it, so that revealing it again is revealing it -- not
+/// reconstructing something that compares equal. A raw slot in a vector could not
+/// promise that across a reallocation; a `shared_ptr` promises it across anything.
+struct Contribution {
+    /// The provider's logical identity. EMPTY means the host authored this one
+    /// itself, through `publish` -- the floor, and the state every catalog in this
+    /// repository was in before providers existed.
+    std::string provider;
+    std::shared_ptr<const OperatorDef> definition;
+};
+
+/// WHY A MOUNT IS BEING MADE, and it is a two-value question on purpose.
+///
+/// A provider layering system needs exactly one bit of INTENT from the caller:
+/// did you mean to cover something? Everything else -- which providers exist, what
+/// they supply, whether the ports agree -- the catalog can see for itself.
+enum class MountMode : std::uint8_t {
+    /// Contribute powers nobody else supplies. A collision is a REFUSAL.
+    Ordinary,
+    /// Deliberately cover an existing contribution to the same identity. Allowed
+    /// only where the ports are structurally what existing compositions were
+    /// authored against.
+    Overlay,
+};
+
+/// What a mount did, or why it did nothing.
+///
+/// A MOUNT IS ALL OR NOTHING. Every contribution in a batch is judged before any
+/// of them is installed, so a refusal leaves the catalog exactly as it was rather
+/// than half-carrying a provider whose second operator was the problem.
+struct MountReport {
+    bool ok = false;
+    std::string reason;
+    explicit operator bool() const noexcept { return ok; }
+};
+
 /// Every operator this world knows, discoverable and invocable from one record.
 ///
 /// Copyable on purpose: a catalog is authored data, and a consumer that wants a
 /// different vocabulary makes a different catalog rather than editing somebody
-/// else's. Immutable once built, in the only sense that matters -- there is no
-/// erase, no replace and no rebind, so a name resolves to the same definition
-/// for as long as the catalog exists.
+/// else's. A copy shares its definitions rather than duplicating them, which is
+/// what `shared_ptr` is doing there: a definition is immutable, so two catalogs
+/// naming one object is two readers, never two answers.
+///
+/// WHAT IT OWNS SINCE PROV-0. Not just definitions: the CURRENT RESOLUTION of
+/// every identity anything provided. Contributions arrive from providers and are
+/// layered; `find` answers the top of a stack; `unmount` removes exactly one
+/// provider's and reveals whatever it was covering. The catalog authors nothing
+/// and implements nothing -- it decides, at every moment, which contribution
+/// currently satisfies a logical power.
 class Catalog {
 public:
-    /// Refuses a duplicate identity, loudly.
+    /// PUBLISH ONE DEFINITION THE HOST ITSELF AUTHORED. Refuses a duplicate
+    /// identity, loudly.
     ///
     /// Answering a second registration with the first-sorting map key is an
     /// answer nobody authored, and Zen refuses that shape three times already: a
     /// role is a singleton, a shadowing pane offer is refused, and a published
     /// schema is immutable. `std::invalid_argument` is what `loom::Schema`'s own
     /// constructor throws for a shape it will not build.
+    ///
+    /// It is the SAME LAW `mount` enforces, said in the older spelling: a taken
+    /// identity is taken, and covering one is a thing you have to ask for.
     void publish(OperatorDef def) {
         const std::string key = def.identity();
         if (ops_.find(key) != ops_.end()) {
             throw std::invalid_argument("operator '" + key + "' is already published");
         }
-        ops_.emplace(key, std::move(def));
+        ops_[key].push_back(Contribution{std::string(),
+                                         std::make_shared<const OperatorDef>(std::move(def))});
     }
 
-    /// The definition, or nullptr. The one lookup; `evaluate` uses it too.
+    /// INSTALL ONE PROVIDER'S CONTRIBUTIONS, all of them or none of them.
+    ///
+    /// `custody` is whatever must stay alive for as long as this provider is
+    /// mounted -- for a loaded artifact, the record that holds its image open. The
+    /// catalog does not know what it is and must not: this header is portable, has
+    /// no loader in it, and a provider that is not an image at all (a suite's, say)
+    /// hands over nothing. What the catalog DOES promise is the order: on unmount
+    /// the contributions go first and the custody goes after, so no callable can
+    /// still be reachable when the thing it calls into is released.
+    MountReport mount(std::string provider, std::vector<OperatorDef> definitions,
+                      MountMode mode = MountMode::Ordinary,
+                      std::shared_ptr<const void> custody = nullptr) {
+        if (provider.empty()) {
+            // The empty name means "the host authored it", and a provider that
+            // could claim it would be unmountable: `unmount("")` would take the
+            // host's own vocabulary with it.
+            return refused("a provider must have an identity");
+        }
+        if (providers_.find(provider) != providers_.end()) {
+            return refused("provider '" + provider + "' is already mounted");
+        }
+        if (definitions.empty()) {
+            // A provider that supplies nothing leaves no trace and could never be
+            // unmounted meaningfully. Said out loud rather than accepted silently,
+            // because the way this happens in practice is a provider whose
+            // authoring failed.
+            return refused("provider '" + provider + "' contributes nothing");
+        }
+
+        // ---- judge everything first ----------------------------------------
+        for (std::size_t i = 0; i < definitions.size(); ++i) {
+            const OperatorDef& def = definitions[i];
+            for (std::size_t k = 0; k < i; ++k) {
+                if (definitions[k].identity() == def.identity()) {
+                    return refused("provider '" + provider + "' contributes '" + def.identity() +
+                                   "' twice");
+                }
+            }
+            const OperatorDef* active = find(def.identity());
+            if (active == nullptr) {
+                continue; // a power nobody supplies: neither mode has anything to say
+            }
+            const std::string& holder = ops_.find(def.identity())->second.back().provider;
+            const std::string held_by = holder.empty() ? "this host itself" : "'" + holder + "'";
+            if (mode == MountMode::Ordinary) {
+                // NO AUTOMATIC PRIORITY. Load order, filesystem order and map
+                // iteration are not policy; two providers of one power without a
+                // stated intent is an ambiguity nobody authored.
+                return refused("'" + def.identity() + "' is already supplied by " + held_by +
+                               "; mounting '" + provider +
+                               "' over it needs an explicit overlay");
+            }
+            if (!loom::same_identity(*def.inputs(), *active->inputs()) ||
+                !loom::same_identity(*def.outputs(), *active->outputs())) {
+                // A DIFFERENT POWER WEARING THE SAME NAME. Compositions were
+                // authored against the ports below; a shadow that changes them
+                // would be answering a question nobody asked.
+                return refused("'" + provider + "' would shadow '" + def.identity() +
+                               "' at a different signature (" + def.inputs()->name() + " v" +
+                               std::to_string(def.inputs()->version()) + " -> " +
+                               def.outputs()->name() + " v" +
+                               std::to_string(def.outputs()->version()) + ") than " + held_by +
+                               " supplies (" + active->inputs()->name() + " v" +
+                               std::to_string(active->inputs()->version()) + " -> " +
+                               active->outputs()->name() + " v" +
+                               std::to_string(active->outputs()->version()) + ")");
+            }
+        }
+
+        // ---- then install, with nothing left to refuse ----------------------
+        for (OperatorDef& def : definitions) {
+            const std::string key = def.identity();
+            ops_[key].push_back(
+                Contribution{provider, std::make_shared<const OperatorDef>(std::move(def))});
+        }
+        providers_.emplace(std::move(provider), std::move(custody));
+        return MountReport{true, std::string()};
+    }
+
+    /// REMOVE EXACTLY ONE PROVIDER'S CONTRIBUTIONS, and reveal what they covered.
+    ///
+    /// For each identity it supplied: if an eligible contribution remains, that one
+    /// becomes active again -- the SAME OBJECT that was there before, not a rebuild
+    /// of it. If none remains, the logical operator becomes unresolved, and the
+    /// deepest layer that knows says so at the next evaluation. Nothing is
+    /// manufactured to fill a gap.
+    ///
+    /// THE ORDER IS THE POINT and it is two statements: the contributions go, THEN
+    /// the custody. A native contribution's callable holds the provider's record,
+    /// so dropping the contribution is what makes the callable unreachable, and
+    /// only then can the record -- and the image inside it -- be released.
+    bool unmount(std::string_view provider) {
+        const auto mounted = providers_.find(provider);
+        if (mounted == providers_.end()) {
+            return false;
+        }
+        for (auto it = ops_.begin(); it != ops_.end();) {
+            std::vector<Contribution>& stack = it->second;
+            for (auto c = stack.begin(); c != stack.end();) {
+                c = c->provider == provider ? stack.erase(c) : c + 1;
+            }
+            it = stack.empty() ? ops_.erase(it) : std::next(it);
+        }
+        providers_.erase(mounted);
+        return true;
+    }
+
+    bool mounted(std::string_view provider) const {
+        return providers_.find(provider) != providers_.end();
+    }
+
+    /// Who is mounted here. Sorted, because a map is.
+    std::vector<std::string> providers() const {
+        std::vector<std::string> names;
+        names.reserve(providers_.size());
+        for (const auto& [name, custody] : providers_) {
+            (void)custody;
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    /// EVERY ELIGIBLE CONTRIBUTION TO ONE IDENTITY, ACTIVE LAST.
+    ///
+    /// The whole of what provider layering needs to be debuggable -- which
+    /// provider is active, which are shadowed, and in what order -- read off the
+    /// ONE store rather than off a ledger kept beside it. It is deliberately not a
+    /// maker-facing introspection surface and deliberately not metadata: it is this
+    /// object's own resolution state, and a later Metadata system may project it.
+    std::vector<Contribution> contributions(std::string_view identity) const {
+        const auto it = ops_.find(identity);
+        return it == ops_.end() ? std::vector<Contribution>() : it->second;
+    }
+
+    /// The ACTIVE definition, or nullptr. The one lookup; `evaluate` uses it too,
+    /// and so does every node of every composition, at every spend.
     const OperatorDef* find(std::string_view identity) const {
         const auto it = ops_.find(identity);
-        return it == ops_.end() ? nullptr : &it->second;
+        return it == ops_.end() ? nullptr : it->second.back().definition.get();
     }
 
     /// What is in here, derived from the record rather than maintained beside
@@ -122,8 +332,8 @@ public:
     std::vector<std::string> identities() const {
         std::vector<std::string> names;
         names.reserve(ops_.size());
-        for (const auto& [name, def] : ops_) {
-            (void)def;
+        for (const auto& [name, stack] : ops_) {
+            (void)stack;
             names.push_back(name);
         }
         return names;
@@ -168,6 +378,8 @@ private:
         return Evaluation::refuse("unresolved operator reference '" + std::string(identity) + "'");
     }
 
+    static MountReport refused(std::string why) { return MountReport{false, std::move(why)}; }
+
     /// What happens once the arguments have met the gate, whichever door they
     /// came through. The refusal, the native/composite fork and the output check
     /// are one body, and both public `evaluate`s are its two entrances -- so a
@@ -188,7 +400,23 @@ private:
             }
             out.set(out_port, *walked.value().at(0));
         } else {
-            out.set(out_port, def.invoke_native(admitted.value()));
+            // A NATIVE BODY MAY NOW LIVE IN ANOTHER IMAGE (PROV-0), so this is the
+            // deepest place that can turn "the provider could not answer" into an
+            // honest refusal instead of an escape. The kernel's adapter contains a
+            // library's throw the same way and for the same reason; the only other
+            // spelling of this branch is an exception travelling out of an
+            // evaluation whose whole contract is a value or a reason.
+            std::optional<loom::Cell> answered;
+            try {
+                answered = def.invoke_native(admitted.value());
+            } catch (const std::exception& e) {
+                return Evaluation::refuse("'" + def.identity() +
+                                          "' could not be spent: " + e.what());
+            } catch (...) {
+                return Evaluation::refuse("'" + def.identity() +
+                                          "' could not be spent: its implementation failed");
+            }
+            out.set(out_port, *answered);
         }
         loom::Admission checked = loom::admit(std::move(out), *def.outputs());
         if (!checked) {
@@ -265,7 +493,19 @@ private:
         return Evaluation::accept(answers[graph.result_node]);
     }
 
-    std::map<std::string, OperatorDef, std::less<>> ops_;
+    /// THE ONE STORE. An identity maps to the stack of contributions eligible to
+    /// satisfy it, and `back()` is the active one -- so pushing is shadowing,
+    /// erasing is revealing, and there is nowhere else for either to be recorded.
+    /// A stack is never empty: the last erase takes the identity with it, which is
+    /// what makes "unresolved" a fact about the store rather than a special value
+    /// inside it.
+    std::map<std::string, std::vector<Contribution>, std::less<>> ops_;
+
+    /// WHO IS MOUNTED, and what each one keeps alive. Separate from `ops_` because
+    /// "mounted" and "supplies something right now" are different facts: a provider
+    /// whose every contribution is shadowed is still mounted, and unmounting it
+    /// must still find it.
+    std::map<std::string, std::shared_ptr<const void>, std::less<>> providers_;
 };
 
 // ---- authoring a composition -----------------------------------------------
