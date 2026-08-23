@@ -97,7 +97,14 @@ enum {
     /* The host itself failed while answering — contained at the seam rather than
      * thrown across it, exactly as the kernel's adapter contains a library's
      * throw. It says nothing about the request. */
-    ZENGINE_OP_ERR_HOST_FAILED = -6
+    ZENGINE_OP_ERR_HOST_FAILED = -6,
+    /* The mirror image, added by PROV-0 for the seam that points the other way
+     * (provider_abi.h): a PROVIDER failed while describing or spending one of its
+     * own contributions. One status space for answers about operators, because a
+     * reader chasing "who could not do this" should not have to know which of the
+     * two tables produced the number; the sign of the failure is the same either
+     * way, and only the direction differs. */
+    ZENGINE_OP_ERR_PROVIDER_FAILED = -7
 };
 
 /* WHAT A LOADED CONSUMER MAY ASK OF THE HOST'S OPERATORS. Two verbs, because two

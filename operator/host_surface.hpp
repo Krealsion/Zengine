@@ -48,6 +48,7 @@
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
 #include "operator/host_abi.h"
+#include "operator/image.hpp"
 #include "operator/operator.hpp"
 
 #include <zen/serialize.hpp>
@@ -57,18 +58,6 @@
 #include <cstring>
 #include <string>
 #include <string_view>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
 
 namespace zengine::op {
 
@@ -235,12 +224,12 @@ class OperatorOffer {
 public:
     OperatorOffer(const OperatorHostSurface& surface, const std::string& artifact_path)
         : share_(artifact_path) {
-        if (share_.get() == nullptr) {
+        if (!share_.open()) {
             outcome_ = OfferOutcome::NotOpened;
             reason_ = "could not open '" + artifact_path + "' to look for an operator surface";
             return;
         }
-        void* symbol = image_symbol(share_.get(), ZENGINE_OPERATOR_CONSUMER_SYMBOL);
+        void* symbol = share_.symbol(ZENGINE_OPERATOR_CONSUMER_SYMBOL);
         if (symbol == nullptr) {
             // An ordinary weave. Not a diagnostic, and the share is still
             // released by the destructor like every other path.
@@ -314,74 +303,28 @@ public:
     const std::string& reason() const noexcept { return reason_; }
 
 private:
-    // ---- the platform loader, and nothing else ----------------------------
-    //
-    // Deliberately the same two calls Loom makes, with the same flags, so both
-    // opens name the same image: RTLD_NOW | RTLD_LOCAL keeps the artifact's
-    // symbols out of the global namespace exactly as the Kernel's open does, and
-    // LoadLibraryA is the same ANSI-path limitation stated there.
-    static void* image_open(const std::string& path);
-    static void* image_symbol(void* handle, const char* name);
-    static void image_close(void* handle);
-
     /// ONE SHARE OF ONE IMAGE, OWNED FROM THE FIRST MOMENT IT IS OPEN.
     ///
-    /// `LoadedLibrary`'s shape and `Kernel::load`'s discipline both: every
-    /// refusal in the constructor above simply returns, and the handle closes
-    /// when this member goes -- so there is no failure path that can forget to
-    /// close, none that can close twice, and none (including a foreign `offer`
-    /// that throws) that can leak the mapping on the way out.
-    class ImageShare {
-    public:
-        explicit ImageShare(const std::string& path) : handle_(image_open(path)) {}
-        ~ImageShare() {
-            if (handle_ != nullptr) {
-                image_close(handle_);
-            }
-        }
-        ImageShare(const ImageShare&) = delete;
-        ImageShare& operator=(const ImageShare&) = delete;
-        ImageShare(ImageShare&&) = delete;
-        ImageShare& operator=(ImageShare&&) = delete;
-
-        void* get() const noexcept { return handle_; }
-
-    private:
-        void* handle_;
-    };
-
+    /// `operator/image.hpp` owns the three platform calls, and owns them because
+    /// `mount_provider` wants exactly the same three: two copies of a dlopen with
+    /// two independently maintained flag lists is two things that can drift about
+    /// whether an artifact is opened the way the Kernel opens it. The flags are
+    /// Loom's own, which is what makes both opens name ONE image.
+    ///
+    /// `LoadedLibrary`'s shape and `Kernel::load`'s discipline both: every refusal
+    /// in the constructor above simply returns, and the handle closes when this
+    /// member goes -- so there is no failure path that can forget to close, none
+    /// that can close twice, and none (including a foreign `offer` that throws)
+    /// that can leak the mapping on the way out.
+    ///
     /// FIRST MEMBER, so it is constructed before the constructor's body runs and
-    /// destroyed last of all -- which is what makes the throwing path above
-    /// safe rather than merely unlikely.
+    /// destroyed last of all -- which is what makes the throwing path above safe
+    /// rather than merely unlikely.
     ImageShare share_;
     ZengineOperatorStatus (*offer_)(const ZengineOperatorHostApiV1*) = nullptr;
     OfferOutcome outcome_ = OfferOutcome::NotAConsumer;
     std::string reason_;
 };
-
-inline void* OperatorOffer::image_open(const std::string& path) {
-#if defined(_WIN32)
-    return static_cast<void*>(::LoadLibraryA(path.c_str()));
-#else
-    return ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-#endif
-}
-
-inline void* OperatorOffer::image_symbol(void* handle, const char* name) {
-#if defined(_WIN32)
-    return reinterpret_cast<void*>(::GetProcAddress(static_cast<HMODULE>(handle), name));
-#else
-    return ::dlsym(handle, name);
-#endif
-}
-
-inline void OperatorOffer::image_close(void* handle) {
-#if defined(_WIN32)
-    ::FreeLibrary(static_cast<HMODULE>(handle));
-#else
-    ::dlclose(handle);
-#endif
-}
 
 } // namespace zengine::op
 

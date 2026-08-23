@@ -217,6 +217,25 @@ function(zengine_weave target source)
     set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
 endfunction()
 
+# ---- ...and an artifact that is a PROVIDER and not a weave (PROV-0) ---------------------
+#
+# The difference from zengine_weave() above is one line, and it is the claim: NO
+# loom::switchboard. A provider supplies operator definitions to a host that opened it
+# directly; it is never loaded by the Kernel, gets no WeaveId, role, grant or manifest, and
+# has no participant in it to send or receive anything. Linking a bus into it would be
+# claiming a relationship it does not have.
+#
+# It still takes loom_weave_build_contract(), and that is not ceremony: the contract is about
+# ending a DYNAMICALLY LOADED IMAGE's static lifetime, and a provider is dlopen'ed, held for
+# as long as its contributions are installed, and closed when they are removed. A vague-linkage
+# static that escaped its image would survive an unmount exactly as it would survive an unload.
+function(zengine_provider target source)
+    add_library(${target} SHARED ${source} ${ARGN})
+    target_link_libraries(${target} PRIVATE loom::core zengine-warnings zengine-sanitize)
+    loom_weave_build_contract(${target})
+    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${target})
+endfunction()
+
 # ---- The SDL dependency, acquired once for every package that needs it ------------------
 #
 # It used to live inside surface/, because the window Skin was the only target that saw
