@@ -335,6 +335,24 @@
 # is declared here as what it is -- a tripwire, not a proof -- because Workshop's `main()` claims a
 # terminal and no case in this repository can run it.
 #
+# PROV-0 raised the operator floor 53 -> 88, and its 35 cases needed no new row and no
+# gate for CAT-0's reason unchanged: what they prove is WHERE A POWER CAME FROM and which
+# contribution currently satisfies it, and a contribution has no medium. The suite gained a
+# FOURTH source file rather than a fourth CTest entry -- `test_operator_provider.cpp`
+# compiles into the same `zengine-operator-tests` binary -- because the population contract
+# counts ENTRIES, and a phase that added an entry for a tier of an existing suite would be
+# splitting the inventory to record a file.
+#
+# What is worth reading beside the number is how much of it is REAL ARTIFACTS. Twenty-six of
+# the 35 open at least one shared library across the native module boundary and read operator
+# definitions out of it, and SEVEN different images are involved: the shipped
+# `zengine-operators-basic` (a production provider that is deliberately not a weave), the
+# shipped `zengine-timer` (which exports all three surfaces at once), four provider fixtures,
+# OPH-0's loaded stranger, and one ordinary pre-existing weave that provides nothing. Two more
+# read `workshop/workshop.cpp` as a source file, and both are declared here as what they are --
+# tripwires, not proofs -- because Workshop's `main()` claims a terminal and no case in this
+# repository can run it.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -350,7 +368,7 @@ surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
-operator                          doctest           always  53
+operator                          doctest           always  88
 composer                          doctest           always  35
 builder                           doctest           always  30
 workshop                          doctest           always  582

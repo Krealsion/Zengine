@@ -124,6 +124,38 @@ endforeach()
 target_compile_definitions(zengine-operator-consumer-weave-legacy PRIVATE OPH_STRANGER_LEGACY=1)
 target_compile_definitions(zengine-operator-consumer-weave-abi PRIVATE OPH_STRANGER_ABI=1)
 
+# ---- PROV-0's provider artifacts, and NOT ONE OF THEM IS A WEAVE ------------
+#
+# `zengine_provider` rather than `zengine_weave`, and the absence of `loom::switchboard`
+# on these lines is the claim: there is no participant in any of these images. No
+# `zen_weave_abi`, no WeaveId, no role, no grant, no manifest and no bus. A host opens
+# the file, resolves ONE optional symbol, and reads definitions out of it.
+#
+#   zengine-provider-a        the three-level chain, `prov.function.3` = x * 2
+#   zengine-provider-b        `prov.function.3` ALONE, = x + 100 -- same signature, so
+#                             nothing structural notices the substitution
+#   zengine-provider-b-wrong  `prov.function.3` at Text -> Bool: a different power
+#                             wearing the same name, which an overlay must refuse
+#   zengine-provider-abi      the surface at a version this host does not speak
+#   zengine-provider-min      `math.max` supplied as a MIN -- SEM-0's instrument, as an
+#                             artifact, for the REAL Timer override witness
+#
+# One source for the first four (the weavelib pattern), because the difference under
+# test is one branch and everything else must be identical.
+set(ZENGINE_PROV_NAMES a b b-wrong abi)
+set(ZENGINE_PROV_FLAGS PROV_CHAIN_A PROV_CHAIN_B PROV_CHAIN_WRONG PROV_CHAIN_ABI)
+foreach(prov_name prov_flag IN ZIP_LISTS ZENGINE_PROV_NAMES ZENGINE_PROV_FLAGS)
+    zengine_provider(zengine-provider-${prov_name} weavelib/provider_chain.cpp)
+    target_link_libraries(zengine-provider-${prov_name} PRIVATE zengine-operator)
+    # PROV_CHAIN_A is the default arm and the source never tests for it; defining it
+    # anyway keeps this loop from needing a branch, and a flag that selects the
+    # already-default behaviour is honest about being one.
+    target_compile_definitions(zengine-provider-${prov_name} PRIVATE ${prov_flag}=1)
+endforeach()
+
+zengine_provider(zengine-provider-min weavelib/provider_min.cpp)
+target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
+
 zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
 target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
@@ -411,8 +443,16 @@ target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOUR
 # host's, and needs the real Kernel, the real Weave Manager and three real
 # artifacts -- so this suite now links loom::kernel and loom::switchboard, which
 # until this phase it deliberately did not.
+# PROV-0 adds a FOURTH file to the same binary, on the same terms: the population
+# contract counts ENTRIES, and a phase that registered a new CTest entry for a new
+# tier of an existing suite would be splitting the inventory in order to record a
+# file. What it asks is the next question in the line -- `test_operator.cpp` asks what
+# an operator is, `test_operator_host.cpp` whether a loaded stranger can spend a
+# host's, `test_operator_canonical.cpp` whether the Timer and that stranger spend ONE,
+# and `test_operator_provider.cpp` where the host's own powers came from.
 add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp
-                                     test_operator_canonical.cpp doctest_main.cpp)
+                                     test_operator_canonical.cpp test_operator_provider.cpp
+                                     doctest_main.cpp)
 target_link_libraries(zengine-operator-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-operator
             zengine-operator-stranger zengine-timer-vocabulary zengine-warnings
@@ -444,7 +484,26 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     # about what this translation unit can name, and only reading the file can
     # tell whether it still names nothing from the host's side of the seam --
     # the same defence-in-depth shape as snake's no-privileged-wind tripwire.
-    "OPH_STRANGER_CPP=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/operator_consumer_weave.cpp\"")
+    "OPH_STRANGER_CPP=\"${CMAKE_CURRENT_SOURCE_DIR}/weavelib/operator_consumer_weave.cpp\""
+    # ---- PROV-0's artifacts ----------------------------------------------------
+    #
+    # THE SHIPPED BASIC PROVIDER, not a fixture: `zengine-operators-basic` is a
+    # production artifact this host mounts, and the suite drives the same file the
+    # Workshop does. A fixture standing in for it would prove the seam and not the
+    # product.
+    "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
+    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\""
+    "PROVIDER_B_SO=\"$<TARGET_FILE:zengine-provider-b>\""
+    "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
+    "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
+    "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
+    # OPH-0's loaded stranger, under a name of this tier's own: the real Timer
+    # override witness needs a consumer in a THIRD image to agree with the Timer,
+    # and a stranger that shares no line of code with it is the only thing that can.
+    "PROV_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
+    # ...and a real pre-existing weave, untouched by this phase and built by another
+    # package's rules, so "most artifacts are not providers" is measured on one.
+    "PROV_UNTOUCHED_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\"")
 
 zengine_doctest_test(operator zengine-operator-tests)
 
