@@ -1282,7 +1282,11 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
 - **Four failure modes, two owners.** Unresolved and signature-mismatch are the
   catalog's sentences; a bad argument pack and a bad answer are `loom::admit`'s,
   quoted verbatim. There is no operator error enum and none is wanted.
-- **The Timer holds its catalog BY VALUE and takes one in its constructor.** That
+- ~~**The Timer holds its catalog BY VALUE and takes one in its constructor.**~~
+  **CAT-0 and PROV-0 both narrowed this** -- a Timer holds a catalog only in the
+  no-host arrangement, and what it CONTRIBUTES is one composition rather than a
+  vocabulary. The reasoning below still describes the fallback state and the
+  substitution instrument, both of which are unchanged. That
   is not a testing seam bolted on: it is the honest spelling of "the Timer
   consumes this rule and does not own it", and it is what lets the suite replace
   `math.max` underneath and watch the running weave and an independent reader move
@@ -1400,9 +1404,10 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   `Kernel::load` refuse. **There is deliberately no path from a host that failed
   to a local evaluation**, and adding one is the single edit that reintroduces
   everything this phase removed: a Timer that diverges from its host exactly when
-  the host became inconsistent. The expectation is derived from
-  `standard_operators()` inside the constructor and the catalog it comes out of
-  dies at the closing brace — a host-backed Timer holds none.
+  the host became inconsistent. The expectation is derived from `normalize_delay`
+  inside the constructor -- the same call this package's provider contribution is
+  built from -- and the scaffolding it needs dies at the closing brace; a
+  host-backed Timer holds no catalog at all.
 - **Fallback is a supported arrangement and is not warned at.** `zengine-snake`
   offers nothing and gets the Timer it always got; so does every host that
   predates the seam. Do not make the operator host a dependency of using a Timer.
@@ -1421,15 +1426,16 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   what that spelling is for. For the same reason `timer_weave.hpp` never touches
   the slot: only artifact sources do.
 - **`zengine-timer` links BOTH operator targets and the pair is the point.** It
-  AUTHORS the delay vocabulary (`zengine-operator`) and CONSUMES a host's runtime
-  surface (`zengine-operator-consumer`). Provider and consumer are different
-  roles and one artifact may be both; do not collapse them, and do not conclude a
-  provider must be the thing that instantiates what it authors. Both targets are
-  header-only INTERFACE targets: the Timer's `ldd` and PE import table are
-  unchanged, and its export table still names `zen_weave_abi` plus
-  `zengine_operator_consumer`.
+  SUPPLIES its delay composition (`zengine-operator`, which carries the authoring
+  surface and the contribution codec) and CONSUMES a host's runtime surface
+  (`zengine-operator-consumer`). Provider and consumer are different roles and one
+  artifact may be both; do not collapse them, and do not conclude a provider must
+  be the thing that instantiates what it authors. Both targets are header-only
+  INTERFACE targets: the Timer's `ldd` and PE import table are unchanged. Since
+  PROV-0 its export table names THREE symbols -- see the provider section below.
 - **`workshop.cpp` owns the catalog, and the DECLARATION ORDER is the lifetime
-  claim** — `op::Catalog`, then `OperatorHostSurface`, then `loom::Kernel`, so
+  claim** -- `op::Catalog` (EMPTY since PROV-0; the provider mounts fill it), then
+  `OperatorHostSurface`, then `loom::Kernel`, so
   reverse-order destruction takes the Kernel and its artifacts down first. It is
   a local of `main`, not a singleton: no static, no registry, no accessor. A case
   in `test_operator_canonical.cpp` reads that ordering off the SOURCE FILE,
@@ -1453,7 +1459,82 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   ids), so a host built over it moves a host-backed Timer and a loaded stranger
   together and leaves a fallback Timer where it was. Observe the Timer through
   `TimerHandoffEntry.delay_ms` off a real `zen.Bequest` — **never** through
-  `host_backed()`, which is a diagnostic and decides nothing.
+  `host_backed()`, which is a diagnostic and decides nothing. Since PROV-0 the
+  same instrument exists as an ARTIFACT (`zengine-provider-min`), mounted over the
+  basic provider at run time and unmounted again.
+
+## Powers come from providers; the host owns resolution (PROV-0)
+
+CAT-0 left one live catalog, and one line in `workshop.cpp` that CALLED a
+package's authoring function to fill it. `operator/provider_abi.h` points OPH-0's
+seam the other way: a loaded image may OPTIONALLY export one symbol saying *I
+supply these operator definitions*, and a host mounts it. Reference:
+[`docs/reference/operator-providers.md`](docs/reference/operator-providers.md).
+
+```text
+zengine-operators-basic    math.max, logic.select_int      NOT a weave
+zengine-timer              timer.normalize_delay           weave + provider + consumer
+host resolution            all three, layered, replaceable
+```
+
+- **`workshop.cpp` authors NO operator and cannot.** Its catalog starts empty, it
+  mounts two artifacts, and it does not include `timer/normalize.hpp` at all. A
+  case in `test_operator_provider.cpp` reads the source file for nine forbidden
+  strings -- `standard_operators`, `publish_primitives`, `normalize_delay`,
+  `math.max`, `make_operator`, ... -- and it is declared as a tripwire rather than
+  a proof, because Workshop's `main()` claims a terminal. **Workshop knows HOW to
+  host operators; it does not know WHAT any of them means.** Do not reintroduce a
+  semantic include there to save a mount.
+- **A PROVIDER IS NOT A WEAVE.** `zengine-operators-basic` exports
+  `zengine_operator_provider` and no `zen_weave_abi` at all: no Kernel loads it,
+  it has no WeaveId, role, grant, manifest or bus, and the host opens it directly.
+  Build one with **`zengine_provider()`**, not `zengine_weave()` -- the difference
+  on the link line is `loom::switchboard`, and its absence is the claim. Do not
+  make `zen_weave_abi` semantically required just because a host wants operators.
+- **A COMPOSITE CROSSES AS STRUCTURE, never as a callback.** `describe` emits the
+  GRAPH; its nodes still say `math.max` on the far side and resolve against the
+  host's current providers at every spend. `ProviderDefinitions::invoke` REFUSES a
+  composite on purpose. If a composition were an opaque call back into its own
+  image, a power replaced underneath could never propagate through it -- which is
+  the whole phase. Do not "optimise" that into a provider-side evaluation.
+- **The provider-local INDEX is transient and is never an operator's meaning.**
+  What is durable is the identity and the two port schemas; the index is how a
+  host that is HOLDING the record reaches the code. `invoke_at(index)` costs what
+  a raw function pointer costs (LOG-R1: 298.7 vs 300.2 ns), so never export a
+  callable accessor.
+- **The hold is the whole `ProviderRecord`, not the image.** A native
+  contribution's callable closes over the record, the record holds one
+  `ImageShare`, and `Catalog::unmount` drops the CONTRIBUTIONS and only then the
+  custody -- so nothing that can call into an image outlives it, by refcount rather
+  than by any statement ordering it. Mount and unmount only between evaluations;
+  everything here is single-threaded.
+- **`detail::provider_definitions()` is DECLARED in the header and DEFINED by the
+  macro**, for `offered_host_slot`'s reason exactly (ELF interposition vs per-DLL
+  PE statics). A provider that forgets `ZENGINE_OPERATOR_PROVIDER` gets a link
+  error naming that function.
+- **Shadowing is intentional; layering is not a set of duplicates.** An identity
+  holds a STACK of contributions and `back()` is active. An ordinary second
+  contribution to a taken identity REFUSES -- load order, filesystem order and map
+  iteration are not policy -- and only `MountMode::Overlay` may cover one, only
+  where both port schemas are `same_identity` with what is already there. Unmount
+  REVEALS the same object underneath rather than rebuilding it; a case asserts the
+  POINTER, because a rebuild would compare equal in every other way.
+- **A mount is ALL OR NOTHING.** Every contribution in a batch is judged before
+  any is installed, so a refusal leaves the catalog exactly as it was. A provider
+  contributing zero is refused too: that is the only way a provider can say its
+  own authoring threw.
+- **`fallback_vocabulary()` is not `standard_operators()` renamed.** It is the
+  no-host arrangement's LOCAL assembly, and it is what keeps `zengine-snake` and
+  every pre-seam host working without loading a second artifact. Do not call it
+  from a host that has providers.
+- **`op::image_counts()` is `kernel_lifetime_counts()`'s sibling** -- process-wide,
+  monotonic, read as a DELTA, decides nothing, and it counts THIS package's shares
+  (an offer's, a mount's) and not the Kernel's. Like `op::invocations()` it is a
+  vague-linkage static and is **not** a cross-image instrument; only a host opens
+  an image for itself, and a host is an executable.
+- **`Catalog::run` CONTAINS a native throw.** A native body may now live in
+  another image, so "the provider could not answer" is an evaluation's own refusal
+  rather than an exception leaving a call whose contract is a value or a reason.
 
 ## The population contract (C4, POP-01/POP-02)
 
