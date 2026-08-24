@@ -1,0 +1,59 @@
+@PACKAGE_INIT@
+
+# Zengine's consumer surface. Eight exported targets, spelled exactly as this repository's own
+# link lines spell them, so a project that later vendors Zengine as a subdirectory does not
+# have to rewrite a single one of them.
+#
+#   zengine::activation         read your own activation as a cursor
+#   zengine::timer              the Timer protocol, and the authored-rhythm layer
+#   zengine::surface            publish visual intent; cells, regions, pointing, terminal size
+#   zengine::input              the locked input shapes, their translation, the reader layer
+#   zengine::ui                 authored placement and extent, and what a viewport resolved
+#   zengine::component          a medium-independent editable text box
+#   zengine::operator           hold and evaluate named typed operators; mount a provider
+#   zengine::operator-consumer  spend a host's operator truth from inside a loaded image
+
+# ---- this package's own paths, resolved FIRST ------------------------------------------
+#
+# ORDER IS LOAD-BEARING HERE, and the reason is a genuine CMake trap rather than a style
+# preference. `PACKAGE_PREFIX_DIR` is an ordinary variable in the including scope, not a
+# namespaced one -- and find_dependency(loom) below includes the Loom's own config, whose
+# @PACKAGE_INIT@ sets the SAME name to the LOOM's prefix. Anything of ours resolved after that
+# point resolves against somebody else's install tree, and the symptom is a path that looks
+# almost right: <loom prefix>/lib/zengine.
+#
+# So the artifact locations are computed while the name still means us, and the prefix is
+# captured under a name of our own for anything that comes later.
+set(ZENGINE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
+
+# A weave is opened by path at run time, never linked, so these are files rather than targets.
+# ZENGINE_WEAVES is the list of stems this install actually carries and ZENGINE_WEAVE_DIR is
+# where they are; a host names one as
+#
+#     ${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}
+#
+# or copies it beside its own executable. The list is EMPTY when the package was built against
+# a Loom that cannot host loadable images -- the headers and targets are still whole, and the
+# absence is stated rather than left as a missing directory.
+set(ZENGINE_WEAVES "@ZENGINE_INSTALLED_WEAVES@")
+if(ZENGINE_WEAVES)
+    set_and_check(ZENGINE_WEAVE_DIR "@PACKAGE_ZENGINE_INSTALL_WEAVEDIR@")
+else()
+    set(ZENGINE_WEAVE_DIR "")
+    message(STATUS
+        "zengine: this package carries no loadable artifacts -- it was built against a Loom "
+        "with no kernel. The exported targets and public headers are unaffected.")
+endif()
+
+# ---- the substrate underneath ------------------------------------------------------------
+#
+# The Loom is a PUBLIC dependency of this package, not a private one: every exported target's
+# headers include <zen/...>, and the targets themselves name loom::core and loom::switchboard.
+# So it is resolved here rather than left for the consumer to discover from a link error --
+# find_package(zengine) is meant to be the only line a project has to write.
+include(CMakeFindDependencyMacro)
+find_dependency(loom 0.1)
+
+include("${CMAKE_CURRENT_LIST_DIR}/zengineTargets.cmake")
+
+check_required_components(zengine)

@@ -7,7 +7,17 @@
 # consumers spell `#include "timer/vocabulary.hpp"`. Portable — shapes are
 # just ZEN_SHAPE structs — so it exists even where no kernel does.
 add_library(zengine-timer-vocabulary INTERFACE)
-target_include_directories(zengine-timer-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-timer-vocabulary INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::timer ALIAS zengine-timer-vocabulary)
+# What the two shipped headers actually need, declared on their own lines rather than
+# arriving because an in-tree consumer happened to link the Loom for its own reasons:
+# vocabulary.hpp includes <zen/weave/shape.hpp>, and binding.hpp includes <zen/weave.hpp>
+# plus the activation cursor it reconciles against. In this tree the include path is the
+# same directory either way, so the omission was invisible; from an installed package it
+# is the difference between compiling and not.
+target_link_libraries(zengine-timer-vocabulary INTERFACE loom::core zengine::activation)
 
 # The weave itself needs a Loom that can HOST loadable weaves (the same
 # honest question every package asks: does this install export loom::kernel?).

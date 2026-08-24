@@ -27,5 +27,8 @@
 # consumers spell `#include "ui/vocabulary.hpp"` / `"ui/layout.hpp"`, and the
 # suite includes exactly what ships.
 add_library(zengine-ui-vocabulary INTERFACE)
-target_include_directories(zengine-ui-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-ui-vocabulary INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::ui ALIAS zengine-ui-vocabulary)
 target_link_libraries(zengine-ui-vocabulary INTERFACE loom::core)

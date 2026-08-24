@@ -35,7 +35,10 @@
 #
 # Portable: no kernel, no weave, no bus. It exists where no kernel does.
 add_library(zengine-operator INTERFACE)
-target_include_directories(zengine-operator INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-operator INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::operator ALIAS zengine-operator)
 target_link_libraries(zengine-operator INTERFACE loom::core)
 
 # ---- The consumer half of the operator-host seam (OPH-0) --------------------
@@ -60,7 +63,10 @@ target_link_libraries(zengine-operator INTERFACE loom::core)
 # Portable: no kernel, no weave, no bus, no SDL. A consumer of it exists wherever
 # a Loom header does.
 add_library(zengine-operator-consumer INTERFACE)
-target_include_directories(zengine-operator-consumer INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-operator-consumer INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::operator-consumer ALIAS zengine-operator-consumer)
 target_link_libraries(zengine-operator-consumer INTERFACE loom::core)
 
 # The HOST side of the same seam rides zengine-operator, because dressing a
