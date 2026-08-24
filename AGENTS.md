@@ -1607,6 +1607,80 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   holding MORE artifacts than any plan names and proves an unlisted valid provider
   is neither opened nor mounted. A lookup table could not have asked the question.
 
+## The system can now show what it is (INTR-1)
+
+LOAD-0 made participation authored and durable; PROV-0 made power resolution live
+and reversible. Neither was visible to a maker. `zengine.introspection` now offers
+Workshop THREE panes, and the third of them is the phase's whole shape:
+[`docs/reference/introspection.md`](docs/reference/introspection.md).
+
+```text
+loaded        the Kernel's loaded() map                which WEAVES are loaded
+arrangement   the load plan + PlanExecutor's rows      which AUTHORED PARTICIPATIONS
+              (picker name `Project`)                  resolved, and into what
+powers        the host's op::Catalog                   which POWERS resolve, and whose
+                                                       contribution satisfies each
+```
+
+- **THE PANES DISAGREE ON PURPOSE AND THAT IS THE HONESTY CLAIM.**
+  `zengine-operators-basic` is a row of `arrangement` and is ABSENT from `loaded`,
+  because no Kernel loads a provider. Do not "fix" that. Three questions, three
+  owners, three currencies; one merged table would need a row kind that is none of
+  them, and INTR-0's pane keeps its own question unchanged in meaning and wire form.
+- **THE SEAM IS AN OFFICE, NOT AN INJECTION.** `workshop/arrangement.hpp` mounts one
+  read-only participant (`ArrangementDoor`, office `zengine.arrangement`) holding
+  three `const` references into `main`; the loaded tool ASKS it and gets a value
+  back. No `Catalog*`, `PlanExecutor*` or container crosses into a dynamic artifact,
+  `ZenHostApi` did not widen, and there is no second injected capability. It is the
+  same seam `zen.ListLoaded` already spends, pointed at two more facts.
+- **THE ANSWER IS LOOM'S OWN, so the asker checks `mail.answers_ask()`** rather than
+  a correlation alone -- the door ANSWERS (attested provenance no payload can write)
+  where the Manager RELAYS. Where the stronger bound exists it is taken; the
+  correlation is still compared, because it says WHICH room is being answered.
+- **⚠ IT DERIVES AT EVERY ASK AND KEEPS NOTHING.** No mirror, no cache, no registry,
+  no snapshot between asks -- which is what makes an overlay mounted since the last
+  reading appear in the next one with nobody notified. Canary A (a copied provider
+  map answered from the door's constructor) turns the overlay witness and the
+  keeps-nothing witness RED and leaves every derivation-tier case green.
+- **AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT.** The rule names nobody -- no
+  allow-list, no `zengine.introspection` -- so a tool added tomorrow asks with no
+  edit here. It is NOT containment and is not reported as one: the loader binds
+  `allow_any()` to every library. What keeps these facts from becoming ambient is
+  that the door PUBLISHES NOTHING; every answer goes to the one weave that asked.
+- **`ResolvedArtifact` GAINED NOTHING, AND THE PROJECTION PAIRS TWO OWNERS.** A
+  resolved row does not know whether its mount was an overlay -- the MODE is only in
+  the plan -- so `describe_arrangement` walks the AUTHORED list and asks the resolved
+  list about each stem. ⚠ Walking the resolved rows instead loses the authored mode
+  and turns seven cases red (canary B1). There is deliberately NO resolved role:
+  `ResolvedArtifact::role` is the authored role copied forward, and the office the
+  Kernel bound is the Loaded pane's fact.
+- **⚠ A PROVIDER-ONLY ROW REPORTS NO OFFER OUTCOME.** `ResolvedArtifact::offer` is
+  `NotAConsumer` there because that is the FIELD'S DEFAULT and no offer was made;
+  copying the enum straight through publishes a default as an observation (canary B2,
+  one case red).
+- **`run()` NOW COPIES `resolved_` ON BOTH PATHS.** The failure path moved it out, so
+  `resolved()` -- whose contract is "what this executor put into the runtime" -- was
+  empty exactly after a refusal. Unreachable in production (a refused plan exits the
+  host) and reachable the moment anything projects it.
+- **NEITHER PROJECTION NAMES A POWER, A PROVIDER OR AN ARTIFACT**, and a source
+  tripwire reads both files for quoted literals and identifiers (never bare words --
+  these files EXPLAIN what they refuse to branch on). A hard-coded vocabulary turns
+  the two genericity witnesses AND the tripwire red (canary C).
+- **NO ROW CARRIES A CONTROL.** No unmount, replace, reload, disable or activate
+  anywhere, and no pane message mutates load or provider state. The maker gets the
+  knowledge; the power is a later phase's to grant.
+- **⚠ THE DEFAULT PANE IS EIGHT PROSE ROWS AND `kStackRows` IS FIXED**, so a bigger
+  TERMINAL buys columns and no rows. A block-per-entry projection and an eight-row
+  default are in tension: the shipped six-artifact `Project` pane shows ONE artifact
+  and `... 5 more` until a maker authors a taller window (WIND-2). That is counted
+  rather than hidden, and a second denser layout was deliberately not invented.
+- **The pane KEY is `arrangement` and the picker NAME is `Project`**, because
+  `kPickerNameCols` is ten cells and `Arrangement` is eleven. The key is the durable
+  half a saved setup names; do not rename it to match the name.
+- **Each pane keeps its OWN room and its OWN outstanding question.** All three can be
+  open at once, and one shared `rows_`/`columns_` would have made the last grant
+  decide how the other two were drawn.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things

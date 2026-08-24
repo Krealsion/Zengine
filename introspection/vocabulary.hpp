@@ -73,6 +73,36 @@ inline constexpr const char* kLoadedPane = "loaded";
 inline constexpr const char* kLoadedPaneName = "Loaded";
 inline constexpr const char* kLoadedPaneSummary = "what the kernel has loaded, and each one's role";
 
+/// THE SECOND AND THIRD PANES (INTR-1), and the FIRST IS NOT WIDENED TO HOLD THEM.
+///
+/// `loaded` asks what the KERNEL has loaded, and that question stayed legitimate the
+/// moment two more facts became askable -- so it is unchanged in meaning, in rows and
+/// in wire form. What arrived is two more questions with two more owners:
+///
+///     loaded        the Kernel's map            which WEAVES are loaded
+///     arrangement   LOAD-0's resolved rows      which AUTHORED PARTICIPATIONS resolved
+///     powers        PROV-0's live catalog       which POWERS resolve, and whose code
+///
+/// THEY ARE THREE PANES AND NOT ONE TABLE, because they have three populations, three
+/// owners and three currencies. A maker looking for "is my Timer loaded" and a maker
+/// looking for "who supplies math.max" are not looking at one list, and a pane that
+/// merged them would have to invent a row kind that is neither.
+///
+/// AND THE APPARENT DISAGREEMENT BETWEEN THE FIRST TWO IS CORRECT.
+/// `zengine-operators-basic` is a provider and not a weave: no Kernel loads it, it has
+/// no `WeaveId` and no role. It is in `arrangement` and it is NOT in `loaded`, and a
+/// build that "fixed" that would have made one of the two panes lie.
+inline constexpr const char* kArrangementPane = "arrangement";
+inline constexpr const char* kPowersPane = "powers";
+
+/// The picker lines for the two, written to `kLoadedPaneName`'s rule: inside the TEN
+/// cells `kPickerNameCols` actually shows, so neither arrives at a maker's eye marked.
+inline constexpr const char* kArrangementPaneName = "Project";
+inline constexpr const char* kArrangementPaneSummary =
+    "what this project asked for, and what resolved";
+inline constexpr const char* kPowersPaneName = "Powers";
+inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
+
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable
 /// the way the two keys above are -- it is a file name, and it is here because the
 /// host's boot list and the suite's loader must agree on it.
