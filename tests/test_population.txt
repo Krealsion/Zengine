@@ -398,6 +398,23 @@
 # INTR-1's reason unchanged: a projection is pure arithmetic over a value, and the live one
 # spends the character medium, so the no-SDL lane and the Windows stranger lane prove them all.
 #
+# QR-6 raised the workshop floor 683 -> 685 and moved no other floor, which is the repair's own
+# claim about where it lives: the suite's STAGING FIXTURE, no load-plan semantics, no provider
+# mounting, no pane and no medium. TWO cases, and they are permanent because the defect they pin
+# is one a green cannot see from inside a single run. `tests/load-plan-stage` sits in the build
+# tree, nothing deletes it, and the second run of `zengine-workshop-tests` in one build tree
+# stages over its own previous output -- which on MinGW was refused `file_exists` by libstdc++'s
+# same-file guard (its `stat` reports st_ino 0 for every file), turning 683/683 into 642/683
+# with no source change between the two runs. Linux and MSVC never reproduced it.
+#
+# The two are a pair on purpose. The first asks whether the repeat is ALLOWED; the second asks
+# whether it MEANS anything, by changing the source between the two calls and requiring the
+# destination to follow. A repair that merely stopped reporting the error would pass the first
+# and leave the previous run's artifact in place, which is the failure that does not announce
+# itself -- so the second case is the one carrying the contract, and the first is the one that
+# names the symptom a developer actually hit. Both are in the `always` row because staging is
+# a filesystem copy: no gate opens or closes over it.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -416,7 +433,7 @@ component                         doctest           always  15
 operator                          doctest           always  89
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  683
+workshop                          doctest           always  685
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

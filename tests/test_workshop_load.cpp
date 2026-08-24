@@ -112,11 +112,46 @@ struct Stage {
         put("zengine-provider-a", PROVIDER_A_SO);
     }
 
+    /// STAGE `from` UNDER `stem`: make the staged destination hold the CURRENT bytes
+    /// of the source artifact, whether or not a previous run already left a file
+    /// there. That last clause is the whole contract. `load-plan-stage` lives in the
+    /// build tree and nothing deletes it, so the SECOND run of this binary in one
+    /// build tree stages over its own previous output -- every call here is a REPEAT,
+    /// and a repeat that cannot tolerate its own last result makes a second run mean
+    /// something different from the first.
+    ///
+    /// ⚠ THE PROPERTY IS NOT "calling this twice changes nothing". The artifacts are
+    /// rebuilt between runs, so a repeat must carry the NEW bytes across; leaving
+    /// whatever is already there would satisfy the word `idempotent` and lose the
+    /// meaning. Both halves are pinned in tier 0 below.
     void put(const char* stem, const char* from) const {
+        const std::filesystem::path dest = dir / (std::string(stem) + kArtifactSuffix);
+        // `put` DELETES its destination, so a source that IS the destination would be
+        // destroyed rather than copied. No caller aims one there and none may: the
+        // stage is where artifacts land, never where they come from.
+        REQUIRE_MESSAGE(std::filesystem::path(from) != dest,
+                        "a staged artifact may not be its own source: ", dest.string());
+        // REMOVE FIRST, AND UNCONDITIONALLY. `copy_options::overwrite_existing` was
+        // supposed to make the repeat ordinary and on MinGW it does not: libstdc++
+        // asks whether source and destination are the SAME FILE *before* it consults
+        // the option, and it asks with `st_dev`/`st_ino` -- which MinGW's `stat`
+        // answers (drive, 0) for every file on the drive. So every destination that
+        // already exists compares equal to its own source, the copy is refused
+        // `file_exists`, and the PREVIOUS RUN'S bytes stay on disk. Measured: MinGW
+        // refuses, MSVC and Linux overwrite. Unconditional rather than branched on the
+        // platform, so the one toolchain that needs this is not the only one running it.
         std::error_code ec;
-        std::filesystem::copy_file(from, dir / (std::string(stem) + kArtifactSuffix),
-                                   std::filesystem::copy_options::overwrite_existing, ec);
-        REQUIRE_MESSAGE(!ec, "cannot stage ", from, ": ", ec.message());
+        std::filesystem::remove(dest, ec);
+        REQUIRE_MESSAGE(!ec, "cannot clear the staged ", dest.string(), ": ", ec.message());
+        // ...and NO `overwrite_existing` here, on purpose. The destination is gone, so
+        // a destination that still exists means the removal above did not do what it
+        // said -- `file_exists` from this call is that news rather than a shrug.
+        std::filesystem::copy_file(from, dest, ec);
+        // `from` is spelled as a `std::string` because doctest stringifies a bare
+        // `const char*` as its ADDRESS. A staging failure that names a pointer, a
+        // reason and no file at all is a diagnostic that has to be re-derived by hand.
+        REQUIRE_MESSAGE(!ec, "cannot stage ", std::string(from), " as ", dest.string(), ": ",
+                        ec.message());
     }
 
     std::string so(const std::string& stem) const {
@@ -510,6 +545,17 @@ std::string file_text(const std::string& path) {
     return all.str();
 }
 
+/// ...and its opposite, for the tier-0 cases that need a source whose bytes they
+/// chose. `trunc` is the point: a witness for "the destination converges on the
+/// current source" is worthless if its own source does not.
+void write_file(const std::string& path, const std::string& text) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    REQUIRE_MESSAGE(out.good(), "cannot write ", path);
+    out << text;
+    out.close();
+    REQUIRE_MESSAGE(out.good(), "cannot write ", path);
+}
+
 /// The delay a correct `timer.normalize_delay` makes of (-500, repeating).
 constexpr std::int64_t kAuthoredDelay = -500;
 constexpr std::int64_t kHonestAnswer = 1;
@@ -517,6 +563,59 @@ constexpr std::int64_t kHonestAnswer = 1;
 constexpr std::int64_t kOverlaidAnswer = -500;
 
 } // namespace
+
+// =============================================================================
+// 0. THE STAGE — the fixture's own operation, because a suite that cannot run
+//    twice cannot mean the same thing twice
+// =============================================================================
+//
+// EVERY OTHER TIER IN THIS FILE RESTS ON `Stage`, and until QR-6 nothing asserted
+// that it worked. It did not: `load-plan-stage` sits in the build tree, nothing
+// deletes it, and a developer who ran this binary a second time in the same tree got
+// 41 failed cases out of 683 on MinGW -- from the staging copy, before a single load
+// plan was judged. A green that a second run cannot reproduce is not a green about
+// the code; it is a green about the state of a directory.
+//
+// So the fixture's own operation gets cases, and there are two of them because the
+// defect has two halves. The first is that the repeat must be ALLOWED. The second is
+// that the repeat must MEAN something -- and a repair that merely stopped reporting
+// `file_exists` would pass the first and leave the previous run's artifact in place,
+// which is the failure that does not announce itself.
+
+TEST_CASE("staging over what a previous run left behind is an ordinary repeat") {
+    // One process, two calls, one destination. That is the shape a second run in one
+    // build tree has, minus the process boundary the repeat itself does not care about.
+    const std::string source = stage_file("qr6-source.bin");
+    const std::string bytes = "an artifact's worth of bytes";
+    write_file(source, bytes);
+
+    stage().put("qr6-restaged-witness", source.c_str());
+    stage().put("qr6-restaged-witness", source.c_str());
+
+    CHECK(file_text(stage().so("qr6-restaged-witness")) == bytes);
+}
+
+TEST_CASE("a repeat CONVERGES the destination onto the current source, not the old one") {
+    // IDEMPOTENT STAGING IS NOT "twice changes nothing": the artifacts are rebuilt
+    // between runs, so the second staging of a stem carries bytes the first one had
+    // never seen. What repeats is the REQUEST, and what it converges on is the source
+    // as it stands now.
+    //
+    // v2 is SHORTER than v1 deliberately. A destination written into without being
+    // truncated first would end with v1's tail still attached, and two versions of
+    // equal length could not tell that apart from a clean overwrite.
+    const std::string source = stage_file("qr6-changing-source.bin");
+    const std::string v1 = "version one, and deliberately the longer of the two";
+    const std::string v2 = "version two";
+
+    write_file(source, v1);
+    stage().put("qr6-converging-witness", source.c_str());
+    REQUIRE(file_text(stage().so("qr6-converging-witness")) == v1);
+
+    write_file(source, v2);
+    stage().put("qr6-converging-witness", source.c_str());
+    CHECK(file_text(stage().so("qr6-converging-witness")) == v2);
+}
 
 // =============================================================================
 // 1. THE PLAN — what one may say, and what its own law refuses
