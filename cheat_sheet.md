@@ -418,8 +418,15 @@ A larger pane is authored in management mode (`w` → `s` → arrows), one cell 
 persists in the setup file. See [pane geometry](docs/workshop/panes.md#pane-geometry).
 
 ⚠ **friction — nothing is restored at launch.** The document and the setup both persist, and
-both need a keypress (`Ctrl`+`o`, `r`) to come back. See
+both need a keypress (`Ctrl`+`o`, `r`) to come back. Both keys are advertised on screen, so this
+is a missing default rather than a missing mechanism — but a fresh Workshop *seeds two example
+objects*, so forgetting `Ctrl`+`o` looks like a state rather than an omission. See
 [workspace continuity](docs/workshop/setups.md#workspace-continuity).
+
+**On-screen hints** (so you need this page less): the title row carries `[+ panel]  p` and
+`[window]  w` plus `shift+space terminal`; the setup line carries `s name/save  r restore`; the
+bottom line carries the object gestures. Management mode's own sub-keys are the ones not
+announced.
 
 ---
 

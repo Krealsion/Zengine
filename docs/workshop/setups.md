@@ -68,8 +68,9 @@ The `name` inside a setup is a label a maker reads, not a selector.
 > **Can a maker reopen Workshop and return to useful work without reconstructing their panes
 > manually?**
 >
-> **Almost — but not without knowing two keys, and not automatically.** Persistence is real and
-> complete in both directions. **Restoration is manual.** Nothing is read at launch.
+> **Yes, in two keypresses — but never automatically.** Persistence is real and complete in both
+> directions, and both gestures are advertised on screen. **Restoration is manual: nothing is
+> read at launch.**
 
 Source-traced, precisely:
 
@@ -95,16 +96,22 @@ launch  ->  Ctrl+o   (get the document back)
         ->  s Enter  (setup)
 ```
 
-Two keypresses is not much. **The cost is not the keypresses — it is that neither is
-discoverable and neither happens by default.** A maker who does not know `r` exists concludes
-that Workshop does not persist layouts at all, having saved one successfully. That is the gap:
-not a missing mechanism, a missing default.
+Two keypresses is not much, and both are advertised: the setup line carries
+`s name/save  r restore`, and `Ctrl`+`s` / `Ctrl`+`o` are the document's conventional pair. So
+this is **not** a discoverability gap — it is a missing default.
+
+**Why the missing default still costs something.** A fresh Workshop is not empty: its weave
+seeds two example objects so the first screen already shows an authored share beside its
+resolved value. That is a good first run, and it is also what makes forgetting `Ctrl`+`o`
+quiet — you get a plausible-looking document that is not yours, rather than an obviously
+empty one. The same is true of the setup: `setup "Default" UNSAVED` is what an unrestored
+session says, and it looks like a state rather than like an omission.
 
 ### The smallest missing seam
 
-Everything needed already exists and is already a transaction. The gap is one decision nobody
-has made: **should a host read its authored document and setup at startup, and what does it do
-when either file is absent or refused?**
+Everything needed already exists and is already a transaction, and both gestures are already
+advertised. The gap is one decision nobody has made: **should a host read its authored document
+and setup at startup, and what does it do when either file is absent or refused?**
 
 Concretely, that is (a) calling the same two loaders once during startup, (b) a rule for
 "absent file" that is distinct from "malformed file" — an empty path is already refused by

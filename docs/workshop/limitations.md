@@ -53,9 +53,13 @@ with the Timer loaded produces a program that appears to hang, with no diagnosti
 
 ### Nothing is restored at launch
 
-The document and the setup both persist, completely and transactionally, in both directions.
-**Neither is read at startup.** Every session begins with `Ctrl`+`o` and `r`, and a maker who
-does not know `r` exists concludes that layouts are not persisted at all.
+The document and the setup both persist, completely and transactionally, in both directions,
+and both restore gestures are advertised on screen. **Neither is read at startup.** Every
+session begins with `Ctrl`+`o` and `r`.
+
+What makes the missing default cost more than two keypresses: a fresh Workshop seeds two
+example objects, so forgetting `Ctrl`+`o` gives you a plausible document that is not yours
+rather than an obviously empty one.
 
 This is the highest-ranked Workshop usability gap. Full detail, including the smallest missing
 seam, in [workspace continuity](setups.md#workspace-continuity).
@@ -64,7 +68,8 @@ seam, in [workspace continuity](setups.md#workspace-continuity).
 
 Width scales with the surface; height does not. A larger pane is authored in management mode
 (`w` → `s` → arrows) at **one cell per keypress**, with no coarse step, no drag-to-size and no
-"fill the room". It persists correctly once authored. Detail in [pane
+"fill the room". It persists correctly once authored. The mode is advertised on the title row;
+its sub-keys are not announced once you are in it. Detail in [pane
 geometry](panes.md#pane-geometry).
 
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
