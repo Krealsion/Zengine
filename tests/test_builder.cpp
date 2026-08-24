@@ -409,7 +409,7 @@ struct Bench {
     /// Order a build the way the tool does.
     void order(const std::string& target) {
         (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{target})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// One beat, exactly as the Timer would deliver it.
@@ -417,7 +417,7 @@ struct Bench {
         (void)bus.send_to_role(
             kBuildRunnerRole,
             loom::Message(loom::to_value(timer::TimerFired{std::string(kLookTimerId)})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// Beat until nothing is held any more.
@@ -461,12 +461,12 @@ struct Live {
     template <class T>
     void tell_tool(const T& msg) {
         (void)bus.send_to_role(kBuilderRole, loom::Message(loom::to_value(msg)));
-        bus.pump();
+        bus.drain_until_idle();
     }
     template <class T>
     void tell_runner(const T& msg) {
         (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(msg)));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void beat() { tell_runner(timer::TimerFired{std::string(kLookTimerId)}); }
@@ -481,7 +481,7 @@ struct Live {
             (void)bus.send_to_role(
                 kBuildRunnerRole,
                 loom::Message(loom::to_value(timer::TimerFired{std::string(kLookTimerId)})));
-            bus.pump();
+            bus.drain_until_idle();
         }
         return bystander->seen() - before;
     }
@@ -822,7 +822,7 @@ TEST_CASE("the runner asks for a beat when it takes custody, and gives it back")
     // The service arrives. The declared binding is reconciled -- one ask.
     (void)bench.bus.send_to_role(kBuildRunnerRole,
                                  loom::Message(loom::to_value(timer::TimerReady{})));
-    bench.bus.pump();
+    bench.bus.drain_until_idle();
     CHECK(bench.clerk->asked() == 1);
     CHECK(bench.clerk->cancelled() == 0);
 
@@ -858,7 +858,7 @@ TEST_CASE("the direct door looks at what is held, and cannot start anything") {
     while (guard-- > 0 && bench.runner->live() > 0) {
         (void)bench.bus.send_to_role(kBuildRunnerRole,
                                      loom::Message(loom::to_value(LookAtBuilds{})));
-        bench.bus.pump();
+        bench.bus.drain_until_idle();
     }
     CHECK(bench.runner->looks() > looks_before);
     REQUIRE(bench.foreman->finished.size() == 1);
@@ -871,7 +871,7 @@ TEST_CASE("the direct door looks at what is held, and cannot start anything") {
         (void)bench.bus.send_to_role(kBuildRunnerRole,
                                      loom::Message(loom::to_value(LookAtBuilds{})));
     }
-    bench.bus.pump();
+    bench.bus.drain_until_idle();
     CHECK(bench.runner->ran() == ran);
     CHECK(bench.foreman->started.size() == 1);
 }
@@ -950,7 +950,7 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
     const loom::WeaveId bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
 
     (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"slow"})));
-    bus.pump();
+    bus.drain_until_idle();
 
     // ONE PUMP, AND THE BUILD IS ALREADY OVER. There was no moment in between to
     // deliver anything into: the start and the ending were published from the
@@ -963,7 +963,7 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
     // THE CANARY'S OWN CANARY: this bus is not simply broken. The same bystander
     // receives ordinary traffic perfectly well once nothing is holding the pump.
     (void)bus.send(bystander_id, loom::Message(loom::to_value(loom::Ack{})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(bystander->seen() == 1);
 }
 
@@ -1162,7 +1162,7 @@ TEST_CASE("a weave with a presentation's reach cannot make a process start") {
                                                    std::string("greet"));
 
     (void)live.bus.send(id, loom::Message(loom::to_value(loom::Ack{})));
-    live.bus.pump();
+    live.bus.drain_until_idle();
 
     CHECK(liar->tried == 1); // it really did try
     CHECK(live.runner->ran() == 0); // and no process began
@@ -1180,7 +1180,7 @@ TEST_CASE("a weave with a presentation's reach cannot make a process start") {
                                                       std::string("greet"));
 
     (void)live.bus.send(other, loom::Message(loom::to_value(loom::Ack{})));
-    live.bus.pump();
+    live.bus.drain_until_idle();
 
     CHECK(honest->tried == 1);
     CHECK(live.runner->ran() == 1);
@@ -1207,7 +1207,7 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
                                    std::vector<BuildRecipe>{slow("forever", 20, "0.5")});
 
     (void)bus->send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"forever"})));
-    bus->pump();
+    bus->drain_until_idle();
     REQUIRE(runner->live() == 1);
     REQUIRE(ledger.started == 1);
     REQUIRE(ledger.endings == 0);

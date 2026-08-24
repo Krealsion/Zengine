@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
                                   waiter_id, waiter_id));
         for (int turn = 0; turn < 64 && !waiter->answered; ++turn) {
             if (bus.pump_pending() == 0) {
-                break;
+                break; // nothing left to dispatch: no answer is coming
             }
         }
         if (!waiter->answered) {
@@ -342,6 +342,9 @@ int main(int argc, char** argv) {
     bus.publish_as(waiter_id, loom::Message(loom::to_value(BakeOrder{"sourdough", 40}),
                                             waiter_id, loom::WeaveId{0}));
 
+    // The host loop. `pump_pending()` dispatches what was waiting and hands control
+    // back, so this condition is checked every turn while the Timer service keeps
+    // beating. The 4000 is this program's patience, not a dispatch budget.
     for (int turn = 0; turn < 4000 && !waiter->served; ++turn) {
         bus.pump_pending();
     }
@@ -357,9 +360,12 @@ Three host facts worth having up front:
   above may command lifecycle because the host wrote that down. An in-process weave shares the
   host's address space, so this is reviewability, not containment. `Kernel::containment_note()`
   says so out loud; read it literally.
-- **`bus.pump()` drains to quiescence, and a live Timer beat chain never quiesces.** A host
-  that wants to check anything between turns uses `bus.pump_pending()` — the bounded turn.
-  Calling `pump()` with the Timer service loaded is a program that appears to hang.
+- **`bus.pump_pending()` is the host loop's call.** It dispatches exactly the work that was
+  waiting and gives control back, so the loop above can check `waiter->served` every turn while
+  the Timer service keeps beating. Its counterpart `bus.drain_until_idle()` keeps going until
+  the bus is idle, which is right for settling a world or for a host whose whole program *is*
+  the bus — and with the Timer service loaded that bus is never idle, exactly as the name
+  says.
 - **Loading is answered, not merely started.** `Kernel::is_loaded` turns true the instant the
   load returns, while the `zen::Result` naming the new weave is still queued. Wait for the
   answer, as `load()` above does, so a refusal stops you instead of being missed.
@@ -415,7 +421,7 @@ kitchen: the bake completed
 | `open failed: ./oven.so: cannot open shared object file` | the path in `LoadWeave` is wrong, or the artifact was not built |
 | `library create() returned null` | your weave's constructor threw. A duplicate binding id, an empty id, or an empty role on a `*_to_role` binding all do this deliberately |
 | it loads and **nothing happens** | most often: the service you are sending to is not loaded. See below |
-| the program hangs | you called `bus.pump()` with a live Timer chain. Use `pump_pending()` |
+| the program hangs | you asked `bus.drain_until_idle()` of a process with the Timer service loaded — that bus is never idle. A host loop wants `bus.pump_pending()` |
 | walls of template errors from `WeaveBase` | you declared an `on` and forgot `using TimedWeave::on;` — look for the `static_assert` sentence |
 
 **"It loads and nothing happens" deserves its own paragraph**, because it is the failure a

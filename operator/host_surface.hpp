@@ -17,7 +17,7 @@
 //     {
 //         op::OperatorOffer offer(operators, host.so("my-tool"));
 //         boot("my-tool", kMyRole);                        // ordinary LoadWeave
-//         bus.pump();
+//         bus.drain_until_idle();
 //     }                                                    // offer withdrawn, share closed
 //
 // WHY THE HOST OPENS THE IMAGE ITSELF, and it is the phase's one unavoidable

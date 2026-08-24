@@ -217,10 +217,10 @@ struct CanonRig {
         });
     }
 
-    /// DISPATCH IN BOUNDED TURNS, never to empty. A live Timer re-arms its own
-    /// beat inside its own handler, so `pump()` would never return; this is the
-    /// same `pump_pending()` loop `workshop.cpp`'s boot uses, for the same
-    /// reason. The turn budget is a hang guard, not a schedule.
+    /// DISPATCH IN BOUNDED TURNS, never to idle. A live Timer re-arms its own
+    /// beat inside its own handler, so `drain_until_idle()` would never return;
+    /// this is the same `pump_pending()` loop `workshop.cpp`'s boot uses, for the
+    /// same reason. The turn budget is a hang guard, not a schedule.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {

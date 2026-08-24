@@ -184,9 +184,9 @@ struct Rig {
         return loom::mount_granted<Probe>(bus, std::move(reach), rec);
     }
 
-    void pump() {
+    void drain() {
         Hush hush;
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// Fire a lifecycle command AS the probe (its grant is the authority) and
@@ -198,7 +198,7 @@ struct Rig {
     Recorded::Answer command(const Cmd& cmd) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(probe, manager, loom::Message(loom::to_value(cmd), probe, probe, corr));
-        pump();
+        drain();
         const Recorded::Answer* a = rec.find(corr);
         REQUIRE(a != nullptr);
         return *a;
@@ -210,7 +210,7 @@ struct Rig {
     Recorded::Answer poke(loom::WeaveId target, const Poke& p) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(p), loom::WeaveId{}, probe, corr));
-        pump();
+        drain();
         const Recorded::Answer* a = rec.find(corr);
         REQUIRE(a != nullptr);
         return *a;
@@ -218,7 +218,7 @@ struct Rig {
 
     void tick() {
         bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
-        pump();
+        drain();
     }
 
     void turn_real(std::int64_t dir) {
@@ -822,10 +822,10 @@ TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to s
         CatchStdout catcher("snake_no_paint.tmp");
         for (int i = 0; i < 6; ++i) {
             r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
-            r.bus.pump();
+            r.bus.drain_until_idle();
         }
         r.bus.send(score, loom::Message(loom::to_value(FoodEaten{})));
-        r.bus.pump();
+        r.bus.drain_until_idle();
     }
     CHECK(file_size_then_remove("snake_no_paint.tmp") == 0);
     CHECK(r.poke(score, loom::PokeRead{"eaten"}).text == "1"); // the game DID run
@@ -835,7 +835,7 @@ TEST_CASE("snake publishes, never paints: a skinless game writes zero bytes to s
     {
         CatchStdout catcher("snake_painted.tmp");
         r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(SnakeTick{})));
-        r.bus.pump();
+        r.bus.drain_until_idle();
     }
     CHECK(file_size_then_remove("snake_painted.tmp") > 0);
 }

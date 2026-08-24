@@ -302,7 +302,7 @@ struct Rig {
         bus.send_as(witness, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), witness,
                                   witness, corr));
-        bus.pump();
+        bus.drain_until_idle();
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE_MESSAGE(a->kind == 0, "load refused: ", a->text);
@@ -315,7 +315,7 @@ struct Rig {
     Seen::Answer poke(loom::WeaveId target, const Poke& p) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(p), loom::WeaveId{}, witness, corr));
-        bus.pump();
+        bus.drain_until_idle();
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         return *a;
@@ -323,19 +323,19 @@ struct Rig {
 
     std::size_t publish_root(const loom::Value& v) {
         const std::size_t n = bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.pump();
+        bus.drain_until_idle();
         return n;
     }
 
     void pump_input_by_role() {
         bus.send_to_role(kInputRole, loom::Message(loom::to_value(PumpInput{})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void tick() {
         bus.send_to_role(zengine::snake::kWorldRole,
                          loom::Message(loom::to_value(zengine::snake::SnakeTick{})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 };
 
@@ -1435,7 +1435,7 @@ TEST_CASE("the weave publishes what its reader hears, in order, every shape") {
 
     const auto pump_input = [&] {
         bus.send(weave, loom::Message(loom::to_value(PumpInput{})));
-        bus.pump();
+        bus.drain_until_idle();
     };
 
     pump_input();
@@ -1541,7 +1541,7 @@ TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is
     (void)loom::mount<SdlEars>(bus, heard);
 
     bus.send(weave, loom::Message(loom::to_value(PumpInput{})));
-    bus.pump();
+    bus.drain_until_idle();
 
     REQUIRE(heard.size() == 7);
     CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::k5);
@@ -1574,7 +1574,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     // beat, wire content pinned field by field. This is the trigger that makes
     // load order stop mattering — loaded long after the Timer, it still asks.
     zengine::testing::order_activation(bus, door, weave, 1);
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(asks.size() == 1);
     CHECK(asks[0].id == kPumpTimerId);
     CHECK(asks[0].delay_ms == kPumpBeatMs);
@@ -1589,7 +1589,7 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     // A duplicate activation asks for nothing — the cursor's whole job, and
     // what keeps a re-delivered stimulus from doing non-idempotent work.
     zengine::testing::order_activation(bus, door, weave, 1);
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(asks.size() == 1);
 
     // The TimerService's availability notice arrives (root-published, as the
@@ -1597,21 +1597,21 @@ TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks aga
     // the input weave is the ONLY listener): the weave asks AGAIN. That is the
     // opposite load order's rescue, and it is an upsert, never a doubling.
     CHECK(bus.publish(loom::Message(loom::to_value(zengine::timer::TimerReady{}))) == 1);
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(asks.size() == 2);
     CHECK(asks[1].id == kPumpTimerId);
     CHECK(asks[1].role == kInputRole);
 
     // The beat opens the same hands the pump does...
     bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(heard.size() == 1);
     CHECK(as<KeyPressed>(heard, 0).scancode == scan::kD);
 
     // ...and someone else's timer aimed at this role opens nothing.
     feed.push_back({KeyPressed{scan::kW, "W"}});
     bus.send(weave, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(heard.size() == 1); // the alien id did not poll the reader
 }
 
@@ -1896,10 +1896,10 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     // old code would have swallowed both events.
     r.bus.send_to_role("zengine.skin",
                        loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
-    r.bus.pump();
+    r.bus.drain_until_idle();
     r.bus.send_to_role("zengine.skin",
                        loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
-    r.bus.pump();
+    r.bus.drain_until_idle();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2"); // it really did run
 
     // ...and the reader still finds everything, in order.

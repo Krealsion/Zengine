@@ -742,8 +742,8 @@ struct LiveRig : ProviderRig {
         });
     }
 
-    /// DISPATCH IN BOUNDED TURNS, never to empty: a live Timer re-arms its own beat
-    /// inside its own handler, so `pump()` would never return.
+    /// DISPATCH IN BOUNDED TURNS, never to idle: a live Timer re-arms its own beat
+    /// inside its own handler, so `drain_until_idle()` would never return.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {

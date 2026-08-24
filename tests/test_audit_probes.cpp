@@ -252,7 +252,7 @@ struct Rig {
 
     void pump_beats(std::int64_t n) {
         stop_after_drives = drives + n;
-        bus.pump();
+        bus.drain_until_idle();
         stop_after_drives = -1;
     }
 
@@ -271,7 +271,7 @@ struct Rig {
         seen.stop_count = 1;
         seen.stop_seen = 0;
         ask(service, StartTimer{"probe.stopwatch", ms, false});
-        bus.pump();
+        bus.drain_until_idle();
         seen.stop_id.clear();
     }
 
@@ -396,7 +396,7 @@ struct FakeRig {
         if (start) {
             activate();
         }
-        bus.pump();
+        bus.drain_until_idle();
         hooks.stop_after = -1;
     }
 };

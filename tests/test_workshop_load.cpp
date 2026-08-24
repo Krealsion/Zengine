@@ -35,7 +35,7 @@
 // handler -- so a Timer that outlived its case would hang the next one that pumped.
 // Each rig here owns its own `loom::Switchboard` and its own `loom::Kernel`, both
 // destroyed at the closing brace, and every drain in this file is `pump_pending()`
-// in bounded turns. Do not hoist a rig to file scope and do not call `bus.pump()`.
+// in bounded turns. Do not hoist a rig to file scope and do not call `bus.drain_until_idle()`.
 
 #include "doctest.h"
 
