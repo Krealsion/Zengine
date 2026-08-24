@@ -761,13 +761,19 @@ TEST_CASE("the production host owns ONE catalog, and owns it for longer than the
     CHECK(catalog < surface);
     CHECK(surface < kernel);
 
-    // ...and the Timer's boot is bracketed by an offer, which is what makes the
-    // shipped Timer host-backed in the shipped host.
-    const std::size_t offering = host.find("op::OperatorOffer offering(operator_host,");
-    const std::size_t boot = host.find("boot(\"zengine-timer\", timer::kTimerRole)");
-    REQUIRE(offering != std::string::npos);
-    REQUIRE(boot != std::string::npos);
-    CHECK(offering < boot);
+    // ...and the ONE surface over it is handed to the thing that performs the plan,
+    // which is what makes the shipped Timer host-backed in the shipped host.
+    //
+    // ⚠ LOAD-0 MOVED THE OTHER HALF OF THIS CASE. It used to read the OFFER and the
+    // Timer's boot off this file and check their order; `workshop.cpp` now contains
+    // neither, because it names no artifact at all. The law is unchanged and its
+    // tripwire followed the code -- `test_operator_provider.cpp`'s tier 10 reads
+    // `load_execute.hpp`, where the mount/offer/load order now lives.
+    const std::size_t executor = host.find("load::PlanExecutor executor(bus, operators, "
+                                           "operator_host,");
+    REQUIRE(executor != std::string::npos);
+    CHECK(kernel < executor);
+    CHECK(host.find("op::OperatorOffer") == std::string::npos);
 }
 
 TEST_CASE("the host and its catalog outlive every Timer that was offered them") {

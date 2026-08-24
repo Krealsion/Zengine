@@ -1094,10 +1094,14 @@ and no window itself.
   no extent, and a terminal Workshop paints exactly the screen it painted before G-2. A
   terminal too small shows less of it, which is what a terminal has always done to output too
   wide for it. Nothing here mimics the window medium's resize semantics for symmetry.
-- **The host** (`workshop.cpp`) owns the boot list. Its `BootWeave` holds the Manager grant and
+- **The host** (`workshop.cpp`) owns the boot list. Its boot weave holds the Manager grant and
   **hears the answers**: a root `bus.send` of `zen.LoadWeave` has no asker, so the Manager's
   relay forwards nothing and the load silently never happens
   (`loom::forward_for`) — found by running it, and the reason boot answers have an addressee.
+  **Since LOAD-0 the host does not own the LIST**, only the grant and the mechanism: which
+  artifacts participate is [`workshop/default-load-plan.json`](workshop/default-load-plan.json),
+  read at startup and executed in the order it is written. See
+  [The running arrangement is an authored file](#the-running-arrangement-is-an-authored-file-load-0).
 
 - **The document survives the process, and only the document does** (W-5). `Ctrl+S` writes the
   authored objects to one file and `Ctrl+O` reads them back; `--document <path>` says which file,
@@ -1640,9 +1644,12 @@ the *protocol* rather than about itself:
 
 - **Workshop needed no recompilation.** Not one line of `weave.hpp`, `panel.hpp` or `screen.hpp`
   names Introspection, no `panel::k*` was minted, and the picker learned its row from a live offer.
-  What still names it is the **host's boot list** — a first-party tool is a line beside
-  `zengine-timer`, and a third party has no door at all. That limit is stated in
-  `workshop.cpp` where it lives, and it is the honest remainder of the plugin story.
+  What still named it was the **host's boot list** — a first-party tool was a line beside
+  `zengine-timer`, and a third party had no door at all. **LOAD-0 moved that limit out of the
+  source**: the host names no stem, and a first-party tool is a ROW in an authored plan. The
+  remainder of the plugin story is honestly smaller and honestly still there — putting a row in
+  the plan is granting that artifact execution authority in this process, and nothing yet decides
+  who may do that.
 - **A provider's authority is its own, and it is narrow.** Introspection asks the Weave Manager one
   shape (`zen.ListLoaded`) and speaks two (`PaneOffered`, `PaneContent`). It sends nothing else across
   a whole life — pinned from a bus tap rather than from its declaration, because `Emit<...>` is
@@ -1731,6 +1738,68 @@ history; no `Selection<T>`, `SelectionBus` or global selection vocabulary — on
 evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing of Info, the
 Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
 of any kind**, and no setup format movement.
+
+### The running arrangement is an authored file (LOAD-0)
+
+> **A fresh Workshop process reconstructs its provider and weave arrangement from one durable
+> authored plan, rather than from C++ startup code.**
+
+PROV-0 ended the host authoring semantics and left it authoring a *list*: two `mount_provider`
+calls and five `boot(stem, role)` calls, hard-coded in `workshop.cpp`, with `zengine-timer` in
+**both** — because it is one shared library that supplies `timer.normalize_delay` **and**
+constructs the `zengine.timer` weave, and its contribution must be mounted before its weave is
+created. Two independent lists could only be maintained so that they happened to agree, and the
+ordering law between them lived in a comment.
+
+One record, two optional surfaces:
+
+```json
+{ "artifact": "zengine-operators-basic", "provider": [ { "mode": "normal" } ], "weave": [] },
+{ "artifact": "zengine-timer",           "provider": [ { "mode": "normal" } ],
+                                         "weave":    [ { "role": "zengine.timer" } ] },
+{ "artifact": "zengine-composer",        "provider": [],
+                                         "weave":    [ { "role": "zengine.composer" } ] }
+```
+
+The full account is [docs/reference/load-plan.md](docs/reference/load-plan.md). What it settles:
+
+- **The project declares participation; the host performs it.** `workshop.cpp` names no artifact
+  stem at all — a source tripwire checks eleven forbidden strings and refuses one. What the host
+  still owns is the GRANT the plan booter holds, the one rule that spells a stem as a file, and
+  the mechanism; not the list.
+- **Provider participation and weave participation stay separate optional intentions** even for
+  an artifact that supports both, because *load this participant* and *let this artifact change
+  the host's semantic world* are different authored decisions. Weave-only does not mount a
+  provider the image exports; provider-only does not load a weave the image contains.
+- **Two orderings, two kinds of fact.** Between artifacts, authored list order is the whole V0
+  dependency model — no solver, no inference, no reordering. Within one artifact, mount-then-load
+  is semantic law and lives in `load_execute.hpp`, because a host-backed Timer validates the rule
+  it is about to spend inside its own `create()`.
+- **One artifact is the atomic unit.** A record whose provider mounted and whose weave then
+  failed unmounts its own contribution before reporting; a record whose mount failed does not
+  attempt its weave. A whole-plan transaction was deliberately not built, and the host says how
+  many artifacts participated before it stopped.
+- **Filesystem presence is not load authority.** No scan, no directory enumeration, no
+  `--provider` flag. Dropping a shared library beside the executable still makes it nothing, and
+  a test leaves a perfectly valid provider artifact in the host's own artifact directory and
+  proves it is neither opened nor mounted.
+- **Authored intent and resolved state are different truths.** The plan holds a stem, a mode and
+  a role; the `WeaveId`, the mounted provider identity and the contribution count exist only at
+  runtime and are never written back. A plan naming an artifact that is not on this disk is
+  refused by name and left exactly as written.
+- **A plan row is an execution-authority decision**, not configuration, and the documentation
+  says so rather than implying otherwise. Nothing here signs, verifies or restricts one.
+
+`--load-plan <path>` replaced `--skin` and `--input`; the graphical arrangement is a second
+shipped plan differing from the default in exactly the two rows that name the medium and the
+reader. There is no compiled-in fallback: a missing plan refuses by path and the host exits
+having mounted and loaded nothing.
+
+Deliberately absent: no directory scanning, no package manager, no dependency solver, no version
+constraints, no remote discovery, no provider metadata, no trust database, no project workspace
+framework, and no hot-reload orchestration. **Restart persistence exists; clean-build persistence
+does not** — recreating the artifacts themselves from a clean tree is build intent and a separate
+question. **No Loom change of any kind.**
 
 ## Working in this tree
 

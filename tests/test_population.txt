@@ -397,7 +397,7 @@ surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
-operator                          doctest           always  88
+operator                          doctest           always  89
 composer                          doctest           always  35
 builder                           doctest           always  30
 workshop                          doctest           always  635

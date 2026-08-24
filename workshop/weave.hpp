@@ -179,9 +179,19 @@ struct HostContext {
     /// naming/restoring say so rather than guessing one.
     std::string setup_path;
 
-    /// A weave stem, as this platform spells a shared library.
-    std::string so(const char* stem) const {
-        return dir + "/" + stem +
+    /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
+    ///
+    /// THE ONE RULE, AND IT IS THE HOST'S (LOAD-0). A directory, a separator and a
+    /// suffix: that is the whole of what turns `zengine-timer` into a file, and
+    /// keeping it here rather than in an authored plan is what makes ONE plan legal
+    /// on Linux and on Windows -- no platform matrix, no per-OS field, no `.so` or
+    /// `.dll` written down anywhere a person edits, and no package locator.
+    ///
+    /// IT TAKES A VIEW since LOAD-0, because a stem now arrives as a `std::string`
+    /// read out of a file as often as it arrives as a literal. One signature that
+    /// serves both is what keeps this the only place either spelling is resolved.
+    std::string so(std::string_view stem) const {
+        return dir + "/" + std::string(stem) +
 #if defined(_WIN32)
                ".dll";
 #else
