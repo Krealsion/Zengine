@@ -240,8 +240,8 @@ zengine_doctest_test(timer zengine-timer-tests)
 # The positive control is the same source with the collision replaced by the
 # supported hook, and it must BUILD — without it, "the build refused" would be
 # satisfied by a fixture that never compiled for any reason.
-set(ZENGINE_CN_NAMES collision hook missing-using cursor)
-set(ZENGINE_CN_IDS 1 2 3 4)
+set(ZENGINE_CN_NAMES collision hook missing-using cursor missing-using-no-binding)
+set(ZENGINE_CN_IDS 1 2 3 4 5)
 foreach(case_name case_id IN ZIP_LISTS ZENGINE_CN_NAMES ZENGINE_CN_IDS)
     add_executable(zengine-cn-${case_name} EXCLUDE_FROM_ALL
         compile_negative/activation_collision.cpp)
@@ -270,6 +270,18 @@ zengine_compile_test(timer_activation_hook_compiles zengine-cn-hook)
 # GCC-only, and that difference is recorded as pressure rather than smoothed over here.
 # Each alternative is specific enough to disappear if the wall ever stopped working.
 zengine_compile_test(timer_missing_using_refused zengine-cn-missing-using
+                     "using TimedWeave::on|cannot convert argument 1 from 'const zengine::timer::TimerFired'")
+
+# THE SAME DEFECT WITH NO BINDING DECLARED, and it is a separate entry because it was a
+# separate outcome. The visibility wall was anchored in `timers()`, so a weave that takes
+# this layer for its activation half and places its schedules with the raw protocol -- the
+# documented answer whenever the delay is runtime data -- never instantiated the sentence
+# that names the fix: measured at 72 lines of template soup mentioning neither
+# `using TimedWeave::on;` nor the hiding. Both walls are constructor-anchored now. Same two
+# spellings as the case above and for the same reason (MSVC-0): GCC reaches the authored
+# static_assert, MSVC's requires-expression accepts the probe and the wall lands one layer
+# out as the conversion failure. The WALL is the property under test on both.
+zengine_compile_test(timer_missing_using_no_binding_refused zengine-cn-missing-using-no-binding
                      "using TimedWeave::on|cannot convert argument 1 from 'const zengine::timer::TimerFired'")
 
 # The hook runs INSIDE an accepted activation, so it must not be able to accept
