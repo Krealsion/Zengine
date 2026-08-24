@@ -188,6 +188,7 @@ their diagnostics, plus script entries.
 | `audit_probes` | a different **kind** of suite, kept deliberately: what the substrate measurably does to a live beat chain when the timer service is swapped, reloaded, double-wound or joined late — *including where that was unwanted*. Read its header before changing it |
 | the `ui_*` and `timer_*` compile entries | that a fence is a compile error, with its positive control |
 | `doc_links` | every repo-local documentation reference and `#anchor` in a current-facing document, and every repository-relative `.md` path written in a first-party source comment, still resolves |
+| `package_vocabulary` | the installed package's public variables still name the *physical* thing they hold. Retired spellings appear in exactly one file — the checker that declares them — and nowhere else |
 
 ### `doc_links`, because documentation is verified here too
 
@@ -208,6 +209,26 @@ Run it alone from the repository root:
 
 ```sh
 cmake -P tests/check_doc_links.cmake
+```
+
+### `package_vocabulary`, because a public noun can be false
+
+An **artifact** is the physical loadable file a host opens by path. A **weave** and a
+**provider** are runtime *surfaces* an artifact may expose — a weave is a participant the
+Kernel loads onto the bus; a provider is opened directly by a host and has no participant in it
+at all. The installed package carries both kinds in one list, so its public variables are
+`ZENGINE_ARTIFACT_DIR` and `ZENGINE_RUNTIME_ARTIFACTS`: they name the physical thing, because
+no surface word is true of all of them.
+
+The names PKG-0 shipped were not, and nothing in a build could have said so — a compiler has no
+opinion about a word. So the retirement is mechanical: the checker owns the list of spellings
+that may no longer be written, and asserts both halves of its own exception — every declared
+spelling present in that one file, none in any other. It does **not** police the word *weave*;
+`zengine_weave()`, `WeaveId`, the weave ABI and the weave-only guides all mean weave, and
+renaming those would be the opposite error.
+
+```sh
+cmake -P tests/check_package_vocabulary.cmake
 ```
 
 ## What a green means

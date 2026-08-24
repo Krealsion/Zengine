@@ -1705,7 +1705,7 @@ reason each package is or is not in the set. Change the boundary there, not in a
 package's own `CMakeLists.txt`.
 
 ```cmake
-find_package(zengine 0.1 CONFIG REQUIRED)     # brings the Loom with it
+find_package(zengine 0.1 CONFIG REQUIRED)     # resolves Zengine's Loom dependency too
 target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 ```
 
@@ -1714,11 +1714,20 @@ the house and a guest spell them identically: `activation`, `timer`, `surface`, 
 `ui`, `component`, `operator`, `operator-consumer`. A plain hyphenated name on a link line
 means the target is internal, and that difference is the boundary made visible.
 
-**Five artifacts** install to `lib/zengine/`, named by `ZENGINE_WEAVES` and located by
-`ZENGINE_WEAVE_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins, and
-`zengine-operators-basic`. They install as FILES, not as exported targets — a weave is
+**Five artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and
+located by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins, and
+`zengine-operators-basic`. They install as FILES, not as exported targets — an artifact is
 opened by path and never linked, and an imported target would offer a link line that must
 never be written.
+
+**ARTIFACT is the noun, and the distinction is load-bearing (QR-5).** An artifact is the
+physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
+Four of the five above are weaves; `zengine-operators-basic` is a provider and explicitly
+not a weave (PROV-0, enforced by `zengine_provider()` in the top-level `CMakeLists.txt`).
+The public package variables must therefore name the physical thing: a variable named
+after one surface is false of its own contents the moment the list holds another, which is
+what QR-5 repaired. The `package_vocabulary` CTest entry keeps the retired spellings from
+coming back — it owns the list of them, so this page does not spell them.
 
 **What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin and
 SDL input reader, because a fetched SDL is a build-tree library this install does not own;
@@ -1825,8 +1834,8 @@ the tests themselves pass
   lesson as the per-suite floors two bullets up.
 - The verifier verifies the **configured build tree it is handed**; producing a
   current one is the job of whoever configures and builds.
-- **Documentation references are checked too** (`doc_links`, kind `script` — the
-  one entry that reads the source tree rather than a build). Every relative link
+- **Documentation references are checked too** (`doc_links`, kind `script` — one
+  of the two entries that read the source tree rather than a build). Every relative link
   in a current-facing `*.md` and its `#anchor`, plus every repository-relative
   `*.md` path written in a first-party C/C++ comment under any package
   directory or `tests/`, must resolve — a broken one is a RED in the official
@@ -1840,6 +1849,18 @@ the tests themselves pass
   `../Loom/` — is counted and declined: this repository is verified as a
   standalone clone, and a stranger has no sibling to look at.
   `tests/check_doc_links.cmake`.
+- **The package vocabulary is checked too** (`package_vocabulary`, kind `script` —
+  the other source-tree entry). An **artifact** is the physical loadable file; a
+  **weave** and a **provider** are runtime surfaces one may expose, and the
+  installed package holds both kinds, so its public variables name the physical
+  thing. The retired spellings PKG-0 shipped may appear in exactly one file — the
+  checker that declares them — and the check asserts both halves of that: every
+  declared spelling present there, none anywhere else. It excludes `docs/history/`,
+  the `reference/` quarry, vendored and build trees, and it does **not** police the
+  word *weave*: `zengine_weave()`, `WeaveId`, the weave ABI and weave-only guides
+  all mean weave and must not be renamed. Its self-test makes the predicate say
+  **yes** to a token in the tree and **no** to one that is absent before it answers.
+  `tests/check_package_vocabulary.cmake`.
 
 ## The suites need a Loom that can host weaves (POP-03)
 

@@ -50,7 +50,8 @@
 #                     runs the real command. No case count is invented for it.
 #
 #   script            A repository-owned CMake script run over the SOURCE TREE rather than
-#                     over a build -- today, the documentation-link check. `detail` is empty:
+#                     over a build -- the documentation-link check and the package-vocabulary
+#                     check. `detail` is empty:
 #                     there is no binary to exist, no case to count and no diagnostic to
 #                     judge, and inventing one of those would be a number that means nothing.
 #                     Its registration being declared HERE is the point: the check reads the
@@ -426,3 +427,4 @@ ui_authored_extent_required       compile-negative  always  a resolvable dimensi
 ui_resolved_geometry_refused      compile-negative  always  no resolved rectangle may live on an authored element
 ui_authored_element_compiles      compile-positive  always
 doc_links                         script            always
+package_vocabulary                script            always

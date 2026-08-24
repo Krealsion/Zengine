@@ -167,14 +167,23 @@ endforeach()
 
 # ---- The loadable artifacts a consumer's host actually opens -----------------------------
 #
-# A weave is not a library a consumer links; it is a FILE a host names in a LoadWeave and the
-# loader opens by path. So these install as files rather than as exported targets: an imported
-# target for one would offer a link line that must never be written, and on Windows would ask
-# for an import library nothing should ever consume.
+# ARTIFACT IS THE NOUN, and it is the only one that is true of all of them (QR-5). An artifact
+# is the physical loadable unit -- one file on disk. WEAVE and PROVIDER are runtime SURFACES an
+# artifact may expose, and they are not the same claim: four of the five below are weaves the
+# Kernel loads into the bus, and `zengine-operators-basic` is a PROVIDER -- opened directly by a
+# host, with no WeaveId, role, grant or manifest, and no participant in it at all (PROV-0, and
+# `zengine_provider()` in the top-level CMakeLists is where the difference is enforced). A
+# future artifact may expose both surfaces, or a third nobody has written yet.
+#
+# None of them is a library a consumer links: each is a FILE a host names by path and the loader
+# opens. So they install as files rather than as exported targets -- an imported target for one
+# would offer a link line that must never be written, and on Windows would ask for an import
+# library nothing should ever consume.
 #
 # They land in one directory, spelled the same on every platform, and the package config hands
-# a consumer both that directory (ZENGINE_WEAVE_DIR) and the stems that are in it
-# (ZENGINE_WEAVES). Hand-copying an artifact out of a build tree is the thing this replaces.
+# a consumer both that directory (ZENGINE_ARTIFACT_DIR) and the stems that are in it
+# (ZENGINE_RUNTIME_ARTIFACTS). Hand-copying an artifact out of a build tree is the thing this
+# replaces.
 #
 # WHICH ONES. The artifacts whose runtime closure this install actually owns. Each links the
 # Loom statically and needs nothing else at load time, so a copied prefix keeps working.
@@ -189,28 +198,28 @@ endforeach()
 # artifacts (a worked example, built for this tree's own suites), and NOT anything under
 # tests/ -- the virtual Timers, the probes and the provider fixtures are evidence, and a
 # fixture installed as production content is a lie about what this package ships.
-set(ZENGINE_INSTALL_WEAVEDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
+set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-set(zengine_installable_weaves
-    zengine-timer
-    zengine-input
-    zengine-skin-tui-classic
-    zengine-skin-tui-block
-    zengine-operators-basic)
+set(zengine_installable_artifacts
+    zengine-timer                # weave
+    zengine-input                # weave
+    zengine-skin-tui-classic     # weave
+    zengine-skin-tui-block       # weave
+    zengine-operators-basic)     # provider, not a weave (PROV-0)
 
-set(ZENGINE_INSTALLED_WEAVES "")
-foreach(weave IN LISTS zengine_installable_weaves)
+set(ZENGINE_INSTALLED_ARTIFACTS "")
+foreach(artifact IN LISTS zengine_installable_artifacts)
     # Gated on the target existing rather than on a platform: every one of these is built
     # only where the Loom can host loadable images, and `if(TARGET ...)` is that same honest
     # question asked once more. An install from a kernel-less Loom is a headers-only package,
     # and the config below says so out loud instead of leaving an empty directory.
-    if(TARGET ${weave})
-        install(FILES $<TARGET_FILE:${weave}> DESTINATION ${ZENGINE_INSTALL_WEAVEDIR})
-        list(APPEND ZENGINE_INSTALLED_WEAVES ${weave})
+    if(TARGET ${artifact})
+        install(FILES $<TARGET_FILE:${artifact}> DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+        list(APPEND ZENGINE_INSTALLED_ARTIFACTS ${artifact})
     endif()
 endforeach()
 
-if(NOT ZENGINE_INSTALLED_WEAVES)
+if(NOT ZENGINE_INSTALLED_ARTIFACTS)
     message(STATUS
         "zengine: no loadable artifacts to install -- this Loom cannot host them, so the "
         "package will carry public headers and exported targets only")
@@ -226,7 +235,7 @@ configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/zengineConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/zengineConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zengine
-    PATH_VARS ZENGINE_INSTALL_WEAVEDIR)
+    PATH_VARS ZENGINE_INSTALL_ARTIFACTDIR)
 
 # SameMajorVersion, the Loom's spelling, and at 0.x it promises exactly what it says and no
 # more: this is the 0.x line. The project has made no compatibility commitment yet and the

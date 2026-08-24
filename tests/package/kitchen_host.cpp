@@ -6,7 +6,7 @@
 // It loads TWO artifacts by path from one directory: the Timer service, which arrived from
 // the installed Zengine package, and the oven, which this project built. Neither path is
 // written here -- the directory is argv[1], and the build rule that put both files in it
-// names ZENGINE_WEAVE_DIR, never a Zengine build tree.
+// names ZENGINE_ARTIFACT_DIR, never a Zengine build tree.
 //
 // The refusal observer is not decoration. A sender cannot see its own send's fate, so a
 // message addressed to a role nobody holds simply does not arrive; the host is the only party
