@@ -1025,29 +1025,97 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     const std::string host = host_source();
 
     const std::size_t catalog = host.find("op::Catalog operators;");
-    const std::size_t mount = host.find("op::mount_provider(operators, host.so(artifact))");
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
     const std::size_t kernel = host.find("loom::Kernel kernel(bus)");
-    const std::size_t offering = host.find("op::OperatorOffer offering(operator_host,");
-    const std::size_t boot = host.find("boot(\"zengine-timer\", timer::kTimerRole)");
+    const std::size_t executor = host.find("load::PlanExecutor executor(");
+    const std::size_t run = host.find("executor.run(read_plan.plan)");
     REQUIRE(catalog != std::string::npos);
-    REQUIRE(mount != std::string::npos);
     REQUIRE(surface != std::string::npos);
     REQUIRE(kernel != std::string::npos);
-    REQUIRE(offering != std::string::npos);
-    REQUIRE(boot != std::string::npos);
+    REQUIRE(executor != std::string::npos);
+    REQUIRE(run != std::string::npos);
 
-    // THE CATALOG STARTS EMPTY and is filled by mounting artifacts...
-    CHECK(catalog < mount);
-    // ...BEFORE the surface is dressed over it and before the Kernel exists, which
-    // is both the lifetime claim (destruction runs in reverse) and the handoff
-    // ordering (a host-backed Timer validates its rule inside `create()`).
-    CHECK(mount < surface);
+    // THE CATALOG STARTS EMPTY, is dressed in the C table, and only then does a
+    // Kernel exist -- which is both the lifetime claim (destruction runs in reverse)
+    // and the reason the executor is declared AFTER the Kernel: it retains the
+    // provider identities it mounted and must not outlive what holds them.
+    CHECK(catalog < surface);
     CHECK(surface < kernel);
-    CHECK(kernel < offering);
-    CHECK(offering < boot);
+    CHECK(kernel < executor);
+    CHECK(executor <= run);
 
-    // ...and the artifacts it mounts are named as artifacts, which is all a host is
-    // allowed to know until a load list exists.
-    CHECK(host.find("\"zengine-operators-basic\", \"zengine-timer\"") != std::string::npos);
+    // ---- LOAD-0 INVERTED THE LAST CHECK OF THIS CASE ---------------------------
+    //
+    // It used to read: `CHECK(host.find("\"zengine-operators-basic\", \"zengine-timer\"")
+    // != npos)` -- "the artifacts it mounts are named as artifacts, which is all a
+    // host is allowed to know UNTIL A LOAD LIST EXISTS". A load list exists now, so
+    // the host is allowed to know none of them, and the tripwire is the opposite
+    // claim: NO ARTIFACT STEM APPEARS IN THIS FILE AT ALL, and neither does either
+    // verb that could turn one into a running thing.
+    //
+    // A ROLE IS DELIBERATELY NOT ON THIS LIST. `surface::kSkinRole` and
+    // `timer::kTimerRole` are still in `workshop.cpp`, inside GRANTS -- "this
+    // participant may say SurfaceText to whoever holds `zengine.skin`" -- which is a
+    // statement about who may be spoken to and is the host's to make. A role cannot
+    // become a load; only a stem can, and forbidding roles here would be forbidding
+    // this host from writing its own authority.
+    for (const char* forbidden : {"zengine-operators-basic", "zengine-timer", "zengine-input",
+                                  "zengine-composer", "zengine-introspection", "zengine-skin",
+                                  "kComposerStem", "kIntrospectionStem",
+                                  "mount_provider", "OperatorOffer", "MountMode"}) {
+        CHECK_MESSAGE(host.find(forbidden) == std::string::npos,
+                      "workshop.cpp names '", forbidden,
+                      "', which is a load list the authored plan owns");
+    }
+
+    // ...AND THE TWO LISTS ARE ONE FILE. What the host does instead is read a plan
+    // and execute it, in that order, with nothing between them it could have
+    // manufactured for itself.
+    const std::size_t read = host.find("load_persist::load_file(plan_path)");
+    REQUIRE(read != std::string::npos);
+    CHECK(read < run);
+}
+
+// ---- 10. the plan executor, read as a source file ----------------------------
+//
+// THE TRIPWIRE FOLLOWED THE CODE. The offer that used to bracket the Timer's boot in
+// `workshop.cpp` is not there any more -- there is no Timer in `workshop.cpp` -- and
+// the law it enforced did not go away with it: within one artifact record, the
+// provider contribution is mounted BEFORE the weave is created, and the weave load is
+// bracketed by an offer that is withdrawn afterwards. That is now `load_execute.hpp`'s
+// to keep, so this is where it is read.
+//
+// It is a tripwire and not a proof, exactly as the one above is:
+// `tests/test_workshop_load.cpp` drives the real executor over real artifacts and
+// proves the BEHAVIOUR. What a source read adds is that the arrangement cannot quietly
+// stop being written this way while every rig stays green.
+
+TEST_CASE("the plan executor mounts before it offers, and offers before it loads") {
+    std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
+    REQUIRE_MESSAGE(in.good(), "cannot read the executor at ", WORKSHOP_LOAD_EXECUTE_HPP);
+    std::ostringstream all;
+    all << in.rdbuf();
+    const std::string exec = all.str();
+
+    const std::size_t mount = exec.find("op::mount_provider(*catalog_, path,");
+    const std::size_t offer = exec.find("op::OperatorOffer offering(*operators_, path)");
+    const std::size_t load = exec.find("load_weave(artifact.stem, path,");
+    REQUIRE(mount != std::string::npos);
+    REQUIRE(offer != std::string::npos);
+    REQUIRE(load != std::string::npos);
+
+    // THE INTRA-RECORD ORDER IS A SEMANTIC LAW and this is the one place it is
+    // written: a host-backed Timer validates the rule it is about to spend inside its
+    // own constructor, so the contribution has to be in the catalog before `create()`.
+    CHECK(mount < offer);
+    CHECK(offer < load);
+
+    // ...and the executor authors no semantics of its own, exactly as the host does
+    // not: it knows how to host what an artifact supplies and nothing about what any
+    // of it means.
+    for (const char* forbidden : {"normalize_delay", "math.max", "logic.select_int",
+                                  "make_operator", "timer/normalize.hpp"}) {
+        CHECK_MESSAGE(exec.find(forbidden) == std::string::npos,
+                      "load_execute.hpp names '", forbidden, "', which is semantic authorship");
+    }
 }

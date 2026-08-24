@@ -6,36 +6,41 @@
 //
 // It is an ordinary Zengine application and holds no privilege snake does not:
 // input arrives from the Input package's weave, time from the Timer package's,
-// pixels-or-characters from whichever Skin holds `zengine.skin`, and the host
-// owns the boot list and nothing else. Workshop paints by PUBLISHING intent — a
-// SurfaceCanvas — exactly as the world publishes a SnakeVisual, and it never
-// touches the terminal.
+// pixels-or-characters from whichever Skin holds `zengine.skin`, and — since
+// LOAD-0 — the host does not even own the LIST of which artifacts those are.
+// Workshop paints by PUBLISHING intent — a SurfaceCanvas — exactly as the world
+// publishes a SnakeVisual, and it never touches the terminal.
 //
-// THIS FILE IS THE HOST, and only the host: the boot weave, `main()`, the two
-// grants, and the command-line arguments that say which file this Workshop's
-// document lives in and which Skin and reader paint and watch it. Workshop's own
-// weave lives in weave.hpp, where a suite can mount it, so
-// `input message -> gesture -> semantic operation` is a chain the tests walk end
-// to end instead of a claim a report has to make.
+// THIS FILE IS THE HOST, and only the host: `main()`, the grants, and the
+// command-line arguments that say which files this Workshop's document, setup and
+// LOAD PLAN live in. Workshop's own weave lives in weave.hpp, where a suite can
+// mount it, so `input message -> gesture -> semantic operation` is a chain the
+// tests walk end to end instead of a claim a report has to make.
 //
-// THE HOST CHOOSES THE PATH AND THE WEAVE USES IT, which is the same division
-// the boot list already follows: where things are is the host's business, what
-// to do with them is the application's. Workshop still holds no privilege snake
-// does not — it opens an ordinary file with an ordinary standard-library call,
-// which is a power every program on this machine already has, and it needs no
-// grant, no broker and no capability to do it (see the specialness ledger).
+// AND IT NAMES NO ARTIFACT. Which providers are mounted and which weaves are
+// loaded into which roles is `default-load-plan.json`, read at startup and
+// performed by `load_execute.hpp`. What this file still owns is the GRANT the
+// plan booter holds — the dangerous one, kernel reach transitively — the one rule
+// that spells an artifact stem as a file, and the in-process composition. A
+// tripwire in `tests/test_operator_provider.cpp` reads this source and refuses a
+// stem. See `docs/reference/load-plan.md`.
+//
+// THE HOST CHOOSES THE PATH AND THE WEAVE USES IT: where things are is the host's
+// business, what to do with them is the application's. Workshop still holds no
+// privilege snake does not — it opens an ordinary file with an ordinary
+// standard-library call, which is a power every program on this machine already
+// has, and it needs no grant, no broker and no capability to do it (see the
+// specialness ledger).
 
+#include "load_execute.hpp"
+#include "load_persist.hpp"
 #include "weave.hpp"
 
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
-#include "composer/vocabulary.hpp"
-#include "input/vocabulary.hpp"
-#include "introspection/vocabulary.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
-#include "operator/provider_host.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -76,12 +81,16 @@ namespace {
 
 using namespace zengine::workshop;
 namespace builder = zengine::builder;
-namespace composer = zengine::composer;
-namespace input = zengine::input;
-namespace introspection = zengine::introspection;
 namespace op = zengine::op;
 namespace surface = zengine::surface;
 namespace timer = zengine::timer;
+// THE COMPOSER, THE INPUT PRODUCER AND INTROSPECTION HAVE NO ALIAS HERE ANY MORE,
+// and the absence is measurable rather than tidy: since LOAD-0 this host names no
+// stem and no role of theirs, so it needs no vocabulary of theirs to name one with.
+// What remains is `surface`, `timer` and `builder` -- the shapes this host's own
+// GRANTS and log selection are written in, which is authority and observation and
+// not a load list. Re-adding an alias here to save a plan row would be re-adding
+// the knowledge this phase removed.
 
 /// Mount an in-process weave into an OFFICE, with the grant the host chose.
 ///
@@ -101,50 +110,6 @@ loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const c
     raw->zen_set_self(id);
     return id;
 }
-
-/// The boot weave: it asks the Weave Manager to load the packages Workshop runs
-/// on, and — the part that matters — it HEARS THE ANSWERS.
-///
-/// It exists because the first live run of this host had no such weave, and the
-/// cost was immediate and instructive. "Failures are values": the Manager answers
-/// its asker with zen.Result or zen.Refused. A root send carries no asker, so
-/// every one of those answers was addressed to nobody, and a Workshop whose Skin
-/// had refused to load looked exactly like a Workshop whose Skin had loaded — a
-/// blank terminal and a host that exited saying the bus went quiet. The
-/// diagnosis was not in the program at all.
-///
-/// So the asking is a weave with a grant, the way snake's operator is. It holds
-/// the reach to the Manager — which is kernel reach, transitively, and is the
-/// dangerous grant — and Workshop's own weave deliberately does not. Two
-/// responsibilities, two grants: this one operates, that one authors.
-struct BootState {
-    std::int64_t answered = 0;
-    std::int64_t refused = 0;
-    ZEN_EXPOSE();
-    ZEN_SHAPE(BootState, 1, ZEN_FIELD(answered), ZEN_FIELD(refused));
-};
-
-class BootWeave : public loom::WeaveBase<BootWeave, BootState,
-                                        loom::Accept<loom::Result, loom::Ack, loom::Refused>,
-                                        loom::Emit<loom::LoadWeave, surface::SurfaceText>> {
-public:
-    void on(const loom::Result&, loom::Mail&) { ++state_.answered; }
-    void on(const loom::Ack&, loom::Mail&) { ++state_.answered; }
-
-    /// A refusal is the only thing here worth saying out loud, and it is said
-    /// twice on purpose: as status intent for whoever is painting, and on plain
-    /// stdout — because the most likely thing to have been refused is the Skin,
-    /// and a message about a missing painter delivered to the painter is not a
-    /// message.
-    void on(const loom::Refused& r, loom::Mail& mail) {
-        ++state_.answered;
-        ++state_.refused;
-        std::printf("zengine-workshop - boot refused: %s\n", r.reason.c_str());
-        std::fflush(stdout);
-        mail.publish(surface::SurfaceText{surface::kSlotStatus,
-                                          "[workshop] boot refused: " + r.reason});
-    }
-};
 
 std::string exe_dir() {
 #if defined(_WIN32)
@@ -191,39 +156,34 @@ std::string exe_dir() {
 /// setup path: no catalog, no recent list, no profile manager. An empty path is
 /// refused by name, exactly as an empty `--document` is.
 ///
-/// `--skin <stem>`, defaulted to the classic terminal Skin, is deliberately the
-/// same shape. BUILDING a Skin and CHOOSING one are different acts:
-/// `ZENGINE_SDL_SKIN=ON` only makes the window Skin exist, and without this flag
-/// running Workshop against it would mean editing the literal below — a founder
-/// experiment nobody else could repeat.
+/// `--load-plan <path>`, defaulted to `default-load-plan.json` BESIDE THE
+/// EXECUTABLE, is the third of the same shape and is the one this host cannot run
+/// without (LOAD-0). It names the authored plan saying which artifacts participate
+/// in this project and how -- which provider contributions are mounted, which
+/// weaves are loaded into which roles, and in what order. There is no compiled-in
+/// fallback plan: a host that could manufacture its own arrangement when the file
+/// is missing would make the file decorative, and the file being the source is the
+/// whole of what this phase bought.
 ///
-/// It is a WEAVE STEM and nothing more: the host already resolves stems to files
-/// beside the executable (`host.so`), and the boot weave already reports a load
-/// that is refused. So a wrong stem is answered by the machinery that exists,
-/// which is why this is one string and not a skin registry, a config file, a
-/// browser or a hot-swap. Choosing at launch is host policy; Workshop's own weave
-/// still does not know which Skin holds the role, and must not.
+/// IT REPLACED `--skin` AND `--input`, and what those two flags were FOR is what
+/// the plan now does better. Their reason was that BUILDING a Skin and CHOOSING one
+/// are different acts, and that choosing one by editing a literal in this file is a
+/// founder experiment nobody else could repeat. A plan file is that same choice made
+/// repeatable, diffable and durable -- so the graphical Workshop is a second SHIPPED
+/// PLAN rather than two flags, and a maker who wants a third arrangement copies a
+/// file instead of asking this host for a fourth flag.
 ///
-/// `--input <stem>`, defaulted to the terminal/console reader, is the third of
-/// the same shape rather than anything cleverer.
+/// THE OTHER HALF OF WHAT THOSE FLAGS SAID IS STILL TRUE AND IS NOW SAID BY THE
+/// PLAN. Presentation and input are two dimensions, not one: a backend states what
+/// it SAW, and which backend is watching is not deducible from which one is
+/// painting. The plan carries them as two independent rows, so nothing here deduces
+/// one from the other -- and the banner below prints the whole executed arrangement,
+/// which is what makes a run's active reader LEGIBLE rather than inferred.
 ///
-/// IT IS A SEPARATE FLAG FROM `--skin` ON PURPOSE, and the temptation it refuses
-/// is real: `--skin zengine-skin-sdl` could obviously imply `zengine-input-sdl`,
-/// and the graphical Workshop would then be one flag instead of two. But
-/// presentation and input are two dimensions, not one. A backend states what it
-/// saw, and which backend is watching is not
-/// deducible from which one is painting. Coupling them here would write that
-/// deduction into the host as a permanent architecture on the first day two
-/// backends existed. Two flags say what is actually happening, and the banner
-/// below prints both, which is what makes a run's active reader LEGIBLE rather
-/// than inferred.
-///
-/// EXACTLY ONE READER IS LOADED, which is the other half of that legibility. The
-/// host boots one input stem, so the terminal reader and the SDL reader are never
-/// both live and one physical action cannot become two semantic messages. The
-/// Loom would refuse the second anyway -- `zengine.input` is a singleton role --
-/// so the guarantee is doubled rather than assumed, and neither half rests on OS
-/// focus deciding who hears what.
+/// EXACTLY ONE READER IS LOADED, which is the other half of that legibility, and
+/// it is now a fact about a file rather than about a flag. The Loom would refuse a
+/// second anyway -- `zengine.input` is a singleton role -- so a plan naming two
+/// input artifacts is refused by the Kernel and reported by artifact and step.
 ///
 /// `--log <path>` and `--dump <path>` are the optional two, and they are TWO
 /// because what this host keeps and what it knows are different questions
@@ -244,8 +204,12 @@ struct Arguments {
     /// shape as `--document` for the same reasons; a different file because a
     /// document and the arrangement it is looked at in are different facts.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    std::string skin = "zengine-skin-tui-classic";
-    std::string input = "zengine-input";
+    /// Empty means "the one shipped beside this executable", which `main()` resolves
+    /// once it knows where that is. It is deliberately NOT defaulted to a bare name
+    /// here: a bare name would resolve against whatever directory a maker happened to
+    /// launch from, which is right for a document and wrong for a plan naming
+    /// artifacts staged beside the binary.
+    std::string load_plan;
     std::string log;  ///< empty = keep nothing durably
     std::string dump; ///< empty = write no snapshot of working memory at exit
 };
@@ -254,20 +218,24 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document" || arg == "--setup" || arg == "--skin" || arg == "--input" ||
-            arg == "--log" || arg == "--dump") {
+        if (arg == "--document" || arg == "--setup" || arg == "--load-plan" || arg == "--log" ||
+            arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
-                args.complaint =
-                    arg + " needs a " +
-                    (arg == "--skin" || arg == "--input" ? "weave stem" : "path");
+                args.complaint = arg + " needs a path";
                 return args;
             }
             const std::string value = argv[++i];
-            if (arg == "--skin") {
-                args.skin = value;
-            } else if (arg == "--input") {
-                args.input = value;
+            if (arg == "--load-plan") {
+                // REFUSED HERE rather than below, because empty is this field's way
+                // of saying "the one beside the executable" and a maker who typed an
+                // empty path would silently get the default instead of a complaint.
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = "--load-plan needs a path";
+                    return args;
+                }
+                args.load_plan = value;
             } else if (arg == "--log") {
                 args.log = value;
             } else if (arg == "--dump") {
@@ -289,12 +257,6 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
-    } else if (args.skin.empty()) {
-        args.ok = false;
-        args.complaint = "--skin needs a weave stem";
-    } else if (args.input.empty()) {
-        args.ok = false;
-        args.complaint = "--input needs a weave stem";
     }
     return args;
 }
@@ -304,21 +266,54 @@ int main(int argc, char** argv) {
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
-                    "                        [--skin <weave stem>] [--input <weave stem>]\n"
+                    "                        [--load-plan <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
-                    "the graphical Workshop is:\n"
-                    "  zengine-workshop --skin zengine-skin-sdl --input zengine-input-sdl\n",
-                    args.complaint.c_str());
+                    "the graphical Workshop is the second plan shipped beside this binary:\n"
+                    "  zengine-workshop --load-plan <workshop dir>/%s\n",
+                    args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
         return 2;
     }
+
+    // WHERE THE HOST'S OWN FILES ARE, resolved once and before anything is said
+    // about them, because the load plan's default IS this directory and a banner
+    // that named a path this host had not resolved would be naming a guess.
+    HostContext host;
+    host.dir = exe_dir();
+    host.document_path = args.document;
+    host.setup_path = args.setup;
+
+    const std::string plan_path =
+        args.load_plan.empty() ? host.dir + "/" + load_persist::kDefaultLoadPlanName
+                               : args.load_plan;
 
     // The honest line, in plain scrollback, exactly as snake's host prints it:
     // this host isolates nothing.
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
-    std::printf("zengine-workshop - skin: %s\n", args.skin.c_str());
-    std::printf("zengine-workshop - input: %s\n", args.input.c_str());
+    std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
+    std::fflush(stdout);
+
+    // ---- THE AUTHORED LOAD PLAN, READ BEFORE ANYTHING IS BUILT (LOAD-0) -------
+    //
+    // READ FIRST, MOUNTED AND LOADED LATER. A malformed or missing plan is answered
+    // before this process has a bus, a Kernel, a catalog, a terminal or a single
+    // mounted contribution -- so the one failure that leaves nothing to clean up is
+    // the one this host cannot half-perform.
+    //
+    // THERE IS NO COMPILED-IN FALLBACK, and the absence is the phase. A host that
+    // manufactured an arrangement when the file was missing would be the C++ startup
+    // code LOAD-0 removed, kept as a spare; and the maker would be told their project
+    // loaded when what actually ran was this translation unit's opinion of one.
+    const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
+    if (!read_plan.outcome.accepted) {
+        std::printf("zengine-workshop - load plan refused: %s\n"
+                    "zengine-workshop - nothing was mounted and nothing was loaded.\n",
+                    read_plan.outcome.refusal.c_str());
+        return 3;
+    }
+    std::printf("zengine-workshop - load plan: %zu artifact(s) declared\n",
+                read_plan.plan.artifacts.size());
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -409,9 +404,9 @@ int main(int argc, char** argv) {
         } else {
             std::printf("zengine-workshop - log: %s (durable, selected facts only)\n",
                         args.log.c_str());
-            journal.info("zengine.workshop",
-                         "session started: document " + args.document + ", setup " +
-                             args.setup + ", skin " + args.skin + ", input " + args.input);
+            journal.info("zengine.workshop", "session started: document " + args.document +
+                                                 ", setup " + args.setup + ", load plan " +
+                                                 plan_path);
         }
     } else {
         std::printf("zengine-workshop - log: nothing durable (--log <path> to keep one)\n");
@@ -432,26 +427,28 @@ int main(int argc, char** argv) {
     // contribution currently satisfies each logical power, which are shadowed
     // beneath it, and what happens to both when a provider goes away.
     //
-    // WHAT THIS REPLACED, and it is the whole reason for the phase. CAT-0 left one
-    // line here that CALLED a package's authoring function to manufacture the
-    // process's vocabulary. Every power the system had was then a power this
-    // translation unit contained, which made "an artifact loaded tomorrow brings
-    // different semantics" not a hard problem but an inexpressible one. This host
-    // now knows WHICH ARTIFACTS to mount and HOW to host what they supply. It does
-    // not know what any of them means, and since this file no longer includes the
-    // header that defines the delay rule, it could not say.
+    // WHAT THIS REPLACED, TWICE. CAT-0 left one line here that CALLED a package's
+    // authoring function to manufacture the process's vocabulary; PROV-0 replaced it
+    // with a hard-coded list of two artifacts to mount. LOAD-0 replaced THAT with a
+    // file: this host no longer knows which artifacts to mount either. It knows HOW
+    // to host what an artifact supplies, and it reads which artifacts to ask from
+    // authored project intent.
     //
-    // TWO MOUNTS, AND THE ORDER IS NOT ARBITRARY. The first supplies the small
-    // arithmetic powers; the second supplies a domain composition BUILT OVER THEM,
-    // which arrives as a graph naming them rather than as an implementation of
-    // them. So the second provider's rule spends the first provider's code, through
-    // this host's resolution, decided afresh at every evaluation -- and neither
-    // artifact was compiled against the other.
+    // WHICH IS WHY THERE IS NO ARTIFACT STEM IN THIS FILE, and no mount order and no
+    // mode. The Timer's artifact used to be named here twice -- once as a mount, once
+    // as a boot -- because it is one artifact participating in two ways, and two
+    // independent lists could only be maintained so that they happened to agree. It
+    // is named once now, in a plan, as one record with two fields; and the law that
+    // its provider contribution must be mounted BEFORE its weave is created (a
+    // host-backed Timer validates that rule inside its own constructor, CAT-0) is
+    // executed by `load_execute.hpp` rather than trusted to the order these lines
+    // happen to be written in.
     //
-    // ...AND BOTH ARE MOUNTED BEFORE THE OFFER FURTHER DOWN, which is the ordering
-    // the whole handoff turns on: a Timer that is offered a host VALIDATES the rule
-    // it is being asked to spend, inside its own constructor, so the contribution
-    // has to be in this catalog before the artifact that needs it is created.
+    // A ROLE IS STILL NAMED HERE AND THAT IS A DIFFERENT KIND OF FACT. `kSkinRole`
+    // and `kTimerRole` appear below inside GRANTS -- "this participant may say
+    // SurfaceText to whoever holds `zengine.skin`" -- which is a statement about who
+    // may be spoken to, decided by the party that composed this process. A role
+    // cannot become a load: only a STEM can, and there is not one in this file.
     //
     // IT IS NOT A SINGLETON AND MUST NOT BECOME ONE. There is no process-wide
     // registry, no static, no accessor and no service locator: it is a local of
@@ -469,29 +466,14 @@ int main(int argc, char** argv) {
     // stated, and this is where this host states it. The catalog also holds each
     // mounted provider's image open for as long as its contributions are installed,
     // which is the same promise one layer down and is the catalog's to keep.
-    HostContext host;
-    host.dir = exe_dir();
-    host.document_path = args.document;
-    host.setup_path = args.setup;
+    //
+    // THE PLAN EXECUTOR IS DECLARED AFTER THE KERNEL, further down, and that is the
+    // same claim from the other end: it retains the provider identities it mounted,
+    // which is what a rollback needs, and it must not be the thing that outlives the
+    // artifacts holding them.
     host.request_stop = [&bus] { bus.stop(); };
 
     op::Catalog operators;
-    for (const char* artifact : {"zengine-operators-basic", "zengine-timer"}) {
-        const op::MountResult mounted = op::mount_provider(operators, host.so(artifact));
-        // SAID WHETHER IT WORKED OR NOT. A refused mount is not fatal here and must
-        // not be silent either: what follows is a load that will refuse itself if
-        // the power it needs is missing, and a reader who saw only that second
-        // refusal would be one layer away from the fact that caused it.
-        const std::string outcome =
-            mounted.ok ? "supplied " + std::to_string(mounted.contributed) + " as '" +
-                             mounted.provider + "'"
-                       : "supplied nothing - " + mounted.reason;
-        std::printf("zengine-workshop - operators: %s %s\n", artifact, outcome.c_str());
-    }
-    std::printf("zengine-workshop - operators: %zu resolvable, from %zu provider(s)\n",
-                operators.size(), operators.providers().size());
-    std::fflush(stdout);
-
     op::OperatorHostSurface operator_host(operators);
 
     loom::Kernel kernel(bus);
@@ -717,126 +699,83 @@ int main(int argc, char** argv) {
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     mount_in_office<WorkshopWeave>(bus, std::move(speak), kWorkshopProvider, host);
 
-    // The boot weave's reach: the Manager, target-scoped, plus the right to speak
-    // a status line. This is the dangerous grant in this process, and it is held
-    // by the weave whose whole job is one round of loading.
+    // ---- THE PLAN, PERFORMED (LOAD-0) ----------------------------------------
+    //
+    // THE PLAN BOOTER'S REACH: the Manager, target-scoped. This is the dangerous
+    // grant in this process and it is held by the weave whose whole job is one round
+    // of loading -- unchanged in kind from the boot weave it replaces, and THE HOST
+    // STILL WRITES IT. `load_execute.hpp` performs the plan; it does not mint the
+    // authority to perform one, and an executor that mounted its own weave with its
+    // own grant would be an orchestration layer granting itself kernel reach.
+    //
+    // IT NO LONGER SPEAKS A STATUS LINE, and that subtraction is the phase's:
+    // the old boot weave printed a refusal AND published one to the screen, because
+    // a refused load used to be something this process survived. A refused artifact
+    // now stops startup and is reported on stdout by the executor's caller, so a
+    // status line published to a painter that may itself be the thing that refused
+    // is a message with nowhere to arrive.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-    operate.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
-    const loom::WeaveId booter = loom::mount_granted<BootWeave>(bus, std::move(operate));
+    load::BootAnswers answers;
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
 
-    // Boot, as ordinary LoadWeave commands sent AS the boot weave -- so the
-    // Manager's answers come back to something that can hear them, and a refused
-    // load is a fact this program can report instead of a silence it exits on.
-    // The Skin is first: loading it claims the terminal -- which includes asking
-    // the terminal to report its POINTER, because terminal modes are output and
-    // the output stream is claimed on the Skin's own lifetime -- and its hello is
-    // what makes Workshop paint.
-    const auto boot = [&](const char* stem, const char* role) {
-        bus.send_as(booter, manager,
-                    loom::Message(loom::to_value(loom::LoadWeave{stem, host.so(stem), role}),
-                                  booter, booter));
-    };
-    boot(args.skin.c_str(), surface::kSkinRole);
-    boot(args.input.c_str(), input::kInputRole);
-    // ---- The Timer, offered this host's operator truth (CAT-0) ---------------
+    // DECLARED AFTER THE KERNEL, which is the second half of the lifetime claim the
+    // catalog block above states. It retains the provider identity of every mount it
+    // made -- which is what a rollback needs and what nothing else in this process
+    // knows -- and it must not be the thing that outlives the artifacts holding them.
     //
-    // THE OFFER BRACKETS THE LOAD AND IS THEN WITHDRAWN, which is OPH-0's law and
-    // is not relaxed here: `OperatorOffer`'s destructor hands the image a null
-    // table whatever happened, so the slot behind the Timer's exported symbol is
-    // empty everywhere outside these braces. The Timer instance created inside
-    // them keeps its own COPY and goes on working after the withdrawal.
+    // IT IS HANDED THE ONE RULE THAT SPELLS A STEM AS A FILE, and that is the whole
+    // of what the host contributes to resolution. `host.so` is the same function
+    // every artifact path in this program has always come from; keeping it here is
+    // what makes ONE authored plan legal on Linux and on Windows with no platform
+    // field, no suffix in the file and no locator.
+    load::PlanExecutor executor(bus, operators, operator_host, booter, manager, answers,
+                                [&host](const std::string& stem) { return host.so(stem); });
+    const load::Executed performed = executor.run(read_plan.plan);
+
+    // SAID ARTIFACT BY ARTIFACT, IN THE ORDER IT HAPPENED. What each row of this
+    // banner reports is RESOLVED truth -- the identity the artifact declared, how
+    // many powers it supplied, the WeaveId this Kernel minted -- none of which is in
+    // the plan and none of which is written back to it.
     //
-    // AND THE PUMP HAS TO BE HERE, because the offer must be in force at
-    // `create()` and no host can get between the Kernel and a constructor. The
-    // load is several deliveries deep -- `zen.LoadWeave` to the Manager, the
-    // Manager to the control door, the door into `Kernel::load` -- so the
-    // command is sent and the queue is then drained, in bounded turns, until the
-    // artifact is live. `pump_pending()` and not `pump()`: a Timer that has just
-    // become live re-arms its own beat inside its own handler, so a drain-to-
-    // empty would never return and this scope would never close.
-    //
-    // BOUNDED BY TURNS AND BY THE ANSWER BOTH. If the load is refused, nothing
-    // ever reports the Timer loaded and the drain ends when the queue does; the
-    // ceiling above that is a hang guard for a bus that somehow never quiesces,
-    // not a schedule. Either way the offer comes down and the main loop below
-    // reports the refusal exactly as it always did.
-    //
-    // THE OTHER FOUR BOOTS ARE UNBRACKETED, and that is the shape rather than an
-    // omission: an offer names ONE image, so the Skin, the Input producer,
-    // Introspection and the Composer meet no offer, export no consumer surface,
-    // and load precisely as they did before this seam existed. They are queued
-    // ahead of / behind this drain and are delivered in the same order they
-    // always were.
-    {
-        constexpr int kBootDrainTurns = 64;
-        op::OperatorOffer offering(operator_host, host.so("zengine-timer"));
-        // SAID HERE, before a single delivery, because the Skin's own load is
-        // already queued and claiming the terminal is the first thing it does.
-        // The offer's outcome is a fact the moment it is constructed -- the
-        // symbol was resolved and the table was handed over, or it was not -- so
-        // nothing is guessed at by saying it early, and saying it after the
-        // drain would be writing over somebody else's screen.
-        std::printf("zengine-workshop - operators: %s\n",
-                    offering.offered()
-                        ? "this host's resolution offered to the Timer for this load"
-                        : (offering.reason().empty()
-                               ? "the Timer image declares no operator surface (it keeps its own)"
-                               : offering.reason().c_str()));
-        std::fflush(stdout);
-        boot("zengine-timer", timer::kTimerRole);
-        for (int turn = 0; turn < kBootDrainTurns && !kernel.is_loaded("zengine-timer"); ++turn) {
-            if (bus.pump_pending() == 0) {
-                break;
-            }
+    // SAID AFTER THE RUN RATHER THAN DURING IT, and the honest cost is stated rather
+    // than hidden: by the time this loop runs, whichever Skin the plan named is live
+    // and painting, so on an interactive terminal these lines are written into
+    // scrollback and then repainted over. They are on stdout in full -- a pipe, a
+    // redirect or a `--log` keeps every one -- and that is the same condition
+    // anything this host says after its Skin is live has always had. The line that
+    // must survive is the REFUSAL below, and it does: a refused plan stops the
+    // process, so nothing repaints after it.
+    for (const load::ResolvedArtifact& done : performed.resolved) {
+        std::string said = done.stem;
+        if (done.provider_mounted) {
+            said += " | provider '" + done.provider + "' supplied " +
+                    std::to_string(done.contributed);
         }
+        if (done.weave_loaded) {
+            said += " | weave #" + std::to_string(done.weave.value) + " as " + done.role;
+            said += done.offer == op::OfferOutcome::Offered
+                        ? " (this host's operator resolution offered)"
+                        : " (ordinary weave: it declares no operator surface)";
+        }
+        std::printf("zengine-workshop - loaded: %s\n", said.c_str());
     }
-    // ---- The fourth boot, and the honest shape of what it costs (INTR-0) ------
-    //
-    // The Introspection tool. It reaches Workshop only through the pane protocol's
-    // four shapes: nothing in `weave.hpp`, `panel.hpp` or `screen.hpp` names it, no
-    // `panel::k*` was minted for it, and Workshop discovers its pane from a live
-    // offer exactly as it would a stranger's. That is the claim INTR-0 set out to
-    // prove and it is proven on the other side of this line.
-    //
-    // WHAT IS NOT PROVEN IS ON THIS SIDE OF IT, so it is said here rather than in a
-    // report: the HOST still names the stem. There is no provider scan directory, no
-    // autoload list and no `--provider` flag, and dropping a shared library beside
-    // this executable still does not make it a plugin. A first-party tool booted
-    // beside the Timer is exactly as far as the current loader goes; a third party's
-    // would need a door that does not exist. Adding one is a phase, not a line here.
-    //
-    // IT IS BOOTED LAST, AND THAT IS NOT ARBITRARY. Every stem above it is already a
-    // fact by the time it announces, which is what makes the pane's first reading a
-    // reading of a system rather than of a boot in progress. Nothing depends on the
-    // order -- a provider that arrives before Workshop is recovered by Workshop's own
-    // catalog ask, and one that arrives after announces on its attested activation --
-    // so this buys legibility rather than correctness.
-    boot(introspection::kIntrospectionStem, introspection::kIntrospectionRole);
-    // ---- The fifth, and the first tool this host boots that a maker can ACT with (MSG-0)
-    //
-    // The Message Composer. It reaches Workshop through the same pane protocol and
-    // is the first provider to spend the two shapes MSG-0 added to it -- so this
-    // host now boots a stranger that a maker can TYPE into, and `workshop.cpp`
-    // still names no pane, no row, no key and no message.
-    //
-    // WHAT THIS LINE ACTUALLY GRANTS IS WIDER THAN WHAT THE TOOL DOES, and the
-    // difference belongs here rather than in a report. `Kernel::load` binds
-    // `Grant{}.allow_any()` to every library it opens, so this weave -- like the
-    // Skin, the reader, the Timer and Introspection before it -- may send anything
-    // to anyone. That is the loader's shape and it predates this tool; what is new
-    // is that this is the first loaded weave whose PURPOSE is to send a shape
-    // chosen at runtime, which makes the gap between "what it does" and "what it
-    // could do" wider here than anywhere else in this host. A restricted host would
-    // write a grant naming the roles and shapes this office may send to, and the
-    // protocol already keeps the three permissions distinct -- asking a target what
-    // it accepts, sending it one of those shapes, and the target's own permission to
-    // answer are three separate grants. Nothing here relies on that separation and
-    // nothing here claims it is being enforced.
-    //
-    // IT IS BOOTED LAST for Introspection's reason: every stem above it is already a
-    // fact by the time it announces, and nothing depends on the order.
-    boot(composer::kComposerStem, composer::kComposerRole);
+    if (!performed.ok) {
+        // FAIL VISIBLE, AND NAME WHAT STANDS. The refusal already carries which
+        // artifact, which participation step and the deepest layer's own sentence;
+        // what this adds is the honest scope of what happened before it, because a
+        // maker whose fourth artifact refused needs to know the first three did not.
+        std::printf("zengine-workshop - %s\n"
+                    "zengine-workshop - the authored plan was not completed; %zu artifact(s) "
+                    "participated before it stopped. Exiting.\n",
+                    performed.refusal.c_str(), performed.resolved.size());
+        std::fflush(stdout);
+        return 4;
+    }
+    std::printf("zengine-workshop - operators: %zu resolvable, from %zu provider(s)\n",
+                operators.size(), operators.providers().size());
+    std::fflush(stdout);
 
     // Everything runs inside pump(): the input weave's own beat keeps the queue
     // alive, the Timer service's nap paces it, and `q` stops the bus. A pump

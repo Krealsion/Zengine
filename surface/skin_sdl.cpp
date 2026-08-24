@@ -273,8 +273,8 @@ public:
     /// What it concluded was wrong. G-1 answered it by doing NOTHING here and leaving the
     /// window to be serviced as a side effect of the reader's own poll — which made a Skin's
     /// liveness depend on which INPUT weave the host happened to boot, two independent
-    /// choices the host argues at length must stay independent (`--skin` / `--input`, see
-    /// workshop.cpp). Run the SDL skin with the terminal reader and nobody calls into SDL's
+    /// choices a host must keep independent (which medium PAINTS and which weave HEARS are
+    /// two rows of a composition, not one -- see `workshop/load_plan.hpp`). Run the SDL skin with the terminal reader and nobody calls into SDL's
     /// event machinery at all: the window comes up, never processes another OS message,
     /// Windows flags it Not Responding, and the tool looks broken. Found live, in the
     /// graphical Workshop, on exactly that pair of flags.
@@ -360,8 +360,13 @@ private:
                      "taking them.\n"
                      "zengine-skin-sdl: the window still draws, but it is not the ear this run "
                      "is listening with --\n"
-                     "zengine-skin-sdl: type at the terminal instead, or start with `--input "
-                     "zengine-input-sdl`.\n",
+                     // WHAT TO LOAD, NOT WHICH FLAG TO TYPE (LOAD-0). This used to name
+                     // `--input zengine-input-sdl`, which was one host's command line
+                     // spoken by a package that has several hosts -- and that flag does
+                     // not exist any more. What a Skin honestly knows is which ROLE has
+                     // to be held and by what, which is true for every host that loads it.
+                     "zengine-skin-sdl: type at the terminal instead, or run a composition "
+                     "that loads `zengine-input-sdl` as `zengine.input`.\n",
                      waiting);
         std::fflush(stderr);
     }

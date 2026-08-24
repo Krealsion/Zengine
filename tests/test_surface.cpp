@@ -3475,7 +3475,12 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     // shaped -- and the complaint is the honest half of the pairing that caused it: a window
     // that draws while a different ear is listening, said out loud with the flag that fixes it.
     CHECK(said.find("nothing is taking them") != std::string::npos);
-    CHECK(said.find("--input zengine-input-sdl") != std::string::npos);
+    // ...NAMED AS WHAT TO LOAD RATHER THAN AS A FLAG TO TYPE (LOAD-0). This used to
+    // pin `--input zengine-input-sdl`; that flag is gone, and a package with several
+    // hosts should never have been quoting one host's command line. What it says now
+    // is the artifact and the role, which is true for every host that loads this Skin.
+    CHECK(said.find("zengine-input-sdl") != std::string::npos);
+    CHECK(said.find("zengine.input") != std::string::npos);
 
     // ...AND IT TOOK NOTHING. Not one event, and not one out of order: the reader that owns
     // this queue finds exactly what was put on it.

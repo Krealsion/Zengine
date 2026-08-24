@@ -45,6 +45,18 @@ it beside [`operator/host.hpp`](../operator/host.hpp) and
 [`operator/host_abi.h`](../operator/host_abi.h); the rule itself is
 [reference/timer-protocol.md](reference/timer-protocol.md).
 
+**Which artifacts a project runs on:**
+[reference/load-plan.md](reference/load-plan.md) — the authored load plan. One
+durable file naming which artifacts participate and how: one record per
+artifact with two optional surfaces (a provider contribution, a weave under a
+role), executed in authored order. What the plan holds and what it deliberately
+does not, why authored order is the V0 dependency model, what a failed artifact
+rolls back, where the file lives, and — said plainly — why adding a native
+artifact to it is an execution-authority decision rather than configuration.
+Read it beside [`workshop/load_plan.hpp`](../workshop/load_plan.hpp),
+[`workshop/load_persist.hpp`](../workshop/load_persist.hpp) and
+[`workshop/load_execute.hpp`](../workshop/load_execute.hpp).
+
 **Where a host's powers come from:**
 [reference/operator-providers.md](reference/operator-providers.md) — how an
 artifact supplies operator definitions to a host, why a provider need not be a

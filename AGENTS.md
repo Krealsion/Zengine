@@ -1536,6 +1536,77 @@ host resolution            all three, layered, replaceable
   another image, so "the provider could not answer" is an evaluation's own refusal
   rather than an exception leaving a call whose contract is a value or a reason.
 
+## The running arrangement is an authored FILE now (LOAD-0)
+
+PROV-0 ended the host authoring semantics and left it authoring a LIST: two
+`mount_provider` calls and five `boot(stem, role)` calls, hard-coded in
+`workshop.cpp`, with `zengine-timer` in BOTH because it is one artifact
+participating in two ways. That is a file:
+[`workshop/default-load-plan.json`](workshop/default-load-plan.json). Reference:
+[`docs/reference/load-plan.md`](docs/reference/load-plan.md).
+
+```text
+one artifact = one record, with ZERO OR MORE optional surfaces
+
+    zengine-operators-basic   provider normal              (not a weave at all)
+    zengine-timer             provider normal + weave      (ONE row, two surfaces)
+    zengine-composer          weave                        (no provider mounted)
+```
+
+- **`workshop.cpp` NAMES NO ARTIFACT STEM, and a tripwire refuses one.**
+  `test_operator_provider.cpp` reads the host as a source file and checks eleven
+  forbidden strings -- every shipped stem, `kComposerStem`, `kIntrospectionStem`,
+  `mount_provider`, `OperatorOffer`, `MountMode`. It INVERTED the check PROV-0 left
+  there ("the artifacts it mounts are named as artifacts, which is all a host is
+  allowed to know *until a load list exists*"). ⚠ **A ROLE is deliberately NOT
+  forbidden**: `surface::kSkinRole` and `timer::kTimerRole` are still in the host,
+  inside GRANTS, and a grant naming a role is a statement about who may be spoken
+  to. A role cannot become a load; only a stem can.
+- **The intra-record order is SEMANTIC LAW and lives in `load_execute.hpp`**, not
+  in the plan and not in the host: mount, then offer, then load. A host-backed
+  Timer validates the rule it is about to spend inside its own `create()` (CAT-0),
+  so a file that could say *weave, then provider* would author a Timer whose
+  semantics depend on which load was in flight. The tripwire that used to read the
+  Timer's bracket off `workshop.cpp` FOLLOWED THE CODE to that header.
+- **The inter-artifact order is authored POLICY and there is no solver.** ⚠ The
+  obvious order witness is FALSE against this source and is pinned as false:
+  putting the Timer's row before the basic provider's WORKS, because a composition
+  crosses as STRUCTURE and resolves at spend, and by the time anything spends the
+  plan has finished. Where order genuinely bites is an OVERLAY -- an overlay row
+  before the row it means to cover installs over nothing, and the ordinary mount
+  it was meant to cover then collides with it.
+- **A failed handoff REFUSES the artifact.** `NotAConsumer` and `Offered` are both
+  ordinary; a `VersionMismatch` is not "no host intended" and loading anyway would
+  swap the process's semantic authority for the image's own copy (CAT-0's
+  correction). `NotOpened` is deliberately NOT refused there -- the LOAD owns that
+  sentence, which is how a missing artifact is reported in the loader's own words.
+- **One artifact is the atomic unit.** A record that mounted and then failed to
+  load unmounts ITS OWN contribution before reporting. Earlier artifacts stay, and
+  the host says how many participated; a whole-plan transaction was not built.
+- **An OPTIONAL surface is a LIST OF AT MOST ONE, and the split is deliberate.**
+  Zen's wire grammar has seven kinds and none is `optional`, so presence is carried
+  by the kind that already means "zero or more" and the record carries only its own
+  fields -- which is what lets the gate refuse *a weave declaration missing `role`*
+  as a MISSING FIELD rather than as an empty string somebody has to remember to
+  check. AT MOST ONE is the plan's law (`check_load_file`), not the wire's.
+- **A hand-written plan needs no `content_id` and an Int is a QUOTED STRING.**
+  Both measured against the compat codec; the shipped plans are indented for
+  reading and carry no content id. `to_text` still emits the canonical one-line
+  form, and a second write of a loaded plan is byte-identical to the first.
+- **A stem carries no path separator and no `..`**, and that is an authority rule:
+  a plan is an execution-authority document, and a stem that could climb out of the
+  host's artifact directory would make *which files may run* a question about the
+  plan's text. The host owns the one rule that spells a stem as a file
+  (`HostContext::so`), which is why ONE plan is legal on Linux and Windows with no
+  platform field -- neither shipped plan contains `.so`, `.dll` or a separator.
+- **`--load-plan` replaced `--skin` and `--input`**, and the graphical arrangement
+  is a second SHIPPED PLAN staged only where both SDL artifacts exist. There is no
+  compiled-in fallback plan: a missing file refuses by path and the host exits
+  without mounting or loading anything.
+- **Filesystem presence is not load authority.** The suite stages a real directory
+  holding MORE artifacts than any plan names and proves an unlisted valid provider
+  is neither opened nor mounted. A lookup table could not have asked the question.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things
@@ -1686,3 +1757,15 @@ timer/input/surface vocabularies — all header-only). See
   schedules.
 - An offer covers an artifact — it covers **one load** of one image, and every
   `create()` the Kernel performs needs its own, `reload_from` included.
+- Workshop knows which artifacts to mount and boot — it knows **neither** since
+  LOAD-0. It reads one authored plan and executes it, and names no stem at all.
+- A plan row is configuration — it is an **execution-authority decision**: a
+  provider row lets a native artifact contribute executable semantic power to the
+  host, and a weave row lets it participate under a role. Nothing signs or
+  restricts one.
+- The load plan solves hot reload — it does **not**. LOAD-0 is initial and restart
+  load intent; PROV-0's provider-vs-`reload_from` interaction is still open, and
+  the executor has no unload, reload or remount path.
+- Restart persistence means a clean build recreates the artifacts — it means a
+  fresh PROCESS reconstructs the same arrangement from the same file. Build intent
+  is a separate, unstarted question.

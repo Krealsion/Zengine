@@ -740,24 +740,43 @@ Discovery converges in either load order, with no polling and no timer:
 - repetition is harmless: `admit_pane_offer` refreshes an existing `PaneRef` in place and grows
   the catalog by nothing, so identity does the de-duplication and the protocol needs none.
 
-**And here is the limit, immediately.** The production host (`workshop/workshop.cpp`) mounts its
-own weave, the build runner and the Builder tool, and a terminal participant in-process, and then
-boots exactly **four** dynamic weaves through the Weave Manager: the Skin named by `--skin`, the
-input weave named by `--input`, `zengine-timer`, and — since INTR-0 — `zengine-introspection`,
-the first shipped tool that arrives through this protocol. That list is the whole of it, and it
-is a **compile-time list in the host**. The host does **not** scan a directory for providers,
-does not take a `--provider` flag, and publishes no SDK or installation workflow. Dropping a
-shared library beside `zengine-workshop` does not make it a plugin.
+**And here is the limit, immediately — but LOAD-0 moved where it sits.** The production host
+(`workshop/workshop.cpp`) mounts its own weave, the build runner and the Builder tool, and a
+terminal participant in-process. Everything else — every provider contribution it mounts and every
+weave it loads — comes from **one authored file**,
+[`workshop/default-load-plan.json`](../../workshop/default-load-plan.json), staged beside the
+binary and read at startup. The host names no artifact stem at all; a tripwire in
+`tests/test_operator_provider.cpp` reads its source and refuses one.
 
-So read the split precisely, because the two halves are in different places:
+So adding a **first-party** tool to a running Workshop is now a row in a file:
+
+```json
+{ "artifact": "my-tool", "provider": [], "weave": [ { "role": "my.tool" } ] }
+```
+
+...plus getting `my-tool.so` / `my-tool.dll` beside the executable, which is still a build
+question and still has no answer for a stranger. Read
+[reference/load-plan.md](../reference/load-plan.md) before you write one: a plan row is an
+**execution-authority decision**, not configuration.
+
+**What has NOT changed:** the host does not scan a directory. Dropping a shared library beside
+`zengine-workshop` still makes it nothing — only a named row participates, and `LOAD-0` pins that
+with a test that leaves a perfectly valid provider artifact in the host's own artifact directory
+and proves it is neither opened nor mounted. There is still no installation workflow, no plugin
+registry, no discovery and no SDK.
+
+So read the split precisely, because the three parts are in different places:
 
 ```text
 WORKSHOP           needs no change for a new pane, and INTR-0 proved it: not one
                    line of weave.hpp, panel.hpp or screen.hpp names Introspection,
                    no kind was minted for it, and the picker learned its row from a
                    live offer
-THE HOST           still names every stem it boots. A FIRST-PARTY tool is a line
-                   beside `zengine-timer`; a THIRD PARTY has no door at all
+THE HOST           names no stem at all since LOAD-0; it reads a plan and executes it
+THE PLAN           names every artifact. A FIRST-PARTY tool is a row; a THIRD PARTY
+                   still has no door -- because putting a row in the plan is granting
+                   that artifact execution authority in this process, and nothing yet
+                   decides who may do that
 ```
 
 The Hello provider is the other kind of artifact and is unchanged: a dynamic library loaded by the
@@ -993,8 +1012,10 @@ then
 cmake --build build -j"$(nproc)" --target zengine-workshop && ./build/workshop/zengine-workshop
 ```
 
-`--skin zengine-skin-sdl --input zengine-input-sdl` runs the same tool in a window. That is the
-whole loop while you are working: build one target, run one suite, look at the thing.
+`--load-plan graphical-load-plan.json`, from the host's own directory, runs the same tool in a
+window — it is the second plan this repository ships, and it differs from the default in exactly
+the two rows that name the medium and the reader. That is the whole loop while you are working:
+build one target, run one suite, look at the thing.
 
 **Before you contribute**, the repository's own lane is what a green must mean — the full
 population check, the sanitizer lane, and the documentation-link check. `AGENTS.md` owns it; run

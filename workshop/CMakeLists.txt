@@ -86,18 +86,25 @@ add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
             zengine-workshop-vocabulary
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-ui-vocabulary
+            zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
-            # The two durable names in Introspection's boot line, and NOTHING of its
-            # view: the host says which stem to load and into which office, exactly as
-            # it does for the Timer. It does not include `loaded.hpp` and could not
-            # present a row of it.
-            zengine-introspection-view
-            # ...and the Composer's two durable names, on exactly the same terms and
-            # for the same reason: the host says which stem to load and into which
-            # office. It does not include `draft.hpp` or `view.hpp` and could not
-            # present a row of either.
-            zengine-composer-vocabulary
+            # ---- LOAD-0 SUBTRACTED THREE PACKAGE VOCABULARIES FROM THIS LINE -----------
+            #
+            # `zengine-input-vocabulary`, `zengine-introspection-view` and
+            # `zengine-composer-vocabulary` were here for exactly one reason each: the
+            # host's boot list named their stem and their role, and the two durable names
+            # had to come from somewhere. The boot list is a FILE now, so this host names
+            # none of the three and cannot. The subtraction is the phase's clearest
+            # measurement -- a package that used to be a compile-time dependency of the
+            # host is now a row a maker can delete.
+            #
+            # WHAT STAYS AND WHY IT IS A DIFFERENT KIND OF THING. `zengine-surface-*` and
+            # `zengine-timer-vocabulary` remain because this host writes GRANTS and a log
+            # selection in their shapes -- authority and observation, decided by the party
+            # that composed the process, and not a list of what to load. Adding an alias
+            # back here to save a plan row would be re-adding the knowledge this phase
+            # removed.
+            #
             # ...and the operator package, because since CAT-0 this host OWNS the
             # process's operator catalog and dresses it in the C table a loaded
             # consumer can hold. `zengine-operator` is the HOST half of that seam
@@ -114,6 +121,9 @@ target_link_libraries(zengine-workshop
             # knows which artifacts to mount and how to host what they supply, and
             # nothing about what any of it means.
             zengine-operator
+            # ...and the load plan: the typed plan, its codec and its executor. This is
+            # the target that replaced the two hard-coded lists in `workshop.cpp`.
+            zengine-workshop-load
             zengine-warnings zengine-sanitize)
 
 # ---- The one build recipe this host hands its build runner (BLD-0) ----------------------
@@ -234,6 +244,39 @@ foreach(artifact IN LISTS zengine_workshop_artifacts)
         COMMENT "workshop: staging ${artifact} beside the host")
     list(APPEND zengine_workshop_staged ${stamp})
 endforeach()
+# ---- ...AND THE AUTHORED LOAD PLANS, WHICH ARE NOT ARTIFACTS (LOAD-0) -----------------
+#
+# TWO FILES, STAGED THE SAME WAY AND FOR THE SAME REASON: the host resolves its default
+# plan from its OWN directory, exactly as it resolves every artifact, so a plan that lived
+# only in the source tree would be a plan a deployed binary could not find. They are staged
+# by the same stamp-with-a-DEPENDS rule the artifacts use rather than by a POST_BUILD, for
+# the measured reason above -- an edited plan that the build silently declined to copy
+# produces the same "I fixed it and nothing changed" as a stale Skin did.
+#
+# THE GRAPHICAL PLAN IS STAGED ONLY WHERE ITS ARTIFACTS EXIST. Shipping it unconditionally
+# would be honest -- a plan naming an artifact that is not there refuses visibly, by name,
+# which is the behaviour LOAD-0 wants -- but a configuration that built no SDL has no
+# graphical arrangement to offer, and staging a file that can only ever refuse is offering
+# one.
+#
+# THEY ARE NOT `zengine_workshop_artifacts`, and the list they are not in is the claim: an
+# artifact is a shared library this host may execute, and a plan is the text that says
+# which. Adding a plan to that list would stage it correctly and say something false.
+set(zengine_workshop_plans default-load-plan.json)
+if(TARGET zengine-skin-sdl AND TARGET zengine-input-sdl)
+    list(APPEND zengine_workshop_plans graphical-load-plan.json)
+endif()
+foreach(plan IN LISTS zengine_workshop_plans)
+    set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${plan}.stamp)
+    add_custom_command(OUTPUT ${stamp}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_SOURCE_DIR}/${plan} ${zengine_workshop_dir}
+        COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${plan}
+        COMMENT "workshop: staging ${plan} beside the host")
+    list(APPEND zengine_workshop_staged ${stamp})
+endforeach()
+
 add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
 add_dependencies(zengine-workshop zengine-workshop-staging)
 
