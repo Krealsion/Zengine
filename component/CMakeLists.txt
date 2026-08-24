@@ -32,4 +32,7 @@
 # consumers spell `#include "component/text_box.hpp"`, and the suite includes exactly what
 # ships.
 add_library(zengine-component INTERFACE)
-target_include_directories(zengine-component INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-component INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::component ALIAS zengine-component)

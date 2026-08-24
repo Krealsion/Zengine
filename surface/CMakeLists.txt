@@ -9,7 +9,14 @@
 # consumers spell `#include "surface/vocabulary.hpp"`. Portable — it exists
 # even where no kernel does.
 add_library(zengine-surface-vocabulary INTERFACE)
-target_include_directories(zengine-surface-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-surface-vocabulary INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::surface ALIAS zengine-surface-vocabulary)
+# vocabulary.hpp includes <zen/weave/shape.hpp>; the geometry headers beside it
+# (cells/region/pointing/terminal_size) need nothing else. Declared here for the same
+# reason as the Timer's: a link that only ever worked transitively is not a declaration.
+target_link_libraries(zengine-surface-vocabulary INTERFACE loom::core)
 
 # The skins are loadable weaves; they need a hosting Loom (the same honest
 # question every package asks: does this install export loom::kernel?).

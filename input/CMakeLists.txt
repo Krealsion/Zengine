@@ -8,7 +8,14 @@
 # It is portable — shapes are just ZEN_SHAPE structs — so it exists even where
 # no kernel does.
 add_library(zengine-input-vocabulary INTERFACE)
-target_include_directories(zengine-input-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
+target_include_directories(zengine-input-vocabulary INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
+add_library(zengine::input ALIAS zengine-input-vocabulary)
+# vocabulary.hpp includes <zen/weave/shape.hpp>, and input_weave.hpp -- the layer a
+# backend author builds a reader on -- includes timer/binding.hpp for the poll rhythm it
+# declares. Both stated, for the same reason the Timer's are.
+target_link_libraries(zengine-input-vocabulary INTERFACE loom::core zengine::timer)
 
 # The weave itself needs a Loom that can HOST loadable weaves (same honest
 # question snake asks: does this install export loom::kernel?).

@@ -9,6 +9,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# The platform's own answer to "where does a package put its headers, libraries and
+# programs" (CMAKE_INSTALL_INCLUDEDIR / LIBDIR / BINDIR). Included here rather than beside
+# the install rules because every exported target's INSTALL_INTERFACE include path is
+# written in those terms, and those are declared by the packages themselves.
+include(GNUInstallDirs)
+
 # ---- How this repo gets the Loom ------------------------------------------------------
 #
 # Two paths, same target names either way (the Loom's export sets EXPORT_NAME to match its
@@ -403,6 +409,25 @@ endfunction()
 # smoke and tests sit behind BUILD_TESTING because both are test artifacts; the packages
 # themselves do not, and each still makes its own honest kernel decision.
 
+# ---- Which packages are PUBLIC, and how a link line says so (PKG-0) --------------------
+#
+# Eight of the targets below are exported by cmake/ZengineInstall.cmake, so an unrelated
+# project reaches them with find_package(zengine) and links them by the SAME name this tree
+# uses. That is what the `zengine::` ALIASes are for: the exported EXPORT_NAMEs are set to
+# match them exactly, the way the Loom's do, so the in-tree spelling and the stranger's
+# spelling cannot drift apart into meaning different things.
+#
+# So a link line here reads as a boundary:
+#
+#     zengine::surface                 exported -- a stranger can link this
+#     zengine-workshop-vocabulary      internal -- this repository only
+#
+# An INTERFACE target that is exported also carries its include path twice --
+# $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}> for this tree and
+# $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine> for the installed one -- which
+# is what keeps `#include "timer/vocabulary.hpp"` the same sentence from either side.
+# ZengineInstall.cmake holds the reason each package is or is not in that set.
+
 add_subdirectory(activation)
 add_subdirectory(operator)
 add_subdirectory(timer)
@@ -456,3 +481,11 @@ ${zengine_test_record}")
 else()
     message(STATUS "zengine: BUILD_TESTING=OFF — library targets only, no suites registered")
 endif()
+
+# ---- The package a stranger installs and finds (PKG-0) ----------------------------------
+#
+# Last, because it names every target it exports and stages the loadable artifacts by
+# $<TARGET_FILE:...>, so all of them must already exist. The whole public consumer surface --
+# exported targets, installed headers, installed artifacts, the generated config -- is decided
+# in that one file, and the reason each package is or is not in it is written beside it.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineInstall.cmake)
