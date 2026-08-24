@@ -3,7 +3,7 @@
 
 // THE COMPILE-NEGATIVE FIXTURE for the TimedWeave activation wall.
 //
-// ONE SOURCE, THREE TARGETS, so the negative and its positive control cannot
+// ONE SOURCE, FIVE TARGETS, so the negatives and their positive control cannot
 // drift apart: they are the same weave, differing only in whether the forbidden
 // handler is declared. A negative that is not paired with a control proves the
 // build broke, not that it broke for the intended reason.
@@ -11,10 +11,20 @@
 //   ZENGINE_CN_CASE=collision    the forbidden raw on(zen.Activated) -> MUST FAIL
 //   ZENGINE_CN_CASE=hook         the same weave using the supported hook -> MUST COMPILE
 //   ZENGINE_CN_CASE=missing_using   a domain handler with no `using` -> MUST FAIL
+//   ZENGINE_CN_CASE=missing_using_no_binding   the same, and no binding declared
+//                                              at all -> MUST FAIL, same sentence
 //
 // The first and third must fail for DIFFERENT, named reasons: the two
 // diagnostics distinguish "the base handlers are hidden entirely" from "the raw
 // activation handler was illegally replaced", and the lane greps for each.
+//
+// THE FIFTH IS THE THIRD WITH ITS BINDING REMOVED, and it exists because the
+// visibility wall used to be anchored in `timers()`. A weave that wants this
+// layer for the activation half and places its schedules with the raw protocol
+// -- the documented answer whenever the delay is runtime data -- never calls
+// `timers()`, so the sentence naming the fix was never instantiated and the
+// author got template soup instead. Both walls are constructor-anchored now,
+// and this case is what keeps the one that moved from drifting back.
 
 #include "timer/binding.hpp"
 #include "timer/vocabulary.hpp"
@@ -121,12 +131,24 @@ private:
     Handle tick_;
 };
 
+#elif ZENGINE_CN_CASE == 5 // ---- missing `using`, NO binding: MUST FAIL ------
+
+class CnWeave : public zengine::timer::TimedWeave<CnWeave, CnState, loom::Accept<CnPoke>,
+                                                  loom::Emit<>> {
+public:
+    /// No `using TimedWeave::on;` AND no `timers()` call: this weave takes the
+    /// layer for its activation half and would place any schedule with the raw
+    /// protocol. The hiding defect is identical to case 3; what differs is that
+    /// nothing here ever instantiates `timers()`.
+    void on(const CnPoke&, loom::Mail&) {}
+};
+
 #else
-#error "ZENGINE_CN_CASE must be 1 (collision), 2 (hook), 3 (missing_using) or 4 (cursor)"
+#error "ZENGINE_CN_CASE must be 1 (collision), 2 (hook), 3 (missing_using), 4 (cursor) or 5 (missing_using_no_binding)"
 #endif
 
-// Instantiating it is what runs the checks: the collision wall is anchored in
-// TimedWeave's constructor, so it fires for any weave that is ever built —
+// Instantiating it is what runs the checks: BOTH walls are anchored in
+// TimedWeave's constructor, so they fire for any weave that is ever built —
 // including one that never calls timers().
 int main() {
     CnWeave w;

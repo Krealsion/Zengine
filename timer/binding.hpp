@@ -484,16 +484,20 @@ public:
     using Bindings = TimerBindings<Self>;
     using Handle = TimerHandle<Self>;
 
-    /// THE COLLISION WALL, checked for EVERY bound weave.
+    /// BOTH WALLS, checked for EVERY bound weave.
     ///
-    /// Anchored in the constructor rather than in `timers()`, deliberately. The
-    /// visibility assert below lives in `timers()` because that is where an
-    /// author who declared a binding necessarily is — but a weave can define the
-    /// forbidden raw activation handler and never call `timers()` in the same
-    /// translation unit path, and a check the author may never instantiate is a
-    /// check that is not there. Every `TimedWeave` runs its own constructor, and
-    /// `Self` is complete by the time this body is instantiated (it is
-    /// instantiated from `Self`'s constructor, after `Self`'s definition closed).
+    /// Anchored in the constructor rather than in `timers()`, deliberately, and
+    /// for both of them by the same argument: a weave can define its own
+    /// handlers and never call `timers()` — it may want this layer for the
+    /// activation half and place its schedules with the raw protocol, because
+    /// the delay is runtime data — and a check the author may never instantiate
+    /// is a check that is not there. That was measured: a weave with a domain
+    /// handler, no `using`, and no declared binding produced 72 lines of
+    /// template soup naming neither the cause nor the fix, while `timers()`
+    /// held the sentence that would have said both. Every `TimedWeave` runs its
+    /// own constructor, and `Self` is complete by the time this body is
+    /// instantiated (it is instantiated from `Self`'s constructor, after
+    /// `Self`'s definition closed).
     TimedWeave() {
         static_assert(
             activation_is_the_bindings(),
@@ -510,22 +514,16 @@ public:
             "signature the binding layer cannot call, so it would be silently ignored. The "
             "hook is exactly: void on_timed_activation(const loom::Activated&, loom::Mail&) "
             "— and it must be reachable from the binding layer (public).");
+        static_assert(
+            handlers_are_visible(),
+            "zengine::timer::TimedWeave: this weave's own on() handlers HIDE the binding "
+            "layer's. Add `using TimedWeave::on;` to the class. (WeaveBase dispatches via "
+            "self->on(...) on the derived type, and a derived on() hides every base one.)");
     }
 
     /// The declared-bindings table. Call the factories on it during
     /// construction; they record desire and send nothing.
-    Bindings& timers() {
-        // The one line of ceremony, checked here rather than left to template
-        // soup: this is instantiated when an author calls timers() from their
-        // constructor, which is exactly the moment Self is complete enough to
-        // ask whether its handlers are visible.
-        static_assert(
-            requires(Self& s, const TimerFired& f, loom::Mail& m) { s.on(f, m); },
-            "zengine::timer::TimedWeave: this weave's own on() handlers HIDE the binding "
-            "layer's. Add `using TimedWeave::on;` to the class. (WeaveBase dispatches via "
-            "self->on(...) on the derived type, and a derived on() hides every base one.)");
-        return bindings_;
-    }
+    Bindings& timers() { return bindings_; }
     const Bindings& timers() const { return bindings_; }
 
     // ---- the ceremony, owned here so no author writes it again -------------
@@ -610,19 +608,28 @@ protected:
 
 private:
     /// Is an activation handler of the dispatch signature addressable on `Self`?
-    /// False when the derived class hid every base `on` — which is the OTHER
-    /// diagnostic's case, so the collision check abstains and lets `timers()`
-    /// say the thing that is actually wrong.
+    ///
+    /// FALSE MEANS THE DERIVED CLASS HID EVERY BASE `on`, which is exactly the
+    /// missing-`using` defect — so this doubles as the visibility probe, and it
+    /// is the RIGHT probe for it. A `TimerFired` probe (what this check used to
+    /// be, over in `timers()`) asks about a shape an author may legitimately
+    /// handle themselves whenever the delay is runtime data, and a weave that
+    /// does is a weave whose missing `using` the probe cannot see. Activation is
+    /// the one shape a derived class may never claim — `activation_is_the_bindings`
+    /// below refuses it by name — so a derived handler can never mask this.
     static constexpr bool activation_addressable() {
         return requires { detail::activation_owner(&Self::on); };
     }
+
+    /// The same question, under the name the diagnostic is about.
+    static constexpr bool handlers_are_visible() { return activation_addressable(); }
 
     /// Would `WeaveBase`'s `self->on(...)` select the binding's own activation
     /// handler? Identity, not callability: a derived one is perfectly callable,
     /// which is exactly why it is dangerous.
     static constexpr bool activation_is_the_bindings() {
         if constexpr (!activation_addressable()) {
-            return true; // hidden entirely; `timers()` owns that diagnostic
+            return true; // hidden entirely; the visibility assert owns that diagnostic
         } else {
             return std::is_same_v<decltype(detail::activation_owner(&Self::on)), TimedWeave*>;
         }
