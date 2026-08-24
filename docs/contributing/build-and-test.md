@@ -95,6 +95,46 @@ change could hide a defect whose only symptom is that no answer changes — life
 retained references, extent arithmetic. Not as a reflex on prose, comments or CMake-only edits.
 Whatever you run, say what you ran and what you did not.
 
+## The installed-package witness
+
+```sh
+cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
+```
+
+It installs Zengine into an isolated prefix, copies
+[`tests/package/`](../../tests/package/CMakeLists.txt) **out of this repository**, and builds
+that copy as an unrelated project against the prefix alone. `ZEN_WORK` must be outside the
+Zengine tree, and the driver refuses if it is not — otherwise "it does not need the source
+tree" would be a claim rather than a fact.
+
+**A third question, which neither of the lanes above can ask.** The verifier and the sanitizer
+both reach Zengine through its own build tree, where every header is on the include path and
+every artifact is already staged. A requirement the *package* fails to carry is invisible from
+there and lands on the first stranger. The Loom keeps the same witness for the same reason.
+
+What it asks, in order:
+
+| step | the failure it discriminates |
+|---|---|
+| install into an isolated prefix | install rules that do not run, or run into the source tree |
+| read the generated package files | an absolute path to the machine that built it |
+| read the installed public material | a header assuming this project's development environment |
+| configure the copied project | a public dependency the config does not resolve |
+| run `witness-surfaces` | an exported target whose headers are not self-contained |
+| run `kitchen-host` | a loadable artifact a consumer cannot find or load |
+| rebuild against a **moved** prefix | a package that only works where it was installed |
+| **canary**: delete one installed header | a consumer secretly reading the source tree |
+
+The last row is what makes the rest mean anything. Zengine's checkout is fully present and
+readable throughout, so if the stranger still builds with `timer/vocabulary.hpp` removed from
+the prefix, it was never using the package and every green above is void. The driver fails
+loudly in that case rather than reporting a pass.
+
+It is deliberately **not** a CTest entry: it installs, relocates and configures a second
+unrelated project, and folding that into `ctest` would put a nested CMake build inside a test
+binary's population. One command, run by hand and by CI, so the two cannot come to mean
+different things.
+
 ## Verification
 
 ### Run `tests/verify.cmake`, not a bare `ctest`

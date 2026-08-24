@@ -8,19 +8,25 @@ deprecation cycles.
 
 ## The library itself
 
-### Zengine ships no installable package
+### The installable package does not cover everything Zengine builds
 
-There are **no `install()` rules anywhere in Zengine**. There is no `find_package(zengine)`,
-no exported target set, and no installed headers. An external project reaches Zengine's
-header-only vocabularies by pointing an include directory at a Zengine *source* tree, and gets
-its loadable artifacts from a Zengine *build* tree.
+`find_package(zengine)` exports eight capability targets and installs the loadable artifacts
+they need — see [using Zengine from another
+project](../getting-started.md#using-zengine-from-another-project). Four things are
+deliberately outside it, and each is a real limit rather than an oversight:
 
-The Loom, by contrast, is a proper installable package with an exported target set, and
-Zengine consumes it that way — which is what makes the absence conspicuous rather than
-invisible.
-
-Consequence: a consumer's build depends on two Zengine paths, and Zengine cannot be shipped as
-a binary dependency. Workaround in [getting started](../getting-started.md#using-zengine-from-another-project).
+- **The SDL-backed skin and input reader are not installed.** When no SDL3 is present the
+  build fetches one and links it out of its own build tree, so installing those two artifacts
+  without it would ship images that cannot load. A consumer who wants a window today builds
+  Zengine from source.
+- **Workshop is not installed.** Its executable compiles the path of the build tree that
+  produced it into itself for the Builder panel, so an installed copy would carry a stranger's
+  directory layout. Workshop is launched from a build tree.
+- **The external-pane vocabularies are not exported**, for the reason below: there is no way
+  for an externally-built pane to arrive in a Workshop run.
+- **The Timer's own service headers are not installed** (`timer/normalize.hpp`,
+  `timer/timer_weave.hpp`), so writing a *replacement* Timer service outside this repository
+  is not a supported path. Using the Timer is; being one is not.
 
 ### A declared Timer binding's delay is fixed at declaration
 

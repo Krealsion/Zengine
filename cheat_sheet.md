@@ -52,6 +52,56 @@ you proved.
 
 ---
 
+## Use it from another project
+
+Install both, find one, link the capability:
+
+```sh
+cmake --install Loom/build    --prefix "$PWD/deps"
+cmake --install Zengine/build --prefix "$PWD/deps"
+```
+
+```cmake
+find_package(zengine 0.1 CONFIG REQUIRED)          # brings the Loom with it
+target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
+loom_weave_build_contract(my-weave)                # not optional; forgetting it is silent
+```
+
+Configure with `-DCMAKE_PREFIX_PATH=<the prefix>`. Include paths are unchanged from this
+tree's own spelling: `#include "timer/vocabulary.hpp"`.
+
+| exported target | linking it grants |
+|---|---|
+| `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
+| `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
+| `zengine::input` | key/text/pointer moments; translate a raw byte stream |
+| `zengine::ui` | author placement and extent; read what a viewport resolved |
+| `zengine::component` | a medium-independent editable text box |
+| `zengine::activation` | read your own activation as a cursor |
+| `zengine::operator` | hold and evaluate named typed rules; mount a provider |
+| `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
+
+The loadable artifacts come with the package, never from a build tree:
+
+```cmake
+"${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"   # ZENGINE_WEAVES lists them
+```
+
+`ZENGINE_WEAVES` is `zengine-timer;zengine-input;zengine-skin-tui-classic;`
+`zengine-skin-tui-block;zengine-operators-basic`, and is **empty** when the package was built
+against a Loom with no kernel.
+
+⚠ **friction** — Workshop, the SDL skin and the SDL input reader are not in the package;
+[limitations](docs/workshop/limitations.md#the-library-itself) says why for each.
+
+The witness for all of the above:
+
+```sh
+cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
+```
+
+---
+
 ## Zengine C++
 
 ### Define a weave
