@@ -39,7 +39,7 @@
 //
 // THE INPUT REALITY, named where a reader will hit it. Three reconstructions
 // this file does NOT perform, because the Input vocabulary carries the facts
-// that were simultaneously true (README.md#input--the-input-package):
+// that were simultaneously true (docs/reference/input.md):
 //
 //   typing        `character_of(scancode)` is deleted. Characters arrive as
 //                 input::TextEntered, from the platform's own keyboard layout,

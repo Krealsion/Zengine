@@ -36,7 +36,7 @@
 // the picture is. A relational layout engine (stacks, weights, "beside") is the
 // Loom's loom::Widget + px_layout, a different model that stays where it is --
 // the two are not competitors, and neither replaces the other
-// (README.md#ui--the-authoredresolved-vocabulary).
+// (docs/reference/ui.md).
 
 #include "complete.hpp"
 #include "document.hpp"
@@ -4077,9 +4077,9 @@ inline InfoBodyAt info_body_at(const WorkshopDoc& d, const Session& s, std::int6
 //
 // IT IS A HELPER AND IT IS NOT A COMPONENT. It owns no items, no selection, no capacity and no
 // keys; it takes a window somebody else resolved and a row somebody else's list begins at, and
-// answers a question about rows. See the report-back's List readiness section -- this is
-// exactly the kind of extraction that is earned (duplicate arithmetic removed, ownership
-// unmoved) and exactly the kind that must not be called `List`.
+// answers a question about rows. This is exactly the kind of extraction that is earned
+// (duplicate arithmetic removed, ownership unmoved) and exactly the kind that must not be
+// called `List` -- see `docs/reference/component.md` for the standard a component meets.
 
 /// WHICH PROSE ROW SHOWS ITEM `index` OF A LIST THAT BEGINS AT `first_row`, or `kNoProseRow`
 /// when the window is not showing it.

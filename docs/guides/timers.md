@@ -1,5 +1,8 @@
 # Using the Timer
 
+**How-to.** Ordering a timer from a weave with the raw protocol. For a rhythm that is part of
+what your weave *is*, use [TimedWeave](timed-weaves.md) instead.
+
 Time in Zen is a service: the `zengine-timer` weave holds the `zengine.timer`
 role, owns the monotonic clock and the one nap in the system, and delivers
 beats to whoever asks. Your weave never sleeps, never polls, and never talks to

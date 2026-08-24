@@ -25,9 +25,9 @@
 #      sweep will derive the requirement from the build graph and say so."
 #
 # The sweep in question walks LOOM's build graph, and this weave is in Zengine's —
-# so it will not fire, and the cost is measured here instead. See
-# `Zen/reportbacks/MSG-0-RB.md` for the measurement and what it means for reloading
-# this particular weave. Nothing about it is hidden behind a flag.
+# so it will not fire, and the cost is measured here instead. What that means for reloading
+# this particular weave is stated below rather than pointed at. Nothing about it is hidden
+# behind a flag.
 # The two durable names travel on their own and LINK NOTHING AT ALL, which is a
 # narrower offer than introspection's view makes. A host's boot list needs the stem
 # and the office and must not thereby acquire the typed composer, the Schema

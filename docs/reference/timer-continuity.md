@@ -1,9 +1,11 @@
 # Timer continuity — reference
 
+**Reference.** What a standing schedule does when the Timer service itself is replaced.
+
 How a schedule survives the service being replaced. Laws:
 [TIMER-01..05](../laws/timer-laws.md). Substrate ceremonies:
-[Loom lifecycle](../../../Loom/docs/reference/lifecycle.md) and
-[Loom prepared-replacement](../../../Loom/docs/reference/prepared-replacement.md).
+[Loom lifecycle](https://github.com/Krealsion/Loom/blob/main/docs/reference/lifecycle.md) and
+[Loom prepared-replacement](https://github.com/Krealsion/Loom/blob/main/docs/reference/prepared-replacement.md).
 
 ## The invariant everything serves
 
@@ -52,7 +54,7 @@ of changing, through the unchanged `zen.PrepareShutdown → TimerHandoff`
 exchange — one interpretation of progress, not two. The incumbent is **never
 told** anything beforehand; abort is correct by construction because there is
 nothing to release. The candidate's own activation necessarily precedes its
-prepared claim ([Loom PR-08](../../../Loom/docs/laws/replacement-laws.md)).
+prepared claim ([Loom PR-08](https://github.com/Krealsion/Loom/blob/main/docs/laws/replacement-laws.md)).
 
 Failure direction: every pre-admission failure leaves the incumbent's chain
 and schedule untouched — no reset, no fork, no orphan; a promised letter that

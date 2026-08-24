@@ -1,5 +1,8 @@
 # Timer protocol — reference
 
+**Reference.** Exact Timer semantics: every shape, every field, and what the service does with
+each. To *use* it, start at [the timers guide](../guides/timers.md).
+
 The Timer package's wire vocabulary (`timer/vocabulary.hpp`), all v1 shapes
 except `Drive` (v2), all content-id pinned. Laws:
 [TIMER-01..05](../laws/timer-laws.md). The service holds role

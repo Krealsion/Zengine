@@ -10,7 +10,7 @@
 // what it IS -- and whose vocabulary it is spelled in. It is not Workshop's:
 // what a maker authors (an identity, a label, a place, two extents) is what ANY
 // visual Zengine application authors, so the TYPE is `zengine::ui::Element` in
-// the UI package (README.md#ui--the-authoredresolved-vocabulary) and this file
+// the UI package (docs/reference/ui.md) and this file
 // is the document that HOLDS such elements rather than the file that invents
 // them.
 //

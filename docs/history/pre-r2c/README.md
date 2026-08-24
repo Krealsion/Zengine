@@ -1,6 +1,13 @@
-> **Historical architecture record — Status: FROZEN.** Source commit: Zengine `f6a4c69`
-> (pre-R2C-0 consolidation, preserved unabridged). Package documentation as it stood
-> before the docs split. Current docs → `docs/README.md`.
+> **Historical architecture record — Status: FROZEN.** Source commit: Zengine `f6a4c69`.
+> Package documentation as it stood before the documentation split, kept because it is a
+> fuller account of the Timer package's design than the current reference pages carry.
+>
+> It describes the tree it was written against and is **not** maintained against the current
+> one: file paths, constants, versions and package boundaries have all moved. Do not cite it as
+> current. Current documentation → [`docs/README.md`](../../README.md).
+>
+> Two passages have been removed rather than preserved — a private workspace layout and an
+> absolute path on a personal machine. Neither was part of this document's subject.
 
 # Zengine
 
@@ -81,7 +88,7 @@ home from birth — never a lift-and-shift.
 
 *Provenance:* a plain file import of the V1 repo's **working tree** (taken 2026-07-18, including
 changes uncommitted there at the time), not a history-carrying subtree split. Its git history
-stays in that original working copy (`G:\dev\BloodRush\Zen`) and is deliberately not carried
+stays in that original working copy and is deliberately not carried
 here — note its `origin` points at the *same* GitHub project as the Loom's, which is a further
 reason the import drops `.git` rather than nesting a second repo under `reference/`. Dropped at
 import: the 206 MB Python virtualenv, the derived `all_code.txt` concatenation, and
@@ -641,17 +648,3 @@ documented-but-unbuilt `referenced` section (`zen.Manifest` v3). The snake targe
 `if(TARGET loom::kernel)`, so a Windows Loom install still configures — the package simply
 skips.
 
-## Working in this tree
-
-Zengine and the Loom live side by side under a shared `Zen/` root:
-
-```
-Zen/
-  Loom/        the substrate — everyone's
-  Zengine/     this repo — the default set
-  playground/  Josh's own weaves
-```
-
-Assistant sessions are launched from the **`Zen/` root**, never from inside a sub-repo: the
-memory graph is keyed to that path, so launching from `Zen/Zengine/` silently cold-starts
-without it. Run git per-repo (`git -C Loom …`, `git -C Zengine …`).

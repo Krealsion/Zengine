@@ -1,5 +1,8 @@
 # Timer binding (`TimedWeave`) — reference
 
+**Reference.** The `TimedWeave` model, what it composes into a weave's manifest, and exactly
+where its boundary is. To *use* it, start at [timed weaves](../guides/timed-weaves.md).
+
 The composition layer over the raw protocol: a weave declares its rhythm once
 and the layer keeps it true across activations and service replacements. Law:
 [TIMER-05](../laws/timer-laws.md). Guide:
@@ -35,7 +38,7 @@ reconciliation moments waits for the next one — in practice the next
 `TimerReady`, e.g. when the Timer service is replaced. A weave whose rhythm is
 genuinely runtime data speaks the raw protocol directly and counts its own
 beats; Night Lab's scheduler is the worked example
-([evidence](../../../Loom/docs/evidence/night-lab.md)).
+([evidence](https://github.com/Krealsion/Loom/blob/main/docs/evidence/night-lab.md)).
 
 ## The activation wall (compile-time)
 

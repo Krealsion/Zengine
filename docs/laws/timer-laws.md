@@ -1,10 +1,13 @@
 # Timer laws (TIMER)
 
+**Invariants.** The numbered truths the Timer package keeps, each with the evidence that pins
+it. Cite these by number.
+
 Zengine owns these truths. Reference:
 [timer-protocol](../reference/timer-protocol.md) ·
 [timer-continuity](../reference/timer-continuity.md) ·
 [timer-binding](../reference/timer-binding.md). Loom-tier laws they build on:
-[`Loom docs/laws/`](../../../Loom/docs/laws/README.md).
+[`Loom docs/laws/`](https://github.com/Krealsion/Loom/blob/main/docs/laws/README.md).
 
 ## TIMER-01 — One beat chain per activated incarnation
 
@@ -101,4 +104,4 @@ DOES NOT MEAN
   and priced by a real application (Night Lab's scheduler).
 
 PROVEN BY — `timer/binding.hpp` (reconciliation moments); suite `timer`;
-evidence: [Loom docs/evidence/night-lab.md](../../../Loom/docs/evidence/night-lab.md).
+evidence: [Loom docs/evidence/night-lab.md](https://github.com/Krealsion/Loom/blob/main/docs/evidence/night-lab.md).

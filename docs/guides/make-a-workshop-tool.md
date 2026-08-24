@@ -1,5 +1,9 @@
 # Make a Workshop tool
 
+**How-to.** Adding a tool to Workshop, and choosing which of the two authoring paths you are
+on. The exact contracts are [Workshop panes](../reference/workshop-panes.md); a maker's view of
+the same ground is [panes](../workshop/panes.md).
+
 Workshop is Zengine's maker-facing application: a workspace with authored rectangles in it, an
 Info panel beside them, a Builder panel, and a Terminal overlay. A **tool** is something a maker
 can open from the `+ panel` picker.
@@ -666,9 +670,9 @@ This is a different contract from Part A, not a lighter version of it. You get n
 coordinates and no placement. What you get is a budget, a way to speak into it, and a way to be
 told where in it a maker pressed.
 
-The exact reference is `workshop/pane_vocabulary.hpp` and the root README's
-[A weave may offer a pane](../../README.md#a-weave-may-offer-a-pane-wp-0). This section is the
-orientation; that section is the contract.
+The exact reference is `workshop/pane_vocabulary.hpp` and
+[A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane). This
+section is the orientation; that one is the contract.
 
 ## B1. Five shapes, and there is no sixth
 
@@ -1091,15 +1095,14 @@ I want to remember where MY panel was
 1. **`workshop/pane_vocabulary.hpp`** — the exact wire shapes, their payloads, and the written
    reasons the absent ones are absent.
 2. **`tests/weavelib/workshop_hello.cpp`** — the smallest complete protocol witness.
-3. The root README's
-   [A weave may offer a pane](../../README.md#a-weave-may-offer-a-pane-wp-0) — the reference
-   account, including every bound and every non-claim.
+3. [A weave may offer a pane](../reference/workshop-panes.md#a-weave-may-offer-a-pane) — the
+   reference account, including every bound and every non-claim.
 4. **`workshop/setup.hpp`** — `PaneRef`, `admit_pane_offer`, `resolve_pane`, `seat_panes` and
    `reconcile`, which is where an authored reference becomes a presentation or does not.
 
-For the arrangement a maker saves, the root README's
-[A setup has a name](../../README.md#a-setup-has-a-name-ws-0) is the reference, and
-[The code authors a default; the maker authors an override; the host resolves the room](../../README.md#the-code-authors-a-default-the-maker-authors-an-override-the-host-resolves-the-room-wind-2)
-is the reference for what a maker may then do to your panel's rectangle; for the panel
-system itself it is
-[Dynamic panels: Builder and Info](../../README.md#dynamic-panels-builder-and-info-bld-0-pnl-0-pnl-1-pnl-2-pnl-2a).
+For the arrangement a maker saves,
+[A setup has a name](../reference/workshop-panes.md#a-setup-has-a-name) is the reference, and
+[The code authors a default; the maker authors an override; the host resolves the room](../reference/workshop-panes.md#the-code-authors-a-default-the-maker-authors-an-override-the-host-resolves-the-room)
+is the reference for what a maker may then do to your panel's rectangle; for the panel system
+itself it is [The panel system](../reference/workshop-panes.md#the-panel-system). A maker's own
+view of the same ground is [panes](../workshop/panes.md) and [setups](../workshop/setups.md).

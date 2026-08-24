@@ -1,8 +1,12 @@
 # AGENTS.md — Zengine
 
-Docs router: **`docs/README.md`** (Timer guides/reference/laws live here;
-substrate truth lives in `../Loom/docs/`, machine router
-`../Loom/docs/CONTEXT.md`).
+Docs router: **`docs/README.md`** — every public page and its reader purpose. Substrate truth
+belongs to the Loom: <https://github.com/Krealsion/Loom/blob/main/docs/README.md>, machine
+router <https://github.com/Krealsion/Loom/blob/main/docs/CONTEXT.md>. With a sibling checkout
+those are `../Loom/docs/README.md` and `../Loom/docs/CONTEXT.md`.
+
+Public-documentation rules (the external-reader rule, what may not appear in a public page,
+`doc_links`) are `docs/contributing/repository-conventions.md`.
 
 ## Build / test (canonical: WSL; consumes an *installed* Loom)
 
@@ -416,8 +420,9 @@ Availability is whether the act has a TARGET and whether the maker is FREE to ac
   Delete share is a label, a bit, a bracket convention and a row — presentation with no
   invariant to keep. Consumer #2 cost four lines (an index, a label arm, an availability arm,
   a press arm) and no new geometry, input or paint path, which is what says the shape is a
-  TABLE rather than a component. See `Zen/reportbacks/HD-8-RB.md` for the full comparison
-  against the TextBox standard. Do not add `Button` until something owns a rule.
+  TABLE rather than a component, measured against the TextBox standard: a component here is
+  earned by repeated working behaviour with an invariant to keep, never by a widget list. Do
+  not add `Button` until something owns a rule.
 - **No focus framework, and none was earned.** The controls are pointer-only, keyboard command
   routing is untouched, and a `TextBox` still owns typing while editing. There is no
   keyboard-activation gesture for a control, so there is nothing for two owners to want.
@@ -1034,8 +1039,9 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
   reads on both a `kFill` body and a `kMuted` backdrop, and a fifth role is what
   `surface/vocabulary.hpp` refuses -- so the answer is the BOUND, and a name that does not fit
   its object says so with `detail::fit`'s mark rather than fading into the backdrop. The authored
-  name is untouched by any of it and widening the object reveals more of the same bytes. See
-  `Zen/reportbacks/TYPE-1-RB.md` for the cost and `Zen/reportbacks/QR-3-RB.md` for the repair.
+  name is untouched by any of it and widening the object reveals more of the same bytes. The
+  bound belongs to the material being shown, not to the name: see
+  `docs/reference/surface.md` and `docs/reference/workshop-panes.md`.
 
 ## The first tool that reaches Workshop as a stranger (INTR-0)
 
@@ -1781,7 +1787,7 @@ the tests themselves pass
   `*.md` path written in a first-party C/C++ comment under any package
   directory or `tests/`, must resolve — a broken one is a RED in the official
   lane. `docs/reference/foo.md` is the usual form, but the check is not limited
-  to `docs/`: `README.md#surface--the-surface-package` is checked, anchor and
+  to `docs/`: `docs/reference/surface.md` is checked, anchor and
   all, which is what makes a README section a citable owner. A comment's
   reference is resolved against the **repository root**,
   because a comment moves with its code. Excluded by written rule:
