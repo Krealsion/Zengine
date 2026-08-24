@@ -141,7 +141,7 @@ complete one.
   timer.normalize_delay
       active    zengine.timer (composite)
 
-a weave that took no offer holds its own catalog
+this pane describes this host's operator resolution only
 snapshot from zengine.arrangement, on room grant
 ```
 
@@ -175,7 +175,7 @@ signal, so a monochrome terminal reads the same fact a coloured one does.
 | what the project authored | the **load plan file**, held by the host | `ArrangementRequested` → `zengine.arrangement` → `ResolvedArrangement` | a **snapshot**, re-read on each room grant | the plan named no such artifact |
 | what resolved from it | the host's **`PlanExecutor` rows** | same message | same snapshot | the executor never reached that row |
 | which powers resolve | the host's **`op::Catalog`** (the same store `find` resolves through) | `PowersRequested` → `zengine.arrangement` → `ResolvedPowers` | a **snapshot**, re-read on each room grant | nothing supplies that identity here |
-| that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it. A weave that took no offer has its own |
+| that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it, and the pane says nothing about any other |
 
 The third row is why the pane always carries `in-process weaves are not in the kernel's map`.
 Workshop's own weave, the boot weave, the control door, the Weave Manager, the Builder tool, the
@@ -187,9 +187,16 @@ offered anything but its first row.
 The other two panes carry the same kind of sentence for the same reason.
 `in-process participants are not authored artifacts` bounds the `Project` count — every weave the
 host mounted in-process, including the door that answers this very question, is a live participant
-that was never an authored artifact. `a weave that took no offer holds its own catalog` bounds the
-`Powers` count — it is **one host's** resolution, and a weave that was offered none falls back to a
-catalog of its own.
+that was never an authored artifact. `this pane describes this host's operator resolution only`
+bounds the `Powers` count — it is **one host's** resolution and the pane read one catalog, so the
+sentence claims exactly that and stops.
+
+**And it stops there deliberately.** The wording that stood here first —
+`a weave that took no offer holds its own catalog` — described the Timer's supported local fallback
+and read as a law about every weave that accepts no operator host, which it is not. Whether another
+participant owns a private catalog, whether an unbound one can evaluate at all, and what any
+particular weave makes of an offer are facts a pane that read one catalog never observed; the
+bounding sentence names its own population and settles none of them.
 
 ## What it deliberately does not show
 

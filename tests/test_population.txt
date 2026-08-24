@@ -382,6 +382,21 @@
 # is a LOCAL of its case with its own Switchboard and Kernel, and every drain is
 # `pump_pending()` in bounded turns. Do not hoist one to file scope.
 #
+# QR-4 raised the workshop floor 680 -> 683 and moved no other floor, which is the repair's own
+# claim about where it lives: two maker-facing sentences in the Powers pane's shared projection,
+# no operator semantics, no pane protocol and no medium. THREE cases, and they are permanent
+# because a wording defect is exactly the kind a green cannot see -- the old rows were
+# well-formed strings that a suite was happy to assert, which is how `1 providers` survived a
+# whole phase and how a sentence claiming a law about every weave survived beside a pane that
+# had read one catalog.
+#
+# Two of them ask the PROJECTION what a heading says at each cardinality the pair can take, and
+# the third reads the same two repairs back off the PUBLISHED CANVAS -- because a projection
+# that is right and a pane too narrow to say it are different results, and `fit` marks that
+# difference with an ellipsis no tier-one case can see. All three are in the `always` row for
+# INTR-1's reason unchanged: a projection is pure arithmetic over a value, and the live one
+# spends the character medium, so the no-SDL lane and the Windows stranger lane prove them all.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -400,7 +415,7 @@ component                         doctest           always  15
 operator                          doctest           always  89
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  680
+workshop                          doctest           always  683
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
