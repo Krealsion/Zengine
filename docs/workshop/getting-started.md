@@ -53,11 +53,26 @@ fact. Without either, nothing is written and `q` always leaves a live process.
 Workshop prints a few lines of plain scrollback on the way up, and each is a fact you are
 entitled to before you press anything:
 
+```text
+zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
+zengine-workshop - document: workshop.json
+zengine-workshop - setup: workshop-setup.json
+zengine-workshop - load plan: .../default-load-plan.json
+zengine-workshop - load plan: 6 artifact(s) declared
+zengine-workshop - log: nothing durable (--log <path> to keep one)
+zengine-workshop - terminal: weave #3 (shift+space opens it)
+zengine-workshop - builder: weave #5 builds `zengine-snake` (p opens the panel)
+zengine-workshop - build runner: weave #4 runs `/usr/bin/cmake --build ... --target zengine-snake`
+```
+
 - **what this host isolates** — `Kernel::containment_note()`, verbatim. An in-process Zengine
   host isolates nothing; read the sentence literally.
-- **the executed load plan** — which artifacts were mounted and loaded, into which roles.
-- **what the Builder will run** — the actual program and arguments, because a panel cannot show
-  you a command before the runner has started it.
+- **which files this run is using**, and how many artifacts the plan declared.
+- **whether anything durable is being kept**, so a session that mattered is not discovered to
+  have been unrecorded afterwards.
+- **what the Builder will actually run** — the program and its arguments, because a panel cannot
+  show you a command before the runner has started it, and what a key in this program will run
+  is a fact you are entitled to before you press it.
 
 ## The screen
 
@@ -84,7 +99,21 @@ underneath it, so the maker always keeps half.
 The status line is where every refusal appears. Workshop refuses rather than clamps: an
 illegal extent leaves both stored coordinates untouched and says why.
 
+The title row advertises the two gestures that open things — `[+ panel]  p` and `[window]  w` —
+plus `shift+space terminal`. The setup line carries `s name/save  r restore`, and the bottom
+help line carries the object gestures. So the keys are on screen; this page is the fuller
+version, not the only source.
+
 ## Your first five minutes
+
+**A fresh Workshop is not empty.** It opens onto two deliberately boring rectangles, both named
+`panel` — which is the first thing to look at, because in a naming-is-identity system they would
+be one object and here they are `#1` and `#2`. The wide one's width is authored as a **share**,
+so the very first screen already shows an authored intent (`60%`) beside its resolved value
+(`28 x 6 cells`).
+
+Those two are seeded by Workshop's own weave, not read from a file. So on a first run the title
+row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both are accurate.
 
 1. **`n`** — create an object. It gets a fresh identity that is neither its label nor its
    index, and is never handed out twice.
@@ -103,8 +132,10 @@ illegal extent leaves both stored coordinates untouched and says why.
 5. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
    open it again.
 
-> **You must press `Ctrl`+`o` to get your document back, and `r` to get your panes back.**
-> Neither is restored at launch. See [workspace continuity](setups.md#workspace-continuity).
+> **Nothing is restored at launch.** Press `Ctrl`+`o` for your document and `r` for your panes.
+> Both keys are advertised on screen; neither happens by default — and because a fresh Workshop
+> seeds those two example objects, forgetting `Ctrl`+`o` looks like a state rather than like an
+> omission. See [workspace continuity](setups.md#workspace-continuity).
 
 ## The full key map
 
