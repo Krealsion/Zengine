@@ -353,6 +353,35 @@
 # tripwires, not proofs -- because Workshop's `main()` claims a terminal and no case in this
 # repository can run it.
 #
+# LOAD-0 raised the workshop floor 582 -> 635, and it is the FOURTEENTH phase to need no new
+# row and no gate -- for a reason none of the thirteen above could have given, because the
+# phase has no medium in it at all. What its 53 cases prove is WHICH ARTIFACTS ARE IN THE ROOM,
+# and an artifact has no medium: a plan is bytes through the Loom's own codec, a mount is a
+# native module boundary, a weave load is a message to the Weave Manager, and a Timer's
+# scheduled delay is an integer in a letter. No font, no renderer, no SDL, no cell. So the
+# no-SDL lane and the Windows stranger lane prove the entire phase.
+#
+# The suite gained a SECOND SOURCE FILE rather than a second CTest entry --
+# `test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary -- for the
+# reason CAT-0 and PROV-0 both gave next door: the population contract counts ENTRIES, and a
+# phase that registered an entry for a new tier of an existing suite would be splitting the
+# inventory in order to record a file.
+#
+# WHAT IS WORTH READING BESIDE THE NUMBER is how much of it is REAL ARTIFACTS. Twenty-eight of
+# the 53 open at least one shared library across the native module boundary, and SIX images are
+# involved -- the shipped `zengine-operators-basic` and `zengine-timer` (the two the production
+# plan actually names), SEM-0's substitution instrument, an ordinary pre-existing weave, a
+# provider at an ABI this host does not speak, and a consumer at one it does not speak either.
+# They are STAGED INTO ONE DIRECTORY by the suite itself, because "filesystem presence is not
+# load authority" cannot be measured against a lookup table: the directory deliberately holds
+# more artifacts than any plan in the file names.
+#
+# CAUTION -- AND THIS SUITE NOW LOADS THE TIMER, which its CMake comment said it deliberately did not.
+# The hazard that comment measured is real and unchanged -- a live Timer re-arms its own beat
+# inside its own handler, so a rig that pumps to EMPTY never returns. Every rig in the new file
+# is a LOCAL of its case with its own Switchboard and Kernel, and every drain is
+# `pump_pending()` in bounded turns. Do not hoist one to file scope.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -371,7 +400,7 @@ component                         doctest           always  15
 operator                          doctest           always  88
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  582
+workshop                          doctest           always  635
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

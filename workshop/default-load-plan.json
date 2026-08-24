@@ -1,0 +1,41 @@
+{
+  "zen": 1,
+  "schema": "WorkshopLoadFile",
+  "version": 1,
+  "fields": {
+    "format": "zengine-workshop-load-plan",
+    "format_version": "1",
+    "artifacts": [
+      {
+        "artifact": "zengine-operators-basic",
+        "provider": [ { "mode": "normal" } ],
+        "weave": []
+      },
+      {
+        "artifact": "zengine-skin-tui-classic",
+        "provider": [],
+        "weave": [ { "role": "zengine.skin" } ]
+      },
+      {
+        "artifact": "zengine-input",
+        "provider": [],
+        "weave": [ { "role": "zengine.input" } ]
+      },
+      {
+        "artifact": "zengine-timer",
+        "provider": [ { "mode": "normal" } ],
+        "weave": [ { "role": "zengine.timer" } ]
+      },
+      {
+        "artifact": "zengine-introspection",
+        "provider": [],
+        "weave": [ { "role": "zengine.introspection" } ]
+      },
+      {
+        "artifact": "zengine-composer",
+        "provider": [],
+        "weave": [ { "role": "zengine.composer" } ]
+      }
+    ]
+  }
+}

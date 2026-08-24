@@ -52,6 +52,29 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
                                                             loom::core
                                                             loom::terminal)
 
+# ---- The authored load plan: its shape, its file, and its execution (LOAD-0) ----------
+#
+# A SECOND TARGET RATHER THAN THREE MORE HEADERS IN THE ONE ABOVE, and the split is a
+# dependency claim. `zengine-workshop-vocabulary` is what a maker-facing surface needs and
+# is deliberately portable — no kernel, no loader, no dynamic anything — so a suite that
+# asks what a screen looks like carries none of that. A load plan is the opposite kind of
+# thing: `load_plan.hpp` spends `op::MountMode` because PROV-0 owns the one spelling of
+# overlay, `load_execute.hpp` opens images (`mount_provider`, `OperatorOffer`) and sends
+# `zen.LoadWeave` on a real bus. Folding those into the vocabulary would give every
+# consumer of a Workshop screen the dynamic loader and the switchboard.
+#
+# ...WHICH IS ALSO WHY IT IS OUTSIDE THE `loom::kernel` GATE BELOW. Nothing here links the
+# kernel: the executor OWNS ORCHESTRATION and adds no loader, so what it needs is the bus
+# to send `zen.LoadWeave` on and the Manager's WeaveId to send it to — both handed in by a
+# host that does have a kernel. The plan's SHAPE, its codec and its law are portable in the
+# strongest sense available: they exist where no kernel does.
+add_library(zengine-workshop-load INTERFACE)
+target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
+target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
+                                                      zengine-operator
+                                                      loom::core
+                                                      loom::switchboard)
+
 # The host needs a Loom that can host .so weaves, for the same honest reason
 # snake's does: it loads a Skin and an Input producer.
 if(NOT TARGET loom::kernel)
