@@ -48,6 +48,29 @@ and its implementation. The shape is deliberate:
 nothing serializes it and nothing hosts it, and the absence of that link is the enforcement of
 "a component is not content".
 
+**A `zengine::` on a link line means the target is public.** The packages an external project
+can consume are exported by [`cmake/ZengineInstall.cmake`](../../cmake/ZengineInstall.cmake)
+with `EXPORT_NAME`s matching their in-tree `zengine::` aliases, so the house and a stranger
+spell them identically and the two cannot drift into meaning different things. An internal
+target keeps its plain hyphenated name, and a link line therefore reads as a boundary:
+
+```cmake
+target_link_libraries(zengine-workshop PRIVATE zengine::surface            # exported
+                                               zengine-workshop-vocabulary) # internal
+```
+
+An exported target carries its include path twice — `$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>`
+and `$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>` — which is what keeps
+`#include "timer/vocabulary.hpp"` the same sentence from either side. Two rules follow:
+
+- **Exported means the headers are installed one at a time**, by name, in
+  `ZengineInstall.cmake`. A package directory holds implementation beside vocabulary, so
+  installing a whole directory would ship both. Anything a public header includes must itself
+  be installed; `tests/package` is the witness.
+- **An exported target links what its public headers use, on its own line.** In this tree a
+  missing link is invisible — every include path is the same directory — and from an installed
+  package it is the difference between compiling and not.
+
 ## Documentation conventions
 
 **One document, one recognizable reader purpose.** A page that is both a tutorial and a

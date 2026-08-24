@@ -11,36 +11,27 @@ Everything here was compiled and run before it was written down.
 - A C++20 compiler. GCC 11 or newer on Linux/WSL is the fully-supported configuration; see
   [supported toolchains](contributing/supported-toolchains.md) for Windows.
 - CMake 3.16 or newer.
-- An **installed** Loom, and a Zengine **source tree** plus its **build tree**. The next
-  section explains why you need all three.
+- An **installed** Loom and an **installed** Zengine. Nothing below needs either project's
+  source tree or build tree once they are installed.
 
 ## Using Zengine from another project
 
-> **Current limitation.** Zengine ships no `install()` rules, so there is no
-> `find_package(zengine)` and no exported target set. An external project reaches Zengine's
-> header-only vocabularies by pointing an include directory at a Zengine source tree, and
-> gets its loadable artifacts (`zengine-timer.so`, the skins, the input weave) from a Zengine
-> build tree. This is the honest current state; it is recorded as the first item in
-> [the usability backlog](workshop/limitations.md#the-library-itself).
-
-The Loom, by contrast, *is* a proper package:
+Both projects install as ordinary CMake packages, so an external project finds them the same
+way it finds anything else.
 
 ```sh
 git clone https://github.com/Krealsion/Loom
 cmake -S Loom -B Loom/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build Loom/build -j
-cmake --install Loom/build --prefix "$PWD/Loom/build/_install"
-```
+cmake --install Loom/build --prefix "$PWD/deps"
 
-Then build Zengine against it, which is also what produces the artifacts you will load:
-
-```sh
 git clone https://github.com/Krealsion/Zengine
-cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/Loom/build/_install"
+cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/deps"
 cmake --build Zengine/build -j
+cmake --install Zengine/build --prefix "$PWD/deps"
 ```
 
-Your own project's `CMakeLists.txt` then needs three things:
+Your own project's `CMakeLists.txt` then says:
 
 ```cmake
 cmake_minimum_required(VERSION 3.16)
@@ -48,22 +39,38 @@ project(kitchen LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(loom 0.1 REQUIRED)          # 1. the substrate, as a real package
+find_package(zengine 0.1 CONFIG REQUIRED)   # the Loom comes with it
 
-add_library(zengine-headers INTERFACE)   # 2. Zengine's header-only vocabularies
-target_include_directories(zengine-headers INTERFACE ${ZENGINE_DIR})
-
-add_library(oven SHARED oven.cpp)        # 3. your weave, as a loadable artifact
-target_link_libraries(oven PRIVATE loom::core loom::switchboard zengine-headers)
-loom_weave_build_contract(oven)          # <-- see below. Do not skip this.
+add_library(oven SHARED oven.cpp)           # your weave, as a loadable artifact
+target_link_libraries(oven PRIVATE zengine::timer loom::switchboard)
+loom_weave_build_contract(oven)             # <-- see below. Do not skip this.
 set_target_properties(oven PROPERTIES PREFIX "")
 
 add_executable(kitchen-host kitchen_host.cpp)
-target_link_libraries(kitchen-host PRIVATE loom::core loom::switchboard loom::kernel
-                                           zengine-headers)
+target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom::kernel)
 ```
 
-Configure it with `-DZENGINE_DIR=<path to a Zengine source tree>`.
+Configure it with `-DCMAKE_PREFIX_PATH=<the prefix you installed into>`.
+
+**You do not call `find_package(loom)`.** Zengine's package config resolves the Loom itself,
+because the Loom is a *public* dependency of it: Zengine's headers include `<zen/...>` and its
+exported targets name `loom::core`, `loom::switchboard` and — for a host — `loom::kernel`.
+
+**Link the capability, not the library.** Each exported target grants one thing:
+
+| target | what linking it grants |
+|---|---|
+| `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
+| `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
+| `zengine::input` | receive key, text and pointer moments; translate a byte stream |
+| `zengine::ui` | author placement and extent; read what a viewport resolved |
+| `zengine::component` | a medium-independent editable text box |
+| `zengine::activation` | read your own activation as a cursor |
+| `zengine::operator` | hold and evaluate named typed rules; mount a provider |
+| `zengine::operator-consumer` | spend a host's rules from inside a loaded artifact |
+
+Every one of them carries its own include path and its own Loom dependencies, so linking one
+is the whole of what you write.
 
 **`loom_weave_build_contract()` is not optional and forgetting it is silent.** It applies
 whatever the current platform needs for a loadable image's static lifetime to actually end
@@ -359,13 +366,20 @@ Three host facts worth having up front:
 
 ## Run it
 
-The Timer service is a Zengine artifact, so put it beside your own:
+The Timer service is a Zengine artifact, and the package says where its own artifacts are:
+`ZENGINE_WEAVE_DIR` is the directory and `ZENGINE_WEAVES` lists the stems in it. Copy the one
+you need beside your host as part of the build, so running is one command:
+
+```cmake
+add_custom_command(TARGET kitchen-host POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            "$<TARGET_FILE_DIR:kitchen-host>")
+```
 
 ```sh
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install" \
-                    -DZENGINE_DIR="$PWD/../Zengine"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/deps"
 cmake --build build -j
-cp ../Zengine/build/timer/zengine-timer.so build/    # or from any staged copy
 ./build/kitchen-host build
 ```
 

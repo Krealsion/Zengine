@@ -49,9 +49,10 @@ and the verification discipline (see [Test discipline](docs/contributing/build-a
 
 What is not, stated plainly:
 
-- **Zengine ships no installable CMake package.** There is no `find_package(zengine)`. An
-  external project reaches its header-only vocabularies by pointing an include directory at
-  a Zengine source tree. See [Using Zengine from another
+- **The installable package covers the library, not Workshop.** `find_package(zengine)`
+  exports eight capability targets and installs the loadable artifacts they need. Workshop
+  itself, the SDL-backed skin and input reader, and the external-pane vocabularies are
+  deliberately not in it — see [Using Zengine from another
   project](docs/getting-started.md#using-zengine-from-another-project).
 - **Linux/WSL with GCC is the only fully-supported configuration.** Windows builds a
   documented subset; the Loom's OS sandbox is Linux-only. See [supported
@@ -69,15 +70,29 @@ Zengine consumes the Loom as an installed package — the same way any third par
 git clone https://github.com/Krealsion/Loom
 cmake -S Loom -B Loom/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build Loom/build -j
-cmake --install Loom/build --prefix Loom/build/_install
+cmake --install Loom/build --prefix "$PWD/deps"
 
 # 2. build Zengine against it
-cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/Loom/build/_install"
+cmake -S Zengine -B Zengine/build -DCMAKE_PREFIX_PATH="$PWD/deps"
 cmake --build Zengine/build -j
 
 # 3. verify
 cmake -DZEN_BUILD_DIR=build -P Zengine/tests/verify.cmake
 ```
+
+To use Zengine from a project of your own, install it too and find it:
+
+```sh
+cmake --install Zengine/build --prefix "$PWD/deps"
+```
+
+```cmake
+find_package(zengine 0.1 CONFIG REQUIRED)   # the Loom comes with it
+target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
+```
+
+The full walkthrough is [Using Zengine from another
+project](docs/getting-started.md#using-zengine-from-another-project).
 
 Windows, sanitizers, the no-SDL build and the sibling-source override are in
 [docs/contributing/build-and-test.md](docs/contributing/build-and-test.md).
@@ -142,18 +157,19 @@ It needs a terminal at least **78x22**. For the windowed build, pass the graphic
 
 Each is independently linkable; most are header-only vocabularies plus one loadable weave.
 
-| package | what it owns | reference |
-|---|---|---|
-| `timer/` | the clock, the only sleep, one beat chain per activation | [timers](docs/guides/timers.md) · [protocol](docs/reference/timer-protocol.md) |
-| `input/` | the sole producer of key, text and pointer moments | [input](docs/reference/input.md) |
-| `surface/` | drawing intent, and the skins that paint it | [surface](docs/reference/surface.md) |
-| `ui/` | authored placement and extent, resolved against a viewport | [ui](docs/reference/ui.md) |
-| `component/` | reusable pieces of a tool — currently one: `TextBox` | [component](docs/reference/component.md) |
-| `builder/` | starting an OS process from a named recipe | [builder](docs/reference/builder.md) |
-| `operator/` | typed reusable rules, supplied by artifacts | [operators](docs/reference/operator-providers.md) |
-| `introspection/` | panes that show what a running system is made of | [introspection](docs/reference/introspection.md) |
-| `workshop/` | the maker environment | [Workshop docs](docs/workshop/getting-started.md) |
-| `snake/` | a worked example: a game whose parts are separate weaves | [snake](docs/reference/snake.md) |
+| package | what it owns | exported as | reference |
+|---|---|---|---|
+| `timer/` | the clock, the only sleep, one beat chain per activation | `zengine::timer` | [timers](docs/guides/timers.md) · [protocol](docs/reference/timer-protocol.md) |
+| `input/` | the sole producer of key, text and pointer moments | `zengine::input` | [input](docs/reference/input.md) |
+| `surface/` | drawing intent, and the skins that paint it | `zengine::surface` | [surface](docs/reference/surface.md) |
+| `ui/` | authored placement and extent, resolved against a viewport | `zengine::ui` | [ui](docs/reference/ui.md) |
+| `component/` | reusable pieces of a tool — currently one: `TextBox` | `zengine::component` | [component](docs/reference/component.md) |
+| `activation/` | reading your own activation, once, without replay | `zengine::activation` | [timed weaves](docs/guides/timed-weaves.md) |
+| `operator/` | typed reusable rules, supplied by artifacts | `zengine::operator` | [operators](docs/reference/operator-providers.md) |
+| `builder/` | starting an OS process from a named recipe | not exported | [builder](docs/reference/builder.md) |
+| `introspection/` | panes that show what a running system is made of | not exported | [introspection](docs/reference/introspection.md) |
+| `workshop/` | the maker environment | not exported | [Workshop docs](docs/workshop/getting-started.md) |
+| `snake/` | a worked example: a game whose parts are separate weaves | not exported | [snake](docs/reference/snake.md) |
 
 ## Licence
 

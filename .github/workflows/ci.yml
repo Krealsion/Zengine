@@ -123,6 +123,22 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
 
+      # THE INSTALLED-PACKAGE WITNESS (PKG-0), and it asks a question the step above
+      # cannot. `verify.cmake` reaches Zengine through its own build tree, where every
+      # header is on the include path and every artifact is already staged, so a
+      # requirement the PACKAGE fails to carry is invisible there and lands on the first
+      # stranger. This installs into an isolated prefix, builds an unrelated project
+      # OUTSIDE the checkout against that prefix alone, runs it, repeats against a moved
+      # prefix, and then deletes one installed header to prove the stranger was not
+      # quietly reading the source tree that is still sitting right there.
+      #
+      # $RUNNER_TEMP rather than a directory under the workspace: the driver refuses a
+      # work directory inside the repository, because "it does not need the source tree"
+      # has to be a fact about where the build happened.
+      - name: Witness the installed package from outside the tree
+        run: |
+          cmake -DZEN_BUILD_DIR=build -DZEN_WORK="$RUNNER_TEMP/zengine-package" -P tests/package/run.cmake
+
   # THE STANDING SANITIZER WITNESS (W-3a). Deliberately a separate job rather than a
   # second step in the one above: the ordinary lane's result must stay readable on its
   # own, and these two answer different questions. `verify.cmake` asks whether the
@@ -390,3 +406,18 @@ jobs:
           Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
           cmake -DZEN_BUILD_DIR=build-msvc -P tests/verify.cmake
+
+      # The installed-package witness on MSVC (PKG-0). Same command as the Linux job, and
+      # it has to be: the package's claim is that an unrelated project needs nothing but a
+      # prefix, and a Windows-only step here would be one more thing that could be true on
+      # one platform and not the other. It needs the dev shell for the reason the step
+      # above does -- the stranger it builds is a real compilation.
+      - name: Witness the installed package from outside the tree
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          $work = Join-Path $env:RUNNER_TEMP 'zengine-package'
+          cmake -DZEN_BUILD_DIR=build-msvc "-DZEN_WORK=$work" -P tests/package/run.cmake

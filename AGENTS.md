@@ -21,6 +21,10 @@ cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_PREFIX_PATH="$PWD/../Loom/build/_install" -DZENGINE_SANITIZE=ON
 cmake --build build-san -j"$(nproc)"
 cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
+
+# installed-package witness: install, then build an unrelated project against the
+# prefix alone, OUTSIDE this repository (PKG-0)
+cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
 ```
 
 - **Run `tests/verify.cmake`, not a bare `ctest`**, whenever a result is going
@@ -35,6 +39,12 @@ cmake -DZEN_BUILD_DIR=build-san -P tests/verify.cmake
 - Weave libraries go through `zengine_weave()`, which delegates the reloadable
   lifetime to the Loom's `loom_weave_build_contract()` (KERN-05). Do not
   reintroduce a private compiler flag for it here.
+- **The package is a third kind of evidence, and neither lane above can ask its
+  question.** Both reach Zengine through its own build tree, where every header is
+  on the include path and every artifact is staged; a requirement the *package*
+  fails to carry is invisible there. Run `tests/package/run.cmake` after touching
+  any public header, any exported target's link line, or `cmake/ZengineInstall.cmake`.
+  It is not a CTest entry and `verify.cmake` will not run it for you.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them
   all, plus compile-negative targets judged on their diagnostics.
 - `zengine-operator-stranger` is a static library rather than a source file in a
@@ -1687,6 +1697,40 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   open at once, and one shared `rows_`/`columns_` would have made the last grant
   decide how the other two were drawn.
 
+## Zengine is a package a stranger installs (PKG-0)
+
+`cmake/ZengineInstall.cmake` is the whole public consumer surface, in one file: which
+targets are exported, which headers are installed, which artifacts ride along, and the
+reason each package is or is not in the set. Change the boundary there, not in a
+package's own `CMakeLists.txt`.
+
+```cmake
+find_package(zengine 0.1 CONFIG REQUIRED)     # brings the Loom with it
+target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
+```
+
+**Eight exported targets**, `EXPORT_NAME`d to match their in-tree `zengine::` aliases so
+the house and a guest spell them identically: `activation`, `timer`, `surface`, `input`,
+`ui`, `component`, `operator`, `operator-consumer`. A plain hyphenated name on a link line
+means the target is internal, and that difference is the boundary made visible.
+
+**Five artifacts** install to `lib/zengine/`, named by `ZENGINE_WEAVES` and located by
+`ZENGINE_WEAVE_DIR`: `zengine-timer`, `zengine-input`, the two TUI skins, and
+`zengine-operators-basic`. They install as FILES, not as exported targets — a weave is
+opened by path and never linked, and an imported target would offer a link line that must
+never be written.
+
+**What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin and
+SDL input reader, because a fetched SDL is a build-tree library this install does not own;
+Workshop, because its executable compiles its own build directory into itself for Builder;
+the Workshop/Builder/introspection/composer vocabularies, because there is no way for an
+externally-built pane to arrive in a run; the Timer's service headers, because using the
+Timer is supported and *being* one has not been measured.
+
+Header spelling does not change across the boundary: installed headers land under
+`include/zengine/<package>/`, so `#include "timer/vocabulary.hpp"` is the same sentence
+from either side.
+
 ## The population contract (C4, POP-01/POP-02)
 
 A green here means the intended test population existed and ran. Four things
@@ -1818,6 +1862,19 @@ timer/input/surface vocabularies — all header-only). See
 
 ## Do not assume
 
+- Adding a header to a package makes it public — the installed set is named one
+  file at a time in `cmake/ZengineInstall.cmake`, and anything a public header
+  includes must be installed with it or the stranger stops compiling.
+- An exported target may rely on a link it gets transitively in this tree — in
+  this tree every include path is the same directory, so a missing `loom::core`
+  is invisible here and fatal from an installed prefix. Exported targets link
+  what their public headers use, on their own line.
+- `PACKAGE_PREFIX_DIR` still means this package after `find_dependency(...)` — it
+  is an ordinary variable, and the dependency's own config overwrites it.
+  `zengineConfig.cmake.in` resolves every path of its own **before** it finds the
+  Loom, and says so.
+- Installing under `ZEN_LOOM_DEV=ON` produces a usable package — it is refused,
+  because the export would name `loom::core` with no installed Loom to resolve it.
 - `TimedWeave` bindings reconcile immediately — they are authored, reconciled
   at activation and `TimerReady` only (TIMER-05).
 - Timer handoff carries deadlines — it carries **remaining durations**
