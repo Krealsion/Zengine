@@ -11,7 +11,7 @@
 // question: "the maker authored 60% wide -- how many cells is that, and which
 // object is under this cell?" An application that answers it privately, for its
 // own material only, leaves the next one to invent a second answer. The answer
-// is here (README.md#ui--the-authoredresolved-vocabulary).
+// is here (docs/reference/ui.md).
 //
 // THE ONE DISTINCTION THIS PACKAGE OWNS, and the reason it is two headers:
 //

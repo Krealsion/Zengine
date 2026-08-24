@@ -1,5 +1,8 @@
 # The authored load plan
 
+**Reference.** The plan file's format, the execution law, and what a failed artifact rolls
+back. A maker's view is [choosing what a run is made of](../workshop/load-plans.md).
+
 Which artifacts participate in a project, and how. One durable file, read at startup and
 executed in the order it is written.
 

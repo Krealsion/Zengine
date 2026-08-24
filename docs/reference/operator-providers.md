@@ -1,5 +1,8 @@
 # Operator providers — where a host's powers come from
 
+**Reference.** How an artifact supplies operator definitions to a host, why a provider need not
+be a weave, and how one power may be deliberately shadowed and then revealed again.
+
 A Zengine host holds an [operator](../../operator/catalog.hpp) catalog: named,
 typed, composable semantic rules that more than one surface has to agree about.
 [operator-host.md](operator-host.md) is about how a **loaded consumer** spends

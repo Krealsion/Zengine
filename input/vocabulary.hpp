@@ -7,7 +7,7 @@
 // The Input package's message vocabulary — the whole contract in one file, so
 // there is exactly one place to diff against the current spellings.
 //
-// THE LAW THIS FILE IS BUILT ON (README.md#input--the-input-package):
+// THE LAW THIS FILE IS BUILT ON (docs/reference/input.md):
 //
 //     Input reports coherent MOMENTS. Applications interpret GESTURES.
 //

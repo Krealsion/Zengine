@@ -1,88 +1,84 @@
 # Zengine documentation
 
-Zengine documents only what it owns: the packages. Substrate truth — messaging,
-lifecycle, replacement, capabilities — lives in
-[Loom's docs](../../Loom/docs/README.md); machine collaborators start at
-[Loom's CONTEXT.md](../../Loom/docs/CONTEXT.md).
+Zengine documents what it owns: its packages, and Workshop. Substrate truth — messaging,
+lifecycle, replacement, capabilities — belongs to the Loom and lives in
+[Loom's documentation](https://github.com/Krealsion/Loom/blob/main/docs/README.md).
 
-**Making a Workshop tool:**
-[guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) — the two authoring paths and
-which one you are on. A **compiled-in panel** is source-contributor work: identity, the room
-Workshop grants it, publishing rows into it, one operation reached by a pointer and a hotkey,
-when a component is worth holding, and where each kind of state belongs. An **office-authored
-external pane** is the bounded read-only provider protocol: four shapes, a prose budget, no
-input, and no plugin/installation story yet. The exact wire shapes are
-[`workshop/pane_vocabulary.hpp`](../workshop/pane_vocabulary.hpp) and the reference account is
-the repo README's [A weave may offer a pane](../README.md#a-weave-may-offer-a-pane-wp-0);
-[`tests/weavelib/workshop_hello.cpp`](../tests/weavelib/workshop_hello.cpp) is its smallest
-complete witness, and a test fixture rather than a product plugin. For built-in examples read
-`Info` and `Builder` in [`workshop/screen.hpp`](../workshop/screen.hpp), and for a shipped
-external one read [reference/introspection.md](reference/introspection.md) beside
-[`introspection/`](../introspection/loaded.hpp).
+Every page below has one reader purpose, named.
 
-**Seeing what is running:** [reference/introspection.md](reference/introspection.md) — the
-`Loaded`, `Project` and `Powers` panes. What each shows, where each fact's authority lives (the
-Kernel's map, the authored load plan and the executor's resolved rows, the host's operator
-catalog), why they are three panes rather than one table and why two of them deliberately
-disagree, how a dynamically loaded tool reads host-side truth at all, what they deliberately do not
-show, why they are snapshots rather than feeds, what happens when the provider disappears, and the
-exact authority the tool holds. It is also the first tool that reaches Workshop entirely through
-the external pane protocol, so it is worth reading beside the guide above.
+## Start here
 
-**Using time:** [guides/timers.md](guides/timers.md) (order a timer, receipts,
-the `TimerReady` rule) · [guides/timed-weaves.md](guides/timed-weaves.md)
-(a weave with an authored rhythm).
+| page | purpose | for |
+|---|---|---|
+| [../README.md](../README.md) | **orientation** | what Zengine is, whether it is mature enough for you, how to build it |
+| [getting-started.md](getting-started.md) | **getting started** | a C++ developer, from nothing to a running weave that uses the Timer |
+| [../cheat_sheet.md](../cheat_sheet.md) | **cheat sheet** | looking something up while you work |
+| [workshop/getting-started.md](workshop/getting-started.md) | **getting started** | a maker, launching and using Workshop |
 
-**Exact Timer semantics:**
-[reference/timer-protocol.md](reference/timer-protocol.md) ·
-[reference/timer-continuity.md](reference/timer-continuity.md) ·
-[reference/timer-binding.md](reference/timer-binding.md).
+## Guides — task-shaped
 
-**Spending a rule you did not compile with:**
-[reference/operator-host.md](reference/operator-host.md) — how a dynamically
-loaded weave asks the host to evaluate one of its operators. What a consumer
-writes (one macro and one member), what a host writes (a surface, and an offer
-that brackets the load), what actually crosses the artifact boundary, why it is
-not a message and not an authority question, and the five ways it can fail. Read
-it beside [`operator/host.hpp`](../operator/host.hpp) and
-[`operator/host_abi.h`](../operator/host_abi.h); the rule itself is
-[reference/timer-protocol.md](reference/timer-protocol.md).
+| page | purpose |
+|---|---|
+| [guides/timers.md](guides/timers.md) | ordering a timer: the shapes, the receipts, the `TimerReady` rule |
+| [guides/timed-weaves.md](guides/timed-weaves.md) | a weave whose rhythm is part of what it is, and where that layer's boundary lies |
+| [guides/make-a-workshop-tool.md](guides/make-a-workshop-tool.md) | adding a Workshop tool, sorted into its two authoring paths: a **compiled-in panel** (identity, granted room, publishing rows, one pointer-and-hotkey operation, where each kind of state belongs) or an **office-authored external pane** (four shapes, a prose budget, no input, no installation story yet) |
 
-**Which artifacts a project runs on:**
-[reference/load-plan.md](reference/load-plan.md) — the authored load plan. One
-durable file naming which artifacts participate and how: one record per
-artifact with two optional surfaces (a provider contribution, a weave under a
-role), executed in authored order. What the plan holds and what it deliberately
-does not, why authored order is the V0 dependency model, what a failed artifact
-rolls back, where the file lives, and — said plainly — why adding a native
-artifact to it is an execution-authority decision rather than configuration.
-Read it beside [`workshop/load_plan.hpp`](../workshop/load_plan.hpp),
-[`workshop/load_persist.hpp`](../workshop/load_persist.hpp) and
-[`workshop/load_execute.hpp`](../workshop/load_execute.hpp).
+## Workshop — the product
 
-**Where a host's powers come from:**
-[reference/operator-providers.md](reference/operator-providers.md) — how an
-artifact supplies operator definitions to a host, why a provider need not be a
-weave, how a composition crosses as structure rather than as a callback, and how
-one power may be deliberately shadowed and then revealed again. Read it beside
-[`operator/provider_abi.h`](../operator/provider_abi.h),
-[`operator/provider.hpp`](../operator/provider.hpp) and
-[`operator/catalog.hpp`](../operator/catalog.hpp).
+| page | purpose |
+|---|---|
+| [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
+| [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — and how a bigger one is actually obtained |
+| [workshop/setups.md](workshop/setups.md) | saving an arrangement, restoring it, and an explicit verdict on workspace continuity |
+| [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
+| [workshop/builder.md](workshop/builder.md) | what Builder builds today, said without aspiration |
+| [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
 
-**Invariants:** [laws/timer-laws.md](laws/timer-laws.md) (TIMER-01..05).
+## Reference — exact contracts
 
-**Why:** [decisions/](decisions/timer-continuity-carries-remaining-duration.md) ·
-the phase story is in [Loom's history](../../Loom/docs/history/README.md).
+| page | purpose |
+|---|---|
+| [reference/input.md](reference/input.md) | the Input package: what each shape preserves, and which backend produces it |
+| [reference/surface.md](reference/surface.md) | the drawing vocabulary, the rule for choosing between its text shapes, the depth model |
+| [reference/ui.md](reference/ui.md) | authored versus resolved geometry, and the fence between them |
+| [reference/component.md](reference/component.md) | the Component package, and why it has exactly one component |
+| [reference/builder.md](reference/builder.md) | the Builder package: the split between the tool and the runner, and process custody |
+| [reference/snake.md](reference/snake.md) | a worked example whose parts are genuinely separate weaves |
+| [reference/timer-protocol.md](reference/timer-protocol.md) | exact Timer semantics |
+| [reference/timer-continuity.md](reference/timer-continuity.md) | what a schedule does across the service's own replacement |
+| [reference/timer-binding.md](reference/timer-binding.md) | the `TimedWeave` model and its boundary |
+| [reference/load-plan.md](reference/load-plan.md) | the authored load plan: format, execution law, rollback |
+| [reference/introspection.md](reference/introspection.md) | `Loaded`, `Project`, `Powers` — what each shows, where each fact's authority lives, and why two of them deliberately disagree |
+| [reference/operator-host.md](reference/operator-host.md) | how a loaded weave asks a host to evaluate a rule it did not compile with, and the five ways it can fail |
+| [reference/operator-providers.md](reference/operator-providers.md) | how an artifact supplies operator definitions, and how one power may be shadowed then revealed |
+| [reference/pointer-spaces.md](reference/pointer-spaces.md) | where a reported pointer position lands, and which package owns each step |
 
-**Across packages:**
-[reference/pointer-spaces.md](reference/pointer-spaces.md) — where a reported
-pointer position lands, and which of Input, Surface and the consuming
-application owns each step. It is here rather than in any one package's source
-because no single package can state it.
+## Invariants and decisions
 
-**The other packages** (Input, Surface, UI, Workshop, the snake panel) are
-documented in the repo [README](../README.md) beside their sources — they are
-smaller truths and their sections are their reference. A source comment may cite
-a README section by anchor; `doc_links` checks those the same way it checks
-these pages. The pre-consolidation package manuscript is frozen at
-[history/pre-r2c/README.md](history/pre-r2c/README.md).
+| page | purpose |
+|---|---|
+| [laws/timer-laws.md](laws/timer-laws.md) | TIMER-01..05 |
+| [decisions/timer-continuity-carries-remaining-duration.md](decisions/timer-continuity-carries-remaining-duration.md) | why durations rather than deadlines |
+
+## Contributing
+
+| page | purpose |
+|---|---|
+| [contributing/build-and-test.md](contributing/build-and-test.md) | every configuration, the verification lanes, and what a green means |
+| [contributing/supported-toolchains.md](contributing/supported-toolchains.md) | the platform matrix, and the reloadable-weave build contract |
+| [contributing/repository-conventions.md](contributing/repository-conventions.md) | layout, package shape, documentation and comment conventions |
+
+Automated collaborators working in this tree start at [AGENTS.md](../AGENTS.md).
+
+## Architecture
+
+| page | purpose |
+|---|---|
+| [architecture/README.md](architecture/README.md) | why it is shaped this way; the recurring principles; the cross-pane interaction ownership map; the large-source-unit judgement |
+
+## Frozen
+
+[history/pre-r2c/README.md](history/pre-r2c/README.md) describes the tree it was written
+against and is **not** maintained against the current one. It is kept because it is a fuller
+account of the Timer package's design than the reference pages carry, not because it is
+current. Do not cite it as current.

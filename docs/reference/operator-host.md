@@ -1,5 +1,9 @@
 # The operator host — how a loaded tool spends the host's operator truth
 
+**Reference.** How a dynamically loaded weave asks a host to evaluate one of its operators:
+what a consumer writes, what a host writes, what crosses the artifact boundary, and the five
+ways it can fail.
+
 A Zengine host may hold an [operator](../../operator/catalog.hpp) catalog: named,
 typed, composable semantic rules that more than one surface needs to agree
 about. `timer.normalize_delay` is the first one, and

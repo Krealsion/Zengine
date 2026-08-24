@@ -1,5 +1,9 @@
 # Pointer spaces — reference
 
+**Reference.** Where a reported pointer position lands, and which of Input, Surface and the
+consuming application owns each step. It is here rather than in one package's source because no
+single package can state it.
+
 Where a reported pointer position lands, and who is allowed to say. This is the
 one contract that spans three packages — Input stamps a coordinate's space,
 Surface owns each medium's projection onto the canvas, and the consuming
@@ -8,8 +12,8 @@ one of their sources.
 
 Sources: `input/vocabulary.hpp` (`space::`), `surface/pointing.hpp`,
 `surface/vocabulary.hpp` (`kCanvasCellPx`). Package overviews:
-[Input](../../README.md#input--the-input-package) ·
-[Surface](../../README.md#surface--the-surface-package).
+[Input](input.md) ·
+[Surface](surface.md).
 
 ## Three spaces, not one
 

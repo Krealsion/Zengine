@@ -223,7 +223,7 @@ public:
             // convenience `name`, which would make this host trust a courtesy
             // the Input contract explicitly refuses to make authoritative. The
             // modifier is carried on the transition it was held for, and a name
-            // is nothing but a name (README.md#input--the-input-package).
+            // is nothing but a name (docs/reference/input.md).
             if ((k.modifiers & input::mod::kCtrl) != 0) {
                 quit();
             }

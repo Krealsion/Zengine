@@ -772,9 +772,9 @@ TEST_CASE("the name property's own refusals: empty and too long") {
 }
 
 TEST_CASE("QR-3: what the authored name bound IS, and what it is not a statement about") {
-    // THE POLICY, PINNED WHERE IT IS DECIDED. QR-3 traced this bound to W-0, where it arrived
-    // as 32 with the words `a label, not a document` and no other rationale anywhere in the
-    // history, the docs or the report-backs. The only rationale ever written for a 32 in this
+    // THE POLICY, PINNED WHERE IT IS DECIDED. This bound arrived as 32 with the words
+    // `a label, not a document` and no other rationale anywhere in the history or the docs.
+    // The only rationale ever written for a 32 in this
     // application is a SCREEN measurement (`setup::kMaxSetupNameLen`), and it was measurably
     // false for this constant -- so the KIND of bound survived and the number moved.
     CHECK(doc::kMaxNameLen == 64);
@@ -24004,9 +24004,9 @@ private:
 /// loading it into a rig whose every gesture pumps hangs the suite rather than proving
 /// anything. Measured, not assumed: it hung, at the load.
 ///
-/// So the real service is exercised where a real service can be, which is the live
-/// run recorded in MSG-0's report-back, and the accept-set, the discovery, the
-/// generated form and the send are exercised here against the same vocabulary.
+/// So the real service is exercised where a real service can be, which is an
+/// interactive run, and the accept-set, the discovery, the generated form and the
+/// send are exercised here against the same vocabulary.
 class TimerSeat
     : public loom::WeaveBase<TimerSeat, StrangerState,
                              loom::Accept<zengine::timer::StartTimer,

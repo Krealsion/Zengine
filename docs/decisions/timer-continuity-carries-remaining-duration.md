@@ -1,5 +1,8 @@
 # Timer continuity carries remaining duration, not absolute time
 
+**Decision record.** One decision, its alternatives, and why this one. Not a how-to — the
+behaviour it decided is [timer continuity](../reference/timer-continuity.md).
+
 **Context.** When the Timer service is replaced, standing schedules must cross
 to the successor. What number crosses?
 
@@ -28,5 +31,5 @@ what actually happened.
 [TIMER-04](../laws/timer-laws.md).
 
 **Evidence / history.** R2B-0 and R2B-3c in
-[Loom's history](../../../Loom/docs/history/README.md); the keystone and
+[Loom's history](https://github.com/Krealsion/Loom/blob/main/docs/history/README.md); the keystone and
 moving-clock cases in `tests/test_timer.cpp`.

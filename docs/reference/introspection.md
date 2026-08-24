@@ -1,5 +1,8 @@
 # Introspection — the `Loaded`, `Project` and `Powers` panes
 
+**Reference.** What each pane shows, where each fact's authority lives, and why two of them
+deliberately disagree.
+
 > **What is this Loom actually running?**
 
 Introspection is a Zengine package (`introspection/`) that builds one loadable weave,

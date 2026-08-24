@@ -70,7 +70,7 @@
 //
 // What all of this looks like to a maker -- and why a source with dependents is
 // not deletable, which is this document's policy and not the vocabulary's -- is
-// README.md#workshop--the-maker-facing-surface.
+// docs/workshop/getting-started.md.
 
 #include "property.hpp"
 #include "vocabulary.hpp"
@@ -100,12 +100,11 @@ inline constexpr std::int64_t kMaxCells = 4096; ///< an authored size, not a wor
 /// HOW LONG A MAKER'S NAME FOR AN OBJECT MAY BE, in bytes.
 ///
 /// SIXTY-FOUR SINCE QR-3, AND IT WAS THIRTY-TWO FROM W-0 UNTIL THEN. The old number is
-/// worth recording because it was traced rather than inherited: W-0 introduced it with the
-/// six words `a label, not a document` and no other rationale in the commit, in any
-/// document, or in any report-back. The only rationale ever written down for a
-/// thirty-two in this application is `setup::kMaxSetupNameLen`'s and
+/// worth recording because it was traced rather than inherited: it arrived with the six
+/// words `a label, not a document` and no other rationale anywhere. The only rationale ever
+/// written down for a thirty-two in this application is `setup::kMaxSetupNameLen`'s and
 /// `setup::kMaxPaneNameLen`'s -- a SCREEN measurement, one line of the narrowest
-/// composition -- and WS-0 attributed the same reason to this constant in passing.
+/// composition -- and that reason was once attributed to this constant in passing, wrongly.
 ///
 /// THAT REASON WAS MEASURABLY FALSE HERE, which is what settled it. The narrowest place an
 /// object's name is read is the OBJECTS list, whose body is 28 columns at the 78x22

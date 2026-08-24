@@ -1,5 +1,8 @@
 # TimedWeave — a weave with an authored rhythm
 
+**How-to.** Declaring a cadence once and letting the binding layer keep it true. For a delay
+that is runtime data, speak [the raw protocol](timers.md) instead.
+
 If your weave's rhythm is part of what it *is* — "I pump every 50 ms", "I poll
 every quarter second" — declare it once and let the binding layer keep it true
 across activations and Timer-service replacements.
