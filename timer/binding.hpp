@@ -607,7 +607,7 @@ protected:
     const zengine::ActivationCursor& activation() const { return activation_; }
 
 private:
-    /// Is an activation handler of the dispatch signature addressable on `Self`?
+    /// Is an activation handler of the dispatch signature reachable on `Self`?
     ///
     /// FALSE MEANS THE DERIVED CLASS HID EVERY BASE `on`, which is exactly the
     /// missing-`using` defect — so this doubles as the visibility probe, and it
@@ -617,19 +617,51 @@ private:
     /// does is a weave whose missing `using` the probe cannot see. Activation is
     /// the one shape a derived class may never claim — `activation_is_the_bindings`
     /// below refuses it by name — so a derived handler can never mask this.
+    ///
+    /// IT ASKS THE CALL, NOT THE ADDRESS, and that is a portability requirement
+    /// rather than a preference. Naming the overload SET and letting a helper
+    /// deduce its owning class asks the compiler to find the one candidate whose
+    /// signature matches; MSVC 19.50 declines to do that whenever the set spans
+    /// two classes — which is the CORRECT author's shape, own handlers plus
+    /// `using TimedWeave::on;` — and the wall then fired on code that was right.
+    /// Measured over the five shapes that matter (no handler of one's own; own
+    /// handlers with the `using`; own handlers without it; a derived activation
+    /// handler; and both at once), the call form agrees with itself on GCC and
+    /// MSVC in every one, and the deduced form disagrees in the second. It is
+    /// also the truer question: `WeaveBase` dispatches by CALLING `self->on(a, m)`,
+    /// so whether that call compiles is precisely what the wall is about.
     static constexpr bool activation_addressable() {
-        return requires { detail::activation_owner(&Self::on); };
+        return requires(Self& s, const loom::Activated& a, loom::Mail& m) { s.on(a, m); };
     }
 
     /// The same question, under the name the diagnostic is about.
     static constexpr bool handlers_are_visible() { return activation_addressable(); }
 
+    /// Can the OWNER of the reachable activation handler be named on this
+    /// compiler? Separate from reachability because the two are answered by
+    /// different mechanisms, and only this one is affected by the deduction gap
+    /// described above.
+    static constexpr bool activation_owner_is_deducible() {
+        return requires { detail::activation_owner(&Self::on); };
+    }
+
     /// Would `WeaveBase`'s `self->on(...)` select the binding's own activation
     /// handler? Identity, not callability: a derived one is perfectly callable,
     /// which is exactly why it is dangerous.
+    ///
+    /// THE MIDDLE BRANCH ABSTAINS, and what makes that safe is which shapes can
+    /// reach it. Deduction only fails where the reachable handler is the BASE's
+    /// and arrived through a using-declaration; a derived class that declares its
+    /// own activation handler puts it in the set directly, and deduction picks it
+    /// on both compilers — measured, for that handler alone and for that handler
+    /// alongside a hidden base. So the shape this wall exists to refuse is never
+    /// the shape that abstains, and the answer it declines to give would have been
+    /// "the base owns it" in every case observed.
     static constexpr bool activation_is_the_bindings() {
         if constexpr (!activation_addressable()) {
             return true; // hidden entirely; the visibility assert owns that diagnostic
+        } else if constexpr (!activation_owner_is_deducible()) {
+            return true; // this compiler cannot name the owner; see above for why that is safe
         } else {
             return std::is_same_v<decltype(detail::activation_owner(&Self::on)), TimedWeave*>;
         }
