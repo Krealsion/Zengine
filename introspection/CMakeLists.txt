@@ -4,12 +4,26 @@
 #
 # Two header-only pieces and one loadable weave:
 #
-#   zengine-introspection-view   the durable pane identity and the pure projection
-#                                (vocabulary.hpp, loaded.hpp). Portable — it links
-#                                nothing and knows no bus, so the suite can ask it
-#                                what a reading MEANS without loading anything.
+#   zengine-introspection-view   the durable pane identities and the pure projections
+#                                (vocabulary.hpp, loaded.hpp, resolved.hpp). Portable —
+#                                it links nothing and knows no bus, so the suite can ask
+#                                it what a reading MEANS without loading anything.
 #   zengine-introspection        the weave: when to observe, whom to believe, and
 #                                the two sentences of the pane protocol.
+#
+# ---- INTR-1 ADDED A THIRD HEADER AND NO TARGET, WHICH IS THE HONEST SHAPE --------
+#
+# `resolved.hpp` projects `workshop/arrangement_vocabulary.hpp` — the two questions this
+# tool asks the HOST and the two answers it gets back. That header is included the same
+# way `workshop/pane_vocabulary.hpp` already is: by the `${CMAKE_SOURCE_DIR}` include
+# path this target carries, with no new link edge, because it needs nothing this package
+# does not already have. It is `<zen/weave/shape.hpp>` and three standard headers; the
+# Surface vocabulary below already brings loom::core.
+#
+# A TARGET THAT ADDS NOTHING WOULD BE CEREMONY, and the alternative is worse than that:
+# the vocabulary lives in `workshop/`, which CMake processes AFTER this directory, so a
+# link edge here would name a target that does not exist yet. The dependency is real and
+# is stated in prose rather than in a line that buys nothing.
 
 # The view travels as a header-only interface target, the same shape timer's and
 # input's vocabularies use. It needs the Surface vocabulary because its output IS

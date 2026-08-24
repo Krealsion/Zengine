@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Introspection provider — a loadable weave that offers Workshop one
-// read-only pane showing what the Loom it is running in has actually loaded.
+// The Introspection provider — a loadable weave that offers Workshop three
+// read-only panes showing what the system it is running in actually is.
 //
 // IT IS A TOOL AND NOT A FIXTURE. `tests/weavelib/workshop_hello.cpp` proved the
 // pane seam works through the real ABI and says of itself that it is built by
@@ -10,20 +10,55 @@
 // booted by `zengine-workshop` beside the Skin and the reader, and its rows are
 // facts about the running system rather than an echo of the room it was granted.
 //
+// ---- THREE QUESTIONS, THREE OWNERS, THREE PANES (INTR-1) --------------------
+//
+// INTR-0 shipped the first. INTR-1 added two, and did NOT widen the first to hold
+// them -- because the three have different populations and different authorities,
+// and one merged table would have had to invent a row kind that is none of them.
+//
+//     loaded        which WEAVES this Loom's Kernel has loaded, and each one's
+//                   role.        OWNER: the Kernel's `loaded()` map.
+//     arrangement   which AUTHORED ARTIFACT PARTICIPATIONS this project asked
+//                   for, and what resolved from each.
+//                                OWNER: LOAD-0's `PlanExecutor` rows + the plan.
+//     powers        which OPERATOR POWERS this host currently resolves, and whose
+//                   contribution satisfies each.
+//                                OWNER: PROV-0's live `op::Catalog`.
+//
+// THEY DISAGREE ON PURPOSE, and the disagreement is the clearest evidence any of
+// them is honest. `zengine-operators-basic` is a provider and not a weave: it is a
+// row of `arrangement` and it is absent from `loaded`, because no Kernel loaded it
+// and it has no `WeaveId` and no role. A build in which both panes listed it would
+// be a build in which one of them had started guessing.
+//
 // ---- WHAT IT KNOWS, AND HOW IT COMES TO KNOW IT -----------------------------
 //
-//     the fact      which libraries this Loom's Kernel has loaded, and the role
-//                   each was bound to at load
-//     the owner     the Kernel. Its `loaded()` map is the authority and there is
-//                   no second copy of it anywhere -- not in Workshop, not here
-//     the path      zen.ListLoaded -> the Weave Manager -> zen.ListLibraries ->
+//     the facts     the three above, and NOT ONE OF THEM IS KEPT HERE. Every one
+//                   is asked for, spent building rows, and dropped
+//     the paths     zen.ListLoaded -> the Weave Manager -> zen.ListLibraries ->
 //                   the control door -> the Kernel's live map -> zen.Result
+//                   ArrangementRequested / PowersRequested -> zengine.arrangement
+//                   -> the host's own executor rows and catalog -> an ANSWER
 //     currency      a SNAPSHOT, re-read on every room grant. Loom offers a
-//                   participant no arrival or departure event, so there is
-//                   nothing to subscribe to and nothing here polls
-//     absence       an empty map is an observed zero; a map that has not been
-//                   answered yet produces NO content at all, so Workshop's own
-//                   `(waiting for the provider)` says it rather than a zero
+//                   participant no arrival or departure event and there is no
+//                   provider-mount event either, so there is nothing to subscribe
+//                   to and nothing here polls. The powers pane is the one whose
+//                   subject can change mid-run: an overlay mounted since the last
+//                   grant is in the next reading, with nobody having been told
+//     absence       an empty map is an observed zero; a question that has not
+//                   been answered yet produces NO content at all, so Workshop's
+//                   own `(waiting for the provider)` says it rather than a zero
+//
+// ---- THE SECOND SEAM, AND WHY IT LOOKS LIKE THE FIRST -----------------------
+//
+// The arrangement and the powers live in the HOST's `main` -- a `LoadPlan`, a
+// `PlanExecutor` and an `op::Catalog`, none of which may cross into a dynamically
+// loaded image as anything but a value. So this weave asks the same way it already
+// asks the Kernel: a shape to an OFFICE, an answer back, values only. What is new
+// is that the answer arrives through Loom's own ANSWER door, so `mail.answers_ask()`
+// is Loom attesting that this delivery answers a question THIS weave asked -- a
+// stronger bound than the correlation match `zen.ListLoaded` has to make do with,
+// and it costs nothing.
 //
 // ---- AND SINCE SEL-0 IT KNOWS ONE MORE THING, WHICH IS NOT A FACT ABOUT THE LOOM
 //
@@ -43,14 +78,23 @@
 //
 // It writes no file, starts no process, opens no socket, holds no timer, reads no
 // Sense, publishes no canvas, and commands no lifecycle. Its whole outbound
-// vocabulary is four shapes: two sentences of the pane protocol, the one question
+// vocabulary is SIX shapes: two sentences of the pane protocol, the one question
 // `zen.ListLoaded` -- which is the enumeration half of the control vocabulary and
-// NOT the load capability -- and its own `LoadedSelected`. `zen.LoadWeave`,
-// `zen.SwapWeave`, `zen.ReloadWeave`, `zen.UnloadLibrary` and `zen.UnloadRole` are
+// NOT the load capability -- its own `LoadedSelected`, and INTR-1's two questions
+// `ArrangementRequested` and `PowersRequested`. `zen.LoadWeave`, `zen.SwapWeave`,
+// `zen.ReloadWeave`, `zen.UnloadLibrary` and `zen.UnloadRole` are
 // absent from its Emit set and from every grant a host would write for it, and a
 // grant is per (shape, version, target), so being able to ask what is loaded is
 // not being able to load anything -- and being able to say which one a maker
 // pointed at is not being able to reach it.
+//
+// AND THE TWO NEW QUESTIONS ARE THE SHARPEST CASE OF THAT RULE IN THIS FILE. This
+// weave can now name every provider mounted in the process and say which
+// contribution currently satisfies each power. It cannot mount one, unmount one,
+// overlay one, evaluate one, or ask anybody else to: there is no shape for any of
+// it in either direction, the answers are inert values, and a value arriving in a
+// message has never been a grant. KNOWLEDGE OF A POWER IS NOT AUTHORITY TO
+// REPLACE IT.
 //
 // AND THE LOADER IS WIDER THAN ANY OF THAT, WHICH IS REPORTED RATHER THAN HIDDEN.
 // `Kernel::load` binds `Grant{}.allow_any()` to every library it opens, and a
@@ -63,10 +107,12 @@
 // Timer this host already boots.
 
 #include "loaded.hpp"
+#include "resolved.hpp"
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -77,23 +123,36 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 
 namespace surface = zengine::surface;
+namespace intro = zengine::introspection;
+using zengine::introspection::kArrangementPane;
+using zengine::introspection::kArrangementPaneName;
+using zengine::introspection::kArrangementPaneSummary;
 using zengine::introspection::kIntrospectionRole;
 using zengine::introspection::kLoadedPane;
 using zengine::introspection::kLoadedPaneName;
 using zengine::introspection::kLoadedPaneSummary;
+using zengine::introspection::kPowersPane;
+using zengine::introspection::kPowersPaneName;
+using zengine::introspection::kPowersPaneSummary;
 using zengine::introspection::LoadedSelected;
 using zengine::introspection::LoadedView;
 using zengine::introspection::LoadedWeave;
+using zengine::workshop::ArrangementRequested;
+using zengine::workshop::kArrangementRole;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneOffered;
 using zengine::workshop::PanePressed;
 using zengine::workshop::PaneRoom;
+using zengine::workshop::PowersRequested;
+using zengine::workshop::ResolvedArrangement;
+using zengine::workshop::ResolvedPowers;
 
 /// The office Workshop holds, named as a STRING rather than reached through
 /// `workshop/panel.hpp`. A provider is a stranger to Workshop's internals and must
@@ -102,12 +161,20 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 /// WHAT THIS PROVIDER HAS DONE, and it is all counters.
 ///
-/// NO INVENTORY IS IN HERE. The loaded map belongs to the Kernel; keeping a copy
-/// beside it would be a second answer to a question that already has one, and the
+/// NO INVENTORY IS IN HERE, AND SINCE INTR-1 NO ARRANGEMENT AND NO POWER EITHER. The
+/// loaded map belongs to the Kernel, the resolved rows belong to the host's executor
+/// and the contribution stacks belong to the host's catalog; keeping a copy beside
+/// any of them would be a second answer to a question that already has one, and the
 /// copy is the one that goes stale. What survives a snapshot and a revive is only
 /// the bookkeeping -- how many times this office spoke, was granted room, answered,
 /// refused to answer somebody who was not Workshop, and said that a maker selected
 /// something.
+///
+/// THE SHAPE DID NOT MOVE FOR THE TWO NEW PANES, and that is worth reading as a
+/// measurement rather than as tidiness: two more questions and two more answers
+/// needed no new durable state, because a view that keeps nothing has nothing to
+/// snapshot. `readings` counts every answer that became content, whichever question
+/// it answered.
 ///
 /// AND NO SELECTION IS IN HERE EITHER, WHICH IS A DIFFERENT DECISION FROM THE FIRST.
 /// The selection is transient UI state belonging to the projection currently on
@@ -119,7 +186,7 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 struct IntrospectionState {
     std::int64_t offers = 0;
     std::int64_t rooms = 0;
-    std::int64_t readings = 0;   ///< answers from the Manager that became content
+    std::int64_t readings = 0;   ///< answers that became content, from any of the three owners
     std::int64_t refused = 0;    ///< asks, rooms and presses not authored by the Workshop office
     std::int64_t selections = 0; ///< maker selections published as `LoadedSelected`
     ZEN_EXPOSE();
@@ -131,8 +198,9 @@ class IntrospectionWeave
     : public loom::WeaveBase<
           IntrospectionWeave, IntrospectionState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PanePressed, loom::Result,
-                       loom::Refused>,
-          loom::Emit<PaneOffered, PaneContent, LoadedSelected, loom::ListLoaded>> {
+                       loom::Refused, ResolvedArrangement, ResolvedPowers>,
+          loom::Emit<PaneOffered, PaneContent, LoadedSelected, loom::ListLoaded,
+                     ArrangementRequested, PowersRequested>> {
 public:
     /// FIRST BREATH, AND ONLY IF LOOM SAYS SO. `ActivationCursor` owns both halves
     /// of that sentence: the lifecycle attestation must be Loom's, and the sequence
@@ -160,14 +228,20 @@ public:
         announce(mail);
     }
 
-    /// WORKSHOP GRANTING THIS PANE ITS PROSE BUDGET -- and the ONLY beat on which
-    /// this tool observes anything.
+    /// WORKSHOP GRANTING ONE OF THESE PANES ITS PROSE BUDGET -- and the ONLY beat on
+    /// which this tool observes anything.
+    ///
+    /// THREE PANES, THREE ROOMS, THREE QUESTIONS, AND EACH KEEPS ITS OWN (INTR-1). A
+    /// maker may have all three open at once and Workshop resolves a body budget for
+    /// each separately, so one shared `rows_`/`columns_` would have made the last grant
+    /// decide how the other two were projected -- an answer measured against a room
+    /// nobody granted it. `Asked` is that pair plus the question outstanding for it.
     ///
     /// THE ROOM IS KEPT AND THE QUESTION IS ASKED; the content is sent later, when
-    /// the Manager answers. The two are separate deliveries because the enumeration
+    /// the owner answers. The two are separate deliveries because an enumeration
     /// is a conversation and not a call: Loom has no synchronous way for a
-    /// participant to read the kernel's map, and pretending otherwise would mean
-    /// answering this grant with rows read before it.
+    /// participant to read the kernel's map or the host's catalog, and pretending
+    /// otherwise would mean answering this grant with rows read before it.
     ///
     /// A ROOM IS NEVER ANSWERED FROM A PREVIOUS READING. Workshop clears its cache
     /// before every grant, so a stale projection sent now would be presented as an
@@ -191,14 +265,21 @@ public:
             ++state_.refused;
             return; // a forged room grants nothing and produces no content
         }
-        if (room.pane != kLoadedPane) {
-            return; // a room for a pane this provider does not have
+        if (room.pane == kLoadedPane) {
+            ++state_.rooms;
+            view_ = LoadedView{};
+            ask(mail, loaded_, room, loom::kManagerRole, loom::ListLoaded{});
+        } else if (room.pane == kArrangementPane) {
+            ++state_.rooms;
+            ask(mail, arrangement_, room, kArrangementRole, ArrangementRequested{});
+        } else if (room.pane == kPowersPane) {
+            ++state_.rooms;
+            ask(mail, powers_, room, kArrangementRole, PowersRequested{});
         }
-        ++state_.rooms;
-        rows_ = room.rows;
-        columns_ = room.columns;
-        view_ = LoadedView{};
-        ask(mail);
+        // ...and a room for a pane this provider does not have is neither counted
+        // nor answered. It cannot arrive from Workshop, which grants a room only for
+        // a `PaneRef` it admitted from an offer; what it would be is somebody else's
+        // pane key wearing this office's stamp.
     }
 
     /// A MAKER PRESSED A ROW OF THIS PANE -- and this is where a gesture becomes a fact.
@@ -231,7 +312,12 @@ public:
             return; // a forged press selects nothing and publishes nothing
         }
         if (press.pane != kLoadedPane) {
-            return; // a press in a pane this provider does not have
+            // A PRESS IN A PANE THIS OFFICE HAS NO GESTURE FOR (INTR-1). The other two
+            // are read-only projections: they carry no selection, publish nothing, and
+            // hold no row map a press could be resolved against. Pressing one is
+            // consumed by Workshop as any press in a pane's room is, and produces no
+            // sentence here -- which is `PanePressed`'s own contract, not a decline.
+            return;
         }
         const LoadedWeave* entry = zengine::introspection::entry_at_row(view_, press.row);
         if (entry == nullptr) {
@@ -241,8 +327,8 @@ public:
         selected_ = entry->name;
         const std::string role = entry->role;
         if (moved) {
-            zengine::introspection::mark_selected(view_, selected_, columns_);
-            say_rows(mail);
+            zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
+            say_rows(mail, kLoadedPane, view_.rows);
         }
         ++state_.selections;
         // PUBLISHED, NOT ADDRESSED, and the difference is the phase's whole posture. A
@@ -286,92 +372,194 @@ public:
     /// with an inference drawn from two snapshots would be exactly the story this file
     /// refuses to tell.
     void on(const loom::Result& r, loom::Mail& mail) {
-        if (!awaiting_ || mail.correlation() != pending_) {
+        if (!loaded_.awaiting || mail.correlation() != loaded_.pending) {
             return; // an answer to a question this weave did not ask
         }
-        awaiting_ = false;
+        loaded_.awaiting = false;
         ++state_.readings;
         const std::vector<LoadedWeave> read = zengine::introspection::parse_loaded(r.value);
         if (!zengine::introspection::names(read, selected_)) {
             selected_.clear();
         }
-        view_ = zengine::introspection::project_loaded(read, rows_, columns_);
-        zengine::introspection::mark_selected(view_, selected_, columns_);
-        say_rows(mail);
+        view_ = zengine::introspection::project_loaded(read, loaded_.rows, loaded_.columns);
+        zengine::introspection::mark_selected(view_, selected_, loaded_.columns);
+        say_rows(mail, kLoadedPane, view_.rows);
     }
 
-    /// THE MANAGER DECLINING TO ANSWER. `zen.ListLoaded` is not a shape the door
+    /// THE HOST'S ANSWER ABOUT ITS OWN ARRANGEMENT (INTR-1).
+    ///
+    /// TWO CHECKS, AND THE FIRST ONE IS LOOM'S. `answers_ask()` is delivery provenance
+    /// the bus attached because this delivery is THE one authorized answer to a request
+    /// this weave sent -- no payload can write it, no sender can choose it, and the door
+    /// could not have aimed it anywhere else. That is strictly stronger than what the
+    /// `zen.Result` arm above can check, and the difference is not this tool being more
+    /// careful: the Manager RELAYS its answer personally, while the arrangement door
+    /// ANSWERS through Loom's own door. Where the stronger bound exists it is taken.
+    ///
+    /// THE CORRELATION IS STILL COMPARED, because it says WHICH grant is being answered.
+    /// A second room granted before the first answer arrives replaces the correlation,
+    /// so a late answer to the room before it is dropped rather than projected against a
+    /// budget that is no longer in force.
+    ///
+    /// THE ANSWER IS SPENT AND DROPPED. Nothing below retains a row of it: the rows go
+    /// to Workshop and the value goes out of scope, which is what makes the claim "no
+    /// second mutable registry" a fact about this file rather than a promise about it.
+    void on(const ResolvedArrangement& said, loom::Mail& mail) {
+        if (!answering(mail, arrangement_)) {
+            return;
+        }
+        ++state_.readings;
+        say_rows(mail, kArrangementPane,
+                 intro::project_arrangement(said, arrangement_.rows, arrangement_.columns));
+    }
+
+    /// THE HOST'S ANSWER ABOUT ITS OWN POWERS (INTR-1). `ResolvedArrangement`'s two
+    /// checks, for the same two reasons.
+    ///
+    /// THIS IS THE PANE WHOSE SUBJECT MOVES. An arrangement is settled at startup in
+    /// this build; a power's active contribution changes the moment a provider is
+    /// mounted over it. Nothing here notices that happen and nothing here is told:
+    /// the next room grant asks again, and the answer is whatever the catalog resolves
+    /// at that moment.
+    void on(const ResolvedPowers& said, loom::Mail& mail) {
+        if (!answering(mail, powers_)) {
+            return;
+        }
+        ++state_.readings;
+        say_rows(mail, kPowersPane,
+                 intro::project_powers(said, powers_.rows, powers_.columns));
+    }
+
+    /// AN OWNER DECLINING TO ANSWER. `zen.ListLoaded` is not a shape the control door
     /// refuses, so this arm exists for the reach itself failing -- and its answer is
     /// to send NOTHING, which leaves Workshop showing `(waiting for the provider)`.
+    ///
+    /// SINCE INTR-1 IT IS THE ARM FOR A HOST WITH NO ARRANGEMENT DOOR TOO, and that is
+    /// a real arrangement rather than a fault: a host that mounts no door holds no
+    /// `zengine.arrangement` office, an ask addressed to it reaches nobody, and the two
+    /// new panes wait. This tool is loadable into any Loom host; only one in this
+    /// repository answers for its own project.
     ///
     /// A REFUSAL IS NOT MADE INTO A ROW. Rendering "the Manager said no" inside a
     /// list headed `loaded weaves` would put a sentence about this tool's plumbing
     /// where a maker reads facts about their system, and the pane already has an
     /// honest word for having nothing to show.
-    /// It RETIRES THE QUESTION, which is the only state it owns. Leaving `awaiting_`
-    /// standing would make a later `zen.Result` bearing this same correlation -- a
+    /// It RETIRES THE QUESTION, which is the only state it owns. Leaving `awaiting`
+    /// standing would make a later answer bearing this same correlation -- a
     /// number this incarnation will not mint twice, so one that could only be
     /// somebody else's -- look like the answer to a question that was already closed.
+    ///
+    /// ALL THREE ARE OFFERED THE CORRELATION AND AT MOST ONE MATCHES, because one
+    /// counter mints every question this incarnation asks. A refusal cannot retire the
+    /// wrong pane's question by accident.
     void on(const loom::Refused&, loom::Mail& mail) {
-        if (awaiting_ && mail.correlation() == pending_) {
-            awaiting_ = false;
+        for (Asked* q : {&loaded_, &arrangement_, &powers_}) {
+            if (q->awaiting && mail.correlation() == q->pending) {
+                q->awaiting = false;
+            }
         }
     }
 
 private:
-    /// One offer, authored as this office and addressed to the Workshop office.
+    /// ONE ROOM AND ONE OUTSTANDING QUESTION, FOR ONE PANE (INTR-1).
+    ///
+    /// NONE OF IT IS STATE. A snapshot that carried a room would revive an incarnation
+    /// believing it holds a grant Workshop's own cache says it does not; the grant is
+    /// re-sent whenever a valid offer refreshes the pane, so forgetting all three
+    /// across a revive is both correct and self-repairing.
+    struct Asked {
+        std::int64_t rows = 0;
+        std::int64_t columns = 0;
+        std::uint64_t pending = 0; ///< the outstanding question for this pane, if any
+        bool awaiting = false;
+    };
+
+    /// EVERY PANE THIS OFFICE HAS, OFFERED IN ONE BREATH.
     ///
     /// DIRECTED RATHER THAN PUBLISHED. Workshop is the only party this concerns, and
     /// a broadcast catalog entry would be an announcement to a room that did not ask.
+    ///
+    /// THREE SENTENCES AND NOT ONE WITH A LIST, because `PaneOffered` names ONE pane
+    /// and a provider offering three is three offers. Workshop admits each on its own
+    /// terms -- its own key law, its own catalog row, its own runtime kind -- so an
+    /// offer this build gets wrong costs one pane rather than all of them.
     void announce(loom::Mail& mail) {
+        offer(mail, PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary});
+        offer(mail, PaneOffered{kArrangementPane, kArrangementPaneName,
+                                kArrangementPaneSummary});
+        offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary});
+    }
+
+    void offer(loom::Mail& mail, const PaneOffered& said) {
         ++state_.offers;
-        (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(kWorkshopRole,
-                          PaneOffered{kLoadedPane, kLoadedPaneName, kLoadedPaneSummary});
+        (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
     }
 
-    /// ASK THE WEAVE MANAGER WHAT IS LOADED.
+    /// ASK ONE PANE'S OWNER ITS ONE QUESTION, AND REMEMBER THE ROOM IT IS FOR.
     ///
-    /// BY ROLE, never by `WeaveId`: `zen.manager` is the address that survives its
-    /// holder being replaced, and this weave never learns an id for it anyway.
+    /// BY ROLE, never by `WeaveId`: `zen.manager` and `zengine.arrangement` are the
+    /// addresses that survive their holders being replaced, and this weave never
+    /// learns an id for either.
     ///
-    /// ONE QUESTION OUTSTANDING AT A TIME. A second grant arriving before the first
-    /// answer replaces the correlation rather than queueing a second question --
-    /// there is only ever one room in force, and an answer to the room before it
-    /// would be projected against a budget that is no longer granted.
-    void ask(loom::Mail& mail) {
-        pending_ = ++asked_;
-        awaiting_ = true;
-        (void)mail.send_to_role(loom::kManagerRole, loom::ListLoaded{}, pending_);
+    /// ONE QUESTION OUTSTANDING PER PANE. A second grant for the same pane arriving
+    /// before its first answer replaces that pane's correlation rather than queueing a
+    /// second question -- there is only ever one room in force for one pane, and an
+    /// answer to the room before it would be projected against a budget that is no
+    /// longer granted. The three panes do not share the counter's VALUES, only the
+    /// counter, so no pane can retire another's question.
+    ///
+    /// AUTHORED AS THIS OFFICE. The Manager does not check and the arrangement door
+    /// does: a host answering "what did this project resolve" answers an OFFICE, so
+    /// that every answer it ever gave went somewhere nameable (workshop/arrangement.hpp
+    /// says exactly what that bound is and is not). Asking as this office costs
+    /// nothing and is the same deliberate authorship every pane sentence here uses.
+    template <class Question>
+    void ask(loom::Mail& mail, Asked& pane, const PaneRoom& room, const char* owner,
+             const Question& question) {
+        pane.rows = room.rows;
+        pane.columns = room.columns;
+        pane.pending = ++asked_;
+        pane.awaiting = true;
+        (void)mail.as_role(kIntrospectionRole).send_to_role(owner, question, pane.pending);
     }
 
-    /// SAY WHAT THIS PANE NOW SHOWS -- the one place content leaves this weave.
+    /// IS THIS DELIVERY THE ANSWER TO THE QUESTION THIS PANE IS WAITING ON?
+    ///
+    /// `answers_ask()` FIRST, because it is the one an asker cannot forge and a
+    /// stranger cannot supply: Loom stamps it on the single authorized answer to a
+    /// request this weave sent. The correlation then says WHICH grant it answers.
+    bool answering(loom::Mail& mail, Asked& pane) {
+        if (!pane.awaiting || !mail.answers_ask() || mail.correlation() != pane.pending) {
+            return false;
+        }
+        pane.awaiting = false;
+        return true;
+    }
+
+    /// SAY WHAT ONE PANE NOW SHOWS -- the one place content leaves this weave.
     ///
     /// DELIBERATELY AS THIS OFFICE. `mail.send_to_role(...)` would be PERSONAL speech
     /// from a weave that happens to hold the office, and Workshop drops it -- holding
     /// is never speaking-for (MSG-07).
     ///
-    /// ONE FUNCTION SINCE SEL-0, because there are now two occasions -- a fresh reading
-    /// and a moved mark -- and they must be the same sentence. A second spelling would
-    /// eventually differ in which office it authored as, and the symptom would be a
-    /// pane that updates when the kernel changes and goes silent when a maker clicks.
-    void say_rows(loom::Mail& mail) {
+    /// ONE FUNCTION SINCE SEL-0 AND STILL ONE SINCE INTR-1, because there are now four
+    /// occasions -- a fresh reading of any of three panes, and a moved mark -- and they
+    /// must be the same sentence. A second spelling would eventually differ in which
+    /// office it authored as, and the symptom would be a pane that updates when the
+    /// kernel changes and goes silent when a maker clicks.
+    void say_rows(loom::Mail& mail, const char* pane,
+                  std::vector<surface::SurfaceTextRow> rows) {
         PaneContent said;
-        said.pane = kLoadedPane;
-        said.rows = view_.rows;
+        said.pane = pane;
+        said.rows = std::move(rows);
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
     }
 
     zengine::ActivationCursor activation_;
-    /// THE LAST ROOM GRANTED, and it is NOT state. A snapshot that carried it would
-    /// revive an incarnation believing it holds a grant Workshop's own cache says it
-    /// does not; the grant is re-sent whenever a valid offer refreshes the pane, so
-    /// forgetting it across a revive is both correct and self-repairing.
-    std::int64_t rows_ = 0;
-    std::int64_t columns_ = 0;
-    std::uint64_t asked_ = 0;   ///< this incarnation's correlation counter
-    std::uint64_t pending_ = 0; ///< the outstanding question, if any
-    bool awaiting_ = false;
+    std::uint64_t asked_ = 0; ///< this incarnation's correlation counter, for all three panes
+    Asked loaded_;
+    Asked arrangement_;
+    Asked powers_;
     /// WHAT THIS PANE IS CURRENTLY SHOWING, and the map from its rows back to the
     /// entries they name (SEL-0).
     ///

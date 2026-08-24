@@ -54,7 +54,15 @@
 
 #include "composer/vocabulary.hpp"
 #include "introspection/loaded.hpp"
+#include "introspection/resolved.hpp"
 #include "introspection/vocabulary.hpp"
+#include "operator/catalog.hpp"
+#include "operator/host_surface.hpp"
+#include "operator/provider_host.hpp"
+#include "workshop/arrangement.hpp"
+#include "workshop/arrangement_vocabulary.hpp"
+#include "workshop/load_execute.hpp"
+#include "workshop/load_plan.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "timer/vocabulary.hpp"
 #include "surface/skin_tui.hpp"
@@ -93,8 +101,10 @@ using namespace zengine::workshop;
 using loom::schema_of;
 namespace component = zengine::component;
 namespace input = zengine::input;
+namespace op = zengine::op;
 namespace surface = zengine::surface;
 namespace ui = zengine::ui;
+namespace load = zengine::workshop::load;
 
 namespace {
 
@@ -16665,7 +16675,24 @@ private:
 /// offer, and a rig that always mounted Workshop first could only ever prove one of
 /// the two.
 struct PaneRig {
+    /// ---- INTR-1's three additions, and their order is the host's ---------------
+    ///
+    /// `authored` IS DECLARED BEFORE THE BUS, exactly as `workshop.cpp` reads its plan
+    /// before it builds one: the arrangement door holds it by reference and the bus
+    /// owns the door.
+    ///
+    /// `catalog` IS DECLARED BEFORE THE KERNEL, which is the host's own lifetime claim
+    /// -- destruction runs in reverse, so the Kernel and every artifact it holds go
+    /// down before the store their contributions live in.
+    ///
+    /// BOTH EXIST IN EVERY RIG AND NEITHER DOES ANYTHING UNTIL A CASE ASKS. An empty
+    /// catalog and an unperformed plan are what a host has before it starts; the
+    /// executor and the door are `mount_arrangement`'s, so no case that predates
+    /// INTR-1 gained a weave, a mount or a message.
+    load::LoadPlan authored;
     loom::Switchboard bus;
+    op::Catalog catalog;
+    op::OperatorHostSurface operator_host{catalog};
     loom::Kernel kernel{bus};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
@@ -16874,6 +16901,70 @@ struct PaneRig {
         key(input::scan::kReturn);
     }
 
+    // ---- INTR-1: a real authored arrangement, and the door that answers for it ----
+    //
+    // ⚠ NO TIMER IN THIS RIG, EVER. `PaneRig` pumps to EMPTY and a live Timer service
+    // re-arms its own beat inside its own handler, so a plan naming `zengine-timer`
+    // here would not return. The arrangement facts that need a provider+weave artifact
+    // are proved in `test_workshop_load.cpp`, whose rigs drain in bounded turns; what
+    // is proved HERE is the pane seam, which needs neither.
+    //
+    // THE ARTIFACTS ARE RESOLVED FROM THE SUITE'S OWN `_SO` PATHS rather than from a
+    // staging directory, because this tier is not asking where a host finds a file --
+    // that is the load suite's question, and it has a real directory for it.
+    static std::string artifact_path(const std::string& stem) {
+        if (stem == "zengine-operators-basic") {
+            return PROVIDER_BASIC_SO;
+        }
+        if (stem == "zengine-provider-min") {
+            return PROVIDER_MIN_SO;
+        }
+        if (stem == "zengine-provider-a") {
+            return PROVIDER_A_SO;
+        }
+        if (stem == "zengine-plain-weave") {
+            return WORKSHOP_SO_HELLO;
+        }
+        if (stem == zengine::introspection::kIntrospectionStem) {
+            return WORKSHOP_SO_INTROSPECTION;
+        }
+        return stem; // a stem this rig cannot spell refuses at the loader, by name
+    }
+
+    /// PERFORM AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host
+    /// writes the booter's grant, the executor performs the rows, and the plan is
+    /// RETAINED because the projection pairs authored intent with resolved state.
+    load::Executed run_plan(load::LoadPlan plan) {
+        authored = std::move(plan);
+        loom::Grant operate;
+        operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+        const loom::WeaveId plan_booter =
+            loom::mount_granted<load::PlanBooter>(bus, std::move(operate), plan_answers);
+        plan_ = std::make_unique<load::PlanExecutor>(bus, catalog, operator_host, plan_booter,
+                                                     manager, plan_answers, &artifact_path);
+        return plan_->run(authored);
+    }
+
+    /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out --
+    /// `mount_workshop`'s discipline, for its reason: a rig that minted the grant from
+    /// the Emit set could not notice the host quietly widening it.
+    loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
+        REQUIRE(plan_ != nullptr); // a door with no executor would describe nothing
+        auto door = std::make_unique<ArrangementDoor>(authored, *plan_, catalog,
+                                                      std::move(plan_path));
+        ArrangementDoor* raw = door.get();
+        loom::Grant say;
+        say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
+        say.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
+        const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
+                                                    std::string(kArrangementRole));
+        raw->zen_set_self(id);
+        bus.pump();
+        return id;
+    }
+
+    load::BootAnswers plan_answers;
+
     Session& session() { return const_cast<Session&>(w->session()); }
     const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the
@@ -16883,6 +16974,10 @@ struct PaneRig {
 
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
+    /// HELD BY POINTER SO IT IS NOT CONSTRUCTED UNTIL A CASE ASKS, and declared LAST
+    /// so it is destroyed FIRST: it retains the provider identity of every mount it
+    /// made, and must not outlive the artifacts holding them.
+    std::unique_ptr<load::PlanExecutor> plan_;
 };
 
 /// Every prose row of the region an external pane occupies -- Workshop's header row
@@ -20639,6 +20734,19 @@ constexpr const char* kIntroPane = intro::kLoadedPane;
 
 PaneRef intro_ref() { return PaneRef{kIntroOffice, kIntroPane}; }
 
+/// HOW MANY PANES THIS ONE OFFICE OFFERS (INTR-1). It was one for two phases; the
+/// cases below say the number rather than assuming it, because "one provider is not
+/// one pane" is exactly what `PaneOffered` was shaped for and a case that indexed
+/// `entries[0]` was quietly asserting the opposite.
+constexpr std::size_t kIntroPaneCount = 3;
+
+/// THE RUNTIME HANDLE WORKSHOP MINTED FOR ONE OF THIS OFFICE'S PANES -- BY `PaneRef`
+/// AND NEVER BY INDEX. Catalog order is first-accepted-offer order, which is a fact
+/// about a boot sequence and not an identity; a case that meant `loaded` says so.
+const RuntimePane* intro_row(PaneRig& r, const char* pane) {
+    return r.session().panels.runtime.find(kIntroOffice, pane);
+}
+
 /// Does any row of this projection contain `needle`?
 bool any_row(const std::vector<surface::SurfaceTextRow>& rows, const std::string& needle) {
     for (const surface::SurfaceTextRow& r : rows) {
@@ -20843,25 +20951,46 @@ TEST_CASE("INTR-0: loading the real tool puts its pane in the catalog, offered b
         r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     REQUIRE(r.load_refusals.empty());
     REQUIRE(id.valid());
-    // WORKSHOP LEARNED THIS PANE FROM A LIVE OFFER and from nowhere else: no
-    // `panel::k*` was minted for it, no arm was compiled for it, and the handle it
-    // carries is a runtime one.
-    REQUIRE(r.session().panels.runtime.entries.size() == 1);
-    const RuntimePane& row = r.session().panels.runtime.entries[0];
+    // WORKSHOP LEARNED THESE PANES FROM LIVE OFFERS and from nowhere else: no
+    // `panel::k*` was minted for any of them, no arm was compiled for any of them,
+    // and every handle they carry is a runtime one.
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
+    const RuntimePane* found = intro_row(r, kIntroPane);
+    REQUIRE(found != nullptr);
+    const RuntimePane& row = *found;
     CHECK(row.provider == std::string(kIntroOffice)); // Loom's stamp, not a payload field
     CHECK(row.pane == std::string(kIntroPane));
     CHECK(row.name == std::string(intro::kLoadedPaneName));
     CHECK(row.summary == std::string(intro::kLoadedPaneSummary));
     CHECK(is_runtime_kind(row.kind));
+
+    // ...AND SO DID THE OTHER TWO (INTR-1). Three panes, one office, three distinct
+    // runtime handles -- which is `PaneOffered`'s own claim that a provider is not a
+    // pane, measured on the first office in this repository that has more than one.
+    for (const char* pane : {intro::kArrangementPane, intro::kPowersPane}) {
+        const RuntimePane* more = intro_row(r, pane);
+        REQUIRE(more != nullptr);
+        CHECK(more->provider == std::string(kIntroOffice));
+        CHECK(is_runtime_kind(more->kind));
+        CHECK(more->kind != row.kind);
+        // A NAME AND A SUMMARY A MAKER CAN READ WHOLE. `kPickerNameCols` is ten cells
+        // and admission allows thirty-two, so a name inside the bound is a name that
+        // reaches a maker's eye unmarked -- INTR-0's own lesson, paid once.
+        CHECK_FALSE(more->name.empty());
+        CHECK(more->name.size() <= 10);
+        CHECK_FALSE(more->summary.empty());
+    }
+    CHECK(intro_row(r, kIntroPane)->kind != intro_row(r, intro::kPowersPane)->kind);
 }
 
 TEST_CASE("INTR-0: the opened pane names what this Loom actually loaded, itself included") {
     PaneRig r;
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
     const std::vector<std::string> shown =
         external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
 
@@ -20883,14 +21012,15 @@ TEST_CASE("INTR-0: the count is the kernel's and moves when the kernel's map doe
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
     REQUIRE(external_rows(r.last_canvas(), external_body_rect(r.session(), kind))[0] ==
             "loaded weaves -- 1");
 
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     // The Hello provider's own offer arrives too; that is the catalog's business and
     // not this pane's, and the pane's rows are unmoved until it is re-granted room.
-    REQUIRE(r.session().panels.runtime.entries.size() == 2);
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount + 1);
     CHECK(external_rows(r.last_canvas(), external_body_rect(r.session(), kind))[0] ==
           "loaded weaves -- 1");
 
@@ -21003,7 +21133,7 @@ TEST_CASE("INTR-0: the tool answers Workshop and refuses everybody else") {
     r.mount_workshop();
     r.ready();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
 
     // AN UNAUTHENTICATED CATALOG REQUEST -- a root publication carrying no authored
     // role at all. Answering it would hand this tool's catalog to whoever asked.
@@ -21014,7 +21144,8 @@ TEST_CASE("INTR-0: the tool answers Workshop and refuses everybody else") {
     // AUTHORSHIP and not about the tool having stopped talking.
     r.ready();
     CHECK(r.session().panels.runtime.entries.size() == before);
-    CHECK(r.session().panels.runtime.entries[0].name == std::string(intro::kLoadedPaneName));
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    CHECK(intro_row(r, kIntroPane)->name == std::string(intro::kLoadedPaneName));
 }
 
 TEST_CASE("INTR-0: a forged room produces no content at all") {
@@ -21023,7 +21154,7 @@ TEST_CASE("INTR-0: a forged room produces no content at all") {
     PaneRig r;
     PaneWatcher* watch = r.mount_watcher();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(watch->offers.size() == 1);
+    REQUIRE(watch->offers.size() == kIntroPaneCount);
 
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
         wv.grant_personally(m, kIntroOffice, PaneRoom{kIntroPane, 6, 40});
@@ -21082,7 +21213,8 @@ TEST_CASE("INTR-0: unload and reload -- waiting is said, and a reload recovers t
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
-    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
     REQUIRE(any_row(external_rows(r.last_canvas(), external_body_rect(r.session(), kind)),
                     intro::kIntrospectionStem));
 
@@ -21091,7 +21223,7 @@ TEST_CASE("INTR-0: unload and reload -- waiting is said, and a reload recovers t
     // rows a maker is looking at are the last valid ones. That is a stated limit and
     // not liveness.
     REQUIRE(r.unload(intro::kIntrospectionStem));
-    REQUIRE(r.session().panels.runtime.entries.size() == 1);
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
     CHECK(any_row(external_rows(r.last_canvas(), external_body_rect(r.session(), kind)),
                   intro::kIntrospectionStem));
 
@@ -21108,7 +21240,8 @@ TEST_CASE("INTR-0: unload and reload -- waiting is said, and a reload recovers t
     // refreshes the descriptor in place and clears the grant -- so the next repaint
     // grants room again and the view returns with no gesture from the maker.
     REQUIRE(r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice).valid());
-    CHECK(r.session().panels.runtime.entries.size() == 1); // identity de-duplicated it
+    // identity de-duplicated all three
+    CHECK(r.session().panels.runtime.entries.size() == kIntroPaneCount);
     const std::vector<std::string> back =
         external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
     REQUIRE_FALSE(back.empty());
@@ -22861,7 +22994,7 @@ TEST_CASE("SEL-0: a forged press selects nothing and publishes nothing") {
     ProviderSeat* stranger = r.mount_provider(kOtherOffice);
     (void)loom::mount<SelectionListener>(r.bus, ears);
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(watch->offers.size() == 1);
+    REQUIRE(watch->offers.size() == kIntroPaneCount);
     r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
         wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 46});
     });
@@ -24495,7 +24628,10 @@ TEST_CASE("MSG-0: selecting a weave in the real Loaded pane retargets the real C
     std::int64_t intro_kind = kNoPaneKind;
     std::int64_t compose_kind = kNoPaneKind;
     for (const RuntimePane& row : r.session().panels.runtime.entries) {
-        if (row.provider == std::string(kIntroOffice)) {
+        // BOTH HALVES OF THE `PaneRef`, and the pane half is what INTR-1 made
+        // load-bearing: this office offers three panes now, so matching on the office
+        // alone would have picked whichever the catalog happened to hold last.
+        if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
             intro_kind = row.kind;
         }
         if (row.provider == std::string(kComposerOffice)) {
@@ -24580,4 +24716,920 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().manage.open);
     CHECK_FALSE(r.session().terminal.open);
+}
+
+// ---- INTR-1: the resolved arrangement and the power stack, as two more panes ------
+//
+// THREE TIERS AGAIN, AND THE SPLIT IS INTR-0'S. The first asks what a projection
+// MEANS -- pure functions over a value, no bus, no library, no Workshop -- because
+// "every displayed fact is true" is a statement about a projection. The second drives
+// the real `zengine-introspection` library through the real pane seam over a real
+// authored arrangement and a real `op::Catalog`, because "the fact has an
+// authoritative owner" is a statement about a path. The third reads Workshop's own
+// source, because "the host knows nothing about these panes" is a statement about a
+// file and every rig here would stay green if it stopped being true.
+//
+// ⚠ THE PANE TIER NEVER LOADS THE TIMER. `PaneRig` pumps to EMPTY and a live Timer
+// re-arms its own beat inside its own handler. The arrangement facts that need a
+// provider+weave artifact -- the Timer appearing ONCE, the operator handoff outcome --
+// are proved in `test_workshop_load.cpp`, whose rigs drain in bounded turns.
+
+namespace {
+
+namespace ws = zengine::workshop;
+
+/// AN ARRANGEMENT BUILT AS A VALUE, so a projection can be asked what it means without
+/// a bus, a Kernel or an artifact anywhere near it.
+ws::ArtifactParticipation participation(const char* stem, const char* mode, const char* role) {
+    ws::ArtifactParticipation a;
+    a.artifact = stem;
+    a.authored_provider = mode;
+    a.authored_role = role;
+    a.performed = true;
+    return a;
+}
+
+ws::ArtifactParticipation resolved_provider(ws::ArtifactParticipation a, const char* identity,
+                                            std::int64_t powers) {
+    a.provider = identity;
+    a.powers = powers;
+    return a;
+}
+
+ws::ArtifactParticipation resolved_weave(ws::ArtifactParticipation a, std::int64_t id,
+                                         const char* offer) {
+    a.weave = id;
+    a.offer = offer;
+    return a;
+}
+
+ws::PowerStack power_of(const char* identity, std::vector<ws::PowerContribution> stack) {
+    ws::PowerStack p;
+    p.power = identity;
+    p.contributions = std::move(stack);
+    return p;
+}
+
+ws::PowerContribution supplied_by(const char* provider, bool composite = false) {
+    ws::PowerContribution c;
+    c.provider = provider;
+    c.composite = composite;
+    return c;
+}
+
+/// The production-shaped arrangement, as a value: a provider-only artifact, two
+/// weave-only artifacts, and one artifact that is BOTH.
+ws::ResolvedArrangement shaped_arrangement() {
+    ws::ResolvedArrangement said;
+    said.plan = "default-load-plan.json";
+    said.artifacts.push_back(resolved_provider(
+        participation("zengine-operators-basic", "normal", ""), "zengine.operators.basic", 2));
+    said.artifacts.push_back(resolved_weave(
+        participation("zengine-skin-tui-classic", "", "zengine.skin"), 4, "not-a-consumer"));
+    said.artifacts.push_back(resolved_weave(
+        resolved_provider(participation("zengine-timer", "normal", "zengine.timer"),
+                          "zengine.timer", 1),
+        7, "offered"));
+    said.artifacts.push_back(resolved_weave(
+        participation("zengine-composer", "", "zengine.composer"), 9, "not-a-consumer"));
+    return said;
+}
+
+/// The production-shaped powers, as a value: two natives from one provider and one
+/// composite from another.
+ws::ResolvedPowers shaped_powers() {
+    ws::ResolvedPowers said;
+    said.providers = {"zengine.operators.basic", "zengine.timer"};
+    said.powers.push_back(power_of("logic.select_int", {supplied_by("zengine.operators.basic")}));
+    said.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
+    said.powers.push_back(
+        power_of("timer.normalize_delay", {supplied_by("zengine.timer", /*composite=*/true)}));
+    return said;
+}
+
+std::vector<std::string> texts_of(const std::vector<surface::SurfaceTextRow>& rows) {
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& r : rows) {
+        out.push_back(r.text);
+    }
+    return out;
+}
+
+/// Which row of a projection carries `needle`, or -1.
+std::int64_t row_with(const std::vector<surface::SurfaceTextRow>& rows, const std::string& needle) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].text.find(needle) != std::string::npos) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
+}
+
+/// The same question of rows already read off a published canvas.
+std::int64_t row_with_text(const std::vector<std::string>& rows, const std::string& needle) {
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].find(needle) != std::string::npos) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
+// ---- Tier one: what a projection means --------------------------------------------
+
+TEST_CASE("INTR-1: the arrangement's summary is DERIVED from the rows it is printed over") {
+    const ws::ResolvedArrangement said = shaped_arrangement();
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    REQUIRE_FALSE(rows.empty());
+
+    // EXACT CARDINALITY, NEVER A PERCENTAGE. Four artifacts, all performed, two of
+    // which mounted a provider and three of which loaded a weave -- and every one of
+    // those numbers is counted over the very list below it, so the summary and the
+    // rows cannot come to disagree.
+    CHECK(rows[0].text == "4 of 4 artifacts resolved -- 2 providers, 3 weaves");
+    CHECK(rows[0].role == surface::role::kAccent);
+    CHECK(row_with(rows, "%") == -1);
+    CHECK(row_with(rows, "100") == -1);
+}
+
+TEST_CASE("INTR-1: a partial arrangement cannot read as a complete one") {
+    ws::ResolvedArrangement said = shaped_arrangement();
+    said.artifacts[2].performed = false;
+    said.artifacts[2].provider.clear();
+    said.artifacts[2].weave = 0;
+    said.artifacts[3].performed = false;
+    said.artifacts[3].weave = 0;
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].text == "2 of 4 artifacts resolved -- 1 providers, 1 weaves");
+    // ...and the unreached rows say so where a maker reads them, in the one role this
+    // vocabulary has for "something the maker must see".
+    const std::int64_t which = row_with(rows, intro::kNotReached);
+    REQUIRE(which >= 0);
+    CHECK(rows[static_cast<std::size_t>(which)].role == surface::role::kAlert);
+}
+
+TEST_CASE("INTR-1: AUTHORED and RESOLVED are two labelled rows, and never one") {
+    const std::vector<surface::SurfaceTextRow> rows =
+        intro::project_arrangement(shaped_arrangement(), 40, 80);
+    const std::vector<std::string> text = texts_of(rows);
+
+    // THE TIMER'S BLOCK, WHOLE: a stem, what a person asked for, and two resolved
+    // participations -- so `zengine.timer` the ROLE and `zengine.timer` the PROVIDER
+    // IDENTITY, which read alike, are never on one row where a maker could take them
+    // for one fact.
+    const std::int64_t stem = row_with(rows, "zengine-timer");
+    REQUIRE(stem >= 0);
+    const std::size_t at = static_cast<std::size_t>(stem);
+    REQUIRE(at + 3 < text.size());
+    CHECK(text[at] == "  zengine-timer");
+    CHECK(text[at + 1] == "    authored  provider normal, weave zengine.timer");
+    CHECK(text[at + 2] == "    resolved  provider zengine.timer, 1 power");
+    CHECK(text[at + 3] == "    resolved  weave #7, operator host offered");
+
+    // A RESOLVED PROVIDER IDENTITY IS NEVER PRESENTED AS SOMETHING THE PLAN AUTHORED,
+    // and a minted WeaveId is never presented as durable intent: neither appears on an
+    // `authored` row anywhere in the projection.
+    for (const std::string& row : text) {
+        if (row.find("    authored ") == 0) {
+            CHECK(row.find("#") == std::string::npos);
+            CHECK(row.find("power") == std::string::npos);
+        }
+    }
+}
+
+TEST_CASE("INTR-1: one artifact is ONE block, however many surfaces it participates as") {
+    const std::vector<std::string> text =
+        texts_of(intro::project_arrangement(shaped_arrangement(), 40, 80));
+    std::size_t stems = 0;
+    for (const std::string& row : text) {
+        stems += row == "  zengine-timer" ? 1u : 0u;
+    }
+    // LOAD-0'S CENTRAL RESULT, IN PRESENTATION. Two participations, one row naming it.
+    CHECK(stems == 1);
+}
+
+TEST_CASE("INTR-1: a provider-only artifact is visible and wears no weave") {
+    const std::vector<surface::SurfaceTextRow> rows =
+        intro::project_arrangement(shaped_arrangement(), 40, 80);
+    const std::vector<std::string> text = texts_of(rows);
+    const std::int64_t at = row_with(rows, "zengine-operators-basic");
+    REQUIRE(at >= 0);
+    const std::size_t i = static_cast<std::size_t>(at);
+    REQUIRE(i + 3 < text.size());
+    CHECK(text[i] == "  zengine-operators-basic");
+    CHECK(text[i + 1] == "    authored  provider normal");
+    CHECK(text[i + 2] == "    resolved  provider zengine.operators.basic, 2 powers");
+    // `provider != weave`, ALL THE WAY INTO PRESENTATION. The block ENDS after those
+    // three rows: the next one is the next artifact's stem, so there is no WeaveId, no
+    // role and -- the trap this case is really about -- no operator-host outcome for a
+    // load that never happened.
+    CHECK(text[i + 3].rfind("    ", 0) != 0);
+    CHECK(text[i + 3].find("weave") == std::string::npos);
+}
+
+TEST_CASE("INTR-1: a weave-only artifact is visible and wears no provider") {
+    const std::vector<surface::SurfaceTextRow> rows =
+        intro::project_arrangement(shaped_arrangement(), 40, 80);
+    const std::vector<std::string> text = texts_of(rows);
+    const std::int64_t at = row_with(rows, "zengine-composer");
+    REQUIRE(at >= 0);
+    const std::size_t i = static_cast<std::size_t>(at);
+    REQUIRE(i + 2 < text.size());
+    CHECK(text[i + 1] == "    authored  weave zengine.composer");
+    CHECK(text[i + 2] == "    resolved  weave #9, operator host not-a-consumer");
+    CHECK(text[i + 2].find("provider") == std::string::npos);
+    // ...and the block is TWO rows under its stem, so nothing was invented for a
+    // surface the plan never asked for.
+    CHECK((i + 3 == text.size() || text[i + 3].rfind("    ", 0) != 0));
+}
+
+TEST_CASE("INTR-1: an artifact BLOCK is shown whole or counted, never half") {
+    const ws::ResolvedArrangement said = shaped_arrangement();
+    // THE ONE-ROW FLOOR FIRST, because it is the budget at which the rule below does
+    // not apply and the accounting still holds: there is no list, no note and no
+    // marker -- and the HEADING states the population, so nothing is hidden without
+    // being counted even there.
+    const std::vector<surface::SurfaceTextRow> floor = intro::project_arrangement(said, 1, 60);
+    REQUIRE(floor.size() == 1);
+    CHECK(floor[0].text.rfind("4 of 4 artifacts", 0) == 0);
+
+    // ...AND FROM TWO ROWS UP, SHOWING PART OF A LIST OBLIGES SAYING HOW MUCH WAS HIDDEN.
+    for (std::int64_t rows = 2; rows <= 24; ++rows) {
+        const std::vector<surface::SurfaceTextRow> shown =
+            intro::project_arrangement(said, rows, 60);
+        CHECK(static_cast<std::int64_t>(shown.size()) <= rows);
+        const std::vector<std::string> text = texts_of(shown);
+        // EVERY STEM ROW IS FOLLOWED BY ITS OWN `authored` ROW. A block cut in half
+        // would leave a stem naming nothing, which is a different and wrong answer
+        // rather than a shorter one.
+        for (std::size_t i = 0; i < text.size(); ++i) {
+            if (text[i].rfind("  zengine-", 0) == 0 && text[i].rfind("    ", 0) != 0) {
+                REQUIRE(i + 1 < text.size());
+                CHECK(text[i + 1].rfind("    authored  ", 0) == 0);
+            }
+        }
+        // AND WHAT IS NOT SHOWN IS COUNTED. Nothing is hidden in silence at any budget.
+        std::size_t blocks = 0;
+        for (const std::string& row : text) {
+            blocks += (row.rfind("  zengine-", 0) == 0 && row.rfind("    ", 0) != 0) ? 1u : 0u;
+        }
+        if (blocks < said.artifacts.size()) {
+            const std::int64_t marker = row_with(shown, "more");
+            REQUIRE_MESSAGE(marker >= 0, "rows=", rows, " showed ", blocks, " and said nothing");
+            CHECK(text[static_cast<std::size_t>(marker)] ==
+                  "  ... " + std::to_string(said.artifacts.size() - blocks) + " more");
+        }
+    }
+}
+
+TEST_CASE("INTR-1: the population bound is reserved before the list gets a second row") {
+    const ws::ResolvedArrangement said = shaped_arrangement();
+    // AT EVERY BUDGET THAT SHOWS A LIST AT ALL, the sentence saying what these rows are
+    // NOT is on the canvas -- INTR-0's reservation argument, in a third place. A maker
+    // reading `4 of 4 artifacts` beside a running Builder would otherwise be right to
+    // conclude the Builder is not running.
+    for (std::int64_t rows = 3; rows <= 30; ++rows) {
+        const std::vector<surface::SurfaceTextRow> shown =
+            intro::project_arrangement(said, rows, 70);
+        CHECK_MESSAGE(row_with(shown, intro::kNotAuthored) >= 0, "rows=", rows);
+    }
+    // ...AND THE LIST'S FIRST ROW OUTRANKS THE CAVEAT, which is the other half of the
+    // same rule and is why the sweep starts at three. At a TWO-row body there is one
+    // row left after the heading and it goes to the list -- a pane showing only its own
+    // small print has stopped being a view of anything. What that one row can carry
+    // here is not a block, so it carries the count of what is hidden.
+    const std::vector<surface::SurfaceTextRow> two = intro::project_arrangement(said, 2, 70);
+    REQUIRE(two.size() == 2);
+    CHECK(two[1].text == "  ... 4 more");
+    // ...and at a ONE-row body there is no list and no note, and the population is
+    // still stated: the heading is the floor of the accounting.
+    const std::vector<surface::SurfaceTextRow> floor = intro::project_arrangement(said, 1, 70);
+    REQUIRE(floor.size() == 1);
+    CHECK(floor[0].text.rfind("4 of 4 artifacts", 0) == 0);
+}
+
+TEST_CASE("INTR-1: the plan line is spent only out of genuine slack") {
+    const ws::ResolvedArrangement said = shaped_arrangement();
+    // A pane that had to window its own project spends that row on the project.
+    const std::vector<surface::SurfaceTextRow> tight = intro::project_arrangement(said, 8, 70);
+    CHECK(row_with(tight, "plan: ") == -1);
+    CHECK(row_with(tight, "more") >= 0);
+    // ...and one with room over says where the authored rows came from.
+    const std::vector<surface::SurfaceTextRow> roomy = intro::project_arrangement(said, 30, 70);
+    const std::int64_t at = row_with(roomy, "plan: default-load-plan.json");
+    REQUIRE(at >= 0);
+    CHECK(roomy[static_cast<std::size_t>(at)].role == surface::role::kMuted);
+}
+
+TEST_CASE("INTR-1: every arrangement projection fits the room it was given") {
+    // THE WHOLE DOMAIN, because being exactly inside the grant is this function's
+    // obligation rather than a courtesy: Workshop refuses an over-budget update WHOLE.
+    const ws::ResolvedArrangement said = shaped_arrangement();
+    for (std::int64_t rows = 0; rows <= 26; ++rows) {
+        for (std::int64_t columns = 0; columns <= 90; columns += 3) {
+            const std::vector<surface::SurfaceTextRow> shown =
+                intro::project_arrangement(said, rows, columns);
+            REQUIRE(static_cast<std::int64_t>(shown.size()) <= (rows < 0 ? 0 : rows));
+            for (const surface::SurfaceTextRow& row : shown) {
+                REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
+            }
+        }
+    }
+}
+
+TEST_CASE("INTR-1: an empty arrangement is an observed zero, and says what it is not") {
+    ws::ResolvedArrangement empty;
+    const std::vector<surface::SurfaceTextRow> shown = intro::project_arrangement(empty, 10, 60);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0].text == "0 of 0 artifacts resolved -- 0 providers, 0 weaves");
+    CHECK(row_with(shown, intro::kNotAuthored) >= 0);
+}
+
+// ---- Tier one, the powers half ----------------------------------------------------
+
+TEST_CASE("INTR-1: a power's ACTIVE contribution is read first, and the shadowed ones under it") {
+    ws::ResolvedPowers said = shaped_powers();
+    // The overlay's own shape: two contributions, active LAST on the wire.
+    said.powers[1].contributions = {supplied_by("zengine.operators.basic"),
+                                    supplied_by("zengine.operators.test.min")};
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_powers(said, 40, 70);
+    const std::vector<std::string> text = texts_of(rows);
+    const std::int64_t at = row_with(rows, "  math.max");
+    REQUIRE(at >= 0);
+    const std::size_t i = static_cast<std::size_t>(at);
+    REQUIRE(i + 2 < text.size());
+
+    // THE WORD IS THE STATEMENT AND THE INK IS THE SECOND SIGNAL. A monochrome terminal
+    // reads the same fact a coloured one does.
+    CHECK(text[i] == "  math.max");
+    CHECK(text[i + 1] == "      active    zengine.operators.test.min");
+    CHECK(text[i + 2] == "      shadowed  zengine.operators.basic");
+    CHECK(rows[i + 1].role == surface::role::kFill);
+    CHECK(rows[i + 2].role == surface::role::kMuted);
+}
+
+TEST_CASE("INTR-1: composite is shown where the definition says so, and nowhere else") {
+    const std::vector<std::string> text = texts_of(intro::project_powers(shaped_powers(), 40, 70));
+    bool composite_marked = false;
+    for (const std::string& row : text) {
+        if (row.find("zengine.timer") != std::string::npos) {
+            composite_marked = composite_marked || row.find("(composite)") != std::string::npos;
+        }
+        if (row.find("zengine.operators.basic") != std::string::npos) {
+            CHECK(row.find("(composite)") == std::string::npos);
+        }
+    }
+    CHECK(composite_marked);
+}
+
+TEST_CASE("INTR-1: a contribution the host published itself is named as the host") {
+    ws::ResolvedPowers said;
+    said.powers.push_back(power_of("host.thing", {supplied_by("")}));
+    const std::vector<std::string> text = texts_of(intro::project_powers(said, 10, 60));
+    CHECK(row_with(intro::project_powers(said, 10, 60), intro::kHostItself) >= 0);
+    // ...and the empty provider never reaches a maker's eye as an empty column.
+    for (const std::string& row : text) {
+        CHECK(row != "      active    ");
+    }
+}
+
+TEST_CASE("INTR-1: the powers summary counts identities and providers, exactly") {
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_powers(shaped_powers(), 40, 70);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0].text == "3 powers resolve here -- from 2 providers");
+    CHECK(rows[0].role == surface::role::kAccent);
+    CHECK(row_with(rows, "%") == -1);
+}
+
+TEST_CASE("INTR-1: a power BLOCK is shown whole or counted, and its bound is reserved") {
+    const ws::ResolvedPowers said = shaped_powers();
+    for (std::int64_t rows = 3; rows <= 20; ++rows) {
+        const std::vector<surface::SurfaceTextRow> shown = intro::project_powers(said, rows, 60);
+        CHECK(static_cast<std::int64_t>(shown.size()) <= rows);
+        CHECK_MESSAGE(row_with(shown, intro::kOwnCatalog) >= 0, "rows=", rows);
+        const std::vector<std::string> text = texts_of(shown);
+        std::size_t blocks = 0;
+        for (std::size_t i = 0; i < text.size(); ++i) {
+            if (text[i].rfind("  ", 0) == 0 && text[i].rfind("      ", 0) != 0 &&
+                text[i].rfind("  ...", 0) != 0 && !text[i].empty()) {
+                ++blocks;
+                // A POWER NAMED IS A POWER WHOSE ACTIVE CONTRIBUTION IS ON THE CANVAS.
+                REQUIRE(i + 1 < text.size());
+                CHECK(text[i + 1].rfind("      active    ", 0) == 0);
+            }
+        }
+        if (blocks < said.powers.size()) {
+            CHECK_MESSAGE(row_with(shown, "more") >= 0, "rows=", rows);
+        }
+    }
+}
+
+TEST_CASE("INTR-1: every powers projection fits the room it was given") {
+    const ws::ResolvedPowers said = shaped_powers();
+    for (std::int64_t rows = 0; rows <= 20; ++rows) {
+        for (std::int64_t columns = 0; columns <= 80; columns += 3) {
+            const std::vector<surface::SurfaceTextRow> shown =
+                intro::project_powers(said, rows, columns);
+            REQUIRE(static_cast<std::int64_t>(shown.size()) <= (rows < 0 ? 0 : rows));
+            for (const surface::SurfaceTextRow& row : shown) {
+                REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
+            }
+        }
+    }
+}
+
+TEST_CASE("INTR-1: an entry and its omission marker are ONE demand on the budget") {
+    // THE ARITHMETIC INTR-0 WAS MEASURED GETTING WRONG, generalised to blocks and
+    // spelled once. Three blocks of two rows in a budget of five: two blocks fit, and
+    // the marker's row takes one of them back rather than being added on top.
+    const std::vector<std::int64_t> heights{2, 2, 2};
+    CHECK(intro::lay_blocks(heights, 6).shown == 3);
+    CHECK_FALSE(intro::lay_blocks(heights, 6).marker);
+    CHECK(intro::lay_blocks(heights, 5).shown == 2);
+    CHECK(intro::lay_blocks(heights, 5).marker);
+    CHECK(intro::lay_blocks(heights, 4).shown == 1);
+    CHECK(intro::lay_blocks(heights, 4).marker);
+    // AT A BUDGET TOO SMALL FOR ONE BLOCK, IT SAYS. Nothing is hidden in silence.
+    CHECK(intro::lay_blocks(heights, 1).shown == 0);
+    CHECK(intro::lay_blocks(heights, 1).marker);
+    // TOTAL over every budget, including ones no pane has.
+    CHECK(intro::lay_blocks(heights, 0).shown == 0);
+    CHECK_FALSE(intro::lay_blocks(heights, 0).marker);
+    CHECK(intro::lay_blocks({}, 5).shown == 0);
+    CHECK_FALSE(intro::lay_blocks({}, 5).marker);
+}
+
+// ---- Tier two: the real library, over a real arrangement and a real catalog --------
+
+namespace {
+
+/// The arrangement this tier performs, and it is deliberately Timer-free (see the
+/// section header). It still carries a PROVIDER-ONLY artifact and two weave-only ones,
+/// which is what the pane claims must be distinguishable.
+load::LoadPlan pane_plan() {
+    load::LoadPlan plan;
+    load::ArtifactIntent basic;
+    basic.stem = "zengine-operators-basic";
+    basic.provider = load::ProviderIntent{op::MountMode::Ordinary};
+    plan.artifacts.push_back(basic);
+    load::ArtifactIntent hello;
+    hello.stem = "zengine-plain-weave";
+    hello.weave = load::WeaveIntent{"test.plain"};
+    plan.artifacts.push_back(hello);
+    load::ArtifactIntent tool;
+    tool.stem = intro::kIntrospectionStem;
+    tool.weave = load::WeaveIntent{kIntroOffice};
+    plan.artifacts.push_back(tool);
+    return plan;
+}
+
+/// Stand a live Workshop up over that arrangement, with the host's observation door
+/// mounted, and open one of the tool's panes.
+std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
+    r.mount_workshop();
+    const load::Executed done = r.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("default-load-plan.json");
+    r.ready();
+    r.extent(160, 48);
+    REQUIRE(intro_row(r, pane) != nullptr);
+    r.pick(PaneRef{kIntroOffice, pane});
+    return intro_row(r, pane)->kind;
+}
+
+std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
+    return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+}
+
+/// MAKE ONE PANE TALLER, the way WIND-2 lets a maker: an authored height in canvas
+/// cells, written into the setup the screen actually resolves its bounds from.
+///
+/// THIS IS NOT A TEST DOOR. `kStackRows` is NINE -- eight prose rows under one header --
+/// and that is the DEVELOPER'S DEFAULT rather than a law, which is exactly what WIND-2's
+/// authored window is for. A projection whose entries are several rows tall does not fit
+/// six artifacts in eight rows and never could; what it does instead is count what it
+/// could not show, and give the maker a pane that grows.
+void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
+    const Written wrote =
+        author_pane_size(r.session().setup.active, PaneRef{kIntroOffice, pane}, PaneSize{},
+                         PaneSize{pane_unit::kCells, cells});
+    REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+    // A REPAINT, WHICH IS A ROOM GRANT, WHICH IS THIS TOOL'S ONE BEAT.
+    r.extent(200, 60);
+}
+
+} // namespace
+
+TEST_CASE("INTR-1: the Arrangement pane shows what THIS host actually resolved") {
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kArrangementPane);
+
+    // ---- AT THE DEVELOPER'S DEFAULT PANE SIZE, AND THIS IS THE HONEST HALF -------
+    //
+    // `kStackRows` is nine, so a pane's body is EIGHT prose rows. An artifact's block
+    // is three or four, so a default-sized pane shows the count, one artifact, and how
+    // many it could not show. That is a real presentation limitation and it is reported
+    // rather than papered over: what a maker must never read is a list that looks
+    // complete, and what they read here is `... 2 more`.
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE_FALSE(shown.empty());
+        CHECK(shown[0] == "3 of 3 artifacts resolved -- 1 providers, 2 weaves");
+        CHECK(any_row(shown, "zengine-operators-basic"));
+        CHECK(any_row(shown, "... 2 more"));
+        CHECK(any_row(shown, intro::kNotAuthored));
+    }
+
+    // ---- AND A MAKER WHO WANTS THE WHOLE PROJECT MAKES THE PANE TALLER (WIND-2) ---
+    //
+    // No pane code changed, no projection changed, and nothing was told: a bigger room
+    // is a room grant, which is this tool's one beat.
+    make_taller(r, intro::kArrangementPane, 22);
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "3 of 3 artifacts resolved -- 1 providers, 2 weaves");
+    CHECK(any_row(shown, "zengine-operators-basic"));
+    CHECK(any_row(shown, "zengine-plain-weave"));
+    CHECK(any_row(shown, intro::kIntrospectionStem));
+    CHECK_FALSE(any_row(shown, "more"));
+    // ...and the resolved provider identity is the one the ARTIFACT declared about
+    // itself, which is nowhere in the plan.
+    CHECK(any_row(shown, "zengine.operators.basic"));
+    // BOTH KINDS OF FACT, LABELLED, WHERE A MAKER READS THEM.
+    CHECK(any_row(shown, "authored  provider normal"));
+    CHECK(any_row(shown, "resolved  provider zengine.operators.basic, 2 powers"));
+    CHECK(any_row(shown, "authored  weave " + std::string(kIntroOffice)));
+    // AND THE FACT IS BOUNDED, AND ITS SOURCE NAMED.
+    CHECK(any_row(shown, intro::kNotAuthored));
+    CHECK(any_row(shown, "plan: default-load-plan.json"));
+}
+
+TEST_CASE("INTR-1: a provider-only artifact is in Arrangement and NOT in Loaded") {
+    // ⭐ THE APPARENT DISAGREEMENT, MEASURED. `zengine-operators-basic` is a provider
+    // and not a weave: no Kernel loads it, it has no WeaveId and no role. It is a row
+    // of one pane and absent from the other, and a build in which both listed it would
+    // be a build in which one of them had started guessing.
+    PaneRig r;
+    const std::int64_t arrangement = open_intro_pane(r, intro::kArrangementPane);
+    const std::vector<std::string> project = pane_rows(r, arrangement);
+    CHECK(any_row(project, "zengine-operators-basic"));
+
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
+    REQUIRE_FALSE(loaded.empty());
+    CHECK_FALSE(any_row(loaded, "zengine-operators-basic"));
+    // ...and the Loaded pane is still exactly what it always was: the KERNEL's map.
+    CHECK(loaded[0] == "loaded weaves -- 2");
+    CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
+    CHECK(any_row(loaded, intro::kNotInProcess));
+    CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
+}
+
+TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads") {
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+
+    // ---- BASELINE -------------------------------------------------------------
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE_FALSE(shown.empty());
+        CHECK(shown[0] == "2 powers resolve here -- from 1 providers");
+        const std::int64_t at = row_with_text(shown, "  math.max");
+        REQUIRE(at >= 0);
+        CHECK(shown[static_cast<std::size_t>(at) + 1] ==
+              "      active    zengine.operators.basic");
+        CHECK_FALSE(any_row(shown, "shadowed"));
+    }
+
+    // ---- THE OVERLAY, MOUNTED INTO THE HOST'S OWN CATALOG ----------------------
+    //
+    // NOBODY IS TOLD. No event exists, nothing polls, and the pane's rows are unmoved
+    // until it is re-granted room -- which is a resize, which is this tool's one beat.
+    const op::MountResult covered =
+        op::mount_provider(r.catalog, PROVIDER_MIN_SO, op::MountMode::Overlay);
+    REQUIRE_MESSAGE(covered.ok, covered.reason);
+    CHECK(pane_rows(r, kind)[0] == "2 powers resolve here -- from 1 providers");
+
+    r.extent(150, 44);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE_FALSE(shown.empty());
+        CHECK(shown[0] == "2 powers resolve here -- from 2 providers");
+        const std::int64_t at = row_with_text(shown, "  math.max");
+        REQUIRE(at >= 0);
+        const std::size_t i = static_cast<std::size_t>(at);
+        CHECK(shown[i + 1] == "      active    zengine.operators.test.min");
+        CHECK(shown[i + 2] == "      shadowed  zengine.operators.basic");
+        // AND THE OTHER POWER IS UNTOUCHED, which is what "covers one identity" means.
+        const std::int64_t other = row_with_text(shown, "  logic.select_int");
+        REQUIRE(other >= 0);
+        CHECK(shown[static_cast<std::size_t>(other) + 1] ==
+              "      active    zengine.operators.basic");
+    }
+
+    // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
+    REQUIRE(r.catalog.unmount("zengine.operators.test.min"));
+    r.extent(160, 48);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE_FALSE(shown.empty());
+        CHECK(shown[0] == "2 powers resolve here -- from 1 providers");
+        const std::int64_t at = row_with_text(shown, "  math.max");
+        REQUIRE(at >= 0);
+        CHECK(shown[static_cast<std::size_t>(at) + 1] ==
+              "      active    zengine.operators.basic");
+        CHECK_FALSE(any_row(shown, "shadowed"));
+    }
+    // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
+}
+
+TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source edit") {
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    CHECK_FALSE(any_row(pane_rows(r, kind), "prov.function"));
+
+    const op::MountResult added =
+        op::mount_provider(r.catalog, PROVIDER_A_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(added.ok, added.reason);
+    make_taller(r, intro::kPowersPane, 16);
+
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0] == "5 powers resolve here -- from 2 providers");
+    for (const char* power : {"prov.function.1", "prov.function.2", "prov.function.3"}) {
+        CHECK_MESSAGE(any_row(shown, power), power);
+    }
+    CHECK(any_row(shown, "zengine.provider.a"));
+    // ...AND THE COMPOSITES SAY SO, off the definitions and with nothing here
+    // classifying anything. This is the feature: a power added later is a row.
+    CHECK(any_row(shown, "(composite)"));
+}
+
+TEST_CASE("INTR-1: the two new panes carry no control, and a press changes nothing") {
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    const std::vector<std::string> before = pane_rows(r, kind);
+    const std::vector<std::string> providers_before = r.catalog.providers();
+    const std::vector<std::string> identities_before = r.catalog.identities();
+    const std::size_t panels_before = r.session().panels.open.size();
+
+    // KNOWLEDGE DOES NOT GRANT MUTATION. Every prose row of the pane is pressed --
+    // including the one naming a provider -- and nothing mounts, unmounts, loads,
+    // unloads, opens or closes.
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    for (std::int64_t row = 0; row < static_cast<std::int64_t>(before.size()); ++row) {
+        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + row);
+    }
+    CHECK(r.catalog.providers() == providers_before);
+    CHECK(r.catalog.identities() == identities_before);
+    CHECK(pane_rows(r, kind) == before);
+    CHECK(r.session().panels.open.size() == panels_before);
+    CHECK(r.load_refusals.empty());
+    // AND NO ROW OF EITHER PANE OFFERS ONE.
+    for (const std::string& row : before) {
+        for (const char* verb : {"unmount", "replace", "reload", "disable", "activate",
+                                 "[x]", "(x)"}) {
+            CHECK(row.find(verb) == std::string::npos);
+        }
+    }
+}
+
+TEST_CASE("INTR-1: opening a pane asks ONCE, and a quiet bus asks nothing") {
+    // NO POLLING LOOP, MEASURED FROM THE BUS. The two questions are counted across a
+    // long quiet, an open, and a resize: a pane that polled would show a rising count
+    // with nothing having happened.
+    PaneRig r;
+    r.mount_workshop();
+    const load::Executed done = r.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    const loom::WeaveId door = r.mount_arrangement();
+
+    std::vector<std::string> asked;
+    std::vector<std::string> answered;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.schema_name == "PowersRequested" || e.schema_name == "ArrangementRequested") {
+            asked.push_back(e.schema_name);
+        }
+        if (e.sender == door && !e.schema_name.empty()) {
+            answered.push_back(e.schema_name);
+        }
+    });
+    r.ready();
+    r.extent(160, 48);
+    for (int turn = 0; turn < 40; ++turn) {
+        r.bus.pump();
+    }
+    // NOTHING IS OPEN, SO NOTHING IS ASKED. A tool that read on a beat would already
+    // have spoken here.
+    CHECK(asked.empty());
+    CHECK(answered.empty());
+
+    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    const std::size_t after_open = asked.size();
+    CHECK(after_open >= 1);
+    for (int turn = 0; turn < 40; ++turn) {
+        r.bus.pump();
+    }
+    // ...AND A LONG QUIET AFTER IT ASKS NOTHING MORE. The one beat is the room grant.
+    CHECK(asked.size() == after_open);
+    r.bus.remove_observer(tap);
+    CHECK(answered.size() == after_open);
+}
+
+TEST_CASE("INTR-1: all three panes may be open at once, each answering its own room") {
+    PaneRig r;
+    r.mount_workshop();
+    const load::Executed done = r.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("p.json");
+    r.ready();
+    r.extent(240, 60);
+    r.pick(intro_ref());
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+
+    // THREE ROOMS, THREE QUESTIONS, THREE ANSWERS -- and each projected against ITS
+    // OWN budget. One shared room would have made the last grant decide how the other
+    // two were drawn.
+    const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
+    const std::vector<std::string> project =
+        pane_rows(r, intro_row(r, intro::kArrangementPane)->kind);
+    const std::vector<std::string> powers =
+        pane_rows(r, intro_row(r, intro::kPowersPane)->kind);
+    REQUIRE_FALSE(loaded.empty());
+    REQUIRE_FALSE(project.empty());
+    REQUIRE_FALSE(powers.empty());
+    CHECK(loaded[0].rfind("loaded weaves -- ", 0) == 0);
+    CHECK(project[0].find("artifacts resolved") != std::string::npos);
+    CHECK(powers[0].find("powers resolve here") != std::string::npos);
+    // ...and each stayed inside the room it was granted.
+    for (const char* pane : {kIntroPane, intro::kArrangementPane, intro::kPowersPane}) {
+        const std::int64_t kind = intro_row(r, pane)->kind;
+        const ExternalPane* room = r.session().panels.external_pane(kind);
+        REQUIRE(room != nullptr);
+        CHECK(static_cast<std::int64_t>(pane_rows(r, kind).size()) <= room->rows);
+    }
+}
+
+TEST_CASE("INTR-1: the graphical medium grants a different room and both panes spend it") {
+    // BOTH MEDIA, ONE PANE SEMANTIC. The provider is handed `rows` and `columns` and
+    // never a cell, a pixel, a font or the identity of the medium that answered -- so
+    // what differs between a terminal reading and a graphical one is a pair of integers
+    // `fit_region` resolved on Workshop's side, and nothing else.
+    //
+    // The metric arrives as a NUMBER, which is how every medium-dependent claim in this
+    // suite since HD-6 has been proved on a lane with no font engine.
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    const ExternalPane* cells = r.session().panels.external_pane(kind);
+    REQUIRE(cells != nullptr);
+    const std::int64_t cell_cols = cells->columns;
+    const std::vector<std::string> in_cells = pane_rows(r, kind);
+    REQUIRE_FALSE(in_cells.empty());
+
+    // A REAL FACE'S METRIC over the same surface: a 10-pixel advance is more columns in
+    // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
+    r.extent(1200, 500, 10, 18);
+    const ExternalPane* graphical = r.session().panels.external_pane(kind);
+    REQUIRE(graphical != nullptr);
+    CHECK(graphical->columns != cell_cols);
+
+    const std::vector<std::string> in_pixels = pane_rows(r, kind);
+    REQUIRE_FALSE(in_pixels.empty());
+    // THE SAME TRUTH IN BOTH, which is the honesty claim: two projections of one fact.
+    CHECK(in_cells[0] == in_pixels[0]);
+    CHECK(in_pixels[0] == "2 powers resolve here -- from 1 providers");
+    // ...AND THE COUNT IS THE POPULATION'S IN BOTH, whatever the room could fit: a
+    // graphical row is taller than a cell, so this projection windows where the cell one
+    // did not -- and every power it could not name is counted on its own row.
+    CHECK(any_row(in_pixels, intro::kOwnCatalog));
+    if (!any_row(in_pixels, "zengine.operators.basic")) {
+        CHECK(any_row(in_pixels, "more"));
+    }
+    // ...AND THE VIEW ANSWERED THE NEW ROOM rather than the old one. Workshop clears its
+    // cache before every grant, so a projection that had not moved would read as
+    // `waiting` here instead.
+    CHECK(static_cast<std::int64_t>(in_pixels.size()) <= graphical->rows);
+    for (const std::string& row : in_pixels) {
+        CHECK(static_cast<std::int64_t>(row.size()) <= graphical->columns);
+    }
+}
+
+TEST_CASE("INTR-1: a host with no arrangement door leaves the two panes WAITING") {
+    // THE TOOL IS LOADABLE INTO ANY LOOM HOST, and only one in this repository answers
+    // for its own project. A host that mounts no door holds no `zengine.arrangement`
+    // office, the ask reaches nobody, and the pane says the honest thing -- never
+    // `unavailable`, which is a fate nothing here has observed.
+    PaneRig r;
+    r.mount_workshop();
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    r.ready();
+    r.extent(160, 48); // room for two stacked panes, so both are really on the canvas
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    const std::vector<std::string> shown =
+        pane_rows(r, intro_row(r, intro::kArrangementPane)->kind);
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0] == std::string(kExternalWaiting));
+    // ...and the Loaded pane, whose owner is the Kernel and is always there, is fine.
+    r.pick(intro_ref());
+    REQUIRE(intro_row(r, kIntroPane) != nullptr);
+    const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
+    REQUIRE_FALSE(loaded.empty());
+    CHECK(loaded[0] == "loaded weaves -- 1");
+}
+
+// ---- Tier three: Workshop, read as a source file -----------------------------------
+
+namespace {
+
+std::string file_source(const char* path) {
+    std::ifstream in(path);
+    REQUIRE_MESSAGE(in.good(), "cannot read ", path);
+    std::ostringstream all;
+    all << in.rdbuf();
+    return all.str();
+}
+
+} // namespace
+
+TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception") {
+    // DEFENCE IN DEPTH, AND SAID TO BE. Every rig above drives the real seam; what a
+    // source read adds is that "Workshop discovers panes rather than being taught
+    // them" cannot quietly stop being true while every rig stays green.
+    //
+    // THE FORBIDDEN FORMS ARE QUOTED LITERALS AND IDENTIFIERS, never bare words. Prose
+    // about a pane is not a branch on one, and a tripwire that could not tell the
+    // difference would be a tripwire that forbids explaining the code.
+    for (const char* path : {WORKSHOP_HOST_CPP, WORKSHOP_WEAVE_HPP, WORKSHOP_SCREEN_HPP,
+                             WORKSHOP_PANEL_HPP}) {
+        const std::string source = file_source(path);
+        for (const char* forbidden : {"\"arrangement\"", "\"powers\"", "\"loaded\"",
+                                      "kArrangementPane", "kPowersPane", "kLoadedPane",
+                                      "introspection/", "kIntrospectionRole"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
+                          forbidden, "'");
+        }
+    }
+    // ...AND NO `panel::k*` WAS MINTED FOR ANY OF THEM. Every handle these panes carry
+    // is a runtime one, minted from a live offer.
+    PaneRig r;
+    r.mount_workshop();
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
+    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+        CHECK(is_runtime_kind(row.kind));
+    }
+}
+
+TEST_CASE("INTR-1: the host mounts a door and injects no host-owned object into an artifact") {
+    const std::string host = file_source(WORKSHOP_HOST_CPP);
+
+    // THE DOOR IS MOUNTED BEFORE THE PLAN IS PERFORMED, because the tool that asks is
+    // an artifact THIS PLAN LOADS: a door mounted afterwards would be absent during the
+    // window in which a pane might first be granted room.
+    const std::size_t door = host.find("mount_in_office<ArrangementDoor>");
+    const std::size_t run = host.find("executor.run(read_plan.plan)");
+    REQUIRE(door != std::string::npos);
+    REQUIRE(run != std::string::npos);
+    CHECK(door < run);
+
+    // ...AND ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE.
+    CHECK(host.find("say_resolved.allow_to_any(ResolvedArrangement::zen_name") !=
+          std::string::npos);
+    CHECK(host.find("say_resolved.allow_to_any(ResolvedPowers::zen_name") != std::string::npos);
+    CHECK(host.find("say_resolved.allow(") == std::string::npos);
+
+    // NOTHING HOST-OWNED CROSSES INTO A LOADED ARTIFACT. The host's operator surface is
+    // handed to the offer machinery and nowhere else; there is no second injected
+    // capability, no `ZenHostApi` widening and no service locator.
+    for (const char* forbidden : {"ZengineEverythingHostApi", "service_locator",
+                                  "IntrospectionRegistry", "ProjectMirror", "OperatorMirror"}) {
+        CHECK_MESSAGE(host.find(forbidden) == std::string::npos, forbidden);
+    }
+}
+
+TEST_CASE("INTR-1: neither projection names a power, a provider or an artifact") {
+    // ⭐ THE GENERICITY CLAIM, READ OFF THE SOURCE. A test may name `math.max` because
+    // it is verifying known production state; the projection may not, because a
+    // provider added later must appear without an edit. That is the feature.
+    //
+    // QUOTED LITERALS AND IDENTIFIERS, for the tripwire above's reason exactly: these
+    // files EXPLAIN what they refuse to branch on, and a check that could not tell a
+    // sentence from a special case would forbid the explanation.
+    for (const char* path : {INTROSPECTION_RESOLVED_HPP, WORKSHOP_ARRANGEMENT_HPP}) {
+        const std::string source = file_source(path);
+        for (const char* forbidden : {"\"math.max\"", "\"logic.select_int\"",
+                                      "\"timer.normalize_delay\"", "\"zengine.operators",
+                                      "\"zengine.timer\"", "\"zengine-timer\"",
+                                      "\"zengine-operators-basic\"", "kMaxInt", "kSelectInt",
+                                      "kNormalizeDelay", "timer/normalize.hpp",
+                                      "operator/primitives.hpp"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
+                          forbidden, "'");
+        }
+    }
 }

@@ -658,6 +658,12 @@ target_compile_definitions(zengine-workshop-tests PRIVATE
     # the same signature. It is the overlay a plan persists, and -- staged and never
     # named by most plans here -- it is also the no-scan witness.
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
+    # ...and INTR-1's GENERICITY witness, which needs powers this repository's
+    # projections and panes have never heard of. `zengine-provider-a` supplies
+    # `prov.function.1/2/3` -- two composites over one native leaf -- under a provider
+    # identity no source outside `tests/` names. A projection that had to be edited to
+    # show them would not be a projection over the store.
+    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\""
     # An ordinary weave that is not a provider and not an operator consumer, built by
     # another phase's rules and untouched by this one.
     "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
@@ -669,10 +675,30 @@ target_compile_definitions(zengine-workshop-tests PRIVATE
     # The two plan files this repository SHIPS, read as files rather than as a
     # description of files.
     "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
-    "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
+    "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\""
+    # ---- INTR-1's SOURCE TRIPWIRES ---------------------------------------------
+    #
+    # FIVE FILES READ AS FILES, and the pair of claims is why. Workshop's four say
+    # "this host was TAUGHT no pane" -- neither of the two INTR-1 added, nor the one
+    # INTR-0 added -- which no rig can prove, because every rig here would stay green
+    # if Workshop grew a special case that happened to agree with the generic path.
+    # The two projections say "no view branches on an identity", which is the whole
+    # genericity feature: a provider added later must appear without an edit.
+    #
+    # They are TRIPWIRES rather than proofs, exactly as `test_operator_provider.cpp`
+    # declares its own to be. Workshop's `main()` claims a terminal and no case here
+    # can run it; what a source read adds is that a claim every case rests on cannot
+    # quietly stop being true.
+    "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
+    "WORKSHOP_WEAVE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/weave.hpp\""
+    "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
+    "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
+    "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
+    "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\"")
 add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection
                                         zengine-composer zengine-operators-basic
                                         zengine-timer zengine-provider-min
+                                        zengine-provider-a
                                         zengine-provider-abi
                                         zengine-operator-consumer-weave-abi)
 

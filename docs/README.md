@@ -21,10 +21,13 @@ external one read [reference/introspection.md](reference/introspection.md) besid
 [`introspection/`](../introspection/loaded.hpp).
 
 **Seeing what is running:** [reference/introspection.md](reference/introspection.md) — the
-`Loaded` pane. What it shows, where each fact's authority lives, what it deliberately does not
-show, why it is a snapshot rather than a feed, what happens when its provider disappears, and the
-exact authority it holds. It is also the first tool that reaches Workshop entirely through the
-external pane protocol, so it is worth reading beside the guide above.
+`Loaded`, `Project` and `Powers` panes. What each shows, where each fact's authority lives (the
+Kernel's map, the authored load plan and the executor's resolved rows, the host's operator
+catalog), why they are three panes rather than one table and why two of them deliberately
+disagree, how a dynamically loaded tool reads host-side truth at all, what they deliberately do not
+show, why they are snapshots rather than feeds, what happens when the provider disappears, and the
+exact authority the tool holds. It is also the first tool that reaches Workshop entirely through
+the external pane protocol, so it is worth reading beside the guide above.
 
 **Using time:** [guides/timers.md](guides/timers.md) (order a timer, receipts,
 the `TimerReady` rule) · [guides/timed-weaves.md](guides/timed-weaves.md)

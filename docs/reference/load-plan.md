@@ -225,6 +225,12 @@ The plan holds no resolved truth either: no `WeaveId`, no mounted provider ident
 contribution count, no outcome. Those exist only at runtime, in the executor's
 `ResolvedArtifact`, and are never written back.
 
+**A maker can see both halves side by side.** The `Project` pane
+([reference/introspection.md](introspection.md)) pairs each authored row with what this run made
+of it, labelled `authored` and `resolved` so the two are never one. It reads the plan for the
+authored half — a resolved row does not know whether its mount was an overlay — and the executor's
+rows for the other, and it keeps neither.
+
 **Restart persistence exists; clean-build persistence does not.** A fresh process reconstructs
 the same provider and weave arrangement from the same file with no source change between runs.
 Recreating the artifacts themselves from a clean tree is build intent and is a separate,

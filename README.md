@@ -1801,6 +1801,67 @@ framework, and no hot-reload orchestration. **Restart persistence exists; clean-
 does not** — recreating the artifacts themselves from a clean tree is build intent and a separate
 question. **No Loom change of any kind.**
 
+### The system can show what it is (INTR-1)
+
+> **A maker no longer has to infer the running Workshop from startup logs or from source: the
+> system itself says what participated, which powers exist, and whose implementation is being
+> spent.**
+
+LOAD-0 made participation authored and durable; PROV-0 made power resolution live and reversible.
+Neither was visible. `zengine.introspection` now offers **three** panes, and two of them are new:
+
+```text
+Powers @zengine.introspection                Project @zengine.introspection
+3 powers resolve here -- from 2 providers    6 of 6 artifacts resolved -- 2 providers, 5 weaves
+  logic.select_int                             zengine-operators-basic
+      active    zengine.operators.basic          authored  provider normal
+  math.max                                       resolved  provider zengine.operators.basic,
+      active    zengine.operators.test.min                 2 powers
+      shadowed  zengine.operators.basic        zengine-timer
+  timer.normalize_delay                          authored  provider normal, weave zengine.timer
+      active    zengine.timer (composite)        resolved  provider zengine.timer, 1 power
+                                                 resolved  weave #11, operator host offered
+a weave that took no offer holds its own
+catalog                                      in-process participants are not authored artifacts
+```
+
+The full account is [docs/reference/introspection.md](docs/reference/introspection.md). What it
+settles:
+
+- **Three questions, three owners, and they disagree on purpose.** `Loaded` answers from the
+  Kernel's map, `Project` from the authored plan paired with the executor's resolved rows, `Powers`
+  from the host's `op::Catalog`. `zengine-operators-basic` is a provider and not a weave: it is a
+  row of `Project` and it is *absent* from `Loaded`. A build in which both listed it would be a
+  build in which one had started guessing.
+- **A loaded artifact reads host-side truth through an office, not an injection.** The host mounts
+  one small read-only participant holding three `const` references into `main`; the tool asks it
+  and gets an ordinary Loom value back. No `Catalog*`, `PlanExecutor*` or container crosses into a
+  dynamic artifact, no host API widened, and no service locator was created. It is the same seam
+  `zen.ListLoaded` already spends, pointed at two more facts.
+- **Nothing is mirrored.** Each answer is derived from its owner at the moment it is asked and
+  dropped when it has been said — which is what makes an overlay mounted since the last reading
+  appear in the next one with nobody having been notified, and nothing polling.
+- **Authored intent and resolved state stay visibly different truths.** A resolved row does not
+  know whether its mount was an overlay, so the projection pairs the authored plan with the
+  resolved rows rather than reconstructing either. `zengine.timer` is both an authored *role* and a
+  resolved *provider identity*; the labels are what keep a maker from taking them for one fact.
+- **One artifact is one row, however many surfaces it participates as** — the load plan's central
+  result, carried into presentation.
+- **Knowledge, and not yet power.** No row carries an unmount, replace, reload, disable or activate
+  control, and no pane message mutates load or provider state. Naming every provider in the process
+  confers nothing: a value in a message has never been a grant.
+- **The projections name no power and no provider.** A provider mounted later appears with nothing
+  edited — proved by mounting a fixture supplying three identities this repository's panes have
+  never heard of.
+
+Honest limitation: a pane's default room is eight prose rows and that number is fixed, so a
+six-artifact `Project` pane shows one artifact and `... 5 more` until a maker authors a taller
+window. The omission is counted rather than hidden, and a second denser layout was not invented.
+
+Deliberately absent: no plan editing, no provider controls, no overlay controls, no hot reload, no
+build intent, no boot/build orchestrator, no Composer semantic binding, no Flow, no Metadata system
+and no generic service locator. **No Loom change of any kind.**
+
 ## Working in this tree
 
 Zengine and the Loom live side by side under a shared `Zen/` root:
