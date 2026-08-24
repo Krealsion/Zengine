@@ -471,6 +471,12 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     # read the arrangement off the file, which is the same defence in depth the
     # no-privileged-wind and clock-binding tripwires already provide next door.
     "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
+    # ...and since LOAD-0, the file the host's ordering law MOVED INTO. The offer that
+    # used to bracket the Timer's boot in `workshop.cpp` is not there any more --
+    # `workshop.cpp` names no artifact at all -- so the tripwire that read it follows
+    # the code to `load_execute.hpp`, which is where mount-before-offer-before-load is
+    # now written.
+    "WORKSHOP_LOAD_EXECUTE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/load_execute.hpp\""
     "OPH_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
     "OPH_STRANGER_LEGACY_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-legacy>\""
     "OPH_STRANGER_ABI_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
@@ -587,10 +593,29 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # host — and the suite loads the very library a maker runs. So a case here that reads its
 # rows is reading the shipped tool's answer, not a stand-in's, which is the only way the
 # claim "every displayed fact is true" can be tested at all.
-add_executable(zengine-workshop-tests test_workshop.cpp doctest_main.cpp)
+#
+# LOAD-0 adds a SECOND SOURCE FILE to the same binary, on the terms every phase since
+# CAT-0 has used: the population contract counts ENTRIES, and registering a new CTest
+# entry for a new tier of an existing suite would be splitting the inventory in order
+# to record a file. `test_workshop.cpp` asks what a maker sees and does;
+# `test_workshop_load.cpp` asks which artifacts are in the room at all.
+#
+# It brings `zengine-workshop-load` -- the typed plan, its codec and its executor --
+# and with it `zengine-operator`, because a plan row's provider mode IS `op::MountMode`
+# and the executor mounts through `op::mount_provider`.
+#
+# ⚠ AND IT BRINGS A TIMER `_SO` INTO THIS BINARY, which the paragraph below says this
+# suite deliberately did not have. That paragraph is CORRECTED rather than deleted: the
+# hazard it measured is real and unchanged -- a live Timer re-arms its own beat inside
+# its own handler, so a rig that pumps to EMPTY never returns. What makes the new file
+# safe is that every one of its rigs is a LOCAL of its case, owns its own Switchboard
+# and Kernel, and drains with `pump_pending()` in bounded turns. `test_workshop.cpp`'s
+# rigs are untouched and still pump to empty; they never see a Timer, because a weave
+# lives on the bus that loaded it and each case builds its own.
+add_executable(zengine-workshop-tests test_workshop.cpp test_workshop_load.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-tests
     PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
-            zengine-workshop-vocabulary
+            zengine-workshop-vocabulary zengine-workshop-load
             zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-introspection-view zengine-composer-vocabulary
             zengine-timer-vocabulary zengine-warnings
@@ -612,9 +637,44 @@ target_include_directories(zengine-workshop-tests PRIVATE
 target_compile_definitions(zengine-workshop-tests PRIVATE
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
-    "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\"")
+    "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+    # ---- LOAD-0's artifacts, and the directory they are STAGED INTO --------------
+    #
+    # A REAL DIRECTORY, because the claim "filesystem presence is not load authority"
+    # cannot be made against a lookup table -- with a table, "not in the plan" and
+    # "not reachable" are the same thing and the interesting question cannot be
+    # asked. The suite copies these files into `WORKSHOP_LOAD_STAGE_DIR` itself and
+    # then resolves stems against it with the HOST's own rule, so the directory holds
+    # more artifacts than any plan in the file names.
+    #
+    # SIX PATHS, AND FOUR OF THEM ARE PRODUCTION ARTIFACTS. `zengine-operators-basic`
+    # and `zengine-timer` are what the shipped plan actually names, so a case here
+    # drives the very files a maker runs; the three fixtures stand in for the things a
+    # plan can point at and get wrong.
+    "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
+    "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
+    "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+    # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
+    # the same signature. It is the overlay a plan persists, and -- staged and never
+    # named by most plans here -- it is also the no-scan witness.
+    "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
+    # An ordinary weave that is not a provider and not an operator consumer, built by
+    # another phase's rules and untouched by this one.
+    "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+    # A provider surface at a version this host does not speak, and a CONSUMER surface
+    # at a version this host does not speak. Two different refusals; both must remain
+    # distinguishable from "an ordinary artifact".
+    "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
+    "BROKEN_CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
+    # The two plan files this repository SHIPS, read as files rather than as a
+    # description of files.
+    "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
+    "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
 add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection
-                                        zengine-composer)
+                                        zengine-composer zengine-operators-basic
+                                        zengine-timer zengine-provider-min
+                                        zengine-provider-abi
+                                        zengine-operator-consumer-weave-abi)
 
 zengine_doctest_test(workshop zengine-workshop-tests)
 
