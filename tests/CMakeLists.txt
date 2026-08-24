@@ -642,8 +642,8 @@ target_include_directories(zengine-workshop-tests PRIVATE
 #
 # THERE IS NO `_SO` FOR THE TIMER, AND THAT ABSENCE IS MEASURED RATHER THAN CHOSEN.
 # The shipped Timer service re-arms its own beat inside its own handler and
-# `Switchboard::pump()` drains to EMPTY, so loading it into a rig whose every gesture
-# pumps never returns -- it hung, at the load. The Timer's real SHAPES are still what
+# `Switchboard::drain_until_idle()` does what it says, so loading it into a rig whose
+# every gesture drains never returns -- it hung, at the load. The Timer's real SHAPES are still what
 # these cases compose (see `TimerSeat` in test_workshop.cpp), and the real SERVICE is
 # exercised where a real service can be, which is the live run.
 target_compile_definitions(zengine-workshop-tests PRIVATE
