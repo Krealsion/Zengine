@@ -130,12 +130,11 @@ int main(int argc, char** argv) {
                                       stem, dir + "/" + stem + kArtifactSuffix, role}),
                                   waiter_id, waiter_id));
         // A load is ANSWERED, not merely started: is_loaded turns true while the Result
-        // naming the new weave is still queued, so drain until the answer or a refusal is
-        // missed. pump_pending() is the bounded turn -- pump() drains to quiescence, and a
-        // live Timer beat chain never quiesces.
+        // naming the new weave is still queued, so keep taking turns until the answer or a
+        // refusal is missed.
         for (int turn = 0; turn < 64 && !waiter->answered; ++turn) {
             if (bus.pump_pending() == 0) {
-                break;
+                break; // nothing left to dispatch: no answer is coming
             }
         }
         if (!waiter->answered) {
@@ -162,7 +161,15 @@ int main(int argc, char** argv) {
     bus.publish_as(waiter_id, loom::Message(loom::to_value(BakeOrder{"sourdough", 40}),
                                             waiter_id, loom::WeaveId{0}));
 
-    for (int turn = 0; turn < 4000 && !waiter->served; ++turn) {
+    // THE HOST LOOP, AND THE POINT OF IT (FRIC-1). With the Timer service loaded this bus
+    // is never idle -- the service seeds its one successor beat inside every beat's handler
+    // -- so a host that asked for `drain_until_idle()` here would never reach the next line
+    // and this program would print nothing at all. `pump_pending()` dispatches exactly what
+    // was waiting and hands control back, which is what lets the condition below be checked
+    // at all. The 4000 is this fixture's patience, not a dispatch budget: nothing in Loom
+    // takes a number.
+    int laps = 0;
+    for (; laps < 4000 && !waiter->served; ++laps) {
         bus.pump_pending();
     }
 
@@ -194,6 +201,22 @@ int main(int argc, char** argv) {
     if (!waiter->served) {
         return 1;
     }
+    // THE RECURRING-WORK WITNESS. Two facts, and neither is worth anything without the
+    // other: the host got control back many times over, AND the service that made that
+    // interesting is still going. A run where the chain had died would satisfy the first
+    // alone, and would prove only that a quiet bus can be pumped.
+    std::printf("kitchen: the host loop kept control for %d turn(s)\n", laps);
+    if (laps < 2) {
+        std::printf("kitchen: THE HOST LOOP NEVER REALLY LOOPED\n");
+        return 1;
+    }
+    if (bus.pending() == 0) {
+        std::printf("kitchen: THE BUS WENT IDLE -- the Timer chain is not alive, so this run "
+                    "proves nothing about servicing a live one\n");
+        return 1;
+    }
+    std::printf("kitchen: the bus is still busy (%zu queued) -- quiescence was never coming, "
+                "and the host never asked for it\n", bus.pending());
     // AN ORDINARY SUCCESS LOOKS LIKE ONE. Not a preference about volume: every refusal
     // this run could produce would be a real one, so a single line here means either the
     // program is broken or the runtime is presenting a non-event as a failure. It was the

@@ -326,7 +326,7 @@ struct FakeRig {
     /// queue turn without napping, so a nap-counting bound would not see one.
     void pump_drives(std::int64_t n) {
         stop_after_drives = drives + n;
-        bus.pump();
+        bus.drain_until_idle();
         stop_after_drives = -1;
     }
 
@@ -430,7 +430,7 @@ struct FakeRig {
         if (start) {
             activate();
         }
-        bus.pump();
+        bus.drain_until_idle();
         hooks.stop_after = -1;
         stop_after_drives = -1;
     }
@@ -608,7 +608,7 @@ struct Rig {
 
     void pump_beats(std::int64_t n) {
         stop_after_drives = drives + n;
-        bus.pump();
+        bus.drain_until_idle();
         stop_after_drives = -1;
     }
 
@@ -622,7 +622,7 @@ struct Rig {
     void pump_until(std::string schema, std::int64_t max_beats = 400) {
         stop_on_schema = std::move(schema);
         stop_after_drives = drives + max_beats;
-        bus.pump();
+        bus.drain_until_idle();
         stop_after_drives = -1;
         stop_on_schema.clear();
     }
@@ -721,7 +721,7 @@ struct Rig {
         seen.stop_count = 1;
         seen.stop_seen = 0;
         ask(service, StartTimer{"suite.stopwatch", ms, false});
-        bus.pump();
+        bus.drain_until_idle();
         seen.stop_id.clear();
     }
 
@@ -1556,7 +1556,7 @@ TEST_CASE("the timer .so authors its chain from its own activation — no wind, 
     r.seen.stop_id = "suite.tick";
     r.seen.stop_count = 3;
     r.seen.stop_seen = 0;
-    r.bus.pump();
+    r.bus.drain_until_idle();
     r.seen.stop_id.clear();
 
     CHECK(r.seen.ready == 1); // the hello reached an accepter
@@ -1676,14 +1676,14 @@ TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
     const loom::WeaveId skin_so =
         r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
                zengine::surface::kSkinRole);
-    r.bus.pump(); // nothing is alive; this drains
+    r.bus.drain_until_idle(); // nothing is alive; this drains
     CHECK(r.bus.pending() == 0);
 
     // Measured, not assumed: it is being serviced by nothing.
     const std::uint64_t before_corr = r.next_corr++;
     r.bus.send(skin_so, loom::Message(loom::to_value(loom::PokeRead{"pumps"}), loom::WeaveId{},
                                       r.witness, before_corr));
-    r.bus.pump();
+    r.bus.drain_until_idle();
     const Seen::Answer* before = r.seen.find(before_corr);
     REQUIRE(before != nullptr);
     CHECK(before->text == "0");
@@ -2036,27 +2036,27 @@ struct BindRig {
 
     void activate(std::int64_t sequence) {
         zengine::testing::order_activation(bus, door, weave, sequence);
-        bus.pump();
+        bus.drain_until_idle();
     }
     void activate() { activate(next_sequence++); }
 
     /// The service says it is available (root-published, as the real one does).
     void ready() {
         bus.publish(loom::Message(loom::to_value(TimerReady{})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// A firing, stamped as the service — the honest wire path.
     void fire(const char* id) {
         bus.send_as(service, weave,
                     loom::Message(loom::to_value(TimerFired{id}), service, service, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     template <class T>
     void tell(const T& msg) {
         bus.send(weave, loom::Message(loom::to_value(msg)));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     std::int64_t count(const char* field) {
@@ -2097,25 +2097,25 @@ struct HookRig {
 
     void activate(std::int64_t sequence) {
         zengine::testing::order_activation(bus, door, weave, sequence);
-        bus.pump();
+        bus.drain_until_idle();
     }
     void activate() { activate(next_sequence++); }
 
     /// An activation nobody attested — an ordinary root send of the right shape.
     void activate_unattested(std::int64_t sequence) {
         bus.send(weave, loom::Message(loom::to_value(loom::Activated{sequence})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void ready() {
         bus.publish(loom::Message(loom::to_value(TimerReady{})));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void fire(const char* id) {
         bus.send_as(service, weave,
                     loom::Message(loom::to_value(TimerFired{id}), service, service, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// Where a shape first appears in the delivery order, or -1.
@@ -2149,7 +2149,7 @@ TEST_CASE("binding: declaration is not execution — constructing sends nothing,
     // during construction, and a weave that reached out from its constructor
     // would be speaking outside the one place a weave is allowed to speak.
     const loom::WeaveId w = loom::mount<Bound>(bus);
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(events == 0);
     CHECK(bus.pending() == 0);
 
@@ -2164,7 +2164,7 @@ TEST_CASE("binding: declaration is not execution — constructing sends nothing,
     // a blind observer would satisfy exactly as happily as real silence. So
     // prove the meter reads: one ordinary message, and the count moves.
     bus.send(w, loom::Message(loom::to_value(CancelTick{})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(events > 0);
 }
 
@@ -3083,16 +3083,16 @@ TEST_CASE("binding lifecycle: a one-shot is SPENT before its callback runs, does
 
     const auto activate = [&](std::int64_t sequence) {
         zengine::testing::order_activation(bus, door, weave, sequence);
-        bus.pump();
+        bus.drain_until_idle();
     };
     const auto fire = [&] {
         bus.send_as(service, weave,
                     loom::Message(loom::to_value(TimerFired{"shooter.shot"}), service, service, 0));
-        bus.pump();
+        bus.drain_until_idle();
     };
     const auto ready = [&] {
         bus.publish(loom::Message(loom::to_value(TimerReady{})));
-        bus.pump();
+        bus.drain_until_idle();
     };
     const auto shooter = [&] { return static_cast<Shooter*>(bus.weave(weave)); };
 
@@ -3118,7 +3118,7 @@ TEST_CASE("binding lifecycle: a one-shot is SPENT before its callback runs, does
     loom::Bus& root = bus;
     (void)root;
     bus.send(weave, loom::Message(loom::to_value(ArmFromCallback{})));
-    bus.pump();
+    bus.drain_until_idle();
 
     // ...and now the ordering pin itself: the callback re-arms from INSIDE the
     // firing. That can only work if Spent was written before the callback ran —
@@ -3145,7 +3145,7 @@ TEST_CASE("binding: a receipt updates the binding it names, and only that one; a
                   loom::Message(loom::to_value(TimerResolution{"bound.tick", kResolutionDropped,
                                                                "because the test said so"}),
                                 r.service, r.service, 0));
-    r.bus.pump();
+    r.bus.drain_until_idle();
     CHECK(w->tick_.resolution() == kResolutionDropped);
     CHECK(w->tick_.resolution_reason() == "because the test said so");
     CHECK(w->role_.resolution() == kResolutionPreserved); // the neighbour is untouched
@@ -3157,7 +3157,7 @@ TEST_CASE("binding: a receipt updates the binding it names, and only that one; a
                   loom::Message(loom::to_value(TimerResolution{"somebody.elses", kResolutionRefused,
                                                                "not yours"}),
                                 r.service, r.service, 0));
-    r.bus.pump();
+    r.bus.drain_until_idle();
     CHECK(w->tick_.resolution() == kResolutionDropped);
     CHECK(w->role_.resolution() == kResolutionPreserved);
 }
@@ -3217,7 +3217,7 @@ TEST_CASE("direct load: a Timer loaded straight through the control door, with N
     });
     const auto pump_beats = [&](std::int64_t n) {
         stop_at = drives + n;
-        bus.pump();
+        bus.drain_until_idle();
         stop_at = -1;
     };
 

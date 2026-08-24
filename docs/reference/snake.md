@@ -30,9 +30,11 @@ skinless game at zero stdout bytes.
 - **Host** (`zengine-snake`) owns the boot list — nothing else. It reads no keys (the Input
   weave produces them), owns no screen (the skin claims it at load), and since the Timer
   package keeps no clock, never sleeps, and pumps nobody. It contributes nothing to time
-  either: it queues the boot list and `pump()` IS the game. Loading the timer service is what
-  starts the clock — the control door activates it and it authors its own chain — so there is
-  no wind, and no boot-pump-then-wind ceremony to order correctly. The loop ends when the
+  either: it queues the boot list and `drain_until_idle()` IS the game — this host has nothing
+  of its own to do between turns, so "run until the world stops" is exactly its program.
+  Loading the timer service is what starts the clock — the control door activates it and it
+  authors its own chain — so there is no wind, and no boot-drain-then-wind ceremony to order
+  correctly. The loop ends when the
   operator's quit key stops the bus (or, honestly, when the bus goes quiet because no clock is
   deployed, or because activation could not establish time).
   Its status line is published intent like everything else, spoken by the granted operator

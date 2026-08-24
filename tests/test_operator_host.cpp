@@ -172,7 +172,7 @@ struct HostRig {
         bus.send_as(booter, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
                                   booter, 0));
-        bus.pump();
+        bus.drain_until_idle();
         if (loaded.size() <= before) {
             return loom::WeaveId{};
         }
@@ -199,7 +199,7 @@ struct HostRig {
         bus.send_as(booter, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, ""}), booter,
                                   booter, 0));
-        bus.pump();
+        bus.drain_until_idle();
         if (loaded.size() <= before) {
             return loom::WeaveId{};
         }
@@ -214,14 +214,14 @@ struct HostRig {
         const std::size_t before = refusals.size();
         bus.send_as(booter, control,
                     loom::Message(loom::to_value(loom::UnloadLibrary{name}), booter, booter, 0));
-        bus.pump();
+        bus.drain_until_idle();
         return refusals.size() == before;
     }
 
     void ask_describe(loom::WeaveId target, const std::string& identity) {
         bus.send_as(asker, target,
                     loom::Message(loom::to_value(OperatorDescribeAsk{identity}), asker, asker, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void ask_evaluate(loom::WeaveId target, const std::string& identity,
@@ -231,7 +231,7 @@ struct HostRig {
                                                                      std::move(arguments),
                                                                      repetitions}),
                                   asker, asker, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     const OperatorSignatureSaid& last_signature() const { return heard.signatures.back(); }

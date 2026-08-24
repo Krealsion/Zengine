@@ -3051,7 +3051,7 @@ struct Live {
 
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
@@ -5855,7 +5855,7 @@ TEST_CASE("a typed send leaves through the PARTICIPANT's door, on Workshop's own
     loom::TerminalSession* me = t.mount_terminal();
     t.toggle_terminal();
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"from the pane\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
 
     // IT ARRIVED, AND IT ARRIVED ON THIS BUS. The seat is registered on the same Switchboard
     // Workshop's own weave is; nothing here constructs a second Loom, and a participant on a
@@ -5909,14 +5909,14 @@ TEST_CASE("holding the pointer merged nothing: the two grants stay different") {
 
     // The office: authorized, and it lands.
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"to the office\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK(seat->who_said("to the office") == t.terminal_id);
 
     // A PUBLICATION: composed, authored, SUBMITTED -- and refused at delivery for want of a
     // rule this participant does not hold. The participant is not told that, and does not
     // claim to know it; what the transcript says is that it was submitted.
     t.type_line("send * SurfaceText 1 slot=\"score\" text=\"to everyone\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK(of_kind(*me, loom::TranscriptKind::Submitted).size() == 2);
     CHECK_FALSE(seat->who_said("to everyone").valid());
 
@@ -5944,14 +5944,14 @@ TEST_CASE("the address grammar the pane reads is Loom's own, not a second one") 
     t.toggle_terminal();
     // A BAREWORD IS NOT AN ADDRESS, and the pane invents no default for one.
     t.type_line("send zengine.skin SurfaceText 1 slot=\"score\" text=\"no sigil\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK_FALSE(seat->who_said("no sigil").valid());
     CHECK(of_kind(*me, loom::TranscriptKind::Submitted).empty());
     CHECK(me->transcript().entries().back().text.find("#12 for one weave") != std::string::npos);
 
     // ...and the same line with the sigil is authored.
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"with sigil\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK(seat->who_said("with sigil") == t.terminal_id);
 }
 
@@ -5967,8 +5967,8 @@ TEST_CASE("an ask waits, and LOOM's own answer settles it on the screen") {
     t.type_line("ask #99 SurfaceText 1 slot=\"ask\" text=\"anyone at 99\"");
     CHECK(me->awaiting());
     CHECK(me->outstanding() == 1);
-    t.bus.pump();
-    t.bus.pump();
+    t.bus.drain_until_idle();
+    t.bus.drain_until_idle();
     CHECK(me->awaiting()); // still. Nothing here can tell it whether that was even delivered.
 
     t.type_line("ask @zengine.skin SurfaceText 1 slot=\"ask\" text=\"is anybody there\"");
@@ -6012,7 +6012,7 @@ TEST_CASE("the transcript becomes visible through Workshop's own canvas") {
     (void)t.mount_terminal();
     t.toggle_terminal();
     t.type_line("send @zengine.skin SurfaceText 1 slot=\"score\" text=\"hello\"");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     const surface::SurfaceCanvas& c = t.canvases.back();
 
     // ANCHORED TO THE BOTTOM-RIGHT CORNER OF THE ROOM, exactly (HD-10). The bottom edge is
@@ -6845,7 +6845,7 @@ TEST_CASE("browsing candidates authors NOTHING -- no traffic, no ask, no transcr
     t.key(input::scan::kTab);    // nothing showing: asked for again, line untouched
     REQUIRE(t.pane().input.text() == "send ");
     browse("@zengine.skin SurfaceText 1 slot=score text=hi");
-    t.bus.pump();
+    t.bus.drain_until_idle();
 
     CHECK(from_participant() == 0); // nothing of ITS landed on the office it may reach
     CHECK(me->outstanding() == 0);  // no ask was created
@@ -6861,7 +6861,7 @@ TEST_CASE("browsing candidates authors NOTHING -- no traffic, no ask, no transcr
     // ...AND THE ORDINARY SUBMISSION STILL AUTHORS, which is what makes the zeros above a
     // measurement rather than a broken pane. The canary: delete the send and this fails.
     t.key(input::scan::kReturn);
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK(from_participant() == 1);
     CHECK(of_kind(*me, loom::TranscriptKind::Submitted).size() == 1);
     CHECK(of_kind(*me, loom::TranscriptKind::LocalCommand).size() == 1);
@@ -6990,7 +6990,7 @@ TEST_CASE("an untouched line asks nothing, so the answer to the last command sta
     (void)t.mount_terminal();
     t.toggle_terminal();
     t.type_line("help");
-    t.bus.pump();
+    t.bus.drain_until_idle();
     CHECK(t.pane().input.empty());
     CHECK_FALSE(t.pane().completion.open);
     CHECK(list_of(t.canvases.back(), kMinScreen) == nullptr);
@@ -7450,7 +7450,7 @@ TEST_CASE("the pane states its whole grammar, wrapped, with nothing elided") {
     (void)t.mount_terminal();
     t.toggle_terminal();
     t.type_line("help");
-    t.bus.pump();
+    t.bus.drain_until_idle();
 
     const std::vector<std::string> rows = rasterized(t.canvases.back());
     const Screen sc = screen_of(t.session());
@@ -16775,7 +16775,7 @@ struct PaneRig {
         }
         (void)bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                          loom::WeaveId{}, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// LOAD A REAL SHARED LIBRARY THROUGH THE REAL KERNEL AND MANAGER, exactly as a
@@ -16792,7 +16792,7 @@ struct PaneRig {
         bus.send_as(booter, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{name, path, role}), booter,
                                   booter, 0));
-        bus.pump();
+        bus.drain_until_idle();
         if (loaded.size() <= before) {
             return loom::WeaveId{};
         }
@@ -16812,7 +16812,7 @@ struct PaneRig {
         const std::size_t before = load_refusals.size();
         bus.send_as(booter, control,
                     loom::Message(loom::to_value(loom::UnloadLibrary{name}), booter, booter, 0));
-        bus.pump();
+        bus.drain_until_idle();
         return load_refusals.size() == before;
     }
 
@@ -16837,14 +16837,14 @@ struct PaneRig {
         watch->next = std::move(what);
         (void)bus.send(watcher_id,
                        loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     loom::WeaveId watcher_id{};
 
     void publish(const loom::Value& v) {
         (void)bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     /// The Skin says hello -- Workshop's startup hook, and where it asks the room who
@@ -16959,7 +16959,7 @@ struct PaneRig {
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
                                                     std::string(kArrangementRole));
         raw->zen_set_self(id);
-        bus.pump();
+        bus.drain_until_idle();
         return id;
     }
 
@@ -23047,7 +23047,7 @@ TEST_CASE("SEL-0: a press between a room grant and its answer names nothing") {
     // an entry from a picture nobody is looking at.
     //
     // REACHING IT TAKES ONE TRICK, and it is worth writing down because the obvious rig
-    // cannot: `bus.pump()` drains, so a grant driven on its own is always answered before
+    // cannot: `bus.drain_until_idle()` drains, so a grant driven on its own is always answered before
     // anything else can happen. Both sentences are therefore authored inside ONE delivery
     // -- the grant first, the press second -- so the queue is [room, press] and the
     // provider's own question to the Manager is enqueued BEHIND the press. The press is
@@ -24007,10 +24007,10 @@ private:
 /// Timer's, out of `timer/vocabulary.hpp`, so the catalog a maker reads in these
 /// cases is the catalog they read in the product, and a submitted `StartTimer` is the
 /// message the real service accepts. What is a stand-in is the SERVICE: the shipped
-/// `zengine-timer` re-arms its own beat inside its own handler, and `pump()` drains to
-/// EMPTY -- its own header says a perpetual service means it never returns -- so
-/// loading it into a rig whose every gesture pumps hangs the suite rather than proving
-/// anything. Measured, not assumed: it hung, at the load.
+/// `zengine-timer` re-arms its own beat inside its own handler, and
+/// `drain_until_idle()` does what it says -- its own header says a perpetual service
+/// means it never returns -- so loading it into a rig whose every gesture drains hangs
+/// the suite rather than proving anything. Measured, not assumed: it hung, at the load.
 ///
 /// So the real service is exercised where a real service can be, which is an
 /// interactive run, and the accept-set, the discovery, the generated form and the
@@ -24149,7 +24149,7 @@ struct ComposeRig {
         };
         (void)r.bus.send(selector_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
                                                     loom::WeaveId{}, 0));
-        r.bus.pump();
+        r.bus.drain_until_idle();
     }
 
     /// The provider's rows, off the published canvas, with Workshop's header dropped.
@@ -24714,7 +24714,7 @@ TEST_CASE("MSG-0: the Composer opens, closes and moves nothing but itself") {
     };
     (void)r.bus.send(selector_id,
                      loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-    r.bus.pump();
+    r.bus.drain_until_idle();
 
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK(r.session().setup.active == setup_before);
@@ -25504,7 +25504,7 @@ TEST_CASE("INTR-1: opening a pane asks ONCE, and a quiet bus asks nothing") {
     r.ready();
     r.extent(160, 48);
     for (int turn = 0; turn < 40; ++turn) {
-        r.bus.pump();
+        r.bus.drain_until_idle();
     }
     // NOTHING IS OPEN, SO NOTHING IS ASKED. A tool that read on a beat would already
     // have spoken here.
@@ -25515,7 +25515,7 @@ TEST_CASE("INTR-1: opening a pane asks ONCE, and a quiet bus asks nothing") {
     const std::size_t after_open = asked.size();
     CHECK(after_open >= 1);
     for (int turn = 0; turn < 40; ++turn) {
-        r.bus.pump();
+        r.bus.drain_until_idle();
     }
     // ...AND A LONG QUIET AFTER IT ASKS NOTHING MORE. The one beat is the room grant.
     CHECK(asked.size() == after_open);

@@ -123,8 +123,8 @@ struct OperatorContext {
     std::string dir; ///< where the host resolves loadable weaves (beside itself)
 
     /// The host's stop lever, handed to the operator: with time inside the
-    /// bus, pump() runs the whole game and returns only when told to stop —
-    /// so the quit key must stop the bus, not just set a flag for a loop
+    /// bus, drain_until_idle() runs the whole game and returns only when told to
+    /// stop — so the quit key must stop the bus, not just set a flag for a loop
     /// body that would otherwise never come around.
     std::function<void()> request_stop;
 
@@ -386,26 +386,28 @@ int main() {
          loom::LoadWeave{"zengine-timer", ctx.so("zengine-timer"), timer::kTimerRole});
     boot("load snake clock", loom::LoadWeave{"snake-clock", ctx.so("snake-clock"), ""});
 
-    // THE HOST DOES NOT WIND THE CLOCK. There is no boot-pump-then-wind
+    // THE HOST DOES NOT WIND THE CLOCK. There is no boot-drain-then-wind
     // ceremony any more, and no ordering hazard to tiptoe around: the boot
-    // commands are queued above, and pump() below both delivers them and runs
+    // commands are queued above, and the drain below both delivers them and runs
     // the game. Loading the timer service is what starts time — the Loom's
     // control door activates a freshly committed incarnation, and the service
     // authors its own beat chain from that activation. Every other package
     // arranges its own time the same way, on its own activation, so load order
     // no longer decides who gets to breathe.
     //
-    // The whole game runs inside pump(): the beat chain keeps the queue alive,
-    // the TimerService's nap paces it, and the operator's quit stops the bus.
-    // Note that this FIRST pump no longer returns merely because boot finished
-    // — with the chain alive it returns only on quit. A pump that instead
-    // returns QUIESCENT — an empty queue — means nothing in this process will
+    // The whole game runs inside drain_until_idle(): the beat chain keeps the
+    // queue alive, the TimerService's nap paces it, and the operator's quit stops
+    // the bus. THIS HOST WANTS THE DRAIN, not the bounded turn: it has nothing of
+    // its own to do between turns, so "run until the world stops" is exactly its
+    // program. Note that the first call no longer returns merely because boot
+    // finished — with the chain alive it returns only on quit. A drain that
+    // instead returns IDLE — an empty queue — means nothing in this process will
     // ever speak again (there is no clock outside it): say so honestly and
     // leave, rather than spin on a dead bus. That is where a deployment with no
     // timer service lands, and where one whose activation could not establish
     // time lands too.
     while (!ctx.quit) {
-        bus.pump();
+        bus.drain_until_idle();
         if (!ctx.quit && bus.pending() == 0) {
             std::printf("zengine-snake - the bus went quiet without a quit "
                         "(no timer service deployed?): time is gone, exiting.\n");

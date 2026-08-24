@@ -49,11 +49,15 @@ choice; the practical consequence is that "it loads and nothing happens" is the 
 newcomer hits first, and diagnosing it needs a tap. See
 [getting started](../getting-started.md#when-it-does-not-work).
 
-### `bus.pump()` does not return while a Timer chain is live
+### Loading the Timer service makes the process permanently non-quiescent
 
-`pump()` drains to quiescence, and the Timer service's beat chain never quiesces by design. A
-host that wants to check anything between turns must use `pump_pending()`. Calling `pump()`
-with the Timer loaded produces a program that appears to hang, with no diagnostic.
+The service seeds its one successor beat inside every beat's own handler, so from the moment it
+is loaded the bus always has something queued — whether or not any schedule is outstanding. The
+consequence for a host is that **"wait until the bus goes quiet" is never a termination
+condition once the Timer is loaded**: `loom::Switchboard::drain_until_idle()` on such a process
+does not return, exactly as its name and contract say. An ordinary host loop asks for
+`pump_pending()` and gets control back every turn; snake and Workshop want the drain, because
+the bus *is* their whole program and `stop()` is their exit.
 
 ## Workshop
 

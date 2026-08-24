@@ -358,16 +358,16 @@ struct Rig {
         return loom::mount_granted<Probe>(bus, std::move(reach), rec);
     }
 
-    void pump() {
+    void drain() {
         Hush hush;
-        bus.pump();
+        bus.drain_until_idle();
     }
 
     template <class Cmd>
     Recorded::Answer command(const Cmd& cmd) {
         const std::uint64_t corr = next_corr++;
         bus.send_as(probe, manager, loom::Message(loom::to_value(cmd), probe, probe, corr));
-        pump();
+        drain();
         const Recorded::Answer* a = rec.find(corr);
         REQUIRE(a != nullptr);
         return *a;
@@ -377,7 +377,7 @@ struct Rig {
     Recorded::Answer poke(loom::WeaveId target, const Poke& p) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(p), loom::WeaveId{}, probe, corr));
-        pump();
+        drain();
         const Recorded::Answer* a = rec.find(corr);
         REQUIRE(a != nullptr);
         return *a;
@@ -392,7 +392,7 @@ struct Rig {
     void tick() {
         bus.send_to_role(zengine::snake::kWorldRole,
                          loom::Message(loom::to_value(zengine::snake::SnakeTick{})));
-        pump();
+        drain();
     }
 
     /// Root-send an intent directly to a weave (the gate still guards the
@@ -400,7 +400,7 @@ struct Rig {
     template <class T>
     void intent(loom::WeaveId target, const T& msg) {
         bus.send(target, loom::Message(loom::to_value(msg)));
-        pump();
+        drain();
     }
 };
 
@@ -1997,14 +1997,14 @@ TEST_CASE("the shell says hello exactly once, and delegates every intent") {
     CHECK(bus.publish(loom::Message(loom::to_value(zengine::snake::FoodEaten{}))) == 0);
 
     bus.send(skin, loom::Message(loom::to_value(small_visual())));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 1);
     CHECK(log[0] == "frame w=4 first=1");
     CHECK(hellos == 1);
 
     bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
     bus.send(skin, loom::Message(loom::to_value(small_visual())));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 3);
     CHECK(log[1] == "note status=up");
     CHECK(log[2] == "frame w=4 first=0");
@@ -2070,13 +2070,13 @@ TEST_CASE("the shell says how much room there is - on change, and never says non
     // publisher there is no room, which is a different sentence and a false one.
     bus.send(skin, loom::Message(loom::to_value(c)));
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(heard.empty());
 
     // The surface came up: said once.
     raw->medium().room = SurfaceExtent{78, 22};
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(heard.size() == 1);
     CHECK(heard[0].width == 78);
     CHECK(heard[0].height == 22);
@@ -2087,16 +2087,16 @@ TEST_CASE("the shell says how much room there is - on change, and never says non
         bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
         bus.send(skin, loom::Message(loom::to_value(c)));
     }
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(heard.size() == 1);
 
     // A hand on the window edge: one sentence per size it passes through.
     raw->medium().room = SurfaceExtent{90, 22};
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     raw->medium().room = SurfaceExtent{100, 33};
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(heard.size() == 3);
     CHECK(heard[2].width == 100);
     CHECK(heard[2].height == 33);
@@ -2106,11 +2106,11 @@ TEST_CASE("the shell says how much room there is - on change, and never says non
     // again rather than going quiet about a change a publisher needs.
     raw->medium().room = SurfaceExtent{};
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(heard.size() == 3);
     raw->medium().room = SurfaceExtent{100, 33};
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(heard.size() == 4);
     CHECK(heard[3].width == 100);
 }
@@ -2266,7 +2266,7 @@ TEST_CASE("a terminal skin publishes the room it measured, on change and only on
 
     const auto pump = [&] {
         bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-        bus.pump();
+        bus.drain_until_idle();
     };
 
     // NO TERMINAL: SILENCE. This is the redirected/piped/headless run, and it is the reason
@@ -2358,7 +2358,7 @@ TEST_CASE("a terminal medium says nothing when a suite's sink has no terminal") 
         bus.send(skin, loom::Message(loom::to_value(c)));
         bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
     }
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(heard.empty());
 }
 
@@ -2376,7 +2376,7 @@ TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
     plane(c).labels.push_back(SurfaceLabel{3, 0, "hi", role::kAccent});
 
     bus.send(skin, loom::Message(loom::to_value(c)));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 1);
     CHECK(log[0] == "canvas w=8 rects=1 labels=1 first=1");
     CHECK(hellos == 1); // a canvas claims the surface exactly as a board does
@@ -2386,7 +2386,7 @@ TEST_CASE("a canvas is a frame: same hello, same first-flag, same counter") {
     // claim-the-surface signal for a medium that sees both.
     bus.send(skin, loom::Message(loom::to_value(small_visual())));
     bus.send(skin, loom::Message(loom::to_value(c)));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 3);
     CHECK(log[1] == "frame w=4 first=0");
     CHECK(log[2] == "canvas w=8 rects=1 labels=1 first=0");
@@ -2401,7 +2401,7 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
     (void)loom::mount<ReadyEars>(bus, hellos);
 
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 1);
     CHECK(log[0] == "pump");
     // On a pumped host the pump is the skin's earliest first message, so the
@@ -2409,7 +2409,7 @@ TEST_CASE("the pump is execution time: serviced, counted, and an honest first he
     CHECK(hellos == 1);
 
     bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(log.size() == 2);
     CHECK(log[1] == "pump");
     CHECK(hellos == 1); // once per incarnation, still
@@ -2435,14 +2435,14 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
     // An ordinary message ANNOUNCES and does not ask. (Before the split it did
     // both, which is what made the ask unrepeatable.)
     bus.send(skin, loom::Message(loom::to_value(SurfaceText{"status", "up"})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(hellos == 1);
     CHECK(asks.empty());
 
     // The skin's own activation is its first breath: announce (already done)
     // AND ask. The ask's wire content is pinned field by field.
     zengine::testing::order_activation(bus, door, skin, 1);
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(hellos == 1); // still once per incarnation
     REQUIRE(asks.size() == 1);
     CHECK(asks[0].id == kPumpTimerId);
@@ -2454,7 +2454,7 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
     // activation-time ask found no timer. It is an upsert on the service's
     // side, so this never doubles the beat.
     bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerReady{})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(asks.size() == 2);
     CHECK(asks[1].id == kPumpTimerId);
     CHECK(asks[1].role == kSkinRole);
@@ -2462,19 +2462,19 @@ TEST_CASE("announcing and asking are SEPARATE: the skin retries its beat on Time
 
     // A duplicate activation does nothing at all — the cursor's whole job.
     zengine::testing::order_activation(bus, door, skin, 1);
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(asks.size() == 2);
 
     // The beat is the pump's twin: serviced and counted the same...
     bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{kPumpTimerId})));
-    bus.pump();
+    bus.drain_until_idle();
     REQUIRE(log.size() == 2);
     CHECK(log[0] == "note status=up");
     CHECK(log[1] == "pump");
 
     // ...and an alien id aimed at this role is data, not a drive.
     bus.send(skin, loom::Message(loom::to_value(zengine::timer::TimerFired{"someone.else"})));
-    bus.pump();
+    bus.drain_until_idle();
     CHECK(log.size() == 2);
     CHECK(hellos == 1);
     CHECK(asks.size() == 2);
@@ -2499,7 +2499,7 @@ TEST_CASE("a skin .so claims the role and paints the world's real intent") {
 
     // The host's heartbeat reaches the role-holder like any other drive.
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
-    r.pump();
+    r.drain();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 
@@ -2579,7 +2579,7 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     reach.allow_to_any(SurfaceText::zen_name, SurfaceText::zen_version);
     const loom::WeaveId speaking = loom::mount_granted<Speaker>(r.bus, std::move(reach), spoke);
     r.bus.send(speaking, loom::Message(loom::to_value(SurfaceReady{})));
-    r.pump();
+    r.drain();
     // The line lands. It lands ONCE, not twice: the skin said its hello at its
     // own activation, back when it was loaded — so this text is not its first
     // message and does not trigger a second hello, and the speaker has nothing
@@ -2595,7 +2595,7 @@ TEST_CASE("a granted operator can speak to the surface (the host's grant recipe)
     mute.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, r.manager);
     const loom::WeaveId muted = loom::mount_granted<Speaker>(r.bus, std::move(mute), mute_spoke);
     r.bus.send(muted, loom::Message(loom::to_value(SurfaceReady{})));
-    r.pump();
+    r.drain();
     CHECK(mute_spoke == 1);                                   // it DID speak...
     CHECK(r.poke(skin, loom::PokeRead{"texts"}).text == "1"); // ...into a closed door
 }
@@ -3423,7 +3423,7 @@ TEST_CASE("the same intent drives the SDL skin - a window medium, zero new field
     // world goes quiet — under the dummy driver the queue is real, the
     // servicing is real, only the photons are missing.
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
-    r.pump();
+    r.drain();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 
@@ -3467,7 +3467,7 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     {
         Caught caught;
         r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
-        r.pump();
+        r.drain();
         said = caught.text();
     }
 
@@ -3506,7 +3506,7 @@ TEST_CASE("the SDL skin services its own window and takes nothing off the queue"
     {
         Caught caught;
         r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
-        r.pump();
+        r.drain();
         again = caught.text();
     }
     CHECK(again.find("nothing is taking them") == std::string::npos);
@@ -3762,7 +3762,7 @@ TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real rende
 
     // The window is still a good citizen after both frames.
     r.bus.send_to_role(kSkinRole, loom::Message(loom::to_value(PumpSurface{})));
-    r.pump();
+    r.drain();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "1");
 }
 

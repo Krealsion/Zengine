@@ -69,7 +69,7 @@ loom::Kernel kernel(bus);
 {
     op::OperatorOffer offer(operators, path_to("my-tool"));
     boot("my-tool", kMyRole);                    // an ordinary zen.LoadWeave
-    bus.pump();
+    bus.drain_until_idle();
 }                                                // withdrawn here
 ```
 
@@ -79,7 +79,7 @@ Three things about that, and each is load-bearing.
 is inside `create()`, which the Kernel calls and which no host can get between —
 and on the real path the load happens deep inside a delivery, several messages
 away. So the offer goes up before the command is sent and comes down after the
-pump has drained. `create()` runs inside that window whichever route took it
+drain returns. `create()` runs inside that window whichever route took it
 there.
 
 **The offer is scoped, not held.** Between those braces the host holds one share
@@ -170,9 +170,9 @@ contract and then a maker types into it.
 ## It is not a message
 
 An operator call enqueues nothing. No send, no publish, no correlation, no answer
-authority, no role, and no pump generation — sixteen evaluations inside one
+authority, no role, and no dispatch turn — sixteen evaluations inside one
 delivery cost the bus exactly what one does. That is not an optimisation: a
-rule spelled as conversation would be one pump generation per node, so a
+rule spelled as conversation would be one turn per node, so a
 three-node rule would be three sequential turns of the bus for arithmetic.
 
 It is also not authority. Evaluating `max(-500, 0)` is computation over values

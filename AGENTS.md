@@ -1241,9 +1241,9 @@ stem      zengine-composer                a line in the HOST'S boot list, and th
   Composer's optional machinery is correct and is exercised by exactly such a target
   (`Optionals` in test_workshop.cpp).
 - **The suite does not load the shipped Timer, and that is measured rather than chosen.** The
-  Timer service re-arms its own beat inside its own handler and `Switchboard::pump()` drains to
-  EMPTY, so loading it into a rig whose every gesture pumps never returns — it hung, at the
-  load. `TimerSeat` holds the Timer's own real SHAPES in the Timer's own office; the real
+  Timer service re-arms its own beat inside its own handler and
+  `Switchboard::drain_until_idle()` does exactly what it says, so loading it into a rig whose
+  every gesture drains never returns — it hung, at the load. `TimerSeat` holds the Timer's own real SHAPES in the Timer's own office; the real
   SERVICE is exercised in the live run, where it received a real `StartTimer` and a real
   `CancelTimer`, both authored `as:zengine.composer` and both Delivered.
 
@@ -1314,7 +1314,7 @@ timer.normalize_delay(delay_ms : Int, repeat : Bool) -> effective_delay : Int
 - **An operator's answer is RETURNED, not delivered.** It is not an `Emit<>`, no
   port schema is registered with a Switchboard, and a complete round trip runs
   with no bus in the process. Do not turn arithmetic into message traffic: a
-  five-node DAG over messages is five sequential pump generations.
+  five-node DAG over messages is five sequential dispatch turns.
 - **`op::invocations()` is `loom::gate_invocations()`'s sibling** and carries its
   caveats — process-wide, monotonic, read as a DELTA, decides nothing. It counts
   NATIVE bodies only, so the number does not move when a rule is refactored.
@@ -1347,7 +1347,7 @@ C table with two verbs, `describe` and `evaluate`. Reference:
   A weave's first legitimate need is inside `create()`, which the Kernel calls
   and no host can get between — and on the real path (`zen.LoadWeave` → Weave
   Manager → control door) the load is several deliveries deep. So `OperatorOffer`
-  goes up before the command is sent and comes down after the pump. Its
+  goes up before the command is sent and comes down after the drain. Its
   destructor offers `nullptr` unconditionally, which is what makes the module's
   slot empty outside one load and two instances of one image two separate
   handoffs rather than one durable module-wide binding. A canary that removes the
@@ -1458,10 +1458,10 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   because Workshop's `main()` claims a terminal and no case can run it — the same
   defence in depth as the no-privileged-wind and clock-binding tripwires, and
   declared as a tripwire rather than a proof.
-- **The boot pump is `pump_pending()`, never `pump()`.** The offer has to be in
-  force when `create()` runs, and the load is several deliveries deep, so the
-  host sends the command and then drains in bounded turns until
-  `kernel.is_loaded(...)`. A drain-to-empty would never return: a Timer that has
+- **The boot turn is `pump_pending()`, never `drain_until_idle()`.** The offer
+  has to be in force when `create()` runs, and the load is several deliveries
+  deep, so the host sends the command and then takes bounded turns until
+  `kernel.is_loaded(...)`. A drain to idle would never return: a Timer that has
   just gone live re-arms its own beat inside its own handler (MSG-09).
 - **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
   host owes a reload the same bracket it owes a load. Both are pinned: bracketed

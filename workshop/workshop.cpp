@@ -813,13 +813,14 @@ int main(int argc, char** argv) {
                 operators.size(), operators.providers().size());
     std::fflush(stdout);
 
-    // Everything runs inside pump(): the input weave's own beat keeps the queue
-    // alive, the Timer service's nap paces it, and `q` stops the bus. A pump
-    // that returns with an empty queue means nothing in this process will ever
-    // speak again -- say so and leave rather than spin, snake's stance and for
-    // the same reason.
+    // Everything runs inside drain_until_idle(): the input weave's own beat keeps
+    // the queue alive, the Timer service's nap paces it, and `q` stops the bus.
+    // This host wants the drain rather than the bounded turn -- it has nothing of
+    // its own to do between turns. A call that returns with an empty queue means
+    // nothing in this process will ever speak again -- say so and leave rather
+    // than spin, snake's stance and for the same reason.
     while (!host.quit) {
-        bus.pump();
+        bus.drain_until_idle();
         if (!host.quit && bus.pending() == 0) {
             std::printf("zengine-workshop - the bus went quiet without a quit "
                         "(no timer service deployed?): exiting.\n");

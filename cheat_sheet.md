@@ -114,6 +114,32 @@ cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run
 
 ## Zengine C++
 
+### Run a host
+
+The host owns the bus and the loop. Nothing runs until it asks for a dispatch turn, and there
+are two to ask for:
+
+```cpp
+loom::Switchboard bus;
+// ... load your artifacts, mount your weaves ...
+
+while (running) {
+    poll_your_own_input();      // the OS, sockets, a window — whatever this host owns
+    bus.pump_pending();         // service the work that was waiting; control comes back
+}
+```
+
+| | what it does | when |
+|---|---|---|
+| `bus.pump_pending()` | dispatch exactly the backlog present at entry, return how many | **the ordinary host loop** — you have something of your own to do between turns |
+| `bus.drain_until_idle()` | keep dispatching until the queue is empty, counting work handlers enqueue as its own | settle a world before asserting; a one-shot bootstrap; a host whose *whole program* is the bus, exiting on `bus.stop()` |
+
+`drain_until_idle()` is unbounded by contract, and the name is the whole warning: a live Timer
+service seeds its next beat inside every beat's handler, so such a process is never idle and
+the drain does not return. That is the answer to the question asked — snake and Workshop ask it
+deliberately, because the bus *is* their program. Neither call takes a turn budget or a
+deadline, and Loom will not invent one.
+
 ### Define a weave
 
 ```cpp
@@ -581,7 +607,7 @@ provider-aware artifact hot reload; they are different things.
 | `RefusalReason::NotAccepted` | it is not in the target's `Accept<>` |
 | `RefusalReason::NoSuchTarget` | that `WeaveId` is not registered |
 | a weave's timers never fire | you declared your own `on(const loom::Activated&, ...)`, or forgot `using TimedWeave::on;` — both are now compile errors |
-| the program hangs at startup | `bus.pump()` drains to **quiescence**, and a live Timer beat chain never quiesces. Use `bus.pump_pending()` for a bounded turn |
+| the program hangs at startup | you asked for `bus.drain_until_idle()` on a process with the Timer service loaded — that bus is never idle. An ordinary host loop wants `bus.pump_pending()` |
 
 ### Seeing refusals
 
