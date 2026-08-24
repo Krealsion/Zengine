@@ -434,14 +434,25 @@ bus.add_observer([](const loom::BusEvent& e) {
 Run the oven with no Timer service loaded and that prints:
 
 ```text
-refused StartTimer -> '' : ...   (RefusalReason::SeamUnresolved)
+refused StartTimer -> 'zengine.timer' : the shape claimed across the library seam is not
+registered in this Loom; nothing was queued
 ```
 
-`SeamUnresolved` means *a loaded weave emitted a shape nothing in this process has ever
-declared*. Including `timer/vocabulary.hpp` in your host does not declare anything — only a
-weave's `Accept`/`Emit` does. So the reason is precise: the Timer service is not in the
-process, and therefore neither is its vocabulary. `loom::name_of(RefusalReason)` gives the
-name and `Refusal::message()` gives the text.
+Read it as two facts. `SeamUnresolved` means *a loaded weave reached out with a shape nothing
+in this process has ever declared* — and a shape is declared by being in some weave's
+`Accept<...>`, not by `#include`ing the header that defines it and not by an `Emit<...>`. So
+the Timer service is not in the process, and therefore neither is its vocabulary. The role is
+the address the oven named: `zengine.timer`, the office it was reaching for. Together they are
+the whole diagnosis — what was said, and where it was going.
+
+`loom::name_of(RefusalReason)` gives the reason's name and `Refusal::message()` gives the text.
+
+**A successful run prints none of this.** That is worth saying because it briefly did not: a
+publication that reaches nobody used to be reported here as a refusal, so the Timer's ordinary
+startup announcement — spoken before any consumer is loaded, and heard by nobody, exactly as
+intended — looked like a failure in a program that was working perfectly. It no longer does. A
+publication has no addressee, so being unheard is not a failure; a *send* to a role nobody
+holds still is, which is the line above.
 
 ## Where to go next
 

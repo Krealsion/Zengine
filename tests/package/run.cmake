@@ -24,7 +24,8 @@
 #   3. does any installed public material assume this project's development environment
 #   4. does an unrelated project outside both trees configure with find_package(zengine)
 #   5. do all eight exported targets compile and run from the installed headers
-#   6. does a real weave build, load and drive the installed Timer service
+#   6. does a real weave build, load and drive the installed Timer service -- and does the
+#      successful run look successful, while the same program's real failure still speaks
 #   7. does the same package still work after the prefix is MOVED
 #   8. CANARY: with one installed header removed, does the stranger go RED -- or does it
 #      quietly find the header in the source tree that is still sitting right there
@@ -202,6 +203,16 @@ zen_run("every exported target, from the installed headers" "${surfaces}")
 zen_find_program_in(kitchen kitchen-host "${stranger_bin}")
 get_filename_component(kitchen_dir "${kitchen}" DIRECTORY)
 zen_run("a weave drives the installed Timer service" "${kitchen}" "${kitchen_dir}")
+
+# ---- 6b. and the same program's nearby genuine failure (FRIC-0) -------------------------
+#
+# The arm above passes only if the successful run reported NO refusal, which on its own is
+# a claim about volume and would be satisfied by diagnostics that had stopped working. This
+# is the other half: the identical program with the Timer service left out, which fails for
+# real and must still say so precisely -- the shape, and the office it was addressed to.
+# Together they are the only pair that can tell a quieter runtime from a blinder one.
+zen_run("a genuine failure in the same program is still reported, with its destination"
+        "${kitchen}" "${kitchen_dir}" --no-timer)
 
 # ---- 7. the same package, moved --------------------------------------------------------
 #
