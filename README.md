@@ -1821,8 +1821,8 @@ Powers @zengine.introspection                Project @zengine.introspection
   timer.normalize_delay                          authored  provider normal, weave zengine.timer
       active    zengine.timer (composite)        resolved  provider zengine.timer, 1 power
                                                  resolved  weave #11, operator host offered
-a weave that took no offer holds its own
-catalog                                      in-process participants are not authored artifacts
+this pane describes this host's operator
+resolution only                              in-process participants are not authored artifacts
 ```
 
 The full account is [docs/reference/introspection.md](docs/reference/introspection.md). What it

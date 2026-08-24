@@ -41,10 +41,10 @@
 // (INTR-0, in a third place). So each pane reserves one row for the sentence that
 // bounds its own number, BEFORE the list is offered anything but its first entry:
 //
-//     arrangement   `kNotAuthored`  -- the in-process participants that were never
-//                                      authored artifacts, and so are not rows here
-//     powers        `kOwnCatalog`   -- a weave that took no offer resolves against
-//                                      its own catalog and not this one
+//     arrangement   `kNotAuthored`     -- the in-process participants that were never
+//                                         authored artifacts, and so are not rows here
+//     powers        `kHostResolution`  -- these rows are what THIS host resolves, and
+//                                         the sentence claims nothing past that
 //
 // Both are true of the shipped Workshop right now. The first is why the Builder, the
 // runner, the Manager, the control door, the terminal participant, Workshop's own
@@ -73,10 +73,17 @@ namespace zengine::introspection {
 /// never an authored artifact and can never be a row here.
 inline constexpr const char* kNotAuthored = "in-process participants are not authored artifacts";
 
-/// WHAT THE POWERS LIST IS NOT. It is ONE host's catalog. A weave that was offered no
-/// operator resolution falls back to a catalog of its own (PROV-0), and nothing in
-/// that one is here -- so this is what the host currently resolves, not a census.
-inline constexpr const char* kOwnCatalog = "a weave that took no offer holds its own catalog";
+/// WHAT THE POWERS LIST IS NOT. It is ONE host's resolution, and the sentence says
+/// exactly that much -- because one catalog is the whole of what this pane read.
+///
+/// IT SAYS LESS THAN IT USED TO, DELIBERATELY. `a weave that took no offer holds its
+/// own catalog` stood here and claimed too much: it is true of the Timer's supported
+/// local fallback and it is NOT a law of every weave that accepts no operator host.
+/// Whether some other participant owns a private catalog, whether an unbound one can
+/// evaluate at all, and what any particular weave makes of an offer are facts this
+/// pane never read -- so a sentence bounding this count must not appear to settle them.
+inline constexpr const char* kHostResolution =
+    "this pane describes this host's operator resolution only";
 
 /// WHERE THE POWERS CAME FROM AND HOW OLD THEY ARE, in one line. `snapshot` is the
 /// honest word and it is first: this view re-reads when Workshop grants it room and at
@@ -146,10 +153,17 @@ inline std::string elision(std::size_t hidden, std::int64_t columns) {
     return fit("  " + std::string(kElided) + " " + std::to_string(hidden) + " more", columns);
 }
 
-/// `1 power` / `2 powers`. A count a maker reads is written the way a maker writes it.
-inline std::string powers_said(std::int64_t n) {
-    return std::to_string(n) + (n == 1 ? " power" : " powers");
+/// `1 power` / `2 powers`, `1 provider` / `2 providers`. A count a maker reads is
+/// written the way a maker writes it: a number whose noun disagrees with it spends the
+/// reader's attention on the grammar instead of on the fact the row exists to carry.
+/// This is a count word beside a number and nothing more -- there is no locale here, no
+/// message catalogue and no rule for a noun neither call site names.
+inline std::string counted(std::int64_t n, const char* one, const char* many) {
+    return std::to_string(n) + " " + (n == 1 ? one : many);
 }
+
+inline std::string powers_said(std::int64_t n) { return counted(n, "power", "powers"); }
+inline std::string providers_said(std::int64_t n) { return counted(n, "provider", "providers"); }
 
 // ---- The arrangement view -------------------------------------------------------
 
@@ -349,11 +363,11 @@ inline std::vector<surface::SurfaceTextRow> power_rows(const workshop::PowerStac
 ///
 /// SAME PRIORITY ORDER AS THE ARRANGEMENT, and the same reasons:
 ///
-///     the heading      how many powers resolve here, and from how many providers
-///     `kOwnCatalog`    whose catalog this is -- half of what the count means
-///     the list         whole blocks, with every omission counted
-///     `kPowersSource`  where it came from and how old it is, out of slack only
-///     one blank row    only out of room nothing else wanted
+///     the heading        how many powers resolve here, and from how many providers
+///     `kHostResolution`  whose resolution this is -- half of what the count means
+///     the list           whole blocks, with every omission counted
+///     `kPowersSource`    where it came from and how old it is, out of slack only
+///     one blank row      only out of room nothing else wanted
 ///
 /// IT NAMES NO POWER AND NO PROVIDER. There is no `math.max` in this file, no
 /// `zengine.operators.basic`, and no branch that treats one identity differently from
@@ -366,9 +380,13 @@ project_powers(const workshop::ResolvedPowers& said, std::int64_t rows, std::int
     if (rows <= 0 || columns <= 0) {
         return out;
     }
+    // THE VERB AGREES WITH THE COUNT TOO, because singularising the noun and leaving
+    // `resolve` behind would have traded one visible grammar defect for another.
+    const std::int64_t identities = static_cast<std::int64_t>(said.powers.size());
     out.push_back(surface::SurfaceTextRow{
-        fit(std::to_string(said.powers.size()) + " powers resolve here -- from " +
-                std::to_string(said.providers.size()) + " providers",
+        fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
+                " here -- from " +
+                providers_said(static_cast<std::int64_t>(said.providers.size())),
             columns),
         surface::role::kAccent});
 
@@ -405,7 +423,8 @@ project_powers(const workshop::ResolvedPowers& said, std::int64_t rows, std::int
         out.push_back(surface::SurfaceTextRow{std::string(), surface::role::kFill});
     }
     if (caveat > 0) {
-        out.push_back(surface::SurfaceTextRow{fit(kOwnCatalog, columns), surface::role::kMuted});
+        out.push_back(
+            surface::SurfaceTextRow{fit(kHostResolution, columns), surface::role::kMuted});
     }
     if (source > 0) {
         out.push_back(surface::SurfaceTextRow{fit(kPowersSource, columns), surface::role::kMuted});

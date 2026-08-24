@@ -25104,12 +25104,67 @@ TEST_CASE("INTR-1: the powers summary counts identities and providers, exactly")
     CHECK(row_with(rows, "%") == -1);
 }
 
+TEST_CASE("QR-4: the powers heading agrees with its own counts, at one and at many") {
+    // THROUGH THE PRESENTATION BOTH MEDIA SPEND, not through the count word on its own:
+    // what a maker actually reads is `project_powers`' first row, and that is what is
+    // asserted here. A helper tested alone would have stayed correct while the heading
+    // that concatenated around it went on saying `1 providers`.
+    ws::ResolvedPowers one;
+    one.providers = {"zengine.operators.basic"};
+    one.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
+    const std::vector<surface::SurfaceTextRow> lone = intro::project_powers(one, 40, 70);
+    REQUIRE_FALSE(lone.empty());
+    CHECK(lone[0].text == "1 power resolves here -- from 1 provider");
+    CHECK(lone[0].text.find("1 providers") == std::string::npos);
+    CHECK(lone[0].text.find("1 powers") == std::string::npos);
+
+    // TWO PROVIDERS AND MANY POWERS STAY PLURAL, which is the half a singular repair is
+    // most likely to break.
+    const std::vector<surface::SurfaceTextRow> many =
+        intro::project_powers(shaped_powers(), 40, 70);
+    REQUIRE_FALSE(many.empty());
+    CHECK(many[0].text == "3 powers resolve here -- from 2 providers");
+
+    // AND EVERY OTHER CARDINALITY THE PAIR CAN TAKE, including the empty host, so no
+    // count in this heading can disagree with the word beside it.
+    ws::ResolvedPowers none;
+    CHECK(intro::project_powers(none, 40, 70)[0].text ==
+          "0 powers resolve here -- from 0 providers");
+    ws::ResolvedPowers two_from_one;
+    two_from_one.providers = {"zengine.operators.basic"};
+    two_from_one.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
+    two_from_one.powers.push_back(
+        power_of("logic.select_int", {supplied_by("zengine.operators.basic")}));
+    CHECK(intro::project_powers(two_from_one, 40, 70)[0].text ==
+          "2 powers resolve here -- from 1 provider");
+}
+
+TEST_CASE("QR-4: the powers bound claims one host's resolution and nothing about a weave") {
+    // ⭐ THE SENTENCE MAY ONLY SAY WHAT THIS PANE READ. It read ONE catalog: the host's.
+    // The wording it replaced -- `a weave that took no offer holds its own catalog` --
+    // is true of the Timer's supported local fallback and is not a law of every weave
+    // that accepts no operator host, so a pane in no position to know it must not
+    // appear to settle it.
+    CHECK(std::string(intro::kHostResolution) ==
+          "this pane describes this host's operator resolution only");
+
+    const std::vector<surface::SurfaceTextRow> shown =
+        intro::project_powers(shaped_powers(), 40, 70);
+    REQUIRE(row_with(shown, intro::kHostResolution) >= 0);
+    // ...AND THE OLD CLAIM IS GONE FROM THE ROWS, by its own words rather than by the
+    // name of the constant that used to hold them.
+    CHECK(row_with(shown, "a weave that took no offer holds its own catalog") == -1);
+    for (const char* claim : {"took no offer", "its own catalog", "holds its own"}) {
+        CHECK_MESSAGE(row_with(shown, claim) == -1, claim);
+    }
+}
+
 TEST_CASE("INTR-1: a power BLOCK is shown whole or counted, and its bound is reserved") {
     const ws::ResolvedPowers said = shaped_powers();
     for (std::int64_t rows = 3; rows <= 20; ++rows) {
         const std::vector<surface::SurfaceTextRow> shown = intro::project_powers(said, rows, 60);
         CHECK(static_cast<std::int64_t>(shown.size()) <= rows);
-        CHECK_MESSAGE(row_with(shown, intro::kOwnCatalog) >= 0, "rows=", rows);
+        CHECK_MESSAGE(row_with(shown, intro::kHostResolution) >= 0, "rows=", rows);
         const std::vector<std::string> text = texts_of(shown);
         std::size_t blocks = 0;
         for (std::size_t i = 0; i < text.size(); ++i) {
@@ -25297,7 +25352,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        CHECK(shown[0] == "2 powers resolve here -- from 1 providers");
+        CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
         const std::int64_t at = row_with_text(shown, "  math.max");
         REQUIRE(at >= 0);
         CHECK(shown[static_cast<std::size_t>(at) + 1] ==
@@ -25312,7 +25367,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     const op::MountResult covered =
         op::mount_provider(r.catalog, PROVIDER_MIN_SO, op::MountMode::Overlay);
     REQUIRE_MESSAGE(covered.ok, covered.reason);
-    CHECK(pane_rows(r, kind)[0] == "2 powers resolve here -- from 1 providers");
+    CHECK(pane_rows(r, kind)[0] == "2 powers resolve here -- from 1 provider");
 
     r.extent(150, 44);
     {
@@ -25337,7 +25392,7 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        CHECK(shown[0] == "2 powers resolve here -- from 1 providers");
+        CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
         const std::int64_t at = row_with_text(shown, "  math.max");
         REQUIRE(at >= 0);
         CHECK(shown[static_cast<std::size_t>(at) + 1] ==
@@ -25345,6 +25400,26 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
         CHECK_FALSE(any_row(shown, "shadowed"));
     }
     // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
+}
+
+TEST_CASE("QR-4: the corrected wording reaches a maker's eye WHOLE, off the real canvas") {
+    // THE SAME TWO REPAIRS READ BACK FROM THE PUBLISHED CANVAS, because a projection
+    // that is right and a pane that is too narrow to say it are not the same result --
+    // `fit` would have marked the difference with `...` and no tier-one case could see
+    // it. This host resolves two powers from ONE provider, which is the singular fixture.
+    PaneRig r;
+    const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+
+    CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
+    CHECK_FALSE(any_row(shown, "1 providers"));
+
+    const std::int64_t bound = row_with_text(shown, intro::kHostResolution);
+    REQUIRE_MESSAGE(bound >= 0, "rows=", shown.size());
+    CHECK(shown[static_cast<std::size_t>(bound)] == intro::kHostResolution);
+    CHECK_FALSE(any_row(shown, "took no offer"));
+    CHECK_FALSE(any_row(shown, "its own catalog"));
 }
 
 TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source edit") {
@@ -25502,11 +25577,11 @@ TEST_CASE("INTR-1: the graphical medium grants a different room and both panes s
     REQUIRE_FALSE(in_pixels.empty());
     // THE SAME TRUTH IN BOTH, which is the honesty claim: two projections of one fact.
     CHECK(in_cells[0] == in_pixels[0]);
-    CHECK(in_pixels[0] == "2 powers resolve here -- from 1 providers");
+    CHECK(in_pixels[0] == "2 powers resolve here -- from 1 provider");
     // ...AND THE COUNT IS THE POPULATION'S IN BOTH, whatever the room could fit: a
     // graphical row is taller than a cell, so this projection windows where the cell one
     // did not -- and every power it could not name is counted on its own row.
-    CHECK(any_row(in_pixels, intro::kOwnCatalog));
+    CHECK(any_row(in_pixels, intro::kHostResolution));
     if (!any_row(in_pixels, "zengine.operators.basic")) {
         CHECK(any_row(in_pixels, "more"));
     }
