@@ -171,6 +171,11 @@ holder for the role, grant refused, shape unknown to the host) returns no error 
 can read. The refusal is real and visible on a host-installed observer, not to you. This is a
 recorded Loom seam; see *Debugging* below.
 
+`publish` is not in that list, and the difference is not a degree of loudness: a publication
+names no recipient, so reaching nobody is an outcome and not a failure, and nothing is reported
+for it on either side of the library seam. A publisher that needs to know it was heard asks for
+a receipt back, the way the Timer's `TimerResolution` does.
+
 ### Ask and answer
 
 Loom's request/answer pair is `zen.Ask` / `zen.Answer` with a correlation the asker chooses.
@@ -570,7 +575,8 @@ provider-aware artifact hot reload; they are different things.
 | `library create() returned null` on load | your weave's constructor threw — a duplicate binding id, an empty id, an empty role on a `*_to_role` binding |
 | `open failed: … cannot open shared object file` | the artifact is not at the path the plan/host spelled |
 | the weave loads and **nothing happens** | no holder for the role you send to; or the shape is unknown to the host process |
-| `RefusalReason::SeamUnresolved` | a loaded weave emitted a shape **nothing in this process ever declared** — usually the service you are talking to is not loaded |
+| `RefusalReason::SeamUnresolved` | a loaded weave **addressed** something with a shape **nothing in this process ever declared** — usually the service you are talking to is not loaded. The event's `addressed_role` names the office it was reaching for |
+| a publication that nobody hears | **not** a refusal, and never was one on the native side: an accepter is what makes a shape resolvable, so a publication with no accepter simply reaches nobody. If you need to know it was heard, ask for a receipt |
 | `RefusalReason::CapabilityDenied` | the shape is not in your `Emit<>`, or not permitted to that target |
 | `RefusalReason::NotAccepted` | it is not in the target's `Accept<>` |
 | `RefusalReason::NoSuchTarget` | that `WeaveId` is not registered |
@@ -580,6 +586,9 @@ provider-aware artifact hot reload; they are different things.
 ### Seeing refusals
 
 A sender cannot observe its own send's fate. A host can, with an observer:
+
+`addressed_role` is the office the sender named — filled in for a role-addressed send and for
+a seam refusal of one, empty for a directed send and for a publication, which name no office.
 
 ```cpp
 bus.add_observer([](const loom::BusEvent& e) {

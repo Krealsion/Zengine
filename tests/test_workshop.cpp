@@ -22939,6 +22939,14 @@ TEST_CASE("SEL-0: interpreting a press asks the Weave Manager nothing") {
     // mutation that would make the case above wrong, and only sometimes.
     PaneRig r;
     r.mount_workshop();
+    // THE LISTENER IS PART OF THE INSTRUMENT, not scenery. `LoadedSelected` is an office
+    // PUBLICATION, and a publication into a room with no accepter for its shape reaches
+    // nobody and leaves no bus event at all -- so without an ear for it, this audit would
+    // be tallying a vocabulary of three and calling it the whole one. With the ear, every
+    // name below is read off a real delivery, which is the only reading that means the
+    // sentence was actually spoken.
+    Ears ears;
+    (void)loom::mount<SelectionListener>(r.bus, ears);
     std::vector<std::string> said;
     loom::WeaveId who{};
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
