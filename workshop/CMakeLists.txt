@@ -68,6 +68,20 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
 # to send `zen.LoadWeave` on and the Manager's WeaveId to send it to — both handed in by a
 # host that does have a kernel. The plan's SHAPE, its codec and its law are portable in the
 # strongest sense available: they exist where no kernel does.
+#
+# ---- ...AND SINCE INTR-1 IT ALSO CARRIES THE OBSERVATION DOOR --------------------------
+#
+# `arrangement_vocabulary.hpp` is the two questions a maker-facing tool may ask this host
+# and the two answers it gets back; `arrangement.hpp` is the two derivations and the
+# read-only weave that answers them. They are HERE and not in a package of their own for
+# one reason: what they read is exactly this target's two subjects — the authored plan and
+# the executor's resolved rows — plus the operator catalog it already links.
+#
+# THE VOCABULARY HALF IS PORTABLE AND IS READ BY A LOADED ARTIFACT. `zengine-introspection`
+# includes `workshop/arrangement_vocabulary.hpp` the same way it already includes
+# `workshop/pane_vocabulary.hpp`: by include path, with no link edge, because the header
+# needs nothing beyond `<zen/weave/shape.hpp>`. See `introspection/CMakeLists.txt`, which
+# says why a target that adds nothing was not minted for it.
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary

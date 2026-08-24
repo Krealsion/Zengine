@@ -32,6 +32,7 @@
 // has, and it needs no grant, no broker and no capability to do it (see the
 // specialness ledger).
 
+#include "arrangement.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "weave.hpp"
@@ -732,6 +733,41 @@ int main(int argc, char** argv) {
     // field, no suffix in the file and no locator.
     load::PlanExecutor executor(bus, operators, operator_host, booter, manager, answers,
                                 [&host](const std::string& stem) { return host.so(stem); });
+
+    // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS (INTR-1) ----------
+    //
+    // A READ-ONLY OBSERVATION PARTICIPANT AND NOTHING MORE. It holds the authored
+    // plan, the executor and the catalog as `const` references it does not own, and
+    // it answers two questions with values: what this project asked to participate
+    // and what came of it, and which operator powers currently resolve here and
+    // whose contribution satisfies each.
+    //
+    // MOUNTED BEFORE THE PLAN RUNS, AND THE ORDER IS THE HONESTY. The tool that asks
+    // is an artifact THIS PLAN LOADS, so a door mounted afterwards would be absent
+    // during the very window in which a pane might first be granted room -- and the
+    // pane would say `waiting` for a host that was in fact right here. Mounted first,
+    // it answers what has resolved SO FAR at any moment it is asked, which is a true
+    // sentence at every point on the timeline rather than only at the end of it.
+    //
+    // ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE. `to_any` for the reason
+    // `PaneRoom` is: Loom picks the recipient of an answer -- it is the weave that
+    // asked -- so no rule written here at boot can name it. What that buys and what
+    // it does not is written out in `workshop/arrangement.hpp`; the short version is
+    // that this door can say two sentences, to askers only, and cannot mount,
+    // unmount, overlay, evaluate, load or replace anything at all.
+    //
+    // IT IS NOT A SERVICE FRAMEWORK AND MUST NOT BECOME ONE. There is no registry
+    // here, no locator, no second injected capability and no generic host API: a
+    // participant that reads three of this host's own locals is the smallest thing
+    // that could carry these facts across the boundary into a dynamically loaded
+    // image, and it is deliberately shaped like the Weave Manager -- ask an office,
+    // hear an answer -- rather than like a new mechanism.
+    loom::Grant say_resolved;
+    say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
+    say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
+    mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole,
+                                     read_plan.plan, executor, operators, plan_path);
+
     const load::Executed performed = executor.run(read_plan.plan);
 
     // SAID ARTIFACT BY ARTIFACT, IN THE ORDER IT HAPPENED. What each row of this

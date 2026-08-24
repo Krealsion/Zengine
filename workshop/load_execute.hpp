@@ -112,8 +112,16 @@ namespace zengine::workshop::load {
 ///
 /// It is kept rather than discarded because teardown and rollback both need it: an
 /// unmount takes the provider's declared identity, which is knowable only after the
-/// mount. A later phase may project this for a maker (INTR-1); this is not that, and
-/// nothing here is a maker-facing surface.
+/// mount. Nothing here is a maker-facing surface.
+///
+/// SINCE INTR-1 IT IS ALSO PROJECTED, and the direction is worth reading: this stayed
+/// exactly as it was and `workshop/arrangement.hpp` READS it. It gained no field, no
+/// accessor and no maker-facing word, because a projection that needed its subject to
+/// change shape would be a projection that had become an owner. What the projection
+/// could NOT get from here is the authored mount MODE -- a resolved row does not know
+/// whether its mount was an overlay -- so it pairs these rows with the authored plan
+/// rather than asking this struct to start carrying intent (INTR-1's central law:
+/// authored intent and resolved state are different truths).
 struct ResolvedArtifact {
     std::string stem;
 
@@ -269,7 +277,16 @@ public:
                 // describes a runtime that no longer holds anything this row put there.
                 unmount(done);
                 out.refusal = "artifact '" + artifact.stem + "': " + why;
-                out.resolved = std::move(resolved_);
+                // COPIED, NOT MOVED, on both paths -- and the failure path is the one
+                // that had to change (INTR-1). A move here emptied `resolved_`, so an
+                // executor that had mounted three artifacts and refused the fourth
+                // answered `resolved()` with nothing: the accessor below promises what
+                // this executor has PUT INTO THE RUNTIME, and after a move that promise
+                // was false exactly when somebody most needed it. Nothing in production
+                // reached it -- a refused plan exits the host -- but a projection now
+                // reads this accessor, and a view whose emptiness depends on which
+                // return statement ran is not a view of anything.
+                out.resolved = resolved_;
                 return out;
             }
             resolved_.push_back(std::move(done));
