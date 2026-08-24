@@ -49,15 +49,45 @@ target_link_libraries(kitchen-host PRIVATE zengine::timer loom::switchboard loom
 
 # The Timer SERVICE is a Zengine artifact, and this is where it comes from: the package says
 # where its own artifacts live, so nothing here reaches into a build tree to fetch one.
-if(NOT ZENGINE_WEAVE_DIR)
+if(NOT ZENGINE_ARTIFACT_DIR)
     message(FATAL_ERROR
-        "kitchen: this zengine package carries no loadable artifacts (ZENGINE_WEAVES is "
-        "empty), so there is no Timer service to bake with. It was installed from a build "
-        "against a Loom with no kernel.")
+        "kitchen: this zengine package carries no loadable artifacts "
+        "(ZENGINE_RUNTIME_ARTIFACTS is empty), so there is no Timer service to bake with. It "
+        "was installed from a build against a Loom with no kernel.")
 endif()
 add_custom_command(TARGET kitchen-host POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            "${ZENGINE_ARTIFACT_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
             "$<TARGET_FILE_DIR:kitchen-host>"
     COMMENT "kitchen: taking the Timer service from the installed zengine package")
 add_dependencies(kitchen-host oven)
+
+# ---- what the artifact list is, from outside (QR-5) ------------------------------------
+#
+# The stranger is the only party that can say what the PUBLIC vocabulary looks like, so the
+# claim behind the noun is asserted here rather than described anywhere.
+#
+# The claim is that this list is HETEROGENEOUS. `zengine-timer` is a weave -- kitchen_host.cpp
+# hands it to the Kernel and it arrives on the bus with a role. `zengine-operators-basic` is a
+# PROVIDER: a host opens it directly, and it has no participant, WeaveId, role or grant in it
+# at all. One list, two different runtime surfaces, so the only noun true of every member is
+# `artifact`. If a later phase renames the variable back to something that says `weave`, this
+# goes red with the reason attached.
+foreach(expected zengine-timer zengine-operators-basic)
+    if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
+        message(FATAL_ERROR
+            "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "
+            "(${ZENGINE_RUNTIME_ARTIFACTS}). The package's advertised artifacts are not the "
+            "ones it was supposed to install.")
+    endif()
+    if(NOT EXISTS "${ZENGINE_ARTIFACT_DIR}/${expected}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        message(FATAL_ERROR
+            "kitchen: the package advertises '${expected}' but there is no such file in "
+            "ZENGINE_ARTIFACT_DIR (${ZENGINE_ARTIFACT_DIR}). A list of stems that names a "
+            "file nobody installed is worse than an empty one.")
+    endif()
+endforeach()
+message(STATUS
+    "kitchen: the installed package advertises ${ZENGINE_RUNTIME_ARTIFACTS} in "
+    "${ZENGINE_ARTIFACT_DIR} -- weaves and a provider in one list, which is why they are "
+    "called artifacts")

@@ -39,7 +39,7 @@ project(kitchen LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(zengine 0.1 CONFIG REQUIRED)   # the Loom comes with it
+find_package(zengine 0.1 CONFIG REQUIRED)   # resolves Zengine's Loom dependency too
 
 add_library(oven SHARED oven.cpp)           # your weave, as a loadable artifact
 target_link_libraries(oven PRIVATE zengine::timer loom::switchboard)
@@ -367,15 +367,32 @@ Three host facts worth having up front:
 ## Run it
 
 The Timer service is a Zengine artifact, and the package says where its own artifacts are:
-`ZENGINE_WEAVE_DIR` is the directory and `ZENGINE_WEAVES` lists the stems in it. Copy the one
-you need beside your host as part of the build, so running is one command:
+`ZENGINE_ARTIFACT_DIR` is the directory and `ZENGINE_RUNTIME_ARTIFACTS` lists the stems in it.
+Copy the one you need beside your host as part of the build, so running is one command:
 
 ```cmake
 add_custom_command(TARGET kitchen-host POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            "${ZENGINE_ARTIFACT_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
             "$<TARGET_FILE_DIR:kitchen-host>")
 ```
+
+**Artifact, weave, provider — three words, and they are not synonyms.** An *artifact* is the
+physical loadable file. A *weave* and a *provider* are runtime surfaces an artifact may expose:
+a weave is a participant the Kernel loads onto the bus and addresses by role; a provider is
+opened directly by a host to contribute operator definitions, and has no participant in it at
+all. The package names the physical things, because one list holds both kinds:
+
+| artifact | what it exposes |
+|---|---|
+| `zengine-timer` | weave — the Timer service you loaded above |
+| `zengine-input` | weave — the sole producer of key, text and pointer moments |
+| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — terminal skins that paint drawing intent |
+| `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
+
+An artifact could expose both surfaces, or a surface that does not exist yet; `zengine::operator`
+and [operator providers](reference/operator-providers.md) are where the provider side is
+written down.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$PWD/deps"

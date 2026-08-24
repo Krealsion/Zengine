@@ -87,7 +87,7 @@ cmake --install Zengine/build --prefix "$PWD/deps"
 ```
 
 ```cmake
-find_package(zengine 0.1 CONFIG REQUIRED)   # the Loom comes with it
+find_package(zengine 0.1 CONFIG REQUIRED)   # resolves Zengine's Loom dependency too
 target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 ```
 

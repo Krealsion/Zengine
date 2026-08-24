@@ -26,20 +26,25 @@
 # captured under a name of our own for anything that comes later.
 set(ZENGINE_PACKAGE_PREFIX_DIR "${PACKAGE_PREFIX_DIR}")
 
-# A weave is opened by path at run time, never linked, so these are files rather than targets.
-# ZENGINE_WEAVES is the list of stems this install actually carries and ZENGINE_WEAVE_DIR is
-# where they are; a host names one as
+# ARTIFACT is the physical loadable unit -- one file, opened by path at run time and never
+# linked, which is why these are files rather than targets. WEAVE and PROVIDER are runtime
+# SURFACES an artifact may expose; an artifact may expose one, both, or some future surface,
+# and is not therefore a weave. `zengine-operators-basic` is the standing proof: it is a
+# provider a host opens directly, with no participant in it to be loaded onto a bus.
 #
-#     ${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}
+# ZENGINE_RUNTIME_ARTIFACTS is the list of stems this install actually carries and
+# ZENGINE_ARTIFACT_DIR is where they are; a host names one as
+#
+#     ${ZENGINE_ARTIFACT_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}
 #
 # or copies it beside its own executable. The list is EMPTY when the package was built against
 # a Loom that cannot host loadable images -- the headers and targets are still whole, and the
 # absence is stated rather than left as a missing directory.
-set(ZENGINE_WEAVES "@ZENGINE_INSTALLED_WEAVES@")
-if(ZENGINE_WEAVES)
-    set_and_check(ZENGINE_WEAVE_DIR "@PACKAGE_ZENGINE_INSTALL_WEAVEDIR@")
+set(ZENGINE_RUNTIME_ARTIFACTS "@ZENGINE_INSTALLED_ARTIFACTS@")
+if(ZENGINE_RUNTIME_ARTIFACTS)
+    set_and_check(ZENGINE_ARTIFACT_DIR "@PACKAGE_ZENGINE_INSTALL_ARTIFACTDIR@")
 else()
-    set(ZENGINE_WEAVE_DIR "")
+    set(ZENGINE_ARTIFACT_DIR "")
     message(STATUS
         "zengine: this package carries no loadable artifacts -- it was built against a Loom "
         "with no kernel. The exported targets and public headers are unaffected.")

@@ -62,7 +62,7 @@ cmake --install Zengine/build --prefix "$PWD/deps"
 ```
 
 ```cmake
-find_package(zengine 0.1 CONFIG REQUIRED)          # brings the Loom with it
+find_package(zengine 0.1 CONFIG REQUIRED)          # resolves Zengine's Loom dependency too
 target_link_libraries(my-weave PRIVATE zengine::timer loom::switchboard)
 loom_weave_build_contract(my-weave)                # not optional; forgetting it is silent
 ```
@@ -84,12 +84,22 @@ tree's own spelling: `#include "timer/vocabulary.hpp"`.
 The loadable artifacts come with the package, never from a build tree:
 
 ```cmake
-"${ZENGINE_WEAVE_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"   # ZENGINE_WEAVES lists them
+"${ZENGINE_ARTIFACT_DIR}/zengine-timer${CMAKE_SHARED_LIBRARY_SUFFIX}"
+#  ^ the directory they install to      ^ one of the stems ZENGINE_RUNTIME_ARTIFACTS lists
 ```
 
-`ZENGINE_WEAVES` is `zengine-timer;zengine-input;zengine-skin-tui-classic;`
-`zengine-skin-tui-block;zengine-operators-basic`, and is **empty** when the package was built
-against a Loom with no kernel.
+An **artifact** is the file; *weave* and *provider* are runtime surfaces one may expose, and the
+list holds both kinds:
+
+| artifact | surface |
+|---|---|
+| `zengine-timer` | weave — the Timer service, loaded by the Kernel |
+| `zengine-input` | weave |
+| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave |
+| `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
+
+`ZENGINE_RUNTIME_ARTIFACTS` is **empty** when the package was built against a Loom with no
+kernel.
 
 ⚠ **friction** — Workshop, the SDL skin and the SDL input reader are not in the package;
 [limitations](docs/workshop/limitations.md#the-library-itself) says why for each.

@@ -788,3 +788,18 @@ zengine_doctest_test(audit_probes zengine-audit-probes)
 # in tests/test_population.txt, so deleting this registration is a red rather than a silently
 # smaller lane. That is the composition C4 built the inventory for.
 zengine_script_test(doc_links ${CMAKE_CURRENT_SOURCE_DIR}/check_doc_links.cmake)
+
+# ---- The package-vocabulary contract (QR-5) --------------------------------------------
+#
+# The second entry that interrogates the SOURCE TREE rather than a build, and it is here for
+# the same reason as the first: nothing in a build can notice a word.
+#
+# PKG-0 shipped the installed package's artifact directory and artifact list under names that
+# said `weave`. Four of the five artifacts are weaves; `zengine-operators-basic` is a PROVIDER
+# and explicitly not one (PROV-0), so the public noun was false of its own contents. An
+# artifact is the physical loadable file; weave and provider are surfaces it may expose, and
+# the package names the physical thing. This entry keeps the retired spellings from returning
+# through a config, a doc, a fixture or a comment -- the one thing a compiler will never
+# complain about.
+zengine_script_test(package_vocabulary
+                    ${CMAKE_CURRENT_SOURCE_DIR}/check_package_vocabulary.cmake)
