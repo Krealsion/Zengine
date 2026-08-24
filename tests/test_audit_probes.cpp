@@ -87,6 +87,15 @@ struct Seen {
         std::uint64_t corr = 0;
         int kind = 0; // 0 Result, 1 Ack, 2 Refused
         std::string text;
+        /// HOW MANY DRIVES HAD BEEN DELIVERED WHEN THIS ANSWER ARRIVED.
+        ///
+        /// Stamped here because the two numbers the one-chain probes compare have
+        /// to be read at the SAME point in the dispatch stream, and a poke's
+        /// answer is the only shared instant available: the reply carries a
+        /// `beats` the service computed in its own handler, and a host statement
+        /// after the pump reads a Drive count from minutes of bus time later.
+        /// Reading them apart made the comparison a race — see `drives_at_poke`.
+        std::int64_t drives_at = 0;
     };
     std::vector<Answer> answers;
     std::vector<std::string> fired;
@@ -96,6 +105,8 @@ struct Seen {
     std::string stop_id;
     std::int64_t stop_count = 1;
     std::int64_t stop_seen = 0;
+    /// The rig's live delivered-Drive counter, so an answer can stamp itself.
+    const std::int64_t* drives_now = nullptr;
 
     const Answer* find(std::uint64_t corr) const {
         for (const Answer& a : answers) {
@@ -135,7 +146,9 @@ public:
 private:
     void note(loom::Mail& mail, int kind, std::string text) {
         ++state_.noted;
-        seen_->answers.push_back(Seen::Answer{mail.correlation(), kind, std::move(text)});
+        seen_->answers.push_back(
+            Seen::Answer{mail.correlation(), kind, std::move(text),
+                         seen_->drives_now == nullptr ? 0 : *seen_->drives_now});
     }
     Seen* seen_;
 };
@@ -190,7 +203,10 @@ struct Rig {
     loom::WeaveId witness = mount_witness();
     std::uint64_t next_corr = 1;
 
-    Rig() { watch_drives(); }
+    Rig() {
+        watch_drives();
+        seen.drives_now = &drives; // so every answer can stamp the Drive count
+    }
 
     loom::WeaveId mount_witness() {
         seen.bus = &bus;
@@ -259,6 +275,26 @@ struct Rig {
         seen.stop_id.clear();
     }
 
+    /// DELIVERED DRIVES AS OF THE LAST `poke_int` ANSWER, and the reason it exists
+    /// rather than reading a counter after the pump.
+    ///
+    /// `poke_int` answers EARLY inside a ~25 ms pump and then keeps beating until
+    /// the stopwatch stops the bus, so a Drive count read after it returns is the
+    /// count at the END of that window while `beats` is the value from the START.
+    /// Differencing two such pairs leaves `tail_b - tail_a` -- the difference of
+    /// two independently jittering tails, each several beats long on a loaded
+    /// host -- and no fixed tolerance is honest about that. Measured: on a
+    /// contended runner the pair drifted by 2 where the probes allow 1.
+    ///
+    /// Stamped at the answer's delivery, the tolerance becomes DERIVABLE instead.
+    /// The service computes `beats` while handling the poke; dispatch is
+    /// single-threaded FIFO and a beat seeds its one successor at the tail, so at
+    /// most the single parked Drive can slip between that handler and the
+    /// answer's arrival. Each reading is therefore off by at most one, in one
+    /// direction, and the probes' `+/- 1` is what the bus guarantees rather than
+    /// what a window happened to allow.
+    std::int64_t drives_at_poke = 0;
+
     std::int64_t poke_int(loom::WeaveId service, loom::WeaveId target, const char* field) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(loom::PokeRead{field}), loom::WeaveId{},
@@ -267,6 +303,7 @@ struct Rig {
         const Seen::Answer* a = seen.find(corr);
         REQUIRE(a != nullptr);
         REQUIRE(a->kind == 0);
+        drives_at_poke = a->drives_at;
         return std::stoll(a->text);
     }
 };
@@ -434,12 +471,14 @@ TEST_CASE("probe A: the old chain still dies honestly on a swap — and the ACTI
     // chain. A second chain would deliver roughly twice as many Drives as it
     // produced beats, because one of each pair would be refused ownership.
     // (Probe C proves the same law deterministically on the fake clock; this is
-    // its live corollary, tolerant by one for the beat in flight at each read.)
+    // its live corollary, tolerant by one for the beat in flight at each read --
+    // and both numbers are read at the same instant, which is what makes that
+    // one a bound rather than a hope. See Rig::drives_at_poke.)
     const std::int64_t beats_a = r.poke_int(successor, successor, "beats");
-    const std::int64_t drives_a = f.delivered;
+    const std::int64_t drives_a = r.drives_at_poke; // the SAME instant as beats_a
     r.pump_for(successor, 60);
     const std::int64_t beats_b = r.poke_int(successor, successor, "beats");
-    const std::int64_t drives_b = f.delivered;
+    const std::int64_t drives_b = r.drives_at_poke;
     CHECK(beats_b > beats_a); // time is genuinely running, unattended
     const std::int64_t beat_delta = beats_b - beats_a;
     const std::int64_t drive_delta = drives_b - drives_a;
@@ -498,10 +537,10 @@ TEST_CASE("probe B: a reload does not INHERIT the old chain — the predecessor'
     // second one. Same live method as probe A: valid Drives and beats move
     // together; a surviving old chain plus a new one would not.
     const std::int64_t beats_a = r.poke_int(service, service, "beats");
-    const std::int64_t drives_a = f.delivered;
+    const std::int64_t drives_a = r.drives_at_poke; // the SAME instant as beats_a
     r.pump_for(service, 60);
     const std::int64_t beat_delta = r.poke_int(service, service, "beats") - beats_a;
-    const std::int64_t drive_delta = f.delivered - drives_a;
+    const std::int64_t drive_delta = r.drives_at_poke - drives_a;
     REQUIRE(beat_delta >= 3);
     CHECK(drive_delta <= beat_delta + 1);
     CHECK(drive_delta >= beat_delta - 1);
