@@ -1469,11 +1469,26 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   keeps the correlation and the respondent of the ask it opened, and
   `load::PlanBooter` settles only on an arrival matching **both** — Loom's standing
   rule for a hand-written consumer of `zen.Result`/`zen.Ack`/`zen.Refused`
-  (`zen/weave/standard_shapes.hpp`), which `loom::relay` implements for relaying
-  weaves. Before QR-9 there was no correlation at all, and any admitted answer
-  shape settled the current load: measured, an unrelated `zen.Result` reported a
-  WeaveId no Kernel had minted and turned a missing artifact's refusal into a
-  completed plan.
+  (`zen/weave/standard_shapes.hpp`). Before QR-9 there was no correlation at all,
+  and any admitted answer shape settled the current load: measured, an unrelated
+  `zen.Result` reported a WeaveId no Kernel had minted and turned a missing
+  artifact's refusal into a completed plan.
+- **THAT RECORD IS LOOM'S, NOT THIS REPOSITORY'S (FRIC-2).** `load::BootAnswers`
+  is a thin adapter over **`loom::AskBook`** (`zen/weave/ask_book.hpp`), the
+  asker-side conversation record — the sibling of `loom::relay`, which is the same
+  wall for a weave relaying somebody *else's* answer. Do not add a second
+  correlation counter, a second expected-sender field, or a private `mine(mail)`
+  here or in any Zengine host; `open` / `settle` / `awaiting` / `forget` are the
+  whole surface, and the book has never heard of `zen.Result`. What stays local is
+  **payload semantics** — `answered`, `refused`, `reason`, `weave` — because which
+  shape means success is `PlanBooter`'s question and nobody else's.
+  ⚠ The book holds **four**, and that is a bound on ABANDONMENT rather than on
+  concurrency: the executor still asks for one artifact at a time (LOAD-0's authored
+  order is not a scheduling hint), and the extra room exists because an expired fuse
+  deliberately leaves its conversation OPEN. Fill it with four unanswered loads and
+  the next one is refused by name — never by shedding an older conversation, which
+  is `loom::relay`'s policy and is wrong for the participant whose own question it
+  is.
 - **`kLoadDrainTurns` is a fuse, and its expiry is not an answer.** Do not read it
   as a schedule, and do not restore an early-out on an empty turn:
   `Switchboard::pending()` is `queue_.size()` at one instant, and a respondent that
