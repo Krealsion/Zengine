@@ -1482,22 +1482,35 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   whole surface, and the book has never heard of `zen.Result`. What stays local is
   **payload semantics** — `answered`, `refused`, `reason`, `weave` — because which
   shape means success is `PlanBooter`'s question and nobody else's.
-  ⚠ The book holds **four**, and that is a bound on ABANDONMENT rather than on
-  concurrency: the executor still asks for one artifact at a time (LOAD-0's authored
-  order is not a scheduling hint), and the extra room exists because an expired fuse
-  deliberately leaves its conversation OPEN. Fill it with four unanswered loads and
-  the next one is refused by name — never by shedding an older conversation, which
-  is `loom::relay`'s policy and is wrong for the participant whose own question it
-  is.
+  ⚠ The book holds **one** (QR-10), because that is what this adapter has: the
+  executor asks for one artifact at a time and waits for it (LOAD-0's authored order
+  is not a scheduling hint). FRIC-2 gave it four so several conversations an expired
+  fuse had abandoned could coexist, and four of those refused a fifth load by name —
+  a capacity policy paying for records nothing could read. **The fuse now forgets the
+  ask it stopped waiting for**, so that state is unreachable and the policy is gone
+  with it. If a second conversation is ever opened while one is outstanding the book
+  refuses the NEW one and keeps what it is waiting on — never shedding the older,
+  which is `loom::relay`'s policy and is wrong for the participant whose own question
+  it is.
+- **Local forgetting is not cancellation, and the difference is the whole point.**
+  `AskBook::forget` changes this host's books and nothing else: Loom has no
+  cancellation vocabulary, so nothing is sent, no `DeferredAnswer` is revoked, and
+  the respondent still holds whatever answer right it held. A late answer to a
+  forgotten load matches no record, settles nothing, and — because a forgotten
+  conversation's correlation is never handed back — cannot settle the NEXT load
+  either. Say `forget` only where the owner has genuinely stopped caring. Loom's
+  own `TerminalSession` is the counter-example that keeps the rule honest: `await
+  [turns]` merely PAUSES a person's patience, the ask stays visible to `pending`,
+  and only `cancel` forgets it.
 - **`kLoadDrainTurns` is a fuse, and its expiry is not an answer.** Do not read it
   as a schedule, and do not restore an early-out on an empty turn:
   `Switchboard::pending()` is `queue_.size()` at one instant, and a respondent that
   deferred its answer holds it off the queue entirely (FRIC-R2 measured a zero-work
   turn with the answer owed, arriving afterwards). When the fuse expires the
-  executor says a local guard expired and leaves the conversation OPEN — it does
-  not mint a refusal on the Manager's behalf, because "this host stopped waiting"
-  and "the answer became impossible" are different facts and it knows only the
-  first.
+  executor says a local guard expired and that **this host stopped waiting and no
+  longer tracks that conversation** — it does not mint a refusal on the Manager's
+  behalf, and it does not say the answer became impossible, because those are
+  somebody else's state and it knows only its own.
 - **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
   host owes a reload the same bracket it owes a load. Both are pinned: bracketed
   keeps the binding, unbracketed comes back a fallback Timer. Nothing in this

@@ -83,11 +83,22 @@ public:
     std::uint64_t asking(loom::WeaveId manager) {
         answered = false;
         refused = false;
-        return loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version)
-            .correlation;
+        const loom::AskOpened opened =
+            loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version);
+        current_ = opened.id;
+        return opened.correlation;
     }
     /// IS MY LOAD CONVERSATION STILL OPEN? Never "was anything delivered this turn".
     bool awaiting() const { return loads_.awaiting(); }
+
+    /// I HAVE STOPPED WAITING, SO I STOP TRACKING -- locally, and that is all of it.
+    ///
+    /// `forget` tells nobody anything: Loom has no cancellation vocabulary, the Manager
+    /// was never asked to stop, and its answer may still arrive -- at which point it
+    /// matches no record here and settles nothing. What it must not do is leave a
+    /// conversation open on this program's books that nothing will ever look at again,
+    /// which is what "I gave up on this load" would otherwise mean in writing.
+    void stopped_waiting() { (void)loads_.forget(current_); current_ = 0; }
 
     void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
     void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
@@ -109,13 +120,21 @@ private:
     /// duplicate or a late copy of the same answer is inert -- there is no longer a
     /// record for it to close.
     bool mine(const loom::Mail& mail) {
-        return loads_.settle(mail.correlation(), mail.sender()).has_value();
+        if (!loads_.settle(mail.correlation(), mail.sender())) {
+            return false;
+        }
+        current_ = 0; // closed by its answer: there is nothing left to stop waiting for
+        return true;
     }
 
     /// TWO OPEN AT ONCE IS MORE THAN THIS PROGRAM EVER HAS -- it asks, then waits --
     /// but the bound is the owner's to state, and a book that could grow without limit
     /// is not a record, it is a leak.
     loom::AskBook loads_{2};
+    /// WHICH conversation this program is waiting on, so it can stop tracking exactly
+    /// that one. `settle` finds an arrival's own record by correlation; giving up needs
+    /// the local handle instead, because no arrival is naming it.
+    std::uint64_t current_ = 0;
 };
 
 #if defined(_WIN32)
@@ -181,7 +200,16 @@ int main(int argc, char** argv) {
             bus.pump_pending();
         }
         if (!waiter->answered) {
-            std::printf("  %s: the Weave Manager has not answered yet\n", stem.c_str());
+            // THIS PROGRAM HAS STOPPED WAITING, AND SO IT STOPS TRACKING. There is no
+            // continuation here -- `load` returns false and the caller exits -- so
+            // keeping the conversation on the books would record an interest nothing
+            // has. Local only: nothing was sent, nothing was cancelled, and the
+            // Manager's answer right is exactly what it was a moment ago.
+            waiter->stopped_waiting();
+            std::printf("  %s: no answer arrived before this program's local guard "
+                        "expired; it stopped waiting and no longer tracks that "
+                        "conversation (nothing was cancelled)\n",
+                        stem.c_str());
             return false;
         }
         if (waiter->refused) {

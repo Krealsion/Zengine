@@ -460,7 +460,7 @@ component                         doctest           always  15
 operator                          doctest           always  89
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  693
+workshop                          doctest           always  700
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
