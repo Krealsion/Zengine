@@ -2356,11 +2356,24 @@ TEST_CASE("QR-9: the fuse expiring is a local guard, and not a refusal anybody m
     CHECK_FALSE(answers.answered);
     CHECK_FALSE(answers.refused);
     CHECK(answers.reason.empty());
-    // ...and the conversation is LEFT OPEN rather than declared dead. This host stopped
-    // waiting; that is not the same fact as the answer having become impossible, and
-    // the adapter does not know the second one. The respondent still holds the answer
-    // right, which is precisely the limitation the fuse exposes honestly.
-    CHECK(answers.awaiting());
+    // ...and the sentence claims nothing about the other end. It says what this host
+    // did, in the words this host can support.
+    CHECK(done.refusal.find("this host stopped waiting") != std::string::npos);
+    CHECK(done.refusal.find("was told nothing") != std::string::npos);
+    for (const char* never : {"timed out", "cancelled", "the answer was lost",
+                              "the Manager refused", "impossible"}) {
+        CHECK_MESSAGE(done.refusal.find(never) == std::string::npos,
+                      "the fuse sentence says '", never, "', which is somebody else's state");
+    }
+
+    // WHAT CHANGED IN QR-10, AND WHAT DID NOT. The conversation is no longer TRACKED
+    // here -- this host stopped waiting and said so on its own books -- and that is a
+    // local act with no reach: the respondent was told nothing and still holds the
+    // answer right it held a moment ago. "This host stopped waiting" and "the answer
+    // became impossible" remain different facts, and the adapter still knows only the
+    // first.
+    CHECK_FALSE(answers.awaiting());
+    CHECK(answers.book().outstanding() == 0);
     REQUIRE(slow_state.held);
 }
 
@@ -2375,9 +2388,24 @@ TEST_CASE("QR-9: the fuse expiring is a local guard, and not a refusal anybody m
 // cases are the parity evidence, because every one of them now runs through the generic
 // mechanism without a line of them being edited.
 //
-// What is left to prove here is what the migration ADDED -- the capacity policy an
-// adapter with one slot could not have, and the behaviour at the edge the fuse leaves
-// behind.
+// What is left to prove here is what the migration ADDED -- the record's own facts, and
+// the behaviour at the edge the fuse leaves behind.
+//
+// ---- AND WHAT QR-10 THEN SUBTRACTED ------------------------------------------------
+//
+// FRIC-2 read the expired fuse as a conversation this host was still party to, gave the
+// book four slots so several of them could coexist, and refused a fifth load by name.
+// Measured on that source, six sequential stalled loads left FOUR records open --
+// correlations 1..4, all naming the same respondent -- and rounds five and six were
+// refused with "this host is still tracking 4 earlier load conversations that were never
+// answered". Nothing was ever going to read those four: `load_weave` had returned, its
+// caller had stopped the plan, and no code in this host can resume, query or settle one
+// of them again. So the fuse now FORGETS the ask it stopped waiting for; the book holds
+// the one conversation this adapter actually has; and the capacity refusal is gone with
+// the state that produced it.
+//
+// THE LINE THE CASES BELOW WALK: forgetting is LOCAL. Nothing is sent, no
+// `DeferredAnswer` is revoked, and the respondent's answer right is exactly what it was.
 
 TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says what it asked") {
     loom::Switchboard bus;
@@ -2390,7 +2418,10 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
         loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
     (void)booter;
 
-    CHECK(answers.book().capacity() > 1); // room for a conversation a fuse abandoned
+    // ONE CONVERSATION IS ALL IT EVER HAS (QR-10). The room FRIC-2 added existed only so
+    // conversations an expired fuse abandoned could pile up; the fuse forgets them now,
+    // so the honest bound is the one load this adapter asks for at a time.
+    CHECK(answers.book().capacity() == 1);
     CHECK_FALSE(answers.book().awaiting());
 
     const std::uint64_t first = answers.ask(slow);
@@ -2416,7 +2447,7 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
     CHECK(answers.book().outstanding() == 0);
 }
 
-TEST_CASE("FRIC-2: a conversation an expired fuse abandoned does not block the NEXT load") {
+TEST_CASE("QR-10: an expired fuse stops TRACKING the load it stopped waiting for") {
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
@@ -2425,36 +2456,114 @@ TEST_CASE("FRIC-2: a conversation an expired fuse abandoned does not block the N
     const loom::WeaveId stalled_booter =
         loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), rig.answers);
 
-    // ONE LOAD THAT NOBODY ANSWERS. The fuse expires and the conversation is LEFT OPEN,
-    // exactly as QR-9 requires -- this host stopped waiting, which is not the same fact
-    // as the answer having become impossible.
+    // ONE LOAD THAT NOBODY ANSWERS, through the real executor: a real artifact on disk,
+    // the real operator offer around it, the real send. Only the answer is missing.
     load::PlanExecutor stalled{
         rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
         [](const std::string& stem) { return stage().so(stem); }};
     const load::Executed gave_up =
         stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
     REQUIRE_FALSE(gave_up.ok);
-    CHECK(rig.answers.awaiting());
-    REQUIRE(rig.answers.book().outstanding() == 1);
 
-    // ...AND NOW A REAL LOAD, THROUGH THE REAL MANAGER. A one-slot record would have had
-    // to abandon the first conversation to make room; the book keeps it, and the new one
-    // settles on its own answer beside it. Two conversations, two respondents, one book.
+    // THE LOCAL BOOK SAYS WHAT THIS HOST IS DOING, and it is no longer waiting on that.
+    // Before QR-10 this record stayed open forever, for a wait whose caller had already
+    // returned and stopped the plan.
+    CHECK_FALSE(rig.answers.awaiting());
+    CHECK(rig.answers.book().outstanding() == 0);
+    CHECK(rig.answers.asking() == 0);
+
+    // ...AND THE FAR END IS UNTOUCHED. No message was sent, no DeferredAnswer was
+    // revoked, and the respondent holds the answer right it held a moment ago. This is
+    // the whole of the difference between forgetting and cancelling, and Loom has a word
+    // for only one of them.
+    REQUIRE(slow_state.held);
+    CHECK(slow_state.answer.valid());
+
+    // ...AND A REAL LOAD, THROUGH THE REAL MANAGER, SETTLES NORMALLY BESIDE IT. The next
+    // conversation is a new one -- the forgotten number is not handed back -- and it ends
+    // on its own answer.
     const load::Executed done =
         rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
     CHECK(done.ok);
     CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
     CHECK(rig.answers.answered);
     CHECK_FALSE(rig.answers.refused);
-    CHECK_FALSE(rig.answers.awaiting()); // THIS load settled...
-
-    // ...and the abandoned one is still on the books, still open, still nobody refusal.
-    REQUIRE(rig.answers.book().outstanding() == 1);
-    CHECK(rig.answers.book().entries().front().respondent == slow);
-    REQUIRE(slow_state.held); // the far end still holds the answer nobody told it to drop
+    CHECK_FALSE(rig.answers.awaiting());
+    CHECK(rig.answers.book().outstanding() == 0);
+    REQUIRE(slow_state.held); // and the abandoned conversation's answer is still owed
 }
 
-TEST_CASE("FRIC-2: when the book fills with unanswered loads the next one is REFUSED by name") {
+TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including the NEXT ask") {
+    // THE SHARPEST CORRELATION WITNESS IN THE PHASE, and it is deliberately driven by ONE
+    // respondent: if the two conversations were told apart by their SENDER, this case
+    // would pass for a reason that has nothing to do with what it claims.
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+
+    // ---- ASK A, DEFERRED, THEN LOCALLY FORGOTTEN --------------------------------
+    const std::uint64_t a = answers.ask(slow);
+    bus.send_as(booter, slow,
+                loom::Message(loom::to_value(loom::LoadWeave{"A", "A", "test.a"}), booter,
+                              booter, a));
+    for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    REQUIRE(slow_state.held);
+    answers.stopped_waiting();
+    REQUIRE_FALSE(answers.awaiting());
+    REQUIRE(answers.book().outstanding() == 0);
+
+    // ---- ASK B, A GENUINELY NEW CONVERSATION -----------------------------------
+    const std::uint64_t b = answers.ask(slow);
+    // FORGETTING DOES NOT HAND A NUMBER BACK. If it did, the answer A's respondent is
+    // still holding would settle B -- which is the whole reason this matters.
+    CHECK(b != a);
+    CHECK(b > a);
+    CHECK(answers.awaiting());
+    CHECK(answers.book().outstanding() == 1);
+
+    // ---- NOW SPEND A'S LATE ANSWER ---------------------------------------------
+    // Nudge makes the respondent spend what it deferred; the bus restores the correlation
+    // the ASK was delivered with, so this fixture cannot choose it. It is A's number,
+    // arriving after A stopped being anybody's business here.
+    (void)bus.send(slow,
+                   loom::Message(loom::to_value(Nudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 6; ++turn) {
+        bus.pump_pending();
+    }
+    CHECK_FALSE(slow_state.held);  // it really was spent -- the wall was knocked on
+    CHECK_FALSE(answers.answered); // ...and it settled nothing
+    CHECK(answers.weave == 0);
+    CHECK_FALSE(answers.refused);
+    CHECK(answers.book().outstanding() == 1); // B, untouched
+    CHECK(answers.awaiting());
+    CHECK(answers.asking() == b);
+
+    // ...AND B STILL SETTLES ON B. The late arrival neither closed it nor poisoned it.
+    (void)bus.send(slow, loom::Message(loom::to_value(SayAgain{static_cast<std::int64_t>(b),
+                                                              "77"}),
+                                       loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    CHECK(answers.answered);
+    CHECK(answers.weave == 77u);
+    CHECK_FALSE(answers.awaiting());
+    CHECK(answers.book().outstanding() == 0);
+
+    // ...and A's number is still nobody's: a copy of that late answer is inert forever.
+    CHECK_FALSE(answers.settles(a, slow));
+}
+
+TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses nothing") {
+    // MORE ROUNDS THAN THE CAPACITY FRIC-2 NEEDED (four), so a book that still
+    // accumulated would have been refusing loads by round five.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
@@ -2466,35 +2575,88 @@ TEST_CASE("FRIC-2: when the book fills with unanswered loads the next one is REF
         rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
         [](const std::string& stem) { return stage().so(stem); }};
 
-    // FILL IT, one expired fuse at a time. Nothing here is contrived: each of these is a
-    // load this host commanded and never heard back about.
-    const std::size_t room = rig.answers.book().capacity();
-    for (std::size_t i = 0; i < room; ++i) {
+    constexpr int kRounds = 16;
+    for (int i = 0; i < kRounds; ++i) {
+        REQUIRE(rig.answers.book().outstanding() == 0); // the baseline, before each ask
         const load::Executed gave_up =
             stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
         REQUIRE_FALSE(gave_up.ok);
-        CHECK(gave_up.refusal.find("local guard") != std::string::npos);
-    }
-    REQUIRE(rig.answers.book().full());
-    const std::uint64_t oldest = rig.answers.book().entries().front().correlation;
 
-    // THE NEXT ONE IS REFUSED, AND NOTHING WAS COMMANDED. An asker book refuses the NEW
-    // conversation rather than shedding an old one -- the opposite of what `loom::relay`
-    // does, and deliberately so: a load somebody may still be performing must not be
-    // forgotten to make room for one that has not started.
-    const load::Executed over =
-        stalled.run(plan_of({weaves("zengine-plain-weave", "test.overflow")}));
-    CHECK_FALSE(over.ok);
-    CHECK(over.refusal.find("still tracking") != std::string::npos);
-    CHECK(over.refusal.find("no further load was commanded") != std::string::npos);
-    // NOT a refusal anybody made, and not an answer: the record heard nothing.
+        // EVERY ROUND IS THE FUSE, AND NEVER A BOOK REFUSAL. The sentence FRIC-2 needed
+        // is not merely absent from the code -- no round produces it.
+        CHECK(gave_up.refusal.find("local guard") != std::string::npos);
+        CHECK(gave_up.refusal.find("still tracking") == std::string::npos);
+        CHECK(gave_up.refusal.find("no further load was commanded") == std::string::npos);
+        CHECK(rig.answers.book().outstanding() == 0); // ...and back to baseline
+
+        // SPEND THE HELD ANSWER BETWEEN ROUNDS, for a reason that is about the OTHER
+        // resource entirely: this fixture's respondent holds one DeferredAnswer at a time
+        // and drops the previous one on the floor, and a dropped answer right costs a slot
+        // in Loom's own bounded deferred table until its owner dies. That table is NOT
+        // what this case is about, and letting it fill would let a red here be read as a
+        // claim about the asker's book. So each round's answer is spent, arrives late, and
+        // settles nothing -- which is also the claim above, sixteen times.
+        (void)rig.bus.send(slow, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                               loom::WeaveId{}, 0));
+        rig.drain(4);
+        CHECK_FALSE(rig.answers.answered);
+        CHECK(rig.answers.book().outstanding() == 0);
+    }
+
+    // AND THE NEXT LOAD STILL WORKS, through the real Manager, on its own answer.
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+    CHECK(done.ok);
+    CHECK(rig.answers.answered);
+    CHECK_FALSE(rig.answers.awaiting());
+    CHECK(rig.answers.book().outstanding() == 0);
+}
+
+TEST_CASE("QR-10: the book refuses a second conversation rather than displacing the first") {
+    // THE BOUND IS ONE, AND THAT IS AN ASSERTION RATHER THAN AN ACCIDENT. Nothing in this
+    // adapter opens a conversation while another is outstanding -- load_weave asks and
+    // then waits -- so if that ever changed the book would say so instead of quietly
+    // obliging. An asker refuses the NEW ask and keeps what it is waiting on; shedding
+    // the oldest is loom::relay's policy, for a participant with no question of its own.
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+
+    const std::uint64_t first = answers.ask(slow);
+    REQUIRE(first != 0);
+    CHECK(answers.book().full());
+
+    const std::uint64_t second = answers.ask(slow);
+    CHECK(second == 0);                       // refused, and nothing to send
+    CHECK(answers.book().outstanding() == 1); // ...with the first untouched
+    CHECK(answers.book().entries().front().correlation == first);
+}
+
+TEST_CASE("QR-10: a load conversation that cannot be opened refuses, and never succeeds quietly") {
+    // THE GUARD THE CAPACITY REFUSAL LEFT BEHIND. With the fuse forgetting, the book is
+    // empty at every ask(), so the one thing still able to refuse a conversation is the
+    // respondent -- and an executor handed no valid Weave Manager must say so. Deleting
+    // this branch along with the workaround would have been the worse defect of the two:
+    // with no conversation open, the wait below has nothing outstanding and reads
+    // instantly as a load that succeeded.
+    PlanRig rig;
+    load::PlanExecutor nowhere{rig.bus,         rig.catalog, rig.operators, rig.booter,
+                               loom::WeaveId{}, rig.answers,
+                               [](const std::string& stem) { return stage().so(stem); }};
+
+    const load::Executed done =
+        nowhere.run(plan_of({weaves("zengine-plain-weave", "test.nowhere")}));
+
+    CHECK_FALSE(done.ok);
+    CHECK(done.refusal.find("no load conversation could be opened") != std::string::npos);
+    CHECK(done.refusal.find("no load was commanded") != std::string::npos);
+    CHECK(done.resolved.empty());
+    // NOT AN ANSWER, and not a refusal anybody made: nothing was ever sent.
     CHECK_FALSE(rig.answers.answered);
     CHECK_FALSE(rig.answers.refused);
     CHECK(rig.answers.reason.empty());
-
-    // ...and the conversations already open are exactly as they were.
-    CHECK(rig.answers.book().outstanding() == room);
-    CHECK(rig.answers.book().entries().front().correlation == oldest);
+    CHECK(rig.answers.book().outstanding() == 0);
 }
 
 TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of the far end") {

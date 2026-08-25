@@ -189,15 +189,26 @@ struct Executed {
 /// wall for a weave relaying somebody else's answer; `loom::AskBook` is the same wall
 /// for the participant that asked, and this struct is the small adapter that spends it.
 ///
-/// A ONE-CONVERSATION ADAPTER OVER A BOOK THAT IS NOT ONE (§13/§14). The executor asks
-/// for one artifact at a time and waits for it, so this record tracks ONE current load
-/// -- `current_` -- and every question below is about that one. The book underneath can
-/// hold several at once and is proved to, in Loom's own suite; what the book is NOT is
-/// permission for this file to start loading concurrently, which LOAD-0's authored order
-/// forbids. The extra room exists for a different reason, and it is a real one: when the
-/// local fuse expires the conversation is deliberately LEFT OPEN (it is not dead, and
-/// nothing here knows that it is), so a later run must be able to open a fresh
-/// conversation beside the abandoned one instead of quietly reusing its slot.
+/// ONE CONVERSATION, AND THE BOOK HOLDS EXACTLY THAT (QR-10). The executor asks for one
+/// artifact at a time and waits for it, so this record tracks ONE current load --
+/// `current_` -- and every question below is about that one. The book underneath can
+/// hold several at once and is proved to, in Loom's own suite; that is not permission
+/// for this file to start loading concurrently, which LOAD-0's authored order forbids.
+///
+/// IT USED TO ASK FOR ROOM IT COULD NOT SPEND. FRIC-2 gave this book four slots because
+/// an expired fuse left its conversation open forever, so a later load had to be able to
+/// open a fresh one beside the abandoned one -- and four of those refused the fifth load
+/// by name. Nothing ever wanted those records: the wait they belonged to had returned,
+/// its caller had stopped the plan, and no code in this host could resume, inspect or
+/// settle one of them again. What the room bought was the accumulation, not a reader.
+/// So the fuse now says so -- it FORGETS the ask it stopped waiting for -- and the book
+/// is back to the one conversation this adapter genuinely has.
+///
+/// FORGETTING IS LOCAL AND CLAIMS NOTHING OF THE FAR END. Loom has no cancellation
+/// vocabulary; nothing is sent, no `DeferredAnswer` is revoked, and the respondent still
+/// holds whatever answer right it held. A late answer to a forgotten load is a true fact
+/// about the world that this host is simply no longer a party to: it matches no record,
+/// settles nothing, and cannot put one back.
 ///
 /// CORRELATION IDENTIFIES; IT DOES NOT AUTHENTICATE (Loom's ANS-05). A correlation is a
 /// number a sender chooses, so matching one proves the arrival NAMES the conversation
@@ -213,13 +224,15 @@ struct BootAnswers {
     std::uint64_t weave = 0;
 
     /// OPEN A CONVERSATION with `respondent`, and return the correlation the request
-    /// must carry -- or 0 when no conversation could be opened. It forgets the previous
-    /// answer, which is the point: everything read afterwards is about THIS ask.
+    /// must carry -- or 0 when no conversation could be opened. It CLEARS the previous
+    /// answer -- the payload fields, not a book entry -- which is the point: everything
+    /// read afterwards is about THIS ask.
     ///
-    /// ZERO MEANS THE BOOK IS FULL OF CONVERSATIONS THAT NEVER SETTLED, which takes
-    /// `kLoadAsksTracked` expired fuses to reach. The book refuses the NEW ask rather
-    /// than dropping an old one, so the caller is told instead of quietly commanding a
-    /// load it could never recognize the answer to.
+    /// ZERO MEANS NO CONVERSATION WAS OPENED, and the caller must not send anything: a
+    /// request this record cannot recognize the answer to is a load nobody could ever
+    /// report on. Since QR-10 the book is empty at every call -- an answer closes the
+    /// conversation and an expired fuse forgets it -- so what is left to fail is the
+    /// respondent, which `loom::AskBook` refuses to record when it is not a valid weave.
     std::uint64_t ask(loom::WeaveId respondent) {
         answered = false;
         refused = false;
@@ -240,19 +253,28 @@ struct BootAnswers {
         return book_.is_settled_by(current_, correlation, from);
     }
 
-    /// The conversation is over. Said explicitly rather than inferred from `answered`,
-    /// because the two are different facts: `answered` is WHAT the answer was, and this
-    /// is that there is no longer one outstanding. It also makes a duplicate of the same
-    /// answer inert, because the record it would have to close is gone.
-    void settled() noexcept {
-        (void)book_.forget(current_);
-        current_ = 0;
-    }
+    /// AN ANSWER CLOSED THE CONVERSATION. Said explicitly rather than inferred from
+    /// `answered`, because the two are different facts: `answered` is WHAT the answer
+    /// was, and this is that there is no longer one outstanding. It also makes a
+    /// duplicate of the same answer inert, because the record it would have to close is
+    /// gone.
+    void settled() noexcept { close(); }
+
+    /// THIS HOST STOPPED WAITING, WITH NO ANSWER AT ALL (QR-10) -- the other way a
+    /// conversation leaves this record, and deliberately a different word from
+    /// `settled()`, because a reader at the fuse must not see one that says an answer
+    /// came.
+    ///
+    /// It is `loom::AskBook::forget` and only that: local, and local is all of it. The
+    /// respondent was told nothing, its answer right is untouched, and if that answer
+    /// ever arrives it will match no record here. Say this exactly when the owner has
+    /// decided not to resume the wait -- stopping a wait and abandoning it are not the
+    /// same act, and a caller that means to look again later must keep its record.
+    void stopped_waiting() noexcept { close(); }
 
     /// IS A LOAD CONVERSATION STILL OUTSTANDING? This is the question a waiting caller
-    /// asks -- never "was anything delivered this turn". It is about THIS load, not
-    /// about the book: a conversation an earlier fuse abandoned is still open and is
-    /// deliberately not this load's business.
+    /// asks -- never "was anything delivered this turn". It is about THIS load, which
+    /// since QR-10 is the only thing the book can be holding.
     bool awaiting() const noexcept { return book_.waiting_on(current_); }
 
     /// The correlation of the outstanding conversation, or 0 when none is.
@@ -261,21 +283,28 @@ struct BootAnswers {
         return p == nullptr ? 0 : p->correlation;
     }
 
-    /// What this record has open, including any conversation a fuse abandoned.
+    /// What this record has open -- at most the one load currently in flight.
     const loom::AskBook& book() const noexcept { return book_; }
 
 private:
-    /// HOW MANY LOAD CONVERSATIONS THIS HOST WILL TRACK AT ONCE, and it is a bound on
-    /// ABANDONMENT rather than on concurrency: the executor opens one at a time, so the
-    /// only way to accumulate more is a local fuse expiring and leaving one open. Four
-    /// of those and this host says so instead of forgetting one somebody may still be
-    /// answering.
-    static constexpr std::size_t kLoadAsksTracked = 4;
+    /// ONE CONVERSATION, LEAVING BY ONE OF TWO DOORS. Written once because the local
+    /// bookkeeping is identical and the FACT is not: `settled()` and `stopped_waiting()`
+    /// are the two things that can be true, and a reader should have to pick one.
+    void close() noexcept {
+        (void)book_.forget(current_);
+        current_ = 0;
+    }
 
-    /// The asker-side record itself. Its correlations are local to this book, so they
-    /// can collide with nobody else's numbering, and it never reuses one an open
-    /// conversation is holding.
-    loom::AskBook book_{kLoadAsksTracked};
+    /// The asker-side record itself, holding the ONE conversation this adapter has at a
+    /// time -- the bound `loom::AskBook` requires its owner to state, and the honest
+    /// number for an executor that asks for one artifact and waits for it. It refuses a
+    /// second rather than shedding the first, so were this file ever to open one while
+    /// another is outstanding it would be told, not quietly obliged.
+    ///
+    /// ITS CORRELATIONS ARE MONOTONIC AND LOCAL TO IT. They collide with nobody else's
+    /// numbering, and forgetting a conversation does not hand its number back -- which
+    /// is what keeps a late answer to a forgotten load from settling the next one.
+    loom::AskBook book_{1};
     /// WHICH of the book's conversations is the load currently in flight. Not a second
     /// copy of the conversation -- the book owns membership, this owns "which one is
     /// mine right now".
@@ -545,14 +574,18 @@ private:
                            const std::string& role) {
         const std::uint64_t correlation = answers_->ask(manager_);
         if (correlation == 0) {
-            // NO CONVERSATION, SO NO COMMAND. The book is full of loads whose answers
-            // never arrived, and it refuses the new one rather than dropping one of
-            // those -- so this refuses too, instead of sending a request whose answer
-            // this host would have no record to recognize.
-            return "this host is still tracking " +
-                   std::to_string(answers_->book().outstanding()) +
-                   " earlier load conversations that were never answered, which is the "
-                   "most it will hold; no further load was commanded";
+            // NO CONVERSATION, SO NO COMMAND -- and this is the guard, not a leftover.
+            // Sending anyway would put a `zen.LoadWeave` on the bus whose answer this
+            // host has no record to recognize, and the wait below would then find
+            // nothing outstanding and read that as a load that had succeeded.
+            //
+            // THE SENTENCE IS NARROWER THAN IT WAS (QR-10). It used to say the book was
+            // full of earlier loads nobody answered, which was true only because an
+            // expired fuse left its conversation open; the fuse now forgets, so the
+            // book is empty here and that cause is gone. What is left is the respondent
+            // this host was handed, and that is all this claims.
+            return "no load conversation could be opened with the weave this host was "
+                   "given as its Weave Manager; no load was commanded";
         }
         bus_->send_as(booter_, manager_,
                       loom::Message(loom::to_value(loom::LoadWeave{stem, path, role}), booter_,
@@ -565,11 +598,24 @@ private:
             // host's own guard; the Manager has said nothing, and minting a refusal on
             // its behalf would be this layer claiming to know a why nobody stated.
             // Neither is it "the answer became impossible" -- nothing in this process
-            // knows that, and the conversation is left open rather than declared dead.
+            // knows that, and nothing below says it.
+            //
+            // AND THE RECORD GOES WITH THE WAIT (QR-10). This function is the whole of
+            // the caller's patience: it returns, `perform` turns that into the row's
+            // refusal, and `run` stops the plan -- so no code in this host will resume
+            // this wait, ask after this conversation, or have any use for its eventual
+            // payload. Keeping the entry preserved no future reader, only the record
+            // itself, and four of those used to refuse a fifth load by name. So this
+            // host stops TRACKING what it has stopped WAITING for, which is a statement
+            // about this side of the conversation and about nothing else: nothing is
+            // sent, the respondent's answer right is untouched, and if that answer
+            // arrives it will match no record here and settle nothing.
+            answers_->stopped_waiting();
             return "no correlated answer arrived before this host's local guard of " +
                    std::to_string(kLoadDrainTurns) +
-                   " dispatch turns expired; the Weave Manager has neither confirmed "
-                   "nor refused it";
+                   " dispatch turns expired; this host stopped waiting for it and no "
+                   "longer tracks that conversation. The Weave Manager has neither "
+                   "confirmed nor refused it, and was told nothing";
         }
         return answers_->refused ? answers_->reason : std::string();
     }

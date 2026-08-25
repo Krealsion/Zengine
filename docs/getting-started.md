@@ -282,11 +282,17 @@ public:
     std::uint64_t asking(loom::WeaveId manager) {
         answered = false;
         refused = false;
-        return loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version)
-            .correlation;
+        const loom::AskOpened opened =
+            loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version);
+        current_ = opened.id;
+        return opened.correlation;
     }
     /// Is MY load conversation still open? Never "was anything delivered this turn".
     bool awaiting() const { return loads_.awaiting(); }
+
+    /// I have stopped waiting, so I stop tracking -- locally, and that is all of it.
+    /// Nobody was told, nothing was cancelled, and a late answer settles nothing here.
+    void stopped_waiting() { (void)loads_.forget(current_); current_ = 0; }
 
     void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
     void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
@@ -308,12 +314,19 @@ private:
     /// conversation) and by bus-stamped sender (the weave actually asked)? Settling
     /// closes it, so a duplicate of the same answer is inert.
     bool mine(const loom::Mail& mail) {
-        return loads_.settle(mail.correlation(), mail.sender()).has_value();
+        if (!loads_.settle(mail.correlation(), mail.sender())) {
+            return false;
+        }
+        current_ = 0; // closed by its answer: nothing left to stop waiting for
+        return true;
     }
 
     /// This program never has two open at once -- it asks, then waits -- but the bound
     /// is the owner's to state and `loom::AskBook` has no default.
     loom::AskBook loads_{2};
+    /// Which conversation this program is waiting on, so it can stop tracking exactly
+    /// that one: an arrival names its own record, but giving up has no arrival.
+    std::uint64_t current_ = 0;
 };
 
 } // namespace
@@ -347,7 +360,13 @@ int main(int argc, char** argv) {
             bus.pump_pending();
         }
         if (!waiter->answered) {
-            std::printf("  %s: the Weave Manager has not answered yet\n", stem.c_str());
+            // This program has stopped waiting, so it stops tracking: `load` returns
+            // false and the caller exits, so nothing here will ever look at that
+            // conversation again. Local only -- nothing was sent, nothing cancelled.
+            waiter->stopped_waiting();
+            std::printf("  %s: no answer arrived before this program's local guard "
+                        "expired; it stopped waiting (nothing was cancelled)\n",
+                        stem.c_str());
             return false;
         }
         if (waiter->refused) {
@@ -382,7 +401,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-Four host facts worth having up front:
+Five host facts worth having up front:
 
 - **A grant is what a weave may *say*, and to whom — never what it may *touch*.** The waiter
   above may command lifecycle because the host wrote that down. An in-process weave shares the
@@ -409,14 +428,22 @@ Four host facts worth having up front:
 - **You do not write that record yourself.** `loom::AskBook` is it: `open` gives you the
   correlation to send and remembers who may answer it, `settle` says which of *your*
   conversations an arrival closed, `awaiting()` is your loop condition, and `forget` stops
-  tracking one locally without claiming anything was cancelled at the far end. It knows
-  nothing about `zen.Result` or what "refused" means — that part stays yours, which is why
+  tracking one locally without claiming anything was cancelled at the far end — which is
+  exactly what `load()` above does when it gives up. It knows nothing about `zen.Result` or
+  what "refused" means — that part stays yours, which is why
   `answered` / `refused` / `reason` are still fields of `Waiter`. See
   [the asker's own book](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#the-askers-own-book).
 - **The turn ceiling in `load()` is a hang guard, not the thing that settles the load.** The
   conversation settles when its own correlated answer arrives; the 64 only stops this example
   from spinning forever if no answer ever comes, and reaching it would mean exactly that and
   nothing more — not that the Manager refused, and not that an answer became impossible.
+  **Stopping the wait is a good moment to stop tracking, when nothing will resume it.**
+  `load()` has no continuation — it returns and its caller exits — so it calls `forget`,
+  which changes this program's books and nothing else: the Manager was told nothing, its
+  answer may still arrive, and when it does it matches no record and settles nothing. Do
+  not read that as a rule for every guard. A program that means to look again later —
+  offering the person a `pending` list, say, and another chance to wait — still *has* that
+  interest, and forgetting the ask would be throwing away the thing it is about to need.
   **Do not stop the loop when a turn dispatches nothing.** `bus.pending()` is the size of the
   queue at one instant; it says nothing about what may be queued next, and a respondent that
   defers its answer holds it off the queue entirely. An empty turn is not a settlement.

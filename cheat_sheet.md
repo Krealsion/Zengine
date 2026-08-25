@@ -232,7 +232,10 @@ if (asks.settle(mail.correlation(), mail.sender())) {
 - **`awaiting()` is the loop condition, never `pump_pending() == 0`.** A respondent may hold
   your answer off the queue entirely (Loom defers), so an empty dispatch turn proves nothing.
 - **`forget(id)` is local.** Loom has no cancellation vocabulary: nothing at the far end is
-  told, the answer may still arrive, and it will settle nothing.
+  told, the answer may still arrive, and it will settle nothing. Say it exactly where you
+  have stopped caring — a bounded wait that gives up and returns to a caller who will never
+  resume it should forget, or it records an interest nothing has; a person who paused an
+  `await` and may look again should not, because the ask is the thing they are about to need.
 - **Asking an office** (`open_to_role`) cannot name a respondent — whoever holds the role at
   delivery is not knowable when you ask — so that record constrains the correlation alone.
 
