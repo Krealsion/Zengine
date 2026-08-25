@@ -744,12 +744,15 @@ struct LiveRig : ProviderRig {
 
     /// DISPATCH IN BOUNDED TURNS, never to idle: a live Timer re-arms its own beat
     /// inside its own handler, so `drain_until_idle()` would never return.
+    ///
+    /// THE PREDICATE IS THE ONLY STOP (QR-9). An empty turn used to end the wait too,
+    /// which is an inference the substrate does not support -- `pending()` describes
+    /// this instant's queue, and a deferred answer is held off it. The count is a
+    /// fuse, and every caller asserts afterwards, so expiring it is a red.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {
-            if (bus.pump_pending() == 0) {
-                return;
-            }
+            bus.pump_pending();
         }
     }
 

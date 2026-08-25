@@ -338,14 +338,13 @@ int main(int argc, char** argv) {
                     loom::Message(loom::to_value(
                                       loom::LoadWeave{stem, dir + "/" + stem + ".so", role}),
                                   waiter_id, waiter_id, correlation));
-        // Turn the crank until THIS conversation's answer arrives.
+        // Turn the crank until THIS conversation's answer arrives. The 64 is only a
+        // hang guard for this example -- see the note below the listing.
         for (int turn = 0; turn < 64 && waiter->awaiting(); ++turn) {
-            if (bus.pump_pending() == 0) {
-                break; // nothing left to dispatch: no answer is coming
-            }
+            bus.pump_pending();
         }
         if (!waiter->answered) {
-            std::printf("  %s: the Weave Manager never answered\n", stem.c_str());
+            std::printf("  %s: the Weave Manager has not answered yet\n", stem.c_str());
             return false;
         }
         if (waiter->refused) {
@@ -380,7 +379,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-Three host facts worth having up front:
+Four host facts worth having up front:
 
 - **A grant is what a weave may *say*, and to whom — never what it may *touch*.** The waiter
   above may command lifecycle because the host wrote that down. An in-process weave shares the
@@ -403,6 +402,13 @@ Three host facts worth having up front:
   conversation, the number you put on the request and the Manager echoes back — **and by
   bus-stamped sender** — the weave you actually asked, which the bus stamps so nobody can
   claim another's identity. `Waiter::mine()` above is those two lines and nothing else.
+- **The turn ceiling in `load()` is a hang guard, not the thing that settles the load.** The
+  conversation settles when its own correlated answer arrives; the 64 only stops this example
+  from spinning forever if no answer ever comes, and reaching it would mean exactly that and
+  nothing more — not that the Manager refused, and not that an answer became impossible.
+  **Do not stop the loop when a turn dispatches nothing.** `bus.pending()` is the size of the
+  queue at one instant; it says nothing about what may be queued next, and a respondent that
+  defers its answer holds it off the queue entirely. An empty turn is not a settlement.
 
 ## Run it
 

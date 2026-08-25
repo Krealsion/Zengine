@@ -161,14 +161,16 @@ int main(int argc, char** argv) {
                                   waiter_id, waiter_id, correlation));
         // A load is ANSWERED, not merely started: is_loaded turns true while the Result
         // naming the new weave is still queued. So the condition below is the
-        // CONVERSATION -- take turns until this waiter's own correlated answer arrives.
+        // CONVERSATION -- turn the dispatch crank until this waiter's own correlated
+        // answer arrives. The 64 is a hang guard for this fixture and nothing more; it
+        // is not what settles the load, and reaching it would mean only that nobody has
+        // answered yet. Do not stop on an empty turn: `pending()` is the size of the
+        // queue at one instant, and a respondent may be holding your answer off it.
         for (int turn = 0; turn < 64 && waiter->awaiting(); ++turn) {
-            if (bus.pump_pending() == 0) {
-                break; // nothing left to dispatch: no answer is coming
-            }
+            bus.pump_pending();
         }
         if (!waiter->answered) {
-            std::printf("  %s: the Weave Manager never answered\n", stem.c_str());
+            std::printf("  %s: the Weave Manager has not answered yet\n", stem.c_str());
             return false;
         }
         if (waiter->refused) {

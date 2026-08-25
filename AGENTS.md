@@ -1474,6 +1474,15 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   shape settled the current load: measured, an unrelated `zen.Result` reported a
   WeaveId no Kernel had minted and turned a missing artifact's refusal into a
   completed plan.
+- **`kLoadDrainTurns` is a fuse, and its expiry is not an answer.** Do not read it
+  as a schedule, and do not restore an early-out on an empty turn:
+  `Switchboard::pending()` is `queue_.size()` at one instant, and a respondent that
+  deferred its answer holds it off the queue entirely (FRIC-R2 measured a zero-work
+  turn with the answer owed, arriving afterwards). When the fuse expires the
+  executor says a local guard expired and leaves the conversation OPEN — it does
+  not mint a refusal on the Manager's behalf, because "this host stopped waiting"
+  and "the answer became impossible" are different facts and it knows only the
+  first.
 - **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
   host owes a reload the same bracket it owes a load. Both are pinned: bracketed
   keeps the binding, unbracketed comes back a fallback Timer. Nothing in this

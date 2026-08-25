@@ -328,16 +328,32 @@ private:
 
 // ---- The executor --------------------------------------------------------------
 
-/// How many bus turns one artifact's load may take before the executor stops waiting.
+/// A LAST-RESORT FUSE on one artifact's load, and nothing else.
 ///
-/// A HANG GUARD, NOT A SCHEDULE. `Kernel::load` is several deliveries below the
-/// command -- `zen.LoadWeave` to the Manager, the Manager to the control door, the
-/// door into the Kernel -- and the answer comes back the same way; the drain stops
-/// the instant an answer arrives or the queue empties, so the ceiling is reached only
-/// by a bus that somehow never quiesces. It is generous for the same reason the boot
-/// drain it replaces was: an artifact that goes live and immediately starts working
-/// (a Timer re-arms its own beat inside its own handler) makes a drain-to-empty never
-/// return, so this counts GENERATIONS of `pump_pending()` rather than deliveries.
+/// IT IS NOT A SCHEDULE, NOT A BUDGET, AND NOT A SETTLEMENT. What ends the wait below
+/// is the load conversation's own correlated answer arriving; this number exists only
+/// so a host cannot spin forever when no such answer ever comes, and reaching it is
+/// reported as exactly that -- a local guard expiring -- never as a refusal somebody
+/// else made. `Kernel::load` is several deliveries below the command (`zen.LoadWeave`
+/// to the Manager, the Manager to the control door, the door into the Kernel) and the
+/// answer comes back the same way.
+///
+/// IT COUNTS GENERATIONS of `pump_pending()` rather than deliveries, because an
+/// artifact that goes live and immediately starts working -- a Timer re-arms its own
+/// beat inside its own handler -- makes a drain-to-empty never return.
+///
+/// THE EMPTY-TURN EARLY-OUT IS GONE (QR-9). This wait used to stop early when a turn
+/// delivered nothing, reasoning that an empty queue meant no answer was coming. It
+/// does not mean that. `Switchboard::pending()` is `queue_.size()`: a statement about
+/// this instant's queue and about nothing else. A respondent that DEFERS its answer
+/// (Loom's ANS-02) holds it outside the queue entirely, so the conversation can be
+/// genuinely unresolved with nothing queued at all -- FRIC-R2 measured a turn that
+/// delivered zero work with the answer owed, and the answer arriving afterwards.
+///
+/// FRIC-R2 also measured `zen.LoadWeave` settling in exactly FOUR dispatch turns,
+/// success and refusal alike, in the arrangements it drove -- so this ceiling is 16x
+/// over. That four is EVIDENCE ABOUT the relay chain's depth, not an API promise and
+/// not a number any caller may encode.
 inline constexpr int kLoadDrainTurns = 64;
 
 /// PERFORM AN AUTHORED PLAN AGAINST ONE HOST'S RUNTIME.
@@ -473,9 +489,12 @@ private:
     ///
     /// AND ITS OWN ANSWER (QR-9), which is a different claim and the one this line
     /// used to get wrong. `ask()` opens the conversation and hands back the
-    /// correlation the request must carry, and `awaiting()` is the loop's condition,
-    /// because the question worth asking here is "has MY load conversation settled?"
-    /// and not "did some answer-shaped message arrive?".
+    /// correlation the request must carry; `awaiting()` is the loop's condition,
+    /// because the semantic question here is "has MY load conversation settled?" and
+    /// never the mechanical "was anything delivered this turn?". The `pump_pending()`
+    /// call is how a straight-line caller turns the crank so its OWN handler can run;
+    /// what it returns is a count of deliveries, and a count of deliveries settles
+    /// nothing.
     std::string load_weave(const std::string& stem, const std::string& path,
                            const std::string& role) {
         const std::uint64_t correlation = answers_->ask(manager_);
@@ -483,16 +502,18 @@ private:
                       loom::Message(loom::to_value(loom::LoadWeave{stem, path, role}), booter_,
                                     booter_, correlation));
         for (int turn = 0; turn < kLoadDrainTurns && answers_->awaiting(); ++turn) {
-            if (bus_->pump_pending() == 0) {
-                break;
-            }
+            bus_->pump_pending();
         }
         if (answers_->awaiting()) {
-            // NEITHER CONFIRMED NOR REFUSED. Said as exactly that rather than as a
-            // refusal somebody else wrote: the Manager has not spoken, and inventing
-            // its sentence would be this layer claiming to know why.
-            return "the Weave Manager neither confirmed nor refused it within " +
-                   std::to_string(kLoadDrainTurns) + " bus turns";
+            // THE FUSE BLEW, AND THAT IS NOT A THIRD ANSWER. What expired is this
+            // host's own guard; the Manager has said nothing, and minting a refusal on
+            // its behalf would be this layer claiming to know a why nobody stated.
+            // Neither is it "the answer became impossible" -- nothing in this process
+            // knows that, and the conversation is left open rather than declared dead.
+            return "no correlated answer arrived before this host's local guard of " +
+                   std::to_string(kLoadDrainTurns) +
+                   " dispatch turns expired; the Weave Manager has neither confirmed "
+                   "nor refused it";
         }
         return answers_->refused ? answers_->reason : std::string();
     }
