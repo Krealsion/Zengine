@@ -248,6 +248,7 @@ program.
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -264,6 +265,8 @@ struct WaiterState {
 };
 
 /// The host's own weave: it commands the loads, sends the order, hears the result.
+/// It keeps one fact about each load -- which conversation it is waiting on -- because
+/// the three answer shapes are a vocabulary every participant shares.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
@@ -274,9 +277,21 @@ public:
     bool served = false;
     std::string reason;
 
-    void on(const loom::Result&, loom::Mail&) { answered = true; }
-    void on(const loom::Ack&, loom::Mail&) { answered = true; }
-    void on(const loom::Refused& r, loom::Mail&) {
+    /// Open a load conversation with `manager`, and return the correlation to send.
+    std::uint64_t asking(loom::WeaveId manager) {
+        answered = false;
+        refused = false;
+        manager_ = manager;
+        return ++correlation_;
+    }
+    bool awaiting() const { return correlation_ != 0 && !answered; }
+
+    void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
+    void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (!mine(mail)) {
+            return;
+        }
         answered = true;
         refused = true;
         reason = r.reason;
@@ -285,6 +300,17 @@ public:
         served = true;
         std::printf("  the oven served: %s\n", d.dish.c_str());
     }
+
+private:
+    /// Is this arrival the answer to the conversation this waiter opened? Which
+    /// conversation, and from the weave actually asked -- the bus stamps the sender.
+    bool mine(const loom::Mail& mail) const {
+        return correlation_ != 0 && mail.correlation() == correlation_ &&
+               mail.sender() == manager_;
+    }
+
+    std::uint64_t correlation_ = 0;
+    loom::WeaveId manager_{};
 };
 
 } // namespace
@@ -307,13 +333,13 @@ int main(int argc, char** argv) {
     waiter->zen_set_self(waiter_id);
 
     const auto load = [&](const std::string& stem, const std::string& role) {
-        waiter->answered = false;
-        waiter->refused = false;
+        const std::uint64_t correlation = waiter->asking(manager);
         bus.send_as(waiter_id, manager,
                     loom::Message(loom::to_value(
                                       loom::LoadWeave{stem, dir + "/" + stem + ".so", role}),
-                                  waiter_id, waiter_id));
-        for (int turn = 0; turn < 64 && !waiter->answered; ++turn) {
+                                  waiter_id, waiter_id, correlation));
+        // Turn the crank until THIS conversation's answer arrives.
+        for (int turn = 0; turn < 64 && waiter->awaiting(); ++turn) {
             if (bus.pump_pending() == 0) {
                 break; // nothing left to dispatch: no answer is coming
             }
@@ -366,9 +392,17 @@ Three host facts worth having up front:
   the bus is idle, which is right for settling a world or for a host whose whole program *is*
   the bus — and with the Timer service loaded that bus is never idle, exactly as the name
   says.
-- **Loading is answered, not merely started.** `Kernel::is_loaded` turns true the instant the
-  load returns, while the `zen::Result` naming the new weave is still queued. Wait for the
-  answer, as `load()` above does, so a refusal stops you instead of being missed.
+- **Loading is answered, not merely started — and answered *to you*.** `Kernel::is_loaded`
+  turns true the instant the load returns, while the `zen.Result` naming the new weave is
+  still queued, so `load()` above waits for the answer and a refusal stops you instead of
+  being missed. Which answer, though, is a second question. `zen.Result`, `zen.Ack` and
+  `zen.Refused` are a **shared vocabulary**: any participant your host grants them may send
+  one to any weave that accepts them, so "an answer-shaped message arrived" is not "my load
+  answered". Loom states the obligation as a standing rule (`zen/weave/standard_shapes.hpp`):
+  match each arrival against your own outstanding request **by correlation** — which
+  conversation, the number you put on the request and the Manager echoes back — **and by
+  bus-stamped sender** — the weave you actually asked, which the bus stamps so nobody can
+  claim another's identity. `Waiter::mine()` above is those two lines and nothing else.
 
 ## Run it
 

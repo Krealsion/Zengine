@@ -562,6 +562,140 @@ constexpr std::int64_t kHonestAnswer = 1;
 /// ...and what a `math.max` overlaid as a MIN makes of the same pair.
 constexpr std::int64_t kOverlaidAnswer = -500;
 
+// ---- QR-9: the two participants a load conversation can be settled BY -----------
+
+/// A PARTICIPANT THIS HOST ADMITS, saying something perfectly well-formed about
+/// somebody else's conversation.
+///
+/// NOT A FORGERY AND NOT AN ATTACK, which is the whole reason it is the falsifier.
+/// `zen.Result`, `zen.Ack` and `zen.Refused` are a UNIVERSAL vocabulary: any weave a
+/// host grants them may legitimately send one to any weave that accepts them, and
+/// the plan booter accepts all three. The only thing wrong with what this weave says
+/// is that its correlation names no conversation the booter opened.
+struct StrayState {
+    std::int64_t idle = 0;
+    ZEN_SHAPE(StrayState, 1, ZEN_FIELD(idle));
+};
+
+class Stray : public loom::WeaveBase<Stray, StrayState, loom::Accept<Nudge>,
+                                     loom::Emit<loom::Result, loom::Refused>> {
+public:
+    void on(const Nudge&, loom::Mail&) {}
+};
+
+/// The correlation a stray answer carries. It cannot collide with a real one: the
+/// booter's counter is its own, starts at zero and pre-increments, so the first
+/// conversation in any rig here is 1 and no case performs 909 loads. The focused
+/// fixture below pins that counter's shape, so this stays true.
+constexpr std::uint64_t kStrayCorrelation = 909;
+
+/// A RESPONDENT THAT TAKES THE ANSWER AWAY WITH IT (ANS-02) -- the smallest thing
+/// that makes a load conversation genuinely unresolved while the queue is empty.
+///
+/// It is the shape FRIC-R2 measured: `defer_answer()` moves the answer right OUT of
+/// the queue and into a capability the respondent holds, so `pending()` reads 0 with
+/// the answer still owed. Nothing here stands in for the Weave Manager's protocol --
+/// it implements no `zen.LoadWeave` semantics at all. What it stands in for is the
+/// one property the real Manager does not have today: taking longer to answer than
+/// the turn its request arrived on.
+struct SlowAnswers {
+    bool held = false;
+    loom::DeferredAnswer answer;
+    /// Whoever asked, remembered from the delivery so a LATE answer can be aimed back.
+    loom::WeaveId asker{};
+};
+
+struct SlowState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(SlowState, 1, ZEN_FIELD(asked));
+};
+
+/// "SAY IT AGAIN, WITH A CORRELATION OF MY CHOOSING." The one move a bus-stamped
+/// sender check cannot catch, and therefore the only honest falsifier for the OTHER
+/// half of the wall: the weave that WAS asked, speaking with perfect standing, about
+/// a conversation that is not the one outstanding.
+struct SayAgain {
+    std::int64_t correlation = 0;
+    std::string value;
+    ZEN_SHAPE(SayAgain, 1, ZEN_FIELD(correlation), ZEN_FIELD(value));
+};
+
+class SlowManager : public loom::WeaveBase<SlowManager, SlowState,
+                                           loom::Accept<loom::LoadWeave, Nudge, SayAgain>,
+                                           loom::Emit<loom::Result>> {
+public:
+    explicit SlowManager(SlowAnswers& into) : into_(&into) {}
+
+    void on(const loom::LoadWeave&, loom::Mail& mail) {
+        ++state_.asked;
+        into_->asker = mail.reply_to().valid() ? mail.reply_to() : mail.sender();
+        into_->answer = mail.defer_answer();
+        into_->held = into_->answer.valid();
+    }
+
+    /// THE UNRELATED DELIVERY that lets the held answer be spent. A deferred answer
+    /// is spent from a LATER handler, so something must wake this weave -- which is
+    /// exactly why an empty queue is not the end of the conversation. What it spends
+    /// carries the correlation the ASK was delivered with, restored by the bus from
+    /// the deferred record; this fixture never gets to choose it.
+    void on(const Nudge&, loom::Mail& mail) {
+        if (!into_->held) {
+            return;
+        }
+        into_->held = false;
+        (void)loom::answer_deferred(into_->answer, mail, loom::Result{"4242"});
+    }
+
+    /// ...and an ORDINARY send, where it does choose it.
+    void on(const SayAgain& c, loom::Mail& mail) {
+        if (!into_->asker.valid()) {
+            return;
+        }
+        (void)mail.send(into_->asker, loom::Result{c.value},
+                        static_cast<std::uint64_t>(c.correlation));
+    }
+
+private:
+    SlowAnswers* into_;
+};
+
+/// The weave id the fixture's spent answer names, so a case can tell it apart from
+/// anything a real Kernel would mint.
+constexpr std::uint64_t kSlowWeaveId = 4242;
+
+/// WHAT ACTUALLY REACHED THE BOOTER, so no case below can pass because a stray answer
+/// never arrived at all. A wall that is never knocked on is not a wall that held.
+struct AnswersSeen {
+    int at_booter = 0;      ///< answer-shaped messages DELIVERED to the plan booter
+    int stray = 0;          ///< ...of which carried the stray correlation
+    int refused_by_bus = 0; ///< any answer shape the bus refused instead of delivering
+};
+
+/// Watch every `zen.Result` / `zen.Ack` / `zen.Refused` this bus moves, and record the
+/// ones that reached `booter`. The correlation is on the envelope, so the tap can tell
+/// a stray from a real settlement without guessing.
+void watch_answers(loom::Switchboard& bus, loom::WeaveId booter, AnswersSeen& seen) {
+    bus.add_observer([booter, &seen](const loom::BusEvent& e) {
+        const bool answer_shape = e.schema_name == loom::Result::zen_name ||
+                                  e.schema_name == loom::Ack::zen_name ||
+                                  e.schema_name == loom::Refused::zen_name;
+        if (!answer_shape) {
+            return;
+        }
+        if (e.kind == loom::EventKind::Refused) {
+            ++seen.refused_by_bus;
+            return;
+        }
+        if (e.kind != loom::EventKind::Delivered || e.target != booter) {
+            return;
+        }
+        ++seen.at_booter;
+        if (e.correlation == kStrayCorrelation) {
+            ++seen.stray;
+        }
+    });
+}
+
 } // namespace
 
 // =============================================================================
@@ -1885,4 +2019,230 @@ TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no add
         CHECK(active_provider(back, "math.max") == active_provider(powers, "math.max"));
         CHECK(stack_of(back, tmr::kNormalizeDelay)->contributions.back().composite);
     }
+}
+
+// =============================================================================
+// 9. SETTLEMENT -- a load conversation ends because ITS OWN answer arrived (QR-9)
+// =============================================================================
+//
+// THE ADAPTER USED TO STOP FOR THE WRONG REASON: any admitted answer shape read as
+// "my load answered". The three answer shapes are a vocabulary every participant
+// shares, so that reading is not the question anybody meant to ask.
+//
+// WHAT EACH ARM MEASURED ON THE UNREPAIRED SOURCE, before any of this was written:
+//
+//   a stray zen.Result   ->  the plan reported ok, naming WeaveId 424242 -- the number
+//                            the STRAY chose, which no Kernel ever minted
+//   a stray zen.Refused  ->  "artifact 'zengine-plain-weave': weave load refused:
+//                            somebody else's refusal", for a load that had succeeded
+//   a stray zen.Result   ->  a MISSING artifact reported as loaded, ok = true
+//
+// NOTHING HERE CHANGES THE LOAD PROTOCOL. Tier 4 and tier 5 already drive the real
+// `zen.LoadWeave` both ways round; this tier asks only how the asker decides that one
+// of those two endings has happened TO IT.
+
+TEST_CASE("QR-9: an admitted answer with the WRONG correlation does not settle this load") {
+    // DECLARED BEFORE THE RIG so the observer's capture outlives the bus that calls it.
+    AnswersSeen seen;
+    PlanRig rig;
+    watch_answers(rig.bus, rig.booter, seen);
+
+    // ENQUEUED BEFORE THE CONVERSATION OPENS, which is what puts it INSIDE it: the
+    // executor's first pumped turn dispatches the backlog present at entry, and this
+    // is at the head of it. Nothing is forged -- the stray speaks as itself, with a
+    // grant this host wrote, in a vocabulary every participant shares.
+    const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
+    rig.bus.send_as(stray, rig.booter,
+                    loom::Message(loom::to_value(loom::Result{"424242"}), stray, stray,
+                                  kStrayCorrelation));
+
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+
+    REQUIRE(seen.stray == 1);        // it really was handed to the booter...
+    CHECK(seen.refused_by_bus == 0); // ...admitted, not stopped at the door
+    REQUIRE(done.ok);
+    const loom::WeaveId got = rig.weave_of(done, "zengine-plain-weave");
+    CHECK(got.valid());
+    CHECK(got.value != 424242u); // the id the STRAY named
+    CHECK(rig.answers.answered);
+    CHECK_FALSE(rig.answers.awaiting()); // settled, and by its own answer
+}
+
+TEST_CASE("QR-9: a stray zen.Refused is not this load's refusal") {
+    AnswersSeen seen;
+    PlanRig rig;
+    watch_answers(rig.bus, rig.booter, seen);
+
+    // THE ARM AN EYE ON `zen.Result` ALONE WOULD MISS, and the more damaging of the
+    // two: a refusal aimed at nobody in particular took a load that had already
+    // succeeded and reported it as refused, in words the Manager never said.
+    const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
+    rig.bus.send_as(stray, rig.booter,
+                    loom::Message(loom::to_value(loom::Refused{"a refusal owed to somebody else"}),
+                                  stray, stray, kStrayCorrelation));
+
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+
+    REQUIRE(seen.stray == 1);
+    CHECK(done.ok);
+    CHECK(done.refusal.empty());
+    CHECK_FALSE(rig.answers.refused);
+    CHECK(rig.answers.reason.empty());
+    CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
+}
+
+TEST_CASE("QR-9: a stray zen.Result cannot answer for an artifact that is not there") {
+    AnswersSeen seen;
+    PlanRig rig;
+    watch_answers(rig.bus, rig.booter, seen);
+
+    const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
+    rig.bus.send_as(stray, rig.booter,
+                    loom::Message(loom::to_value(loom::Result{"424242"}), stray, stray,
+                                  kStrayCorrelation));
+
+    // THE WORST SHAPE THE DEFECT TOOK. A success arriving from nowhere did not merely
+    // mislabel a load -- it CANCELLED a refusal, so a plan naming an artifact that is
+    // not on this disk completed, and the host went on to run an arrangement it had
+    // not assembled.
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
+
+    REQUIRE(seen.stray == 1);
+    CHECK_FALSE(done.ok);
+    CHECK(done.refusal.find("artifact 'zengine-not-on-this-disk'") != std::string::npos);
+    CHECK(done.refusal.find("weave load refused") != std::string::npos);
+    CHECK(done.resolved.empty());
+    CHECK(rig.answers.refused);
+    CHECK_FALSE(rig.answers.awaiting());
+}
+
+TEST_CASE("QR-9: a correlation is not a secret, so the SENDER is the other half of the wall") {
+    AnswersSeen seen;
+    PlanRig rig;
+    watch_answers(rig.bus, rig.booter, seen);
+
+    // THE NUMBER IS GUESSABLE, AND THAT IS NOT A FLAW TO BE FIXED HERE. This record's
+    // counter is its own and starts at zero, so the first conversation on any fresh
+    // host is 1 -- a number every other asker in the process is equally likely to be
+    // using, and one anybody may put on any message. A correlation IDENTIFIES which
+    // conversation an answer is about (Loom's ANS-05); what says the answer came from
+    // the weave that was actually asked is the sender, and the BUS stamps that.
+    const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
+    rig.bus.send_as(stray, rig.booter,
+                    loom::Message(loom::to_value(loom::Result{"424242"}), stray, stray,
+                                  /*correlation=*/1));
+
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+
+    REQUIRE(seen.at_booter >= 1); // the lucky guess really was handed to the booter
+    CHECK(seen.refused_by_bus == 0);
+    REQUIRE(done.ok);
+    CHECK(rig.weave_of(done, "zengine-plain-weave").value != 424242u);
+    CHECK(rig.answers.answered);
+    CHECK_FALSE(rig.answers.awaiting());
+    CHECK(seen.at_booter == 2); // ...and the real answer arrived after it, unhurried
+}
+
+TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on nothing else") {
+    // THE PROTOCOL IS UNCHANGED, and this is the case that says so from the asker's
+    // side: one answer reaches the booter per load, it carries this conversation's
+    // correlation, and it is what ends the wait.
+    SUBCASE("a real artifact loads, and the success is its own") {
+        AnswersSeen seen;
+        PlanRig rig;
+        watch_answers(rig.bus, rig.booter, seen);
+
+        const load::Executed done =
+            rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+
+        CHECK(done.ok);
+        CHECK(seen.at_booter == 1); // one conversation, one answer
+        CHECK(seen.stray == 0);
+        CHECK(rig.answers.answered);
+        CHECK_FALSE(rig.answers.refused);
+        CHECK_FALSE(rig.answers.awaiting());
+        CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
+    }
+    SUBCASE("a missing artifact refuses, and the refusal is its own") {
+        AnswersSeen seen;
+        PlanRig rig;
+        watch_answers(rig.bus, rig.booter, seen);
+
+        const load::Executed done =
+            rig.executor.run(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
+
+        CHECK_FALSE(done.ok);
+        CHECK(seen.at_booter == 1);
+        CHECK(seen.stray == 0);
+        CHECK(rig.answers.answered);
+        CHECK(rig.answers.refused);
+        CHECK_FALSE(rig.answers.reason.empty()); // the loader's own words, not this layer's
+        CHECK_FALSE(rig.answers.awaiting());
+    }
+}
+
+TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversation, "
+          "settles nothing") {
+    // THE HALF A SENDER CHECK CANNOT SEE. In the three cases above the impostor was a
+    // different weave, so the bus-stamped sender already gave it away. Here the
+    // speaker is the exact respondent this conversation is waiting on, granted the
+    // shape, answering the asker it really was asked by -- and the only thing wrong
+    // with what it says is the number naming which conversation it is about. This is
+    // the arm that requires the correlation, and the shape a stale answer to a
+    // conversation that has moved on actually takes.
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+
+    const std::uint64_t mine = answers.ask(slow);
+    bus.send_as(booter, slow,
+                loom::Message(loom::to_value(
+                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                              booter, booter, mine));
+    for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    REQUIRE(slow_state.held); // the conversation is outstanding, and the answer is owed
+
+    // ...and now, WHILE IT IS OUTSTANDING, the respondent says something admissible
+    // about a different one.
+    (void)bus.send(slow, loom::Message(loom::to_value(SayAgain{
+                                           static_cast<std::int64_t>(mine) + 1, "424242"}),
+                                       loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 4; ++turn) {
+        bus.pump_pending();
+    }
+    CHECK(answers.awaiting()); // unmoved
+    CHECK_FALSE(answers.answered);
+    CHECK(answers.weave == 0);
+
+    // ...AND SO IS AN ANSWER TO THE CONVERSATION THAT HAS NOT BEEN OPENED YET, which is
+    // the same defect read forwards instead of backwards.
+    (void)bus.send(slow, loom::Message(loom::to_value(SayAgain{
+                                           static_cast<std::int64_t>(mine) + 7, "424242"}),
+                                       loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 4; ++turn) {
+        bus.pump_pending();
+    }
+    CHECK(answers.awaiting());
+    CHECK_FALSE(answers.answered);
+
+    // WHAT DOES SETTLE IT is the one carrying this conversation's own number.
+    (void)bus.send(slow,
+                   loom::Message(loom::to_value(Nudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    CHECK(answers.answered);
+    CHECK(answers.weave == kSlowWeaveId);
+    CHECK_FALSE(answers.awaiting());
 }

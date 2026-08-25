@@ -155,19 +155,91 @@ struct Executed {
 
 // ---- The weave that asks, and hears the answer --------------------------------
 
-/// WHAT THE PLAN BOOTER HEARD about the load it last asked for.
+/// WHAT THE PLAN BOOTER HEARD about the load it last asked for, AND WHICH LOAD THAT
+/// WAS.
 ///
 /// "Failures are values": the Manager answers its ASKER with `zen.Result` or
 /// `zen.Refused`. A root send carries no asker, so every one of those answers would
 /// be addressed to nobody -- which is the defect the original boot weave was written
 /// to end, and this is that weave with somewhere to put the answer.
+///
+/// ---- WHICH CONVERSATION (QR-9) ------------------------------------------------
+///
+/// IT NOW KNOWS WHICH ASK IT IS WAITING ON, and that is not a refinement. The three
+/// answer shapes are a UNIVERSAL vocabulary: `zen.Result`, `zen.Ack` and `zen.Refused`
+/// derive one schema everywhere, so any participant a host grants them may send one to
+/// any weave that accepts them. Without an outstanding-ask record this struct answered
+/// the mechanical question "did an answer-shaped message arrive?" and was read by
+/// everything above it as if it had answered "did MY load settle?". The two differ by
+/// exactly one unrelated sender -- and measured, that sender could report a WeaveId no
+/// Kernel ever minted, refuse a load that had succeeded, and turn a missing artifact's
+/// refusal into a success.
+///
+/// LOOM STATES THE OBLIGATION AS A STANDING RULE (`zen/weave/standard_shapes.hpp`): a
+/// weave that accepts a standard reply shape matches each arrival against its own
+/// outstanding requests BY CORRELATION AND BY BUS-STAMPED SENDER. `loom::relay` is that
+/// wall for a weave relaying somebody else's answer; this is the same wall for a
+/// straight-line asker, and it is deliberately the SMALL one -- a single slot, because
+/// this executor asks for one artifact at a time and waits for it.
+///
+/// CORRELATION IDENTIFIES; IT DOES NOT AUTHENTICATE (Loom's ANS-05). A correlation is a
+/// number a sender chooses, so matching one proves the arrival NAMES the conversation
+/// and never that it had any business answering it. What is load-bearing is the pair:
+/// the sender is stamped by the BUS, and no participant can claim another's.
+/// Authenticity itself stays exactly where it already lived -- the grant deciding who
+/// may say `zen.Result` in this host at all, and Loom's own answer provenance -- and
+/// nothing here is a substitute for either.
 struct BootAnswers {
     bool answered = false;
     bool refused = false;
     std::string reason;   ///< the Manager's own words, when it refused
     std::uint64_t weave = 0;
 
-    void clear() { *this = BootAnswers{}; }
+    /// OPEN A CONVERSATION with `respondent`, and return the correlation the request
+    /// must carry. It forgets the previous answer, which is the point: everything read
+    /// afterwards is about THIS ask.
+    ///
+    /// ONE SLOT, so opening a second conversation abandons the first. An answer to the
+    /// abandoned one then matches nothing and settles nothing -- the honest outcome for
+    /// a record that stopped waiting, and the visible edge of a single-slot book.
+    std::uint64_t ask(loom::WeaveId respondent) {
+        answered = false;
+        refused = false;
+        reason.clear();
+        weave = 0;
+        respondent_ = respondent;
+        asking_ = ++minted_;
+        return asking_;
+    }
+
+    /// IS THIS ARRIVAL THE ANSWER TO THE CONVERSATION THIS RECORD IS WAITING ON? Both
+    /// halves, and neither is sufficient alone: the correlation says WHICH conversation,
+    /// the bus-stamped sender says the answer came from the weave that was asked.
+    bool settles(std::uint64_t correlation, loom::WeaveId from) const noexcept {
+        return asking_ != 0 && correlation == asking_ && from == respondent_;
+    }
+
+    /// The conversation is over. Said explicitly rather than inferred from `answered`,
+    /// because the two are different facts: `answered` is WHAT the answer was, and this
+    /// is that there is no longer one outstanding. It also makes a duplicate of the same
+    /// answer inert.
+    void settled() noexcept { asking_ = 0; }
+
+    /// IS A LOAD CONVERSATION STILL OUTSTANDING? This is the question a waiting caller
+    /// asks -- never "was anything delivered this turn".
+    bool awaiting() const noexcept { return asking_ != 0; }
+
+    /// The correlation of the outstanding conversation, or 0 when none is.
+    std::uint64_t asking() const noexcept { return asking_; }
+
+private:
+    /// This asker's own counter, and it SURVIVES `ask()` on purpose: a correlation
+    /// reused across two conversations would let the first one's late answer settle the
+    /// second. It is local to this record, so it can collide with nobody else's
+    /// numbering.
+    std::uint64_t minted_ = 0;
+    std::uint64_t asking_ = 0;
+    loom::WeaveId respondent_{};
 };
 
 /// The plan booter's own state. It holds nothing: what it hears goes into the
@@ -197,7 +269,10 @@ class PlanBooter : public loom::WeaveBase<PlanBooter, BootState,
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
-    void on(const loom::Result& r, loom::Mail&) {
+    void on(const loom::Result& r, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
         answers_->answered = true;
         answers_->refused = false;
         // THE WEAVE ID AS TEXT, because `zen.Result` carries text: the protocols that
@@ -210,20 +285,44 @@ public:
         } catch (...) {
             answers_->weave = 0;
         }
+        answers_->settled();
     }
 
-    void on(const loom::Ack&, loom::Mail&) {
+    void on(const loom::Ack&, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
         answers_->answered = true;
         answers_->refused = false;
+        answers_->settled();
     }
 
-    void on(const loom::Refused& r, loom::Mail&) {
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (!settles(mail)) {
+            return;
+        }
         answers_->answered = true;
         answers_->refused = true;
         answers_->reason = r.reason;
+        answers_->settled();
     }
 
 private:
+    /// THE ONE DOOR ALL THREE ANSWER SHAPES PASS THROUGH (QR-9). Written once because
+    /// the three are one conversation's three possible endings, and a wall applied to
+    /// two of them is not a wall: the measured defect had an unrelated `zen.Refused`
+    /// killing a load that had in fact succeeded, which is the arm that an eye kept on
+    /// `zen.Result` alone would have left wide open.
+    ///
+    /// AN ARRIVAL THAT DOES NOT SETTLE THIS LOAD IS LEFT ALONE -- not refused, not
+    /// recorded, not complained about. The bus admitted it and it may be a perfectly
+    /// legitimate answer to somebody; all this weave can truthfully say is that it is
+    /// not the answer to the conversation this booter opened, and saying more would be
+    /// an adapter judging traffic it was never part of.
+    bool settles(const loom::Mail& mail) const {
+        return answers_->settles(mail.correlation(), mail.sender());
+    }
+
     BootAnswers* answers_;
 };
 
@@ -360,29 +459,35 @@ private:
         return std::string();
     }
 
-    /// ASK THE WEAVE MANAGER, AND WAIT FOR THE ANSWER.
+    /// ASK THE WEAVE MANAGER, AND WAIT FOR THIS CONVERSATION'S OWN ANSWER.
     ///
     /// An ordinary `zen.LoadWeave`, sent AS the booter so the Manager's answer comes
     /// back to something that can hear it. This adds no loading mechanism: it is the
-    /// send Workshop's `main()` already made, with a drain that stops on the answer
+    /// send Workshop's `main()` already made, with a wait that ends on the answer
     /// instead of leaving it to arrive whenever.
     ///
     /// ANSWERED, NOT MERELY LOADED. `Kernel::is_loaded` turns true the instant
     /// `Kernel::load` returns, while the `zen.Result` naming the new WeaveId is still
     /// queued -- so this waits for the ANSWER, which is also what makes a refused load
-    /// stop the drain instead of spending its whole budget.
+    /// stop waiting instead of spending the whole fuse.
+    ///
+    /// AND ITS OWN ANSWER (QR-9), which is a different claim and the one this line
+    /// used to get wrong. `ask()` opens the conversation and hands back the
+    /// correlation the request must carry, and `awaiting()` is the loop's condition,
+    /// because the question worth asking here is "has MY load conversation settled?"
+    /// and not "did some answer-shaped message arrive?".
     std::string load_weave(const std::string& stem, const std::string& path,
                            const std::string& role) {
-        answers_->clear();
+        const std::uint64_t correlation = answers_->ask(manager_);
         bus_->send_as(booter_, manager_,
                       loom::Message(loom::to_value(loom::LoadWeave{stem, path, role}), booter_,
-                                    booter_));
-        for (int turn = 0; turn < kLoadDrainTurns && !answers_->answered; ++turn) {
+                                    booter_, correlation));
+        for (int turn = 0; turn < kLoadDrainTurns && answers_->awaiting(); ++turn) {
             if (bus_->pump_pending() == 0) {
                 break;
             }
         }
-        if (!answers_->answered) {
+        if (answers_->awaiting()) {
             // NEITHER CONFIRMED NOR REFUSED. Said as exactly that rather than as a
             // refusal somebody else wrote: the Manager has not spoken, and inventing
             // its sentence would be this layer claiming to know why.
