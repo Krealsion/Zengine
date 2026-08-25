@@ -578,6 +578,14 @@ A record that mounts a provider and then fails to load its weave **rolls back it
 and stops the plan. Earlier artifacts are not rolled back; the host is told which artifact
 stopped it and what still stands.
 
+**The host begins the plan and then runs its ordinary loop; a row settles on its own load
+answer.** A provider mount is synchronous and finishes where it stands; a weave load is a
+`zen.LoadWeave` whose answer comes back several deliveries later, so realization proceeds through
+the same turns everything else does. Authored order is unchanged — one row in flight at a time,
+no reordering, no retry, no deadline — and while one is outstanding the rest of the host is
+running. There is no turn budget anywhere: an unanswered load stays unanswered rather than
+becoming a refusal somebody made up.
+
 Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal)
 and [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (SDL window).
 Reference: [docs/reference/load-plan.md](docs/reference/load-plan.md).

@@ -442,6 +442,46 @@
 # obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
 # Switchboard, and every drain is `pump_pending()` in bounded turns.
 #
+# BOOT-0 raised the workshop floor 693 -> 715 and the operator floor 89 -> 90, and it moved no
+# other floor -- which is the phase's own claim about where it lives: the OWNERSHIP of an
+# authored project's realization, and nothing about a pane, a medium, a load protocol or an
+# operator's meaning.
+#
+# The old executor performed a whole plan inside one call, because the continuation of a weave
+# load was a stack frame; to hear its own answer it turned the bus itself, 64 dispatch turns per
+# load. That fuse is deleted rather than moved: the owner is persistent, it issues one load and
+# RETURNS to the host, and the load's own correlated answer wakes it through the participant that
+# already heard one. So for the first time there is an observable state between "not started" and
+# "finished", and TWENTY-TWO of the twenty-three new cases are about that middle.
+#
+# The workshop twenty-two split six ways. TWO are the boundary itself -- `begin()` comes back with
+# a row in flight and says exactly where, and a plan that owes nobody anything finishes inside it
+# with the queue untouched. ONE is the interruptibility witness: ordinary traffic already queued
+# when realization begins is NOT delivered by the time it returns, and twenty more deliveries land
+# while a row hangs on a respondent that defers forever. TWO are authored order -- three mixed rows
+# walked turn by turn with "at most one in flight" as the falsifier, and an overlay that must not
+# mount early. TWO are the operator offer's custody across host turns, whose instrument is a
+# REFUSAL rather than a number (with the Timer's own provider mounted, this host's rule and the
+# artifact's local copy are the same rule and answer identically). TWO are `loaded` is not `live`:
+# the Kernel has the artifact strictly before the row settles, and a direct `Kernel::load` bypass
+# produces a registered Timer that never breathes. The remaining THIRTEEN are the refusal path
+# mid-flight, the stray-answer wall re-measured now that a stray could drive a whole plan, the
+# four-state arrangement read at four points on the timeline, and the fuse's own case rewritten as
+# what is true without it: an unanswered load stays unanswered, and nothing mints a third answer.
+#
+# The operator ONE is a source tripwire and is declared as what it is: it reads
+# `workshop/load_execute.hpp` with the prose stripped and refuses ten scheduler verbs and nine
+# async nouns, and reads `workshop/workshop.cpp` for plan-specific control flow in a host loop.
+# A property that is true because of what code does NOT contain cannot be proved by running it;
+# the behavioural half is the interruptibility witness above, and BOTH go red together under a
+# canary that puts the 64-turn loop back.
+#
+# All twenty-three are in the `always` row: bus traffic, a catalog, a Kernel and plain arithmetic
+# over a record -- so the no-SDL lane and both Windows lanes prove every one. They need no new
+# CTest row (`test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary) and
+# they obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
+# Switchboard, and every turn any plan in this suite takes is spent by the CALLER.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -457,10 +497,10 @@ surface                           doctest           always  71
 surface                           doctest           sdl     6
 ui                                doctest           always  22
 component                         doctest           always  15
-operator                          doctest           always  89
+operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  700
+workshop                          doctest           always  715
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -16675,21 +16675,21 @@ private:
 /// offer, and a rig that always mounted Workshop first could only ever prove one of
 /// the two.
 struct PaneRig {
-    /// ---- INTR-1's three additions, and their order is the host's ---------------
-    ///
-    /// `authored` IS DECLARED BEFORE THE BUS, exactly as `workshop.cpp` reads its plan
-    /// before it builds one: the arrangement door holds it by reference and the bus
-    /// owns the door.
+    /// ---- INTR-1's additions, and their order is the host's ---------------------
     ///
     /// `catalog` IS DECLARED BEFORE THE KERNEL, which is the host's own lifetime claim
     /// -- destruction runs in reverse, so the Kernel and every artifact it holds go
     /// down before the store their contributions live in.
     ///
-    /// BOTH EXIST IN EVERY RIG AND NEITHER DOES ANYTHING UNTIL A CASE ASKS. An empty
-    /// catalog and an unperformed plan are what a host has before it starts; the
-    /// executor and the door are `mount_arrangement`'s, so no case that predates
-    /// INTR-1 gained a weave, a mount or a message.
-    load::LoadPlan authored;
+    /// IT EXISTS IN EVERY RIG AND DOES NOTHING UNTIL A CASE ASKS. An empty catalog is
+    /// what a host has before it starts; the realization owner and the door are
+    /// `run_plan`/`mount_arrangement`'s, so no case that predates INTR-1 gained a
+    /// weave, a mount or a message.
+    ///
+    /// ⚠ THE AUTHORED PLAN MOVED INTO THE OWNER (BOOT-0). It used to be a rig field
+    /// declared before the bus, because the door held it by reference; the owner is
+    /// persistent now and holds the plan it is realizing, so there is one copy and the
+    /// door reads it from there.
     loom::Switchboard bus;
     op::Catalog catalog;
     op::OperatorHostSurface operator_host{catalog};
@@ -16931,27 +16931,38 @@ struct PaneRig {
         return stem; // a stem this rig cannot spell refuses at the loader, by name
     }
 
-    /// PERFORM AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host
-    /// writes the booter's grant, the executor performs the rows, and the plan is
-    /// RETAINED because the projection pairs authored intent with resolved state.
+    /// REALIZE AN AUTHORED PLAN ON THIS RIG'S BUS, the way the host does: the host
+    /// writes the booter's grant, the owner realizes the rows, and the plan is
+    /// RETAINED by the owner because the projection pairs authored intent with
+    /// resolved state.
+    ///
+    /// THE TURNS ARE HERE, IN THE CALLER (BOOT-0). `begin` issues what it can and
+    /// returns with a row in flight; a rig with no host loop of its own turns the crank
+    /// itself. `PlanExecutor` never does -- see `test_workshop_load.cpp`, which owns
+    /// that claim and its falsifiers.
     load::Executed run_plan(load::LoadPlan plan) {
-        authored = std::move(plan);
         loom::Grant operate;
         operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-        const loom::WeaveId plan_booter =
-            loom::mount_granted<load::PlanBooter>(bus, std::move(operate), plan_answers);
-        plan_ = std::make_unique<load::PlanExecutor>(bus, catalog, operator_host, plan_booter,
-                                                     manager, plan_answers, &artifact_path);
-        return plan_->run(authored);
+        auto speaker = std::make_unique<load::PlanBooter>(plan_answers);
+        load::PlanBooter& voice = *speaker;
+        const loom::WeaveId plan_booter = bus.register_weave(std::move(speaker),
+                                                             std::move(operate));
+        voice.zen_set_self(plan_booter);
+        plan_ = std::make_unique<load::PlanExecutor>(bus, catalog, operator_host, voice, manager,
+                                                     plan_answers, &artifact_path);
+        plan_->begin(std::move(plan));
+        for (int turn = 0; turn < 32; ++turn) {
+            bus.pump_pending();
+        }
+        return plan_->outcome();
     }
 
     /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out --
     /// `mount_workshop`'s discipline, for its reason: a rig that minted the grant from
     /// the Emit set could not notice the host quietly widening it.
     loom::WeaveId mount_arrangement(std::string plan_path = std::string()) {
-        REQUIRE(plan_ != nullptr); // a door with no executor would describe nothing
-        auto door = std::make_unique<ArrangementDoor>(authored, *plan_, catalog,
-                                                      std::move(plan_path));
+        REQUIRE(plan_ != nullptr); // a door with no owner would describe nothing
+        auto door = std::make_unique<ArrangementDoor>(*plan_, catalog, std::move(plan_path));
         ArrangementDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
@@ -24753,7 +24764,7 @@ ws::ArtifactParticipation participation(const char* stem, const char* mode, cons
     a.artifact = stem;
     a.authored_provider = mode;
     a.authored_role = role;
-    a.performed = true;
+    a.state = ws::kResolvedToken;
     return a;
 }
 
@@ -24864,19 +24875,55 @@ TEST_CASE("INTR-1: the arrangement's summary is DERIVED from the rows it is prin
 
 TEST_CASE("INTR-1: a partial arrangement cannot read as a complete one") {
     ws::ResolvedArrangement said = shaped_arrangement();
-    said.artifacts[2].performed = false;
+    said.artifacts[2].state = ws::kRefusedToken;
     said.artifacts[2].provider.clear();
     said.artifacts[2].weave = 0;
-    said.artifacts[3].performed = false;
+    said.artifacts[3].state = ws::kAuthoredToken;
     said.artifacts[3].weave = 0;
     const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].text == "2 of 4 artifacts resolved -- 1 providers, 1 weaves");
-    // ...and the unreached rows say so where a maker reads them, in the one role this
-    // vocabulary has for "something the maker must see".
-    const std::int64_t which = row_with(rows, intro::kNotReached);
-    REQUIRE(which >= 0);
-    CHECK(rows[static_cast<std::size_t>(which)].role == surface::role::kAlert);
+    // ...and the two unresolved rows say so where a maker reads them, IN TWO DIFFERENT
+    // SENTENCES (BOOT-0). One artifact refused and one was never reached; before
+    // realization had a persistent owner both were `performed = false` and both read
+    // `(not reached)`, which told a maker the wrong story about which one broke.
+    const std::int64_t refused = row_with(rows, intro::kRefusedRow);
+    REQUIRE(refused >= 0);
+    const std::int64_t untried = row_with(rows, intro::kNotReached);
+    REQUIRE(untried >= 0);
+    CHECK(refused != untried);
+    // AND ONLY ONE OF THEM IS AN ALERT. `kAlert` is "something the maker must see"; a
+    // row nothing has reached yet in a project that is still coming up is not that.
+    CHECK(rows[static_cast<std::size_t>(refused)].role == surface::role::kAlert);
+    CHECK(rows[static_cast<std::size_t>(untried)].role == surface::role::kMuted);
+}
+
+TEST_CASE("BOOT-0: a project still coming up shows LOADING, and it is not an alert") {
+    // ⭐ THE STATE THAT COULD NOT EXIST BEFORE. Realization used to finish inside a
+    // single stack frame before any pane could be mounted, so no maker could ever see a
+    // row mid-flight. It proceeds through ordinary deliveries now, and this is what the
+    // pane says while it does.
+    ws::ResolvedArrangement said = shaped_arrangement();
+    said.artifacts[1].state = ws::kLoadingToken;
+    said.artifacts[1].provider.clear();
+    said.artifacts[1].weave = 0;
+    said.artifacts[2].state = ws::kAuthoredToken;
+    said.artifacts[2].provider.clear();
+    said.artifacts[2].weave = 0;
+    said.artifacts[3].state = ws::kAuthoredToken;
+    said.artifacts[3].weave = 0;
+    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    REQUIRE_FALSE(rows.empty());
+
+    // EXACT COUNTS, AND NOT A PERCENTAGE OR A BAR. One of four has resolved; the rest
+    // are three different states and the heading claims nothing about them.
+    CHECK(rows[0].text == "1 of 4 artifacts resolved -- 1 providers, 0 weaves");
+    CHECK(row_with(rows, "%") == -1);
+    const std::int64_t loading = row_with(rows, intro::kLoadingNow);
+    REQUIRE(loading >= 0);
+    CHECK(rows[static_cast<std::size_t>(loading)].role == surface::role::kMuted);
+    // ...AND NOTHING SAYS REFUSED, because nothing refused.
+    CHECK(row_with(rows, intro::kRefusedRow) == -1);
 }
 
 TEST_CASE("INTR-1: AUTHORED and RESOLVED are two labelled rows, and never one") {
@@ -25675,10 +25722,13 @@ TEST_CASE("INTR-1: the host mounts a door and injects no host-owned object into 
     // an artifact THIS PLAN LOADS: a door mounted afterwards would be absent during the
     // window in which a pane might first be granted room.
     const std::size_t door = host.find("mount_in_office<ArrangementDoor>");
-    const std::size_t run = host.find("executor.run(read_plan.plan)");
+    const std::size_t begin = host.find("executor.begin(read_plan.plan)");
     REQUIRE(door != std::string::npos);
-    REQUIRE(run != std::string::npos);
-    CHECK(door < run);
+    REQUIRE(begin != std::string::npos);
+    CHECK(door < begin);
+    // ...AND THE HOST NO LONGER BLOCKS UNTIL THE PROJECT IS REALIZED (BOOT-0). The
+    // line that used to be here returned only once every row had settled.
+    CHECK(host.find("executor.run(") == std::string::npos);
 
     // ...AND ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE.
     CHECK(host.find("say_resolved.allow_to_any(ResolvedArrangement::zen_name") !=

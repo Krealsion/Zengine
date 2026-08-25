@@ -21,6 +21,18 @@ replaced, and the replacement is not cosmetic: a plan is repeatable, diffable an
 Workshop prints the whole executed arrangement on the way up, so what a run is actually made of
 is on your screen rather than inferred from which flags you passed.
 
+**Workshop *begins* your project and then runs normally while it comes up.** Mounting a provider
+finishes where it stands; loading a weave is a request whose answer comes back a few moments
+later, so a row is done when its own answer arrives rather than when the file has been opened.
+Your rows still happen strictly in the order you wrote them — one at a time, no reordering and no
+retry — but the rest of the program is not blocked while any of them is in flight. The `Project`
+pane says so: it shows one row `(loading)`, the rows above it resolved, and the rows below it
+`(not reached)`.
+
+If a row is refused, Workshop names the artifact, says how many participated before it, and
+exits — the same behaviour as before, and still deliberate, because the row that fails may be the
+one that draws your screen.
+
 ## The two shipped plans
 
 | file | is |

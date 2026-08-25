@@ -94,6 +94,43 @@ contribution must be in the catalog before the artifact that needs it is built. 
 say *weave, then provider* would be a file that could author a Timer whose semantics depend on
 which load happened to be in flight.
 
+## Realization takes the host's own turns
+
+**Loading a weave is a conversation, so a plan is not performed in one breath.** A provider mount
+is a synchronous, host-native step and finishes where it stands. A weave load is a `zen.LoadWeave`
+sent to the Weave Manager, and its answer comes back several deliveries later — through the
+control door, which is where a loaded weave is *activated*.
+
+So the host **begins** realizing the project and then goes back to being a host:
+
+```text
+begin the plan
+    mount what can be mounted
+    command the first weave load
+    return
+
+the ordinary host loop
+    ...delivers everything, including that load's answer...
+
+the answer arrives
+    finish that row, command the next one, return
+```
+
+A row settles only when **its own** answer arrives, matched by correlation and by the bus-stamped
+weave that was asked. Until then that row is *loading*, the rows after it have not been attempted,
+and **the rest of the host is running normally** — messages are delivered, participants act, and
+nothing is blocked waiting for a file to open.
+
+**Authored order is unchanged by this.** Artifact *N+1* does not begin until artifact *N* has
+settled: there is one conversation open at a time, no dependency solver, no reordering, no retry,
+no parallelism and no deadline. An unanswered load stays unanswered rather than becoming a
+refusal, because a refusal is something a layer actually said.
+
+**A row is done when the load is answered — not when the artifact is registered.** The two are
+different instants and the second is not the useful one: a weave the Kernel has loaded but that
+has not been activated is registered and routable and never breathes. The answer is the fact that
+implies the whole sequence.
+
 ## Provider mode
 
 `normal` and `overlay` are `op::MountMode::Ordinary` and `op::MountMode::Overlay` — PROV-0's own

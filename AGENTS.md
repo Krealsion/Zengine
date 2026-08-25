@@ -1458,11 +1458,16 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   because Workshop's `main()` claims a terminal and no case can run it — the same
   defence in depth as the no-privileged-wind and clock-binding tripwires, and
   declared as a tripwire rather than a proof.
-- **The boot turn is `pump_pending()`, never `drain_until_idle()`.** The offer
-  has to be in force when `create()` runs, and the load is several deliveries
-  deep, so the host sends the command and then takes bounded turns. A drain to
-  idle would never return: a Timer that has just gone live re-arms its own beat
-  inside its own handler (MSG-09).
+- **⚠ NOTHING IN THE LOAD PATH TAKES A TURN ANY MORE (BOOT-0).** This bullet used to
+  say *the boot turn is `pump_pending()`, never `drain_until_idle()`* — the offer has
+  to be in force when `create()` runs, the load is several deliveries deep, so the
+  executor sent the command and then took bounded turns itself. It takes none: it
+  commands the load and RETURNS, and the host's own loop is what delivers. The reason
+  the advice mattered is unchanged and now belongs to whoever writes a host loop — a
+  drain to idle never returns on a process with the Timer service loaded, because a
+  Timer that has gone live re-arms its own beat inside its own handler (MSG-09).
+  Workshop's loop drains and leaves by `Switchboard::stop()`; a host that wants control
+  between turns wants `pump_pending()`. See the BOOT-0 section below.
 - **What ends that wait is the load conversation's OWN correlated answer** — not
   `kernel.is_loaded(...)`, which turns true while the `zen.Result` naming the new
   WeaveId is still queued, and not an empty dispatch turn. `load::BootAnswers`
@@ -1486,9 +1491,10 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   executor asks for one artifact at a time and waits for it (LOAD-0's authored order
   is not a scheduling hint). FRIC-2 gave it four so several conversations an expired
   fuse had abandoned could coexist, and four of those refused a fifth load by name —
-  a capacity policy paying for records nothing could read. **The fuse now forgets the
-  ask it stopped waiting for**, so that state is unreachable and the policy is gone
-  with it. If a second conversation is ever opened while one is outstanding the book
+  a capacity policy paying for records nothing could read. The fuse that forgot is itself
+  gone now (BOOT-0): there is no local patience to expire, so **the one thing that forgets
+  is `~PlanExecutor`** — an owner ceasing to exist with a row in flight, which is the
+  only honest way left to stop caring. If a second conversation is ever opened while one is outstanding the book
   refuses the NEW one and keeps what it is waiting on — never shedding the older,
   which is `loom::relay`'s policy and is wrong for the participant whose own question
   it is.
@@ -1502,15 +1508,17 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   own `TerminalSession` is the counter-example that keeps the rule honest: `await
   [turns]` merely PAUSES a person's patience, the ask stays visible to `pending`,
   and only `cancel` forgets it.
-- **`kLoadDrainTurns` is a fuse, and its expiry is not an answer.** Do not read it
-  as a schedule, and do not restore an early-out on an empty turn:
-  `Switchboard::pending()` is `queue_.size()` at one instant, and a respondent that
-  deferred its answer holds it off the queue entirely (FRIC-R2 measured a zero-work
-  turn with the answer owed, arriving afterwards). When the fuse expires the
-  executor says a local guard expired and that **this host stopped waiting and no
-  longer tracks that conversation** — it does not mint a refusal on the Manager's
-  behalf, and it does not say the answer became impossible, because those are
-  somebody else's state and it knows only its own.
+- **⚠ `kLoadDrainTurns` IS GONE, AND NOTHING MAY REPLACE IT (BOOT-0).** It was a
+  64-turn fuse on one load, and it existed for exactly one reason: a straight-line
+  executor had to return to its caller. A persistent owner returns immediately, so
+  there is nothing to count. An unanswered load now simply STAYS UNANSWERED — the
+  row is `loading`, the plan has not advanced, and nothing has been refused, for as
+  many turns as a host cares to spend. Do not reintroduce a deadline, a retry, a turn
+  budget or an empty-turn early-out under any spelling: `Switchboard::pending()` is
+  `queue_.size()` at one instant, and a respondent that deferred its answer holds it
+  off the queue entirely (FRIC-R2 measured a zero-work turn with the answer owed,
+  arriving afterwards). A timeout is not a settlement, and "the answer became
+  impossible" is somebody else's state that nothing in this process knows.
 - **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
   host owes a reload the same bracket it owes a load. Both are pinned: bracketed
   keeps the binding, unbracketed comes back a fallback Timer. Nothing in this
@@ -1680,8 +1688,9 @@ Workshop THREE panes, and the third of them is the phase's whole shape:
 
 ```text
 loaded        the Kernel's loaded() map                which WEAVES are loaded
-arrangement   the load plan + PlanExecutor's rows      which AUTHORED PARTICIPATIONS
-              (picker name `Project`)                  resolved, and into what
+arrangement   the realization owner: its authored     which AUTHORED PARTICIPATIONS
+              plan and its resolved rows               resolved, and where each one
+              (picker name `Project`)                  has got to (BOOT-0)
 powers        the host's op::Catalog                   which POWERS resolve, and whose
                                                        contribution satisfies each
 ```
@@ -1744,6 +1753,112 @@ powers        the host's op::Catalog                   which POWERS resolve, and
 - **Each pane keeps its OWN room and its OWN outstanding question.** All three can be
   open at once, and one shared `rows_`/`columns_` would have made the last grant
   decide how the other two were drawn.
+
+## Realization is a living owner, not a call (BOOT-0)
+
+LOAD-0 made the arrangement an authored FILE and `load::PlanExecutor` the thing that
+performed it. It performed the WHOLE plan inside one call, because the continuation of
+a weave load was a stack frame -- and to hear its own answer it turned the bus itself,
+`kLoadDrainTurns = 64` generations of `pump_pending()` per load. That was the last
+production site in either repository where code that cared about a semantic result also
+drove dispatch (BOOT-R0 §11). The owner is persistent now; the loop is DELETED.
+
+```text
+begin(plan)                    the ordinary host loop        answered()
+    mount what can be mounted      drain / pump                  withdraw the offer
+    command one weave load         ...                           record the row
+    RETURN                         ...                           advance(); RETURN
+```
+
+- **THE OWNER IS A LOCAL OF `main`, AND THAT IS A LIFETIME CLAIM BEFORE IT IS ANYTHING
+  ELSE.** The obvious way to make an object event-driven here is to make it a weave, and
+  an in-process weave WOULD hold the same `op::Catalog&`. It must not be one anyway: a
+  registered weave is owned by the `Switchboard`, which a Zengine host declares BEFORE
+  its catalog and Kernel so that reverse-order destruction takes the Kernel and its
+  artifacts down first. This object holds an `op::OperatorOffer` -- a share of an
+  artifact image -- so moving it into the bus would move its destruction to AFTER the
+  catalog it unmounts from. BOOT-R0's other reason still stands too: `op::mount_provider`
+  needs a `Catalog&` and an offer IS A LIFETIME rather than an operation, so a weave
+  owner would need a provider-mount message vocabulary, which is the generic host-action
+  service PROV-0 kept as the host's own decision. ⚠ **Zero new authority was added**:
+  the same one dangerous grant (`zen.LoadWeave -> manager`), still written by the host.
+- **`op::OperatorOffer` IS A `std::optional` MEMBER, AND ITS BRACKET SPANS HOST TURNS.**
+  It is neither copyable nor movable and was NOT made either; `emplace` constructs it in
+  place and `reset()` runs the same destructor the closing brace used to run. It goes up
+  before the command is sent (OPH-0: a consumer's first need is inside `create()`) and
+  comes down in `answered()`, before the row is judged and before the next row begins.
+  ⚠ A canary that resets it immediately after the send turns SIX cases red, including
+  `WITHIN one record the provider is mounted BEFORE the weave is created`.
+- **⚠ THE WITNESS FOR "THE OFFER REACHED `create()`" IS A REFUSAL, NOT A NUMBER.** With
+  the Timer's own provider mounted, this host's `timer.normalize_delay` and the
+  artifact's local fallback are THE SAME RULE and answer identically -- so a
+  `scheduled_delay` check cannot tell a live offer from a withdrawn one. What can: a
+  Timer that IS offered a host must spend it and REFUSES a host publishing no such rule,
+  while a Timer that met no offer loads happily.
+- **`kLoadDrainTurns` AND THE PRODUCTION FUSE ARE GONE, not renamed.** An owner that
+  returns to a host has nothing to count. `test_operator_provider.cpp` reads
+  `load_execute.hpp` with the prose stripped and refuses ten scheduler verbs and nine
+  async nouns, and reads `workshop.cpp` for plan-specific control flow in a host loop.
+  The BEHAVIOURAL half is the one that matters and is separate: ordinary traffic already
+  queued when realization begins must NOT be delivered by the time `begin()` returns.
+  Both go red together under a canary that puts the 64-turn loop back (eight cases).
+- **AN UNANSWERED LOAD STAYS UNANSWERED.** No timeout, no deadline, no retry, no
+  cancellation and no unanswerability vocabulary. The row is `loading`, the plan has not
+  advanced, and nothing has been refused, for as many turns as a host cares to spend.
+- **QR-10's `forget` HAS A REAL OWNER NOW: `~PlanExecutor`.** Stopping a wait and
+  forgetting an ask are still different facts; what changed is that there is no local
+  patience to expire, so the one honest occasion left is the owner ceasing to exist with
+  a row in flight. Its destructor unwires the booter FIRST (the bus outlives it), then
+  drops the offer, then forgets the ask. It does NOT unwind the catalog: the host's own
+  declaration order takes the Kernel down before the catalog, and an owner racing that
+  order would help nobody.
+- **ONE OWNER REALIZES ONE PLAN.** `begin` refuses a second rather than abandoning a
+  cursor and a possibly-outstanding conversation. A host wanting a second arrangement
+  against the same catalog and Kernel builds a SECOND owner -- which is what makes a
+  runtime provider collision reachable at all, since one plan cannot name an artifact
+  twice. `PlanRig::realize_again` is that, in the suite.
+- **THE PARTICIPANT IS A BRIDGE AND NOT A STATE MACHINE.** `load::PlanBooter` still
+  hears `zen.Result`/`Ack`/`Refused`, still settles ONLY on correlation AND bus-stamped
+  respondent (QR-9, FRIC-2, `loom::AskBook`), and its whole added responsibility is one
+  line: hand the settled fact to the owner. It owns no catalog, no offer, no cursor and
+  no order. ⚠ It is mounted BY HAND in `workshop.cpp` rather than through
+  `loom::mount_granted`, because the owner needs the PARTICIPANT and not just its id --
+  the pointer is wired in the owner's constructor and unwired in its destructor, and
+  ONE booter serves ONE owner.
+- **⚠ `answers.answered` IS PAYLOAD, AND IT IS CLEARED BY THE NEXT `ask()`.** The owner
+  opens row N+1's conversation inside the very handler that settled row N's, so by the
+  time anything can look, that field is already about the next load. The CURSOR is the
+  fact; do not assert on `answered` after a multi-row plan advances.
+- **THE HOST'S FAILURE POLICY IS THE HOST'S, and it is written in `workshop.cpp`.** A
+  refused startup project still ends this Workshop and still exits 4 -- expressed as an
+  explicit settle-notice lambda that prints, sets `host.quit` and spends
+  `host.request_stop` (the door `q` leaves by), because realization settles inside a
+  delivery now and there is no call to return a code from. The owner has no opinion
+  about process lifetime, and COMPLETION ends nothing.
+- **`ArtifactParticipation::performed` BECAME `state`, and the shape is v2.** Four
+  tokens with four owners -- `authored`, `loading`, `resolved`, `refused` -- replacing a
+  bool under which a row nobody had reached, a row in flight and a row that REFUSED were
+  indistinguishable. It is a REPLACEMENT: `performed` is exactly
+  `state == kResolvedToken`, and two fields would be one field and its stale copy.
+  ⚠ `waiting`, `building`, `available` and `mounting` were asked for and refused, each
+  for a stated reason (BOOT-R0 §20); a token with no owner goes stale in its first week.
+- **⚠ A `loading` ROW PUBLISHES NO RESOLVED FIELD, even though its provider may already
+  be mounted.** Within one row the mount precedes the load, so at that instant the
+  contribution really is in the catalog -- and what came of the ROW is undecided, because
+  a refusal rolls that mount back. `ResolvedPowers` reads the live catalog and shows it
+  immediately: two questions, two owners, two currencies, the same reason a provider is a
+  row of `arrangement` and absent from `loaded`.
+- **`describe_arrangement` TAKES THE OWNER, not a plan and a vector.** The owner holds
+  the authored plan it is realizing, so a caller can no longer hand the projection one
+  plan while the executor realizes another. `ArrangementDoor` holds two `const`
+  references where it held three.
+- **THE CONTROL DOOR PATH IS STILL USED, AND THAT IS LOAD-BEARING.** `Kernel::load` is
+  reachable from the host and must not be shortcut to: only the control door can announce
+  `zen.Activated`, from inside a delivery (`Switchboard::announce_as` is private), so a
+  direct load produces a registered, routable, role-bound weave that NEVER BREATHES. A
+  case loads the Timer both ways side by side. The row's completion fact is the ANSWER,
+  which arrives strictly after the Kernel has the artifact -- a case walks to that instant
+  and checks the owner has not believed it yet.
 
 ## Zengine is a package a stranger installs (PKG-0)
 

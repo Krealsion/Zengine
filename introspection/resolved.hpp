@@ -95,11 +95,23 @@ inline constexpr const char* kPowersSource = "snapshot from zengine.arrangement,
 /// contribution -- `op::Contribution`'s empty provider, given a maker's word.
 inline constexpr const char* kHostItself = "(this host)";
 
-/// What a row says for an authored artifact the executor never reached. Nothing in a
-/// running production Workshop produces one -- a refused plan exits the host before a
-/// pane exists -- so this is what a PARTIAL arrangement looks like rather than a state
-/// this build can show a maker.
+/// What a row says for an authored artifact realization has not reached yet.
+///
+/// IT IS A LIVE STATE NOW (BOOT-0), not a hypothetical. Realization survives its
+/// stack frame and proceeds through ordinary deliveries, so a pane opened while a
+/// project is still coming up genuinely shows rows that have not been reached -- and
+/// shows them BELOW a row that says `(loading)`, which is the state that gives this
+/// one its meaning. Before, the whole plan had settled before any pane could exist.
 inline constexpr const char* kNotReached = "(not reached)";
+
+/// What a row says for the artifact whose load is in flight at this instant. Only
+/// ever one: authored order is strict and serial, and the owner holds one
+/// conversation.
+inline constexpr const char* kLoadingNow = "(loading)";
+
+/// What a row says for the artifact that refused. Only ever one too -- the plan stops
+/// at the first refusal -- and its own mount, if it made one, has been rolled back.
+inline constexpr const char* kRefusedRow = "(refused)";
 
 /// What an artifact row says where a surface was not authored at all.
 inline constexpr const char* kNoIntent = "none";
@@ -173,8 +185,8 @@ inline std::string providers_said(std::int64_t n) { return counted(n, "provider"
 ///     the stem          what a person wrote in the plan
 ///     `authored`        what they asked it to participate as, both surfaces on one row
 ///     `resolved` x1..2  what this run made of each surface that resolved
-///     `(not reached)`   INSTEAD of the resolved rows, for a row the executor never
-///                       performed
+///     one state row     INSTEAD of the resolved rows, for a row that has not settled:
+///                       `(loading)`, `(refused)` or `(not reached)`
 ///
 /// AUTHORED AND RESOLVED ARE SEPARATE LABELLED ROWS, and that is the whole reason the
 /// block is vertical rather than a line. A column layout would have had to put a
@@ -208,13 +220,22 @@ artifact_rows(const workshop::ArtifactParticipation& a, std::int64_t columns) {
     rows.push_back(
         surface::SurfaceTextRow{fit("    authored  " + authored, columns), surface::role::kMuted});
 
-    if (!a.performed) {
-        // `kAlert`: an authored artifact this host never reached is exactly "something
-        // the maker must see", and it is the one row in this pane that is about a
-        // failure rather than about an arrangement.
-        rows.push_back(
-            surface::SurfaceTextRow{fit("    " + std::string(kNotReached), columns),
-                                    surface::role::kAlert});
+    if (a.state != workshop::kResolvedToken) {
+        // THREE SENTENCES WHERE THERE WAS ONE (BOOT-0). `loading`, `refused` and
+        // not-yet-reached were a single absent row before realization had an owner
+        // that outlived its stack frame, and they are three different things for a
+        // maker watching a project come up.
+        //
+        // TWO ROLES, BECAUSE TWO OF THEM ARE NOT FAILURES. `kAlert` is "something the
+        // maker must see" and is spent on the refusal alone; a row still loading and a
+        // row not yet reached are ordinary states of a project that is working, and
+        // painting them as alerts would make a healthy startup look like six problems.
+        const bool loading = a.state == workshop::kLoadingToken;
+        const bool refused = a.state == workshop::kRefusedToken;
+        const char* said = loading ? kLoadingNow : (refused ? kRefusedRow : kNotReached);
+        rows.push_back(surface::SurfaceTextRow{
+            fit("    " + std::string(said), columns),
+            refused ? surface::role::kAlert : surface::role::kMuted});
         return rows;
     }
     if (!a.provider.empty()) {
@@ -266,7 +287,9 @@ project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows
     std::size_t providers = 0;
     std::size_t weaves = 0;
     for (const workshop::ArtifactParticipation& a : said.artifacts) {
-        performed += a.performed ? 1u : 0u;
+        // RESOLVED IS THE NUMERATOR, and it is exactly what the old `performed` bool
+        // meant -- the count did not change when the field became four-valued.
+        performed += a.state == workshop::kResolvedToken ? 1u : 0u;
         providers += !a.provider.empty() ? 1u : 0u;
         weaves += a.weave != 0 ? 1u : 0u;
     }

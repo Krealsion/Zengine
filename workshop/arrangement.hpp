@@ -6,8 +6,8 @@
 
 // THE HOST'S READ-ONLY OBSERVATION DOOR (INTR-1) -- two derivations and one weave.
 //
-//     describe_arrangement   the authored plan + the executor's resolved rows
-//                            -> `ResolvedArrangement`
+//     describe_arrangement   the realization owner: authored intent, where each row
+//                            has got to, and what resolved -> `ResolvedArrangement`
 //     describe_powers        the live `op::Catalog`
 //                            -> `ResolvedPowers`
 //     ArrangementDoor        when to answer, and whom
@@ -23,7 +23,8 @@
 // mounts, loads, shadows or unloads. Every field of every answer is read out of its
 // owner at the moment the question is asked:
 //
-//     the arrangement   `load::LoadPlan` (authored)  +  `load::PlanExecutor`'s rows
+//     the arrangement   `load::PlanExecutor` -- its authored plan, its cursor and its
+//                       resolved rows, which are three answers from one owner
 //     the powers        `op::Catalog`'s contribution stacks
 //
 // That is the load-bearing decision of the phase and it is what makes an overlay
@@ -92,18 +93,38 @@ inline const char* offer_token(op::OfferOutcome outcome) {
     return kNotAConsumerToken;
 }
 
+/// THE TOKEN FOR WHERE REALIZATION HAS GOT WITH ONE AUTHORED ROW. TOTAL over the
+/// enumeration, and here for `offer_token`'s reason: the word belongs to the thing
+/// that spells it.
+inline const char* state_token(load::RowState state) {
+    switch (state) {
+    case load::RowState::Loading: return kLoadingToken;
+    case load::RowState::Resolved: return kResolvedToken;
+    case load::RowState::Refused: return kRefusedToken;
+    case load::RowState::Authored: break;
+    }
+    return kAuthoredToken;
+}
+
 // ---- The arrangement, derived --------------------------------------------------
 
-/// PAIR EVERY AUTHORED ROW WITH WHAT THE EXECUTOR MADE OF IT.
+/// PAIR EVERY AUTHORED ROW WITH WHAT REALIZATION HAS MADE OF IT.
 ///
-/// TWO OWNERS, PAIRED BY STEM, AND NEITHER IS RECONSTRUCTED FROM THE OTHER. The
-/// authored half exists ONLY in the plan -- `load::ResolvedArtifact` retains no mount
-/// MODE at all, and a resolved row cannot say whether its mount was an overlay. The
-/// resolved half exists ONLY in the executor's rows -- a provider identity is what an
-/// artifact declared about ITSELF and a `WeaveId` is what this Kernel minted, neither
-/// of which is anywhere in the file. So this walks the authored list and asks the
-/// resolved list about each stem; it does not walk the Kernel's loaded map and the
-/// catalog's provider list and guess which of them came from the same artifact.
+/// TWO TRUTHS FROM ONE OWNER, PAIRED BY STEM, AND NEITHER IS RECONSTRUCTED FROM THE
+/// OTHER. The authored half exists ONLY in the plan -- `load::ResolvedArtifact`
+/// retains no mount MODE at all, and a resolved row cannot say whether its mount was
+/// an overlay. The resolved half exists ONLY in the executor's rows -- a provider
+/// identity is what an artifact declared about ITSELF and a `WeaveId` is what this
+/// Kernel minted, neither of which is anywhere in the file. So this walks the authored
+/// list and asks the realization owner about each stem; it does not walk the Kernel's
+/// loaded map and the catalog's provider list and guess which of them came from the
+/// same artifact.
+///
+/// BOTH HALVES COME FROM THE OWNER SINCE BOOT-0, and that subtraction is the point: a
+/// persistent owner holds the authored plan it is realizing, so a caller cannot hand
+/// this function one plan while the executor is realizing another. The two truths are
+/// still two -- `plan()` and `resolved()` are different questions with different
+/// lifetimes -- they simply no longer have two owners who could disagree.
 ///
 /// THE STEM IS A KEY BECAUSE `check_plan` MADE IT ONE. A plan naming one artifact
 /// twice is refused before it is executed, so the first match is the only match and
@@ -111,10 +132,10 @@ inline const char* offer_token(op::OfferOutcome outcome) {
 ///
 /// AUTHORED ORDER, ALWAYS. The plan is walked, not the resolved rows, so a row that
 /// did not resolve keeps its place and its authored intent instead of vanishing --
-/// which is what makes `performed` legible as a count against the list's own length.
-inline ResolvedArrangement
-describe_arrangement(const load::LoadPlan& authored,
-                     const std::vector<load::ResolvedArtifact>& resolved, std::string plan) {
+/// which is what makes the four states legible as counts against the list's own length.
+inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realization,
+                                                std::string plan) {
+    const load::LoadPlan& authored = realization.plan();
     ResolvedArrangement out;
     out.plan = std::move(plan);
     out.artifacts.reserve(authored.artifacts.size());
@@ -134,12 +155,23 @@ describe_arrangement(const load::LoadPlan& authored,
         if (intent.weave.has_value()) {
             row.authored_role = intent.weave->role;
         }
-        // ---- and what this run made of it ------------------------------------
-        for (const load::ResolvedArtifact& done : resolved) {
+        // ---- and where realization has got with it -----------------------------
+        //
+        // THE STATE IS ASKED FOR EVEN WHEN NOTHING RESOLVED, which is the whole
+        // BOOT-0 delta: `authored`, `loading` and `refused` are three different
+        // sentences that used to be one absent row.
+        row.state = state_token(realization.state_of(intent.stem));
+        if (row.state != kResolvedToken) {
+            // ONLY A SETTLED ROW CARRIES RESOLVED FIELDS. See
+            // `arrangement_vocabulary.hpp`: a row still loading has not decided what
+            // came of it, and a refused row's own mount was rolled back.
+            out.artifacts.push_back(std::move(row));
+            continue;
+        }
+        for (const load::ResolvedArtifact& done : realization.resolved()) {
             if (done.stem != intent.stem) {
                 continue;
             }
-            row.performed = true;
             row.provider = done.provider;
             row.powers = static_cast<std::int64_t>(done.contributed);
             row.weave = done.weave_loaded ? static_cast<std::int64_t>(done.weave.value) : 0;
@@ -217,11 +249,22 @@ struct ArrangementDoorState {
 
 /// THE HOST'S OWN READ-ONLY OBSERVATION PARTICIPANT.
 ///
-/// It holds three `const` references and one string, and every one of them belongs to
-/// the host's `main`: the authored plan it read, the executor that performed it, the
-/// catalog the plan mounted into, and the path the plan came from. IT OWNS NONE OF
-/// THEM. A door that took copies would be a mirror; a door that took non-const
-/// references would be a controller.
+/// It holds two `const` references and one string, and every one of them belongs to
+/// the host's `main`: the realization owner (which holds both the authored plan and
+/// what it has made of it), the catalog the plan mounted into, and the path the plan
+/// came from. IT OWNS NONE OF THEM. A door that took copies would be a mirror; a door
+/// that took non-const references would be a controller.
+///
+/// TWO REFERENCES RATHER THAN THREE SINCE BOOT-0, and the one that went was the
+/// authored plan: the owner is persistent now and holds the plan it is realizing, so
+/// there is no second copy for this door to be handed and no way for the two to be
+/// different documents.
+///
+/// ⚠ IT READS A LIVE OWNER, NOT A FINISHED ONE. Before BOOT-0 an ask could only
+/// arrive after the whole plan had been performed, because the host was inside
+/// `run()` until then. Realization now proceeds through ordinary deliveries, so this
+/// door genuinely answers mid-flight -- which is the case the `loading` token exists
+/// for, and which the phase's own witnesses ask at four points on the timeline.
 ///
 /// ---- WHO MAY ASK ---------------------------------------------------------------
 ///
@@ -246,13 +289,12 @@ class ArrangementDoor
                              loom::Accept<ArrangementRequested, PowersRequested>,
                              loom::Emit<ResolvedArrangement, ResolvedPowers>> {
 public:
-    ArrangementDoor(const load::LoadPlan& authored, const load::PlanExecutor& executed,
-                    const op::Catalog& catalog, std::string plan)
-        : authored_(&authored), executed_(&executed), catalog_(&catalog),
-          plan_(std::move(plan)) {}
+    ArrangementDoor(const load::PlanExecutor& realization, const op::Catalog& catalog,
+                    std::string plan)
+        : realization_(&realization), catalog_(&catalog), plan_(std::move(plan)) {}
 
-    /// WHAT THE PROJECT ASKED FOR AND WHAT CAME OF IT -- derived now, from the two
-    /// owners, and dropped the moment it has been said.
+    /// WHAT THE PROJECT ASKED FOR AND WHERE IT HAS GOT TO -- derived now, from the
+    /// live owner, and dropped the moment it has been said.
     void on(const ArrangementRequested&, loom::Mail& mail) {
         if (!answerable(mail)) {
             return;
@@ -262,7 +304,7 @@ public:
         // correlation are the bus's, not this weave's, so the answer cannot be aimed
         // elsewhere or relabelled, and the asker reads `answers_ask()` off provenance
         // no payload can write. One ask, one answer.
-        (void)mail.answer(describe_arrangement(*authored_, executed_->resolved(), plan_));
+        (void)mail.answer(describe_arrangement(*realization_, plan_));
     }
 
     /// WHICH POWERS RESOLVE HERE AND WHOSE CODE SATISFIES EACH -- read off the live
@@ -287,8 +329,7 @@ private:
         return true;
     }
 
-    const load::LoadPlan* authored_;
-    const load::PlanExecutor* executed_;
+    const load::PlanExecutor* realization_;
     const op::Catalog* catalog_;
     /// THE FILE THE HOST READ, copied once at construction because it is a string the
     /// host owns and never changes. It is provenance and not identity: the arrangement

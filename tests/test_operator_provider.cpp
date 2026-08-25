@@ -1031,7 +1031,7 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     const std::size_t surface = host.find("op::OperatorHostSurface operator_host(operators)");
     const std::size_t kernel = host.find("loom::Kernel kernel(bus)");
     const std::size_t executor = host.find("load::PlanExecutor executor(");
-    const std::size_t run = host.find("executor.run(read_plan.plan)");
+    const std::size_t run = host.find("executor.begin(read_plan.plan)");
     REQUIRE(catalog != std::string::npos);
     REQUIRE(surface != std::string::npos);
     REQUIRE(kernel != std::string::npos);
@@ -1101,8 +1101,8 @@ TEST_CASE("the plan executor mounts before it offers, and offers before it loads
     const std::string exec = all.str();
 
     const std::size_t mount = exec.find("op::mount_provider(*catalog_, path,");
-    const std::size_t offer = exec.find("op::OperatorOffer offering(*operators_, path)");
-    const std::size_t load = exec.find("load_weave(artifact.stem, path,");
+    const std::size_t offer = exec.find("offer_.emplace(*operators_, path)");
+    const std::size_t load = exec.find("loom::to_value(loom::LoadWeave{artifact.stem, path,");
     REQUIRE(mount != std::string::npos);
     REQUIRE(offer != std::string::npos);
     REQUIRE(load != std::string::npos);
@@ -1120,5 +1120,67 @@ TEST_CASE("the plan executor mounts before it offers, and offers before it loads
                                   "make_operator", "timer/normalize.hpp"}) {
         CHECK_MESSAGE(exec.find(forbidden) == std::string::npos,
                       "load_execute.hpp names '", forbidden, "', which is semantic authorship");
+    }
+}
+
+TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the source says so") {
+    // ⭐ THE PHASE'S MECHANICAL GATE. The behavioural claim is in
+    // `test_workshop_load.cpp` -- an unresolved plan returns control to its host, and an
+    // unrelated participant runs while a load is outstanding. This is the tripwire
+    // beside it, and it is here for the reason every tripwire in this file is: a
+    // property that is true because of what the code does NOT contain cannot be proved
+    // by running the code.
+    //
+    // NOT ONE OF THESE WORDS, IN ANY SPELLING. The old `run()` counted 64 generations of
+    // `pump_pending()` so a straight-line caller could hear its own answer; a persistent
+    // owner returns to a host that is already turning the crank, and has nothing to
+    // count. Reintroducing the loop under any of the names below -- or behind a helper
+    // that spells one of them -- turns this red.
+    std::ifstream in(WORKSHOP_LOAD_EXECUTE_HPP);
+    REQUIRE_MESSAGE(in.good(), "cannot read the executor at ", WORKSHOP_LOAD_EXECUTE_HPP);
+    std::ostringstream all;
+    all << in.rdbuf();
+    const std::string exec = all.str();
+
+    // THE PROSE IS STRIPPED FIRST, because this file EXPLAINS what it refuses to do and
+    // a check that could not tell a sentence from a statement would forbid the
+    // explanation. Everything from `//` to end of line goes; what is left is code.
+    std::string code;
+    code.reserve(exec.size());
+    for (std::size_t i = 0; i < exec.size();) {
+        if (exec.compare(i, 2, "//") == 0) {
+            while (i < exec.size() && exec[i] != '\n') {
+                ++i;
+            }
+            continue;
+        }
+        code.push_back(exec[i]);
+        ++i;
+    }
+
+    for (const char* verb : {"pump_pending", "drain_until_idle", "dispatch_at_most", "run_until",
+                             "wait_until", "advance_until", "pump_until", "std::this_thread",
+                             "sleep_for", "kLoadDrainTurns"}) {
+        CHECK_MESSAGE(code.find(verb) == std::string::npos, "load_execute.hpp calls '", verb,
+                      "', which makes the realization owner its own scheduler");
+    }
+
+    // ...AND NO GENERIC ASYNC FRAMEWORK ARRIVED IN ITS PLACE. The owner is a cursor and
+    // a `std::optional`; a queue of tasks wearing another noun would be the same loop.
+    for (const char* noun : {"std::future", "std::promise", "std::async", "class Scheduler",
+                             "struct Scheduler", "class Task", "struct Operation",
+                             "co_await", "co_return"}) {
+        CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp declares '", noun,
+                      "', which is the scheduler BOOT-0 deleted, renamed");
+    }
+
+    // AND THE HOST DOES NOT SCHEDULE THE PLAN EITHER. Its loop was already there and
+    // knows nothing about realization; a `while` around the owner's state would be the
+    // same wait moved one file out.
+    const std::string host = host_source();
+    for (const char* verb : {"executor.run(", "while (executor", "executor.state()",
+                             "executor.position()", "executor.resolved()"}) {
+        CHECK_MESSAGE(host.find(verb) == std::string::npos, "workshop.cpp spells '", verb,
+                      "', which is plan-specific control flow in a host loop");
     }
 }
