@@ -24,6 +24,27 @@
 # every lane's invocation for nothing; what it gates is now stated as the whole
 # SDL-backed set rather than the skin alone.
 
+# WHAT AN EXTRACTED ARCHIVE'S FILES ARE STAMPED WITH (CMP0135).
+#
+# Every dependency below arrives as a pinned URL and hash, and those pins are the
+# one thing in this file a maintainer edits by hand. Under the policy's OLD
+# behaviour the extracted files keep the timestamps the ARCHIVE recorded, so a
+# newly pinned tarball can unpack sources that look OLDER than the objects the
+# previous pin built — and what depends on them is not rebuilt. NEW stamps them
+# at the moment of extraction, which is what makes a changed pin rebuild what
+# came out of it.
+#
+# At file scope, because a system SDL3 short-circuits the first fetch block and
+# the SDL_ttf pins further down are reached anyway. Guarded, because a CMake
+# older than the policy has only the OLD behaviour to offer — there this says
+# nothing and nothing warns. Stated as the policy rather than as
+# DOWNLOAD_EXTRACT_TIMESTAMP on each declare: that keyword arrived with the
+# policy and is equally unknown to that older CMake, and this form covers
+# whatever URL this file grows next.
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 option(ZENGINE_SDL_SKIN
        "Build the SDL-backed weaves — the window Skin and the SDL Input reader (fetches a pinned shared SDL3 if none is installed)"
        ON)
