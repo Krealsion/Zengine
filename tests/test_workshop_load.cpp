@@ -318,11 +318,14 @@ struct PlanRig {
         return booter;
     }
 
+    /// SPEND TURNS. No predicate, so the number IS the whole semantics -- this is a
+    /// "settle the world" helper and not a wait, and it makes no claim about anything
+    /// arriving. The empty-turn return it used to carry was pure optimisation here
+    /// (pumping an empty queue delivers nothing either way) and it is gone anyway, so
+    /// this file holds one rule about what an empty turn means: nothing.
     void drain(int turns = 8) {
         for (int i = 0; i < turns; ++i) {
-            if (bus.pump_pending() == 0) {
-                return;
-            }
+            bus.pump_pending();
         }
     }
 
@@ -338,10 +341,12 @@ struct PlanRig {
         heard.entries.clear();
         bus.send_as(witness, service,
                     loom::Message(loom::to_value(loom::PrepareShutdown{}), witness, witness, 0));
+        // A FUSE FOLLOWED BY AN ASSERTION (QR-9), which is what makes the number
+        // harmless: the letter arriving is the stop, and running out of turns without
+        // it is a red rather than a shrug. It does NOT stop on an empty turn -- an
+        // empty queue is not a statement that the letter is not coming.
         for (int i = 0; i < 40 && heard.letters == before; ++i) {
-            if (bus.pump_pending() == 0) {
-                break;
-            }
+            bus.pump_pending();
         }
         REQUIRE(heard.letters > before);
         for (const tmr::TimerHandoffEntry& e : heard.entries) {
@@ -2025,9 +2030,11 @@ TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no add
 // 9. SETTLEMENT -- a load conversation ends because ITS OWN answer arrived (QR-9)
 // =============================================================================
 //
-// THE ADAPTER USED TO STOP FOR THE WRONG REASON: any admitted answer shape read as
-// "my load answered". The three answer shapes are a vocabulary every participant
-// shares, so that reading is not the question anybody meant to ask.
+// TWO DEFECTS, ONE PATH, AND THEY FAIL IN OPPOSITE DIRECTIONS. One made the executor
+// stop waiting too early (an empty bounded turn read as "no answer is coming"); the
+// other made it stop for the wrong reason (any admitted answer shape read as "my load
+// answered"). Between them the adapter could answer the question "did MY load
+// conversation settle?" with a yes it had not earned and a no it could not support.
 //
 // WHAT EACH ARM MEASURED ON THE UNREPAIRED SOURCE, before any of this was written:
 //
@@ -2036,6 +2043,8 @@ TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no add
 //   a stray zen.Refused  ->  "artifact 'zengine-plain-weave': weave load refused:
 //                            somebody else's refusal", for a load that had succeeded
 //   a stray zen.Result   ->  a MISSING artifact reported as loaded, ok = true
+//   an empty turn        ->  the wait gave up on turn 2, pending() == 0, with the
+//                            answer genuinely owed -- and it arrived afterwards
 //
 // NOTHING HERE CHANGES THE LOAD PROTOCOL. Tier 4 and tier 5 already drive the real
 // `zen.LoadWeave` both ways round; this tier asks only how the asker decides that one
@@ -2185,6 +2194,78 @@ TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on no
     }
 }
 
+TEST_CASE("QR-9: a turn that delivers nothing does not mean no answer is coming") {
+    // A FOCUSED FIXTURE AND NOT THE REAL MANAGER, deliberately. The real
+    // `zen.LoadWeave` answers deterministically before the queue can empty (FRIC-R2
+    // measured four turns, success and refusal alike), so the production path cannot
+    // itself produce the observation this case has to make. What is under test is the
+    // INFERENCE, not the Manager: a respondent that DEFERS its answer holds it outside
+    // the queue entirely, which is the substrate's own ANS-02 and needs no timing.
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+
+    // THE COUNTER'S SHAPE, pinned here because `kStrayCorrelation` above depends on it:
+    // this record's numbering is its own, starts at zero and pre-increments.
+    const std::uint64_t first = answers.ask(slow);
+    CHECK(first == 1);
+    CHECK(answers.awaiting());
+
+    bus.send_as(booter, slow,
+                loom::Message(loom::to_value(
+                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                              booter, booter, first));
+
+    // THE WAIT THE PRODUCTION EXECUTOR NOW SPELLS: bounded turns, with the CONVERSATION
+    // as the condition. The empty turn is observed rather than acted on.
+    bool zero_work_turn = false;
+    for (int turn = 0; turn < 8 && answers.awaiting(); ++turn) {
+        if (bus.pump_pending() == 0) {
+            zero_work_turn = true;
+        }
+    }
+
+    // THE DELETED INFERENCE, TERM BY TERM. "zero deliveries this turn" is true;
+    // "nothing is queued" is true; and every conclusion the old early-out drew from
+    // the pair is false.
+    REQUIRE(zero_work_turn);
+    CHECK(bus.pending() == 0);
+    CHECK(answers.awaiting());     // the conversation is genuinely unresolved
+    CHECK_FALSE(answers.answered);
+    REQUIRE(slow_state.held);      // and the answer is OWED, held off the queue
+
+    // WHAT WOULD SETTLE IT, asked while it is still open -- because settling closes it.
+    CHECK(answers.settles(first, slow));
+    CHECK_FALSE(answers.settles(first + 1, slow)); // right respondent, wrong conversation
+    CHECK_FALSE(answers.settles(first, booter));   // right conversation, wrong speaker
+
+    // ...AND THE ANSWER ARRIVES AFTERWARDS ANYWAY. An unrelated delivery is what lets
+    // the respondent spend what it was holding, which is the whole reason an empty
+    // queue proves nothing: the next thing to happen had not happened yet.
+    (void)bus.send(slow,
+                   loom::Message(loom::to_value(Nudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 8 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    CHECK(answers.answered);
+    CHECK_FALSE(answers.refused);
+    CHECK(answers.weave == kSlowWeaveId);
+    CHECK_FALSE(answers.awaiting());
+    CHECK_FALSE(answers.settles(first, slow)); // and a duplicate of it is now inert
+
+    // A SECOND CONVERSATION NEVER REUSES THE FIRST'S NUMBER, so a late answer to the
+    // one just closed cannot settle the one just opened.
+    const std::uint64_t second = answers.ask(slow);
+    CHECK(second == first + 1);
+    CHECK_FALSE(answers.answered);
+    CHECK_FALSE(answers.settles(first, slow));
+}
+
 TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversation, "
           "settles nothing") {
     // THE HALF A SENDER CHECK CANNOT SEE. In the three cases above the impostor was a
@@ -2245,4 +2326,40 @@ TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversa
     CHECK(answers.answered);
     CHECK(answers.weave == kSlowWeaveId);
     CHECK_FALSE(answers.awaiting());
+}
+
+TEST_CASE("QR-9: the fuse expiring is a local guard, and not a refusal anybody made") {
+    PlanRig rig;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), answers);
+
+    // THE PRODUCTION EXECUTOR, pointed at a respondent that never answers. Everything
+    // else is real: a real artifact on disk, the real operator offer around it, the
+    // real send. Only the answer is missing.
+    load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, booter, slow, answers,
+                               [](const std::string& stem) { return stage().so(stem); }};
+    const load::Executed done =
+        stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+
+    CHECK_FALSE(done.ok);
+    CHECK(done.refusal.find("local guard") != std::string::npos);
+    CHECK(done.refusal.find("neither confirmed nor refused") != std::string::npos);
+    CHECK(done.resolved.empty());
+
+    // FOUR WAYS OF SAYING THE SAME THING: nothing here is a refusal. The record heard
+    // no answer, marked none refused, kept no reason of anybody else's...
+    CHECK_FALSE(answers.answered);
+    CHECK_FALSE(answers.refused);
+    CHECK(answers.reason.empty());
+    // ...and the conversation is LEFT OPEN rather than declared dead. This host stopped
+    // waiting; that is not the same fact as the answer having become impossible, and
+    // the adapter does not know the second one. The respondent still holds the answer
+    // right, which is precisely the limitation the fuse exposes honestly.
+    CHECK(answers.awaiting());
+    REQUIRE(slow_state.held);
 }

@@ -415,24 +415,28 @@
 # names the symptom a developer actually hit. Both are in the `always` row because staging is
 # a filesystem copy: no gate opens or closes over it.
 #
-# QR-9 raised the workshop floor 685 -> 691 and moved no other floor, which is the repair's own
+# QR-9 raised the workshop floor 685 -> 693 and moved no other floor, which is the repair's own
 # claim about where it lives: the load ADAPTER's decision that a load conversation has settled,
-# no load protocol, no operator semantics, no pane and no medium. SIX cases, and they are
-# permanent because the defect they pin is one a green cannot see. Measured on the source before
-# the repair: a `zen.Result` from an unrelated participant made a plan report success naming
-# WeaveId 424242 -- the number that participant chose, which no Kernel ever minted -- and the
-# same message turned a MISSING artifact's refusal into a completed plan; an unrelated
+# no load protocol, no operator semantics, no pane and no medium. EIGHT cases, and they are
+# permanent because both defects they pin are ones a green cannot see. Measured on the source
+# before the repair: a `zen.Result` from an unrelated participant made a plan report success
+# naming WeaveId 424242 -- the number that participant chose, which no Kernel ever minted -- and
+# the same message turned a MISSING artifact's refusal into a completed plan; an unrelated
 # `zen.Refused` failed a load that had in fact succeeded. Every one of those runs was green.
 #
-# FOUR of the six drive the real `zen.LoadWeave` on a real Kernel with an extra participant
-# speaking the shared answer vocabulary, and they are the arms that fool the old adapter -- one
-# of them is the SENDER half's own falsifier, a stray that guesses the correlation, because the
-# first conversation on any fresh host is 1 and a correlation is not a secret. A fifth pins both
-# real arms settling on their own answer and nothing else. The sixth is the CORRELATION half's
-# falsifier and needs a fixture whose respondent DEFERS its answer (Loom's ANS-02), because only
-# then can the speaker be the exact weave that was asked with only the number wrong.
+# The eight split three ways. FOUR drive the real `zen.LoadWeave` on a real Kernel with an extra
+# participant speaking the shared answer vocabulary, and they are the arms that fool the old
+# adapter. THREE work a focused fixture whose respondent DEFERS its answer (Loom's ANS-02), which
+# is the only way to hold a conversation open with an empty queue: one of them is the empty-turn
+# falsifier proper -- a bounded turn delivers zero work, `pending()` reads 0, the answer is owed,
+# and it arrives afterwards -- one is the correlation half's own falsifier, where the speaker IS
+# the respondent and only the number is wrong, and one drives the production executor at a
+# respondent that never answers, so the FUSE expires and must read as a local guard rather than
+# as a refusal anybody made. The eighth is the sender half's: a stray that guesses the
+# correlation, because the first conversation on any fresh host is 1 and a correlation is not a
+# secret.
 #
-# All six are in the `always` row: this is bus traffic and plain arithmetic over a record, so
+# All eight are in the `always` row: this is bus traffic and plain arithmetic over a record, so
 # the no-SDL lane and the Windows stranger lane prove them all. They need no new CTest row --
 # `test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary -- and they
 # obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
@@ -456,7 +460,7 @@ component                         doctest           always  15
 operator                          doctest           always  89
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  691
+workshop                          doctest           always  693
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

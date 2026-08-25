@@ -221,12 +221,18 @@ struct CanonRig {
     /// beat inside its own handler, so `drain_until_idle()` would never return;
     /// this is the same `pump_pending()` loop `workshop.cpp`'s boot uses, for the
     /// same reason. The turn budget is a hang guard, not a schedule.
+    ///
+    /// THE PREDICATE IS THE ONLY STOP (QR-9). This used to also return when a turn
+    /// delivered nothing, which reads as "the world is settled, so `done` can never
+    /// become true". It cannot say that: `pending()` is the queue's size at one
+    /// instant, and a respondent holding a deferred answer keeps it off the queue
+    /// entirely. Every caller here follows the wait with an assertion, so a fuse
+    /// that expires with the predicate still false is a RED and not a quiet pass --
+    /// which is the whole difference between a fuse and a settlement.
     template <class Pred>
     void drain_until(Pred done, int turns = 40) {
         for (int i = 0; i < turns && !done(); ++i) {
-            if (bus.pump_pending() == 0) {
-                return;
-            }
+            bus.pump_pending();
         }
     }
 
