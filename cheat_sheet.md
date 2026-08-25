@@ -204,10 +204,42 @@ a receipt back, the way the Timer's `TimerResolution` does.
 
 ### Ask and answer
 
-Loom's request/answer pair is `zen.Ask` / `zen.Answer` with a correlation the asker chooses.
-Zengine's own services use plain messages plus a role rather than ask/answer; the Timer's
-`TimerResolution` receipt is the pattern to copy — a fact sent back, keyed by the id you
-chose. See [Loom's messaging reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md).
+There is no `zen.Ask` shape and no `zen.Answer` shape. **An ask is an ordinary send you
+remember**, and Loom copies your correlation onto the reply. Keep the record with
+`loom::AskBook`:
+
+```cpp
+#include <zen/weave.hpp>
+
+loom::AskBook asks{4};                                   // YOUR bound; there is no default
+
+const loom::AskOpened mine = asks.open(manager, loom::LoadWeave::zen_name, 1);
+bus.send_as(self, manager,
+            loom::Message(loom::to_value(loom::LoadWeave{stem, path, role}),
+                          self, self, mine.correlation));
+
+// ...in the handler for whatever shape answers you:
+if (asks.settle(mail.correlation(), mail.sender())) {
+    // this arrival closed one of MINE. What it MEANS is still yours to decide.
+}
+```
+
+- **Both halves or neither.** `zen.Result` / `zen.Ack` / `zen.Refused` are a vocabulary every
+  participant shares, so "an answer-shaped message arrived" is not "my request answered". The
+  correlation says *which conversation*; the bus-stamped sender says *the weave you actually
+  asked*. A correlation is guessable — the first one any asker opens is `1` — so it identifies
+  and never authenticates.
+- **`awaiting()` is the loop condition, never `pump_pending() == 0`.** A respondent may hold
+  your answer off the queue entirely (Loom defers), so an empty dispatch turn proves nothing.
+- **`forget(id)` is local.** Loom has no cancellation vocabulary: nothing at the far end is
+  told, the answer may still arrive, and it will settle nothing.
+- **Asking an office** (`open_to_role`) cannot name a respondent — whoever holds the role at
+  delivery is not knowable when you ask — so that record constrains the correlation alone.
+
+Zengine's own services mostly do not ask at all: they send plain messages to a role and get a
+fact back, the way the Timer's `TimerResolution` receipt does. Reach for the book when you need
+*this* answer to *that* request. See
+[Loom's messaging reference](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#the-askers-own-book).
 
 ### Roles and offices
 

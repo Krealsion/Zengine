@@ -2363,3 +2363,178 @@ TEST_CASE("QR-9: the fuse expiring is a local guard, and not a refusal anybody m
     CHECK(answers.awaiting());
     REQUIRE(slow_state.held);
 }
+
+// =============================================================================
+// 10. THE RECORD IS LOOM'S NOW (FRIC-2) -- what the load adapter stopped owning
+// =============================================================================
+//
+// QR-9 gave this path a correct one-slot conversation record. It was correct and it was
+// the THIRD hand-written copy of the same invariant in this workspace, so FRIC-2
+// harvested it: `loom::AskBook` is the asker-side record, and `BootAnswers` is now a
+// small adapter that spends it. Section 9 above is UNCHANGED and still passes; those
+// cases are the parity evidence, because every one of them now runs through the generic
+// mechanism without a line of them being edited.
+//
+// What is left to prove here is what the migration ADDED -- the capacity policy an
+// adapter with one slot could not have, and the behaviour at the edge the fuse leaves
+// behind.
+
+TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says what it asked") {
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    (void)booter;
+
+    CHECK(answers.book().capacity() > 1); // room for a conversation a fuse abandoned
+    CHECK_FALSE(answers.book().awaiting());
+
+    const std::uint64_t first = answers.ask(slow);
+    CHECK(first == 1); // the counter shape, unchanged: its own, from zero, pre-incremented
+    REQUIRE(answers.book().outstanding() == 1);
+
+    // THE FACTS AN ASKER RECORD HOLDS, and each one answers somebody: which conversation,
+    // who may settle it, and what was asked.
+    const loom::PendingAsk& mine = answers.book().entries().front();
+    CHECK(mine.correlation == first);
+    CHECK(mine.respondent == slow);
+    CHECK_FALSE(mine.to_role()); // a load is asked of ONE Manager, never of an office
+    CHECK(mine.shape == loom::LoadWeave::zen_name);
+    CHECK(mine.version == loom::LoadWeave::zen_version);
+
+    // ...and the adapter questions are that record, not a second copy of it.
+    CHECK(answers.awaiting());
+    CHECK(answers.asking() == first);
+    CHECK(answers.settles(first, slow));
+    answers.settled();
+    CHECK_FALSE(answers.awaiting());
+    CHECK(answers.asking() == 0);
+    CHECK(answers.book().outstanding() == 0);
+}
+
+TEST_CASE("FRIC-2: a conversation an expired fuse abandoned does not block the NEXT load") {
+    PlanRig rig;
+    SlowAnswers slow_state;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId stalled_booter =
+        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), rig.answers);
+
+    // ONE LOAD THAT NOBODY ANSWERS. The fuse expires and the conversation is LEFT OPEN,
+    // exactly as QR-9 requires -- this host stopped waiting, which is not the same fact
+    // as the answer having become impossible.
+    load::PlanExecutor stalled{
+        rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
+        [](const std::string& stem) { return stage().so(stem); }};
+    const load::Executed gave_up =
+        stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+    REQUIRE_FALSE(gave_up.ok);
+    CHECK(rig.answers.awaiting());
+    REQUIRE(rig.answers.book().outstanding() == 1);
+
+    // ...AND NOW A REAL LOAD, THROUGH THE REAL MANAGER. A one-slot record would have had
+    // to abandon the first conversation to make room; the book keeps it, and the new one
+    // settles on its own answer beside it. Two conversations, two respondents, one book.
+    const load::Executed done =
+        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+    CHECK(done.ok);
+    CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
+    CHECK(rig.answers.answered);
+    CHECK_FALSE(rig.answers.refused);
+    CHECK_FALSE(rig.answers.awaiting()); // THIS load settled...
+
+    // ...and the abandoned one is still on the books, still open, still nobody refusal.
+    REQUIRE(rig.answers.book().outstanding() == 1);
+    CHECK(rig.answers.book().entries().front().respondent == slow);
+    REQUIRE(slow_state.held); // the far end still holds the answer nobody told it to drop
+}
+
+TEST_CASE("FRIC-2: when the book fills with unanswered loads the next one is REFUSED by name") {
+    PlanRig rig;
+    SlowAnswers slow_state;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId stalled_booter =
+        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), rig.answers);
+    load::PlanExecutor stalled{
+        rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
+        [](const std::string& stem) { return stage().so(stem); }};
+
+    // FILL IT, one expired fuse at a time. Nothing here is contrived: each of these is a
+    // load this host commanded and never heard back about.
+    const std::size_t room = rig.answers.book().capacity();
+    for (std::size_t i = 0; i < room; ++i) {
+        const load::Executed gave_up =
+            stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+        REQUIRE_FALSE(gave_up.ok);
+        CHECK(gave_up.refusal.find("local guard") != std::string::npos);
+    }
+    REQUIRE(rig.answers.book().full());
+    const std::uint64_t oldest = rig.answers.book().entries().front().correlation;
+
+    // THE NEXT ONE IS REFUSED, AND NOTHING WAS COMMANDED. An asker book refuses the NEW
+    // conversation rather than shedding an old one -- the opposite of what `loom::relay`
+    // does, and deliberately so: a load somebody may still be performing must not be
+    // forgotten to make room for one that has not started.
+    const load::Executed over =
+        stalled.run(plan_of({weaves("zengine-plain-weave", "test.overflow")}));
+    CHECK_FALSE(over.ok);
+    CHECK(over.refusal.find("still tracking") != std::string::npos);
+    CHECK(over.refusal.find("no further load was commanded") != std::string::npos);
+    // NOT a refusal anybody made, and not an answer: the record heard nothing.
+    CHECK_FALSE(rig.answers.answered);
+    CHECK_FALSE(rig.answers.refused);
+    CHECK(rig.answers.reason.empty());
+
+    // ...and the conversations already open are exactly as they were.
+    CHECK(rig.answers.book().outstanding() == room);
+    CHECK(rig.answers.book().entries().front().correlation == oldest);
+}
+
+TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of the far end") {
+    loom::Switchboard bus;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(bus, slow_state);
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
+    const loom::WeaveId booter =
+        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+
+    const std::uint64_t mine = answers.ask(slow);
+    bus.send_as(booter, slow,
+                loom::Message(loom::to_value(
+                                  loom::LoadWeave{"unanswered", "unanswered", "test.unanswered"}),
+                              booter, booter, mine));
+    for (int turn = 0; turn < 4 && answers.awaiting(); ++turn) {
+        bus.pump_pending();
+    }
+    REQUIRE(slow_state.held);
+
+    // `settled()` is the adapter word for "there is no longer one outstanding". It removes
+    // the LOCAL record and that is the only thing it does: nothing crosses the bus,
+    // because Loom has no cancellation vocabulary for it to cross with.
+    answers.settled();
+    CHECK_FALSE(answers.awaiting());
+    CHECK(answers.book().outstanding() == 0);
+    REQUIRE(slow_state.held); // the respondent was never told anything
+
+    // ...AND THE ANSWER STILL ARRIVES, settles nothing, and does not put the record back.
+    // An answer to a conversation this host stopped tracking is a true fact about the
+    // world; it is simply not this host business any more.
+    (void)bus.send(slow,
+                   loom::Message(loom::to_value(Nudge{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    for (int turn = 0; turn < 4; ++turn) {
+        bus.pump_pending();
+    }
+    CHECK_FALSE(answers.answered);
+    CHECK(answers.weave == 0);
+    CHECK_FALSE(answers.awaiting());
+    CHECK(answers.book().outstanding() == 0);
+}

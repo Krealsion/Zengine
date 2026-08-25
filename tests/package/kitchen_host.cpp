@@ -63,6 +63,12 @@ struct WaiterState {
 /// stamps that, so nobody can claim another's identity). Without it, "an answer
 /// arrived" and "my load answered" are the same line of code, and they are not the
 /// same fact.
+///
+/// LOOM SHIPS THAT RECORD, so this program does not write it: `loom::AskBook` is the
+/// asker-side conversation book, and `open` / `settle` below are the whole of it. What
+/// stays here is what is about THIS program -- whether a load succeeded, why it was
+/// refused, and whether the bake ever came out of the oven. The book does not know what
+/// a `zen.Result` means, and it should not.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
@@ -77,10 +83,11 @@ public:
     std::uint64_t asking(loom::WeaveId manager) {
         answered = false;
         refused = false;
-        manager_ = manager;
-        return ++correlation_;
+        return loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version)
+            .correlation;
     }
-    bool awaiting() const { return correlation_ != 0 && !answered; }
+    /// IS MY LOAD CONVERSATION STILL OPEN? Never "was anything delivered this turn".
+    bool awaiting() const { return loads_.awaiting(); }
 
     void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
     void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
@@ -98,13 +105,17 @@ public:
     }
 
 private:
-    bool mine(const loom::Mail& mail) const {
-        return correlation_ != 0 && mail.correlation() == correlation_ &&
-               mail.sender() == manager_;
+    /// Which of my conversations does this arrival settle? Settling CLOSES it, so a
+    /// duplicate or a late copy of the same answer is inert -- there is no longer a
+    /// record for it to close.
+    bool mine(const loom::Mail& mail) {
+        return loads_.settle(mail.correlation(), mail.sender()).has_value();
     }
 
-    std::uint64_t correlation_ = 0;
-    loom::WeaveId manager_{};
+    /// TWO OPEN AT ONCE IS MORE THAN THIS PROGRAM EVER HAS -- it asks, then waits --
+    /// but the bound is the owner's to state, and a book that could grow without limit
+    /// is not a record, it is a leak.
+    loom::AskBook loads_{2};
 };
 
 #if defined(_WIN32)

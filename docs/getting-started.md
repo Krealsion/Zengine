@@ -266,7 +266,8 @@ struct WaiterState {
 
 /// The host's own weave: it commands the loads, sends the order, hears the result.
 /// It keeps one fact about each load -- which conversation it is waiting on -- because
-/// the three answer shapes are a vocabulary every participant shares.
+/// the three answer shapes are a vocabulary every participant shares. Loom ships that
+/// record as `loom::AskBook`, so this program does not write one.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
@@ -281,10 +282,11 @@ public:
     std::uint64_t asking(loom::WeaveId manager) {
         answered = false;
         refused = false;
-        manager_ = manager;
-        return ++correlation_;
+        return loads_.open(manager, loom::LoadWeave::zen_name, loom::LoadWeave::zen_version)
+            .correlation;
     }
-    bool awaiting() const { return correlation_ != 0 && !answered; }
+    /// Is MY load conversation still open? Never "was anything delivered this turn".
+    bool awaiting() const { return loads_.awaiting(); }
 
     void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
     void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
@@ -302,15 +304,16 @@ public:
     }
 
 private:
-    /// Is this arrival the answer to the conversation this waiter opened? Which
-    /// conversation, and from the weave actually asked -- the bus stamps the sender.
-    bool mine(const loom::Mail& mail) const {
-        return correlation_ != 0 && mail.correlation() == correlation_ &&
-               mail.sender() == manager_;
+    /// Which of my conversations does this arrival settle -- by correlation (which
+    /// conversation) and by bus-stamped sender (the weave actually asked)? Settling
+    /// closes it, so a duplicate of the same answer is inert.
+    bool mine(const loom::Mail& mail) {
+        return loads_.settle(mail.correlation(), mail.sender()).has_value();
     }
 
-    std::uint64_t correlation_ = 0;
-    loom::WeaveId manager_{};
+    /// This program never has two open at once -- it asks, then waits -- but the bound
+    /// is the owner's to state and `loom::AskBook` has no default.
+    loom::AskBook loads_{2};
 };
 
 } // namespace
@@ -401,7 +404,15 @@ Four host facts worth having up front:
   match each arrival against your own outstanding request **by correlation** — which
   conversation, the number you put on the request and the Manager echoes back — **and by
   bus-stamped sender** — the weave you actually asked, which the bus stamps so nobody can
-  claim another's identity. `Waiter::mine()` above is those two lines and nothing else.
+  claim another's identity. A correlation is *guessable* — the first one any asker opens is
+  `1` — so it identifies and never authenticates; the pair is what makes the wall.
+- **You do not write that record yourself.** `loom::AskBook` is it: `open` gives you the
+  correlation to send and remembers who may answer it, `settle` says which of *your*
+  conversations an arrival closed, `awaiting()` is your loop condition, and `forget` stops
+  tracking one locally without claiming anything was cancelled at the far end. It knows
+  nothing about `zen.Result` or what "refused" means — that part stays yours, which is why
+  `answered` / `refused` / `reason` are still fields of `Waiter`. See
+  [the asker's own book](https://github.com/Krealsion/Loom/blob/main/docs/reference/messaging.md#the-askers-own-book).
 - **The turn ceiling in `load()` is a hang guard, not the thing that settles the load.** The
   conversation settles when its own correlated answer arrives; the 64 only stops this example
   from spinning forever if no answer ever comes, and reaching it would mean exactly that and
