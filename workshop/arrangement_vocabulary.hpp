@@ -125,6 +125,25 @@ inline constexpr const char* kNotAConsumerToken = "not-a-consumer";
 inline constexpr const char* kVersionMismatchToken = "version-mismatch";
 inline constexpr const char* kNotOpenedToken = "not-opened";
 
+/// The tokens `ArtifactParticipation::state` may carry -- `load::RowState`, said in
+/// words for `offer`'s reason exactly.
+///
+/// THEY EXIST BECAUSE REALIZATION IS LIVE NOW (BOOT-0). This field replaced a `bool
+/// performed`, and the bool was not merely coarse: a row nobody had reached yet, a row
+/// whose load was in flight at this instant, and a row that had been reached and
+/// REFUSED were all `false`, so the one question a maker asks while a project is
+/// coming up -- *is it still working, or did it stop?* -- had no answer in the wire at
+/// all. It could not have had one before: nothing survived the executor's stack frame
+/// long enough to be asked.
+///
+/// FOUR TOKENS, FOUR OWNERS, and the owner is why each one exists rather than the
+/// word sounding useful; `load::RowState` names them and names the four that were
+/// refused.
+inline constexpr const char* kAuthoredToken = "authored";
+inline constexpr const char* kLoadingToken = "loading";
+inline constexpr const char* kResolvedToken = "resolved";
+inline constexpr const char* kRefusedToken = "refused";
+
 /// ONE AUTHORED PROJECT PARTICIPANT, AND WHAT THIS RUN MADE OF IT.
 ///
 /// ONE ROW PER ARTIFACT, WHATEVER IT PARTICIPATES AS -- which is LOAD-0's central
@@ -142,13 +161,29 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 ///
 /// ---- WHICH ARE RESOLVED --------------------------------------------------------
 ///
-///   `performed`          the executor produced a row for this artifact this run
+///   `state`              where realization has got with this row: `authored`,
+///                        `loading`, `resolved` or `refused`
 ///   `provider`           the identity THE ARTIFACT DECLARED ABOUT ITSELF when it
 ///                        was mounted -- never the stem, and never what the plan said
 ///   `powers`             how many contributions that mount installed
 ///   `weave`              the `WeaveId` THIS Kernel minted THIS RUN. Zero means no
 ///                        weave was loaded, which is a fact and not an error
 ///   `offer`              how the operator handoff around this weave's load ended
+///
+/// ---- ONLY A `resolved` ROW CARRIES RESOLVED FIELDS -------------------------------
+///
+/// A row that is `loading` may already have mounted its provider -- within one record
+/// the mount happens before the load -- and this shape says nothing about it. That is
+/// deliberate: `provider`, `powers`, `weave` and `offer` answer *what came of this
+/// authored row*, and what came of a row still in flight is not decided. If its load
+/// refuses, that mount is rolled back and the identity would have named a
+/// contribution that no longer exists.
+///
+/// THE POWER IS STILL VISIBLE, THROUGH THE QUESTION THAT OWNS IT. `ResolvedPowers`
+/// reads the live catalog at the moment of the ask, so a contribution mounted by a
+/// row that is still loading appears there immediately. Two questions, two owners,
+/// two currencies -- which is the same reason a provider is a row of the arrangement
+/// and is absent from the Loaded pane.
 ///
 /// ---- WHY THERE IS NO RESOLVED ROLE ---------------------------------------------
 ///
@@ -163,14 +198,17 @@ struct ArtifactParticipation {
     std::string authored_provider;
     std::string authored_role;
 
-    bool performed = false;
+    /// v2 (BOOT-0): this replaced `bool performed`. It is a REPLACEMENT and not an
+    /// addition, because the two would have to agree and one of them would be the
+    /// copy that goes stale -- `performed` is exactly `state == kResolvedToken`.
+    std::string state = kAuthoredToken;
     std::string provider;
     std::int64_t powers = 0;
     std::int64_t weave = 0;
     std::string offer;
 
-    ZEN_SHAPE(ArtifactParticipation, 1, ZEN_FIELD(artifact), ZEN_FIELD(authored_provider),
-              ZEN_FIELD(authored_role), ZEN_FIELD(performed), ZEN_FIELD(provider),
+    ZEN_SHAPE(ArtifactParticipation, 2, ZEN_FIELD(artifact), ZEN_FIELD(authored_provider),
+              ZEN_FIELD(authored_role), ZEN_FIELD(state), ZEN_FIELD(provider),
               ZEN_FIELD(powers), ZEN_FIELD(weave), ZEN_FIELD(offer));
 };
 
@@ -178,7 +216,7 @@ struct ArtifactParticipation {
 ///
 /// `artifacts` IS ONE ENTRY PER AUTHORED ROW, IN AUTHORED ORDER, which is what makes
 /// the count honest without a denominator field: the list length is what the plan
-/// declared and `performed` is what happened, so `3 of 6` is readable off the value
+/// declared and each row's `state` is what happened, so `3 of 6` is readable off the value
 /// rather than asserted beside it.
 ///
 /// THE ORDER IS THE PLAN'S AND IS NOT SORTED. Inter-artifact order is authored policy

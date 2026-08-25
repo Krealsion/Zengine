@@ -709,45 +709,144 @@ int main(int argc, char** argv) {
     // authority to perform one, and an executor that mounted its own weave with its
     // own grant would be an orchestration layer granting itself kernel reach.
     //
-    // IT NO LONGER SPEAKS A STATUS LINE, and that subtraction is the phase's:
-    // the old boot weave printed a refusal AND published one to the screen, because
-    // a refused load used to be something this process survived. A refused artifact
-    // now stops startup and is reported on stdout by the executor's caller, so a
+    // IT NO LONGER SPEAKS A STATUS LINE, and that subtraction is LOAD-0's: the old
+    // boot weave printed a refusal AND published one to the screen, because a refused
+    // load used to be something this process survived. A refused artifact stops the
+    // project and is reported on stdout by the settle notice written below, so a
     // status line published to a painter that may itself be the thing that refused
     // is a message with nowhere to arrive.
+    //
+    // ---- MOUNTED BY HAND, FOR ONE REASON (BOOT-0) ----------------------------
+    //
+    // `loom::mount_granted` hands back a WeaveId, and the realization owner needs the
+    // PARTICIPANT: an answer arriving at this booter has to reach the host-side owner
+    // whose unfinished row it settles, and that wiring is made in the owner's
+    // constructor and unmade in its destructor. Everything else here is what
+    // `mount_granted` does, written out: construct, register with the host's grant,
+    // tell it which weave it is.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
     load::BootAnswers answers;
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
+    auto speaker = std::make_unique<load::PlanBooter>(answers);
+    load::PlanBooter& voice = *speaker;
+    const loom::WeaveId booter = bus.register_weave(std::move(speaker), std::move(operate));
+    voice.zen_set_self(booter);
 
+    // ---- WHAT REALIZES THE PROJECT, AND OUTLIVES EVERY TURN IT TAKES (BOOT-0) -
+    //
     // DECLARED AFTER THE KERNEL, which is the second half of the lifetime claim the
     // catalog block above states. It retains the provider identity of every mount it
     // made -- which is what a rollback needs and what nothing else in this process
-    // knows -- and it must not be the thing that outlives the artifacts holding them.
+    // knows -- and since BOOT-0 it also holds the operator handoff it makes around a
+    // load ACROSS HOST TURNS, so it must not be the thing that outlives the artifacts
+    // holding them. That is also why it is a local of `main` and not a weave: a
+    // registered weave is owned by the bus, which is declared BEFORE the catalog and
+    // would therefore be destroyed after it. (The type is deliberately not named here:
+    // this file does not know how to offer anything, and a tripwire says so.)
     //
     // IT IS HANDED THE ONE RULE THAT SPELLS A STEM AS A FILE, and that is the whole
     // of what the host contributes to resolution. `host.so` is the same function
     // every artifact path in this program has always come from; keeping it here is
     // what makes ONE authored plan legal on Linux and on Windows with no platform
     // field, no suffix in the file and no locator.
-    load::PlanExecutor executor(bus, operators, operator_host, booter, manager, answers,
-                                [&host](const std::string& stem) { return host.so(stem); });
+    //
+    // ...AND THE ONE POLICY THAT IS THIS HOST'S AND NOT REALIZATION'S: what a
+    // Workshop does about a project that finished, or stopped. See the lambda.
+    bool project_refused = false;
+    load::PlanExecutor executor(
+        bus, operators, operator_host, voice, manager, answers,
+        [&host](const std::string& stem) { return host.so(stem); },
+        [&host, &operators, &project_refused](const load::Executed& done) {
+            // SAID ARTIFACT BY ARTIFACT, IN THE ORDER IT HAPPENED. What each row of
+            // this banner reports is RESOLVED truth -- the identity the artifact
+            // declared, how many powers it supplied, the WeaveId this Kernel minted --
+            // none of which is in the plan and none of which is written back to it.
+            //
+            // SAID WHEN REALIZATION SETTLES rather than when `main` gets control back,
+            // and since BOOT-0 those are different moments: the last row settles inside
+            // an ordinary delivery, with the host loop already running. The honest cost
+            // is unchanged and stated rather than hidden -- whichever Skin the plan
+            // named is live and painting by now, so on an interactive terminal these
+            // lines are written into scrollback and then repainted over. They are on
+            // stdout in full; a pipe, a redirect or a `--log` keeps every one.
+            for (const load::ResolvedArtifact& row : done.resolved) {
+                std::string said = row.stem;
+                if (row.provider_mounted) {
+                    said += " | provider '" + row.provider + "' supplied " +
+                            std::to_string(row.contributed);
+                }
+                if (row.weave_loaded) {
+                    said += " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
+                    said += row.offer == op::OfferOutcome::Offered
+                                ? " (this host's operator resolution offered)"
+                                : " (ordinary weave: it declares no operator surface)";
+                }
+                std::printf("zengine-workshop - loaded: %s\n", said.c_str());
+            }
+            if (done.ok) {
+                std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
+                            "provider(s)\n",
+                            operators.size(), operators.providers().size());
+                std::fflush(stdout);
+                // COMPLETION ENDS NOTHING. A realized project is a fact about the
+                // project; this host goes on being a host, which is what the loop
+                // below is for.
+                return;
+            }
+            // ---- THIS HOST'S FAILURE POLICY, AND IT IS THE HOST'S ------------
+            //
+            // A REFUSED STARTUP PROJECT ENDS THIS WORKSHOP, exactly as it did before
+            // BOOT-0 -- and it is written HERE, in the host, because it is a product
+            // decision and not a fact about realization. The owner has no opinion
+            // about process lifetime: it recorded which artifact refused, put back
+            // what that row had mounted, kept every earlier row, and stopped.
+            //
+            // WHY THIS ONE IS STILL THE SMALLEST. The shipped plan's second row is
+            // the SKIN. A Workshop that survived its refusal would have no painter
+            // and no input -- a live process a maker cannot see or quit -- so
+            // surviving a refusal is worth strictly less than saying so and leaving,
+            // until there is a recovery surface to survive INTO. That is a later
+            // phase's, and the owner it would need now exists.
+            //
+            // FAIL VISIBLE, AND NAME WHAT STANDS. The refusal already carries which
+            // artifact, which participation step and the deepest layer's own
+            // sentence; what this adds is the honest scope of what happened before
+            // it, because a maker whose fourth artifact refused needs to know the
+            // first three did not.
+            std::printf("zengine-workshop - %s\n"
+                        "zengine-workshop - the authored plan was not completed; %zu "
+                        "artifact(s) participated before it stopped. Exiting.\n",
+                        done.refusal.c_str(), done.resolved.size());
+            std::fflush(stdout);
+            project_refused = true;
+            // THE SAME DOOR `q` LEAVES BY, and deliberately not a second one:
+            // `host.quit` is what the loop below reads, and `request_stop` ends the
+            // turn in flight -- necessary because that loop is inside
+            // `drain_until_idle()` right now, which does not return on its own once
+            // anything perpetual is live.
+            host.quit = true;
+            if (host.request_stop) {
+                host.request_stop();
+            }
+        });
 
     // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS (INTR-1) ----------
     //
-    // A READ-ONLY OBSERVATION PARTICIPANT AND NOTHING MORE. It holds the authored
-    // plan, the executor and the catalog as `const` references it does not own, and
-    // it answers two questions with values: what this project asked to participate
-    // and what came of it, and which operator powers currently resolve here and
-    // whose contribution satisfies each.
+    // A READ-ONLY OBSERVATION PARTICIPANT AND NOTHING MORE. It holds the realization
+    // owner and the catalog as `const` references it does not own, and it answers two
+    // questions with values: what this project asked to participate and what came of
+    // it, and which operator powers currently resolve here and whose contribution
+    // satisfies each.
     //
-    // MOUNTED BEFORE THE PLAN RUNS, AND THE ORDER IS THE HONESTY. The tool that asks
-    // is an artifact THIS PLAN LOADS, so a door mounted afterwards would be absent
-    // during the very window in which a pane might first be granted room -- and the
-    // pane would say `waiting` for a host that was in fact right here. Mounted first,
-    // it answers what has resolved SO FAR at any moment it is asked, which is a true
-    // sentence at every point on the timeline rather than only at the end of it.
+    // MOUNTED BEFORE REALIZATION BEGINS, AND THE ORDER IS THE HONESTY. The tool that
+    // asks is an artifact THIS PLAN LOADS, so a door mounted afterwards would be
+    // absent during the very window in which a pane might first be granted room --
+    // and the pane would say `waiting` for a host that was in fact right here.
+    // Mounted first, it answers what has resolved SO FAR at any moment it is asked,
+    // which is a true sentence at every point on the timeline rather than only at the
+    // end of it. SINCE BOOT-0 THAT SENTENCE HAS SOMETHING TO SAY MID-FLIGHT: the plan
+    // is realized through ordinary deliveries, so an ask can genuinely land while a
+    // row is loading, and `loading` is what it hears.
     //
     // ITS GRANT IS THE TWO ANSWERS AND NOTHING ELSE. `to_any` for the reason
     // `PaneRoom` is: Loom picks the recipient of an answer -- it is the weave that
@@ -765,53 +864,28 @@ int main(int argc, char** argv) {
     loom::Grant say_resolved;
     say_resolved.allow_to_any(ResolvedArrangement::zen_name, ResolvedArrangement::zen_version);
     say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
-    mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole,
-                                     read_plan.plan, executor, operators, plan_path);
+    mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole, executor,
+                                     operators, plan_path);
 
-    const load::Executed performed = executor.run(read_plan.plan);
-
-    // SAID ARTIFACT BY ARTIFACT, IN THE ORDER IT HAPPENED. What each row of this
-    // banner reports is RESOLVED truth -- the identity the artifact declared, how
-    // many powers it supplied, the WeaveId this Kernel minted -- none of which is in
-    // the plan and none of which is written back to it.
+    // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST (BOOT-0) --------------------
     //
-    // SAID AFTER THE RUN RATHER THAN DURING IT, and the honest cost is stated rather
-    // than hidden: by the time this loop runs, whichever Skin the plan named is live
-    // and painting, so on an interactive terminal these lines are written into
-    // scrollback and then repainted over. They are on stdout in full -- a pipe, a
-    // redirect or a `--log` keeps every one -- and that is the same condition
-    // anything this host says after its Skin is live has always had. The line that
-    // must survive is the REFUSAL below, and it does: a refused plan stops the
-    // process, so nothing repaints after it.
-    for (const load::ResolvedArtifact& done : performed.resolved) {
-        std::string said = done.stem;
-        if (done.provider_mounted) {
-            said += " | provider '" + done.provider + "' supplied " +
-                    std::to_string(done.contributed);
-        }
-        if (done.weave_loaded) {
-            said += " | weave #" + std::to_string(done.weave.value) + " as " + done.role;
-            said += done.offer == op::OfferOutcome::Offered
-                        ? " (this host's operator resolution offered)"
-                        : " (ordinary weave: it declares no operator surface)";
-        }
-        std::printf("zengine-workshop - loaded: %s\n", said.c_str());
-    }
-    if (!performed.ok) {
-        // FAIL VISIBLE, AND NAME WHAT STANDS. The refusal already carries which
-        // artifact, which participation step and the deepest layer's own sentence;
-        // what this adds is the honest scope of what happened before it, because a
-        // maker whose fourth artifact refused needs to know the first three did not.
-        std::printf("zengine-workshop - %s\n"
-                    "zengine-workshop - the authored plan was not completed; %zu artifact(s) "
-                    "participated before it stopped. Exiting.\n",
-                    performed.refusal.c_str(), performed.resolved.size());
-        std::fflush(stdout);
-        return 4;
-    }
-    std::printf("zengine-workshop - operators: %zu resolvable, from %zu provider(s)\n",
-                operators.size(), operators.providers().size());
-    std::fflush(stdout);
+    // THIS RETURNS BEFORE THE PROJECT IS REALIZED, and that is the phase. It mounts
+    // every provider it can mount straight away and issues the first weave load, and
+    // then it hands control back here with a row still in flight. What carries the
+    // rest is the ordinary loop below -- the same one that would be running anyway --
+    // and the load's own answer, which reaches the owner through the booter.
+    //
+    // WHAT USED TO BE ON THIS LINE was a straight-line call that performed the WHOLE
+    // plan before returning, because it turned the bus itself -- 64 dispatch turns per
+    // load -- to hear its own answers. That loop is deleted rather than moved: nothing
+    // in this file counts turns for it, and nothing in `load_execute.hpp` does either.
+    // The old verb is deliberately not spelled here: a tripwire reads this file for it,
+    // which is how the deletion stays deleted.
+    //
+    // NOTHING BELOW KNOWS THE PLAN. There is no `if (realizing)`, no next-row check
+    // and no completion test in the host loop; the owner is woken by an ordinary
+    // delivery and reports through the notice written where it is constructed.
+    executor.begin(read_plan.plan);
 
     // Everything runs inside drain_until_idle(): the input weave's own beat keeps
     // the queue alive, the Timer service's nap paces it, and `q` stops the bus.
@@ -819,6 +893,10 @@ int main(int argc, char** argv) {
     // its own to do between turns. A call that returns with an empty queue means
     // nothing in this process will ever speak again -- say so and leave rather
     // than spin, snake's stance and for the same reason.
+    //
+    // IT IS ALSO WHAT REALIZES THE PROJECT NOW, without being told: the first
+    // artifact's load answer is an ordinary delivery like any other, and so is every
+    // fact that follows it.
     while (!host.quit) {
         bus.drain_until_idle();
         if (!host.quit && bus.pending() == 0) {
@@ -863,5 +941,10 @@ int main(int argc, char** argv) {
         }
     }
     journal.close();
-    return 0;
+    // A REFUSED PROJECT IS STILL EXIT 4, which is what a script that already reads
+    // this host's status expects. It is set by the failure policy above rather than
+    // returned from a call, because realization settles inside a delivery now and
+    // there is no `run()` to return it -- the same fact, carried the one way a
+    // process that is already looping can carry it.
+    return project_refused ? 4 : 0;
 }

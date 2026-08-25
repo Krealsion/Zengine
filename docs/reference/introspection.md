@@ -34,8 +34,8 @@ different. One merged table would have had to invent a row kind that is none of 
 
 ```text
 loaded        which WEAVES this Loom's Kernel has loaded    owner: the Kernel's loaded() map
-arrangement   which AUTHORED ARTIFACT PARTICIPATIONS this   owner: the load plan (authored) and
-              project asked for, and what resolved                 the executor's resolved rows
+arrangement   which AUTHORED ARTIFACT PARTICIPATIONS this   owner: the host's realization owner
+              project asked for, and where each has got to           (authored plan + resolved rows)
 powers        which OPERATOR POWERS this host resolves,     owner: the host's op::Catalog
               and whose contribution satisfies each
 ```
@@ -125,10 +125,29 @@ map, which is what the `Loaded` pane already shows. Two panes, two questions.
 made around it at all, so the row carries none — reporting the enumeration's default there would be
 publishing a default as an observation.
 
-**`(not reached)`** marks an authored artifact this run never performed. Nothing in a running
-production Workshop produces one: a refused plan stops startup before a pane exists. It is what a
-*partial* arrangement looks like, and it exists so a partial arrangement can never read as a
-complete one.
+**One row per authored artifact says where realization has got with it**, and there are four
+states because there are four different things that can be true:
+
+| the row says | it means |
+|---|---|
+| the `resolved` lines | every surface this artifact authored has participated |
+| `(loading)` | its weave load has been commanded and its answer has not arrived |
+| `(refused)` | it was reached and something refused it; its own mount, if it made one, was rolled back |
+| `(not reached)` | the plan declares it and realization has not got there |
+
+**At most one row is ever `(loading)`, and at most one is ever `(refused)`.** Authored order is
+strict and serial, and the plan stops at the first refusal.
+
+**`(loading)` and `(not reached)` are ordinary states of a project that is working**, so they are
+drawn plainly; only `(refused)` is drawn as something the maker must see. A project coming up is
+not six problems.
+
+**A `(loading)` row shows no resolved fields even when its provider has already mounted.** Within
+one artifact the mount happens before the load, so at that instant the contribution is genuinely
+in the catalog — and what came of the *row* is still undecided, because a refusal would roll that
+mount back. The `Powers` pane reads the live catalog and shows the contribution immediately;
+`Project` answers a different question with a different currency, which is the same reason a
+provider is a row here and absent from `Loaded`.
 
 ## What the `Powers` pane shows
 
@@ -176,7 +195,7 @@ signal, so a monochrome terminal reads the same fact a coloured one does.
 | the role each holds | the **Kernel** (`Kernel::role_of()`), same answer | same message | same snapshot | that library was bound to no role |
 | that a weave is *not* listed | nobody — **not observed** | — | — | it is not in the kernel's map. It may still be running |
 | what the project authored | the **load plan file**, held by the host | `ArrangementRequested` → `zengine.arrangement` → `ResolvedArrangement` | a **snapshot**, re-read on each room grant | the plan named no such artifact |
-| what resolved from it | the host's **`PlanExecutor` rows** | same message | same snapshot | the executor never reached that row |
+| what resolved from it | the host's **realization owner** (its cursor and its resolved rows) | same message | same snapshot | realization has not reached that row |
 | which powers resolve | the host's **`op::Catalog`** (the same store `find` resolves through) | `PowersRequested` → `zengine.arrangement` → `ResolvedPowers` | a **snapshot**, re-read on each room grant | nothing supplies that identity here |
 | that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it, and the pane says nothing about any other |
 

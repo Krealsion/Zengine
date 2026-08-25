@@ -775,10 +775,14 @@ TEST_CASE("the production host owns ONE catalog, and owns it for longer than the
     // neither, because it names no artifact at all. The law is unchanged and its
     // tripwire followed the code -- `test_operator_provider.cpp`'s tier 10 reads
     // `load_execute.hpp`, where the mount/offer/load order now lives.
-    const std::size_t executor = host.find("load::PlanExecutor executor(bus, operators, "
-                                           "operator_host,");
+    const std::size_t executor = host.find("load::PlanExecutor executor(");
     REQUIRE(executor != std::string::npos);
     CHECK(kernel < executor);
+    // ...and the surface is among the first things handed to it. Read as a SECOND find
+    // rather than as one literal, because the construction wraps: BOOT-0 gave the owner
+    // the participant it is woken through and this host's own settle policy, and a
+    // tripwire spelled as one line of source would be pinning a line width.
+    CHECK(host.find("operators, operator_host,", executor) != std::string::npos);
     CHECK(host.find("op::OperatorOffer") == std::string::npos);
 }
 

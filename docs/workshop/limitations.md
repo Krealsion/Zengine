@@ -131,6 +131,14 @@ from being useful.
 **Loading is initial and restart intent.** The plan executor has no unload, reload or remount
 path — that is written down in its own source, not inferred.
 
+**What realizes a project is now a live thing rather than a call**, and that changes what is
+*missing* rather than what is possible. Workshop begins the project and returns to its ordinary
+loop; each row settles when its own load answer arrives, and the owner of that work is still
+there afterwards, holding the authored plan, a cursor and what each row produced. Nothing new is
+offered to a maker by that on its own — there is still no unload, no reload, and no run-time
+change to what is loaded. What it removes is the reason those were impossible to *reach*: the
+object that would have to perform them used to have returned before the host loop started.
+
 **Reversible provider overlay is not artifact hot reload**, and the two must not be read as one.
 Overlay and unmount are reversible *within the host's operator catalog*: unmounting an overlay
 reveals what was underneath, unchanged and unrebuilt. That is a real, proven capability about

@@ -280,11 +280,26 @@ private:
     Answered* into_;
 };
 
+/// MOUNT A PLAN BOOTER AND KEEP THE PARTICIPANT, which is what a realization owner
+/// needs: `loom::mount_granted` hands back only a WeaveId, and the owner is wired to
+/// the weave itself so a settled answer can wake it (BOOT-0).
+///
+/// THE HOST WRITES THE GRANT, and this is that act: the plan booter may send
+/// `zen.LoadWeave` to this Manager and nothing else, to nobody else. It is spelled out
+/// rather than derived from the Emit set for `mount_door`'s reason -- a rig that minted
+/// the grant could not notice a host quietly widening it.
+inline load::PlanBooter& mount_booter_in(loom::Switchboard& bus, loom::WeaveId manager,
+                                         load::BootAnswers& answers, loom::WeaveId& id) {
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    auto speaker = std::make_unique<load::PlanBooter>(answers);
+    load::PlanBooter& voice = *speaker;
+    id = bus.register_weave(std::move(speaker), std::move(operate));
+    voice.zen_set_self(id);
+    return voice;
+}
+
 struct PlanRig {
-    /// DECLARED BEFORE THE BUS, exactly as `workshop.cpp` reads its plan before it
-    /// builds one: the arrangement door holds this by reference and the bus owns the
-    /// door, so a plan declared after the bus would be destroyed first.
-    load::LoadPlan authored;
     loom::Switchboard bus;
     op::Catalog catalog;
     op::OperatorHostSurface operators{catalog};
@@ -294,28 +309,22 @@ struct PlanRig {
 
     load::BootAnswers answers;
     loom::WeaveId booter;
+    load::PlanBooter& voice = mount_booter_in(bus, manager, answers, booter);
 
     Heard heard;
     loom::WeaveId witness;
 
     /// DECLARED AFTER THE KERNEL, exactly as `main()` declares it.
-    load::PlanExecutor executor{bus,     catalog, operators, mount_booter(), manager,
-                                answers, [](const std::string& stem) { return stage().so(stem); }};
+    load::PlanExecutor executor{bus,    catalog, operators, voice,
+                                manager, answers, [](const std::string& stem) {
+                                    return stage().so(stem);
+                                }};
 
     PlanRig() {
         loom::Grant reach;
         reach.allow_to_any(tmr::StartTimer::zen_name, tmr::StartTimer::zen_version);
         reach.allow_to_any(loom::PrepareShutdown::zen_name, loom::PrepareShutdown::zen_version);
         witness = loom::mount_granted<Witness>(bus, std::move(reach), heard);
-    }
-
-    /// THE HOST WRITES THE GRANT, and this is that act: the plan booter may send
-    /// `zen.LoadWeave` to this Manager and nothing else, to nobody else.
-    loom::WeaveId mount_booter() {
-        loom::Grant operate;
-        operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
-        booter = loom::mount_granted<load::PlanBooter>(bus, std::move(operate), answers);
-        return booter;
     }
 
     /// SPEND TURNS. No predicate, so the number IS the whole semantics -- this is a
@@ -327,6 +336,49 @@ struct PlanRig {
         for (int i = 0; i < turns; ++i) {
             bus.pump_pending();
         }
+    }
+
+    /// ⭐ REALIZE A WHOLE PLAN, BY BEING THE HOST (BOOT-0).
+    ///
+    /// THE TURNING IS HERE, IN THE CALLER, AND THAT IS THE WHOLE POINT OF THIS
+    /// HELPER'S EXISTENCE. Production Workshop begins realization and goes back to its
+    /// ordinary loop; a test case has no ordinary loop, so it turns the crank itself --
+    /// exactly as a script driving any Loom host does, and exactly as `main` does not.
+    /// `PlanExecutor` contains no `pump_pending`, no drain, no wait and no fuse; every
+    /// turn any plan in this file ever takes is on THIS line.
+    ///
+    /// A FIXED COUNT AND NO PREDICATE. It makes no claim that anything arrived -- a
+    /// case that cares asserts the state afterwards, and `state()` says which of the
+    /// five it is rather than leaving a reader to infer settlement from a loop exit.
+    load::Executed realize(load::LoadPlan plan, int turns = 32) {
+        executor.begin(std::move(plan));
+        drain(turns);
+        return executor.outcome();
+    }
+
+    /// REALIZE A SECOND PLAN ON THIS SAME RUNTIME, WITH A SECOND OWNER.
+    ///
+    /// AN OWNER REALIZES ONE PLAN (BOOT-0). It holds a cursor into that plan and one
+    /// load conversation, so `begin` refuses a second rather than abandoning a row that
+    /// may still be in flight -- which is a real difference from the straight-line
+    /// `run()` this replaced, where every call was a fresh stack frame and the object
+    /// held nothing between them.
+    ///
+    /// A HOST THAT WANTED A SECOND ARRANGEMENT WOULD BUILD A SECOND OWNER, against the
+    /// same catalog and the same Kernel, so that is exactly what this does: its own
+    /// booter, its own answer record, the SAME runtime underneath. That is what makes a
+    /// runtime provider collision reachable at all -- one plan cannot name an artifact
+    /// twice, so the second mount has to come from a second execution.
+    load::Executed realize_again(load::LoadPlan plan, int turns = 32) {
+        extra_answers.push_back(std::make_unique<load::BootAnswers>());
+        loom::WeaveId id{};
+        load::PlanBooter& speaker = mount_booter_in(bus, manager, *extra_answers.back(), id);
+        extra_owners.push_back(std::make_unique<load::PlanExecutor>(
+            bus, catalog, operators, speaker, manager, *extra_answers.back(),
+            [](const std::string& stem) { return stage().so(stem); }));
+        extra_owners.back()->begin(std::move(plan));
+        drain(turns);
+        return extra_owners.back()->outcome();
     }
 
     /// Schedule one timer on a live service and read back the delay it STORED.
@@ -369,13 +421,6 @@ struct PlanRig {
 
     // ---- INTR-1: the projection, and the door that answers it -----------------
 
-    /// RETAIN the plan and perform it, which is what `main()` does: the authored rows
-    /// outlive the run because the projection pairs them with what the run produced.
-    load::Executed perform(load::LoadPlan plan) {
-        authored = std::move(plan);
-        return executor.run(authored);
-    }
-
     /// MOUNT THE HOST'S OBSERVATION DOOR, with the production grant spelled out.
     ///
     /// THE TWO RULES ARE COPIED FROM `workshop.cpp` DELIBERATELY rather than minted
@@ -383,7 +428,15 @@ struct PlanRig {
     /// everything it declares, which is what the host writes anyway here -- but a rig
     /// that derived the grant could not notice the host quietly widening it.
     loom::WeaveId mount_door(std::string plan_path = std::string()) {
-        auto door = std::make_unique<workshop::ArrangementDoor>(authored, executor, catalog,
+        return mount_door_over(executor, std::move(plan_path));
+    }
+
+    /// ...AND THE SAME DOOR OVER SOMEBODY ELSE'S OWNER, so a case can point it at a
+    /// realization that is deliberately stuck mid-row. The door is unchanged; what
+    /// changes is which owner it is reading.
+    loom::WeaveId mount_door_over(const load::PlanExecutor& owner,
+                                  std::string plan_path = std::string()) {
+        auto door = std::make_unique<workshop::ArrangementDoor>(owner, catalog,
                                                                 std::move(plan_path));
         workshop::ArrangementDoor* raw = door.get();
         loom::Grant say;
@@ -447,6 +500,14 @@ struct PlanRig {
     }
 
     Answered projected;
+
+    /// ⚠ DECLARED LAST, SO THEY ARE DESTROYED FIRST, and that is a lifetime claim and
+    /// not tidiness: a second owner holds an `op::OperatorOffer` and provider
+    /// identities, and must go before the Kernel, the catalog and the surface -- the
+    /// same order `main()` gets from declaring its executor after its Kernel. The
+    /// answer records go after the owners that read them, for the same reason.
+    std::vector<std::unique_ptr<load::BootAnswers>> extra_answers;
+    std::vector<std::unique_ptr<load::PlanExecutor>> extra_owners;
 
 private:
     loom::WeaveId door_{};
@@ -560,6 +621,12 @@ void write_file(const std::string& path, const std::string& text) {
     out.close();
     REQUIRE_MESSAGE(out.good(), "cannot write ", path);
 }
+
+/// WHAT `zengine-provider-min` DECLARES ITSELF TO BE. An artifact's provider identity
+/// is not its stem and never was; naming it once here is what keeps a `mounted(...)`
+/// check from quietly asking about a provider nothing claims to be -- which passes
+/// whenever the answer is meant to be false, and is therefore worth nothing.
+inline constexpr const char* kMinProvider = "zengine.operators.test.min";
 
 /// The delay a correct `timer.normalize_delay` makes of (-500, repeating).
 constexpr std::int64_t kAuthoredDelay = -500;
@@ -700,6 +767,23 @@ void watch_answers(loom::Switchboard& bus, loom::WeaveId booter, AnswersSeen& se
         }
     });
 }
+
+/// A PARTICIPANT WITH NOTHING TO DO WITH LOADING, so "the host is still working" is
+/// measured on traffic the plan has never heard of.
+struct BystanderState {
+    std::int64_t nudges = 0;
+    ZEN_SHAPE(BystanderState, 1, ZEN_FIELD(nudges));
+};
+
+class Bystander : public loom::WeaveBase<Bystander, BystanderState, loom::Accept<Nudge>,
+                                         loom::Emit<>> {
+public:
+    explicit Bystander(std::int64_t& count) : count_(&count) {}
+    void on(const Nudge&, loom::Mail&) { ++*count_; }
+
+private:
+    std::int64_t* count_;
+};
 
 } // namespace
 
@@ -1082,7 +1166,7 @@ TEST_CASE("the graphical plan differs from the default in exactly the two medium
 
 TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(plan_of({provides("zengine-operators-basic")}));
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].provider_mounted);
@@ -1098,7 +1182,7 @@ TEST_CASE("a provider-only record mounts a provider and loads NO weave") {
 TEST_CASE("a weave-only record loads a weave and mounts NO provider") {
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].weave_loaded);
@@ -1114,7 +1198,7 @@ TEST_CASE("a weave-only record loads a weave and mounts NO provider") {
 
 TEST_CASE("a provider+weave record does BOTH, from ONE row, in one pass") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(
+    const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), both("zengine-timer", tmr::kTimerRole)}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     REQUIRE(done.resolved.size() == 2);
@@ -1136,7 +1220,7 @@ TEST_CASE("WITHIN one record the provider is mounted BEFORE the weave is created
     // contribution has to be in the catalog before `create()` runs.
     {
         PlanRig without;
-        const load::Executed no = without.executor.run(plan_of(
+        const load::Executed no = without.realize(plan_of(
             {provides("zengine-operators-basic"), weaves("zengine-timer", tmr::kTimerRole)}));
         CHECK_FALSE(no.ok);
         CHECK(no.refusal.find("zengine-timer") != std::string::npos);
@@ -1144,7 +1228,7 @@ TEST_CASE("WITHIN one record the provider is mounted BEFORE the weave is created
     }
     {
         PlanRig with;
-        const load::Executed yes = with.executor.run(
+        const load::Executed yes = with.realize(
             plan_of({provides("zengine-operators-basic"), both("zengine-timer", tmr::kTimerRole)}));
         CHECK_MESSAGE(yes.ok, yes.refusal);
     }
@@ -1152,7 +1236,7 @@ TEST_CASE("WITHIN one record the provider is mounted BEFORE the weave is created
 
 TEST_CASE("the offer BRACKETS the load and is withdrawn: a second load is a second handoff") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(
+    const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), both("zengine-timer", tmr::kTimerRole)}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     // OUTSIDE THE BRACKET THE SLOT IS EMPTY. Nothing here can read the loaded image's
@@ -1166,7 +1250,7 @@ TEST_CASE("the offer BRACKETS the load and is withdrawn: a second load is a seco
 TEST_CASE("the executor keeps enough resolved truth to answer for every row") {
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({provides("zengine-operators-basic"),
+        rig.realize(plan_of({provides("zengine-operators-basic"),
                                   weaves("zengine-plain-weave", "test.plain"),
                                   both("zengine-timer", tmr::kTimerRole)}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
@@ -1185,7 +1269,7 @@ TEST_CASE("the executor keeps enough resolved truth to answer for every row") {
 TEST_CASE("a missing artifact is refused in the LOADER's own words, naming the artifact") {
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
+        rig.realize(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("artifact 'zengine-not-on-this-disk'") != std::string::npos);
     CHECK(done.refusal.find("weave load refused") != std::string::npos);
@@ -1195,7 +1279,7 @@ TEST_CASE("a missing artifact is refused in the LOADER's own words, naming the a
 TEST_CASE("a missing PROVIDER artifact is refused by the mount, naming the step") {
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({provides("zengine-not-on-this-disk")}));
+        rig.realize(plan_of({provides("zengine-not-on-this-disk")}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("provider mount refused") != std::string::npos);
     CHECK(rig.catalog.providers().empty());
@@ -1206,7 +1290,7 @@ TEST_CASE("a missing artifact leaves the authored plan exactly as it was written
     const load::LoadPlan authored = plan_of({weaves("zengine-not-on-this-disk", "test.absent")});
     const std::string before = load_persist::to_text(authored);
     PlanRig rig;
-    const load::Executed done = rig.executor.run(authored);
+    const load::Executed done = rig.realize(authored);
     REQUIRE_FALSE(done.ok);
     CHECK(load_persist::to_text(authored) == before);
     CHECK(authored.artifacts.size() == 1);
@@ -1214,19 +1298,19 @@ TEST_CASE("a missing artifact leaves the authored plan exactly as it was written
 
 TEST_CASE("an ORDINARY provider collision still refuses, and the catalog is untouched") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(
+    const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-provider-min")}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("artifact 'zengine-provider-min'") != std::string::npos);
     CHECK(done.refusal.find("needs an explicit overlay") != std::string::npos);
     // The FIRST provider still stands: an artifact is the atomic unit, not the plan.
     CHECK(rig.catalog.mounted("zengine.operators.basic"));
-    CHECK_FALSE(rig.catalog.mounted("zengine.min"));
+    CHECK_FALSE(rig.catalog.mounted(kMinProvider));
 }
 
 TEST_CASE("a provider from another era is still refused on its NUMBER, through the plan") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(plan_of({provides("zengine-stale-provider")}));
+    const load::Executed done = rig.realize(plan_of({provides("zengine-stale-provider")}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("provider mount refused") != std::string::npos);
     CHECK(done.refusal.find("this host speaks v") != std::string::npos);
@@ -1239,7 +1323,7 @@ TEST_CASE("a BROKEN operator handoff refuses the artifact rather than downgradin
     // host's semantic authority for whatever the image carries.
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-broken-consumer", "test.broken")}));
+        rig.realize(plan_of({weaves("zengine-broken-consumer", "test.broken")}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("operator handoff refused") != std::string::npos);
     CHECK(done.refusal.find("this host speaks v") != std::string::npos);
@@ -1253,7 +1337,7 @@ TEST_CASE("provider mount succeeds, weave load fails: THIS RECORD'S mount is rol
     // Kernel already gave to somebody else -- so the mount succeeds and the load does
     // not, which is the halfway state artifact-level atomicity exists for.
     const load::Executed done =
-        rig.executor.run(plan_of({provides("zengine-operators-basic"),
+        rig.realize(plan_of({provides("zengine-operators-basic"),
                                   weaves("zengine-plain-weave", tmr::kTimerRole),
                                   both("zengine-timer", tmr::kTimerRole)}));
     CHECK_FALSE(done.ok);
@@ -1278,11 +1362,13 @@ TEST_CASE("a provider mount that fails stops the record before its weave is atte
     // record STOPS: a mount that refused must not be followed by the load it was
     // supposed to make possible.
     PlanRig rig;
-    REQUIRE(rig.executor.run(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                       provides("zengine-timer")}))
                 .ok);
+    // A SECOND OWNER, SAME RUNTIME (BOOT-0): one owner realizes one plan, so a second
+    // execution is a second owner -- which is also what a host doing this would build.
     const load::Executed done =
-        rig.executor.run(plan_of({both("zengine-timer", tmr::kTimerRole)}));
+        rig.realize_again(plan_of({both("zengine-timer", tmr::kTimerRole)}));
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("provider mount refused") != std::string::npos);
     CHECK(done.refusal.find("already mounted") != std::string::npos);
@@ -1299,10 +1385,10 @@ TEST_CASE("FILESYSTEM PRESENCE IS NOT LOAD AUTHORITY: an unlisted valid provider
     // it, so it contributes nothing, is opened by nothing, and is not asked.
     PlanRig rig;
     REQUIRE(std::filesystem::exists(stage().so("zengine-provider-min")));
-    const load::Executed done = rig.executor.run(plan_of({provides("zengine-operators-basic")}));
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     CHECK(rig.catalog.providers().size() == 1);
-    CHECK_FALSE(rig.catalog.mounted("zengine.min"));
+    CHECK_FALSE(rig.catalog.mounted(kMinProvider));
     CHECK(done.resolved.size() == 1);
     // ...and the same is true of every other artifact staged beside it.
     CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
@@ -1314,7 +1400,7 @@ TEST_CASE("a WEAVE-ONLY declaration does not mount the provider that artifact ex
     // and nothing else, it contributes nothing -- because "load this participant" and
     // "let this artifact change the host's semantic world" are different intentions.
     PlanRig rig;
-    const load::Executed done = rig.executor.run(plan_of(
+    const load::Executed done = rig.realize(plan_of(
         {provides("zengine-operators-basic"), weaves("zengine-timer", tmr::kTimerRole)}));
     // The load itself refuses, because a host-backed Timer needs the very rule its own
     // provider surface would have supplied -- which is the point said twice: nothing
@@ -1326,7 +1412,7 @@ TEST_CASE("a WEAVE-ONLY declaration does not mount the provider that artifact ex
 
 TEST_CASE("a PROVIDER-ONLY declaration does not load the weave that artifact exports") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(
+    const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-timer")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     CHECK(rig.catalog.mounted("zengine.timer"));
@@ -1345,7 +1431,7 @@ TEST_CASE("provider teardown happens after the consumer weave stops spending it"
     // use-after-free here.
     {
         PlanRig rig;
-        const load::Executed done = rig.executor.run(
+        const load::Executed done = rig.realize(
             plan_of({provides("zengine-operators-basic"), both("zengine-timer", tmr::kTimerRole)}));
         REQUIRE_MESSAGE(done.ok, done.refusal);
         CHECK(rig.scheduled_delay(rig.weave_of(done, "zengine-timer"), "beat", kAuthoredDelay,
@@ -1356,7 +1442,7 @@ TEST_CASE("provider teardown happens after the consumer weave stops spending it"
 
 TEST_CASE("unmounting one record's provider drops its contributions and nothing else") {
     PlanRig rig;
-    const load::Executed done = rig.executor.run(
+    const load::Executed done = rig.realize(
         plan_of({provides("zengine-operators-basic"), provides("zengine-timer")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     CHECK(rig.catalog.size() == 3);
@@ -1393,7 +1479,7 @@ TEST_CASE("two fresh executions of ONE file reconstruct the SAME arrangement") {
     std::size_t first_powers = 0;
     {
         PlanRig a;
-        const load::Executed done = a.executor.run(run());
+        const load::Executed done = a.realize(run());
         REQUIRE_MESSAGE(done.ok, done.refusal);
         first_powers = a.catalog.size();
         first_answer = a.scheduled_delay(a.weave_of(done, "zengine-timer"), "beat",
@@ -1403,7 +1489,7 @@ TEST_CASE("two fresh executions of ONE file reconstruct the SAME arrangement") {
     }
     {
         PlanRig b;
-        const load::Executed done = b.executor.run(run());
+        const load::Executed done = b.realize(run());
         REQUIRE_MESSAGE(done.ok, done.refusal);
         CHECK(b.catalog.size() == first_powers);
         CHECK(b.catalog.providers().size() == 2);
@@ -1439,7 +1525,7 @@ TEST_CASE("a PERSISTED overlay row changes what a fresh run's Timer schedules") 
         PlanRig a;
         const load_persist::LoadedPlan read = load_persist::load_file(overlaid);
         REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-        const load::Executed done = a.executor.run(read.plan);
+        const load::Executed done = a.realize(read.plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         CHECK(a.catalog.providers().size() == 3);
         with = a.scheduled_delay(a.weave_of(done, "zengine-timer"), "beat", kAuthoredDelay, true);
@@ -1448,7 +1534,7 @@ TEST_CASE("a PERSISTED overlay row changes what a fresh run's Timer schedules") 
         PlanRig b;
         const load_persist::LoadedPlan read = load_persist::load_file(baseline);
         REQUIRE(read.outcome.accepted);
-        const load::Executed done = b.executor.run(read.plan);
+        const load::Executed done = b.realize(read.plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         CHECK(b.catalog.providers().size() == 2);
         without = b.scheduled_delay(b.weave_of(done, "zengine-timer"), "beat", kAuthoredDelay,
@@ -1466,7 +1552,7 @@ TEST_CASE("the SAME overlay artifact without the overlay WORD is refused, not si
     // consequence of where it sits in the list.
     PlanRig rig;
     const load::Executed done =
-        rig.executor.run(plan_of({provides("zengine-operators-basic"),
+        rig.realize(plan_of({provides("zengine-operators-basic"),
                                   provides("zengine-provider-min"),
                                   both("zengine-timer", tmr::kTimerRole)}));
     CHECK_FALSE(done.ok);
@@ -1489,7 +1575,7 @@ TEST_CASE("MEASURED: Timer before the basic provider is legal today, and here is
     // Writing a case that pretended otherwise would be manufacturing a dependency
     // failure this system does not have.
     PlanRig rig;
-    const load::Executed done = rig.executor.run(plan_of(
+    const load::Executed done = rig.realize(plan_of(
         {both("zengine-timer", tmr::kTimerRole), provides("zengine-operators-basic")}));
     CHECK_MESSAGE(done.ok, done.refusal);
     CHECK(rig.scheduled_delay(rig.weave_of(done, "zengine-timer"), "beat", kAuthoredDelay, true) ==
@@ -1503,7 +1589,7 @@ TEST_CASE("INTER-artifact order IS authored policy, and an overlay is where it s
     // nothing reorders anything to rescue the wrong one.
     {
         PlanRig right;
-        const load::Executed done = right.executor.run(
+        const load::Executed done = right.realize(
             plan_of({provides("zengine-operators-basic"),
                      provides("zengine-provider-min", op::MountMode::Overlay),
                      both("zengine-timer", tmr::kTimerRole)}));
@@ -1516,7 +1602,7 @@ TEST_CASE("INTER-artifact order IS authored policy, and an overlay is where it s
         // The overlay first: it covers nothing, installs, and then the ORDINARY mount
         // it was meant to cover collides with it. Refused, by artifact and by step,
         // in the catalog's own words.
-        const load::Executed done = wrong.executor.run(
+        const load::Executed done = wrong.realize(
             plan_of({provides("zengine-provider-min", op::MountMode::Overlay),
                      provides("zengine-operators-basic"),
                      both("zengine-timer", tmr::kTimerRole)}));
@@ -1544,13 +1630,13 @@ TEST_CASE("INTER-artifact order IS authored policy, and an overlay is where it s
 TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row by row") {
     PlanRig rig;
     const load::Executed done =
-        rig.perform(plan_of({provides("zengine-operators-basic"),
+        rig.realize(plan_of({provides("zengine-operators-basic"),
                              both("zengine-timer", tmr::kTimerRole),
                              weaves("zengine-plain-weave", "test.plain")}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
 
     const workshop::ResolvedArrangement said =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "a-plan.json");
+        workshop::describe_arrangement(rig.executor, "a-plan.json");
     // ONE ROW PER AUTHORED ROW, IN AUTHORED ORDER. The plan is what is walked, so the
     // order a person wrote is the order a maker reads -- which matters because
     // inter-artifact order is authored policy and an overlay has to sit after what it
@@ -1566,7 +1652,7 @@ TEST_CASE("INTR-1: the projection pairs AUTHORED intent with RESOLVED state, row
     REQUIRE(basic != nullptr);
     CHECK(basic->authored_provider == std::string(load_persist::kModeNormal));
     CHECK(basic->authored_role.empty());
-    CHECK(basic->performed);
+    CHECK(basic->state == std::string(workshop::kResolvedToken));
     CHECK(basic->provider == "zengine.operators.basic");
     CHECK(basic->powers == 2);
 
@@ -1602,17 +1688,17 @@ TEST_CASE("INTR-1: the WeaveId is this run's and the role is the file's") {
     std::int64_t weave_b = 0;
     {
         PlanRig rig;
-        REQUIRE(rig.perform(one).ok);
+        REQUIRE(rig.realize(one).ok);
         const workshop::ResolvedArrangement said =
-            workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+            workshop::describe_arrangement(rig.executor, "");
         role_a = row_of(said, "zengine-timer")->authored_role;
         weave_a = row_of(said, "zengine-timer")->weave;
     }
     {
         PlanRig rig;
-        REQUIRE(rig.perform(one).ok);
+        REQUIRE(rig.realize(one).ok);
         const workshop::ResolvedArrangement said =
-            workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+            workshop::describe_arrangement(rig.executor, "");
         role_b = row_of(said, "zengine-timer")->authored_role;
         weave_b = row_of(said, "zengine-timer")->weave;
     }
@@ -1629,11 +1715,11 @@ TEST_CASE("INTR-1: the WeaveId is this run's and the role is the file's") {
 
 TEST_CASE("INTR-1: the Timer is ONE row whose provider and weave are two fields of it") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
     const workshop::ResolvedArrangement said =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+        workshop::describe_arrangement(rig.executor, "");
 
     // LOAD-0'S CENTRAL RESULT, CARRIED INTO OBSERVATION. Counted rather than found,
     // because "appears once" is a statement about the whole list.
@@ -1656,9 +1742,9 @@ TEST_CASE("INTR-1: the Timer is ONE row whose provider and weave are two fields 
 
 TEST_CASE("INTR-1: a provider-only artifact is visible, and never wears a weave") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const workshop::ResolvedArrangement said =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+        workshop::describe_arrangement(rig.executor, "");
     const workshop::ArtifactParticipation* basic = row_of(said, "zengine-operators-basic");
     REQUIRE(basic != nullptr);
 
@@ -1680,9 +1766,9 @@ TEST_CASE("INTR-1: a provider-only artifact is visible, and never wears a weave"
 
 TEST_CASE("INTR-1: a weave-only artifact is visible, and never wears a provider") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({weaves("zengine-plain-weave", "test.plain")})).ok);
+    REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")})).ok);
     const workshop::ResolvedArrangement said =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+        workshop::describe_arrangement(rig.executor, "");
     const workshop::ArtifactParticipation* plain = row_of(said, "zengine-plain-weave");
     REQUIRE(plain != nullptr);
 
@@ -1709,18 +1795,18 @@ TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from t
     workshop::ArtifactParticipation overlaid;
     {
         PlanRig rig;
-        REQUIRE(rig.perform(plan_of({provides("zengine-provider-min")})).ok);
+        REQUIRE(rig.realize(plan_of({provides("zengine-provider-min")})).ok);
         ordinary = *row_of(
-            workshop::describe_arrangement(rig.authored, rig.executor.resolved(), ""),
+            workshop::describe_arrangement(rig.executor, ""),
             "zengine-provider-min");
     }
     {
         PlanRig rig;
-        REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+        REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                      provides("zengine-provider-min", op::MountMode::Overlay)}))
                     .ok);
         overlaid = *row_of(
-            workshop::describe_arrangement(rig.authored, rig.executor.resolved(), ""),
+            workshop::describe_arrangement(rig.executor, ""),
             "zengine-provider-min");
     }
     CHECK(ordinary.authored_provider == std::string(load_persist::kModeNormal));
@@ -1729,7 +1815,7 @@ TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from t
     // a measurement rather than a description.
     CHECK(ordinary.provider == overlaid.provider);
     CHECK(ordinary.powers == overlaid.powers);
-    CHECK(ordinary.performed == overlaid.performed);
+    CHECK(ordinary.state == overlaid.state);
     CHECK(ordinary.offer == overlaid.offer);
     // AND THE WORD IS THE FILE'S OWN. The projection spells an authored mode with
     // `load_persist::mode_word` -- the very function that writes the plan file -- so a
@@ -1741,21 +1827,25 @@ TEST_CASE("INTR-1: the authored MODE exists ONLY in the plan, and is read from t
 }
 
 TEST_CASE("INTR-1: an authored artifact the run never reached keeps its intent, marked") {
-    // NOT A PRODUCTION STATE -- a refused plan exits the host before a pane exists
-    // (INTR-1 §19). What it measures is that the projection walks the AUTHORED list, so
-    // a partial arrangement cannot read as a complete one.
+    // What it measures is that the projection walks the AUTHORED list, so a partial
+    // arrangement cannot read as a complete one.
+    //
+    // ⭐ AND BOOT-0 SPLIT THE MARK IN TWO. Before, rows 2 and 3 were both
+    // `performed = false` and there was no wire spelling that could tell "this is the
+    // artifact that REFUSED" from "this is an artifact nothing ever tried". They are
+    // different facts about a maker's project and they are two tokens now.
     PlanRig rig;
-    const load::Executed done = rig.perform(plan_of({provides("zengine-operators-basic"),
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      weaves("zengine-not-here", "test.ghost"),
                                                      weaves("zengine-plain-weave", "test.plain")}));
     REQUIRE_FALSE(done.ok);
 
     const workshop::ResolvedArrangement said =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "");
+        workshop::describe_arrangement(rig.executor, "");
     REQUIRE(said.artifacts.size() == 3);
-    CHECK(said.artifacts[0].performed);
-    CHECK_FALSE(said.artifacts[1].performed);
-    CHECK_FALSE(said.artifacts[2].performed);
+    CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(said.artifacts[1].state == std::string(workshop::kRefusedToken));
+    CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
     // THE INTENT SURVIVES A ROW THAT NEVER RAN, which is what the authored half is for.
     CHECK(said.artifacts[1].authored_role == "test.ghost");
     CHECK(said.artifacts[2].authored_role == "test.plain");
@@ -1768,7 +1858,7 @@ TEST_CASE("INTR-1: an authored artifact the run never reached keeps its intent, 
 
 TEST_CASE("INTR-1: powers are derived from the LIVE catalog, and every stack is whole") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
     const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
@@ -1803,7 +1893,7 @@ TEST_CASE("INTR-1: powers are derived from the LIVE catalog, and every stack is 
 
 TEST_CASE("INTR-1: THE OVERLAY WITNESS -- baseline, covered, and revealed again") {
     PlanRig rig;
-    const load::Executed done = rig.perform(plan_of({provides("zengine-operators-basic"),
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
                                                      both("zengine-timer", tmr::kTimerRole)}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     const loom::WeaveId timer = rig.weave_of(done, "zengine-timer");
@@ -1854,7 +1944,7 @@ TEST_CASE("INTR-1: a provider nobody wrote into the projection appears anyway") 
     // of them, and there is no branch for a provider that is not one of the shipped
     // two -- so appearing is what a projection over the store DOES.
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     CHECK(stack_of(workshop::describe_powers(rig.catalog), "prov.function.1") == nullptr);
 
     const op::MountResult added =
@@ -1880,7 +1970,7 @@ TEST_CASE("INTR-1: the host published nothing, so no contribution claims the hos
     // the empty `provider` -- which is `op::Contribution`'s word for "the host itself
     // published this" -- appears nowhere in a Workshop-shaped arrangement.
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
     const workshop::ResolvedPowers said = workshop::describe_powers(rig.catalog);
@@ -1896,7 +1986,7 @@ TEST_CASE("INTR-1: the host published nothing, so no contribution claims the hos
 
 TEST_CASE("INTR-1: the door answers an OFFICE, and answers anonymous speech nothing") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     rig.mount_door("plan.json");
     rig.mount_asker();
 
@@ -1926,7 +2016,7 @@ TEST_CASE("INTR-1: the door answers an OFFICE, and answers anonymous speech noth
 
 TEST_CASE("INTR-1: the door speaks ONLY when asked -- there is no beat in it") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic")})).ok);
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
     const loom::WeaveId door = rig.mount_door();
     rig.mount_asker();
 
@@ -1959,7 +2049,7 @@ TEST_CASE("INTR-1: the door speaks ONLY when asked -- there is no beat in it") {
 
 TEST_CASE("INTR-1: the door keeps nothing, so a change between two asks is in the second") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
     rig.mount_door();
@@ -1988,11 +2078,11 @@ TEST_CASE("INTR-1: the door keeps nothing, so a change between two asks is in th
 
 TEST_CASE("INTR-1: what crosses is a VALUE -- it survives bytes and holds no address") {
     PlanRig rig;
-    REQUIRE(rig.perform(plan_of({provides("zengine-operators-basic"),
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  both("zengine-timer", tmr::kTimerRole)}))
                 .ok);
     const workshop::ResolvedArrangement arrangement =
-        workshop::describe_arrangement(rig.authored, rig.executor.resolved(), "p.json");
+        workshop::describe_arrangement(rig.executor, "p.json");
     const workshop::ResolvedPowers powers = workshop::describe_powers(rig.catalog);
 
     // THE ROUND TRIP A STRANGER WOULD PERFORM. In-process Loom hands a value across
@@ -2066,7 +2156,7 @@ TEST_CASE("QR-9: an admitted answer with the WRONG correlation does not settle t
                                   kStrayCorrelation));
 
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
 
     REQUIRE(seen.stray == 1);        // it really was handed to the booter...
     CHECK(seen.refused_by_bus == 0); // ...admitted, not stopped at the door
@@ -2092,7 +2182,7 @@ TEST_CASE("QR-9: a stray zen.Refused is not this load's refusal") {
                                   stray, stray, kStrayCorrelation));
 
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
 
     REQUIRE(seen.stray == 1);
     CHECK(done.ok);
@@ -2117,7 +2207,7 @@ TEST_CASE("QR-9: a stray zen.Result cannot answer for an artifact that is not th
     // not on this disk completed, and the host went on to run an arrangement it had
     // not assembled.
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
+        rig.realize(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
 
     REQUIRE(seen.stray == 1);
     CHECK_FALSE(done.ok);
@@ -2145,7 +2235,7 @@ TEST_CASE("QR-9: a correlation is not a secret, so the SENDER is the other half 
                                   /*correlation=*/1));
 
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
 
     REQUIRE(seen.at_booter >= 1); // the lucky guess really was handed to the booter
     CHECK(seen.refused_by_bus == 0);
@@ -2166,7 +2256,7 @@ TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on no
         watch_answers(rig.bus, rig.booter, seen);
 
         const load::Executed done =
-            rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+            rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
 
         CHECK(done.ok);
         CHECK(seen.at_booter == 1); // one conversation, one answer
@@ -2182,7 +2272,7 @@ TEST_CASE("QR-9: both real arms settle on their OWN correlated answer, and on no
         watch_answers(rig.bus, rig.booter, seen);
 
         const load::Executed done =
-            rig.executor.run(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
+            rig.realize(plan_of({weaves("zengine-not-on-this-disk", "test.absent")}));
 
         CHECK_FALSE(done.ok);
         CHECK(seen.at_booter == 1);
@@ -2328,52 +2418,54 @@ TEST_CASE("QR-9: an answer from the weave that WAS asked, about another conversa
     CHECK_FALSE(answers.awaiting());
 }
 
-TEST_CASE("QR-9: the fuse expiring is a local guard, and not a refusal anybody made") {
+TEST_CASE("BOOT-0: an unanswered load stays UNANSWERED, and nothing invents a third answer") {
+    // ⭐ THE CASE THE FUSE USED TO OWN, AND WHAT BOOT-0 DID TO IT.
+    //
+    // This used to read: the local guard of 64 dispatch turns expires, `run()` returns,
+    // and the plan stops with a sentence about a wait this host gave up on. That fuse
+    // existed for exactly one reason -- a straight-line executor had to return to its
+    // caller -- and a persistent owner does not. So the whole path is deleted, and what
+    // is left is the truthful behaviour: the conversation is outstanding, the row is
+    // loading, the plan has not advanced, and NOBODY HAS SAID ANYTHING.
+    //
+    // THE THING THAT MUST NOT COME BACK IS A TIMEOUT AS A SETTLEMENT. However many
+    // turns this host spends, an unanswered load is not a refusal, not a failure, not a
+    // cancellation and not "the answer became impossible" -- those are somebody else's
+    // state, and this host knows only its own.
     PlanRig rig;
     SlowAnswers slow_state;
     load::BootAnswers answers;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId booter =
-        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), answers);
+    loom::WeaveId booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
 
-    // THE PRODUCTION EXECUTOR, pointed at a respondent that never answers. Everything
+    // THE PRODUCTION OWNER, pointed at a respondent that never answers. Everything
     // else is real: a real artifact on disk, the real operator offer around it, the
     // real send. Only the answer is missing.
-    load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, booter, slow, answers,
+    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
                                [](const std::string& stem) { return stage().so(stem); }};
-    const load::Executed done =
-        stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+    stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
 
-    CHECK_FALSE(done.ok);
-    CHECK(done.refusal.find("local guard") != std::string::npos);
-    CHECK(done.refusal.find("neither confirmed nor refused") != std::string::npos);
-    CHECK(done.resolved.empty());
+    // ...AND FAR MORE TURNS THAN THE OLD FUSE ALLOWED. Sixty-four was the number that
+    // used to end this wait; a hundred is spent here precisely so that a fuse restored
+    // under any spelling turns this case red.
+    rig.drain(100);
 
-    // FOUR WAYS OF SAYING THE SAME THING: nothing here is a refusal. The record heard
-    // no answer, marked none refused, kept no reason of anybody else's...
+    CHECK(stalled.state() == load::Realization::Loading);
+    CHECK(stalled.outcome().ok == false);
+    CHECK(stalled.refusal().empty()); // NOBODY REFUSED ANYTHING
+    CHECK(stalled.resolved().empty());
+    CHECK(stalled.state_of("zengine-plain-weave") == load::RowState::Loading);
+
+    // THE RECORD HEARD NO ANSWER, marked none refused, kept no reason of anybody
+    // else's -- and is still waiting, because that is what is true.
     CHECK_FALSE(answers.answered);
     CHECK_FALSE(answers.refused);
     CHECK(answers.reason.empty());
-    // ...and the sentence claims nothing about the other end. It says what this host
-    // did, in the words this host can support.
-    CHECK(done.refusal.find("this host stopped waiting") != std::string::npos);
-    CHECK(done.refusal.find("was told nothing") != std::string::npos);
-    for (const char* never : {"timed out", "cancelled", "the answer was lost",
-                              "the Manager refused", "impossible"}) {
-        CHECK_MESSAGE(done.refusal.find(never) == std::string::npos,
-                      "the fuse sentence says '", never, "', which is somebody else's state");
-    }
+    CHECK(answers.awaiting());
+    CHECK(answers.book().outstanding() == 1);
 
-    // WHAT CHANGED IN QR-10, AND WHAT DID NOT. The conversation is no longer TRACKED
-    // here -- this host stopped waiting and said so on its own books -- and that is a
-    // local act with no reach: the respondent was told nothing and still holds the
-    // answer right it held a moment ago. "This host stopped waiting" and "the answer
-    // became impossible" remain different facts, and the adapter still knows only the
-    // first.
-    CHECK_FALSE(answers.awaiting());
-    CHECK(answers.book().outstanding() == 0);
+    // ...AND THE FAR END IS UNTOUCHED. It still holds the answer right it was given.
     REQUIRE(slow_state.held);
 }
 
@@ -2447,27 +2539,39 @@ TEST_CASE("FRIC-2: the load record SPENDS the reusable book, and the book says w
     CHECK(answers.book().outstanding() == 0);
 }
 
-TEST_CASE("QR-10: an expired fuse stops TRACKING the load it stopped waiting for") {
+TEST_CASE("QR-10 + BOOT-0: the OWNER'S DEATH is what stops caring, and it forgets") {
+    // ⭐ QR-10'S LAW, WITH THE OWNER THAT NOW HAS IT. "Stopping a wait and forgetting an
+    // ask are different facts" -- and BOOT-0 removed the only thing that used to stop a
+    // wait: a fuse expiring inside a straight-line call. A persistent owner never gives
+    // up on a clock, so the one honest occasion left for `forget` is the owner genuinely
+    // ceasing to exist. Its destructor says so, and this is that.
+    //
+    // THE TEST IS CONTINUATION, NOT LOOP EXIT: what matters is that after the owner is
+    // gone the book is empty, the respondent is untouched, and the NEXT conversation on
+    // the same record is a new number that settles on its own answer.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId stalled_booter =
-        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), rig.answers);
+    loom::WeaveId stalled_booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, rig.answers, stalled_booter);
 
-    // ONE LOAD THAT NOBODY ANSWERS, through the real executor: a real artifact on disk,
-    // the real operator offer around it, the real send. Only the answer is missing.
-    load::PlanExecutor stalled{
-        rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
-        [](const std::string& stem) { return stage().so(stem); }};
-    const load::Executed gave_up =
-        stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
-    REQUIRE_FALSE(gave_up.ok);
+    {
+        // ONE LOAD THAT NOBODY ANSWERS, through the real owner: a real artifact on disk,
+        // the real operator offer around it, the real send. Only the answer is missing.
+        load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, voice,
+                                   slow,     rig.answers,
+                                   [](const std::string& stem) { return stage().so(stem); }};
+        stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+        rig.drain(8);
+        REQUIRE(stalled.state() == load::Realization::Loading);
+        // WHILE IT LIVES IT IS STILL WAITING, which is the half a fuse used to get wrong.
+        REQUIRE(rig.answers.awaiting());
+        REQUIRE(rig.answers.book().outstanding() == 1);
+        REQUIRE(slow_state.held);
+    } // <-- the owner dies here, with a row in flight
 
-    // THE LOCAL BOOK SAYS WHAT THIS HOST IS DOING, and it is no longer waiting on that.
-    // Before QR-10 this record stayed open forever, for a wait whose caller had already
-    // returned and stopped the plan.
+    // THE LOCAL BOOK SAYS WHAT THIS HOST IS DOING, and there is no longer a this-host to
+    // be doing it: the record is gone because nothing can ever read it again.
     CHECK_FALSE(rig.answers.awaiting());
     CHECK(rig.answers.book().outstanding() == 0);
     CHECK(rig.answers.asking() == 0);
@@ -2483,7 +2587,7 @@ TEST_CASE("QR-10: an expired fuse stops TRACKING the load it stopped waiting for
     // conversation is a new one -- the forgotten number is not handed back -- and it ends
     // on its own answer.
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
     CHECK(done.ok);
     CHECK(rig.weave_of(done, "zengine-plain-weave").valid());
     CHECK(rig.answers.answered);
@@ -2564,29 +2668,34 @@ TEST_CASE("QR-10: a late answer to a forgotten load settles nothing -- including
 TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses nothing") {
     // MORE ROUNDS THAN THE CAPACITY FRIC-2 NEEDED (four), so a book that still
     // accumulated would have been refusing loads by round five.
+    //
+    // EACH ROUND IS NOW AN OWNER'S WHOLE LIFE (BOOT-0). The abandonment site moved from
+    // an expiring fuse to the destructor of an owner that ceased to exist with a row in
+    // flight; the claim is the same one and it is measured the same way -- sixteen
+    // abandoned conversations, and a book that is empty before and after every one.
     PlanRig rig;
     SlowAnswers slow_state;
     const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
-    loom::Grant operate;
-    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, slow);
-    const loom::WeaveId stalled_booter =
-        loom::mount_granted<load::PlanBooter>(rig.bus, std::move(operate), rig.answers);
-    load::PlanExecutor stalled{
-        rig.bus, rig.catalog, rig.operators, stalled_booter, slow, rig.answers,
-        [](const std::string& stem) { return stage().so(stem); }};
+    loom::WeaveId stalled_booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, rig.answers, stalled_booter);
 
     constexpr int kRounds = 16;
     for (int i = 0; i < kRounds; ++i) {
         REQUIRE(rig.answers.book().outstanding() == 0); // the baseline, before each ask
-        const load::Executed gave_up =
-            stalled.run(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
-        REQUIRE_FALSE(gave_up.ok);
-
-        // EVERY ROUND IS THE FUSE, AND NEVER A BOOK REFUSAL. The sentence FRIC-2 needed
-        // is not merely absent from the code -- no round produces it.
-        CHECK(gave_up.refusal.find("local guard") != std::string::npos);
-        CHECK(gave_up.refusal.find("still tracking") == std::string::npos);
-        CHECK(gave_up.refusal.find("no further load was commanded") == std::string::npos);
+        {
+            load::PlanExecutor stalled{rig.bus,  rig.catalog, rig.operators, voice,
+                                       slow,     rig.answers,
+                                       [](const std::string& stem) {
+                                           return stage().so(stem);
+                                       }};
+            stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+            rig.drain(4);
+            REQUIRE(stalled.state() == load::Realization::Loading);
+            // NO ROUND MINTS A REFUSAL. Neither the fuse sentence that is gone nor the
+            // capacity sentence FRIC-2 needed: nothing refused, because nothing did.
+            REQUIRE(stalled.refusal().empty());
+            REQUIRE(rig.answers.book().outstanding() == 1);
+        }
         CHECK(rig.answers.book().outstanding() == 0); // ...and back to baseline
 
         // SPEND THE HELD ANSWER BETWEEN ROUNDS, for a reason that is about the OTHER
@@ -2605,7 +2714,7 @@ TEST_CASE("QR-10: repeated local abandonment does not fill the book, and refuses
 
     // AND THE NEXT LOAD STILL WORKS, through the real Manager, on its own answer.
     const load::Executed done =
-        rig.executor.run(plan_of({weaves("zengine-plain-weave", "test.plain")}));
+        rig.realize(plan_of({weaves("zengine-plain-weave", "test.plain")}));
     CHECK(done.ok);
     CHECK(rig.answers.answered);
     CHECK_FALSE(rig.answers.awaiting());
@@ -2634,29 +2743,35 @@ TEST_CASE("QR-10: the book refuses a second conversation rather than displacing 
 }
 
 TEST_CASE("QR-10: a load conversation that cannot be opened refuses, and never succeeds quietly") {
-    // THE GUARD THE CAPACITY REFUSAL LEFT BEHIND. With the fuse forgetting, the book is
-    // empty at every ask(), so the one thing still able to refuse a conversation is the
-    // respondent -- and an executor handed no valid Weave Manager must say so. Deleting
-    // this branch along with the workaround would have been the worse defect of the two:
-    // with no conversation open, the wait below has nothing outstanding and reads
-    // instantly as a load that succeeded.
+    // THE GUARD THE CAPACITY REFUSAL LEFT BEHIND. The book is empty at every ask(), so
+    // the one thing still able to refuse a conversation is the respondent -- and an
+    // owner handed no valid Weave Manager must say so. Deleting this branch along with
+    // the workaround would have been the worse defect of the two: with no conversation
+    // open, an owner that sent anyway would sit in `Loading` forever waiting to be woken
+    // by an answer it could never recognise.
     PlanRig rig;
-    load::PlanExecutor nowhere{rig.bus,         rig.catalog, rig.operators, rig.booter,
-                               loom::WeaveId{}, rig.answers,
+    load::BootAnswers answers;
+    loom::WeaveId booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, rig.manager, answers, booter);
+    load::PlanExecutor nowhere{rig.bus,         rig.catalog, rig.operators, voice,
+                               loom::WeaveId{}, answers,
                                [](const std::string& stem) { return stage().so(stem); }};
 
-    const load::Executed done =
-        nowhere.run(plan_of({weaves("zengine-plain-weave", "test.nowhere")}));
+    nowhere.begin(plan_of({weaves("zengine-plain-weave", "test.nowhere")}));
+    const load::Executed done = nowhere.outcome();
 
+    // REFUSED INSIDE `begin`, SYNCHRONOUSLY, because nothing was ever asked of anybody:
+    // this is not a fact that has to come back from a host turn.
+    CHECK(nowhere.state() == load::Realization::Failed);
     CHECK_FALSE(done.ok);
     CHECK(done.refusal.find("no load conversation could be opened") != std::string::npos);
     CHECK(done.refusal.find("no load was commanded") != std::string::npos);
     CHECK(done.resolved.empty());
     // NOT AN ANSWER, and not a refusal anybody made: nothing was ever sent.
-    CHECK_FALSE(rig.answers.answered);
-    CHECK_FALSE(rig.answers.refused);
-    CHECK(rig.answers.reason.empty());
-    CHECK(rig.answers.book().outstanding() == 0);
+    CHECK_FALSE(answers.answered);
+    CHECK_FALSE(answers.refused);
+    CHECK(answers.reason.empty());
+    CHECK(answers.book().outstanding() == 0);
 }
 
 TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of the far end") {
@@ -2699,4 +2814,674 @@ TEST_CASE("FRIC-2: dropping a load conversation is local, and claims nothing of 
     CHECK(answers.weave == 0);
     CHECK_FALSE(answers.awaiting());
     CHECK(answers.book().outstanding() == 0);
+}
+
+// =============================================================================
+// 11. REALIZATION IS LIVING NOW (BOOT-0) — it survives the frame that started it
+// =============================================================================
+//
+// Every case above this line drives a plan to a conclusion and then asks what came of
+// it. That is what a plan executor was: a call that did not return until the whole
+// project had settled, because the continuation of a weave load was a stack frame and
+// a stack frame cannot be put down. To hear its own answer it turned the bus itself.
+//
+// The cases below are about the MIDDLE. A persistent owner issues one load and RETURNS
+// TO ITS HOST with a row in flight, so for the first time there is an observable state
+// between "not started" and "finished", and things can be asked and done while it
+// holds:
+//
+//   §11.1  begin() comes back with the project unrealized, and the HOST's own turns
+//          are what carry it -- there is no other clock
+//   §11.2  ordinary unrelated work is delivered while a row is outstanding, for as
+//          long as it stays outstanding
+//   §11.3  authored order is still strict and serial: one row in flight, ever
+//   §11.4  the operator offer's custody spans host turns, and the artifact that needs
+//          it still gets it
+//   §11.5  loaded is not live: the control door's activation is why a load's ANSWER is
+//          the row's completion fact
+//   §11.6  a refusal mid-flight rolls back its own row and stops, with everything
+//          before it standing
+//   §11.7  the arrangement projection is truthful at every point on that timeline
+//
+// ⚠ EVERY TURN ANY PLAN IN THIS FILE TAKES IS SPENT BY THE TEST. `PlanRig::realize`
+// and the loops below are the caller being a host; `PlanExecutor` has no pump, no
+// drain, no wait and no fuse. `test_operator_provider.cpp` reads the source for those
+// words, which is the half a running test cannot prove.
+
+// ---- §11.1 the boundary itself -------------------------------------------------
+
+TEST_CASE("BOOT-0: begin() returns with the project UNREALIZED, and says exactly where") {
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", "test.plain")}));
+
+    // ⭐ NOT ONE DISPATCH TURN HAS BEEN SPENT, and the state is already interesting.
+    // Row 0 is a provider mount -- synchronous, host-native, owed to nobody -- so it is
+    // DONE. Row 1 is a conversation, so it is COMMANDED and unanswered, and the owner
+    // came back rather than turning the crank until it heard itself.
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.position() == 1);
+    REQUIRE(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-operators-basic");
+    CHECK(rig.catalog.mounted("zengine.operators.basic"));
+
+    // ...AND THE ROW IN FLIGHT HAS NOT HAPPENED. The command is on the queue and
+    // nothing has delivered it.
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(rig.bus.pending() > 0);
+    CHECK(rig.answers.awaiting());
+    CHECK(rig.executor.asking() != 0);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Loading);
+
+    // ...AND `outcome()` REFUSES TO CALL THAT A SUCCESS. `ok` is completion, not
+    // absence-of-failure: a plan with a row in flight has finished nothing.
+    CHECK_FALSE(rig.executor.outcome().ok);
+    CHECK(rig.executor.refusal().empty());
+
+    // THE HOST'S OWN TURNS ARE THE ONLY CLOCK. Nothing else in this process is running.
+    rig.drain(8);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.position() == 2);
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(rig.executor.outcome().ok);
+}
+
+TEST_CASE("BOOT-0: a plan of provider-only rows finishes inside begin(), turning nothing") {
+    // THE OTHER SIDE OF THE SAME LAW. `advance()` performs every transition it can
+    // already know the answer to before it returns, so a project that owes nobody
+    // anything is realized with the queue untouched -- and STILL without a pump.
+    PlanRig rig;
+    const std::size_t before = rig.bus.pending();
+    // TWO PROVIDERS THAT SUPPLY DIFFERENT POWERS, so the plan is about the boundary and
+    // not about a collision: `zengine-provider-a` carries three identities nothing else
+    // in this suite names.
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                provides("zengine-provider-a")}));
+
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.position() == 2);
+    CHECK(rig.executor.outcome().ok);
+    CHECK(rig.catalog.providers().size() == 2);
+    // NOTHING WAS SENT AND NOTHING WAS ASKED: a provider mount is not a conversation.
+    CHECK(rig.bus.pending() == before);
+    CHECK_FALSE(rig.answers.awaiting());
+}
+
+// ---- §11.2 the host is not blocked ---------------------------------------------
+
+TEST_CASE("BOOT-0: unrelated work is delivered while a plan row is still outstanding") {
+    // ⭐ THE WITNESS THAT SEPARATES "MOVED THE LOOP" FROM "DELETED IT". If `begin()`
+    // still turned the bus until its answer came, nothing else could be delivered in
+    // between -- the process would be inside one call. So: point the owner at a
+    // respondent that DEFERS forever (Loom's ANS-02, no timing involved), and then do
+    // ordinary host work, at length, while the row hangs.
+    PlanRig rig;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::WeaveId booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
+
+    std::int64_t nudges = 0;
+    const loom::WeaveId bystander = loom::mount<Bystander>(rig.bus, nudges);
+
+    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
+                               [](const std::string& stem) { return stage().so(stem); }};
+
+    // ⭐ ORDINARY WORK ALREADY ON THE QUEUE WHEN REALIZATION BEGINS -- the sharpest form
+    // of "the owner does not drive Loom", and the one that holds even against a
+    // respondent that never answers. If `begin()` turned the crank under ANY spelling,
+    // this delivery would have happened by the time it returned. The host has not had
+    // its turn yet, so it must not have.
+    (void)rig.bus.send(bystander, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                                loom::WeaveId{}, 0));
+    stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled")}));
+    CHECK(nudges == 0);
+
+    rig.drain(4);
+    CHECK(nudges == 1); // ...and the host's own turn delivered it, as it always would
+    REQUIRE(stalled.state() == load::Realization::Loading);
+    REQUIRE(slow_state.held); // the answer is genuinely owed and genuinely absent
+
+    // ORDINARY HOST WORK, WHILE THE PROJECT IS HALF-REALIZED. Twenty deliveries to a
+    // participant that has never heard of a load plan, every one of them arriving.
+    for (int i = 0; i < 20; ++i) {
+        (void)rig.bus.send(bystander, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                                    loom::WeaveId{}, 0));
+        rig.drain(1);
+        // ...AND THE ROW IS STILL EXACTLY WHERE IT WAS. It is not failing, not timing
+        // out and not being retried: it is unanswered, which is what is true.
+        REQUIRE(stalled.state() == load::Realization::Loading);
+    }
+    CHECK(nudges == 21);
+    CHECK(stalled.refusal().empty());
+    CHECK(answers.awaiting());
+
+    // ...AND WHEN THE ANSWER FINALLY COMES, REALIZATION CONTINUES FROM THERE. Nothing
+    // resumed a wait, because nothing was waiting.
+    (void)rig.bus.send(slow, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                           loom::WeaveId{}, 0));
+    rig.drain(6);
+    CHECK(stalled.state() == load::Realization::Complete);
+    CHECK(answers.weave == kSlowWeaveId);
+    CHECK_FALSE(answers.awaiting());
+    CHECK(nudges == 21); // and the bystander was not disturbed by any of it
+}
+
+// ---- §11.3 authored order, still strict and still serial -----------------------
+
+TEST_CASE("BOOT-0: three mixed rows advance in AUTHORED order, one in flight at a time") {
+    // ⭐ PERSISTENCE IS NOT PERMISSION FOR CONCURRENCY. The owner could now, in
+    // principle, have several conversations open at once. It must not, and this walks
+    // the whole timeline turn by turn to say so: at every instant, at most one row is
+    // `loading`, every row before the cursor is `resolved`, and every row after it has
+    // not been touched.
+    //
+    //   row A  provider-only        -- settles inside begin(), synchronously
+    //   row B  provider + weave     -- mounts, then commands a load, then returns
+    //   row C  weave-only           -- must not begin until B has settled
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                both("zengine-timer", tmr::kTimerRole),
+                                weaves("zengine-plain-weave", "test.plain")}));
+
+    // A IS DONE AND B IS IN FLIGHT, before a single turn.
+    REQUIRE(rig.executor.position() == 1);
+    REQUIRE(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Loading);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
+    // ...AND C HAS NOT BEEN TOUCHED IN ANY WAY A KERNEL COULD SEE.
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // WALK EVERY TURN. `seen_c_loading_before_b_resolved` is the whole falsifier: if
+    // the owner ever ran ahead, this catches the instant it did.
+    bool c_began_early = false;
+    bool two_at_once = false;
+    std::size_t cursor = rig.executor.position();
+    for (int turn = 0; turn < 24; ++turn) {
+        rig.bus.pump_pending();
+        const load::RowState b = rig.executor.state_of("zengine-timer");
+        const load::RowState c = rig.executor.state_of("zengine-plain-weave");
+        if (c != load::RowState::Authored && b != load::RowState::Resolved) {
+            c_began_early = true;
+        }
+        if (b == load::RowState::Loading && c == load::RowState::Loading) {
+            two_at_once = true;
+        }
+        // THE CURSOR NEVER GOES BACKWARDS.
+        REQUIRE(rig.executor.position() >= cursor);
+        cursor = rig.executor.position();
+    }
+    CHECK_FALSE(c_began_early);
+    CHECK_FALSE(two_at_once);
+
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.position() == 3);
+    REQUIRE(rig.executor.resolved().size() == 3);
+    // AUTHORED ORDER IS THE ORDER THEY WERE PUT INTO THE RUNTIME, which is also what a
+    // later reversal would walk backwards.
+    CHECK(rig.executor.resolved()[0].stem == "zengine-operators-basic");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-timer");
+    CHECK(rig.executor.resolved()[2].stem == "zengine-plain-weave");
+    // ...and the book is empty, because every conversation ended on its own answer.
+    CHECK_FALSE(rig.answers.awaiting());
+    CHECK(rig.answers.book().outstanding() == 0);
+}
+
+TEST_CASE("BOOT-0: an OVERLAY row still begins only after the row it covers has settled") {
+    // AUTHORED ORDER IS WHY AN OVERLAY IS VALID (LOAD-0), and an overlay is where the
+    // order genuinely bites: it installs over what is already there, so a row that ran
+    // early would install over nothing and the ordinary mount would then collide with
+    // it. Serialization is what makes that deterministic, and persistence did not
+    // relax it.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                both("zengine-timer", tmr::kTimerRole),
+                                provides("zengine-provider-min", op::MountMode::Overlay)}));
+
+    // THE OVERLAY HAS NOT MOUNTED WHILE THE TIMER'S LOAD IS OUTSTANDING, even though
+    // its own step is synchronous and could have been performed at any moment.
+    //
+    // ⚠ THE IDENTITY IS THE ONE THE ARTIFACT DECLARES ABOUT ITSELF, never the stem: a
+    // check written against `zengine-provider-min` would be asking the catalog about a
+    // provider no artifact has ever claimed to be, and would pass for the wrong reason
+    // at both ends of this case.
+    REQUIRE(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Authored);
+    CHECK_FALSE(rig.catalog.mounted(kMinProvider));
+
+    rig.drain(12);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Resolved);
+    CHECK(rig.catalog.mounted(kMinProvider));
+    // ...AND IT WENT ON TOP, which is the fact the authored position buys.
+    REQUIRE(rig.executor.resolved().size() == 3);
+    CHECK(rig.executor.resolved()[2].stem == "zengine-provider-min");
+}
+
+// ---- §11.4 the offer's custody now spans host turns ----------------------------
+
+TEST_CASE("BOOT-0: the operator offer is STILL STANDING when create() runs, host turns later") {
+    // ⭐ THE CENTRAL LIFETIME PROOF OF THE PHASE. `op::OperatorOffer` is neither
+    // copyable nor movable and its DESTRUCTOR is the withdrawal, so in the old
+    // straight-line executor its bracket was literally a `{ }` inside the call that
+    // waited -- which is the real reason that call could not return. It is a
+    // `std::optional` member now, and its bracket spans an unbounded number of the
+    // host's own turns.
+    //
+    // ---- THE INSTRUMENT, AND WHY IT IS A REFUSAL -------------------------------
+    //
+    // A Timer that IS offered a host must spend that host's `timer.normalize_delay`
+    // and REFUSES when the host publishes none; a Timer that met NO offer falls back
+    // to its own local catalog and loads perfectly happily. So a plan that offers an
+    // incomplete host and gets a refusal has proved the offer was in force inside
+    // `create()` -- which the Kernel calls several deliveries below the command, and
+    // which nothing in this process can get between.
+    //
+    // A "the delay it stored is this host's number" check would NOT be the witness
+    // here, and the difference matters: with the Timer's own provider mounted, the
+    // host's rule and the artifact's local copy are the SAME rule, so both paths
+    // answer identically. The refusal is the only thing the two differ on.
+    SUBCASE("an offer that reached create() refuses a host that cannot satisfy it") {
+        PlanRig rig;
+        rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                    weaves("zengine-timer", tmr::kTimerRole)}));
+
+        // RETURNED, WITH THE ROW IN FLIGHT AND THE OFFER HELD.
+        REQUIRE(rig.executor.state() == load::Realization::Loading);
+
+        // ...AND `create()` HAPPENS SEVERAL TURNS FROM HERE. Counted rather than
+        // assumed, because "the offer outlived the frame that made it" is exactly the
+        // claim: one turn would not have been a claim about anything.
+        int turns = 0;
+        while (rig.executor.state() == load::Realization::Loading && turns < 24) {
+            rig.bus.pump_pending();
+            ++turns;
+        }
+        CHECK(turns > 1);
+
+        CHECK(rig.executor.state() == load::Realization::Failed);
+        CHECK(rig.executor.refusal().find("artifact 'zengine-timer'") != std::string::npos);
+        CHECK(rig.executor.refusal().find("weave load refused") != std::string::npos);
+    }
+    SUBCASE("...and the same row with its provider mounted takes the offer and runs") {
+        // THE CONTROL. Only one authored word differs -- the row also asks for provider
+        // participation -- and now the host CAN satisfy what the Timer validates. The
+        // offer is the same offer, held across the same turns.
+        PlanRig rig;
+        rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                    both("zengine-timer", tmr::kTimerRole)}));
+        REQUIRE(rig.executor.state() == load::Realization::Loading);
+        rig.drain(12);
+        REQUIRE(rig.executor.state() == load::Realization::Complete);
+        REQUIRE(rig.executor.resolved().size() == 2);
+
+        const load::ResolvedArtifact& timer = rig.executor.resolved()[1];
+        CHECK(timer.offer == op::OfferOutcome::Offered);
+        // ...AND THE RUNNING SERVICE ANSWERS THROUGH THIS HOST, twice, long after the
+        // bracket closed: the instance kept its own copy of the table, which is exactly
+        // what the unconditional withdrawal is designed to leave safe.
+        CHECK(rig.scheduled_delay(timer.weave, "beat", kAuthoredDelay, true) == kHonestAnswer);
+        CHECK(rig.scheduled_delay(timer.weave, "again", kAuthoredDelay, true) == kHonestAnswer);
+    }
+}
+
+TEST_CASE("BOOT-0: the offer is withdrawn BEFORE the next authored row begins") {
+    // THE OTHER HALF OF CUSTODY, and the one a persistent holder could get wrong: an
+    // offer that outlived its row would still be standing when the NEXT artifact was
+    // opened, and that artifact would be loaded under a handoff nobody authored for it.
+    //
+    // MEASURED THROUGH THE ROW RECORDS, which is where the outcome of each handoff
+    // lives: the Timer's row says the offer was taken, and the ordinary weave loaded
+    // after it says it was never a consumer -- a `NotAConsumer` that is a fact about
+    // ITS OWN offer, made and withdrawn around ITS OWN load.
+    PlanRig rig;
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
+                                                     both("zengine-timer", tmr::kTimerRole),
+                                                     weaves("zengine-plain-weave", "test.plain")}));
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    REQUIRE(done.resolved.size() == 3);
+    CHECK(done.resolved[1].offer == op::OfferOutcome::Offered);
+    CHECK(done.resolved[2].offer == op::OfferOutcome::NotAConsumer);
+    // ...and the Timer loaded under the first is still host-backed afterwards.
+    CHECK(rig.scheduled_delay(rig.weave_of(done, "zengine-timer"), "beat", kAuthoredDelay,
+                              true) == kHonestAnswer);
+}
+
+// ---- §11.5 loaded is not live --------------------------------------------------
+
+TEST_CASE("BOOT-0: the row's completion fact is the ANSWER, because the door activates first") {
+    // ⭐ WHY THE OWNER MUST NOT SHORTCUT THROUGH `Kernel::load`. The control door does
+    // three things in order -- load, announce `zen.Activated`, answer -- and only the
+    // door can do the middle one: `Switchboard::announce_as` is private and the only
+    // public route is through a `Mail`, i.e. from inside a delivery. A host in `main()`
+    // can mint the authority and has no `Mail`, so it cannot make a loaded weave live.
+    //
+    // SO A ROW IS NOT DONE WHEN THE KERNEL HAS IT. It is done when the answer arrives,
+    // which is strictly later and is the only fact that implies the whole sequence.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                both("zengine-timer", tmr::kTimerRole)}));
+
+    // WALK TO THE INSTANT THE KERNEL FIRST HAS IT, and look at the owner.
+    bool saw_loaded_before_settled = false;
+    for (int turn = 0; turn < 24; ++turn) {
+        rig.bus.pump_pending();
+        if (rig.kernel.is_loaded("zengine-timer") &&
+            rig.executor.state_of("zengine-timer") == load::RowState::Loading) {
+            saw_loaded_before_settled = true;
+        }
+        if (rig.executor.state() != load::Realization::Loading) {
+            break;
+        }
+    }
+    // KERNEL-LOADED CAME FIRST AND THE OWNER DID NOT BELIEVE IT. If the owner had been
+    // reading `is_loaded`, it would have called the row done a delivery too early --
+    // with `zen.Activated` still queued.
+    CHECK(saw_loaded_before_settled);
+
+    rig.drain(8);
+    REQUIRE(rig.executor.state() == load::Realization::Complete);
+
+    // ⭐ AND THE ARTIFACT IS BEHAVIOURALLY ALIVE, not merely registered. A Timer that
+    // never received `zen.Activated` never authors its beat chain; this one schedules,
+    // stores and hands back a delay, which is a thing only a live service does.
+    const loom::WeaveId timer = rig.executor.resolved()[1].weave;
+    CHECK(rig.kernel.is_loaded("zengine-timer"));
+    CHECK(rig.scheduled_delay(timer, "beat", kAuthoredDelay, true) == kHonestAnswer);
+}
+
+TEST_CASE("BOOT-0: a direct Kernel::load produces a REGISTERED Timer that never breathes") {
+    // ⭐ THE FALSIFIER FOR THE CASE ABOVE, and the reason the owner keeps commanding the
+    // Manager instead of calling the loader it could reach. Same artifact, same Kernel,
+    // same process -- and the shortcut's Timer is a dead arrangement.
+    //
+    // It is the same shape a mutation of the owner would produce, run as an ordinary
+    // case rather than as a source edit, because the two paths can stand side by side.
+    PlanRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 provides("zengine-timer")}))
+                .ok);
+
+    const loom::LoadResult direct =
+        rig.kernel.load("zengine-timer-direct", stage().so("zengine-timer"), "test.dead-timer");
+    REQUIRE(direct.ok);
+    CHECK(rig.kernel.is_loaded("zengine-timer-direct"));
+
+    // REGISTERED, ROUTABLE, ROLE-BOUND -- AND IT NEVER RECEIVED `zen.Activated`, so it
+    // authored no beat chain and there is nothing for it to have scheduled. The
+    // instrument that answers `kHonestAnswer` for a live service answers with the
+    // miss value here, because no letter ever comes back.
+    rig.drain(8);
+    CHECK(rig.scheduled_delay(direct.id, "beat", kAuthoredDelay, true) != kHonestAnswer);
+}
+
+// ---- §11.6 a refusal mid-flight ------------------------------------------------
+
+TEST_CASE("BOOT-0: a row that refuses AFTER the host resumed rolls back only its own mount") {
+    // ⭐ ARTIFACT-LEVEL ATOMICITY, WITHOUT A STACK FRAME TO UNWIND. The rollback used to
+    // be the tail of a function whose caller was still on the stack; it is now performed
+    // inside whatever delivery brought the refusal, several host turns after the call
+    // that started the plan returned.
+    //
+    // THE HALFWAY ROW IS `zengine-timer` DECLARED PROVIDER+WEAVE, asked for under a role
+    // an EARLIER authored row already took: the mount succeeds and the load does not,
+    // which is the only shape in which one artifact can be half-participating.
+    PlanRig rig;
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                weaves("zengine-plain-weave", tmr::kTimerRole),
+                                both("zengine-timer", tmr::kTimerRole),
+                                weaves("zengine-provider-a", "test.never")}));
+
+    // ---- WALK TO THE HALFWAY INSTANT, which only exists because realization returns
+    // to its host between steps. The row's provider is mounted; its weave is a
+    // conversation nobody has answered yet.
+    bool saw_half_participating = false;
+    for (int turn = 0; turn < 24; ++turn) {
+        if (rig.executor.state_of("zengine-timer") == load::RowState::Loading &&
+            rig.catalog.mounted("zengine.timer")) {
+            saw_half_participating = true;
+            break;
+        }
+        rig.bus.pump_pending();
+    }
+    CHECK(saw_half_participating);
+
+    rig.drain(16);
+
+    // THE REFUSAL ARRIVED AS AN ORDINARY ANSWER, several host turns after the call that
+    // started the plan returned -- and stopped it.
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.refusal().find("artifact 'zengine-timer'") != std::string::npos);
+    CHECK(rig.executor.refusal().find("weave load refused") != std::string::npos);
+    CHECK(rig.executor.state_of("zengine-timer") == load::RowState::Refused);
+
+    // THIS ROW'S OWN CONTRIBUTION IS GONE, rolled back inside that delivery.
+    CHECK_FALSE(rig.catalog.mounted("zengine.timer"));
+    CHECK(rig.catalog.find(tmr::kNormalizeDelay) == nullptr);
+    // ...AND THE EARLIER ROWS ARE UNTOUCHED. No whole-plan transaction was built and
+    // none is wanted: the host is told which artifact stopped it and what still stands.
+    CHECK(rig.catalog.mounted("zengine.operators.basic"));
+    REQUIRE(rig.executor.resolved().size() == 2);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-operators-basic");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-plain-weave");
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // ...AND NOTHING AFTER IT WAS ATTEMPTED, however many turns the host spends.
+    CHECK(rig.executor.state_of("zengine-provider-a") == load::RowState::Authored);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-provider-a"));
+    rig.drain(16);
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-provider-a"));
+    // ...and the owner is not holding a conversation it will never hear the end of.
+    CHECK_FALSE(rig.answers.awaiting());
+}
+
+TEST_CASE("BOOT-0: a stray answer cannot advance a plan that is waiting for its own") {
+    // THE WALL IS THE ONE QR-9 AND FRIC-2 ALREADY BUILT, and BOOT-0 must not have
+    // weakened it while moving the code past it. What is new is the CONSEQUENCE: a
+    // stray that got through would no longer merely corrupt one wait -- it would drive
+    // the whole rest of the project from inside somebody else's conversation.
+    PlanRig rig;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::WeaveId booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
+    const loom::WeaveId stray = loom::mount<Stray>(rig.bus);
+
+    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
+                               [](const std::string& stem) { return stage().so(stem); }};
+    stalled.begin(plan_of({weaves("zengine-plain-weave", "test.stalled"),
+                           weaves("zengine-provider-min", "test.next")}));
+    rig.drain(4);
+    REQUIRE(stalled.state() == load::Realization::Loading);
+    const std::uint64_t mine = stalled.asking();
+    REQUIRE(mine != 0);
+
+    SUBCASE("a WRONG CORRELATION from a participant this host admits advances nothing") {
+        (void)rig.bus.send_as(stray, booter,
+                              loom::Message(loom::to_value(loom::Result{"9999"}), stray, stray,
+                                            kStrayCorrelation));
+        rig.drain(4);
+        CHECK(stalled.state() == load::Realization::Loading);
+        CHECK(stalled.position() == 0);
+        CHECK(stalled.resolved().empty());
+        CHECK_FALSE(answers.answered);
+        CHECK(answers.awaiting());
+    }
+    SUBCASE("a WRONG SENDER carrying the RIGHT correlation advances nothing either") {
+        // THE LUCKY GUESS. The stray names this conversation exactly; what it cannot
+        // do is be the weave that was asked, because the bus stamps the sender.
+        (void)rig.bus.send_as(stray, booter,
+                              loom::Message(loom::to_value(loom::Result{"9999"}), stray, stray,
+                                            mine));
+        rig.drain(4);
+        CHECK(stalled.state() == load::Realization::Loading);
+        CHECK(stalled.position() == 0);
+        CHECK(stalled.resolved().empty());
+        CHECK_FALSE(answers.answered);
+        CHECK(answers.awaiting());
+    }
+    SUBCASE("...and the RIGHT respondent with the RIGHT correlation does advance it") {
+        // THE CONTROL, so the two refusals above are not passing because nothing
+        // could ever have settled this row.
+        (void)rig.bus.send(slow, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
+                                               loom::WeaveId{}, 0));
+        rig.drain(4);
+        CHECK(stalled.position() == 1);
+        CHECK(stalled.resolved().size() == 1);
+        // ...and the plan carried on into row 1 BY ITSELF, from inside that delivery.
+        //
+        // ⚠ WHICH IS ALSO WHY `answers.answered` IS NOT WHAT IS ASKED HERE. It is
+        // payload, cleared by the next `ask()` -- and the owner opened row 1's
+        // conversation inside the very handler that settled row 0's, so by the time
+        // anything can look, the record is already about the NEXT load. The cursor is
+        // the fact; the payload field is one row's transient.
+        CHECK(stalled.state() == load::Realization::Loading);
+        CHECK(stalled.state_of("zengine-provider-min") == load::RowState::Loading);
+        CHECK(answers.awaiting());
+    }
+}
+
+// ---- §11.7 the projection, at every point on the timeline ----------------------
+
+TEST_CASE("BOOT-0: the arrangement is truthful BEFORE, DURING and AFTER realization") {
+    // ⭐ THE FOUR STATES, READ OFF ONE OWNER AT FOUR MOMENTS. Three of the four could
+    // not be observed at all before this phase: the whole plan settled inside one call,
+    // so a reader either saw nothing or saw the end.
+    PlanRig rig;
+
+    // ---- BEFORE: authored intent, and nothing else ---------------------------
+    {
+        const workshop::ResolvedArrangement said =
+            workshop::describe_arrangement(rig.executor, "p.json");
+        CHECK(said.plan == "p.json");
+        CHECK(said.artifacts.empty()); // no plan has been begun; there is nothing to say
+    }
+
+    rig.executor.begin(plan_of({provides("zengine-operators-basic"),
+                                both("zengine-timer", tmr::kTimerRole),
+                                weaves("zengine-plain-weave", "test.plain")}));
+
+    // ---- DURING: one resolved, one loading, one not attempted ----------------
+    {
+        REQUIRE(rig.executor.state() == load::Realization::Loading);
+        const workshop::ResolvedArrangement said =
+            workshop::describe_arrangement(rig.executor, "p.json");
+        REQUIRE(said.artifacts.size() == 3);
+        CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
+        CHECK(said.artifacts[1].state == std::string(workshop::kLoadingToken));
+        CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
+
+        // EXACT COUNTS, NEVER A PERCENTAGE: the list length is the denominator and the
+        // tokens are the numerator, so a reader counts and nobody asserts.
+        std::size_t resolved = 0;
+        for (const workshop::ArtifactParticipation& a : said.artifacts) {
+            resolved += a.state == std::string(workshop::kResolvedToken) ? 1u : 0u;
+        }
+        CHECK(resolved == 1);
+
+        // A LOADING ROW KEEPS ITS AUTHORED INTENT AND CLAIMS NO RESOLVED FIELD. Its
+        // provider IS mounted at this instant -- within one row the mount precedes the
+        // load -- and the arrangement does not report it, because what came of the row
+        // is not decided and a refusal would roll that mount back.
+        CHECK(said.artifacts[1].authored_role == std::string(tmr::kTimerRole));
+        CHECK(said.artifacts[1].authored_provider == std::string(load_persist::kModeNormal));
+        CHECK(said.artifacts[1].provider.empty());
+        CHECK(said.artifacts[1].weave == 0);
+        CHECK(said.artifacts[1].offer.empty());
+
+        // ...AND THE POWER IS VISIBLE THROUGH THE QUESTION THAT OWNS IT. Two questions,
+        // two owners, two currencies -- the catalog is read live, so the mount that the
+        // arrangement is not yet claiming is already in `ResolvedPowers`.
+        CHECK(rig.catalog.mounted("zengine.timer"));
+        CHECK(stack_of(workshop::describe_powers(rig.catalog), "timer.normalize_delay") !=
+              nullptr);
+    }
+
+    rig.drain(16);
+
+    // ---- AFTER: every row resolved, with what each one produced ---------------
+    {
+        REQUIRE(rig.executor.state() == load::Realization::Complete);
+        const workshop::ResolvedArrangement said =
+            workshop::describe_arrangement(rig.executor, "p.json");
+        REQUIRE(said.artifacts.size() == 3);
+        for (const workshop::ArtifactParticipation& a : said.artifacts) {
+            CHECK(a.state == std::string(workshop::kResolvedToken));
+        }
+        CHECK(said.artifacts[1].provider == "zengine.timer");
+        CHECK(said.artifacts[1].weave != 0);
+        CHECK(said.artifacts[1].offer == std::string(workshop::kOfferedToken));
+        // AND THE TIMER IS STILL ONE ROW, participating in two ways.
+        CHECK(said.artifacts[1].artifact == "zengine-timer");
+    }
+}
+
+TEST_CASE("BOOT-0: after a refusal the arrangement says which row stopped it, and which never ran") {
+    PlanRig rig;
+    const load::Executed done = rig.realize(plan_of({provides("zengine-operators-basic"),
+                                                     weaves("zengine-not-on-this-disk", "test.gone"),
+                                                     weaves("zengine-plain-weave", "test.plain")}));
+    REQUIRE_FALSE(done.ok);
+
+    const workshop::ResolvedArrangement said =
+        workshop::describe_arrangement(rig.executor, "p.json");
+    REQUIRE(said.artifacts.size() == 3);
+    CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(said.artifacts[1].state == std::string(workshop::kRefusedToken));
+    CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
+    // ⭐ THE TWO UNRESOLVED ROWS ARE DIFFERENT SENTENCES. Before BOOT-0 both were
+    // `performed = false` and a maker could not tell the artifact that broke from the
+    // ones nothing had tried.
+    CHECK(said.artifacts[1].state != said.artifacts[2].state);
+    // ...and neither invents a resolved fact.
+    CHECK(said.artifacts[1].weave == 0);
+    CHECK(said.artifacts[2].weave == 0);
+    // WHILE THE FIRST ROW STILL STANDS, in the runtime and in the answer.
+    CHECK(said.artifacts[0].provider == "zengine.operators.basic");
+    CHECK(rig.catalog.mounted("zengine.operators.basic"));
+}
+
+TEST_CASE("BOOT-0: the DOOR answers `loading` across the real seam, mid-flight") {
+    // THE PROJECTION ABOVE IS READ DIRECTLY; this is the same fact crossing the bus to
+    // a participant in an office, which is how the loaded Introspection artifact gets
+    // it. The row is held open by a respondent that defers, so the ask genuinely lands
+    // in the middle rather than at a moment a turn count happened to produce.
+    PlanRig rig;
+    SlowAnswers slow_state;
+    load::BootAnswers answers;
+    const loom::WeaveId slow = loom::mount<SlowManager>(rig.bus, slow_state);
+    loom::WeaveId booter{};
+    load::PlanBooter& voice = mount_booter_in(rig.bus, slow, answers, booter);
+
+    load::PlanExecutor stalled{rig.bus, rig.catalog, rig.operators, voice, slow, answers,
+                               [](const std::string& stem) { return stage().so(stem); }};
+    rig.mount_door_over(stalled, "mid.json");
+    rig.mount_asker();
+
+    stalled.begin(plan_of({provides("zengine-operators-basic"),
+                           weaves("zengine-plain-weave", "test.stalled"),
+                           weaves("zengine-provider-min", "test.never")}));
+    rig.drain(4);
+    REQUIRE(stalled.state() == load::Realization::Loading);
+
+    rig.ask_arrangement();
+    REQUIRE(rig.projected.arrangements.size() == 1);
+    const workshop::ResolvedArrangement& said = rig.projected.arrangements.front();
+    CHECK(said.plan == "mid.json");
+    REQUIRE(said.artifacts.size() == 3);
+    CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(said.artifacts[1].state == std::string(workshop::kLoadingToken));
+    CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
+    // ...AND IT IS LOOM'S OWN ANSWER, attested rather than merely correlated.
+    REQUIRE(rig.projected.attested.size() == 1);
+    CHECK(rig.projected.attested.front());
+
+    // THE ASK CHANGED NOTHING. A projection derives and does not act: the row is still
+    // in flight and the plan has not moved.
+    CHECK(stalled.state() == load::Realization::Loading);
+    CHECK(stalled.position() == 1);
 }
