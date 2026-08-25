@@ -37,6 +37,7 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -53,6 +54,15 @@ struct WaiterState {
 };
 
 /// The host's own weave: it commands the loads, sends the order, hears the result.
+///
+/// It keeps ONE fact about each load it commands: which conversation it is waiting on.
+/// `zen.Result`, `zen.Ack` and `zen.Refused` are a vocabulary every participant shares,
+/// so a weave that accepts them owes the standing rule in `zen/weave/standard_shapes.hpp`
+/// -- match each arrival against your own outstanding request, BY CORRELATION (which
+/// conversation) AND BY BUS-STAMPED SENDER (the weave you actually asked; the bus
+/// stamps that, so nobody can claim another's identity). Without it, "an answer
+/// arrived" and "my load answered" are the same line of code, and they are not the
+/// same fact.
 class Waiter
     : public loom::WeaveBase<Waiter, WaiterState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, BakeDone>,
@@ -63,9 +73,21 @@ public:
     bool served = false;
     std::string reason;
 
-    void on(const loom::Result&, loom::Mail&) { answered = true; }
-    void on(const loom::Ack&, loom::Mail&) { answered = true; }
-    void on(const loom::Refused& r, loom::Mail&) {
+    /// Open a load conversation with `manager`, and return the correlation to send.
+    std::uint64_t asking(loom::WeaveId manager) {
+        answered = false;
+        refused = false;
+        manager_ = manager;
+        return ++correlation_;
+    }
+    bool awaiting() const { return correlation_ != 0 && !answered; }
+
+    void on(const loom::Result&, loom::Mail& mail) { answered |= mine(mail); }
+    void on(const loom::Ack&, loom::Mail& mail) { answered |= mine(mail); }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (!mine(mail)) {
+            return;
+        }
         answered = true;
         refused = true;
         reason = r.reason;
@@ -74,6 +96,15 @@ public:
         served = true;
         std::printf("  the oven served: %s\n", d.dish.c_str());
     }
+
+private:
+    bool mine(const loom::Mail& mail) const {
+        return correlation_ != 0 && mail.correlation() == correlation_ &&
+               mail.sender() == manager_;
+    }
+
+    std::uint64_t correlation_ = 0;
+    loom::WeaveId manager_{};
 };
 
 #if defined(_WIN32)
@@ -123,16 +154,15 @@ int main(int argc, char** argv) {
     waiter->zen_set_self(waiter_id);
 
     const auto load = [&](const std::string& stem, const std::string& role) {
-        waiter->answered = false;
-        waiter->refused = false;
+        const std::uint64_t correlation = waiter->asking(manager);
         bus.send_as(waiter_id, manager,
                     loom::Message(loom::to_value(loom::LoadWeave{
                                       stem, dir + "/" + stem + kArtifactSuffix, role}),
-                                  waiter_id, waiter_id));
+                                  waiter_id, waiter_id, correlation));
         // A load is ANSWERED, not merely started: is_loaded turns true while the Result
-        // naming the new weave is still queued, so keep taking turns until the answer or a
-        // refusal is missed.
-        for (int turn = 0; turn < 64 && !waiter->answered; ++turn) {
+        // naming the new weave is still queued. So the condition below is the
+        // CONVERSATION -- take turns until this waiter's own correlated answer arrives.
+        for (int turn = 0; turn < 64 && waiter->awaiting(); ++turn) {
             if (bus.pump_pending() == 0) {
                 break; // nothing left to dispatch: no answer is coming
             }

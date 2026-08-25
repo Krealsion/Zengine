@@ -1460,9 +1460,20 @@ Zengine host owns ONE `op::Catalog`, and a Timer it boots inside an
   declared as a tripwire rather than a proof.
 - **The boot turn is `pump_pending()`, never `drain_until_idle()`.** The offer
   has to be in force when `create()` runs, and the load is several deliveries
-  deep, so the host sends the command and then takes bounded turns until
-  `kernel.is_loaded(...)`. A drain to idle would never return: a Timer that has
-  just gone live re-arms its own beat inside its own handler (MSG-09).
+  deep, so the host sends the command and then takes bounded turns. A drain to
+  idle would never return: a Timer that has just gone live re-arms its own beat
+  inside its own handler (MSG-09).
+- **What ends that wait is the load conversation's OWN correlated answer** — not
+  `kernel.is_loaded(...)`, which turns true while the `zen.Result` naming the new
+  WeaveId is still queued, and not an empty dispatch turn. `load::BootAnswers`
+  keeps the correlation and the respondent of the ask it opened, and
+  `load::PlanBooter` settles only on an arrival matching **both** — Loom's standing
+  rule for a hand-written consumer of `zen.Result`/`zen.Ack`/`zen.Refused`
+  (`zen/weave/standard_shapes.hpp`), which `loom::relay` implements for relaying
+  weaves. Before QR-9 there was no correlation at all, and any admitted answer
+  shape settled the current load: measured, an unrelated `zen.Result` reported a
+  WeaveId no Kernel had minted and turned a missing artifact's refusal into a
+  completed plan.
 - **`Kernel::reload_from` is the OTHER `create()` site**, and an operator-aware
   host owes a reload the same bracket it owes a load. Both are pinned: bracketed
   keeps the binding, unbracketed comes back a fallback Timer. Nothing in this
