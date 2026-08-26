@@ -243,11 +243,13 @@ Setup
   never leaves Workshop halfway restored" is structural: a refusal changes no panel, no setup, no
   Builder view and no document byte. Saving goes through the document's own safe write, so a
   detected failure leaves the last good setup file byte-identical.
-- **No placement, no rectangle, no extent, no metric, and no session interaction state is
-  persisted.** The picker's cursor, the Terminal's draft, the Builder's copied status, the
-  selection and the workspace extent are all session; the same setup file restored under a
-  different `SurfaceExtent` yields the same references and different bounds, which is the setup's
-  authored/resolved proof.
+- **No resolved rectangle, no metric, and no session interaction state is persisted** in a setup
+  file. The picker's cursor, the Terminal's draft, the Builder's copied status and the selection
+  are all session; so is the workspace extent, which no setup file carries — the same setup
+  restored under a different `SurfaceExtent` yields the same references and different bounds,
+  which is the setup's authored/resolved proof. (WIND-2 added authored *place* and *size* to a
+  row, which is intent rather than a rectangle; WUX-0 made the extent durable one level **above**
+  a setup, in the last-session file — see the final section.)
 
 Deliberately absent, so the absences are decisions: no opaque provider configuration; no multiple
 pane instances; no setup catalog, recent list, autosave or import/export; no tabs, docking or
@@ -511,3 +513,57 @@ history; no `Selection<T>`, `SelectionBus` or global selection vocabulary — on
 evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing of Info, the
 Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
 of any kind**, and no setup format movement.
+
+## The desk comes back on its own (WUX-0)
+
+A maker can **close Workshop after arranging it and reopen it into the same desk, at the same
+size, with no gesture.** That is a third persisted thing and a third file:
+
+```text
+--document   workshop.json           what you MADE
+--setup      workshop-setup.json     a desk you NAMED, with `s`, and read back with `r`
+--session    workshop-session.json   the desk you were USING, and the room it was in
+```
+
+- **One representation of a desk, two files.** `session_persist::WorkshopSession` nests
+  `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
+  judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
+  of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
+- **The viewport is one level above the desk**, and that is the whole reason the session is not
+  simply a second setup: the same desk is worth having in a big window and in a small one, so how
+  much room the surface had describes the *application* rather than the arrangement. It is
+  `{width, height}` in canvas cells, its own shape rather than `surface::SurfaceExtent` — that is
+  a message free to grow a field whenever a medium has something new to say, and the text metric
+  in particular would be a stale claim about a font the moment it was written down.
+- **Cells, because cells are what Workshop knows.** The window belongs to whichever Skin holds
+  `zengine.skin`, behind a C ABI; the only thing it publishes about its room is `SurfaceExtent`,
+  and the only thing Workshop says back is how large a picture it would like to paint. So the
+  durable number is the one that crosses that seam, and the fidelity is a stated bound rather
+  than a hope: a restored window is the maker's chosen size **floored to whole cells**, at most
+  `kCanvasCellPx - 1` pixels short on each axis.
+- **Position and maximized state are NOT persisted**, and the reason is the same seam read from
+  the other side: no message in the Surface vocabulary carries either, in either direction, so
+  persisting them would be a new publisher-to-medium protocol rather than a new field.
+- **The first picture of a run is Workshop's floor, and the restored room is the second.** A
+  medium that has been told nothing has only a run's first picture to size itself from, and a
+  graphical one makes that size the smallest the window may ever be dragged to. So
+  `on(SurfaceReady)` paints once at the minimum extent and *then* takes the session back — asking
+  for the remembered room first would leave a maker unable to shrink their own window.
+- **The room, and then the desk into it.** `apply_setup` seats panes against
+  `stack_capacity(screen_of(...))`, so how much of a desk can be presented is a fact about the
+  screen. The viewport is adopted before the desk is applied; reversing the two leaves a pane
+  waiting for room it already had, and that is one of the phase's mutations.
+- **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and `SurfaceCloseRequested`
+  all reach `quit()`, which writes the session before it stops the bus. No autosave, no dirty
+  tracking, no background writer — and no crash durability, which is not claimed here or in
+  `persist::write_file`.
+- **Four distinct answers, not one boolean.** No previous session (silent — a first launch is
+  never reported as an error); a session that cannot be read (named, defaults used, and the
+  maker's file left exactly as it is); a session read whose viewport is outside the band this
+  Workshop is honest at (`78x22`..`640x400` cells — the desk is restored, the size is
+  **declined rather than clamped**, and the declined value is named); and everything restored.
+- **Neither direction touches the named setup file.** Closing writes a session and leaves
+  `workshop-setup.json` byte-identical; restoring a session reads no setup file at all. `s` and
+  `r` mean exactly what they meant, and `setup.on_file` — this run's copy of what is in the
+  *setup* file — is deliberately not written by a session restore, so a restored session still
+  reads `UNSAVED` and that word still means "not written to the setup file in this run".

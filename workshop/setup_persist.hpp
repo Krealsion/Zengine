@@ -356,6 +356,61 @@ inline std::string unknown_unit(const std::string& found, const char* which,
     return "`" + found + "` is not a pane " + which + " mode (" + allowed + ")";
 }
 
+/// A WRITTEN SETUP, AS A LIVE ONE -- its format word, its version, its mode words and its
+/// law, in that order.
+///
+/// SEPARATE FROM `from_text` SINCE WUX-0, and the separation is what makes "one durable
+/// representation of a desk" true rather than aspirational: a setup arrives either as a
+/// whole file (below) or as one field of a LARGER file that carries a desk beside something
+/// that is not one (`session_persist.hpp`), and both must meet the same layers. A second
+/// copy of these checks would be a second answer to "what is a legal saved setup".
+///
+/// IT WRITES THROUGH A REFERENCE AND STILL CANNOT HALF-RESTORE ANYTHING, because the
+/// reference every caller passes is a LOCAL CANDIDATE of theirs and never a live setup --
+/// the candidate is built here in full and assigned out only once every layer has passed.
+inline Written setup_in(const WorkshopSetup& file, Setup& out) {
+    if (file.format != kFormat) {
+        return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
+    }
+    // AND THE FIELD IS STILL CHECKED. The preflight in `from_text` answers for a file whose
+    // ENVELOPE is another version; this answers for one whose envelope is this version and
+    // whose own stated version is not -- which only a forgery produces, and which is exactly
+    // the forgery a reader of this format would try.
+    if (file.format_version != kFormatVersion) {
+        return Written::no(wrong_version(file.format_version));
+    }
+    Setup candidate;
+    candidate.name = file.name;
+    candidate.panes.reserve(file.panes.size());
+    for (const WorkshopSetupPane& p : file.panes) {
+        // COPIED, NEVER RESOLVED. Whether this build can present the pane is a
+        // question for `resolve_pane`, asked later and by somebody who has
+        // somewhere to put the answer; a reference that resolves to nothing is
+        // still a reference this setup holds.
+        SetupPane row;
+        row.ref = PaneRef{p.provider, p.pane};
+        row.front = p.front;
+        // AN UNKNOWN WORD REFUSES THE WHOLE CANDIDATE and leaves whatever the caller is
+        // showing exactly as it was -- see the note above about whose value `out` is.
+        if (!place_in(p.place, row.place)) {
+            return Written::no(unknown_unit(p.place.mode, "place", kPlaceWords));
+        }
+        if (!size_in(p.width, row.width)) {
+            return Written::no(unknown_unit(p.width.mode, "width", kSizeWords));
+        }
+        if (!size_in(p.height, row.height)) {
+            return Written::no(unknown_unit(p.height.mode, "height", kSizeWords));
+        }
+        candidate.panes.push_back(std::move(row));
+    }
+    const Written legal = check_setup(candidate);
+    if (!legal.accepted) {
+        return legal;
+    }
+    out = std::move(candidate);
+    return Written::ok();
+}
+
 inline LoadedSetup from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -384,47 +439,14 @@ inline LoadedSetup from_text(std::string_view bytes) {
         return LoadedSetup::no(admitted.first_error().message());
     }
 
-    const WorkshopSetup file = loom::from_value<WorkshopSetup>(admitted.value());
-    if (file.format != kFormat) {
-        return LoadedSetup::no("not a Workshop setup: it says it is `" + file.format + "`");
-    }
-    // AND THE FIELD IS STILL CHECKED. The preflight above answers for a file whose
-    // ENVELOPE is another version; this answers for one whose envelope is this
-    // version and whose own stated version is not -- which only a forgery produces,
-    // and which is exactly the forgery a reader of this format would try.
-    if (file.format_version != kFormatVersion) {
-        return LoadedSetup::no(wrong_version(file.format_version));
-    }
-
+    // THE CANDIDATE IS A LOCAL OF THIS FUNCTION, which is how "a malformed file never
+    // leaves Workshop halfway restored" stays structural: `setup_in` fills this and nothing
+    // else, and only a setup that passed every layer is ever returned.
     Setup candidate;
-    candidate.name = file.name;
-    candidate.panes.reserve(file.panes.size());
-    for (const WorkshopSetupPane& p : file.panes) {
-        // COPIED, NEVER RESOLVED. Whether this build can present the pane is a
-        // question for `resolve_pane`, asked later and by somebody who has
-        // somewhere to put the answer; a reference that resolves to nothing is
-        // still a reference this setup holds.
-        SetupPane row;
-        row.ref = PaneRef{p.provider, p.pane};
-        row.front = p.front;
-        // AN UNKNOWN WORD REFUSES THE WHOLE CANDIDATE and leaves the live setup
-        // exactly as it was -- which needs no care here, because this function
-        // RETURNS a setup rather than writing through a reference, so there is no
-        // live value in scope for a half-built one to be written into.
-        if (!place_in(p.place, row.place)) {
-            return LoadedSetup::no(unknown_unit(p.place.mode, "place", kPlaceWords));
-        }
-        if (!size_in(p.width, row.width)) {
-            return LoadedSetup::no(unknown_unit(p.width.mode, "width", kSizeWords));
-        }
-        if (!size_in(p.height, row.height)) {
-            return LoadedSetup::no(unknown_unit(p.height.mode, "height", kSizeWords));
-        }
-        candidate.panes.push_back(std::move(row));
-    }
-    const Written legal = check_setup(candidate);
-    if (!legal.accepted) {
-        return LoadedSetup::no(legal.refusal);
+    const Written understood =
+        setup_in(loom::from_value<WorkshopSetup>(admitted.value()), candidate);
+    if (!understood.accepted) {
+        return LoadedSetup::no(understood.refusal);
     }
 
     LoadedSetup loaded;

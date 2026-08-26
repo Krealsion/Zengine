@@ -482,6 +482,15 @@
 # they obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
 # Switchboard, and every turn any plan in this suite takes is spent by the CALLER.
 #
+# WUX-0 raised the workshop floor by twenty, and all eighteen are in the `always` row for
+# the reason every prior phase's were: taking a desk back is a question about a FILE and about
+# what a weave does with one, and there is not an SDL call anywhere in it. What the graphical
+# medium contributes to this feature -- creating a window from a picture and growing it to a
+# later one -- is the medium's own documented behaviour and is witnessed by hand against a real
+# window, not here; what IS here is the invariant that behaviour rests on, and it is pure: the
+# FIRST canvas of a run is the floor extent and the restored room is a later one. A lane with no
+# SDL at all proves that ordering, which is the half a canary can break.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -500,7 +509,7 @@ component                         doctest           always  15
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  30
-workshop                          doctest           always  715
+workshop                          doctest           always  735
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

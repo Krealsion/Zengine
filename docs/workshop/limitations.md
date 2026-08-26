@@ -61,18 +61,33 @@ the bus *is* their whole program and `stop()` is their exit.
 
 ## Workshop
 
-### Nothing is restored at launch
+### The document is not restored at launch
 
-The document and the setup both persist, completely and transactionally, in both directions,
-and both restore gestures are advertised on screen. **Neither is read at startup.** Every
-session begins with `Ctrl`+`o` and `r`.
+The desk is, and the window size is — both automatically, from the last session. The
+**document** is not: every session still begins with `Ctrl`+`o`.
 
-What makes the missing default cost more than two keypresses: a fresh Workshop seeds two
-example objects, so forgetting `Ctrl`+`o` gives you a plausible document that is not yours
-rather than an obviously empty one.
+What makes that cost more than one keypress: a fresh Workshop seeds two example objects, so
+forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
+empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 
-This is the highest-ranked Workshop usability gap. Full detail, including the smallest missing
-seam, in [workspace continuity](setups.md#workspace-continuity).
+### The window comes back the size you left it, not the place
+
+The last session restores the **size** of the Workshop window, in canvas cells, to the nearest
+whole cell. It does not restore where the window was on the screen, and it does not restore a
+maximized window as maximized — it restores whatever size it had.
+
+This is a seam rather than an omission. Workshop does not own its window: whichever Skin holds
+`zengine.skin` does, across a C ABI, and the only thing that Skin publishes about it is how many
+canvas cells it has (`surface::SurfaceExtent`). There is no message in either direction that
+carries a screen position or a maximized state, so persisting them would mean a new
+publisher-to-medium protocol rather than a new field in a file.
+
+### The session is written on an orderly close, and only then
+
+`q`, `Ctrl`+`c` and the window's close box all reach the same door and all write it. A Workshop
+that is **killed** loses the session it was in; the previous session file is untouched and is
+what the next launch reads. There is no autosave, no background writer and no crash recovery,
+and none of those is claimed anywhere else either.
 
 ### Panes are 9 rows tall by default and a bigger terminal does not change that
 

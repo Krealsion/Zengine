@@ -157,8 +157,17 @@ std::string exe_dir() {
 /// setup path: no catalog, no recent list, no profile manager. An empty path is
 /// refused by name, exactly as an empty `--document` is.
 ///
+/// `--session <path>`, defaulted to `workshop-session.json`, is the THIRD file of the
+/// same shape and is the one nobody types (WUX-0). It holds the LAST SESSION: the desk
+/// this Workshop was arranged into and how much room the surface had, written when
+/// Workshop leaves and read when it arrives. It is a different file from `--setup` for
+/// the reason that is the whole of the distinction: a setup is a desk a maker deliberately
+/// NAMED, and an automatic save that could land on it would rewrite that name's contents
+/// every time a window was closed. An empty path is refused by name, exactly as the other
+/// two are.
+///
 /// `--load-plan <path>`, defaulted to `default-load-plan.json` BESIDE THE
-/// EXECUTABLE, is the third of the same shape and is the one this host cannot run
+/// EXECUTABLE, is the fourth of the same shape and is the one this host cannot run
 /// without (LOAD-0). It names the authored plan saying which artifacts participate
 /// in this project and how -- which provider contributions are mounted, which
 /// weaves are loaded into which roles, and in what order. There is no compiled-in
@@ -205,6 +214,8 @@ struct Arguments {
     /// shape as `--document` for the same reasons; a different file because a
     /// document and the arrangement it is looked at in are different facts.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
+    /// The last-session file, beside the other two and written by nobody's gesture (WUX-0).
+    std::string session = zengine::workshop::session_persist::kDefaultSessionFileName;
     /// Empty means "the one shipped beside this executable", which `main()` resolves
     /// once it knows where that is. It is deliberately NOT defaulted to a bare name
     /// here: a bare name would resolve against whatever directory a maker happened to
@@ -219,8 +230,8 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--document" || arg == "--setup" || arg == "--load-plan" || arg == "--log" ||
-            arg == "--dump") {
+        if (arg == "--document" || arg == "--setup" || arg == "--session" ||
+            arg == "--load-plan" || arg == "--log" || arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -243,6 +254,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.dump = value;
             } else if (arg == "--setup") {
                 args.setup = value;
+            } else if (arg == "--session") {
+                args.session = value;
             } else {
                 args.document = value;
             }
@@ -258,6 +271,9 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
+    } else if (args.session.empty()) {
+        args.ok = false;
+        args.complaint = "--session needs a path";
     }
     return args;
 }
@@ -267,7 +283,7 @@ int main(int argc, char** argv) {
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
-                    "                        [--load-plan <path>]\n"
+                    "                        [--session <path>] [--load-plan <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
@@ -282,6 +298,7 @@ int main(int argc, char** argv) {
     host.dir = exe_dir();
     host.document_path = args.document;
     host.setup_path = args.setup;
+    host.session_path = args.session;
 
     const std::string plan_path =
         args.load_plan.empty() ? host.dir + "/" + load_persist::kDefaultLoadPlanName
@@ -292,6 +309,8 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
+    std::printf("zengine-workshop - last session: %s (restored at startup, written on quit)\n",
+                args.session.c_str());
     std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
     std::fflush(stdout);
 

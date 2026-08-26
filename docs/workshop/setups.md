@@ -3,18 +3,22 @@
 **How-to, plus an explicit current-state verdict.** How Workshop persists an arrangement, how
 you get it back, and what does not come back on its own.
 
-## The two files
+## The three files
 
-Workshop keeps two separate persisted things, on purpose, in two files:
+Workshop keeps three separate persisted things, on purpose, in three files:
 
 | file | argument | holds |
 |---|---|---|
 | the **document** | `--document`, default `workshop.json` | the authored objects: identities, labels, placements, extents |
-| the **setup** | `--setup`, default `workshop-setup.json` | the arrangement: which panes are open, where, how big, in what order — and a **name** |
+| the **setup** | `--setup`, default `workshop-setup.json` | a desk you deliberately **named**: which panes, where, how big, in what order |
+| the **last session** | `--session`, default `workshop-session.json` | the desk you were actually using when you left, plus how much room the surface had |
 
 They are separate because they answer different questions. The document is the thing you are
-making. The setup is the room you are making it in. Sharing a document should not import
-somebody else's pane layout.
+making. The setup is a room you chose to keep and gave a name. The last session is the room you
+happened to be in — written when Workshop leaves, read when it arrives, by nobody's gesture.
+
+Sharing a document should not import somebody else's pane layout, and closing a window should
+not rewrite a desk you saved under a name.
 
 ## Saving a setup
 
@@ -63,14 +67,88 @@ zengine-workshop --setup layouts/inspect.json
 
 The `name` inside a setup is a label a maker reads, not a selector.
 
+## The last session
+
+**You do not save this and you do not load it.** When Workshop closes normally — `q`, `Ctrl`+`c`
+or the window's close box, all one door — it writes the desk you were on and the room you were
+in to the `--session` file. When it starts, it reads that file back.
+
+```text
+launch  ->  the surface says hello
+        ->  Workshop paints once, at its floor size
+        ->  the last session is read
+        ->  the room is restored
+        ->  the desk is rebuilt INTO that room
+        ->  work
+```
+
+What comes back:
+
+| | |
+|---|---|
+| which panes were open | yes |
+| where each was placed, and how big | yes — the authored values, exactly as saved |
+| which pane was in front | yes |
+| the size of the Workshop window | yes, **to the nearest whole cell** — see below |
+| the window's screen position | **no** — see [limitations](limitations.md#the-window-comes-back-the-size-you-left-it-not-the-place) |
+| whether it was maximized | **no**, same reason |
+| your document | **no** — `Ctrl`+`o` still opens it |
+
+The status line says what happened, in the notice row:
+
+```text
+reopened your last desk "Debugging" -- 120x44 cells
+```
+
+### Why the window size is in cells
+
+Workshop does not own its window. Whichever Skin holds `zengine.skin` does, and the only thing
+that Skin ever tells Workshop about the room is how many **canvas cells** it has. So that is
+what is written down, and a graphical medium turns cells back into pixels on the way out. The
+honest cost is a bound rather than a hope: **you get back the size you chose, floored to whole
+cells** — at most eleven pixels short on each axis.
+
+### When it cannot be honoured
+
+Four different things can happen, and they are four different sentences:
+
+| situation | what Workshop does |
+|---|---|
+| there is no session file yet | opens with the defaults, and says **nothing** — a first launch is not an error |
+| the file exists and cannot be read or understood | says why, names the reason, opens with the default setup, and **leaves your file exactly as it is** |
+| the file is fine but the saved size is not one this Workshop opens at | restores the **desk**, opens at the default size, and names the value it declined |
+| a pane in it is a reference this build cannot present | restores everything else, keeps the reference, and names the first unresolved one |
+
+A saved size is honoured only if it is inside the band Workshop is honest at — 78x22 to
+640x400 cells. Outside it the size is **declined, not clamped**: clamping a nonsense width into
+the band would still open a window nobody chose, on a display Workshop cannot see.
+
+**Crash recovery is not claimed.** The session is written on an orderly close. A Workshop that
+is killed loses the session it was in, and the previous file is still there.
+
+## Last session versus named setup
+
+They are deliberately different promises, and keeping them apart is why there are two files:
+
+| | named setup | last session |
+|---|---|---|
+| written by | you, with `s` | Workshop, on close |
+| read by | you, with `r` | Workshop, on start |
+| has a name you chose | yes | it carries whatever name the desk had |
+| holds the window size | no | yes |
+| how many | one file per run, chosen by `--setup`; keep as many files as you like | one |
+
+An automatic save never touches the file you named, in either direction. Closing Workshop
+writes a session and leaves `workshop-setup.json` byte-for-byte alone; taking a session back
+reads no setup file at all.
+
 ## Workspace continuity
 
 > **Can a maker reopen Workshop and return to useful work without reconstructing their panes
 > manually?**
 >
-> **Yes, in two keypresses — but never automatically.** Persistence is real and complete in both
-> directions, and both gestures are advertised on screen. **Restoration is manual: nothing is
-> read at launch.**
+> **Yes, and without pressing anything.** The panes, their geometry, their order and the window
+> size come back on their own. **The document does not** — `Ctrl`+`o` is still a gesture.
 
 Source-traced, precisely:
 
@@ -79,47 +157,29 @@ Source-traced, precisely:
 | saving a layout / setup | **yes** | `s`, writes the `--setup` file |
 | loading / restoring it | **yes** | `r`, reads the `--setup` file |
 | selecting among setups | **no in-application selection** | one file per run, chosen by `--setup` |
-| persisting pane position | **yes** | authored place, in the setup |
-| persisting pane size | **yes** | authored size in cells or pixels, in the setup |
-| persisting which panes are open | **yes** | the setup's pane list |
-| persisting pane order (depth) | **yes** | the setup's rank permutation |
-| **restoring any of it at launch** | **no** | the setup loader is reached only from the `r` key |
+| persisting pane position | **yes** | authored place, in the setup and in the session |
+| persisting pane size | **yes** | authored size in cells or pixels, in both |
+| persisting which panes are open | **yes** | the pane list, in both |
+| persisting pane order (depth) | **yes** | the rank permutation, in both |
+| persisting the window's size | **yes** | the session's viewport, in cells |
+| persisting the window's position or maximized state | **no** | Workshop is never told either |
+| **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
 | **restoring the document at launch** | **no** | the document loader is reached only from `Ctrl`+`o` |
 
-So the actual workflow every session is:
+So the actual workflow every session is now:
 
 ```text
 launch  ->  Ctrl+o   (get the document back)
-        ->  r        (get the panes back)
         ->  work
         ->  Ctrl+s   (document)
-        ->  s Enter  (setup)
 ```
 
-Two keypresses is not much, and both are advertised: the setup line carries
-`s name/save  r restore`, and `Ctrl`+`s` / `Ctrl`+`o` are the document's conventional pair. So
-this is **not** a discoverability gap — it is a missing default.
-
-**Why the missing default still costs something.** A fresh Workshop is not empty: its weave
-seeds two example objects so the first screen already shows an authored share beside its
-resolved value. That is a good first run, and it is also what makes forgetting `Ctrl`+`o`
-quiet — you get a plausible-looking document that is not yours, rather than an obviously
-empty one. The same is true of the setup: `setup "Default" UNSAVED` is what an unrestored
-session says, and it looks like a state rather than like an omission.
-
-### The smallest missing seam
-
-Everything needed already exists and is already a transaction, and both gestures are already
-advertised. The gap is one decision nobody has made: **should a host read its authored document
-and setup at startup, and what does it do when either file is absent or refused?**
-
-Concretely, that is (a) calling the same two loaders once during startup, (b) a rule for
-"absent file" that is distinct from "malformed file" — an empty path is already refused by
-name, and a first run has no file at all — and (c) whether a `--no-restore` escape is needed
-for a maker whose setup names a pane that crashes.
-
-None of it is designed here, and none of it is built. It is recorded as the highest-ranked
-Workshop usability seam.
+**Why the document is still a gesture.** It is a different kind of fact: a setup is the room and
+a document is the work, and opening the last document a maker touched is a stronger claim than
+opening the last room they were in — it decides what they are editing, and a wrong guess
+overwrites nothing but looks exactly like their file. What makes forgetting `Ctrl`+`o` quiet is
+unchanged and worth knowing: a fresh Workshop seeds two example objects, so you get a
+plausible-looking document that is not yours rather than an obviously empty one.
 
 ## The document
 
