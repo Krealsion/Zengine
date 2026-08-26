@@ -491,6 +491,30 @@
 # FIRST canvas of a run is the floor extent and the restored room is a later one. A lane with no
 # SDL at all proves that ordering, which is the half a canary can break.
 #
+# BLD-1 raised the builder floor 30 -> 48 and the workshop floor 735 -> 754, and it is the
+# FIRST phase since BLD-0 to move the builder row at all. The eighteen new builder cases split
+# three ways: the RECIPE's law (what a maker may write down and what is refused), the ARTIFACT
+# question (a process exiting zero is not a file, a stale file cannot make a failed build look
+# successful, a neighbour satisfies nothing), and the GENERATED PROJECT read as text -- which
+# is the only way a claim about what a single-source build does NOT reach into can be checked
+# on every lane rather than on the one that happens to have a compiler configured for it. The
+# nineteen new workshop cases are the realization half: a row a host says is WAITING, the one
+# door that performs it later, and the Builder panel's two outcomes.
+#
+# WARNING: THE BUILDER SUITE NOW DRIVES A REAL CONFIGURED CMAKE TREE (tests/buildfixture/), because
+# BLD-1 deleted the suite's ability to invent a command: a recipe names inputs to a mechanism
+# and there is no field anywhere in which one could name a program. The fixture is configured
+# at BUILD time and only `cmake --build` runs inside a case, which is the same line
+# `tests/package/run.cmake` draws for the same reason -- a nested CONFIGURE inside a ctest
+# entry is a second build system in the population, and a nested BUILD is what a recipe IS.
+# The suite's wall clock roughly doubled and that is the cost of measuring the production path.
+#
+# WHAT IS NOT IN THIS FILE, DELIBERATELY: the single-source route's REAL compile. It needs an
+# installed Zengine prefix and a toolchain, it is a lane and not a ctest entry
+# (tests/build/run.cmake), and folding it in here would put an install and two nested projects
+# inside a test binary's population. What IS here is every part of that route a suite can hold
+# still: the recipe law, the command derivation, and both generated files as bytes.
+#
 # Keep this file plain ASCII: it is read with file(STRINGS), which treats a non-ASCII byte as
 # a string terminator and would silently split the line around it. Two more characters the
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
@@ -508,8 +532,8 @@ ui                                doctest           always  22
 component                         doctest           always  15
 operator                          doctest           always  90
 composer                          doctest           always  35
-builder                           doctest           always  30
-workshop                          doctest           always  735
+builder                           doctest           always  48
+workshop                          doctest           always  754
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -136,10 +136,24 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 /// all. It could not have had one before: nothing survived the executor's stack frame
 /// long enough to be asked.
 ///
-/// FOUR TOKENS, FOUR OWNERS, and the owner is why each one exists rather than the
-/// word sounding useful; `load::RowState` names them and names the four that were
+/// FIVE TOKENS, FIVE OWNERS, and the owner is why each one exists rather than the
+/// word sounding useful; `load::RowState` names them and names the three that were
 /// refused.
+///
+/// `pending` IS BLD-1's, AND IT IS A NEW TOKEN ON AN UNCHANGED SHAPE. `state` is a
+/// STRING and always was, precisely so that the set of things realization can be doing
+/// with a row could grow without every reader of this message having to be recompiled
+/// against a new version of it. It means: this run reached the row, the host said it is
+/// waiting on the maker, and nothing has been mounted, opened or commanded for it.
+///
+/// ⚠ IT IS NOT "the artifact is missing" AND IT IS NOT "a build is running". This
+/// message says what REALIZATION has done, and what realization did is nothing --
+/// deliberately, at the host's word. Whether a file is absent is the host's fact and
+/// whether a build is under way is the Builder's; a reader that wants either asks their
+/// owners, which is the same reason `loaded`, `arrangement` and `powers` are three
+/// panes and not one table.
 inline constexpr const char* kAuthoredToken = "authored";
+inline constexpr const char* kPendingToken = "pending";
 inline constexpr const char* kLoadingToken = "loading";
 inline constexpr const char* kResolvedToken = "resolved";
 inline constexpr const char* kRefusedToken = "refused";

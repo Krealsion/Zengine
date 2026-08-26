@@ -64,6 +64,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -3484,4 +3485,366 @@ TEST_CASE("BOOT-0: the DOOR answers `loading` across the real seam, mid-flight")
     // in flight and the plan has not moved.
     CHECK(stalled.state() == load::Realization::Loading);
     CHECK(stalled.position() == 1);
+}
+
+// ============================================================================
+// Tier 8 -- BLD-1: a row that is WAITING ON THE MAKER, and the one door that
+//                  performs it later
+// ============================================================================
+
+namespace {
+
+/// ANYTHING ON THIS BUS THAT ACCEPTS `ArtifactRealized`.
+///
+/// The Builder panel is one such thing and this is another, and the participant
+/// that publishes it cannot tell them apart -- which is the property that keeps
+/// realization's answer a published FACT rather than a reply to a presentation.
+struct RealizedHeardState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(RealizedHeardState, 1, ZEN_FIELD(heard));
+};
+
+class RealizedEars
+    : public loom::WeaveBase<RealizedEars, RealizedHeardState,
+                             loom::Accept<zengine::builder::ArtifactRealized>, loom::Emit<>> {
+public:
+    void on(const zengine::builder::ArtifactRealized& said, loom::Mail&) {
+        ++state_.heard;
+        answers.push_back(said);
+    }
+    std::vector<zengine::builder::ArtifactRealized> answers;
+};
+
+/// Mount the ears and hand back the object, because a case reads what they heard.
+/// `loom::mount_granted` answers with a WeaveId, so this is the two lines it does
+/// not do -- construct, keep the pointer, register, and tell it which weave it is.
+RealizedEars& mount_ears(loom::Switchboard& bus, loom::Grant grant) {
+    auto held = std::make_unique<RealizedEars>();
+    RealizedEars& raw = *held;
+    const loom::WeaveId id = bus.register_weave(std::move(held), std::move(grant));
+    raw.zen_set_self(id);
+    return raw;
+}
+
+/// THE HOST'S OWN BOOTER GRANT SINCE BLD-1: reach the Manager with `zen.LoadWeave`,
+/// and say what the project made of a newly built artifact. Spelled out rather than
+/// derived from the Emit set for `mount_booter_in`'s reason -- a rig that minted the
+/// grant could not notice a host quietly widening it.
+load::PlanBooter& mount_booter_with_answer(loom::Switchboard& bus, loom::WeaveId manager,
+                                           load::BootAnswers& answers, loom::WeaveId& id) {
+    loom::Grant operate;
+    operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    operate.allow_to_any(zengine::builder::ArtifactRealized::zen_name,
+                         zengine::builder::ArtifactRealized::zen_version);
+    auto speaker = std::make_unique<load::PlanBooter>(answers);
+    load::PlanBooter& voice = *speaker;
+    id = bus.register_weave(std::move(speaker), std::move(operate));
+    voice.zen_set_self(id);
+    return voice;
+}
+
+/// A stem this stage has no file for, and no artifact in this repository is called.
+constexpr const char* kUnbuilt = "zengine-not-built-yet";
+
+/// A RIG WHOSE HOST SAYS ONE ROW IS WAITING (BLD-1).
+///
+/// It is `PlanRig` with the one seam BLD-1 added filled in: a predicate answering
+/// "is this row waiting on the maker?" for exactly the stems the case names. The
+/// executor never learns why, and this rig is the only party that knows -- which is
+/// the containment the seam exists for, made visible in the fixture.
+///
+/// It ALSO mounts the ears, because the whole point of the door being reachable from
+/// a build is that the answer comes back as an ordinary publication.
+struct PendingRig {
+    loom::Switchboard bus;
+    op::Catalog catalog;
+    op::OperatorHostSurface operators{catalog};
+    loom::Kernel kernel{bus};
+    loom::WeaveId control = loom::mount_control(kernel, bus);
+    loom::WeaveId manager = loom::mount_manager(control, bus);
+
+    load::BootAnswers answers;
+    loom::WeaveId booter;
+    /// THE BOOTER'S GRANT GAINS EXACTLY ONE RULE HERE, and it is the host's own: it
+    /// may say `ArtifactRealized` to anyone who accepts it. It still may not DO
+    /// anything -- the one dangerous rule in this process is unchanged.
+    load::PlanBooter& voice = mount_booter_with_answer(bus, manager, answers, booter);
+
+    /// THE STEMS THIS HOST SAYS ARE WAITING. A `std::set` in spirit and a vector in
+    /// fact, because the point is that the executor asks a QUESTION and the host owns
+    /// the answer -- not that the answer is efficient.
+    std::vector<std::string> waiting;
+    RealizedEars* ears = nullptr;
+
+    load::PlanExecutor executor{
+        bus,
+        catalog,
+        operators,
+        voice,
+        manager,
+        answers,
+        [](const std::string& stem) { return stage().so(stem); },
+        load::PlanExecutor::Settled(),
+        [this](const std::string& stem) {
+            for (const std::string& held : waiting) {
+                if (held == stem) {
+                    return true;
+                }
+            }
+            return false;
+        }};
+
+    PendingRig() { ears = &mount_ears(bus, loom::Grant{}); }
+
+    void drain(int turns = 8) {
+        for (int i = 0; i < turns; ++i) {
+            bus.pump_pending();
+        }
+    }
+
+    load::Executed realize(load::LoadPlan plan, int turns = 32) {
+        executor.begin(std::move(plan));
+        drain(turns);
+        return executor.outcome();
+    }
+
+    /// SAY `ArtifactBuilt` THE WAY THE BUILDER TOOL SAYS IT -- a root publication of
+    /// the shape, ungated, because what is measured here is what the OWNER makes of
+    /// it and the host's grant on the Builder has its own case in the builder suite.
+    void announce_built(const std::string& artifact, const std::string& path = std::string()) {
+        (void)bus.publish(loom::Message(loom::to_value(
+            zengine::builder::ArtifactBuilt{7, "some-recipe", artifact, path})));
+        drain(16);
+    }
+};
+
+} // namespace
+
+TEST_CASE("BLD-1: a row the host says is WAITING is not performed, and the plan continues") {
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+
+    const load::Executed done =
+        rig.realize(plan_of({provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
+                             weaves("zengine-plain-weave", "zen.plain")}));
+
+    // THE PLAN COMPLETED. A waiting row is not a refusal -- nothing refused anything
+    // -- so the arrangement is whole in the only sense realization can mean it.
+    CHECK(done.ok);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(done.refusal.empty());
+
+    // ...AND THE ROW AFTER IT WAS PERFORMED, which is the half that separates this
+    // from "stops rather than skips": a waiting row does not stop the walk.
+    REQUIRE(done.resolved.size() == 2);
+    CHECK(done.resolved[0].stem == "zengine-operators-basic");
+    CHECK(done.resolved[1].stem == "zengine-plain-weave");
+    CHECK(done.resolved[1].weave_loaded);
+
+    // THE WAITING ROW IS NAMED rather than counted, because a number is not
+    // something a maker can act on.
+    REQUIRE(done.pending.size() == 1);
+    CHECK(done.pending[0] == kUnbuilt);
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    // NOTHING WAS OPENED, MOUNTED OR COMMANDED FOR IT. The Kernel never heard of it.
+    CHECK_FALSE(rig.kernel.is_loaded(kUnbuilt));
+}
+
+TEST_CASE("BLD-1: with no predicate at all, nothing ever waits") {
+    // LOAD-0's BEHAVIOUR, UNCHANGED, and this is the case that says so: every caller
+    // that does not hand over an `AwaitingBuild` gets exactly the executor it had
+    // before this phase -- a missing artifact refuses the plan, by name, in the
+    // loader's own words.
+    PlanRig rig;
+    const load::Executed done = rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
+    CHECK_FALSE(done.ok);
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK(done.refusal.find(kUnbuilt) != std::string::npos);
+    CHECK(done.pending.empty());
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Refused);
+}
+
+TEST_CASE("BLD-1: a waiting row is realized when a maker asks, and only then") {
+    PendingRig rig;
+    rig.waiting = {"zengine-plain-weave"};
+    const load::Executed first = rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")}));
+    REQUIRE(first.ok);
+    REQUIRE(first.pending.size() == 1);
+    REQUIRE_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // THE MAKER ASKS. The row's authored participation -- its role, its order, its
+    // surfaces -- comes from the PLAN and nowhere else: nothing in this call names
+    // one, and nothing could.
+    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-plain-weave");
+    CHECK(asked.started);
+    CHECK(asked.refusal.empty());
+    CHECK(rig.executor.state() == load::Realization::Loading);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Loading);
+    rig.drain(16);
+
+    // ...AND THE ORDINARY REALIZATION MACHINERY DID THE WORK. A real `zen.LoadWeave`
+    // through the control door, a real WeaveId, a real role.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.executor.pending().empty());
+    REQUIRE(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.resolved()[0].weave_loaded);
+    CHECK(rig.executor.resolved()[0].role == "zen.plain");
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // THE FACT LEFT AS A PUBLICATION, said by the participant that speaks for the
+    // owner. ⚠ IT IS TAKEN RATHER THAN READ: the owner leaves it where exactly one
+    // reader can pick it up, so by the time a case looks the booter has already taken
+    // it -- which is what makes announcing the same realization twice impossible.
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == "zengine-plain-weave");
+    CHECK(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("zen.plain") != std::string::npos);
+    CHECK_FALSE(rig.executor.take_realization().settled);
+    rig.drain(8);
+    CHECK(rig.ears->answers.size() == 1);
+}
+
+TEST_CASE("BLD-1: a provider-only waiting row settles before `realize` returns") {
+    PendingRig rig;
+    rig.waiting = {"zengine-provider-min"};
+    REQUIRE(rig.realize(plan_of({provides("zengine-provider-min")})).ok);
+    REQUIRE(rig.executor.pending().size() == 1);
+
+    const std::size_t before = rig.catalog.size();
+    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-provider-min");
+    CHECK(asked.started);
+    // NOTHING IS OWED BY ANYBODY, so the row is over the instant its mount returns --
+    // no turn was spent and no conversation was opened.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.pending().empty());
+    CHECK(rig.catalog.size() > before);
+    const load::PlanExecutor::Realized settled = rig.executor.take_realization();
+    CHECK(settled.settled);
+    CHECK(settled.realized);
+}
+
+TEST_CASE("BLD-1: the door refuses everything the AUTHORED PLAN does not sanction") {
+    PendingRig rig;
+    rig.waiting = {"zengine-plain-weave"};
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 weaves("zengine-plain-weave", "zen.plain")}))
+                .ok);
+
+    // A STEM THE PROJECT NEVER AUTHORED. A build can produce a file; only the
+    // project's own plan can say how it participates, so there is nothing to perform.
+    const load::PlanExecutor::Asked stranger = rig.executor.realize("zengine-timer");
+    CHECK_FALSE(stranger.started);
+    CHECK(stranger.refusal.find("does not name artifact") != std::string::npos);
+
+    // A ROW THAT IS ALREADY PART OF THE RUNNING PROJECT. ⚠ THIS IS WHERE HOT RELOAD
+    // IS REFUSED, in words, rather than by quietly loading the image a second time.
+    const load::PlanExecutor::Asked live = rig.executor.realize("zengine-operators-basic");
+    CHECK_FALSE(live.started);
+    CHECK(live.refusal.find("already part of this running project") != std::string::npos);
+    CHECK(live.refusal.find("restart") != std::string::npos);
+
+    // AND NOTHING WAS DONE ABOUT EITHER. The arrangement is exactly as it was.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.pending().size() == 1);
+}
+
+TEST_CASE("BLD-1: a realization that refuses does NOT fail the arrangement") {
+    // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a maker whose build failed
+    // and who asked anyway, or a recipe whose product landed somewhere else.
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 weaves(kUnbuilt, "zen.oven")}))
+                .ok);
+
+    const load::PlanExecutor::Asked asked = rig.executor.realize(kUnbuilt);
+    REQUIRE(asked.started);
+    rig.drain(16);
+
+    // THE LOADER'S OWN WORDS, and the arrangement is untouched: `Failed` is what a
+    // host reads to decide a project could not be realized, and in Workshop that
+    // ends the process. A hand-asked realization that refused must not do that.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state() != load::Realization::Failed);
+    CHECK(rig.executor.resolved().size() == 1);
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == kUnbuilt);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find(kUnbuilt) != std::string::npos);
+
+    // ...AND THE ROW IS STILL WAITING, which is what lets a corrected build reach it
+    // again in the same run.
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
+    REQUIRE(rig.executor.pending().size() == 1);
+    CHECK(rig.executor.pending()[0] == kUnbuilt);
+}
+
+TEST_CASE("BLD-1: `ArtifactBuilt` reaches the owner, and the answer comes back published") {
+    PendingRig rig;
+    rig.waiting = {"zengine-plain-weave"};
+    REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")})).ok);
+    REQUIRE(rig.executor.pending().size() == 1);
+
+    // THE BUILDER'S FACT, SAID ON THE BUS. Nothing in this call names a role, an
+    // order or a mode -- what crosses is a STEM and an occasion.
+    rig.announce_built("zengine-plain-weave", "/a/path/the/owner/ignores");
+
+    // THE ROW WAS PERFORMED, and the path the message carried was not used: the owner
+    // resolves a stem with the HOST's rule, so a message naming a path cannot
+    // redirect a load.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // ...AND THE ANSWER IS ON THE BUS, as an ordinary publication anything may hear.
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == "zengine-plain-weave");
+    CHECK(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("zen.plain") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: an `ArtifactBuilt` the plan does not sanction is answered with a refusal") {
+    PendingRig rig;
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
+
+    // AN ARTIFACT THIS PROJECT NEVER AUTHORED, announced as built. It is on the
+    // stage, it is a perfectly good weave, and it participates in nothing.
+    rig.announce_built("zengine-timer");
+
+    // NOTHING WAS LOADED and the refusal is the OWNER's, published rather than
+    // invented by the participant that relayed the question.
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-timer"));
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == "zengine-timer");
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find("does not name artifact") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: a waiting row is `pending` in the Project projection, and says so") {
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
+                                 weaves(kUnbuilt, "zen.oven")}))
+                .ok);
+
+    const workshop::ResolvedArrangement said =
+        workshop::describe_arrangement(rig.executor, "waiting.json");
+    REQUIRE(said.artifacts.size() == 2);
+    CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
+    CHECK(said.artifacts[1].artifact == kUnbuilt);
+    CHECK(said.artifacts[1].state == std::string(workshop::kPendingToken));
+    // ⚠ A `pending` ROW PUBLISHES NO RESOLVED FIELD, for a `loading` row's reason and
+    // a stronger one: nothing was mounted, opened or commanded for it at all.
+    CHECK(said.artifacts[1].weave == 0);
+    CHECK(said.artifacts[1].powers == 0);
+    CHECK(said.artifacts[1].provider.empty());
+    // ...AND THE AUTHORED HALF IS STILL THERE, because it is the PLAN's and the plan
+    // is unchanged: a row nobody realized is a row somebody wrote down.
+    CHECK(said.artifacts[1].authored_role == "zen.oven");
+    // THE COUNT IS READABLE OFF THE VALUE and needs no denominator field: the list
+    // length is what the plan declared, and each row says what happened to it.
+    CHECK(said.artifacts.size() == 2);
 }

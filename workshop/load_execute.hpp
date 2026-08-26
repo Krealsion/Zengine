@@ -15,10 +15,31 @@
 // ---- The execution law ---------------------------------------------------------
 //
 //     for artifact in AUTHORED ORDER:
+//         if the host says this row is WAITING ON THE MAKER:  record it, carry on
 //         if provider intent:  mount it
 //         if weave intent:     offer this host's operator resolution
 //                              load the weave
 //                              withdraw the offer
+//
+// ---- ...AND ONE ROW MAY BE PERFORMED LATER, BECAUSE A MAKER ASKED (BLD-1) --------
+//
+// The first line above is the whole of what this phase added to the law, and the
+// second half of it is `realize(stem)`: a door that performs ONE waiting row, with
+// the same three steps in the same order, at a moment a maker chose.
+//
+//   WHY A ROW MAY BE WAITING AT ALL. An artifact a project intends to run may not be
+//   on this disk yet, because this project is where it gets built. Refusing the plan
+//   over it -- which is what "stops rather than skips" would do -- makes the one
+//   Workshop a maker could have built it in refuse to start. So the HOST is asked, per
+//   row, whether that row is waiting on the maker (`AwaitingBuild`), and this owner
+//   records the answer and carries on. It never learns why, and it never asks twice.
+//
+//   WHAT IT IS NOT. Not build-on-missing: nothing here starts, requests or knows about
+//   a build. Not a retry: a waiting row waits forever unless it is asked for. Not a
+//   scheduler: `realize` is refused outright while anything else is in flight. And not
+//   hot reload -- an artifact already resolved is refused in words, because BLD-1 does
+//   not unload, replace or migrate anything and a second load of a live artifact would
+//   be pretending otherwise.
 //
 // ---- ...AND THE OWNER OF THAT LAW OUTLIVES ONE STACK FRAME (BOOT-0) -------------
 //
@@ -120,6 +141,8 @@
 
 #include "load_plan.hpp"
 
+#include "builder/vocabulary.hpp"
+
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
 #include "operator/provider_host.hpp"
@@ -189,6 +212,11 @@ struct Executed {
     bool ok = false;
     std::string refusal;
     std::vector<ResolvedArtifact> resolved;
+    /// AUTHORED ROWS THIS RUN DELIBERATELY DID NOT REALIZE (BLD-1) -- because the host
+    /// said they are waiting on the maker. They are NAMED rather than counted, and they
+    /// are not a failure: `ok` is still completion, because completing a plan whose
+    /// rows include some that are waiting is exactly what happened.
+    std::vector<std::string> pending;
 
     explicit operator bool() const noexcept { return ok; }
 };
@@ -227,13 +255,25 @@ enum class Realization : std::uint8_t {
 ///   `Resolved`  this owner's record that every surface the row authored participated.
 ///   `Refused`   this owner's record of a refusal some layer below actually stated.
 ///
-/// AND FOUR THAT WERE ASKED FOR AND REFUSED. `waiting` is the cursor's business, not
-/// a row's; `building` has nothing that maps a build target to an artifact; `available`
-/// has no preflight owner (an image is discovered to be unopenable by trying); and
-/// `mounting` is not a state at all, because a provider mount is synchronous and there
-/// is no instant at which anything could observe it. A token with no owner is a field
-/// that goes stale in its first week.
-enum class RowState : std::uint8_t { Authored, Loading, Resolved, Refused };
+///   `Pending`   THIS OWNER's too, and BLD-1's: "I reached this row, and the host told
+///               me it is waiting on the maker." It is not `Authored` (that is a row
+///               nothing has looked at) and it is not `Refused` (nothing refused
+///               anything). See `AwaitingBuild` below for what the host is answering
+///               and why realization cannot answer it itself.
+///
+/// AND THREE THAT WERE ASKED FOR AND REFUSED. `waiting` is the cursor's business, not
+/// a row's; `available` has no preflight owner (an image is discovered to be
+/// unopenable by trying); and `mounting` is not a state at all, because a provider
+/// mount is synchronous and there is no instant at which anything could observe it. A
+/// token with no owner is a field that goes stale in its first week.
+///
+/// ⚠ `building` IS STILL NOT ONE OF THESE, and BLD-1 did not make it one. BOOT-0
+/// refused it because nothing mapped a build to an artifact; that map exists now, and
+/// the token is still refused -- because it would be a claim about a BUILD, which this
+/// owner cannot see, cannot start and cannot be told the end of. `Pending` says the
+/// only thing realization actually knows: this row is not realized and this owner is
+/// not going to do anything about it unless it is asked.
+enum class RowState : std::uint8_t { Authored, Pending, Loading, Resolved, Refused };
 
 // ---- The weave that asks, and hears the answer --------------------------------
 
@@ -435,11 +475,41 @@ struct BootState {
 /// owner must be destroyed BEFORE them, because it holds an `op::OperatorOffer` into
 /// an artifact image. So the two are wired in `PlanExecutor`'s constructor and unwired
 /// in its destructor; nothing else may call `wakes`.
-class PlanBooter : public loom::WeaveBase<PlanBooter, BootState,
-                                          loom::Accept<loom::Result, loom::Ack, loom::Refused>,
-                                          loom::Emit<loom::LoadWeave>> {
+/// ---- ...AND SINCE BLD-1 IT HAS A SECOND EAR (and exactly one new sentence) -----
+///
+/// A maker who asked for BUILD & REALIZE has, when the build works, produced a file
+/// that the project may already have authored participation for. The fact reaches this
+/// bus as `builder::ArtifactBuilt`, said by the Builder tool; the DECISION about what
+/// it is worth is the realization owner's, and this weave is the owner's ear.
+///
+/// ⚠ THE ANNOUNCED PATH IS NOT USED, and that is the whole safety of this door. The
+/// owner resolves a stem to a file with the HOST's rule, exactly as it does for every
+/// startup row, so a message naming a path cannot redirect a load. What the message
+/// contributes is a STEM and an occasion; everything else is looked up.
+///
+/// ⚠ AND THE OWNER DECIDES ELIGIBILITY, NOT THE ANNOUNCER. A stem the authored plan
+/// does not name, a row already resolved, a row nothing is waiting on, an owner in the
+/// middle of something -- each is refused by `PlanExecutor::realize`, in its own words,
+/// and this weave publishes the refusal rather than inventing one. So the widest thing
+/// the Builder tool can cause is that ONE artifact the PROJECT ALREADY AUTHORED, and
+/// deliberately did not realize at startup, is realized now.
+///
+/// ITS GRANT GAINS ONE RULE: it may say `ArtifactRealized` to anyone who accepts it.
+/// That is an observation and not a power -- nothing acts on it, the Builder panel
+/// shows it, and the Builder tool folds it into the picture it publishes.
+class PlanBooter
+    : public loom::WeaveBase<PlanBooter, BootState,
+                             loom::Accept<loom::Result, loom::Ack, loom::Refused,
+                                          zengine::builder::ArtifactBuilt>,
+                             loom::Emit<loom::LoadWeave, zengine::builder::ArtifactRealized>> {
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
+
+    /// A BUILD PRODUCED AN ARTIFACT AND THE MAKER ASKED FOR IT TO BE REALIZED.
+    ///
+    /// Defined out of line at the bottom of this file, because the owner it asks is not
+    /// declared yet. Two lines of its own: ask the owner, publish what the owner said.
+    void on(const zengine::builder::ArtifactBuilt& built, loom::Mail& mail);
 
     /// WHOSE UNFINISHED WORK AN ANSWER TO THIS BOOTER WAKES -- or nobody. Called
     /// exactly twice, both times by `PlanExecutor` (its constructor and its
@@ -469,7 +539,7 @@ public:
             answers_->weave = 0;
         }
         answers_->settled();
-        wake();
+        wake(mail);
     }
 
     void on(const loom::Ack&, loom::Mail& mail) {
@@ -479,7 +549,7 @@ public:
         answers_->answered = true;
         answers_->refused = false;
         answers_->settled();
-        wake();
+        wake(mail);
     }
 
     void on(const loom::Refused& r, loom::Mail& mail) {
@@ -490,14 +560,14 @@ public:
         answers_->refused = true;
         answers_->reason = r.reason;
         answers_->settled();
-        wake();
+        wake(mail);
     }
 
 private:
     /// HAND THE SETTLED FACT OVER -- after `settled()`, so the owner it wakes finds a
     /// conversation that is closed and a payload that is this answer's. Defined out of
     /// line at the bottom of this file, because the owner is not declared yet.
-    void wake();
+    void wake(loom::Mail& mail);
 
     /// THE ONE DOOR ALL THREE ANSWER SHAPES PASS THROUGH (QR-9). Written once because
     /// the three are one conversation's three possible endings, and a wall applied to
@@ -574,6 +644,28 @@ public:
     /// on Linux and on Windows with no platform field, no suffix and no locator.
     using ArtifactPath = std::function<std::string(const std::string& stem)>;
 
+    /// IS THIS ROW WAITING ON THE MAKER? -- the one seam by which realization learns
+    /// that an absent artifact may be a build state rather than a broken deployment
+    /// (BLD-1).
+    ///
+    /// IT IS A PREDICATE AND NOT A RECIPE, and the shape is the containment. This file
+    /// cannot start a process, name a compiler, read a recipe catalog or look at a
+    /// disk, and it never learns WHY the answer is yes. What it does with a yes is the
+    /// smallest possible thing: it does not perform the row, it records that the row is
+    /// waiting, and it carries on.
+    ///
+    /// WHY THE HOST OWNS IT. Answering needs two facts that live in two other places --
+    /// whether the artifact file is there (the host owns the rule that spells a stem as
+    /// a file) and whether this project can produce it (the Builder's authored recipes
+    /// name their artifacts). Neither is realization's, and a realization owner that
+    /// went and got them would be the build system's second half growing here.
+    ///
+    /// ⚠ IT IS ASKED ONCE PER ROW, WHEN THE ROW IS REACHED, and never again. This owner
+    /// does not re-check, watch, poll or notice; a row that was waiting stays waiting
+    /// until somebody asks for it (`realize`). Empty means nothing ever waits, which is
+    /// what every caller that does not pass one gets and is exactly LOAD-0's behaviour.
+    using AwaitingBuild = std::function<bool(const std::string& stem)>;
+
     /// REALIZATION REACHED A TERMINAL STATE -- called ONCE, from inside whatever
     /// delivery settled the last row, with what the whole plan produced.
     ///
@@ -593,10 +685,10 @@ public:
     PlanExecutor(loom::Switchboard& bus, op::Catalog& catalog,
                  const op::OperatorHostSurface& operators, PlanBooter& voice,
                  loom::WeaveId manager, BootAnswers& answers, ArtifactPath path_of,
-                 Settled settled = Settled())
+                 Settled settled = Settled(), AwaitingBuild awaiting = AwaitingBuild())
         : bus_(&bus), catalog_(&catalog), operators_(&operators), voice_(&voice),
           manager_(manager), answers_(&answers), path_of_(std::move(path_of)),
-          settled_(std::move(settled)) {
+          settled_(std::move(settled)), awaiting_(std::move(awaiting)) {
         voice_->wakes(this);
     }
 
@@ -700,10 +792,123 @@ public:
         }
         current_.weave_loaded = true;
         current_.weave = loom::WeaveId{answers_->weave};
-        settle_row();
+        if (on_demand_) {
+            // ONE ROW, ASKED FOR BY A MAKER, AND THE PLAN DOES NOT MOVE. The cursor is
+            // already past the end -- this row was skipped on the way through -- so
+            // there is nothing to advance and nothing after it to begin.
+            finish_on_demand();
+            return;
+        }
+        record_row();
+        ++cursor_;
         state_ = Realization::Advancing;
         advance();
     }
+
+    // ---- Realizing ONE waiting row, because a maker asked (BLD-1) -------------------
+
+    /// WHAT ASKING FOR ONE ROW CAME TO, IMMEDIATELY.
+    ///
+    /// `started` false means nothing was mounted, nothing was offered and nothing was
+    /// commanded, and `refusal` is why. `started` true means the row is under way --
+    /// which for a provider-only row is already OVER (`taken()` has the answer) and for
+    /// a weave row means a conversation is outstanding and the answer arrives later.
+    struct Asked {
+        bool started = false;
+        std::string refusal;
+    };
+
+    /// REALIZE ONE AUTHORED ROW THAT THIS RUN LEFT WAITING.
+    ///
+    /// THE ELIGIBILITY RULES ARE ALL HERE, AND THEY ARE ALL ABOUT THE AUTHORED PLAN --
+    /// which is what makes this door narrow enough to be reachable from a build. In
+    /// order:
+    ///
+    ///   this owner is between rows      a realization already in flight is not
+    ///                                   interruptible, and queueing one would make
+    ///                                   this a scheduler
+    ///   the plan NAMES this artifact    a stem the project never authored cannot be
+    ///                                   realized by asking; there is no participation
+    ///                                   intent to perform
+    ///   it is not already resolved      ⚠ AND THIS IS WHERE HOT RELOAD IS REFUSED.
+    ///                                   BLD-1 does not unload, reload, replace or
+    ///                                   migrate anything, so an artifact that is
+    ///                                   already live is told so in words rather than
+    ///                                   quietly loaded a second time
+    ///   it is WAITING                   a row this run performed, skipped for some
+    ///                                   other reason, or never reached is not a row
+    ///                                   this door is about
+    ///
+    /// NOTHING HERE CONSULTS A BUILD, A RECIPE, A FILE OR A TIMESTAMP. This owner does
+    /// not know that a build happened and does not need to: what it is being asked is
+    /// "perform the participation this project already authored for X", and if X is not
+    /// on disk the load refuses in the loader's own words exactly as it always would.
+    Asked realize(const std::string& stem) {
+        if (state_ != Realization::Complete) {
+            return Asked{false, state_ == Realization::Unstarted
+                                    ? std::string("realization has not begun")
+                                    : "realization is not between rows: it is still "
+                                      "performing the authored plan"};
+        }
+        for (const ResolvedArtifact& done : resolved_) {
+            if (done.stem == stem) {
+                return Asked{false, "artifact '" + stem +
+                                        "' is already part of this running project. BLD-1 "
+                                        "does not unload, reload or replace a live artifact, "
+                                        "so a rebuilt file has NOT changed the image that is "
+                                        "running -- restart to pick it up."};
+            }
+        }
+        std::size_t index = plan_.artifacts.size();
+        for (std::size_t i = 0; i < plan_.artifacts.size(); ++i) {
+            if (plan_.artifacts[i].stem == stem) {
+                index = i;
+                break;
+            }
+        }
+        if (index == plan_.artifacts.size()) {
+            return Asked{false, "this project does not name artifact '" + stem +
+                                    "': a build can produce a file, and only the project's "
+                                    "own plan can say how it participates"};
+        }
+        bool waiting = false;
+        for (const std::string& held : pending_) {
+            if (held == stem) {
+                waiting = true;
+                break;
+            }
+        }
+        if (!waiting) {
+            return Asked{false, "artifact '" + stem +
+                                    "' is not waiting to be realized in this run"};
+        }
+        on_demand_ = true;
+        state_ = Realization::Advancing;
+        perform_row(index);
+        return Asked{true, std::string()};
+    }
+
+    /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, TAKEN AWAY.
+    ///
+    /// TAKEN RATHER THAN READ, because it is a settled fact with exactly one reader --
+    /// the participant that will publish it -- and leaving it in place would let the
+    /// same realization be announced twice. `settled` false means there is nothing to
+    /// say, which is the ordinary answer while a row is still loading.
+    struct Realized {
+        bool settled = false;
+        std::string stem;
+        bool realized = false;
+        std::string detail;
+    };
+
+    Realized take_realization() {
+        Realized out = realized_;
+        realized_ = Realized{};
+        return out;
+    }
+
+    /// WHICH AUTHORED ROWS THIS RUN LEFT WAITING, in authored order.
+    const std::vector<std::string>& pending() const noexcept { return pending_; }
 
     // ---- What is true right now --------------------------------------------------
 
@@ -729,17 +934,23 @@ public:
     /// all four states between them, and a second record of the same fact is the
     /// mirror that goes stale.
     RowState state_of(const std::string& stem) const noexcept {
+        // LOADING FIRST, because an on-demand row is BOTH the row in flight and still a
+        // member of the waiting list until it settles, and what it is right now is in
+        // flight.
+        if (current_.stem == stem && state_ == Realization::Loading) {
+            return RowState::Loading;
+        }
         for (const ResolvedArtifact& done : resolved_) {
             if (done.stem == stem) {
                 return RowState::Resolved;
             }
         }
-        if (current_.stem == stem) {
-            if (state_ == Realization::Loading) {
-                return RowState::Loading;
-            }
-            if (state_ == Realization::Failed) {
-                return RowState::Refused;
+        if (current_.stem == stem && state_ == Realization::Failed) {
+            return RowState::Refused;
+        }
+        for (const std::string& held : pending_) {
+            if (held == stem) {
+                return RowState::Pending;
             }
         }
         return RowState::Authored;
@@ -765,6 +976,7 @@ public:
         out.ok = state_ == Realization::Complete;
         out.refusal = refusal_;
         out.resolved = resolved_;
+        out.pending = pending_;
         return out;
     }
 
@@ -796,7 +1008,41 @@ private:
     /// is a CATALOG-STATE constraint, and only serialization makes it deterministic.
     void advance() {
         while (state_ == Realization::Advancing && cursor_ < plan_.artifacts.size()) {
-            const ArtifactIntent& artifact = plan_.artifacts[cursor_];
+            // IS THIS ROW WAITING ON THE MAKER? Asked before anything is mounted,
+            // opened or commanded, so a waiting row costs exactly one predicate and
+            // touches no runtime state at all. A yes is recorded and the plan carries
+            // on -- which is NOT the "stops rather than skips" rule being relaxed: that
+            // rule is about a row that REFUSED, and nothing here has refused anything.
+            if (awaiting_ && awaiting_(plan_.artifacts[cursor_].stem)) {
+                pending_.push_back(plan_.artifacts[cursor_].stem);
+                ++cursor_;
+                continue;
+            }
+            perform_row(cursor_);
+            if (state_ == Realization::Advancing) {
+                ++cursor_;
+            }
+        }
+        if (state_ == Realization::Advancing) {
+            complete();
+        }
+    }
+
+    /// PERFORM ONE AUTHORED ROW, as far as this process can take it right now.
+    ///
+    /// IT WAS THE BODY OF `advance`'s LOOP and is a function because BLD-1 gave it a
+    /// second caller: a maker asking for one waiting row. Both callers get exactly the
+    /// same three steps in exactly the same order -- mount, offer, load -- because the
+    /// WITHIN-one-artifact order is semantic law (CAT-0) and a second copy of it is
+    /// how two orders come to disagree.
+    ///
+    /// On return, `state_` is one of: `Advancing` (the row settled and the caller
+    /// decides what is next), `Loading` (a conversation is outstanding), `Failed` (a
+    /// startup row refused), or `Complete` (an on-demand row refused, which does not
+    /// end the arrangement).
+    void perform_row(std::size_t index) {
+        {
+            const ArtifactIntent& artifact = plan_.artifacts[index];
             current_ = ResolvedArtifact{};
             current_.stem = artifact.stem;
             const std::string path = path_of_(artifact.stem);
@@ -822,8 +1068,12 @@ private:
                 // A PROVIDER-ONLY ROW IS COMPLETE THE INSTANT ITS MOUNT RETURNS.
                 // Nothing is owed, nobody was asked, and the row settles here without
                 // the host having turned anything.
-                settle_row();
-                continue;
+                if (on_demand_) {
+                    finish_on_demand();
+                } else {
+                    record_row();
+                }
+                return;
             }
             current_.role = artifact.weave->role;
 
@@ -872,17 +1122,57 @@ private:
             state_ = Realization::Loading;
             return;
         }
-        if (state_ == Realization::Advancing) {
-            complete();
-        }
     }
 
     /// THE CURRENT ROW PARTICIPATED IN FULL. Kept in authored order, which is what
     /// makes a later reversal walkable backwards (LOAD-0, BOOT-R0 §23).
-    void settle_row() {
+    ///
+    /// IT NO LONGER MOVES THE CURSOR, and the subtraction is BLD-1's: the cursor is the
+    /// startup WALK's business, and an on-demand row is not on that walk. Its caller
+    /// advances it; this records what participated.
+    void record_row() {
         resolved_.push_back(std::move(current_));
         current_ = ResolvedArtifact{};
-        ++cursor_;
+    }
+
+    /// AN ON-DEMAND ROW SETTLED, AND THE ARRANGEMENT IS WHOLE AGAIN.
+    ///
+    /// The row leaves the waiting list, joins the resolved list, and this owner goes
+    /// back to being between rows -- which is what makes a second BUILD & REALIZE, of a
+    /// different waiting artifact, possible in the same run.
+    ///
+    /// THE SENTENCE IT LEAVES BEHIND IS THE RESOLVED ROW'S OWN, said the way the host's
+    /// startup banner says one: what was mounted, what was supplied, which weave was
+    /// minted and under which role. A maker who asked for BUILD & REALIZE is owed the
+    /// same account of what participated as a maker who read the banner at startup.
+    void finish_on_demand() {
+        const std::string stem = current_.stem;
+        std::string said;
+        if (current_.provider_mounted) {
+            said += "provider '" + current_.provider + "' supplied " +
+                    std::to_string(current_.contributed);
+        }
+        if (current_.weave_loaded) {
+            if (!said.empty()) {
+                said += " | ";
+            }
+            said += "weave #" + std::to_string(current_.weave.value) + " as " + current_.role;
+        }
+        record_row();
+        forget_pending(stem);
+        on_demand_ = false;
+        state_ = Realization::Complete;
+        realized_ = Realized{true, stem, true, said};
+    }
+
+    /// THIS ARTIFACT IS NO LONGER WAITING.
+    void forget_pending(const std::string& stem) {
+        for (std::size_t i = 0; i < pending_.size(); ++i) {
+            if (pending_[i] == stem) {
+                pending_.erase(pending_.begin() + static_cast<std::ptrdiff_t>(i));
+                return;
+            }
+        }
     }
 
     /// THIS ROW REFUSED, SO THE PLAN STOPS -- and the runtime is put back the way the
@@ -900,9 +1190,27 @@ private:
     /// `current_` IS DELIBERATELY LEFT STANDING. It is how `state_of` answers
     /// `Refused` for the one row that did, and it names no runtime resource any more:
     /// the mount is unwound above and the offer was withdrawn by the caller.
+    /// ⚠ AN ON-DEMAND ROW THAT REFUSES DOES NOT FAIL THE ARRANGEMENT (BLD-1), and
+    /// that distinction is load-bearing rather than a nicety. `Realization::Failed`
+    /// is what the HOST'S settle notice reads to decide that a project could not be
+    /// realized -- in Workshop, that ends the process with exit 4. A maker whose
+    /// hand-asked realization of one waiting artifact was refused has not lost the
+    /// arrangement they are working in, and must not lose the Workshop they are
+    /// working in either. So the row's own mount is rolled back, the artifact stays
+    /// on the waiting list where a corrected build can reach it again, the refusal is
+    /// left for the participant that will publish it, and this owner goes back to
+    /// being between rows.
     void fail(const std::string& why) {
         (void)unmount(current_);
-        refusal_ = "artifact '" + current_.stem + "': " + why;
+        const std::string said = "artifact '" + current_.stem + "': " + why;
+        if (on_demand_) {
+            realized_ = Realized{true, current_.stem, false, said};
+            on_demand_ = false;
+            current_ = ResolvedArtifact{};
+            state_ = Realization::Complete;
+            return;
+        }
+        refusal_ = said;
         state_ = Realization::Failed;
         announce();
     }
@@ -932,6 +1240,9 @@ private:
     BootAnswers* answers_;
     ArtifactPath path_of_;
     Settled settled_;
+    /// THE ONE QUESTION THIS OWNER CANNOT ANSWER FOR ITSELF (BLD-1). Empty in every
+    /// caller that does not pass one, which is LOAD-0's behaviour exactly.
+    AwaitingBuild awaiting_;
 
     // ---- what used to be a stack frame -------------------------------------------
 
@@ -955,14 +1266,73 @@ private:
     std::string refusal_;
     /// What this executor has put into the runtime, in the order it did.
     std::vector<ResolvedArtifact> resolved_;
+
+    // ---- what BLD-1 added, and it is three members ---------------------------------
+
+    /// AUTHORED ROWS THIS RUN REACHED AND DID NOT PERFORM, in authored order. It is a
+    /// list of STEMS and not of rows: the row is in the plan, which this owner already
+    /// holds, and a second copy of it would be a copy that could disagree.
+    std::vector<std::string> pending_;
+    /// IS THE ROW IN FLIGHT ONE A MAKER ASKED FOR? It decides two things and only two:
+    /// whether a settled row advances the startup walk, and whether a refusal ends the
+    /// arrangement. Everything else about a row is identical either way, deliberately.
+    bool on_demand_ = false;
+    /// WHAT THE LAST ON-DEMAND REALIZATION CAME TO, until somebody takes it.
+    Realized realized_;
 };
 
 /// DEFINED HERE because the owner it hands the fact to is declared above. One call,
 /// no branch of its own: whether this answer means anything to the plan is the
 /// owner's question, and it already knows whether it has a row in flight.
-inline void PlanBooter::wake() {
-    if (owner_ != nullptr) {
-        owner_->answered();
+inline void PlanBooter::wake(loom::Mail& mail) {
+    if (owner_ == nullptr) {
+        return;
+    }
+    owner_->answered();
+    // ...AND IF WHAT JUST SETTLED WAS A ROW A MAKER ASKED FOR, SAY SO (BLD-1). The
+    // owner leaves the fact where exactly one reader can take it, so this cannot
+    // announce a realization twice and cannot announce a startup row at all -- the
+    // ordinary case takes nothing and publishes nothing.
+    const PlanExecutor::Realized settled = owner_->take_realization();
+    if (settled.settled) {
+        (void)mail.publish(zengine::builder::ArtifactRealized{settled.stem, settled.realized,
+                                                              settled.detail});
+    }
+}
+
+/// DEFINED HERE for `wake()`'s reason. Two acts and no judgement of its own: ask the
+/// owner to realize the artifact the Builder says it produced, and publish whatever the
+/// owner made of it.
+///
+/// ⚠ A REFUSAL IS PUBLISHED AS LOUDLY AS AN ACCEPTANCE, and both go out as
+/// `ArtifactRealized`. A maker who pressed BUILD & REALIZE and got a green build is
+/// owed a sentence either way, and the sentence is the owner's -- "already part of this
+/// running project", "this project does not name artifact X", the loader's own words
+/// about a file it could not open.
+///
+/// ⚠ WITH NO OWNER WIRED THIS SAYS NOTHING AT ALL. A rig that mounts this weave for its
+/// payload semantics and never builds an executor has nobody to ask, and inventing a
+/// refusal on its behalf would be this bridge answering for a participant that does not
+/// exist.
+///
+/// A ROW THAT SETTLES SYNCHRONOUSLY -- a provider-only artifact, whose mount returns
+/// before this line does -- is already answered by the time `realize` returns, so the
+/// take below finds it. A weave row is still loading, `take_realization()` finds
+/// nothing, and the answer is published later from `on(loom::Result)`'s path instead.
+inline void PlanBooter::on(const zengine::builder::ArtifactBuilt& built, loom::Mail& mail) {
+    if (owner_ == nullptr) {
+        return;
+    }
+    const PlanExecutor::Asked asked = owner_->realize(built.artifact);
+    if (!asked.started) {
+        (void)mail.publish(
+            zengine::builder::ArtifactRealized{built.artifact, false, asked.refusal});
+        return;
+    }
+    const PlanExecutor::Realized settled = owner_->take_realization();
+    if (settled.settled) {
+        (void)mail.publish(zengine::builder::ArtifactRealized{settled.stem, settled.realized,
+                                                              settled.detail});
     }
 }
 

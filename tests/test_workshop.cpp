@@ -7613,17 +7613,25 @@ namespace {
 /// It is not a mock of the real tool's LOGIC (that has its own suite); it is the
 /// other end of the conversation, so that "Workshop asked" and "Workshop showed
 /// what it was told" are two facts a case can separate.
-class ToolSeat : public loom::WeaveBase<ToolSeat, SeenState,
-                                        loom::Accept<zengine::builder::StatusRequested,
-                                                     zengine::builder::BuildRequested>,
-                                        loom::Emit<zengine::builder::BuildStatus>> {
+class ToolSeat
+    : public loom::WeaveBase<ToolSeat, SeenState,
+                             loom::Accept<zengine::builder::StatusRequested,
+                                          zengine::builder::BuildRequested>,
+                             loom::Emit<zengine::builder::BuildStatus,
+                                        zengine::builder::RecipeCatalog>> {
 public:
+    /// TWO SHAPES ON ONE ASK (BLD-1), exactly as the real tool answers: what can be
+    /// built here, and where the one it last built stands. The catalog first, because
+    /// a panel that heard a status about a recipe it had never been told existed would
+    /// be a panel showing a choice nobody offered it.
     void on(const zengine::builder::StatusRequested&, loom::Mail& mail) {
         ++described;
+        (void)mail.publish(catalog);
         (void)mail.publish(next);
     }
     void on(const zengine::builder::BuildRequested& ask, loom::Mail& mail) {
-        asked.push_back(ask.target);
+        asked.push_back(ask.recipe);
+        realize_asked.push_back(ask.realize);
         if (answers_builds) {
             (void)mail.publish(next);
         }
@@ -7631,6 +7639,12 @@ public:
 
     /// What this tool will say next time it is asked anything.
     zengine::builder::BuildStatus next{};
+    /// ...and what it says this project can build at all.
+    zengine::builder::RecipeCatalog catalog{};
+    /// WHETHER EACH ASK WAS A BUILD OR A BUILD-AND-REALIZE. Recorded rather than
+    /// asserted from the panel, because "the maker's second intention crossed the
+    /// office boundary" is a fact about what was SAID and not about what was shown.
+    std::vector<bool> realize_asked;
     /// ...and whether it answers a build at all. A real build takes seconds and
     /// answers when the process exits; a stand-in that always answers instantly
     /// would make the panel's `waiting` state unreachable from any case.
@@ -7640,16 +7654,20 @@ public:
 };
 
 /// Mount the stand-in into the Builder office on this Workshop's bus.
-ToolSeat* mount_tool(Live& t, const std::string& target) {
+ToolSeat* mount_tool(Live& t, const std::string& recipe) {
     auto seat = std::make_unique<ToolSeat>();
     ToolSeat* raw = seat.get();
     loom::Grant grant;
     grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
                        zengine::builder::BuildStatus::zen_version);
+    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
+                       zengine::builder::RecipeCatalog::zen_version);
     const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
                                                   std::string(zengine::builder::kBuilderRole));
     raw->zen_set_self(id);
-    raw->next.target = target;
+    raw->next.recipe = recipe;
+    raw->next.artifact = recipe;
+    raw->catalog.recipes.push_back(zengine::builder::RecipeSummary{recipe, recipe});
     return raw;
 }
 
@@ -7948,6 +7966,225 @@ TEST_CASE("a panel that has not heard from its tool cannot ask for a build") {
 
     t.key(input::scan::kB);
     CHECK(t.w->session().notice.find("has not said what it builds") != std::string::npos);
+}
+
+// ============================================================================
+// BLD-1 -- the Builder panel stops meaning ONE hard-coded target
+// ============================================================================
+
+TEST_CASE("BLD-1: the Builder panel shows what CAN be built and which one is chosen") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+    open_builder(t);
+
+    // ONE ASK, TWO ANSWERS. Opening the panel sends `StatusRequested`; the catalog
+    // and the status come back as two publications, because they change at
+    // completely different rates.
+    CHECK(tool->described == 1);
+    const std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("snake -> snake") != std::string::npos);
+    CHECK(shown.find("(1/2)") != std::string::npos);
+    // ...AND THE HEADER ADVERTISES BOTH NEW KEYS beside the one BLD-0 gave it.
+    CHECK(shown.find("b/B build, c pick") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: `c` moves the maker's choice, wraps, and asks for nothing") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+    open_builder(t);
+    REQUIRE(t.w->session().panels.builder.chosen == 0);
+
+    t.key(input::scan::kC);
+    CHECK(t.w->session().panels.builder.chosen == 1);
+    CHECK(t.w->session().notice == "build recipe: oven -> zengine-oven");
+    CHECK(stack_text(t.canvases.back()).find("oven -> zengine-oven  (2/2)") != std::string::npos);
+
+    // IT WRAPS, because a list of two a maker is stepping through with one key is a
+    // ring and not a scrollbar.
+    t.key(input::scan::kC);
+    CHECK(t.w->session().panels.builder.chosen == 0);
+    // ...and backwards with the modifier, which is the same gesture family spelled
+    // two ways.
+    t.key(input::scan::kC, input::mod::kShift);
+    CHECK(t.w->session().panels.builder.chosen == 1);
+
+    // NOTHING WAS ASKED OF ANYBODY. Choosing is a presentation move: the tool has
+    // been asked once, when the panel opened, and not since.
+    CHECK(tool->asked.empty());
+    CHECK(tool->described == 1);
+}
+
+TEST_CASE("BLD-1: `b` builds the recipe the maker chose, not the one last built") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+    open_builder(t);
+
+    t.key(input::scan::kC);
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "oven");
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK_FALSE(tool->realize_asked[0]);
+    CHECK(t.w->session().notice.find("asked the Builder for `oven`") != std::string::npos);
+    // A PLAIN BUILD SAYS NOTHING ABOUT REALIZING, and the panel is not waiting for
+    // an answer it never asked for.
+    CHECK(t.w->session().notice.find("realize") == std::string::npos);
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+}
+
+TEST_CASE("BLD-1: `Shift+b` is BUILD & REALIZE, and the second intention crosses the seam") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    // THE STUB ANSWERS EVERY ASK AT ONCE, so a case that wants to watch a build has to
+    // give it a condition a build can be IN -- exactly as the ASYNC-1 cases above do.
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+
+    t.key(input::scan::kB, input::mod::kShift);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "snake");
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+
+    // WORKSHOP GAINED NO POWER FOR IT. It said one sentence to one office; what
+    // happens next belongs to two owners neither of which is here.
+    CHECK(t.w->session().panels.builder.awaiting);
+}
+
+TEST_CASE("BLD-1: a build outcome and a realization outcome are TWO rows and TWO notices") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB, input::mod::kShift);
+
+    // THE BUILD ENDS FIRST, and it is announced first.
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kOffered;
+    tool->next.realized_detail = "offered to the project";
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice == "built snake -- exit 0");
+    CHECK_FALSE(t.w->session().panels.builder.awaiting);
+    // ...and the panel is STILL WATCHING THE SECOND QUESTION, which is why the two
+    // latches are two.
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK(stack_text(t.canvases.back()).find("offered") != std::string::npos);
+
+    // THE PROJECT ANSWERS SEVERAL TURNS LATER, and that is news to a panel that
+    // watched it begin.
+    tool->next.realization = zengine::builder::realization::kRealized;
+    tool->next.realized_detail = "weave #9 as zengine.oven";
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice == "realized snake -- weave #9 as zengine.oven");
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+    const std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("realized -- weave #9 as zengine.oven") != std::string::npos);
+    // BOTH OUTCOMES ARE STILL ON THE SCREEN. A maker never has to derive one from
+    // the other.
+    CHECK(shown.find("succeeded") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: a build that WORKED whose realization was REFUSED says both") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB, input::mod::kShift);
+
+    tool->next.outcome = zengine::builder::outcome::kSucceeded;
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kOffered;
+    t.publish(loom::to_value(tool->next));
+    REQUIRE(t.w->session().notice == "built snake -- exit 0");
+
+    tool->next.realization = zengine::builder::realization::kRefused;
+    tool->next.realized_detail = "artifact 'snake': already part of this running project";
+    t.publish(loom::to_value(tool->next));
+    CHECK(t.w->session().notice.find("NOT REALIZED: snake") != std::string::npos);
+    CHECK(t.w->session().notice.find("already part of") != std::string::npos);
+    const std::string shown = stack_text(t.canvases.back());
+    CHECK(shown.find("succeeded") != std::string::npos);   // the build is untouched
+    CHECK(shown.find("REFUSED") != std::string::npos);     // ...and the project said no
+}
+
+TEST_CASE("BLD-1: when a failed build refuses realization, the CAUSE is the notice") {
+    // ONE NOTICE LINE AND TWO FACTS THAT SETTLED TOGETHER. A maker needs the cause
+    // ("BUILD FAILED") and not the consequence ("nothing was offered"), which the
+    // panel's own rows carry anyway.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB, input::mod::kShift);
+
+    tool->next.outcome = zengine::builder::outcome::kFailed;
+    tool->next.status = 2;
+    tool->next.realize = true;
+    tool->next.realization = zengine::builder::realization::kRefused;
+    tool->next.realized_detail = "the build failed, so nothing was offered to the project";
+    t.publish(loom::to_value(tool->next));
+
+    CHECK(t.w->session().notice == "BUILD FAILED: snake -- exit 2");
+    // THE LATCH IS STILL RELEASED, so the derivative refusal is not announced later
+    // as though it were news.
+    CHECK_FALSE(t.w->session().panels.builder.awaiting_realization);
+    CHECK(stack_text(t.canvases.back()).find("REFUSED") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: a green build with no artifact is announced as neither success nor failure") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->next.outcome = zengine::builder::outcome::kAsked;
+    open_builder(t);
+    t.key(input::scan::kB);
+
+    tool->next.outcome = zengine::builder::outcome::kNoArtifact;
+    tool->next.status = 0;
+    tool->next.artifact = "zengine-oven";
+    tool->next.detail = "the build succeeded and `zengine-oven` is not at /tmp/zengine-oven.so";
+    t.publish(loom::to_value(tool->next));
+
+    CHECK(t.w->session().notice.find("produced no `zengine-oven`") != std::string::npos);
+    CHECK(t.w->session().notice.find("built") != 0u);
+    CHECK(stack_text(t.canvases.back()).find("NO ARTIFACT") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: a project with no recipes says so, and `b` asks for nothing") {
+    Live t;
+    auto seat = std::make_unique<ToolSeat>();
+    ToolSeat* tool = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
+                       zengine::builder::BuildStatus::zen_version);
+    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
+                       zengine::builder::RecipeCatalog::zen_version);
+    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
+                                                  std::string(zengine::builder::kBuilderRole));
+    tool->zen_set_self(id);
+    open_builder(t);
+
+    CHECK(stack_text(t.canvases.back()).find("no build recipes") != std::string::npos);
+    t.key(input::scan::kB);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().notice.find("no build recipes") != std::string::npos);
+    t.key(input::scan::kC);
+    CHECK(t.w->session().notice.find("no build recipes to choose between") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: `c` with no Builder panel open is an unbound key, exactly as `b` is") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    const std::string before = t.w->session().notice;
+    t.key(input::scan::kC);
+    CHECK(t.w->session().notice == before);
+    CHECK(tool->described == 0);
+    CHECK(tool->asked.empty());
 }
 
 TEST_CASE("success and failure are both on the screen, and both true") {
@@ -8297,7 +8534,7 @@ TEST_CASE("a painter goes where its bounds say, not where a constant says") {
 
     BuilderPane pane;
     pane.heard = true;
-    pane.shown.target = "zengine-snake";
+    pane.shown.recipe = "zengine-snake";
     const ui::Rect moved_stack{4, 6, 30, kStackRows};
     surface::SurfaceCanvas bc;
     paint_builder(plane(bc), pane, moved_stack);
@@ -14953,7 +15190,7 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     Panels panels;
     REQUIRE(open_panel(panels, panel::kBuilder));
     panels.builder.heard = true;
-    panels.builder.shown.target = "zengine-snake";
+    panels.builder.shown.recipe = "zengine-snake";
 
     const Reconciled done = reconcile(panels, setup_of("Info only", {panel::kInfo}), min_room());
     CHECK(done.closed == std::vector<std::int64_t>{panel::kBuilder});
@@ -14965,7 +15202,7 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     // A removed Builder whose copied status outlived it would make a reopened
     // panel look instantly informed about something minutes stale.
     CHECK_FALSE(panels.builder.heard);
-    CHECK(panels.builder.shown.target.empty());
+    CHECK(panels.builder.shown.recipe.empty());
 }
 
 TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing") {
@@ -14974,7 +15211,7 @@ TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing")
     Panels panels;
     REQUIRE(open_panel(panels, panel::kBuilder));
     panels.builder.heard = true;
-    panels.builder.shown.target = "zengine-snake";
+    panels.builder.shown.recipe = "zengine-snake";
     panels.builder.shown.builds = 3;
 
     const Setup same = setup_of("Both", {panel::kInfo, panel::kBuilder});
@@ -14982,7 +15219,7 @@ TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing")
     CHECK(done.opened.empty());
     CHECK(done.closed.empty());
     CHECK(panels.builder.heard);
-    CHECK(panels.builder.shown.target == "zengine-snake");
+    CHECK(panels.builder.shown.recipe == "zengine-snake");
     CHECK(panels.builder.shown.builds == 3);
 
     // ...and doing it a second time changes nothing at all.
@@ -15517,7 +15754,7 @@ TEST_CASE("a malformed setup file is refused without closing a single panel") {
     CHECK(t.session().setup.active == saved);
     CHECK(open_kinds(t.session().panels) == panels_before);
     CHECK(t.session().panels.builder.heard == pane_before.heard);
-    CHECK(t.session().panels.builder.shown.target == pane_before.shown.target);
+    CHECK(t.session().panels.builder.shown.recipe == pane_before.shown.recipe);
     CHECK(t.doc() == doc_before);
     // NOTHING WAS ASKED OF ANYBODY either: a refused restore is not a reason to
     // send a message on behalf of a panel that did not open.
@@ -15544,7 +15781,7 @@ TEST_CASE("a restore that OPENS the Builder asks the tool what it is") {
     // the picker has always performed, through the same one path.
     CHECK(tool->described == before + 1);
     CHECK(t.session().panels.builder.heard);
-    CHECK(t.session().panels.builder.shown.target == "zengine-snake");
+    CHECK(t.session().panels.builder.shown.recipe == "zengine-snake");
 }
 
 TEST_CASE("a restore that leaves the Builder open does not ask again or lose its view") {
@@ -15567,7 +15804,7 @@ TEST_CASE("a restore that leaves the Builder open does not ask again or lose its
     // refresh ceremony, and the copy it was showing is the copy it is showing.
     CHECK(tool->described == asked);
     CHECK(t.session().panels.builder.heard);
-    CHECK(t.session().panels.builder.shown.target == shown.target);
+    CHECK(t.session().panels.builder.shown.recipe == shown.recipe);
     CHECK(t.session().panels.builder.shown.builds == shown.builds);
 }
 
@@ -15588,7 +15825,7 @@ TEST_CASE("a restore that CLOSES the Builder forgets its copy and leaves the too
     // OPEN BEFORE, CLOSED AFTER: the per-kind view is forgotten by the same act,
     // exactly as the picker's removal forgets it.
     CHECK_FALSE(t.session().panels.builder.heard);
-    CHECK(t.session().panels.builder.shown.target.empty());
+    CHECK(t.session().panels.builder.shown.recipe.empty());
 
     // THE TOOL IS UNTOUCHED. Nothing was unloaded, nothing was told, and it
     // answers the very next ask with its own running total.
@@ -15833,7 +16070,7 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         // BUILDER ASKS ITS STILL-INDEPENDENT TOOL FOR CURRENT STATUS -- the
         // tool's own answer, not a copy that rode the file.
         CHECK(tool->described == 1);
-        CHECK(b.session().panels.builder.shown.target == "zengine-snake");
+        CHECK(b.session().panels.builder.shown.recipe == "zengine-snake");
 
         // AND NEITHER DOCUMENT CONTENT NOR THE CURRENT SCREEN EXTENT CAME OUT OF
         // THE SETUP. Both are what this run had before the restore.

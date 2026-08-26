@@ -750,12 +750,65 @@ target_link_libraries(zengine-builder-tests
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-builder-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+
+# ---- THE FIXTURE BUILD TREE, CONFIGURED AT BUILD TIME (BLD-1) --------------------------
+#
+# A `CMakeTargetRecipe` names a CONFIGURED CMake build tree and a target in it, so the
+# suite needs one. `tests/buildfixture/` is that project and says at length why it exists;
+# what happens here is that it is configured ONCE, when this test tree is built, into a
+# directory beside the suite binary.
+#
+# CONFIGURED AT BUILD TIME AND BUILT AT TEST TIME, and the split is deliberate. A nested
+# CMake CONFIGURE inside a ctest entry is what `tests/package/run.cmake` refuses to be (its
+# header says why); a nested `cmake --build` is not the same thing at all -- it is exactly
+# what a build recipe IS, and running it is the whole point of the cases. So the expensive,
+# environment-sensitive half happens where the environment is already known, and what the
+# suite does at run time is the one thing production does.
+#
+# THE GENERATOR IS PASSED THROUGH RATHER THAN DEFAULTED. This build tree knows which
+# generator and make program it was configured with; the fixture inherits both, so the
+# suite cannot end up driving a generator this machine's CMake merely defaults to. The
+# fixture declares `LANGUAGES NONE`, so no compiler is named, checked or needed.
+set(zengine_fixture_src ${CMAKE_CURRENT_SOURCE_DIR}/buildfixture)
+set(zengine_fixture_tree ${CMAKE_CURRENT_BINARY_DIR}/build-fixture)
+set(zengine_fixture_artifacts ${CMAKE_CURRENT_BINARY_DIR}/build-fixture-artifacts)
+set(zengine_fixture_gen -G "${CMAKE_GENERATOR}")
+if(CMAKE_MAKE_PROGRAM)
+    list(APPEND zengine_fixture_gen "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}")
+endif()
+if(CMAKE_GENERATOR_PLATFORM)
+    list(APPEND zengine_fixture_gen -A "${CMAKE_GENERATOR_PLATFORM}")
+endif()
+if(CMAKE_GENERATOR_TOOLSET)
+    list(APPEND zengine_fixture_gen -T "${CMAKE_GENERATOR_TOOLSET}")
+endif()
+add_custom_command(OUTPUT ${zengine_fixture_tree}/CMakeCache.txt
+    COMMAND ${CMAKE_COMMAND} -S ${zengine_fixture_src} -B ${zengine_fixture_tree}
+            ${zengine_fixture_gen}
+            "-DZENGINE_FIXTURE_ARTIFACTS=${zengine_fixture_artifacts}"
+            "-DZENGINE_FIXTURE_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}"
+            "-DZENGINE_FIXTURE_SLOW=${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake"
+    DEPENDS ${zengine_fixture_src}/CMakeLists.txt
+    COMMENT "builder suite: configuring the fixture build tree a recipe can point at")
+add_custom_target(zengine-build-fixture DEPENDS ${zengine_fixture_tree}/CMakeCache.txt)
+add_dependencies(zengine-builder-tests zengine-build-fixture)
+
 target_compile_definitions(zengine-builder-tests PRIVATE
     "ZENGINE_TEST_CMAKE=\"${CMAKE_COMMAND}\""
-    "ZENGINE_TEST_SLOW_SCRIPT=\"${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake\"")
+    "ZENGINE_TEST_SLOW_SCRIPT=\"${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake\""
+    "ZENGINE_TEST_FIXTURE_TREE=\"${zengine_fixture_tree}\""
+    "ZENGINE_TEST_FIXTURE_ARTIFACTS=\"${zengine_fixture_artifacts}\""
+    "ZENGINE_TEST_ARTIFACT_SUFFIX=\"${CMAKE_SHARED_LIBRARY_SUFFIX}\""
+    # ---- The two halves of the package, READ AS SOURCE FILES (BLD-1) --------------
+    #
+    # A property that is true because of what the code does NOT contain cannot be
+    # proved by running the code. BOOT-0's tripwire over `load_execute.hpp` is the
+    # precedent; these are the same question asked of the two participants a build
+    # conversation passes through.
+    "ZENGINE_TEST_TOOL_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/weave.hpp\""
+    "ZENGINE_TEST_RUNNER_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/runner.hpp\"")
 
 zengine_doctest_test(builder zengine-builder-tests)
-
 # The Trust-Gate liveness probes: what the substrate actually does when the
 # TIMER SERVICE ITSELF is swapped / reloaded / double-wound / joined late. The
 # durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —

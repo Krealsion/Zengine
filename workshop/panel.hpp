@@ -417,10 +417,33 @@ inline constexpr const char* kPickerName = "+ panel";
 /// Nothing is authored from this struct and nothing is asked through it. Opening
 /// the panel sends `builder::StatusRequested` and everything here arrives as the
 /// tool's own published answer.
+/// ---- ...AND SINCE BLD-1 IT ALSO HOLDS A CATALOG AND A CHOICE ------------------
+///
+/// `known` is what the tool said it can build, arriving once when this panel opens
+/// (`builder::RecipeCatalog`), and `chosen` is which of those rows this maker is
+/// looking at. THE CHOICE IS GENUINELY THE PANEL'S and is the only other thing here
+/// that is: choosing what to build next is a maker's act on a presentation, and a tool
+/// that held a selection would be a tool whose next build depended on who had opened a
+/// panel last. What the tool holds is what it BUILT; what this holds is what a maker
+/// has picked out.
+///
+/// ⚠ `chosen` IS AN INDEX INTO `known` AND IS BOUNDED AT USE, never at write. The
+/// catalog arrives once and does not change during a run, but a panel that trusted an
+/// index across a re-ask would be one arrival away from reading past the end.
+///
+/// `awaiting_realization` IS `awaiting`'s TWIN AND IT IS HELD LONGER, for the reason
+/// `awaiting` exists at all. A build ENDS -- at which point `awaiting` is released and
+/// the build's outcome is announced -- and the realization of what it produced is still
+/// outstanding at that instant. One latch for both would either release too early (and
+/// turn realization's answer into a fact this panel merely learned) or too late (and
+/// hold the build's own ending back behind it). Two questions, two latches.
 struct BuilderPane {
     bool heard = false;
     bool awaiting = false;
+    bool awaiting_realization = false;
     builder::BuildStatus shown{};
+    builder::RecipeCatalog known{};
+    std::size_t chosen = 0;
 };
 
 /// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG (WP-0): a pane some office

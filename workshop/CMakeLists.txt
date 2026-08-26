@@ -82,9 +82,26 @@ target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-voca
 # `workshop/pane_vocabulary.hpp`: by include path, with no link edge, because the header
 # needs nothing beyond `<zen/weave/shape.hpp>`. See `introspection/CMakeLists.txt`, which
 # says why a target that adds nothing was not minted for it.
+#
+# ---- ...AND SINCE BLD-1 IT NAMES THE BUILDER VOCABULARY ON ITS OWN LINE ---------------
+#
+# `load_execute.hpp` includes `builder/vocabulary.hpp`, because the realization owner's
+# participant hears `builder::ArtifactBuilt` and says `builder::ArtifactRealized` -- the
+# two ends of the build-to-realization seam. It arrives transitively through
+# `zengine-workshop-vocabulary` today, and that is exactly the dependency this
+# repository's own "do not assume" list says not to rely on: a target links what its
+# public headers use, on its own line, or a sibling that stops needing it takes this
+# target's compile with it.
+#
+# ⚠ WHAT THIS EDGE IS NOT is a dependency on the Builder. Nothing here can start a
+# process, name a recipe or hold a command; the vocabulary is two message SHAPES, and
+# which of them this target names is the visible half of the same split BLD-0 drew --
+# `builder/runner.hpp` and `builder/run.hpp` are as unreachable from here as they are
+# from the Workshop panel.
 add_library(zengine-workshop-load INTERFACE)
 target_include_directories(zengine-workshop-load INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-load INTERFACE zengine-workshop-vocabulary
+                                                      zengine-builder-vocabulary
                                                       zengine-operator
                                                       loom::core
                                                       loom::switchboard)
@@ -140,44 +157,66 @@ target_link_libraries(zengine-workshop
             zengine-workshop-load
             zengine-warnings zengine-sanitize)
 
-# ---- The one build recipe this host hands its build runner (BLD-0) ----------------------
+# ---- The one thing this host still hands its build runner (BLD-0, narrowed by BLD-1) ----
 #
-# THE TARGET'S EXISTING BUILD RECIPE, NOT A SECOND BUILD SYSTEM. Zengine is built by CMake,
-# so "build zengine-snake" spelled honestly is the very command a maker would type:
-#
-#     ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target zengine-snake
-#
-# Nothing here compiles anything itself, knows a compiler, or reimplements a dependency
-# rule. If the recipe is stale the real build system says so, in its own words, on the
-# panel.
-#
-# BAKED AT CONFIGURE TIME, and both halves are deliberate:
+# ONE COMPILE DEFINITION WHERE THERE WERE THREE, and the subtraction is the phase. BLD-0
+# baked a cmake, a build directory and a TARGET NAME into this executable, because the
+# Builder meant exactly one hard-coded target. Which artifacts this project can build is an
+# authored FILE now (`default-build-recipes.json`, configured below), so the target and the
+# build directory are gone from here -- and what is left is the one thing a file must never
+# be able to name:
 #
 #   the cmake     ${CMAKE_COMMAND} is THE cmake that configured this tree, by absolute
 #                 path. Resolving `cmake` from PATH at run time would let a Workshop
 #                 started from a different shell drive a different CMake against a tree it
 #                 did not configure -- a build that works on one machine and produces an
-#                 unexplainable diagnostic on another.
-#   the build dir ${CMAKE_BINARY_DIR} is THIS build tree, absolute. Deriving it from the
-#                 executable's own directory at run time would be a guess that happens to
-#                 be right for the single-config generators this repository's lanes use and
-#                 quietly wrong for a multi-config one, where the binary sits one directory
-#                 deeper. A copied binary therefore still names the tree it was built in,
-#                 and if that tree is gone the build fails honestly rather than picking a
-#                 nearby one.
+#                 unexplainable diagnostic on another. And letting a RECIPE name a program
+#                 would turn every recipe catalog into an arbitrary-execution document,
+#                 which is the one authority BLD-1 refuses to hand to a text file.
 #
-# ZENGINE-SNAKE IS THE TARGET, and the choice is not arbitrary. It is real, it is always
-# built here, and -- the part that matters -- it is NOT one of the weaves this running
-# Workshop has loaded. Building a target whose artifact is staged beside this host would
-# have the build overwrite a shared library the process has mapped, which on Linux changes
-# code under a running program and on Windows simply fails on a locked file. The obvious
-# next wish, `zengine-workshop` rebuilding itself, is the same hazard aimed at the host
-# binary; that it is out of scope here is a consequence of Build+Load being a later phase
-# and not a coincidence.
+# THE SUBTRACTION IS THIS PHASE'S CLEAREST MEASUREMENT, exactly as LOAD-0's was: a target
+# that used to be compiled into the host is now a row a maker can delete.
 target_compile_definitions(zengine-workshop PRIVATE
-    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\""
-    "ZENGINE_BUILDER_BUILD_DIR=\"${CMAKE_BINARY_DIR}\""
-    "ZENGINE_BUILDER_TARGET=\"zengine-snake\"")
+    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\"")
+
+# ---- ...AND THE RECIPES THEMSELVES, CONFIGURED RATHER THAN COMPILED IN (BLD-1) ----------
+#
+# A SHIPPED DEFAULT CATALOG, in the same relationship to a maker's own as the shipped load
+# plans are: it is a file, it is beside the binary, it is diffable, and `--recipes` replaces
+# it. It is CONFIGURED because the only machine-specific things in it are where this build
+# tree is and where that tree puts its artifacts -- the same two facts BLD-0 compiled into
+# the executable, now in a file a maker can read, edit or throw away.
+#
+# ZENGINE-SKIN-TUI-BLOCK IS THE SHIPPED RECIPE'S TARGET, and the choice is not arbitrary.
+# It is a real Zengine ARTIFACT target rather than an executable, which is what makes
+# "the exact expected artifact exists" a question with an answer; it is always built here;
+# and -- the part that matters -- it is NOT one of the artifacts this running Workshop has
+# loaded, nor is it staged beside the host. Building a target whose artifact is staged
+# beside this host would have the build overwrite a shared library the process has mapped,
+# which on Linux changes code under a running program and on Windows simply fails on a
+# locked file. The obvious next wish, `zengine-workshop` rebuilding itself, is the same
+# hazard aimed at the host binary; BLD-1 does not reload a live artifact and says so
+# (`load_execute.hpp::realize`), so that wish stays out of scope deliberately.
+#
+# ITS `artifact_dir` IS THE SURFACE PACKAGE'S BUILD DIRECTORY, because that is where that
+# target's own project puts its output -- which is exactly the case §6 of this phase calls
+# "the CMake target output already lands somewhere; prove it". A recipe that left the
+# directory blank would inherit the host's artifact directory and then truthfully report
+# that no artifact appeared there, which is the `kNoArtifact` outcome working as designed
+# and is not what this recipe means.
+# TWO STEPS, BECAUSE ONE OF THE TWO SUBSTITUTIONS IS NOT KNOWN AT CONFIGURE TIME.
+# `configure_file` fills in `@CMAKE_BINARY_DIR@`; only `file(GENERATE)` can expand
+# `$<CONFIG>`, which is what a multi-config generator appends to an output directory and
+# what a configure-time write would leave in the file as four literal characters. The
+# generated file lands BESIDE THE HOST directly, so it needs no staging rule of its own --
+# which is also why this sits after `zengine_workshop_dir` is decided, below.
+if(CMAKE_CONFIGURATION_TYPES)
+    set(ZENGINE_RECIPE_SURFACE_DIR "${CMAKE_BINARY_DIR}/surface/$<CONFIG>")
+else()
+    set(ZENGINE_RECIPE_SURFACE_DIR "${CMAKE_BINARY_DIR}/surface")
+endif()
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
+               ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
 # The weaves this host loads must sit beside its binary — the host resolves them
 # from its own directory (workshop.cpp's exe_dir), exactly as snake's does.
@@ -293,6 +332,16 @@ endforeach()
 
 add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
 add_dependencies(zengine-workshop zengine-workshop-staging)
+
+# ---- ...AND THE SHIPPED RECIPE CATALOG, WRITTEN STRAIGHT INTO THE HOST'S DIRECTORY ------
+#
+# `file(GENERATE)` rather than a staging stamp, because this file has no source-tree
+# original to copy: it is produced from a template plus this tree's own layout, and the
+# second half of that layout (`$<CONFIG>`) is only known at generate time. It is written
+# where the host resolves it from, which is the same directory every artifact and both load
+# plans are staged into.
+file(GENERATE OUTPUT ${zengine_workshop_dir}/default-build-recipes.json
+     INPUT ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2)
 
 # And the shared SDL3 the two SDL-backed weaves link. New in G-1: SDL used to be
 # archived INTO the one weave that used it, and two weaves cannot share an archived

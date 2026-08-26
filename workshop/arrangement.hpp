@@ -98,6 +98,7 @@ inline const char* offer_token(op::OfferOutcome outcome) {
 /// that spells it.
 inline const char* state_token(load::RowState state) {
     switch (state) {
+    case load::RowState::Pending: return kPendingToken;
     case load::RowState::Loading: return kLoadingToken;
     case load::RowState::Resolved: return kResolvedToken;
     case load::RowState::Refused: return kRefusedToken;

@@ -35,6 +35,7 @@
 #include "arrangement.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
+#include "recipe_persist.hpp"
 #include "weave.hpp"
 
 #include "builder/runner.hpp"
@@ -72,6 +73,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -222,6 +224,18 @@ struct Arguments {
     /// launch from, which is right for a document and wrong for a plan naming
     /// artifacts staged beside the binary.
     std::string load_plan;
+    /// The authored BUILD RECIPES (BLD-1), and the one flag here whose file may be
+    /// absent. Empty means "the one shipped beside this executable", resolved by
+    /// `main()` for `--load-plan`'s reason exactly.
+    ///
+    /// ⚠ ABSENT IS NOT REFUSED, and it is the one of the five that is not. A load plan
+    /// says what this process RUNS ON and a host with no plan has no arrangement to
+    /// perform; recipes say what this project can BUILD, and a project with nothing to
+    /// build is an ordinary project. So a missing default file leaves the Builder
+    /// holding no recipes and says so in the banner, while a malformed file -- default
+    /// or named -- is refused out loud, because silently ignoring an authored file a
+    /// maker got wrong is the quiet wrong answer this repository keeps refusing.
+    std::string recipes;
     std::string log;  ///< empty = keep nothing durably
     std::string dump; ///< empty = write no snapshot of working memory at exit
 };
@@ -231,7 +245,7 @@ Arguments parse_arguments(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--document" || arg == "--setup" || arg == "--session" ||
-            arg == "--load-plan" || arg == "--log" || arg == "--dump") {
+            arg == "--load-plan" || arg == "--recipes" || arg == "--log" || arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -248,6 +262,16 @@ Arguments parse_arguments(int argc, char** argv) {
                     return args;
                 }
                 args.load_plan = value;
+            } else if (arg == "--recipes") {
+                // REFUSED HERE for `--load-plan`'s reason: empty is this field's way of
+                // saying "the one beside the executable", so a maker who typed an empty
+                // path would silently get the default instead of a complaint.
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = "--recipes needs a path";
+                    return args;
+                }
+                args.recipes = value;
             } else if (arg == "--log") {
                 args.log = value;
             } else if (arg == "--dump") {
@@ -284,6 +308,7 @@ int main(int argc, char** argv) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
                     "                        [--session <path>] [--load-plan <path>]\n"
+                    "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
@@ -334,6 +359,57 @@ int main(int argc, char** argv) {
     }
     std::printf("zengine-workshop - load plan: %zu artifact(s) declared\n",
                 read_plan.plan.artifacts.size());
+    std::fflush(stdout);
+
+    // ---- THE AUTHORED BUILD RECIPES, READ IN THE SAME BREATH (BLD-1) ----------
+    //
+    // READ HERE, BESIDE THE PLAN, BECAUSE THEY ARE THE SAME KIND OF THING: durable
+    // authored project intent, answered before this process has a bus or a Kernel, so
+    // that a file a maker got wrong costs nothing to refuse. What they are NOT is the
+    // same DOCUMENT -- a plan row is an execution-authority decision and a recipe is a
+    // build procedure, and folding them would bury the first inside the second
+    // (workshop/recipe_persist.hpp says this at length).
+    //
+    // A MISSING DEFAULT IS AN ANSWER AND A MALFORMED FILE IS NOT. See `Arguments`.
+    std::vector<builder::Recipe> recipes;
+    {
+        const bool named = !args.recipes.empty();
+        const std::string recipe_path =
+            named ? args.recipes : host.dir + "/" + recipe_persist::kDefaultRecipesName;
+        if (!named && !std::filesystem::exists(std::filesystem::path(recipe_path))) {
+            std::printf("zengine-workshop - build recipes: none (%s is not there, so this "
+                        "Workshop can build nothing)\n",
+                        recipe_path.c_str());
+        } else {
+            const recipe_persist::LoadedRecipes read = recipe_persist::load_file(recipe_path);
+            if (!read.outcome.accepted) {
+                std::printf("zengine-workshop - build recipes refused: %s\n"
+                            "zengine-workshop - nothing was mounted and nothing was loaded.\n",
+                            read.outcome.refusal.c_str());
+                return 5;
+            }
+            recipes = read.recipes;
+            std::printf("zengine-workshop - build recipes: %s (%zu)\n", recipe_path.c_str(),
+                        recipes.size());
+        }
+        // ---- THE TWO DEFAULTS THE HOST FILLS IN, AND ONLY THESE TWO --------------
+        //
+        // A recipe is written by a maker who should not have to know where this binary
+        // put itself. Both of these are "leave it blank and the host decides", and both
+        // are decided HERE rather than in the Builder, because both are deployment
+        // facts: where this host resolves an artifact from, and where it is willing to
+        // write a generated project. The recipe file is never rewritten with the
+        // answers -- a catalog that recorded this machine's paths would stop being a
+        // catalog a project can carry.
+        for (builder::Recipe& r : recipes) {
+            if (r.artifact_dir.empty()) {
+                r.artifact_dir = host.dir;
+            }
+            if (r.single_source.has_value() && r.single_source->workspace.empty()) {
+                r.single_source->workspace = host.dir + "/build-workspace/" + r.id;
+            }
+        }
+    }
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -603,11 +679,28 @@ int main(int argc, char** argv) {
     // same thing as a boundary the operating system enforces. Kernel::
     // containment_note() above already says this host isolates nothing, and this
     // is the same sentence about a different effect.
-    std::vector<builder::BuildRecipe> catalog;
-    catalog.push_back(builder::BuildRecipe{
-        ZENGINE_BUILDER_TARGET, ZENGINE_BUILDER_CMAKE,
-        {"--build", ZENGINE_BUILDER_BUILD_DIR, "--target", ZENGINE_BUILDER_TARGET},
-        ZENGINE_BUILDER_BUILD_DIR});
+    //
+    // ---- ...AND SINCE BLD-1 THE CATALOG IS A FILE (see the read, far above) ----
+    //
+    // The runner's catalog used to be one recipe this file constructed from three
+    // compile definitions. It is authored project intent now, and what this host still
+    // owns is the part that was never the file's: the PROGRAM. `ZENGINE_BUILDER_CMAKE`
+    // is THE cmake that configured this tree, by absolute path, and it is handed to the
+    // runner at construction where no message, poke or recipe can reach it. A recipe
+    // names inputs -- a build tree and a target, or a source file and its packages --
+    // and there is no field anywhere in which one could name a program.
+    //
+    // WHAT THE TOOL GETS IS LESS, AND THE SUBTRACTION IS THE SPLIT. `RecipeView` is an
+    // identity, an artifact stem and the one file that stem means; the source paths,
+    // build trees, package prefixes and link lists stay with the runner. So the Builder
+    // panel can show a maker what this project builds without anything on the
+    // presentation side ever holding a build procedure.
+    std::vector<builder::RecipeView> recipe_views;
+    recipe_views.reserve(recipes.size());
+    for (const builder::Recipe& r : recipes) {
+        recipe_views.push_back(
+            builder::RecipeView{r.id, r.artifact, HostContext::so_in(r.artifact_dir, r.artifact)});
+    }
 
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
@@ -623,14 +716,35 @@ int main(int argc, char** argv) {
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                              timer::kTimerRole);
     const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
-        bus, std::move(run_builds), builder::kBuildRunnerRole, catalog);
+        bus, std::move(run_builds), builder::kBuildRunnerRole, recipes,
+        std::string(ZENGINE_BUILDER_CMAKE));
 
     loom::Grant order_builds;
     order_builds.allow_to_role(builder::RunBuild::zen_name, builder::RunBuild::zen_version,
                                builder::kBuildRunnerRole);
     order_builds.allow_to_any(builder::BuildStatus::zen_name, builder::BuildStatus::zen_version);
+    order_builds.allow_to_any(builder::RecipeCatalog::zen_name,
+                              builder::RecipeCatalog::zen_version);
+    // ---- THE ONE GRANT BLD-1 ADDS, AND EXACTLY WHAT IT IS WORTH ---------------
+    //
+    // `ArtifactBuilt` is the Builder tool's third sentence, and it is the only new
+    // authority in this phase. What it can cause, at its very widest, is that ONE
+    // artifact THE PROJECT ALREADY AUTHORED -- and that this run deliberately did not
+    // realize -- is realized now. It cannot name a role, a mount mode or an order (the
+    // plan owns all three), it cannot introduce an artifact the plan does not name, it
+    // cannot replace one that is already live, and the PATH it carries is ignored by
+    // the owner that acts on it, which resolves the stem with this host's own rule.
+    //
+    // WHY THAT IS SMALLER THAN IT LOOKS. The dangerous grant in this process is still
+    // exactly one -- `zen.LoadWeave -> manager`, held by the plan booter and written by
+    // this file. Nothing here gives the Builder that reach; it gives the Builder a way
+    // to say a fact to a participant whose own answer to that fact is bounded by an
+    // authored file. A Builder that could say `zen.LoadWeave` would be a different
+    // phase, and this is deliberately not it.
+    order_builds.allow_to_any(builder::ArtifactBuilt::zen_name,
+                              builder::ArtifactBuilt::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
-        bus, std::move(order_builds), builder::kBuilderRole, std::string(ZENGINE_BUILDER_TARGET));
+        bus, std::move(order_builds), builder::kBuilderRole, recipe_views);
 
     // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
     // for the same reason: what a button in this program will actually run is a
@@ -638,11 +752,22 @@ int main(int argc, char** argv) {
     // show it until the runner has started it (the tool holds no command to
     // show). ASYNC-1 moved "until it has finished" to "until it has started",
     // which is a real improvement and still not "before".
-    // Two lines, so the identities are as legible as the command.
-    std::printf("zengine-workshop - builder: weave #%s builds `%s` (p opens the panel)\n",
-                std::to_string(builder_tool.value).c_str(), ZENGINE_BUILDER_TARGET);
-    std::printf("zengine-workshop - build runner: weave #%s runs `%s`\n",
-                std::to_string(runner.value).c_str(), catalog.front().as_line().c_str());
+    // Two lines, so the identities are as legible as the recipes.
+    //
+    // ⚠ IT CANNOT PRINT THE COMMAND ANY MORE, and the loss is real and correct. A
+    // recipe becomes a command inside the runner, at the moment it is carried out --
+    // which is what stopped Builder meaning one target baked in at configure time. What
+    // this can still print, and does, is every recipe this project holds and the
+    // artifact each is expected to produce; what actually ran reaches the panel the way
+    // it has since ASYNC-1, from the participant that ran it, as it starts.
+    std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
+                "panel)\n",
+                std::to_string(builder_tool.value).c_str(), recipe_views.size());
+    std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
+                std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
+    for (const builder::RecipeView& r : recipe_views) {
+        std::printf("zengine-workshop - recipe: %s -> %s\n", r.id.c_str(), r.path.c_str());
+    }
     std::fflush(stdout);
 
     // Workshop's own reach: the right to SPEAK its screen, to ask the Builder
@@ -745,6 +870,16 @@ int main(int argc, char** argv) {
     // tell it which weave it is.
     loom::Grant operate;
     operate.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    // ---- ...AND ONE OBSERVATION IT MAY PUBLISH (BLD-1) ------------------------
+    //
+    // `ArtifactRealized` is realization's own sentence about a maker's BUILD & REALIZE:
+    // what the project made of a newly built artifact, in the deepest layer's words,
+    // whether it was taken or refused. It is an OBSERVATION and not a power -- nothing
+    // in this process acts on it, the Builder tool folds it into what it publishes, and
+    // the Builder panel shows it beside the build's own outcome. `to_any` because the
+    // interested party is a presentation this host does not name.
+    operate.allow_to_any(builder::ArtifactRealized::zen_name,
+                         builder::ArtifactRealized::zen_version);
     load::BootAnswers answers;
     auto speaker = std::make_unique<load::PlanBooter>(answers);
     load::PlanBooter& voice = *speaker;
@@ -802,6 +937,18 @@ int main(int argc, char** argv) {
                 }
                 std::printf("zengine-workshop - loaded: %s\n", said.c_str());
             }
+            // ---- AND WHAT THIS RUN DID NOT REALIZE, NAMED (BLD-1) --------------
+            //
+            // A waiting row is not a failure and is not silence either. It is an
+            // authored participation this run reached and deliberately did not perform,
+            // and a maker whose project is short an artifact is entitled to know which
+            // one and that nothing went wrong. Named rather than counted, for the reason
+            // the resolved rows above are: a number is not something a maker can act on.
+            for (const std::string& waiting : done.pending) {
+                std::printf("zengine-workshop - waiting to be built: %s (build it, and its "
+                            "authored participation is performed then)\n",
+                            waiting.c_str());
+            }
             if (done.ok) {
                 std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
                             "provider(s)\n",
@@ -837,6 +984,7 @@ int main(int argc, char** argv) {
                         "artifact(s) participated before it stopped. Exiting.\n",
                         done.refusal.c_str(), done.resolved.size());
             std::fflush(stdout);
+            std::fflush(stdout);
             project_refused = true;
             // THE SAME DOOR `q` LEAVES BY, and deliberately not a second one:
             // `host.quit` is what the loop below reads, and `request_stop` ends the
@@ -847,6 +995,32 @@ int main(int argc, char** argv) {
             if (host.request_stop) {
                 host.request_stop();
             }
+        },
+        // ---- IS THIS ROW WAITING ON THE MAKER? (BLD-1) ------------------------
+        //
+        // THE HOST ANSWERS IT BECAUSE ONLY THE HOST HOLDS BOTH HALVES. The artifact
+        // file is absent -- this host owns the rule that spells a stem as a file -- AND
+        // some authored recipe says this project can produce that stem. Realization
+        // learns only the answer, never either half, and never why.
+        //
+        // ⚠ THE SECOND HALF IS WHAT KEEPS THIS FROM BEING "SKIP WHAT IS MISSING". An
+        // artifact that is not on this disk and that nothing here can build is a broken
+        // deployment, and it still refuses the plan by name, exactly as it did before
+        // this phase. What changes is only the case where the project itself says how
+        // the file is made: then its absence is a build state, and the honest thing is
+        // to leave the row for the maker rather than to refuse the Workshop they would
+        // have built it in.
+        //
+        // ⚠ AND IT IS NOT BUILD-ON-MISSING. Nothing here starts a build, asks for one,
+        // or remembers to. The maker presses Build.
+        [&host, &recipes](const std::string& stem) {
+            for (const builder::Recipe& r : recipes) {
+                if (r.artifact != stem) {
+                    continue;
+                }
+                return !std::filesystem::exists(std::filesystem::path(host.so(stem)));
+            }
+            return false;
         });
 
     // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS (INTR-1) ----------

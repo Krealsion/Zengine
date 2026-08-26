@@ -208,8 +208,20 @@ struct HostContext {
     /// IT TAKES A VIEW since LOAD-0, because a stem now arrives as a `std::string`
     /// read out of a file as often as it arrives as a literal. One signature that
     /// serves both is what keeps this the only place either spelling is resolved.
-    std::string so(std::string_view stem) const {
-        return dir + "/" + std::string(stem) +
+    std::string so(std::string_view stem) const { return so_in(dir, stem); }
+
+    /// THE SAME RULE, AIMED SOMEWHERE ELSE (BLD-1).
+    ///
+    /// A build recipe may put its product somewhere other than beside this host -- an
+    /// existing CMake target lands wherever its own project puts it -- so the Builder
+    /// needs the file a stem means in a directory that is not `dir`. It is the same
+    /// spelling and it stays in one place: a second copy of the suffix rule is how a
+    /// Workshop comes to look for `.so` where CMake wrote `.dll`.
+    ///
+    /// STATIC, because it is a fact about the platform and not about this host. `so`
+    /// above is the ordinary case with the host's own directory filled in.
+    static std::string so_in(std::string_view directory, std::string_view stem) {
+        return std::string(directory) + "/" + std::string(stem) +
 #if defined(_WIN32)
                ".dll";
 #else
@@ -228,6 +240,7 @@ class WorkshopWeave
                                           zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfaceCloseRequested,
                                           zengine::builder::BuildStatus,
+                                          zengine::builder::RecipeCatalog,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneContent>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
@@ -999,24 +1012,90 @@ public:
         if (!zengine::builder::still_going(said.outcome)) {
             pane.awaiting = false;
         }
-        if (!watching || zengine::builder::still_going(said.outcome)) {
+        // ---- THE SECOND ANSWER, ANNOUNCED ON ITS OWN LATCH (BLD-1) ------------
+        //
+        // Realization settles AFTER the build it followed, so by the time it does,
+        // `awaiting` has already been released and the build's own ending announced.
+        // This is the other half of the same discipline: a panel that WATCHED a
+        // realization begin may report how it ended, and a panel that merely learned
+        // about one may not.
+        //
+        // ⚠ WHEN BOTH SETTLE IN ONE ARRIVAL, THE BUILD'S SENTENCE WINS. A failed build
+        // refuses realization in the same breath, and there is one notice line: the
+        // maker needs the CAUSE ("BUILD FAILED ... exit 1"), not the consequence
+        // ("nothing was offered to the project"), which the panel's own rows carry
+        // anyway. The latch is still released, so the derivative refusal is not
+        // announced late as though it were news.
+        const bool build_news = watching && !zengine::builder::still_going(said.outcome);
+        const bool realization_settled =
+            pane.awaiting_realization &&
+            (said.realization == zengine::builder::realization::kRealized ||
+             said.realization == zengine::builder::realization::kRefused);
+        if (realization_settled) {
+            pane.awaiting_realization = false;
+            if (!build_news) {
+                if (said.realization == zengine::builder::realization::kRealized) {
+                    say("realized " + said.artifact + " -- " + said.realized_detail, false);
+                } else {
+                    say("NOT REALIZED: " + said.artifact + " -- " + said.realized_detail, true);
+                }
+                repaint(mail);
+                return;
+            }
+        }
+        if (!build_news) {
             repaint(mail);
             return;
         }
         switch (said.outcome) {
         case zengine::builder::outcome::kSucceeded:
-            say("built " + said.target + " -- exit 0", false);
+            // TWO OUTCOMES, TWO SENTENCES, AND THE SECOND IS NOT SUPPRESSED BY THE
+            // FIRST (BLD-1). A maker who asked for BUILD & REALIZE and got a green
+            // build has learned half of what they asked about; announcing only that
+            // half would be the same conflation the Builder's own two fields exist to
+            // prevent. The realization half arrives later, in its own status, and is
+            // announced by `on(BuildStatus)` reaching this switch again -- which it
+            // does, because a realization answer republishes the tool's picture.
+            say("built " + said.artifact + " -- exit 0", false);
             break;
         case zengine::builder::outcome::kFailed:
-            say("BUILD FAILED: " + said.target + " -- exit " + std::to_string(said.status), true);
+            say("BUILD FAILED: " + said.recipe + " -- exit " + std::to_string(said.status), true);
+            break;
+        case zengine::builder::outcome::kNoArtifact:
+            say("the build succeeded and produced no `" + said.artifact + "`: " + said.detail,
+                true);
             break;
         case zengine::builder::outcome::kNotStarted:
             say("the build never started: " + said.detail, true);
             break;
-        case zengine::builder::outcome::kUnknownTarget:
+        case zengine::builder::outcome::kUnknownRecipe:
             say("the Builder refused: " + said.detail, true);
             break;
         default: break;
+        }
+        repaint(mail);
+    }
+
+    /// THE BUILDER TOOL SAID WHAT THIS PROJECT CAN BUILD (BLD-1).
+    ///
+    /// A SECOND PUBLICATION FROM THE SAME WEAVE, held under the same rule as the
+    /// first: only while a panel is presenting it. It arrives once, in answer to the
+    /// `StatusRequested` an opening Builder panel sends, and it is the entire reason
+    /// this application can offer a maker a CHOICE of what to build without holding one
+    /// recipe of its own.
+    ///
+    /// THE CHOICE IS CLAMPED HERE AND NOWHERE ELSE. A catalog that arrived shorter than
+    /// the last one -- a second panel, a re-ask -- must not leave a selection pointing
+    /// past its end, and clamping at the arrival is the one place that can be true for
+    /// every later reader.
+    void on(const zengine::builder::RecipeCatalog& said, loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return;
+        }
+        BuilderPane& pane = session_.panels.builder;
+        pane.known = said;
+        if (pane.chosen >= pane.known.recipes.size()) {
+            pane.chosen = 0;
         }
         repaint(mail);
     }
@@ -2079,7 +2158,19 @@ private:
         case input::scan::kLeftBracket: resize_workspace(-4); break;
         case input::scan::kRightBracket: resize_workspace(+4); break;
         case input::scan::kP: open_picker(); break;
-        case input::scan::kB: build_now(mail); break;
+        // `b` BUILDS AND `Shift+b` BUILDS AND REALIZES (BLD-1), which is the `hjkl`
+        // decision taken again for the same reason: one gesture family spelled two
+        // ways, rather than a second family competing for a free letter. The modifier
+        // is what makes the more consequential half of the pair deliberate -- realizing
+        // an artifact is the one Builder gesture that changes what is running -- and it
+        // is spellable at all only because the wire carries the modifiers held at the
+        // transition.
+        case input::scan::kB: build_now(mail, shift); break;
+        // `c` CHOOSES, and `Shift+c` chooses backwards. It was unbound before this
+        // phase -- the WIND-1 census left fifteen letters free and `c` is one of them --
+        // so nothing a maker knew changed meaning, and with no Builder panel open it
+        // does exactly what `b` does with no Builder panel open, which is nothing.
+        case input::scan::kC: choose_recipe(shift ? -1 : +1, mail); break;
         // THE TWO SETUP GESTURES (WS-0). They are commands rather than another `^`-pair
         // beside the document's, and that is the visible half of the separation: `^s`/`^o`
         // are the DOCUMENT's two keys and mean the same thing in every mode, while naming and
@@ -3171,17 +3262,36 @@ private:
     /// the one the Builder has already told it about, so a Workshop with a panel
     /// that has not yet heard from the tool cannot ask for anything at all, and
     /// says so.
-    void build_now(loom::Mail& mail) {
+    ///
+    /// ---- ...AND SINCE BLD-1 IT NAMES ONE OF SEVERAL, AND MAY ASK FOR MORE -------
+    ///
+    /// The name comes from the CATALOG the tool published and the maker's cursor in it,
+    /// which is the same sentence one plural out: Workshop still holds no recipe, and
+    /// the only builds it can name are the ones the Builder has already told it about.
+    ///
+    /// `realize` IS THE MAKER'S SECOND INTENTION AND IT TRAVELS WITH THE FIRST. Workshop
+    /// does not load anything, cannot load anything, and gains no rule that would let it
+    /// -- what it does is say, in one sentence to one office, "build this, and if it
+    /// works, offer it to the project". Everything after that belongs to two owners
+    /// neither of which is here.
+    void build_now(loom::Mail& mail, bool realize) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // `b` is an unbound key with no Builder panel open, exactly as before
         }
         const BuilderPane& pane = session_.panels.builder;
-        if (!pane.heard || pane.shown.target.empty()) {
+        if (!pane.heard) {
             say("the Builder has not said what it builds yet -- nothing was asked for", true);
             return;
         }
+        if (pane.known.recipes.empty()) {
+            say("this project has no build recipes -- nothing was asked for", true);
+            return;
+        }
+        const std::size_t at =
+            pane.chosen < pane.known.recipes.size() ? pane.chosen : std::size_t{0};
+        const std::string chosen = pane.known.recipes[at].recipe;
         (void)mail.send_to_role(zengine::builder::kBuilderRole,
-                                zengine::builder::BuildRequested{pane.shown.target});
+                                zengine::builder::BuildRequested{chosen, realize});
         // I ASKED. Workshop's own fact, recorded before anything is dispatched,
         // and the thing that decides whether the answer will be news to this
         // panel.
@@ -3195,9 +3305,35 @@ private:
         // of stale comment this repository treats as a defect -- a sentence a
         // maker reads on the screen.
         session_.panels.builder.awaiting = true;
-        say("asked the Builder for `" + pane.shown.target +
-                "` -- Workshop stays live while it builds",
+        session_.panels.builder.awaiting_realization = realize;
+        say("asked the Builder for `" + chosen + "`" +
+                (realize ? " and to realize it" : std::string()) +
+                " -- Workshop stays live while it builds",
             false);
+    }
+
+    /// MOVE THE MAKER'S CURSOR THROUGH THE RECIPES THE TOOL PUBLISHED (BLD-1).
+    ///
+    /// PURELY A PRESENTATION MOVE: nothing is sent, nothing is asked, and nothing on
+    /// the bus knows it happened. It wraps, because a list of two or three that a maker
+    /// is stepping through with one key is a ring and not a scrollbar, and stopping at
+    /// the end would need a second key to come back.
+    void choose_recipe(int by, loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return; // an unbound key with no Builder panel open, exactly as `b` is
+        }
+        BuilderPane& pane = session_.panels.builder;
+        const std::size_t held = pane.known.recipes.size();
+        if (held == 0) {
+            say("this project has no build recipes to choose between", true);
+            return;
+        }
+        const std::size_t at = pane.chosen < held ? pane.chosen : std::size_t{0};
+        pane.chosen = by < 0 ? (at == 0 ? held - 1 : at - 1) : (at + 1 >= held ? 0 : at + 1);
+        say("build recipe: " + pane.known.recipes[pane.chosen].recipe + " -> " +
+                pane.known.recipes[pane.chosen].artifact,
+            false);
+        repaint(mail);
     }
 
     // ---- Save and open -------------------------------------------------------
