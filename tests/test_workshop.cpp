@@ -8187,6 +8187,188 @@ TEST_CASE("BLD-1: `c` with no Builder panel open is an unbound key, exactly as `
     CHECK(tool->asked.empty());
 }
 
+// ---- BLD-2: the frontier is visible, joined, and actionable ------------------------
+//
+// The project's realization frontier reaches the Builder panel as a VALUE the weave
+// derives from the host's live view at every paint and every gesture, and holds for
+// exactly that long. The cases below are the phase's focused falsifiers: a copied or
+// stale frontier, a silently chosen recipe, and a frontier action that bypasses the
+// existing Build & Realize route each turn at least one of them red.
+
+TEST_CASE("BLD-2: the Builder shows the frontier from the LIVING owner, and keeps no copy") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+
+    // THE VIEW IS ALIVE: the fixture's lambda reads this local at every spend, exactly
+    // as the host's reads the realization owner. Nothing is handed over but a function.
+    ProjectFrontier live;
+    t.host.frontier = [&live] { return live; };
+
+    open_builder(t);
+    // NO FRONTIER, NO ROW. The panel is byte-for-byte the ordinary Builder: absence of
+    // a pending frontier is the whole answer, and no "all good" is manufactured.
+    CHECK(stack_text(t.canvases.back()).find("project") == std::string::npos);
+
+    // THE PROJECT STOPS AT A ROW. The next repaint -- an ordinary one, caused by an
+    // ordinary gesture -- shows it, with the recipe join and the blocked count.
+    live.waiting = true;
+    live.artifact = "zengine-oven";
+    live.blocked = 3;
+    t.key(input::scan::kC);
+    CHECK(stack_text(t.canvases.back()).find("waiting zengine-oven (oven, blocks 3)") !=
+          std::string::npos);
+
+    // THE OWNER MOVES; THE PANEL MOVES WITH IT, WITH NOBODY TOLD. A panel that copied
+    // the frontier at the moment it appeared would still say `zengine-oven` here --
+    // which is the exact mutation this case exists to redden.
+    live.artifact = "zengine-later";
+    live.blocked = 0;
+    t.key(input::scan::kC);
+    // The full row is `waiting zengine-later (no recipe, blocks 0)`; at the minimum
+    // extent the panel is 48 cells and `detail::fit` marks the cut, so the assertion
+    // holds the prefix that survives every extent.
+    const std::string moved = stack_text(t.canvases.back());
+    CHECK(moved.find("waiting zengine-later (no recipe") != std::string::npos);
+    CHECK(moved.find("zengine-oven (oven") == std::string::npos);
+
+    // ...AND WHEN THE FRONTIER RESOLVES, THE ROW LEAVES WITH IT. The third `said` row
+    // comes back: the composition below the recipe row is BLD-1a's again.
+    live = ProjectFrontier{};
+    t.key(input::scan::kC);
+    CHECK(stack_text(t.canvases.back()).find("waiting zengine-later") == std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find("project") == std::string::npos);
+}
+
+TEST_CASE("BLD-2: `f` builds and realizes the ONE recipe that produces the frontier") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven", "zengine-oven"});
+    ProjectFrontier live;
+    live.waiting = true;
+    live.artifact = "zengine-oven";
+    live.blocked = 2;
+    t.host.frontier = [&live] { return live; };
+    open_builder(t);
+
+    // THE MAKER'S CURSOR IS SOMEWHERE ELSE, deliberately: the join is by artifact stem
+    // against the tool's own catalog, never by whatever row the panel happened to be
+    // on. A frontier action that spent `chosen` here would build `snake` -- the
+    // wrong-recipe mutation, and this is the case that reddens it.
+    REQUIRE(t.w->session().panels.builder.chosen == 0);
+    t.key(input::scan::kF);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "oven");
+    // ...AND IT IS THE EXISTING BUILD & REALIZE ROUTE, whole: the same
+    // `BuildRequested` Shift+b says, with the maker's second intention aboard.
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+    CHECK(t.w->session().panels.builder.awaiting_realization);
+    CHECK(t.w->session().notice.find("asked the Builder for `oven`") != std::string::npos);
+    CHECK(t.w->session().notice.find("and to realize it") != std::string::npos);
+    // THE SELECTION MOVED WITH THE GESTURE, VISIBLY: the panel's recipe row now names
+    // what was actually asked for, so `b` next does what the screen says.
+    CHECK(t.w->session().panels.builder.chosen == 1);
+    CHECK(stack_text(t.canvases.back()).find("oven -> zengine-oven") != std::string::npos);
+}
+
+TEST_CASE("BLD-2: several recipes produce the frontier -- `f` never chooses for the maker") {
+    Live t;
+    auto seat = std::make_unique<ToolSeat>();
+    ToolSeat* tool = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
+                       zengine::builder::BuildStatus::zen_version);
+    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
+                       zengine::builder::RecipeCatalog::zen_version);
+    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
+                                                  std::string(zengine::builder::kBuilderRole));
+    tool->zen_set_self(id);
+    // TWO RECIPES, ONE ARTIFACT -- authored law, not an edge case (`check_recipes`
+    // deduplicates identities and deliberately not artifacts). The FIRST catalog row
+    // matches the frontier, which is what makes this the sharp case: an
+    // implementation that quietly spends the first match, or reads `chosen`'s default
+    // of 0 as a choice, sends an ask here and goes red.
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven-a", "zengine-oven"});
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"oven-b", "zengine-oven"});
+    tool->next.recipe = "oven-a";
+    tool->next.artifact = "zengine-oven";
+    ProjectFrontier live;
+    live.waiting = true;
+    live.artifact = "zengine-oven";
+    live.blocked = 1;
+    t.host.frontier = [&live] { return live; };
+    open_builder(t);
+
+    // THE PANEL COUNTS THE CHOICES rather than silently showing one of them.
+    CHECK(stack_text(t.canvases.back()).find("(2 recipes") != std::string::npos);
+
+    // NO PICK YET: `chosen == 0` is an index, not a choice. `f` refuses, names the
+    // candidates, and asks nothing of anybody.
+    REQUIRE(t.w->session().panels.builder.chosen == 0);
+    t.key(input::scan::kF);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().notice.find("2 recipes produce `zengine-oven`") != std::string::npos);
+    CHECK(t.w->session().notice.find("`oven-a`, `oven-b`") != std::string::npos);
+    CHECK(t.w->session().notice.find("pick one with c") != std::string::npos);
+
+    // THE MAKER PICKS -- the one gesture that makes a selection theirs -- and `f`
+    // spends exactly that pick.
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 1);
+    t.key(input::scan::kF);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "oven-b");
+    REQUIRE(tool->realize_asked.size() == 1);
+    CHECK(tool->realize_asked[0]);
+
+    // ...INCLUDING THE FIRST ROW, once it is genuinely picked: the refusal above was
+    // about the default, never about the row.
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 0);
+    t.key(input::scan::kF);
+    REQUIRE(tool->asked.size() == 2);
+    CHECK(tool->asked[1] == "oven-a");
+}
+
+TEST_CASE("BLD-2: `f` refuses in words when nothing is waiting, and when nothing can build "
+          "the frontier") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    open_builder(t);
+
+    // NO VIEW WIRED IS "NOT WAITING": the fixture's default, and any host that wired
+    // no realization owner. Nothing is asked of the tool.
+    t.key(input::scan::kF);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().notice.find("not waiting on any artifact") != std::string::npos);
+
+    // A FRONTIER NOTHING HERE CAN PRODUCE is a different sentence: the join over the
+    // tool's own catalog came back empty, and the gesture says so instead of guessing.
+    ProjectFrontier live;
+    live.waiting = true;
+    live.artifact = "zengine-mystery";
+    t.host.frontier = [&live] { return live; };
+    t.key(input::scan::kF);
+    CHECK(tool->asked.empty());
+    CHECK(t.w->session().notice.find("no authored recipe produces `zengine-mystery`") !=
+          std::string::npos);
+}
+
+TEST_CASE("BLD-2: `f` with no Builder panel open is an unbound key, exactly as `b` is") {
+    Live t;
+    ToolSeat* tool = mount_tool(t, "snake");
+    ProjectFrontier live;
+    live.waiting = true;
+    live.artifact = "snake";
+    t.host.frontier = [&live] { return live; };
+    const std::string before = t.w->session().notice;
+    t.key(input::scan::kF);
+    CHECK(t.w->session().notice == before);
+    CHECK(tool->described == 0);
+    CHECK(tool->asked.empty());
+}
+
 TEST_CASE("success and failure are both on the screen, and both true") {
     Live t;
     ToolSeat* tool = mount_tool(t, "zengine-snake");
@@ -25949,6 +26131,28 @@ TEST_CASE("INTR-1: Workshop knows no pane, and the two new ones are no exception
     REQUIRE(r.session().panels.runtime.entries.size() == kIntroPaneCount);
     for (const RuntimePane& row : r.session().panels.runtime.entries) {
         CHECK(is_runtime_kind(row.kind));
+    }
+}
+
+TEST_CASE("BLD-2: the presentation holds no realization or build-runner reach") {
+    // THE FRONTIER MADE THE PRESENTATION AWARE OF REALIZATION, and this is the wire
+    // that keeps "aware" from quietly becoming "in charge". What the weave holds is
+    // one host-wired READING (`HostContext::frontier`); the one route from a maker's
+    // gesture to a realized artifact is still `BuildRequested` to the Builder office,
+    // and every rig above stays green if a shortcut arrives -- only a source read can
+    // say the shortcut is not there.
+    //
+    // THE FORBIDDEN FORMS ARE IDENTIFIERS, never bare words: the owner's type, its
+    // file, the offer only the TOOL may make, the runner's own order, and the runner's
+    // office. A presentation that could spell any of them is a presentation one edit
+    // away from building or realizing on its own authority.
+    for (const char* path : {WORKSHOP_WEAVE_HPP, WORKSHOP_SCREEN_HPP, WORKSHOP_PANEL_HPP}) {
+        const std::string source = file_source(path);
+        for (const char* forbidden : {"PlanExecutor", "load_execute", "OfferArtifact",
+                                      "RunBuild", "kBuildRunnerRole"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
+                          forbidden, "'");
+        }
     }
 }
 

@@ -3671,6 +3671,11 @@ TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touc
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
     // ...AND THE CURSOR IS ON THE BARRIER, not past it.
     CHECK(rig.executor.position() == 1);
+    // ...AND THE OWNER COUNTS WHAT IS BEHIND THE BARRIER (BLD-2): the one authored row
+    // after the pending one, derived from the same cursor `waiting_on()` reads. It is
+    // the number a presentation says as "blocks N", so its population is pinned here,
+    // against the owner, where it is derived.
+    CHECK(rig.executor.behind() == 1);
 
     // ---- AND THE RUNTIME AGREES, which is the half a cursor cannot prove --------
     CHECK_FALSE(rig.kernel.is_loaded(kUnbuilt));
@@ -3714,6 +3719,10 @@ TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
     CHECK(done.refusal.find(kUnbuilt) != std::string::npos);
     CHECK(done.waiting_on.empty());
     CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Refused);
+    // A REFUSED OWNER IS BEHIND NOTHING (BLD-2): `behind` is a fact about a WAITING
+    // owner, and every other state answers 0 rather than a count of rows the walk
+    // will never reach for a different reason.
+    CHECK(rig.executor.behind() == 0);
 }
 
 TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT authored row") {
@@ -3725,6 +3734,8 @@ TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT author
     REQUIRE(first.waiting_on == "zengine-plain-weave");
     REQUIRE_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
     REQUIRE_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+    // The barrier is row 0 of two, so ONE authored row is behind it (BLD-2)...
+    CHECK(rig.executor.behind() == 1);
 
     // THE MAKER ASKS. The row's authored participation -- its role, its order, its
     // surfaces -- comes from the PLAN and nowhere else: nothing in this call names
@@ -3747,6 +3758,8 @@ TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT author
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
     CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
     CHECK(rig.executor.waiting_on().empty());
+    // ...and a COMPLETE owner is behind nothing (BLD-2).
+    CHECK(rig.executor.behind() == 0);
     // AUTHORED ORDER, STILL: the resumed row is recorded AFTER the row it was behind.
     REQUIRE(rig.executor.resolved().size() == 2);
     CHECK(rig.executor.resolved()[0].stem == "zengine-plain-weave");

@@ -153,6 +153,23 @@ struct HostContext {
     /// transcript while painting.
     loom::TerminalSession* terminal = nullptr;
 
+    /// WHAT PROJECT REALIZATION IS WAITING ON, ANSWERED ALIVE (BLD-2).
+    ///
+    /// IT ARRIVES THE SAME WAY `request_stop` DOES: the host owns the realization
+    /// owner as a local of its own `main`, wires a function that reads the owner's
+    /// derived answers (`waiting_on`, `behind`) at the moment of the call, and hands
+    /// the weave nothing else — no pointer, no state, no copy. The weave spends it
+    /// when it paints the Builder panel and when the maker asks for the frontier,
+    /// and holds the answer for exactly the length of that one spend, which is what
+    /// keeps the panel's frontier the OWNER's frontier rather than a mirror of it.
+    ///
+    /// EMPTY IS ORDINARY and means no realization owner is wired — every suite
+    /// fixture gets that by default, and the Builder panel then paints exactly as it
+    /// did before this seam existed. It is a READING and not a power: nothing a
+    /// holder of this function can do starts a build, performs a row, or moves the
+    /// frontier by so much as an ask.
+    std::function<ProjectFrontier()> frontier;
+
     /// The one file this Workshop saves to and loads from.
     ///
     /// It is the host's to choose (`--document <path>`, defaulted) and it is
@@ -1096,6 +1113,10 @@ public:
         pane.known = said;
         if (pane.chosen >= pane.known.recipes.size()) {
             pane.chosen = 0;
+            // A CLAMPED SELECTION IS NOT THE MAKER'S ANY MORE (BLD-2): the row their
+            // pick named is gone, and 0 is where the panel put them, not where they
+            // went. The frontier action must not read it as an explicit choice.
+            pane.picked = false;
         }
         repaint(mail);
     }
@@ -2171,6 +2192,14 @@ private:
         // so nothing a maker knew changed meaning, and with no Builder panel open it
         // does exactly what `b` does with no Builder panel open, which is nothing.
         case input::scan::kC: choose_recipe(shift ? -1 : +1, mail); break;
+        // `f` BUILDS AND REALIZES THE FRONTIER (BLD-2): the one authored row project
+        // realization is waiting on, by the recipe that produces it, through exactly the
+        // route `Shift+b` spends. It was unbound before this phase (the WIND-1 census
+        // left fifteen letters free and `f` is one of them; the `f` in pane management
+        // is that mode's own key), so nothing a maker knew changed meaning, and with no
+        // Builder panel open it does exactly what `b` does with no Builder panel open,
+        // which is nothing.
+        case input::scan::kF: build_frontier(mail); break;
         // THE TWO SETUP GESTURES (WS-0). They are commands rather than another `^`-pair
         // beside the document's, and that is the visible half of the separation: `^s`/`^o`
         // are the DOCUMENT's two keys and mean the same thing in every mode, while naming and
@@ -3330,10 +3359,92 @@ private:
         }
         const std::size_t at = pane.chosen < held ? pane.chosen : std::size_t{0};
         pane.chosen = by < 0 ? (at == 0 ? held - 1 : at - 1) : (at + 1 >= held ? 0 : at + 1);
+        // THE ONE WRITER OF `picked` (BLD-2): this gesture is what makes a selection the
+        // MAKER's rather than the catalog's order wearing an index. The frontier action
+        // reads it when several recipes produce one artifact.
+        pane.picked = true;
         say("build recipe: " + pane.known.recipes[pane.chosen].recipe + " -> " +
                 pane.known.recipes[pane.chosen].artifact,
             false);
         repaint(mail);
+    }
+
+    /// BUILD AND REALIZE THE ROW THE PROJECT IS WAITING ON (BLD-2).
+    ///
+    /// THE JOIN IS PERFORMED HERE, ONCE, AND IT IS ONE STRING COMPARISON: the frontier
+    /// artifact — the realization owner's own answer, read alive this very keystroke —
+    /// against the artifact each catalog row already carries. Workshop still holds no
+    /// recipe, no plan and no realization state; what this gesture adds is that the
+    /// maker no longer performs that comparison in their head across two panes.
+    ///
+    /// IT SPENDS THE EXISTING ROUTE AND NOTHING ELSE. The one send is `build_now` with
+    /// the realize intention — the same `BuildRequested` `Shift+b` says, to the same
+    /// office, under the same grant — and everything after that belongs to the owners
+    /// it always did: the tool refuses or orders, the runner runs, the tool offers, and
+    /// the realization owner decides in its own words. There is no second build path,
+    /// no direct load, and no new sentence on the bus.
+    ///
+    /// ⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THAT IS AUTHORED LAW, NOT AN
+    /// EDGE CASE (`builder::check_recipes` deduplicates identities and deliberately not
+    /// artifacts). When more than one matches, this gesture refuses to choose: the
+    /// catalog's order is nobody's intent, so it names the candidates and leaves the
+    /// pick to `c` — after which the maker's standing pick, if it produces the
+    /// frontier, is spent. `picked` is what tells an explicit pick from `chosen`'s
+    /// default of 0, which is an index and not a choice.
+    void build_frontier(loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return; // an unbound key with no Builder panel open, exactly as `b` is
+        }
+        BuilderPane& pane = session_.panels.builder;
+        if (!pane.heard) {
+            say("the Builder has not said what it builds yet -- nothing was asked for", true);
+            return;
+        }
+        const ProjectFrontier now = frontier_now();
+        if (!now.waiting) {
+            // THE ABSENCE IS THE OWNER'S OWN ANSWER, read a moment ago — not a status
+            // this panel manufactured. A project that is complete, still loading, or
+            // was never begun is equally "not waiting", and all three are states in
+            // which there is no frontier for this gesture to spend.
+            say("this project is not waiting on any artifact -- nothing was asked for", true);
+            return;
+        }
+        std::size_t makers = 0;
+        std::size_t match = 0;
+        std::string named;
+        for (std::size_t i = 0; i < pane.known.recipes.size(); ++i) {
+            if (pane.known.recipes[i].artifact != now.artifact) {
+                continue;
+            }
+            ++makers;
+            match = i;
+            if (!named.empty()) {
+                named += ", ";
+            }
+            named += "`" + pane.known.recipes[i].recipe + "`";
+        }
+        if (makers == 0) {
+            say("no authored recipe produces `" + now.artifact + "` -- nothing was asked for",
+                true);
+            return;
+        }
+        if (makers > 1) {
+            const bool standing_pick = pane.picked && pane.chosen < pane.known.recipes.size() &&
+                                       pane.known.recipes[pane.chosen].artifact == now.artifact;
+            if (!standing_pick) {
+                say(std::to_string(makers) + " recipes produce `" + now.artifact + "` (" +
+                        named + ") -- pick one with c, then f builds and realizes it",
+                    true);
+                return;
+            }
+            match = pane.chosen;
+        }
+        // THE SELECTION MOVES WITH THE GESTURE, VISIBLY: row 1 of the panel now names
+        // the recipe this ask is about, and `build_now`'s own notice says it again. A
+        // gesture that sent one recipe while the panel showed another would be the
+        // cross-referencing this phase exists to end, reintroduced one row up.
+        pane.chosen = match;
+        build_now(mail, /*realize=*/true);
     }
 
     // ---- Save and open -------------------------------------------------------
@@ -3870,12 +3981,24 @@ private:
             .send_to_role(row->provider, PaneTextInput{row->pane, t.text});
     }
 
+    /// THE PROJECT FRONTIER, READ ALIVE, NOW (BLD-2). One spend, one answer, held for
+    /// the length of the expression that asked — the host's own `frontier` view is the
+    /// only source, and a fixture that wired none reads "not waiting", which paints the
+    /// Builder panel exactly as every pre-BLD-2 case knew it.
+    ProjectFrontier frontier_now() const {
+        return host_->frontier ? host_->frontier() : ProjectFrontier{};
+    }
+
     void repaint(loom::Mail& mail) {
         refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
         refresh_inspector(); // and a draft's window is only true against the room it has now
         refresh_setup_name(); // ...and so is the name editor's, against the same room
         refresh_external_rooms(mail); // ...and an external pane's room, against the same one
-        mail.publish(paint(state_, session_, host_->setup_path));
+        // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
+        // pure projection of what it is handed, and what it is handed is this repaint's
+        // reading of the living realization owner — never a member, never a field of the
+        // session, never yesterday's answer (BLD-2).
+        mail.publish(paint(state_, session_, host_->setup_path, frontier_now()));
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     }
