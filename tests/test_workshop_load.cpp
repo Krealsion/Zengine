@@ -3546,6 +3546,12 @@ load::PlanBooter& mount_booter_with_answer(loom::Switchboard& bus, loom::WeaveId
 /// A stem this stage has no file for, and no artifact in this repository is called.
 constexpr const char* kUnbuilt = "zengine-not-built-yet";
 
+/// ...AND ONE A CASE STAGES BY HAND, MID-RUN (BLD-1a). A retry needs the same stem to
+/// be absent and then present inside one execution, which is the one thing `Stage`'s
+/// constructor cannot arrange -- so this stem is deliberately staged by nobody, and the
+/// one case that uses it removes any file a previous run left before it begins.
+constexpr const char* kBuiltLate = "zengine-built-late";
+
 /// A RIG WHOSE HOST SAYS ONE ROW IS WAITING (BLD-1).
 ///
 /// It is `PlanRig` with the one seam BLD-1 added filled in: a predicate answering
@@ -3620,7 +3626,22 @@ struct PendingRig {
 
 } // namespace
 
-TEST_CASE("BLD-1: a row the host says is WAITING is not performed, and the plan continues") {
+
+// =============================================================================
+// 10. A ROW WAITING ON THE MAKER — a BARRIER, not a hole (BLD-1, BLD-1a)
+// =============================================================================
+//
+// BLD-1 taught this owner that an absent artifact may be a BUILD STATE rather than a
+// broken deployment, and that the host is the only party that can tell. BLD-1a is
+// about what realization is then allowed to do with that answer, and the answer is
+// almost nothing: it stops.
+//
+// AUTHORED ORDER IS THE WHOLE V0 DEPENDENCY MODEL (LOAD-0). A walk that steps over a
+// row it cannot perform has replaced it with ELIGIBILITY ORDER -- whatever is on disk
+// goes first -- and the overlay falsifier below is the case where the two orders give
+// two different, and both durable, arrangements.
+
+TEST_CASE("BLD-1a: a waiting row STOPS the walk; the rows behind it are not touched") {
     PendingRig rig;
     rig.waiting = {kUnbuilt};
 
@@ -3628,50 +3649,82 @@ TEST_CASE("BLD-1: a row the host says is WAITING is not performed, and the plan 
         rig.realize(plan_of({provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
                              weaves("zengine-plain-weave", "zen.plain")}));
 
-    // THE PLAN COMPLETED. A waiting row is not a refusal -- nothing refused anything
-    // -- so the arrangement is whole in the only sense realization can mean it.
-    CHECK(done.ok);
-    CHECK(rig.executor.state() == load::Realization::Complete);
+    // ---- WHERE REALIZATION IS -------------------------------------------------
+    // NOT complete: an authored row has not participated, and there is no reading of
+    // "the arrangement this plan describes is standing" under which that is true.
+    CHECK_FALSE(done.ok);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    // ...AND NOT REFUSED EITHER. Nothing refused anything; three fields say one true
+    // thing rather than one token saying two.
     CHECK(done.refusal.empty());
+    CHECK(done.waiting_on == kUnbuilt);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
 
-    // ...AND THE ROW AFTER IT WAS PERFORMED, which is the half that separates this
-    // from "stops rather than skips": a waiting row does not stop the walk.
-    REQUIRE(done.resolved.size() == 2);
+    // ---- WHAT DID PARTICIPATE, AND WHAT DID NOT -------------------------------
+    // The row BEFORE the barrier: performed, exactly as it always was.
+    REQUIRE(done.resolved.size() == 1);
     CHECK(done.resolved[0].stem == "zengine-operators-basic");
-    CHECK(done.resolved[1].stem == "zengine-plain-weave");
-    CHECK(done.resolved[1].weave_loaded);
-
-    // THE WAITING ROW IS NAMED rather than counted, because a number is not
-    // something a maker can act on.
-    REQUIRE(done.pending.size() == 1);
-    CHECK(done.pending[0] == kUnbuilt);
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
     CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
-    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
-    // NOTHING WAS OPENED, MOUNTED OR COMMANDED FOR IT. The Kernel never heard of it.
+    // THE ROW BEHIND IT IS `authored` -- a row NOTHING HAS LOOKED AT. Not pending (the
+    // host was never asked about it), not skipped, not eligible.
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
+    // ...AND THE CURSOR IS ON THE BARRIER, not past it.
+    CHECK(rig.executor.position() == 1);
+
+    // ---- AND THE RUNTIME AGREES, which is the half a cursor cannot prove --------
     CHECK_FALSE(rig.kernel.is_loaded(kUnbuilt));
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    // NOTHING WAS OPENED, MOUNTED OR COMMANDED for either row: no conversation was
+    // ever started, so the booter has nothing outstanding.
+    CHECK_FALSE(rig.answers.awaiting());
 }
 
-TEST_CASE("BLD-1: with no predicate at all, nothing ever waits") {
+TEST_CASE("BLD-1a: NO LATER PROVIDER MOUNTS while an earlier row is waiting") {
+    // THE PROVIDER HALF OF THE SAME LAW, and it is worth its own case because a mount
+    // is SYNCHRONOUS: nothing has to be delivered for it to happen, so a walk that
+    // carried on would leave the catalog changed before any host turned anything.
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+
+    const std::size_t before = rig.catalog.size();
+    const load::Executed done = rig.realize(plan_of(
+        {weaves(kUnbuilt, "zen.oven"), provides("zengine-operators-basic"),
+         provides("zengine-provider-min")}));
+
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(done.waiting_on == kUnbuilt);
+    CHECK(rig.catalog.size() == before);
+    CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+    CHECK_FALSE(rig.catalog.mounted(kMinProvider));
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Authored);
+    CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Authored);
+}
+
+TEST_CASE("BLD-1a: with no predicate at all, nothing ever waits") {
     // LOAD-0's BEHAVIOUR, UNCHANGED, and this is the case that says so: every caller
     // that does not hand over an `AwaitingBuild` gets exactly the executor it had
-    // before this phase -- a missing artifact refuses the plan, by name, in the
-    // loader's own words.
+    // before BLD-1 -- a missing artifact refuses the plan, by name, in the loader's
+    // own words. ⚠ NOT EVERY MISSING ARTIFACT IS PENDING; one nothing here can build
+    // is a broken deployment and still stops the project.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
     CHECK_FALSE(done.ok);
     CHECK(rig.executor.state() == load::Realization::Failed);
     CHECK(done.refusal.find(kUnbuilt) != std::string::npos);
-    CHECK(done.pending.empty());
+    CHECK(done.waiting_on.empty());
     CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Refused);
 }
 
-TEST_CASE("BLD-1: a waiting row is realized when a maker asks, and only then") {
+TEST_CASE("BLD-1a: realizing the waiting row resumes the walk at the NEXT authored row") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
-    const load::Executed first = rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")}));
-    REQUIRE(first.ok);
-    REQUIRE(first.pending.size() == 1);
+    const load::Executed first =
+        rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain"),
+                             provides("zengine-operators-basic")}));
+    REQUIRE(first.waiting_on == "zengine-plain-weave");
     REQUIRE_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    REQUIRE_FALSE(rig.catalog.mounted("zengine.operators.basic"));
 
     // THE MAKER ASKS. The row's authored participation -- its role, its order, its
     // surfaces -- comes from the PLAN and nowhere else: nothing in this call names
@@ -3681,17 +3734,27 @@ TEST_CASE("BLD-1: a waiting row is realized when a maker asks, and only then") {
     CHECK(asked.refusal.empty());
     CHECK(rig.executor.state() == load::Realization::Loading);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Loading);
+    // ⚠ AND THE ROW BEHIND IT HAS STILL NOT BEGUN. The walk resumes when this row
+    // SETTLES, not when it starts.
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Authored);
+    CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
     rig.drain(16);
 
     // ...AND THE ORDINARY REALIZATION MACHINERY DID THE WORK. A real `zen.LoadWeave`
-    // through the control door, a real WeaveId, a real role.
+    // through the control door, a real WeaveId, a real role -- and then the walk went
+    // on by itself, because a row a maker asked for is the row the walk stopped at.
     CHECK(rig.executor.state() == load::Realization::Complete);
     CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
-    CHECK(rig.executor.pending().empty());
-    REQUIRE(rig.executor.resolved().size() == 1);
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
+    CHECK(rig.executor.waiting_on().empty());
+    // AUTHORED ORDER, STILL: the resumed row is recorded AFTER the row it was behind.
+    REQUIRE(rig.executor.resolved().size() == 2);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-plain-weave");
     CHECK(rig.executor.resolved()[0].weave_loaded);
     CHECK(rig.executor.resolved()[0].role == "zen.plain");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-operators-basic");
     CHECK(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(rig.catalog.mounted("zengine.operators.basic"));
 
     // THE FACT LEFT AS A PUBLICATION, said by the participant that speaks for the
     // owner. ⚠ IT IS TAKEN RATHER THAN READ: the owner leaves it where exactly one
@@ -3706,31 +3769,241 @@ TEST_CASE("BLD-1: a waiting row is realized when a maker asks, and only then") {
     CHECK(rig.ears->answers.size() == 1);
 }
 
-TEST_CASE("BLD-1: a provider-only waiting row settles before `realize` returns") {
+TEST_CASE("BLD-1a: a provider-only waiting row settles, and the walk resumes, before "
+          "`realize` returns") {
     PendingRig rig;
     rig.waiting = {"zengine-provider-min"};
-    REQUIRE(rig.realize(plan_of({provides("zengine-provider-min")})).ok);
-    REQUIRE(rig.executor.pending().size() == 1);
+    // TWO PROVIDERS THAT SUPPLY DIFFERENT POWERS, so the case is about ORDER and not
+    // about a collision: `zengine-provider-a` carries three identities nothing else in
+    // this suite names.
+    REQUIRE(rig.realize(plan_of({provides("zengine-provider-min"),
+                                 provides("zengine-provider-a")}))
+                .waiting_on == "zengine-provider-min");
 
     const std::size_t before = rig.catalog.size();
     const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-provider-min");
     CHECK(asked.started);
     // NOTHING IS OWED BY ANYBODY, so the row is over the instant its mount returns --
-    // no turn was spent and no conversation was opened.
+    // no turn was spent and no conversation was opened. AND THE ROW BEHIND IT IS OVER
+    // TOO, for the same reason: the requirement is CAUSAL order, not extra turns.
     CHECK(rig.executor.state() == load::Realization::Complete);
-    CHECK(rig.executor.pending().empty());
+    CHECK(rig.executor.waiting_on().empty());
+    CHECK(rig.catalog.mounted(kMinProvider));
     CHECK(rig.catalog.size() > before);
+    REQUIRE(rig.executor.resolved().size() == 2);
+    CHECK(rig.executor.resolved()[0].stem == "zengine-provider-min");
+    CHECK(rig.executor.resolved()[1].stem == "zengine-provider-a");
     const load::PlanExecutor::Realized settled = rig.executor.take_realization();
     CHECK(settled.settled);
     CHECK(settled.realized);
 }
 
-TEST_CASE("BLD-1: the door refuses everything the AUTHORED PLAN does not sanction") {
+TEST_CASE("BLD-1a: `Complete` cannot coexist with a waiting row, and still arrives when "
+          "every row has settled") {
+    PendingRig rig;
+    rig.waiting = {"zengine-plain-weave"};
+    rig.realize(plan_of({provides("zengine-operators-basic"),
+                         weaves("zengine-plain-weave", "zen.plain"),
+                         provides("zengine-provider-a")}));
+
+    // ⚠ THE WHOLE POINT OF THE STATE. BLD-1 answered `Complete` here, so a host
+    // reading `outcome().ok` was told the arrangement was live while two of three
+    // authored rows had not participated.
+    CHECK(rig.executor.state() != load::Realization::Complete);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK_FALSE(rig.executor.outcome().ok);
+
+    rig.executor.realize("zengine-plain-weave");
+    rig.drain(16);
+
+    // EVERY ROW SETTLED, AND ONLY NOW. `Complete` is reachable from exactly one place
+    // -- the walk running off the END of the plan -- and the walk cannot reach the end
+    // past a row it did not perform.
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.outcome().ok);
+    CHECK(rig.executor.outcome().waiting_on.empty());
+    CHECK(rig.executor.resolved().size() == 3);
+    for (const char* stem : {"zengine-operators-basic", "zengine-plain-weave",
+                             "zengine-provider-a"}) {
+        CHECK(rig.executor.state_of(stem) == load::RowState::Resolved);
+    }
+}
+
+// ---- THE FALSIFIER: absence must not repair a bad authored order -----------------
+
+TEST_CASE("BLD-1a: an absent artifact cannot REORDER an overlay past what it covers") {
+    // ⭐ THE CASE A PLAIN TWO-ROW FIXTURE CANNOT MAKE. Authored order is not a
+    // preference here: an overlay covers what is ALREADY in the catalog, and a
+    // provider mounted Ordinary refuses to cover what is already there. So
+    //
+    //     overlay, then ordinary   ->  REFUSED, and the case above proves it
+    //     ordinary, then overlay   ->  accepted
+    //
+    // are two different, durable arrangements from the same three rows -- which means
+    // a walk that steps over the overlay row because its artifact is not built yet
+    // silently converts the FIRST plan into the SECOND. The maker's file still says
+    // the wrong thing; the process now runs the right one; and nothing anywhere
+    // records that the file and the process disagree.
+    PendingRig rig;
+    rig.waiting = {"zengine-provider-min"};
+
+    const load::Executed done = rig.realize(
+        plan_of({provides("zengine-provider-min", op::MountMode::Overlay),
+                 provides("zengine-operators-basic"),
+                 weaves("zengine-plain-weave", "zen.plain")}));
+
+    // ---- THE BARRIER HELD -----------------------------------------------------
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(done.waiting_on == "zengine-provider-min");
+    CHECK(rig.executor.state_of("zengine-provider-min") == load::RowState::Pending);
+    // ⚠ AND THIS IS THE ASSERTION THE OLD BEHAVIOUR FAILS. `zengine-operators-basic`
+    // is what the pending overlay covers; under "mark pending and continue" it is
+    // MOUNTED by now, and the overlay that arrives later is therefore valid.
+    CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Authored);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+
+    // ---- NOW THE MAKER BUILDS IT, AND THE PLAN IS STILL THE WRONG PLAN ---------
+    // The overlay installs over nothing (which the catalog permits), the walk resumes,
+    // and the ordinary mount it was meant to cover collides with it -- the REAL
+    // existing refusal, in the catalog's own words, at the row that actually refused.
+    const load::PlanExecutor::Asked asked = rig.executor.realize("zengine-provider-min");
+    REQUIRE(asked.started);
+    CHECK(rig.executor.state() == load::Realization::Failed);
+    CHECK(rig.executor.refusal().find("artifact 'zengine-operators-basic'") !=
+          std::string::npos);
+    CHECK(rig.executor.refusal().find("provider mount refused") != std::string::npos);
+    CHECK(rig.executor.refusal().find("needs an explicit overlay") != std::string::npos);
+    // ...and the row behind THAT never ran either, because the plan stopped where it
+    // broke -- "stops rather than skips", which a waiting row never relaxed.
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    // THE MAKER'S FILE AND THE PROCESS AGREE ABOUT WHAT IT SAYS. That is the whole
+    // claim: a bad authored order is bad whether or not one of its artifacts happened
+    // to be missing when the project started.
+}
+
+// ---- Building a later artifact early, and NOT realizing it early ----------------
+
+TEST_CASE("BLD-1a: a LATER authored row may be built early, and is not realized early") {
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+    const load::Executed done =
+        rig.realize(plan_of({weaves(kUnbuilt, "zen.oven"),
+                             weaves("zengine-plain-weave", "zen.plain")}));
+    REQUIRE(done.waiting_on == kUnbuilt);
+
+    // THE MAKER BUILT THE LATER ARTIFACT. Nothing here stops that and nothing should:
+    // Builder owns building, and a recipe it exposes is a recipe a maker may run. The
+    // file `zengine-plain-weave` is on this stage and has been all along -- which is
+    // exactly the state a successful early build leaves behind.
+    const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
+
+    // ...AND IT DID NOT LEAPFROG THE FRONTIER.
+    CHECK_FALSE(early.started);
+    CHECK(early.refusal.find("waiting on artifact '") != std::string::npos);
+    CHECK(early.refusal.find(kUnbuilt) != std::string::npos);
+    CHECK(early.refusal.find("Authored order is realization order") != std::string::npos);
+    // ⚠ NOTHING MOVED. Not the state, not the frontier, not the row that was asked
+    // for -- and above all not `Failed`: a maker who asked too early has not lost the
+    // arrangement they are working in.
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.state() != load::Realization::Failed);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+    CHECK(rig.executor.resolved().empty());
+
+    // ---- THE CONTRAST, IN ONE LINE --------------------------------------------
+    // The SAME door, the same run, the same instant: the frontier row is ELIGIBLE and
+    // the later row is not, and the only difference between them is where their plan
+    // puts them. (`kUnbuilt` still has no file, so the row itself then refuses in the
+    // loader's own words -- which is the retry case below, not this one.)
+    const load::PlanExecutor::Asked frontier = rig.executor.realize(kUnbuilt);
+    CHECK(frontier.started);
+}
+
+TEST_CASE("BLD-1a: a refused realization returns the row to the frontier and does NOT "
+          "fail the arrangement") {
+    // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a maker whose build failed
+    // and who asked anyway, or a recipe whose product landed somewhere else.
+    PendingRig rig;
+    rig.waiting = {kUnbuilt};
+    const load::Executed done = rig.realize(plan_of(
+        {provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
+         weaves("zengine-plain-weave", "zen.plain")}));
+    REQUIRE(done.waiting_on == kUnbuilt);
+
+    const load::PlanExecutor::Asked asked = rig.executor.realize(kUnbuilt);
+    REQUIRE(asked.started);
+    rig.drain(16);
+
+    // THE LOADER'S OWN WORDS, and the arrangement is untouched: `Failed` is what a
+    // host reads to decide a project could not be realized, and in Workshop that
+    // ends the process. A hand-asked realization that refused must not do that.
+    CHECK(rig.executor.state() != load::Realization::Failed);
+    CHECK(rig.executor.resolved().size() == 1);
+    REQUIRE(rig.ears->answers.size() == 1);
+    CHECK(rig.ears->answers[0].artifact == kUnbuilt);
+    CHECK_FALSE(rig.ears->answers[0].realized);
+    CHECK(rig.ears->answers[0].detail.find(kUnbuilt) != std::string::npos);
+
+    // ...AND THE FRONTIER IS BACK EXACTLY WHERE THE ASK FOUND IT, which is what makes
+    // a corrected build a RETRY rather than a restart. ⚠ NOT `Complete`: the rows
+    // behind this one were never performed, and BLD-1 answering `Complete` here was
+    // this owner reporting an arrangement missing everything from this row on.
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kUnbuilt);
+    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Authored);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-plain-weave"));
+
+}
+
+TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk finishes") {
+    // THE OTHER HALF OF THE RETRY, with a stem this suite stages BY HAND so that the
+    // artifact can genuinely be absent and then present inside one run.
+    //
+    // ⚠ IT IS REMOVED FIRST, UNCONDITIONALLY. `load-plan-stage` lives in the build
+    // tree and nothing deletes it, so a SECOND run of this binary would otherwise find
+    // its own previous output and never see the absent half at all (QR-6's rule, and
+    // `Stage::put`'s own).
+    std::error_code ec;
+    std::filesystem::remove(stage().so(kBuiltLate), ec);
+    REQUIRE_MESSAGE(!ec, "cannot clear the staged ", stage().so(kBuiltLate));
+
+    PendingRig rig;
+    rig.waiting = {kBuiltLate};
+    const load::Executed done = rig.realize(plan_of(
+        {weaves(kBuiltLate, "zen.late"), provides("zengine-operators-basic")}));
+    REQUIRE(done.waiting_on == kBuiltLate);
+
+    // THE FAILED BUILD'S MAKER ASKS ANYWAY. Refused, in the loader's own words, and
+    // the frontier does not move.
+    REQUIRE(rig.executor.realize(kBuiltLate).started);
+    rig.drain(16);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kBuiltLate);
+    CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
+
+    // THE CORRECTED BUILD. The row was never anything but the frontier, so the
+    // ordinary door takes it and the walk goes on from exactly the next authored row.
+    stage().put(kBuiltLate, PLAIN_WEAVE_SO);
+    REQUIRE(rig.executor.realize(kBuiltLate).started);
+    rig.drain(16);
+    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state_of(kBuiltLate) == load::RowState::Resolved);
+    CHECK(rig.executor.state_of("zengine-operators-basic") == load::RowState::Resolved);
+    CHECK(rig.kernel.is_loaded(kBuiltLate));
+    CHECK(rig.catalog.mounted("zengine.operators.basic"));
+}
+
+TEST_CASE("BLD-1a: the door refuses everything the AUTHORED PLAN does not sanction") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
                                  weaves("zengine-plain-weave", "zen.plain")}))
-                .ok);
+                .waiting_on == "zengine-plain-weave");
 
     // A STEM THE PROJECT NEVER AUTHORED. A build can produce a file; only the
     // project's own plan can say how it participates, so there is nothing to perform.
@@ -3746,47 +4019,86 @@ TEST_CASE("BLD-1: the door refuses everything the AUTHORED PLAN does not sanctio
     CHECK(live.refusal.find("restart") != std::string::npos);
 
     // AND NOTHING WAS DONE ABOUT EITHER. The arrangement is exactly as it was.
-    CHECK(rig.executor.state() == load::Realization::Complete);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
     CHECK(rig.executor.resolved().size() == 1);
-    CHECK(rig.executor.pending().size() == 1);
+    CHECK(rig.executor.waiting_on() == "zengine-plain-weave");
 }
 
-TEST_CASE("BLD-1: a realization that refuses does NOT fail the arrangement") {
-    // A WAITING ROW WHOSE ARTIFACT IS STILL NOT THERE -- a maker whose build failed
-    // and who asked anyway, or a recipe whose product landed somewhere else.
-    PendingRig rig;
-    rig.waiting = {kUnbuilt};
-    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
-                                 weaves(kUnbuilt, "zen.oven")}))
-                .ok);
+TEST_CASE("BLD-1a: an unstarted owner and a refused project each say so, and neither "
+          "realizes anything") {
+    {
+        PendingRig rig;
+        const load::PlanExecutor::Asked early = rig.executor.realize("zengine-plain-weave");
+        CHECK_FALSE(early.started);
+        CHECK(early.refusal.find("has not begun") != std::string::npos);
+    }
+    {
+        // A PROJECT THAT REFUSED IS NOT A PROJECT WITH A FRONTIER. BLD-1 told a maker
+        // here that realization "is still performing the authored plan", which was a
+        // false sentence about a plan that had stopped.
+        PendingRig rig;
+        rig.realize(plan_of({weaves(kUnbuilt, "zen.oven")}));
+        REQUIRE(rig.executor.state() == load::Realization::Failed);
+        const load::PlanExecutor::Asked after = rig.executor.realize("zengine-plain-weave");
+        CHECK_FALSE(after.started);
+        CHECK(after.refusal.find("stopped at a refusal") != std::string::npos);
+    }
+}
 
-    const load::PlanExecutor::Asked asked = rig.executor.realize(kUnbuilt);
-    REQUIRE(asked.started);
+TEST_CASE("BLD-1a: the host is told when realization comes to REST, waiting included") {
+    // THE NOTICE IS THE ONLY WAY A HOST LEARNS ANY OF THIS. Workshop prints its
+    // banner from here and decides, from these three fields alone, whether to go on
+    // being a Workshop -- so a run that stops at a waiting row and says nothing is a
+    // maker staring at a project that is short an artifact with no line to read.
+    PendingRig rig;
+    std::vector<load::Executed> rests;
+    // ITS OWN BOOTER AND ITS OWN ANSWER RECORD. One owner, one conversation (BOOT-0),
+    // so a second owner on this runtime brings the participant that speaks for it.
+    load::BootAnswers answers;
+    loom::WeaveId id{};
+    load::PlanBooter& speaker = mount_booter_with_answer(rig.bus, rig.manager, answers, id);
+    load::PlanExecutor owner{
+        rig.bus,
+        rig.catalog,
+        rig.operators,
+        speaker,
+        rig.manager,
+        answers,
+        [](const std::string& stem) { return stage().so(stem); },
+        [&rests](const load::Executed& done) { rests.push_back(done); },
+        [](const std::string& stem) { return stem == std::string("zengine-plain-weave"); }};
+
+    owner.begin(plan_of({provides("zengine-operators-basic"),
+                         weaves("zengine-plain-weave", "zen.plain")}));
     rig.drain(16);
 
-    // THE LOADER'S OWN WORDS, and the arrangement is untouched: `Failed` is what a
-    // host reads to decide a project could not be realized, and in Workshop that
-    // ends the process. A hand-asked realization that refused must not do that.
-    CHECK(rig.executor.state() == load::Realization::Complete);
-    CHECK(rig.executor.state() != load::Realization::Failed);
-    CHECK(rig.executor.resolved().size() == 1);
-    REQUIRE(rig.ears->answers.size() == 1);
-    CHECK(rig.ears->answers[0].artifact == kUnbuilt);
-    CHECK_FALSE(rig.ears->answers[0].realized);
-    CHECK(rig.ears->answers[0].detail.find(kUnbuilt) != std::string::npos);
+    // ONE REST SO FAR, AND IT IS NOT A FAILURE. `ok` false, `refusal` EMPTY, and the
+    // row named -- which is what lets a host tell "stopped and waiting" from "stopped
+    // because something refused" without asking the owner a second question.
+    REQUIRE(rests.size() == 1);
+    CHECK_FALSE(rests[0].ok);
+    CHECK(rests[0].refusal.empty());
+    CHECK(rests[0].waiting_on == "zengine-plain-weave");
+    CHECK(rests[0].resolved.size() == 1);
 
-    // ...AND THE ROW IS STILL WAITING, which is what lets a corrected build reach it
-    // again in the same run.
-    CHECK(rig.executor.state_of(kUnbuilt) == load::RowState::Pending);
-    REQUIRE(rig.executor.pending().size() == 1);
-    CHECK(rig.executor.pending()[0] == kUnbuilt);
+    owner.realize("zengine-plain-weave");
+    rig.drain(16);
+
+    // ...AND IT RESTS AGAIN WHEN THE MAKER'S ANSWER LETS IT FINISH. Not "called once":
+    // a run with a waiting row has more than one moment at which it will not move
+    // again on its own, and a host is owed all of them.
+    REQUIRE(rests.size() == 2);
+    CHECK(rests[1].ok);
+    CHECK(rests[1].refusal.empty());
+    CHECK(rests[1].waiting_on.empty());
+    CHECK(rests[1].resolved.size() == 2);
 }
 
 TEST_CASE("BLD-1: `ArtifactBuilt` reaches the owner, and the answer comes back published") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
-    REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")})).ok);
-    REQUIRE(rig.executor.pending().size() == 1);
+    REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")})).waiting_on ==
+            "zengine-plain-weave");
 
     // THE BUILDER'S FACT, SAID ON THE BUS. Nothing in this call names a role, an
     // order or a mode -- what crosses is a STEM and an occasion.
@@ -3823,19 +4135,24 @@ TEST_CASE("BLD-1: an `ArtifactBuilt` the plan does not sanction is answered with
     CHECK(rig.ears->answers[0].detail.find("does not name artifact") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: a waiting row is `pending` in the Project projection, and says so") {
+TEST_CASE("BLD-1a: a waiting row is `pending` in the Project projection, and the rows "
+          "behind it are `authored`") {
     PendingRig rig;
     rig.waiting = {kUnbuilt};
-    REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic"),
-                                 weaves(kUnbuilt, "zen.oven")}))
-                .ok);
+    rig.realize(plan_of({provides("zengine-operators-basic"), weaves(kUnbuilt, "zen.oven"),
+                         weaves("zengine-plain-weave", "zen.plain")}));
 
     const workshop::ResolvedArrangement said =
         workshop::describe_arrangement(rig.executor, "waiting.json");
-    REQUIRE(said.artifacts.size() == 2);
+    REQUIRE(said.artifacts.size() == 3);
     CHECK(said.artifacts[0].state == std::string(workshop::kResolvedToken));
     CHECK(said.artifacts[1].artifact == kUnbuilt);
     CHECK(said.artifacts[1].state == std::string(workshop::kPendingToken));
+    // ⚠ AND THE ROW BEHIND THE BARRIER IS `authored`, NOT `resolved` (BLD-1a). A
+    // projection that showed `resolved` rows after a `pending` one would be telling a
+    // maker their project is running in an order their file does not describe.
+    CHECK(said.artifacts[2].artifact == "zengine-plain-weave");
+    CHECK(said.artifacts[2].state == std::string(workshop::kAuthoredToken));
     // ⚠ A `pending` ROW PUBLISHES NO RESOLVED FIELD, for a `loading` row's reason and
     // a stronger one: nothing was mounted, opened or commanded for it at all.
     CHECK(said.artifacts[1].weave == 0);
@@ -3844,7 +4161,8 @@ TEST_CASE("BLD-1: a waiting row is `pending` in the Project projection, and says
     // ...AND THE AUTHORED HALF IS STILL THERE, because it is the PLAN's and the plan
     // is unchanged: a row nobody realized is a row somebody wrote down.
     CHECK(said.artifacts[1].authored_role == "zen.oven");
+    CHECK(said.artifacts[2].authored_role == "zen.plain");
     // THE COUNT IS READABLE OFF THE VALUE and needs no denominator field: the list
     // length is what the plan declared, and each row says what happened to it.
-    CHECK(said.artifacts.size() == 2);
+    CHECK(said.artifacts.size() == 3);
 }

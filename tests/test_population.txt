@@ -501,6 +501,24 @@
 # nineteen new workshop cases are the realization half: a row a host says is WAITING, the one
 # door that performs it later, and the Builder panel's two outcomes.
 #
+# BLD-1a raised the workshop floor 754 -> 761 and moved no other floor, which is exactly the
+# repair's own shape: it changed no build mechanism, added no participant and touched no
+# vocabulary the Builder suite measures -- it changed what realization is allowed to do with an
+# answer it already had. Seven net new workshop cases, and they split three ways. FOUR are the
+# barrier itself, one per thing a later row could otherwise have done: mounted a provider,
+# loaded a weave, been reported `resolved` in the Project projection, or let `Complete` stand
+# beside a row nobody performed. TWO are the door: a later authored row may be BUILT early and
+# is refused realization by the name of the row it is behind, and a refused realization puts
+# the frontier back where the ask found it so a corrected build is a retry. ONE is the host
+# seam: realization now comes to REST more than once in a run, and a host that is not told
+# about the waiting rest point has no line to print for a maker whose project is short an
+# artifact.
+#
+# The OPERATOR row did not move and gained an assertion group instead: the same source tripwire
+# that refuses ten scheduler verbs and nine async nouns in `workshop/load_execute.hpp` now also
+# refuses seven filesystem spellings there. A frontier that STOPS makes `is the file there yet?`
+# tempting, and that question is the host's -- asked once per row, never polled.
+#
 # WARNING: THE BUILDER SUITE NOW DRIVES A REAL CONFIGURED CMAKE TREE (tests/buildfixture/), because
 # BLD-1 deleted the suite's ability to invent a command: a recipe names inputs to a mechanism
 # and there is no field anywhere in which one could name a program. The fixture is configured
@@ -533,7 +551,7 @@ component                         doctest           always  15
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  754
+workshop                          doctest           always  761
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

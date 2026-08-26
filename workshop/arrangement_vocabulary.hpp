@@ -146,6 +146,12 @@ inline constexpr const char* kNotOpenedToken = "not-opened";
 /// against a new version of it. It means: this run reached the row, the host said it is
 /// waiting on the maker, and nothing has been mounted, opened or commanded for it.
 ///
+/// ⚠ AND SINCE BLD-1a IT IS ALSO WHERE THE PROJECTION STOPS. A pending row is a BARRIER:
+/// realization stops at the first row it cannot perform, so AT MOST ONE row in a
+/// projection carries this token and every row after it carries `authored`. A view
+/// showing `resolved` behind a `pending` would be telling a maker their project is
+/// running in an order their file does not describe.
+///
 /// ⚠ IT IS NOT "the artifact is missing" AND IT IS NOT "a build is running". This
 /// message says what REALIZATION has done, and what realization did is nothing --
 /// deliberately, at the host's word. Whether a file is absent is the host's fact and

@@ -937,17 +937,23 @@ int main(int argc, char** argv) {
                 }
                 std::printf("zengine-workshop - loaded: %s\n", said.c_str());
             }
-            // ---- AND WHAT THIS RUN DID NOT REALIZE, NAMED (BLD-1) --------------
+            // ---- AND WHERE THIS RUN STOPPED, NAMED (BLD-1, BLD-1a) --------------
             //
-            // A waiting row is not a failure and is not silence either. It is an
-            // authored participation this run reached and deliberately did not perform,
-            // and a maker whose project is short an artifact is entitled to know which
-            // one and that nothing went wrong. Named rather than counted, for the reason
-            // the resolved rows above are: a number is not something a maker can act on.
-            for (const std::string& waiting : done.pending) {
+            // A waiting row is not a failure and is not silence either. It is the
+            // authored participation this run REACHED AND STOPPED AT, and a maker whose
+            // project is short an artifact is entitled to know which one, that nothing
+            // went wrong, and that the rest of their project is behind it. Named rather
+            // than counted, for the reason the resolved rows above are: a number is not
+            // something a maker can act on.
+            //
+            // ⚠ AND IT IS ONE NAME (BLD-1a). Realization stops at the first row it
+            // cannot perform, so there is never a second one to print -- what used to
+            // be a list was a list of rows that had been stepped over.
+            if (!done.waiting_on.empty()) {
                 std::printf("zengine-workshop - waiting to be built: %s (build it, and its "
-                            "authored participation is performed then)\n",
-                            waiting.c_str());
+                            "authored participation is performed then -- every authored row "
+                            "after it is waiting on this one)\n",
+                            done.waiting_on.c_str());
             }
             if (done.ok) {
                 std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
@@ -957,6 +963,21 @@ int main(int argc, char** argv) {
                 // COMPLETION ENDS NOTHING. A realized project is a fact about the
                 // project; this host goes on being a host, which is what the loop
                 // below is for.
+                return;
+            }
+            // ---- ...AND NEITHER DOES WAITING (BLD-1a) --------------------------
+            //
+            // REALIZATION CAME TO REST WITHOUT COMPLETING AND WITHOUT REFUSING. The
+            // row above says which artifact and the notice will be said again when a
+            // maker's build lets the project finish, so there is nothing more to print
+            // and nothing at all to end: a Workshop stopped at an artifact it can build
+            // is precisely the Workshop that artifact gets built in.
+            //
+            // ⚠ THE ORDER OF THESE TWO TESTS IS THE HONESTY. `ok` false is not a
+            // failure by itself any more -- a refusal is a refusal because somebody
+            // SAID one, and `refusal` is where they said it.
+            if (done.refusal.empty()) {
+                std::fflush(stdout);
                 return;
             }
             // ---- THIS HOST'S FAILURE POLICY, AND IT IS THE HOST'S ------------

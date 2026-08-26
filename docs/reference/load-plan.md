@@ -182,7 +182,7 @@ for.
 resolved state are different truths — the same law an unresolvable `PaneRef` already lives under.
 Unresolved intent remains intent.
 
-## A row may be WAITING ON THE MAKER, and it is not a refusal
+## A row may be WAITING ON THE MAKER, and it is a BARRIER
 
 An artifact a project intends to run may not be on this disk yet, because **this project is
 where it gets built**. Refusing the plan over it — which is what *stops rather than skips* would
@@ -191,46 +191,64 @@ do — makes the one Workshop a maker could have built it in refuse to start.
 So realization asks the **host**, per row, one question: *is this row waiting on the maker?*
 The host answers it from two facts neither of which is realization's — whether the artifact file
 is there (the host owns the rule that spells a stem as a file) and whether some authored
-[build recipe](builder.md) can produce that stem. A yes is **recorded and the plan carries on**;
-nothing is mounted, opened or commanded for that row, and the executor never learns *why* the
-answer was yes.
+[build recipe](builder.md) can produce that stem. A yes means **realization stops at that row**;
+nothing is mounted, opened or commanded for it, the rows behind it are not reached, and the
+executor never learns *why* the answer was yes.
 
 ```text
 zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
-                   participation is performed then)
+                   participation is performed then -- every authored row after it is
+                   waiting on this one)
 ```
 
+- **A waiting row is a barrier, not a hole.** Authored plan order **is** realization order —
+  that is this format's whole dependency model, and it is why there is no `after:` field and no
+  solver. A walk that stepped over a row it could not perform would have replaced it with
+  *eligibility* order: whatever happened to be on disk first. That is not a smaller promise,
+  it is a different one, and it is wrong in a way the plan cannot express. An
+  [overlay](#provider-mode) row authored **before** the ordinary
+  provider it covers is a bad plan and the catalog says so; step that row over because its
+  artifact is not built yet and the overlay arrives last, where it is *valid*. The absence of a
+  file would have repaired an authored order the file still gets wrong.
+- **Buildability is permission to wait, not permission to reorder.** What the host's answer buys
+  is that a missing artifact this project builds does not refuse the Workshop a maker would have
+  built it in. It buys nothing about order, because order was never realization's to decide.
 - **It is not "skip what is missing".** An artifact that is not on this disk and that **nothing
   here can build** still refuses the plan by name, exactly as it did before. What changed is
   only the case where the project itself says how the file is made.
 - **It is not build-on-missing.** Nothing starts a build, asks for one, or remembers to.
-- **It is not a retry.** A waiting row waits forever unless a maker asks for it.
-- **The plan still COMPLETED.** A waiting row refused nothing, so the arrangement is whole in
-  the only sense realization can mean it, and the waiting rows are *named* rather than counted.
+- **It is not a retry**, and nothing polls. A waiting row waits forever unless a maker asks for
+  it; realization asks the host once, when it reaches the row, and never looks at a disk itself.
+- **The plan has NOT completed.** `Complete` means every authored row settled. A plan stopped at
+  a waiting row is *waiting*: not finished, and nothing refused — which the host reads as
+  `ok == false` with an **empty refusal** and the waiting row **named**.
 - **It is `pending` in the `Project` pane** — a fifth token beside `authored`, `loading`,
   `resolved` and `refused`. It publishes no resolved field at all, because nothing was done for
-  it.
+  it, and every row after it reads `authored`. At most one row is ever `pending`.
 
-### Realizing one waiting row, later
+### Realizing the waiting row, later
 
-`PlanExecutor::realize(stem)` performs **one** waiting row, with the same three steps in the
-same order, at a moment a maker chose. In Workshop that is `Shift+b` in the Builder pane; the
-fact reaches the realization owner as `builder::ArtifactBuilt` and its answer comes back as
-`builder::ArtifactRealized`.
+`PlanExecutor::realize(stem)` performs **the row realization is waiting on**, with the same
+three steps in the same order, at a moment a maker chose. In Workshop that is `Shift+b` in the
+Builder pane; the fact reaches the realization owner as `builder::ArtifactBuilt` and its answer
+comes back as `builder::ArtifactRealized`. When the row settles, the frontier moves on by one
+and the walk resumes from exactly the next authored row.
 
 Every eligibility rule is about the **authored plan**:
 
 | refused when | because |
 |---|---|
 | a realization is already in flight | one is not interruptible, and queueing one would make this a scheduler |
-| the plan does not name the artifact | a build can produce a file; only the project's plan can say how it participates |
 | the row is already **resolved** | **this is where hot reload is refused** — nothing unloads, replaces or migrates, so an artifact already live is told so in words |
-| the row is not waiting | a row this run performed, or never reached, is not what this door is about |
+| the plan does not name the artifact | a build can produce a file; only the project's plan can say how it participates |
+| it is not the row being waited on | authored order is realization order — a later row may be **built** now, and it participates when the rows in front of it have. The refusal names the row it is behind |
 
 Nothing in that path consults a build, a recipe, a file or a timestamp; if the artifact is not
-on disk the load refuses in the loader's own words exactly as it always would. And a refusal
-here does **not** fail the arrangement: the row's own mount is rolled back, the artifact stays
-on the waiting list where a corrected build can reach it again, and the host keeps running.
+on disk the load refuses in the loader's own words exactly as it always would. An ineligible ask
+changes **nothing at all** — no state, no row, and above all not the project, which a maker who
+asked too early has not lost. And a refusal here does **not** fail the arrangement: the row's own
+mount is rolled back, the frontier goes back to exactly where the ask found it so a corrected
+build is a retry, and the host keeps running.
 
 ## Where the plan lives
 
