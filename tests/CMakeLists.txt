@@ -809,6 +809,35 @@ target_compile_definitions(zengine-builder-tests PRIVATE
     "ZENGINE_TEST_RUNNER_SOURCE=\"${CMAKE_SOURCE_DIR}/builder/runner.hpp\"")
 
 zengine_doctest_test(builder zengine-builder-tests)
+
+# ---- The BUILD WITNESS: a host, and deliberately NOT a CTest entry (BLD-1) --------------
+#
+# `tests/build/witness.cpp` is Workshop's Builder wiring with the picture removed -- the same
+# two weaves, the same grants, the same realization owner, the same ordinary host loop --
+# driven by arguments instead of by keys, so a script can build one authored recipe and read
+# what happened. `tests/build/run.cmake` is the driver that installs Zengine into a scratch
+# prefix, writes a one-file weave OUTSIDE this repository, and puts the whole route through
+# it including its canaries.
+#
+# WHY IT IS NOT A CTEST ENTRY. It installs a package, configures two nested CMake projects
+# and runs a real compiler. `tests/package/run.cmake`'s header draws exactly this line and
+# says why: a nested CONFIGURE inside a ctest entry is a second build system inside a test
+# binary's population. It is one command a human runs and the same one CI runs.
+#
+# ⚠ IT IS STILL BUILT BY THE ORDINARY BUILD, and that is on purpose: a witness that only
+# compiles when somebody remembers to run its lane is a witness that rots. What it PROVES
+# needs the lane; that it still COMPILES is checked on every build of this tree.
+add_executable(zengine-build-witness build/witness.cpp)
+target_link_libraries(zengine-build-witness
+    PRIVATE loom::kernel loom::switchboard loom::core
+            zengine-builder-vocabulary zengine-workshop-load zengine-operator
+            zengine-timer-vocabulary
+            zengine-warnings zengine-sanitize)
+target_compile_definitions(zengine-build-witness PRIVATE
+    # THE ONE PROGRAM IT MAY START, by absolute path, chosen by the party that composed
+    # the process -- `workshop.cpp`'s rule, unchanged, in the host that stands in for it.
+    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\"")
+
 # The Trust-Gate liveness probes: what the substrate actually does when the
 # TIMER SERVICE ITSELF is swapped / reloaded / double-wound / joined late. The
 # durable deliverable of the audit phase's Stage 5, ratified onto main by R1 —
