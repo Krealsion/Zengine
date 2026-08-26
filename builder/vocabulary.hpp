@@ -46,13 +46,24 @@
 //   COMMAND      BuildRequested{recipe}   "I want this."         an intent
 //                RunBuild{recipe}         "Carry this out."
 //                StatusRequested{}        "Say what you are."
+//                OfferArtifact{...}       "Take this, if you want  (BLD-1,
+//                                          it."                    named BLD-1a)
 //
 //   OBSERVATION  BuildStarted{...}        "I saw a process begin."
 //                BuildOutput{...}         "I saw it say this."     immutable,
 //                BuildFinished{...}       "I saw it exit."         each about
 //                BuildNotStarted{...}     "I saw it never begin."  ONE moment
-//                ArtifactBuilt{...}       "the artifact is there." (BLD-1)
 //                ArtifactRealized{...}    "and the project took it."
+//
+// ⚠ THE FOURTH COMMAND WAS FILED AS AN OBSERVATION FOR ONE PHASE, and the audit
+// that moved it is worth keeping. It shipped as `ArtifactBuilt`, which reads as a
+// fact -- and the fact was true on a path where the message is never said, because
+// a plain BUILD produces the file too and publishes nothing. What is actually
+// carried is a maker's INTENT that the project take the result, justified by facts
+// about the build; the tool's own maker-facing sentence for it was already
+// `realization::kOffered`, "offered to the project". A fact whose truth depends on
+// whether somebody wanted to act on it is not a fact, and this file's whole first
+// law is that these two kinds of sentence are told apart.
 //
 //   DERIVED      BuildStatus{...}         "Where this stands now." held, and
 //                RecipeCatalog{...}       "What can be built here."recomputed
@@ -112,11 +123,11 @@
 //     Nothing here publishes absence, and a maker who wants to know whether a
 //     build is alive reads `BuildStatus` -- which says so because the runner
 //     genuinely saw it, not because a clock ran out.
-//   - no REPLACE, no unload, no reload, no swap. `ArtifactBuilt` says a file
-//     exists and `ArtifactRealized` says a project took it; neither can be said
-//     about an artifact that is already loaded, and there is no shape here that
-//     could ask for one to be exchanged. BLD-1 does not earn hot reload and does
-//     not pretend to: an already-loaded artifact is refused, in words.
+//   - no REPLACE, no unload, no reload, no swap. `OfferArtifact` offers a file
+//     and `ArtifactRealized` says what a project made of the offer; neither can
+//     be said about an artifact that is already loaded, and there is no shape
+//     here that could ask for one to be exchanged. BLD-1 does not earn hot reload
+//     and does not pretend to: an already-loaded artifact is refused, in words.
 //   - no build-on-missing, no automatic anything. Every build in this vocabulary
 //     begins with a maker saying `BuildRequested`. Nothing here fires on a
 //     missing file, a changed source or a failed load.
@@ -458,7 +469,7 @@ struct BuildOutput {
 /// ⚠ IT IS ABOUT A PROCESS AND NOT ABOUT AN ARTIFACT. `status == 0` means the
 /// build system was satisfied; whether the file the recipe names actually exists
 /// is a DIFFERENT question with a different owner, asked by the tool and answered
-/// by `ArtifactBuilt` (or by `outcome::kNoArtifact`). Widening this shape to
+/// by `OfferArtifact` (or by `outcome::kNoArtifact`). Widening this shape to
 /// carry the answer would put artifact-domain knowledge in the one participant
 /// whose whole discipline is that it holds only process custody.
 struct BuildFinished {
@@ -555,31 +566,46 @@ struct RecipeCatalog {
     ZEN_SHAPE(RecipeCatalog, 1, ZEN_FIELD(recipes));
 };
 
-/// THE ARTIFACT A RECIPE NAMES IS NOW ON DISK, AND THIS BUILD PUT IT THERE.
+/// TAKE THIS ARTIFACT, IF THE PROJECT WANTS IT -- a maker's intent, carrying the
+/// facts that justify it.
 ///
-/// A FIFTH OBSERVATION, AND IT IS NOT A RESTATEMENT OF `BuildFinished`. That one is
-/// about a PROCESS: it says a child exited and with what status, which is everything
-/// the participant holding process custody can honestly know. This one is about an
-/// ARTIFACT: a named file, at a known path, that a recipe said it would produce and
-/// that has been looked at since the build ended. Reconstructing it from the other
-/// facts would mean every interested party learning the recipe-to-artifact mapping,
-/// the host's rule for spelling a stem as a file, and the difference between a build
-/// system's idea of success and a file's existence -- three things with owners.
+/// IT IS A COMMAND AND NOT AN OBSERVATION, AND THE NAME SAYS SO SINCE BLD-1a. It
+/// shipped as `ArtifactBuilt`, a noun, and the noun was false: this message is said
+/// ONLY when the maker asked for realization, while "the artifact a recipe names is
+/// now on disk" is equally true after a plain BUILD, which publishes nothing. A fact
+/// whose truth depends on whether somebody wanted to act on it is not a fact -- so
+/// what is named here is the act, and the facts ride along as its justification.
+/// Publishing it after every build would put a standing offer on the bus that nobody
+/// made; a plain build says what it did in `BuildStatus` and stops there.
 ///
-/// ⚠ IT IS SAID ONLY WHEN THE MAKER ASKED FOR REALIZATION. A plain BUILD produces a
-/// file too, and says so in `BuildStatus`; what this shape carries is an INTENT that
-/// something be done with the result, so publishing it after every build would put a
-/// standing offer on the bus that nobody made.
+/// ⚠ IT IS AN OFFER AND NOT AN ORDER, which is why it is not `RealizeArtifact`. This
+/// tool has no realization authority whatever: it does not know whether the project
+/// participates in this artifact, whether it is already loaded, or what a load would
+/// mean. Every eligibility rule is the realization owner's, the refusal is the
+/// owner's own sentence, and both arms come back as `ArtifactRealized`. The word is
+/// the one the tool was already using for this act in the sentence a maker reads --
+/// `realization::kOffered`, "offered to the project".
+///
+/// IT IS NOT A RESTATEMENT OF `BuildFinished`. That one is about a PROCESS: a child
+/// exited and with what status, which is everything the participant holding process
+/// custody can honestly know. This is about an ARTIFACT: a named file, at a known
+/// path, that a recipe said it would produce and that has been looked at since the
+/// build ended. Reconstructing that would mean every interested party learning the
+/// recipe-to-artifact mapping, the host's rule for spelling a stem as a file, and the
+/// difference between a build system's idea of success and a file's existence --
+/// three things with owners.
 ///
 /// `path` IS HERE SO NOTHING DOWNSTREAM HAS TO SPELL A STEM. The host owns that rule
 /// (a directory, a separator, `.so`/`.dll`); a reader that re-derived it would be a
-/// second copy of a rule that is deliberately written once.
-struct ArtifactBuilt {
+/// second copy of a rule that is deliberately written once. ⚠ AND THE REALIZATION
+/// OWNER DOES NOT USE IT: it resolves the stem with the host's own rule, so a message
+/// naming a path cannot redirect a load.
+struct OfferArtifact {
     std::int64_t op = 0;  ///< the operation that produced it
     std::string recipe;   ///< the recipe that names it
     std::string artifact; ///< the artifact STEM -- the name a project's plan would use
     std::string path;     ///< the exact file, as the host spells it
-    ZEN_SHAPE(ArtifactBuilt, 1, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+    ZEN_SHAPE(OfferArtifact, 1, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(artifact),
               ZEN_FIELD(path));
 };
 

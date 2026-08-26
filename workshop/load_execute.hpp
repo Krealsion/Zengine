@@ -544,8 +544,8 @@ struct BootState {
 /// ---- ...AND SINCE BLD-1 IT HAS A SECOND EAR (and exactly one new sentence) -----
 ///
 /// A maker who asked for BUILD & REALIZE has, when the build works, produced a file
-/// that the project may already have authored participation for. The fact reaches this
-/// bus as `builder::ArtifactBuilt`, said by the Builder tool; the DECISION about what
+/// that the project may already have authored participation for. The OFFER reaches this
+/// bus as `builder::OfferArtifact`, said by the Builder tool; the DECISION about what
 /// it is worth is the realization owner's, and this weave is the owner's ear.
 ///
 /// ⚠ THE ANNOUNCED PATH IS NOT USED, and that is the whole safety of this door. The
@@ -567,16 +567,16 @@ struct BootState {
 class PlanBooter
     : public loom::WeaveBase<PlanBooter, BootState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused,
-                                          zengine::builder::ArtifactBuilt>,
+                                          zengine::builder::OfferArtifact>,
                              loom::Emit<loom::LoadWeave, zengine::builder::ArtifactRealized>> {
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
-    /// A BUILD PRODUCED AN ARTIFACT AND THE MAKER ASKED FOR IT TO BE REALIZED.
+    /// A BUILD PRODUCED AN ARTIFACT AND THE MAKER OFFERED IT TO THE PROJECT.
     ///
     /// Defined out of line at the bottom of this file, because the owner it asks is not
     /// declared yet. Two lines of its own: ask the owner, publish what the owner said.
-    void on(const zengine::builder::ArtifactBuilt& built, loom::Mail& mail);
+    void on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail);
 
     /// WHOSE UNFINISHED WORK AN ANSWER TO THIS BOOTER WAKES -- or nobody. Called
     /// exactly twice, both times by `PlanExecutor` (its constructor and its
@@ -1454,9 +1454,8 @@ inline void PlanBooter::wake(loom::Mail& mail) {
     }
 }
 
-/// DEFINED HERE for `wake()`'s reason. Two acts and no judgement of its own: ask the
-/// owner to realize the artifact the Builder says it produced, and publish whatever the
-/// owner made of it.
+/// DEFINED HERE for `wake()`'s reason. Two acts and no judgement of its own: put the
+/// Builder's offer to the owner, and publish whatever the owner made of it.
 ///
 /// ⚠ A REFUSAL IS PUBLISHED AS LOUDLY AS AN ACCEPTANCE, and both go out as
 /// `ArtifactRealized`. A maker who pressed BUILD & REALIZE and got a green build is
@@ -1473,14 +1472,14 @@ inline void PlanBooter::wake(loom::Mail& mail) {
 /// before this line does -- is already answered by the time `realize` returns, so the
 /// take below finds it. A weave row is still loading, `take_realization()` finds
 /// nothing, and the answer is published later from `on(loom::Result)`'s path instead.
-inline void PlanBooter::on(const zengine::builder::ArtifactBuilt& built, loom::Mail& mail) {
+inline void PlanBooter::on(const zengine::builder::OfferArtifact& offer, loom::Mail& mail) {
     if (owner_ == nullptr) {
         return;
     }
-    const PlanExecutor::Asked asked = owner_->realize(built.artifact);
+    const PlanExecutor::Asked asked = owner_->realize(offer.artifact);
     if (!asked.started) {
         (void)mail.publish(
-            zengine::builder::ArtifactRealized{built.artifact, false, asked.refusal});
+            zengine::builder::ArtifactRealized{offer.artifact, false, asked.refusal});
         return;
     }
     const PlanExecutor::Realized settled = owner_->take_realization();

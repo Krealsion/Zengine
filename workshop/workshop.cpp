@@ -727,22 +727,27 @@ int main(int argc, char** argv) {
                               builder::RecipeCatalog::zen_version);
     // ---- THE ONE GRANT BLD-1 ADDS, AND EXACTLY WHAT IT IS WORTH ---------------
     //
-    // `ArtifactBuilt` is the Builder tool's third sentence, and it is the only new
-    // authority in this phase. What it can cause, at its very widest, is that ONE
-    // artifact THE PROJECT ALREADY AUTHORED -- and that this run deliberately did not
-    // realize -- is realized now. It cannot name a role, a mount mode or an order (the
-    // plan owns all three), it cannot introduce an artifact the plan does not name, it
-    // cannot replace one that is already live, and the PATH it carries is ignored by
-    // the owner that acts on it, which resolves the stem with this host's own rule.
+    // `OfferArtifact` is the Builder tool's third sentence, and it is the only new
+    // authority in this phase. What it can cause, at its very widest, is that THE ONE
+    // artifact this project's realization is CURRENTLY STOPPED AT is realized now. It
+    // cannot name a role, a mount mode or an order (the plan owns all three), it cannot
+    // introduce an artifact the plan does not name, it cannot replace one that is
+    // already live, it cannot reach a row the plan authors behind the one being waited
+    // on (BLD-1a), and the PATH it carries is ignored by the owner that acts on it,
+    // which resolves the stem with this host's own rule.
+    //
+    // ⚠ IT IS AN OFFER AND NOT AN ORDER, and BLD-1a's rename is what makes the grant
+    // read as what it is. This tool asks; every eligibility rule and every refusal is
+    // the realization owner's, in the owner's own words.
     //
     // WHY THAT IS SMALLER THAN IT LOOKS. The dangerous grant in this process is still
     // exactly one -- `zen.LoadWeave -> manager`, held by the plan booter and written by
     // this file. Nothing here gives the Builder that reach; it gives the Builder a way
-    // to say a fact to a participant whose own answer to that fact is bounded by an
+    // to make an offer to a participant whose own answer to that offer is bounded by an
     // authored file. A Builder that could say `zen.LoadWeave` would be a different
     // phase, and this is deliberately not it.
-    order_builds.allow_to_any(builder::ArtifactBuilt::zen_name,
-                              builder::ArtifactBuilt::zen_version);
+    order_builds.allow_to_any(builder::OfferArtifact::zen_name,
+                              builder::OfferArtifact::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
         bus, std::move(order_builds), builder::kBuilderRole, recipe_views);
 

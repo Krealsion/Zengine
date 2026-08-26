@@ -1992,12 +1992,16 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   host's settle notice reads to end the process with exit 4, and a maker whose hand-asked
   realization was refused has not lost the Workshop they are working in. The row goes back to
   waiting.
-- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT.** The tool may say `ArtifactBuilt` -- ONLY when
+- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT.** The tool may say `OfferArtifact` -- ONLY when
   the maker asked for realization, because the shape carries an INTENT and a standing offer
   nobody made is not one. `PlanBooter` hears it, asks its owner, and publishes the owner's answer
-  as `ArtifactRealized`. ⚠ THE ANNOUNCED PATH IS NOT USED: the owner resolves a stem with the
-  HOST's rule, so a message naming a path cannot redirect a load. The dangerous grant in this
-  process is still exactly one and it is still the booter's.
+  as `ArtifactRealized`. ⚠ IT SHIPPED AS `ArtifactBuilt` AND THE NOUN WAS FALSE (renamed BLD-1a):
+  "the artifact is there" is equally true after a plain BUILD, which publishes nothing, so the
+  message's truth condition was never the fact its name stated. It is a COMMAND in this
+  vocabulary's own table now -- an OFFER, not an order, because every eligibility rule and every
+  refusal is the realization owner's. ⚠ THE ANNOUNCED PATH IS NOT USED: the owner resolves a stem
+  with the HOST's rule, so a message naming a path cannot redirect a load. The dangerous grant in
+  this process is still exactly one and it is still the booter's.
 - **`take_realization()` IS TAKEN AND NOT READ,** so a realization cannot be announced twice --
   which means a case cannot read it after driving the bus, because the booter already has. Read
   the published `ArtifactRealized` instead.

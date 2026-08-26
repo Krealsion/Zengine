@@ -95,10 +95,11 @@
 //     one participant that polls anything is the runner, on its own handles.
 //   - it does not load, unload, replace or reload anything, and it holds no
 //     realization state of its own. When a maker asked for BUILD & REALIZE and
-//     the artifact arrived, it says ONE fact -- `ArtifactBuilt` -- and the
+//     the artifact arrived, it makes ONE offer -- `OfferArtifact` -- and the
 //     realization owner decides, in its own words, what that is worth. What comes
 //     back (`ArtifactRealized`) is folded in for the panel and changes nothing
-//     about the build.
+//     about the build. ⚠ An OFFER and not an order: this weave holds no
+//     realization authority and every eligibility rule is the owner's.
 //   - it does not cancel, and cannot: there is no shape for it, and inventing
 //     one would mean deciding what a maker's "stop" claims about a process that
 //     may already have finished.
@@ -203,7 +204,7 @@ class BuilderWeave
                              loom::Accept<BuildRequested, StatusRequested, BuildStarted,
                                           BuildOutput, BuildFinished, BuildNotStarted,
                                           ArtifactRealized>,
-                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, ArtifactBuilt>> {
+                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact>> {
 public:
     /// THE RECIPE VIEWS ARRIVE AT CONSTRUCTION, FROM THE HOST, and they are a plain
     /// member rather than part of the weave's state -- the runner's reason, one layer
@@ -384,7 +385,7 @@ public:
         state_.realized_detail = "offered to the project";
         say(mail);
         (void)mail.publish(
-            ArtifactBuilt{state_.op, state_.recipe, state_.artifact, chosen->path});
+            OfferArtifact{state_.op, state_.recipe, state_.artifact, chosen->path});
     }
 
     /// NOTHING RAN, and this is why.

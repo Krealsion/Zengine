@@ -135,21 +135,25 @@ so it must be mine".
 
 Two shapes, and one of them the Builder does not say.
 
-- **`ArtifactBuilt`** — said by the tool, and **only when the maker asked for realization**. A
-  plain build produces a file too and says so in `BuildStatus`; this shape carries an *intent*
-  that something be done with the result, so publishing it after every build would put a
-  standing offer on the bus nobody made.
+- **`OfferArtifact`** — said by the tool, and **only when the maker asked for realization**. It
+  is a **command**, not an observation, and the name says so: a plain build produces a file too
+  and says so in `BuildStatus`, so *"the artifact is there"* is equally true on a path where
+  nothing at all is published. What this shape carries is a maker's *intent* that the project
+  take the result, justified by the facts about the build that ride along with it. A fact whose
+  truth depends on whether somebody wanted to act on it is not a fact.
 - **`ArtifactRealized`** — said by the participant that speaks for the realization owner
   ([the load plan's](load-plan.md) `PlanBooter`), heard by the tool, and folded into the picture
   it publishes so one presentation can show a maker both halves of what they asked for.
 
-**The Builder cannot load anything.** Its one new grant lets it say a fact; what that fact is
-worth is decided by `PlanExecutor::realize`, whose eligibility rules are all about the
-**authored plan** — the plan must name the artifact, the row must be waiting rather than
-already resolved, and the owner must be between rows. The path the message carries is not used:
-the owner resolves a stem with the host's own rule, so a message naming a path cannot redirect
-a load. The dangerous grant in a Zengine host is still exactly one, and it is still the plan
-booter's.
+**It is an offer and not an order**, which is why it is not called `RealizeArtifact`. The
+Builder cannot load anything and holds no realization authority: what an offer is worth is
+decided by `PlanExecutor::realize`, whose eligibility rules are all about the **authored plan**
+— the owner must be between rows, the artifact must not already be resolved, the plan must name
+it, and it must be the row realization is currently waiting on. A later authored row may be
+**built** now; it participates when the rows in front of it have. The path the message carries
+is not used: the owner resolves a stem with the host's own rule, so a message naming a path
+cannot redirect a load. The dangerous grant in a Zengine host is still exactly one, and it is
+still the plan booter's.
 
 An already-loaded artifact is **refused in words**. BLD-1 does not unload, reload, replace or
 migrate anything, and a second load of a live artifact would be pretending otherwise.

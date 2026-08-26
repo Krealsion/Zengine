@@ -3614,12 +3614,12 @@ struct PendingRig {
         return executor.outcome();
     }
 
-    /// SAY `ArtifactBuilt` THE WAY THE BUILDER TOOL SAYS IT -- a root publication of
+    /// SAY `OfferArtifact` THE WAY THE BUILDER TOOL SAYS IT -- a root publication of
     /// the shape, ungated, because what is measured here is what the OWNER makes of
     /// it and the host's grant on the Builder has its own case in the builder suite.
-    void announce_built(const std::string& artifact, const std::string& path = std::string()) {
+    void offer_artifact(const std::string& artifact, const std::string& path = std::string()) {
         (void)bus.publish(loom::Message(loom::to_value(
-            zengine::builder::ArtifactBuilt{7, "some-recipe", artifact, path})));
+            zengine::builder::OfferArtifact{7, "some-recipe", artifact, path})));
         drain(16);
     }
 };
@@ -4094,7 +4094,7 @@ TEST_CASE("BLD-1a: the host is told when realization comes to REST, waiting incl
     CHECK(rests[1].resolved.size() == 2);
 }
 
-TEST_CASE("BLD-1: `ArtifactBuilt` reaches the owner, and the answer comes back published") {
+TEST_CASE("BLD-1: `OfferArtifact` reaches the owner, and the answer comes back published") {
     PendingRig rig;
     rig.waiting = {"zengine-plain-weave"};
     REQUIRE(rig.realize(plan_of({weaves("zengine-plain-weave", "zen.plain")})).waiting_on ==
@@ -4102,7 +4102,7 @@ TEST_CASE("BLD-1: `ArtifactBuilt` reaches the owner, and the answer comes back p
 
     // THE BUILDER'S FACT, SAID ON THE BUS. Nothing in this call names a role, an
     // order or a mode -- what crosses is a STEM and an occasion.
-    rig.announce_built("zengine-plain-weave", "/a/path/the/owner/ignores");
+    rig.offer_artifact("zengine-plain-weave", "/a/path/the/owner/ignores");
 
     // THE ROW WAS PERFORMED, and the path the message carried was not used: the owner
     // resolves a stem with the HOST's rule, so a message naming a path cannot
@@ -4118,13 +4118,13 @@ TEST_CASE("BLD-1: `ArtifactBuilt` reaches the owner, and the answer comes back p
     CHECK(rig.ears->answers[0].detail.find("zen.plain") != std::string::npos);
 }
 
-TEST_CASE("BLD-1: an `ArtifactBuilt` the plan does not sanction is answered with a refusal") {
+TEST_CASE("BLD-1: an `OfferArtifact` the plan does not sanction is answered with a refusal") {
     PendingRig rig;
     REQUIRE(rig.realize(plan_of({provides("zengine-operators-basic")})).ok);
 
     // AN ARTIFACT THIS PROJECT NEVER AUTHORED, announced as built. It is on the
     // stage, it is a perfectly good weave, and it participates in nothing.
-    rig.announce_built("zengine-timer");
+    rig.offer_artifact("zengine-timer");
 
     // NOTHING WAS LOADED and the refusal is the OWNER's, published rather than
     // invented by the participant that relayed the question.

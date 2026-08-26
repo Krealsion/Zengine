@@ -318,8 +318,8 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::BuildStatus::zen_name, builder::BuildStatus::zen_version);
     order_builds.allow_to_any(builder::RecipeCatalog::zen_name,
                               builder::RecipeCatalog::zen_version);
-    order_builds.allow_to_any(builder::ArtifactBuilt::zen_name,
-                              builder::ArtifactBuilt::zen_version);
+    order_builds.allow_to_any(builder::OfferArtifact::zen_name,
+                              builder::OfferArtifact::zen_version);
     (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),
