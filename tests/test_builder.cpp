@@ -189,7 +189,7 @@ struct HeardState {
 
 class Listener
     : public loom::WeaveBase<Listener, HeardState,
-                             loom::Accept<BuildStatus, RecipeCatalog, ArtifactBuilt>,
+                             loom::Accept<BuildStatus, RecipeCatalog, OfferArtifact>,
                              loom::Emit<>> {
 public:
     void on(const BuildStatus& s, loom::Mail&) {
@@ -198,14 +198,14 @@ public:
     }
     /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER (BLD-1)
     /// -- which is the property, not the bookkeeping: nothing about `RecipeCatalog` or
-    /// `ArtifactBuilt` is addressed to a panel, so anything on this bus that accepts
+    /// `OfferArtifact` is addressed to a panel, so anything on this bus that accepts
     /// them sees exactly what a panel sees.
     void on(const RecipeCatalog& c, loom::Mail&) { catalogs.push_back(c); }
-    void on(const ArtifactBuilt& a, loom::Mail&) { built.push_back(a); }
+    void on(const OfferArtifact& a, loom::Mail&) { built.push_back(a); }
     const BuildStatus& last() const { return said.back(); }
     std::vector<BuildStatus> said;
     std::vector<RecipeCatalog> catalogs;
-    std::vector<ArtifactBuilt> built;
+    std::vector<OfferArtifact> built;
 };
 
 /// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
@@ -460,7 +460,7 @@ loom::Grant tool_grant() {
     g.allow_to_role(RunBuild::zen_name, RunBuild::zen_version, kBuildRunnerRole);
     g.allow_to_any(BuildStatus::zen_name, BuildStatus::zen_version);
     g.allow_to_any(RecipeCatalog::zen_name, RecipeCatalog::zen_version);
-    g.allow_to_any(ArtifactBuilt::zen_name, ArtifactBuilt::zen_version);
+    g.allow_to_any(OfferArtifact::zen_name, OfferArtifact::zen_version);
     return g;
 }
 
