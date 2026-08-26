@@ -182,6 +182,56 @@ for.
 resolved state are different truths — the same law an unresolvable `PaneRef` already lives under.
 Unresolved intent remains intent.
 
+## A row may be WAITING ON THE MAKER, and it is not a refusal
+
+An artifact a project intends to run may not be on this disk yet, because **this project is
+where it gets built**. Refusing the plan over it — which is what *stops rather than skips* would
+do — makes the one Workshop a maker could have built it in refuse to start.
+
+So realization asks the **host**, per row, one question: *is this row waiting on the maker?*
+The host answers it from two facts neither of which is realization's — whether the artifact file
+is there (the host owns the rule that spells a stem as a file) and whether some authored
+[build recipe](builder.md) can produce that stem. A yes is **recorded and the plan carries on**;
+nothing is mounted, opened or commanded for that row, and the executor never learns *why* the
+answer was yes.
+
+```text
+zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
+                   participation is performed then)
+```
+
+- **It is not "skip what is missing".** An artifact that is not on this disk and that **nothing
+  here can build** still refuses the plan by name, exactly as it did before. What changed is
+  only the case where the project itself says how the file is made.
+- **It is not build-on-missing.** Nothing starts a build, asks for one, or remembers to.
+- **It is not a retry.** A waiting row waits forever unless a maker asks for it.
+- **The plan still COMPLETED.** A waiting row refused nothing, so the arrangement is whole in
+  the only sense realization can mean it, and the waiting rows are *named* rather than counted.
+- **It is `pending` in the `Project` pane** — a fifth token beside `authored`, `loading`,
+  `resolved` and `refused`. It publishes no resolved field at all, because nothing was done for
+  it.
+
+### Realizing one waiting row, later
+
+`PlanExecutor::realize(stem)` performs **one** waiting row, with the same three steps in the
+same order, at a moment a maker chose. In Workshop that is `Shift+b` in the Builder pane; the
+fact reaches the realization owner as `builder::ArtifactBuilt` and its answer comes back as
+`builder::ArtifactRealized`.
+
+Every eligibility rule is about the **authored plan**:
+
+| refused when | because |
+|---|---|
+| a realization is already in flight | one is not interruptible, and queueing one would make this a scheduler |
+| the plan does not name the artifact | a build can produce a file; only the project's plan can say how it participates |
+| the row is already **resolved** | **this is where hot reload is refused** — nothing unloads, replaces or migrates, so an artifact already live is told so in words |
+| the row is not waiting | a row this run performed, or never reached, is not what this door is about |
+
+Nothing in that path consults a build, a recipe, a file or a timestamp; if the artifact is not
+on disk the load refuses in the loader's own words exactly as it always would. And a refusal
+here does **not** fail the arrangement: the row's own mount is rolled back, the artifact stays
+on the waiting list where a corrected build can reach it again, and the host keeps running.
+
 ## Where the plan lives
 
 | | |
@@ -273,5 +323,7 @@ rows for the other, and it keeps neither.
 
 **Restart persistence exists; clean-build persistence does not.** A fresh process reconstructs
 the same provider and weave arrangement from the same file with no source change between runs.
-Recreating the artifacts themselves from a clean tree is build intent and is a separate,
-unstarted question.
+Recreating the artifacts themselves is **build intent**, it is a separate file with a separate
+owner ([the Builder](builder.md)), and the only thing joining the two is the artifact stem — a
+plan row carries no source path, package prefix, compiler flag or build tree, and a recipe
+carries no role, mount mode or load order.

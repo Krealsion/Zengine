@@ -63,8 +63,10 @@ zengine-workshop - load plan: .../default-load-plan.json
 zengine-workshop - load plan: 6 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)
 zengine-workshop - terminal: weave #3 (shift+space opens it)
-zengine-workshop - builder: weave #5 builds `zengine-snake` (p opens the panel)
-zengine-workshop - build runner: weave #4 runs `/usr/bin/cmake --build ... --target zengine-snake`
+zengine-workshop - build recipes: .../default-build-recipes.json (1)
+zengine-workshop - builder: weave #5 holds 1 recipe(s) (p opens the panel)
+zengine-workshop - build runner: weave #4 builds with `/usr/bin/cmake`
+zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 ```
 
 - **what this host isolates** — `Kernel::containment_note()`, verbatim. An in-process Zengine

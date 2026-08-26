@@ -1926,6 +1926,92 @@ one nobody types:
   of what is in the SETUP file, and this run has not read that file -- so a restored session
   still says `UNSAVED`, meaning what it has always meant here.
 
+## Build procedure is authored now, and it is NOT participation (BLD-1)
+
+Builder stopped meaning one target compiled into the executable. What a project can build is a
+fourth durable file, [`workshop/default-build-recipes.json`](workshop/default-build-recipes.json.in)
+(configured, then written beside the host), and it is deliberately not a section of the load
+plan. Reference: [`docs/reference/builder.md`](docs/reference/builder.md) and
+[`docs/workshop/builder.md`](docs/workshop/builder.md).
+
+```text
+build recipes   HOW an artifact can be PRODUCED      read by the Builder
+load plan       HOW an artifact PARTICIPATES         read by the realization owner
+                          \___ joined by ONE STRING: the artifact stem ___/
+```
+
+- **THREE COMPILE DEFINITIONS BECAME ONE, and the subtraction is the phase.** `workshop.cpp`
+  keeps `ZENGINE_BUILDER_CMAKE` -- the host's own CMake, by absolute path -- and lost
+  `ZENGINE_BUILDER_TARGET` and `ZENGINE_BUILDER_BUILD_DIR`. What a FILE may name is inputs to a
+  mechanism this package already holds; a program is the one thing it may not, which is why
+  there is no third recipe kind and must not be one. ⚠ A `command:` field anywhere -- file,
+  message or struct -- would turn every recipe catalog into an arbitrary-execution document.
+- **TWO KINDS, AND EXACTLY ONE PER RECIPE.** `CMakeTargetRecipe` names a CONFIGURED build tree
+  and a target (never a source tree: re-configuring somebody else's project is deciding a policy
+  that is not Builder's). `SingleSourceRecipe` names one `.cpp`, its package prefixes, its link
+  targets, optionally a build tree to borrow a toolchain from, and a workspace. Neither, or
+  both, is refused rather than resolved by precedence.
+- **A SINGLE-SOURCE BUILD IS ONE PROCESS, AND THE DRIVER IS A GENERATED `cmake -P` SCRIPT.**
+  Configure and build are two invocations; a two-step sequence in the runner would make the
+  process custodian a workflow engine and a two-step state machine in the tool would give a
+  semantic owner a cursor over somebody else's procedure. Both refused. `tests/slow_build.cmake`
+  and `tests/package/run.cmake` are the precedent -- no shell, no `/bin/sh`, no `.bat` on either
+  platform -- and what it buys is that ONE operation, ONE identity and ONE ending describe a
+  whole build. The script also tells `CMake configure FAILED` from `compile or link FAILED`,
+  because it is the only party that sees both exit codes.
+- **THE TOOLCHAIN IS BORROWED WITH `load_cache()` AND NEVER GUESSED.** Generator, platform,
+  toolset, make program, CXX compiler, build type -- read out of a configured tree the recipe
+  names, by CMake, in a file a maker can open. ⚠ `CMAKE_C_COMPILER` is deliberately NOT
+  borrowed: the generated project is `LANGUAGES CXX`, so passing it produces a
+  manually-specified-variable warning in the middle of a maker's build output. MSVC needs the
+  Visual Studio environment and INHERITS it from the host process; Zengine does not set, invent
+  or look for it.
+- **`outcome::kSucceeded` IS `exit 0 AND THE FILE IS THERE`, IN THAT ORDER**, and the order is
+  the whole stale-artifact guarantee: a failed build is FAILED whatever is sitting at the
+  destination, so an artifact left by an earlier success can never satisfy the current
+  operation. A green build with its artifact absent is `kNoArtifact` -- a SEVENTH value, because
+  it is a seventh problem and folding it into either neighbour tells a maker something false.
+  The stamp taken when a build starts is NOT the test; it is how `built X` is told from
+  `already up to date: X`. ⚠ There is no scan, no newest-file rule and no "there is one DLL".
+- **⚠ A SINGLE-SOURCE RECIPE CANNOT REACH `kNoArtifact`,** because Zengine generates the project
+  and therefore knows the target's output name IS the artifact stem. The outcome exists for an
+  EXISTING CMake target, whose product is somebody else's decision and whose recipe's claim
+  about it can simply be wrong. Both are witnessed; do not "simplify" the check away.
+- **A ROW MAY BE `pending`, AND IT IS THE HOST THAT SAYS SO.** `PlanExecutor` gained ONE
+  predicate (`AwaitingBuild`) and learns nothing else: the host answers from two facts that are
+  its own -- the artifact file is absent, and some authored recipe produces that stem -- and a
+  yes is recorded while the plan CARRIES ON. ⚠ THIS IS NOT "SKIP WHAT IS MISSING": an artifact
+  nothing here can build still refuses the plan by name, exactly as before. It is not
+  build-on-missing either; nothing starts, requests or remembers a build. With no predicate
+  passed, every caller gets LOAD-0's behaviour unchanged, and a case pins that.
+- **`realize(stem)` PERFORMS ONE WAITING ROW, AND EVERY ELIGIBILITY RULE IS THE PLAN'S.** Busy,
+  not named by the plan, already resolved, or not waiting -- each refused in words. ⚠ THE
+  ALREADY-RESOLVED ARM IS WHERE HOT RELOAD IS REFUSED, and the refusal says *restart*. ⚠ AN
+  ON-DEMAND REFUSAL MUST NOT SET `Realization::Failed`: that is what the host's settle notice
+  reads to end the process with exit 4, and a maker whose hand-asked realization was refused has
+  not lost the Workshop they are working in. The row goes back to waiting.
+- **THE SEAM IS TWO SHAPES AND ONE NEW GRANT.** The tool may say `ArtifactBuilt` -- ONLY when
+  the maker asked for realization, because the shape carries an INTENT and a standing offer
+  nobody made is not one. `PlanBooter` hears it, asks its owner, and publishes the owner's answer
+  as `ArtifactRealized`. ⚠ THE ANNOUNCED PATH IS NOT USED: the owner resolves a stem with the
+  HOST's rule, so a message naming a path cannot redirect a load. The dangerous grant in this
+  process is still exactly one and it is still the booter's.
+- **`take_realization()` IS TAKEN AND NOT READ,** so a realization cannot be announced twice --
+  which means a case cannot read it after driving the bus, because the booter already has. Read
+  the published `ArtifactRealized` instead.
+- **THE SUITE DRIVES A REAL CONFIGURED CMAKE TREE (`tests/buildfixture/`, `LANGUAGES NONE`),**
+  configured at BUILD time, and only `cmake --build` runs inside a case. BLD-1 deleted the
+  suite's ability to invent a command along with production's, so a fixture is a project now.
+  Every parameterisation is its own target, because `cmake --build --target` carries no
+  arguments.
+- **THE REAL COMPILE IS A LANE AND NOT A CTEST ENTRY.**
+  `cmake -DZEN_BUILD_DIR=build -DZEN_WORK=<outside both repos> -P tests/build/run.cmake`
+  installs a prefix, writes a one-file weave under a directory WITH A SPACE IN ITS NAME, drives
+  `zengine-build-witness` (Workshop's Builder wiring with the picture removed, same weaves, same
+  grants, same host loop), and fires two canaries -- the package config removed, and one
+  installed HEADER removed -- each with a FRESH workspace, because `find_package` caches
+  `zengine_DIR` and a reused workspace would report a resolution that never happened.
+
 ## Zengine is a package a stranger installs (PKG-0)
 
 `cmake/ZengineInstall.cmake` is the whole public consumer surface, in one file: which
@@ -2165,3 +2251,25 @@ timer/input/surface vocabularies — all header-only). See
 - The last session and a named setup are the same thing saved twice — they are two
   promises in two files, and an automatic save that could land on `--setup` would
   rewrite a maker's named desk every time they closed the window.
+- Builder builds one hard-coded target — it builds an **authored recipe catalog** since
+  BLD-1, and `workshop.cpp` names no target and no build directory. What it still names
+  is the CMake, because a file may not.
+- A recipe and a plan row are two views of one thing — they are two truths with two
+  owners, joined by the artifact stem and nothing else. A role, a mount mode or a load
+  order in a recipe, or a source path, package prefix or build tree in a plan, is the
+  duplication BLD-1 exists to refuse.
+- A build that exits zero produced its artifact — that is TWO questions, and the second
+  is `outcome::kNoArtifact` when the answer is no. The exit status is checked FIRST, which
+  is the only reason a stale artifact cannot make a failed build look successful.
+- Zengine compiles the single-source route — CMake does. Zengine writes two small files
+  and starts one `cmake -P`; nothing in this repository names a compiler, a flag, a
+  library or an output suffix for it.
+- A `pending` row means the artifact is missing — it means REALIZATION DID NOTHING, at
+  the host's word. Whether a file is absent is the host's fact and whether a build is
+  running is the Builder's; the projection publishes what realization did.
+- A successful build loads its artifact — it does **not**. It offers one fact, and only
+  when a maker asked; the realization owner decides, bounded by the authored plan, and an
+  already-loaded artifact is refused in words. There is no reload here.
+- The suite can invent a build command — it cannot, and neither can production. Cases
+  drive `tests/buildfixture/`, a real configured CMake project, through the real recipe
+  path.
