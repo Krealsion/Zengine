@@ -2082,4 +2082,16 @@ TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own
         CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
                       forbidden, "', which is process authority in the presentation's half");
     }
+
+    // ...AND IT HOLDS NO REALIZATION AUTHORITY EITHER (BLD-1a). The seam runs the other
+    // way too, and the rename is what made the asymmetry legible: this tool OFFERS an
+    // artifact and the realization owner decides. A Builder that reached the Kernel, the
+    // Weave Manager, the catalog or the plan executor directly would not be making an
+    // offer -- it would be performing a load, and every eligibility rule the authored
+    // plan owns would have been routed around rather than enforced.
+    for (const char* forbidden : {"zen/kernel", "Kernel", "LoadWeave", "PlanExecutor",
+                                  "mount_provider", "op::Catalog"}) {
+        CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
+                      forbidden, "', which is realization authority in the BUILD half");
+    }
 }
