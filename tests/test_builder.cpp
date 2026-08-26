@@ -49,6 +49,10 @@
 
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -69,28 +73,77 @@ const char* const kCMake = ZENGINE_TEST_CMAKE;
 /// build (tests/slow_build.cmake, which says why it exists).
 const char* const kSlowScript = ZENGINE_TEST_SLOW_SCRIPT;
 
-/// A recipe that takes a while and says several things while it does.
+/// The fixture build tree a `CMakeTargetRecipe` can point at, and where its one
+/// producing target puts the file it makes (tests/buildfixture/CMakeLists.txt).
+const char* const kFixtureTree = ZENGINE_TEST_FIXTURE_TREE;
+const char* const kFixtureArtifacts = ZENGINE_TEST_FIXTURE_ARTIFACTS;
+const char* const kArtifactSuffix = ZENGINE_TEST_ARTIFACT_SUFFIX;
+
+/// A COMMAND that takes a while and says several things while it does.
 ///
 /// THE DURATION IS THE POINT. "It did not block" measured against a child that
 /// exits in a millisecond is a race dressed as a property; measured against a
 /// child that is provably still alive several hundred deliveries later, it is a
 /// measurement.
-BuildRecipe slow(const std::string& target, int steps, const char* pause, bool fail = false) {
-    BuildRecipe r;
-    r.target = target;
-    r.program = kCMake;
-    r.args = {std::string("-DSTEPS=") + std::to_string(steps), std::string("-DPAUSE=") + pause};
+///
+/// It is a `BuildCommand` and NOT a recipe (BLD-1): a command is what one process
+/// will be, and the cases that spend this one are the ones about the process
+/// primitive itself -- `start_recipe`, `look`, custody, reaping. Everything above
+/// that layer goes through an authored recipe, because that is what production
+/// has.
+BuildCommand slow(int steps, const char* pause, bool fail = false) {
+    BuildCommand c;
+    c.program = kCMake;
+    c.args = {std::string("-DSTEPS=") + std::to_string(steps), std::string("-DPAUSE=") + pause};
     if (fail) {
-        r.args.push_back("-DFAIL=1");
+        c.args.push_back("-DFAIL=1");
     }
-    r.args.push_back("-P");
-    r.args.push_back(kSlowScript);
+    c.args.push_back("-P");
+    c.args.push_back(kSlowScript);
+    return c;
+}
+
+/// One command that always succeeds at once.
+BuildCommand echoes(const std::string& what) {
+    return BuildCommand{kCMake, {"-E", "echo", what}, std::string()};
+}
+
+/// AN AUTHORED RECIPE FOR ONE OF THE FIXTURE TREE'S TARGETS.
+///
+/// This is what the suite hands the runner now, and it is exactly what a maker's
+/// recipe file produces: an identity, an artifact stem, where that artifact
+/// lands, and a configured build tree plus a target in it. Nothing here is a
+/// command, and nothing in this suite can make one reach the runner -- which is
+/// the property BLD-1 added and this fixture exists to keep honest.
+/// THE ARTIFACT DEFAULTS TO THE FIXTURE TARGET'S OWN NAME, because that is what the
+/// fixture's succeeding targets produce -- so a recipe built from this pair really
+/// does name the file its target really does write. The two-argument overload is the
+/// deliberate mismatch: a recipe that names an artifact its target does not produce,
+/// which is `outcome::kNoArtifact`'s whole subject.
+Recipe cmake_recipe(const std::string& id, const std::string& target,
+                    const std::string& artifact) {
+    Recipe r;
+    r.id = id;
+    r.artifact = artifact;
+    r.artifact_dir = kFixtureArtifacts;
+    r.cmake_target = CMakeTargetRecipe{kFixtureTree, target, std::string()};
     return r;
 }
 
-/// One recipe that always succeeds at once, named whatever the case wants.
-BuildRecipe echoes(const std::string& target, const std::string& what) {
-    return BuildRecipe{target, kCMake, {"-E", "echo", what}, std::string()};
+Recipe cmake_recipe(const std::string& id, const std::string& target) {
+    return cmake_recipe(id, target, target);
+}
+
+/// The file a fixture recipe's artifact stem means, spelled the way a host spells
+/// one. The suite owns this rule here for the same reason the host owns it there:
+/// there is exactly one place either of them writes a platform suffix down.
+std::string fixture_path(const std::string& artifact) {
+    return std::string(kFixtureArtifacts) + "/" + artifact + kArtifactSuffix;
+}
+
+/// The tool's view of a recipe -- identity, artifact, and the one file it means.
+RecipeView view_of(const Recipe& r) {
+    return RecipeView{r.id, r.artifact, fixture_path(r.artifact)};
 }
 
 /// Drive one held process to its end the way nothing in production does -- by
@@ -134,15 +187,25 @@ struct HeardState {
     ZEN_SHAPE(HeardState, 1, ZEN_FIELD(heard));
 };
 
-class Listener : public loom::WeaveBase<Listener, HeardState, loom::Accept<BuildStatus>,
-                                        loom::Emit<>> {
+class Listener
+    : public loom::WeaveBase<Listener, HeardState,
+                             loom::Accept<BuildStatus, RecipeCatalog, ArtifactBuilt>,
+                             loom::Emit<>> {
 public:
     void on(const BuildStatus& s, loom::Mail&) {
         ++state_.heard;
         said.push_back(s);
     }
+    /// THE SECOND AND THIRD PUBLICATIONS, HEARD BY THE SAME ORDINARY LISTENER (BLD-1)
+    /// -- which is the property, not the bookkeeping: nothing about `RecipeCatalog` or
+    /// `ArtifactBuilt` is addressed to a panel, so anything on this bus that accepts
+    /// them sees exactly what a panel sees.
+    void on(const RecipeCatalog& c, loom::Mail&) { catalogs.push_back(c); }
+    void on(const ArtifactBuilt& a, loom::Mail&) { built.push_back(a); }
     const BuildStatus& last() const { return said.back(); }
     std::vector<BuildStatus> said;
+    std::vector<RecipeCatalog> catalogs;
+    std::vector<ArtifactBuilt> built;
 };
 
 /// UNRELATED TRAFFIC, COUNTED. It is the whole falsifier of this phase: a build
@@ -286,27 +349,29 @@ class BlockingRunnerWeave
     : public loom::WeaveBase<BlockingRunnerWeave, BlockingState, loom::Accept<RunBuild>,
                              loom::Emit<BuildStarted, BuildFinished, BuildNotStarted>> {
 public:
-    explicit BlockingRunnerWeave(BuildRecipe recipe) : recipe_(std::move(recipe)) {}
+    BlockingRunnerWeave(std::string recipe, BuildCommand command)
+        : recipe_(std::move(recipe)), command_(std::move(command)) {}
 
     void on(const RunBuild& order, loom::Mail& mail) {
-        if (order.target != recipe_.target) {
+        if (order.recipe != recipe_) {
             (void)mail.send_to_role(kBuilderRole,
-                                    BuildNotStarted{0, order.target, std::string(), "no recipe"});
+                                    BuildNotStarted{0, order.recipe, std::string(), "no recipe"});
             return;
         }
         ++state_.ran;
-        (void)mail.send_to_role(kBuilderRole, BuildStarted{1, recipe_.target, recipe_.as_line()});
-        const RunResult run = run_recipe(recipe_); // <- the whole build, inside this handler
+        (void)mail.send_to_role(kBuilderRole, BuildStarted{1, recipe_, command_.as_line()});
+        const RunResult run = run_recipe(command_); // <- the whole build, inside this handler
         if (!run.started) {
             (void)mail.send_to_role(
-                kBuilderRole, BuildNotStarted{1, recipe_.target, recipe_.as_line(), run.trouble});
+                kBuilderRole, BuildNotStarted{1, recipe_, command_.as_line(), run.trouble});
             return;
         }
-        (void)mail.send_to_role(kBuilderRole, BuildFinished{1, recipe_.target, run.status});
+        (void)mail.send_to_role(kBuilderRole, BuildFinished{1, recipe_, run.status});
     }
 
 private:
-    BuildRecipe recipe_;
+    std::string recipe_;
+    BuildCommand command_;
 };
 
 /// A weave that tries to ORDER THE RUNNER DIRECTLY when poked with an Ack.
@@ -384,10 +449,18 @@ loom::Grant runner_grant() {
     return g;
 }
 
+/// THE HOST'S OWN GRANT FOR THE TOOL, and it is copied from `workshop.cpp` rather
+/// than invented here: order the runner, publish what it knows, publish what can be
+/// built at all, and (BLD-1) say that an artifact somebody asked to have realized is
+/// on disk. Four rules, and the suite writes the same four the production host does
+/// -- a fixture with a wider grant would be a fixture in which the phase's authority
+/// claim is untested.
 loom::Grant tool_grant() {
     loom::Grant g;
     g.allow_to_role(RunBuild::zen_name, RunBuild::zen_version, kBuildRunnerRole);
     g.allow_to_any(BuildStatus::zen_name, BuildStatus::zen_version);
+    g.allow_to_any(RecipeCatalog::zen_name, RecipeCatalog::zen_version);
+    g.allow_to_any(ArtifactBuilt::zen_name, ArtifactBuilt::zen_version);
     return g;
 }
 
@@ -399,16 +472,16 @@ struct Bench {
     TimerClerk* clerk = nullptr;
     loom::WeaveId runner_id{};
 
-    explicit Bench(std::vector<BuildRecipe> catalog) {
+    explicit Bench(std::vector<Recipe> catalog) {
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
-                                                   std::move(catalog));
+                                                   std::move(catalog), std::string(kCMake));
         mount_office<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
         mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
     }
 
     /// Order a build the way the tool does.
-    void order(const std::string& target) {
-        (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{target})));
+    void order(const std::string& recipe) {
+        (void)bus.send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{recipe})));
         bus.drain_until_idle();
     }
 
@@ -445,11 +518,21 @@ struct Live {
     loom::WeaveId runner_id{};
     loom::WeaveId bystander_id{};
 
-    explicit Live(std::string target, std::vector<BuildRecipe> catalog) {
+    /// ONE CATALOG, TWO VIEWS OF IT (BLD-1). The runner is handed the authored
+    /// recipes; the tool is handed the reduced view -- identity, artifact, and the
+    /// one file it means -- exactly as the host derives one from the other. A
+    /// fixture that handed both halves the same object would be a fixture in which
+    /// the split this package is built on had quietly stopped existing.
+    explicit Live(std::vector<Recipe> catalog) {
+        std::vector<RecipeView> views;
+        views.reserve(catalog.size());
+        for (const Recipe& r : catalog) {
+            views.push_back(view_of(r));
+        }
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
-                                                   std::move(catalog));
+                                                   std::move(catalog), std::string(kCMake));
         tool_id = mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool,
-                                             std::move(target));
+                                             std::move(views));
         mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
         mount_plain<Listener>(bus, loom::Grant{}, &ears);
         bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
@@ -504,10 +587,13 @@ TEST_CASE("contract: nothing a build conversation carries is a command") {
     // panel sent a command" is not a sentence this vocabulary can express, and a
     // phase that wanted to make it one would have to change these declarations
     // and this case with them.
-    const auto requested = SchemaBuilder("BuildRequested", 1).field("target", Kind::Text).build();
+    const auto requested = SchemaBuilder("BuildRequested", 2)
+                               .field("recipe", Kind::Text)
+                               .field("realize", Kind::Bool)
+                               .build();
     CHECK(schema_of<BuildRequested>()->content_id() == requested->content_id());
 
-    const auto order = SchemaBuilder("RunBuild", 1).field("target", Kind::Text).build();
+    const auto order = SchemaBuilder("RunBuild", 2).field("recipe", Kind::Text).build();
     CHECK(schema_of<RunBuild>()->content_id() == order->content_id());
 
     // The ask that opens a panel carries nothing at all: there is one tool at
@@ -534,24 +620,24 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
     // wait for the end (the freeze this phase removed) or lie about a field.
     // Three shapes, three moments, and each one says what was seen when it was
     // seen.
-    const auto started = SchemaBuilder("BuildStarted", 1)
+    const auto started = SchemaBuilder("BuildStarted", 2)
                              .field("op", Kind::Int)
-                             .field("target", Kind::Text)
                              .field("recipe", Kind::Text)
+                             .field("command", Kind::Text)
                              .build();
     CHECK(schema_of<BuildStarted>()->content_id() == started->content_id());
 
-    const auto output = SchemaBuilder("BuildOutput", 1)
+    const auto output = SchemaBuilder("BuildOutput", 2)
                             .field("op", Kind::Int)
-                            .field("target", Kind::Text)
+                            .field("recipe", Kind::Text)
                             .field("text", Kind::Text)
                             .field("dropped", Kind::Int)
                             .build();
     CHECK(schema_of<BuildOutput>()->content_id() == output->content_id());
 
-    const auto finished = SchemaBuilder("BuildFinished", 1)
+    const auto finished = SchemaBuilder("BuildFinished", 2)
                               .field("op", Kind::Int)
-                              .field("target", Kind::Text)
+                              .field("recipe", Kind::Text)
                               .field("status", Kind::Int)
                               .build();
     CHECK(schema_of<BuildFinished>()->content_id() == finished->content_id());
@@ -560,10 +646,10 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
     // is no compiler" and "the compiler said no" are different problems needing
     // different next actions, and BLD-0's `started` flag became this shape when
     // the two stopped arriving together.
-    const auto never = SchemaBuilder("BuildNotStarted", 1)
+    const auto never = SchemaBuilder("BuildNotStarted", 2)
                            .field("op", Kind::Int)
-                           .field("target", Kind::Text)
                            .field("recipe", Kind::Text)
+                           .field("command", Kind::Text)
                            .field("trouble", Kind::Text)
                            .build();
     CHECK(schema_of<BuildNotStarted>()->content_id() == never->content_id());
@@ -574,7 +660,7 @@ TEST_CASE("contract: the three moments of a build are three shapes") {
 // ============================================================================
 
 TEST_CASE("a started recipe is HELD: start returns, and the child is still alive") {
-    RecipeStart begun = start_recipe(slow("slow", 4, "0.15"));
+    RecipeStart begun = start_recipe(slow(4, "0.15"));
     REQUIRE(begun.started);
     // THE WHOLE PROPERTY, IN ONE LINE: the call that started it has returned and
     // the child has not finished. BLD-0 could not produce this state at all --
@@ -596,7 +682,7 @@ TEST_CASE("a started recipe is HELD: start returns, and the child is still alive
 }
 
 TEST_CASE("nothing already reported is reported again") {
-    RecipeStart begun = start_recipe(slow("slow", 3, "0.1"));
+    RecipeStart begun = start_recipe(slow(3, "0.1"));
     REQUIRE(begun.started);
     const Drained all = drain(begun.process);
     REQUIRE(all.ended);
@@ -619,7 +705,7 @@ TEST_CASE("nothing already reported is reported again") {
 }
 
 TEST_CASE("an ending is observed once, and the custody is then empty") {
-    RecipeStart begun = start_recipe(echoes("quick", "hello"));
+    RecipeStart begun = start_recipe(echoes("hello"));
     REQUIRE(begun.started);
     const Drained all = drain(begun.process);
     REQUIRE(all.ended);
@@ -635,7 +721,7 @@ TEST_CASE("an ending is observed once, and the custody is then empty") {
 }
 
 TEST_CASE("a failing recipe ends with its own status, and a missing one never ran") {
-    RecipeStart failing = start_recipe(slow("brk", 1, "0.05", /*fail=*/true));
+    RecipeStart failing = start_recipe(slow(1, "0.05", /*fail=*/true));
     REQUIRE(failing.started);
     const Drained bad = drain(failing.process);
     CHECK(bad.ended);
@@ -651,7 +737,7 @@ TEST_CASE("a failing recipe ends with its own status, and a missing one never ra
     // it can only arrive here -- at the ending -- because a failed exec has no
     // other channel (builder/run.hpp).
     RecipeStart absent =
-        start_recipe(BuildRecipe{"gone", "zengine-no-such-program-async1", {"--version"},
+        start_recipe(BuildCommand{"zengine-no-such-program-async1", {"--version"},
                                  std::string()});
 #if defined(_WIN32)
     CHECK_FALSE(absent.started);
@@ -666,7 +752,7 @@ TEST_CASE("a failing recipe ends with its own status, and a missing one never ra
 
     // A recipe with no program at all is refused before anything is attempted,
     // on every platform.
-    const RecipeStart empty = start_recipe(BuildRecipe{"no", std::string(), {}, std::string()});
+    const RecipeStart empty = start_recipe(BuildCommand{std::string(), {}, std::string()});
     CHECK_FALSE(empty.started);
     CHECK(empty.trouble.find("no program") != std::string::npos);
 }
@@ -677,7 +763,7 @@ TEST_CASE("abandoning custody does not wait for the build, and leaves nothing be
     // terminates first and then reaps, so it takes milliseconds. The margin is
     // deliberately enormous, because a timing assertion with a tight one is a
     // flake waiting to happen.
-    RecipeStart begun = start_recipe(slow("forever", 20, "0.5"));
+    RecipeStart begun = start_recipe(slow(20, "0.5"));
     REQUIRE(begun.started);
     REQUIRE(begun.process.holds());
 
@@ -737,7 +823,7 @@ TEST_CASE("a fragment waits for its newline, and the ending releases it") {
 // ============================================================================
 
 TEST_CASE("the handler that starts a build RETURNS, and the child is still running") {
-    Bench bench({slow("slow", 5, "0.15")});
+    Bench bench({cmake_recipe("slow", "fixture-slow5")});
     bench.order("slow");
 
     // The pump that delivered `RunBuild` has drained. If the runner had built
@@ -746,11 +832,11 @@ TEST_CASE("the handler that starts a build RETURNS, and the child is still runni
     CHECK(bench.runner->ran() == 1);
     REQUIRE(bench.foreman->started.size() == 1);
     CHECK(bench.foreman->started[0].op == 1);
-    CHECK(bench.foreman->started[0].target == "slow");
+    CHECK(bench.foreman->started[0].recipe == "slow");
     // WHAT IS RUNNING IS SAYABLE WHILE IT RUNS. BLD-0 could only ever describe a
     // command after it had finished, because that was the first moment anything
     // could speak.
-    CHECK(bench.foreman->started[0].recipe.find("slow_build.cmake") != std::string::npos);
+    CHECK(bench.foreman->started[0].command.find("--target fixture-slow5") != std::string::npos);
     CHECK(bench.foreman->finished.empty());
 
     const std::int64_t beats = bench.beat_until_idle();
@@ -767,7 +853,7 @@ TEST_CASE("output is attributed to its own operation, and two can run at once") 
     // because refusing a second build is the tool's product policy and this case
     // is about the mechanism underneath it -- the two must be able to disagree,
     // or the policy is a limitation wearing a policy's clothes.
-    Bench bench({slow("alpha", 4, "0.15"), slow("beta", 4, "0.15")});
+    Bench bench({cmake_recipe("alpha", "fixture-slow4"), cmake_recipe("beta", "fixture-slow4")});
     bench.order("alpha");
     bench.order("beta");
     CHECK(bench.runner->live() == 2);
@@ -784,7 +870,7 @@ TEST_CASE("output is attributed to its own operation, and two can run at once") 
     // did not mix: `alpha`'s output is about alpha and nothing else.
     for (const BuildOutput& o : bench.foreman->output) {
         CHECK((o.op == alpha || o.op == beta));
-        CHECK(o.target == (o.op == alpha ? "alpha" : "beta"));
+        CHECK(o.recipe == (o.op == alpha ? "alpha" : "beta"));
     }
     CHECK(bench.foreman->text_of(alpha).find("step 1 of 4") != std::string::npos);
     CHECK(bench.foreman->text_of(beta).find("step 1 of 4") != std::string::npos);
@@ -792,7 +878,7 @@ TEST_CASE("output is attributed to its own operation, and two can run at once") 
 }
 
 TEST_CASE("an ending is published once, and looking again publishes nothing") {
-    Bench bench({echoes("quick", "hello from ASYNC-1")});
+    Bench bench({cmake_recipe("quick", "fixture-quick")});
     bench.order("quick");
     bench.beat_until_idle();
     REQUIRE(bench.foreman->finished.size() == 1);
@@ -817,7 +903,7 @@ TEST_CASE("the runner asks for a beat when it takes custody, and gives it back")
     // walks the whole conversation a live Workshop has: the Timer arrives, the
     // binding is established, the first beat finds nothing and hands it back,
     // a build establishes it again, and the ending hands it back again.
-    Bench bench({echoes("quick", "hi")});
+    Bench bench({cmake_recipe("quick", "fixture-quick")});
 
     // The service arrives. The declared binding is reconciled -- one ask.
     (void)bench.bus.send_to_role(kBuildRunnerRole,
@@ -849,7 +935,7 @@ TEST_CASE("the direct door looks at what is held, and cannot start anything") {
     // `LookAtBuilds` is the same hands the beat opens, for suites, diagnostics
     // and hosts with no Timer service -- `zengine::input::PumpInput` is the
     // precedent, on the same kind of weave, for the same reason.
-    Bench bench({slow("slow", 2, "0.1")});
+    Bench bench({cmake_recipe("slow", "fixture-slow2")});
     bench.order("slow");
     REQUIRE(bench.runner->live() == 1);
 
@@ -877,7 +963,7 @@ TEST_CASE("the direct door looks at what is held, and cannot start anything") {
 }
 
 TEST_CASE("a name the runner holds no recipe for names no operation at all") {
-    Bench bench({echoes("quick", "hi")});
+    Bench bench({cmake_recipe("quick", "fixture-quick")});
     bench.order("not-in-the-catalog");
 
     CHECK(bench.runner->ran() == 0);
@@ -888,7 +974,7 @@ TEST_CASE("a name the runner holds no recipe for names no operation at all") {
     // there is nothing to name, and minting an identity for a thing that never
     // existed would be an identity that could never be referred to again.
     CHECK(bench.foreman->never[0].op == 0);
-    CHECK(bench.foreman->never[0].recipe.empty());
+    CHECK(bench.foreman->never[0].command.empty());
     CHECK(bench.foreman->never[0].trouble.find("not-in-the-catalog") != std::string::npos);
     CHECK(bench.foreman->started.empty());
 
@@ -903,7 +989,7 @@ TEST_CASE("a name the runner holds no recipe for names no operation at all") {
 // ============================================================================
 
 TEST_CASE("unrelated deliveries continue while a real child runs") {
-    Live live("slow", {slow("slow", 5, "0.15")});
+    Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
 
     // THE HANDLER RETURNED BEFORE THE CHILD EXITED, said as a state rather than
@@ -921,8 +1007,22 @@ TEST_CASE("unrelated deliveries continue while a real child runs") {
     // quoted as a constant; what is asserted is that it is not small, because
     // the alternative shape can only ever produce zero.
     CHECK(carried > 50);
-    // ...and the build was watched arriving, not merely found finished.
-    CHECK(live.tool->known().chunks > 1);
+    // ...and the build was WATCHED, not merely found finished: at least one
+    // observation about it was folded in before the ending arrived.
+    //
+    // ⚠ HOW MANY IS THE BUILD SYSTEM'S BUSINESS AND NOT ZENGINE'S, and BLD-1
+    // measured that on two lanes rather than assuming it. Driving a REAL
+    // `cmake --build --target` puts a generator between the script and the pipe:
+    // Unix Makefiles streams a command's output as it is written (many chunks),
+    // and Ninja hands the whole of one command's output over when that command
+    // ends (exactly one). Neither is a fact about the runner, which publishes an
+    // observation for every look that found new bytes.
+    //
+    // THE PROPERTY THAT IS ZENGINE'S -- output arriving in PIECES from a live
+    // pipe -- is pinned where it belongs and platform-independently, in the
+    // `RunningRecipe` tier above, which drives the slow script with no build
+    // system in the way and requires more than one look to have spoken.
+    CHECK(live.tool->known().chunks >= 1);
 }
 
 TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
@@ -944,7 +1044,7 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
                              kBuilderRole);
     BlockingRunnerWeave* blocking = nullptr;
     mount_office<BlockingRunnerWeave>(bus, std::move(may_report), kBuildRunnerRole, &blocking,
-                                      slow("slow", 5, "0.15"));
+                                      std::string("slow"), slow(5, "0.15"));
 
     Bystander* bystander = nullptr;
     const loom::WeaveId bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
@@ -971,25 +1071,35 @@ TEST_CASE("REGRESSION: the old blocking shape carries nothing at all") {
 // Tier 5 -- the tool: a name, a memory, a running build, and a refusal
 // ============================================================================
 
-TEST_CASE("a fresh tool says which target it is and that nothing has been built") {
-    Live live("greet", {echoes("greet", "ok")});
+TEST_CASE("a fresh tool says what can be built here and that nothing has been") {
+    Live live({cmake_recipe("greet", "fixture-quick")});
     live.tell_tool(StatusRequested{});
 
     REQUIRE(live.ears->said.size() == 1);
     const BuildStatus& said = live.ears->last();
-    CHECK(said.target == "greet");
+    // THE FRESH TOOL NAMES NO RECIPE, and that is BLD-1 rather than an omission:
+    // `recipe` is what the tool is BUILDING or last built, and a tool that had
+    // never been asked for anything is about nothing. What a maker needs before
+    // any build has happened is the CATALOG, which is the second shape below.
+    CHECK(said.recipe.empty());
+    CHECK(said.artifact.empty());
     CHECK(said.outcome == outcome::kNeverBuilt);
     CHECK(said.builds == 0);
     CHECK(said.op == 0);
+    CHECK(said.realization == realization::kNotAsked);
+    REQUIRE(live.ears->catalogs.size() == 1);
+    REQUIRE(live.ears->catalogs[0].recipes.size() == 1);
+    CHECK(live.ears->catalogs[0].recipes[0].recipe == "greet");
+    CHECK(live.ears->catalogs[0].recipes[0].artifact == "fixture-quick");
     // IT HOLDS NO COMMAND, and this is where that is visible: the tool can say
     // what it is before anything has run, and it cannot say what would be run,
     // because it does not know.
-    CHECK(said.recipe.empty());
+    CHECK(said.command.empty());
     CHECK(live.runner->ran() == 0);
 }
 
 TEST_CASE("an ask for the known target reaches a real process, and the answer is the truth") {
-    Live live("greet", {echoes("greet", "ASYNC-1 was here")});
+    Live live({cmake_recipe("greet", "fixture-quick")});
     live.tell_tool(BuildRequested{"greet"});
     live.carry_until_over();
 
@@ -1004,15 +1114,15 @@ TEST_CASE("an ask for the known target reaches a real process, and the answer is
     CHECK(done.status == 0);
     CHECK(done.builds == 1);
     CHECK(done.op == 1);
-    CHECK(done.detail.find("ASYNC-1 was here") != std::string::npos);
+    CHECK(done.detail.find("nothing to build, said quickly") != std::string::npos);
     // THE RECIPE ARRIVED WITH THE START, from the thing that started it.
-    CHECK(done.recipe.find("-E") != std::string::npos);
+    CHECK(done.command.find("--build") != std::string::npos);
     CHECK(live.runner->ran() == 1);
     CHECK(live.runner->refused() == 0);
 }
 
 TEST_CASE("a failing build is reported as a failure, with its own exit status") {
-    Live live("brk", {slow("brk", 1, "0.05", /*fail=*/true)});
+    Live live({cmake_recipe("brk", "fixture-broken")});
     live.tell_tool(BuildRequested{"brk"});
     live.carry_until_over();
 
@@ -1020,35 +1130,68 @@ TEST_CASE("a failing build is reported as a failure, with its own exit status") 
     CHECK(done.outcome == outcome::kFailed);
     CHECK(done.status != 0);
     CHECK(live.runner->ran() == 1);
-    // THE LAST WORDS SURVIVED. A failing build's diagnostic is written just
-    // before it exits, and the whole point of draining before reaping is that
-    // this line is here.
-    CHECK(done.detail.find("asked to fail") != std::string::npos);
+    // THE BUILD SYSTEM'S OWN REFUSAL SURVIVED to the tool's bounded tail. The
+    // build's INNERMOST last words -- the script's own `asked to fail` -- are
+    // several lines further up than a three-row panel can hold once the build
+    // system has added its own; that they reached the office at all is pinned
+    // one layer down, at the Bench, where the whole stream is visible.
+    CHECK_FALSE(done.detail.empty());
+    CHECK(done.detail.find("Error") != std::string::npos);
+    // AND NOTHING WAS OFFERED TO A PROJECT. Nobody asked for realization here,
+    // so the second axis never moved -- which is the ordinary case and is worth
+    // pinning beside the one where it does.
+    CHECK(done.realization == realization::kNotAsked);
+    CHECK(live.tool->known().offered == 0);
+}
+
+TEST_CASE("a failing build's OWN last words reach the office that asked (BLD-1)") {
+    // THE SAME CLAIM ASYNC-1 MADE, MEASURED WHERE THE WHOLE STREAM IS. The tool
+    // publishes a bounded tail for a panel with three rows; the `BuildOutput`
+    // facts carry everything, and the office that receives them is where "the
+    // diagnostic written just before the child exited was not lost" is checkable
+    // without a row budget in the way.
+    Bench bench({cmake_recipe("brk", "fixture-broken")});
+    bench.order("brk");
+    bench.beat_until_idle();
+
+    REQUIRE(bench.foreman->finished.size() == 1);
+    CHECK(bench.foreman->finished[0].status != 0);
+    const std::int64_t op = bench.foreman->finished[0].op;
+    CHECK(bench.foreman->text_of(op).find("asked to fail") != std::string::npos);
 }
 
 TEST_CASE("a build that never starts is not a build that failed") {
-    Live live("gone", {BuildRecipe{"gone", "zengine-no-such-program-async1", {}, std::string()}});
+    // THE WAY A RECIPE FAILS TO BECOME A PROCESS CHANGED WITH BLD-1, and this case
+    // followed it. A recipe cannot name a program, so "the program is not there" is
+    // no longer reachable through one; what IS reachable, and is the ordinary maker
+    // mistake, is a recipe pointing at a CMake build tree nobody ever configured.
+    // It is refused before a child exists, with the path named, on every platform.
+    Recipe nowhere = cmake_recipe("gone", "anything", "zengine-fixture-gone");
+    nowhere.cmake_target->build_dir = std::string(kFixtureTree) + "-that-does-not-exist";
+    Live live({nowhere});
     live.tell_tool(BuildRequested{"gone"});
     live.carry_until_over();
 
     const BuildStatus& done = live.ears->last();
     CHECK(done.outcome == outcome::kNotStarted);
     CHECK_FALSE(done.detail.empty());
-    // The runner DID try, which is the difference between this and the refusal
-    // case below: one name was in the catalog and one was not.
-    CHECK(live.runner->ran() == 1);
-    CHECK(live.runner->refused() == 0);
+    CHECK(done.detail.find("CMakeCache.txt") != std::string::npos);
+    // NOTHING RAN AT ALL, which is the guarantee: `ran` counts processes this
+    // runner tried to start, and a recipe that could not become a command never
+    // reached that line.
+    CHECK(live.runner->ran() == 0);
     CHECK(live.runner->live() == 0);
 }
 
 TEST_CASE("the tool refuses a name it does not hold, and NOTHING is ordered") {
-    Live live("greet", {echoes("greet", "ok")});
+    Live live({cmake_recipe("greet", "fixture-quick")});
     live.tell_tool(BuildRequested{"something-else"});
 
     REQUIRE(live.ears->said.size() == 1);
     const BuildStatus& said = live.ears->last();
-    CHECK(said.outcome == outcome::kUnknownTarget);
-    CHECK(said.target == "greet"); // it says what it DOES know
+    CHECK(said.outcome == outcome::kUnknownRecipe);
+    CHECK(said.detail.find("no recipe called") != std::string::npos); // it says so
+    CHECK(said.detail.find("it holds 1") != std::string::npos);       // ...and how many it has
     CHECK(said.builds == 0);
     // The guarantee is not "the outcome was a refusal" -- it is that no process
     // began. The runner was never even reached.
@@ -1065,7 +1208,7 @@ TEST_CASE("the tool refuses a name it does not hold, and NOTHING is ordered") {
 }
 
 TEST_CASE("ONE BUILD AT A TIME is the tool's policy, and it refuses in its own voice") {
-    Live live("slow", {slow("slow", 5, "0.15")});
+    Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
     REQUIRE(live.tool->known().outcome == outcome::kRunning);
 
@@ -1098,7 +1241,7 @@ TEST_CASE("a presentation opened mid-build learns from the TOOL that one is runn
     // synchronous build had no observable middle, so "what is happening right
     // now" had no answer for the whole time it mattered. This is that question,
     // answered by the tool, to a reader that arrived after the ask.
-    Live live("slow", {slow("slow", 5, "0.15")});
+    Live live({cmake_recipe("slow", "fixture-slow5")});
     live.tell_tool(BuildRequested{"slow"});
     REQUIRE(live.runner->live() == 1);
 
@@ -1109,15 +1252,15 @@ TEST_CASE("a presentation opened mid-build learns from the TOOL that one is runn
     REQUIRE(latecomer->said.size() == 1);
     CHECK(latecomer->said[0].outcome == outcome::kRunning);
     CHECK(latecomer->said[0].op == 1);
-    CHECK(latecomer->said[0].target == "slow");
-    CHECK(latecomer->said[0].recipe.find("slow_build.cmake") != std::string::npos);
+    CHECK(latecomer->said[0].recipe == "slow");
+    CHECK(latecomer->said[0].command.find("--target fixture-slow5") != std::string::npos);
 
     live.carry_until_over();
     CHECK(live.tool->known().outcome == outcome::kSucceeded);
 }
 
 TEST_CASE("an observation about somebody else's work is counted, never adopted") {
-    Live live("greet", {echoes("greet", "ok")});
+    Live live({cmake_recipe("greet", "fixture-quick")});
     live.tell_tool(BuildFinished{4, "a-different-target", 0});
 
     // Nothing was published, because nothing about this tool changed.
@@ -1152,7 +1295,7 @@ TEST_CASE("a weave with a presentation's reach cannot make a process start") {
     // not permit `RunBuild` to the runner. A second copy of the host's grant
     // here would be a second answer to a question the host already answers, and
     // it would go stale the first time the host's list changed.
-    Live live("greet", {echoes("greet", "ok")});
+    Live live({cmake_recipe("greet", "fixture-quick")});
 
     Impostor* liar = nullptr;
     loom::Grant may_only_ask;
@@ -1203,8 +1346,11 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     mount_office<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
                              static_cast<Undertaker**>(nullptr), &ledger);
     BuildRunnerWeave* runner = nullptr;
-    mount_office<BuildRunnerWeave>(*bus, runner_grant(), kBuildRunnerRole, &runner,
-                                   std::vector<BuildRecipe>{slow("forever", 20, "0.5")});
+    mount_office<BuildRunnerWeave>(
+        *bus, runner_grant(), kBuildRunnerRole, &runner,
+        std::vector<Recipe>{
+            cmake_recipe("forever", "fixture-forever")},
+        std::string(kCMake));
 
     (void)bus->send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"forever"})));
     bus->drain_until_idle();
@@ -1253,7 +1399,7 @@ std::int64_t started_op(const loom::HistoryRecord& started, const loom::Recorder
 // for it, and that a burst of one shape does not cost another shape its memory.
 
 TEST_CASE("RTH-1: a build's story survives the turns that produced it") {
-    Live live("slow", {slow("slow", 4, "0.15")});
+    Live live({cmake_recipe("slow", "fixture-slow4")});
     loom::RecorderPolicy policy = loom::default_policy();
     // The host's shape, reduced to what this case needs: the beat takes no recent
     // context and keeps no bytes (but stays findable), and the four observations
@@ -1355,7 +1501,7 @@ TEST_CASE("RTH-1: a burst of output does not cost the build its beginning") {
     // THE CLAIM A LAST-CALL SLOT MAKES, measured against a recent FIFO that is
     // deliberately too small. Without it, a talkative build erases the record of
     // its own start; with it, the start is still there when the maker looks.
-    Live live("chatty", {slow("chatty", 6, "0.05")});
+    Live live({cmake_recipe("chatty", "fixture-chatty6")});
     loom::RecorderPolicy policy = loom::default_policy();
     policy.recent_capacity = 4;
     policy.rules.push_back(loom::RetentionRule{std::string(timer::TimerFired::zen_name), 1,
@@ -1385,7 +1531,7 @@ TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed ar
     // adds exactly two application shapes to Loom's default -- the two a maker
     // asks about tomorrow -- and deliberately not `BuildOutput`, which is working
     // memory by the ton.
-    Live live("chatty", {slow("chatty", 6, "0.05")});
+    Live live({cmake_recipe("chatty", "fixture-chatty6")});
     const std::string path = "zengine-rth1a-build.log";
     std::remove(path.c_str());
 
@@ -1415,4 +1561,525 @@ TEST_CASE("RTH-1a: a finished build is durable; the thousand lines it printed ar
     }
     CHECK(finished == 1);
     std::remove(path.c_str());
+}
+
+// ============================================================================
+// Tier 7 -- BLD-1: an AUTHORED RECIPE, the ARTIFACT it names, and the line
+//                  between "the process was fine" and "the thing exists"
+// ============================================================================
+
+TEST_CASE("BLD-1 law: a recipe needs a name, an artifact and exactly one mechanism") {
+    // THE NAME IS A NAME AND NOT A LOCATION. It is what a maker types, what a
+    // message carries and what a refusal quotes back.
+    CHECK(check_recipe_id("oven").empty());
+    CHECK_FALSE(check_recipe_id("").empty());
+    CHECK_FALSE(check_recipe_id("a b").empty());
+    CHECK_FALSE(check_recipe_id("dir/oven").empty());
+    CHECK_FALSE(check_recipe_id("dir\\oven").empty());
+    CHECK_FALSE(check_recipe_id(std::string(kMaxRecipeIdLen + 1, 'x')).empty());
+
+    // THE ARTIFACT IS A STEM, under the same five rules a load plan's stem meets --
+    // restated in this package deliberately, because a rule enforced in one
+    // execution-authority document and trusted in the other is a rule with a door
+    // in it.
+    CHECK(check_recipe_artifact("zengine-oven").empty());
+    CHECK_FALSE(check_recipe_artifact("").empty());
+    CHECK_FALSE(check_recipe_artifact("../oven").empty());
+    CHECK_FALSE(check_recipe_artifact("lib/oven").empty());
+    CHECK_FALSE(check_recipe_artifact("oven weave").empty());
+
+    Recipe neither;
+    neither.id = "empty";
+    neither.artifact = "zengine-empty";
+    CHECK(check_recipe(neither).find("names no build mechanism") != std::string::npos);
+
+    Recipe both = neither;
+    both.cmake_target = CMakeTargetRecipe{kFixtureTree, "fixture-quick", std::string()};
+    both.single_source =
+        SingleSourceRecipe{"/tmp/x.cpp", {}, {"loom::switchboard"}, std::string(), std::string()};
+    CHECK(check_recipe(both).find("two build mechanisms") != std::string::npos);
+
+    // A CMake recipe that names a tree and no target in it says nothing.
+    Recipe headless = neither;
+    headless.cmake_target = CMakeTargetRecipe{kFixtureTree, std::string(), std::string()};
+    CHECK(check_recipe(headless).find("no target") != std::string::npos);
+
+    // ...and a single-source recipe that links nothing would fail later and less
+    // clearly, so it is refused here.
+    Recipe unlinked = neither;
+    unlinked.single_source =
+        SingleSourceRecipe{"/tmp/x.cpp", {}, {}, std::string(), std::string()};
+    CHECK(check_recipe(unlinked).find("links nothing") != std::string::npos);
+}
+
+TEST_CASE("BLD-1 law: a path may hold spaces, and a link target may not hold a flag") {
+    // SPACES ARE LEGAL, and that is a decision about the platforms this repository
+    // builds for rather than an oversight: a maker's checkout genuinely lives under
+    // `C:/Users/Someone/My Weaves` on one of them, and every place a path is spent
+    // here is one element of an argument vector or one quoted CMake string.
+    CHECK(check_recipe_path("a source file", "/home/me/My Weaves/oven.cpp").empty());
+    CHECK(check_recipe_path("a source file", "C:/Users/Someone/My Weaves/oven.cpp").empty());
+    // A QUOTE AND A CONTROL CHARACTER ARE NOT. The first ends a string in a
+    // generated file and the second ends a line in one, and neither is made safe by
+    // escaping something a reader then has to trust.
+    CHECK_FALSE(check_recipe_path("a source file", "/home/me/\"oven\".cpp").empty());
+    CHECK_FALSE(check_recipe_path("a source file", "/home/me/oven\n.cpp").empty());
+    CHECK_FALSE(check_recipe_path("a source file", "").empty());
+
+    // A TARGET IS LINKED BY NAME. A flag, a path or a library file is not one, and
+    // the refusal says so rather than passing it through to CMake.
+    CHECK(check_link_target("zengine::timer").empty());
+    CHECK(check_link_target("loom::switchboard").empty());
+    CHECK(check_link_target("zengine::operator-consumer").empty());
+    CHECK_FALSE(check_link_target("-lpthread").empty());
+    CHECK_FALSE(check_link_target("/usr/lib/libfoo.so").empty());
+    CHECK_FALSE(check_link_target("$(evil)").empty());
+    CHECK_FALSE(check_link_target("a;b").empty());
+}
+
+TEST_CASE("BLD-1: two recipes coexist, and a name is a name") {
+    const std::string twice = check_recipes(
+        {cmake_recipe("one", "fixture-quick"), cmake_recipe("one", "fixture-slow2")});
+    CHECK(twice.find("declared twice") != std::string::npos);
+
+    // TWO RECIPES PRODUCING ONE ARTIFACT IS ORDINARY and is deliberately NOT
+    // refused: the same weave built against two package prefixes is a thing a
+    // project may want, and what asks for a build asks for a RECIPE.
+    CHECK(check_recipes({cmake_recipe("debug", "fixture-quick", "zengine-oven"),
+                         cmake_recipe("release", "fixture-slow2", "zengine-oven")})
+              .empty());
+}
+
+TEST_CASE("BLD-1: selecting one recipe cannot build the other") {
+    Live live({cmake_recipe("alpha", "fixture-quick"), cmake_recipe("beta", "fixture-neighbour")});
+    live.tell_tool(BuildRequested{"beta"});
+    live.carry_until_over();
+
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.recipe == "beta");
+    CHECK(done.artifact == "fixture-neighbour");
+    CHECK(done.outcome == outcome::kSucceeded);
+    // THE COMMAND NAMES THE ONE TARGET THAT WAS ASKED FOR, which is what makes
+    // "the configured build action reaches the intended target" a measurement.
+    CHECK(done.command.find("--target fixture-neighbour") != std::string::npos);
+    CHECK(done.command.find("fixture-quick") == std::string::npos);
+}
+
+TEST_CASE("BLD-1: a process exiting zero is not an artifact") {
+    // THE RECIPE NAMES A FILE ITS TARGET DOES NOT PRODUCE -- the ordinary maker
+    // mistake, and the one a green build would otherwise hide completely.
+    Live live({cmake_recipe("empty", "fixture-empty", "zengine-never-made")});
+    live.tell_tool(BuildRequested{"empty"});
+    live.carry_until_over();
+
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.status == 0);                     // the build system was satisfied
+    CHECK(done.outcome == outcome::kNoArtifact); // ...and the project is not
+    CHECK(done.outcome != outcome::kSucceeded);
+    CHECK(done.outcome != outcome::kFailed); // nothing FAILED, and saying so would send a
+                                             // maker to read output that says everything
+                                             // went fine
+    CHECK(done.detail.find("zengine-never-made") != std::string::npos);
+    CHECK_FALSE(artifact_produced(done.outcome));
+    // AND NOTHING WAS OFFERED TO ANY PROJECT.
+    CHECK(live.ears->built.empty());
+}
+
+TEST_CASE("BLD-1: a build succeeds only when the artifact its recipe names is there") {
+    const std::string made = fixture_path("fixture-quick");
+    std::remove(made.c_str());
+    REQUIRE_FALSE(stamp_of(made).present);
+
+    Live live({cmake_recipe("quick", "fixture-quick")});
+    live.tell_tool(BuildRequested{"quick"});
+    live.carry_until_over();
+
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.outcome == outcome::kSucceeded);
+    CHECK(artifact_produced(done.outcome));
+    CHECK(stamp_of(made).present);
+    // IT SAYS IT BUILT THE THING, by the stem the project would name it by.
+    CHECK(done.detail.find("built fixture-quick") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: an unrelated artifact beside the output satisfies nothing") {
+    // A VALID-LOOKING NATIVE ARTIFACT, PRODUCED BY THE SAME BUILD, that the recipe
+    // never named. There is no scan here and no newest-file heuristic: the recipe
+    // says what it produces, and a neighbour is a neighbour.
+    const std::string bystander = fixture_path("fixture-bystander");
+    std::remove(bystander.c_str());
+
+    Live live({cmake_recipe("neighbour", "fixture-neighbour", "zengine-not-the-neighbour")});
+    live.tell_tool(BuildRequested{"neighbour"});
+    live.carry_until_over();
+
+    CHECK(stamp_of(bystander).present);                       // the neighbour really is there
+    CHECK(live.ears->last().outcome == outcome::kNoArtifact); // ...and it counts for nothing
+}
+
+TEST_CASE("BLD-1: a stale artifact cannot make a failed build look successful") {
+    // THE ORDER OF THE TWO CHECKS IS THE WHOLE GUARANTEE. The exit status is
+    // consulted FIRST, so an artifact left at the destination by an earlier success
+    // -- which is exactly what an incremental build tree looks like -- can never be
+    // read as this operation's product.
+    const std::string stale = fixture_path("fixture-broken");
+    {
+        std::ofstream leave(stale, std::ios::binary);
+        leave << "a perfectly good artifact from a build that worked";
+    }
+    REQUIRE(stamp_of(stale).present);
+
+    Live live({cmake_recipe("brk", "fixture-broken")});
+    live.tell_tool(BuildRequested{"brk", /*realize=*/true});
+    live.carry_until_over();
+
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.outcome == outcome::kFailed);
+    CHECK(done.status != 0);
+    CHECK(stamp_of(stale).present); // the old file is still sitting there
+    // ...AND NOTHING WAS OFFERED. A failed build never reaches the artifact
+    // question at all, so a maker who asked for realization is told why rather
+    // than left to wonder.
+    CHECK(live.ears->built.empty());
+    CHECK(done.realization == realization::kRefused);
+    CHECK(done.realized_detail.find("build failed") != std::string::npos);
+    std::remove(stale.c_str());
+}
+
+TEST_CASE("BLD-1: a build offers its artifact only when a maker asked it to") {
+    // A PLAIN BUILD PRODUCES A FILE TOO, and says so -- and publishes no offer,
+    // because an offer carries an INTENT that something be done with the result.
+    Live plain({cmake_recipe("quick", "fixture-quick")});
+    plain.tell_tool(BuildRequested{"quick", /*realize=*/false});
+    plain.carry_until_over();
+    CHECK(plain.ears->last().outcome == outcome::kSucceeded);
+    CHECK(plain.ears->last().realization == realization::kNotAsked);
+    CHECK(plain.ears->built.empty());
+
+    Live asked({cmake_recipe("quick", "fixture-quick")});
+    asked.tell_tool(BuildRequested{"quick", /*realize=*/true});
+    asked.carry_until_over();
+    const BuildStatus& done = asked.ears->last();
+    CHECK(done.outcome == outcome::kSucceeded);
+    CHECK(done.realize);
+    CHECK(done.realization == realization::kOffered);
+    REQUIRE(asked.ears->built.size() == 1);
+    CHECK(asked.ears->built[0].recipe == "quick");
+    CHECK(asked.ears->built[0].artifact == "fixture-quick");
+    CHECK(asked.ears->built[0].op == done.op);
+    // THE PATH TRAVELS SO NOTHING DOWNSTREAM HAS TO SPELL A STEM -- and it is the
+    // file the tool actually looked at.
+    CHECK(asked.ears->built[0].path == fixture_path("fixture-quick"));
+    CHECK(asked.tool->known().offered == 1);
+}
+
+TEST_CASE("BLD-1: the project's answer is a SECOND outcome and never overwrites the first") {
+    Live live({cmake_recipe("quick", "fixture-quick")});
+    live.tell_tool(BuildRequested{"quick", /*realize=*/true});
+    live.carry_until_over();
+    REQUIRE(live.ears->last().outcome == outcome::kSucceeded);
+    REQUIRE(live.ears->last().realization == realization::kOffered);
+
+    // THE PROJECT REFUSES, IN ITS OWN WORDS. The build is untouched: it succeeded,
+    // it still says so, and the two facts sit on two fields.
+    live.tell_tool(
+        ArtifactRealized{"fixture-quick", false, "already part of this running project"});
+    const BuildStatus& after = live.ears->last();
+    CHECK(after.outcome == outcome::kSucceeded);
+    CHECK(after.status == 0);
+    CHECK(after.realization == realization::kRefused);
+    CHECK(after.realized_detail.find("already part of") != std::string::npos);
+
+    // AN ANSWER ABOUT SOMEBODY ELSE'S ARTIFACT IS SOMEBODY ELSE'S CONVERSATION.
+    const std::int64_t stray = live.tool->known().stray;
+    live.tell_tool(ArtifactRealized{"some-other-artifact", true, "loaded"});
+    CHECK(live.tool->known().stray == stray + 1);
+    CHECK(live.tool->known().realization == realization::kRefused);
+}
+
+TEST_CASE("BLD-1 CANARY: break the recipe-to-artifact mapping and success stops being one") {
+    // MUTATION A, IN COMMITTED FORM. `outcome::kSucceeded` is `exit 0 AND the file
+    // the recipe names is there`; a recipe whose artifact no longer describes what
+    // its target produces therefore cannot reach it, however green the process was.
+    // If this ever passes as `kSucceeded`, the artifact half of the test has stopped
+    // being applied and every artifact claim in this suite is void.
+    Recipe broken = cmake_recipe("quick", "fixture-quick");
+    broken.artifact = "zengine-a-name-nothing-produces";
+    Live live({broken});
+    live.tell_tool(BuildRequested{"quick", /*realize=*/true});
+    live.carry_until_over();
+
+    CHECK(live.ears->last().status == 0);
+    CHECK(live.ears->last().outcome == outcome::kNoArtifact);
+    CHECK(live.ears->built.empty());
+}
+
+// ---- The generated project: what a single-source recipe becomes ------------------
+
+namespace {
+
+/// One single-source recipe, fully resolved the way a host resolves one.
+Recipe one_source(const std::string& workspace, const std::string& source) {
+    Recipe r;
+    r.id = "oven";
+    r.artifact = "zengine-oven";
+    r.artifact_dir = std::string(kFixtureArtifacts) + "/landing";
+    r.single_source = SingleSourceRecipe{source,
+                                         {"/opt/zengine", "/opt/loom"},
+                                         {"zengine::timer", "loom::switchboard"},
+                                         std::string(kFixtureTree),
+                                         workspace};
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("BLD-1: the generated project consumes the PACKAGE and nothing private") {
+    const std::string text = generated_project(one_source("/tmp/ws", "/tmp/oven.cpp"));
+
+    // THE WHOLE PURITY CLAIM, IN ONE LINE OF THE GENERATED FILE.
+    CHECK(text.find("find_package(zengine 0.1 CONFIG REQUIRED)") != std::string::npos);
+    CHECK(text.find("loom_weave_build_contract(zengine-oven)") != std::string::npos);
+    CHECK(text.find("add_library(zengine-oven SHARED \"/tmp/oven.cpp\")") != std::string::npos);
+
+    // ...AND WHAT IS NOT IN IT IS THE OTHER HALF OF THE SAME CLAIM. No include
+    // directory into a source tree, no build-tree path, no named library file, no
+    // compiler, no flag, no link line.
+    //
+    // WITH THE PROSE STRIPPED, which is this repository's own discipline for a
+    // source tripwire (`test_operator_provider.cpp` reads `load_execute.hpp` the
+    // same way). The generated file EXPLAINS what it refuses to contain -- it says
+    // in a comment that there is no named `.so` or `.dll` in it -- and a scan that
+    // could not tell a comment from a command would fail on the sentence saying the
+    // thing is absent.
+    std::string code;
+    for (std::size_t at = 0; at < text.size();) {
+        const std::size_t end = text.find('\n', at);
+        const std::string line = text.substr(at, end == std::string::npos ? end : end - at);
+        if (line.find_first_not_of(" \t") != std::string::npos &&
+            line[line.find_first_not_of(" \t")] != '#') {
+            code += line;
+            code += '\n';
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        at = end + 1;
+    }
+    for (const char* forbidden : {"include_directories", "target_compile_options", "-I", "-l",
+                                  "g++", "clang++", "cl.exe", ".so", ".dll", "CMAKE_CXX_FLAGS"}) {
+        CHECK(code.find(forbidden) == std::string::npos);
+    }
+
+    // ONLY WHAT WAS AUTHORED IS LINKED.
+    CHECK(text.find("zengine::timer") != std::string::npos);
+    CHECK(text.find("loom::switchboard") != std::string::npos);
+    CHECK(text.find("zengine::surface") == std::string::npos);
+
+    // CMAKE OWNS WHERE IT LANDS, INCLUDING THE PER-CONFIG VARIANTS a multi-config
+    // generator would otherwise append a directory to.
+    CHECK(text.find("LIBRARY_OUTPUT_DIRECTORY") != std::string::npos);
+    CHECK(text.find("RUNTIME_OUTPUT_DIRECTORY") != std::string::npos);
+    CHECK(text.find("ARCHIVE_OUTPUT_DIRECTORY") != std::string::npos);
+    CHECK(text.find("CMAKE_CONFIGURATION_TYPES") != std::string::npos);
+    CHECK(text.find("PREFIX \"\"") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: the generated driver borrows a toolchain and tells two failures apart") {
+    const std::string text = generated_driver(one_source("/tmp/ws", "/tmp/oven.cpp"));
+
+    // THE TOOLCHAIN IS BORROWED WITH CMAKE'S OWN MECHANISM. No cache parser was
+    // written in C++, and the policy is legible in a file a maker can open.
+    CHECK(text.find("load_cache(") != std::string::npos);
+    CHECK(text.find("CMAKE_GENERATOR") != std::string::npos);
+    CHECK(text.find("CMAKE_CXX_COMPILER") != std::string::npos);
+    CHECK(text.find("CMakeCache.txt") != std::string::npos);
+
+    // TWO FAILURES, TWO SENTENCES. A configure that failed and a compile that
+    // failed are different problems needing different next actions, and this script
+    // is the only party that sees both exit codes.
+    CHECK(text.find("CMake configure FAILED") != std::string::npos);
+    CHECK(text.find("compile or link FAILED") != std::string::npos);
+    // ...and both name the generated project, because that is where a maker has to
+    // go to read why.
+    CHECK(text.find("was not deleted") != std::string::npos);
+
+    // THE PACKAGE PREFIXES ARRIVE AS ONE `-D`, with the list separator escaped so
+    // it survives being written into a file that is itself CMake.
+    CHECK(text.find("-DCMAKE_PREFIX_PATH=/opt/zengine\\;/opt/loom") != std::string::npos);
+
+    // NO TOOLCHAIN AUTHORED IS A REAL ANSWER and is said to be a default.
+    Recipe bare = one_source("/tmp/ws", "/tmp/oven.cpp");
+    bare.single_source->toolchain_from.clear();
+    const std::string plain = generated_driver(bare);
+    CHECK(plain.find("load_cache(") == std::string::npos);
+    CHECK(plain.find("NO TOOLCHAIN WAS BORROWED") != std::string::npos);
+}
+
+TEST_CASE("BLD-1: a path with spaces survives generation, and a dollar stays a dollar") {
+    const Recipe spaced = one_source("/home/me/My Builds/oven", "/home/me/My Weaves/oven.cpp");
+    const std::string project = generated_project(spaced);
+    const std::string driver = generated_driver(spaced);
+
+    CHECK(project.find("\"/home/me/My Weaves/oven.cpp\"") != std::string::npos);
+    CHECK(driver.find("\"/home/me/My Builds/oven\"") != std::string::npos);
+
+    // A WINDOWS PATH IS A PATH AND NOT A STRING FULL OF ESCAPES.
+    CHECK(cmake_quoted("C:\\Users\\Someone\\oven.cpp") == "C:\\\\Users\\\\Someone\\\\oven.cpp");
+    // ...AND A DOLLAR SIGN IS NOT A VARIABLE REFERENCE.
+    CHECK(cmake_quoted("/tmp/$HOME/oven.cpp") == "/tmp/\\$HOME/oven.cpp");
+}
+
+TEST_CASE("BLD-1: a recipe becomes ONE process, and the two kinds become two commands") {
+    // AN EXISTING CMAKE TARGET IS THE COMMAND A MAKER WOULD TYPE.
+    const PreparedBuild target = prepare(cmake_recipe("quick", "fixture-quick"), kCMake);
+    REQUIRE(target.ok);
+    CHECK(target.command.program == std::string(kCMake));
+    REQUIRE(target.command.args.size() == 4);
+    CHECK(target.command.args[0] == "--build");
+    CHECK(target.command.args[1] == std::string(kFixtureTree));
+    CHECK(target.command.args[2] == "--target");
+    CHECK(target.command.args[3] == "fixture-quick");
+
+    // A MULTI-CONFIG GENERATOR'S CONFIGURATION RIDES ALONG when a recipe authors
+    // one, and single-config generators accept and ignore it -- which is what makes
+    // one recipe legal against either kind of tree.
+    Recipe configured = cmake_recipe("quick", "fixture-quick");
+    configured.cmake_target->config = "Debug";
+    const PreparedBuild with_config = prepare(configured, kCMake);
+    REQUIRE(with_config.ok);
+    REQUIRE(with_config.command.args.size() == 6);
+    CHECK(with_config.command.args[4] == "--config");
+    CHECK(with_config.command.args[5] == "Debug");
+
+    // A BUILD TREE NOBODY CONFIGURED IS REFUSED BY NAME, before a child exists.
+    Recipe nowhere = cmake_recipe("quick", "fixture-quick");
+    nowhere.cmake_target->build_dir = std::string(kFixtureTree) + "-absent";
+    const PreparedBuild missing = prepare(nowhere, kCMake);
+    CHECK_FALSE(missing.ok);
+    CHECK(missing.trouble.find("CMakeCache.txt") != std::string::npos);
+
+    // A SOURCE FILE THAT IS NOT THERE, likewise -- and NOTHING is generated for it.
+    const std::string workspace = std::string(kFixtureArtifacts) + "/ws-absent";
+    const PreparedBuild gone =
+        prepare(one_source(workspace, "/tmp/no-such-oven-source.cpp"), kCMake);
+    CHECK_FALSE(gone.ok);
+    CHECK(gone.trouble.find("is not there") != std::string::npos);
+    CHECK_FALSE(stamp_of(workspace + "/CMakeLists.txt").present);
+}
+
+TEST_CASE("BLD-1: a single-source recipe writes its project, and is one `cmake -P`") {
+    // A REAL SOURCE FILE, so `prepare` gets past its one diagnostic preflight. It is
+    // never compiled here -- what this case is about is the two files Zengine writes
+    // and the single command it produces; a real compile against a real installed
+    // package is `tests/build/run.cmake`, which is a lane and not a ctest entry.
+    const std::string workspace = std::string(kFixtureArtifacts) + "/ws";
+    const std::string source = std::string(kFixtureArtifacts) + "/oven.cpp";
+    std::filesystem::create_directories(std::filesystem::path(kFixtureArtifacts));
+    {
+        std::ofstream write(source, std::ios::binary);
+        write << "// not compiled by this case\n";
+    }
+
+    const PreparedBuild built = prepare(one_source(workspace, source), kCMake);
+    REQUIRE(built.ok);
+    CHECK(built.command.program == std::string(kCMake));
+    REQUIRE(built.command.args.size() == 2);
+    CHECK(built.command.args[0] == "-P");
+    CHECK(built.command.args[1] == workspace + "/" + kGeneratedDriverFile);
+    CHECK(built.command.dir == workspace);
+
+    // BOTH FILES ARE ON DISK AND STAY THERE. A generated project that deleted
+    // itself would take the diagnostics with it exactly when a maker needs them.
+    CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile).present);
+    CHECK(stamp_of(workspace + "/" + kGeneratedDriverFile).present);
+
+    // WRITING IT AGAIN WITH THE SAME RECIPE DOES NOT TOUCH IT, which is what keeps
+    // the second build of an unchanged recipe incremental rather than a reconfigure.
+    const ArtifactStamp first = stamp_of(workspace + "/" + kGeneratedProjectFile);
+    CHECK(materialize(one_source(workspace, source)).empty());
+    CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile) == first);
+
+    // ...AND A CHANGED RECIPE DOES.
+    Recipe moved = one_source(workspace, source);
+    moved.single_source->links.push_back("zengine::surface");
+    CHECK(materialize(moved).empty());
+    CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile).size != first.size);
+}
+
+// ---- The scheduler audit, as a tripwire -----------------------------------------
+
+namespace {
+
+/// One source file, with its prose stripped.
+///
+/// THE PROSE GOES FIRST, because these files EXPLAIN what they refuse to do -- this
+/// header says out loud that nothing here waits, sleeps or runs on another thread --
+/// and a check that could not tell a sentence from a statement would forbid the
+/// explanation. BOOT-0's tripwire over `load_execute.hpp` reads its subject exactly
+/// this way, and this is that discipline applied to the two participants a build
+/// conversation passes through.
+std::string code_of(const char* path) {
+    std::ifstream in(path);
+    REQUIRE_MESSAGE(in.good(), "cannot read ", std::string(path));
+    std::ostringstream all;
+    all << in.rdbuf();
+    const std::string text = all.str();
+    std::string code;
+    code.reserve(text.size());
+    for (std::size_t i = 0; i < text.size();) {
+        if (text.compare(i, 2, "//") == 0) {
+            while (i < text.size() && text[i] != '\n') {
+                ++i;
+            }
+            continue;
+        }
+        code.push_back(text[i]);
+        ++i;
+    }
+    return code;
+}
+
+} // namespace
+
+TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own result") {
+    // ⭐ THE SCHEDULER AUDIT, MECHANICALLY. The behavioural half is above -- a real
+    // child runs while unrelated deliveries are carried, measured against the
+    // blocking shape rebuilt beside it as a control. This is the tripwire, and it is
+    // here because BLD-1 gave the TOOL two new reasons to want a loop: it now waits
+    // for an artifact to appear, and it now waits for a project to answer. Neither is
+    // a wait. Both are facts that arrive.
+    const std::string tool = code_of(ZENGINE_TEST_TOOL_SOURCE);
+    const std::string runner = code_of(ZENGINE_TEST_RUNNER_SOURCE);
+
+    for (const char* verb : {"pump_pending", "drain_until_idle", "dispatch_at_most", "run_until",
+                             "wait_until", "advance_until", "pump_until", "std::this_thread",
+                             "sleep_for"}) {
+        CHECK_MESSAGE(tool.find(verb) == std::string::npos, "builder/weave.hpp calls '", verb,
+                      "', which makes the Builder tool its own scheduler");
+        CHECK_MESSAGE(runner.find(verb) == std::string::npos, "builder/runner.hpp calls '", verb,
+                      "', which makes the build runner its own scheduler");
+    }
+    for (const char* noun : {"std::future", "std::promise", "std::async", "std::thread",
+                             "class Scheduler", "struct Scheduler", "co_await", "co_return"}) {
+        CHECK_MESSAGE(tool.find(noun) == std::string::npos, "builder/weave.hpp declares '", noun,
+                      "', which is a scheduler wearing another noun");
+        CHECK_MESSAGE(runner.find(noun) == std::string::npos, "builder/runner.hpp declares '",
+                      noun, "', which is a scheduler wearing another noun");
+    }
+
+    // ⚠ `look()` IS THE ONE POLL IN THIS PACKAGE AND IT LIVES WITH THE OS HANDLE.
+    // The runner polls its own children because that is what an OS handle offers;
+    // the TOOL must never learn the word, because a tool that could ask "is it done
+    // yet?" is a tool that would eventually loop until it was.
+    CHECK(runner.find(".look()") != std::string::npos);
+    CHECK(tool.find("look()") == std::string::npos);
+
+    // ...AND THE TOOL HOLDS NO PROCESS, NO HANDLE AND NO COMMAND. The three nouns
+    // that would mean the split had quietly collapsed.
+    for (const char* forbidden : {"RunningRecipe", "start_recipe", "builder/run.hpp",
+                                  "builder/generate.hpp", "BuildCommand"}) {
+        CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
+                      forbidden, "', which is process authority in the presentation's half");
+    }
 }

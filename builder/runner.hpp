@@ -24,6 +24,32 @@
 // somebody wrote down.
 //
 // ---------------------------------------------------------------------------
+// SINCE BLD-1 THE CATALOG IS AUTHORED RECIPES AND NOT COMMANDS, and this weave is
+// where a recipe becomes one process. That is a widening of what it HOLDS and not
+// of what it may DO, and the difference is worth being exact about:
+//
+//   what a recipe can name       a CMake build tree and a target; or a source
+//                                file, some package prefixes and some exported
+//                                target names to link
+//   what a recipe cannot name    a program, an argument, a working directory, a
+//                                shell line, an environment variable
+//   what this weave puts in      the host's own CMake, by absolute path, handed
+//   `BuildCommand::program`      to it at construction and unreachable from any
+//                                file (`builder/generate.hpp::prepare`)
+//
+// So a maker's recipe file is not an execution-authority document in the sense a
+// LOAD PLAN is: it selects inputs to a mechanism this package already had, and
+// the mechanism is CMake either way.
+//
+// A SINGLE-SOURCE RECIPE ALSO WRITES TWO SMALL FILES before it runs anything --
+// the generated CMake project and the driver that configures and builds it. That
+// is materializing a command's subject, it happens synchronously inside the same
+// handler that would otherwise have nothing to do, and a failure to write is
+// reported as `BuildNotStarted` exactly as a failure to launch is. The text
+// itself is `builder/generate.hpp`'s, which is a pure function of the recipe and
+// is asserted on directly by the suite.
+//
+// ---------------------------------------------------------------------------
 // CUSTODY IS THE PHASE (ASYNC-1), and it is one sentence:
 //
 //     the participant that possesses the external process capability
@@ -108,6 +134,8 @@
 // the surrounding phases exist to refuse. Containment of a build is the isolation
 // host's kind of question, and this is not that.
 
+#include "builder/generate.hpp"
+#include "builder/recipe.hpp"
 #include "builder/run.hpp"
 #include "builder/vocabulary.hpp"
 
@@ -194,7 +222,12 @@ public:
     ///
     /// THE LIVE HANDLES ARE UNDER THE SAME ROOF, and for a sharper version of
     /// the same reason: a writable `pid` is that door with the lock already off.
-    explicit BuildRunnerWeave(std::vector<BuildRecipe> catalog) : catalog_(std::move(catalog)) {
+    ///
+    /// THE CMAKE ARRIVES THE SAME WAY AND FOR A SHARPER VERSION OF THE SAME REASON.
+    /// It is the one program this weave will ever start, it is chosen by the party
+    /// that composed the process, and no recipe, message or poke can reach it.
+    BuildRunnerWeave(std::vector<Recipe> catalog, std::string cmake)
+        : catalog_(std::move(catalog)), cmake_(std::move(cmake)) {
         look_ = timers().repeat(std::string(kLookTimerId), std::chrono::milliseconds(kLookBeatMs),
                                 &BuildRunnerWeave::on_look_beat);
     }
@@ -209,7 +242,7 @@ public:
     /// does not wait, and leaves behind an owned record that is sufficient to
     /// find the process again on any later beat.
     void on(const RunBuild& order, loom::Mail& mail) {
-        const BuildRecipe* recipe = find(order.target);
+        const Recipe* recipe = recipe_named(catalog_, order.recipe);
         if (recipe == nullptr) {
             ++state_.refused;
             // A refusal names no operation, because none was created: `op` is 0
@@ -217,28 +250,41 @@ public:
             // give the tool two code paths for the same question -- "did a
             // process run for my ask?" -- whose answer is no either way.
             (void)mail.send_to_role(kBuilderRole,
-                                    BuildNotStarted{0, order.target, std::string(),
-                                                    "no recipe here is called `" + order.target +
+                                    BuildNotStarted{0, order.recipe, std::string(),
+                                                    "no recipe here is called `" + order.recipe +
                                                         "`"});
             return;
         }
+        // THE RECIPE BECOMES A COMMAND HERE, and for a single-source recipe this is
+        // also where the generated project is written. Both can fail for ordinary
+        // reasons a maker can fix -- a build tree that was never configured, a
+        // source file that has been moved, a workspace that cannot be created --
+        // and all of them are "nothing ran", said with the reason.
+        const PreparedBuild prepared = prepare(*recipe, cmake_);
+        if (!prepared.ok) {
+            ++state_.refused;
+            (void)mail.send_to_role(
+                kBuilderRole,
+                BuildNotStarted{0, recipe->id, std::string(), prepared.trouble});
+            return;
+        }
         ++state_.ran;
-        RecipeStart begun = start_recipe(*recipe);
+        RecipeStart begun = start_recipe(prepared.command);
         if (!begun.started) {
             (void)mail.send_to_role(
                 kBuilderRole,
-                BuildNotStarted{0, recipe->target, recipe->as_line(), begun.trouble});
+                BuildNotStarted{0, recipe->id, prepared.command.as_line(), begun.trouble});
             return;
         }
         Held held;
         held.op = ++next_op_;
-        held.target = recipe->target;
-        held.recipe = recipe->as_line();
+        held.recipe = recipe->id;
+        held.command = prepared.command.as_line();
         held.process = std::move(begun.process);
         held_.push_back(std::move(held));
         state_.live = static_cast<std::int64_t>(held_.size());
-        (void)mail.send_to_role(
-            kBuilderRole, BuildStarted{held_.back().op, held_.back().target, held_.back().recipe});
+        (void)mail.send_to_role(kBuilderRole, BuildStarted{held_.back().op, held_.back().recipe,
+                                                           held_.back().command});
         // ...AND ONLY NOW ASK FOR THE BEAT. Held first, announced second, armed
         // third: each step is only true because the one before it is.
         if (!look_.waiting()) {
@@ -252,7 +298,7 @@ public:
     /// What this runner can build, for a host that wants to say so in its banner.
     /// Read-only, and it is the host's own list coming back -- no weave learns it
     /// this way.
-    const std::vector<BuildRecipe>& catalog() const { return catalog_; }
+    const std::vector<Recipe>& catalog() const { return catalog_; }
 
     /// How many processes this runner has tried to start, how many names it has
     /// turned down, how many operations it is holding, and how many times it has
@@ -274,8 +320,8 @@ private:
     /// operation and they are "in this vector" and "not in this vector".
     struct Held {
         std::int64_t op = 0;
-        std::string target;
-        std::string recipe;
+        std::string recipe;  ///< the authored recipe this operation is carrying out
+        std::string command; ///< what is actually running, as one line
         std::string pending; ///< drained bytes that are not yet a complete line
         RunningRecipe process;
     };
@@ -303,7 +349,7 @@ private:
                     text.erase(0, text.size() - kMaxOutputChars);
                 }
                 (void)mail.send_to_role(kBuilderRole,
-                                        BuildOutput{held.op, held.target, text, dropped});
+                                        BuildOutput{held.op, held.recipe, text, dropped});
             }
             if (!seen.ended) {
                 ++i;
@@ -315,11 +361,11 @@ private:
                 // the operation's own number precisely because the operation was
                 // already announced under it.
                 (void)mail.send_to_role(
-                    kBuilderRole, BuildNotStarted{held.op, held.target, held.recipe,
+                    kBuilderRole, BuildNotStarted{held.op, held.recipe, held.command,
                                                   seen.trouble});
             } else {
                 (void)mail.send_to_role(kBuilderRole,
-                                        BuildFinished{held.op, held.target, seen.status});
+                                        BuildFinished{held.op, held.recipe, seen.status});
             }
             held_.erase(held_.begin() + static_cast<std::ptrdiff_t>(i));
         }
@@ -331,16 +377,11 @@ private:
         }
     }
 
-    const BuildRecipe* find(const std::string& target) const {
-        for (const BuildRecipe& r : catalog_) {
-            if (r.target == target) {
-                return &r;
-            }
-        }
-        return nullptr;
-    }
-
-    std::vector<BuildRecipe> catalog_;
+    std::vector<Recipe> catalog_;
+    /// THE ONE PROGRAM THIS WEAVE STARTS, under the same roof as the catalog and for
+    /// the same reason: a poke that could write a new program path here would be a
+    /// door onto arbitrary execution wearing an inspection tool's clothes.
+    std::string cmake_;
     std::vector<Held> held_;
     /// NEVER STATE, for the reason in this file's header: a poke that could
     /// rewind this would make the runner re-issue a number a published fact has

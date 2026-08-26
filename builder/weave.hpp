@@ -4,15 +4,17 @@
 #ifndef ZENGINE_BUILDER_WEAVE_HPP
 #define ZENGINE_BUILDER_WEAVE_HPP
 
-// The Builder tool: an ORDINARY weave that knows the name of one buildable
-// thing, follows how its build is going, and says so.
+// The Builder tool: an ORDINARY weave that knows which recipes this project has,
+// which ARTIFACT each of them produces, follows how the build of one is going,
+// and says so.
 //
-// ORDINARY IS THE CLAIM. Its grant is two rules -- it may order the build runner,
-// and it may publish what it knows -- and it holds nothing else: no process, no
-// command, no file, no kernel reach, no manager, no surface, no timer. Everything
-// a maker sees of a build passes through those two rules, so "what did giving
-// Zengine a Build button actually cost in authority" has a short and checkable
-// answer.
+// ORDINARY IS THE CLAIM. Its grant is three rules -- it may order the build runner,
+// it may publish what it knows, and (BLD-1) it may say that an artifact a maker
+// asked to have realized is now on disk. It holds nothing else: no process, no
+// command, no build tree, no source path, no kernel reach, no manager, no surface,
+// no timer. Everything a maker sees of a build passes through those rules, so "what
+// did giving Zengine a Build button actually cost in authority" has a short and
+// checkable answer.
 //
 // IT IS NOT A PANEL AND IT DOES NOT KNOW ABOUT ONE. Nothing here mentions
 // Workshop, a screen, a canvas or a row. It publishes `BuildStatus` and whoever
@@ -24,16 +26,13 @@
 // difference this phase exists to keep.
 //
 // ---------------------------------------------------------------------------
-// IT REMEMBERS A BUILD THAT IS STILL HAPPENING (ASYNC-1), which is the whole of
-// what this file gained. BLD-0's tool had no word for "running", because a build
-// that held the pump could not be asked about while it held it -- the one moment
-// a maker most wants an answer was the one moment nothing could answer. Now the
-// runner reports four kinds of observation and this weave folds them into one
+// IT REMEMBERS A BUILD THAT IS STILL HAPPENING (ASYNC-1), which was BLD-0's gap.
+// The runner reports four kinds of observation and this weave folds them into one
 // current picture:
 //
 //     BuildStarted    -> running, and this is the operation and the command
 //     BuildOutput     -> ...and this is the newest thing it said
-//     BuildFinished   -> succeeded or FAILED, with the exit status
+//     BuildFinished   -> the process exited; ...and then, see below
 //     BuildNotStarted -> nothing ran, and this is why
 //
 // FACTS AND STATE ARE DIFFERENT THINGS AND ARE KEPT APART. What arrives is an
@@ -44,41 +43,78 @@
 // an event it WATCHED, and only a design where the two are separate lets a
 // panel opened mid-build be told "running" without being told "it just started".
 //
+// ---------------------------------------------------------------------------
+// A PROCESS EXITING ZERO IS NOT AN ARTIFACT (BLD-1), and this weave is where the
+// difference is spent.
+//
+// The runner owns process custody and only process custody: it can honestly say a
+// child exited and with what status, and nothing more. Whether the FILE a recipe
+// said it would produce is now on disk is a different question about a different
+// subject, and this weave is the one that holds recipe-to-artifact knowledge --
+// so it is the one that looks:
+//
+//     BuildFinished, status 0, artifact present   -> succeeded
+//     BuildFinished, status 0, artifact ABSENT    -> kNoArtifact, and it says so
+//     BuildFinished, status non-zero              -> FAILED, and the artifact is
+//                                                    never consulted
+//
+// THE STALE-ARTIFACT TRAP IS CLOSED BY THE ORDER OF THOSE THREE, not by a
+// timestamp heuristic. A failed build leaves whatever was at the destination
+// before -- possibly a perfectly good artifact from an earlier build -- and the
+// exit status is checked FIRST, so a previous success can never make the current
+// operation look successful. The stamp this weave takes when a build STARTS is
+// therefore not a correctness mechanism; it is how a maker is told whether their
+// build actually relinked anything, which an incremental build often does not.
+//
+// ---------------------------------------------------------------------------
 // ONE BUILD AT A TIME, AND IT IS A POLICY OF THIS TOOL. A `BuildRequested` that
 // arrives while a build is still going is refused with a sentence naming the
 // operation already running, and nothing is ordered. That is a product decision
-// about one target and one button -- it is emphatically NOT a limitation of the
-// mechanism underneath: the runner holds a vector, mints an identity per
-// operation, and observes each of them independently, so the day a Builder wants
-// two targets it changes this file and not that one. Written down here because a
-// refusal whose reason lives in the wrong layer is a refusal nobody can lift.
+// -- it is emphatically NOT a limitation of the mechanism underneath: the runner
+// holds a vector, mints an identity per operation, and observes each of them
+// independently, so the day a Builder wants two builds at once it changes this
+// file and not that one. Written down here because a refusal whose reason lives
+// in the wrong layer is a refusal nobody can lift.
 //
 // WHAT IT DELIBERATELY DOES NOT DO:
 //
-//   - it does not choose the target. The host does, at construction, and the
-//     tool carries that one name for its whole life. A tool that could be told a
-//     new target over the wire would be a tool whose reach is whatever somebody
-//     types, which is the thing BLD-0 is arranged not to build.
+//   - it does not choose the recipes. The host does, at construction, out of an
+//     authored file. A tool that could be told a new recipe over the wire would
+//     be a tool whose reach is whatever somebody types, which is the thing this
+//     package is arranged not to build.
 //   - it does not hold a command, and cannot describe one until the runner has
 //     told it what is actually running. Before the first build the panel says so.
+//   - it does not hold a build tree, a source path, a package prefix or a link
+//     list. It holds an identity, an artifact stem and the one file that stem
+//     means -- which is exactly what its two questions need and no more.
 //   - it does not keep the build log. It keeps a bounded tail of what the current
 //     operation has said -- enough for the rows a panel has -- and the whole
 //     stream stays on the bus, where a later presentation phase can pick it up
 //     without this weave having become a log server.
 //   - it does not poll, ask "is it done yet?", or hold a timer. It hears. The
 //     one participant that polls anything is the runner, on its own handles.
+//   - it does not load, unload, replace or reload anything, and it holds no
+//     realization state of its own. When a maker asked for BUILD & REALIZE and
+//     the artifact arrived, it says ONE fact -- `ArtifactBuilt` -- and the
+//     realization owner decides, in its own words, what that is worth. What comes
+//     back (`ArtifactRealized`) is folded in for the panel and changes nothing
+//     about the build.
 //   - it does not cancel, and cannot: there is no shape for it, and inventing
 //     one would mean deciding what a maker's "stop" claims about a process that
 //     may already have finished.
 
+#include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <utility>
+#include <vector>
 
 namespace zengine::builder {
 
@@ -94,55 +130,123 @@ inline constexpr std::size_t kMaxRemembered = 8u * 1024u;
 /// How many of those lines a published status carries.
 inline constexpr std::size_t kDetailLines = 3;
 
+/// WHAT A FILE LOOKED LIKE AT ONE MOMENT.
+///
+/// PRESENCE, SIZE AND WHEN IT LAST CHANGED -- taken before a build begins and again
+/// after it ends, so that "your build produced a new artifact" and "your build was
+/// already up to date" can be told apart in the sentence a maker reads. It is
+/// DELIBERATELY NOT the artifact-success test: that is `status == 0 && present`, in
+/// that order, because a build system that reported success is the only party
+/// entitled to say a file is current and a timestamp comparison would call an
+/// honest incremental no-op a failure.
+struct ArtifactStamp {
+    bool present = false;
+    std::uintmax_t size = 0;
+    std::int64_t changed = 0; ///< an opaque, comparable modification time
+
+    friend bool operator==(const ArtifactStamp&, const ArtifactStamp&) = default;
+};
+
+/// LOOK AT ONE FILE, NOW. Total: a path that is not there, cannot be read, or is
+/// not a regular file all answer `present = false`, and nothing throws.
+inline ArtifactStamp stamp_of(const std::string& path) {
+    ArtifactStamp out;
+    if (path.empty()) {
+        return out;
+    }
+    std::error_code ec;
+    const std::filesystem::path file(path);
+    if (!std::filesystem::is_regular_file(file, ec) || ec) {
+        return out;
+    }
+    out.present = true;
+    out.size = std::filesystem::file_size(file, ec);
+    if (ec) {
+        out.size = 0;
+    }
+    const std::filesystem::file_time_type when = std::filesystem::last_write_time(file, ec);
+    out.changed = ec ? 0 : static_cast<std::int64_t>(when.time_since_epoch().count());
+    return out;
+}
+
 /// The tool's memory. All of it is what a presentation is shown, plus two
 /// tallies that only an operator would ask for.
 ///
-/// v2 (ASYNC-1): `op` and `chunks` joined, and they are the two fields that make
-/// an unfinished build describable. `op` is which operation this picture is
-/// about -- 0 while none is held -- and `chunks` is how many times the runner has
-/// been heard about it, which is the number a maker can watch climb.
+/// v3 (BLD-1): `target` became `recipe`, `recipe` became `command`, and the
+/// artifact and realization fields joined -- the tool now answers two questions
+/// about one ask, and neither is derivable from the other.
 struct BuilderState {
-    std::string target;               ///< the ONE name this tool knows
+    std::string recipe;               ///< the recipe this picture is about
+    std::string artifact;             ///< the artifact stem that recipe produces
     std::int64_t outcome = outcome::kNeverBuilt;
     std::int64_t status = 0;          ///< the last process's exit status
-    std::string recipe;               ///< what the runner said it ran, once it has run
-    std::string detail;               ///< the last thing said about this target
+    std::string command;              ///< what the runner said it ran, once it has run
+    std::string detail;               ///< the last thing said about this recipe
     std::int64_t builds = 0;          ///< asks this tool has taken, ever
     std::int64_t stray = 0;           ///< observations that were about somebody else's work
     std::int64_t op = 0;              ///< the operation this picture is about
     std::int64_t chunks = 0;          ///< output observations folded in for it
+    bool realize = false;             ///< the current ask was BUILD & REALIZE
+    std::int64_t realization = realization::kNotAsked;
+    std::string realized_detail;      ///< realization's own words, when it has said any
+    std::int64_t offered = 0;         ///< artifacts this tool has offered for realization
 
     ZEN_EXPOSE();
-    ZEN_SHAPE(BuilderState, 2, ZEN_FIELD(target), ZEN_FIELD(outcome), ZEN_FIELD(status),
-              ZEN_FIELD(recipe), ZEN_FIELD(detail), ZEN_FIELD(builds), ZEN_FIELD(stray),
-              ZEN_FIELD(op), ZEN_FIELD(chunks));
+    ZEN_SHAPE(BuilderState, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
+              ZEN_FIELD(status), ZEN_FIELD(command), ZEN_FIELD(detail), ZEN_FIELD(builds),
+              ZEN_FIELD(stray), ZEN_FIELD(op), ZEN_FIELD(chunks), ZEN_FIELD(realize),
+              ZEN_FIELD(realization), ZEN_FIELD(realized_detail), ZEN_FIELD(offered));
 };
 
 class BuilderWeave
     : public loom::WeaveBase<BuilderWeave, BuilderState,
                              loom::Accept<BuildRequested, StatusRequested, BuildStarted,
-                                          BuildOutput, BuildFinished, BuildNotStarted>,
-                             loom::Emit<RunBuild, BuildStatus>> {
+                                          BuildOutput, BuildFinished, BuildNotStarted,
+                                          ArtifactRealized>,
+                             loom::Emit<RunBuild, BuildStatus, RecipeCatalog, ArtifactBuilt>> {
 public:
-    explicit BuilderWeave(std::string target) { state_.target = std::move(target); }
+    /// THE RECIPE VIEWS ARRIVE AT CONSTRUCTION, FROM THE HOST, and they are a plain
+    /// member rather than part of the weave's state -- the runner's reason, one layer
+    /// out: `ZEN_SHAPE` state is poke-writable by design, and a poke that could write
+    /// a new artifact path in here would be a poke that could make this tool announce
+    /// somebody else's file as a build product.
+    explicit BuilderWeave(std::vector<RecipeView> recipes) : recipes_(std::move(recipes)) {}
 
     /// SAY WHAT YOU ARE. The message a presentation sends when it opens, so a
-    /// fresh panel shows a LIVE tool rather than an empty one -- including the
-    /// target's name, which is the first thing a maker needs and the one fact
-    /// that exists before any build has happened, and including a build that is
-    /// running right now, which BLD-0's tool could never be asked about.
-    void on(const StatusRequested&, loom::Mail& mail) { say(mail); }
-
-    /// BUILD THE THING YOU KNOW BY THIS NAME.
+    /// fresh panel shows a LIVE tool rather than an empty one -- including what
+    /// this project can build at all, which is the first thing a maker needs and
+    /// the one fact that exists before any build has happened, and including a
+    /// build that is running right now.
     ///
-    /// The name is checked against the one this tool holds, and a mismatch is a
-    /// refusal that says what it does know. That check is not politeness: it is
-    /// the reason a `BuildRequested` arriving from anywhere at all -- a panel, a
-    /// terminal participant, a test -- cannot widen what this program will build.
+    /// TWO SHAPES, BECAUSE THEY ANSWER TWO QUESTIONS THAT CHANGE AT DIFFERENT
+    /// RATES. The catalog is fixed for the life of the process; the status moves
+    /// on every line a compiler says. Publishing the catalog on every status would
+    /// put the whole thing on the bus hundreds of times per build.
+    void on(const StatusRequested&, loom::Mail& mail) {
+        RecipeCatalog said;
+        said.recipes.reserve(recipes_.size());
+        for (const RecipeView& r : recipes_) {
+            said.recipes.push_back(RecipeSummary{r.id, r.artifact});
+        }
+        (void)mail.publish(std::move(said));
+        say(mail);
+    }
+
+    /// BUILD THE RECIPE YOU KNOW BY THIS NAME.
+    ///
+    /// The name is checked against the catalog this tool holds, and a name it does
+    /// not hold is a refusal that says how many it does. That check is not
+    /// politeness: it is the reason a `BuildRequested` arriving from anywhere at all
+    /// -- a panel, a terminal participant, a test -- cannot widen what this program
+    /// will build.
     void on(const BuildRequested& ask, loom::Mail& mail) {
-        if (ask.target != state_.target) {
-            state_.outcome = outcome::kUnknownTarget;
-            state_.detail = "this Builder knows `" + state_.target + "` and nothing else";
+        const RecipeView* chosen = view_named(recipes_, ask.recipe);
+        if (chosen == nullptr) {
+            state_.outcome = outcome::kUnknownRecipe;
+            state_.detail = recipes_.empty()
+                                ? std::string("this Builder holds no recipes at all")
+                                : "this Builder holds no recipe called `" + ask.recipe +
+                                      "` (it holds " + std::to_string(recipes_.size()) + ")";
             say(mail);
             return;
         }
@@ -161,32 +265,42 @@ public:
             return;
         }
         ++state_.builds;
+        state_.recipe = chosen->id;
+        state_.artifact = chosen->artifact;
         state_.outcome = outcome::kAsked;
         state_.status = 0;
         state_.op = 0;
         state_.chunks = 0;
         state_.detail.clear();
+        state_.realize = ask.realize;
+        state_.realization = ask.realize ? realization::kAsked : realization::kNotAsked;
+        state_.realized_detail.clear();
         remembered_.clear();
-        // THE PREVIOUS RECIPE IS NOT CLEARED, and that is the smaller lie of the
-        // two available: it describes how THIS target is built, so it is about
-        // to be replaced by the same sentence, whereas blanking it would put
-        // "nothing has run yet" on a panel about a target that has run before.
-        // What IS cleared is `detail`, which is the previous build's output and
-        // is genuinely no longer about anything.
+        // WHAT WAS THERE BEFORE, TAKEN BEFORE ANYTHING IS ORDERED. It is what lets
+        // the ending say `produced` or `unchanged`; it is not, and must not become,
+        // the test for whether this build succeeded (see this file's header).
+        before_ = stamp_of(chosen->path);
+        // THE PREVIOUS COMMAND IS NOT CLEARED WHEN THE RECIPE IS THE SAME, and that
+        // is the smaller lie of the two available: it describes how THIS recipe is
+        // built, so it is about to be replaced by the same sentence. When the recipe
+        // CHANGED it is cleared, because it then describes something else entirely.
+        if (built_ != chosen->id) {
+            state_.command.clear();
+        }
         //
         // SAID BEFORE THE ORDER IS GIVEN, so the record reads in the order the
         // facts became true.
         say(mail);
-        (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.target});
+        (void)mail.send_to_role(kBuildRunnerRole, RunBuild{state_.recipe});
     }
 
     /// A PROCESS BEGAN. This is the moment BLD-0 had no way to observe.
     void on(const BuildStarted& began, loom::Mail& mail) {
-        if (!mine(began.target)) {
+        if (!mine(began.recipe)) {
             return;
         }
         state_.op = began.op;
-        state_.recipe = began.recipe;
+        state_.command = began.command;
         state_.outcome = outcome::kRunning;
         state_.status = 0;
         state_.chunks = 0;
@@ -198,7 +312,7 @@ public:
     /// IT SAID SOMETHING. Folded in and republished, which is what makes a
     /// running build visibly alive rather than merely believed to be.
     void on(const BuildOutput& said, loom::Mail& mail) {
-        if (!mine(said.target) || !about_current(said.op)) {
+        if (!mine(said.recipe) || !about_current(said.op)) {
             return;
         }
         ++state_.chunks;
@@ -207,39 +321,109 @@ public:
         say(mail);
     }
 
-    /// IT EXITED.
+    /// IT EXITED -- AND ONLY NOW IS THERE AN ARTIFACT QUESTION TO ASK.
     ///
-    /// `status` decides which of two conditions this is, and there is no
-    /// `started` flag to consult: something that never started arrives as
-    /// `BuildNotStarted` instead, which is the same distinction BLD-0 drew with
-    /// two fields, drawn now with two shapes because the two facts no longer
-    /// arrive at the same moment.
+    /// THE EXIT STATUS IS CONSULTED FIRST AND THE FILE SECOND, and the order is the
+    /// whole staleness guarantee: a failed build is `FAILED` whatever is sitting at
+    /// the destination, so an artifact left there by an earlier success can never be
+    /// mistaken for this build's product.
     void on(const BuildFinished& done, loom::Mail& mail) {
-        if (!mine(done.target) || !about_current(done.op)) {
+        if (!mine(done.recipe) || !about_current(done.op)) {
             return;
         }
         state_.status = done.status;
-        state_.outcome = done.status == 0 ? outcome::kSucceeded : outcome::kFailed;
-        state_.detail = tail_lines(remembered_, kDetailLines);
+        const std::string said = tail_lines(remembered_, kDetailLines);
+        if (done.status != 0) {
+            state_.outcome = outcome::kFailed;
+            state_.detail = said;
+            if (state_.realize) {
+                // A FAILED BUILD OFFERS NOTHING. Said in the status rather than left
+                // as an absence, because a maker who pressed BUILD & REALIZE is owed
+                // the reason nothing was realized.
+                state_.realization = realization::kRefused;
+                state_.realized_detail = "the build failed, so nothing was offered to the "
+                                         "project";
+            }
+            say(mail);
+            return;
+        }
+        const RecipeView* chosen = view_named(recipes_, done.recipe);
+        const ArtifactStamp after = chosen == nullptr ? ArtifactStamp{} : stamp_of(chosen->path);
+        if (!after.present) {
+            // A GREEN BUILD WITH NO PRODUCT. It is neither success nor failure and is
+            // reported as neither: the process is fine and the project is not.
+            state_.outcome = outcome::kNoArtifact;
+            state_.detail = "the build succeeded and `" + state_.artifact +
+                            "` is not at " +
+                            (chosen == nullptr ? std::string("(no recipe)") : chosen->path) +
+                            (said.empty() ? std::string() : " | " + said);
+            if (state_.realize) {
+                state_.realization = realization::kRefused;
+                state_.realized_detail = "the expected artifact was not produced, so nothing "
+                                         "was offered to the project";
+            }
+            say(mail);
+            return;
+        }
+        state_.outcome = outcome::kSucceeded;
+        built_ = done.recipe;
+        const bool moved = !(after == before_);
+        state_.detail = std::string(moved ? "built " : "already up to date: ") +
+                        state_.artifact + (said.empty() ? std::string() : " | " + said);
+        if (!state_.realize) {
+            say(mail);
+            return;
+        }
+        // ONE FACT, AND THE DECISION IS SOMEBODY ELSE'S. This tool does not know
+        // whether the project participates in this artifact, whether it is already
+        // loaded, or what a load would mean; it knows a maker asked, a build worked,
+        // and the file is there. Everything after this line belongs to the
+        // realization owner, which refuses in its own words when it must.
+        ++state_.offered;
+        state_.realization = realization::kOffered;
+        state_.realized_detail = "offered to the project";
         say(mail);
+        (void)mail.publish(
+            ArtifactBuilt{state_.op, state_.recipe, state_.artifact, chosen->path});
     }
 
     /// NOTHING RAN, and this is why.
     ///
     /// It may name the operation (a child that never became its program) or name
-    /// none at all (a target nobody holds a recipe for); both are answers to an
-    /// ask this tool made, and `about_current` accepts either because the tool's
-    /// own `op` is 0 for exactly as long as no operation has been announced.
+    /// none at all (a recipe nobody holds, a build tree that is not there); both are
+    /// answers to an ask this tool made, and `about_current` accepts either because
+    /// the tool's own `op` is 0 for exactly as long as no operation has been
+    /// announced.
     void on(const BuildNotStarted& never, loom::Mail& mail) {
-        if (!mine(never.target) || !about_current(never.op)) {
+        if (!mine(never.recipe) || !about_current(never.op)) {
             return;
         }
         state_.outcome = outcome::kNotStarted;
         state_.status = 0;
-        if (!never.recipe.empty()) {
-            state_.recipe = never.recipe;
+        if (!never.command.empty()) {
+            state_.command = never.command;
         }
         state_.detail = never.trouble;
+        if (state_.realize) {
+            state_.realization = realization::kRefused;
+            state_.realized_detail = "no build ran, so nothing was offered to the project";
+        }
+        say(mail);
+    }
+
+    /// THE PROJECT ANSWERED. Folded in and republished; it changes nothing about the
+    /// build, which is the point of it being a second field.
+    ///
+    /// IT IS MATCHED BY ARTIFACT AND NOT BY OPERATION, because realization has no
+    /// operation: what it answers about is an artifact stem, and an answer about an
+    /// artifact this tool did not just offer is somebody else's conversation.
+    void on(const ArtifactRealized& answer, loom::Mail& mail) {
+        if (state_.realization != realization::kOffered || answer.artifact != state_.artifact) {
+            ++state_.stray;
+            return;
+        }
+        state_.realization = answer.realized ? realization::kRealized : realization::kRefused;
+        state_.realized_detail = answer.detail;
         say(mail);
     }
 
@@ -249,16 +433,23 @@ public:
     /// presentation has no business showing.
     const BuilderState& known() const { return state_; }
 
+    /// The recipes this tool holds -- the host's own list coming back. Read-only, and
+    /// no weave learns it this way.
+    const std::vector<RecipeView>& recipes() const { return recipes_; }
+
+    /// What the artifact looked like before the current build began.
+    const ArtifactStamp& before() const { return before_; }
+
 private:
-    /// IS THIS ABOUT THE TARGET THIS TOOL HOLDS?
+    /// IS THIS ABOUT THE RECIPE THIS TOOL IS FOLLOWING?
     ///
     /// NOT THIS TOOL'S FACT is counted rather than dropped in silence: a tally is
     /// what makes "this never happens" something an operator can check instead of
     /// something a comment asserts. Recording it would make this tool's own
-    /// history a mixture of two targets' outcomes, which is exactly the confusion
-    /// `target` exists to prevent.
-    bool mine(const std::string& target) {
-        if (target == state_.target) {
+    /// history a mixture of two recipes' outcomes, which is exactly the confusion
+    /// `recipe` exists to prevent.
+    bool mine(const std::string& recipe) {
+        if (recipe == state_.recipe) {
             return true;
         }
         ++state_.stray;
@@ -269,7 +460,7 @@ private:
     ///
     /// The second half of the same question, and the half that only exists once
     /// operations do. An observation about a different operation of the same
-    /// target is somebody else's conversation -- this tool orders one build at a
+    /// recipe is somebody else's conversation -- this tool orders one build at a
     /// time, so it can only ever be following one -- and folding it in would
     /// mix two builds' output into one picture.
     bool about_current(std::int64_t op) {
@@ -289,10 +480,15 @@ private:
     }
 
     void say(loom::Mail& mail) {
-        (void)mail.publish(BuildStatus{state_.target, state_.outcome, state_.status,
-                                       state_.recipe, state_.detail, state_.builds, state_.op,
-                                       state_.chunks});
+        (void)mail.publish(BuildStatus{state_.recipe, state_.artifact, state_.outcome,
+                                       state_.status, state_.command, state_.detail,
+                                       state_.builds, state_.op, state_.chunks, state_.realize,
+                                       state_.realization, state_.realized_detail});
     }
+
+    /// The recipes this tool may be asked for -- identity, artifact, and the one file
+    /// that artifact means. Never state; see the constructor.
+    std::vector<RecipeView> recipes_;
 
     /// The current operation's output so far, bounded.
     ///
@@ -302,6 +498,13 @@ private:
     /// same for every reader. A second, larger copy reachable by a poke would be
     /// a second answer to "what did the build say".
     std::string remembered_;
+
+    /// What the expected artifact looked like when the current build was ordered.
+    ArtifactStamp before_;
+
+    /// The last recipe this tool saw succeed -- which is how it knows whether the
+    /// command it is still showing is about the recipe now being asked for.
+    std::string built_;
 };
 
 } // namespace zengine::builder

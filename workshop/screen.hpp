@@ -3118,14 +3118,14 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // `p removes` and not `x closes`: PNL-0 gave panel presence one owner, and it is the
     // picker. A panel's own header advertising its own removal key is exactly the per-panel
     // binding the second kind made untenable.
-    row(0, std::string("BUILDER @") + builder::kBuilderRole + " -- b builds, p removes",
+    row(0, std::string("BUILDER @") + builder::kBuilderRole + " -- b/B build, c pick, p removes",
         surface::role::kAccent);
 
     if (!pane.heard) {
         // NOT THE SAME AS "NEVER BUILT", and the panel must not show it as though it were.
-        // This is a fact about this panel -- it has asked and is waiting -- and the target's
+        // This is a fact about this panel -- it has asked and is waiting -- and the recipe's
         // own history is not knowable from here until the tool says it.
-        row(1, panel_field("target", "(the Builder has not answered yet)"),
+        row(1, panel_field("recipe", "(the Builder has not answered yet)"),
             surface::role::kMuted);
         for (std::int64_t i = 2; i < b.h; ++i) {
             row(i, std::string(), surface::role::kFill);
@@ -3134,7 +3134,28 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     }
 
     const builder::BuildStatus& s = pane.shown;
-    row(1, panel_field("target", s.target), surface::role::kFill);
+    // WHAT THE MAKER HAS PICKED OUT, AND HOW MANY THERE ARE TO PICK FROM (BLD-1).
+    //
+    // IT IS THE CHOICE AND NOT THE LAST BUILD, and when they differ the choice is the
+    // truer row: it is what `b` will do next, which is the question a maker looking at a
+    // Builder panel is actually asking. What the last build was about is on the rows
+    // below it, where an outcome belongs.
+    //
+    // AN EMPTY CATALOG IS SAID PLAINLY. A project may hold no recipes -- there is no
+    // recipes file, or it names none -- and a panel that showed a blank name would look
+    // like one that had not heard yet, which is the distinction `heard` exists to keep.
+    const std::size_t held = pane.known.recipes.size();
+    if (held == 0) {
+        row(1, panel_field("recipe", "(this project has no build recipes)"),
+            surface::role::kMuted);
+    } else {
+        const std::size_t at = pane.chosen < held ? pane.chosen : std::size_t{0};
+        row(1,
+            panel_field("recipe", pane.known.recipes[at].recipe + " -> " +
+                                      pane.known.recipes[at].artifact + "  (" +
+                                      std::to_string(at + 1) + "/" + std::to_string(held) + ")"),
+            surface::role::kFill);
+    }
     // WHAT THIS PANEL IS WATCHING beats what it was last told. `awaiting` is the panel's own
     // fact and it is the truer one while it holds: the tool's last OUTCOME is still the
     // previous build's, and showing that while a new one is running would answer "what
@@ -3161,7 +3182,8 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
             ? surface::role::kAccent
             : (s.outcome == builder::outcome::kFailed ||
                        s.outcome == builder::outcome::kNotStarted ||
-                       s.outcome == builder::outcome::kUnknownTarget
+                       s.outcome == builder::outcome::kNoArtifact ||
+                       s.outcome == builder::outcome::kUnknownRecipe
                    ? surface::role::kAlert
                    : surface::role::kFill));
     // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
@@ -3183,17 +3205,40 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
         surface::role::kMuted);
     // WHAT WAS ACTUALLY RUN, as the runner reported it. Empty until something has been run,
     // because the tool holds no command and this panel will not invent one to fill a row.
-    row(4, panel_field("recipe", s.recipe.empty() ? std::string("(nothing has run yet)")
-                                                  : s.recipe),
+    row(4, panel_field("ran", s.command.empty() ? std::string("(nothing has run yet)")
+                                                : s.command),
         surface::role::kMuted);
+    // ---- THE SECOND OUTCOME, ON ITS OWN ROW (BLD-1) -------------------------------------
+    //
+    // A BUILD OUTCOME AND A REALIZATION OUTCOME ARE TWO ANSWERS AND THIS PANEL SHOWS TWO.
+    // The alternative -- one "status" row that says whichever of them is more recent -- is
+    // exactly the conflation the Builder's own two fields exist to prevent, and it is worst
+    // in the case a maker most needs: a build that WORKED whose realization was REFUSED.
+    // The row is present even when nothing was asked, because an absent row reads as an
+    // absent question rather than as an unasked one.
+    row(5,
+        panel_field("realize", s.realization == builder::realization::kNotAsked
+                                   ? std::string("-- (B builds and realizes)")
+                                   : std::string(builder::name_of_realization(s.realization)) +
+                                         (s.realized_detail.empty()
+                                              ? std::string()
+                                              : " -- " + s.realized_detail)),
+        s.realization == builder::realization::kRefused
+            ? surface::role::kAlert
+            : (s.realization == builder::realization::kRealized ? surface::role::kFill
+                                                                : surface::role::kMuted));
     // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends when
     // something has gone wrong, and one row of a compiler's answer is a row of nothing.
+    //
+    // THEY TOOK THE FOOTER'S ROW (BLD-1) and the footer is gone rather than shortened: it
+    // said `[ Build ] press b`, which the header now says beside the two keys BLD-1 added,
+    // and a panel that spends a row of a compiler's answer on repeating its own header is
+    // spending the wrong row.
     const std::vector<std::string> said =
         panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3, b.w);
     for (std::size_t i = 0; i < said.size(); ++i) {
-        row(5 + static_cast<std::int64_t>(i), said[i], surface::role::kMuted);
+        row(6 + static_cast<std::int64_t>(i), said[i], surface::role::kMuted);
     }
-    row(8, "[ Build ]  press b", surface::role::kAccent);
 }
 
 /// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE

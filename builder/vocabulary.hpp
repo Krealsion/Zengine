@@ -13,14 +13,23 @@
 // document the host named". So it is split across two weaves that the host
 // mounts separately, with different grants:
 //
-//   the TOOL     holds a NAME. It knows one target, remembers how the build of
-//                it is going, and publishes that so any presentation can read
-//                it. It cannot start a process, and it holds no command.
-//   the RUNNER   holds the COMMANDS. It is the only thing in the program that
-//                starts a process, its catalog comes from the host, it answers a
-//                name it does not know with a refusal rather than a guess -- and
-//                since ASYNC-1 it HOLDS the processes it started, and says what
-//                it sees of them on an ordinary beat.
+//   the TOOL     holds NAMES. It knows which recipes exist and which ARTIFACT
+//                each is expected to produce, remembers how the build of one is
+//                going, and publishes that so any presentation can read it. It
+//                cannot start a process, and it holds no command.
+//   the RUNNER   holds the RECIPES, and is the only thing in the program that
+//                turns one into a process. Its catalog comes from the host, it
+//                answers a name it does not know with a refusal rather than a
+//                guess -- and since ASYNC-1 it HOLDS the processes it started,
+//                and says what it sees of them on an ordinary beat.
+//
+// BLD-1 CHANGED WHAT A NAME NAMES AND NOTHING ELSE ABOUT THAT SPLIT. The tool
+// used to hold ONE name, chosen at configure time; it holds a catalog of authored
+// recipe identities now, each with the artifact stem it produces. The runner used
+// to hold one command, baked in beside it; it holds authored recipes now and
+// DERIVES the command. Both halves grew a plural and neither gained a power: no
+// shape below carries a program, an argument vector, a working directory or a
+// shell line, and the recipe files a maker writes cannot name one either.
 //
 // So a maker's Build reaches an operating-system process through TWO offices and
 // TWO grants, and neither of them is Workshop. Workshop may say `BuildRequested`
@@ -34,17 +43,19 @@
 // confusing two of these in its first live run, when a panel announced a build
 // that had finished minutes earlier:
 //
-//   COMMAND      BuildRequested{target}   "I want this."         an intent
-//                RunBuild{target}         "Carry this out."
+//   COMMAND      BuildRequested{recipe}   "I want this."         an intent
+//                RunBuild{recipe}         "Carry this out."
 //                StatusRequested{}        "Say what you are."
 //
 //   OBSERVATION  BuildStarted{...}        "I saw a process begin."
 //                BuildOutput{...}         "I saw it say this."     immutable,
 //                BuildFinished{...}       "I saw it exit."         each about
 //                BuildNotStarted{...}     "I saw it never begin."  ONE moment
+//                ArtifactBuilt{...}       "the artifact is there." (BLD-1)
+//                ArtifactRealized{...}    "and the project took it."
 //
 //   DERIVED      BuildStatus{...}         "Where this stands now." held, and
-//                                                                  recomputed
+//                RecipeCatalog{...}       "What can be built here."recomputed
 //
 // AN OBSERVATION IS NEVER COLLAPSED INTO ANOTHER. `BuildStarted` and
 // `BuildFinished` are two facts because they happen at two times, and a maker
@@ -79,13 +90,19 @@
 // WHAT IS DELIBERATELY ABSENT, so the absence is a decision:
 //
 //   - no command text ANYWHERE on the wire. `BuildRequested` and `RunBuild`
-//     carry a target NAME, and a name is checked against a catalog the host
-//     wrote. There is no shape here whose field is a program, an argument
-//     vector, a working directory or a shell line, so "the panel sent a
-//     command" is not a sentence this vocabulary can express. That is BLD-0's
-//     hard boundary and it is enforced by the type, not by a check. What comes
-//     BACK does describe what ran (`recipe`), because the only honest moment to
-//     show a maker a command is after the thing that holds it has run it.
+//     carry a recipe NAME, and a name is checked against a catalog the host
+//     read out of an authored file. There is no shape here whose field is a
+//     program, an argument vector, a working directory or a shell line, so "the
+//     panel sent a command" is not a sentence this vocabulary can express. That
+//     is BLD-0's hard boundary and it is enforced by the type, not by a check.
+//     What comes BACK does describe what ran (`command`), because the only
+//     honest moment to show a maker a command is after the thing that holds it
+//     has run it.
+//   - no recipe INPUTS on the wire either (BLD-1). A source path, a build tree,
+//     a package prefix and a link list are the runner's to hold and the file's
+//     to state; what travels is an identity and an artifact stem. So the widest
+//     thing anything on this bus can say is "build the recipe called X", which
+//     is exactly what it could say before recipes were authored at all.
 //   - no CANCEL. There is no shape here that stops a build, and that absence is
 //     ASYNC-1's, not an oversight: a cancel is a COMMAND ("please stop") and an
 //     ending is an OBSERVATION ("it stopped"), and a phase that shipped the
@@ -95,18 +112,21 @@
 //     Nothing here publishes absence, and a maker who wants to know whether a
 //     build is alive reads `BuildStatus` -- which says so because the runner
 //     genuinely saw it, not because a clock ran out.
-//   - no artifact, no load, no replace. What a build PRODUCED is not in any
-//     shape here, because the next thing anybody would do with it is load it,
-//     and Build+Load is a different phase with a different threat model.
-//   - no second target, no target list on the wire. The tool knows one name and
-//     says which; a picker over targets is a thing a later phase can add
-//     without any shape here changing meaning.
+//   - no REPLACE, no unload, no reload, no swap. `ArtifactBuilt` says a file
+//     exists and `ArtifactRealized` says a project took it; neither can be said
+//     about an artifact that is already loaded, and there is no shape here that
+//     could ask for one to be exchanged. BLD-1 does not earn hot reload and does
+//     not pretend to: an already-loaded artifact is refused, in words.
+//   - no build-on-missing, no automatic anything. Every build in this vocabulary
+//     begins with a maker saying `BuildRequested`. Nothing here fires on a
+//     missing file, a changed source or a failed load.
 
 #include <zen/weave/shape.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::builder {
 
@@ -140,16 +160,56 @@ inline constexpr std::size_t kMaxOutputChars = 2048u;
 namespace outcome {
 inline constexpr std::int64_t kNeverBuilt = 0;   ///< nothing has been asked for yet
 inline constexpr std::int64_t kAsked = 1;        ///< ordered; no process has been seen yet
-inline constexpr std::int64_t kSucceeded = 2;    ///< the process ran and exited 0
+inline constexpr std::int64_t kSucceeded = 2;    ///< the process exited 0 AND the artifact is there
 inline constexpr std::int64_t kFailed = 3;       ///< the process ran and exited non-zero
 inline constexpr std::int64_t kNotStarted = 4;   ///< the process never started at all
-inline constexpr std::int64_t kUnknownTarget = 5; ///< the name asked for is not one anybody knows
+inline constexpr std::int64_t kUnknownRecipe = 5; ///< the name asked for is not one anybody knows
 /// A process IS RUNNING right now -- the state BLD-0 had no word for, because a
 /// build that held the pump could not be asked about while it held it. It is the
 /// one value here that is a statement about the present rather than about a
 /// finished thing, and it is the answer a panel opened mid-build receives.
 inline constexpr std::int64_t kRunning = 6;
+/// THE PROCESS SUCCEEDED AND THE ARTIFACT IS NOT THERE (BLD-1).
+///
+/// A SEVENTH VALUE BECAUSE IT IS A SEVENTH PROBLEM, and folding it into
+/// `kSucceeded` is the exact lie this phase exists to refuse: a green build whose
+/// product is absent has told a maker something true about a process and
+/// something false about their project. It is also not `kFailed` -- nothing
+/// failed, and saying so would send a maker to read compiler output that says
+/// everything went fine. The usual cause is a recipe whose `artifact` or
+/// `artifact_dir` does not describe what its target actually produces.
+inline constexpr std::int64_t kNoArtifact = 7;
 } // namespace outcome
+
+/// WHERE THE REALIZATION OF A BUILT ARTIFACT STANDS -- a SECOND axis, and the
+/// separation is the phase's own law.
+///
+/// A build outcome and a realization outcome are different truths with different
+/// owners: the first is about a process and a file and belongs to the Builder,
+/// the second is about a running project and belongs to the realization owner.
+/// Collapsing them into one value would make "it built" and "the project took it"
+/// indistinguishable exactly where a maker most needs them apart -- a successful
+/// build whose load was refused is a completely different situation from a build
+/// that failed, and both are ordinary.
+namespace realization {
+inline constexpr std::int64_t kNotAsked = 0;  ///< a plain BUILD; nothing was to be realized
+inline constexpr std::int64_t kAsked = 1;     ///< BUILD & REALIZE, and the build is not done
+inline constexpr std::int64_t kOffered = 2;   ///< the artifact was handed to the realization owner
+inline constexpr std::int64_t kRealized = 3;  ///< the project took it
+inline constexpr std::int64_t kRefused = 4;   ///< it was not taken, and `detail` says why
+} // namespace realization
+
+/// The tool's own name for each of those.
+inline const char* name_of_realization(std::int64_t value) {
+    switch (value) {
+    case realization::kNotAsked: return "not asked";
+    case realization::kAsked: return "asked";
+    case realization::kOffered: return "offered";
+    case realization::kRealized: return "realized";
+    case realization::kRefused: return "REFUSED";
+    default: return "unknown";
+    }
+}
 
 /// The tool's own name for each of those, so a presentation does not invent a
 /// seventh vocabulary for a fact the tool already has a word for.
@@ -161,10 +221,18 @@ inline const char* name_of_outcome(std::int64_t value) {
     case outcome::kSucceeded: return "succeeded";
     case outcome::kFailed: return "FAILED";
     case outcome::kNotStarted: return "did not start";
-    case outcome::kUnknownTarget: return "unknown target";
+    case outcome::kUnknownRecipe: return "unknown recipe";
+    case outcome::kNoArtifact: return "NO ARTIFACT";
     default: return "unknown";
     }
 }
+
+/// Did this outcome produce the artifact its recipe names?
+///
+/// ONE PLACE, because three readers need the same answer and `outcome == kSucceeded`
+/// is exactly the sentence a later value would silently fall outside of. It is the
+/// gate on realization: nothing is handed to a project on any other value.
+inline bool artifact_produced(std::int64_t value) { return value == outcome::kSucceeded; }
 
 /// Is this a condition the build is still IN, rather than one it ended at?
 ///
@@ -288,15 +356,30 @@ inline std::string tail_lines(const std::string& text, std::size_t how_many) {
 
 // ---- commands ---------------------------------------------------------------
 
-/// ASK THE TOOL to build the target it knows by this name.
+/// ASK THE TOOL to build the recipe it knows by this name -- and, optionally, to
+/// hand the result to the running project when it works.
 ///
-/// The name is here rather than implied, and that is what makes "the configured
-/// build action reaches the intended target" a checkable claim instead of a
+/// The name is here rather than implied, and that is what makes "the maker's
+/// chosen recipe reaches the intended artifact" a checkable claim instead of a
 /// hope: a request that names the wrong thing is refused by the tool and says
 /// so, and a request that names the right thing can be seen naming it.
+///
+/// `realize` IS A FIELD AND NOT A SECOND SHAPE, and the asymmetry with
+/// `BuildRequested`/`RunBuild` is deliberate. Those two are two shapes because
+/// they are two AUTHORITIES -- "may ask for a build" and "may order the machine
+/// that runs one" -- and a reader of the host's grants must not be able to
+/// mistake one rule for the other. This is one authority with two intentions,
+/// asked of one office, by one participant, in one sentence; and the tool has to
+/// remember which intention it was for the whole length of a build, which is a
+/// thing it can only do if the intention arrived with the ask.
+///
+/// v2 (BLD-1): `target` became `recipe` and `realize` joined. The rename is not
+/// cosmetic -- a recipe now CONTAINS a CMake target, so a field called `target`
+/// would name the wrong one of the two things in the room.
 struct BuildRequested {
-    std::string target;
-    ZEN_SHAPE(BuildRequested, 1, ZEN_FIELD(target));
+    std::string recipe;
+    bool realize = false; ///< BUILD & REALIZE rather than BUILD
+    ZEN_SHAPE(BuildRequested, 2, ZEN_FIELD(recipe), ZEN_FIELD(realize));
 };
 
 /// ASK THE TOOL TO SAY WHAT IT IS -- no fields, because the question has no
@@ -325,8 +408,8 @@ struct StatusRequested {
 /// participant that can see one begin is the only one that can honestly name it.
 /// An order is not an operation; it is a request that one be created.
 struct RunBuild {
-    std::string target;
-    ZEN_SHAPE(RunBuild, 1, ZEN_FIELD(target));
+    std::string recipe;
+    ZEN_SHAPE(RunBuild, 2, ZEN_FIELD(recipe));
 };
 
 // ---- observations -----------------------------------------------------------
@@ -334,16 +417,19 @@ struct RunBuild {
 /// A PROCESS BEGAN. Reported by the participant that started it, to whoever
 /// holds `zengine.builder`.
 ///
-/// `recipe` travels here rather than being known up front because the tool must
+/// `command` travels here rather than being known up front because the tool must
 /// not hold a command -- so the first honest moment to say what is running is
 /// the moment it started running, said by the thing that started it. BLD-0 could
 /// only ever say this at the END; a build a maker can watch has to say it at the
 /// beginning.
+///
+/// v2 (BLD-1): `target` became `recipe` (the identity) and `recipe` became
+/// `command` (what is running). Both names moved to the thing they are true of.
 struct BuildStarted {
     std::int64_t op = 0;
-    std::string target;
-    std::string recipe; ///< what is running, as one line
-    ZEN_SHAPE(BuildStarted, 1, ZEN_FIELD(op), ZEN_FIELD(target), ZEN_FIELD(recipe));
+    std::string recipe;  ///< the authored recipe this operation is carrying out
+    std::string command; ///< what is running, as one line
+    ZEN_SHAPE(BuildStarted, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(command));
 };
 
 /// A RUNNING PROCESS SAID SOMETHING -- output observed since the last look, and
@@ -355,10 +441,10 @@ struct BuildStarted {
 /// is shown a bounded thing has to be able to tell that it is bounded.
 struct BuildOutput {
     std::int64_t op = 0;
-    std::string target;
+    std::string recipe;
     std::string text;
     std::int64_t dropped = 0;
-    ZEN_SHAPE(BuildOutput, 1, ZEN_FIELD(op), ZEN_FIELD(target), ZEN_FIELD(text),
+    ZEN_SHAPE(BuildOutput, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(text),
               ZEN_FIELD(dropped));
 };
 
@@ -369,11 +455,17 @@ struct BuildOutput {
 /// instead. That is the same distinction BLD-0 drew with two fields of one
 /// shape, drawn now with two shapes, because the two facts no longer arrive at
 /// the same moment.
+/// ⚠ IT IS ABOUT A PROCESS AND NOT ABOUT AN ARTIFACT. `status == 0` means the
+/// build system was satisfied; whether the file the recipe names actually exists
+/// is a DIFFERENT question with a different owner, asked by the tool and answered
+/// by `ArtifactBuilt` (or by `outcome::kNoArtifact`). Widening this shape to
+/// carry the answer would put artifact-domain knowledge in the one participant
+/// whose whole discipline is that it holds only process custody.
 struct BuildFinished {
     std::int64_t op = 0;
-    std::string target;
+    std::string recipe;
     std::int64_t status = 0; ///< the child's exit status
-    ZEN_SHAPE(BuildFinished, 1, ZEN_FIELD(op), ZEN_FIELD(target), ZEN_FIELD(status));
+    ZEN_SHAPE(BuildFinished, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(status));
 };
 
 /// NO PROCESS RAN. The ask reached the runner and nothing was ever built by it.
@@ -387,10 +479,10 @@ struct BuildFinished {
 /// keeps the story of one operation readable end to end.
 struct BuildNotStarted {
     std::int64_t op = 0;
-    std::string target;
-    std::string recipe;  ///< what would have run, when there was one
+    std::string recipe;  ///< the authored recipe that was asked for
+    std::string command; ///< what would have run, when there was one
     std::string trouble; ///< why nothing did
-    ZEN_SHAPE(BuildNotStarted, 1, ZEN_FIELD(op), ZEN_FIELD(target), ZEN_FIELD(recipe),
+    ZEN_SHAPE(BuildNotStarted, 2, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(command),
               ZEN_FIELD(trouble));
 };
 
@@ -410,18 +502,106 @@ struct BuildNotStarted {
 /// there because it is the number that makes "this build is alive" VISIBLE
 /// rather than asserted: it climbs while a maker does other work, and a build
 /// that had frozen would leave it still.
+/// v3 (BLD-1): `target` became `recipe`, `recipe` became `command`, and four
+/// fields joined -- `artifact` (which artifact this recipe produces), and the
+/// three that carry the SECOND axis: `realize` (was this a BUILD & REALIZE?),
+/// `realization` (where that stands) and `realized_detail` (its own words). A
+/// panel therefore reads two outcomes and never has to derive one from the other.
 struct BuildStatus {
-    std::string target;      ///< the one name this tool knows
+    std::string recipe;      ///< the recipe this picture is about; empty before any ask
+    std::string artifact;    ///< the artifact stem that recipe produces
     std::int64_t outcome = outcome::kNeverBuilt;
     std::int64_t status = 0; ///< the last process's exit status
-    std::string recipe;      ///< what the runner said it ran, once it has run something
+    std::string command;     ///< what the runner said it ran, once it has run something
     std::string detail;      ///< the last thing the runner said, or the tool's own refusal
     std::int64_t builds = 0; ///< how many builds this TOOL has been asked for, ever
     std::int64_t op = 0;     ///< which operation this is about; 0 = none has been held
     std::int64_t chunks = 0; ///< output observations folded in for THIS operation
-    ZEN_SHAPE(BuildStatus, 2, ZEN_FIELD(target), ZEN_FIELD(outcome), ZEN_FIELD(status),
-              ZEN_FIELD(recipe), ZEN_FIELD(detail), ZEN_FIELD(builds), ZEN_FIELD(op),
-              ZEN_FIELD(chunks));
+    bool realize = false;    ///< the maker asked for BUILD & REALIZE
+    std::int64_t realization = realization::kNotAsked;
+    std::string realized_detail; ///< realization's own sentence, when it has one
+    ZEN_SHAPE(BuildStatus, 3, ZEN_FIELD(recipe), ZEN_FIELD(artifact), ZEN_FIELD(outcome),
+              ZEN_FIELD(status), ZEN_FIELD(command), ZEN_FIELD(detail), ZEN_FIELD(builds),
+              ZEN_FIELD(op), ZEN_FIELD(chunks), ZEN_FIELD(realize), ZEN_FIELD(realization),
+              ZEN_FIELD(realized_detail));
+};
+
+/// ONE ROW OF WHAT CAN BE BUILT HERE.
+///
+/// TWO FIELDS AND NOT THE RECIPE. A presentation needs to name a recipe and to say
+/// what it makes; it does not need the source path, the build tree, the package
+/// prefixes or the link list, and handing them to it would put a build procedure on
+/// a screen that has no way to act on one. The split is `builder/recipe.hpp`'s
+/// `RecipeView`, said on the wire.
+struct RecipeSummary {
+    std::string recipe;
+    std::string artifact;
+    ZEN_SHAPE(RecipeSummary, 1, ZEN_FIELD(recipe), ZEN_FIELD(artifact));
+};
+
+/// WHAT THIS PROGRAM CAN BUILD -- published by the tool when it is asked what it is.
+///
+/// A SECOND SHAPE RATHER THAN A LIST ON `BuildStatus`, because they answer questions
+/// that change at completely different rates: a status is republished on every line
+/// a compiler says, and a catalog is fixed for the life of the process. Folding the
+/// second into the first would put the whole catalog on the bus a few hundred times
+/// per build.
+///
+/// IT IS THE TOOL'S OWN VIEW COMING BACK. The host read a file, the host gave the
+/// tool the view, and this is the tool saying what it was given -- so a presentation
+/// showing three recipes is showing three recipes the tool will actually accept.
+struct RecipeCatalog {
+    std::vector<RecipeSummary> recipes;
+    ZEN_SHAPE(RecipeCatalog, 1, ZEN_FIELD(recipes));
+};
+
+/// THE ARTIFACT A RECIPE NAMES IS NOW ON DISK, AND THIS BUILD PUT IT THERE.
+///
+/// A FIFTH OBSERVATION, AND IT IS NOT A RESTATEMENT OF `BuildFinished`. That one is
+/// about a PROCESS: it says a child exited and with what status, which is everything
+/// the participant holding process custody can honestly know. This one is about an
+/// ARTIFACT: a named file, at a known path, that a recipe said it would produce and
+/// that has been looked at since the build ended. Reconstructing it from the other
+/// facts would mean every interested party learning the recipe-to-artifact mapping,
+/// the host's rule for spelling a stem as a file, and the difference between a build
+/// system's idea of success and a file's existence -- three things with owners.
+///
+/// ⚠ IT IS SAID ONLY WHEN THE MAKER ASKED FOR REALIZATION. A plain BUILD produces a
+/// file too, and says so in `BuildStatus`; what this shape carries is an INTENT that
+/// something be done with the result, so publishing it after every build would put a
+/// standing offer on the bus that nobody made.
+///
+/// `path` IS HERE SO NOTHING DOWNSTREAM HAS TO SPELL A STEM. The host owns that rule
+/// (a directory, a separator, `.so`/`.dll`); a reader that re-derived it would be a
+/// second copy of a rule that is deliberately written once.
+struct ArtifactBuilt {
+    std::int64_t op = 0;  ///< the operation that produced it
+    std::string recipe;   ///< the recipe that names it
+    std::string artifact; ///< the artifact STEM -- the name a project's plan would use
+    std::string path;     ///< the exact file, as the host spells it
+    ZEN_SHAPE(ArtifactBuilt, 1, ZEN_FIELD(op), ZEN_FIELD(recipe), ZEN_FIELD(artifact),
+              ZEN_FIELD(path));
+};
+
+/// WHAT THE RUNNING PROJECT MADE OF A NEWLY BUILT ARTIFACT.
+///
+/// THE BUILDER DOES NOT SAY THIS ONE. It is realization's own sentence, said by the
+/// participant that speaks for the realization owner, and the Builder tool merely
+/// HEARS it so that one presentation can show a maker both halves of what they asked
+/// for. The shape lives in this file because it is the second half of a conversation
+/// this file already holds; a vocabulary organised by speaker rather than by
+/// conversation would split six shapes across four headers to say one thing.
+///
+/// `realized` IS A BOOL AND `detail` IS ALWAYS PRESENT. A refusal without words is
+/// the failure mode this whole repository keeps refusing: `detail` carries the
+/// deepest layer's own sentence -- the plan's, the catalog's, the loader's -- and on
+/// the accepting path it says what participated.
+struct ArtifactRealized {
+    std::string artifact;
+    bool realized = false;
+    std::string detail;
+    ZEN_SHAPE(ArtifactRealized, 1, ZEN_FIELD(artifact), ZEN_FIELD(realized),
+              ZEN_FIELD(detail));
 };
 
 } // namespace zengine::builder

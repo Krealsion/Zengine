@@ -8,12 +8,20 @@
 // place that HOLDS one after the call that started it has returned.
 //
 // IT IS NOT A SHELL, AND THE INTERFACE IS WHAT MAKES THAT TRUE. `start_recipe`
-// takes a PROGRAM and an ARGUMENT VECTOR that were chosen by the host, and there
-// is no overload, no convenience and no field anywhere that takes a command
-// LINE. Nothing composes a string that a shell then takes apart again, so the
-// entire family of "a quote in the wrong place became an extra command" cannot
-// occur here -- not because the arguments are checked, but because there is no
-// shell in the picture to check them for.
+// takes a `BuildCommand` -- a PROGRAM and an ARGUMENT VECTOR -- and there is no
+// overload, no convenience and no field anywhere that takes a command LINE.
+// Nothing composes a string that a shell then takes apart again, so the entire
+// family of "a quote in the wrong place became an extra command" cannot occur
+// here -- not because the arguments are checked, but because there is no shell
+// in the picture to check them for.
+//
+// WHERE THE PROGRAM COMES FROM MOVED ONCE, AND ONLY ONCE (BLD-1). It used to be
+// a catalog entry the host wrote at configure time; it is now derived from an
+// AUTHORED RECIPE by `builder/generate.hpp`, which still puts the host's own
+// CMake in `program` and can put nothing else there. What a recipe file can name
+// is INPUTS to a mechanism this package already holds -- never a program, never
+// an argument vector, never a shell line -- so the authority this file exposes is
+// exactly what it always was.
 //
 // That was a decision with a cheaper alternative. `popen()` is four lines and
 // would have run this build perfectly well; it is also, exactly, a general shell
@@ -95,6 +103,8 @@
 // never having started -- the cost of that channel being shared, and BLD-0's
 // judgement kept rather than a new one invented.
 
+#include "builder/recipe.hpp"
+
 #include <cerrno>
 #include <chrono>
 #include <csignal>
@@ -121,32 +131,6 @@
 #endif
 
 namespace zengine::builder {
-
-/// One buildable thing, as the HOST describes it.
-///
-/// `target` is the NAME the rest of the world uses; everything else is the part
-/// only the runner ever sees. A recipe is data, not a capability -- holding one
-/// does nothing -- but the runner is the only weave that is given any, which is
-/// the arrangement that makes "the tool holds a name, the runner holds a
-/// command" structurally true instead of merely stated.
-struct BuildRecipe {
-    std::string target;             ///< what a maker and the tool call this
-    std::string program;            ///< an executable, resolved by the host
-    std::vector<std::string> args;  ///< its arguments, already separated
-    std::string dir;                ///< the working directory to run it in ("" = inherit)
-
-    /// The recipe as one readable line, for a maker who wants to know what a
-    /// button actually did. Deliberately not a re-runnable command line: it is a
-    /// description, and nothing parses it back.
-    std::string as_line() const {
-        std::string line = program;
-        for (const std::string& a : args) {
-            line += ' ';
-            line += a;
-        }
-        return line;
-    }
-};
 
 /// What a run came to.
 ///
@@ -351,7 +335,7 @@ public:
     }
 
 private:
-    friend RecipeStart start_recipe(const BuildRecipe&);
+    friend RecipeStart start_recipe(const BuildCommand&);
 
     bool output_open() const noexcept {
 #if defined(_WIN32)
@@ -502,14 +486,14 @@ struct RecipeStart {
 
 /// Start one recipe and HAND BACK CUSTODY of it. Returns as soon as the child
 /// exists; it does not wait for a single byte.
-inline RecipeStart start_recipe(const BuildRecipe& recipe) {
+inline RecipeStart start_recipe(const BuildCommand& command) {
     RecipeStart out;
-    if (recipe.program.empty()) {
-        out.trouble = "this recipe names no program";
+    if (command.program.empty()) {
+        out.trouble = "this command names no program";
         return out;
     }
-    out.process.program_ = recipe.program;
-    out.process.dir_ = recipe.dir;
+    out.process.program_ = command.program;
+    out.process.dir_ = command.dir;
 
 #if defined(_WIN32)
     SECURITY_ATTRIBUTES inheritable{};
@@ -527,12 +511,12 @@ inline RecipeStart start_recipe(const BuildRecipe& recipe) {
     // never reaches end-of-file, and this build could never be observed to end.
     ::SetHandleInformation(read_end, HANDLE_FLAG_INHERIT, 0);
 
-    std::string command = detail::windows_quote(recipe.program);
-    for (const std::string& a : recipe.args) {
-        command += ' ';
-        command += detail::windows_quote(a);
+    std::string line = detail::windows_quote(command.program);
+    for (const std::string& a : command.args) {
+        line += ' ';
+        line += detail::windows_quote(a);
     }
-    std::vector<char> mutable_command(command.begin(), command.end());
+    std::vector<char> mutable_command(line.begin(), line.end());
     mutable_command.push_back('\0');
 
     STARTUPINFOA startup{};
@@ -545,11 +529,11 @@ inline RecipeStart start_recipe(const BuildRecipe& recipe) {
 
     const BOOL began = ::CreateProcessA(
         nullptr, mutable_command.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
-        recipe.dir.empty() ? nullptr : recipe.dir.c_str(), &startup, &process);
+        command.dir.empty() ? nullptr : command.dir.c_str(), &startup, &process);
     ::CloseHandle(write_end); // ours is closed either way: a child's copy is the writer now
     if (began == 0) {
         ::CloseHandle(read_end);
-        out.trouble = "could not start `" + recipe.program + "` (error " +
+        out.trouble = "could not start `" + command.program + "` (error " +
                       std::to_string(static_cast<std::int64_t>(::GetLastError())) + ")";
         return out;
     }
@@ -569,22 +553,22 @@ inline RecipeStart start_recipe(const BuildRecipe& recipe) {
     // exec runs in a child that shares this address space and must not allocate;
     // building the vector here is what keeps that stretch to dup2/close/chdir.
     std::vector<char*> argv;
-    argv.reserve(recipe.args.size() + 2);
-    std::string program = recipe.program;
+    argv.reserve(command.args.size() + 2);
+    std::string program = command.program;
     argv.push_back(program.data());
-    std::vector<std::string> args = recipe.args;
+    std::vector<std::string> args = command.args;
     for (std::string& a : args) {
         argv.push_back(a.data());
     }
     argv.push_back(nullptr);
-    const std::string dir = recipe.dir;
+    const std::string dir = command.dir;
     const bool has_slash = program.find('/') != std::string::npos;
 
     const ::pid_t child = ::fork();
     if (child < 0) {
         ::close(pipe_ends[0]);
         ::close(pipe_ends[1]);
-        out.trouble = "could not start a process for `" + recipe.program + "`";
+        out.trouble = "could not start a process for `" + command.program + "`";
         return out;
     }
     if (child == 0) {
@@ -632,9 +616,9 @@ inline RecipeStart start_recipe(const BuildRecipe& recipe) {
 /// The one-millisecond nap is what makes this a wait rather than a spin. It is
 /// also the only sleep anywhere in this file, and it exists solely on the path
 /// that is deliberately not used.
-inline RunResult run_recipe(const BuildRecipe& recipe) {
+inline RunResult run_recipe(const BuildCommand& command) {
     RunResult result;
-    RecipeStart begun = start_recipe(recipe);
+    RecipeStart begun = start_recipe(command);
     if (!begun.started) {
         result.trouble = begun.trouble;
         return result;
