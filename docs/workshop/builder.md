@@ -39,16 +39,45 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`c`** / **`Shift+c`** | move through the recipes this project holds (it wraps) |
 | **`b`** | **build** the recipe you have chosen |
 | **`Shift+b`** | **build and realize** it — build, and if that works, offer the result to the running project |
+| **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
 | **`p`** | remove the pane |
 
 The pane shows the chosen recipe and what it makes, where the last build got to (with its
 operation number and how many times the runner has been heard about it), the exit status, what
-was actually run, **the realization outcome on its own row**, and the last three lines the
-build said.
+was actually run, **the realization outcome on its own row**, and the last lines the build
+said (three rows ordinarily, two while the project-frontier row below is present).
 
 **A build outcome and a realization outcome are two answers and the pane shows two.** A build
 that worked whose realization was refused is a completely different situation from a build that
 failed, and both are ordinary.
+
+## The project frontier
+
+When realization is **waiting** on an artifact this project can build, the pane says so on a
+row of its own — read live from the realization owner at every repaint, never from a copy:
+
+```
+project  waiting zengine-oven (oven, blocks 3)
+```
+
+That one row is the join a maker used to perform by hand across two panes: **which artifact**
+the project stopped at, **which recipe produces it** (matched by artifact stem against the
+catalog the pane already shows), and **how many authored rows** are stopped behind it. When
+several recipes produce the artifact the row counts them (`2 recipes`), and when none does it
+says `no recipe` — a frontier this project cannot produce is a different problem, and the row
+will not guess. When nothing is waiting the row is simply absent: the Builder is an ordinary
+Builder, and no "all good" is manufactured.
+
+**`f` spends that row.** It selects the recipe that produces the frontier — visibly, so the
+recipe row and the ask agree — and performs exactly what `Shift+b` performs: the same build,
+the same offer, the same realization decision by the same owner. When **several** recipes
+produce the frontier, `f` refuses to choose between them and names them; pick one with `c` and
+press `f` again. When nothing is waiting, or nothing here produces the artifact, `f` says so
+and asks for nothing.
+
+`f` starts a build **only when pressed**. Encountering a buildable missing artifact never
+starts a compiler on its own, and a plain `b` of the frontier's recipe still leaves the row
+waiting until realization is explicitly asked for.
 
 ## Two kinds of recipe
 
