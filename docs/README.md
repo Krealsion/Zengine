@@ -31,7 +31,7 @@ Every page below has one reader purpose, named.
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — and how a bigger one is actually obtained |
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
 | [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
-| [workshop/builder.md](workshop/builder.md) | what Builder builds today, said without aspiration |
+| [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds, and build & realize |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
 
 ## Reference — exact contracts
@@ -42,7 +42,7 @@ Every page below has one reader purpose, named.
 | [reference/surface.md](reference/surface.md) | the drawing vocabulary, the rule for choosing between its text shapes, the depth model |
 | [reference/ui.md](reference/ui.md) | authored versus resolved geometry, and the fence between them |
 | [reference/component.md](reference/component.md) | the Component package, and why it has exactly one component |
-| [reference/builder.md](reference/builder.md) | the Builder package: the split between the tool and the runner, and process custody |
+| [reference/builder.md](reference/builder.md) | the Builder package: authored recipes, the generated single-source project, process custody, and the seam to realization |
 | [reference/snake.md](reference/snake.md) | a worked example whose parts are genuinely separate weaves |
 | [reference/timer-protocol.md](reference/timer-protocol.md) | exact Timer semantics |
 | [reference/timer-continuity.md](reference/timer-continuity.md) | what a schedule does across the service's own replacement |

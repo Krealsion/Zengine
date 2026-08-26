@@ -112,6 +112,28 @@ The third refuses rather than continuing, because an artifact that falls back to
 copy of a rule when nothing was offered would silently swap the process's semantic authority
 for that copy — a downgrade invisible in every answer until the two disagree.
 
+## When an artifact has not been built yet
+
+A row whose artifact is **not on this disk** and which some [build recipe](builder.md) in this
+project **can produce** is not a failure. Workshop leaves it alone, says so, and carries on:
+
+```text
+zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
+                   participation is performed then)
+```
+
+That is what a project looks like on its first run: the plan says how the artifact
+participates, the artifact has not been built yet, and Workshop still starts. Build it with
+`Shift+b` in the Builder pane and its authored participation is performed **in the same run** —
+the role, the mount mode and the order all come from this file, and the Builder supplies
+nothing but the file.
+
+An artifact that is missing and that **nothing here can build** still refuses the plan by name.
+And an artifact that is already loaded is refused rather than reloaded: a rebuilt file has not
+changed the image that is running.
+
+The `Project` pane calls a waiting row `pending`.
+
 ## What a plan cannot do
 
 No directory scan, no artifact enumeration, no dependency resolution, no version consultation,

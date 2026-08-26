@@ -100,12 +100,20 @@ geometry](panes.md#pane-geometry).
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.
 
-### Builder builds one hard-coded target
+### Builder builds what an authored file says, and no more
 
-`zengine-snake`, in Zengine's own build tree, fixed at configure time. There is no target
-picker, no way to add a recipe at run time, no path from a finished build to something
-loadable, and no relationship to the load plan. It is a working proof that starting and
-following an external process works — not a project builder. Detail in [Builder](builder.md).
+What can be built is a **recipe catalog beside the binary**, and a maker edits it in a text
+editor: there is no recipe editor in Workshop, no picker beyond stepping through the list with
+`c`, and no way to add a recipe at run time. Two recipe kinds exist — an existing CMake target,
+and one `.cpp` that Zengine wraps in a generated CMake project — and there is deliberately no
+third: no arbitrary shell recipe, no multi-source recipe, no globbed source list, no dependency
+solver.
+
+A successful build **can** enter the running project, but only where the project already
+authored participation for that artifact and this run left the row waiting. There is no hot
+reload — an artifact that is already live is refused in words, and a rebuilt file has not
+changed the image that is running — and no automatic build-on-missing: a maker presses a key.
+Detail in [Builder](builder.md).
 
 ### There is no text editor
 

@@ -150,11 +150,20 @@ migration moved is where they are painted from; what a maker sees at boot is byt
   is told `running` and must announce nothing, so the fact is held across every intermediate
   condition and released only at one the build will not leave.
 
-The target is `zengine-snake`, and the recipe is the target's own: `${CMAKE_COMMAND} --build
-<this build tree> --target zengine-snake`, both baked at configure time. It is deliberately not
-one of the weaves this running Workshop has loaded — building one of those would overwrite a
-shared library the process has mapped — and `zengine-workshop` rebuilding itself is the same
-hazard aimed at the host binary, which is Build+Load's problem and not this phase's.
+- **Two outcomes, two rows, two notices.** A build outcome and a **realization** outcome are
+  different truths with different owners, so the panel shows both and derives neither from the
+  other: a build that worked whose realization was refused is a completely different situation
+  from a build that failed. `c` moves the maker's choice through the recipes the tool published,
+  `b` builds the chosen one, and `Shift+b` builds it and offers the result to the running
+  project. The choice is genuinely the panel's — what the tool holds is what it *built*.
+
+What can be built is an **authored file** now, not a target compiled into the executable
+([Builder](../workshop/builder.md)); what this Workshop ships is a recipe for
+`zengine-skin-tui-block`, in Zengine's own build tree. That target is deliberately not one of
+the artifacts this running Workshop has loaded — building one of those would overwrite a shared
+library the process has mapped — and `zengine-workshop` rebuilding itself is the same hazard
+aimed at the host binary, which stays out of scope: nothing here reloads a live artifact, and
+an already-loaded artifact is refused in words rather than replaced.
 
 Workshop's weave lives in `workshop/weave.hpp`, not in the host's translation unit — so the
 suite mounts it on a real bus and walks `input message -> gesture -> semantic operation` end to
