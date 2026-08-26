@@ -1186,6 +1186,19 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
                       "', which is realization looking at a disk it does not own");
     }
 
+    // ...AND IT STARTS NO BUILD, WHICH IS THE OTHER HALF OF THE SAME SEAM. This file
+    // knows two builder shapes and both are things said TO it or BY the participant that
+    // speaks for it; the run side -- a recipe, a command, a process, an ask for one -- is
+    // the Builder's and stays there. `Pending` plus `a recipe exists` makes
+    // build-on-missing very tempting, and it is a later authority phase's, not a line
+    // here.
+    for (const char* noun : {"RunBuild", "BuildRequested", "RunningRecipe", "start_recipe",
+                             "BuildCommand", "builder/run.hpp", "builder/runner.hpp",
+                             "builder/recipe.hpp", "builder/generate.hpp"}) {
+        CHECK_MESSAGE(code.find(noun) == std::string::npos, "load_execute.hpp names '", noun,
+                      "', which is realization reaching into the build half");
+    }
+
     // AND THE HOST DOES NOT SCHEDULE THE PLAN EITHER. Its loop was already there and
     // knows nothing about realization; a `while` around the owner's state would be the
     // same wait moved one file out.

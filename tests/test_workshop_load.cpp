@@ -3986,9 +3986,21 @@ TEST_CASE("BLD-1a: a corrected build reaches the SAME waiting row, and the walk 
     CHECK(rig.executor.waiting_on() == kBuiltLate);
     CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
 
-    // THE CORRECTED BUILD. The row was never anything but the frontier, so the
-    // ordinary door takes it and the walk goes on from exactly the next authored row.
+    // THE CORRECTED BUILD -- AND ON ITS OWN IT CHANGES NOTHING AT ALL. ⚠ THIS IS THE
+    // BEHAVIOURAL HALF OF "NOTHING POLLS" (BLD-1a): the file appearing on disk is not an
+    // event this process can see, the host is not asked again, and no number of turns
+    // makes the row notice. A maker's plain BUILD leaves exactly this state, and it is
+    // the explicit gesture that moves it -- which is the whole reason Build and
+    // Build & Realize are two keys.
     stage().put(kBuiltLate, PLAIN_WEAVE_SO);
+    rig.drain(16);
+    CHECK(rig.executor.state() == load::Realization::Waiting);
+    CHECK(rig.executor.waiting_on() == kBuiltLate);
+    CHECK(rig.executor.state_of(kBuiltLate) == load::RowState::Pending);
+    CHECK_FALSE(rig.kernel.is_loaded(kBuiltLate));
+
+    // THE ASK. The row was never anything but the frontier, so the ordinary door takes
+    // it and the walk goes on from exactly the next authored row.
     REQUIRE(rig.executor.realize(kBuiltLate).started);
     rig.drain(16);
     CHECK(rig.executor.state() == load::Realization::Complete);
