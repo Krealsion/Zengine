@@ -9,6 +9,9 @@ expected to keep. This describes working on the public project.
 README.md            orientation
 cheat_sheet.md       dense operational reference
 AGENTS.md            the contract for automated collaborators working in this tree
+agents/              routed detail behind AGENTS.md, by surface — internal working law for
+                     automated collaborators. Not user documentation, not indexed by
+                     docs/README.md, and not part of the installed package
 CONTRIBUTING.md      contribution terms
 LICENSING.md         the plain-language licence boundary
 
