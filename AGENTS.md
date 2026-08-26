@@ -1860,6 +1860,72 @@ begin(plan)                    the ordinary host loop        answered()
   which arrives strictly after the Kernel has the artifact -- a case walks to that instant
   and checks the owner has not believed it yet.
 
+## The desk comes back on its own, and the window with it (WUX-0)
+
+Workshop writes the desk it was arranged into and the room it was in when it closes, and
+reads them back when it starts. Three files now, three promises, and the third one is the
+one nobody types:
+
+```text
+--document   workshop.json           what a maker MADE
+--setup      workshop-setup.json     a desk they NAMED -- `s` writes it, `r` reads it
+--session    workshop-session.json   the desk they were USING, and the room it was in
+```
+
+- **ONE REPRESENTATION OF A DESK, TWO FILES.** `session_persist::WorkshopSession` nests
+  `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, and
+  `setup_persist::setup_in` -- factored out of `from_text` for exactly this -- is the one
+  function that turns a written setup into a live one. A desk cannot be legal in one file
+  and illegal in the other. Do NOT add a second desk format because one save is automatic.
+- **THE VIEWPORT IS ONE LEVEL ABOVE THE DESK.** `{width, height}` in canvas cells, a
+  sibling of `desk` and not a field of it: the same desk is worth having in a big window
+  and in a small one, so how much room the surface had describes the APPLICATION rather
+  than the arrangement. It is its own shape rather than `surface::SurfaceExtent`, which is
+  a message free to grow a field whenever a medium has something new to say -- and whose
+  text metric would be a stale claim about a font the moment it was written down.
+- **CELLS, BECAUSE CELLS ARE WHAT WORKSHOP KNOWS.** The window belongs to whichever Skin
+  holds `zengine.skin`, behind a C ABI; the only thing it publishes about its room is
+  `SurfaceExtent` and the only thing Workshop says back is how large a picture it wants.
+  The fidelity is a bound, not a hope: a restored window is the maker's chosen size FLOORED
+  TO WHOLE CELLS, at most `kCanvasCellPx - 1` pixels short on each axis. Position and
+  maximized state are NOT persisted and are not an oversight -- no message in the Surface
+  vocabulary carries either, in either direction.
+- **⚠ THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING.** A medium
+  that has been told nothing has only a run's first picture to size itself from, and the
+  SDL medium makes that size the window's MINIMUM, once, at creation
+  (`SDL_SetWindowMinimumSize` in `surface/skin_sdl.cpp`). So `on(SurfaceReady)` repaints at
+  the minimum extent and THEN takes the session back: seeding the remembered extent before
+  the first canvas would come up at the right size and leave a maker unable ever to shrink
+  their own window again. Measured on Windows/MinGW against a real window; a suite case
+  pins the ordering (`the FIRST picture of a run is the floor`).
+- **THE ROOM, AND THEN THE DESK INTO IT.** `apply_setup` seats panes against
+  `stack_capacity(screen_of(...))`, so how much of a desk can be presented is a fact about
+  the screen. `adopt_screen` runs before `session_.setup.active = last.desk`; reversing the
+  two leaves a pane waiting for room it already had, and that is one of this phase's
+  mutations (1 case red, predicted and measured).
+- **ONE DOOR WRITES IT, AND ONLY ON AN ORDERLY CLOSE.** `q`, `Ctrl+C` and
+  `SurfaceCloseRequested` all reach `quit()`, which calls `save_last_session()` before it
+  stops the bus. No autosave, no dirty tracking, no background writer, and CRASH DURABILITY
+  IS NOT CLAIMED -- `persist::write_file` does not fsync and says so.
+- **ONCE PER PROCESS, guarded in the weave and not at the caller.** `SurfaceReady` arrives
+  again whenever a Skin is replaced; a second restore would throw away an afternoon of
+  arranging. The flag is set before the file is opened, so a refusal is final too.
+- **FOUR ANSWERS, NOT ONE BOOLEAN** -- and a first launch is the one that must stay silent.
+  `LoadedSession` carries `present` (there was a file at all), `outcome` (it could be read
+  and understood), `honoured` + `declined` (its viewport is one this Workshop opens at).
+  `load_file` asks `std::filesystem::exists` BEFORE reading, because to `persist::read_file`
+  a missing file and an unreadable one are both "cannot read".
+- **A VIEWPORT OUTSIDE THE BAND IS DECLINED, NEVER CLAMPED.** `viewport_honoured` is
+  `kScreenMinW..kScreenMaxW` by `kScreenMinH..kScreenMaxH`; outside it Workshop opens at its
+  floor and names the value. Clamping 100000 to 640 would still open a window nobody chose,
+  on a display Workshop cannot see -- and whether a size fits the CURRENT DISPLAY is not a
+  question Workshop can put to anybody, so this is a plausibility bound and is named as one.
+- **NEITHER DIRECTION TOUCHES THE NAMED SETUP FILE.** Closing writes a session and leaves
+  `workshop-setup.json` byte-identical; restoring a session reads no setup file at all.
+  `setup.on_file` is deliberately NOT written by a session restore -- it is this run's copy
+  of what is in the SETUP file, and this run has not read that file -- so a restored session
+  still says `UNSAVED`, meaning what it has always meant here.
+
 ## Zengine is a package a stranger installs (PKG-0)
 
 `cmake/ZengineInstall.cmake` is the whole public consumer surface, in one file: which
@@ -2090,3 +2156,12 @@ timer/input/surface vocabularies — all header-only). See
 - Restart persistence means a clean build recreates the artifacts — it means a
   fresh PROCESS reconstructs the same arrangement from the same file. Build intent
   is a separate, unstarted question.
+- Nothing Workshop persists is read at launch — the DESK and the window's size are,
+  automatically, since WUX-0. The **document** still is not.
+- Workshop can restore the window it had — it restores the window's SIZE, floored to
+  whole cells. It is never told the position or the maximized state and cannot ask.
+- A session save can be trusted after a crash — it is written on an orderly close and
+  nowhere else. A killed Workshop loses the session it was in.
+- The last session and a named setup are the same thing saved twice — they are two
+  promises in two files, and an automatic save that could land on `--setup` would
+  rewrite a maker's named desk every time they closed the window.

@@ -98,6 +98,7 @@
 
 #include "persist.hpp"
 #include "screen.hpp"
+#include "session_persist.hpp"
 #include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
@@ -109,6 +110,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -178,6 +180,22 @@ struct HostContext {
     /// list, no picker and no import. Empty means no setup file was chosen, and
     /// naming/restoring say so rather than guessing one.
     std::string setup_path;
+
+    /// The one file this Workshop's LAST SESSION is written to and read from (WUX-0).
+    ///
+    /// A THIRD PATH, AND A THIRD PROMISE. `document_path` is what a maker MADE and
+    /// `setup_path` is a desk they deliberately NAMED; this is the desk and the window they
+    /// happened to be using when they left, written when Workshop quits and read when it
+    /// starts, with no gesture at either end. It is the host's to choose (`--session
+    /// <path>`, defaulted) for the reasons the other two are, and it is a different file for
+    /// the sharpest of them: an automatic save that could land on `setup_path` would rewrite
+    /// a maker's explicitly named desk every time they closed the window.
+    ///
+    /// Empty means no session file was chosen, and startup restores nothing and shutdown
+    /// writes nothing -- silently, both times, because a host that did not ask for
+    /// continuity is not a host with a problem. That is also what every suite fixture gets
+    /// by default, so a case has to opt IN to touching a file.
+    std::string session_path;
 
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
@@ -268,7 +286,17 @@ public:
     /// does the work.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
         (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
+        // THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING (WUX-0).
+        //
+        // A medium that has not been told anything has only this picture to size itself
+        // from, and whatever it makes of it, it must not be that Workshop can never again be
+        // smaller than the window its maker happened to leave open last night. So the run's
+        // FIRST statement about how much room it wants is the smallest room it is honest in,
+        // and the room it is trying to get BACK is the second -- a want, not a floor.
+        // Reversing the two costs a maker the ability to shrink their window, which is a
+        // stranger thing to lose to a continuity feature than anything it could have bought.
         repaint(mail);
+        restore_last_session(mail);
     }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
@@ -2438,6 +2466,126 @@ private:
         return note;
     }
 
+    // ---- THE LAST SESSION: the desk that comes back on its own (WUX-0) --------
+    //
+    // TWO FUNCTIONS AND NO GESTURE, and that is the whole of what makes this a different
+    // promise from the one above it. Everything else in this section happens because a maker
+    // ASKED -- `s` names a desk and writes it, `r` reads one back. These two happen because
+    // Workshop started and because Workshop is leaving, and there is no key for either.
+    //
+    // NEITHER TOUCHES `setup_path`, IN EITHER DIRECTION, which is the property that keeps an
+    // automatic save from eating an explicit one. A restored session becomes the ACTIVE
+    // setup and nothing else: `on_file` is deliberately left alone, because it is this run's
+    // copy of what is in the SETUP file and this run has not read that file. So a restored
+    // session still says UNSAVED, meaning exactly what it has always meant here -- "this
+    // arrangement has not been written to the setup file" -- and `s` still writes that file,
+    // `r` still reads it, and neither has learnt anything about the other.
+
+    /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
+    ///
+    /// A TRANSACTION FOR THE SAME REASON `restore_setup` IS ONE: `session_persist::load_file`
+    /// hands back a candidate rather than writing into anything, so a bad field near the end
+    /// of the file cannot close a panel before it is met. And a session that cannot be read
+    /// costs the desk and nothing else -- the default setup is already live, the document is
+    /// untouched, and the file is left exactly as it is. Workshop does not rewrite a file it
+    /// could not understand.
+    void restore_last_session(loom::Mail& mail) {
+        if (restored_) {
+            return;
+        }
+        // ONCE PER PROCESS, and the guard is HERE rather than at the caller because
+        // `SurfaceReady` is not a once-per-process fact: a Skin replacement announces itself
+        // again, and a maker whose afternoon of arranging was silently thrown back to a file
+        // written last night would have met a continuity feature that loses work.
+        restored_ = true;
+        if (host_->session_path.empty()) {
+            return; // no session file was chosen: restore nothing, and say nothing about it
+        }
+        const session_persist::LoadedSession last =
+            session_persist::load_file(host_->session_path);
+        if (!last.present) {
+            // A FIRST LAUNCH IS NOT AN ERROR and must never be reported as one. It is also
+            // the most common way this function ends, so it ends quietly.
+            return;
+        }
+        if (!last.outcome.accepted) {
+            say(last.outcome.refusal + " -- opening with the default setup", true);
+            return;
+        }
+        // ---- THE VIEWPORT FIRST, AND THE ORDER IS THE WHOLE OF IT ------------
+        //
+        // `apply_setup` seats panes against `stack_capacity(screen_of(session_))`, so how
+        // much of this desk can be PRESENTED at all is decided by how much room the screen
+        // has. Reconciling first and resizing afterwards would seat the desk against a
+        // viewport nobody asked for and leave whatever did not fit waiting for room that had
+        // in fact been there the whole time.
+        if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
+                                          session_.text_advance_px, session_.text_line_px)) {
+            // The resolved inspector row closes over the workspace extent, and the workspace
+            // extent is exactly what just changed -- `on(SurfaceExtent)`'s reason, said at
+            // startup.
+            refocus_keeping_draft(state_, session_);
+        }
+        // ---- ...AND THEN THE DESK, INTO THE ROOM IT ASKED FOR -----------------
+        session_.setup.active = last.desk;
+        apply_setup(mail);
+        // AND IT SAYS NOTHING ABOUT UNRESOLVED PANES, WHICH `restore_setup` DOES SAY.
+        //
+        // MEASURED, ON A REAL WINDOW: at this instant no provider has had a turn. Workshop
+        // published `PaneCatalogRequested` a few lines ago and the answers are still in the
+        // queue, so EVERY external reference in a restored desk is unresolved right now and
+        // resolved a moment later -- the count is a fact about the clock rather than about
+        // the desk, and a maker reads it after it has stopped being true. Measured: a desk of
+        // three external panes reported all three unresolved, BY NAME, over three panes that
+        // were on the screen while the sentence was being read.
+        //
+        // IT IS NOT A LOST DIAGNOSTIC. The setup line carries the same count LIVE and
+        // recomputes it every paint (`setup "..." UNSAVED [| N unresolved]`), and the picker
+        // gives an unresolved reference a row of its own. A reference that is genuinely gone
+        // is therefore still named, by a surface that is still right an hour later. `r` keeps
+        // its note, because a maker who presses it is asking a question at a moment when the
+        // catalog has long since been answered.
+        std::string said = "reopened your last desk " + quoted_setup_name(last.desk.name) +
+                           " -- " + std::to_string(session_.screen_w) + "x" +
+                           std::to_string(session_.screen_h) + " cells";
+        if (!last.declined.empty()) {
+            // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
+            // window did not; a maker is told which, with the value that was declined.
+            said += "; " + last.declined;
+        }
+        say(said, !last.declined.empty());
+        // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see
+        // `on(SurfaceReady)` for why it cannot be the first.
+        repaint(mail);
+    }
+
+    /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
+    ///
+    /// WHAT IT SAVES IS AUTHORED WORKSPACE STATE AND NOTHING ELSE: which panes the maker
+    /// meant to have, where they put them, how big they made them, which is in front, and
+    /// how much room the surface had. No runtime pane, no WeaveId, no catalog row, no loaded
+    /// artifact, no bus state, no selection, no half-finished drag and no pane's private
+    /// contents. "The last session" is not a snapshot of a running universe; it is the two
+    /// facts a maker would otherwise have to reconstruct by hand.
+    void save_last_session() {
+        if (host_->session_path.empty()) {
+            return;
+        }
+        const Written written = session_persist::save_file(
+            host_->session_path, session_.setup.active, session_.screen_w, session_.screen_h);
+        if (written.accepted) {
+            return;
+        }
+        // WHERE A FAILURE GOES WHEN THE SCREEN IS THE THING LEAVING. The notice is set
+        // because nothing here may fail silently and because a suite reads it; stderr is
+        // written because a maker will never see that notice -- this runs on the way out,
+        // and a complaint about the session, delivered to a surface that is being torn down,
+        // is not a complaint. The same argument the SDL medium makes for `complain`.
+        say(written.refusal, true);
+        std::fprintf(stderr, "zengine-workshop: %s\n", written.refusal.c_str());
+        std::fflush(stderr);
+    }
+
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one (WIND-2) ----
     //
     // ONE MODE, FOUR STEPS, AND EVERY GESTURE ENDS AT A SETUP DOOR. The keyboard and the
@@ -3596,7 +3744,15 @@ private:
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     }
 
+    /// LEAVE -- and write down what was on the desk on the way out (WUX-0).
+    ///
+    /// THE SAVE IS HERE AND NOT IN A SERVICE, and here is the ONE door: `q`, Ctrl+C and a
+    /// close box all arrive at this function, so there is exactly one moment at which a
+    /// session becomes durable, and no background writer, no dirty tracking and no timer had
+    /// to be invented to find it. What that buys and what it costs are both said out loud:
+    /// an ORDERLY close is remembered, and a Workshop that is killed is not.
     void quit() {
+        save_last_session();
         host_->quit = true;
         if (host_->request_stop) {
             host_->request_stop();
@@ -3640,6 +3796,19 @@ private:
     /// flag so that a backend which reports the key and NO text cannot make the
     /// next real keystroke disappear.
     std::string swallow_text_;
+
+    /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION (WUX-0).
+    ///
+    /// A one-shot, and per PROCESS rather than per surface: `SurfaceReady` arrives again
+    /// whenever a Skin is replaced, and a second restore would throw away everything a maker
+    /// had arranged since the first. It is set before the file is even opened, so a refusal
+    /// is final too -- a session Workshop could not read at startup is not one it should
+    /// keep trying to read.
+    ///
+    /// It is a member of the WEAVE and not of `Session`, because it is not something a maker
+    /// is doing and nothing paints it: it is this run's own bookkeeping about a thing that
+    /// happens once.
+    bool restored_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
     /// written yet. Session, emphatically: it is a copy kept so the status line

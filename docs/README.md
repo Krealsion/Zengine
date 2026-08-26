@@ -29,7 +29,7 @@ Every page below has one reader purpose, named.
 |---|---|
 | [workshop/getting-started.md](workshop/getting-started.md) | launch, the screen, the first five minutes, the key map |
 | [workshop/panes.md](workshop/panes.md) | opening, moving, resizing and ordering panes — and how a bigger one is actually obtained |
-| [workshop/setups.md](workshop/setups.md) | saving an arrangement, restoring it, and an explicit verdict on workspace continuity |
+| [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
 | [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
 | [workshop/builder.md](workshop/builder.md) | what Builder builds today, said without aspiration |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |

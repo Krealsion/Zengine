@@ -516,16 +516,18 @@ telling apart:
 | kind of state | where it lives | survives |
 |---|---|---|
 | authored document truth | `WorkshopDoc` (`workshop/document.hpp`) | its own file, and every panel being closed |
-| **authored setup intent** | `setup.active` — a name plus ordered `PaneRef`s (`workshop/setup.hpp`) | **its own file**, and the process |
+| **authored setup intent** | `setup.active` — a name plus ordered `PaneRef`s with their authored geometry (`workshop/setup.hpp`) | **two files**: the one a maker names with `s`, and the last-session file Workshop writes for itself |
 | open presentation list | `panels.open` — reconciled from the setup against this build's catalog and this screen's room | until the setup or the room changes |
 | built-in panel view/session state | your own struct beside `Panels` in `panel.hpp` | until the panel is closed |
 | component mechanical state | inside the `component::TextBox` you hold | as long as you hold it |
 | another party's facts | that party; your panel holds a **copy** and says so | the panel closing (the tool does not) |
 
 **Which panes a maker has open IS saved now — as intent, and only as intent.** WS-0 gave the
-setup a name and an ordered list of `PaneRef`s, and that list is written to its own file
-(`workshop-setup.json`, format version 1). What is *not* saved, and must not become saved by
-accident:
+setup a name and an ordered list of `PaneRef`s; WIND-2 gave each row its authored place, size and
+rank; and that value is written to `workshop-setup.json` (format version 2) when a maker presses
+`s`, and to `workshop-session.json` when Workshop closes. **One representation, two files** — a
+desk saved automatically and a desk saved under a name are the same bytes in the same shape. What
+is *not* saved, and must not become saved by accident:
 
 ```text
 saved in the setup file      the setup's human name
@@ -558,7 +560,14 @@ never saved                  which kinds resolved this run, and to what
   can present the document without owning any of it.
 - **The setup and the document are separate values, separate laws and separate files**, on
   purpose: the same document is worth opening in two arrangements and the same arrangement is
-  worth using over two documents. Do not bind them, and do not add a startup restore.
+  worth using over two documents. Do not bind them.
+- **The last session is a third file and a third promise, and your panel owes it nothing.**
+  Workshop writes the active setup and the surface's room to `--session` when it closes and reads
+  them back when it starts (WUX-0, `workshop/session_persist.hpp`). It carries the same
+  `PaneRef`s and the same authored geometry your pane already persists through the setup, so a
+  new panel kind is restored automatically with no line of yours. What it must never grow is a
+  place for your panel's own view state: the list of what is never saved, above, is the same list
+  for both files.
 - If your panel shows another weave's facts, hold a copy plus **one fact of your own**: whether
   you have been answered yet. "The tool has never built anything" and "the tool has not answered
   me" are different sentences and a maker acts on only one of them.

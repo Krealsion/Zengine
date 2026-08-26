@@ -483,7 +483,8 @@ build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   
 | argument | default | is |
 |---|---|---|
 | `--document <path>` | `workshop.json` beside the binary | the authored objects |
-| `--setup <path>` | `workshop-setup.json` | the pane arrangement |
+| `--setup <path>` | `workshop-setup.json` | a pane arrangement you named and saved |
+| `--session <path>` | `workshop-session.json` | the last desk and window size — written on close, read on start |
 | `--load-plan <path>` | `default-load-plan.json` beside the binary | which artifacts run |
 | `--log <path>` | none | durable journal, appended as things happen |
 | `--dump <path>` | none | what the volatile recorder still held at exit |
@@ -543,11 +544,12 @@ resolve — that difference is the information. Reference:
 A larger pane is authored in management mode (`w` → `s` → arrows), one cell per keypress, and
 persists in the setup file. See [pane geometry](docs/workshop/panes.md#pane-geometry).
 
-⚠ **friction — nothing is restored at launch.** The document and the setup both persist, and
-both need a keypress (`Ctrl`+`o`, `r`) to come back. Both keys are advertised on screen, so this
-is a missing default rather than a missing mechanism — but a fresh Workshop *seeds two example
-objects*, so forgetting `Ctrl`+`o` looks like a state rather than an omission. See
-[workspace continuity](docs/workshop/setups.md#workspace-continuity).
+⚠ **friction — the document is not restored at launch.** The desk is: the panes, their
+geometry, their order and the window's size all come back on their own from the last session
+(`--session`, default `workshop-session.json`). The **document** still needs `Ctrl`+`o` — and a
+fresh Workshop *seeds two example objects*, so forgetting it looks like a state rather than an
+omission. The window's screen position and maximized state are not restored either; Workshop is
+never told them. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
 
 **On-screen hints** (so you need this page less): the title row carries `[+ panel]  p` and
 `[window]  w` plus `shift+space terminal`; the setup line carries `s name/save  r restore`; the

@@ -25766,3 +25766,521 @@ TEST_CASE("INTR-1: neither projection names a power, a provider or an artifact")
         }
     }
 }
+
+// =============================================================================
+// WUX-0 — GIVE ME MY DESK BACK
+// =============================================================================
+//
+// ONE PRODUCT SENTENCE, PINNED FROM BOTH ENDS: close Workshop after arranging it
+// into a useful desk, reopen it, and get that desk back -- the panes, where they
+// were put, how big they were made, which was in front, and how much room the
+// surface had -- with no gesture in between.
+//
+// WHAT THESE CASES DO NOT RE-PROVE. Pane presence, ordering, authored place and
+// authored size already persisted before this phase and are pinned above, at
+// length, against the SETUP file. Nothing here re-tests that machinery; what it
+// tests is the two things that did not exist -- something that READS it without
+// being asked, and anything at all that remembers the room.
+
+namespace {
+
+/// A desk worth wanting back: two panes, one of them moved and resized by hand.
+Setup arranged_desk(const char* name) {
+    Setup s = setup_of(name, {panel::kInfo, panel::kBuilder});
+    REQUIRE(author_pane_place(s, ref_of(panel::kBuilder), 6, 5).accepted);
+    REQUIRE(author_pane_size(s, ref_of(panel::kBuilder), PaneSize{pane_unit::kCells, 40},
+                             PaneSize{pane_unit::kCells, 12})
+                .accepted);
+    return s;
+}
+
+/// A Workshop that has been arranged and closed the way a maker closes one: its
+/// surface says hello, the medium reports its room, the maker restores a desk
+/// from their named setup, and then they quit.
+///
+/// IT GOES THROUGH THE PRODUCTION DOORS AND NOWHERE ELSE -- `r` to restore, `q`
+/// to leave -- so what lands in the session file is what a maker's own session
+/// would leave there, not what a fixture reached in and assigned.
+void arrange_and_close(const std::string& session_path, const std::string& setup_path,
+                       const Setup& desk, std::int64_t width, std::int64_t height) {
+    Live t;
+    t.host.session_path = session_path;
+    t.host.setup_path = setup_path;
+    REQUIRE(setup_persist::save_file(setup_path, desk).accepted);
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{width, height}));
+    t.key(input::scan::kR);
+    REQUIRE(t.session().setup.active == desk);
+    REQUIRE(t.session().screen_w == width);
+    REQUIRE(t.session().screen_h == height);
+    t.key(input::scan::kQ);
+    REQUIRE(t.host.quit);
+}
+
+} // namespace
+
+// ---- Witness A: the primary one ---------------------------------------------
+
+TEST_CASE("WUX-0 A: the desk and the room come back, with no gesture at all") {
+    TempDir dir("wux0-a");
+    const std::string session = dir.file("session.json");
+    const Setup desk = arranged_desk("Debugging");
+    arrange_and_close(session, dir.file("setup.json"), desk, 120, 44);
+    REQUIRE(std::filesystem::exists(session));
+
+    // ---- and the maker opens Workshop again ------------------------------
+    //
+    // A DIFFERENT SETUP PATH ON PURPOSE. Nothing about taking the last session back
+    // may depend on the named-setup file still being where it was, or on it being
+    // readable, or on it existing at all.
+    Live back;
+    back.host.session_path = session;
+    back.host.setup_path = dir.file("somewhere-else.json");
+    REQUIRE(back.canvases.empty());
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+
+    // THE DESK, whole: the same panes, the same authored geometry, the same order.
+    CHECK(back.session().setup.active == desk);
+    CHECK(back.session().panels.has(panel::kInfo));
+    CHECK(back.session().panels.has(panel::kBuilder));
+    // THE ROOM.
+    CHECK(back.session().screen_w == 120);
+    CHECK(back.session().screen_h == 44);
+    // AND NOT ONE KEY WAS PRESSED. `r` is still there and still does what it did;
+    // this is the run in which nobody had to know that.
+    CHECK_FALSE(back.session().notice_is_bad);
+    CHECK(back.notice().find("reopened your last desk") == 0);
+    CHECK(back.notice().find("\"Debugging\"") != std::string::npos);
+    CHECK(back.notice().find("120x44") != std::string::npos);
+}
+
+TEST_CASE("WUX-0: the FIRST picture of a run is the floor, and the room is the second") {
+    // ⭐ THE INVARIANT THE WINDOW'S MINIMUM RESTS ON, and the reason the restore does
+    // not simply seed the extent before the first paint. A medium that has been told
+    // nothing has only a run's first picture to size itself from, and a graphical one
+    // makes that picture's size the smallest the window may ever be dragged to. Ask
+    // for the remembered room FIRST and a maker can never shrink their Workshop
+    // again; ask for the floor first and the remembered room is an ordinary later
+    // picture, which a medium is free to grow to and free to be dragged back from.
+    TempDir dir("wux0-floor");
+    const std::string session = dir.file("session.json");
+    arrange_and_close(session, dir.file("setup.json"), arranged_desk("Wide"), 132, 48);
+
+    Live back;
+    back.host.session_path = session;
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+
+    REQUIRE(back.canvases.size() >= 2);
+    CHECK(back.canvases.front().width == kScreenMinW);
+    CHECK(back.canvases.front().height == kScreenMinH);
+    CHECK(back.canvases.back().width == 132);
+    CHECK(back.canvases.back().height == 48);
+}
+
+TEST_CASE("WUX-0: the room is taken back only ONCE, however often a surface says hello") {
+    // A Skin replacement announces itself again, and an afternoon of arranging must
+    // not be thrown back to a file written last night.
+    TempDir dir("wux0-once");
+    const std::string session = dir.file("session.json");
+    arrange_and_close(session, dir.file("setup.json"), arranged_desk("First"), 110, 40);
+
+    Live back;
+    back.host.session_path = session;
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE(back.session().setup.active.name == "First");
+
+    // the maker changes their mind about the desk, and a Skin is replaced under them
+    pick(back, panel::kBuilder); // remove the Builder the restored desk brought
+    const Setup after = back.session().setup.active;
+    REQUIRE_FALSE(after == arranged_desk("First"));
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(back.session().setup.active == after);
+}
+
+// ---- Witness B: the second generation replaces the first ---------------------
+
+TEST_CASE("WUX-0 B: the second session replaces the first, room and desk both") {
+    TempDir dir("wux0-b");
+    const std::string session = dir.file("session.json");
+    arrange_and_close(session, dir.file("first-setup.json"), arranged_desk("First"), 100, 36);
+    const std::string first_bytes = slurp(session);
+
+    // ---- reopen, change both, close again --------------------------------
+    Setup second = setup_of("Second", {panel::kInfo});
+    REQUIRE(author_pane_place(second, ref_of(panel::kInfo), 2, 3).accepted);
+    {
+        Live t;
+        t.host.session_path = session;
+        t.host.setup_path = dir.file("second-setup.json");
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        REQUIRE(t.session().setup.active.name == "First");
+        REQUIRE(t.session().screen_w == 100);
+        REQUIRE(setup_persist::save_file(t.host.setup_path, second).accepted);
+        t.publish(loom::to_value(surface::SurfaceExtent{140, 50}));
+        t.key(input::scan::kR);
+        REQUIRE(t.session().setup.active == second);
+        t.close_requested(); // the close BOX, and it is the same door `q` is
+        REQUIRE(t.host.quit);
+    }
+    // ⭐ THE DEFECT THIS PREVENTS: a startup that reads the file correctly while
+    // shutdown keeps rewriting an old cached representation of it.
+    CHECK(slurp(session) != first_bytes);
+
+    Live back;
+    back.host.session_path = session;
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(back.session().setup.active == second);
+    CHECK(back.session().screen_w == 140);
+    CHECK(back.session().screen_h == 50);
+    CHECK_FALSE(back.session().panels.has(panel::kBuilder));
+}
+
+// ---- Witness C: there is no previous session ---------------------------------
+
+TEST_CASE("WUX-0 C: a first launch is not an error, and needs no file to exist") {
+    TempDir dir("wux0-c");
+    Live t;
+    t.host.session_path = dir.file("never-written.json");
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+
+    CHECK(t.session().setup.active == default_setup());
+    CHECK(t.session().screen_w == kScreenMinW);
+    CHECK(t.session().screen_h == kScreenMinH);
+    // AND NOTHING WAS SAID ABOUT IT. The most common way startup ends is the one a
+    // maker must never see a complaint about.
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice().find("session") == std::string::npos);
+    // Nor was a file conjured to fill the absence.
+    CHECK_FALSE(std::filesystem::exists(t.host.session_path));
+}
+
+TEST_CASE("WUX-0 C: a host that chose no session file restores nothing and writes nothing") {
+    Live t;
+    REQUIRE(t.host.session_path.empty());
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.session().setup.active == default_setup());
+    CHECK_FALSE(t.session().notice_is_bad);
+    t.key(input::scan::kQ);
+    CHECK(t.host.quit);
+    CHECK_FALSE(t.session().notice_is_bad); // and quitting complained about nothing
+}
+
+// ---- Witness D: the file is there and cannot be understood -------------------
+
+TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
+    const std::vector<std::pair<const char*, std::string>> cases = {
+        {"not a document at all", "{"},
+        {"a document that is not a session", persist::to_text(WorkshopDoc{})},
+        {"a SETUP file handed to the session reader",
+         setup_persist::to_text(arranged_desk("Debugging"))},
+        {"a session of another version",
+         [] {
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
+             const std::size_t at = text.find("\"version\":1");
+             REQUIRE(at != std::string::npos);
+             text.replace(at, std::string("\"version\":1").size(), "\"version\":7");
+             return text;
+         }()},
+        {"a session whose desk is not a legal setup",
+         [] {
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
+             const std::size_t at = text.find("\"pane\":\"builder\"");
+             REQUIRE(at != std::string::npos);
+             text.replace(at, std::string("\"pane\":\"builder\"").size(),
+                          "\"pane\":\"two words\"");
+             return text;
+         }()},
+    };
+
+    for (const auto& [what, bytes] : cases) {
+        CAPTURE(what);
+        TempDir dir("wux0-d");
+        Live t;
+        t.host.session_path = dir.file("session.json");
+        spillout(t.host.session_path, bytes);
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+
+        // IT DID NOT CRASH, IT SAID SO, AND IT OPENED.
+        CHECK(t.session().notice_is_bad);
+        CHECK_FALSE(t.notice().empty());
+        CHECK(t.notice().find("opening with the default setup") != std::string::npos);
+        CHECK(t.session().setup.active == default_setup());
+        CHECK(t.session().screen_w == kScreenMinW);
+        CHECK(t.session().screen_h == kScreenMinH);
+        // AND THE MAKER'S FILE IS EXACTLY AS THEY LEFT IT. Workshop does not rewrite
+        // a file it could not read.
+        CHECK(slurp(t.host.session_path) == bytes);
+    }
+}
+
+TEST_CASE("WUX-0 D: an unreadable session names its version by NUMBER") {
+    TempDir dir("wux0-d-version");
+    std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
+    const std::size_t at = text.find("\"version\":1");
+    REQUIRE(at != std::string::npos);
+    text.replace(at, std::string("\"version\":1").size(), "\"version\":7");
+    const session_persist::LoadedSession refused = session_persist::from_text(text);
+    CHECK(refused.present);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal == "session version 7 -- this Workshop reads version 1");
+}
+
+// ---- Witness E: a viewport this Workshop will not open at --------------------
+
+TEST_CASE("WUX-0 E: a hostile room is declined, and the desk still comes back") {
+    struct Case {
+        const char* what;
+        std::int64_t w;
+        std::int64_t h;
+    };
+    // WRITTEN BY THE HONEST WRITER, not forged: the writer writes what it is given
+    // and the READER is where the judgement lives, so a case can spell an impossible
+    // room without going behind the format's back.
+    const Case cases[] = {
+        {"no width at all", 0, 40},
+        {"no height at all", 120, 0},
+        {"a negative room", -100, -40},
+        {"a room larger than this Workshop is honest at", 120, kScreenMaxH + 1},
+        {"an enormous room", 100000, 100000},
+    };
+    const Setup desk = arranged_desk("Debugging");
+
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        TempDir dir("wux0-e");
+        Live t;
+        t.host.session_path = dir.file("session.json");
+        REQUIRE(session_persist::save_file(t.host.session_path, desk, c.w, c.h).accepted);
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+
+        // THE DESK CAME BACK. Throwing away a good desk over a bad number would be
+        // the corrupt-save-makes-Workshop-useless failure, committed by the code
+        // meant to prevent it.
+        CHECK(t.session().setup.active == desk);
+        // THE ROOM DID NOT, AND IT WAS NOT CLAMPED INTO ONE EITHER: Workshop opens at
+        // its floor, exactly as a first launch does.
+        CHECK(t.session().screen_w == kScreenMinW);
+        CHECK(t.session().screen_h == kScreenMinH);
+        CHECK(t.canvases.back().width == kScreenMinW);
+        // AND IT NEVER CLAIMS THE SIZE CAME BACK. The value that was declined is
+        // named, because a maker looking at their own file can act on it.
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.notice().find("is not one this Workshop opens at") != std::string::npos);
+        CHECK(t.notice().find(std::to_string(c.w) + "x" + std::to_string(c.h)) !=
+              std::string::npos);
+    }
+}
+
+TEST_CASE("WUX-0 E: the band a room is honoured in is the one the screen is honest at") {
+    CHECK(session_persist::viewport_honoured(kScreenMinW, kScreenMinH));
+    CHECK(session_persist::viewport_honoured(kScreenMaxW, kScreenMaxH));
+    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW - 1, kScreenMinH));
+    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW, kScreenMinH - 1));
+    CHECK_FALSE(session_persist::viewport_honoured(kScreenMaxW + 1, kScreenMaxH));
+    CHECK_FALSE(session_persist::viewport_honoured(kScreenMinW, kScreenMaxH + 1));
+    CHECK_FALSE(session_persist::viewport_honoured(0, 0));
+}
+
+// ---- Witness F: named setups are a different promise and stay one ------------
+
+TEST_CASE("WUX-0 F: an automatic save never touches the file a maker named") {
+    TempDir dir("wux0-f-save");
+    Live t;
+    t.host.session_path = dir.file("session.json");
+    t.host.setup_path = dir.file("setup.json");
+    const Setup named = arranged_desk("Debugging");
+    REQUIRE(setup_persist::save_file(t.host.setup_path, named).accepted);
+    const std::string setup_bytes = slurp(t.host.setup_path);
+
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
+    pick(t, panel::kBuilder); // arrange something the named setup does not have
+    t.key(input::scan::kQ);
+
+    REQUIRE(std::filesystem::exists(t.host.session_path));
+    // ⭐ THE PROPERTY THE TWO FILES EXIST FOR: quitting wrote a session and left the
+    // maker's named desk byte-for-byte alone.
+    CHECK(slurp(t.host.setup_path) == setup_bytes);
+    CHECK(setup_persist::load_file(t.host.setup_path).setup == named);
+}
+
+TEST_CASE("WUX-0 F: a restored session never touches the file a maker named, either") {
+    TempDir dir("wux0-f-restore");
+    const std::string session = dir.file("session.json");
+    const std::string setup = dir.file("setup.json");
+    const Setup named = arranged_desk("Debugging");
+    REQUIRE(setup_persist::save_file(setup, named).accepted);
+    const std::string setup_bytes = slurp(setup);
+    REQUIRE(session_persist::save_file(session, setup_of("Loose", {panel::kInfo}), 110, 38)
+                .accepted);
+
+    Live t;
+    t.host.session_path = session;
+    t.host.setup_path = setup;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE(t.session().setup.active.name == "Loose");
+    CHECK(slurp(setup) == setup_bytes);
+
+    // ...AND BOTH SETUP GESTURES STILL DO EXACTLY WHAT THEY DID. `r` reads the named
+    // file over the restored session; `s` writes the named file and nothing else.
+    t.key(input::scan::kR);
+    CHECK(t.session().setup.active == named);
+    CHECK(t.session().setup.saved());
+    const std::string session_bytes = slurp(session);
+    name_setup(t, "Renamed");
+    CHECK(setup_persist::load_file(setup).setup.name == "Renamed");
+    CHECK(slurp(session) == session_bytes); // naming a setup wrote no session
+}
+
+TEST_CASE("WUX-0 F: the three files are three formats, and each refuses the others") {
+    const Setup desk = arranged_desk("Debugging");
+    const std::string doc_text = persist::to_text(WorkshopDoc{});
+    const std::string setup_text = setup_persist::to_text(desk);
+    const std::string session_text = session_persist::to_text(desk, 120, 44);
+
+    CHECK(std::string(session_persist::kFormat) == "zengine-workshop-session");
+    CHECK(std::string(session_persist::kFormat) != std::string(setup_persist::kFormat));
+    CHECK(std::string(session_persist::kFormat) != std::string(persist::kFormat));
+
+    CHECK_FALSE(session_persist::from_text(doc_text).outcome.accepted);
+    CHECK_FALSE(session_persist::from_text(setup_text).outcome.accepted);
+    CHECK_FALSE(setup_persist::from_text(session_text).outcome.accepted);
+    // A session handed to the setup reader is refused, and NOT half-read.
+    CHECK(setup_persist::from_text(session_text).setup.panes.empty());
+}
+
+// ---- The format itself -------------------------------------------------------
+
+TEST_CASE("WUX-0: a session round-trips, and a second save is byte-identical") {
+    const Setup desk = arranged_desk("Debugging");
+    const std::string first = session_persist::to_text(desk, 120, 44);
+    const session_persist::LoadedSession read = session_persist::from_text(first);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.present);
+    CHECK(read.honoured);
+    CHECK(read.declined.empty());
+    CHECK(read.desk == desk);
+    CHECK(read.viewport_w == 120);
+    CHECK(read.viewport_h == 44);
+    CHECK(session_persist::to_text(read.desk, read.viewport_w, read.viewport_h) == first);
+}
+
+TEST_CASE("WUX-0: a session file holds the desk and the room, and nothing runtime") {
+    const std::string text = session_persist::to_text(arranged_desk("Debugging"), 120, 44);
+    // THE DESK IS THE SETUP'S OWN REPRESENTATION, not a paraphrase of it: every pane
+    // row a setup file would have written is in here, spelled the same way.
+    for (const char* fragment : {"\"provider\":\"zengine.workshop\"", "\"pane\":\"builder\"",
+                                 "\"pane\":\"info\"", "\"mode\":\"cells\"", "\"front\":",
+                                 "\"format\":\"zengine-workshop-setup\""}) {
+        CHECK_MESSAGE(text.find(fragment) != std::string::npos, fragment);
+    }
+    CHECK(text.find("\"viewport\"") != std::string::npos);
+    // AND NOTHING THAT BELONGS TO A RUNNING PROCESS. No WeaveId, no runtime pane
+    // handle, no catalog row, no loaded artifact, no selection, no drag.
+    for (const char* forbidden : {"weave", "WeaveId", "kind", "runtime", "catalog", "selected",
+                                  "cursor", "drag", "notice", "document", "text_advance",
+                                  "text_line"}) {
+        CHECK_MESSAGE(text.find(forbidden) == std::string::npos, forbidden);
+    }
+}
+
+TEST_CASE("WUX-0: a session too large to be one is refused before it is read") {
+    TempDir dir("wux0-big");
+    const std::string path = dir.file("session.json");
+    spillout(path, std::string(session_persist::kMaxSessionBytes + 1, 'x'));
+    const session_persist::LoadedSession refused = session_persist::load_file(path);
+    CHECK(refused.present);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal.find("a Workshop session can be") != std::string::npos);
+}
+
+TEST_CASE("WUX-0: a write that fails leaves the last good session where it was") {
+    TempDir dir("wux0-write");
+    const std::string path = dir.file("session.json");
+    const Setup first = arranged_desk("First");
+    REQUIRE(session_persist::save_file(path, first, 120, 44).accepted);
+    const std::string good = slurp(path);
+
+    // The sibling the writer needs is occupied by a DIRECTORY, so the candidate
+    // cannot be written -- and the destination is never opened.
+    std::filesystem::create_directories(persist::pending_path(path));
+    const Written refused = session_persist::save_file(path, setup_of("Second", {panel::kInfo}),
+                                                       90, 30);
+    CHECK_FALSE(refused.accepted);
+    CHECK(slurp(path) == good);
+    std::filesystem::remove_all(persist::pending_path(path));
+    CHECK(session_persist::save_file(path, setup_of("Second", {panel::kInfo}), 90, 30).accepted);
+}
+
+// ---- The ORDER: the room, and then the desk into it --------------------------
+
+TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default one") {
+    // ⭐ THE ORDERING WITNESS, and the canary for it. Seating spends overlay slots,
+    // and how many there are is a fact about the screen: the floor composition has
+    // exactly one, and a restored room has more. Reconcile first and resize after,
+    // and a maker's second pane is left waiting for room that was in fact already
+    // theirs.
+    TempDir dir("wux0-order");
+    const std::string session = dir.file("session.json");
+    Setup two = setup_of("Two", {panel::kBuilder});
+    REQUIRE(add_pane(two, hello_ref()));
+    REQUIRE(session_persist::save_file(session, two, 120, 60).accepted);
+
+    REQUIRE(stack_slots_that_fit(kMinScreen) == 1);
+    REQUIRE(stack_slots_that_fit(screen_of(120, 60)) >= 2);
+
+    PaneRig r;
+    r.host.session_path = session;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    // The provider announces itself before the surface does, so the reference in the
+    // session resolves at the moment the desk is applied -- the load order WP-0 says
+    // must work either way round.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+
+    r.ready();
+    CHECK(r.w->session().screen_w == 120);
+    CHECK(r.w->session().screen_h == 60);
+    CHECK(r.w->session().panels.open.size() == 2);
+    CHECK(r.w->session().panels.has(panel::kBuilder));
+    CHECK(unresolved_panes(r.w->session().setup.active, r.w->session().panels.runtime).empty());
+}
+
+TEST_CASE("WUX-0: the startup notice counts no pane nobody has had a turn to offer") {
+    // MEASURED ON A REAL WINDOW FIRST, and the notice was misleading: at the instant a
+    // restored desk is applied, Workshop has published `PaneCatalogRequested` and the answers
+    // are still in the queue, so EVERY external reference in it is unresolved right now and
+    // resolved a moment later. A count here is a fact about the clock.
+    TempDir dir("wux0-unresolved");
+    const std::string session = dir.file("session.json");
+    Setup mixed = setup_of("Mixed", {panel::kInfo});
+    REQUIRE(add_pane(mixed, hello_ref()));
+    REQUIRE(session_persist::save_file(session, mixed, 110, 40).accepted);
+
+    Live t;
+    t.host.session_path = session;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+
+    REQUIRE(t.session().setup.active == mixed);
+    CHECK(t.notice().find("reopened your last desk") == 0);
+    CHECK(t.notice().find("unresolved") == std::string::npos);
+    CHECK_FALSE(t.session().notice_is_bad);
+
+    // ...AND THE COUNT IS NOT LOST, it is simply owned by the surface that recomputes it.
+    // The setup line carries it live, off the same `unresolved_panes` call, every paint.
+    REQUIRE_FALSE(t.canvases.empty());
+    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("1 unresolved") !=
+          std::string::npos);
+}
+
+TEST_CASE("WUX-0: `r` keeps its unresolved note -- a maker asking is asking later") {
+    TempDir dir("wux0-r-note");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    Setup mixed = setup_of("Mixed", {panel::kInfo});
+    REQUIRE(add_pane(mixed, hello_ref()));
+    REQUIRE(setup_persist::save_file(t.host.setup_path, mixed).accepted);
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.key(input::scan::kR);
+    CHECK(t.notice().find("1 pane unresolved") != std::string::npos);
+}

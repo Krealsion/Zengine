@@ -39,7 +39,8 @@ See [load plans](load-plans.md).
 | argument | default | is |
 |---|---|---|
 | `--document <path>` | `workshop.json`, beside the binary | the authored objects you are working on |
-| `--setup <path>` | `workshop-setup.json`, beside the binary | the pane arrangement |
+| `--setup <path>` | `workshop-setup.json`, beside the binary | a pane arrangement you named and saved |
+| `--session <path>` | `workshop-session.json`, beside the binary | the desk and window size you last used — written on close, read on start |
 | `--load-plan <path>` | `default-load-plan.json`, beside the binary | which artifacts this run is made of |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
@@ -57,6 +58,7 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: workshop.json
 zengine-workshop - setup: workshop-setup.json
+zengine-workshop - last session: workshop-session.json (restored at startup, written on quit)
 zengine-workshop - load plan: .../default-load-plan.json
 zengine-workshop - load plan: 6 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)
@@ -132,10 +134,11 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 5. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
    open it again.
 
-> **Nothing is restored at launch.** Press `Ctrl`+`o` for your document and `r` for your panes.
-> Both keys are advertised on screen; neither happens by default — and because a fresh Workshop
-> seeds those two example objects, forgetting `Ctrl`+`o` looks like a state rather than like an
-> omission. See [workspace continuity](setups.md#workspace-continuity).
+> **Your desk comes back; your document does not.** The panes you had open, where you put them,
+> how big you made them and how big the window was are all restored automatically from the last
+> session — no keypress. Press `Ctrl`+`o` for your document; that one is still a gesture, and
+> because a fresh Workshop seeds those two example objects, forgetting it looks like a state
+> rather than like an omission. See [workspace continuity](setups.md#workspace-continuity).
 
 ## The full key map
 
@@ -147,7 +150,7 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 | inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
 | panes | `p` picker · `w` management ([panes](panes.md)) |
-| setups | `s` name and save · `r` restore ([setups](setups.md)) |
+| setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
 | other | `b` build ([builder](builder.md)) · `Shift`+`Space` terminal overlay · `q` / `Ctrl`+`c` quit |
 
