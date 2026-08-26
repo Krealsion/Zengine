@@ -482,8 +482,11 @@ every other row           role as before background kNone     whatever the regio
   cell projection is byte-for-byte what `paint_panel_row` wrote.
 - **`paint_panel_row` has one consumer left: the Builder.** Its nine rows are a fixed
   composition against a nine-cell slot and the face holds five, so migrating it would drop four
-  rows — `[ Build ]` among them. Fixed-row panels need a row-budget composition before they can
-  be semantic text; that is a design phase, not a typography one.
+  rows — the build outcome and the realization outcome among them. Fixed-row panels need a
+  row-budget composition before they can be semantic text; that is a design phase, not a
+  typography one. (Since BLD-2 the count is fixed and one row trades places: while the project
+  is waiting on a buildable artifact, a `project` frontier row takes the third `said` row —
+  [`realization.md`](realization.md#the-frontier-is-visible-and-actionable-and-gained-no-authority-bld-2).)
 - **The screen's own band is 5 cells for 4 sentences and cannot migrate either**, for the same
   arithmetic: 5 cells hold 3 rows of the face. The NOTICE is the one piece of it that could —
   two cells, one prose row (`kNoticeRows`).

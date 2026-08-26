@@ -337,6 +337,46 @@ row N is waiting on the maker
   the executor realizes another. The projection itself is the introspection tool's law:
   [`panes.md`](panes.md#the-system-can-show-what-it-is-intr-1).
 
+## The frontier is visible and actionable, and gained no authority (BLD-2)
+
+The Builder panel shows the waiting frontier and `f` builds-and-realizes it, and the whole
+feature is one read-only seam plus one gesture over the existing route.
+
+- **THE OWNER PROJECTS ITS OWN FRONTIER.** `PlanExecutor::behind()` joined `waiting_on()` —
+  how many authored rows are behind the waiting row, derived from the same cursor, 0 in every
+  non-waiting state. The host wires both into `HostContext::frontier`, a function returning a
+  by-value `ProjectFrontier{waiting, artifact, blocked}` (panel.hpp); the weave derives it
+  fresh at every repaint and every gesture and stores it NOWHERE. ⚠ No copy exists on the
+  path — a `ProjectFrontier` member, session field, or answer cached between paints is the
+  mirror this seam exists to refuse, and the live-mutation witness in `test_workshop.cpp`
+  reddens one.
+- **THE JOIN IS THE STEM, PERFORMED AT PRESENTATION.** Which recipes produce the frontier is
+  answered by comparing the frontier artifact against the `RecipeCatalog` the tool itself
+  published — the panel's existing copy. No plan→recipe edge was added anywhere, and the
+  frontier view carries no recipe.
+- **`f` SPENDS THE EXISTING ROUTE, WHOLE.** It sets the panel's `chosen` to the producing
+  recipe — visibly, so the recipe row and the ask agree — and calls the same `build_now`
+  path `Shift+b` calls, with `realize=true`. One send (`BuildRequested`), same office, same
+  grant; everything downstream is the tool's, the runner's, and the owner's, unchanged. There
+  is no second build path and no direct load, and a source tripwire beside INTR-1's pins it:
+  `weave.hpp`, `screen.hpp` and `panel.hpp` spell no `PlanExecutor`, `load_execute`,
+  `OfferArtifact`, `RunBuild` or `kBuildRunnerRole`.
+- **⚠ SEVERAL RECIPES MAY PRODUCE ONE ARTIFACT, AND THE GESTURE NEVER CHOOSES.** That
+  cardinality is authored law (`builder::check_recipes` deduplicates IDENTITIES, deliberately
+  not artifacts, and a case pins the acceptance). With several matches `f` refuses and names
+  them; what it may spend is the maker's own standing pick — `BuilderPane::picked`, written
+  ONLY by `c`, reset when a catalog arrival clamps `chosen` — because `chosen == 0` is an
+  index and not a choice. The falsifier stages the FIRST catalog row as a match: "use entry
+  zero" and "read the default as a pick" both send an ask the case forbids.
+- **THE `project` ROW EXISTS EXACTLY WHILE THE FRONTIER DOES.** `waiting <stem> (<recipe |
+  N recipes | no recipe>, blocks <n>)`, taking the third `said` row only while waiting; with
+  no frontier the panel is byte-for-byte BLD-1a's, because absence of a pending frontier is
+  the whole answer and no `project ready` is manufactured. `blocks <n>` is `behind()` — the
+  authored rows after the pending one, pinned against the owner where it is derived.
+- **NO AUTOMATIC ANYTHING, STILL.** The view is a reading, not a power: encountering a
+  buildable missing frontier starts nothing, plain `b` still leaves the row `pending` with
+  the file on disk, and the maker gesture remains the only way a compiler starts.
+
 ## Do not assume
 
 - Workshop knows which artifacts to mount and boot — it knows **neither**. It reads one

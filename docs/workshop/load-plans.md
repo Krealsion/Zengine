@@ -125,10 +125,14 @@ zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
 ```
 
 That is what a project looks like on its first run: the plan says how the artifact
-participates, the artifact has not been built yet, and Workshop still starts. Build it with
-`Shift+b` in the Builder pane and its authored participation is performed **in the same run** —
-the role, the mount mode and the order all come from this file, and the Builder supplies
-nothing but the file. The moment it settles, the rows after it are performed too.
+participates, the artifact has not been built yet, and Workshop still starts. The Builder pane
+shows the same fact on its `project` row — the waiting artifact, the recipe that produces it,
+and how many authored rows are stopped behind it — and **`f`** builds and realizes it in one
+gesture (or `Shift+b`, having chosen the recipe with `c`; see
+[the frontier](builder.md#the-project-frontier)). Its authored participation is performed **in
+the same run** — the role, the mount mode and the order all come from this file, and the
+Builder supplies nothing but the file. The moment it settles, the rows after it are performed
+too.
 
 **The rows after it wait as well, and that is deliberate.** The order you wrote is the order
 things happen in — it is this file's whole way of saying that one artifact needs another
