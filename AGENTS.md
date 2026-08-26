@@ -1979,17 +1979,19 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   about it can simply be wrong. Both are witnessed; do not "simplify" the check away.
 - **A ROW MAY BE `pending`, AND IT IS THE HOST THAT SAYS SO.** `PlanExecutor` gained ONE
   predicate (`AwaitingBuild`) and learns nothing else: the host answers from two facts that are
-  its own -- the artifact file is absent, and some authored recipe produces that stem -- and a
-  yes is recorded while the plan CARRIES ON. ⚠ THIS IS NOT "SKIP WHAT IS MISSING": an artifact
-  nothing here can build still refuses the plan by name, exactly as before. It is not
-  build-on-missing either; nothing starts, requests or remembers a build. With no predicate
-  passed, every caller gets LOAD-0's behaviour unchanged, and a case pins that.
+  its own -- the artifact file is absent, and some authored recipe produces that stem. ⚠ THIS IS
+  NOT "SKIP WHAT IS MISSING": an artifact nothing here can build still refuses the plan by name,
+  exactly as before. It is not build-on-missing either; nothing starts, requests or remembers a
+  build. With no predicate passed, every caller gets LOAD-0's behaviour unchanged, and a case
+  pins that. ⚠⚠ BLD-1 SHIPPED THE YES AS *recorded, and the plan CARRIES ON*, WHICH WAS THE
+  DEFECT BLD-1a REPAIRED -- read the BLD-1a section below before touching `advance()`.
 - **`realize(stem)` PERFORMS ONE WAITING ROW, AND EVERY ELIGIBILITY RULE IS THE PLAN'S.** Busy,
-  not named by the plan, already resolved, or not waiting -- each refused in words. ⚠ THE
-  ALREADY-RESOLVED ARM IS WHERE HOT RELOAD IS REFUSED, and the refusal says *restart*. ⚠ AN
-  ON-DEMAND REFUSAL MUST NOT SET `Realization::Failed`: that is what the host's settle notice
-  reads to end the process with exit 4, and a maker whose hand-asked realization was refused has
-  not lost the Workshop they are working in. The row goes back to waiting.
+  already resolved, not named by the plan, or not the row realization is waiting on -- each
+  refused in words. ⚠ THE ALREADY-RESOLVED ARM IS WHERE HOT RELOAD IS REFUSED, and the refusal
+  says *restart*. ⚠ AN ON-DEMAND REFUSAL MUST NOT SET `Realization::Failed`: that is what the
+  host's settle notice reads to end the process with exit 4, and a maker whose hand-asked
+  realization was refused has not lost the Workshop they are working in. The row goes back to
+  waiting.
 - **THE SEAM IS TWO SHAPES AND ONE NEW GRANT.** The tool may say `ArtifactBuilt` -- ONLY when
   the maker asked for realization, because the shape carries an INTENT and a standing offer
   nobody made is not one. `PlanBooter` hears it, asks its owner, and publishes the owner's answer
@@ -2011,6 +2013,64 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   grants, same host loop), and fires two canaries -- the package config removed, and one
   installed HEADER removed -- each with a FRESH workspace, because `find_package` caches
   `zengine_DIR` and a reused workspace would report a resolution that never happened.
+
+## A pending row is a BARRIER, not a hole (BLD-1a)
+
+BLD-1 gave realization somewhere to put *this row is not built yet*, and then let the walk
+step over it. Stepping over is the one thing it may not do: **authored plan order IS
+realization order**, and a walk that skips a row it cannot perform has silently replaced that
+with ELIGIBILITY order -- whatever happened to be on disk goes first.
+
+```text
+row N is waiting on the maker
+    -> the row is `pending`, the owner is `Waiting`, and it RETURNS TO THE HOST
+    -> row N+1 is NOT reached, NOT mounted, NOT loaded, and the host is NOT asked about it
+    -> realize(N) settles it  ->  the frontier moves ON BY ONE  ->  the walk resumes
+```
+
+- **⭐ THE FALSIFIER IS AN OVERLAY, AND IT IS THE ONLY FIXTURE THAT CAN SAY THIS.** A two-row
+  plan cannot tell "later rows ran early" from "later rows ran": both orders end with the same
+  arrangement. An **overlay row authored BEFORE the ordinary provider it covers** does not --
+  it is a BAD plan and the catalog refuses it (*needs an explicit overlay*), while the same two
+  rows the other way round are accepted. So skipping the overlay row because its artifact is
+  not built yet converts the refused plan into the accepted one, and the maker's file still
+  says the wrong thing. ⚠ The witness is `BLD-1a: an absent artifact cannot REORDER an overlay
+  past what it covers`; it goes red under a canary that restores mark-pending-and-continue,
+  along with eleven of the other thirteen.
+- **`Realization` GAINED `Waiting`, AND `Complete` GOT ITS MEANING BACK.** BLD-1 answered
+  `Complete` for a plan whose rows included some nobody performed, so `outcome().ok` read as
+  *the whole arrangement is live* while an authored artifact had not been touched. `Complete` is
+  now reachable from exactly one place -- the walk running off the END of the plan -- and the
+  walk cannot reach the end past a row it did not perform. ⚠ TWO SUBJECTS, TWO WORDS, on
+  purpose: the OWNER is `Waiting`, the ROW it is waiting on is `pending`. Collapsing them leaves
+  no way to say *which* row.
+- **`Executed::pending` (a vector) BECAME `Executed::waiting_on` (one string), AND THE SHAPE IS
+  THE LAW.** At most one row can be waiting, because the walk stops at the first one it cannot
+  perform; a second slot could only ever hold a claim that later rows had leapfrogged an earlier
+  one. It is DERIVED, not stored -- `waiting_on()` is `cursor_` plus `state_`, the same argument
+  `state_of` already makes for every other row state. `PlanExecutor::pending()` is gone.
+- **THE HOST IS TOLD AT EVERY REST, NOT ONCE.** `Settled` fires at three resting points now --
+  every row resolved, a row refused, and the walk stopped at a waiting row -- because all three
+  are moments realization will not move again on its own, and the third is the one a maker has
+  to act on. A host tells them apart from the value alone: `ok`, or `refusal` non-empty, or
+  `waiting_on` non-empty. ⚠ `!done.ok` IS NO LONGER A REFUSAL; `workshop.cpp` and
+  `tests/build/witness.cpp` both test `refusal` before they call anything failed, and a host
+  that gets this wrong prints *project refused:* with no reason and exits 4 on a healthy run.
+- **A LATER ARTIFACT MAY BE BUILT EARLY AND NOT REALIZED EARLY.** Builder owns building and a
+  recipe it exposes is a recipe a maker may run; the file appearing changes nothing about order.
+  Asking to realize it is refused BY THE NAME OF THE ROW IT IS BEHIND -- and an ineligible ask
+  moves nothing at all, least of all to `Failed`. When the frontier eventually reaches that row,
+  the ordinary path finds the file and proceeds: there is no `prebuilt` state and must not be.
+- **A REFUSED ON-DEMAND ROW GOES BACK TO `Waiting`, NOT `Complete`.** The rows behind it were
+  never performed, so `Complete` there would report an arrangement missing everything from that
+  row on. The frontier returns to exactly where the ask found it, which is what makes a
+  corrected build a RETRY rather than a restart.
+- **⚠ AND STILL NOTHING LOOKS AT A DISK.** A frontier that STOPS makes *is the file there yet?*
+  very tempting; it is the HOST's question, asked once per row through `AwaitingBuild` and never
+  polled. `test_operator_provider.cpp`'s tripwire over `workshop/load_execute.hpp` now refuses
+  seven filesystem spellings beside its ten scheduler verbs and nine async nouns. Plain Build
+  and Build & Realize stay two gestures; a plain build leaves the row `pending` with the file on
+  disk until somebody asks.
 
 ## Zengine is a package a stranger installs (PKG-0)
 

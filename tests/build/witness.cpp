@@ -345,10 +345,14 @@ int main(int argc, char** argv) {
                 std::printf("witness: loaded: %s%s\n", row.stem.c_str(),
                             row.weave_loaded ? " (weave)" : " (provider)");
             }
-            for (const std::string& waiting : done.pending) {
-                std::printf("witness: waiting to be built: %s\n", waiting.c_str());
+            if (!done.waiting_on.empty()) {
+                std::printf("witness: waiting to be built: %s\n", done.waiting_on.c_str());
             }
-            if (!done.ok) {
+            // ⚠ `ok` FALSE IS NOT A REFUSAL BY ITSELF (BLD-1a). Realization comes to
+            // rest at a waiting row too, and that is neither completion nor failure --
+            // a refusal is one because a layer below actually stated it, which is what
+            // `refusal` carries. `workshop.cpp` draws the same line, in the same order.
+            if (!done.ok && !done.refusal.empty()) {
                 std::printf("witness: project refused: %s\n", done.refusal.c_str());
                 refused = true;
             }

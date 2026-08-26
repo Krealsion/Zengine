@@ -1174,6 +1174,18 @@ TEST_CASE("BOOT-0: the realization owner cannot make Loom advance, and the sourc
                       "', which is the scheduler BOOT-0 deleted, renamed");
     }
 
+    // ...AND IT STILL DOES NOT LOOK AT A DISK (BLD-1a). A frontier that STOPS at a
+    // waiting row makes one question very tempting -- *is the file there yet?* -- and
+    // it is exactly the question this owner may not ask. Whether an artifact is on this
+    // disk is the HOST's fact, answered once per row through `AwaitingBuild` and never
+    // polled; a `filesystem` call here would be realization growing a second half of
+    // the build system, one turn of a loop nobody asked for at a time.
+    for (const char* verb : {"filesystem", "ifstream", "ofstream", "fopen", "::stat",
+                             "last_write_time", "exists("}) {
+        CHECK_MESSAGE(code.find(verb) == std::string::npos, "load_execute.hpp spells '", verb,
+                      "', which is realization looking at a disk it does not own");
+    }
+
     // AND THE HOST DOES NOT SCHEDULE THE PLAN EITHER. Its loop was already there and
     // knows nothing about realization; a `while` around the owner's state would be the
     // same wait moved one file out.

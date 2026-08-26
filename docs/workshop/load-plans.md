@@ -115,24 +115,36 @@ for that copy — a downgrade invisible in every answer until the two disagree.
 ## When an artifact has not been built yet
 
 A row whose artifact is **not on this disk** and which some [build recipe](builder.md) in this
-project **can produce** is not a failure. Workshop leaves it alone, says so, and carries on:
+project **can produce** is not a failure. Workshop stops at that row, says so, and keeps
+running:
 
 ```text
 zengine-workshop - waiting to be built: zengine-oven (build it, and its authored
-                   participation is performed then)
+                   participation is performed then -- every authored row after it is
+                   waiting on this one)
 ```
 
 That is what a project looks like on its first run: the plan says how the artifact
 participates, the artifact has not been built yet, and Workshop still starts. Build it with
 `Shift+b` in the Builder pane and its authored participation is performed **in the same run** —
 the role, the mount mode and the order all come from this file, and the Builder supplies
-nothing but the file.
+nothing but the file. The moment it settles, the rows after it are performed too.
+
+**The rows after it wait as well, and that is deliberate.** The order you wrote is the order
+things happen in — it is this file's whole way of saying that one artifact needs another
+(see [Reading a record](#reading-a-record)). Running the later rows first because an earlier
+artifact happens to be missing would give you an arrangement your plan does not describe, and
+one that stops matching it the day you build that artifact before starting.
+
+You can still **build** a later artifact while an earlier one is waiting; building and
+participating are different things. Asking to *realize* it early is answered with the name of
+the artifact the project is waiting on, and nothing changes.
 
 An artifact that is missing and that **nothing here can build** still refuses the plan by name.
 And an artifact that is already loaded is refused rather than reloaded: a rebuilt file has not
 changed the image that is running.
 
-The `Project` pane calls a waiting row `pending`.
+The `Project` pane calls the waiting row `pending`, and every row behind it `authored`.
 
 ## What a plan cannot do
 
