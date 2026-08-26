@@ -1023,6 +1023,21 @@ public:
                    : kNone;
     }
 
+    /// HOW MANY AUTHORED ROWS ARE BEHIND THE ROW REALIZATION IS WAITING ON -- 0 when
+    /// it is waiting on none (BLD-2).
+    ///
+    /// DERIVED FROM THE CURSOR, for `waiting_on()`'s reason exactly: a waiting row is
+    /// a barrier, so everything after it is `Authored` by construction and the count
+    /// is arithmetic over the one index the walk already keeps. It exists so a
+    /// presentation can say how much of a maker's project is stopped behind the
+    /// frontier without walking the plan itself -- the owner answers about its own
+    /// plan, and nobody else has to hold a copy of it.
+    std::size_t behind() const noexcept {
+        return state_ == Realization::Waiting && cursor_ < plan_.artifacts.size()
+                   ? plan_.artifacts.size() - cursor_ - 1
+                   : 0;
+    }
+
     // ---- What is true right now --------------------------------------------------
 
     /// The authored intent this owner is realizing -- empty until `begin`.

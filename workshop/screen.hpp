@@ -3005,9 +3005,11 @@ inline void paint_panel_frame(surface::SurfaceLayer& layer, const ui::Rect& b) {
 /// One row of an overlaid panel, fitted and padded to its bounds' width.
 ///
 /// THE CELL-LATTICE SPELLING OF A PANEL ROW, and since TYPE-0 it has ONE consumer left: the
-/// Builder, whose nine rows are a fixed composition against a nine-cell slot (see
-/// `paint_builder`). Every other panel says its rows through `panel_prose_place` below, which
-/// is what lets a medium that owns a face set them in it.
+/// Builder, whose nine rows are a fixed composition against a nine-cell slot — fixed in
+/// COUNT, with one row that trades places: while the project is waiting on a buildable
+/// artifact a `project` row takes one of the three output rows (see `paint_builder`). Every
+/// other panel says its rows through `panel_prose_place` below, which is what lets a medium
+/// that owns a face set them in it.
 inline void paint_panel_row(surface::SurfaceLayer& layer, const ui::Rect& b, std::int64_t line,
                             const std::string& text, std::int64_t role) {
     layer.labels.push_back(surface::SurfaceLabel{
@@ -3105,8 +3107,19 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// below is either a row of its own content or a reading off `b` -- there is no `kStackX` in
 /// this function any more, and no `kStackRows`, so what it means to move this panel or to
 /// give it a different amount of room is entirely `placement_bounds`'s business.
+///
+/// ...AND SINCE BLD-2 IT IS ALSO HANDED THE PROJECT FRONTIER, derived from the living
+/// realization owner at this very paint and stored by nobody (panel.hpp says why a copy is
+/// the one shape refused). While the project is waiting, a `project` row joins the
+/// composition and says three things together: which artifact realization stopped at, which
+/// authored recipe or recipes can produce it (the artifact-STEM join over the catalog the
+/// tool itself published -- no second edge), and how many authored rows are stopped behind
+/// it. The row takes one of the three `said` rows, and only while it holds: a project with
+/// no pending frontier paints the exact BLD-1a panel, because the absence of a frontier is
+/// itself the answer and manufacturing a "nothing blocked" sentence would be publishing a
+/// fact no owner said.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const ui::Rect& b) {
+                          const ui::Rect& b, const ProjectFrontier& frontier = {}) {
     paint_panel_frame(layer, b);
     const auto row = [&layer, &b](std::int64_t line, const std::string& text,
                                  std::int64_t role) {
@@ -3118,7 +3131,9 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // `p removes` and not `x closes`: PNL-0 gave panel presence one owner, and it is the
     // picker. A panel's own header advertising its own removal key is exactly the per-panel
     // binding the second kind made untenable.
-    row(0, std::string("BUILDER @") + builder::kBuilderRole + " -- b/B build, c pick, p removes",
+    row(0,
+        std::string("BUILDER @") + builder::kBuilderRole +
+            " -- b/B build, c pick, f frontier, p removes",
         surface::role::kAccent);
 
     if (!pane.heard) {
@@ -3156,6 +3171,43 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                                       std::to_string(at + 1) + "/" + std::to_string(held) + ")"),
             surface::role::kFill);
     }
+    // ---- WHAT THE PROJECT IS WAITING ON, WHILE IT IS (BLD-2) --------------------------
+    //
+    // THE ROW EXISTS EXACTLY WHILE THE FRONTIER DOES, and every later row steps down one
+    // to make room -- the one it costs is the third `said` row, which is the row this
+    // panel can best afford exactly here: a maker whose project is WAITING has no build
+    // output yet, and one whose frontier build FAILED still reads two rows of the
+    // compiler's ending plus the whole stream on the bus. When nothing is waiting the
+    // composition below is byte-for-byte BLD-1a's, because absence of a pending frontier
+    // is the whole answer and this panel will not invent a "nothing blocked" to fill a row.
+    //
+    // THREE FACTS, ONE ROW, TWO OWNERS. The artifact and the blocked count are the
+    // realization owner's, read alive through the host at this paint; which recipes can
+    // produce the artifact is the tool's own published catalog, joined here BY STEM --
+    // the one edge BLD-1 allows. One producing recipe is named; several are counted
+    // (`f` names them, and `c` shows each beside the artifact it makes); none is said
+    // plainly, because a frontier this project cannot produce is a different problem.
+    const std::size_t shift = frontier.waiting ? 1 : 0;
+    if (frontier.waiting) {
+        std::size_t makers = 0;
+        const builder::RecipeSummary* maker = nullptr;
+        for (const builder::RecipeSummary& known : pane.known.recipes) {
+            if (known.artifact == frontier.artifact) {
+                ++makers;
+                maker = &known;
+            }
+        }
+        std::string said = "waiting " + frontier.artifact + " (";
+        if (makers == 0) {
+            said += "no recipe";
+        } else if (makers == 1) {
+            said += maker->recipe;
+        } else {
+            said += std::to_string(makers) + " recipes";
+        }
+        said += ", blocks " + std::to_string(frontier.blocked) + ")";
+        row(2, panel_field("project", said), surface::role::kAccent);
+    }
     // WHAT THIS PANEL IS WATCHING beats what it was last told. `awaiting` is the panel's own
     // fact and it is the truer one while it holds: the tool's last OUTCOME is still the
     // previous build's, and showing that while a new one is running would answer "what
@@ -3174,7 +3226,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
         named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) + " out"
                  : std::string();
     const bool unanswered = pane.awaiting && s.outcome != builder::outcome::kRunning;
-    row(2,
+    row(2 + static_cast<std::int64_t>(shift),
         unanswered ? panel_field("last", "asked -- waiting for it to start")
                    : panel_field("last", std::string(builder::name_of_outcome(s.outcome)) +
                                              carried),
@@ -3195,7 +3247,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // build again, and it reads 2 -- which a panel that owned the state could not say. It
     // shares rather than taking its own because the rows below are worth more to a maker
     // whose build just failed, and this one has a column to spare.
-    row(3,
+    row(3 + static_cast<std::int64_t>(shift),
         panel_field("exit", detail::pad(s.outcome == builder::outcome::kSucceeded ||
                                                 s.outcome == builder::outcome::kFailed
                                             ? std::to_string(s.status)
@@ -3205,8 +3257,9 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
         surface::role::kMuted);
     // WHAT WAS ACTUALLY RUN, as the runner reported it. Empty until something has been run,
     // because the tool holds no command and this panel will not invent one to fill a row.
-    row(4, panel_field("ran", s.command.empty() ? std::string("(nothing has run yet)")
-                                                : s.command),
+    row(4 + static_cast<std::int64_t>(shift),
+        panel_field("ran", s.command.empty() ? std::string("(nothing has run yet)")
+                                             : s.command),
         surface::role::kMuted);
     // ---- THE SECOND OUTCOME, ON ITS OWN ROW (BLD-1) -------------------------------------
     //
@@ -3216,7 +3269,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // in the case a maker most needs: a build that WORKED whose realization was REFUSED.
     // The row is present even when nothing was asked, because an absent row reads as an
     // absent question rather than as an unasked one.
-    row(5,
+    row(5 + static_cast<std::int64_t>(shift),
         panel_field("realize", s.realization == builder::realization::kNotAsked
                                    ? std::string("-- (B builds and realizes)")
                                    : std::string(builder::name_of_realization(s.realization)) +
@@ -3234,10 +3287,14 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // said `[ Build ] press b`, which the header now says beside the two keys BLD-1 added,
     // and a panel that spends a row of a compiler's answer on repeating its own header is
     // spending the wrong row.
+    //
+    // ...AND WHILE THE PROJECT IS WAITING, THE `project` ROW HOLDS THE THIRD OF THEM
+    // (BLD-2). The trade is argued where the row is painted, above.
     const std::vector<std::string> said =
-        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3, b.w);
+        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3 - shift, b.w);
     for (std::size_t i = 0; i < said.size(); ++i) {
-        row(6 + static_cast<std::int64_t>(i), said[i], surface::role::kMuted);
+        row(6 + static_cast<std::int64_t>(shift) + static_cast<std::int64_t>(i), said[i],
+            surface::role::kMuted);
     }
 }
 
@@ -4901,7 +4958,7 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 /// text rather than underneath it. The Terminal is later still and is `paint`'s to add,
 /// because it is a MODE that also decides what the rest of the screen does.
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                         const Screen& sc) {
+                         const Screen& sc, const ProjectFrontier& frontier = {}) {
     const Panels& panels = s.panels;
     for (const std::int64_t kind : presentation_order(s.setup.active, panels)) {
         const Panel p{kind};
@@ -4911,7 +4968,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         }
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b);
+                paint_builder(layer, panels.builder, b, frontier);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc);
             } else if (is_runtime_kind(p.kind)) {
@@ -5069,8 +5126,15 @@ inline std::string setup_line(const Session& s, const std::string& path, const S
 /// status slot, which the weave composes. The setup's identity is painted ON the canvas, so
 /// the canvas has to be told. It is defaulted so that a caller with no host -- every screen
 /// case in the suite -- paints a truthful line saying no setup file was chosen.
+///
+/// THE PROJECT FRONTIER IS AN ARGUMENT FOR THE SAME REASON (BLD-2): it is a reading of the
+/// living realization owner, taken by the weave at the moment it repaints, and this function
+/// stays a pure projection of what it is handed. It is defaulted to "not waiting" so that a
+/// caller with no realization owner -- every screen case in the suite, and any host that
+/// wired none -- paints the ordinary Builder panel.
 inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
-                                    const std::string& setup_path = std::string()) {
+                                    const std::string& setup_path = std::string(),
+                                    const ProjectFrontier& frontier = {}) {
     const Screen sc = screen_of(s);
     surface::SurfaceCanvas c;
     c.width = sc.w;
@@ -5244,7 +5308,7 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // furniture painted unconditionally here is now a panel like any other: present because a
     // fresh session opens it, absent the moment a maker removes it, and painted by whoever
     // owns that kind rather than by `paint`.
-    paint_panels(c, d, s, sc);
+    paint_panels(c, d, s, sc, frontier);
 
     // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane. See the note at the top of
     // this function for why it is in front rather than behind: this is the row the

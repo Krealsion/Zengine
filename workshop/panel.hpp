@@ -386,6 +386,28 @@ struct PanelPicker {
 /// catalog row; it is the one presentation that names itself.
 inline constexpr const char* kPickerName = "+ panel";
 
+/// WHAT PROJECT REALIZATION IS WAITING ON, RIGHT NOW — a VALUE, derived at every
+/// spend and held by nobody (BLD-2).
+///
+/// THE FACTS ARE THE REALIZATION OWNER'S AND THIS IS ONLY THEIR SHAPE. The owner
+/// derives `waiting_on()` and `behind()` from its own cursor; the host wires a
+/// function that reads them (`HostContext::frontier`, weave.hpp); and the Builder
+/// panel spends the answer at the moment it paints or acts. Nothing along that path
+/// stores one: a copied frontier agrees with its subject for exactly as long as
+/// nothing changes, which is to say until the moment it matters — the same argument
+/// that shaped the arrangement projection (INTR-1).
+///
+/// IT CARRIES NO RECIPE. Which authored recipes can produce this artifact is the
+/// Builder TOOL's fact, published as `RecipeCatalog` and already copied into the
+/// panel's `known`; the join is the artifact STEM, made where the two truths are
+/// shown together. Carrying a recipe name here would be a second edge that could
+/// disagree with the first (BLD-1's whole refusal).
+struct ProjectFrontier {
+    bool waiting = false;     ///< realization is stopped at a row waiting on the maker
+    std::string artifact;     ///< the frontier artifact stem; empty when not waiting
+    std::size_t blocked = 0;  ///< authored rows behind the frontier, waiting on it
+};
+
 /// THE BUILDER PANEL'S VIEW OF THE BUILDER TOOL — a COPY, and session.
 ///
 /// `heard` is the honest distinction between "the tool says it has never built
@@ -444,6 +466,14 @@ struct BuilderPane {
     builder::BuildStatus shown{};
     builder::RecipeCatalog known{};
     std::size_t chosen = 0;
+    /// HAS THE MAKER EXPLICITLY PICKED A RECIPE since the catalog arrived? (BLD-2)
+    ///
+    /// `chosen` starts at 0, and 0 is an INDEX and not a choice — the same shape as
+    /// "an enumeration's default is not an observation" (INTR-1). The one gesture
+    /// that writes this is `c`; the one reader is the frontier action, which may
+    /// spend the maker's standing pick when SEVERAL recipes produce the frontier
+    /// artifact and must never spend the catalog's order dressed up as one.
+    bool picked = false;
 };
 
 /// ONE ROW OF THE SESSION-LOCAL RUNTIME CATALOG (WP-0): a pane some office

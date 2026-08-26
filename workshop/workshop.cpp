@@ -1049,6 +1049,30 @@ int main(int argc, char** argv) {
             return false;
         });
 
+    // ---- WHAT THE PROJECT IS WAITING ON, ANSWERED ALIVE (BLD-2) ---------------
+    //
+    // THE OWNER DERIVES, THE HOST WIRES, THE WEAVE SPENDS. `waiting_on` and `behind`
+    // are the realization owner's own derived answers — the same cursor `state_of`
+    // reads, projected two more ways — and this function does nothing but read them
+    // at the moment the Builder panel paints or the maker asks for the frontier. No
+    // copy is taken anywhere on the path, which is what makes the panel's frontier
+    // the owner's frontier at every instant rather than at the instant somebody
+    // last remembered to refresh one.
+    //
+    // IT IS A READING AND NOT A POWER, and deliberately not a message: the weave it
+    // is handed to is in-process host composition, wired the way `request_stop` and
+    // the terminal pointer are. Nothing here lets a presentation perform a row,
+    // start a build, or reorder anything — the one route from a maker's gesture to
+    // a realized frontier is still BuildRequested -> the tool -> the runner ->
+    // OfferArtifact -> the owner's own eligibility rules.
+    host.frontier = [&executor] {
+        ProjectFrontier now;
+        now.artifact = executor.waiting_on();
+        now.waiting = !now.artifact.empty();
+        now.blocked = executor.behind();
+        return now;
+    };
+
     // ---- WHAT THIS HOST RESOLVED, ANSWERED TO WHOEVER ASKS (INTR-1) ----------
     //
     // A READ-ONLY OBSERVATION PARTICIPANT AND NOTHING MORE. It holds the realization

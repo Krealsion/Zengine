@@ -519,6 +519,25 @@
 # refuses seven filesystem spellings there. A frontier that STOPS makes `is the file there yet?`
 # tempting, and that question is the host's -- asked once per row, never polled.
 #
+# BLD-2 raised the workshop floor 761 -> 767 and moved no other floor, which is the phase's own
+# shape: it added no build mechanism, no realization rule and no message on the bus -- it made
+# the frontier BLD-1a already keeps VISIBLE and ACTIONABLE on the Builder panel. Six cases.
+# ONE is the phase's sharpest falsifier: the panel's `project` row read off the published
+# canvas while the owner's frontier MOVES underneath it, three times, with nobody notified --
+# an implementation that copied the frontier at any point on the path shows the old stem and
+# goes red. TWO are the `f` gesture's honest arms: the single producing recipe is selected
+# visibly and asked for through the existing Build & Realize route (a `chosen`-spending or
+# first-entry mutation reddens it), and TWO recipes producing one artifact -- authored law,
+# `check_recipes` deduplicates identities and deliberately not artifacts -- refuse the gesture
+# until the maker picks with `c`, THE FIRST CATALOG ROW MATCHING on purpose, so "use entry
+# zero" and "read `chosen`'s default as a choice" both send an ask this case forbids. TWO are
+# the refusals in words (nothing waiting; nothing here produces the frontier) and the unbound
+# key without the panel. ONE is a source tripwire beside INTR-1's: the presentation files
+# spell no realization-owner type, no offer, and no runner order -- awareness of the frontier
+# must not quietly become authority over it. All six are in the `always` row: the frontier is
+# a value, the join is a string comparison, and the canvas is cells, so the no-SDL lane and
+# both Windows lanes prove every one.
+#
 # WARNING: THE BUILDER SUITE NOW DRIVES A REAL CONFIGURED CMAKE TREE (tests/buildfixture/), because
 # BLD-1 deleted the suite's ability to invent a command: a recipe names inputs to a mechanism
 # and there is no field anywhere in which one could name a program. The fixture is configured
@@ -551,7 +570,7 @@ component                         doctest           always  15
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  761
+workshop                          doctest           always  767
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
