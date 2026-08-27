@@ -505,8 +505,9 @@ object and type an `n`.
 it produced are two facts that are both true and both arrive, so pressing `f` to start filtering
 puts an `f` in the box unless you swallow the next `TextEntered`. Workshop has one owner for
 that: `swallow_text_`, a string set by the trigger and cleared by the very next key or the very
-next text. Shift+Space sets it to `" "` and the `s` that opens the setup-name editor sets it to
-`"s"` — one mechanism, two triggers, and a third writes one more line.
+next text. The expectation is derived from the consumed binding itself (`expected_text_of` in
+`workshop/keymap.hpp`), so every printable application binding — authored or default — pays the
+rule through one mechanism, with no per-trigger line to write.
 
 ## A8. Keep state in the layer that owns its meaning
 

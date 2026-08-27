@@ -1351,3 +1351,34 @@ TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {
     CHECK(box.consume(key::kHome, mod::kCtrl | mod::kShift, clip));
     CHECK(box.selected_text() == "abc");
 }
+
+TEST_CASE("KEY-0: the editing vocabulary's declaration rows and consume() agree, both ways") {
+    // The rows exist so a consumer's contextual help can SHOW this vocabulary without
+    // re-spelling it -- which is only safe if the table and the switch cannot disagree.
+    // So the whole named gesture space is swept: every (scancode, modifiers) pair either
+    // is consumed AND declared, or is declined AND absent. A row added to one side
+    // without the other is a red here, in whichever direction the drift went.
+    //
+    // The scancode sweep covers the whole named range (`input`'s scan set tops out in
+    // the arrows); the modifier sweep covers all sixteen combinations of the four bits,
+    // which is what proves the alt/super refusal needs no rows and Return, Escape and
+    // Tab stay consumer policy without a row saying so.
+    for (std::int64_t scancode = 0; scancode <= 90; ++scancode) {
+        for (std::int64_t mods = 0; mods < 16; ++mods) {
+            bool declared = false;
+            for (const EditingGesture& g : kEditingVocabulary) {
+                if (g.scancode == scancode && g.modifiers == mods) {
+                    declared = true;
+                    break;
+                }
+            }
+            TextBox box;
+            box.set("word one", 4);
+            Clipboard clip;
+            const bool consumed = box.consume(scancode, mods, clip);
+            CAPTURE(scancode);
+            CAPTURE(mods);
+            CHECK(consumed == declared);
+        }
+    }
+}

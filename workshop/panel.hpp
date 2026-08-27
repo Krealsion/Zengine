@@ -208,7 +208,7 @@ inline constexpr const char* kInfo = "info";
 /// question the setup already answers.
 inline constexpr PanelKind kPanelCatalog[] = {
     {panel::kBuilder, placement::kOverlayStack, kWorkshopProvider, pane_key::kBuilder, "Builder",
-     "build one known target"},
+     "build a chosen recipe"},
     {panel::kInfo, placement::kSideRegion, kWorkshopProvider, pane_key::kInfo, "Info",
      "objects and properties"},
 };

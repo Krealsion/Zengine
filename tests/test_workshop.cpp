@@ -49,6 +49,8 @@
 #include "workshop/screen.hpp"
 #include "workshop/setup.hpp"
 #include "workshop/setup_persist.hpp"
+#include "workshop/keymap.hpp"
+#include "workshop/keymap_persist.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
 
@@ -3055,12 +3057,12 @@ struct Live {
         return raw;
     }
 
-    /// Shift+Space, AS THE BACKENDS ACTUALLY REPORT IT: the key transition and the character
-    /// it produced, both, in the order they arrive. Getting this wrong in the fixture would
-    /// hide the whole reason the toggle swallows text.
+    /// Ctrl+T, AS THE BACKENDS ACTUALLY REPORT IT (KEY-0): the key transition and no text,
+    /// because a ctrl chord produces no character on any supported backend. The old
+    /// shift+space default is gone -- it could not arrive from the POSIX backend at all --
+    /// and a fixture that still sent it would be driving a binding that no longer exists.
     void toggle_terminal() {
-        key(input::scan::kSpace, input::mod::kShift);
-        text(" ");
+        key(input::scan::kT, input::mod::kCtrl);
     }
 
     /// Type a whole line into whatever is taking text, then press Return.
@@ -5720,7 +5722,7 @@ TEST_CASE("a composed document survives save, a new process, and a load, through
 // WORKSHOP PRESENTS AN ORDINARY `loom::TerminalSession` ON ITS EXISTING LOOM. Six claims the
 // prompt named, and four this composition has to keep for those six to mean anything:
 //
-//   shift+space opens it, shift+space closes it
+//   the terminal toggle (ctrl+t since KEY-0) opens it and closes it
 //   a closed overlay leaves every ordinary Workshop gesture exactly as it was
 //   a typed line reaches the PARTICIPANT -- its own record, its own door
 //   the transcript becomes visible through Workshop's own canvas vocabulary
@@ -5734,7 +5736,7 @@ TEST_CASE("a composed document survives save, a new process, and a load, through
 // The pointer path is not re-proven here: it is the same `canvas_point_of` chain Tier 4
 // walks, and the only thing WT-1 changed about it is that an open overlay ignores it.
 
-TEST_CASE("shift+space opens the terminal overlay, and shift+space closes it") {
+TEST_CASE("the terminal toggle opens the overlay, and the same toggle closes it") {
     Live t;
     t.mount_terminal();
     REQUIRE_FALSE(t.pane().open);
@@ -5746,7 +5748,7 @@ TEST_CASE("shift+space opens the terminal overlay, and shift+space closes it") {
 
     t.toggle_terminal();
     CHECK_FALSE(t.pane().open);
-    CHECK(t.notice() == "terminal closed -- shift+space reopens it");
+    CHECK(t.notice() == "terminal closed -- ^t reopens it");
 
     // A bare Space is not the gesture, and neither is Shift+anything-else.
     t.key(input::scan::kSpace);
@@ -7342,7 +7344,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
     CHECK(sc.panel_x == 72);
     // ...and the hint that was twenty cells from the right edge still is.
-    CHECK(label_at(c, c.width - 20, 0) == "shift+space terminal");
+    CHECK(label_at(c, c.width - 11, 0) == "^t terminal");
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
     // screen, and a maker dragging across that boundary must not see the tool flicker.
@@ -7412,7 +7414,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 48, 16, surface::role::kMuted));
     CHECK(label_at(c, 50, kInfoBodyY - 1) == "OBJECTS");
     CHECK(label_at(c, 0, 20).rfind("n new | d delete", 0) == 0);
-    CHECK(label_at(c, 0, 21).rfind("enter edit | esc cancel", 0) == 0);
+    CHECK(label_at(c, 0, 21).rfind("enter edit | up/down row", 0) == 0);
     const std::vector<std::string> rows = rasterized(c);
     REQUIRE(rows.size() == 22);
     for (const std::string& row : rows) {
@@ -7830,7 +7832,7 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     Session s; // a fresh session: Info open, Builder not
     s.panels.picker.open = true;
     surface::SurfaceCanvas c;
-    paint_picker(plane(c), s.panels, s.setup.active, screen_of(s));
+    paint_picker(plane(c), s.panels, s.setup.active, screen_of(s), s.keymap);
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
     // EVERY BUILT-IN ENTRY, WITH ITS SUMMARY AND ITS STATE BESIDE IT. The state column is what
@@ -8761,7 +8763,7 @@ TEST_CASE("a painter goes where its bounds say, not where a constant says") {
     pane.shown.recipe = "zengine-snake";
     const ui::Rect moved_stack{4, 6, 30, kStackRows};
     surface::SurfaceCanvas bc;
-    paint_builder(plane(bc), pane, moved_stack);
+    paint_builder(plane(bc), pane, moved_stack, Keymap{});
     CHECK(label_at(bc, moved_stack.x, moved_stack.y).find("BUILDER") == 0);
     REQUIRE(all_rects(bc).size() == 1);
     CHECK(all_rects(bc)[0].x == moved_stack.x);
@@ -9029,7 +9031,7 @@ TEST_CASE("Info can be removed, and takes its whole column with it") {
     // re-layout.
     CHECK(label_at(gone, 0, 0) == "WORKSPACE 48x16 cells");
     CHECK(label_at(gone, 24, 0) == "[+ panel]  p  [window]  w");
-    CHECK(label_at(gone, sc.w - 20, 0) == "shift+space terminal");
+    CHECK(label_at(gone, sc.w - 11, 0) == "^t terminal");
     CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
 }
 
@@ -9317,8 +9319,10 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
     }
     CHECK(visible.find("+ PANEL") != std::string::npos);
     CHECK(visible.find("Builder   open") != std::string::npos);
-    // Not one row of the panel underneath survives.
-    CHECK(visible.find("recipe") == std::string::npos);
+    // Not one row of the panel underneath survives. (`asks` and not `recipe`: since
+    // KEY-0 the picker's own Builder row says `build a chosen recipe`, so that word
+    // stopped being panel-unique; `asks N ever` is the exit row's and only the panel's.)
+    CHECK(visible.find("asks") == std::string::npos);
     CHECK(visible.find("BUILDER") == std::string::npos);
     CHECK(visible.find("Build ]") == std::string::npos);
 
@@ -9846,7 +9850,7 @@ TEST_CASE("what is inside Info's bounds is what Info painted, and nothing undern
     CHECK(first_bad_y == -1);
     CHECK(differed == 0);
     CHECK(screen[0].find("OBJECTS") != std::string::npos);
-    CHECK(screen[0].find("shift+space terminal") != std::string::npos);
+    CHECK(screen[0].find("^t terminal") != std::string::npos);
 }
 
 TEST_CASE("removing Info takes its backdrop with it, and reopening brings both back") {
@@ -15855,14 +15859,17 @@ TEST_CASE("the `s` that opens the name editor does not type itself into the name
     t.text("s");
     CHECK(t.session().setup.naming.line.text() == "Defaults");
 
-    // And the capital the same key produces under Shift is owed too: the
-    // trigger said which KEY changed, and the case is the platform's answer.
+    // AND THE SHIFTED KEY IS A DIFFERENT GESTURE SINCE KEY-0 (exact matching): shift+s
+    // is not `s`, so it opens nothing -- the accidental subset alias this clause used to
+    // pin is gone on purpose -- and the capital it produced lands nowhere, because
+    // command mode takes no text. (The capital-owed half of the old claim lives on where
+    // it is still true: a maker who AUTHORS a shift+letter binding gets its capital
+    // swallowed by the same case-folding match; see the keymap cases.)
     Live shifted;
     shifted.host.setup_path = dir.file("other.json");
     shifted.key(input::scan::kS, input::mod::kShift);
     shifted.text("S");
-    REQUIRE(shifted.session().setup.naming.open);
-    CHECK(shifted.session().setup.naming.line.text() == "Default");
+    CHECK_FALSE(shifted.session().setup.naming.open);
 }
 
 TEST_CASE("escape leaves the setup name exactly as it was, and saves nothing") {
@@ -18154,7 +18161,8 @@ TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
     Session before;
     before.panels.picker.open = true;
     surface::SurfaceCanvas c;
-    paint_picker(plane(c), before.panels, before.setup.active, screen_of(before));
+    paint_picker(plane(c), before.panels, before.setup.active, screen_of(before),
+                 before.keymap);
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
     CHECK(shown.find("Builder   closed") != std::string::npos);
@@ -18246,7 +18254,7 @@ TEST_CASE("a picker population larger than its rows is windowed, not truncated")
     const auto rows_of = [&](std::size_t cursor) {
         panels.picker.cursor = cursor;
         surface::SurfaceCanvas c;
-        paint_picker(plane(c), panels, setup_for(panels), sc);
+        paint_picker(plane(c), panels, setup_for(panels), sc, Keymap{});
         std::vector<std::string> out;
         // THROUGH THE REAL CELL PROJECTION (TYPE-0): the picker is one bounded region now,
         // so what a maker reads at a cell is `project_text_regions`' answer and not a
@@ -18355,7 +18363,8 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
     CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).size() == 1);
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+                            r.session().keymap)
               .find("1 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panels.has(kFirstRuntimeKind));
 
@@ -18369,7 +18378,8 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     CHECK(r.session().panels.has(kind));
     CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
     // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT.
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+                            r.session().keymap)
               .find("unresolved") == std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
     CHECK(r.session().setup.saved());
@@ -18397,7 +18407,8 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     // row for the reference and knows nothing at all about whoever could present it.
     CHECK(fresh.session().setup.active.panes.size() == 2);
     CHECK(fresh.session().setup.active.panes[1].ref == hello_ref());
-    CHECK(setup_status_text(fresh.session().setup, "", fresh.session().panels.runtime)
+    CHECK(setup_status_text(fresh.session().setup, "", fresh.session().panels.runtime,
+                            fresh.session().keymap)
               .find("unavailable") == std::string::npos);
 }
 
@@ -19166,7 +19177,8 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         CHECK(note.text.find("unavailable") == std::string::npos);
     }
     CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime)
+    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+                            r.session().keymap)
               .find("unavailable") == std::string::npos);
 }
 
@@ -21189,7 +21201,7 @@ TEST_CASE("WIND-2a: the management gesture is on screen at the minimum compositi
     CHECK(top.find("[window]") != std::string::npos);
     // AND IT COST THE TWO HINTS THAT WERE ALREADY THERE NOTHING.
     CHECK(top.find("[+ panel]") != std::string::npos);
-    CHECK(top.find("shift+space terminal") != std::string::npos);
+    CHECK(top.find("^t terminal") != std::string::npos);
     CHECK(top.find("OBJECTS") != std::string::npos);
 }
 
@@ -21808,7 +21820,7 @@ TEST_CASE("TYPE-0: the picker is ONE bounded region, and its cells are what it u
     const ui::Rect box = picker_bounds(sc);
 
     surface::SurfaceCanvas c;
-    paint_picker(plane(c), panels, setup_for(panels), sc);
+    paint_picker(plane(c), panels, setup_for(panels), sc, Keymap{});
 
     // ONE REGION AT THE SLOT, AND NOT ONE LABEL. The picker used to be a column of padded
     // labels; a label is one cell per byte in every medium, so a maker on a surface that owns
@@ -21874,7 +21886,7 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     REQUIRE(crowd.size() == 8);
     const auto published = [&](const Screen& medium) {
         surface::SurfaceCanvas to;
-        paint_picker(plane(to), crowded, setup_for(crowded), medium);
+        paint_picker(plane(to), crowded, setup_for(crowded), medium, Keymap{});
         const ui::Rect at = picker_bounds(medium);
         const std::vector<surface::SurfaceTextRegion> found = regions_at(to, at.x, at.y);
         REQUIRE(found.size() == 1);
@@ -21906,7 +21918,7 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     REQUIRE(static_cast<std::int64_t>(catalog.size()) <= typed_place.rows - 1);
 
     surface::SurfaceCanvas c;
-    paint_picker(plane(c), panels, setup_for(panels), typed);
+    paint_picker(plane(c), panels, setup_for(panels), typed, Keymap{});
     const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
     REQUIRE(at_slot.size() == 1);
     const surface::SurfaceTextRegion& list = at_slot.front();
@@ -21928,7 +21940,7 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
                     "what the kernel has loaded, and each one's role"});
     const auto loaded_row = [&](const Screen& medium) {
         surface::SurfaceCanvas paint_to;
-        paint_picker(plane(paint_to), offered, setup_for(offered), medium);
+        paint_picker(plane(paint_to), offered, setup_for(offered), medium, Keymap{});
         const ui::Rect at = picker_bounds(medium);
         const std::vector<surface::SurfaceTextRegion> found = regions_at(paint_to, at.x, at.y);
         REQUIRE(found.size() == 1);
@@ -21957,7 +21969,7 @@ TEST_CASE("TYPE-0: the pane-management surface is a region on the same terms") {
     const ui::Rect box = picker_bounds(sc);
 
     surface::SurfaceCanvas c;
-    paint_management(plane(c), panels, s.setup.active, s.manage, sc);
+    paint_management(plane(c), panels, s.setup.active, s.manage, sc, s.keymap);
     const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
     REQUIRE(at_slot.size() == 1);
     const surface::SurfaceTextRegion& list = at_slot.front();
@@ -22889,7 +22901,7 @@ TEST_CASE("SEL-0: management chrome gets first refusal, and a mode takes the pre
     }
     SUBCASE("the terminal overlay is a mode and outranks occupancy entirely") {
         seat->presses.clear();
-        r.key(input::scan::kSpace, input::mod::kShift);
+        r.key(input::scan::kT, input::mod::kCtrl);
         REQUIRE(r.session().terminal.open);
         r.press_cell(panel.x + 1, body_y);
         CHECK(seat->presses.empty());
@@ -24040,10 +24052,9 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     press_body(r, kind);
     REQUIRE(r.session().panels.keyboard == kind);
 
-    // SHIFT+SPACE still opens the Terminal, and the space it produced is swallowed
-    // rather than typed into the pane.
-    r.key(input::scan::kSpace, input::mod::kShift);
-    r.text(" ");
+    // THE TERMINAL TOGGLE still opens the Terminal above the pane (KEY-0: ctrl+t, a
+    // chord that enters no text, so there is nothing for the pane to be protected from).
+    r.key(input::scan::kT, input::mod::kCtrl);
     CHECK(r.session().terminal.open);
     CHECK(seat->keys.empty());
     CHECK(seat->typed.empty());
@@ -24057,8 +24068,7 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     // CLOSING IT HANDS THE KEYBOARD STRAIGHT BACK, because the candidate was never
     // cleared -- the mode took every press whole and never reached the line that sets
     // it.
-    r.key(input::scan::kSpace, input::mod::kShift);
-    r.text(" ");
+    r.key(input::scan::kT, input::mod::kCtrl);
     REQUIRE_FALSE(r.session().terminal.open);
     r.key(input::scan::kA);
     CHECK(seat->keys.size() == 1);
@@ -24328,7 +24338,7 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "shift+space terminal | ^s save | ^o open");
+        CHECK(lines[1] == "^s save | ^o open | ^t terminal | ^k hotkeys");
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 
@@ -27458,4 +27468,445 @@ TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks
     }
     CHECK(t.pane().input.text() == "abc");
     CHECK_FALSE(t.host.quit);
+}
+
+// ============================================================================
+// KEY-0 -- one executable binding truth: the keymap, the context resolver, the
+// authored keymap file, the legend, and the full hotkey view.
+//
+// The regression half of this phase is the 780 cases above: every default
+// gesture they drive now travels declaration -> effective binding -> owner, and
+// they pass unchanged. What is pinned HERE is what did not exist before: exact
+// matching, remapping, admission, preservation, projection, and the view.
+// ============================================================================
+
+namespace {
+
+/// A keymap file's bytes, composed through the format's own serializer -- which is
+/// also what makes the round-trip cases byte-exact rather than approximately so.
+std::string keymap_file_text(const std::string& legend,
+                             const std::vector<std::pair<std::string, std::string>>& rows) {
+    keymap_persist::WorkshopKeymap f;
+    f.format = keymap_persist::kFormat;
+    f.format_version = keymap_persist::kFormatVersion;
+    f.legend = legend;
+    for (const std::pair<std::string, std::string>& r : rows) {
+        f.overrides.push_back(keymap_persist::WorkshopKeymapRow{r.first, r.second});
+    }
+    return loom::compat::serialize(loom::to_value(f));
+}
+
+void write_keymap_file(const std::string& path, const std::string& text) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out.write(text.data(), static_cast<std::streamsize>(text.size()));
+}
+
+/// A Live Workshop that read the given keymap file on its first surface.
+struct Keyed : Live {
+    explicit Keyed(const std::string& path) {
+        host.keymap_path = path;
+        publish(loom::to_value(surface::SurfaceReady{}));
+    }
+};
+
+} // namespace
+
+TEST_CASE("KEY-0: exact modifier matching -- the accidental subset aliases no longer fire") {
+    Live t;
+    // Ctrl+Shift+S used to save (the old test asked only whether Ctrl was among the
+    // bits); the honest witness is the sentence save speaks with no document file --
+    // the widened chord no longer reaches it, and the exact one still does.
+    t.key(input::scan::kS, input::mod::kCtrl | input::mod::kShift);
+    CHECK(t.notice().empty());
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
+    // Ctrl+N used to create; under exact matching a chord is a different gesture
+    // from its bare key.
+    const std::size_t before = t.doc().elements.size();
+    t.key(input::scan::kN, input::mod::kCtrl);
+    CHECK(t.doc().elements.size() == before);
+    // ...and the bare key still creates: exact matching narrowed, it did not move.
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before + 1);
+    // Alt+Q used to quit.
+    t.key(input::scan::kQ, input::mod::kAlt);
+    CHECK_FALSE(t.host.quit);
+}
+
+TEST_CASE("KEY-0: shift+space is gone -- not a binding, not an invisible alias") {
+    // The old Terminal opener could not arrive from the POSIX backend at all
+    // (`ground_byte(' ')` infers Shift only on letters), and KEY-0 removed it rather
+    // than keeping a default one backend advertises and cannot deliver.
+    Live t;
+    t.mount_terminal();
+    t.key(input::scan::kSpace, input::mod::kShift);
+    t.text(" ");
+    CHECK_FALSE(t.pane().open);
+    // ...and the toggle both backends can honestly produce is ctrl+t.
+    t.key(input::scan::kT, input::mod::kCtrl);
+    CHECK(t.pane().open);
+}
+
+TEST_CASE("KEY-0: ctrl+k opens the hotkey view, esc and ctrl+k close it") {
+    Live t;
+    t.key(input::scan::kK, input::mod::kCtrl);
+    CHECK(t.session().hotkeys.open);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().hotkeys.open);
+    t.key(input::scan::kK, input::mod::kCtrl);
+    CHECK(t.session().hotkeys.open);
+    t.key(input::scan::kK, input::mod::kCtrl);
+    CHECK_FALSE(t.session().hotkeys.open);
+}
+
+TEST_CASE("KEY-0: the view is keys-modal -- a maker reading a binding is not executing it") {
+    Live t;
+    t.key(input::scan::kK, input::mod::kCtrl);
+    REQUIRE(t.session().hotkeys.open);
+    const std::size_t before = t.doc().elements.size();
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before); // `n` swallowed, nothing created
+    t.key(input::scan::kP);
+    CHECK_FALSE(t.session().panels.picker.open); // `p` swallowed, no picker
+    t.key(input::scan::kQ);
+    CHECK_FALSE(t.host.quit); // `q` swallowed, no quit through the view
+    t.text("x");
+    CHECK_FALSE(t.host.quit); // text swallowed too, and lands nowhere
+    // ...and the other above-mode actions still answer over it, the terminal
+    // overlay's own rule for `^s`/`^o`.
+    t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
+    // The context BENEATH is untouched when it closes.
+    t.key(input::scan::kEscape);
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before + 1);
+}
+
+TEST_CASE("KEY-0: the view lists the context beneath it, and three contexts differ") {
+    Live t;
+    t.mount_terminal();
+    // A TALL SCREEN, so the whole grouped list fits: at the minimum extent the slot
+    // elides the deeper groups behind `... N more`, which is its own pinned behavior;
+    // this case is about what the groups SAY when there is room to say it. The view is
+    // read at the slot the RESOLVED screen grants it (`stack_text` reads the minimum
+    // composition's rectangle, which this screen has outgrown).
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 70, 0, 0}));
+    const auto view_text = [&t]() {
+        return panel_text(t.canvases.back(), hotkeys_bounds(screen_of(t.session())));
+    };
+
+    // COMMAND MODE BENEATH: the command vocabulary, its layer named.
+    t.key(input::scan::kK, input::mod::kCtrl);
+    const std::string command_view = view_text();
+    CHECK(command_view.find("HOTKEYS") != std::string::npos);
+    CHECK(command_view.find("command mode") != std::string::npos);
+    CHECK(command_view.find("new") != std::string::npos);
+    CHECK(command_view.find("answered above every mode") != std::string::npos);
+    CHECK(command_view.find("^t") != std::string::npos);
+    t.key(input::scan::kEscape);
+
+    // EDITABLE TEXT BENEATH (the Terminal line): its own controls, and the
+    // component's editing vocabulary shown from the component's own rows,
+    // marked as not this keymap's to move.
+    t.toggle_terminal();
+    REQUIRE(t.pane().open);
+    t.key(input::scan::kK, input::mod::kCtrl);
+    const std::string text_view = view_text();
+    CHECK(text_view.find("the terminal line") != std::string::npos);
+    CHECK(text_view.find("run the line") != std::string::npos);
+    CHECK(text_view.find("not remappable") != std::string::npos);
+    CHECK(text_view.find("copy") != std::string::npos);
+    // ^c means copy there, so quit's row is not in this context's list.
+    CHECK(text_view.find("quit") == std::string::npos);
+    CHECK(text_view != command_view);
+}
+
+TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spelling") {
+    TempDir dir("keymap-override");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "e"}}));
+    Keyed t(path);
+    // The load was announced first, in words, with the override counted -- read it
+    // before any gesture writes its own sentence over the one notice line.
+    CHECK(t.notice().find("1 override") != std::string::npos);
+
+    // DISPATCH: `e` creates and `n` no longer does -- the override moved the
+    // binding, not the action.
+    const std::size_t before = t.doc().elements.size();
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before);
+    t.key(input::scan::kE);
+    CHECK(t.doc().elements.size() == before + 1);
+
+    // DISPLAY: the band's first help row and the hotkey view both spell the
+    // same effective binding, because both project the same value dispatch read.
+    const Screen sc = screen_of(t.session());
+    CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("e new", 0) == 0);
+    t.key(input::scan::kK, input::mod::kCtrl);
+    const std::string view = stack_text(t.canvases.back());
+    CHECK(view.find("e             new") != std::string::npos);
+
+}
+
+TEST_CASE("KEY-0: an override survives restart, and deleting the file restores defaults") {
+    TempDir dir("keymap-restart");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "e"}}));
+    {
+        Keyed first(path);
+        const std::size_t before = first.doc().elements.size();
+        first.key(input::scan::kE);
+        REQUIRE(first.doc().elements.size() == before + 1);
+    }
+    // RESTART: a new process reads the same authored file and reaches the same
+    // effective truth.
+    {
+        Keyed again(path);
+        const std::size_t before = again.doc().elements.size();
+        again.key(input::scan::kE);
+        CHECK(again.doc().elements.size() == before + 1);
+        again.key(input::scan::kN);
+        CHECK(again.doc().elements.size() == before + 1);
+    }
+    // RESET: deleting the file IS returning to the defaults -- nothing else to
+    // clear, nothing rewritten.
+    std::error_code drop;
+    std::filesystem::remove(path, drop);
+    Keyed defaults(path);
+    CHECK(defaults.notice().empty()); // an absent file is not a complaint
+    const std::size_t before = defaults.doc().elements.size();
+    defaults.key(input::scan::kN);
+    CHECK(defaults.doc().elements.size() == before + 1);
+    defaults.key(input::scan::kE);
+    CHECK(defaults.doc().elements.size() == before + 1);
+}
+
+TEST_CASE("KEY-0: a same-context collision is refused naming both actions and the gesture") {
+    // `d` is object.delete's default; authoring object.new onto it would put two
+    // actions on one gesture in one context, which is a lockout and must not be
+    // savable -- the whole candidate is refused and the defaults stand.
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(
+        keymap_file_text("default", {{"object.new", "d"}}));
+    CHECK_FALSE(loaded.outcome.accepted);
+    CHECK(loaded.outcome.refusal.find("object.new") != std::string::npos);
+    CHECK(loaded.outcome.refusal.find("object.delete") != std::string::npos);
+    CHECK(loaded.outcome.refusal.find("`d`") != std::string::npos);
+
+    // ...and the refused file leaves a live Workshop on its defaults, out loud.
+    TempDir dir("keymap-collide");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "d"}}));
+    Keyed t(path);
+    CHECK(t.notice().find("object.delete") != std::string::npos);
+    CHECK(t.notice().find("default bindings stand") != std::string::npos);
+    const std::size_t before = t.doc().elements.size();
+    t.key(input::scan::kN);
+    CHECK(t.doc().elements.size() == before + 1); // the default still creates
+}
+
+TEST_CASE("KEY-0: reusing one gesture across mutually exclusive contexts is legal") {
+    // `h` moves an object in command mode; the picker cannot be open at the same
+    // moment, so authoring picker.up onto `h` collides with nothing -- the
+    // defaults already live this way (`s` names a setup and sizes a pane).
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(
+        keymap_file_text("default", {{"picker.up", "h"}}));
+    REQUIRE(loaded.outcome.accepted);
+
+    TempDir dir("keymap-reuse");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"picker.up", "h"}}));
+    Keyed t(path);
+    const std::int64_t x_before = t.first()->x;
+    t.key(input::scan::kH);
+    CHECK(t.first()->x == x_before - 1); // command context: `h` still moves left
+    t.key(input::scan::kP);
+    t.text("p");
+    REQUIRE(t.session().panels.picker.open);
+    t.key(input::scan::kDown);
+    REQUIRE(t.session().panels.picker.cursor == 1);
+    t.key(input::scan::kH); // picker context: the authored `h` steps up
+    CHECK(t.session().panels.picker.cursor == 0);
+}
+
+TEST_CASE("KEY-0: an override for an unknown action survives with its intent whole") {
+    // The setup law's ACCEPTED clause, applied to the sixth file: a well-formed
+    // row this build cannot resolve is not an error and must never become one.
+    const std::string text = keymap_file_text(
+        "default", {{"object.new", "e"}, {"future.action", "hyper+z"}});
+    const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
+    REQUIRE(loaded.outcome.accepted);
+    // The known row was applied...
+    REQUIRE(loaded.keymap.overrides.size() == 1);
+    CHECK(loaded.keymap.overrides[0].first == Act::kObjectNew);
+    // ...the unknown row is preserved byte-for-byte, its gesture unjudged (that
+    // spelling is outside THIS build's grammar, and it is not this build's to
+    // normalise)...
+    REQUIRE(loaded.keymap.authored.size() == 2);
+    CHECK(loaded.keymap.authored[1].action == "future.action");
+    CHECK(loaded.keymap.authored[1].gesture == "hyper+z");
+    // ...and a save writes back exactly the bytes that were read: authored
+    // order, authored spellings, nothing tidied.
+    CHECK(keymap_persist::to_text(loaded.keymap) == text);
+}
+
+TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in words") {
+    const keymap_persist::LoadedKeymap bad_key = keymap_persist::from_text(
+        keymap_file_text("default", {{"object.new", "f13"}}));
+    CHECK_FALSE(bad_key.outcome.accepted);
+    CHECK(bad_key.outcome.refusal.find("`f13` is not a key") != std::string::npos);
+
+    const keymap_persist::LoadedKeymap bad_mod = keymap_persist::from_text(
+        keymap_file_text("default", {{"object.new", "meta+n"}}));
+    CHECK_FALSE(bad_mod.outcome.accepted);
+    CHECK(bad_mod.outcome.refusal.find("`meta` is not a modifier") != std::string::npos);
+
+    const keymap_persist::LoadedKeymap twice = keymap_persist::from_text(
+        keymap_file_text("default", {{"object.new", "e"}, {"object.new", "g"}}));
+    CHECK_FALSE(twice.outcome.accepted);
+    CHECK(twice.outcome.refusal.find("authored twice") != std::string::npos);
+
+    const keymap_persist::LoadedKeymap legend = keymap_persist::from_text(
+        keymap_file_text("sometimes", {}));
+    CHECK_FALSE(legend.outcome.accepted);
+    CHECK(legend.outcome.refusal.find("`sometimes` is not a legend mode") !=
+          std::string::npos);
+}
+
+TEST_CASE("KEY-0: a global action cannot take a bare printable or the editing vocabulary") {
+    // A bare printable cannot be global once anything on the screen can take
+    // text -- the standing law the old chain kept as a comment, enforced at the
+    // door now that there is a door.
+    const keymap_persist::LoadedKeymap bare = keymap_persist::from_text(
+        keymap_file_text("default", {{"workshop.hotkeys", "t"}}));
+    CHECK_FALSE(bare.outcome.accepted);
+    CHECK(bare.outcome.refusal.find("bare printable") != std::string::npos);
+
+    // ...and the TextBox vocabulary would consume a chord it owns before any
+    // global could mean it, in every text context. The two vocabularies used to
+    // avoid collision by discipline in two files, checkable nowhere; the
+    // component's declaration rows make the wall real.
+    const keymap_persist::LoadedKeymap owned = keymap_persist::from_text(
+        keymap_file_text("default", {{"workshop.hotkeys", "ctrl+v"}}));
+    CHECK_FALSE(owned.outcome.accepted);
+    CHECK(owned.outcome.refusal.find("editing vocabulary") != std::string::npos);
+}
+
+TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewritten") {
+    TempDir dir("keymap-gap");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path,
+                      keymap_file_text("default", {{"workshop.terminal", "shift+space"}}));
+    Keyed t(path);
+    t.mount_terminal();
+    // Accepted: the authored gesture works where the wire can carry it...
+    t.key(input::scan::kSpace, input::mod::kShift);
+    CHECK(t.pane().open);
+    // ...its own keystroke's space is swallowed, derived from the binding...
+    t.text(" ");
+    CHECK(t.pane().input.text().empty());
+    // ...and the note said the honest half out loud: a POSIX terminal cannot
+    // produce it. Nothing in the file was rewritten.
+    CHECK(t.notice().find("shift is not observable") != std::string::npos);
+    // The default it replaced no longer fires -- an override moves a binding,
+    // it does not leave the old one behind as an invisible alias.
+    t.key(input::scan::kSpace, input::mod::kShift);
+    REQUIRE_FALSE(t.pane().open);
+    t.key(input::scan::kT, input::mod::kCtrl);
+    CHECK_FALSE(t.pane().open);
+}
+
+TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it is authored") {
+    TempDir dir("keymap-swallow");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "g"}}));
+    Keyed t(path);
+    t.host.setup_path = dir.file("setup.json");
+
+    t.key(input::scan::kG);
+    t.text("g");
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.line.text() == "Default");
+    // The swallow belongs to one moment: the next real character is taken.
+    t.text("g");
+    CHECK(t.session().setup.naming.line.text() == "Defaultg");
+    // ...and the default `s` now types an ordinary s, because the binding moved.
+    t.key(input::scan::kEscape);
+    t.key(input::scan::kS);
+    t.text("s");
+    CHECK_FALSE(t.session().setup.naming.open);
+}
+
+TEST_CASE("KEY-0: a shift+letter binding swallows the capital its keystroke produced") {
+    TempDir dir("keymap-capital");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "shift+s"}}));
+    Keyed t(path);
+    t.host.setup_path = dir.file("setup.json");
+    t.key(input::scan::kS, input::mod::kShift);
+    t.text("S");
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.line.text() == "Default");
+    t.text("S");
+    CHECK(t.session().setup.naming.line.text() == "DefaultS");
+}
+
+TEST_CASE("KEY-0: the legend's three modes project the band, and hidden unbinds nothing") {
+    TempDir dir("keymap-legend");
+    const std::string path = dir.file("keymap.json");
+
+    write_keymap_file(path, keymap_file_text("compact", {}));
+    Keyed compact(path);
+    const Screen sc = screen_of(compact.session());
+    CHECK(label_at(compact.canvases.back(), 0, sc.help_y) == "^k hotkeys");
+    CHECK(label_at(compact.canvases.back(), 0, sc.help_y + 1).empty());
+
+    write_keymap_file(path, keymap_file_text("hidden", {}));
+    Keyed hidden(path);
+    // Blank rows -- and ONLY blank rows: the band's geometry is `screen_of`'s
+    // and the notice and setup line are untouched.
+    CHECK(label_at(hidden.canvases.back(), 0, sc.help_y).empty());
+    CHECK(label_at(hidden.canvases.back(), 0, sc.help_y + 1).empty());
+    // Hidden never makes the full list unreachable: the binding is dispatch's,
+    // and the legend is read by nothing but the band's painter.
+    hidden.key(input::scan::kK, input::mod::kCtrl);
+    CHECK(hidden.session().hotkeys.open);
+    CHECK(stack_text(hidden.canvases.back()).find("HOTKEYS") != std::string::npos);
+
+    write_keymap_file(path, keymap_file_text("full", {}));
+    Keyed full(path);
+    CHECK(label_at(full.canvases.back(), 0, sc.help_y).rfind("n new | d delete", 0) == 0);
+}
+
+TEST_CASE("KEY-0: the picker still closes on the key that opened it, wherever it moved") {
+    TempDir dir("keymap-opener");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"workshop.picker", "u"}}));
+    Keyed t(path);
+    t.key(input::scan::kU);
+    t.text("u");
+    REQUIRE(t.session().panels.picker.open);
+    t.key(input::scan::kU); // the opener's own binding closes it
+    CHECK_FALSE(t.session().panels.picker.open);
+    t.key(input::scan::kP); // ...and the retired default does neither
+    t.text("p");
+    CHECK_FALSE(t.session().panels.picker.open);
+}
+
+TEST_CASE("KEY-0: the terminal header and hints spell the effective toggle") {
+    TempDir dir("keymap-header");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"workshop.terminal", "ctrl+g"}}));
+    Keyed t(path);
+    t.mount_terminal();
+    t.key(input::scan::kG, input::mod::kCtrl);
+    REQUIRE(t.pane().open);
+    const std::string pane_rows = stack_text(t.canvases.back());
+    CHECK(pane_rows.find("(^g closes)") != std::string::npos);
+    CHECK(pane_rows.find("shift+space") == std::string::npos);
+    t.key(input::scan::kG, input::mod::kCtrl);
+    REQUIRE_FALSE(t.pane().open);
+    // ...and the top-row hint moved with it, right-anchored at its own length.
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    CHECK(label_at(c, c.width - 11, 0) == "^g terminal");
+    CHECK(t.notice() == "terminal closed -- ^g reopens it");
 }

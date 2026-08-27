@@ -295,6 +295,73 @@ inline constexpr std::int64_t kAlt = 4;
 inline constexpr std::int64_t kSuper = 8;
 } // namespace mod
 
+// ---- The editing vocabulary, as declaration rows (KEY-0) --------------------------------
+//
+// EXACTLY THE GESTURES `TextBox::consume` ANSWERS `true` TO, one row per gesture, so that a
+// consumer with a contextual help surface can SHOW this vocabulary without re-spelling it --
+// the component suite sweeps the whole named gesture space and asserts `consume` and this
+// table agree gesture for gesture, in both directions. The rows carry a scancode, the exact
+// modifier bits, and a label; nothing else, because nothing else is true of them here:
+//
+//   NOT REMAPPABLE. These are the component's own vocabulary and their executable truth is
+//   `consume` -- an application keymap may display them and must not move them, exactly as
+//   it must not move what Return means to a consumer.
+//
+//   NOT A CONTEXT, NOT A COMMAND ID, NOT A FILE. This component still includes nothing and
+//   knows nothing of Workshop, persistence, or application actions; a row is a fact about
+//   ONE gesture and its meaning in any box, and whoever shows it decides where.
+//
+// Shift-transparent gestures appear twice (the erase keys consume `shift+backspace` as
+// `backspace`, deliberately -- a maker holding Shift mid-word still means erase), with the
+// bare spelling first: a bounded help surface that elides the tail loses the duplicate
+// spellings before it loses a meaning.
+
+/// One consumed editing gesture: the key, the EXACT modifiers, and its human meaning.
+struct EditingGesture {
+    std::int64_t scancode = 0;
+    std::int64_t modifiers = 0;
+    const char* label = "";
+};
+
+inline constexpr EditingGesture kEditingVocabulary[] = {
+    {key::kC, mod::kCtrl, "copy"},
+    {key::kX, mod::kCtrl, "cut"},
+    {key::kV, mod::kCtrl, "paste"},
+    {key::kA, mod::kCtrl, "select all"},
+    {key::kZ, mod::kCtrl, "undo"},
+    {key::kZ, mod::kCtrl | mod::kShift, "redo"},
+    {key::kY, mod::kCtrl, "redo"},
+    {key::kLeft, mod::kNone, "left"},
+    {key::kRight, mod::kNone, "right"},
+    {key::kLeft, mod::kShift, "select left"},
+    {key::kRight, mod::kShift, "select right"},
+    {key::kHome, mod::kNone, "start"},
+    {key::kEnd, mod::kNone, "end"},
+    {key::kHome, mod::kShift, "select to start"},
+    {key::kEnd, mod::kShift, "select to end"},
+    {key::kLeft, mod::kCtrl, "word left"},
+    {key::kRight, mod::kCtrl, "word right"},
+    {key::kLeft, mod::kCtrl | mod::kShift, "select word left"},
+    {key::kRight, mod::kCtrl | mod::kShift, "select word right"},
+    {key::kBackspace, mod::kNone, "erase left"},
+    {key::kDelete, mod::kNone, "erase right"},
+    {key::kBackspace, mod::kCtrl, "erase word left"},
+    {key::kDelete, mod::kCtrl, "erase word right"},
+    // -- the transparent and collapsed spellings: same meanings, said with a modifier the
+    //    vocabulary deliberately ignores on these keys ---------------------------------
+    {key::kBackspace, mod::kShift, "erase left"},
+    {key::kDelete, mod::kShift, "erase right"},
+    {key::kBackspace, mod::kCtrl | mod::kShift, "erase word left"},
+    {key::kDelete, mod::kCtrl | mod::kShift, "erase word right"},
+    {key::kHome, mod::kCtrl, "start"},
+    {key::kEnd, mod::kCtrl, "end"},
+    {key::kHome, mod::kCtrl | mod::kShift, "select to start"},
+    {key::kEnd, mod::kCtrl | mod::kShift, "select to end"},
+};
+
+inline constexpr std::size_t kEditingVocabularyCount =
+    sizeof(kEditingVocabulary) / sizeof(kEditingVocabulary[0]);
+
 // ---- The component ----------------------------------------------------------------------
 
 /// A LINE OF EDITABLE TEXT, THE INSERTION POINT IN IT, THE SELECTION AROUND THAT POINT, AND

@@ -591,6 +591,20 @@
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
 # CMake's list separator and is refused outright rather than being eaten halfway through.
 #
+# KEY-0 raised the workshop floor 780 -> 798 and the component floor 34 -> 35, and it is the
+# phase whose eighteen workshop cases are all about ONE value: the keymap. Exact matching
+# behaviorally falsifies the retired subset aliases (ctrl+n, alt+q, ctrl+shift+s); the
+# terminal toggle's shift+space default is gone and pinned gone; the hotkey view opens,
+# closes, swallows, and lists three genuinely different contexts; an authored override moves
+# dispatch and every displayed spelling together, survives a restart, and dies with its file;
+# admission refuses a same-context collision naming both claimants, admits cross-context
+# reuse, preserves an unknown action's row byte-for-byte, and holds the two global walls
+# (bare printables, the component's own chords); a known POSIX gap is accepted and said; and
+# the printable-trigger swallow is derived from the binding, capitals included. The component
+# case is one sweep with both directions in it: every (scancode, modifiers) pair in the named
+# space is consumed by `TextBox::consume` exactly when `kEditingVocabulary` declares it, so
+# the declaration rows contextual help shows and the switch that executes cannot drift apart.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -600,11 +614,11 @@ input                             doctest           sdl     3
 surface                           doctest           always  81
 surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  34
+component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  780
+workshop                          doctest           always  798
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

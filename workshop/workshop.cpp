@@ -218,6 +218,11 @@ struct Arguments {
     std::string setup = zengine::workshop::kDefaultSetupFileName;
     /// The last-session file, beside the other two and written by nobody's gesture (WUX-0).
     std::string session = zengine::workshop::session_persist::kDefaultSessionFileName;
+    /// The maker's keymap file (KEY-0), beside the other three and read at startup. An
+    /// ABSENT file is the defaults, silently -- deleting it is how a maker resets their
+    /// bindings -- so unlike the plan there is nothing to refuse about a path with no
+    /// file at it.
+    std::string keymap = zengine::workshop::keymap_persist::kDefaultKeymapFileName;
     /// Empty means "the one shipped beside this executable", which `main()` resolves
     /// once it knows where that is. It is deliberately NOT defaulted to a bare name
     /// here: a bare name would resolve against whatever directory a maker happened to
@@ -245,7 +250,8 @@ Arguments parse_arguments(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--document" || arg == "--setup" || arg == "--session" ||
-            arg == "--load-plan" || arg == "--recipes" || arg == "--log" || arg == "--dump") {
+            arg == "--keymap" || arg == "--load-plan" || arg == "--recipes" ||
+            arg == "--log" || arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -280,6 +286,8 @@ Arguments parse_arguments(int argc, char** argv) {
                 args.setup = value;
             } else if (arg == "--session") {
                 args.session = value;
+            } else if (arg == "--keymap") {
+                args.keymap = value;
             } else {
                 args.document = value;
             }
@@ -298,6 +306,9 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.session.empty()) {
         args.ok = false;
         args.complaint = "--session needs a path";
+    } else if (args.keymap.empty()) {
+        args.ok = false;
+        args.complaint = "--keymap needs a path";
     }
     return args;
 }
@@ -307,7 +318,8 @@ int main(int argc, char** argv) {
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
-                    "                        [--session <path>] [--load-plan <path>]\n"
+                    "                        [--session <path>] [--keymap <path>]\n"
+                    "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
                     "the graphical Workshop is the second plan shipped beside this binary:\n"
@@ -324,6 +336,7 @@ int main(int argc, char** argv) {
     host.document_path = args.document;
     host.setup_path = args.setup;
     host.session_path = args.session;
+    host.keymap_path = args.keymap;
 
     const std::string plan_path =
         args.load_plan.empty() ? host.dir + "/" + load_persist::kDefaultLoadPlanName
@@ -629,8 +642,26 @@ int main(int argc, char** argv) {
     // Non-owning, handed down the way `request_stop` is. The bus owns the
     // participant; Workshop's weave holds a pointer and inherits nothing from it.
     host.terminal = terminal.session;
-    std::printf("zengine-workshop - terminal: weave #%s (shift+space opens it)\n",
-                std::to_string(terminal.id.value).c_str());
+    // THE BOOT LINE NAMES THE TERMINAL'S EFFECTIVE OPENER, NOT A LITERAL (KEY-0). The old
+    // line printed `(shift+space opens it)` into, among others, a POSIX terminal that can
+    // never produce shift+space -- the exact independently-authored claim the keymap
+    // exists to end. The host reads the maker's keymap through the SAME loader and the
+    // same admission the weave uses, so the two cannot disagree: a refused or absent file
+    // means the defaults are active, which is precisely what the weave concludes too (and
+    // the weave speaks the refusal on its own notice line).
+    zengine::workshop::Keymap boot_keymap;
+    if (!host.keymap_path.empty() && std::filesystem::exists(host.keymap_path)) {
+        const keymap_persist::LoadedKeymap loaded =
+            keymap_persist::load_file(host.keymap_path);
+        if (loaded.outcome.accepted) {
+            boot_keymap = loaded.keymap;
+        }
+    }
+    std::printf("zengine-workshop - terminal: weave #%s (%s opens it)\n",
+                std::to_string(terminal.id.value).c_str(),
+                zengine::workshop::gesture_text(
+                    boot_keymap.gesture_of(zengine::workshop::Act::kTerminalToggle))
+                    .c_str());
     // Flushed like the four banner lines above it, and for the reason WT-1a met: a killed
     // process loses whatever is still in the buffer, and the line naming the identity the
     // pane speaks as is exactly the line somebody is reading when they kill it.

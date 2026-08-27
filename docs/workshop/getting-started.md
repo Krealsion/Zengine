@@ -62,7 +62,7 @@ zengine-workshop - last session: workshop-session.json (restored at startup, wri
 zengine-workshop - load plan: .../default-load-plan.json
 zengine-workshop - load plan: 6 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)
-zengine-workshop - terminal: weave #3 (shift+space opens it)
+zengine-workshop - terminal: weave #3 (^t opens it)
 zengine-workshop - build recipes: .../default-build-recipes.json (1)
 zengine-workshop - builder: weave #5 holds 1 recipe(s) (p opens the panel)
 zengine-workshop - build runner: weave #4 builds with `/usr/bin/cmake`
@@ -104,9 +104,11 @@ The status line is where every refusal appears. Workshop refuses rather than cla
 illegal extent leaves both stored coordinates untouched and says why.
 
 The title row advertises the two gestures that open things — `[+ panel]  p` and `[window]  w` —
-plus `shift+space terminal`. The setup line carries `s name/save  r restore`, and the bottom
-help line carries the object gestures. So the keys are on screen; this page is the fuller
-version, not the only source.
+plus the terminal toggle. The setup line carries `s name/save  r restore`, and the bottom
+help rows carry the current context's gestures. Every one of those hints is a projection of
+the effective keymap — remap a binding and the screen spells the new one — and `Ctrl`+`k`
+opens the full hotkey view. So the keys are on screen; this page is the fuller version, not
+the only source. See [hotkeys and the keymap](hotkeys.md).
 
 ## Your first five minutes
 
@@ -154,10 +156,13 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 | panes | `p` picker · `w` management ([panes](panes.md)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
-| other | `b` build ([builder](builder.md)) · `Shift`+`Space` terminal overlay · `q` / `Ctrl`+`c` quit |
+| other | `b` / `Shift`+`b` / `c` / `f` build ([builder](builder.md)) · `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
 
-Keys are read from the Input weave like any other Zengine application's — Workshop holds no
-privilege the [snake example](../reference/snake.md) does not.
+These are the defaults; every application binding can be remapped through the keymap file,
+and the on-screen hints and the hotkey view always spell the effective one
+([hotkeys](hotkeys.md)). Keys are read from the Input weave like any other Zengine
+application's — Workshop holds no privilege the [snake example](../reference/snake.md) does
+not.
 
 ## Terminal and window differences
 
