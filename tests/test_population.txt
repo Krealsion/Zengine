@@ -591,7 +591,7 @@
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
 # CMake's list separator and is refused outright rather than being eaten halfway through.
 #
-# KEY-0 raised the workshop floor 780 -> 798 and the component floor 34 -> 35, and it is the
+# KEY-0 raised the workshop floor 780 -> 799 and the component floor 34 -> 35, and it is the
 # phase whose eighteen workshop cases are all about ONE value: the keymap. Exact matching
 # behaviorally falsifies the retired subset aliases (ctrl+n, alt+q, ctrl+shift+s); the
 # terminal toggle's shift+space default is gone and pinned gone; the hotkey view opens,
@@ -618,7 +618,7 @@ component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  798
+workshop                          doctest           always  799
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
