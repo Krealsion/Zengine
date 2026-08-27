@@ -66,6 +66,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -167,6 +168,18 @@ struct FakeMedium {
     /// Required of every Medium since TEXT-0 (skin.hpp says why it is required rather than
     /// detected); a fake logs the offer the way it logs every other delegation.
     void clipboard_copy(const std::string& text) { log->push_back("clipboard " + text); }
+
+    /// Required of every Medium since QR-11, for clipboard_copy's reason. A fake answers
+    /// whatever a case set — nullopt is the terminal's standing truth, a string is the
+    /// SDL medium's read — and counts the reads, because "the clipboard is read exactly
+    /// once, exactly on request" is the custody claim the shell's cases pin.
+    std::optional<std::string> clipboard{};
+    int clipboard_reads = 0;
+    std::optional<std::string> clipboard_text() {
+        ++clipboard_reads;
+        log->push_back("clipboard_text");
+        return clipboard;
+    }
 
     /// The one thing a Medium is ASKED. A fake answers whatever a case set, so the
     /// shell's own rule -- publish on change, never publish "no opinion" -- can be
@@ -4053,3 +4066,170 @@ TEST_CASE("TEXT-0: a terminal medium offers a copy as OSC 52, base64 and all") {
     m.clipboard_copy("hi");
     CHECK(m.sink().out == "\x1b]52;c;aGk=\x07");
 }
+
+// ============================================================================
+// QR-11: the clipboard is READ through the Skin, on request, and only then
+// ============================================================================
+
+namespace {
+
+/// The gesture that makes the asker ask — a case's own trigger, because the request must
+/// be an ordinary weave send: a root send cannot be answered (loom::Mail::answer refuses
+/// it), so a case that sent the request itself would prove nothing about the answer road.
+struct AskClip {
+    ZEN_SHAPE(AskClip, 1);
+};
+
+struct ClipAskerState {
+    std::int64_t asked = 0;
+    ZEN_SHAPE(ClipAskerState, 1, ZEN_FIELD(asked));
+};
+
+/// The consumer half of the QR-11 conversation, as any owner of an editable box spells
+/// it: its own book, `answers_ask()` first, the correlation second, strays counted.
+class ClipAsker : public loom::WeaveBase<ClipAsker, ClipAskerState,
+                                         loom::Accept<AskClip, ClipboardText>,
+                                         loom::Emit<ClipboardTextRequested>> {
+public:
+    void on(const AskClip&, loom::Mail& mail) {
+        const loom::AskOpened opened = book_.open_to_role(kSkinRole);
+        REQUIRE(opened);
+        ++state_.asked;
+        (void)mail.send_to_role(kSkinRole, ClipboardTextRequested{}, opened.correlation);
+    }
+    void on(const ClipboardText& a, loom::Mail& mail) {
+        if (!mail.answers_ask() || !book_.settle(mail.correlation(), mail.sender())) {
+            ++stray;
+            return;
+        }
+        answers.push_back(a);
+    }
+    std::vector<ClipboardText> answers;
+    int stray = 0;
+
+private:
+    loom::AskBook book_{2};
+};
+
+} // namespace
+
+TEST_CASE("QR-11: a paste ask reads the medium at that moment, once, and is answered") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    auto skin_weave = std::make_unique<SkinT<FakeMedium>>(FakeMedium{&log});
+    SkinT<FakeMedium>* skin = skin_weave.get();
+    loom::Grant grant = loom::emit_default_grant(*skin);
+    const loom::WeaveId skin_id =
+        bus.register_weave(std::move(skin_weave), std::move(grant), std::string(kSkinRole));
+    skin->zen_set_self(skin_id);
+    auto asker_weave = std::make_unique<ClipAsker>();
+    ClipAsker* asker = asker_weave.get();
+    const loom::WeaveId asker_id = bus.register_weave(
+        std::move(asker_weave), loom::emit_default_grant(*asker), std::string());
+    asker->zen_set_self(asker_id);
+
+    // NOTHING IS READ BEFORE A REQUEST. The medium holds text; the shell has no reason
+    // to ask for it, and does not.
+    skin->medium().clipboard = "first";
+    bus.drain_until_idle();
+    CHECK(skin->medium().clipboard_reads == 0);
+
+    // One request, one read, one answer — carrying the value CURRENT at that moment.
+    bus.send(asker_id, loom::Message(loom::to_value(AskClip{})));
+    bus.drain_until_idle();
+    CHECK(skin->medium().clipboard_reads == 1);
+    REQUIRE(asker->answers.size() == 1);
+    CHECK(asker->answers[0].readable);
+    CHECK(asker->answers[0].text == "first");
+
+    // The clipboard moves between two requests: the second paste gets the newer value,
+    // because each request is its own read — there is no mirror to be stale.
+    skin->medium().clipboard = "second";
+    bus.send(asker_id, loom::Message(loom::to_value(AskClip{})));
+    bus.drain_until_idle();
+    CHECK(skin->medium().clipboard_reads == 2);
+    REQUIRE(asker->answers.size() == 2);
+    CHECK(asker->answers[1].text == "second");
+
+    // A medium that cannot read a platform clipboard says so, in the field reserved for
+    // exactly that sentence — never an empty string wearing readability.
+    skin->medium().clipboard = std::nullopt;
+    bus.send(asker_id, loom::Message(loom::to_value(AskClip{})));
+    bus.drain_until_idle();
+    REQUIRE(asker->answers.size() == 3);
+    CHECK(!asker->answers[2].readable);
+    CHECK(asker->answers[2].text.empty());
+    CHECK(asker->stray == 0);
+}
+
+TEST_CASE("QR-11: an unsolicited ClipboardText settles nothing at an asker") {
+    // The wall the answer road rests on: a payload anybody publishes — however
+    // well-formed — is not the answer to anything, and the asker's two checks
+    // (answers_ask, then its own book) refuse it. This is what keeps the one road
+    // foreign clipboard text has into an application a road only a maker's paste opens.
+    loom::Switchboard bus;
+    auto asker_weave = std::make_unique<ClipAsker>();
+    ClipAsker* asker = asker_weave.get();
+    const loom::WeaveId asker_id = bus.register_weave(
+        std::move(asker_weave), loom::emit_default_grant(*asker), std::string());
+    asker->zen_set_self(asker_id);
+
+    // Directed at the asker, from the root, with a guessable correlation (a fresh book's
+    // first is 1 — the settlement law's own example of why correlation never authenticates).
+    bus.send(asker_id, loom::Message(loom::to_value(ClipboardText{true, "EVIL"}),
+                                     loom::WeaveId{}, loom::WeaveId{}, 1));
+    bus.drain_until_idle();
+    CHECK(asker->answers.empty());
+    CHECK(asker->stray == 1);
+}
+
+TEST_CASE("QR-11: the terminal medium answers a clipboard read with its standing truth") {
+    // No truthful terminal route reads a system clipboard, and the medium says so rather
+    // than guessing — the asker's fallback (what this process itself last copied) is the
+    // strongest paste a terminal honestly has.
+    TuiMedium<ClassicStyle, StringSink> m;
+    CHECK(!m.clipboard_text().has_value());
+    // ...and writing a copy does not manufacture a readback: the offer went to the
+    // terminal (OSC 52), not into a mirror this medium could later present as a read.
+    m.clipboard_copy("hi");
+    CHECK(!m.clipboard_text().has_value());
+}
+
+#if defined(SURFACE_HAS_SDL)
+
+TEST_CASE("QR-11: the real SDL medium reads the platform clipboard, per request") {
+    // The one thing the fake cannot prove: the real skin, over a real SDL (the dummy
+    // driver's queue and clipboard are real; only the photons are missing), answering a
+    // paste ask with the value the platform holds AT THAT MOMENT — seeded and then
+    // changed by this process the way any unrelated application would.
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", "dummy");
+    ::_putenv_s("SDL_VIDEODRIVER", "dummy");
+#else
+    ::setenv("SDL_VIDEO_DRIVER", "dummy", 1);
+    ::setenv("SDL_VIDEODRIVER", "dummy", 1);
+#endif
+    Rig r;
+    (void)r.load("zengine-skin-sdl", SKIN_SO_SDL, kSkinRole);
+    auto asker_weave = std::make_unique<ClipAsker>();
+    ClipAsker* asker = asker_weave.get();
+    const loom::WeaveId asker_id = r.bus.register_weave(
+        std::move(asker_weave), loom::emit_default_grant(*asker), std::string());
+    asker->zen_set_self(asker_id);
+
+    REQUIRE(SDL_SetClipboardText("live-fresh"));
+    r.bus.send(asker_id, loom::Message(loom::to_value(AskClip{})));
+    r.bus.drain_until_idle();
+    REQUIRE(asker->answers.size() == 1);
+    CHECK(asker->answers[0].readable);
+    CHECK(asker->answers[0].text == "live-fresh");
+
+    // The clipboard changes between two pastes: the second read answers the newer value.
+    REQUIRE(SDL_SetClipboardText("live-newer"));
+    r.bus.send(asker_id, loom::Message(loom::to_value(AskClip{})));
+    r.bus.drain_until_idle();
+    REQUIRE(asker->answers.size() == 2);
+    CHECK(asker->answers[1].text == "live-newer");
+}
+
+#endif // SURFACE_HAS_SDL

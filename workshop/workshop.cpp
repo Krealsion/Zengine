@@ -841,11 +841,15 @@ int main(int argc, char** argv) {
     // TEXT-0 ADDED ONE RULE AND NO POWERS: a maker's copy is SAID to the process --
     // `to_any` because the interested parties are the active Skin (which offers the text to
     // the platform's clipboard) and any text-holding pane provider, neither of which this
-    // host can name at boot. It carries text a maker already typed, commands nothing, and
-    // is the whole of what Workshop may say about a clipboard; what the platform's
-    // clipboard actually holds arrives back as the SDL reader's ClipboardChanged, which is
-    // an observation Workshop merely accepts.
+    // host can name at boot. It carries text a maker already typed and commands nothing.
     speak.allow_to_any(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
+    // QR-11 ADDED THE READ, AND BOUND IT TO THE SKIN'S ROLE: clipboard read follows paste
+    // intent, so the one thing Workshop may say about the platform's clipboard is a
+    // question, asked of the Medium that owns it, when a maker pastes. The payload comes
+    // back as the Skin's answer to that ask -- nothing here grants anybody a standing
+    // clipboard feed, because none exists any more.
+    speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
+                        surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
     speak.allow_to_role(builder::StatusRequested::zen_name,
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
     speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,

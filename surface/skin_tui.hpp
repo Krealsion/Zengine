@@ -58,6 +58,7 @@
 #endif
 
 #include <cstdio>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -571,6 +572,15 @@ public:
     /// terminal has for that. See `tui_clipboard_sequence` for exactly what is and is not
     /// being claimed.
     void clipboard_copy(const std::string& text) { sink_.write(tui_clipboard_sequence(text)); }
+
+    /// A maker asked to paste: this medium CANNOT SAY what the system clipboard holds, and
+    /// says so (QR-11). Reading it has no truthful terminal route — the OSC 52 query is
+    /// disabled almost everywhere, for exactly the reason it should be
+    /// (`tui_clipboard_sequence`'s honesty note) — so the answer is the standing nullopt,
+    /// never a guess dressed as a read. The asker then pastes what this process itself
+    /// last copied, which is the strongest truthful paste a terminal has, and is why
+    /// copy-here-paste-there keeps working on this medium with no platform claim anywhere.
+    std::optional<std::string> clipboard_text() { return std::nullopt; }
 
     /// HOW MUCH ROOM THERE IS — ASKED OF THE SINK, BECAUSE THE SINK IS THE TERMINAL.
     ///

@@ -77,20 +77,41 @@ covers different characters in different media.
 - The selection made `SurfaceTextRegion` v5, `SurfaceLayer` v3, `SurfaceCanvas` v7 — the same
   compose-upward bump every region field has cost.
 
-## The clipboard crosses the Skin seam as a pair of shapes (TEXT-0)
+## The Medium owns the platform clipboard, in both directions (TEXT-0, repaired by QR-11)
 
-`ClipboardCopy{text}` is intent (a maker copied this): the active Skin executes it —
-`SDL_SetClipboardText` on the SDL medium; the OSC 52 set-clipboard sequence
-(`tui_clipboard_sequence`, base64 and all) written to the stream a terminal Skin already owns,
-honoured where the terminal supports it and harmless where not, with **no claim ever made**
-that the system took it. Every text-holding participant mirrors the same publication, which is
-what keeps copy-here-paste-there true in-process on media whose platform cannot answer.
-`ClipboardChanged{text}` is the platform's own fact, routed by the SDL Input reader
-(`SurfaceCloseRequested`'s arrangement — the reader owns the one queue that reports it) and
-never published by a terminal backend. Consumers mirror and never echo. `clipboard_copy` is a
-REQUIRED Medium method, the Sink's own rule for the Sink's own reason: a Medium that quietly
-lacked it would be one on which copy silently reaches nothing, and the mistake would look
-exactly like the truth on every lane.
+**Clipboard read follows paste intent.** The system clipboard is ambient host state that may
+have nothing to do with this application; permission to use its text when a maker asks to
+paste is not permission to observe it continuously. Nothing in the process watches it — no
+mirror of it exists, the SDL Input reader has no clipboard business at all (the clipboard
+event class is in its ignored set, and a source tripwire in the input suite keeps its files
+clean of the read calls) — and the ONE road foreign clipboard text has onto the bus is the
+answer to a paste's own ask.
+
+- **The write** (TEXT-0): `ClipboardCopy{text}` is intent (a maker copied this), a
+  publication because several unrelated parties mirror it. The active Skin executes it —
+  `SDL_SetClipboardText` on the SDL medium; the OSC 52 set-clipboard sequence
+  (`tui_clipboard_sequence`, base64 and all) written to the stream a terminal Skin already
+  owns, honoured where the terminal supports it and harmless where not, with **no claim ever
+  made** that the system took it. Every text-holding participant mirrors the same
+  publication, which is what keeps copy-here-paste-there true in-process on media whose
+  platform cannot answer. Mirrors never echo, and a mirror means exactly *the freshest copy
+  said IN this process* — never the platform's state.
+- **The read** (QR-11): `ClipboardTextRequested{}` is a SEND to `kSkinRole`, made because a
+  maker pressed paste and for no other reason; the Skin reads the Medium at that moment and
+  ANSWERS (`mail.answer`) with `ClipboardText{readable, text}`. `readable=false` is a
+  terminal medium's standing truth (no truthful terminal route reads a system clipboard —
+  the OSC 52 query is disabled almost everywhere), and the asker then falls back to its
+  in-process mirror; `readable=true` with empty text is the SDL medium saying the platform
+  holds no text, which a paste honours by inserting nothing. The two are separate fields
+  because collapsing them would make an empty platform clipboard paste stale mirror text.
+  The asker settles the answer with its own `loom::AskBook` **and** `answers_ask()`, and
+  applies it to the draft that requested the paste or discards it whole
+  ([`workshop.md`](workshop.md#editing-text-is-a-component-and-it-belongs-to-no-consumer-hd-5-text-0)).
+
+`clipboard_copy` and `clipboard_text` are both REQUIRED Medium methods, the Sink's own rule
+for the Sink's own reason: a Medium that quietly lacked either would be one on which the
+gesture silently reaches nothing, and the mistake would look exactly like the truth on every
+lane. `clipboard_text`'s nullopt is not a failure — it is the honest cannot-say.
 
 ## Which text primitive: who owns the room (TYPE-0, answered in three by TYPE-1)
 

@@ -42,11 +42,13 @@ bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *
 reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,
 `dwMousePosition` the position — all present on the record and all preserved — and its VK table
 names Home, End and Delete. The SDL **Reader** owns the window's one process-global event
-queue: SDL scancodes pass through as the wire identity they already are, and two facts on that
-queue are not input moments and are routed in the Surface vocabulary instead — the close box
-(`SurfaceCloseRequested`) and, since TEXT-0, a platform clipboard change (`ClipboardChanged`,
-read at the moment the queue reports it, the pre-existing clipboard said once on the first
-poll). Each backend's exact honest reach — which modifiers it can vouch for on which keys —
+queue: SDL scancodes pass through as the wire identity they already are, and one fact on that
+queue is not an input moment and is routed in the Surface vocabulary instead — the close box
+(`SurfaceCloseRequested`). The platform's clipboard events are in the reader's ignored set
+deliberately, not from disinterest: clipboard read follows paste intent, so the clipboard is
+read through the Skin when a paste asks with `ClipboardTextRequested` — see
+[surface.md](surface.md) — and never watched; no shape leaving this reader carries clipboard
+text. Each backend's exact honest reach — which modifiers it can vouch for on which keys —
 stays documented in `input/translate.hpp`.
 
 **Who turns the terminal's pointer on:** the **Skin**, because terminal modes are output and the

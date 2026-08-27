@@ -112,8 +112,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace zengine::workshop {
 
@@ -256,7 +258,7 @@ class WorkshopWeave
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfaceCloseRequested,
-                                          zengine::surface::ClipboardChanged,
+                                          zengine::surface::ClipboardText,
                                           zengine::surface::ClipboardCopy,
                                           zengine::builder::BuildStatus,
                                           zengine::builder::RecipeCatalog,
@@ -265,6 +267,7 @@ class WorkshopWeave
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
+                                        zengine::surface::ClipboardTextRequested,
                                         zengine::builder::StatusRequested,
                                         zengine::builder::BuildRequested,
                                         zengine::workshop::PaneCatalogRequested,
@@ -530,7 +533,17 @@ public:
         // three handlers each publishing would be the fourth-copy accident arriving in the
         // routing. What is published is `ClipboardCopy`: the Skin offers it to the
         // platform's clipboard and every other text-holding participant mirrors it.
+        //
+        // A PASTE ANYWHERE BELOW IS ASKED FOR ONCE, HERE, THE SAME WAY (QR-11). The
+        // component bumps `paste_requests` instead of pasting, because the value a paste
+        // means is the clipboard's CURRENT value and only this owner can obtain it — a
+        // read performed BECAUSE this paste was requested, never a mirror kept fresh by
+        // watching. The same one comparison notices it, `paste_owner_now()` (the chain's
+        // mirror, `editable_text_has_keyboard`'s pattern) says which draft asked, and
+        // `begin_clipboard_paste` opens the conversation with the Skin. The text lands a
+        // turn later, in that draft or nowhere (`on(ClipboardText)`).
         const std::uint64_t copied_before = session_.clipboard.writes;
+        const std::uint64_t pastes_before = session_.clipboard.paste_requests;
         if (session_.terminal.open) {
             terminal_key(k);
         } else if (session_.manage.open) {
@@ -549,25 +562,98 @@ public:
         if (session_.clipboard.writes != copied_before) {
             mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});
         }
+        if (session_.clipboard.paste_requests != pastes_before) {
+            begin_clipboard_paste(mail);
+        }
         repaint(mail);
     }
 
-    /// THE PLATFORM'S CLIPBOARD CHANGED — update the mirror every paste reads. The counter
-    /// is left alone: `writes` counts what THIS process copied, and a mirror that bumped it
-    /// would republish the platform's own fact back at the platform, which is the echo loop
-    /// ClipboardChanged's contract forbids.
-    void on(const zengine::surface::ClipboardChanged& c, loom::Mail&) {
-        session_.clipboard.text = c.text;
-    }
-
-    /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored for the same reason
-    /// and under the same no-echo rule. On a medium whose platform reports changes this
-    /// arrives twice (once as the publication, once as the platform's echo), and both
-    /// deliveries write the same bytes; on a terminal medium this publication is the only
-    /// road there is, which is exactly why it exists.
+    /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo
+    /// rule: the counter is left alone, because `writes` counts what THIS weave's boxes
+    /// copied and a mirror that bumped it would republish the fact back at the bus. Since
+    /// QR-11 this publication is the ONLY feed the mirror has — the platform's own
+    /// clipboard is read at paste time, through the Skin, and never watched — so
+    /// `session_.clipboard.text` means exactly "the freshest copy said IN this process",
+    /// which is also precisely what a paste falls back to on a medium whose platform
+    /// cannot be read (the terminal's standing state).
     void on(const zengine::surface::ClipboardCopy& c, loom::Mail&) {
         session_.clipboard.text = c.text;
     }
+
+    /// THE SKIN'S ANSWER TO A PASTE THIS WEAVE REQUESTED — the one road foreign clipboard
+    /// text has into this application, and it is walked only under a maker's paste (QR-11).
+    ///
+    /// TWO WALLS, THEN A VALIDITY CHECK, and each refusal discards the payload whole.
+    /// `answers_ask()` is Loom's own provenance — an unsolicited `ClipboardText`, however
+    /// well-formed, is somebody's helpful payload and settles nothing (the stronger bound
+    /// exists here because the Skin ANSWERS rather than relays, so it is taken — INTR-1's
+    /// rule). The book's correlation-plus-sender match then says WHICH paste this settles.
+    /// Last, the draft that asked must still be standing: the same owner, holding the same
+    /// draft (`draft_epoch`), because focus and mode changes between request and answer
+    /// must not redirect clipboard text into another box, and a draft that ended took its
+    /// paste with it.
+    ///
+    /// THE MIRROR IS UPDATED ONLY WHEN THE PASTE APPLIES. A readable answer for a draft
+    /// that no longer exists is dropped entirely — retaining it would keep foreign text in
+    /// application state on the strength of an intent that no longer has a home.
+    void on(const zengine::surface::ClipboardText& a, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return; // not Loom's answer to anything this weave asked
+        }
+        const std::optional<loom::PendingAsk> settled =
+            paste_asks_.settle(mail.correlation(), mail.sender());
+        if (!settled) {
+            return; // not a conversation this weave is waiting on
+        }
+        const PendingPaste p = take_pending_paste(settled->id);
+        component::TextBox* box = nullptr;
+        Row* row = nullptr;
+        switch (p.owner) {
+        case PasteOwner::kNone: return;
+        case PasteOwner::kTerminal:
+            // The line outlives the pane's visibility (shift+space hides it and keeps the
+            // draft), so an open pane is not required — the same DRAFT is.
+            box = &session_.terminal.input;
+            break;
+        case PasteOwner::kNaming:
+            box = session_.setup.naming.open ? &session_.setup.naming.line : nullptr;
+            break;
+        case PasteOwner::kDraft:
+            row = editing_row();
+            if (row == nullptr || row->label() != p.label || session_.selected != p.object ||
+                row->editor().draft_epoch() != p.epoch) {
+                row = nullptr; // a different draft is standing (or none); not this paste's
+            }
+            break;
+        }
+        if (row != nullptr) {
+            if (a.readable) {
+                session_.clipboard.text = a.text; // the platform's current truth, asked for
+            }
+            row->paste(session_.clipboard);
+        } else if (box != nullptr && box->draft_epoch() == p.epoch) {
+            if (a.readable) {
+                session_.clipboard.text = a.text;
+            }
+            box->paste(session_.clipboard);
+            if (p.owner == PasteOwner::kTerminal) {
+                refresh_terminal();
+            }
+        } else {
+            return; // the draft that asked is gone; the payload is discarded, silently
+        }
+        repaint(mail);
+    }
+
+    // AN UNANSWERABLE ASK STAYS OPEN, VISIBLY, AND THAT IS DELIBERATE (QR-11). With no
+    // Skin holding the role — or a stale one that does not accept the shape — the ask is
+    // refused as a tap event and no message returns: Loom has no unanswerability notice,
+    // and the book does not pretend otherwise (its own doctrine). The cost is bounded by
+    // the book's capacity — after four asks into a void, paste goes quiet for this
+    // incarnation — and a process whose Skin cannot answer a clipboard read has no paste
+    // to deliver anyway. No `zen.Refused` handler is written here, because nothing sends
+    // one for this conversation and a handler would be a wall waiting for rain that
+    // cannot fall.
 
     /// TEXT the maker actually entered — the platform's answer, not a guess made
     /// from a key identity. It edits a draft and can do nothing else: in command
@@ -1453,6 +1539,103 @@ private:
             return true;
         }
         return editing_row() != nullptr;
+    }
+
+    /// Which of this weave's own editable places a consumed paste request came from
+    /// (QR-11). `kNone` for every armless branch — a focused runtime pane's paste is the
+    /// provider's own conversation with the Skin, and the gesture branches that hold no
+    /// box cannot have bumped the counter this answers about.
+    enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft };
+
+    /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? — `paste_requests`
+    /// bumped, so one of the box-holding branches ran; this names it by MIRRORING THE
+    /// CHAIN branch for branch, `editable_text_has_keyboard`'s own pattern and for its
+    /// reason: two spellings of the routing is a paste delivered to a draft the keys never
+    /// reached.
+    PasteOwner paste_owner_now() {
+        if (session_.terminal.open) {
+            return PasteOwner::kTerminal;
+        }
+        if (session_.manage.open) {
+            return PasteOwner::kNone;
+        }
+        if (session_.setup.naming.open) {
+            return PasteOwner::kNaming;
+        }
+        if (session_.panels.picker.open) {
+            return PasteOwner::kNone;
+        }
+        if (is_runtime_kind(keyboard_pane())) {
+            return PasteOwner::kNone;
+        }
+        return editing_row() != nullptr ? PasteOwner::kDraft : PasteOwner::kNone;
+    }
+
+    /// ONE PASTE STILL IN FLIGHT: the conversation (by the book's own id) and the draft it
+    /// belongs to. The owner names the box; `epoch` says WHICH draft that box was holding
+    /// (`TextBox::draft_epoch` — set/clear bump it, so a submitted line, a cancelled
+    /// draft and a reopened editor all read as a different draft); `object`/`label`
+    /// identify a property row, whose box is one of many and is rebuilt freely (a carried
+    /// draft rides `Row::resume` with its epoch, so an extent change mid-flight does not
+    /// orphan the paste).
+    struct PendingPaste {
+        std::uint64_t ask = 0;
+        PasteOwner owner = PasteOwner::kNone;
+        std::uint64_t epoch = 0;
+        std::int64_t object = 0;
+        std::string label;
+    };
+
+    /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR (QR-11). The
+    /// ask goes to the Skin's ROLE — the Medium owns the platform clipboard in both
+    /// directions — and the book is the asker's own record (`loom::AskBook`): at capacity
+    /// the NEW paste is refused and every outstanding one is untouched, the asker's half
+    /// of the settlement law. A refused open drops this paste silently; the book's
+    /// capacity is real pastes in flight, which one bus turn settles, so reaching it takes
+    /// a Skin that never answers.
+    void begin_clipboard_paste(loom::Mail& mail) {
+        PendingPaste p;
+        p.owner = paste_owner_now();
+        switch (p.owner) {
+        case PasteOwner::kNone: return; // no box of this weave's asked; nothing to do
+        case PasteOwner::kTerminal: p.epoch = session_.terminal.input.draft_epoch(); break;
+        case PasteOwner::kNaming: p.epoch = session_.setup.naming.line.draft_epoch(); break;
+        case PasteOwner::kDraft: {
+            Row* row = editing_row();
+            if (row == nullptr) {
+                return; // unreachable while the mirror holds; written anyway
+            }
+            p.epoch = row->editor().draft_epoch();
+            p.object = session_.selected;
+            p.label = row->label();
+            break;
+        }
+        }
+        const loom::AskOpened opened = paste_asks_.open_to_role(
+            zengine::surface::kSkinRole, zengine::surface::ClipboardTextRequested::zen_name,
+            zengine::surface::ClipboardTextRequested::zen_version);
+        if (!opened) {
+            return; // the book is full: this paste is dropped, the outstanding ones stand
+        }
+        p.ask = opened.id;
+        pending_pastes_.push_back(std::move(p));
+        (void)mail.send_to_role(zengine::surface::kSkinRole,
+                                zengine::surface::ClipboardTextRequested{}, opened.correlation);
+    }
+
+    /// The pending-paste record a settled conversation belongs to, removed from the list
+    /// and handed back by value. An id the list does not hold answers the empty record
+    /// (`owner == kNone`), which every consumer already treats as "nothing to do".
+    PendingPaste take_pending_paste(std::uint64_t ask) {
+        for (std::size_t i = 0; i < pending_pastes_.size(); ++i) {
+            if (pending_pastes_[i].ask == ask) {
+                PendingPaste p = std::move(pending_pastes_[i]);
+                pending_pastes_.erase(pending_pastes_.begin() +
+                                      static_cast<std::ptrdiff_t>(i));
+                return p;
+            }
+        }
+        return PendingPaste{};
     }
 
     /// Editing mode, KEY half: the three keys that are editor CONTROLS rather
@@ -4154,6 +4337,14 @@ private:
 
     HostContext* host_;
     Session session_;
+
+    /// THE ASKER'S OWN BOOK OF PASTES STILL IN FLIGHT (QR-11), and the drafts each one
+    /// belongs to. Plain members, per incarnation — a conversation belongs to the asker
+    /// that opened it, and a successor's Skin would answer a dead weave's ask into the
+    /// void, which is the correct fate for it. Capacity 4 is real pastes one bus turn
+    /// settles; see `begin_clipboard_paste`.
+    loom::AskBook paste_asks_{4};
+    std::vector<PendingPaste> pending_pastes_;
 
     /// One moment's worth of memory: the character the gesture's OWN keystroke
     /// produced, which is not text a maker typed. Set by a gesture that opens a

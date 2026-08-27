@@ -321,13 +321,35 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   and closes a draft — wipe it, so undo can never resurrect a previous draft's text under a
   new label. Contiguous same-kind keystrokes coalesce; paste, cut and any selection
   replacement are one entry each. There is still no application-wide undo and none may grow
-  from this.
-- **The clipboard is `Session::clipboard`, one for all of Workshop's own boxes**, a MIRROR of
-  the freshest truth heard: the component writes it on copy/cut, `on(KeyPressed)` notices
-  (`writes` compared around the whole chain, once) and publishes `ClipboardCopy`;
-  `ClipboardChanged`/`ClipboardCopy` from elsewhere land in it without bumping `writes`
-  (mirrors never echo). It is deliberately not persisted — WUX-0 keeps the desk, never the
-  work-in-progress.
+  from this. Since QR-11 the same two doors bump `TextBox::draft_epoch()` — the draft's
+  identity made comparable, for the one owner question history cannot answer: is the box
+  still holding the draft that asked for something a turn ago?
+- **The clipboard is `Session::clipboard`, one for all of Workshop's own boxes** — the
+  freshest copy said IN this process: the component writes it on copy/cut, `on(KeyPressed)`
+  notices (`writes` compared around the whole chain, once) and publishes `ClipboardCopy`;
+  copies from elsewhere land in it without bumping `writes` (mirrors never echo). It is NOT
+  a mirror of the system clipboard — nothing watches that — and it is deliberately not
+  persisted (WUX-0 keeps the desk, never the work-in-progress).
+- **A PASTE IS A CONVERSATION, AND THE ANSWER BELONGS TO THE DRAFT THAT ASKED (QR-11).**
+  `consume()`'s Ctrl+V bumps `Clipboard::paste_requests` instead of pasting — the value a
+  paste means is the platform clipboard's CURRENT one, and only the owner can obtain it.
+  The same one comparison around the chain notices; `paste_owner_now()` (the chain's
+  mirror, `editable_text_has_keyboard`'s pattern) names the asking draft; Workshop opens
+  the ask in its own `loom::AskBook` (capacity 4, refuse-new — the asker's half of the
+  settlement law) and sends `ClipboardTextRequested` to `kSkinRole`
+  ([`surface.md`](surface.md#the-medium-owns-the-platform-clipboard-in-both-directions-text-0-repaired-by-qr-11)).
+  The answer is settled by `answers_ask()` plus the book, then applied through
+  `TextBox::paste`/`Row::paste` ONLY if the initiating draft still stands — same owner,
+  same `draft_epoch`, and for a property row the same object and label (a draft carried
+  across a rebuild by `Row::resume` keeps its epoch, so an extent change mid-flight does
+  not orphan its paste). Anything else discards the payload whole, mirror update included:
+  a focus or mode change between request and answer must never redirect clipboard text
+  into another box. On a medium that answers `readable=false` (the terminal) the paste
+  falls back to the in-process mirror, which is what keeps copy-here-paste-there true
+  there with no platform claim. An ask with nobody at the Skin's role stays open,
+  bounded by the book — Loom has no unanswerability notice and Workshop does not pretend
+  one. The four Session boxes ask through Workshop; the Composer, a provider, holds the
+  same conversation itself (its own book, its own draft-generation identity).
 - **`zengine-component` links nothing**, not even `loom::core`. A TextBox has no wire form,
   nothing serializes it and nothing hosts it; the absence of that link is the enforcement —
   which is why the vocabulary's key identities are spelled locally in `component::key`/`mod`

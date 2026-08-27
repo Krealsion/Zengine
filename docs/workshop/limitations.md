@@ -202,9 +202,9 @@ Detail in [supported toolchains](../contributing/supported-toolchains.md).
 These are absences by decision, not gaps, and they are not going to arrive because a toolkit is
 expected to have them:
 
-- **No widget set.** The component package has one component, earned by two working consumers
-  needing the same machinery. There is no Button, List, Dropdown, ScrollView, focus tree, tab
-  order, clipboard or theme.
+- **No widget set.** The component package has one component, earned by working consumers
+  (four of them, since TEXT-0) needing the same machinery. There is no Button, List, Dropdown,
+  ScrollView, focus tree, tab order or theme.
 - **No layout system.** The drawing vocabulary has no parent/child, anchors or percentages —
   whoever publishes has already decided where things go. The `ui` package resolves an authored
   extent against a frame and states no containment.

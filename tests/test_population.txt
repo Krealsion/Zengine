@@ -560,6 +560,26 @@
 # file's own doctrine: it holds the PURE half, and the fourth consumer's live behavior is a
 # workshop-tier claim.
 #
+# QR-11 moved four floors -- component 33 -> 34, input 2 -> 3 (sdl; the always row traded
+# one deleted TEXT-0 case for the new pin and stands), surface 78 -> 81 (always) and
+# 6 -> 7 (sdl), workshop 775 -> 780 -- and the spread is the repair's shape: clipboard READ
+# follows paste intent now, everywhere the read exists.
+# TEXT-0's ambient road (the SDL reader publishing every platform clipboard change, and the
+# pre-existing clipboard on first poll) is retired WHOLE: the shape that carried it no longer
+# exists, the reader's sources are tripwired clean (input, always row -- a claim about what
+# code does NOT contain is read off the source on every lane), and the event class is pinned
+# in the ignored set. What replaced it is a conversation: a consumed Ctrl+V records a request
+# on the owner's Clipboard (component), the owner asks the Skin, the Medium answers the
+# platform's CURRENT text or the honest cannot-say (surface -- the fake pins exactly-once
+# and both answers; the new sdl-row case reads the REAL SDL clipboard through the real skin,
+# seeded and changed by the process the way any unrelated application would), and the text
+# lands in the draft that asked or nowhere (workshop -- the five new cases are the injection
+# wall, the stale-mirror falsifier, the draft-boundary discard, the carried-draft delivery,
+# and the no-skin quiet degradation). The one input sdl-row addition is SC-1's live witness:
+# clipboard seeded before the reader existed and changed behind the running application, and
+# neither payload can reach the bus, said in the strongest form available -- the ears hear
+# every shape the reader can emit and a tap watches every delivery by name.
+#
 # WHAT IS NOT IN THIS FILE, DELIBERATELY: the single-source route's REAL compile. It needs an
 # installed Zengine prefix and a toolchain, it is a lane and not a ctest entry
 # (tests/build/run.cmake), and folding it in here would put an install and two nested projects
@@ -576,15 +596,15 @@ smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
-input                             doctest           sdl     2
-surface                           doctest           always  78
-surface                           doctest           sdl     6
+input                             doctest           sdl     3
+surface                           doctest           always  81
+surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  33
+component                         doctest           always  34
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  775
+workshop                          doctest           always  780
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
