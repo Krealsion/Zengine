@@ -27836,6 +27836,23 @@ TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it 
     CHECK_FALSE(t.session().setup.naming.open);
 }
 
+TEST_CASE("KEY-0: the swallow eats only the trigger's own character, never a different one") {
+    // The correspondence is the law: the owed character is derived from the consumed
+    // binding, and a character that does not match it is a maker's real keystroke -- a
+    // layout can make a key produce something other than its face, and an unconditional
+    // eat-the-next-text rule would silently delete that character. Here the trigger's key
+    // arrives with a DIFFERENT character than its face: the swallow must let it through.
+    TempDir dir("keymap-mismatch");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "g"}}));
+    Keyed t(path);
+    t.host.setup_path = dir.file("setup.json");
+    t.key(input::scan::kG);
+    t.text("!");
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.line.text() == "Default!");
+}
+
 TEST_CASE("KEY-0: a shift+letter binding swallows the capital its keystroke produced") {
     TempDir dir("keymap-capital");
     const std::string path = dir.file("keymap.json");
