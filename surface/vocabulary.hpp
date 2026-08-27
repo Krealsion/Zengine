@@ -105,6 +105,14 @@ inline constexpr std::int64_t kNone = -1;
 /// in cells lands somewhere real in every medium instead of being pixel-exact
 /// in one and rounded into mush in the other.
 ///
+/// SINCE WUX-2 A COORDINATE MAY CARRY A SUB-CELL REMAINDER (`sub_*`, in
+/// 1/`kCellSubs` of a cell — see that constant below for the whole model). The
+/// cell fields still mean exactly what they always did, the remainders default
+/// to zero, and a publisher that thinks in whole cells publishes exactly the
+/// bytes it always published. A remainder refines the one lattice; it is not a
+/// second coordinate system, and each medium resolves it at its own grain — a
+/// window spends it in pixels, a terminal floors it away at its projection.
+///
 /// Painter's order: `SurfaceLayer::rects` is drawn back-to-front in list
 /// order, so a publisher expresses "behind" by publishing earlier. There is no
 /// z field and no explicit stacking policy — list order already says it, and a
@@ -115,8 +123,15 @@ struct SurfaceRect {
     std::int64_t w = 0;
     std::int64_t h = 0;
     std::int64_t role = role::kFill;
-    ZEN_SHAPE(SurfaceRect, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
-              ZEN_FIELD(role));
+    std::int64_t sub_x = 0; ///< sub-cell remainder of x, in 1/kCellSubs cells; 0..kCellSubs-1
+    std::int64_t sub_y = 0;
+    std::int64_t sub_w = 0; ///< sub-cell remainder of w — the extent may be fine too
+    std::int64_t sub_h = 0;
+    // v2: the four sub-cell remainders (WUX-2). Everything a version-1 publisher
+    // said is said identically by zeros here.
+    ZEN_SHAPE(SurfaceRect, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(role), ZEN_FIELD(sub_x), ZEN_FIELD(sub_y), ZEN_FIELD(sub_w),
+              ZEN_FIELD(sub_h));
 };
 
 /// One run of PLAIN text anchored at a canvas cell, drawn over every rect.
@@ -132,7 +147,11 @@ struct SurfaceLabel {
     std::int64_t y = 0;
     std::string text;
     std::int64_t role = role::kFill;
-    ZEN_SHAPE(SurfaceLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
+    std::int64_t sub_x = 0; ///< sub-cell remainder of the anchor (WUX-2); a run has no fine EXTENT
+    std::int64_t sub_y = 0; ///< — one cell per byte is the label's whole width contract
+    // v2: the anchor's sub-cell remainders (WUX-2), zero for every v1 publisher.
+    ZEN_SHAPE(SurfaceLabel, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
+              ZEN_FIELD(sub_x), ZEN_FIELD(sub_y));
 };
 
 /// ONE ROW OF PROSE inside a bounded text region. Plain text, a semantic role,
@@ -236,15 +255,18 @@ inline constexpr std::int64_t kNoSelection = -1;
 /// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
 /// and filled with rows the active medium sets in its OWN text metric.
 ///
-/// THIS IS THE ONE PLACE A CANVAS ADMITS THAT A MEDIUM MAY BE FINER THAN A CELL,
-/// and the admission is deliberately narrow. `x/y/w/h` are cells, so where a
-/// region sits is the same kind of fact as where a rect sits and every medium
-/// can honour it. What happens INSIDE is the medium's: a terminal draws one row
-/// per cell row, truncated to `w` and clipped at `h`; a window that owns a real
-/// face draws the rows at its own advance and line height, inside the pixel
-/// rectangle those cells resolve to. Neither is pretending. The terminal is not
-/// asked to invent a pixel, and the window is not asked to round its type onto a
-/// twelve-pixel lattice.
+/// THIS WAS THE ONE PLACE A CANVAS ADMITTED THAT A MEDIUM MAY BE FINER THAN A
+/// CELL; since WUX-2 the admission has a second, equally narrow half — the
+/// geometry shapes may carry a sub-cell remainder on their bounds (see
+/// `kCellSubs`). `x/y/w/h` are cells, so where a region sits is the same kind
+/// of fact as where a rect sits and every medium can honour it, and `sub_*`
+/// refine that place on the one shared lattice. What happens INSIDE is the
+/// medium's: a terminal draws one row per cell row, truncated and clipped to
+/// the cells the bounds cover; a window that owns a real face draws the rows at
+/// its own advance and line height, inside the pixel rectangle those bounds
+/// resolve to. Neither is pretending. The terminal is not asked to invent a
+/// pixel, and the window is not asked to round its type onto a twelve-pixel
+/// lattice.
 ///
 /// HOW MANY ROWS AND COLUMNS FIT IS NOT ON THIS SHAPE, and that absence is the
 /// load-bearing part. The medium publishes its text metric on `SurfaceExtent`;
@@ -319,10 +341,17 @@ struct SurfaceTextRegion {
     std::int64_t sel_begin_col = 0;            ///< inclusive, a caret-like position
     std::int64_t sel_end_row = kNoSelection;   ///< reading-order end row
     std::int64_t sel_end_col = 0;              ///< exclusive, a caret-like position
-    ZEN_SHAPE(SurfaceTextRegion, 5, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+    std::int64_t sub_x = 0; ///< sub-cell remainders of the BOUNDS (WUX-2); the prose lattice
+    std::int64_t sub_y = 0; ///< (rows, columns, caret, selection) is untouched by them
+    std::int64_t sub_w = 0;
+    std::int64_t sub_h = 0;
+    // v6: the bounds' sub-cell remainders (WUX-2) — the same compose-upward bump
+    // every region field has cost, and zero for every v5 publisher.
+    ZEN_SHAPE(SurfaceTextRegion, 6, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground),
               ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
-              ZEN_FIELD(sel_end_col));
+              ZEN_FIELD(sel_end_col), ZEN_FIELD(sub_x), ZEN_FIELD(sub_y), ZEN_FIELD(sub_w),
+              ZEN_FIELD(sub_h));
 };
 
 /// ONE ORDERED PAINTER PLANE: the three primitive kinds, drawn as one complete
@@ -358,7 +387,8 @@ struct SurfaceLayer {
     std::vector<SurfaceTextRegion> texts;
     // v3: a layer IS a list of regions, so a region gaining its selection fields (TEXT-0)
     // changed what a layer is on the wire — the same bookkeeping bump v2 was for the ground.
-    ZEN_SHAPE(SurfaceLayer, 3, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
+    // v4: all three lists' shapes gained their sub-cell remainders (WUX-2).
+    ZEN_SHAPE(SurfaceLayer, 4, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
 /// A whole canvas: an extent in cells, and the ordered planes that fill it.
@@ -393,26 +423,62 @@ struct SurfaceLayer {
 /// a region belonging to a presentation somebody put BEHIND another one is behind
 /// it, kind for kind, and no primitive had to gain a field to say so.
 ///
-/// VERSION 7 SINCE TEXT-0, and only WIND-2a's 5 ever changed the fields written
-/// here. Versions 2, 3, 4, 6 and 7 it gained nothing at all and changed anyway,
-/// because its identity is derived from what it carries — a canvas is a list of
-/// layers is a list of regions, so the region's ground (v6) and its selection
-/// (v7) each moved this number without an edit on this struct. There is no
-/// old-version reader, no compatibility root list, no implicit base layer beside
-/// the explicit ones and no second spelling of one picture — two valid ways to
-/// say the same thing is how two orderings come to disagree, which is the defect
-/// versioning exists to end.
+/// VERSION 8 SINCE WUX-2, and only WIND-2a's 5 ever changed the fields written
+/// here. Versions 2, 3, 4, 6, 7 and 8 it gained nothing at all and changed
+/// anyway, because its identity is derived from what it carries — a canvas is a
+/// list of layers is a list of regions, so the region's ground (v6), its
+/// selection (v7) and the geometry shapes' sub-cell remainders (v8, WUX-2) each
+/// moved this number without an edit on this struct. There is no old-version
+/// reader, no compatibility root list, no implicit base layer beside the
+/// explicit ones and no second spelling of one picture — two valid ways to say
+/// the same thing is how two orderings come to disagree, which is the defect
+/// versioning exists to end. (The canvas EXTENT stays whole cells: how much
+/// room a picture claims is the same coarse fact a medium reports, and a
+/// fractional canvas edge is a picture nobody can honour.)
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceLayer> layers;
-    ZEN_SHAPE(SurfaceCanvas, 7, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
+    ZEN_SHAPE(SurfaceCanvas, 8, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
 /// One canvas cell in a graphical medium. The terminal needs no such number —
 /// its cell IS a character — so this lives here as the one place a window-owning
 /// Skin gets the conversion, rather than each inventing its own scale.
 inline constexpr std::int64_t kCanvasCellPx = 12;
+
+/// HOW FINE THE CANVAS LATTICE IS: sub-cell units per canvas cell (WUX-2).
+///
+/// The geometry shapes above carry their coordinates as whole cells plus a
+/// `sub_*` remainder in 1/kCellSubs of a cell — a FIXED-POINT refinement of the
+/// one lattice, with exactly one spelling per value (`0 <= sub_* < kCellSubs`,
+/// the floor decomposition). It exists so graphical interaction can be
+/// pixel-responsive while authored geometry stays medium-independent: a maker's
+/// pane sits at 10 + 24/48 cells, which is a fact about the CANVAS, not about
+/// any monitor.
+///
+/// WHY FORTY-EIGHT. It is strictly finer than the shipped graphical cell
+/// (`kCanvasCellPx` = 12 device pixels, so one sub-unit is a quarter of a
+/// pixel), which is what makes every pointer position a medium can distinguish
+/// representable; the current pixel lattice embeds EXACTLY (12 divides 48, and
+/// so would a 2x or 4x face), so a gesture's fine truth round-trips to the
+/// pixel it came from; and it is deliberately NOT the pixel count itself, so no
+/// medium's device scale ever becomes authored arrangement truth. A future
+/// medium whose cell is not a divisor of 48 still resolves the same lattice —
+/// its projection floors at its own grain, at most one device unit of wobble.
+///
+/// THE ONE QUANTIZATION LAW every consumer applies: a presenter whose device
+/// unit is `g` sub-units (a terminal cell: g = kCellSubs; a shipped-skin pixel:
+/// g = kCellSubs / kCanvasCellPx = 4) shows the fine span [L, R) on device
+/// units [floor(L/g), floor(R/g)). Exact-cell geometry — every remainder zero —
+/// therefore lands on exactly the cells and pixels it always did, and a
+/// pointer's hit test uses the identical flooring, so what a hand meets is what
+/// an eye sees on every medium (see surface/pointing.hpp).
+inline constexpr std::int64_t kCellSubs = 48;
+static_assert(kCellSubs % kCanvasCellPx == 0,
+              "the shipped graphical cell embeds exactly: one pixel is a whole number of "
+              "sub-units TODAY (a lattice fact worth noticing when it changes, not a "
+              "requirement a future medium must meet)");
 
 /// HOW MUCH ROOM THE ACTIVE SURFACE HAS, in canvas cells — the medium answering
 /// the one question a publisher cannot answer for itself.

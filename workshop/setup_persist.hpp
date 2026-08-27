@@ -41,27 +41,37 @@
 // command, or a validity law. Nothing in this file can make the document
 // refuse, and nothing about the document can make a setup refuse.
 //
-// ---- What version 2 promises ----------------------------------------------
+// ---- What version 3 promises (WUX-2) ---------------------------------------
 //
-//   PROMISED   Workshop reads and writes setup format version 2, and a second
-//              save of a loaded setup is byte-identical to the first.
-//   REFUSED    any other `format_version`, with the number named -- INCLUDING
-//              version 1, and by its NUMBER rather than by the shape of its rows;
-//              a `format` that is not this one; a field the shape does not
+//   PROMISED   Workshop reads and writes setup format version 3 — authored
+//              geometry in SUB-CELL UNITS (1/surface::kCellSubs of a canvas
+//              cell, unit word `subcells`) — and a second save of a loaded
+//              setup is byte-identical to the first. It also READS version 2,
+//              the whole-cell format WIND-2 shipped: a v2 file's cells map to
+//              exactly equivalent sub-unit values (x kCellSubs, exact), so a
+//              desk saved before the lattice got finer resolves to the pixel it
+//              always did. Loading is not rewriting: the file on disk changes
+//              only when a maker saves, and the save writes version 3.
+//   REFUSED    any OTHER `format_version`, with the number named -- version 1
+//              still by its NUMBER rather than by the shape of its rows; a
+//              `format` that is not this one; a field the shape does not
 //              declare; a field of the wrong kind; an unrecognised mode WORD, with
-//              the word found and the words that would have worked both named; a
-//              row, a name or a rank the setup law refuses; a file larger than a
-//              setup can be.
+//              the word found and the words that would have worked both named --
+//              `cells` is version 2's word and is not in version 3's vocabulary;
+//              a row, a name or a rank the setup law refuses; a file larger than
+//              a setup can be.
 //   ACCEPTED   a well-formed reference this build cannot resolve, with all of its
 //              authored window intent. That is not an error and must never become
 //              one -- it is the case the two-string reference exists for.
 //              And a `pixels` size, on every medium: the unit is a legal authored
-//              value everywhere and is refused at PROJECTION, never here.
-//   NOT DONE   migration, a legacy reader, a version graph, an upgrade path, a
-//              dual writer. WIND-2 is a CLEAN BREAK: Zen has no external setup
-//              consumers, and the whole cost of the break is that a maker who
-//              saved a setup under WS-0 saves it once more -- which the refusal
-//              tells them, by number, in one sentence.
+//              value everywhere and is refused at PROJECTION, never here (its
+//              amounts are device pixels in both versions and are not scaled).
+//   NOT DONE   a version graph, an upgrade path past v2, a dual writer, or a
+//              general migration framework. WIND-2's clean-break stance stands
+//              for every OTHER transition; the v2 reader exists because WUX-2's
+//              contract says a maker's whole-cell desk must not silently break,
+//              and it is one namespace of retained shapes plus one exact
+//              multiply -- not a policy.
 //
 // ---- Why the version is read BEFORE the rows (WIND-2) ---------------------
 //
@@ -106,8 +116,12 @@ namespace zengine::workshop::setup_persist {
 /// its own two files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-setup";
 
-/// The only setup format version this build reads or writes.
-inline constexpr std::int64_t kFormatVersion = 2;
+/// The setup format version this build WRITES, and the newest it reads.
+inline constexpr std::int64_t kFormatVersion = 3;
+
+/// The one older version this build still reads (WUX-2's contract): WIND-2's
+/// whole-cell format, translated on load — never rewritten in place.
+inline constexpr std::int64_t kLegacyFormatVersion = 2;
 
 /// A setup is a smaller thing than a document, and its ceiling says so. Sixty-four
 /// kibibytes is more than an order of magnitude above the largest legal setup --
@@ -131,15 +145,20 @@ inline constexpr std::uintmax_t kMaxSetupBytes = 1u << 16;
 // every saved setup silently changes its geometry. A word cannot be renumbered.
 
 inline constexpr const char* kUnitDefault = "default";
-inline constexpr const char* kUnitCells = "cells";
+/// VERSION 3'S GEOMETRY WORD (WUX-2): amounts in 1/surface::kCellSubs of a
+/// canvas cell. The word changed WITH the unit on purpose — a v3 file spelling
+/// `cells` over sub-unit amounts would be a number wearing the wrong unit's
+/// name, the exact lie a mode word exists to make impossible. Version 2's
+/// `cells` lives only in the legacy namespace below.
+inline constexpr const char* kUnitSubcells = "subcells";
 inline constexpr const char* kUnitPixels = "pixels";
 
 /// The words a PLACE may be said in, and the words a SIZE may be said in -- two
 /// lists, because they are two different closed sets. A place has no pixel mode:
 /// `pane_unit::kPixels` is a SIZE unit, and a file offering it for a place is
 /// offering a word that is not in this field's vocabulary.
-inline constexpr const char* kPlaceWords = "default or cells";
-inline constexpr const char* kSizeWords = "default, cells or pixels";
+inline constexpr const char* kPlaceWords = "default or subcells";
+inline constexpr const char* kSizeWords = "default, subcells or pixels";
 
 // ---- The file's own shapes ---------------------------------------------------
 
@@ -152,7 +171,9 @@ struct WorkshopPaneSize {
     std::string mode;
     std::int64_t amount = 0;
 
-    ZEN_SHAPE(WorkshopPaneSize, 1, ZEN_FIELD(mode), ZEN_FIELD(amount));
+    /// Version 2 (WUX-2): the amount's geometry unit became sub-cells and the mode
+    /// word moved with it. Same fields — the version IS the semantic gate.
+    ZEN_SHAPE(WorkshopPaneSize, 2, ZEN_FIELD(mode), ZEN_FIELD(amount));
 };
 
 /// AN AUTHORED PLACE AS WRITTEN. One mode for the pair, for `PanePlace`'s reason.
@@ -161,7 +182,8 @@ struct WorkshopPanePlace {
     std::int64_t x = 0;
     std::int64_t y = 0;
 
-    ZEN_SHAPE(WorkshopPanePlace, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
+    /// Version 2 (WUX-2): coordinates in sub-cells, word `subcells`.
+    ZEN_SHAPE(WorkshopPanePlace, 2, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
 /// ONE PANE ROW AS WRITTEN: the durable reference, the authored window, and how
@@ -172,7 +194,9 @@ struct WorkshopPanePlace {
 /// saved setup IS, and it must not change because an implementation did. The same
 /// argument persist.hpp makes about `WorkshopObject`.
 ///
-/// VERSION 2, because it grew four members and a published shape is immutable.
+/// VERSION 2, because it grew four members and a published shape is immutable;
+/// VERSION 3 (WUX-2), because the geometry those members carry moved to the fine
+/// lattice underneath it.
 struct WorkshopSetupPane {
     std::string provider;
     std::string pane;
@@ -181,7 +205,7 @@ struct WorkshopSetupPane {
     WorkshopPaneSize height;
     std::int64_t front = 0;
 
-    ZEN_SHAPE(WorkshopSetupPane, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+    ZEN_SHAPE(WorkshopSetupPane, 3, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
               ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
 };
 
@@ -193,8 +217,9 @@ struct WorkshopSetup {
     std::string name;
     std::vector<WorkshopSetupPane> panes;
 
-    /// Version 2, because the rows it holds grew four fields.
-    ZEN_SHAPE(WorkshopSetup, 2, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+    /// Version 2, because the rows it holds grew four fields; version 3 (WUX-2),
+    /// because their geometry became sub-cell units.
+    ZEN_SHAPE(WorkshopSetup, 3, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
               ZEN_FIELD(panes));
 };
 
@@ -239,8 +264,8 @@ static_assert(WorkshopSetup::zen_version == static_cast<std::uint32_t>(kFormatVe
 /// mode and every door goes through it. It is written for the reason `panel_kind`
 /// is total -- a total function is cheaper than an invariant somebody maintains.
 inline const char* unit_word(std::int64_t mode) {
-    if (mode == pane_unit::kCells) {
-        return kUnitCells;
+    if (mode == pane_unit::kSubcells) {
+        return kUnitSubcells;
     }
     if (mode == pane_unit::kPixels) {
         return kUnitPixels;
@@ -310,8 +335,8 @@ struct LoadedSetup {
 /// place, so the two doors that can meet a wrong version -- the envelope's claim
 /// and the file's own `format_version` field -- cannot come to word it differently.
 inline std::string wrong_version(std::int64_t found) {
-    return "setup version " + std::to_string(found) + " -- this Workshop reads version " +
-           std::to_string(kFormatVersion);
+    return "setup version " + std::to_string(found) + " -- this Workshop reads versions " +
+           std::to_string(kLegacyFormatVersion) + " and " + std::to_string(kFormatVersion);
 }
 
 /// The authored place a written one means. False for a mode this format has no
@@ -322,8 +347,8 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
         out = PanePlace{pane_unit::kDefault, w.x, w.y};
         return true;
     }
-    if (w.mode == kUnitCells) {
-        out = PanePlace{pane_unit::kCells, w.x, w.y};
+    if (w.mode == kUnitSubcells) {
+        out = PanePlace{pane_unit::kSubcells, w.x, w.y};
         return true;
     }
     return false;
@@ -337,8 +362,8 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         out = PaneSize{pane_unit::kDefault, w.amount};
         return true;
     }
-    if (w.mode == kUnitCells) {
-        out = PaneSize{pane_unit::kCells, w.amount};
+    if (w.mode == kUnitSubcells) {
+        out = PaneSize{pane_unit::kSubcells, w.amount};
         return true;
     }
     if (w.mode == kUnitPixels) {
@@ -368,6 +393,133 @@ inline std::string unknown_unit(const std::string& found, const char* which,
 /// IT WRITES THROUGH A REFERENCE AND STILL CANNOT HALF-RESTORE ANYTHING, because the
 /// reference every caller passes is a LOCAL CANDIDATE of theirs and never a live setup --
 /// the candidate is built here in full and assigned out only once every layer has passed.
+// ---- VERSION 2, RETAINED FOR READING (WUX-2) -----------------------------------------
+//
+// The exact shapes WIND-2 wrote, byte for byte and version for version, kept so a
+// whole-cell setup admits against the schema that actually described it — a legacy file
+// meets its OWN gate, full strength, and only then is translated. The C++ names live in a
+// nested namespace; the WIRE names are the same tokens they always were, which is the
+// whole trick: `ZEN_SHAPE` stamps the bare struct name, so `v2::WorkshopSetup` claims
+// `WorkshopSetup` v2 exactly as the old build did.
+//
+// TRANSLATION IS ONE EXACT MULTIPLY. `cells` amounts become `subcells` amounts times
+// `surface::kCellSubs` — every whole-cell value lands on the sub-unit lattice's exact cell
+// boundary, so a migrated desk resolves to the identical pixels and the identical
+// characters it did before the lattice got finer (saturating, so a hostile huge value
+// arrives at the setup law's walls rather than leaving the number line). `pixels` amounts
+// are device pixels in both versions and cross unscaled; `default` carries nothing.
+namespace v2 {
+
+struct WorkshopPaneSize {
+    std::string mode;
+    std::int64_t amount = 0;
+
+    ZEN_SHAPE(WorkshopPaneSize, 1, ZEN_FIELD(mode), ZEN_FIELD(amount));
+};
+
+struct WorkshopPanePlace {
+    std::string mode;
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+
+    ZEN_SHAPE(WorkshopPanePlace, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y));
+};
+
+struct WorkshopSetupPane {
+    std::string provider;
+    std::string pane;
+    WorkshopPanePlace place;
+    WorkshopPaneSize width;
+    WorkshopPaneSize height;
+    std::int64_t front = 0;
+
+    ZEN_SHAPE(WorkshopSetupPane, 2, ZEN_FIELD(provider), ZEN_FIELD(pane), ZEN_FIELD(place),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(front));
+};
+
+struct WorkshopSetup {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::string name;
+    std::vector<WorkshopSetupPane> panes;
+
+    ZEN_SHAPE(WorkshopSetup, 2, ZEN_FIELD(format), ZEN_FIELD(format_version), ZEN_FIELD(name),
+              ZEN_FIELD(panes));
+};
+
+/// Version 2's word for a whole-cell amount — alive only behind this reader.
+inline constexpr const char* kUnitCells = "cells";
+inline constexpr const char* kPlaceWords = "default or cells";
+inline constexpr const char* kSizeWords = "default, cells or pixels";
+
+inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
+    if (w.mode == kUnitDefault) {
+        out = PanePlace{pane_unit::kDefault, w.x, w.y};
+        return true;
+    }
+    if (w.mode == kUnitCells) {
+        out = PanePlace{pane_unit::kSubcells, surface::subs_of_cells(w.x),
+                        surface::subs_of_cells(w.y)};
+        return true;
+    }
+    return false;
+}
+
+inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
+    if (w.mode == kUnitDefault) {
+        out = PaneSize{pane_unit::kDefault, w.amount};
+        return true;
+    }
+    if (w.mode == kUnitCells) {
+        out = PaneSize{pane_unit::kSubcells, surface::subs_of_cells(w.amount)};
+        return true;
+    }
+    if (w.mode == kUnitPixels) {
+        out = PaneSize{pane_unit::kPixels, w.amount};
+        return true;
+    }
+    return false;
+}
+
+} // namespace v2
+
+/// A VERSION-2 SETUP AS A LIVE ONE — the same four layers `setup_in` below walks, against
+/// version 2's own format claim and word vocabulary, landing on the fine lattice. The one
+/// law both readers share unduplicated is the last and largest: `check_setup`, so a
+/// migrated desk is legal by exactly the same sentence a native one is.
+inline Written setup_in_v2(const v2::WorkshopSetup& file, Setup& out) {
+    if (file.format != kFormat) {
+        return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
+    }
+    if (file.format_version != kLegacyFormatVersion) {
+        return Written::no(wrong_version(file.format_version));
+    }
+    Setup candidate;
+    candidate.name = file.name;
+    candidate.panes.reserve(file.panes.size());
+    for (const v2::WorkshopSetupPane& p : file.panes) {
+        SetupPane row;
+        row.ref = PaneRef{p.provider, p.pane};
+        row.front = p.front;
+        if (!v2::place_in(p.place, row.place)) {
+            return Written::no(unknown_unit(p.place.mode, "place", v2::kPlaceWords));
+        }
+        if (!v2::size_in(p.width, row.width)) {
+            return Written::no(unknown_unit(p.width.mode, "width", v2::kSizeWords));
+        }
+        if (!v2::size_in(p.height, row.height)) {
+            return Written::no(unknown_unit(p.height.mode, "height", v2::kSizeWords));
+        }
+        candidate.panes.push_back(std::move(row));
+    }
+    const Written legal = check_setup(candidate);
+    if (!legal.accepted) {
+        return legal;
+    }
+    out = std::move(candidate);
+    return Written::ok();
+}
+
 inline Written setup_in(const WorkshopSetup& file, Setup& out) {
     if (file.format != kFormat) {
         return Written::no("not a Workshop setup: it says it is `" + file.format + "`");
@@ -429,6 +581,29 @@ inline LoadedSetup from_text(std::string_view bytes) {
     // IT READS THE CLAIM AND NOT A FIELD, because a claim is what exists before
     // admission. The static_assert over `WorkshopSetup::zen_version` is what makes
     // that number the setup format's version and not merely an envelope's.
+    //
+    // A VERSION-2 CLAIM TAKES THE LEGACY ROAD (WUX-2): admitted against version 2's
+    // own retained shape — full strength, unknown fields refused by the gate that
+    // actually described those bytes — and translated onto the fine lattice by one
+    // exact multiply. Every other claimed version is refused by its number.
+    if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
+        claim.claimed_version() == v2::WorkshopSetup::zen_version) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v2::WorkshopSetup>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedSetup::no(old.first_error().message());
+        }
+        Setup candidate;
+        const Written understood =
+            setup_in_v2(loom::from_value<v2::WorkshopSetup>(old.value()), candidate);
+        if (!understood.accepted) {
+            return LoadedSetup::no(understood.refusal);
+        }
+        LoadedSetup loaded;
+        loaded.outcome = Written::ok();
+        loaded.setup = std::move(candidate);
+        return loaded;
+    }
     if (claim.claimed_name() == std::string(WorkshopSetup::zen_name) &&
         claim.claimed_version() != WorkshopSetup::zen_version) {
         return LoadedSetup::no(wrong_version(static_cast<std::int64_t>(claim.claimed_version())));

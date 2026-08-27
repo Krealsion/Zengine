@@ -143,6 +143,68 @@ inline constexpr std::int64_t floor_div_px(std::int64_t v, std::int64_t d) noexc
     return (v % d < 0) ? q - 1 : q;
 }
 
+// ---- The sub-cell lattice, as arithmetic (WUX-2) --------------------------------------
+//
+// `kCellSubs` (vocabulary.hpp) is the model; these are the conversions every
+// consumer of a fine coordinate needs, written once and total. A "sub" below is a
+// coordinate in 1/kCellSubs of a cell; the wire carries it DECOMPOSED (whole cells
+// plus a remainder), and `sub_rem` is the one reading of that remainder.
+
+/// A wire remainder, read safely: values outside [0, kCellSubs) read as ZERO —
+/// the whole-cell picture every earlier publisher meant — for exactly the
+/// reason an unknown ground reads as owning its room: a number nobody could
+/// mean must resolve to the reading that changes nothing, never to a guess.
+inline constexpr std::int64_t sub_rem(std::int64_t v) noexcept {
+    return (v >= 0 && v < kCellSubs) ? v : 0;
+}
+
+/// The largest cell coordinate that survives being multiplied into sub-units.
+inline constexpr std::int64_t kMaxCellsInSubs =
+    (std::numeric_limits<std::int64_t>::max)() / kCellSubs;
+
+/// A cell coordinate in sub-units, saturating at both ends — `px_of_cells`' shape
+/// on the finer lattice.
+inline constexpr std::int64_t subs_of_cells(std::int64_t cells) noexcept {
+    if (cells >= kMaxCellsInSubs) {
+        return kMaxCellsInSubs * kCellSubs;
+    }
+    if (cells <= -kMaxCellsInSubs) {
+        return -kMaxCellsInSubs * kCellSubs;
+    }
+    return cells * kCellSubs;
+}
+
+/// The cell a sub-unit coordinate lands in: FLOORED, `cell_of_pixel`'s own rule —
+/// the boundaries must be evenly spaced across zero. This is the character
+/// medium's half of the one quantization law: a fine span [L, R) covers the
+/// cells [cell_of_subs(L), cell_of_subs(R)), both edges through this flooring.
+inline constexpr std::int64_t cell_of_subs(std::int64_t subs) noexcept {
+    const std::int64_t q = subs / kCellSubs;
+    return (subs % kCellSubs < 0) ? q - 1 : q;
+}
+
+/// A sub-unit coordinate in device pixels, FLOORED and saturating.
+///
+/// THIS IS THE SHIPPED GRAPHICAL MEDIUM'S HALF OF THE ONE QUANTIZATION LAW
+/// (vocabulary.hpp, at `kCellSubs`): a pixel is `kCellSubs / kCanvasCellPx`
+/// sub-units, and a fine span [L, R) is shown on pixels
+/// [px_of_subs(L), px_of_subs(R)) — both edges through THIS flooring, so the
+/// quad a plan emits, the viewport a fit resolves and the pixel a hit test
+/// compares are one arithmetic. Exact-cell coordinates land on exactly the
+/// pixels `px_of_cells` always produced.
+inline constexpr std::int64_t px_of_subs(std::int64_t subs) noexcept {
+    const std::int64_t s = subs > kMaxCellsInPixels
+                               ? kMaxCellsInPixels
+                               : (subs < -kMaxCellsInPixels ? -kMaxCellsInPixels : subs);
+    return floor_div_px(s * kCanvasCellPx, kCellSubs);
+}
+
+/// A decomposed wire coordinate (whole cells + remainder), as one sub-unit
+/// number — the composition every consumer of a fine shape performs first.
+inline constexpr std::int64_t subs_of_wire(std::int64_t cells, std::int64_t rem) noexcept {
+    return add_cells(subs_of_cells(cells), sub_rem(rem));
+}
+
 /// A REGION'S OUTER RECTANGLE IN A GRAPHICAL MEDIUM, in device pixels.
 ///
 /// The whole rectangle the region was granted — not what is currently visible,
@@ -220,11 +282,16 @@ inline constexpr RegionViewport viewport_of_cells(std::int64_t x, std::int64_t y
 /// capacity is told the same thing. The Inspector's editable row is one cell
 /// tall and reaches this; the Terminal pane and its completion list are not and
 /// do not.
-inline constexpr RegionFit fit_region(std::int64_t x, std::int64_t y, std::int64_t w,
-                                      std::int64_t h, std::int64_t text_advance_px,
-                                      std::int64_t text_line_px) noexcept {
+/// THE SHARED HEART OF THE RESOLUTION — a viewport and a cell capacity become a
+/// fit. Split out (WUX-2) so the cell entry and the sub-unit entry below cannot
+/// come to disagree about the arithmetic that matters: how a metric turns pixels
+/// into prose, and what the fallback answers when it cannot.
+inline constexpr RegionFit resolve_region_fit(const RegionViewport& view,
+                                              std::int64_t cell_columns, std::int64_t cell_rows,
+                                              std::int64_t text_advance_px,
+                                              std::int64_t text_line_px) noexcept {
     RegionFit f;
-    f.view = viewport_of_cells(x, y, w, h);
+    f.view = view;
     if (text_advance_px > 0 && text_line_px > 0) {
         const std::int64_t inner_w = f.view.w - 2 * kTextInsetPx;
         const std::int64_t inner_h = f.view.h - 2 * kTextInsetPx;
@@ -240,15 +307,49 @@ inline constexpr RegionFit fit_region(std::int64_t x, std::int64_t y, std::int64
             return f;
         }
     }
-    f.columns = w > 0 ? w : 0; // one cell per character: the region's own bounds
-    f.rows = h > 0 ? h : 0;
+    f.columns = cell_columns > 0 ? cell_columns : 0; // one cell per character
+    f.rows = cell_rows > 0 ? cell_rows : 0;
     return f;
 }
 
-/// The same resolution, from the shapes themselves.
+inline constexpr RegionFit fit_region(std::int64_t x, std::int64_t y, std::int64_t w,
+                                      std::int64_t h, std::int64_t text_advance_px,
+                                      std::int64_t text_line_px) noexcept {
+    return resolve_region_fit(viewport_of_cells(x, y, w, h), w, h, text_advance_px,
+                              text_line_px);
+}
+
+/// THE SAME RESOLUTION FOR FINE BOUNDS, in sub-units (WUX-2). The viewport is
+/// the one quantization law applied at the pixel grain — each EDGE through
+/// `px_of_subs`, never the extent through a separate multiply, so the quad a
+/// plan paints and the viewport a fit resolves are the identical pixels — and
+/// the cell fallback is the same law at the cell grain: the covered cells,
+/// `cell_of_subs` of each edge. Exact-cell bounds answer byte-for-byte what the
+/// cell entry answers.
+inline constexpr RegionFit fit_region_subs(std::int64_t sx, std::int64_t sy, std::int64_t sw,
+                                           std::int64_t sh, std::int64_t text_advance_px,
+                                           std::int64_t text_line_px) noexcept {
+    const std::int64_t w = sw > 0 ? sw : 0;
+    const std::int64_t h = sh > 0 ? sh : 0;
+    const std::int64_t x_px = px_of_subs(sx);
+    const std::int64_t y_px = px_of_subs(sy);
+    const RegionViewport view{x_px, y_px, px_of_subs(add_cells(sx, w)) - x_px,
+                              px_of_subs(add_cells(sy, h)) - y_px};
+    const std::int64_t cell_columns = cell_of_subs(add_cells(sx, w)) - cell_of_subs(sx);
+    const std::int64_t cell_rows = cell_of_subs(add_cells(sy, h)) - cell_of_subs(sy);
+    return resolve_region_fit(view, cell_columns, cell_rows, text_advance_px, text_line_px);
+}
+
+/// The same resolution, from the shapes themselves — since WUX-2 through the
+/// sub-unit entry, so a region whose bounds carry a remainder is fitted at the
+/// fine place it will be painted. A region with zero remainders resolves to
+/// exactly the fit it always had.
 inline constexpr RegionFit fit_region(const SurfaceTextRegion& r,
                                       const SurfaceExtent& metric) noexcept {
-    return fit_region(r.x, r.y, r.w, r.h, metric.text_advance_px, metric.text_line_px);
+    return fit_region_subs(subs_of_wire(r.x, r.sub_x), subs_of_wire(r.y, r.sub_y),
+                           add_cells(subs_of_cells(r.w > 0 ? r.w : 0), sub_rem(r.sub_w)),
+                           add_cells(subs_of_cells(r.h > 0 ? r.h : 0), sub_rem(r.sub_h)),
+                           metric.text_advance_px, metric.text_line_px);
 }
 
 /// THE PART OF A VIEWPORT THAT IS ACTUALLY ON THE SURFACE, in device pixels.
@@ -433,10 +534,20 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
     if (r.w <= 0 || r.h <= 0) {
         return; // a region with no bounds shows nothing, and says nothing about it
     }
+    // THE CELL CAPACITY IS THE COVERED CELLS (WUX-2) — the one quantization law at the
+    // cell grain: a fine right edge that crosses a cell boundary earns that cell, so the
+    // cut, the padding and the backdrop a fine pane paints agree to the cell in every
+    // character medium. Zero remainders make both terms what they always were.
+    const std::int64_t covered_w =
+        r.w + (sub_rem(r.sub_x) + sub_rem(r.sub_w)) / kCellSubs;
+    const std::int64_t covered_h =
+        r.h + (sub_rem(r.sub_y) + sub_rem(r.sub_h)) / kCellSubs;
     const std::size_t width = static_cast<std::size_t>(
-        r.w < static_cast<std::int64_t>(kMaxProjectedWidth) ? r.w : kMaxProjectedWidth);
+        covered_w < static_cast<std::int64_t>(kMaxProjectedWidth) ? covered_w
+                                                                  : kMaxProjectedWidth);
     const std::int64_t lines =
-        r.h < static_cast<std::int64_t>(kMaxProjectedRows) ? r.h : kMaxProjectedRows;
+        covered_h < static_cast<std::int64_t>(kMaxProjectedRows) ? covered_h
+                                                                 : kMaxProjectedRows;
     for (std::int64_t i = 0; i < lines; ++i) {
         const std::size_t at = static_cast<std::size_t>(i);
         const bool said = at < r.rows.size();
@@ -468,7 +579,12 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         if (span.end > static_cast<std::int64_t>(text.size())) {
             span.end = static_cast<std::int64_t>(text.size()); // the cut cuts highlights too
         }
-        out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role},
+        // THE REGION'S REMAINDERS RIDE THE PROJECTED LABEL (WUX-2): a character medium
+        // floors them away at its own put — its half of the quantization law — and the
+        // bitmap face spends them as pixels, so a fine pane's cell-projected rows sit at
+        // the same fine place its typed rows would.
+        out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role,
+                                                sub_rem(r.sub_x), sub_rem(r.sub_y)},
                                    back, r.ground, span.begin, span.end});
     }
 }

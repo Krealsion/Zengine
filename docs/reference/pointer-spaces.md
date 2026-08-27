@@ -11,7 +11,7 @@ application owns the pairing between them — so it lives here rather than in an
 one of their sources.
 
 Sources: `input/vocabulary.hpp` (`space::`), `surface/pointing.hpp`,
-`surface/vocabulary.hpp` (`kCanvasCellPx`). Package overviews:
+`surface/vocabulary.hpp` (`kCanvasCellPx`, `kCellSubs`). Package overviews:
 [Input](input.md) ·
 [Surface](surface.md).
 
@@ -52,6 +52,16 @@ outside the package can see. Both live in `surface/pointing.hpp`:
 |---|---|---|
 | `canvas_of_terminal_cells(x, y)` | `y - kTuiCanvasTopRow`, saturating | the terminal Skins write `\x1b[3;1H`, because terminal rows 1–2 carry the `SurfaceText` slots |
 | `canvas_of_window_pixels(x, y)` | `cell_of_pixel` on each axis | the canvas starts at the window's ORIGIN — `plan_canvas` draws cell (0,0) at pixel (0,0), no margin and no scaling, one cell every `kCanvasCellPx` pixels |
+
+Since WUX-2 each projection has a **fine twin one lattice down**
+(`canvas_subs_of_window_pixels`, `canvas_subs_of_terminal_cells`), answering in
+*sub-units* — 1/`kCellSubs` (48) of a cell — with the reporting medium's **grain**
+travelling beside the position: a window pixel is `kPixelGrainSubs` (4) sub-units,
+a terminal cell is `kCellGrainSubs` (48), and a consumer that spends cells and one
+that spends subs are reading one measurement (the cell is the sub's floor). The
+grain is what a hit test floors by (`sub_span_contains`), so the hand meets
+exactly the device units a fine rectangle paints — the pane-arrangement consumer
+this was built for is Workshop's, whose `PointedAt` carries all three.
 
 Since G-2 the window is **not** exactly the canvas: it is user-resizable, so it
 can be a few pixels wider than a whole number of cells, and a publisher that

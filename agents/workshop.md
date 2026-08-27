@@ -82,17 +82,29 @@ its row, its height and the blank row between slots are untouched.
   the capacity changes and never otherwise, and every grant clears the retained rows first, so
   a dragged window edge briefly shows `(waiting for the provider)`.
 
-## The code authors a default; the maker authors an override (WIND-2)
+## The code authors a default; the maker authors an override (WIND-2, lattice WUX-2)
 
-Setup format **version 2**. Each pane row carries a durable `PaneRef` plus the smallest authored
-difference from the developer's answer, and nothing else:
+Setup format **version 3**. Each pane row carries a durable `PaneRef` plus the smallest authored
+difference from the developer's answer, and nothing else — with the geometry on the FINE
+LATTICE since WUX-2: sub-cell units of 1/`surface::kCellSubs` (48) of a canvas cell, so a
+pixel of hand is authorable and a cell boundary is an exact multiple:
 
 ```text
-place  {mode, x, y}       mode: default | cells          absolute canvas cells, never an offset
-width  {mode, amount}     mode: default | cells | pixels  per axis, independently
-height {mode, amount}     mode: default | cells | pixels
+place  {mode, x, y}       mode: default | subcells          absolute canvas position on the
+                                                            fine lattice, never an offset
+width  {mode, amount}     mode: default | subcells | pixels  per axis, independently
+height {mode, amount}     mode: default | subcells | pixels
 front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
 ```
+
+- **A VERSION-2 WHOLE-CELL FILE STILL LOADS (WUX-2's one legacy reader).** Its bytes are
+  admitted against the RETAINED v2 shapes (`setup_persist::v2`, same wire names and
+  versions) and its cells are mapped exactly (x 48) onto the fine lattice, so an old desk
+  resolves to the identical pixels and characters it always did; the next explicit save
+  writes v3. `cells` is v2's word and is NOT in v3's vocabulary; the session file marched
+  with the nested desk (session v2, its own v1 legacy road). Every other version is refused
+  by its number. This is one namespace and one exact multiply, not a migration framework —
+  the clean-break stance stands for every other transition.
 
 - **`default` is a VALUE, and its unused numbers must be zero.** Loom's admission refuses an
   unknown field and has no optional, so absence cannot be spelled by omitting one; and a magic
@@ -113,7 +125,9 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   reads the claimed version and says it in Workshop's own words, by number. The
   `format_version` FIELD is still checked afterwards, for the forgery only a reader of this
   format would produce.
-- **`pixels` is declared, valid on every medium, and refused at PROJECTION on all of them.** No
+- **`pixels` is declared, valid on every medium, and refused at PROJECTION on all of them.**
+  WUX-2 deliberately did not light it: sub-cell units refine the medium-independent lattice,
+  which is a different thing from a device pixel becoming authored truth. No
   medium here publishes a trustworthy per-axis device-pixel scale for a canvas cell, and both
   near-misses are traps ([`surface.md`](surface.md#do-not-assume)). The refusal is WHOLE, per
   `doc::resize`'s and `PaneContent`'s law: a pane with either axis in pixels is **not
@@ -161,19 +175,25 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   test that asked "is it inside some ONE pane" would call that `open`. One visible cell is
   enough to be `open`. The state column is ELEVEN cells (`detail::pad` truncates and
   `unresolved` is ten bytes).
-- **A resize begins from the RESOLVED size** (`managed_bounds`). `rect` is the visible
-  intersection and owns painting, occupancy, coverage, affordance placement and whether
-  geometry is reachable; `resolved` is the unclipped ask and is what a first edit captures.
-  Capturing the visible one makes a default pane resolving to 89 cells with four on screen
-  answer one rightward step by authoring **five**. The affordance stays on the visible boundary
-  — that is where the eye and the hand are — and its delta applies to the resolved size, for
-  the key and the pointer alike.
-- **AN EDGE NAMES AN AXIS AND A DIRECTION — IT IS NOT AN ANCHOR.** A resize writes size and
-  never place, so a pane's top-left corner is its authored place and stays where the maker put
-  it whichever edge is pulled; what the left edge buys over the right one is the DIRECTION a
-  hand means. Making the left edge move the place would turn one gesture into two authored
-  writes and put a refused height beside a moved corner — the exact
-  refusal-beside-a-successful-write `doc::resize` exists to refuse.
+- **A resize begins from the RESOLVED WINDOW** (`managed_bounds`) — place beside size since
+  WUX-2, captured at the press. `rect` is the visible intersection and owns painting,
+  occupancy, coverage, affordance placement and whether geometry is reachable; `resolved` is
+  the unclipped ask and is what a first edit captures. Capturing the visible one makes a
+  default pane resolving to 89 cells with four on screen answer one rightward step by
+  authoring **five cells' worth**. The affordance stays on the visible boundary — that is
+  where the eye and the hand are — and its delta applies to the resolved window, for the key
+  and the pointer alike.
+- **EVERY RESIZE EDGE PRESERVES ITS OPPOSITE ANCHOR (WUX-2, reversing WIND-2's rule).** The
+  edge a hand pulls follows the hand; the edge opposite holds still: a top pull changes `y`
+  and the height TOGETHER so the bottom edge stays put (`pane_window_proposal` — the START
+  tree's measured top-edge defect, where the bottom edge moved instead, is pinned dead), and
+  a corner holds the corner across from it. Right/bottom pulls anchor the place by NOT
+  writing it — a default place stays reactive — while left/top pulls author place and size as
+  ONE transaction through `author_pane_window`, every part judged before any part written, so
+  a refused height can never leave a moved corner behind (`doc::resize`'s both-before-either
+  law, widened to the axis pair a place is). WIND-2's old objection — that a left edge moving
+  the place is two writes for one gesture — is answered by making it one door rather than by
+  refusing the geometry a hand plainly means.
 - **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is
   reversible only by performing the inverse, and there is no undo. The help says `esc back`.
 - **`w` enters pane management from command mode**, paying the `swallow_text_` rule once, after
@@ -192,8 +212,22 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   `picker_population()` is `inventory_rows(active, panels)` and the painter, the cursor bound,
   the Return action and the cursor repair all spend it — widening only the painter to the union
   leaves a row a maker can see and cannot reach.
-- **Pane rectangles are CANVAS cells.** Do not pass one through `workspace_cell_x/y`; that
-  conversion belongs to authored document objects.
+- **Pane rectangles are SUB-UNITS of the canvas lattice (`FineRect`, WUX-2)** — a distinct
+  type from `ui::Rect` so the compiler separates the two lattices; convert only through
+  `fine_of_cells` / `cells_covered` (the cell-grain quantization law), and never pass one
+  through `workspace_cell_x/y` — that conversion belongs to authored document objects, which
+  stay whole-cell. `PanelBounds` carries fine rectangles; screen furniture, the document and
+  every placement default stay `ui::Rect` cells and enter the fine lattice exactly, at
+  `project_pane`, by one multiply.
+- **ONE QUANTIZATION LAW, EVERY CONSUMER, EVERY GRAIN (WUX-2).** A presenter whose device
+  unit is `g` sub-units (a terminal cell 48, the shipped skin's pixel 4) shows a fine span
+  `[L, R)` on device units `[floor(L/g), floor(R/g))`; hit testing floors by the SAME grain
+  (`sub_span_contains`, `FineRect::contains_at`, the pointer's grain riding `PointedAt`), so
+  the first painted pixel of a fractional edge answers the hand and the pixel before it does
+  not — what you see is what you can grab, as an identity rather than an intention. The TUI
+  quantizes at ITS projection (`canvas_body`, the cell projection) and never writes back:
+  exact-cell values stay exact, sub-cell values resolve deterministically, and any number of
+  frames rewrites nothing.
 
 ## The plane sequence is the layout of the screen (WIND-2a)
 

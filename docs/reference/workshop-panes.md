@@ -272,8 +272,13 @@ how far. So do panel drag/resize, authored panel geometry and an arrange mode, e
 A maker can **select a pane, move it, resize it by an edge or corner, change what is in front of
 what, reset any of that, and save the arrangement by name** — with the keyboard alone, or with a
 pointer, reaching the same doors. Panes may overlap, and **every pane the setup names is reachable
-whether or not it can currently be seen.** Setup format is **version 2**, a clean break: a
-version-1 file is refused by its number.
+whether or not it can currently be seen.** Since WUX-2 the arrangement lattice is **fine**:
+authored pane geometry is held in *sub-cell units* — 1/48 of a canvas cell, `subcells` in the
+file — so a pane a maker dragged by a single window pixel differs from its neighbour by a few
+of them, while a pane on a cell boundary is an exact multiple and the character medium's
+picture of it has not moved by a byte. Setup format is **version 3**; a **version-2**
+whole-cell file still loads, its cells mapped exactly onto the finer lattice (x 48), and the
+next explicit save writes version 3. A version-1 file is refused by its number, as ever.
 
 ```text
 authored setup                 resolved presentation          session interaction
@@ -295,9 +300,11 @@ authored setup                 resolved presentation          session interactio
 - **Each axis is independent.** Moving a pane freezes neither size axis; resizing one axis freezes
   neither the place nor the other axis. A default-width pane goes on taking its half-share of
   the room after a place edit.
-- **`cells` on a place is absolute, not an offset** from where the developer put it. An offset is
-  authored against a default a later build may change, so the same saved bytes would silently
-  mean somewhere else. **Resetting** is what gives back "wherever the default puts it".
+- **`subcells` on a place is absolute, not an offset** from where the developer put it. An
+  offset is authored against a default a later build may change, so the same saved bytes would
+  silently mean somewhere else. **Resetting** is what gives back "wherever the default puts
+  it". The unit is medium-independent on purpose: a sub-cell is a fraction of the canvas's own
+  cell, never a monitor pixel, so a desk keeps its meaning when the hardware changes.
 - **`pixels` is declared, valid everywhere, and currently unprojectable.** No medium in this build
   publishes a trustworthy per-axis device-pixel scale for a canvas cell — the text metric
   identifies a medium that sets real *type*, which is a different fact, and `kCanvasCellPx` is one
@@ -327,9 +334,23 @@ authored setup                 resolved presentation          session interactio
 - **`w` opens pane management**, from command mode. Inside it: `tab`/`up` select, `m` move,
   `s` size (`tab` cycles the eight edges and corners, arrows resize), `f`/`b` front/back,
   `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o` order), `esc` back one
-  level. **An edge names an axis and a direction, not an anchor** — a resize writes size and never
-  place, so the pane grows from its own corner whichever edge is pulled. Edits commit
+  level. **Every resize edge preserves its opposite anchor** (WUX-2): the edge a hand pulls is
+  the edge that moves, and the one opposite holds still — pulling the top edge changes `y` and
+  the height *together* so the bottom edge stays put, and a corner holds the corner across from
+  it. Right and bottom pulls anchor the place by not writing it, so a reactive pane stays
+  reactive; left and top pulls author the place with the size, judged and written as one
+  transaction — a refused height can never leave a moved corner behind. Edits commit
   immediately; `esc` is *back*, not *cancel*, and there is no undo.
+- **Graphical interaction is pixel-responsive; the TUI stays honestly cell-grained.** A window
+  pointer's press and motion are spent at their own resolution — one pixel of hand is four
+  sub-units of lattice, with no whole-cell threshold anywhere on the path — and what a medium
+  paints is the *one quantization law* at its own grain: a fine span `[L, R)` lands on the
+  device units `[floor(L/g), floor(R/g))`, one window pixel or one terminal cell per unit. Hit
+  testing floors by the same grain, so the first painted pixel of a fractional edge answers
+  the hand and the pixel before it does not. A terminal therefore shows a finely-placed pane
+  on the cells its floored edges cover — snapped, truthfully — and projecting it rewrites
+  nothing: exact-cell values stay exact, sub-cell values resolve deterministically, and the
+  underlying arrangement is untouched by any number of frames.
 - **A pointer press claims one gesture until release.** Crossing another pane, crossing the
   Terminal's rectangle, and reordering mid-drag all change nothing about who is being moved.
   Outside management mode nothing about the pointer changed: a selected pane behind another one
@@ -538,6 +559,9 @@ size, with no gesture.** That is a third persisted thing and a third file:
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
+  Since WUX-2 the session format is **version 2** — the nested desk moved to setup format 3, and
+  the envelope moved with it — and a version-1 session (a whole-cell desk) still loads through
+  the same legacy road the setup file has, its viewport unchanged and its desk scaled exactly.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is

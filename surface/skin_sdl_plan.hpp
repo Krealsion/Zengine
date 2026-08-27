@@ -247,23 +247,42 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
         return out; // an empty canvas is a legitimate picture: it draws nothing
     }
 
-    const auto quad = [&out](std::int64_t x, std::int64_t y, std::int64_t pw, std::int64_t ph,
-                             PlanInk ink) {
-        out.push_back(PlanRect{x, y, pw, ph, ink.r, ink.g, ink.b});
+    // THE QUAD DOOR CLIPS TO THE CANVAS'S OWN PIXELS (WUX-2). The cell paths below
+    // never exceeded them, so nothing they emit changes; a fine coordinate can put a
+    // quad astride the canvas edge, and this plan's standing invariant — no pixel
+    // outside the canvas is ever emitted — has to hold there too, in one place.
+    const std::int64_t w_px = w * kCanvasCellPx;
+    const std::int64_t h_px = h * kCanvasCellPx;
+    const auto quad = [&out, w_px, h_px](std::int64_t x, std::int64_t y, std::int64_t pw,
+                                         std::int64_t ph, PlanInk ink) {
+        const std::int64_t x0 = x > 0 ? x : 0;
+        const std::int64_t y0 = y > 0 ? y : 0;
+        const std::int64_t x1 = add_cells(x, pw) < w_px ? add_cells(x, pw) : w_px;
+        const std::int64_t y1 = add_cells(y, ph) < h_px ? add_cells(y, ph) : h_px;
+        if (x1 <= x0 || y1 <= y0) {
+            return;
+        }
+        out.push_back(PlanRect{x0, y0, x1 - x0, y1 - y0, ink.r, ink.g, ink.b});
     };
 
     for (const SurfaceRect& r : layer.rects) {
-        // Clipped in CELLS, before any pixel arithmetic — which is what keeps the
-        // multiply below inside the number line whatever the wire said. Same
-        // helper the terminal Skin clips with, so the two media cannot come to
-        // disagree about what is on the canvas.
-        const CellSpan xs = clip_span(r.x, r.w, w);
-        const CellSpan ys = clip_span(r.y, r.h, h);
-        if (xs.empty() || ys.empty()) {
-            continue;
+        // THE ONE QUANTIZATION LAW AT THE PIXEL GRAIN (WUX-2): each fine EDGE through
+        // `px_of_subs`, never an extent through a separate multiply — so the pixels a
+        // rect occupies are exactly the pixels a fit resolves and a hit test compares.
+        // For a rect with zero remainders these are byte-for-byte the cell-clipped
+        // quads this loop always emitted, and the quad door above clips the rest.
+        if (r.w < 0 || r.h < 0 || (r.w == 0 && sub_rem(r.sub_w) == 0) ||
+            (r.h == 0 && sub_rem(r.sub_h) == 0)) {
+            continue; // a negative extent is nothing, and so is a zero one with no remainder
         }
-        quad(xs.begin * kCanvasCellPx, ys.begin * kCanvasCellPx, xs.count() * kCanvasCellPx,
-             ys.count() * kCanvasCellPx, ink_for_role(r.role));
+        const std::int64_t sx = subs_of_wire(r.x, r.sub_x);
+        const std::int64_t sy = subs_of_wire(r.y, r.sub_y);
+        const std::int64_t sw = add_cells(subs_of_cells(r.w), sub_rem(r.sub_w));
+        const std::int64_t sh = add_cells(subs_of_cells(r.h), sub_rem(r.sub_h));
+        const std::int64_t x_px = px_of_subs(sx);
+        const std::int64_t y_px = px_of_subs(sy);
+        quad(x_px, y_px, px_of_subs(add_cells(sx, sw)) - x_px,
+             px_of_subs(add_cells(sy, sh)) - y_px, ink_for_role(r.role));
     }
 
     // THE BITMAP FACE ALSO DRAWS THE TEXT REGIONS, WHENEVER THERE IS NO REAL ONE.
@@ -315,22 +334,28 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     const auto draw_label = [&](const SurfaceLabel& l, std::int64_t background,
                                 std::int64_t region_ground, std::int64_t sel_begin,
                                 std::int64_t sel_end) {
-        if (l.y < 0 || l.y >= h) {
-            return; // no row of this canvas belongs to it
+        // THE ANCHOR MAY BE FINE (WUX-2): the label's pixel origin is the one
+        // quantization law at the pixel grain, and every byte advances a whole cell
+        // from it. A label with zero remainders lands on exactly the cell pixels this
+        // loop always produced, and the quad door clips a fine straddle at the edge.
+        const std::int64_t label_y = px_of_subs(subs_of_wire(l.y, l.sub_y));
+        if (add_cells(label_y, kCanvasCellPx) <= 0 || label_y >= h_px) {
+            return; // no pixel row of this canvas belongs to it
         }
         const PlanInk ink = ink_for_role(l.role);
         const bool takes_the_cell = background >= 0 || region_ground != kGroundBeneath;
         const PlanInk under = background < 0 ? kCanvasBackground : ink_for_role(background);
-        const std::int64_t cell_y = l.y * kCanvasCellPx;
+        const std::int64_t label_x = px_of_subs(subs_of_wire(l.x, l.sub_x));
         for (std::size_t i = 0; i < l.text.size(); ++i) {
-            const std::int64_t cx = add_cells(l.x, static_cast<std::int64_t>(i));
-            if (cx < 0) {
+            const std::int64_t cell_x =
+                add_cells(label_x, static_cast<std::int64_t>(i) * kCanvasCellPx);
+            if (add_cells(cell_x, kCanvasCellPx) <= 0) {
                 continue; // before the canvas starts; a later character may land
             }
-            if (cx >= w) {
+            if (cell_x >= w_px) {
                 break; // every remaining character is further right still
             }
-            const std::int64_t cell_x = cx * kCanvasCellPx;
+            const std::int64_t cell_y = label_y;
             const bool in_selection =
                 static_cast<std::int64_t>(i) >= sel_begin && static_cast<std::int64_t>(i) < sel_end;
             if (in_selection) {

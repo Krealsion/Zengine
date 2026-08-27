@@ -115,6 +115,74 @@ inline constexpr CanvasPoint canvas_of_terminal_cells(std::int64_t x, std::int64
     return CanvasPoint{x, add_cells(y, -kTuiCanvasTopRow)};
 }
 
+// ---- The same two projections, one lattice finer (WUX-2) -------------------------------
+//
+// A pane gesture spends the pointer's own resolution rather than flooring it to a
+// cell first, so each medium's projection has a sub-unit twin. The GRAIN beside
+// each is the size of that medium's device unit in sub-units — the number the one
+// quantization law floors by — and it travels with the point because a hit test
+// must quantize a fine rectangle exactly as the medium painted it (below).
+
+/// The shipped graphical Skin's device unit, in sub-units: one window pixel.
+inline constexpr std::int64_t kPixelGrainSubs = kCellSubs / kCanvasCellPx;
+static_assert(kCellSubs % kCanvasCellPx == 0,
+              "a window pixel is a whole number of sub-units on the shipped skin; the day a "
+              "medium breaks this, its grain is not expressible as one integer and this "
+              "pairing needs that medium's own function");
+
+/// A character medium's device unit, in sub-units: one canvas cell.
+inline constexpr std::int64_t kCellGrainSubs = kCellSubs;
+
+/// `v` window pixels as a sub-unit coordinate, FLOORED and saturating — the
+/// pixel-to-sub rule, `cell_of_pixel`'s shape on the finer lattice. With the
+/// shipped 12-pixel cell this is exact (one pixel is four sub-units), which is
+/// what lets a pane follow a hand pixel for pixel.
+inline constexpr std::int64_t subs_of_pixel(std::int64_t v) noexcept {
+    constexpr std::int64_t kBound = (std::numeric_limits<std::int64_t>::max)() / kCellSubs;
+    const std::int64_t s = v > kBound ? kBound : (v < -kBound ? -kBound : v);
+    return floor_div_px(s * kCellSubs, kCanvasCellPx);
+}
+
+/// A pointer position in the graphical Skin's window, in sub-units. The same
+/// origin statement `canvas_of_window_pixels` makes, one lattice finer.
+inline constexpr CanvasPoint canvas_subs_of_window_pixels(std::int64_t x,
+                                                          std::int64_t y) noexcept {
+    return CanvasPoint{subs_of_pixel(x), subs_of_pixel(y)};
+}
+
+/// A pointer position in a terminal, in sub-units: the cell's own corner. A
+/// terminal cannot say anything finer than a cell, and its projection says so
+/// rather than inventing a sub-cell position nobody reported.
+inline constexpr CanvasPoint canvas_subs_of_terminal_cells(std::int64_t x,
+                                                           std::int64_t y) noexcept {
+    const CanvasPoint cell = canvas_of_terminal_cells(x, y);
+    return CanvasPoint{subs_of_cells(cell.x), subs_of_cells(cell.y)};
+}
+
+/// DOES A PRESS AT THIS DEVICE UNIT LAND ON THIS FINE SPAN — the one hit rule,
+/// and it is the paint rule read backwards (WUX-2).
+///
+/// A medium of grain `g` presents the fine span [begin, begin + extent) on
+/// device units [floor(begin/g), floor(end/g)) — the one quantization law — so
+/// the hand must meet exactly those units and no others. Comparing the press's
+/// raw sub-unit against the span instead is wrong by up to one device unit at a
+/// fractional edge: the first painted pixel of a pane whose edge falls mid-pixel
+/// would not answer, and a maker would see an edge their hand passes through.
+/// So both sides are floored by the SAME grain before comparing, which makes
+/// "what you see is what you can grab" an identity rather than an intention.
+///
+/// For spans on exact device-unit boundaries — every whole-cell rectangle, on
+/// both shipped media — this is indistinguishable from ordinary containment.
+inline constexpr bool sub_span_contains(std::int64_t begin, std::int64_t extent,
+                                        std::int64_t press_sub, std::int64_t grain) noexcept {
+    if (extent <= 0 || grain <= 0) {
+        return false;
+    }
+    const std::int64_t unit = floor_div_px(press_sub, grain);
+    return unit >= floor_div_px(begin, grain) &&
+           unit < floor_div_px(add_cells(begin, extent), grain);
+}
+
 /// WHICH PROSE COLUMN OF A BOUNDED TEXT REGION A WINDOW PIXEL IS ON.
 ///
 /// The cell answer one step finer, and it is the same shape of arithmetic:
@@ -141,8 +209,12 @@ inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, std::int64_
     if (!fit.graphical()) {
         return sub_px(cell_of_pixel(px), region_x);
     }
-    return floor_div_px(sub_px(px, add_cells(px_of_cells(region_x), fit.origin_x)),
-                        fit.advance_px);
+    // THE FIT'S OWN VIEWPORT, NOT A RE-DERIVATION FROM THE CELL COORDINATE (WUX-2).
+    // `fit.view.x` is where this region's pixels actually begin — identical to
+    // `px_of_cells(region_x)` for every cell-aligned region, and the only true answer
+    // once bounds may carry a sub-cell remainder. Re-deriving here was the second
+    // measurer this argument's own comment warns against, one field over.
+    return floor_div_px(sub_px(px, add_cells(fit.view.x, fit.origin_x)), fit.advance_px);
 }
 
 /// WHICH PROSE ROW OF A BOUNDED TEXT REGION A WINDOW PIXEL IS ON. The other axis
@@ -152,7 +224,7 @@ inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, std::int64_t r
     if (!fit.graphical()) {
         return sub_px(cell_of_pixel(py), region_y);
     }
-    return floor_div_px(sub_px(py, add_cells(px_of_cells(region_y), fit.origin_y)), fit.line_px);
+    return floor_div_px(sub_px(py, add_cells(fit.view.y, fit.origin_y)), fit.line_px);
 }
 
 } // namespace zengine::surface

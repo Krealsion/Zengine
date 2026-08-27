@@ -254,9 +254,13 @@ Four things follow that are easy to get wrong by assuming otherwise:
     `covered` (every visible cell is behind the union of what is in front) and `open`. Every pane
     the setup names has exactly one row in the picker and in pane management, **whatever state it
     is in** — which is the promise that a maker can never lose one.
-- **A maker may move and resize your panel, and reset it back.** Setup version 2 carries an
+- **A maker may move and resize your panel, and reset it back.** Setup version 3 carries an
   authored `place`, `width` and `height` per pane row, each with a MODE — `default` means *no
-  override, keep taking whatever the developer's answer becomes*. Every axis is independent, so a
+  override, keep taking whatever the developer's answer becomes* — and since WUX-2 the authored
+  amounts are *sub-cell units* (1/48 of a canvas cell), so under a graphical medium a maker's
+  drag lands to the pixel while your pane's granted room is still the same prose-rows-and-columns
+  budget it always was: fineness changes where the rectangle sits, and the grant door republishes
+  only when the resolved capacity actually moves. Every axis is independent, so a
   maker who moved your panel has said nothing about its size, and it goes on following the rule
   below. `w` opens pane management; `0` inside it resets one dimension at a time. **You author
   nothing about this and there is nothing to opt into**: a kind declares a `placement::` and the

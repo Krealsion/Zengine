@@ -471,6 +471,97 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                     kStackW + (sc.room_w - kStackW) / 2, kStackRows};
 }
 
+// ---- THE FINE LATTICE, AS A RECTANGLE (WUX-2) ------------------------------------------
+//
+// Pane arrangement resolves in SUB-UNITS — 1/`surface::kCellSubs` of a canvas cell — so a
+// pointer's finest honest movement can become geometry instead of being floored into a
+// cell before any law sees it. `FineRect` is deliberately a DISTINCT type from `ui::Rect`:
+// the two lattices meet in this one file, and a compiler that refuses to mix them is
+// cheaper than a reviewer who has to notice a 48x error in an argument list. Everything
+// cell-lattice (the screen's furniture, the document, the workspace) stays `ui::Rect`;
+// everything a maker can drag by a pixel is this.
+
+/// A rectangle on the canvas's fine lattice, in sub-units.
+struct FineRect {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+
+    friend bool operator==(const FineRect&, const FineRect&) = default;
+
+    constexpr bool empty() const noexcept { return w <= 0 || h <= 0; }
+
+    /// DOES A POINTER AT THIS SUB-UNIT POSITION, REPORTED AT THIS GRAIN, LAND ON
+    /// THIS RECTANGLE — the one quantization law read backwards, per axis
+    /// (`surface::sub_span_contains`): the hand meets exactly the device units
+    /// the rectangle paints, fractional edges included. For whole-cell
+    /// rectangles this is ordinary containment at either shipped grain.
+    constexpr bool contains_at(std::int64_t sx, std::int64_t sy,
+                               std::int64_t grain) const noexcept {
+        return surface::sub_span_contains(x, w, sx, grain) &&
+               surface::sub_span_contains(y, h, sy, grain);
+    }
+};
+
+/// A cell rectangle on the fine lattice — exact, saturating, the one door a
+/// developer default walks through on its way to being arrangement truth.
+inline constexpr FineRect fine_of_cells(const ui::Rect& r) noexcept {
+    return FineRect{surface::subs_of_cells(r.x), surface::subs_of_cells(r.y),
+                    surface::subs_of_cells(r.w), surface::subs_of_cells(r.h)};
+}
+
+/// THE CELLS A FINE RECTANGLE COVERS — the cell-grain quantization law as a
+/// rectangle: [floor(left), floor(right)) per axis. This is what a character
+/// medium shows for it, so it is also what a cell-lattice consumer (a suite
+/// helper, a status sentence about cells) may honestly hold. Exact-cell
+/// rectangles come back unchanged.
+inline constexpr ui::Rect cells_covered(const FineRect& f) noexcept {
+    const std::int64_t x0 = surface::cell_of_subs(f.x);
+    const std::int64_t y0 = surface::cell_of_subs(f.y);
+    if (f.w <= 0 || f.h <= 0) {
+        return ui::Rect{x0, y0, 0, 0};
+    }
+    return ui::Rect{x0, y0, surface::cell_of_subs(surface::add_cells(f.x, f.w)) - x0,
+                    surface::cell_of_subs(surface::add_cells(f.y, f.h)) - y0};
+}
+
+/// A fine rectangle, decomposed onto a published `SurfaceRect` (cells plus
+/// remainders, the wire's one spelling of a fine value).
+inline constexpr surface::SurfaceRect wire_rect_of(const FineRect& f,
+                                                   std::int64_t role) noexcept {
+    const std::int64_t cx = surface::cell_of_subs(f.x);
+    const std::int64_t cy = surface::cell_of_subs(f.y);
+    const std::int64_t cw = surface::cell_of_subs(f.w > 0 ? f.w : 0);
+    const std::int64_t ch = surface::cell_of_subs(f.h > 0 ? f.h : 0);
+    return surface::SurfaceRect{cx,
+                                cy,
+                                cw,
+                                ch,
+                                role,
+                                f.x - surface::subs_of_cells(cx),
+                                f.y - surface::subs_of_cells(cy),
+                                (f.w > 0 ? f.w : 0) - surface::subs_of_cells(cw),
+                                (f.h > 0 ? f.h : 0) - surface::subs_of_cells(ch)};
+}
+
+/// The part of a fine rectangle this canvas has — `clip_to_canvas`, one lattice
+/// finer, against the same canvas expressed in sub-units.
+inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& sc) noexcept {
+    const std::int64_t cw = surface::subs_of_cells(sc.w);
+    const std::int64_t ch = surface::subs_of_cells(sc.h);
+    const std::int64_t x0 = r.x < 0 ? 0 : r.x;
+    const std::int64_t y0 = r.y < 0 ? 0 : r.y;
+    const std::int64_t x1 =
+        surface::add_cells(r.x, r.w) < cw ? surface::add_cells(r.x, r.w) : cw;
+    const std::int64_t y1 =
+        surface::add_cells(r.y, r.h) < ch ? surface::add_cells(r.y, r.h) : ch;
+    if (x1 <= x0 || y1 <= y0) {
+        return FineRect{};
+    }
+    return FineRect{x0, y0, x1 - x0, y1 - y0};
+}
+
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN (WIND-2) ----------------------------
 //
 // ONE OVERRIDE-AWARE RESOLVER, AND EVERYTHING CONSUMES ITS ANSWER: the painter, the
@@ -496,12 +587,13 @@ inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
 /// one.
 struct PaneProjection {
     bool projected = true;
-    /// WHAT THE AUTHORED INTENT ASKS FOR, before the canvas gets a say. May run past the
-    /// screen's right or bottom edge, which is legal authored intent and is not rewritten.
-    ui::Rect resolved{};
+    /// WHAT THE AUTHORED INTENT ASKS FOR, before the canvas gets a say — in sub-units
+    /// (WUX-2). May run past the screen's right or bottom edge, which is legal authored
+    /// intent and is not rewritten.
+    FineRect resolved{};
     /// ...AND THE PART OF IT THIS CANVAS ACTUALLY HAS. Empty when nothing of the pane is on
     /// screen, which is what `off-room` means and how it is told from `waiting`.
-    ui::Rect visible{};
+    FineRect visible{};
 };
 
 /// The part of a rectangle this canvas has. A pure intersection, and the one place a pane's
@@ -516,6 +608,7 @@ inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) no
     }
     return ui::Rect{x0, y0, x1 - x0, y1 - y0};
 }
+
 
 /// THE DEVELOPER'S ANSWER, THEN THE MAKER'S, PER AXIS -- and then the canvas.
 ///
@@ -594,26 +687,30 @@ inline bool pane_unit_projectable(const SetupPane* authored) noexcept {
 inline PaneProjection project_pane(std::int64_t where, std::size_t slot,
                                    const SetupPane* authored, const Screen& sc) {
     PaneProjection out;
-    out.resolved = placement_bounds(where, slot, sc);
+    // THE DEVELOPER'S ANSWER IS CELL-LATTICE AND ENTERS THE FINE LATTICE EXACTLY
+    // (WUX-2): `placement_bounds` keeps thinking in the screen's own cells, and the
+    // multiply here is where its rectangle becomes arrangement truth a maker's
+    // override lays over, per axis, in the same sub-units the override carries.
+    out.resolved = fine_of_cells(placement_bounds(where, slot, sc));
     // THE UNIT IS ASKED FIRST AND FOR EVERY PLACEMENT (WIND-2a). A refusal is WHOLE --
     // no rectangle, resolved or visible -- so every consumer that already reads an empty
     // rectangle as "nowhere" is right about a pixel-sized pane with no branch of its own.
     if (!pane_unit_projectable(authored)) {
-        return PaneProjection{false, ui::Rect{}, ui::Rect{}};
+        return PaneProjection{false, FineRect{}, FineRect{}};
     }
     if (where == placement::kOverlayStack && authored != nullptr) {
-        if (authored->place.mode == pane_unit::kCells) {
+        if (authored->place.mode == pane_unit::kSubcells) {
             out.resolved.x = authored->place.x;
             out.resolved.y = authored->place.y;
         }
-        if (authored->width.mode == pane_unit::kCells) {
+        if (authored->width.mode == pane_unit::kSubcells) {
             out.resolved.w = authored->width.amount;
         }
-        if (authored->height.mode == pane_unit::kCells) {
+        if (authored->height.mode == pane_unit::kSubcells) {
             out.resolved.h = authored->height.amount;
         }
     }
-    out.visible = clip_to_canvas(out.resolved, sc);
+    out.visible = clip_to_canvas_fine(out.resolved, sc);
     return out;
 }
 
@@ -632,10 +729,13 @@ struct PanelBounds {
     /// IT IS THE VISIBLE RECTANGLE SINCE WIND-2 -- resolved, then clipped to the canvas --
     /// so every consumer that already treated an empty rectangle as "nowhere" answers
     /// correctly for a pane whose authored place is off-room, with no branch of its own.
-    ui::Rect rect{};
+    /// IN SUB-UNITS SINCE WUX-2, both rectangles: the pane lattice is fine, and a consumer
+    /// that wants cells asks `cells_covered` — the quantization law, never a private
+    /// division.
+    FineRect rect{};
     /// ...and what the authored intent ASKED for, unclipped. Read by the state classifier,
     /// which has to tell "partly cut off" from "not on this screen at all".
-    ui::Rect resolved{};
+    FineRect resolved{};
     /// FALSE WHEN THIS MEDIUM CANNOT PROJECT THE AUTHORED UNIT. `rect` is then empty too,
     /// so nothing paints, nothing is met and no room is granted -- but the reason is a
     /// different one from off-room and a maker is told which.
@@ -681,7 +781,7 @@ inline PanelBounds bounds_of(const Panels& panels, const Setup& setup, std::int6
             ++slot;
         }
     }
-    return PanelBounds{false, placement_of(kind), ui::Rect{}, ui::Rect{}, true};
+    return PanelBounds{false, placement_of(kind), FineRect{}, FineRect{}, true};
 }
 
 // The two places fit the SMALLEST screen this composition is honest on, which is where they
@@ -740,8 +840,11 @@ static_assert(kPickerRows <= kStackRows, "the picker is never taller than a pane
 /// expression so that the mode that PAINTS there and the pointer that must not see THROUGH it
 /// read one answer. The picker has no catalog row to declare a place in -- it is a mode -- so
 /// this is the one presentation that names its own place, and now it names it once.
-inline constexpr ui::Rect picker_bounds(const Screen& sc) noexcept {
-    return placement_bounds(placement::kOverlayStack, 0, sc);
+inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
+    // Cell-lattice geometry on the fine lattice, exactly — the picker is screen
+    // furniture and never moves by less than a cell; what is fine is the machinery
+    // it shares with the panes (frames, prose places, occupancy).
+    return fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc));
 }
 
 /// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0): the stack's column, from its first slot's
@@ -754,9 +857,9 @@ inline constexpr ui::Rect picker_bounds(const Screen& sc) noexcept {
 /// a list a maker cannot actually read. The column is the room the screen already
 /// reserves beside the workspace, and the view is a MODE with a rectangle -- the
 /// picker's own kind of place, one slot taller.
-inline constexpr ui::Rect hotkeys_bounds(const Screen& sc) noexcept {
+inline constexpr FineRect hotkeys_bounds(const Screen& sc) noexcept {
     const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
-    return ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y};
+    return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
 }
 
 /// HOW MANY OVERLAY SLOTS THIS SCREEN ACTUALLY HAS ROOM FOR (WP-0) -- the one
@@ -835,6 +938,49 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// forgot to test it would fall outside every lookup rather than into the first one.
 inline constexpr std::int64_t kNoKind = -1;
 
+/// The canvas cell a reported pointer position lands on, whatever medium
+/// reported it -- or nothing, for a space this application cannot place.
+///
+/// THIS IS THE PAIRING, AND THE PAIRING IS THE HONEST COST. Each medium's
+/// transform is the Surface package's (it authored the layout); which transform
+/// applies to THIS event is decided from the `space` the backend stamped, and
+/// that decision is here because nothing else in the process can make it --
+/// nothing can ask the active Skin what its presentation context is. So Workshop
+/// states the pairing rather than pretending it is derived, and the statement is
+/// exactly one switch in one place. The contract, and the day a second graphical
+/// Skin makes this switch unable to tell two layouts apart, are
+/// docs/reference/pointer-spaces.md.
+///
+/// A SPACE THIS APPLICATION DOES NOT RECOGNISE IS IGNORED, never guessed at.
+/// That is the whole reason `space` exists: a terminal cell and an SDL pixel are
+/// both small non-negative integers, and assuming is how a click lands 12 cells
+/// from where a maker pointed.
+struct PointedAt {
+    bool understood = false;
+    surface::CanvasPoint cell;
+    /// THE SAME MOMENT, ONE LATTICE FINER (WUX-2): the position in sub-units, and
+    /// the GRAIN the reporting medium can honestly distinguish — one window pixel
+    /// or one terminal cell, in sub-units. The cell above is exactly
+    /// `cell_of_subs` of this, so a consumer that spends cells and one that
+    /// spends subs are reading one measurement, not two.
+    surface::CanvasPoint sub;
+    std::int64_t grain = surface::kCellGrainSubs;
+};
+
+inline PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
+    if (space == input::space::kCells) {
+        return PointedAt{true, surface::canvas_of_terminal_cells(x, y),
+                         surface::canvas_subs_of_terminal_cells(x, y),
+                         surface::kCellGrainSubs};
+    }
+    if (space == input::space::kPixels) {
+        return PointedAt{true, surface::canvas_of_window_pixels(x, y),
+                         surface::canvas_subs_of_window_pixels(x, y),
+                         surface::kPixelGrainSubs};
+    }
+    return PointedAt{};
+}
+
 /// WHAT A MAKER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
     bool occupied = false;
@@ -887,14 +1033,18 @@ struct Occupancy {
 /// same list and the choice changed no answer; a maker who raises a pane makes it the
 /// answer, which is what raising one means.
 inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
-                             std::int64_t cx, std::int64_t cy) {
-    if (panels.picker.open && picker_bounds(sc).contains(cx, cy)) {
+                             const PointedAt& at) {
+    // EVERY TEST BELOW IS THE POINTER'S OWN GRAIN AGAINST FINE GEOMETRY (WUX-2) — the
+    // aligned-span law, so the cells and pixels a pane paints are exactly the ones on
+    // which it answers. For whole-cell rectangles this is the cell containment this
+    // walk has always performed.
+    if (panels.picker.open && picker_bounds(sc).contains_at(at.sub.x, at.sub.y, at.grain)) {
         return Occupancy{true, kPickerName, kNoKind};
     }
     const std::vector<std::int64_t> order = presentation_order(setup, panels);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
-        if (bounds_of(panels, setup, kind, sc).rect.contains(cx, cy)) {
+        if (bounds_of(panels, setup, kind, sc).rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
             // `kind_name` AND NOT `panel_kind(kind).name` (WP-0). The total lookup answers
             // `Builder` for anything outside the compile-time catalog, so an external pane
             // would tell a maker their hand was on the build tool -- the same lie
@@ -904,6 +1054,20 @@ inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Scr
         }
     }
     return Occupancy{};
+}
+
+/// The same walk for a CELL-GRAIN probe: which presentation occupies this canvas cell —
+/// a well-formed question a terminal pointer asks natively and a cell-lattice consumer
+/// (a suite case included) may ask directly. One line, so the two spellings cannot
+/// drift: the cell is projected onto the fine lattice at the cell grain and the walk
+/// above answers.
+inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
+                             std::int64_t cx, std::int64_t cy) {
+    return occupied_at(panels, setup, sc,
+                       PointedAt{true, surface::CanvasPoint{cx, cy},
+                                 surface::CanvasPoint{surface::subs_of_cells(cx),
+                                                      surface::subs_of_cells(cy)},
+                                 surface::kCellGrainSubs});
 }
 
 /// The workspace extent a fresh session opens on: the whole of the minimum screen's room.
@@ -1104,28 +1268,37 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
     }
 }
 
-/// THE ONE CELL AN AFFORDANCE IS DRAWN ON. Derived every time it is wanted and stored
-/// nowhere, so what is painted and what is met are the same arithmetic -- `size_handle`'s
-/// law, and the reason there is no `click_edge_bounds()` beside a `paint_edge_bounds()`.
-/// An edge's mark sits at the MIDDLE of its run, which is the cell furthest from the two
-/// corners it shares its run with.
-inline ui::Rect pane_edge_cell(const ui::Rect& r, std::int64_t edge) noexcept {
+/// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in sub-units: one cell —
+/// exactly the ring the affordances have always occupied, unmoved by the lattice
+/// getting finer underneath it. A band narrower than a glyph would be an
+/// affordance a hand cannot find; one deeper would eat the body a maker means to
+/// press into.
+inline constexpr std::int64_t kPaneEdgeBandSubs = surface::kCellSubs;
+
+/// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own fine
+/// edges (WUX-2). Derived every time it is wanted and stored nowhere, so what is
+/// painted and what is met are the same arithmetic -- `size_handle`'s law, and
+/// the reason there is no `click_edge_bounds()` beside a `paint_edge_bounds()`.
+/// An edge's mark sits at the MIDDLE of its run, which is the place furthest
+/// from the two corners it shares its run with.
+inline FineRect pane_edge_cell(const FineRect& r, std::int64_t edge) noexcept {
+    const std::int64_t cell = surface::kCellSubs;
     const std::int64_t x0 = r.x;
-    const std::int64_t x1 = r.x + r.w - 1;
+    const std::int64_t x1 = r.w > cell ? r.x + r.w - cell : r.x;
     const std::int64_t y0 = r.y;
-    const std::int64_t y1 = r.y + r.h - 1;
-    const std::int64_t xm = r.x + r.w / 2;
-    const std::int64_t ym = r.y + r.h / 2;
+    const std::int64_t y1 = r.h > cell ? r.y + r.h - cell : r.y;
+    const std::int64_t xm = r.w > cell ? r.x + (r.w - cell) / 2 : r.x;
+    const std::int64_t ym = r.h > cell ? r.y + (r.h - cell) / 2 : r.y;
     switch (edge) {
-    case pane_edge::kLeft: return ui::Rect{x0, ym, 1, 1};
-    case pane_edge::kRight: return ui::Rect{x1, ym, 1, 1};
-    case pane_edge::kTop: return ui::Rect{xm, y0, 1, 1};
-    case pane_edge::kBottom: return ui::Rect{xm, y1, 1, 1};
-    case pane_edge::kTopLeft: return ui::Rect{x0, y0, 1, 1};
-    case pane_edge::kTopRight: return ui::Rect{x1, y0, 1, 1};
-    case pane_edge::kBottomLeft: return ui::Rect{x0, y1, 1, 1};
-    case pane_edge::kBottomRight: return ui::Rect{x1, y1, 1, 1};
-    default: return ui::Rect{};
+    case pane_edge::kLeft: return FineRect{x0, ym, cell, cell};
+    case pane_edge::kRight: return FineRect{x1, ym, cell, cell};
+    case pane_edge::kTop: return FineRect{xm, y0, cell, cell};
+    case pane_edge::kBottom: return FineRect{xm, y1, cell, cell};
+    case pane_edge::kTopLeft: return FineRect{x0, y0, cell, cell};
+    case pane_edge::kTopRight: return FineRect{x1, y0, cell, cell};
+    case pane_edge::kBottomLeft: return FineRect{x0, y1, cell, cell};
+    case pane_edge::kBottomRight: return FineRect{x1, y1, cell, cell};
+    default: return FineRect{};
     }
 }
 
@@ -1143,21 +1316,30 @@ inline constexpr const char* pane_edge_glyph(std::int64_t edge) noexcept {
     }
 }
 
-/// WHICH AFFORDANCE OF THIS RECTANGLE A CANVAS CELL IS ON, or `kNoPaneEdge`.
+/// WHICH AFFORDANCE OF THIS RECTANGLE A POINTER IS ON, or `kNoPaneEdge` — at the
+/// pointer's own grain (WUX-2).
 ///
-/// THE RING IS THE OUTERMOST CELL, derived every time it is wanted and stored nowhere --
-/// `size_handle`'s law, said about eight cells instead of one. A CORNER WINS over the two
-/// edges it belongs to, because a corner cell is genuinely in both and a maker aiming at one
-/// means the corner; without the precedence a diagonal gesture would be unreachable at
-/// exactly the cell it is drawn on.
-inline std::int64_t pane_edge_at(const ui::Rect& r, std::int64_t cx, std::int64_t cy) noexcept {
-    if (!r.contains(cx, cy)) {
+/// THE RING IS THE OUTERMOST CELL-DEEP BAND, measured inward from the pane's own
+/// fine edges, derived every time it is wanted and stored nowhere --
+/// `size_handle`'s law, said about eight bands instead of one cell. Every test
+/// below is the same aligned-span law the paint uses, so the band a hand meets
+/// begins on exactly the device unit the pane's painted edge begins on. A CORNER
+/// WINS over the two edges it belongs to, because a corner's band is genuinely
+/// in both and a maker aiming at one means the corner; without the precedence a
+/// diagonal gesture would be unreachable at exactly the mark it is drawn on.
+inline std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_t sy,
+                                 std::int64_t grain) noexcept {
+    if (!r.contains_at(sx, sy, grain)) {
         return kNoPaneEdge;
     }
-    const bool left = cx == r.x;
-    const bool right = cx == r.x + r.w - 1;
-    const bool top = cy == r.y;
-    const bool bottom = cy == r.y + r.h - 1;
+    const std::int64_t band_w = r.w < kPaneEdgeBandSubs ? r.w : kPaneEdgeBandSubs;
+    const std::int64_t band_h = r.h < kPaneEdgeBandSubs ? r.h : kPaneEdgeBandSubs;
+    const bool left = surface::sub_span_contains(r.x, band_w, sx, grain);
+    const bool right =
+        surface::sub_span_contains(surface::add_cells(r.x, r.w - band_w), band_w, sx, grain);
+    const bool top = surface::sub_span_contains(r.y, band_h, sy, grain);
+    const bool bottom =
+        surface::sub_span_contains(surface::add_cells(r.y, r.h - band_h), band_h, sy, grain);
     if (top && left) {
         return pane_edge::kTopLeft;
     }
@@ -1212,9 +1394,14 @@ struct PaneManagement {
 /// motion that crosses another pane, the Terminal, or an ordering change cannot transfer
 /// custody, because there is nothing here for a different pane to become.
 ///
-/// `base_w`/`base_h` ARE THE SIZE AT THE MOMENT OF THE PRESS, and they are why a resize is
+/// `base_*` ARE THE WINDOW AT THE MOMENT OF THE PRESS, and they are why a resize is
 /// deterministic rather than accumulated: every motion proposes `base + (pointer - press)`,
 /// so the same hand position always means the same size no matter how the pointer got there.
+/// EVERY COORDINATE BELOW IS SUB-UNITS SINCE WUX-2 — the pointer's own resolution, never
+/// floored to a cell before the proposal is made — and the base gained the PLACE beside the
+/// size, because an anchored resize (the top and left edges) proposes a place and a size
+/// from one captured rectangle, and a base re-read mid-drag would be a base that moves
+/// under the hand holding it.
 struct PaneGesture {
     bool active = false;
     PaneRef pane;
@@ -1222,9 +1409,11 @@ struct PaneGesture {
     std::int64_t edge = kNoPaneEdge;
     std::int64_t grab_dx = 0; ///< move: where inside the pane's rectangle the hand took hold
     std::int64_t grab_dy = 0;
-    std::int64_t from_x = 0;  ///< size: the canvas cell the press landed on
+    std::int64_t from_x = 0;  ///< size: the sub-unit position the press landed on
     std::int64_t from_y = 0;
-    std::int64_t base_w = 0;  ///< size: the pane's resolved size at that moment
+    std::int64_t base_x = 0;  ///< size: the pane's window at that moment — place...
+    std::int64_t base_y = 0;
+    std::int64_t base_w = 0;  ///< ...and extent
     std::int64_t base_h = 0;
 };
 
@@ -1975,22 +2164,46 @@ inline std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
     return out;
 }
 
-/// A PANE SIZE PROPOSAL, IN CELLS (WIND-2). Saturating on both axes, so a delta arriving off
-/// the wire can never leave the number line before the law that judges it gets to see it --
-/// which is the one thing `detail::step`/`detail::minus` exist for, and the reason no branch
-/// here relies on signed overflow to notice a silly number.
+/// A PANE WINDOW PROPOSAL, IN SUB-UNITS (WUX-2): what one resize gesture asks the whole
+/// window to become. Saturating on both axes, so a delta arriving off the wire can never
+/// leave the number line before the law that judges it gets to see it -- which is the one
+/// thing `detail::step`/`detail::minus` exist for, and the reason no branch here relies on
+/// signed overflow to notice a silly number.
+///
+/// AN EDGE PRESERVES ITS OPPOSITE ANCHOR, and that is the whole geometry of a resize
+/// (WUX-2, reversing WIND-2's size-only rule). The edge a hand pulls is the edge that
+/// follows the hand; the edge opposite stays exactly where it was:
+///
+///     right/bottom   the place IS the anchor -- the size changes, the place is untouched,
+///                    and `place_moved` stays false so a reactive pane stays reactive
+///     left/top       the far edge is the anchor -- the size changes and the place moves
+///                    WITH it (`x' = base_x + base_w - w'`), so pulling the top edge up
+///                    grows the pane UPWARD while the bottom edge holds still
+///     corners        both axes, each by its own rule
+///
+/// Before WUX-2 a top-edge pull grew the height with the place fixed, so the BOTTOM edge
+/// moved instead of the one under the hand -- reproduced at this phase's START, and made
+/// unsayable here: the proposal carries the place and the size as one rectangle, judged
+/// and written together (`author_pane_window`), so a refused height can never leave a
+/// moved corner behind.
 ///
 /// IT LIVES HERE, BELOW `detail`, ONLY BECAUSE IT SPENDS IT. Everything else about a pane
 /// edge is up beside `pane_edge`, where a reader looks for it.
-struct PaneSizeProposal {
+struct PaneWindowProposal {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
+    /// TRUE EXACTLY WHEN THE EDGE NAMES THE LEFT OR TOP — the gesture must author the
+    /// place for the anchor to hold. False keeps the place unwritten, mode included.
+    bool place_moved = false;
 };
 
-inline PaneSizeProposal pane_size_proposal(std::int64_t edge, std::int64_t base_w,
-                                           std::int64_t base_h, std::int64_t dx,
-                                           std::int64_t dy) noexcept {
-    PaneSizeProposal out{base_w, base_h};
+inline PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
+                                               std::int64_t base_y, std::int64_t base_w,
+                                               std::int64_t base_h, std::int64_t dx,
+                                               std::int64_t dy) noexcept {
+    PaneWindowProposal out{base_x, base_y, base_w, base_h, false};
     const bool wide = edge == pane_edge::kLeft || edge == pane_edge::kRight ||
                       edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
                       edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
@@ -2003,9 +2216,19 @@ inline PaneSizeProposal pane_size_proposal(std::int64_t edge, std::int64_t base_
                          edge == pane_edge::kTopRight;
     if (wide) {
         out.w = detail::step(base_w, leftwards ? detail::minus(0, dx) : dx);
+        if (leftwards) {
+            // The RIGHT edge is the anchor: base_x + base_w == x' + w', rearranged.
+            out.x = detail::minus(detail::step(base_x, base_w), out.w);
+            out.place_moved = true;
+        }
     }
     if (tall) {
         out.h = detail::step(base_h, upwards ? detail::minus(0, dy) : dy);
+        if (upwards) {
+            // The BOTTOM edge is the anchor.
+            out.y = detail::minus(detail::step(base_y, base_h), out.h);
+            out.place_moved = true;
+        }
     }
     return out;
 }
@@ -2491,37 +2714,6 @@ inline void end_drag(Session& s) { s.drag = Drag{}; }
 // The whole contract, both halves and who owns each, is
 // docs/reference/pointer-spaces.md.
 
-/// The canvas cell a reported pointer position lands on, whatever medium
-/// reported it -- or nothing, for a space this application cannot place.
-///
-/// THIS IS THE PAIRING, AND THE PAIRING IS THE HONEST COST. Each medium's
-/// transform is the Surface package's (it authored the layout); which transform
-/// applies to THIS event is decided from the `space` the backend stamped, and
-/// that decision is here because nothing else in the process can make it --
-/// nothing can ask the active Skin what its presentation context is. So Workshop
-/// states the pairing rather than pretending it is derived, and the statement is
-/// exactly one switch in one place. The contract, and the day a second graphical
-/// Skin makes this switch unable to tell two layouts apart, are
-/// docs/reference/pointer-spaces.md.
-///
-/// A SPACE THIS APPLICATION DOES NOT RECOGNISE IS IGNORED, never guessed at.
-/// That is the whole reason `space` exists: a terminal cell and an SDL pixel are
-/// both small non-negative integers, and assuming is how a click lands 12 cells
-/// from where a maker pointed.
-struct PointedAt {
-    bool understood = false;
-    surface::CanvasPoint cell;
-};
-
-inline PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
-    if (space == input::space::kCells) {
-        return PointedAt{true, surface::canvas_of_terminal_cells(x, y)};
-    }
-    if (space == input::space::kPixels) {
-        return PointedAt{true, surface::canvas_of_window_pixels(x, y)};
-    }
-    return PointedAt{};
-}
 
 /// WHERE A POINTER LANDED INSIDE A BOUNDED TEXT REGION, in that region's own prose (HD-3).
 ///
@@ -3386,8 +3578,8 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
 /// its last consumer was the Builder, whose rows are a budget-composed region now. The
 /// cell projection of a region writes byte-for-byte the padded rows it used to write, so a
 /// character medium cannot tell the spelling ever changed.)
-inline void paint_panel_frame(surface::SurfaceLayer& layer, const ui::Rect& b) {
-    layer.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
+inline void paint_panel_frame(surface::SurfaceLayer& layer, const FineRect& b) {
+    layer.rects.push_back(wire_rect_of(b, surface::role::kMuted));
 }
 
 /// A PANEL WHOSE WHOLE BODY IS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE (TYPE-0).
@@ -3419,27 +3611,35 @@ struct PanelProsePlace {
 };
 
 /// The one call. TOTAL over the rectangle, because a closed panel answers with an empty one
-/// (`bounds_of`) and a screen may be small enough to hold no row at all.
-inline PanelProsePlace panel_prose_place(const ui::Rect& b, const Screen& sc) {
+/// (`bounds_of`) and a screen may be small enough to hold no row at all. Fine bounds fit at
+/// their fine place (WUX-2) — the same sub-unit entry the medium resolves the same
+/// rectangle with.
+inline PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
     PanelProsePlace p;
     if (b.w <= 0 || b.h <= 0) {
         return p;
     }
     const surface::RegionFit fit =
-        surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+        surface::fit_region_subs(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
     p.rows = fit.rows;
     p.columns = fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
     return p;
 }
 
-/// The region a `PanelProsePlace` was resolved for, empty and ready for its rows.
-inline surface::SurfaceTextRegion panel_prose_region(const ui::Rect& b) {
+/// The region a `PanelProsePlace` was resolved for, empty and ready for its rows — the fine
+/// bounds decomposed onto the wire's cells-plus-remainder spelling.
+inline surface::SurfaceTextRegion panel_prose_region(const FineRect& b) {
     surface::SurfaceTextRegion region;
-    region.x = b.x;
-    region.y = b.y;
-    region.w = b.w;
-    region.h = b.h;
+    const surface::SurfaceRect wire = wire_rect_of(b, surface::role::kFill);
+    region.x = wire.x;
+    region.y = wire.y;
+    region.w = wire.w;
+    region.h = wire.h;
+    region.sub_x = wire.sub_x;
+    region.sub_y = wire.sub_y;
+    region.sub_w = wire.sub_w;
+    region.sub_h = wire.sub_h;
     return region;
 }
 
@@ -3498,7 +3698,7 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// explicit priority written on each row below. The `Screen` argument is the metric's
 /// carrier, exactly as it is for every other bounded region here.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const ui::Rect& b, const Screen& sc, const Keymap& keymap,
+                          const FineRect& b, const Screen& sc, const Keymap& keymap,
                           const ProjectFrontier& frontier = {}) {
     paint_panel_frame(layer, b);
     // THE PANEL IS ONE REGION AND ITS ROWS ARE COMPOSED AGAINST THE BUDGET (WUX-1). The
@@ -3857,7 +4057,7 @@ inline constexpr std::size_t kPickerNameCols = 10;
 /// can cover this one are exactly the ones after it -- which is the same sentence
 /// `occupied_at` spends when it walks that order backward.
 inline bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
-                            std::int64_t kind, const ui::Rect& mine) {
+                            std::int64_t kind, const FineRect& mine) {
     if (mine.w <= 0 || mine.h <= 0) {
         return false; // nothing visible is OFF-ROOM, which is a different word
     }
@@ -3872,9 +4072,9 @@ inline bool pane_is_covered(const Panels& panels, const Setup& setup, const Scre
     if (me == order.size()) {
         return false;
     }
-    std::vector<ui::Rect> ahead;
+    std::vector<FineRect> ahead;
     for (std::size_t i = me + 1; i < order.size(); ++i) {
-        const ui::Rect r = bounds_of(panels, setup, order[i], sc).rect;
+        const FineRect r = bounds_of(panels, setup, order[i], sc).rect;
         if (r.w > 0 && r.h > 0) {
             ahead.push_back(r);
         }
@@ -3882,17 +4082,45 @@ inline bool pane_is_covered(const Panels& panels, const Setup& setup, const Scre
     if (ahead.empty()) {
         return false;
     }
-    for (std::int64_t y = mine.y; y < mine.y + mine.h; ++y) {
-        for (std::int64_t x = mine.x; x < mine.x + mine.w; ++x) {
+    // EXACT ON THE FINE LATTICE, BY EDGE COMPRESSION (WUX-2). The union of a handful of
+    // rectangles is constant between their edges, so the question "is every sub-unit of
+    // mine behind the union" needs one representative point per edge-bounded stripe —
+    // never a walk of the lattice, which at this resolution would be forty-eight squared
+    // points per cell of what used to be one. A pane peeking out by a single sub-unit
+    // produces a stripe whose representative is visible, so a maker's sliver still means
+    // `open` — one thing a maker can see is enough, exactly as it always was.
+    std::vector<std::int64_t> xs{mine.x, surface::add_cells(mine.x, mine.w)};
+    std::vector<std::int64_t> ys{mine.y, surface::add_cells(mine.y, mine.h)};
+    for (const FineRect& r : ahead) {
+        xs.push_back(r.x);
+        xs.push_back(surface::add_cells(r.x, r.w));
+        ys.push_back(r.y);
+        ys.push_back(surface::add_cells(r.y, r.h));
+    }
+    std::sort(xs.begin(), xs.end());
+    std::sort(ys.begin(), ys.end());
+    const std::int64_t right = surface::add_cells(mine.x, mine.w);
+    const std::int64_t bottom = surface::add_cells(mine.y, mine.h);
+    for (std::size_t yi = 0; yi + 1 < ys.size(); ++yi) {
+        const std::int64_t y = ys[yi];
+        if (y < mine.y || y >= bottom || ys[yi + 1] == y) {
+            continue;
+        }
+        for (std::size_t xi = 0; xi + 1 < xs.size(); ++xi) {
+            const std::int64_t x = xs[xi];
+            if (x < mine.x || x >= right || xs[xi + 1] == x) {
+                continue;
+            }
             bool hidden = false;
-            for (const ui::Rect& r : ahead) {
-                if (r.contains(x, y)) {
+            for (const FineRect& r : ahead) {
+                if (x >= r.x && x < surface::add_cells(r.x, r.w) && y >= r.y &&
+                    y < surface::add_cells(r.y, r.h)) {
                     hidden = true;
                     break;
                 }
             }
             if (!hidden) {
-                return false; // one cell a maker can see is enough
+                return false; // one place a maker can see is enough
             }
         }
     }
@@ -3964,7 +4192,7 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
     if (!picker.open) {
         return;
     }
-    const ui::Rect b = picker_bounds(sc);
+    const FineRect b = picker_bounds(sc);
     paint_panel_frame(layer, b);
     // THE PICKER IS ONE BOUNDED REGION OF PROSE (TYPE-0), and the budget it spends is the
     // ACTIVE medium's row count rather than the slot's cell count. The two are the same
@@ -4047,13 +4275,41 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
 /// as "this row has nothing to say" and the whole point of the column is that a reactive pane
 /// and an arranged one are different things a maker should be able to tell apart at a glance.
 /// A pane the setup does not name has no row of authored intent at all, and says so.
+/// AN AUTHORED SUB-UNIT VALUE, IN CELLS A MAKER CAN READ — EXACTLY (WUX-2, SC-9).
+///
+/// A whole-cell value prints as the bare cell count it always did. A finer one
+/// prints as a mixed number, `10+1/2`, with the fraction REDUCED — exact, never
+/// a rounded decimal wearing precision it does not have: 1/48 of a cell has no
+/// finite decimal, and a display that said `10.02` would be presenting a rounded
+/// value as though it were the stored one, which is the lie introspection exists
+/// to refuse. The unit stays cells because cells are the lattice the number
+/// refines; nothing here prints a device pixel.
+inline std::string subcell_text(std::int64_t subs) {
+    const std::int64_t cells = surface::cell_of_subs(subs);
+    const std::int64_t rem = subs - surface::subs_of_cells(cells);
+    if (rem == 0) {
+        return std::to_string(cells);
+    }
+    std::int64_t n = rem;
+    std::int64_t d = surface::kCellSubs;
+    while (n % 2 == 0 && d % 2 == 0) {
+        n /= 2;
+        d /= 2;
+    }
+    while (n % 3 == 0 && d % 3 == 0) {
+        n /= 3;
+        d /= 3;
+    }
+    return std::to_string(cells) + "+" + std::to_string(n) + "/" + std::to_string(d);
+}
+
 inline std::string pane_window_text(const SetupPane* row) {
     if (row == nullptr) {
         return "--";
     }
     const auto axis = [](const PaneSize& s) -> std::string {
-        if (s.mode == pane_unit::kCells) {
-            return std::to_string(s.amount);
+        if (s.mode == pane_unit::kSubcells) {
+            return subcell_text(s.amount);
         }
         if (s.mode == pane_unit::kPixels) {
             return std::to_string(s.amount) + "px";
@@ -4061,8 +4317,8 @@ inline std::string pane_window_text(const SetupPane* row) {
         return std::string("-");
     };
     std::string text;
-    if (row->place.mode == pane_unit::kCells) {
-        text += "@" + std::to_string(row->place.x) + "," + std::to_string(row->place.y) + " ";
+    if (row->place.mode == pane_unit::kSubcells) {
+        text += "@" + subcell_text(row->place.x) + "," + subcell_text(row->place.y) + " ";
     }
     text += axis(row->width) + "x" + axis(row->height);
     text += " f" + std::to_string(row->front);
@@ -4107,7 +4363,7 @@ inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
     if (!manage.open) {
         return;
     }
-    const ui::Rect b = picker_bounds(sc);
+    const FineRect b = picker_bounds(sc);
     paint_panel_frame(layer, b);
     const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
     std::size_t cursor = 0;
@@ -4186,7 +4442,7 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
     if (!s.hotkeys.open) {
         return;
     }
-    const ui::Rect b = hotkeys_bounds(sc);
+    const FineRect b = hotkeys_bounds(sc);
     paint_panel_frame(layer, b);
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
@@ -4608,10 +4864,17 @@ struct InfoBodyPlace {
     /// THE PANEL'S WHOLE RECTANGLE (WUX-1): the `OBJECTS` heading is the region's first
     /// prose row and the body begins under it, so the region and the panel are one
     /// rectangle and `kInfoHeadingRows` is subtracted from the PROSE budget, not the cells.
+    /// Spelled as the wire spells fine bounds — floor cells plus remainders — though the
+    /// side region is cell-aligned and the remainders are zero at every extent this
+    /// composition lays out (`ExternalBodyPlace`'s shape, kept identical on purpose).
     std::int64_t region_x = 0;
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
+    std::int64_t region_sub_x = 0;
+    std::int64_t region_sub_y = 0;
+    std::int64_t region_sub_w = 0;
+    std::int64_t region_sub_h = 0;
     surface::RegionFit fit{}; ///< what this medium makes of those bounds
     /// COLUMNS ONE BODY ROW HAS — `fit.columns`, named so a reader does not have to know which
     /// of the fit's numbers is the prose width. An OBJECT row is fitted to this whole width;
@@ -4678,7 +4941,7 @@ inline constexpr std::size_t list_demand(std::size_t members) noexcept {
 /// populations and the two members that must stay on screen. They are arguments rather than a
 /// document and a session so this is pure over the four numbers the composition depends on --
 /// the overload below is the one a painter calls.
-inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+inline InfoBodyPlace info_body_place(const FineRect& panel, const Screen& sc,
                                      std::size_t total_objects, std::size_t selected_at,
                                      std::size_t total_properties, std::size_t focus) {
     InfoBodyPlace p;
@@ -4695,15 +4958,22 @@ inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
     // for every non-empty panel -- present or not -- because the heading is sayable in a
     // panel whose body is not seatable, and the painter must not resolve the rectangle a
     // second time to say it.
-    p.region_x = panel.x;
-    p.region_y = panel.y;
-    p.region_w = panel.w;
-    p.region_h = panel.h;
-    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
-                                sc.text_advance_px, sc.text_line_px);
+    const surface::SurfaceRect wire = wire_rect_of(panel, surface::role::kFill);
+    p.region_x = wire.x;
+    p.region_y = wire.y;
+    p.region_w = wire.w;
+    p.region_h = wire.h;
+    p.region_sub_x = wire.sub_x;
+    p.region_sub_y = wire.sub_y;
+    p.region_sub_w = wire.sub_w;
+    p.region_sub_h = wire.sub_h;
+    p.fit = surface::fit_region_subs(panel.x, panel.y, panel.w, panel.h, sc.text_advance_px,
+                                     sc.text_line_px);
     p.columns = p.fit.columns;
     const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
-    if (panel.w <= used) {
+    if (surface::cell_of_subs(surface::add_cells(panel.x, panel.w)) -
+            surface::cell_of_subs(panel.x) <=
+        used) {
         return p; // no room for a value beside a name
     }
     p.value_columns = p.fit.columns - used - kPropertyCaretCols;
@@ -4750,10 +5020,25 @@ inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
 /// The same resolution for the document and session a painter is holding. One call, so nothing
 /// can resolve the body against a population, a selection or a focus the rest of the screen
 /// does not have.
-inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+inline InfoBodyPlace info_body_place(const FineRect& panel, const Screen& sc,
                                      const WorkshopDoc& d, const Session& s) {
     return info_body_place(panel, sc, d.elements.size(), position_of(d, s.selected),
                            s.rows.size(), inspector_focus(s));
+}
+
+/// The cell-lattice doors to the same two resolutions — one multiply each, so a
+/// caller holding a whole-cell rectangle (the side region is one at every extent)
+/// asks the identical question the fine door answers.
+inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+                                     std::size_t total_objects, std::size_t selected_at,
+                                     std::size_t total_properties, std::size_t focus) {
+    return info_body_place(fine_of_cells(panel), sc, total_objects, selected_at,
+                           total_properties, focus);
+}
+
+inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
+                                     const WorkshopDoc& d, const Session& s) {
+    return info_body_place(fine_of_cells(panel), sc, d, s);
 }
 
 /// WHERE A POINTER FACT LANDED IN THE INFO PANEL'S BODY — the resolve-and-locate answer the
@@ -5078,7 +5363,7 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// `sc.panel_x`, the same number `screen_of` gives the workspace to measure against" is now
 /// "the painter is told where it is".
 inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const Session& s,
-                       const ui::Rect& b, const Screen& sc) {
+                       const FineRect& b, const Screen& sc) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
     // presentations make.
@@ -5111,6 +5396,10 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
+    region.sub_x = body.region_sub_x;
+    region.sub_y = body.region_sub_y;
+    region.sub_w = body.region_sub_w;
+    region.sub_h = body.region_sub_h;
     // `OBJECTS` IS THE REGION'S FIRST PROSE ROW (WUX-1). It used to be an ordinary label on
     // the panel's cell row 0, kept OUT of the body's region because that row was shared
     // with the screen's own terminal hint; the shared top row is retired, the rectangle is
@@ -5364,10 +5653,19 @@ inline constexpr const char* kExternalRefused =
 /// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
 struct ExternalBodyPlace {
     bool present = false;
+    /// The panel's bounds as the wire spells them: whole cells (the FLOOR of the fine
+    /// coordinate — what a character medium's lattice shows) plus the sub-cell
+    /// remainders. `fit` is resolved from the fine value, so the pixel geometry is the
+    /// pane's own; the cell halves are what the press inverse and the cell projection
+    /// spend.
     std::int64_t region_x = 0;
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
+    std::int64_t region_sub_x = 0;
+    std::int64_t region_sub_y = 0;
+    std::int64_t region_sub_w = 0;
+    std::int64_t region_sub_h = 0;
     surface::RegionFit fit{};
     /// THE HEADER ROWS THIS RESOLUTION RESERVED -- carried so the painter and the press
     /// path spend the number the budget was computed with, never a re-derivation (WUX-1).
@@ -5395,18 +5693,23 @@ struct ExternalBodyPlace {
 /// presentation preference now, so how many rows the header keeps is `external_title_rows`'s
 /// answer, and every caller must ask it rather than assume the constant -- a defaulted
 /// parameter here would be exactly the forgotten fourth caller that ships a one-row offset.
-inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen& sc,
+inline ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
                                              std::int64_t header_rows) {
     ExternalBodyPlace p;
     if (panel.w <= 0 || panel.h <= 0) {
         return p;
     }
-    p.region_x = panel.x;
-    p.region_y = panel.y;
-    p.region_w = panel.w;
-    p.region_h = panel.h;
-    p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
-                                sc.text_advance_px, sc.text_line_px);
+    const surface::SurfaceRect wire = wire_rect_of(panel, surface::role::kFill);
+    p.region_x = wire.x;
+    p.region_y = wire.y;
+    p.region_w = wire.w;
+    p.region_h = wire.h;
+    p.region_sub_x = wire.sub_x;
+    p.region_sub_y = wire.sub_y;
+    p.region_sub_w = wire.sub_w;
+    p.region_sub_h = wire.sub_h;
+    p.fit = surface::fit_region_subs(panel.x, panel.y, panel.w, panel.h, sc.text_advance_px,
+                                     sc.text_line_px);
     p.header_rows = header_rows;
     p.rows = p.fit.rows > header_rows ? p.fit.rows - header_rows : 0;
     p.columns = p.fit.columns;
@@ -5525,7 +5828,7 @@ inline std::string external_header(const RuntimePane& row, bool typing) {
 /// row -- the same column `kTerminalCaretCols` costs the Terminal's line, for the same reason.
 /// What Workshop adds is the HEADER's mark, which says which pane the keys are going to.
 inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
-                           const ui::Rect& b, const Screen& sc, bool titles) {
+                           const FineRect& b, const Screen& sc, bool titles) {
     paint_panel_frame(layer, b);
     const RuntimePane* row = panels.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -5541,6 +5844,10 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
+    region.sub_x = body.region_sub_x;
+    region.sub_y = body.region_sub_y;
+    region.sub_w = body.region_sub_w;
+    region.sub_h = body.region_sub_h;
     // WORKSHOP'S HEADER IS THE REGION'S FIRST ROW (TYPE-0), so the provenance line and the
     // provider's sentences are the same kind of text in whatever face this medium owns. It is
     // fitted to the region's own columns, which is what marks its cut. SINCE WUX-1 the row
@@ -5609,7 +5916,7 @@ inline void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& 
         return;
     }
     for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-        const ui::Rect at = pane_edge_cell(where.rect, edge);
+        const FineRect at = pane_edge_cell(where.rect, edge);
         const bool chosen = s.manage.doing == pane_manage::kSize && s.manage.edge == edge;
         layer.labels.push_back(surface::SurfaceLabel{
             at.x, at.y, std::string(pane_edge_glyph(edge)),
@@ -5675,7 +5982,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     const Panels& panels = s.panels;
     for (const std::int64_t kind : presentation_order(s.setup.active, panels)) {
         const Panel p{kind};
-        const ui::Rect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
+        const FineRect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }

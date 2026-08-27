@@ -116,6 +116,7 @@
 // save, which is the same defect W-5 removed from the document's saved flag.
 
 #include "document.hpp" // `doc::kMaxCells` -- the bound an authored cell count already has
+#include "surface/vocabulary.hpp" // `kCellSubs` -- the fine lattice authored amounts live on
 #include "pane_vocabulary.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -298,7 +299,14 @@ struct PaneRef {
 /// never been arranged.
 namespace pane_unit {
 inline constexpr std::int64_t kDefault = 0; ///< the developer's answer, whatever it becomes
-inline constexpr std::int64_t kCells = 1;   ///< an absolute count of canvas cells
+/// AN ABSOLUTE COUNT OF SUB-CELL UNITS — 1/`surface::kCellSubs` of a canvas
+/// cell (WUX-2; it was a whole-cell count until then). The fine lattice is the
+/// authored truth: a pane a maker dragged by a pixel differs from its
+/// neighbour by a few of these, a pane on a cell boundary is an exact multiple
+/// of `kCellSubs`, and no medium's device scale appears in either. The
+/// in-memory value 1 is arbitrary as ever; the FILE writes the word
+/// (`subcells`, setup format v3).
+inline constexpr std::int64_t kSubcells = 1;
 /// DEVICE PIXELS, declared from the beginning and currently unprojectable.
 ///
 /// It is a LEGAL authored value on every medium and is refused at PROJECTION on
@@ -307,8 +315,18 @@ inline constexpr std::int64_t kCells = 1;   ///< an absolute count of canvas cel
 /// (screen.hpp), which owns that refusal and states why the near-misses are
 /// traps. Declaring it now rather than later is what makes the refusal branch
 /// reachable and tested on day one instead of dead code waiting for a medium.
+/// (WUX-2 did not light it: sub-cell units refine the medium-independent
+/// lattice, which is a different thing from a device pixel becoming authored
+/// truth — the refusal and its reasons stand.)
 inline constexpr std::int64_t kPixels = 2;
 } // namespace pane_unit
+
+/// THE AUTHORED LATTICE'S WALLS, in sub-units: the same cell bounds the setup
+/// law has always enforced, expressed at the resolution the amounts now carry.
+/// One multiply, here, so a refusal sentence and a check cannot disagree about
+/// what "at most 4096 cells" means on the fine lattice.
+inline constexpr std::int64_t kPaneSubMin = ui::kMinCells * surface::kCellSubs;
+inline constexpr std::int64_t kPaneSubMax = doc::kMaxCells * surface::kCellSubs;
 
 /// WHERE A MAKER PUT A PANE -- one fact, both coordinates.
 ///
@@ -317,13 +335,16 @@ inline constexpr std::int64_t kPixels = 2;
 /// while reporting a refusal". A width and a height are two values under one
 /// rule; an x and a y are one value.
 ///
-/// ABSOLUTE CANVAS CELLS, NOT AN OFFSET FROM THE DEVELOPER'S PLACEMENT. An offset
-/// is authored against a default a later build may change, so the same saved
-/// bytes would silently mean a different place in the next version. Absolute
-/// intent is what `ui::Element` already authors, and RESETTING is what gives back
-/// "wherever the default puts it".
+/// ABSOLUTE POSITION ON THE CANVAS'S FINE LATTICE, NOT AN OFFSET FROM THE
+/// DEVELOPER'S PLACEMENT. An offset is authored against a default a later build
+/// may change, so the same saved bytes would silently mean a different place in
+/// the next version. Absolute intent is what `ui::Element` already authors, and
+/// RESETTING is what gives back "wherever the default puts it". Since WUX-2 the
+/// coordinates are sub-units (1/`surface::kCellSubs` cell), so the place a hand
+/// left a pane at is the place the file remembers, to the pixel a medium could
+/// distinguish — and still a fact about the canvas, not about a monitor.
 struct PanePlace {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kCells`; never `kPixels`
+    std::int64_t mode = pane_unit::kDefault; ///< `kDefault` or `kSubcells`; never `kPixels`
     std::int64_t x = 0;
     std::int64_t y = 0;
 
@@ -336,7 +357,7 @@ struct PanePlace {
 /// as the screen allows" is saying two things, and one mode for both would make
 /// the narrower of the two intents unsayable.
 struct PaneSize {
-    std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kCells` or `kPixels`
+    std::int64_t mode = pane_unit::kDefault; ///< `kDefault`, `kSubcells` or `kPixels`
     std::int64_t amount = 0;
 
     friend bool operator==(const PaneSize&, const PaneSize&) = default;
@@ -719,7 +740,7 @@ inline Written check_pane_ref(const PaneRef& ref) {
 // something half out of view has not made a mistake"), and a second, stricter law
 // for a pane would be the same situation answered twice.
 
-/// A PLACE: default with nothing said, or an absolute canvas cell.
+/// A PLACE: default with nothing said, or an absolute position on the fine lattice.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
         if (p.x != 0 || p.y != 0) {
@@ -727,22 +748,25 @@ inline Written check_pane_place(const PanePlace& p) {
         }
         return Written::ok();
     }
-    if (p.mode != pane_unit::kCells) {
-        return Written::no("a pane place is either default or cells");
+    if (p.mode != pane_unit::kSubcells) {
+        return Written::no("a pane place is either default or subcells");
     }
     // NEGATIVE IS REFUSED AT THE ROOT, `doc::check_coord`'s own rule and its own
-    // reason: the canvas has no cells there.
+    // reason: the canvas has no cells there. The walls are the CELL bounds this
+    // law has always had, expressed on the sub-unit lattice (WUX-2) — the
+    // sentences still speak in cells because that is the bound a maker can act on.
     if (p.x < 0 || p.y < 0) {
         return Written::no("a pane place cannot be negative");
     }
-    if (p.x > doc::kMaxCells || p.y > doc::kMaxCells) {
+    if (p.x > kPaneSubMax || p.y > kPaneSubMax) {
         return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
                            " cells");
     }
     return Written::ok();
 }
 
-/// ONE AXIS OF A SIZE: default, a count of cells, or a count of device pixels.
+/// ONE AXIS OF A SIZE: default, a count of sub-cell units, or a count of device
+/// pixels.
 ///
 /// `pixels` IS ACCEPTED HERE AND REFUSED AT PROJECTION, and the two are not in
 /// tension -- they are `reconcile`'s existing law with a unit substituted for a
@@ -756,12 +780,14 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    if (s.mode == pane_unit::kCells) {
-        if (s.amount < ui::kMinCells) {
+    if (s.mode == pane_unit::kSubcells) {
+        // The same one-cell floor and kMaxCells ceiling as ever, on the fine
+        // lattice — a pane's smallest authorable extent is still exactly one cell.
+        if (s.amount < kPaneSubMin) {
             return Written::no(std::string("a pane ") + which + " is at least " +
                                std::to_string(ui::kMinCells) + " cell");
         }
-        if (s.amount > doc::kMaxCells) {
+        if (s.amount > kPaneSubMax) {
             return Written::no(std::string("a pane ") + which + " is at most " +
                                std::to_string(doc::kMaxCells) + " cells");
         }
@@ -777,7 +803,7 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
         }
         return Written::ok();
     }
-    return Written::no(std::string("a pane ") + which + " is default, cells or pixels");
+    return Written::no(std::string("a pane ") + which + " is default, subcells or pixels");
 }
 
 /// EVERY LAW ONE AUTHORED ROW MEETS, minus the two that are about the WHOLE setup
@@ -1231,14 +1257,15 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
 // `detail::step`), so nothing here can be handed a number that overflowed on the
 // way in and nothing here has to guess what a maker meant by one.
 
-/// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else.
+/// AUTHOR AN ABSOLUTE PLACE. Writes the place and nothing else. `x`/`y` are
+/// sub-units, the authored lattice's own resolution.
 inline Written author_pane_place(Setup& s, const PaneRef& ref, std::int64_t x,
                                  std::int64_t y) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr) {
         return Written::no("`" + ref_text(ref) + "` is not in this setup");
     }
-    const PanePlace proposed{pane_unit::kCells, x, y};
+    const PanePlace proposed{pane_unit::kSubcells, x, y};
     const Written legal = check_pane_place(proposed);
     if (!legal.accepted) {
         return legal;
@@ -1266,6 +1293,49 @@ inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& wi
     const Written tall = check_pane_size(height, "height");
     if (!tall.accepted) {
         return tall;
+    }
+    row->width = width;
+    row->height = height;
+    return Written::ok();
+}
+
+/// AUTHOR A WHOLE WINDOW — a place beside both sizes, judged together and
+/// written together, or nothing at all (WUX-2).
+///
+/// IT EXISTS BECAUSE A RESIZE STOPPED BEING A SIZE-ONLY WRITE. Since WUX-2 an
+/// edge PRESERVES ITS OPPOSITE ANCHOR: pulling the top edge changes `y` and the
+/// height together so the bottom edge stays under the maker's eye, and pulling a
+/// corner moves both axes of the place with both sizes. That is one gesture
+/// proposing one rectangle, so it must be one authored transaction —
+/// `doc::resize`'s both-before-either law, widened to the axis pair a place is.
+/// A top-left pull whose height is illegal must not leave a moved corner beside
+/// a refused height; through this door it leaves nothing.
+///
+/// `place` MAY BE NULL, meaning "leave the place exactly as it is, mode
+/// included" — the right/bottom edges' resize, which anchors the place by NOT
+/// writing it, and keeps a default-placed pane's place reactive.
+inline Written author_pane_window(Setup& s, const PaneRef& ref, const PanePlace* place,
+                                  const PaneSize& width, const PaneSize& height) {
+    SetupPane* row = pane_of(s, ref);
+    if (row == nullptr) {
+        return Written::no("`" + ref_text(ref) + "` is not in this setup");
+    }
+    if (place != nullptr) {
+        const Written placed = check_pane_place(*place);
+        if (!placed.accepted) {
+            return placed;
+        }
+    }
+    const Written wide = check_pane_size(width, "width");
+    if (!wide.accepted) {
+        return wide;
+    }
+    const Written tall = check_pane_size(height, "height");
+    if (!tall.accepted) {
+        return tall;
+    }
+    if (place != nullptr) {
+        row->place = *place;
     }
     row->width = width;
     row->height = height;
