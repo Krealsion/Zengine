@@ -549,24 +549,45 @@ struct ClipboardCopy {
     ZEN_SHAPE(ClipboardCopy, 1, ZEN_FIELD(text));
 };
 
-/// THE PLATFORM'S CLIPBOARD NOW HOLDS THIS TEXT — the medium's own fact, travelling the
-/// extent's direction: medium -> application (TEXT-0).
+/// WHAT DOES THE PLATFORM CLIPBOARD HOLD RIGHT NOW? — asked of `kSkinRole` because a maker
+/// pressed paste, and for no other reason (QR-11).
 ///
-/// WHO PUBLISHES IT is `SurfaceCloseRequested`'s answer verbatim: SDL reports clipboard
-/// changes and input through ONE process-global event queue, so the weave that owns that
-/// queue — the SDL Input reader — is the only thing in the process that can see the change,
-/// and it routes the fact in the vocabulary that owns the application's surface rather than
-/// dressing it as a keystroke. The terminal backends never publish it, because a terminal
-/// has no way to say it; on those media the process's clipboard truth is whatever
-/// `ClipboardCopy` last carried, and that asymmetry is the media's, stated rather than
-/// papered over.
+/// CLIPBOARD READ FOLLOWS PASTE INTENT. The system clipboard is ambient host state that may
+/// have nothing to do with this application; permission to use its text when a maker asks
+/// to paste is not permission to observe it continuously. So there is no standing mirror of
+/// the platform's clipboard anywhere in this process, no shape that carries its payload
+/// uninvited, and the ONE road foreign clipboard text has onto this bus is the answer to
+/// this ask. (TEXT-0's `ClipboardChanged` was that mirror's feed — the SDL reader read the
+/// clipboard at startup and on every platform change and published the payload — and QR-11
+/// retired it whole.)
 ///
-/// A consumer treats it as a MIRROR update: remember the text, replace what a local copy
-/// held, and never echo it back — echoing would be this fact and `ClipboardCopy` chasing
-/// each other around the loop the platform already closes.
-struct ClipboardChanged {
+/// A SEND, NOT A PUBLICATION, and to the Skin's ROLE: the Medium owns the platform surface,
+/// so it owns the platform clipboard in BOTH directions — `ClipboardCopy` is the write and
+/// this is the read — and the answer goes to the one participant that asked rather than to
+/// everyone who might be listening. The asker settles it as any ask is settled: its own
+/// book's correlation plus Loom's answer provenance, and applies the text to the draft that
+/// requested the paste — or discards it if that draft is gone (`loom::AskBook`).
+struct ClipboardTextRequested {
+    ZEN_SHAPE(ClipboardTextRequested, 1);
+};
+
+/// THE MEDIUM'S ANSWER: what its platform clipboard holds at this moment, or the honest
+/// admission that it cannot say (QR-11).
+///
+/// `readable` is the medium's REACH, and it is a separate field from an empty `text`
+/// because they are different sentences a paste must not confuse: the SDL medium answers
+/// `readable=true` with the clipboard's current bytes — empty meaning the platform holds no
+/// text, which a paste honours by inserting nothing — while a terminal medium answers
+/// `readable=false`, because no truthful terminal route reads a system clipboard (the
+/// OSC 52 query is disabled almost everywhere, for exactly the reason this shape exists).
+/// On an unreadable medium the asker falls back to what this process itself last copied,
+/// which is the strongest truthful paste a terminal has. Folding the two into one field
+/// would make an EMPTY platform clipboard paste stale mirror text the platform no longer
+/// holds.
+struct ClipboardText {
+    bool readable = false;
     std::string text;
-    ZEN_SHAPE(ClipboardChanged, 1, ZEN_FIELD(text));
+    ZEN_SHAPE(ClipboardText, 1, ZEN_FIELD(readable), ZEN_FIELD(text));
 };
 
 /// The role that IS surface ownership. Singleton by the Loom's role rules, so

@@ -2894,8 +2894,9 @@ private:
 /// written by a payload and cannot be chosen by whoever composed the message,
 /// which is what makes it the one right instrument for "which identity spoke".
 class SkinSeat : public loom::WeaveBase<SkinSeat, SeenState,
-                                        loom::Accept<surface::SurfaceText>,
-                                        loom::Emit<loom::Ack>> {
+                                        loom::Accept<surface::SurfaceText, surface::ClipboardCopy,
+                                                     surface::ClipboardTextRequested>,
+                                        loom::Emit<loom::Ack, surface::ClipboardText>> {
 public:
     void on(const surface::SurfaceText& t, loom::Mail& mail) {
         ++state_.frames;
@@ -2906,6 +2907,24 @@ public:
         if (t.slot == "ask") {
             (void)mail.answer(loom::Ack{});
         }
+    }
+
+    /// The platform's clipboard, as the real media hold it (QR-11): a readable medium
+    /// takes every copy the process says (the SDL skin's SDL_SetClipboardText), an
+    /// unreadable one lets the offer pass (the terminal's OSC 52 claims nothing).
+    void on(const surface::ClipboardCopy& c, loom::Mail&) {
+        if (readable_medium) {
+            platform = c.text;
+        }
+    }
+
+    /// A paste ask: answered the way SkinT answers it — the medium's current value, or
+    /// the honest cannot-say — and counted, because "read exactly once, exactly on
+    /// request" is a custody claim the cases pin.
+    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+        ++clipboard_reads;
+        (void)mail.answer(surface::ClipboardText{readable_medium, readable_medium ? platform
+                                                                                  : std::string()});
     }
 
     /// Who said this exact text, or the invalid id if nobody did.
@@ -2920,6 +2939,9 @@ public:
 
     std::vector<surface::SurfaceText> heard;
     std::vector<loom::WeaveId> from;
+    bool readable_medium = true; ///< false = the terminal's standing truth
+    std::string platform;        ///< what "the platform clipboard" holds, when readable
+    int clipboard_reads = 0;
 };
 
 /// One participant's own record, filtered -- the transcript is a MODEL, so a test asks it
@@ -3025,6 +3047,8 @@ struct Live {
         SkinSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
+        grant.allow_to_any(surface::ClipboardText::zen_name,
+                           surface::ClipboardText::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         raw->zen_set_self(id);
@@ -17158,6 +17182,13 @@ struct PaneRig {
         loom::Grant speak;
         speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
         speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
+        // TEXT-0's copy sentence and QR-11's role-scoped clipboard question, exactly as
+        // workshop.cpp grants them (the QR-11 case that races a pane's paste needs the
+        // production truth here, not a narrower rig-only one).
+        speak.allow_to_any(surface::ClipboardCopy::zen_name,
+                           surface::ClipboardCopy::zen_version);
+        speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
+                            surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
         speak.allow_to_role(zengine::builder::StatusRequested::zen_name,
                             zengine::builder::StatusRequested::zen_version,
                             zengine::builder::kBuilderRole);
@@ -26794,6 +26825,9 @@ private:
 
 TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by keys") {
     Live t;
+    // A readable medium at the Skin's role (QR-11): copies land on its platform, and each
+    // paste ASKS it — the conversation every paste below settles inside its own gesture.
+    SkinSeat* skin = t.mount_skin_seat();
     (void)t.mount_terminal();
     t.toggle_terminal();
     for (const char c : std::string("hello world")) {
@@ -26828,16 +26862,19 @@ TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by
     }
 
     // Ctrl+A, copy, cut, paste, undo, redo -- the chords land on the line while the
-    // overlay has the keyboard, and the session clipboard is the mirror they move through.
+    // overlay has the keyboard. A copy fills the mirror AND the medium's clipboard; a
+    // paste asks the medium (QR-11) and inserts what it answers.
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kC, input::mod::kCtrl);
     CHECK(t.session().clipboard.text == "hello there");
+    CHECK(skin->platform == "hello there"); // the copy reached the platform through the Skin
     CHECK(t.pane().input.text() == "hello there"); // a copy erases nothing
     t.key(input::scan::kX, input::mod::kCtrl);
     CHECK(t.pane().input.empty());
     t.key(input::scan::kV, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.pane().input.text() == "hello therehello there");
+    CHECK(skin->clipboard_reads == 2); // one read per paste, on request, never before
     t.key(input::scan::kZ, input::mod::kCtrl);
     CHECK(t.pane().input.text() == "hello there");
     t.key(input::scan::kY, input::mod::kCtrl);
@@ -26849,7 +26886,13 @@ TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by
 }
 
 TEST_CASE("TEXT-0: a copy is said to the process once, and a heard copy fills the mirror") {
+    // The medium here CANNOT be read -- the terminal's standing truth -- so every paste
+    // below is the fallback road: what this process itself last copied. That is what
+    // keeps copy-here-paste-there working on a medium whose platform never answers, with
+    // no platform claim anywhere (QR-11; the readable road has its own cases).
     Live t;
+    SkinSeat* skin = t.mount_skin_seat();
+    skin->readable_medium = false;
     std::vector<std::string> heard;
     (void)loom::mount<ClipboardEars>(t.bus, heard);
     (void)t.mount_terminal();
@@ -26872,25 +26915,23 @@ TEST_CASE("TEXT-0: a copy is said to the process once, and a heard copy fills th
     t.key(input::scan::kX, input::mod::kCtrl);
     REQUIRE(heard.size() == 2);
 
-    // THE PLATFORM'S CLIPBOARD FILLS THE MIRROR: what the SDL reader routes as
-    // ClipboardChanged is what the next paste means -- text copied in another
-    // application entirely.
-    t.publish(loom::to_value(surface::ClipboardChanged{"from outside"}));
-    t.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(t.pane().input.text() == "from outside");
-    // ...and hearing a change is not copying: nothing new was published.
-    CHECK(heard.size() == 2);
-
-    // ANOTHER PARTICIPANT'S ClipboardCopy fills it too -- the terminal-media road, where
-    // no platform ever answers back.
+    // ANOTHER PARTICIPANT'S ClipboardCopy fills the mirror -- the terminal-media road,
+    // where no platform ever answers back -- and paste STILL ASKS first (read follows
+    // intent whatever the medium), inserting the mirror only because the medium answered
+    // that it cannot say.
     t.publish(loom::to_value(surface::ClipboardCopy{"a pane's copy"}));
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.pane().input.text() == "a pane's copy");
+    CHECK(skin->clipboard_reads == 1);
+    // ...and MIRRORING is not copying: the ears heard the case's own publication (their
+    // third) and Workshop said nothing back -- neither for hearing it nor for pasting it.
+    CHECK(heard.size() == 3);
 }
 
 TEST_CASE("TEXT-0: the property draft speaks the same vocabulary and keeps its policy keys") {
     Live t;
+    (void)t.mount_skin_seat(); // the paste below is a conversation; somebody must answer it
     t.begin_editing("Name");
     const Row* name = t.row("Name");
     REQUIRE(name != nullptr);
@@ -26933,6 +26974,7 @@ TEST_CASE("TEXT-0: the property draft speaks the same vocabulary and keeps its p
 TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
     TempDir dir("text0-naming");
     Live t;
+    (void)t.mount_skin_seat(); // the cross-consumer paste below asks it, like every paste
     t.host.setup_path = dir.file("setup.json");
     (void)t.mount_terminal();
 
@@ -27140,21 +27182,35 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
     }
     REQUIRE(form_open);
 
+    // A readable medium at the Skin's role, for the provider's own paste conversation.
+    SkinSeat* skin = nullptr;
+    {
+        auto seat = std::make_unique<SkinSeat>();
+        skin = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(surface::ClipboardText::zen_name,
+                           surface::ClipboardText::zen_version);
+        const loom::WeaveId id =
+            r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
+        skin->zen_set_self(id);
+    }
+
     // Type into the field under the cursor (typing makes it present), select all, copy.
     r.text("hello");
     r.key(input::scan::kA, input::mod::kCtrl);
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(r.host.quit); // ^c crossed the seam instead of quitting
     CHECK(r.session().clipboard.text == "hello"); // ...and the copy reached the mirror
+    CHECK(skin->platform == "hello");             // ...and the platform, through the Skin
 
-    // The other direction: a clipboard fact from anywhere (the platform's, another box's)
-    // reaches the provider's own mirror, and paste replaces the selected field value --
+    // The other direction (QR-11): the platform's clipboard changes SILENTLY -- some
+    // unrelated application copied; no event travels, nothing here hears it -- and the
+    // maker's paste is what asks. The provider's field gets the platform's CURRENT text,
     // visible in the pane's published rows, which is the only window this case has.
-    (void)r.bus.publish(loom::Message(loom::to_value(surface::ClipboardChanged{"pasted-in"}),
-                                      loom::WeaveId{}, loom::WeaveId{}, 0));
-    r.bus.drain_until_idle();
+    skin->platform = "pasted-in";
     r.key(input::scan::kA, input::mod::kCtrl);
     r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == 1); // the provider asked, once, because of the paste
     bool shown = false;
     for (const std::string& row :
          external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
@@ -27169,4 +27225,224 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
         restored = restored || row.find("hello") != std::string::npos;
     }
     CHECK(restored);
+
+    // QR-11's owner binding, across the seam: the paste's answer arrives after the FORM
+    // it was asked in was dropped -- the paste and the Escape enqueued in one batch, as
+    // one poll delivers them -- and the payload lands nowhere. `esc` is back (the draft
+    // is dropped whole; choosing the same shape again gives a fresh form), so the form
+    // that asked no longer exists whatever form a maker opens next.
+    skin->platform = "SECRET";
+    const auto enqueue_key = [&r](std::int64_t sc, std::int64_t mods) {
+        (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    };
+    enqueue_key(input::scan::kA, input::mod::kCtrl);
+    enqueue_key(input::scan::kV, input::mod::kCtrl);
+    enqueue_key(input::scan::kEscape, input::mod::kNone);
+    r.bus.drain_until_idle();
+    CHECK(skin->clipboard_reads == 2); // the request was real; the read happened
+    for (const std::string& row :
+         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+        CAPTURE(row);
+        CHECK(row.find("SECRET") == std::string::npos);
+    }
+}
+
+// ============================================================================
+// QR-11: clipboard reads follow paste intent
+// ============================================================================
+//
+// The product law: permission to use clipboard text when the maker asks to paste it is
+// not permission to continuously observe clipboard text. The reader-side half (nothing
+// ambient can even be SAID) is pinned in the input suite; the medium half in the surface
+// suite. These cases own Workshop's half: a paste is a conversation, the answer belongs
+// to the draft that asked, and text asked for by a draft that has ended lands nowhere.
+
+namespace {
+
+/// A participant with a real, bus-stamped identity that speaks a well-formed answer shape
+/// at Workshop on command — the forgery the answers_ask wall exists to refuse.
+class RogueAnswerer : public loom::WeaveBase<RogueAnswerer, SeenState, loom::Accept<SeatDo>,
+                                             loom::Emit<surface::ClipboardText>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        (void)mail.send(target, surface::ClipboardText{true, "EVIL"}, correlation);
+    }
+    loom::WeaveId target{};
+    std::uint64_t correlation = 0;
+};
+
+} // namespace
+
+TEST_CASE("QR-11: an unsolicited ClipboardText enters no box and no mirror") {
+    // The wall the whole road rests on, measured at Workshop: a well-formed payload,
+    // directed at the weave, wearing the guessable first correlation -- and it settles
+    // nothing, mutates nothing, pastes nothing, because it answers no ask this weave
+    // opened and Loom did not stamp it as an answer at all.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    (void)t.bus.send(t.workshop_id,
+                     loom::Message(loom::to_value(surface::ClipboardText{true, "EVIL"}),
+                                   loom::WeaveId{}, loom::WeaveId{}, 1));
+    t.bus.drain_until_idle();
+    CHECK(t.pane().input.empty());
+    CHECK(t.session().clipboard.text.empty());
+
+    // THE SHARPER HALF: an ask genuinely OUTSTANDING (nobody holds the skin role, so the
+    // conversation stays open), and a rogue with a real bus-stamped identity guessing the
+    // correlation an asker's fresh book mints first -- 1, the settlement law's own example
+    // of why a correlation identifies and never authenticates. The book alone would be
+    // satisfied; `answers_ask()` is the wall that is not, because Loom stamps the one
+    // authorized answer and no send can wear the stamp.
+    for (const char c : std::string("abc")) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kV, input::mod::kCtrl); // the ask opens; no answer will ever come
+    loom::WeaveId rogue_id{};
+    {
+        auto weave = std::make_unique<RogueAnswerer>();
+        RogueAnswerer* rogue = weave.get();
+        loom::Grant grant;
+        grant.allow_to_any(surface::ClipboardText::zen_name,
+                           surface::ClipboardText::zen_version);
+        rogue_id = t.bus.register_weave(std::move(weave), std::move(grant));
+        rogue->zen_set_self(rogue_id);
+        rogue->target = t.workshop_id;
+        rogue->correlation = 1;
+    }
+    (void)t.bus.send(rogue_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                             loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    CHECK(t.pane().input.text() == "abc"); // the payload reached no box
+    CHECK(t.session().clipboard.text.empty());
+}
+
+TEST_CASE("QR-11: paste reads the platform current, not the mirror stale") {
+    // SC-2's own sentence: on a readable medium the value used for a paste is the actual
+    // platform value current for THAT paste -- never a mirror populated earlier. The
+    // platform moves silently between two pastes (no event; nothing here may watch), and
+    // each paste gets its own moment's truth.
+    Live t;
+    SkinSeat* skin = t.mount_skin_seat();
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("stale")) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl); // mirror = "stale", platform = "stale"
+    REQUIRE(t.session().clipboard.text == "stale");
+    skin->platform = "fresh"; // an unrelated application copies; nothing travels
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "fresh");
+    skin->platform = "newer"; // ...and again, between two pastes
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "newer");
+    CHECK(skin->clipboard_reads == 2);
+}
+
+TEST_CASE("QR-11: an answer crossing a draft boundary lands nowhere, and the payload dies") {
+    // SC-3, the discard half. The acquisition crosses a turn, so a second gesture can be
+    // queued behind the paste before the answer arrives; the draft that asked ends, and
+    // the text must not land in whichever draft stands afterwards. The enqueue helper
+    // exists because Live::key drains to idle per gesture -- the race needs both
+    // messages on the queue before either runs, exactly as one poll batch delivers them.
+    Live t;
+    SkinSeat* skin = t.mount_skin_seat();
+    skin->platform = "SECRET";
+    const auto enqueue_key = [&t](std::int64_t sc, std::int64_t mods) {
+        (void)t.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    };
+
+    // The terminal line: paste requested, then the line SUBMITTED before the answer.
+    // clear() gave the successor draft a new epoch, so the in-flight paste is nobody's.
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("help")) {
+        t.text(std::string(1, c));
+    }
+    enqueue_key(input::scan::kV, input::mod::kCtrl);
+    enqueue_key(input::scan::kReturn, input::mod::kNone);
+    t.bus.drain_until_idle();
+    CHECK(t.pane().input.empty());          // the fresh line took no foreign text
+    CHECK(skin->clipboard_reads == 1);      // the read did happen -- intent was real
+    CHECK(t.session().clipboard.text.empty()); // ...and the discarded payload died whole:
+    // a readable answer updates the mirror ONLY when its paste applies.
+
+    // A property draft: paste requested, then the draft CANCELLED before the answer.
+    t.toggle_terminal();
+    t.begin_editing("Name");
+    enqueue_key(input::scan::kV, input::mod::kCtrl);
+    enqueue_key(input::scan::kEscape, input::mod::kNone);
+    t.bus.drain_until_idle();
+    const Row* name = t.row("Name");
+    REQUIRE(name != nullptr);
+    CHECK_FALSE(name->editing());
+    CHECK(name->value() == "panel"); // the committed value never met the payload
+    CHECK(t.session().clipboard.text.empty());
+    CHECK(skin->clipboard_reads == 2);
+
+    // THE SHARPEST STAGING: the draft that asked ends AND a new draft opens on the SAME
+    // row before the answer arrives -- same object, same label, same box, a fresh draft.
+    // The epoch is the only fact that tells them apart, and it must: this is exactly
+    // "whichever field happens to own the keyboard later", wearing the old field's name.
+    t.begin_editing("Name");
+    enqueue_key(input::scan::kV, input::mod::kCtrl);      // the OLD draft asks
+    enqueue_key(input::scan::kEscape, input::mod::kNone); // ...and ends
+    enqueue_key(input::scan::kReturn, input::mod::kNone); // a NEW draft opens, same row
+    t.bus.drain_until_idle();
+    const Row* reopened = t.row("Name");
+    REQUIRE(reopened != nullptr);
+    REQUIRE(reopened->editing());
+    CHECK(reopened->draft() == "panel"); // the new draft never met the old draft's paste
+    CHECK(t.session().clipboard.text.empty());
+    CHECK(skin->clipboard_reads == 3); // the old draft's request was real, and it read
+}
+
+TEST_CASE("QR-11: the draft that asked keeps its paste across a rebuild in flight") {
+    // SC-3, the belongs-to half. An extent change between request and answer rebuilds
+    // the inspector rows; the draft rides Row::resume into the new row -- the SAME draft,
+    // draft_epoch and all -- so the paste it asked for still belongs to it and lands.
+    Live t;
+    SkinSeat* skin = t.mount_skin_seat();
+    skin->platform = "carried";
+    t.begin_editing("Name");
+    const auto enqueue_key = [&t](std::int64_t sc, std::int64_t mods) {
+        (void)t.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
+                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+    };
+    enqueue_key(input::scan::kA, input::mod::kCtrl);
+    enqueue_key(input::scan::kV, input::mod::kCtrl);
+    (void)t.bus.publish(loom::Message(
+        loom::to_value(surface::SurfaceExtent{kScreenMinW + 8, kScreenMinH + 4, 0, 0}),
+        loom::WeaveId{}, loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    const Row* name = t.row("Name");
+    REQUIRE(name != nullptr);
+    REQUIRE(name->editing());
+    CHECK(name->draft() == "carried"); // select-all + paste, applied after the rebuild
+    CHECK(skin->clipboard_reads == 1);
+}
+
+TEST_CASE("QR-11: with nobody at the skin role, paste inserts nothing and breaks nothing") {
+    // The honest degradation: the ask has no respondent (the send is refused as a tap
+    // event; no message returns; Loom has no unanswerability notice), so the paste simply
+    // does not happen -- consumed, so it cannot fall through to an application binding --
+    // and pressing it past the book's capacity stays quiet rather than becoming a crash
+    // or a queue.
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("abc")) {
+        t.text(std::string(1, c));
+    }
+    for (int i = 0; i < 6; ++i) { // past the book's capacity of 4
+        t.key(input::scan::kV, input::mod::kCtrl);
+    }
+    CHECK(t.pane().input.text() == "abc");
+    CHECK_FALSE(t.host.quit);
 }

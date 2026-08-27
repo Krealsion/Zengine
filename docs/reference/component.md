@@ -25,8 +25,9 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
                          word_before / word_after
                                           what a WORD is: space-delimited runs, nothing more
                          pasteable_line   what foreign bytes become in a one-line box
-                         Clipboard        text a maker copied + a writes counter; the OWNER
-                                          holds it, the component only operates on it
+                         Clipboard        text a maker copied + a writes counter + a
+                                          paste_requests counter; the OWNER holds it, the
+                                          component only operates on it
                          key:: / mod::    the editing vocabulary's identities -- the same
                                           numbers input::scan::/mod:: name, spelled locally
                                           because this package includes nothing (pinned
@@ -34,6 +35,7 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
 
                          TextBox          text + caret + anchor + first_visible, as one state
                            text/caret/anchor/first_visible/size/empty/at_end/caret_column
+                           draft_epoch      which draft this box holds (set/clear bump it)
                            has_selection/selection_begin/selection_end/selected_text
                            visible(columns) / visible_selection(columns)
                            position_at_column(column) / keep_caret_visible(columns)
@@ -49,9 +51,15 @@ anchor and the caret (`anchor == caret` *is* "no selection"); typing replaces it
 extends it, plain movement collapses it, and both ends stay on character boundaries always. The
 clipboard operations move text through a `Clipboard` the **owner** holds — where its text goes
 beyond this process (a platform clipboard through a Skin, a bus publication, nowhere) is the
-owner's custody. Undo is a bounded local snapshot history that dies with the draft: `set` and
-`clear` — how every consumer opens and closes one — wipe it, so a new draft can never resurrect
-an old one's text; contiguous same-kind keystrokes coalesce into one entry. And
+owner's custody. Since QR-11 that custody includes the paste's *value*: `consume`'s Ctrl+V
+records a request (`Clipboard::paste_requests`) rather than pasting, because the value a paste
+means is the clipboard's **current** one and only the owner can obtain it — read on the
+maker's intent, never mirrored from watching — and the owner applies it through `paste` once
+it holds the text. `draft_epoch()` is the companion counter, bumped by `set`/`clear` (the two
+draft doors), so an owner whose acquisition crosses a turn can tell the draft that asked from
+whatever draft is standing when the answer arrives. Undo is a bounded local snapshot history
+that dies with the draft: `set` and `clear` wipe it, so a new draft can never resurrect an old
+one's text; contiguous same-kind keystrokes coalesce into one entry. And
 `consume(scancode, modifiers, clip)` is the one owner of the editing-key vocabulary, under the
 press chain's own bool: *true* = mine, stop routing; *false* = not my vocabulary, yours.
 Declining is `default:`, not knowledge — Return, Escape, Tab, `^s` and every application chord

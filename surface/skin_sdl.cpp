@@ -83,6 +83,7 @@
 #include <SDL3/SDL.h>
 
 #include <cstdio>
+#include <optional>
 #include <string>
 
 namespace {
@@ -301,11 +302,9 @@ public:
 
     /// A maker copied text: put it on the REAL platform clipboard (TEXT-0). This is the
     /// medium where the offer lands somewhere every other application on the machine can
-    /// paste from, and the platform then reports its own change back through the one event
-    /// queue — which the SDL Input reader owns and routes as `ClipboardChanged`, closing
-    /// the loop without this medium saying anything itself. A failure is complained about
-    /// in SDL's own words and costs nothing else: the copy is already true inside this
-    /// process, because it travelled the bus to get here.
+    /// paste from. A failure is complained about in SDL's own words and costs nothing
+    /// else: the copy is already true inside this process, because it travelled the bus to
+    /// get here.
     void clipboard_copy(const std::string& text) {
         if (!ok_) {
             return;
@@ -313,6 +312,31 @@ public:
         if (!SDL_SetClipboardText(text.c_str())) {
             complain("SDL_SetClipboardText");
         }
+    }
+
+    /// A maker asked to paste: the platform clipboard's text AT THIS MOMENT (QR-11).
+    ///
+    /// THIS IS THE ONE PLACE IN THE PROCESS THAT READS THE SYSTEM CLIPBOARD, and it runs
+    /// only under a `ClipboardTextRequested` — the SDL Input reader stopped watching
+    /// clipboard events entirely, because ambient host state is not this application's to
+    /// observe. The Medium owns the platform clipboard in both directions: `clipboard_copy`
+    /// writes it, this reads it, each on a maker's explicit gesture.
+    ///
+    /// An empty clipboard — or one holding something that is not text — answers an EMPTY
+    /// string, not nullopt: this platform can be read, and "no text" is its current truth,
+    /// which a paste honours by inserting nothing. nullopt is reserved for the state where
+    /// no read exists at all (no surface claimed, or a medium like the terminal's).
+    std::optional<std::string> clipboard_text() {
+        if (!ok_) {
+            return std::nullopt;
+        }
+        if (!SDL_HasClipboardText()) {
+            return std::string();
+        }
+        char* text = SDL_GetClipboardText(); // SDL's buffer; freed here, never handed on
+        std::string out = text != nullptr ? std::string(text) : std::string();
+        SDL_free(text);
+        return out;
     }
 
     /// HOW MUCH ROOM THIS WINDOW HAS, in canvas cells — the one question this

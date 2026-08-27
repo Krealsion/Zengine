@@ -173,19 +173,25 @@ one answer. The split between the two draw lists is the predicate
 `fit_region(r, metric).graphical()` rather than a test on the metric alone, so they remain
 exactly disjoint and exactly complete.
 
-**The clipboard travels as a pair of shapes**, one in each direction (TEXT-0).
-`ClipboardCopy{text}` is intent: *a maker copied this* — published by whichever application or
-pane provider hosted the copy, executed by the active skin with whatever its medium honestly
-has (the SDL medium sets the real platform clipboard; a terminal medium writes the OSC 52
-set-clipboard sequence to the stream it already owns, which terminals that support it honour
-and the rest ignore — and no terminal offers a way to ask which happened, so nothing claims the
-system took it), and mirrored by every other text-holding participant, which is what keeps
-copy-here-paste-there true inside the process even on a medium whose platform cannot answer.
-`ClipboardChanged{text}` is the medium's own fact travelling the extent's direction: *the
-platform clipboard now holds this* — routed by the SDL Input reader, which owns the one event
-queue that reports it (`SurfaceCloseRequested`'s own arrangement), and never published by a
-terminal backend, because a terminal has no way to say it. A consumer treats either as a mirror
-update and echoes nothing back.
+**The skin owns the platform clipboard, in both directions — and the read follows paste
+intent.** `ClipboardCopy{text}` is intent: *a maker copied this* — published by whichever
+application or pane provider hosted the copy, executed by the active skin with whatever its
+medium honestly has (the SDL medium sets the real platform clipboard; a terminal medium
+writes the OSC 52 set-clipboard sequence to the stream it already owns, which terminals that
+support it honour and the rest ignore — and no terminal offers a way to ask which happened,
+so nothing claims the system took it), and mirrored by every other text-holding participant,
+which is what keeps copy-here-paste-there true inside the process even on a medium whose
+platform cannot answer. A mirror means *the freshest copy said in this process* — never the
+platform's state, because nothing here watches the system clipboard: it is ambient host
+state that may have nothing to do with this application, and permission to use its text when
+a maker asks to paste is not permission to observe it continuously. When a paste is
+requested, the asker sends `ClipboardTextRequested{}` to the skin's role and the skin
+answers `ClipboardText{readable, text}` from its medium at that moment: the SDL medium reads
+the real platform clipboard (`readable=true`, empty text meaning the platform holds no
+text); a terminal medium answers `readable=false`, because no truthful terminal route reads
+a system clipboard, and the asker then pastes its in-process mirror instead. The two fields
+are separate because an empty platform clipboard and an unreadable one are different
+sentences, and collapsing them would paste stale mirror text the platform no longer holds.
 
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and how big one

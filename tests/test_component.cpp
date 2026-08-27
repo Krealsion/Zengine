@@ -1245,7 +1245,12 @@ TEST_CASE("component: consume owns exactly the editing vocabulary and declines t
     CHECK(clip.text == "ello worl");
     CHECK(box.consume(key::kX, mod::kCtrl, clip));
     CHECK(box.text().empty());
+    // Ctrl+V is a REQUEST since QR-11: consumed, counted, and applied by the OWNER once
+    // it holds the value the paste means -- here, the clipboard it already has.
     CHECK(box.consume(key::kV, mod::kCtrl, clip));
+    CHECK(clip.paste_requests == 1);
+    CHECK(box.text().empty()); // the box did not paste; the owner does
+    box.paste(clip);
     CHECK(box.text() == "ello worl");
     CHECK(box.consume(key::kZ, mod::kCtrl, clip));
     CHECK(box.text().empty()); // undo the paste
@@ -1290,8 +1295,48 @@ TEST_CASE("component: a consumed gesture that changes nothing is still consumed"
     CHECK(box.consume(key::kZ, mod::kCtrl, clip)); // no history: consumed, nothing restored
     CHECK(box.consume(key::kY, mod::kCtrl, clip));
     CHECK(box.consume(key::kHome, mod::kNone, clip)); // already at 0: consumed
-    CHECK(box.consume(key::kV, mod::kCtrl, clip));    // empty clipboard: consumed
-    CHECK(box.text() == "abc");
+    CHECK(box.consume(key::kV, mod::kCtrl, clip));    // a paste request is ALWAYS consumed
+    CHECK(clip.paste_requests == 1); // ...and always counted: the box cannot know whether
+    box.paste(clip);                 // the clipboard holds anything -- that is the owner's
+    CHECK(box.text() == "abc");      // read. An empty one applies as nothing.
+}
+
+TEST_CASE("QR-11: paste is a request the owner applies, and set/clear name the draft") {
+    // The two halves of the intent seam, pinned at the component: Ctrl+V mutates NOTHING
+    // in the box -- not text, not selection, not history -- because the value it means is
+    // the clipboard's current one and only the owner can obtain it; and `draft_epoch`
+    // moves at exactly the two doors a draft begins and ends at, so an owner whose
+    // acquisition crosses a turn can tell "the draft that asked" from every other.
+    TextBox box;
+    Clipboard clip;
+    clip.text = "stale";
+    box.set("keep|this", 4);
+    box.consume(key::kA, mod::kCtrl, clip); // a selection a paste would replace
+    const std::string before = box.text();
+    CHECK(box.consume(key::kV, mod::kCtrl, clip));
+    CHECK(box.text() == before);           // nothing pasted...
+    CHECK(box.selected_text() == before);  // ...nothing deselected...
+    CHECK(clip.writes == 0);               // ...nothing copied...
+    CHECK(clip.paste_requests == 1);       // ...one request recorded.
+
+    // The epoch: 0 at birth, bumped by set and by clear, untouched by editing.
+    TextBox fresh;
+    CHECK(fresh.draft_epoch() == 0);
+    fresh.set("draft one", 0);
+    const std::uint64_t opened = fresh.draft_epoch();
+    CHECK(opened == 1);
+    fresh.type("x");
+    fresh.consume(key::kLeft, mod::kNone, clip);
+    CHECK(fresh.draft_epoch() == opened); // edits move text, never the draft's identity
+    fresh.clear();
+    CHECK(fresh.draft_epoch() == 2);
+    fresh.set("draft two", 0);
+    CHECK(fresh.draft_epoch() == 3);
+
+    // A COPY of the box carries the epoch -- what keeps a draft carried across a rebuild
+    // (Row::resume) the SAME draft to a paste already in flight.
+    TextBox carried = fresh;
+    CHECK(carried.draft_epoch() == fresh.draft_epoch());
 }
 
 TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {

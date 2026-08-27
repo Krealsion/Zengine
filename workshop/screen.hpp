@@ -1307,10 +1307,16 @@ struct Session {
     /// process like every draft (WUX-0 keeps the desk, never the work-in-progress), and is
     /// deliberately not persisted. It is one clipboard for all of Workshop's own boxes —
     /// the Terminal line, a property draft, the setup name — because a maker has one
-    /// clipboard in their head; and it is a MIRROR of the freshest clipboard truth this
-    /// process has heard: the component writes it on copy/cut, `ClipboardCopy` publications
-    /// from other participants land in it, and on a medium whose platform reports changes
-    /// (SDL) `ClipboardChanged` keeps it current with the outside world.
+    /// clipboard in their head.
+    ///
+    /// WHAT ITS TEXT MEANS, SINCE QR-11: the freshest copy said IN this process — the
+    /// component writes it on copy/cut, `ClipboardCopy` publications from other
+    /// participants land in it — plus the platform value a maker's own paste just asked
+    /// for. It is NOT a mirror of the system clipboard: nothing watches that, because
+    /// ambient host state is not this application's to observe. A paste reads the
+    /// platform's current value through the Skin at the moment it is requested
+    /// (`ClipboardTextRequested`), and only falls back to this text where no platform
+    /// read truthfully exists (a terminal).
     component::Clipboard clipboard;
 };
 

@@ -472,6 +472,16 @@ public:
         return editing_ && draft_.consume(scancode, modifiers, clip);
     }
 
+    /// APPLY THE TEXT A CONSUMED PASTE REQUEST ASKED FOR (QR-11), under the same invariant
+    /// `consume` keeps: a row nobody opened takes no paste. The value arrives a turn after
+    /// the request, so the caller has already checked this is still the draft that asked
+    /// (`editor().draft_epoch()`); the guard here is the row's own, not that check's twin.
+    void paste(const component::Clipboard& clip) {
+        if (editing_) {
+            draft_.paste(clip);
+        }
+    }
+
     /// RECONCILE THE DRAFT'S WINDOW AGAINST THE ROOM THIS ROW HAS, once per repaint.
     ///
     /// The capacity is an ARGUMENT and is never remembered: this row and the Terminal's

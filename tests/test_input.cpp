@@ -50,6 +50,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -1910,6 +1911,44 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[1]));
 }
 
+TEST_CASE("QR-11: ambient clipboard text cannot reach the bus — seeded, changed, never seen") {
+    // SC-1, staged exactly as the START defect was witnessed (text seeded before the
+    // reader existed arrived on the bus TWICE with no paste anywhere; an external change
+    // arrived again) — now inverted, in its strongest form: not "nobody listened" but
+    // "nothing was said". The ears hear every shape the reader can emit; a bus tap
+    // watches every delivery and refusal by schema name. Neither sees a clipboard.
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
+    // A payload some unrelated application left on the platform clipboard BEFORE this
+    // process's reader existed.
+    REQUIRE(SDL_SetClipboardText("EXTERNAL-SECRET"));
+
+    Rig r;
+    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
+    std::vector<SdlEvent> heard;
+    (void)loom::mount<SdlEars>(r.bus, heard);
+    std::vector<std::string> schemas;
+    r.bus.add_observer([&schemas](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered || e.kind == loom::EventKind::Refused) {
+            schemas.push_back(e.schema_name);
+        }
+    });
+
+    // No maker gesture of any kind: the first poll (where TEXT-0's initial read ran),
+    // then an external change while the application idles (whose update event the next
+    // poll drains, ignored).
+    r.pump_input_by_role();
+    REQUIRE(SDL_SetClipboardText("CHANGED-BEHIND"));
+    r.pump_input_by_role();
+
+    CHECK(heard.empty());
+    for (const std::string& name : schemas) {
+        CAPTURE(name);
+        CHECK(name.find("Clipboard") == std::string::npos);
+    }
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
 #endif // INPUT_HAS_SDL
 
 // ============================================================================
@@ -2064,27 +2103,45 @@ TEST_CASE("TEXT-0: the component's key spellings ARE the wire's") {
 }
 
 // ============================================================================
-// TEXT-0: the SDL reader routes the platform's clipboard fact
+// QR-11: the SDL reader has no clipboard business at all
 // ============================================================================
 
-TEST_CASE("TEXT-0: a clipboard update translates to the surface fact, empty included") {
-    auto changed = sdl_clipboard_to_events("hello");
-    REQUIRE(changed.size() == 1);
-    const auto* fact = std::get_if<zengine::surface::ClipboardChanged>(&changed[0]);
-    REQUIRE(fact != nullptr);
-    CHECK(fact->text == "hello");
+TEST_CASE("QR-11: the clipboard event class is IGNORED, and the reader's sources are clean") {
+    // TEXT-0 translated SDL_EVENT_CLIPBOARD_UPDATE and read the payload each time, which
+    // imported ambient system-clipboard text merely because the application was running.
+    // The event class is in the ignored set now, beside the joysticks — and the constant
+    // is spelled here rather than imported, because translate_sdl.hpp deliberately no
+    // longer has a name for it.
+    constexpr std::uint32_t kSdlEventClipboardUpdate = 0x900;
+    CHECK(!sdl_event_is_translated(kSdlEventClipboardUpdate));
+    // The four populations this application lives on are still translated — ignoring the
+    // clipboard must never become ignoring one of these.
+    CHECK(sdl_event_is_translated(sdl::kEventKeyDown));
+    CHECK(sdl_event_is_translated(sdl::kEventTextInput));
+    CHECK(sdl_event_is_translated(sdl::kEventMouseButtonDown));
+    CHECK(sdl_event_is_translated(sdl::kEventWindowCloseRequested));
 
-    // An emptied clipboard is a real state a mirror must follow -- and a null pointer is
-    // the same sentence said the way a C API says it.
-    const auto empty_batch = sdl_clipboard_to_events("");
-    const auto* emptied = std::get_if<zengine::surface::ClipboardChanged>(&empty_batch[0]);
-    REQUIRE(emptied != nullptr);
-    CHECK(emptied->text.empty());
-    const auto null_batch = sdl_clipboard_to_events(nullptr);
-    const auto* gone = std::get_if<zengine::surface::ClipboardChanged>(&null_batch[0]);
-    REQUIRE(gone != nullptr);
-    CHECK(gone->text.empty());
-
-    // The event type is in the translated set, so the four-population guarantee holds.
-    CHECK(sdl_event_is_translated(sdl::kEventClipboardUpdate));
+    // THE TRIPWIRE HALF: "this reader never touches the clipboard" is a claim about what
+    // the source does NOT contain, so it is read off the source — on every lane, the SDL
+    // ones and the ones that build no SDL at all (the operator suite's own pattern). The
+    // clipboard is read in exactly one place, the Medium, under a paste ask; a helpful
+    // future edit that puts the watcher back in the reader goes red here before it goes
+    // anywhere else. WITH THE PROSE STRIPPED (BLD-0's tripwire rule): these files
+    // EXPLAIN what they refuse to contain, and a check that greps its own explanation
+    // reports the absence it documents as a presence.
+    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP}) {
+        std::ifstream in(path);
+        REQUIRE(in.good());
+        std::string code;
+        std::string line;
+        while (std::getline(in, line)) {
+            const std::size_t comment = line.find("//");
+            code += comment == std::string::npos ? line : line.substr(0, comment);
+            code += '\n';
+        }
+        CAPTURE(path);
+        CHECK(code.find("SDL_GetClipboardText") == std::string::npos);
+        CHECK(code.find("SDL_HasClipboardText") == std::string::npos);
+        CHECK(code.find("ClipboardChanged") == std::string::npos);
+    }
 }

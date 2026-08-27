@@ -309,7 +309,12 @@ target_include_directories(zengine-input-tests PRIVATE
 target_compile_definitions(zengine-input-tests PRIVATE
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "CONTROLS_SO=\"$<TARGET_FILE:snake-controls>\""
-    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\"")
+    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
+    # QR-11's tripwire reads the SDL reader's own sources: "this reader never touches the
+    # clipboard" is a claim about what code does NOT contain, so it cannot be proved by
+    # running it, and it must hold on every lane -- including the ones that build no SDL.
+    "INPUT_SDL_READER_CPP=\"${CMAKE_SOURCE_DIR}/input/input_sdl.cpp\""
+    "INPUT_SDL_TRANSLATE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl.hpp\"")
 
 zengine_doctest_test(input zengine-input-tests)
 

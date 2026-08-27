@@ -240,11 +240,21 @@ inline std::string pasteable_line(const std::string& text) {
 /// bump it exactly when they took text, so an owner that snapshots it before handing the
 /// clipboard to `consume` can tell "the maker copied" from "the maker moved the caret" with
 /// one comparison. It counts THIS process's copies and is never decremented; an owner that
-/// mirrors a platform clipboard updates `text` and leaves `writes` alone, so the counter
+/// mirrors a copy heard elsewhere updates `text` and leaves `writes` alone, so the counter
 /// keeps meaning the one thing it can honestly mean.
+///
+/// `paste_requests` is the same seam pointed the other way (QR-11): `consume`'s Ctrl+V
+/// bumps it INSTEAD of pasting, because the value a paste means is the clipboard's CURRENT
+/// value, and only the owner can say what current means — on a medium with a readable
+/// platform clipboard that is a read performed BECAUSE this paste was requested, never a
+/// mirror kept fresh by watching. The owner notices the bump with the same one comparison,
+/// obtains the text by whatever road it honestly has, and applies it through `paste`.
+/// Unlike `writes` it bumps unconditionally — the box cannot know whether the clipboard
+/// has anything, which is the whole reason the read is the owner's.
 struct Clipboard {
     std::string text;
     std::uint64_t writes = 0;
+    std::uint64_t paste_requests = 0;
 };
 
 // ---- The editing-key vocabulary's identities (TEXT-0) -----------------------------------
@@ -774,6 +784,11 @@ public:
     /// PASTE THE OWNER'S CLIPBOARD AT THE CARET, replacing the selection if there is one.
     /// The bytes go through `pasteable_line` first — a single-line component does not hold
     /// newlines or control bytes, whoever put them on the clipboard.
+    ///
+    /// Since QR-11 this is the OWNER's door, not `consume`'s: Ctrl+V records a request
+    /// (`Clipboard::paste_requests`) and the owner calls this once it holds the value that
+    /// paste honestly means. An empty clipboard pastes nothing, which is what makes "the
+    /// platform holds no text" an answer this door already honours.
     void paste(const Clipboard& clip) {
         if (clip.text.empty()) {
             return;
@@ -890,7 +905,15 @@ public:
         case key::kA: if (shift) { return false; } select_all(); return true;
         case key::kC: if (shift) { return false; } copy(clip); return true;
         case key::kX: if (shift) { return false; } cut(clip); return true;
-        case key::kV: if (shift) { return false; } paste(clip); return true;
+        case key::kV:
+            // A REQUEST, NOT A PASTE (QR-11). The gesture is this vocabulary's — consumed
+            // whatever happens next, or "paste nothing" falls through to an application
+            // binding — but the VALUE it means is the clipboard's current one, which only
+            // the owner can obtain (see `Clipboard::paste_requests`). The owner applies it
+            // through `paste` once it has the text.
+            if (shift) { return false; }
+            ++clip.paste_requests;
+            return true;
         case key::kZ:
             if (shift) {
                 (void)redo();
@@ -917,6 +940,7 @@ public:
         undo_.clear();
         redo_.clear();
         last_edit_ = EditKind::kNone;
+        ++draft_epoch_;
     }
 
     /// REPLACE THE WHOLE TEXT, SAYING WHERE THE CARET GOES. The one door for an edit that is
@@ -937,7 +961,20 @@ public:
         undo_.clear();
         redo_.clear();
         last_edit_ = EditKind::kNone;
+        ++draft_epoch_;
     }
+
+    /// WHICH DRAFT THIS BOX IS HOLDING — a counter the two doors above bump, so two reads
+    /// that answer the same number are about one draft (QR-11).
+    ///
+    /// It exists for the owner whose paste crosses a turn boundary: the clipboard's value
+    /// arrives AFTER the request (`Clipboard::paste_requests`), and text that was asked for
+    /// by one draft must not land in whichever draft happens to be standing later. History
+    /// already dies at exactly these two doors for exactly this reason — set/clear are how
+    /// every consumer opens and closes a draft — so the epoch is the same boundary made
+    /// comparable. It rides a copy of the box, which is what keeps a draft carried across a
+    /// rebuild (`Row::resume`) the SAME draft to a paste already in flight.
+    std::uint64_t draft_epoch() const noexcept { return draft_epoch_; }
 
 private:
     /// WHAT KIND OF EDIT THE LAST MUTATION WAS — the whole of the undo grouping rule.
@@ -1026,6 +1063,7 @@ private:
     std::vector<Memory> undo_;
     std::vector<Memory> redo_;
     EditKind last_edit_ = EditKind::kNone;
+    std::uint64_t draft_epoch_ = 0; ///< bumped by set/clear -- see draft_epoch()
 };
 
 } // namespace zengine::component

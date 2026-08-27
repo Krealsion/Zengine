@@ -13,6 +13,9 @@
 //   void clipboard_copy(const std::string& text);   // a maker copied this: offer it to the
 //                                                   // medium's clipboard, with the medium's
 //                                                   // own honesty (TEXT-0)
+//   std::optional<std::string> clipboard_text();    // a maker asked to paste: the platform
+//                                                   // clipboard's CURRENT text, or nullopt
+//                                                   // where no truthful read exists (QR-11)
 //   SurfaceExtent extent() const;   // how much room I have, in cells; {0,0} = no opinion
 //                                   // and, since HD-1, how big one character of
 //                                   // mine is; zeroes there mean "text is a cell"
@@ -22,6 +25,9 @@
 // medium on which copy silently reaches nothing, which is an ordinary honest state a fake in
 // a suite reaches every day — so the mistake would look exactly like the truth, forever.
 // Requiring it makes a forgetful Medium a compile error instead of a silent dead chord.
+// `clipboard_text` is required for the same reason, and nullopt is not a failure: it is a
+// terminal medium's standing truth, and the asker's fallback (what this process itself last
+// copied) is the strongest paste that medium honestly has.
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
 // the alternate screen in its constructor and restores it in its destructor,
@@ -51,6 +57,8 @@
 #include <zen/weave.hpp>
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <utility>
 
 namespace zengine::surface {
@@ -77,11 +85,12 @@ struct SkinState {
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                      loom::Accept<zengine::snake::SnakeVisual, SurfaceCanvas,
-                                                  SurfaceText, ClipboardCopy, PumpSurface,
+                                                  SurfaceText, ClipboardCopy,
+                                                  ClipboardTextRequested, PumpSurface,
                                                   loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
-                                     loom::Emit<SurfaceReady, SurfaceExtent,
+                                     loom::Emit<SurfaceReady, SurfaceExtent, ClipboardText,
                                                 zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
@@ -119,6 +128,18 @@ public:
     void on(const ClipboardCopy& c, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.clipboard_copy(c.text);
+    }
+
+    /// A maker asked to PASTE somewhere in this process: read the medium's platform
+    /// clipboard NOW — because this paste was requested, and for no other reason — and
+    /// answer the one participant that asked (QR-11; the custody law is
+    /// ClipboardTextRequested's, vocabulary.hpp). `mail.answer` carries Loom's own answer
+    /// provenance, so the asker can require this delivery to be THE answer to its ask
+    /// rather than anybody's helpful payload. Uncounted, for ClipboardCopy's reason.
+    void on(const ClipboardTextRequested&, loom::Mail& mail) {
+        announce_surface_once(mail);
+        const std::optional<std::string> text = medium_.clipboard_text();
+        (void)mail.answer(ClipboardText{text.has_value(), text.value_or(std::string())});
     }
 
     /// Execution time, not intent: service the medium's OS surface, on
