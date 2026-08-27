@@ -922,7 +922,7 @@ public:
             if (!where.understood) {
                 return;
             }
-            manage_press(where.cell.x, where.cell.y);
+            manage_press(where);
             repaint(mail);
             return;
         }
@@ -955,8 +955,7 @@ public:
             // It is the same pure walk `occupied_at` always was -- the picker first, then
             // the panes topmost-first, then nothing -- moved, not changed.
             const Occupancy here =
-                occupied_at(session_.panels, session_.setup.active, screen_of(session_),
-                            at.cell.x, at.cell.y);
+                occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
             // WHERE THE KEYBOARD GOES IS DECIDED BY THE PRESS ITSELF, IN ONE LINE, BEFORE
             // ANY LAYER ANSWERS IT (MSG-0). Putting it in the routing arms instead would be
             // four decisions -- one per arm, one of them easy to forget -- about a single
@@ -1146,7 +1145,7 @@ public:
             if (!here.understood || !session_.pane_drag.active) {
                 return;
             }
-            manage_motion(here.cell.x, here.cell.y, mail);
+            manage_motion(here.sub.x, here.sub.y, mail);
             repaint(mail);
             return;
         }
@@ -3253,7 +3252,10 @@ private:
 
     /// The place a one-cell nudge proposes: the resolved corner if this pane has no authored
     /// place yet, then the delta. AUTHORING THE CURRENT RESOLVED VALUE FIRST is what makes a
-    /// first nudge move the pane by one cell rather than to cell (±1, ±1).
+    /// first nudge move the pane by one cell rather than to cell (±1, ±1). The keys stay
+    /// CELL-granular on purpose (WUX-2): a key press is a discrete gesture and a cell is its
+    /// honest step; what the finer lattice buys it is that a nudge PRESERVES a fine
+    /// remainder a pointer authored — plus forty-eight sub-units is still plus one cell.
     void manage_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
         const Written ready = manage_geometry_ready();
         if (!ready.accepted) {
@@ -3262,54 +3264,79 @@ private:
         }
         const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
         // THE RESOLVED CORNER, NEVER THE CLIPPED ONE (WIND-2a) -- see `managed_bounds`.
-        const ui::Rect now = managed_bounds().resolved;
+        const FineRect now = managed_bounds().resolved;
         const std::int64_t from_x =
-            row != nullptr && row->place.mode == pane_unit::kCells ? row->place.x : now.x;
+            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.x : now.x;
         const std::int64_t from_y =
-            row != nullptr && row->place.mode == pane_unit::kCells ? row->place.y : now.y;
-        manage_place(detail::step(from_x, dx), detail::step(from_y, dy), mail);
+            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.y : now.y;
+        manage_place(detail::step(from_x, dx * surface::kCellSubs),
+                     detail::step(from_y, dy * surface::kCellSubs), mail);
     }
 
-    /// AUTHOR ONE OR BOTH SIZE AXES for the chosen edge. Both are proposed together and both
-    /// are judged before either is written, so a corner gesture whose height is illegal does
-    /// not narrow the pane and report a refusal.
-    void manage_resize(std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
-                       std::int64_t dy, loom::Mail& mail) {
+    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units (WUX-2).
+    ///
+    /// THE EDGE PRESERVES ITS OPPOSITE ANCHOR (`pane_window_proposal`): pulling the top
+    /// edge proposes a new `y` WITH the new height so the bottom edge stays put, and the
+    /// two land through `author_pane_window` — every part judged before any part written —
+    /// so a corner gesture whose height is illegal does not narrow the pane, and a top
+    /// pull whose height is illegal does not move the corner it failed to resize.
+    ///
+    /// THE AXES THE EDGE DID NOT NAME KEEP WHAT THEY HAD, mode included -- so resizing a
+    /// width leaves a default height still reacting to the room, and a right-edge or
+    /// bottom-edge resize leaves a default PLACE still reactive: those edges anchor the
+    /// place by not writing it at all.
+    void manage_resize(std::int64_t base_x, std::int64_t base_y, std::int64_t base_w,
+                       std::int64_t base_h, std::int64_t dx, std::int64_t dy,
+                       loom::Mail& mail) {
         const Written ready = manage_geometry_ready();
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
-        const PaneSizeProposal want =
-            pane_size_proposal(session_.manage.edge, base_w, base_h, dx, dy);
-        // THE AXES THE EDGE DID NOT NAME KEEP WHAT THEY HAD, mode included -- so resizing a
-        // width leaves a default height still reacting to the room, which is the sparseness
-        // claim said as an operation rather than as a field.
+        const PaneWindowProposal want =
+            pane_window_proposal(session_.manage.edge, base_x, base_y, base_w, base_h, dx, dy);
         const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
         PaneSize width = row != nullptr ? row->width : PaneSize{};
         PaneSize height = row != nullptr ? row->height : PaneSize{};
-        if (want.w != base_w || width.mode == pane_unit::kCells) {
-            width = PaneSize{pane_unit::kCells, want.w};
+        if (want.w != base_w || width.mode == pane_unit::kSubcells) {
+            width = PaneSize{pane_unit::kSubcells, want.w};
         }
-        if (want.h != base_h || height.mode == pane_unit::kCells) {
-            height = PaneSize{pane_unit::kCells, want.h};
+        if (want.h != base_h || height.mode == pane_unit::kSubcells) {
+            height = PaneSize{pane_unit::kSubcells, want.h};
         }
+        // THE PLACE IS WRITTEN EXACTLY WHEN THE ANCHOR NEEDS IT: a left/top pull whose
+        // geometry actually moved, or one on a pane whose place is already authored (a
+        // zero-delta write of the same value is skipped, W-3's nothing-changed rule).
+        const bool moves_place =
+            want.place_moved &&
+            (want.x != base_x || want.y != base_y ||
+             (row != nullptr && row->place.mode == pane_unit::kSubcells));
+        const PanePlace place{pane_unit::kSubcells, want.x, want.y};
         const Written done =
-            author_pane_size(session_.setup.active, session_.manage.selected, width, height);
+            author_pane_window(session_.setup.active, session_.manage.selected,
+                               moves_place ? &place : nullptr, width, height);
         if (!done.accepted) {
             say(done.refusal, true);
             return;
         }
-        // A SIZE CHANGE CANNOT MOVE A PANE BETWEEN SEATED AND WAITING -- only a PLACE does
-        // that -- but the room an external pane was granted may have moved, and `repaint`
-        // owns that (`refresh_external_rooms`). Nothing is reconciled here.
-        (void)mail;
+        if (moves_place) {
+            // AUTHORING A PLACE TAKES THE PANE OUT OF THE REACTIVE STACK — `manage_place`'s
+            // own reconciliation, owed here the moment an anchored resize writes one.
+            apply_setup(mail);
+        } else {
+            // A SIZE-ONLY CHANGE CANNOT MOVE A PANE BETWEEN SEATED AND WAITING -- only a
+            // PLACE does that -- but the room an external pane was granted may have moved,
+            // and `repaint` owns that (`refresh_external_rooms`). Nothing is reconciled here.
+            (void)mail;
+        }
         say(manage_status(), false);
     }
 
-    /// The size a one-cell key press proposes: the authored amount if there is one, else the
+    /// The size a one-cell key press proposes: the authored window if there is one, else the
     /// resolved one -- the same "author the current resolved value, then apply the delta"
     /// rule the pointer follows, so the two gestures cannot disagree about where they start.
+    /// One press is one CELL of delta, through the same anchored proposal the pointer takes,
+    /// so a key on the top edge moves `y` with the height exactly as a hand there does.
     void manage_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
         const Written ready = manage_geometry_ready();
         if (!ready.accepted) {
@@ -3317,13 +3344,20 @@ private:
             return;
         }
         const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
-        // THE RESOLVED SIZE, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
-        const ui::Rect now = managed_bounds().resolved;
-        const std::int64_t base_w =
-            row != nullptr && row->width.mode == pane_unit::kCells ? row->width.amount : now.w;
-        const std::int64_t base_h =
-            row != nullptr && row->height.mode == pane_unit::kCells ? row->height.amount : now.h;
-        manage_resize(base_w, base_h, dx, dy, mail);
+        // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
+        const FineRect now = managed_bounds().resolved;
+        const std::int64_t base_x =
+            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.x : now.x;
+        const std::int64_t base_y =
+            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.y : now.y;
+        const std::int64_t base_w = row != nullptr && row->width.mode == pane_unit::kSubcells
+                                        ? row->width.amount
+                                        : now.w;
+        const std::int64_t base_h = row != nullptr && row->height.mode == pane_unit::kSubcells
+                                        ? row->height.amount
+                                        : now.h;
+        manage_resize(base_x, base_y, base_w, base_h, dx * surface::kCellSubs,
+                      dy * surface::kCellSubs, mail);
     }
 
     /// THE FOUR ORDERING OPERATIONS. They are available for EVERY selected row, including an
@@ -3483,7 +3517,11 @@ private:
 
     /// A PRESS WHILE ARRANGING. The selected pane's affordances first, then its body, then
     /// any other presented pane -- and a press on empty canvas selects nothing and says so.
-    void manage_press(std::int64_t cx, std::int64_t cy) {
+    /// EVERYTHING HERE IS THE POINTER'S OWN RESOLUTION (WUX-2): the press arrives as a
+    /// sub-unit position with the reporting medium's grain, every hit is the aligned-span
+    /// law the paint uses, and the grab and the base are captured in sub-units — so the
+    /// motion that follows can spend a single pixel of hand.
+    void manage_press(const PointedAt& at) {
         PaneManagement& m = session_.manage;
         const Screen sc = screen_of(session_);
         if (m.has_selection()) {
@@ -3498,7 +3536,8 @@ private:
                     // and only while it is. That is the priority §9 grants and its whole
                     // extent: outside this mode a covered pane claims nothing, which is what
                     // stops a selection from becoming a click-through.
-                    const std::int64_t edge = pane_edge_at(mine.rect, cx, cy);
+                    const std::int64_t edge =
+                        pane_edge_at(mine.rect, at.sub.x, at.sub.y, at.grain);
                     if (edge != kNoPaneEdge) {
                         m.doing = pane_manage::kSize;
                         m.edge = edge;
@@ -3507,19 +3546,29 @@ private:
                         session_.pane_drag.pane = m.selected;
                         session_.pane_drag.sizing = true;
                         session_.pane_drag.edge = edge;
-                        session_.pane_drag.from_x = cx;
-                        session_.pane_drag.from_y = cy;
+                        session_.pane_drag.from_x = at.sub.x;
+                        session_.pane_drag.from_y = at.sub.y;
                         const SetupPane* row = pane_of(session_.setup.active, m.selected);
                         // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the
-                        // eye and the hand are -- AND THE BASE IS THE RESOLVED SIZE
-                        // (WIND-2a). A hand and a key author from the same number, which
-                        // is the pairing this file has kept since both gestures existed.
+                        // eye and the hand are -- AND THE BASE IS THE RESOLVED WINDOW
+                        // (WIND-2a): place beside size since WUX-2, because an anchored
+                        // top or left pull authors both from this one captured rectangle.
+                        // A hand and a key author from the same numbers, which is the
+                        // pairing this file has kept since both gestures existed.
+                        session_.pane_drag.base_x =
+                            row != nullptr && row->place.mode == pane_unit::kSubcells
+                                ? row->place.x
+                                : mine.resolved.x;
+                        session_.pane_drag.base_y =
+                            row != nullptr && row->place.mode == pane_unit::kSubcells
+                                ? row->place.y
+                                : mine.resolved.y;
                         session_.pane_drag.base_w =
-                            row != nullptr && row->width.mode == pane_unit::kCells
+                            row != nullptr && row->width.mode == pane_unit::kSubcells
                                 ? row->width.amount
                                 : mine.resolved.w;
                         session_.pane_drag.base_h =
-                            row != nullptr && row->height.mode == pane_unit::kCells
+                            row != nullptr && row->height.mode == pane_unit::kSubcells
                                 ? row->height.amount
                                 : mine.resolved.h;
                         say(std::string("sizing ") + ref_text(m.selected) + " by its " +
@@ -3527,13 +3576,13 @@ private:
                             false);
                         return;
                     }
-                    if (mine.rect.contains(cx, cy)) {
+                    if (mine.rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
                         m.doing = pane_manage::kMove;
                         session_.pane_drag = PaneGesture{};
                         session_.pane_drag.active = true;
                         session_.pane_drag.pane = m.selected;
-                        session_.pane_drag.grab_dx = detail::minus(cx, mine.rect.x);
-                        session_.pane_drag.grab_dy = detail::minus(cy, mine.rect.y);
+                        session_.pane_drag.grab_dx = detail::minus(at.sub.x, mine.rect.x);
+                        session_.pane_drag.grab_dy = detail::minus(at.sub.y, mine.rect.y);
                         say("moving " + ref_text(m.selected) + " -- drag to place it", false);
                         return;
                     }
@@ -3546,7 +3595,8 @@ private:
             presentation_order(session_.setup.active, session_.panels);
         for (std::size_t i = order.size(); i > 0; --i) {
             const std::int64_t kind = order[i - 1];
-            if (!bounds_of(session_.panels, session_.setup.active, kind, sc).rect.contains(cx, cy)) {
+            if (!bounds_of(session_.panels, session_.setup.active, kind, sc)
+                     .rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
                 continue;
             }
             for (const SetupPane& row : session_.setup.active.panes) {
@@ -3567,7 +3617,10 @@ private:
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
     /// looked up by its reference, so nothing under the pointer can take the gesture over.
-    void manage_motion(std::int64_t cx, std::int64_t cy, loom::Mail& mail) {
+    /// The deltas are sub-units — a one-pixel hand movement is four of them on the shipped
+    /// skin, and a terminal's cell is forty-eight — proposed from the captured base, never
+    /// accumulated (WUX-2).
+    void manage_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail) {
         PaneGesture& g = session_.pane_drag;
         if (!g.active) {
             return;
@@ -3585,10 +3638,12 @@ private:
         session_.manage.selected = held;
         if (g.sizing) {
             session_.manage.edge = g.edge;
-            manage_resize(g.base_w, g.base_h, detail::minus(cx, g.from_x),
-                          detail::minus(cy, g.from_y), mail);
+            manage_resize(g.base_x, g.base_y, g.base_w, g.base_h,
+                          detail::minus(sub_x, g.from_x), detail::minus(sub_y, g.from_y),
+                          mail);
         } else {
-            manage_place(detail::minus(cx, g.grab_dx), detail::minus(cy, g.grab_dy), mail);
+            manage_place(detail::minus(sub_x, g.grab_dx), detail::minus(sub_y, g.grab_dy),
+                         mail);
         }
         if (!has_pane(session_.setup.active, held)) {
             session_.manage.selected = was_selected;

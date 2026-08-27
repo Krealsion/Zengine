@@ -463,20 +463,30 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
 TEST_CASE("contract: the canvas shapes derive their declared spellings exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
-    const auto rect = SchemaBuilder("SurfaceRect", 1)
+    // VERSION 2 SINCE WUX-2, for the sub-cell remainders — LAST, HD-2's reader
+    // rule: an existing publisher's fields are where they were, and a publisher
+    // that thinks in whole cells writes zeros there and means what it always
+    // meant.
+    const auto rect = SchemaBuilder("SurfaceRect", 2)
                           .field("x", Kind::Int)
                           .field("y", Kind::Int)
                           .field("w", Kind::Int)
                           .field("h", Kind::Int)
                           .field("role", Kind::Int)
+                          .field("sub_x", Kind::Int)
+                          .field("sub_y", Kind::Int)
+                          .field("sub_w", Kind::Int)
+                          .field("sub_h", Kind::Int)
                           .build();
     CHECK(schema_of<SurfaceRect>()->content_id() == rect->content_id());
 
-    const auto label = SchemaBuilder("SurfaceLabel", 1)
+    const auto label = SchemaBuilder("SurfaceLabel", 2)
                            .field("x", Kind::Int)
                            .field("y", Kind::Int)
                            .field("text", Kind::Text)
                            .field("role", Kind::Int)
+                           .field("sub_x", Kind::Int)
+                           .field("sub_y", Kind::Int)
                            .build();
     CHECK(schema_of<SurfaceLabel>()->content_id() == label->content_id());
 
@@ -512,7 +522,8 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // the identity is built out of the pieces rather than spelled independently. The four
     // selection fields are LAST, HD-2's reader rule again: an existing publisher's fields
     // are where they were, and the new ones are at the end.
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 5)
+    // VERSION 6 SINCE WUX-2: the bounds' sub-cell remainders, last again.
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 6)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -525,6 +536,10 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                                  .field("sel_begin_col", Kind::Int)
                                  .field("sel_end_row", Kind::Int)
                                  .field("sel_end_col", Kind::Int)
+                                 .field("sub_x", Kind::Int)
+                                 .field("sub_y", Kind::Int)
+                                 .field("sub_w", Kind::Int)
+                                 .field("sub_h", Kind::Int)
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
@@ -533,12 +548,12 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // makes a drift anywhere in this vocabulary a red here rather than a surprise on a
     // wire. The layer's own spelling and the canvas's version are pinned in this file's
     // WIND-2a tier, built out of these same pieces for this same reason.
-    const auto layer = SchemaBuilder("SurfaceLayer", 3)
+    const auto layer = SchemaBuilder("SurfaceLayer", 4)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 7)
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 8)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
@@ -2802,25 +2817,31 @@ SurfaceTextRegion one_row_region(std::int64_t x, std::int64_t y, const std::stri
 TEST_CASE("contract: the layer shapes derive their declared spellings exactly") {
     using loom::Kind;
     using loom::SchemaBuilder;
-    const auto rect = SchemaBuilder("SurfaceRect", 1)
+    const auto rect = SchemaBuilder("SurfaceRect", 2)
                           .field("x", Kind::Int)
                           .field("y", Kind::Int)
                           .field("w", Kind::Int)
                           .field("h", Kind::Int)
                           .field("role", Kind::Int)
+                          .field("sub_x", Kind::Int)
+                          .field("sub_y", Kind::Int)
+                          .field("sub_w", Kind::Int)
+                          .field("sub_h", Kind::Int)
                           .build();
-    const auto label = SchemaBuilder("SurfaceLabel", 1)
+    const auto label = SchemaBuilder("SurfaceLabel", 2)
                            .field("x", Kind::Int)
                            .field("y", Kind::Int)
                            .field("text", Kind::Text)
                            .field("role", Kind::Int)
+                           .field("sub_x", Kind::Int)
+                           .field("sub_y", Kind::Int)
                            .build();
     const auto text_row = SchemaBuilder("SurfaceTextRow", 2)
                               .field("text", Kind::Text)
                               .field("role", Kind::Int)
                               .field("background", Kind::Int)
                               .build();
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 5)
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 6)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -2833,46 +2854,48 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                                  .field("sel_begin_col", Kind::Int)
                                  .field("sel_end_row", Kind::Int)
                                  .field("sel_end_col", Kind::Int)
+                                 .field("sub_x", Kind::Int)
+                                 .field("sub_y", Kind::Int)
+                                 .field("sub_w", Kind::Int)
+                                 .field("sub_h", Kind::Int)
                                  .build();
 
     // THE PLANE ITSELF: the three lists the canvas used to carry, in the order a medium
     // executes them, and NOTHING ELSE. No name, no handle, no key, no z, no opacity, no
     // transform -- every one of those is a fact a compositor holds and a publisher would
-    // then have to hold with it. VERSION 3 SINCE TEXT-0, and it has never gained a field of
-    // its own: a region below it did (the ground, then the selection), and a layer IS a
-    // list of those. The same sentence this file has now had to write five times, one level
-    // further out each time.
-    const auto layer = SchemaBuilder("SurfaceLayer", 3)
+    // then have to hold with it. VERSION 4 SINCE WUX-2, and it has never gained a field of
+    // its own: the shapes below it did (the ground, the selection, then the sub-cell
+    // remainders), and a layer IS a list of those. The same sentence this file has now had
+    // to write six times, one level further out each time.
+    const auto layer = SchemaBuilder("SurfaceLayer", 4)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
     CHECK(schema_of<SurfaceLayer>()->content_id() == layer->content_id());
     CHECK(std::string(SurfaceLayer::zen_name) == "SurfaceLayer");
-    CHECK(SurfaceLayer::zen_version == 3);
+    CHECK(SurfaceLayer::zen_version == 4);
 
-    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 7, of which
-    // exactly one bump (5) was the ordinary kind: 2, 3, 4, 6 and 7 it gained no field at
+    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 8, of which
+    // exactly one bump (5) was the ordinary kind: 2, 3, 4, 6, 7 and 8 it gained no field at
     // all and changed anyway, because its identity is computed from what it carries.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 7)
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 8)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
-    CHECK(SurfaceCanvas::zen_version == 7);
+    CHECK(SurfaceCanvas::zen_version == 8);
 
-    // NO PRIMITIVE GAINED ANYTHING IN WIND-2a. A layer is a position in a vector, so a rect,
-    // a label, a row and a region were byte-identical to what they were -- which is what
-    // made that an ordering change rather than a depth model. TYPE-1 and TEXT-0 each moved
-    // exactly one of them, and both times the bounded one: a rect, a label and a row are
-    // still untouched, which keeps "type on material" and "these characters are selected"
-    // properties of the shape that owns a RECTANGLE rather than new rules every primitive
-    // has to be read against.
-    CHECK(SurfaceRect::zen_version == 1);
-    CHECK(SurfaceLabel::zen_version == 1);
+    // WUX-2 IS THE FIRST PHASE TO TOUCH THE GEOMETRY PRIMITIVES THEMSELVES, and what it
+    // added is remainders, not rules: a rect, a label and a region carry a finer position
+    // on the same one lattice, a row still carries no coordinate at all, and every earlier
+    // publisher's zeros mean exactly what its silence always meant. WIND-2a stays what it
+    // was — an ordering change, not a depth model.
+    CHECK(SurfaceRect::zen_version == 2);
+    CHECK(SurfaceLabel::zen_version == 2);
     CHECK(SurfaceTextRow::zen_version == 2);
-    CHECK(SurfaceTextRegion::zen_version == 5);
+    CHECK(SurfaceTextRegion::zen_version == 6);
 }
 
 TEST_CASE("canvas: no layers and empty layers are both legitimate pictures") {
@@ -4233,3 +4256,281 @@ TEST_CASE("QR-11: the real SDL medium reads the platform clipboard, per request"
 }
 
 #endif // SURFACE_HAS_SDL
+
+// ========================================================================================
+// WUX-2 — the sub-cell lattice: the arithmetic, the one quantization law at both shipped
+// grains, and the fine paths through the plan and the projection.
+// ========================================================================================
+
+
+namespace {
+
+/// The visible bytes of a rasterized frame, escapes stripped — the tier's own reader.
+std::string wux2_plain(const std::string& body) {
+    std::string out;
+    for (std::size_t i = 0; i < body.size(); ++i) {
+        if (body[i] == '\x1b') {
+            while (i < body.size() && body[i] != 'm' && body[i] != 'K' && body[i] != 'H' &&
+                   body[i] != 'J') {
+                ++i;
+            }
+            continue;
+        }
+        out += body[i];
+    }
+    return out;
+}
+
+std::vector<std::string> wux2_rows(const std::string& body) {
+    std::vector<std::string> out;
+    std::string row;
+    for (const char ch : wux2_plain(body)) {
+        if (ch == '\r') {
+            continue;
+        }
+        if (ch == '\n') {
+            out.push_back(row);
+            row.clear();
+            continue;
+        }
+        row += ch;
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("WUX-2: the sub-cell conversions are exact, floored, and total") {
+    // THE LATTICE CONSTANT AND ITS ONE HAPPY ALIGNMENT: strictly finer than the shipped
+    // pixel, with the pixel embedding exactly — which is what makes a gesture's fine truth
+    // round-trip to the pixel it came from.
+    CHECK(kCellSubs == 48);
+    CHECK(kCellSubs % kCanvasCellPx == 0);
+    CHECK(kPixelGrainSubs == 4);
+    CHECK(kCellGrainSubs == kCellSubs);
+
+    // CELLS <-> SUBS, exact both ways, negatives included.
+    CHECK(subs_of_cells(0) == 0);
+    CHECK(subs_of_cells(7) == 336);
+    CHECK(subs_of_cells(-2) == -96);
+    CHECK(cell_of_subs(336) == 7);
+    CHECK(cell_of_subs(335) == 6);  // floored
+    CHECK(cell_of_subs(-1) == -1);  // floored ACROSS zero, cell_of_pixel's own rule
+    CHECK(cell_of_subs(-48) == -1);
+    CHECK(cell_of_subs(-49) == -2);
+
+    // SUBS -> PIXELS, floored, and EXACT on the pixel sub-lattice.
+    CHECK(px_of_subs(subs_of_cells(10)) == px_of_cells(10));
+    CHECK(px_of_subs(4) == 1);
+    CHECK(px_of_subs(3) == 0);
+    CHECK(px_of_subs(-4) == -1);
+    CHECK(px_of_subs(-1) == -1); // a quarter-pixel left of zero is on pixel -1, floored
+    for (std::int64_t px = -30; px <= 30; ++px) {
+        CAPTURE(px);
+        // The pixel lattice embeds exactly: pixel -> subs -> pixel is the identity.
+        CHECK(subs_of_pixel(px) == px * 4);
+        CHECK(px_of_subs(subs_of_pixel(px)) == px);
+    }
+
+    // A WIRE REMAINDER OUTSIDE [0, kCellSubs) READS AS ZERO — the whole-cell picture every
+    // earlier publisher meant, never a guess.
+    CHECK(sub_rem(0) == 0);
+    CHECK(sub_rem(47) == 47);
+    CHECK(sub_rem(48) == 0);
+    CHECK(sub_rem(-1) == 0);
+    CHECK(sub_rem((std::numeric_limits<std::int64_t>::max)()) == 0);
+    CHECK(subs_of_wire(10, 13) == 493);
+    CHECK(subs_of_wire(10, 99) == 480); // garbage remainder: the cell alone
+
+    // SATURATION: the ends of the number line stay on it.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(subs_of_cells(kMax) == kMaxCellsInSubs * kCellSubs);
+    CHECK(subs_of_cells(-kMax) == -kMaxCellsInSubs * kCellSubs);
+    CHECK(px_of_subs(kMax) == floor_div_px(kMaxCellsInPixels * kCanvasCellPx, kCellSubs));
+}
+
+TEST_CASE("WUX-2: one quantization law -- a span lands on device units by flooring both edges") {
+    // THE LAW, AS A PROPERTY, at both shipped grains: a consumer of grain g shows the fine
+    // span [L, L+len) on device units [floor(L/g), floor((L+len)/g)), and the hit answer is
+    // exactly that presentation read backwards. Swept over every sub-position in a
+    // three-cell window at every extent up to two cells, for the pixel grain and the cell
+    // grain both.
+    for (const std::int64_t g : {kPixelGrainSubs, kCellGrainSubs}) {
+        CAPTURE(g);
+        for (std::int64_t begin = -kCellSubs; begin <= kCellSubs; ++begin) {
+            for (const std::int64_t len : {1, 3, 4, 13, 48, 96}) {
+                const std::int64_t first = floor_div_px(begin, g);
+                const std::int64_t past = floor_div_px(begin + len, g);
+                for (std::int64_t unit = first - 2; unit <= past + 2; ++unit) {
+                    const bool expected = unit >= first && unit < past;
+                    if (sub_span_contains(begin, len, unit * g, g) != expected) {
+                        CAPTURE(begin);
+                        CAPTURE(len);
+                        CAPTURE(unit);
+                        CHECK(sub_span_contains(begin, len, unit * g, g) == expected);
+                    }
+                }
+            }
+        }
+    }
+    // EXACT DEVICE-UNIT SPANS DEGRADE TO ORDINARY CONTAINMENT — every whole-cell rectangle,
+    // on both media, answers exactly as it did before the lattice got finer.
+    CHECK(sub_span_contains(subs_of_cells(3), subs_of_cells(2), subs_of_cells(3), kCellSubs));
+    CHECK_FALSE(sub_span_contains(subs_of_cells(3), subs_of_cells(2), subs_of_cells(5),
+                                  kCellSubs));
+    CHECK_FALSE(sub_span_contains(subs_of_cells(3), subs_of_cells(2), subs_of_cells(3) - 1,
+                                  kCellSubs));
+    // A DEGENERATE SPAN CONTAINS NOTHING, and a grain nobody could mean answers false.
+    CHECK_FALSE(sub_span_contains(10, 0, 10, kPixelGrainSubs));
+    CHECK_FALSE(sub_span_contains(10, -5, 10, kPixelGrainSubs));
+    CHECK_FALSE(sub_span_contains(10, 5, 10, 0));
+}
+
+TEST_CASE("WUX-2: a fine rect is one quad at its floored pixel edges, and floored cells in a terminal") {
+    // ONE RECTANGLE, HALF A CELL IN: x = 2 cells + 24 subs (pixel 30.0), y = 1 cell + 12
+    // subs (pixel 13.0... 12*12/48=3 -> pixel 15), w = 3 cells + 24 subs, h = 2 cells.
+    SurfaceCanvas c;
+    c.width = 10;
+    c.height = 6;
+    SurfaceRect r{2, 1, 3, 2, role::kAccent, 24, 12, 24, 0};
+    plane(c).rects.push_back(r);
+
+    // THE SDL PLAN: pixel edges through `px_of_subs`, exactly.
+    const std::vector<PlanRect> quads =
+        plan_layer_quads(c.layers[0], c.width, c.height, SurfaceExtent{});
+    REQUIRE(quads.size() == 1);
+    const std::int64_t left = px_of_subs(subs_of_wire(2, 24));
+    const std::int64_t top = px_of_subs(subs_of_wire(1, 12));
+    const std::int64_t right = px_of_subs(subs_of_wire(2, 24) + subs_of_cells(3) + 24);
+    const std::int64_t bottom = px_of_subs(subs_of_wire(1, 12) + subs_of_cells(2));
+    CHECK(quads[0].x == left);
+    CHECK(quads[0].y == top);
+    CHECK(quads[0].w == right - left);
+    CHECK(quads[0].h == bottom - top);
+    CHECK(left == 30);
+    CHECK(top == 15);
+    CHECK(right - left == 42); // 3.5 cells of pixels
+
+    // THE TERMINAL: the covered cells, [floor(left), floor(right)) per axis — the fine
+    // right edge crossed into cell 6, so the span is 2..6; the bottom edge (3.25 cells)
+    // makes rows 1..3.
+    const std::string body = canvas_body(c);
+    const std::vector<std::string> rows = [&] {
+        std::vector<std::string> out;
+        std::string plain;
+        for (std::size_t i = 0; i < body.size(); ++i) {
+            if (body[i] == '\x1b') {
+                while (i < body.size() && body[i] != 'm' && body[i] != 'K') {
+                    ++i;
+                }
+                continue;
+            }
+            plain += body[i];
+        }
+        std::string row;
+        for (const char ch : plain) {
+            if (ch == '\r') {
+                continue;
+            }
+            if (ch == '\n') {
+                out.push_back(row);
+                row.clear();
+                continue;
+            }
+            row += ch;
+        }
+        return out;
+    }();
+    REQUIRE(rows.size() == 6);
+    CHECK(rows[0] == "          ");
+    CHECK(rows[1] == "  ****    "); // cells 2..5: four covered columns
+    CHECK(rows[2] == "  ****    ");
+    CHECK(rows[3] == "          "); // bottom edge 3.25 floors to row 3: not covered
+    CHECK(rows[4] == "          ");
+
+    // AND THE SAME RECT WITH ZERO REMAINDERS IS BYTE-FOR-BYTE THE OLD PICTURE in both
+    // media — exact-cell geometry did not move.
+    SurfaceCanvas exact;
+    exact.width = 10;
+    exact.height = 6;
+    plane(exact).rects.push_back(SurfaceRect{2, 1, 3, 2, role::kAccent});
+    const std::vector<PlanRect> eq =
+        plan_layer_quads(exact.layers[0], exact.width, exact.height, SurfaceExtent{});
+    REQUIRE(eq.size() == 1);
+    CHECK(eq[0].x == 2 * kCanvasCellPx);
+    CHECK(eq[0].w == 3 * kCanvasCellPx);
+}
+
+TEST_CASE("WUX-2: a fine label anchors at its floored pixel and floors away in cells") {
+    SurfaceCanvas c;
+    c.width = 10;
+    c.height = 4;
+    plane(c).labels.push_back(SurfaceLabel{3, 2, "AB", role::kFill, 24, 36});
+
+    // THE TERMINAL puts the bytes on the anchor's floor cell — the remainder is the
+    // graphical medium's to spend, and a cell medium's honest reading of 3.5 is 3.
+    const std::string body = wux2_plain(canvas_body(c));
+    CHECK(body.find("AB") != std::string::npos);
+    // row 2 (floor of 2.75), columns 3..4
+    const std::vector<std::string> rows = wux2_rows(canvas_body(c));
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[2].substr(3, 2) == "AB");
+
+    // THE SDL BITMAP FACE spends the remainders as pixels: the first glyph's cell quad
+    // begins at the fine anchor's floored pixel.
+    const std::vector<PlanRect> quads =
+        plan_layer_quads(c.layers[0], c.width, c.height, SurfaceExtent{});
+    REQUIRE_FALSE(quads.empty());
+    const std::int64_t ax = px_of_subs(subs_of_wire(3, 24));
+    const std::int64_t ay = px_of_subs(subs_of_wire(2, 36));
+    CHECK(quads[0].x == ax);
+    CHECK(quads[0].y == ay);
+    CHECK(ax == 42);
+    CHECK(ay == 33);
+}
+
+TEST_CASE("WUX-2: a fine region fits at its fine pixels and covers its cells") {
+    // A REGION HALF A CELL IN: the fit's viewport is the fine edges' pixels — the same
+    // arithmetic the quads use, which is what keeps a pane's backdrop and its prose one
+    // picture — and the cell fallback is the covered-cell span.
+    SurfaceTextRegion r;
+    r.x = 2;
+    r.y = 1;
+    r.w = 20;
+    r.h = 5;
+    r.sub_x = 24;
+    r.sub_y = 0;
+    r.sub_w = 30;
+    r.sub_h = 20;
+    const SurfaceExtent metric{78, 22, 8, 18};
+    const RegionFit fit = fit_region(r, metric);
+    const std::int64_t left = px_of_subs(subs_of_wire(2, 24));
+    const std::int64_t right = px_of_subs(subs_of_wire(2, 24) + subs_of_cells(20) + 30);
+    CHECK(fit.view.x == left);
+    CHECK(fit.view.w == right - left);
+    CHECK(fit.graphical());
+
+    // THE CELL ARM: with no metric, the capacity is the covered cells — the fine width
+    // 20.625 spans cells floor(2.5)=2 .. floor(23.125)=23, twenty-one columns.
+    const RegionFit cells = fit_region(r, SurfaceExtent{});
+    CHECK(cells.columns == 21);
+    CHECK(cells.rows == 5); // 1.0 .. 5.42 -> rows 1..5, four... floor(6.416)=6 - 1 = 5
+
+    // THE PROSE INVERSE READS THE FIT'S OWN VIEWPORT: a press one advance right of the
+    // fine origin is column 1 — a re-derivation from the cell coordinate would be a
+    // quarter-cell off.
+    CHECK(prose_column_of_pixel(fit.view.x + kTextInsetPx, r.x, fit) == 0);
+    CHECK(prose_column_of_pixel(fit.view.x + kTextInsetPx + fit.advance_px, r.x, fit) == 1);
+
+    // AND THE PROJECTED ROWS CARRY THE REMAINDERS, so the bitmap fallback and the
+    // character medium each answer at their own grain from one projection.
+    r.rows.push_back(SurfaceTextRow{"hello", role::kFill});
+    std::vector<ProjectedRow> out;
+    project_one_text_region(r, out);
+    REQUIRE_FALSE(out.empty());
+    CHECK(out[0].label.x == 2);
+    CHECK(out[0].label.sub_x == 24);
+    CHECK(out[0].label.y == 1);
+    CHECK(out[0].label.sub_y == 0);
+    CHECK(out[0].label.text.size() == 21); // padded to the covered cells
+}

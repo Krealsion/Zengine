@@ -308,8 +308,21 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // the span first; see there for why the rule is shared with the SDL plan.
         for (const zengine::surface::SurfaceRect& r : layer.rects) {
             const char g = glyph_for_role(static_cast<int>(r.role));
-            const CellSpan xs = clip_span(r.x, r.w, w);
-            const CellSpan ys = clip_span(r.y, r.h, h);
+            // THE ONE QUANTIZATION LAW AT THE CELL GRAIN (WUX-2): a fine rectangle
+            // covers the cells its floored edges span, so a right edge that crosses a
+            // cell boundary earns that cell. `r.x` is already the left edge's floor (a
+            // remainder is 0..47 by decomposition, and a garbage one reads as zero),
+            // and the carry below is the right edge's. Zero remainders leave every
+            // span exactly what it always was — the TUI's picture of whole-cell
+            // geometry has not moved by a byte.
+            const std::int64_t carry_w =
+                (zengine::surface::sub_rem(r.sub_x) + zengine::surface::sub_rem(r.sub_w)) /
+                zengine::surface::kCellSubs;
+            const std::int64_t carry_h =
+                (zengine::surface::sub_rem(r.sub_y) + zengine::surface::sub_rem(r.sub_h)) /
+                zengine::surface::kCellSubs;
+            const CellSpan xs = clip_span(r.x, r.w >= 0 ? add_cells(r.w, carry_w) : r.w, w);
+            const CellSpan ys = clip_span(r.y, r.h >= 0 ? add_cells(r.h, carry_h) : r.h, h);
             for (std::int64_t y = ys.begin; y < ys.end; ++y) {
                 for (std::int64_t x = xs.begin; x < xs.end; ++x) {
                     put(x, y, g, r.role);

@@ -197,6 +197,39 @@ between two planes     the complete earlier plane, then the complete later one o
   input. What order a consumer publishes its planes in is that consumer's law — Workshop's is in
   [`workshop.md`](workshop.md#the-plane-sequence-is-the-layout-of-the-screen-wind-2a).
 
+## The lattice is fine, and each medium floors at its own grain (WUX-2)
+
+`kCellSubs` (vocabulary.hpp) is the canvas lattice's resolution: 48 sub-units per cell, a
+fixed vocabulary constant that never moves with a medium. The geometry shapes carry their
+coordinates as whole cells plus a `sub_*` remainder in `[0, kCellSubs)` — the floor
+decomposition, one spelling per value — so every earlier publisher's zeros mean exactly what
+its silence always meant, and a publisher with a finer fact (pane arrangement is the one
+that earned it) says it on the same lattice everything else is drawn on.
+
+- **ONE QUANTIZATION LAW.** A consumer whose device unit is `g` sub-units — a terminal cell
+  (`kCellGrainSubs` = 48), the shipped skin's pixel (`kPixelGrainSubs` = 4) — presents a fine
+  span `[L, R)` on device units `[floor(L/g), floor(R/g))`. The SDL plan applies it per EDGE
+  through `px_of_subs` (quads, labels, and `fit_region`'s viewport — one arithmetic, so a
+  pane's backdrop, its prose and its hit answer are one picture); the cell projection and the
+  terminal rasterizer apply it at the cell grain (covered cells; a label's anchor floors).
+  Exact-cell geometry therefore lands on exactly the cells and pixels it always did.
+- **THE HIT LAW IS THE PAINT LAW READ BACKWARDS.** `sub_span_contains` floors BOTH sides by
+  the pointer's own grain before comparing, so the hand meets exactly the device units the
+  rectangle paints — comparing the raw sub-position instead is wrong by up to one device unit
+  at a fractional edge, which is a pane whose visible edge and interactive edge disagree.
+- **A GARBAGE REMAINDER READS AS ZERO** (`sub_rem`): a value outside `[0, kCellSubs)` is a
+  number nobody could mean, and the safe reading is the whole-cell picture — the same posture
+  an unknown ground takes, for the same reason.
+- **THE POINTER'S FINE TWIN rides beside its cell projection**: `subs_of_pixel` /
+  `canvas_subs_of_window_pixels` / `canvas_subs_of_terminal_cells` (pointing.hpp), with the
+  reporting medium's grain travelling beside the position — a terminal says a cell's corner
+  at grain 48, a window says a pixel at grain 4, and a consumer that spends cells and one
+  that spends subs are reading ONE measurement.
+- **What stayed coarse, deliberately**: `SurfaceExtent` (the medium's room is whole cells —
+  the honest coarse fact), the canvas's own `width`/`height`, and the prose lattice (rows,
+  columns, carets, selections — a region's interior is the metric's business, not the
+  lattice's).
+
 ## A region too small for the face is a CELL region (HD-5)
 
 `fit_region` falls back to the region's own cell bounds when a real metric yields no rows or no
@@ -282,6 +315,12 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
 - A metric identifies a graphical medium — `RegionFit::graphical()` is the partition, and a
   window whose font failed to open publishes `{w,h,0,0}` and still lays its canvas out at
   `kCanvasCellPx`.
+- A sub-cell remainder is device pixels — it is 1/`kCellSubs` of a CANVAS cell, a
+  medium-independent fraction; the shipped skin's pixel happens to be four of them (12
+  divides 48), which is an alignment worth having, not a contract a future medium must meet.
+- `fit_region`'s 6-argument form takes sub-units — it takes CELLS, exactly as it always has;
+  the sub-unit entry is `fit_region_subs`, and the shape overload routes through it so a
+  fine region fits at its fine place.
 - `kCanvasCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
   pointer may spend it only because the event carries `input::space::kPixels`, a stamp on that
   moment. `SurfaceExtent` carries no such stamp.

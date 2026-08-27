@@ -61,11 +61,15 @@
 // mean a new publisher-to-medium protocol -- which is the widening this phase was told not
 // to absorb. Reported as a deliberate omission rather than attempted badly.
 //
-// ---- What version 1 promises ----------------------------------------------
+// ---- What version 2 promises (WUX-2) ---------------------------------------
 //
-//   PROMISED   Workshop reads and writes session format version 1, and a second save of a
-//              loaded session is byte-identical to the first.
-//   REFUSED    any other `format_version`, with the number named; a `format` that is not
+//   PROMISED   Workshop reads and writes session format version 2 — the desk nested at
+//              setup format 3, sub-cell geometry — and a second save of a loaded session
+//              is byte-identical to the first. It also READS version 1, whose nested desk
+//              is WIND-2's whole-cell format, through `setup_persist`'s own legacy reader:
+//              the desk migrates exactly, the viewport crosses unchanged, and the file on
+//              disk is rewritten only by the ordinary close-time save (which writes v2).
+//   REFUSED    any OTHER `format_version`, with the number named; a `format` that is not
 //              this one; a field the shape does not declare; a field of the wrong kind; a
 //              nested desk that is not a legal saved setup, in `setup_persist`'s own words;
 //              a file larger than a session can be.
@@ -73,7 +77,7 @@
 //              window intent -- `setup_persist`'s rule, unchanged, because it is the same
 //              value. And a viewport this Workshop will not honour: see below, because that
 //              is deliberately NOT a refusal of the file.
-//   NOT DONE   migration, a legacy reader, a version graph, an upgrade path, a dual writer,
+//   NOT DONE   a version graph past v1, an upgrade path framework, a dual writer,
 //              crash durability, and any notion of WHICH document or WHICH setup file the
 //              session belonged to. Where things are is the host's business and always was.
 //
@@ -111,8 +115,13 @@ namespace zengine::workshop::session_persist {
 /// Workshop the wrong one of its own three files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-session";
 
-/// The only session format version this build reads or writes.
-inline constexpr std::int64_t kFormatVersion = 1;
+/// The session format version this build WRITES, and the newest it reads.
+inline constexpr std::int64_t kFormatVersion = 2;
+
+/// The one older version this build still reads (WUX-2's contract): the session
+/// that nested WIND-2's whole-cell desk, translated on load — never rewritten in
+/// place. The viewport is identical in both; only the nested desk moved.
+inline constexpr std::int64_t kLegacyFormatVersion = 1;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
@@ -156,7 +165,10 @@ struct WorkshopSession {
     WorkshopViewport viewport;
     setup_persist::WorkshopSetup desk;
 
-    ZEN_SHAPE(WorkshopSession, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    /// Version 2 (WUX-2): the nested desk became setup format 3 — sub-cell
+    /// geometry — and this format's version moved with it, exactly as the
+    /// assertion below always demanded it would.
+    ZEN_SHAPE(WorkshopSession, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(desk));
 };
 
@@ -171,12 +183,14 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
 /// AND THE DESK'S VERSION IS PINNED HERE ON PURPOSE.
 ///
 /// A nested shape's version is part of the parent's wire identity, so the day
-/// `WorkshopSetup` becomes v3 every session file ever written stops admitting -- and what a
+/// `WorkshopSetup` moves again every session file ever written stops admitting -- and what a
 /// maker would be told is whatever the gate says about a nested field, not "this session was
 /// written by an older Workshop". This assertion is the compile error that makes that a
 /// DECISION: move the desk's version, and somebody has to come here, move this number and
-/// this format's version together, and word the refusal.
-static_assert(setup_persist::WorkshopSetup::zen_version == 2,
+/// this format's version together, and word the refusal. WUX-2 was the first to trip it:
+/// the desk became v3, this format became v2, and the v1 session — nesting the v2 desk —
+/// is read through the legacy road below rather than refused.
+static_assert(setup_persist::WorkshopSetup::zen_version == 3,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
               "than left to the gate");
@@ -278,25 +292,80 @@ struct LoadedSession {
 /// the two doors that can meet a wrong version -- the envelope's claim and the file's own
 /// `format_version` field -- cannot come to word it differently.
 inline std::string wrong_version(std::int64_t found) {
-    return "session version " + std::to_string(found) + " -- this Workshop reads version " +
-           std::to_string(kFormatVersion);
+    return "session version " + std::to_string(found) + " -- this Workshop reads versions " +
+           std::to_string(kLegacyFormatVersion) + " and " + std::to_string(kFormatVersion);
 }
+
+// ---- VERSION 1, RETAINED FOR READING (WUX-2) -----------------------------------------
+//
+// The envelope that nested WIND-2's whole-cell desk, exactly as written: the same trick
+// `setup_persist::v2` documents — the C++ names are namespaced, the WIRE names are the
+// bare tokens, so `v1::WorkshopSession` claims `WorkshopSession` v1 over a `WorkshopSetup`
+// v2 exactly as the old build did — and the translation is the desk's own legacy reader.
+// The viewport crossed unchanged: it was cells then and it is cells now.
+namespace v1 {
+
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    WorkshopViewport viewport;
+    setup_persist::v2::WorkshopSetup desk;
+
+    ZEN_SHAPE(WorkshopSession, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(desk));
+};
+
+} // namespace v1
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
 /// nothing here throws.
 ///
 /// THE LAYERS, IN ORDER, and the last two are borrowed rather than repeated: the envelope
-/// must parse; its CLAIM must be this version (the WIND-2 preflight, so an older session is
-/// refused by its number rather than by whichever field this version added); it must admit
-/// against this shape; it must say it is this format at this version; and its desk must be a
-/// legal saved setup, judged by `setup_persist::setup_in` -- the same function a setup FILE
-/// goes through, so a desk cannot be legal in one file and illegal in the other.
+/// must parse; its CLAIM must be a version this build reads (the WIND-2 preflight, so an
+/// older session is refused by its number rather than by whichever field this version
+/// added — and a version-1 claim takes the legacy road, WUX-2); it must admit against that
+/// version's shape; it must say it is this format at that version; and its desk must be a
+/// legal saved setup, judged by `setup_persist`'s own readers -- the same functions a setup
+/// FILE goes through, so a desk cannot be legal in one file and illegal in the other.
 inline LoadedSession from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
         const loom::Admission refused =
             loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
         return LoadedSession::no("not a Workshop session: " + refused.first_error().message());
+    }
+    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
+        claim.claimed_version() == v1::WorkshopSession::zen_version) {
+        const loom::Admission old = loom::admit(claim, loom::schema_of<v1::WorkshopSession>(),
+                                                loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedSession::no(old.first_error().message());
+        }
+        const v1::WorkshopSession file = loom::from_value<v1::WorkshopSession>(old.value());
+        if (file.format != kFormat) {
+            return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
+                                     "`");
+        }
+        if (file.format_version != kLegacyFormatVersion) {
+            return LoadedSession::no(wrong_version(file.format_version));
+        }
+        Setup desk;
+        const Written understood = setup_persist::setup_in_v2(file.desk, desk);
+        if (!understood.accepted) {
+            return LoadedSession::no(understood.refusal);
+        }
+        LoadedSession loaded;
+        loaded.outcome = Written::ok();
+        loaded.present = true;
+        loaded.desk = std::move(desk);
+        if (viewport_honoured(file.viewport.width, file.viewport.height)) {
+            loaded.viewport_w = file.viewport.width;
+            loaded.viewport_h = file.viewport.height;
+            loaded.honoured = true;
+        } else {
+            loaded.declined = declined_viewport(file.viewport.width, file.viewport.height);
+        }
+        return loaded;
     }
     if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
         claim.claimed_version() != WorkshopSession::zen_version) {

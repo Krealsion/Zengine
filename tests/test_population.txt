@@ -591,6 +591,27 @@
 # parser owns: `#` starts a comment (so a diagnostic pattern cannot contain one), and `;` is
 # CMake's list separator and is refused outright rather than being eaten halfway through.
 #
+# WUX-2 raised the workshop floor 799 -> 810 and the surface always row 81 -> 86, and its
+# split is the fine lattice's own claim: geometry that a maker can drag by a pixel is still
+# ARITHMETIC. The five surface cases pin the sub-cell conversions (exact, floored, total,
+# saturating, with the wire's remainder decomposition and its garbage-reads-as-zero rule),
+# the one quantization law as a property at BOTH shipped grains (a span lands on device
+# units by flooring both edges, and the hit answer is that presentation read backwards), a
+# fine rect through the SDL plan and the terminal rasterizer, a fine label at both grains,
+# and a fine region's fit/projection/press-inverse agreeing about one viewport. The eleven
+# workshop cases are the behavior: a one-pixel drag moves a pane by one pixel of lattice
+# through the REAL pointer path; all eight resize handles preserve their opposite anchor
+# (the reported top-edge defect, reproduced at START, is pinned dead); a refused anchored
+# resize writes neither place nor size; right/bottom resizes keep a default place reactive;
+# hit meets exactly the painted pixels at a fractional edge; the TUI projects a fine pane
+# onto its covered cells and rewrites nothing; setup v2 and session v1 load through the
+# retained legacy shapes onto the exact lattice; fine geometry round-trips the v3 file; and
+# introspection says a fine value as an exact reduced fraction. EVERY ONE IS IN THE `always`
+# POPULATION, for the reason every phase since TYPE-0 has given: the metric and the grain
+# are ARGUMENTS -- a pixel-space press is a number with a stamp, so the no-SDL lane and the
+# Windows stranger lane prove the whole phase, including the smoothness a maker only ever
+# feels through SDL (whose live half is the phase's witness, not a case).
+#
 # KEY-0 raised the workshop floor 780 -> 799 and the component floor 34 -> 35, and it is the
 # phase whose eighteen workshop cases are all about ONE value: the keymap. Exact matching
 # behaviorally falsifies the retired subset aliases (ctrl+n, alt+q, ctrl+shift+s); the
@@ -611,14 +632,14 @@ snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
 input                             doctest           sdl     3
-surface                           doctest           always  81
+surface                           doctest           always  86
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  799
+workshop                          doctest           always  810
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

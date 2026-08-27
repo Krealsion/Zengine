@@ -143,6 +143,21 @@ a value no publisher could mean is the absence, never a guess. Which end the car
 restated: the caret fields already say it. It is *not* per-span styling — one range, meaning
 selection — and not multiple selections.
 
+**A coordinate may carry a sub-cell remainder** (WUX-2). `SurfaceRect` and
+`SurfaceTextRegion` carry `sub_x`/`sub_y`/`sub_w`/`sub_h`, and `SurfaceLabel` carries
+`sub_x`/`sub_y` — remainders in 1/`kCellSubs` (48) of a cell, `[0, 48)`, defaulting to zero,
+so a publisher that thinks in whole cells publishes exactly the bytes it always published and
+means exactly what its silence always meant. The remainders refine the ONE lattice; they are
+not a second coordinate system and not device pixels (the shipped skin's pixel happens to be
+four sub-units, an alignment rather than a contract). Each medium resolves a fine value at
+its own grain by **one quantization law** — a device unit of `g` sub-units shows the fine
+span `[L, R)` on units `[floor(L/g), floor(R/g))` — so a terminal shows a finely-placed
+rectangle on the cells its floored edges cover, the SDL medium places it to the pixel, and
+exact-cell geometry lands where it always did in both. A remainder outside `[0, 48)` reads
+as zero: a value nobody could mean resolves to the whole-cell picture, never a guess. The
+one publisher that earned the fineness is Workshop's pane arrangement; the prose lattice
+(rows, columns, carets, selections) and the canvas's own extent stay as coarse as they were.
+
 ## Current wire versions
 
 A shape's version is part of its identity at the admission gate. These compose upward: a
@@ -151,12 +166,12 @@ one field to a row moves three numbers.
 
 | shape | version |
 |---|---|
-| `SurfaceRect` | 1 |
-| `SurfaceLabel` | 1 |
+| `SurfaceRect` | 2 |
+| `SurfaceLabel` | 2 |
 | `SurfaceTextRow` | 2 |
-| `SurfaceTextRegion` | 5 |
-| `SurfaceLayer` | 3 |
-| `SurfaceCanvas` | 7 |
+| `SurfaceTextRegion` | 6 |
+| `SurfaceLayer` | 4 |
+| `SurfaceCanvas` | 8 |
 | `SurfaceText` | 1 |
 | `SurfaceExtent` | 2 |
 
