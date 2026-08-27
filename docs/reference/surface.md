@@ -174,6 +174,8 @@ one field to a row moves three numbers.
 | `SurfaceCanvas` | 8 |
 | `SurfaceText` | 1 |
 | `SurfaceExtent` | 2 |
+| `SurfacePlacement` | 1 |
+| `SurfacePlacementRemembered` | 1 |
 
 **A region too small for a medium's own type is a CELL region in that medium**, and
 that is the same sentence a zero metric already means rather than a new rule. A face's line is
@@ -246,6 +248,26 @@ What the metric deliberately does not carry is a family, a filename, a point siz
 hinting mode or a DPI: an application needs the result of measurement, not the mechanism, and
 every one of those fields would be a fact about one backend that a second backend would have to
 fake.
+
+**The skin owns the desktop placement too, in both directions.**
+`SurfacePlacement{x, y, maximized}` is the second skin → publisher fact: where the skin's
+window sits on its desktop, in the *skin's own desktop units* — the **normal** window's
+top-left (sampled only while unmaximized and remembered across a maximized stretch), with the
+current maximized state beside it. Published when it changes, on the same beat that notices a
+dragged edge, and **before** the extent when both changed in one gesture, so a consumer
+keeping the normal window's room hears the state before the size. A publisher may remember
+these numbers and may hand them back; it may never interpret them — a desktop coordinate is a
+fact about one machine's monitors, and authored canvas geometry stays medium-independent.
+Absence is **silence**, not zeroes: `(0,0)` is a real place on every desktop, so a medium with
+no window — every terminal skin, whose window belongs to the emulator — simply never says one.
+`SurfacePlacementRemembered{x, y, maximized}` is the road back: sent to the skin's role once,
+by a publisher restoring a session, and it is a *want*, not an instruction. The skin validates
+it against the displays that exist **now** — a reachable position (a hand's width of the
+window's top strip on some display's usable area) restores verbatim, deliberate overhangs
+included; a stranded one is clamped into the nearest display's usable bounds; and with no
+display truth at all nothing moves, because an uninformed move is a blind replay. The maximize
+is applied after the position, so unmaximizing lands where the offer put the frame — and what
+the publisher then hears is the truth through the ordinary report, never an echo.
 
 The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
 remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:

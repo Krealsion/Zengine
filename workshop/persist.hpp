@@ -555,6 +555,26 @@ inline Written write_file(const std::string& path, const std::string& text) {
     return Written::ok();
 }
 
+/// The same safe write, into a directory that may not exist yet (WUX-3).
+///
+/// The per-user roots are created ON FIRST WRITE -- a read never creates a directory, and
+/// a run that persists nothing leaves no trace -- so the writes that land under them (the
+/// session on an orderly close, the prefs on a toggle, the one-time legacy import) go
+/// through this door. Project files deliberately do not: a `--document` path into a
+/// directory that is not there is a maker's typo, and inventing the directory would turn
+/// a loud refusal into a file somewhere nobody meant.
+inline Written write_file_making_room(const std::string& path, const std::string& text) {
+    const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(parent, ec);
+        if (ec) {
+            return Written::no("cannot create " + parent.string() + ": " + ec.message());
+        }
+    }
+    return write_file(path, text);
+}
+
 /// Save a document to a file. The composition, so no caller has to remember to
 /// serialize the whole thing before opening anything.
 inline Written save_file(const std::string& path, const WorkshopDoc& d) {

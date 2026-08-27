@@ -51,6 +51,8 @@
 #include "workshop/setup_persist.hpp"
 #include "workshop/keymap.hpp"
 #include "workshop/keymap_persist.hpp"
+#include "workshop/prefs_persist.hpp"
+#include "workshop/user_paths.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/vocabulary.hpp"
 
@@ -2908,7 +2910,8 @@ private:
 /// which is what makes it the one right instrument for "which identity spoke".
 class SkinSeat : public loom::WeaveBase<SkinSeat, SeenState,
                                         loom::Accept<surface::SurfaceText, surface::ClipboardCopy,
-                                                     surface::ClipboardTextRequested>,
+                                                     surface::ClipboardTextRequested,
+                                                     surface::SurfacePlacementRemembered>,
                                         loom::Emit<loom::Ack, surface::ClipboardText>> {
 public:
     void on(const surface::SurfaceText& t, loom::Mail& mail) {
@@ -2940,6 +2943,12 @@ public:
                                                                                   : std::string()});
     }
 
+    /// A remembered placement offered back at restore (WUX-3): recorded the way the real
+    /// media receive it, so a case can assert exactly what the desk's memory handed over.
+    void on(const surface::SurfacePlacementRemembered& p, loom::Mail&) {
+        offered.push_back(p);
+    }
+
     /// Who said this exact text, or the invalid id if nobody did.
     loom::WeaveId who_said(const std::string& text) const {
         for (std::size_t i = 0; i < heard.size(); ++i) {
@@ -2952,6 +2961,7 @@ public:
 
     std::vector<surface::SurfaceText> heard;
     std::vector<loom::WeaveId> from;
+    std::vector<surface::SurfacePlacementRemembered> offered; ///< placement offers (WUX-3)
     bool readable_medium = true; ///< false = the terminal's standing truth
     std::string platform;        ///< what "the platform clipboard" holds, when readable
     int clipboard_reads = 0;
@@ -17323,6 +17333,11 @@ struct PaneRig {
                            surface::ClipboardCopy::zen_version);
         speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
                             surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
+        // WUX-3's placement offer, role-scoped to the skin exactly as workshop.cpp
+        // grants it.
+        speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
+                            surface::SurfacePlacementRemembered::zen_version,
+                            surface::kSkinRole);
         speak.allow_to_role(zengine::builder::StatusRequested::zen_name,
                             zengine::builder::StatusRequested::zen_version,
                             zengine::builder::kBuilderRole);
@@ -26731,15 +26746,17 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
          setup_persist::to_text(arranged_desk("Debugging"))},
         {"a session of another version",
          [] {
-             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
-             const std::size_t at = text.find("\"version\":2");
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                         session_persist::Placement{});
+             const std::size_t at = text.find("\"version\":3");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":2").size(), "\"version\":7");
+             text.replace(at, std::string("\"version\":3").size(), "\"version\":7");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
          [] {
-             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                         session_persist::Placement{});
              const std::size_t at = text.find("\"pane\":\"builder\"");
              REQUIRE(at != std::string::npos);
              text.replace(at, std::string("\"pane\":\"builder\"").size(),
@@ -26771,15 +26788,16 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
 
 TEST_CASE("WUX-0 D: an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
-    std::string text = session_persist::to_text(arranged_desk("D"), 100, 30);
-    const std::size_t at = text.find("\"version\":2");
+    std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                session_persist::Placement{});
+    const std::size_t at = text.find("\"version\":3");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":2").size(), "\"version\":7");
+    text.replace(at, std::string("\"version\":3").size(), "\"version\":7");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "session version 7 -- this Workshop reads versions 1 and 2");
+          "session version 7 -- this Workshop reads versions 1, 2 and 3");
 }
 
 // ---- Witness E: a viewport this Workshop will not open at --------------------
@@ -26807,7 +26825,9 @@ TEST_CASE("WUX-0 E: a hostile room is declined, and the desk still comes back") 
         TempDir dir("wux0-e");
         Live t;
         t.host.session_path = dir.file("session.json");
-        REQUIRE(session_persist::save_file(t.host.session_path, desk, c.w, c.h).accepted);
+        REQUIRE(session_persist::save_file(t.host.session_path, desk, c.w, c.h,
+                                           session_persist::Placement{})
+                    .accepted);
         t.publish(loom::to_value(surface::SurfaceReady{}));
 
         // THE DESK CAME BACK. Throwing away a good desk over a bad number would be
@@ -26868,7 +26888,8 @@ TEST_CASE("WUX-0 F: a restored session never touches the file a maker named, eit
     const Setup named = arranged_desk("Debugging");
     REQUIRE(setup_persist::save_file(setup, named).accepted);
     const std::string setup_bytes = slurp(setup);
-    REQUIRE(session_persist::save_file(session, setup_of("Loose", {panel::kInfo}), 110, 38)
+    REQUIRE(session_persist::save_file(session, setup_of("Loose", {panel::kInfo}), 110, 38,
+                                       session_persist::Placement{})
                 .accepted);
 
     Live t;
@@ -26893,7 +26914,7 @@ TEST_CASE("WUX-0 F: the three files are three formats, and each refuses the othe
     const Setup desk = arranged_desk("Debugging");
     const std::string doc_text = persist::to_text(WorkshopDoc{});
     const std::string setup_text = setup_persist::to_text(desk);
-    const std::string session_text = session_persist::to_text(desk, 120, 44);
+    const std::string session_text = session_persist::to_text(desk, 120, 44, session_persist::Placement{});
 
     CHECK(std::string(session_persist::kFormat) == "zengine-workshop-session");
     CHECK(std::string(session_persist::kFormat) != std::string(setup_persist::kFormat));
@@ -26910,7 +26931,7 @@ TEST_CASE("WUX-0 F: the three files are three formats, and each refuses the othe
 
 TEST_CASE("WUX-0: a session round-trips, and a second save is byte-identical") {
     const Setup desk = arranged_desk("Debugging");
-    const std::string first = session_persist::to_text(desk, 120, 44);
+    const std::string first = session_persist::to_text(desk, 120, 44, session_persist::Placement{});
     const session_persist::LoadedSession read = session_persist::from_text(first);
     REQUIRE(read.outcome.accepted);
     CHECK(read.present);
@@ -26919,11 +26940,13 @@ TEST_CASE("WUX-0: a session round-trips, and a second save is byte-identical") {
     CHECK(read.desk == desk);
     CHECK(read.viewport_w == 120);
     CHECK(read.viewport_h == 44);
-    CHECK(session_persist::to_text(read.desk, read.viewport_w, read.viewport_h) == first);
+    CHECK(session_persist::to_text(read.desk, read.viewport_w, read.viewport_h,
+                                   read.placement) == first);
 }
 
 TEST_CASE("WUX-0: a session file holds the desk and the room, and nothing runtime") {
-    const std::string text = session_persist::to_text(arranged_desk("Debugging"), 120, 44);
+    const std::string text = session_persist::to_text(arranged_desk("Debugging"), 120, 44,
+                                                      session_persist::Placement{});
     // THE DESK IS THE SETUP'S OWN REPRESENTATION, not a paraphrase of it: every pane
     // row a setup file would have written is in here, spelled the same way.
     for (const char* fragment : {"\"provider\":\"zengine.workshop\"", "\"pane\":\"builder\"",
@@ -26955,18 +26978,21 @@ TEST_CASE("WUX-0: a write that fails leaves the last good session where it was")
     TempDir dir("wux0-write");
     const std::string path = dir.file("session.json");
     const Setup first = arranged_desk("First");
-    REQUIRE(session_persist::save_file(path, first, 120, 44).accepted);
+    REQUIRE(session_persist::save_file(path, first, 120, 44, session_persist::Placement{})
+                .accepted);
     const std::string good = slurp(path);
 
     // The sibling the writer needs is occupied by a DIRECTORY, so the candidate
     // cannot be written -- and the destination is never opened.
     std::filesystem::create_directories(persist::pending_path(path));
     const Written refused = session_persist::save_file(path, setup_of("Second", {panel::kInfo}),
-                                                       90, 30);
+                                                       90, 30, session_persist::Placement{});
     CHECK_FALSE(refused.accepted);
     CHECK(slurp(path) == good);
     std::filesystem::remove_all(persist::pending_path(path));
-    CHECK(session_persist::save_file(path, setup_of("Second", {panel::kInfo}), 90, 30).accepted);
+    CHECK(session_persist::save_file(path, setup_of("Second", {panel::kInfo}), 90, 30,
+                                     session_persist::Placement{})
+              .accepted);
 }
 
 // ---- The ORDER: the room, and then the desk into it --------------------------
@@ -26981,7 +27007,8 @@ TEST_CASE("WUX-0: the desk is seated against the RESTORED room, not the default 
     const std::string session = dir.file("session.json");
     Setup two = setup_of("Two", {panel::kBuilder});
     REQUIRE(add_pane(two, hello_ref()));
-    REQUIRE(session_persist::save_file(session, two, 120, 60).accepted);
+    REQUIRE(session_persist::save_file(session, two, 120, 60, session_persist::Placement{})
+                .accepted);
 
     REQUIRE(stack_slots_that_fit(kMinScreen) == 1);
     REQUIRE(stack_slots_that_fit(screen_of(120, 60)) >= 2);
@@ -27012,7 +27039,8 @@ TEST_CASE("WUX-0: the startup notice counts no pane nobody has had a turn to off
     const std::string session = dir.file("session.json");
     Setup mixed = setup_of("Mixed", {panel::kInfo});
     REQUIRE(add_pane(mixed, hello_ref()));
-    REQUIRE(session_persist::save_file(session, mixed, 110, 40).accepted);
+    REQUIRE(session_persist::save_file(session, mixed, 110, 40, session_persist::Placement{})
+                .accepted);
 
     Live t;
     t.host.session_path = session;
@@ -29300,14 +29328,18 @@ TEST_CASE("WUX-2: a version-1 session restores a whole-cell desk through the leg
     CHECK(read.desk.panes[0].width.mode == pane_unit::kSubcells);
     CHECK(read.desk.panes[0].width.amount == subs(28));
 
-    // AND THE NEXT CLOSE WRITES VERSION 2, byte-stable thereafter.
-    const std::string saved =
-        session_persist::to_text(read.desk, read.viewport_w, read.viewport_h);
-    CHECK(saved.find("\"format_version\":\"2\"") != std::string::npos);
+    // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one.
+    CHECK_FALSE(read.placement.known);
+
+    // AND THE NEXT CLOSE WRITES VERSION 3, byte-stable thereafter.
+    const std::string saved = session_persist::to_text(read.desk, read.viewport_w,
+                                                       read.viewport_h, read.placement);
+    CHECK(saved.find("\"format_version\":\"3\"") != std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
     CHECK(back.desk == read.desk);
-    CHECK(session_persist::to_text(back.desk, back.viewport_w, back.viewport_h) == saved);
+    CHECK(session_persist::to_text(back.desk, back.viewport_w, back.viewport_h,
+                                   back.placement) == saved);
 }
 
 TEST_CASE("WUX-2: fine geometry survives the setup file without losing a sub-unit") {
@@ -29362,4 +29394,537 @@ TEST_CASE("WUX-2: the management row says a fine value exactly, as a reduced fra
     plain.height = PaneSize{pane_unit::kDefault, 0};
     plain.front = 0;
     CHECK(pane_window_text(&plain) == "@6,5 40x- f0");
+}
+
+// ========================================================================================
+// WUX-3 — the installed application: per-user roots, explicit isolation, the one-time
+// legacy import, the prefs file, and the window's desktop placement remembered, offered
+// back, and judged by the medium that can see displays.
+// ========================================================================================
+
+// ---- The roots and the precedence (user_paths.hpp) -----------------------------------
+
+TEST_CASE("WUX-3: the two Windows roots are the platform's own conventions") {
+    user_paths::Environment env;
+    env.appdata = "C:/Users/riley/AppData/Roaming";
+    env.local_appdata = "C:/Users/riley/AppData/Local";
+    CHECK(user_paths::windows_config_root(env) ==
+          "C:/Users/riley/AppData/Roaming/zengine-workshop");
+    CHECK(user_paths::windows_state_root(env) ==
+          "C:/Users/riley/AppData/Local/zengine-workshop");
+    // A BARE ENVIRONMENT IS AN ABSENCE, NEVER A FALLBACK TO CWD.
+    user_paths::Environment bare;
+    CHECK(user_paths::windows_config_root(bare).empty());
+    CHECK(user_paths::windows_state_root(bare).empty());
+}
+
+TEST_CASE("WUX-3: the two XDG roots, and their home fallbacks") {
+    user_paths::Environment env;
+    env.xdg_config_home = "/tmp/xdgc";
+    env.xdg_state_home = "/tmp/xdgs";
+    env.home = "/home/riley";
+    CHECK(user_paths::xdg_config_root(env) == "/tmp/xdgc/zengine-workshop");
+    CHECK(user_paths::xdg_state_root(env) == "/tmp/xdgs/zengine-workshop");
+    // THE STANDARD HOME FALLBACKS, exactly the XDG base directory spec's.
+    env.xdg_config_home.clear();
+    env.xdg_state_home.clear();
+    CHECK(user_paths::xdg_config_root(env) == "/home/riley/.config/zengine-workshop");
+    CHECK(user_paths::xdg_state_root(env) == "/home/riley/.local/state/zengine-workshop");
+    // No HOME either: the absence, never an invention.
+    env.home.clear();
+    CHECK(user_paths::xdg_config_root(env).empty());
+    CHECK(user_paths::xdg_state_root(env).empty());
+}
+
+TEST_CASE("WUX-3: one precedence -- explicit path, then isolation, then the default") {
+    const std::string root = "/tmp/root";
+    // 1. An explicit path wins over everything, isolation included: an isolated witness
+    //    that needs scratch persistence names its scratch files.
+    CHECK(user_paths::resolve_durable_path("mine.json", false, root, "workshop-x.json") ==
+          "mine.json");
+    CHECK(user_paths::resolve_durable_path("mine.json", true, root, "workshop-x.json") ==
+          "mine.json");
+    // 2. Isolation makes the fact absent -- the weave's designed no-persistence.
+    CHECK(user_paths::resolve_durable_path("", true, root, "workshop-x.json").empty());
+    // 3. Otherwise the per-user default under the root.
+    CHECK(user_paths::resolve_durable_path("", false, root, "workshop-x.json") ==
+          "/tmp/root/workshop-x.json");
+    // 4. A root this environment cannot supply is the same absence, never CWD.
+    CHECK(user_paths::resolve_durable_path("", false, "", "workshop-x.json").empty());
+}
+
+// ---- The one-time legacy import ------------------------------------------------------
+
+TEST_CASE("WUX-3: a legacy-only file is imported once, and the original is left in place") {
+    TempDir dir("wux3-import");
+    const std::string legacy = dir.file("workshop-session.json");
+    const std::string dest = dir.file("root/workshop-session.json");
+    spillout(legacy, "the maker's bytes");
+
+    // The destination's parent does not exist yet: the import creates it (first write).
+    const user_paths::LegacyImport did =
+        user_paths::import_legacy_file(dest, legacy, "session");
+    CHECK(did.imported);
+    CHECK_FALSE(did.shadowed);
+    CHECK(slurp(dest) == "the maker's bytes");
+    // NEVER DELETED, NEVER REWRITTEN: the original stands byte-for-byte.
+    CHECK(slurp(legacy) == "the maker's bytes");
+    // The note says what happened, naming both paths.
+    CHECK(did.note.find("imported") != std::string::npos);
+    CHECK(did.note.find(legacy) != std::string::npos);
+    CHECK(did.note.find(dest) != std::string::npos);
+    CHECK(did.note.find("left in place") != std::string::npos);
+}
+
+TEST_CASE("WUX-3: an existing user-root file always wins over a legacy file") {
+    TempDir dir("wux3-conflict");
+    const std::string legacy = dir.file("workshop-keymap.json");
+    const std::string dest = dir.file("root/workshop-keymap.json");
+    std::filesystem::create_directories(dir.file("root"));
+    spillout(dest, "the user root's newer truth");
+    spillout(legacy, "an older local file");
+
+    const user_paths::LegacyImport did =
+        user_paths::import_legacy_file(dest, legacy, "keymap");
+    CHECK_FALSE(did.imported);
+    CHECK(did.shadowed);
+    // NOTHING MOVED, in either direction.
+    CHECK(slurp(dest) == "the user root's newer truth");
+    CHECK(slurp(legacy) == "an older local file");
+    // ...and the maker is told which file is being read and how to end the note.
+    CHECK(did.note.find(dest) != std::string::npos);
+    CHECK(did.note.find("not read") != std::string::npos);
+    CHECK(did.note.find("delete it") != std::string::npos);
+}
+
+TEST_CASE("WUX-3: repeated launches converge -- the import can never fire twice") {
+    TempDir dir("wux3-repeat");
+    const std::string legacy = dir.file("workshop-session.json");
+    const std::string dest = dir.file("root/workshop-session.json");
+    spillout(legacy, "first bytes");
+    REQUIRE(user_paths::import_legacy_file(dest, legacy, "session").imported);
+
+    // The legacy file CHANGES afterwards -- a maker still running an old build from this
+    // directory -- and the user root must not be overwritten by it on any later launch.
+    spillout(legacy, "second bytes the root must never take");
+    const user_paths::LegacyImport again =
+        user_paths::import_legacy_file(dest, legacy, "session");
+    CHECK_FALSE(again.imported);
+    CHECK(again.shadowed);
+    CHECK(slurp(dest) == "first bytes");
+    const user_paths::LegacyImport third =
+        user_paths::import_legacy_file(dest, legacy, "session");
+    CHECK_FALSE(third.imported);
+    CHECK(slurp(dest) == "first bytes");
+}
+
+TEST_CASE("WUX-3: no legacy file, no destination -- the import does nothing, silently") {
+    TempDir dir("wux3-nothing");
+    const user_paths::LegacyImport did = user_paths::import_legacy_file(
+        dir.file("root/workshop-session.json"), dir.file("workshop-session.json"), "session");
+    CHECK_FALSE(did.imported);
+    CHECK_FALSE(did.shadowed);
+    CHECK(did.note.empty());
+    CHECK_FALSE(std::filesystem::exists(dir.file("root")));
+}
+
+TEST_CASE("WUX-3: the host resolves the maker's files through the one precedence") {
+    // A SOURCE TRIPWIRE, the host tier's own instrument: main() must reach every per-user
+    // default through `user_paths::resolve_durable_path` -- one spelling of the precedence,
+    // pinned above -- and must spell the isolation affordance. A host that reverted to a
+    // bare CWD name would pass every weave case and silently re-scatter the maker's files.
+    const std::string host = file_source(WORKSHOP_HOST_CPP);
+    std::size_t resolutions = 0;
+    for (std::size_t at = host.find("user_paths::resolve_durable_path");
+         at != std::string::npos;
+         at = host.find("user_paths::resolve_durable_path", at + 1)) {
+        ++resolutions;
+    }
+    CHECK(resolutions >= 3); // keymap, prefs, session
+    CHECK(host.find("--isolated") != std::string::npos);
+    CHECK(host.find("user_paths::import_legacy_file") != std::string::npos);
+    // The two project files stay project files: their defaults are still the bare names.
+    CHECK(host.find("persist::kDefaultDocumentName") != std::string::npos);
+    CHECK(host.find("kDefaultSetupFileName") != std::string::npos);
+}
+
+// ---- The prefs file ------------------------------------------------------------------
+
+TEST_CASE("WUX-3: prefs round-trip, and the words are a closed set") {
+    const std::string hidden = prefs_persist::to_text(false);
+    CHECK(hidden.find("\"format\":\"zengine-workshop-prefs\"") != std::string::npos);
+    CHECK(hidden.find("\"titles\":\"hidden\"") != std::string::npos);
+    prefs_persist::LoadedPrefs read = prefs_persist::from_text(hidden);
+    REQUIRE(read.outcome.accepted);
+    CHECK_FALSE(read.titles_shown);
+    read = prefs_persist::from_text(prefs_persist::to_text(true));
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.titles_shown);
+
+    // `default` is the hand-author's word for the code's answer.
+    std::string authored = prefs_persist::to_text(true);
+    const std::size_t at = authored.find("\"titles\":\"shown\"");
+    REQUIRE(at != std::string::npos);
+    authored.replace(at, std::string("\"titles\":\"shown\"").size(), "\"titles\":\"default\"");
+    read = prefs_persist::from_text(authored);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.titles_shown == prefs_persist::kTitlesDefaultValue);
+
+    // A word outside the closed set is refused naming what was found and what works.
+    authored = prefs_persist::to_text(true);
+    authored.replace(authored.find("\"titles\":\"shown\""),
+                     std::string("\"titles\":\"shown\"").size(), "\"titles\":\"visible\"");
+    read = prefs_persist::from_text(authored);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("`visible`") != std::string::npos);
+    CHECK(read.outcome.refusal.find("default, shown or hidden") != std::string::npos);
+
+    // A foreign version is refused by ITS number, on the claim.
+    std::string future = prefs_persist::to_text(true);
+    future.replace(future.find("\"version\":1"), std::string("\"version\":1").size(),
+                   "\"version\":9");
+    read = prefs_persist::from_text(future);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads version 1");
+
+    // The family's format identity: the other files' bytes are refused by name.
+    read = prefs_persist::from_text(keymap_persist::to_text(Keymap{}));
+    CHECK_FALSE(read.outcome.accepted);
+}
+
+TEST_CASE("WUX-3: a toggle writes the preference, and a reopened Workshop wears it") {
+    TempDir dir("wux3-prefs");
+    const std::string prefs = dir.file("root/workshop-prefs.json");
+    {
+        Live t;
+        t.host.prefs_path = prefs;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        REQUIRE(t.session().pane_titles);
+        t.key(input::scan::kT);
+        t.text("t");
+        REQUIRE_FALSE(t.session().pane_titles);
+        // The toggle is the maker stating the preference, so the toggle is the write --
+        // and the write created the configuration root it landed in.
+        REQUIRE(std::filesystem::exists(prefs));
+        CHECK(slurp(prefs).find("\"titles\":\"hidden\"") != std::string::npos);
+        // The notice still says what the toggle did, with no complaint added.
+        CHECK(t.notice().rfind("pane titles hidden", 0) == 0);
+        CHECK_FALSE(t.session().notice_is_bad);
+    }
+    // ANOTHER PROCESS, ANOTHER DAY: the preference is applied before the first paint.
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK_FALSE(t.session().pane_titles);
+    // ...and toggling back rewrites the same file.
+    t.key(input::scan::kT);
+    t.text("t");
+    CHECK(t.session().pane_titles);
+    CHECK(slurp(prefs).find("\"titles\":\"shown\"") != std::string::npos);
+}
+
+TEST_CASE("WUX-3: a restored hidden-titles preference keeps the WUX-1 focus law whole") {
+    // SC-7's second half: the preference comes back from CONFIGURATION, and the pane
+    // holding the keyboard still shows its title and its mark -- restoring a preference
+    // must not be a way to recreate the MSG-0 lie.
+    TempDir dir("wux3-prefs-focus");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    REQUIRE(prefs_persist::save_file(prefs, false).accepted);
+
+    PaneRig r;
+    r.host.prefs_path = prefs;
+    r.mount_workshop();
+    r.ready();
+    r.extent(100, 44);
+    REQUIRE_FALSE(r.session().pane_titles); // restored, not toggled
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
+    REQUIRE(kind != kNoPaneKind);
+    const auto shown_rows = [&](std::int64_t k) {
+        return external_region_rows(r.last_canvas(), external_body_rect(r.session(), k));
+    };
+    // Hidden titles: the pane is bare...
+    CHECK(shown_rows(kind).at(0).find("Seat @") == std::string::npos);
+    // ...until it takes the keyboard, when its identity auto-shows, mark and all.
+    press_body(r, kind);
+    REQUIRE(keyboard_pane(r.session().panels) == kind);
+    CHECK(shown_rows(kind).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
+}
+
+TEST_CASE("WUX-3: a refused prefs file is spoken, stands, and is never overwritten") {
+    TempDir dir("wux3-prefs-bad");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    spillout(prefs, "{ not a prefs file");
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    // The refusal is on the notice line, and the defaults stand.
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("the default presentation stands") != std::string::npos);
+    CHECK(t.session().pane_titles);
+
+    // A toggle changes the LIVE preference and deliberately writes nothing: Workshop
+    // does not rewrite a file it could not understand.
+    t.key(input::scan::kT);
+    t.text("t");
+    CHECK_FALSE(t.session().pane_titles);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("will not be overwritten") != std::string::npos);
+    CHECK(slurp(prefs) == "{ not a prefs file");
+}
+
+TEST_CASE("WUX-3: no prefs path means the preference lives exactly as long as the run") {
+    // `--isolated`'s promise, at the weave: an empty path reads nothing and writes
+    // nothing, and the toggle still works -- silently local, complaint-free.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.key(input::scan::kT);
+    t.text("t");
+    CHECK_FALSE(t.session().pane_titles);
+    CHECK(t.notice() ==
+          "pane titles hidden -- a pane holding the keyboard still shows its own");
+    CHECK_FALSE(t.session().notice_is_bad);
+}
+
+// ---- Session format v3: the placement -------------------------------------------------
+
+TEST_CASE("WUX-3: a session with a placement round-trips byte-identically") {
+    const Setup desk = arranged_desk("Debugging");
+    session_persist::Placement place;
+    place.known = true;
+    place.x = -1200; // a monitor left of the primary is negative territory, legitimately
+    place.y = 340;
+    place.maximized = true;
+    const std::string first = session_persist::to_text(desk, 120, 44, place);
+    for (const char* fragment :
+         {"\"placement\":", "\"mode\":\"desktop\"", "\"x\":\"-1200\"", "\"y\":\"340\"",
+          "\"window\":\"maximized\""}) {
+        CHECK_MESSAGE(first.find(fragment) != std::string::npos, fragment);
+    }
+    const session_persist::LoadedSession read = session_persist::from_text(first);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.placement.known);
+    CHECK(read.placement.x == -1200);
+    CHECK(read.placement.y == 340);
+    CHECK(read.placement.maximized);
+    CHECK(session_persist::to_text(read.desk, read.viewport_w, read.viewport_h,
+                                   read.placement) == first);
+
+    // THE ABSENCE HAS ONE SPELLING: no placement writes `none` over zeros and `normal`.
+    const std::string none =
+        session_persist::to_text(desk, 120, 44, session_persist::Placement{});
+    CHECK(none.find("\"mode\":\"none\"") != std::string::npos);
+    CHECK(none.find("\"x\":\"0\"") != std::string::npos);
+    CHECK(none.find("\"window\":\"normal\"") != std::string::npos);
+    CHECK_FALSE(session_persist::from_text(none).placement.known);
+}
+
+TEST_CASE("WUX-3: the placement's words are judged; its coordinates are not") {
+    const Setup desk = arranged_desk("D");
+    session_persist::Placement place;
+    place.known = true;
+    place.x = 100;
+    place.y = 60;
+    const std::string good = session_persist::to_text(desk, 120, 44, place);
+
+    // A mode word outside the closed set refuses the file, naming both sets.
+    std::string bad = good;
+    bad.replace(bad.find("\"mode\":\"desktop\""), std::string("\"mode\":\"desktop\"").size(),
+                "\"mode\":\"monitor\"");
+    session_persist::LoadedSession read = session_persist::from_text(bad);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("`monitor`") != std::string::npos);
+    CHECK(read.outcome.refusal.find("none or desktop") != std::string::npos);
+
+    // A window word outside its set, the same.
+    bad = good;
+    bad.replace(bad.find("\"window\":\"normal\""),
+                std::string("\"window\":\"normal\"").size(), "\"window\":\"fullscreen\"");
+    read = session_persist::from_text(bad);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("`fullscreen`") != std::string::npos);
+    CHECK(read.outcome.refusal.find("normal or maximized") != std::string::npos);
+
+    // An absent placement carrying a coordinate is a spelling nobody means: refused,
+    // and the refusal says both ways to fix it.
+    bad = session_persist::to_text(desk, 120, 44, session_persist::Placement{});
+    const std::string none_x = "\"mode\":\"none\",\"x\":\"0\"";
+    bad.replace(bad.find(none_x), none_x.size(), "\"mode\":\"none\",\"x\":\"7\"");
+    read = session_persist::from_text(bad);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal.find("carries no coordinates") != std::string::npos);
+
+    // A COORDINATE IS ANOTHER MACHINE'S DESKTOP TRUTH, accepted unjudged: only the
+    // medium at restore time can judge one, and refusing here would cost the desk.
+    place.x = 1000000;
+    place.y = -1000000;
+    read = session_persist::from_text(session_persist::to_text(desk, 120, 44, place));
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.placement.x == 1000000);
+    CHECK(read.placement.y == -1000000);
+}
+
+TEST_CASE("WUX-3: a version-2 session still loads, its placement reading as absence") {
+    session_persist::v2::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = 2;
+    old.viewport = session_persist::WorkshopViewport{110, 38};
+    old.desk = setup_persist::to_setup(arranged_desk("Yesterday"));
+    const std::string bytes = loom::compat::serialize(loom::to_value(old));
+
+    const session_persist::LoadedSession read = session_persist::from_text(bytes);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.present);
+    CHECK(read.honoured);
+    CHECK(read.viewport_w == 110);
+    CHECK(read.viewport_h == 38);
+    CHECK(read.desk == arranged_desk("Yesterday"));
+    CHECK_FALSE(read.placement.known);
+
+    // The next close writes version 3, byte-stable thereafter.
+    const std::string saved = session_persist::to_text(read.desk, read.viewport_w,
+                                                       read.viewport_h, read.placement);
+    CHECK(saved.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(session_persist::from_text(saved).outcome.accepted);
+}
+
+// ---- The weave: remember, offer back, and keep the normal room honest -----------------
+
+TEST_CASE("WUX-3: the desk remembers where its window sat, and offers it back") {
+    TempDir dir("wux3-place");
+    const std::string session = dir.file("session.json");
+    {
+        Live t;
+        t.host.session_path = session;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        // The medium notices its window and says so; Workshop remembers, opaquely.
+        t.publish(loom::to_value(surface::SurfacePlacement{240, 180, false}));
+        CHECK(t.session().placement_known);
+        CHECK(t.session().place_x == 240);
+        CHECK(t.session().place_y == 180);
+        t.key(input::scan::kQ);
+    }
+    CHECK(slurp(session).find("\"mode\":\"desktop\"") != std::string::npos);
+    CHECK(slurp(session).find("\"x\":\"240\"") != std::string::npos);
+
+    // ANOTHER PROCESS: the remembered placement is offered to whoever holds the skin
+    // role, exactly once, before any medium has said anything.
+    Live t;
+    t.host.session_path = session;
+    SkinSeat* skin = t.mount_skin_seat();
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE(skin->offered.size() == 1);
+    CHECK(skin->offered[0].x == 240);
+    CHECK(skin->offered[0].y == 180);
+    CHECK_FALSE(skin->offered[0].maximized);
+    // ...and the session remembers it even if no medium ever answers.
+    CHECK(t.session().placement_known);
+}
+
+TEST_CASE("WUX-3: a session with no placement offers nothing") {
+    TempDir dir("wux3-place-none");
+    const std::string session = dir.file("session.json");
+    REQUIRE(session_persist::save_file(session, arranged_desk("D"), 110, 38,
+                                       session_persist::Placement{})
+                .accepted);
+    Live t;
+    t.host.session_path = session;
+    SkinSeat* skin = t.mount_skin_seat();
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(skin->offered.empty());
+    CHECK_FALSE(t.session().placement_known);
+}
+
+TEST_CASE("WUX-3: a maximized close remembers the NORMAL room beside the maximized state") {
+    TempDir dir("wux3-max");
+    const std::string session = dir.file("session.json");
+    {
+        Live t;
+        t.host.session_path = session;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        // The maker sizes their normal window...
+        t.publish(loom::to_value(surface::SurfaceExtent{120, 40, 0, 0}));
+        CHECK(t.session().normal_w == 120);
+        CHECK(t.session().normal_h == 40);
+        // ...then maximizes. The medium reports placement BEFORE the grown extent
+        // (skin.hpp's pinned order), so the gate is closed when the big room arrives.
+        t.publish(loom::to_value(surface::SurfacePlacement{300, 200, true}));
+        t.publish(loom::to_value(surface::SurfaceExtent{200, 80, 0, 0}));
+        CHECK(t.session().screen_w == 200); // the live screen follows the window
+        CHECK(t.session().normal_w == 120); // the remembered normal room does not
+        CHECK(t.session().normal_h == 40);
+        t.key(input::scan::kQ);
+    }
+    const session_persist::LoadedSession read = session_persist::load_file(session);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.viewport_w == 120);
+    CHECK(read.viewport_h == 40);
+    CHECK(read.placement.known);
+    CHECK(read.placement.maximized);
+    CHECK(read.placement.x == 300);
+    CHECK(read.placement.y == 200);
+}
+
+TEST_CASE("WUX-3: unmaximizing reopens the gate, and the normal room tracks again") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 40, 0, 0}));
+    t.publish(loom::to_value(surface::SurfacePlacement{300, 200, true}));
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 80, 0, 0}));
+    REQUIRE(t.session().normal_w == 120);
+    // The maker unmaximizes: placement first, then the shrunken extent.
+    t.publish(loom::to_value(surface::SurfacePlacement{300, 200, false}));
+    t.publish(loom::to_value(surface::SurfaceExtent{130, 44, 0, 0}));
+    CHECK(t.session().normal_w == 130);
+    CHECK(t.session().normal_h == 44);
+}
+
+TEST_CASE("WUX-3: a run whose medium reports no placement RETAINS the remembered one") {
+    // A terminal run between two graphical runs must not cost the maker their window
+    // position: the TUI has no desktop fact, makes no claim, and carries the memory.
+    TempDir dir("wux3-retain");
+    const std::string session = dir.file("session.json");
+    session_persist::Placement place;
+    place.known = true;
+    place.x = 640;
+    place.y = 220;
+    REQUIRE(
+        session_persist::save_file(session, arranged_desk("D"), 110, 38, place).accepted);
+    {
+        Live t;
+        t.host.session_path = session;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        // A terminal-shaped run: extents arrive, placements never do.
+        t.publish(loom::to_value(surface::SurfaceExtent{100, 33, 0, 0}));
+        t.key(input::scan::kQ);
+    }
+    const session_persist::LoadedSession read = session_persist::load_file(session);
+    REQUIRE(read.outcome.accepted);
+    // The new room was remembered -- the restored maximized flag from ANOTHER run's
+    // window must not stop this run's viewport tracking...
+    CHECK(read.viewport_w == 100);
+    CHECK(read.viewport_h == 33);
+    // ...and the placement crossed unchanged.
+    CHECK(read.placement.known);
+    CHECK(read.placement.x == 640);
+    CHECK(read.placement.y == 220);
+}
+
+TEST_CASE("WUX-3: a restored maximized flag alone does not gate this run's viewport") {
+    TempDir dir("wux3-stale-max");
+    const std::string session = dir.file("session.json");
+    session_persist::Placement place;
+    place.known = true;
+    place.x = 10;
+    place.y = 10;
+    place.maximized = true; // last run closed maximized...
+    REQUIRE(
+        session_persist::save_file(session, arranged_desk("D"), 110, 38, place).accepted);
+    Live t;
+    t.host.session_path = session;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    // ...but THIS run's medium never says so (a terminal), so resizes track normally.
+    t.publish(loom::to_value(surface::SurfaceExtent{100, 33, 0, 0}));
+    CHECK(t.session().normal_w == 100);
+    CHECK(t.session().normal_h == 33);
 }

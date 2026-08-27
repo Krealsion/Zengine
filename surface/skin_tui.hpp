@@ -595,6 +595,16 @@ public:
     /// copy-here-paste-there keeps working on this medium with no platform claim anywhere.
     std::optional<std::string> clipboard_text() { return std::nullopt; }
 
+    /// A TERMINAL APPLICATION HAS NO DESKTOP PLACEMENT FACT AT ALL (WUX-3). The window a
+    /// maker sees belongs to the terminal emulator, which tells its guests nothing about
+    /// where it sits and takes no instructions about it — so this medium answers the
+    /// honest absence, `SkinT::report_placement` publishes nothing for it, and a
+    /// remembered placement offered back is received and truthfully not acted on. Neither
+    /// is a stub waiting to be filled in: they are what a terminal IS, said in one line
+    /// each, exactly as `clipboard_text`'s nullopt is.
+    std::optional<SurfacePlacement> placement() { return std::nullopt; }
+    void place(const SurfacePlacementRemembered&) {}
+
     /// HOW MUCH ROOM THERE IS — ASKED OF THE SINK, BECAUSE THE SINK IS THE TERMINAL.
     ///
     /// G-2 left this answering `{0,0}` forever and named the trigger for changing it:

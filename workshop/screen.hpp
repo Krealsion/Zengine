@@ -1472,6 +1472,27 @@ struct Session {
     /// precisely the run Workshop had before.
     std::int64_t text_advance_px = 0;
     std::int64_t text_line_px = 0;
+    /// THE NORMAL WINDOW'S ROOM (WUX-3) -- what a session save remembers as the viewport.
+    /// It tracks `screen_w`/`screen_h` exactly while the window is normal and STOPS while
+    /// the medium says the window is maximized (the weave's extent handler owns that gate),
+    /// so a maker who closes a maximized Workshop gets back a maximized window over the
+    /// normal bounds they had before -- not a "normal" window the size of their monitor.
+    /// A run whose medium never reports placement (every terminal) never gates, so these
+    /// are simply the screen, exactly as the save always behaved.
+    std::int64_t normal_w = kScreenMinW;
+    std::int64_t normal_h = kScreenMinH;
+    /// THE WINDOW'S DESKTOP PLACEMENT, AS LAST REPORTED (WUX-3) -- session in the
+    /// machine-local sense the file now lives by: `place_x`/`place_y` are the NORMAL
+    /// window's top-left in the reporting medium's own desktop units, held OPAQUE
+    /// (remembered and handed back, never interpreted -- `surface::SurfacePlacement`'s
+    /// custody split), and `place_maximized` is the window state beside them. Restored
+    /// from the session file, overwritten by every `SurfacePlacement` a medium reports,
+    /// written back on an orderly close -- so a terminal run, which hears no reports,
+    /// RETAINS the last placement a graphical run recorded rather than erasing it.
+    bool placement_known = false;
+    std::int64_t place_x = 0;
+    std::int64_t place_y = 0;
+    bool place_maximized = false;
     std::int64_t workspace_w = kWorkspaceW; ///< what a share of the workspace currently means
     std::int64_t workspace_h = kWorkspaceH;
     std::size_t cursor = 0;   ///< which inspector row the maker is on
@@ -1543,13 +1564,13 @@ struct Session {
     HotkeysView hotkeys;
     /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS (WUX-1) -- a presentation
     /// preference, the legend's own class: it governs what the screen SAYS and never what
-    /// a pane IS. Hiding titles changes no pane identity, no setup byte, no grant door and
-    /// no persistence -- what it changes is the row `external_title_rows` reserves, which
-    /// the existing grant-on-change door then re-tells each provider. Session state, and
-    /// deliberately NOT a field of the keymap file: the maker-config domain is a later
-    /// phase's, and a preference parked in whichever durable file already existed would be
-    /// that phase decided by accident. Until then the choice lives exactly as long as the
-    /// run.
+    /// a pane IS. Hiding titles changes no pane identity, no setup byte and no grant door
+    /// -- what it changes is the row `external_title_rows` reserves, which the existing
+    /// grant-on-change door then re-tells each provider. The LIVE value is session state;
+    /// its durable home arrived in WUX-3 (`prefs_persist.hpp`, the maker-configuration
+    /// file the WUX-1 note deferred to): the weave loads it at the first `SurfaceReady`
+    /// and writes it at the toggle, and a run with no prefs path -- every default fixture,
+    /// and `--isolated` -- keeps the choice exactly as long as the run, as before.
     bool pane_titles = true;
 };
 

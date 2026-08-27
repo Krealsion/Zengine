@@ -82,9 +82,11 @@
 
 #include <SDL3/SDL.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -339,6 +341,81 @@ public:
         return out;
     }
 
+    /// WHERE THIS WINDOW SITS ON THE DESKTOP (WUX-3) — asked on the beat like the extent,
+    /// answered in SDL's own window coordinates, and always about the NORMAL window.
+    ///
+    /// `SDL_GetWindowPosition` reports wherever the frame currently is, which while
+    /// maximized is the work area's corner — a position nobody chose and nobody wants
+    /// back. So the normal position is SAMPLED only while the window is not maximized and
+    /// REMEMBERED across the maximized stretch: what this answers during a maximize is
+    /// "the window is maximized, and its normal frame is at the place you last saw it" —
+    /// which is the place the platform returns it to on unmaximize, within the platform's
+    /// own tolerance. A window that has never once been observed unmaximized has no
+    /// normal position to report, and answers nothing rather than a guess.
+    std::optional<SurfacePlacement> placement() {
+        if (!ok_ || window_ == nullptr) {
+            return std::nullopt;
+        }
+        const bool maximized = (SDL_GetWindowFlags(window_) & SDL_WINDOW_MAXIMIZED) != 0;
+        if (!maximized) {
+            int x = 0;
+            int y = 0;
+            if (SDL_GetWindowPosition(window_, &x, &y)) {
+                normal_x_ = x;
+                normal_y_ = y;
+                have_normal_ = true;
+            }
+        }
+        if (!have_normal_) {
+            return std::nullopt;
+        }
+        return SurfacePlacement{normal_x_, normal_y_, maximized};
+    }
+
+    /// A REMEMBERED PLACEMENT, OFFERED BACK (WUX-3): judge it against the desktop that
+    /// exists NOW, and apply what is safe.
+    ///
+    /// The judgment is `placement_within` (skin_sdl_plan.hpp), pure and pinned on every
+    /// lane; what this supplies is the live inputs — every current display's USABLE bounds
+    /// (`SDL_GetDisplayUsableBounds`: the desktop less the platform's own taskbar/dock
+    /// reservations) and the window's current size in the same coordinate space
+    /// (`SDL_GetWindowSize`, deliberately not the drawable: positions are window
+    /// coordinates, not render pixels). No display truth means no move — an uninformed
+    /// move is the blind replay the law refuses — and the maximize is applied AFTER the
+    /// position, so the platform's own unmaximize returns the frame to the place this
+    /// call put it.
+    void place(const SurfacePlacementRemembered& want) {
+        if (!ok_ || window_ == nullptr) {
+            return;
+        }
+        std::vector<DesktopSpan> usable;
+        int display_count = 0;
+        if (SDL_DisplayID* ids = SDL_GetDisplays(&display_count)) {
+            for (int i = 0; i < display_count; ++i) {
+                SDL_Rect r{};
+                if (SDL_GetDisplayUsableBounds(ids[i], &r)) {
+                    usable.push_back(DesktopSpan{r.x, r.y, r.w, r.h});
+                }
+            }
+            SDL_free(ids);
+        }
+        int w = 0;
+        int h = 0;
+        if (!SDL_GetWindowSize(window_, &w, &h)) {
+            return; // a window whose size cannot be asked is not one to move blind
+        }
+        const std::optional<DesktopPoint> at =
+            placement_within(want.x, want.y, w, h, usable);
+        if (at.has_value() &&
+            !SDL_SetWindowPosition(window_, static_cast<int>(at->x),
+                                   static_cast<int>(at->y))) {
+            complain("SDL_SetWindowPosition");
+        }
+        if (want.maximized && !SDL_MaximizeWindow(window_)) {
+            complain("SDL_MaximizeWindow");
+        }
+    }
+
     /// HOW MUCH ROOM THIS WINDOW HAS, in canvas cells — the one question this
     /// medium answers rather than obeys.
     ///
@@ -529,6 +606,9 @@ private:
 
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
+    std::int64_t normal_x_ = 0; ///< the NORMAL window's last observed position (WUX-3)...
+    std::int64_t normal_y_ = 0;
+    bool have_normal_ = false;  ///< ...and whether it has ever been observed at all
     SdlTypeface text_; ///< the real face, when there is one; see skin_sdl_text.hpp
     std::string status_;
     std::string score_;

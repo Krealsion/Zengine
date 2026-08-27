@@ -98,6 +98,7 @@
 
 #include "persist.hpp"
 #include "keymap_persist.hpp"
+#include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
@@ -227,7 +228,32 @@ struct HostContext {
     /// was chosen and the defaults-in-code stand, silently; an ABSENT file at a chosen
     /// path means exactly the same, because deleting the file is how a maker returns to
     /// the defaults. Only a file that EXISTS and cannot be admitted is refused, out loud.
+    ///
+    /// SINCE WUX-3 THE HOST'S DEFAULT FOR IT IS THE PER-USER CONFIGURATION ROOT, not the
+    /// launch directory (user_paths.hpp owns the roots and the precedence; the host owns
+    /// calling them). The weave is deliberately ignorant of all of that: it gets one
+    /// string, and empty still means exactly what it has always meant here.
     std::string keymap_path;
+
+    /// The one file this Workshop's presentation PREFERENCES live in (WUX-3).
+    ///
+    /// A FIFTH PATH, AND A SEVENTH DURABLE FACT: the maker's eyes -- see prefs_persist.hpp
+    /// for why it is not the keymap's file. The host's to choose (`--prefs <path>`,
+    /// defaulted to the per-user configuration root). Empty means no prefs file was
+    /// chosen: the defaults stand, a toggle changes the live preference only, and nothing
+    /// is read or written -- which is also what `--isolated` resolves it to.
+    std::string prefs_path;
+
+    /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION (WUX-3), or empty.
+    ///
+    /// The HOST performs the one-time import of pre-WUX-3 local files into the per-user
+    /// roots (user_paths.hpp owns the rule) -- it happens before this weave exists, against
+    /// paths the weave never learns. What the weave owes the maker is the SENTENCE: a
+    /// transition that moved someone's settings must be said where they are looking, so
+    /// whatever the host puts here is spoken once on the notice line at startup, beside
+    /// the keymap's own word. The host also prints it to its banner; the two audiences
+    /// (a terminal launch, a shortcut launch) overlap in neither direction.
+    std::string transition_note;
 
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
@@ -270,6 +296,7 @@ class WorkshopWeave
                                           zengine::input::PointerMoved,
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
+                                          zengine::surface::SurfacePlacement,
                                           zengine::surface::SurfaceCloseRequested,
                                           zengine::surface::ClipboardText,
                                           zengine::surface::ClipboardCopy,
@@ -281,6 +308,7 @@ class WorkshopWeave
                                         zengine::surface::SurfaceText,
                                         zengine::surface::ClipboardCopy,
                                         zengine::surface::ClipboardTextRequested,
+                                        zengine::surface::SurfacePlacementRemembered,
                                         zengine::builder::StatusRequested,
                                         zengine::builder::BuildRequested,
                                         zengine::workshop::PaneCatalogRequested,
@@ -345,15 +373,64 @@ public:
         }
     }
 
-    /// Say once what the keymap load produced, on the first surface that can show it --
-    /// after the session restore, deliberately, so a refusal a maker must act on is the
-    /// sentence that survives on the one notice line.
-    void speak_keymap(loom::Mail& mail) {
-        if (keymap_spoken_ || keymap_word_.empty()) {
+    /// READ THE MAKER'S PRESENTATION PREFERENCES, OR STAND ON THE DEFAULTS (WUX-3).
+    ///
+    /// The keymap's startup story, one file over, with the same three quiet endings (no
+    /// path, no file, a file that changes nothing visible) and one spoken one (a file that
+    /// exists and cannot be admitted is refused in its own words and the defaults stand).
+    /// An applied preference speaks for itself on screen -- hidden titles are visibly
+    /// hidden -- so unlike the keymap there is no applied-and-announced sentence.
+    ///
+    /// A REFUSED FILE IS ALSO A STANDING WALL: `prefs_bad_` keeps every later toggle from
+    /// writing, because Workshop does not rewrite, half-apply or delete a file it could
+    /// not understand -- and unlike the keymap, THIS file is one Workshop ordinarily
+    /// writes, so the discipline needs the flag, not just restraint.
+    void load_prefs() {
+        if (prefs_loaded_) {
             return;
         }
-        keymap_spoken_ = true;
-        say(keymap_word_, keymap_bad_);
+        prefs_loaded_ = true;
+        if (host_->prefs_path.empty()) {
+            return;
+        }
+        if (!std::filesystem::exists(host_->prefs_path)) {
+            return;
+        }
+        const prefs_persist::LoadedPrefs loaded = prefs_persist::load_file(host_->prefs_path);
+        if (!loaded.outcome.accepted) {
+            prefs_word_ = loaded.outcome.refusal + " -- the default presentation stands";
+            prefs_bad_ = true;
+            return;
+        }
+        session_.pane_titles = loaded.titles_shown;
+    }
+
+    /// Say once what the startup file work produced, on the first surface that can show
+    /// it -- after the session restore, deliberately, so a sentence a maker must act on is
+    /// the one that survives on the one notice line. Three voices share it (the keymap's
+    /// word, the prefs file's, and the host's legacy-transition note), joined rather than
+    /// spoken over each other: the notice line holds one sentence, and three `say` calls
+    /// would keep only the last.
+    void speak_startup_notes(loom::Mail& mail) {
+        if (startup_spoken_) {
+            return;
+        }
+        startup_spoken_ = true;
+        std::string word;
+        for (const std::string* part :
+             {&keymap_word_, &prefs_word_, &host_->transition_note}) {
+            if (part->empty()) {
+                continue;
+            }
+            if (!word.empty()) {
+                word += "; ";
+            }
+            word += *part;
+        }
+        if (word.empty()) {
+            return;
+        }
+        say(word, keymap_bad_ || prefs_bad_);
         repaint(mail);
     }
 
@@ -400,9 +477,12 @@ public:
         // Reversing the two costs a maker the ability to shrink their window, which is a
         // stranger thing to lose to a continuity feature than anything it could have bought.
         load_keymap();
+        // The prefs beside it (WUX-3), BEFORE the first paint: the first band and the
+        // first pane headers a maker reads are already wearing their own preference.
+        load_prefs();
         repaint(mail);
         restore_last_session(mail);
-        speak_keymap(mail);
+        speak_startup_notes(mail);
     }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
@@ -429,6 +509,17 @@ public:
         if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px)) {
             return;
         }
+        // THE NORMAL WINDOW'S ROOM FOLLOWS THE SCREEN, EXCEPT WHILE THIS RUN'S MEDIUM SAYS
+        // THE WINDOW IS MAXIMIZED (WUX-3). The medium reports placement BEFORE extent on
+        // its beat (skin.hpp says why once), so by the time a maximized room arrives the
+        // gate is already closed and the remembered normal viewport survives to the save.
+        // A run whose medium never reports placement -- every terminal -- never gates, and
+        // a maximized flag merely RESTORED from a file must not gate either: that is last
+        // run's window, and this run's resizes are this run's to remember.
+        if (!(medium_placed_ && session_.place_maximized)) {
+            session_.normal_w = session_.screen_w;
+            session_.normal_h = session_.screen_h;
+        }
         // THE ROWS ARE REBUILT AND A LIVE DRAFT IS CARRIED ACROSS (HD-5). The resolved row
         // closes over the extent it resolves against, so the rebuild is not optional -- but
         // this is the ONE rebuild that happens for a reason having nothing to do with the
@@ -448,6 +539,24 @@ public:
         // by some route the picker and a restore do not share.
         apply_setup(mail);
         repaint(mail);
+    }
+
+    /// THE MEDIUM SAID WHERE ITS WINDOW SITS (WUX-3). Remember it, whole and opaque.
+    ///
+    /// The second and last message that flows medium -> application here, and deliberately
+    /// the dumbest handler in this file: the coordinates are the medium's own desktop
+    /// units, which Workshop cannot interpret, cannot validate (its session law says so)
+    /// and does not paint -- a moved window changes no pixel of any canvas -- so there is
+    /// no adoption, no clamp, no repaint and no reconcile. What it buys is the memory the
+    /// next orderly close writes down and the next launch hands back to whichever medium
+    /// then holds the surface, plus the one live gate above: `medium_placed_` is what lets
+    /// the extent handler tell a maximized room from a normal one.
+    void on(const zengine::surface::SurfacePlacement& p, loom::Mail&) {
+        medium_placed_ = true;
+        session_.placement_known = true;
+        session_.place_x = p.x;
+        session_.place_y = p.y;
+        session_.place_maximized = p.maximized;
     }
 
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
@@ -2506,13 +2615,40 @@ private:
         // the toggle landed in, because a maker with no external pane open would otherwise
         // watch nothing change; its second half names the one exception, which is the
         // keyboard-identity law, not a courtesy.
-        case Act::kPaneTitles:
+        //
+        // AND SINCE WUX-3 THE PREFERENCE IS DURABLE: a toggle is the maker STATING it, so
+        // this is the moment it is written -- to the prefs file, whose ordinary home is
+        // the per-user configuration root, so the choice follows the maker across launch
+        // directories rather than living exactly as long as the run. Three quiet walls:
+        // no path chosen means live-only (which is `--isolated`'s promise); a prefs file
+        // that stands refused is never overwritten (`prefs_bad_` -- the do-not-rewrite
+        // law); and a failed write says so on the same notice, because a preference a
+        // maker believes saved and is not is the quiet wrong answer.
+        case Act::kPaneTitles: {
+            load_prefs(); // a toggle before any surface exists still toggles the truth
             session_.pane_titles = !session_.pane_titles;
-            say(session_.pane_titles
+            std::string note =
+                session_.pane_titles
                     ? "pane titles shown"
-                    : "pane titles hidden -- a pane holding the keyboard still shows its own",
-                false);
+                    : "pane titles hidden -- a pane holding the keyboard still shows its own";
+            bool bad = false;
+            if (!host_->prefs_path.empty()) {
+                if (prefs_bad_) {
+                    note += "; not saved: " + host_->prefs_path +
+                            " could not be read and will not be overwritten";
+                    bad = true;
+                } else {
+                    const Written wrote =
+                        prefs_persist::save_file(host_->prefs_path, session_.pane_titles);
+                    if (!wrote.accepted) {
+                        note += "; not saved: " + wrote.refusal;
+                        bad = true;
+                    }
+                }
+            }
+            say(note, bad);
             break;
+        }
         case Act::kQuit: quit(); break;
         default: break;
         }
@@ -2959,10 +3095,36 @@ private:
         // in fact been there the whole time.
         if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
                                           session_.text_advance_px, session_.text_line_px)) {
+            // The restored viewport IS the normal window's room -- the save wrote it from
+            // exactly that (WUX-3) -- so the remembered pair starts equal to it rather
+            // than waiting for the first extent to arrive.
+            session_.normal_w = session_.screen_w;
+            session_.normal_h = session_.screen_h;
             // The resolved inspector row closes over the workspace extent, and the workspace
             // extent is exactly what just changed -- `on(SurfaceExtent)`'s reason, said at
             // startup.
             refocus_keeping_draft(state_, session_);
+        }
+        // ---- THE DESKTOP PLACEMENT, REMEMBERED AND OFFERED BACK (WUX-3) ------------
+        //
+        // Remembered FIRST -- into the session, so the next save carries it whether or not
+        // any medium ever acts on it (a terminal run retains a graphical run's placement
+        // rather than erasing it) -- and then OFFERED to whichever medium holds the
+        // surface. The offer is a want, not an instruction: the medium can see the
+        // displays that exist now and Workshop cannot, so the judgment (restore verbatim,
+        // adapt a stranded position, refuse to move blind) is entirely the medium's
+        // (`surface::SurfacePlacementRemembered`; the law is `placement_within`). What the
+        // medium then reports back through the ordinary placement channel is the truth
+        // this session remembers next.
+        if (last.placement.known) {
+            session_.placement_known = true;
+            session_.place_x = last.placement.x;
+            session_.place_y = last.placement.y;
+            session_.place_maximized = last.placement.maximized;
+            mail.send_to_role(zengine::surface::kSkinRole,
+                              zengine::surface::SurfacePlacementRemembered{
+                                  last.placement.x, last.placement.y,
+                                  last.placement.maximized});
         }
         // ---- ...AND THEN THE DESK, INTO THE ROOM IT ASKED FOR -----------------
         session_.setup.active = last.desk;
@@ -3009,8 +3171,20 @@ private:
         if (host_->session_path.empty()) {
             return;
         }
-        const Written written = session_persist::save_file(
-            host_->session_path, session_.setup.active, session_.screen_w, session_.screen_h);
+        // THE VIEWPORT WRITTEN IS THE NORMAL WINDOW'S (WUX-3): `normal_w/h` tracks the
+        // screen except while this run's medium says the window is maximized, so a
+        // maximized close remembers the room a maker actually chose, with the maximized
+        // state beside it rather than baked into it. The placement rides along exactly as
+        // the last medium reported it -- or exactly as the file already carried it, on a
+        // run whose medium had no desktop to report.
+        session_persist::Placement place;
+        place.known = session_.placement_known;
+        place.x = session_.place_x;
+        place.y = session_.place_y;
+        place.maximized = session_.place_maximized;
+        const Written written =
+            session_persist::save_file(host_->session_path, session_.setup.active,
+                                       session_.normal_w, session_.normal_h, place);
         if (written.accepted) {
             return;
         }
@@ -4488,7 +4662,25 @@ private:
     bool keymap_loaded_ = false;
     std::string keymap_word_;
     bool keymap_bad_ = false;
-    bool keymap_spoken_ = false;
+    bool startup_spoken_ = false; ///< the one combined startup sentence has been said
+
+    /// What loading the PREFS file produced (WUX-3), the keymap's own bookkeeping one file
+    /// over. `prefs_bad_` is load-bearing beyond the notice: a file that exists and could
+    /// not be admitted is never overwritten, so a toggle while it stands changes the live
+    /// preference and deliberately writes nothing (KEY-0's do-not-rewrite law, applied to
+    /// the file Workshop itself writes).
+    bool prefs_loaded_ = false;
+    std::string prefs_word_;
+    bool prefs_bad_ = false;
+
+    /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT (WUX-3) -- the gate that
+    /// keeps `Session::normal_w/h` honest. A restored `place_maximized` from LAST run's
+    /// file must not stop THIS run's viewport tracking (a terminal run restoring a
+    /// maximized session hears no placements and must keep remembering its own resizes),
+    /// so the gate is "this run's medium said maximized", which needs both this flag and
+    /// the session's current state. A weave member for `restored_`'s reason: it is this
+    /// run's bookkeeping about its medium, not anything a maker does or a paint shows.
+    bool medium_placed_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
     /// written yet. Session, emphatically: it is a copy kept so the status line
