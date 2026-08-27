@@ -90,8 +90,8 @@ What comes back:
 | where each was placed, and how big | yes — the authored values, exactly as saved |
 | which pane was in front | yes |
 | the size of the Workshop window | yes, **to the nearest whole cell** — see below |
-| the window's screen position | **no** — see [limitations](limitations.md#the-window-comes-back-the-size-you-left-it-not-the-place) |
-| whether it was maximized | **no**, same reason |
+| the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
+| whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
 | your document | **no** — `Ctrl`+`o` still opens it |
 
 The status line says what happened, in the notice row:
@@ -161,8 +161,8 @@ Source-traced, precisely:
 | persisting pane size | **yes** | authored size in cells or pixels, in both |
 | persisting which panes are open | **yes** | the pane list, in both |
 | persisting pane order (depth) | **yes** | the rank permutation, in both |
-| persisting the window's size | **yes** | the session's viewport, in cells |
-| persisting the window's position or maximized state | **no** | Workshop is never told either |
+| persisting the window's size | **yes** | the session's viewport, in cells — the *normal* window's room |
+| persisting the window's position and maximized state | **yes** | remembered opaquely from the medium's own reports; the medium validates them against live displays at restore |
 | **restoring the desk and the room at launch** | **yes** | automatic, from the `--session` file |
 | **restoring the document at launch** | **no** | the document loader is reached only from `Ctrl`+`o` |
 

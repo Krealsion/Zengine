@@ -113,6 +113,45 @@ for the Sink's own reason: a Medium that quietly lacked either would be one on w
 gesture silently reaches nothing, and the mistake would look exactly like the truth on every
 lane. `clipboard_text`'s nullopt is not a failure — it is the honest cannot-say.
 
+## The Medium owns the desktop placement, in both directions (WUX-3)
+
+The window's place on the desktop is the medium's second answer-only fact, beside the
+extent — and unlike the extent it is spoken in the MEDIUM'S OWN desktop units, which a
+publisher may remember and hand back and may never interpret. That custody split is the
+whole design: authored geometry stays on the medium-independent lattice (WUX-2), and
+desktop truth never enters it.
+
+- **The report** (`SurfacePlacement{x, y, maximized}`): published on change, on the same
+  beat that notices a dragged edge — and `x`/`y` are always the NORMAL window's top-left
+  (the SDL medium samples them only while unmaximized and remembers them across a
+  maximized stretch, `skin_sdl.cpp`), with `maximized` the current state beside them.
+  Absence is SILENCE, not zeroes — `(0,0)` is a real place on every desktop, so the
+  medium answers `std::optional` and the shell (`SkinT::report_placement`) publishes
+  nothing for nullopt. Every terminal medium answers nullopt forever: the emulator owns
+  that window and tells its guests nothing.
+- **Placement is reported BEFORE the extent at every report site**, and the order is
+  load-bearing: a maximize changes both facts in one gesture, and a consumer keeping the
+  normal window's room must hear the state before the size or it files the maximized
+  room under the wrong state. The reports run after the beat's `SDL_PumpEvents`, so the
+  flags and the drawable are one settled picture.
+- **The offer** (`SurfacePlacementRemembered{x, y, maximized}`): a publisher restoring a
+  session sends its remembered placement to `kSkinRole`, once. It is a want, not an
+  instruction — the medium can see the displays that exist NOW and the publisher cannot,
+  so the judgment is the medium's: `placement_within` (skin_sdl_plan.hpp, pure, pinned on
+  every lane) restores a reachable position VERBATIM (partial overhangs are intent — the
+  test is a hand's width, `kPlacementGraspPx`, of the window's top strip on some single
+  display's usable area), clamps a stranded one into the nearest display's usable bounds
+  top-left-first, and answers NOTHING with no display truth — an uninformed move is a
+  blind replay, refused. The maximize is applied after the position, so unmaximize lands
+  where the offer put the frame. What comes back to the publisher is the truth through
+  the ordinary report, never an echo.
+- `placement()` and `place()` are REQUIRED Medium methods, the clipboard pair's rule for
+  the clipboard pair's reason; the terminal's honest pair is one line each
+  (`skin_tui.hpp`).
+- **This is not a window manager.** No monitor identity, no fullscreen, no z-order, no
+  multi-window vocabulary, no size instruction (the window's size remains the canvas
+  conversation's, WUX-0's floor law included).
+
 ## Which text primitive: who owns the room (TYPE-0, answered in three by TYPE-1)
 
 Which text primitive a publisher reaches for is one question, and it is not about importance or

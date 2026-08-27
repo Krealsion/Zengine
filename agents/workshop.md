@@ -814,9 +814,13 @@ granted; the same three `external_press` already requires.
   that would not happen is the lie this band exists to refuse.
   **`keyboard_pane` is in `panel.hpp` because the ROUTER and the PAINTER both ask it**; two
   answers would be a screen that says a maker is typing somewhere the keys do not go.
-- **PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1):** `workshop.pane-titles`,
-  default bare `t` in command mode, flips `Session::pane_titles` — runtime state only, not
-  persisted (the maker-config domain is a later phase's; do not park it in the keymap file).
+- **PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1), DURABLE SINCE WUX-3:**
+  `workshop.pane-titles`, default bare `t` in command mode, flips `Session::pane_titles` —
+  and the toggle IS the maker stating the preference, so it is also the moment the prefs
+  file is written (`prefs_persist.hpp`, the maker-configuration home the WUX-1 note
+  deferred to — loaded at the first `SurfaceReady` before the first paint; no path means
+  live-only, which is `--isolated`'s promise; a file that stands refused is spoken once
+  and never overwritten).
   `external_title_rows(panels, kind, titles)` is the ONE resolution of how many header rows a
   pane's presentation reserves, and the painter, the press path (`external_press_at`) and the
   room grant (`refresh_external_rooms`) all spend its answer through
@@ -829,18 +833,50 @@ granted; the same three `external_press` already requires.
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
   pane protocol's law: [`panes.md`](panes.md).
 
-## The desk comes back on its own, and the window with it (WUX-0)
+## The desk comes back on its own, and the window with it (WUX-0, roots WUX-3)
 
-Workshop writes the desk it was arranged into and the room it was in when it closes, and reads
-them back when it starts. Four files, four promises — the third is the one nobody types, and
-the fourth (KEY-0) is the one nobody but the maker writes:
+Workshop writes the desk it was arranged into, the room it was in, and where its window sat
+when it closes, and reads them back when it starts. Five maker-facing files, five promises —
+and since WUX-3 they live in three OWNERSHIP DOMAINS with three different default homes:
 
 ```text
+PROJECT -- follows the project: the launch directory, or the path the maker typed
 --document   workshop.json           what a maker MADE
 --setup      workshop-setup.json     a desk they NAMED -- `s` writes it, `r` reads it
---session    workshop-session.json   the desk they were USING, and the room it was in
+
+USER CONFIGURATION -- follows the maker: %APPDATA%\zengine-workshop | $XDG_CONFIG_HOME/...
 --keymap     workshop-keymap.json    the maker's HAND -- hand-edited overrides + the legend
+--prefs      workshop-prefs.json     the maker's EYES -- presentation preferences, written
+                                     by Workshop at the moment a preference is stated
+                                     (pane titles, WUX-3); a refused file is never
+                                     overwritten
+
+USER STATE -- follows the maker's MACHINE: %LOCALAPPDATA%\zengine-workshop | $XDG_STATE_HOME/...
+--session    workshop-session.json   the desk they were USING, the room it was in, and
+                                     where the window sat on the desktop
 ```
+
+(The load plan and build recipes stay a fourth kind — shipped defaults beside the
+executable, authored per project when named.)
+
+- **THE PRECEDENCE IS PINNED AND THERE IS ONE SPELLING OF IT** (`user_paths.hpp`,
+  `resolve_durable_path`): an explicit path the maker typed, then `--isolated`, then the
+  per-user default. `--isolated` is the whole-application promise *this run reads and
+  writes none of my ordinary per-user configuration or session state* — it resolves the
+  three per-user defaults to the weave's designed empty-path absence, exists because the
+  root flip inverted accidental scratch-directory isolation into accidental danger, and is
+  the flag every witness harness and executor live run must carry. Explicit paths outrank
+  it, so an isolated witness that needs scratch persistence names its scratch files. An
+  environment with no resolvable root is the same absence, said once on the banner —
+  never a silent fallback to the launch directory.
+- **THE LEGACY TRANSITION IS ONE RULE AND IT CONVERGES BY EXISTENCE** (`user_paths.hpp`,
+  `import_legacy_file`; the host wires it for exactly the defaulted paths): a per-user
+  default whose file does not exist yet, beside a pre-WUX-3 local file that does, imports
+  the local bytes once — safe-written, unjudged (content is the loaders' law), directory
+  created on that first write — and says so on the banner and the notice line. An
+  existing user-root file ALWAYS wins; the legacy file is never deleted, moved or
+  rewritten, and once the destination exists the rule can never fire again. A standing
+  shadowed legacy file earns a standing note naming which file is read and how to end it.
 
 - **ONE REPRESENTATION OF A DESK, TWO FILES.** `session_persist::WorkshopSession` nests
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, and
@@ -857,9 +893,26 @@ the fourth (KEY-0) is the one nobody but the maker writes:
   `zengine.skin`, behind a C ABI; the only thing it publishes about its room is `SurfaceExtent`
   and the only thing Workshop says back is how large a picture it wants. The fidelity is a
   bound, not a hope: a restored window is the maker's chosen size FLOORED TO WHOLE CELLS, at
-  most `kCanvasCellPx - 1` pixels short on each axis. Position and maximized state are NOT
-  persisted and are not an oversight — no message in the Surface vocabulary carries either, in
-  either direction.
+  most `kCanvasCellPx - 1` pixels short on each axis.
+- **THE DESKTOP PLACEMENT IS REMEMBERED OPAQUE AND JUDGED BY THE MEDIUM (WUX-3).** The
+  placement pair (`surface::SurfacePlacement` / `SurfacePlacementRemembered`,
+  [`surface.md`](surface.md#the-medium-owns-the-desktop-placement-in-both-directions-wux-3))
+  closed the old deliberate omission: the medium reports where its NORMAL window sits (its
+  own desktop units, maximized state beside it), Workshop remembers the last report in the
+  session — coordinates it cannot interpret and does not try to — and hands it back once
+  at restore, where the medium validates against the displays that exist NOW
+  (`placement_within`: verbatim when reachable, clamped into the nearest usable area when
+  stranded, untouched with no display truth). A run whose medium reports no placement —
+  every terminal — RETAINS the remembered value rather than erasing it, and claims
+  nothing. Desktop placement is not canvas geometry: WUX-2's lattice is untouched, and no
+  desktop unit enters authored intent.
+- **THE SAVED VIEWPORT IS THE NORMAL WINDOW'S (WUX-3).** `Session::normal_w/h` tracks the
+  screen except while THIS run's medium says the window is maximized (the medium reports
+  placement before extent on its beat so the gate closes first, `skin.hpp`), so a
+  maximized close writes the room the maker chose with `maximized` beside it — restore
+  re-grows the normal window, repositions it, then re-maximizes, and unmaximizing lands
+  on the remembered normal bounds. A maximized flag merely restored from the file never
+  gates a placement-less run's own resize tracking.
 - **⚠ THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING.** A medium
   that has been told nothing has only a run's first picture to size itself from, and the SDL
   medium makes that size the window's MINIMUM, once, at creation (`SDL_SetWindowMinimumSize`
@@ -896,10 +949,19 @@ the fourth (KEY-0) is the one nobody but the maker writes:
 
 ## Do not assume
 
-- Nothing Workshop persists is read at launch — the DESK and the window's size are,
-  automatically. The **document** still is not.
-- Workshop can restore the window it had — it restores the window's SIZE, floored to whole
-  cells. It is never told the position or the maximized state and cannot ask.
+- Nothing Workshop persists is read at launch — the DESK, the window's size, the desktop
+  placement, the keymap and the prefs are, automatically. The **document** still is not.
+- Workshop restores only the window's size — since WUX-3 the SDL path round-trips the
+  desktop position and the maximized state too, through the placement pair. The size is
+  still floored to whole cells; the position is still never INTERPRETED by Workshop (the
+  medium judges it against live displays); and a terminal run still claims no placement
+  at all — it retains the remembered one unchanged.
+- Workshop's per-user files follow the launch directory — since WUX-3 they follow the
+  MAKER (`--keymap`/`--prefs` under the configuration root, `--session` under the
+  machine-local state root), and only the document, the setup and the shipped
+  plan/recipes stay where they always were. A scratch-directory launch is therefore NOT
+  isolated by accident any more: witness harnesses and executor runs must say
+  `--isolated`.
 - A session save can be trusted after a crash — it is written on an orderly close and nowhere
   else. A killed Workshop loses the session it was in.
 - The last session and a named setup are the same thing saved twice — they are two promises in

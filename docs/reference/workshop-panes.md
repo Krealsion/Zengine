@@ -551,21 +551,29 @@ of any kind**, and no setup format movement.
 ## The desk comes back on its own (WUX-0)
 
 A maker can **close Workshop after arranging it and reopen it into the same desk, at the same
-size, with no gesture.** That is a third persisted thing and a third file:
+size, in the same place on the desktop, with no gesture.** That is a third persisted thing and
+a third file — and since WUX-3 the session's default home is the per-user **state** folder
+(machine-local: a viewport and a desktop position describe *this* machine), while the two
+project files keep following the project:
 
 ```text
---document   workshop.json           what you MADE
---setup      workshop-setup.json     a desk you NAMED, with `s`, and read back with `r`
---session    workshop-session.json   the desk you were USING, and the room it was in
+--document   workshop.json           what you MADE                    (launch directory)
+--setup      workshop-setup.json     a desk you NAMED, with `s`,      (launch directory)
+                                     and read back with `r`
+--session    workshop-session.json   the desk you were USING, the     (per-user state root)
+                                     room it was in, and where the
+                                     window sat
 ```
 
 - **One representation of a desk, two files.** `session_persist::WorkshopSession` nests
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  Since WUX-2 the session format is **version 2** — the nested desk moved to setup format 3, and
-  the envelope moved with it — and a version-1 session (a whole-cell desk) still loads through
-  the same legacy road the setup file has, its viewport unchanged and its desk scaled exactly.
+  Since WUX-3 the session format is **version 3** — WUX-2's format plus the desktop
+  placement — and both older versions still load through retained legacy roads: a version-2
+  session reads with the placement as the canonical absence, and a version-1 session (a
+  whole-cell desk) additionally crosses the setup file's own legacy scaling, its viewport
+  unchanged and its desk scaled exactly. The next close writes version 3.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
@@ -578,9 +586,17 @@ size, with no gesture.** That is a third persisted thing and a third file:
   durable number is the one that crosses that seam, and the fidelity is a stated bound rather
   than a hope: a restored window is the maker's chosen size **floored to whole cells**, at most
   `kCanvasCellPx - 1` pixels short on each axis.
-- **Position and maximized state are NOT persisted**, and the reason is the same seam read from
-  the other side: no message in the Surface vocabulary carries either, in either direction, so
-  persisting them would be a new publisher-to-medium protocol rather than a new field.
+- **Position and maximized state ARE persisted since WUX-3, opaquely, and the medium is the
+  judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
+  medium reports where its *normal* window sits (its own desktop units, maximized state
+  beside it), Workshop remembers the last report in the session — coordinates it cannot
+  interpret and does not try to — and offers it back once at restore. The medium then
+  validates against the displays that exist *now*: a reachable position restores verbatim,
+  a stranded one is clamped into the nearest display's usable area, and with no display
+  truth nothing moves (`surface/agents` law; the arithmetic is `placement_within`). A
+  terminal run reports no placement, applies none, and *retains* the remembered value
+  rather than erasing it. The saved viewport is the **normal** window's room, so a
+  maximized close restores as a maximized window that unmaximizes to the size you chose.
 - **The first picture of a run is Workshop's floor, and the restored room is the second.** A
   medium that has been told nothing has only a run's first picture to size itself from, and a
   graphical one makes that size the smallest the window may ever be dragged to. So

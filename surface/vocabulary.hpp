@@ -595,6 +595,67 @@ struct SurfaceCloseRequested {
     ZEN_SHAPE(SurfaceCloseRequested, 1);
 };
 
+/// WHERE THE ACTIVE SURFACE'S WINDOW SITS ON ITS DESKTOP (WUX-3) — the medium answering
+/// the second question a publisher cannot answer for itself, in the medium's OWN desktop
+/// units.
+///
+/// `SurfaceExtent` says how much room the surface has, in the canvas's units, because room
+/// is a fact about the picture. This says where the window IS, in the desktop's units,
+/// because a desktop is a fact about one machine's monitors and nothing else in this
+/// vocabulary may pretend otherwise: `x`/`y` are the top-left of the window in whatever
+/// coordinate space the medium's platform uses for window placement, and a publisher
+/// treats them as OPAQUE — it may remember them and it may hand them back, and it can do
+/// nothing else with them, which is precisely the custody split that keeps desktop truth
+/// out of authored geometry (WUX-2's lattice is untouched by this pair).
+///
+/// TWO FACTS, AND THE FIRST IS ALWAYS THE NORMAL WINDOW'S. `x`/`y` are where the window
+/// sits when it is not maximized — while it IS maximized they carry the last normal
+/// position the medium observed, which is the one a maker gets back on unmaximize — and
+/// `maximized` says which of those two states the window is in right now. Folding the two
+/// into "wherever the frame currently is" would make a maximized close forget the normal
+/// bounds, which is the half of the fact a restore actually needs.
+///
+/// PUBLISHED WHEN IT CHANGES, and not otherwise — the Skin's own beat notices a person
+/// dragging the window, exactly as it notices the edge being resized. A medium with no
+/// desktop placement — every terminal Skin (the emulator owns that window, not the
+/// application), and a window Skin whose window does not exist yet — publishes NOTHING:
+/// silence is the honest absence, and unlike the extent's `{0,0}` there is no in-band
+/// absent value here, because `(0,0)` is a real place on every desktop.
+struct SurfacePlacement {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    bool maximized = false;
+    ZEN_SHAPE(SurfacePlacement, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(maximized));
+};
+
+/// A REMEMBERED PLACEMENT, OFFERED BACK (WUX-3) — sent to `kSkinRole` once, by a publisher
+/// restoring a session, carrying the last `SurfacePlacement` a medium reported to it.
+///
+/// IT IS A WANT, NOT AN INSTRUCTION, and the medium is the judge — deliberately the
+/// opposite custody from the viewport's declined-never-clamped law, because the premise is
+/// opposite: Workshop declines an implausible viewport precisely because it cannot see the
+/// display, and the medium may ADAPT a remembered position precisely because it can. The
+/// desktop that exists at restore time is not the desktop that existed at save time — a
+/// monitor unplugs, a dock moves, a work area shrinks — so the medium validates the
+/// remembered rectangle against its platform's CURRENT displays and usable work areas, and
+/// applies the position faithfully when it is reachable, adapted to the nearest usable
+/// place when it is not, and not at all when the platform can tell it nothing (no display
+/// truth means no informed judgment, and an uninformed move is the blind replay this shape
+/// exists to prevent). The law itself lives with the medium's other pure arithmetic
+/// (`placement_within`, skin_sdl_plan.hpp), pinned on every lane.
+///
+/// WHAT COMES BACK IS THE TRUTH, NOT AN ECHO: the medium's next placement report says
+/// where the window actually ended up, through the same `SurfacePlacement` every later
+/// drag speaks through. A terminal medium receiving this does nothing, truthfully — it
+/// has no desktop placement to apply it to, and it never claims one.
+struct SurfacePlacementRemembered {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    bool maximized = false;
+    ZEN_SHAPE(SurfacePlacementRemembered, 1, ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(maximized));
+};
+
 /// A MAKER COPIED THIS TEXT — an application's offer of it to the medium's clipboard, and
 /// to anything else in this process that holds editable text (TEXT-0).
 ///

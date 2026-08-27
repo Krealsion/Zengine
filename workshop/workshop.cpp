@@ -36,6 +36,7 @@
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "recipe_persist.hpp"
+#include "user_paths.hpp"
 #include "weave.hpp"
 
 #include "builder/runner.hpp"
@@ -159,14 +160,44 @@ std::string exe_dir() {
 /// setup path: no catalog, no recent list, no profile manager. An empty path is
 /// refused by name, exactly as an empty `--document` is.
 ///
-/// `--session <path>`, defaulted to `workshop-session.json`, is the THIRD file of the
-/// same shape and is the one nobody types (WUX-0). It holds the LAST SESSION: the desk
-/// this Workshop was arranged into and how much room the surface had, written when
-/// Workshop leaves and read when it arrives. It is a different file from `--setup` for
-/// the reason that is the whole of the distinction: a setup is a desk a maker deliberately
-/// NAMED, and an automatic save that could land on it would rewrite that name's contents
-/// every time a window was closed. An empty path is refused by name, exactly as the other
-/// two are.
+/// `--session <path>` is the THIRD file of the same shape and is the one nobody types
+/// (WUX-0). It holds the LAST SESSION: the desk this Workshop was arranged into, how much
+/// room the surface had, and — since WUX-3 — where its window sat on the desktop. It is a
+/// different file from `--setup` for the reason that is the whole of the distinction: a
+/// setup is a desk a maker deliberately NAMED, and an automatic save that could land on it
+/// would rewrite that name's contents every time a window was closed.
+///
+/// SINCE WUX-3 ITS DEFAULT IS NOT THE LAUNCH DIRECTORY. A session describes the MAKER'S
+/// MACHINE — this window, these monitors — not the project, so its default home is the
+/// per-user machine-local state root (`user_paths.hpp`: %LOCALAPPDATA% on Windows, the
+/// XDG state directory elsewhere), and launching Workshop from two different directories
+/// finds the same desk. The document and the setup deliberately keep their launch-
+/// directory defaults: project-authored facts follow the project.
+///
+/// `--keymap <path>` and `--prefs <path>` are the maker-CONFIGURATION pair — the hand and
+/// the eyes — and their default home is the per-user configuration root (%APPDATA% on
+/// Windows, the XDG config directory elsewhere), for the session's reason with the
+/// roaming/local split between them: a preference is meaningful on any machine, a session
+/// is not.
+///
+/// `--isolated` is the whole-application refusal of all three defaults (WUX-3): this run
+/// reads and writes NONE of the maker's ordinary per-user configuration or session state.
+/// It exists because moving the defaults off the launch directory inverts an accident —
+/// a witness harness or executor run launched from a scratch directory used to be
+/// isolated by its CWD, and after the move that same unflagged launch would touch the
+/// real maker's settings — so isolation is explicit now, suitable for executor runs,
+/// tests, temporary product witnesses and clean-start diagnosis. Explicit paths outrank
+/// it: `--isolated --session s.json` reads and writes exactly `s.json` and nothing else.
+/// The precedence, pinned in `user_paths.hpp` and its suite: explicit path, then
+/// isolation, then the per-user default.
+///
+/// THE ONE-TIME LEGACY TRANSITION (WUX-3): pre-WUX-3 builds kept the keymap and session
+/// beside the launch directory, and makers may have real settings there. When a per-user
+/// default resolves and its file does not exist yet while the old local file does, the
+/// host copies the local file's bytes to the user root once, says so in plain words (on
+/// this banner and on Workshop's notice line), and NEVER deletes, moves or rewrites the
+/// original. A user-root file that already exists always wins — a legacy file's presence
+/// can never overwrite it — and once the destination exists the rule never fires again.
 ///
 /// `--load-plan <path>`, defaulted to `default-load-plan.json` BESIDE THE
 /// EXECUTABLE, is the fourth of the same shape and is the one this host cannot run
@@ -216,13 +247,23 @@ struct Arguments {
     /// shape as `--document` for the same reasons; a different file because a
     /// document and the arrangement it is looked at in are different facts.
     std::string setup = zengine::workshop::kDefaultSetupFileName;
-    /// The last-session file, beside the other two and written by nobody's gesture (WUX-0).
-    std::string session = zengine::workshop::session_persist::kDefaultSessionFileName;
-    /// The maker's keymap file (KEY-0), beside the other three and read at startup. An
-    /// ABSENT file is the defaults, silently -- deleting it is how a maker resets their
-    /// bindings -- so unlike the plan there is nothing to refuse about a path with no
-    /// file at it.
-    std::string keymap = zengine::workshop::keymap_persist::kDefaultKeymapFileName;
+    /// The last-session file, written by nobody's gesture (WUX-0). EMPTY MEANS "NOT
+    /// EXPLICITLY CHOSEN" since WUX-3 -- `main` resolves the per-user default through
+    /// `user_paths.hpp` -- so unlike the document's, this default is not a bare name here:
+    /// a bare name would resolve against the launch directory, which is precisely the
+    /// behaviour WUX-3 ended for the maker's own files.
+    std::string session;
+    /// The maker's keymap file (KEY-0), read at startup. An ABSENT file is the defaults,
+    /// silently -- deleting it is how a maker resets their bindings -- so unlike the plan
+    /// there is nothing to refuse about a path with no file at it. Empty means "not
+    /// explicitly chosen", for `session`'s reason.
+    std::string keymap;
+    /// The maker's presentation preferences (WUX-3), written when they state one (the
+    /// pane-title toggle). Empty means "not explicitly chosen", for `session`'s reason.
+    std::string prefs;
+    /// This run touches none of the maker's ordinary per-user configuration or session
+    /// state (WUX-3). Explicit paths above still win over it.
+    bool isolated = false;
     /// Empty means "the one shipped beside this executable", which `main()` resolves
     /// once it knows where that is. It is deliberately NOT defaulted to a bare name
     /// here: a bare name would resolve against whatever directory a maker happened to
@@ -249,9 +290,14 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
+        if (arg == "--isolated") {
+            // The one flag that takes no path: a whole-run policy, not a file (WUX-3).
+            args.isolated = true;
+            continue;
+        }
         if (arg == "--document" || arg == "--setup" || arg == "--session" ||
-            arg == "--keymap" || arg == "--load-plan" || arg == "--recipes" ||
-            arg == "--log" || arg == "--dump") {
+            arg == "--keymap" || arg == "--prefs" || arg == "--load-plan" ||
+            arg == "--recipes" || arg == "--log" || arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -278,16 +324,29 @@ Arguments parse_arguments(int argc, char** argv) {
                     return args;
                 }
                 args.recipes = value;
+            } else if (arg == "--session" || arg == "--keymap" || arg == "--prefs") {
+                // REFUSED HERE since WUX-3, for the same reason at a different default:
+                // empty is now these fields' way of saying "the per-user root decides",
+                // and a maker who typed an empty path would silently get that policy
+                // instead of a complaint. Turning the file OFF is `--isolated`'s job.
+                if (value.empty()) {
+                    args.ok = false;
+                    args.complaint = arg + " needs a path";
+                    return args;
+                }
+                if (arg == "--session") {
+                    args.session = value;
+                } else if (arg == "--keymap") {
+                    args.keymap = value;
+                } else {
+                    args.prefs = value;
+                }
             } else if (arg == "--log") {
                 args.log = value;
             } else if (arg == "--dump") {
                 args.dump = value;
             } else if (arg == "--setup") {
                 args.setup = value;
-            } else if (arg == "--session") {
-                args.session = value;
-            } else if (arg == "--keymap") {
-                args.keymap = value;
             } else {
                 args.document = value;
             }
@@ -303,12 +362,6 @@ Arguments parse_arguments(int argc, char** argv) {
     } else if (args.setup.empty()) {
         args.ok = false;
         args.complaint = "--setup needs a path";
-    } else if (args.session.empty()) {
-        args.ok = false;
-        args.complaint = "--session needs a path";
-    } else if (args.keymap.empty()) {
-        args.ok = false;
-        args.complaint = "--keymap needs a path";
     }
     return args;
 }
@@ -319,6 +372,7 @@ int main(int argc, char** argv) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
+                    "                        [--prefs <path>] [--isolated]\n"
                     "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
@@ -335,20 +389,79 @@ int main(int argc, char** argv) {
     host.dir = exe_dir();
     host.document_path = args.document;
     host.setup_path = args.setup;
-    host.session_path = args.session;
-    host.keymap_path = args.keymap;
+
+    // ---- THE MAKER'S OWN FILES, RESOLVED BY THE PINNED PRECEDENCE (WUX-3) --------
+    //
+    // Explicit path, then isolation, then the per-user default -- `user_paths.hpp` owns
+    // the rule and the roots, this host owns calling them, and the weave stays ignorant
+    // of every step: it receives one string per file, empty meaning "no persistence",
+    // exactly as it always has. An environment that cannot supply a root resolves to
+    // that same absence, said below rather than silently falling back to the launch
+    // directory -- a quiet location change is the class of wrong answer this repository
+    // refuses.
+    const user_paths::Environment env = user_paths::host_environment();
+    const std::string config_root = user_paths::config_root(env);
+    const std::string state_root = user_paths::state_root(env);
+    host.keymap_path = user_paths::resolve_durable_path(
+        args.keymap, args.isolated, config_root, keymap_persist::kDefaultKeymapFileName);
+    host.prefs_path = user_paths::resolve_durable_path(
+        args.prefs, args.isolated, config_root, prefs_persist::kDefaultPrefsFileName);
+    host.session_path = user_paths::resolve_durable_path(
+        args.session, args.isolated, state_root,
+        session_persist::kDefaultSessionFileName);
+
+    // ---- ...AND THE ONE-TIME LEGACY TRANSITION, FOR EXACTLY THE DEFAULTED ONES ----
+    //
+    // Only a fact that resolved to its per-user DEFAULT can have a pre-WUX-3 local file
+    // to inherit: an explicit path is the maker's own answer, and an isolated run touches
+    // nothing. The prefs file is new in WUX-3 and has no legacy to import. The rule
+    // itself -- import once into an absent destination, never overwrite an existing one,
+    // never delete the original, converge by existence -- is `user_paths.hpp`'s, pinned
+    // in the suite; what the host owns is the wiring and the words.
+    std::string transition;
+    const auto note_transition = [&transition](const user_paths::LegacyImport& did) {
+        if (did.note.empty()) {
+            return;
+        }
+        if (!transition.empty()) {
+            transition += "; ";
+        }
+        transition += did.note;
+    };
+    if (args.keymap.empty() && !args.isolated) {
+        note_transition(user_paths::import_legacy_file(
+            host.keymap_path, keymap_persist::kDefaultKeymapFileName, "keymap"));
+    }
+    if (args.session.empty() && !args.isolated) {
+        note_transition(user_paths::import_legacy_file(
+            host.session_path, session_persist::kDefaultSessionFileName, "session"));
+    }
+    host.transition_note = transition;
 
     const std::string plan_path =
         args.load_plan.empty() ? host.dir + "/" + load_persist::kDefaultLoadPlanName
                                : args.load_plan;
 
     // The honest line, in plain scrollback, exactly as snake's host prints it:
-    // this host isolates nothing.
+    // this host isolates nothing. (The `--isolated` below is about the maker's FILES,
+    // not about containment -- the two words meet here and mean different things.)
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
+    const auto path_or_absence = [&args](const std::string& path) {
+        if (!path.empty()) {
+            return path;
+        }
+        return std::string(args.isolated ? "none (--isolated)"
+                                         : "none (no per-user root in this environment)");
+    };
     std::printf("zengine-workshop - last session: %s (restored at startup, written on quit)\n",
-                args.session.c_str());
+                path_or_absence(host.session_path).c_str());
+    std::printf("zengine-workshop - keymap: %s\n", path_or_absence(host.keymap_path).c_str());
+    std::printf("zengine-workshop - prefs: %s\n", path_or_absence(host.prefs_path).c_str());
+    if (!transition.empty()) {
+        std::printf("zengine-workshop - %s\n", transition.c_str());
+    }
     std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
     std::fflush(stdout);
 
@@ -881,6 +994,14 @@ int main(int argc, char** argv) {
     // clipboard feed, because none exists any more.
     speak.allow_to_role(surface::ClipboardTextRequested::zen_name,
                         surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
+    // WUX-3 ADDED THE PLACEMENT OFFER, BOUND TO THE SKIN'S ROLE FOR THE READ'S REASON:
+    // the desktop belongs to the Medium, so the one thing Workshop may say about it is the
+    // remembered placement it hands back at restore, addressed to whoever holds the
+    // surface. It carries two opaque coordinates and a bool, commands nothing, and the
+    // medium's own judgment (validate against live displays, adapt or refuse) is what
+    // makes it safe to say at all.
+    speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name,
+                        surface::SurfacePlacementRemembered::zen_version, surface::kSkinRole);
     speak.allow_to_role(builder::StatusRequested::zen_name,
                         builder::StatusRequested::zen_version, builder::kBuilderRole);
     speak.allow_to_role(builder::BuildRequested::zen_name, builder::BuildRequested::zen_version,

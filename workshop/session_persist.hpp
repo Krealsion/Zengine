@@ -55,31 +55,53 @@
 // FLOORED TO WHOLE CELLS -- at most `kCanvasCellPx - 1` pixels short on each axis. That is
 // a bound, not a hope, and it is the whole of what the cell round trip loses.
 //
-// WHAT IS NOT HERE, and is not silently missing: the window's screen POSITION, and whether
-// it was maximized. Neither is a fact Workshop has ever been told. There is no message in
-// the Surface vocabulary that carries either, in either direction, so persisting them would
-// mean a new publisher-to-medium protocol -- which is the widening this phase was told not
-// to absorb. Reported as a deliberate omission rather than attempted badly.
+// ---- ...and the window's desktop PLACEMENT, since WUX-3 --------------------
 //
-// ---- What version 2 promises (WUX-2) ---------------------------------------
+// The omission this paragraph used to record is closed: the Surface vocabulary now carries
+// the placement pair (`surface::SurfacePlacement` / `SurfacePlacementRemembered`), so the
+// window's desktop position and its maximized state are facts a medium tells Workshop and
+// facts Workshop may truthfully hand back. What is persisted is EXACTLY what the last
+// medium reported -- the normal window's position in the medium's own desktop units, and
+// whether the window was maximized -- held opaque: Workshop cannot interpret a desktop
+// coordinate, cannot validate one (its session law says so, and it is still true), and
+// does not try. Restoring hands the remembered placement back to whichever medium holds
+// the surface, and THE MEDIUM is the judge -- it can see the displays that exist now, so
+// it restores a reachable position faithfully and adapts a stranded one (the law is
+// `surface::placement_within`). A session written under a terminal run RETAINS the last
+// placement a graphical medium ever reported, unchanged: the TUI has no desktop fact and
+// makes no claim, and carrying the remembered value forward is remembering, not claiming.
 //
-//   PROMISED   Workshop reads and writes session format version 2 — the desk nested at
-//              setup format 3, sub-cell geometry — and a second save of a loaded session
-//              is byte-identical to the first. It also READS version 1, whose nested desk
-//              is WIND-2's whole-cell format, through `setup_persist`'s own legacy reader:
-//              the desk migrates exactly, the viewport crosses unchanged, and the file on
-//              disk is rewritten only by the ordinary close-time save (which writes v2).
+// The placement rides the SESSION file -- machine-local state -- and that is correctness
+// rather than convenience: a desktop coordinate describes THIS machine's monitors, which
+// is the same kind of fact the viewport already was. It is emphatically NOT pane/canvas
+// geometry: WUX-2's fine lattice is untouched, and no desktop unit enters authored intent.
+//
+// ---- What version 3 promises (WUX-3) ---------------------------------------
+//
+//   PROMISED   Workshop reads and writes session format version 3 — the desk nested at
+//              setup format 3, the viewport, and the desktop placement — and a second save
+//              of a loaded session is byte-identical to the first. It also READS versions
+//              1 and 2: v2 is this file less the placement (WUX-2's format; the placement
+//              reads as the canonical absence), v1 additionally nests WIND-2's whole-cell
+//              desk through `setup_persist`'s own legacy reader. Either is rewritten only
+//              by the ordinary close-time save (which writes v3).
 //   REFUSED    any OTHER `format_version`, with the number named; a `format` that is not
 //              this one; a field the shape does not declare; a field of the wrong kind; a
-//              nested desk that is not a legal saved setup, in `setup_persist`'s own words;
-//              a file larger than a session can be.
+//              placement mode or window word outside its closed set, with what was found
+//              and what would have worked both named; an absent placement carrying
+//              non-zero coordinates or a maximized window (absence has ONE spelling); a
+//              nested desk that is not a legal saved setup, in `setup_persist`'s own
+//              words; a file larger than a session can be.
 //   ACCEPTED   a desk holding references this build cannot resolve, with all of its authored
 //              window intent -- `setup_persist`'s rule, unchanged, because it is the same
 //              value. And a viewport this Workshop will not honour: see below, because that
-//              is deliberately NOT a refusal of the file.
-//   NOT DONE   a version graph past v1, an upgrade path framework, a dual writer,
-//              crash durability, and any notion of WHICH document or WHICH setup file the
-//              session belonged to. Where things are is the host's business and always was.
+//              is deliberately NOT a refusal of the file. The placement's coordinates are
+//              accepted UNJUDGED -- they are another machine's desktop truth, and the only
+//              party that can judge one is the medium at restore time.
+//   NOT DONE   an upgrade path framework, a dual writer, crash durability, fullscreen
+//              state, monitor identity, and any notion of WHICH document or WHICH setup
+//              file the session belonged to. Where things are is the host's business and
+//              always was.
 //
 // ---- A viewport that cannot be honoured is not a broken file --------------
 //
@@ -116,12 +138,14 @@ namespace zengine::workshop::session_persist {
 inline constexpr const char* kFormat = "zengine-workshop-session";
 
 /// The session format version this build WRITES, and the newest it reads.
-inline constexpr std::int64_t kFormatVersion = 2;
+inline constexpr std::int64_t kFormatVersion = 3;
 
-/// The one older version this build still reads (WUX-2's contract): the session
-/// that nested WIND-2's whole-cell desk, translated on load — never rewritten in
-/// place. The viewport is identical in both; only the nested desk moved.
-inline constexpr std::int64_t kLegacyFormatVersion = 1;
+/// The two older versions this build still reads, each translated on load and never
+/// rewritten in place: version 2 (WUX-2's format — this one less the placement, which
+/// reads as the canonical absence) and version 1 (WUX-0's — additionally nesting WIND-2's
+/// whole-cell desk, translated by `setup_persist`'s own legacy reader).
+inline constexpr std::int64_t kV2FormatVersion = 2;
+inline constexpr std::int64_t kV1FormatVersion = 1;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
@@ -152,8 +176,42 @@ struct WorkshopViewport {
     ZEN_SHAPE(WorkshopViewport, 1, ZEN_FIELD(width), ZEN_FIELD(height));
 };
 
-/// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, and
-/// the desk that was in the room.
+// ---- The placement's words, and why they are words (WUX-3) ---------------------------
+//
+// The setup format's decision, for its reason: the in-memory values are a bool and two
+// integers, and what a saved fact MEANS must not be movable by a renumbering. Two closed
+// sets: `mode` says whether there is a remembered placement at all, `window` says which
+// state the window was in. `none` is the one canonical spelling of "no placement was ever
+// reported" -- a session saved under a run whose medium never spoke one -- and its unused
+// numbers must be zero and its window `normal`, because Loom's admission has no optional
+// fields and a value nobody means must have exactly one spelling (WIND-2's law, verbatim).
+
+inline constexpr const char* kPlacementNone = "none";
+inline constexpr const char* kPlacementDesktop = "desktop";
+inline constexpr const char* kPlacementModeWords = "none or desktop";
+
+inline constexpr const char* kWindowNormal = "normal";
+inline constexpr const char* kWindowMaximized = "maximized";
+inline constexpr const char* kWindowWords = "normal or maximized";
+
+/// WHERE THE WINDOW SAT ON ITS DESKTOP, as the last medium reported it (WUX-3).
+///
+/// `x`/`y` are the NORMAL window's top-left in the reporting medium's own desktop units --
+/// opaque to Workshop, remembered and handed back, never interpreted (the vocabulary's
+/// custody split, `surface::SurfacePlacement`). Signed, because a monitor left of the
+/// primary lives at negative coordinates, legitimately.
+struct WorkshopPlacement {
+    std::string mode;   ///< none | desktop
+    std::int64_t x = 0; ///< the normal window's top-left, in the medium's desktop units
+    std::int64_t y = 0;
+    std::string window; ///< normal | maximized
+
+    ZEN_SHAPE(WorkshopPlacement, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(window));
+};
+
+/// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
+/// desk that was in the room, and where the room's window sat on the desktop.
 ///
 /// `desk` IS `setup_persist::WorkshopSetup`, not a copy of its fields. That is the one
 /// structural claim this file makes: a desk saved automatically and a desk saved under a
@@ -164,12 +222,14 @@ struct WorkshopSession {
     std::int64_t format_version = 0;
     WorkshopViewport viewport;
     setup_persist::WorkshopSetup desk;
+    WorkshopPlacement placement;
 
     /// Version 2 (WUX-2): the nested desk became setup format 3 — sub-cell
     /// geometry — and this format's version moved with it, exactly as the
     /// assertion below always demanded it would.
-    ZEN_SHAPE(WorkshopSession, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(desk));
+    /// Version 3 (WUX-3): the desktop placement, carried as the words above.
+    ZEN_SHAPE(WorkshopSession, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(desk), ZEN_FIELD(placement));
 };
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER, for the
@@ -234,25 +294,42 @@ inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
 
 // ---- Writing -------------------------------------------------------------------
 
+/// THE PLACEMENT HALF OF A SESSION, AS A VALUE -- what the weave remembers between a
+/// medium's report and a save, and what a load hands back. `known == false` IS the
+/// canonical absence: its numbers are zero and its window normal by construction, so the
+/// written spelling cannot carry a coordinate nobody means.
+struct Placement {
+    bool known = false;     ///< a medium has reported one (this run or a restored one)
+    std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
+    std::int64_t y = 0;
+    bool maximized = false; ///< whether the window was maximized
+};
+
 /// The session, as the value that gets written.
 ///
 /// NOTHING IS SORTED, NORMALISED, RESOLVED OR DROPPED ON THE WAY OUT -- `setup_persist`'s
-/// own rule, inherited by using its own function for the desk. The viewport is written
-/// exactly as the session held it, which is exactly what the last medium said, which is the
-/// only reason writing it is worth anything.
+/// own rule, inherited by using its own function for the desk. The viewport and the
+/// placement are written exactly as the session held them, which is exactly what the last
+/// medium said, which is the only reason writing either is worth anything.
 inline WorkshopSession to_session(const Setup& desk, std::int64_t viewport_w,
-                                  std::int64_t viewport_h) {
+                                  std::int64_t viewport_h, const Placement& place) {
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
     out.viewport = WorkshopViewport{viewport_w, viewport_h};
     out.desk = setup_persist::to_setup(desk);
+    out.placement.mode = place.known ? kPlacementDesktop : kPlacementNone;
+    out.placement.x = place.known ? place.x : 0;
+    out.placement.y = place.known ? place.y : 0;
+    out.placement.window =
+        place.known && place.maximized ? kWindowMaximized : kWindowNormal;
     return out;
 }
 
 inline std::string to_text(const Setup& desk, std::int64_t viewport_w,
-                           std::int64_t viewport_h) {
-    return loom::compat::serialize(loom::to_value(to_session(desk, viewport_w, viewport_h)));
+                           std::int64_t viewport_h, const Placement& place) {
+    return loom::compat::serialize(
+        loom::to_value(to_session(desk, viewport_w, viewport_h, place)));
 }
 
 // ---- Reading -------------------------------------------------------------------
@@ -279,6 +356,8 @@ struct LoadedSession {
     std::int64_t viewport_h = 0;
     bool honoured = false;  ///< whether that room is one this Workshop will open at
     std::string declined;   ///< why not, when it is not -- empty otherwise
+    Placement placement;    ///< the remembered desktop placement; `known == false` = none
+                            ///< was ever reported (and every legacy version reads as that)
 
     static LoadedSession no(std::string why) {
         LoadedSession bad;
@@ -293,16 +372,52 @@ struct LoadedSession {
 /// `format_version` field -- cannot come to word it differently.
 inline std::string wrong_version(std::int64_t found) {
     return "session version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(kLegacyFormatVersion) + " and " + std::to_string(kFormatVersion);
+           std::to_string(kV1FormatVersion) + ", " + std::to_string(kV2FormatVersion) +
+           " and " + std::to_string(kFormatVersion);
 }
 
-// ---- VERSION 1, RETAINED FOR READING (WUX-2) -----------------------------------------
+/// THE PLACEMENT'S OWN ADMISSION: the two closed word sets, and the one-spelling law for
+/// the absence. Judged here rather than inline in `from_text`, so the v3 road reads as the
+/// v2 road plus exactly this.
+inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
+    bool maximized = false;
+    if (file.window == kWindowMaximized) {
+        maximized = true;
+    } else if (file.window != kWindowNormal) {
+        return Written::no("`" + file.window + "` is not a window state (" + kWindowWords +
+                           ")");
+    }
+    if (file.mode == kPlacementNone) {
+        if (file.x != 0 || file.y != 0 || maximized) {
+            return Written::no("a placement of `none` carries no coordinates and no "
+                               "maximized state -- zero its numbers and set the window to `" +
+                               std::string(kWindowNormal) + "`, or set the mode to `" +
+                               std::string(kPlacementDesktop) + "`");
+        }
+        out = Placement{};
+        return Written::ok();
+    }
+    if (file.mode != kPlacementDesktop) {
+        return Written::no("`" + file.mode + "` is not a placement mode (" +
+                           kPlacementModeWords + ")");
+    }
+    out.known = true;
+    out.x = file.x;
+    out.y = file.y;
+    out.maximized = maximized;
+    return Written::ok();
+}
+
+// ---- VERSIONS 1 AND 2, RETAINED FOR READING (WUX-2, WUX-3) ---------------------------
 //
-// The envelope that nested WIND-2's whole-cell desk, exactly as written: the same trick
-// `setup_persist::v2` documents — the C++ names are namespaced, the WIRE names are the
-// bare tokens, so `v1::WorkshopSession` claims `WorkshopSession` v1 over a `WorkshopSetup`
-// v2 exactly as the old build did — and the translation is the desk's own legacy reader.
-// The viewport crossed unchanged: it was cells then and it is cells now.
+// The same trick `setup_persist::v2` documents, twice — the C++ names are namespaced, the
+// WIRE names are the bare tokens, so each namespaced shape claims `WorkshopSession` at its
+// own old number exactly as the old build did. `v1` nests WIND-2's whole-cell desk and its
+// translation is the desk's own legacy reader; `v2` is WUX-2's format — this one less the
+// placement — and its translation is nothing at all: every shared field crosses unchanged
+// and the placement reads as the canonical absence. Neither is a migration framework: two
+// retained shapes, two exact translations, and the clean-break stance stands for every
+// other transition.
 namespace v1 {
 
 struct WorkshopSession {
@@ -317,16 +432,51 @@ struct WorkshopSession {
 
 } // namespace v1
 
+namespace v2 {
+
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    WorkshopViewport viewport;
+    setup_persist::WorkshopSetup desk;
+
+    ZEN_SHAPE(WorkshopSession, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(desk));
+};
+
+} // namespace v2
+
+/// The shared tail of every read road: judge the desk with `setup_persist`'s own readers
+/// and the viewport with this file's own band, into a loaded session. The desk translation
+/// differs per road, so it arrives already done; everything after it is one law.
+inline LoadedSession loaded_from(Setup desk, std::int64_t viewport_w,
+                                 std::int64_t viewport_h, const Placement& place) {
+    LoadedSession loaded;
+    loaded.outcome = Written::ok();
+    loaded.present = true;
+    loaded.desk = std::move(desk);
+    loaded.placement = place;
+    if (viewport_honoured(viewport_w, viewport_h)) {
+        loaded.viewport_w = viewport_w;
+        loaded.viewport_h = viewport_h;
+        loaded.honoured = true;
+    } else {
+        loaded.declined = declined_viewport(viewport_w, viewport_h);
+    }
+    return loaded;
+}
+
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
 /// nothing here throws.
 ///
 /// THE LAYERS, IN ORDER, and the last two are borrowed rather than repeated: the envelope
 /// must parse; its CLAIM must be a version this build reads (the WIND-2 preflight, so an
 /// older session is refused by its number rather than by whichever field this version
-/// added — and a version-1 claim takes the legacy road, WUX-2); it must admit against that
-/// version's shape; it must say it is this format at that version; and its desk must be a
-/// legal saved setup, judged by `setup_persist`'s own readers -- the same functions a setup
-/// FILE goes through, so a desk cannot be legal in one file and illegal in the other.
+/// added — and a version-1 or version-2 claim takes its own retained road); it must admit
+/// against that version's shape; it must say it is this format at that version; and its
+/// desk must be a legal saved setup, judged by `setup_persist`'s own readers -- the same
+/// functions a setup FILE goes through, so a desk cannot be legal in one file and illegal
+/// in the other.
 inline LoadedSession from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -346,7 +496,7 @@ inline LoadedSession from_text(std::string_view bytes) {
             return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
                                      "`");
         }
-        if (file.format_version != kLegacyFormatVersion) {
+        if (file.format_version != kV1FormatVersion) {
             return LoadedSession::no(wrong_version(file.format_version));
         }
         Setup desk;
@@ -354,18 +504,31 @@ inline LoadedSession from_text(std::string_view bytes) {
         if (!understood.accepted) {
             return LoadedSession::no(understood.refusal);
         }
-        LoadedSession loaded;
-        loaded.outcome = Written::ok();
-        loaded.present = true;
-        loaded.desk = std::move(desk);
-        if (viewport_honoured(file.viewport.width, file.viewport.height)) {
-            loaded.viewport_w = file.viewport.width;
-            loaded.viewport_h = file.viewport.height;
-            loaded.honoured = true;
-        } else {
-            loaded.declined = declined_viewport(file.viewport.width, file.viewport.height);
+        return loaded_from(std::move(desk), file.viewport.width, file.viewport.height,
+                           Placement{});
+    }
+    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
+        claim.claimed_version() == v2::WorkshopSession::zen_version) {
+        const loom::Admission old = loom::admit(claim, loom::schema_of<v2::WorkshopSession>(),
+                                                loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedSession::no(old.first_error().message());
         }
-        return loaded;
+        const v2::WorkshopSession file = loom::from_value<v2::WorkshopSession>(old.value());
+        if (file.format != kFormat) {
+            return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
+                                     "`");
+        }
+        if (file.format_version != kV2FormatVersion) {
+            return LoadedSession::no(wrong_version(file.format_version));
+        }
+        Setup desk;
+        const Written understood = setup_persist::setup_in(file.desk, desk);
+        if (!understood.accepted) {
+            return LoadedSession::no(understood.refusal);
+        }
+        return loaded_from(std::move(desk), file.viewport.width, file.viewport.height,
+                           Placement{});
     }
     if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
         claim.claimed_version() != WorkshopSession::zen_version) {
@@ -394,21 +557,19 @@ inline LoadedSession from_text(std::string_view bytes) {
     if (!understood.accepted) {
         return LoadedSession::no(understood.refusal);
     }
-
-    LoadedSession loaded;
-    loaded.outcome = Written::ok();
-    loaded.present = true;
-    loaded.desk = std::move(desk);
-    // THE VIEWPORT IS JUDGED AND NOT REFUSED. A well-formed session whose size this build
-    // will not open at is still a session, and the desk in it is still the maker's.
-    if (viewport_honoured(file.viewport.width, file.viewport.height)) {
-        loaded.viewport_w = file.viewport.width;
-        loaded.viewport_h = file.viewport.height;
-        loaded.honoured = true;
-    } else {
-        loaded.declined = declined_viewport(file.viewport.width, file.viewport.height);
+    // THE PLACEMENT'S WORDS ARE JUDGED; ITS COORDINATES ARE NOT. A word outside its closed
+    // set refuses the file (a mode this build cannot read is a file it cannot claim to have
+    // understood); a coordinate is another machine's desktop truth, accepted unjudged,
+    // because the only party that can judge one is the medium at restore time.
+    Placement place;
+    const Written placed = placement_in(file.placement, place);
+    if (!placed.accepted) {
+        return LoadedSession::no(placed.refusal);
     }
-    return loaded;
+    // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
+    // whose size this build will not open at is still a session, and the desk in it is
+    // still the maker's.
+    return loaded_from(std::move(desk), file.viewport.width, file.viewport.height, place);
 }
 
 // ---- The file itself -------------------------------------------------------------
@@ -422,9 +583,12 @@ inline LoadedSession from_text(std::string_view bytes) {
 /// file exists beside it. CRASH DURABILITY IS NOT CLAIMED, here or anywhere else in this
 /// program -- a Workshop that is killed loses the session it was in, and this phase does not
 /// pretend otherwise.
+/// It writes THROUGH `persist::write_file_making_room` since WUX-3: the ordinary home of
+/// this file is the per-user state root, which is created on first write and never on a
+/// read -- a run that persists nothing leaves no trace.
 inline Written save_file(const std::string& path, const Setup& desk, std::int64_t viewport_w,
-                         std::int64_t viewport_h) {
-    return persist::write_file(path, to_text(desk, viewport_w, viewport_h));
+                         std::int64_t viewport_h, const Placement& place) {
+    return persist::write_file_making_room(path, to_text(desk, viewport_w, viewport_h, place));
 }
 
 /// Read the last session from a file.

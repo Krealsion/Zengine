@@ -38,9 +38,12 @@ See [load plans](load-plans.md).
 
 | argument | default | is |
 |---|---|---|
-| `--document <path>` | `workshop.json`, beside the binary | the authored objects you are working on |
-| `--setup <path>` | `workshop-setup.json`, beside the binary | a pane arrangement you named and saved |
-| `--session <path>` | `workshop-session.json`, beside the binary | the desk and window size you last used — written on close, read on start |
+| `--document <path>` | `workshop.json`, in the directory you launched from | the authored objects you are working on |
+| `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
+| `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
+| `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
+| `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
+| `--isolated` | off | this run reads and writes **none** of your per-user config or session state — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `default-load-plan.json`, beside the binary | which artifacts this run is made of |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
 | `--dump <path>` | none | what the volatile recorder still held when Workshop quit |
@@ -48,6 +51,16 @@ See [load plans](load-plans.md).
 An empty path is refused by name. `--log` and `--dump` are two different questions: the
 journal is what you keep on purpose, the dump is most of a session's story recovered after the
 fact. Without either, nothing is written and `q` always leaves a live process.
+
+The two **project files** (document, setup) follow the project: launch from two directories
+and you have two projects. The three **maker files** follow *you*: on Windows the config
+folder is `%APPDATA%\zengine-workshop` and the state folder is
+`%LOCALAPPDATA%\zengine-workshop`; elsewhere they are `$XDG_CONFIG_HOME/zengine-workshop`
+(falling back to `~/.config/...`) and `$XDG_STATE_HOME/zengine-workshop` (falling back to
+`~/.local/state/...`). An explicit path always wins, `--isolated` wins over the defaults, and
+a first launch after upgrading imports any old launch-directory `workshop-keymap.json` /
+`workshop-session.json` into those folders **once** — saying so plainly, never deleting the
+original, and never overwriting a file already there.
 
 ### What it prints before it draws
 
@@ -58,7 +71,9 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: workshop.json
 zengine-workshop - setup: workshop-setup.json
-zengine-workshop - last session: workshop-session.json (restored at startup, written on quit)
+zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/workshop-session.json (restored at startup, written on quit)
+zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
+zengine-workshop - prefs: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-prefs.json
 zengine-workshop - load plan: .../default-load-plan.json
 zengine-workshop - load plan: 6 artifact(s) declared
 zengine-workshop - log: nothing durable (--log <path> to keep one)

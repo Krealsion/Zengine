@@ -19,6 +19,14 @@
 //   SurfaceExtent extent() const;   // how much room I have, in cells; {0,0} = no opinion
 //                                   // and, since HD-1, how big one character of
 //                                   // mine is; zeroes there mean "text is a cell"
+//   std::optional<SurfacePlacement> placement();     // where my window sits on its desktop
+//                                                    // (WUX-3); nullopt = I have no desktop
+//                                                    // placement fact (a terminal, or no
+//                                                    // window yet) — the honest silence
+//   void place(const SurfacePlacementRemembered&);   // a remembered placement offered back:
+//                                                    // validate it against the desktop that
+//                                                    // exists NOW and apply what is safe; a
+//                                                    // medium with no desktop does nothing
 //
 // `clipboard_copy` is REQUIRED of a Medium rather than detected on one, the Sink's own rule
 // (skin_tui.hpp) for the Sink's own reason: a Medium that quietly lacked it would be a
@@ -27,7 +35,10 @@
 // Requiring it makes a forgetful Medium a compile error instead of a silent dead chord.
 // `clipboard_text` is required for the same reason, and nullopt is not a failure: it is a
 // terminal medium's standing truth, and the asker's fallback (what this process itself last
-// copied) is the strongest paste that medium honestly has.
+// copied) is the strongest paste that medium honestly has. `placement` and `place` are
+// required for the same reason again — a Medium that quietly lacked either would be one on
+// which the desktop conversation silently reaches nothing — and their honest do-nothing
+// answers (nullopt; an empty body) are one line each on a medium with no desktop.
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
 // the alternate screen in its constructor and restores it in its destructor,
@@ -86,11 +97,13 @@ template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                      loom::Accept<zengine::snake::SnakeVisual, SurfaceCanvas,
                                                   SurfaceText, ClipboardCopy,
-                                                  ClipboardTextRequested, PumpSurface,
+                                                  ClipboardTextRequested,
+                                                  SurfacePlacementRemembered, PumpSurface,
                                                   loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
-                                     loom::Emit<SurfaceReady, SurfaceExtent, ClipboardText,
+                                     loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement,
+                                                ClipboardText,
                                                 zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
@@ -100,6 +113,7 @@ public:
         announce_surface_once(mail);
         medium_.frame(v, this->state_.frames == 0);
         ++this->state_.frames;
+        report_placement(mail);
         report_extent(mail); // the first frame is what brings a window into existence
     }
 
@@ -112,6 +126,7 @@ public:
         announce_surface_once(mail);
         medium_.canvas(c, this->state_.frames == 0);
         ++this->state_.frames;
+        report_placement(mail);
         report_extent(mail);
     }
 
@@ -142,12 +157,26 @@ public:
         (void)mail.answer(ClipboardText{text.has_value(), text.value_or(std::string())});
     }
 
+    /// A REMEMBERED PLACEMENT, OFFERED BACK (WUX-3): hand it to the medium, whose judgment
+    /// it is (the vocabulary's contract — validate against the desktop that exists now,
+    /// apply what is safe, do nothing on a medium with no desktop). What is then REPORTED
+    /// is the truth, not an echo: the same change-guarded placement report every drag goes
+    /// through, so a want the medium adapted comes back as where the window actually is.
+    /// The extent is re-read too, because a remembered maximize is a resize.
+    void on(const SurfacePlacementRemembered& p, loom::Mail& mail) {
+        announce_surface_once(mail);
+        medium_.place(p);
+        report_placement(mail);
+        report_extent(mail);
+    }
+
     /// Execution time, not intent: service the medium's OS surface, on
     /// direct request (suites, diagnostics, timer-less hosts).
     void on(const PumpSurface&, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.pump();
         ++this->state_.pumps;
+        report_placement(mail);
         report_extent(mail);
     }
 
@@ -175,7 +204,14 @@ public:
         }
         medium_.pump();
         ++this->state_.pumps;
-        report_extent(mail); // THE BEAT IS WHAT NOTICES A PERSON DRAGGING A WINDOW EDGE
+        // THE BEAT IS WHAT NOTICES A PERSON DRAGGING A WINDOW — its place and its edge
+        // both. Placement is reported FIRST, deliberately: a maximize changes both facts
+        // in one gesture, and a consumer keeping "the normal window's room" must hear
+        // that the window is maximized before it hears the maximized room, or it files
+        // the new size under the wrong state (WUX-3; the same argument at every report
+        // site, made once here).
+        report_placement(mail);
+        report_extent(mail);
     }
 
     Medium& medium() { return medium_; }
@@ -267,8 +303,33 @@ private:
         mail.publish(now);
     }
 
+    /// SAY WHERE THE WINDOW SITS, WHEN IT CHANGES AND ONLY THEN (WUX-3).
+    ///
+    /// `report_extent`'s own shape, one fact over: asked of the Medium beside every extent
+    /// read, change-guarded so a still window is silent and a dragged one speaks once per
+    /// place it passes through, and ABSENT rather than zeroed — a Medium with no desktop
+    /// placement answers nullopt and nothing is published, because unlike the extent there
+    /// is no in-band absent value ((0,0) is a real place on every desktop). The last
+    /// reported value is a plain member for the extent's reason: a successor claims its
+    /// own surface and must report its own placement.
+    void report_placement(loom::Mail& mail) {
+        const std::optional<SurfacePlacement> now = medium_.placement();
+        if (!now.has_value()) {
+            return; // no desktop placement fact: silence, never zeroes
+        }
+        if (placement_said_ && now->x == said_placement_.x && now->y == said_placement_.y &&
+            now->maximized == said_placement_.maximized) {
+            return;
+        }
+        placement_said_ = true;
+        said_placement_ = *now;
+        mail.publish(*now);
+    }
+
     bool announced_ = false;
     SurfaceExtent reported_{}; ///< the last extent said out loud, per incarnation
+    bool placement_said_ = false;    ///< whether any placement has been said, per incarnation
+    SurfacePlacement said_placement_{}; ///< ...and the last one that was
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Medium medium_;
 };

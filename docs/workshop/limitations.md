@@ -70,17 +70,20 @@ What makes that cost more than one keypress: a fresh Workshop seeds two example 
 forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
 empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 
-### The window comes back the size you left it, not the place
+### The window comes back where you left it, into the desktop that exists now
 
-The last session restores the **size** of the Workshop window, in canvas cells, to the nearest
-whole cell. It does not restore where the window was on the screen, and it does not restore a
-maximized window as maximized — it restores whatever size it had.
+The last session restores the **size** of the Workshop window (in canvas cells, to the nearest
+whole cell), its **desktop position**, and whether it was **maximized** — a maximized close
+comes back maximized, and unmaximizing lands on the size and place you had before maximizing.
 
-This is a seam rather than an omission. Workshop does not own its window: whichever Skin holds
-`zengine.skin` does, across a C ABI, and the only thing that Skin publishes about it is how many
-canvas cells it has (`surface::SurfaceExtent`). There is no message in either direction that
-carries a screen position or a maximized state, so persisting them would mean a new
-publisher-to-medium protocol rather than a new field in a file.
+Two honest bounds. First, the remembered position is validated against the monitors that exist
+*at restore time*, by the graphical medium (the only party that can see them): a reachable
+position restores exactly, partial off-screen overhangs included, and a position that would
+leave the window's grab strip unreachable — an unplugged monitor, a moved dock — is brought
+back inside the nearest display's usable area instead of being replayed blindly. Second, a
+**terminal** run has no window of its own to place — the emulator owns it — so it neither
+restores nor claims a position; it simply carries your remembered one forward untouched for
+the next graphical run.
 
 ### The session is written on an orderly close, and only then
 

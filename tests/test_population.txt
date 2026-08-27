@@ -626,20 +626,43 @@
 # space is consumed by `TextBox::consume` exactly when `kEditingVocabulary` declares it, so
 # the declaration rows contextual help shows and the switch that executes cannot drift apart.
 #
+# WUX-3 raised the workshop floor 810 -> 832 and the surface always-floor 86 -> 94, and the
+# spread is the phase's own split. The twenty-two workshop cases are the installed
+# application: the per-user roots (both platform spellings, pinned on every lane), the one
+# precedence (explicit path, then --isolated, then the default -- with an unresolvable root
+# an absence, never CWD), the one-time legacy import (imports once into an absent
+# destination, never overwrites an existing root file, never deletes the original,
+# converges by existence), the host tripwire holding main() to that resolution, the prefs
+# file (round-trip, closed words, written on the toggle, applied before the first paint,
+# never overwriting a file it could not read, and the WUX-1 focus law surviving a RESTORED
+# hidden-titles preference), session format v3 (the placement's words judged, its
+# coordinates accepted as another machine's desktop truth, the v2 and v1 roads retained),
+# and the weave's placement custody (remember opaquely, offer back once at restore, retain
+# across a placement-less run, and keep the NORMAL room gated while this run's medium says
+# maximized). The eight surface cases are the medium's half: the shell's change-guarded
+# placement report with silence for the absence, placement-before-extent at every door,
+# the offered-back delegation, and the pure adaptation law (verbatim for reachable intent,
+# partial overhangs included; the exact 32px grasp boundary in both axes; clamp into the
+# nearest current display; top-left alignment for an outsized window; and NO answer with
+# no display truth -- a blind move refused). EVERY ONE IS IN THE `always` POPULATION: the
+# roots are pure functions over an environment value, the placement law is pure geometry,
+# and the weave cases drive published messages -- the live Windows window is the phase's
+# witness, not a case.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
 input                             doctest           sdl     3
-surface                           doctest           always  86
+surface                           doctest           always  94
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  810
+workshop                          doctest           always  832
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

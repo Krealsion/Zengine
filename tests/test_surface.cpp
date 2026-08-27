@@ -186,6 +186,17 @@ struct FakeMedium {
     /// driven without a window.
     SurfaceExtent room{};
     SurfaceExtent extent() const { return room; }
+
+    /// Required of every Medium since WUX-3, for the clipboard pair's reason. A fake
+    /// answers whatever a case set — nullopt is the terminal's standing truth — so the
+    /// shell's placement rule (publish on change, silence for the absence) can be driven
+    /// without a desktop; `place` logs the offer the way every other delegation logs.
+    std::optional<SurfacePlacement> desk{};
+    std::optional<SurfacePlacement> placement() { return desk; }
+    void place(const SurfacePlacementRemembered& want) {
+        log->push_back("place x=" + std::to_string(want.x) + " y=" + std::to_string(want.y) +
+                       " max=" + (want.maximized ? "1" : "0"));
+    }
 };
 
 struct ReadyState {
@@ -4533,4 +4544,226 @@ TEST_CASE("WUX-2: a fine region fits at its fine pixels and covers its cells") {
     CHECK(out[0].label.y == 1);
     CHECK(out[0].label.sub_y == 0);
     CHECK(out[0].label.text.size() == 21); // padded to the covered cells
+}
+
+// ========================================================================================
+// WUX-3 — the desktop placement pair: the shell's report rule, the medium's judgment
+// (pure), and the offered-back road.
+// ========================================================================================
+
+namespace {
+
+/// An ordinary accepter of the placement fact (WUX-3), RoomEars' sibling.
+class PlaceEars : public loom::WeaveBase<PlaceEars, ReadyState,
+                                         loom::Accept<SurfacePlacement>, loom::Emit<>> {
+public:
+    explicit PlaceEars(std::vector<SurfacePlacement>& heard) : heard_(&heard) {}
+    void on(const SurfacePlacement& p, loom::Mail&) { heard_->push_back(p); }
+
+private:
+    std::vector<SurfacePlacement>* heard_;
+};
+
+/// Both medium->publisher facts in ARRIVAL ORDER, for the one ordering claim the pair
+/// carries: placement before extent, so a maximize's room is filed under the right state.
+class OrderEars : public loom::WeaveBase<OrderEars, ReadyState,
+                                         loom::Accept<SurfacePlacement, SurfaceExtent>,
+                                         loom::Emit<>> {
+public:
+    explicit OrderEars(std::vector<std::string>& order) : order_(&order) {}
+    void on(const SurfacePlacement&, loom::Mail&) { order_->push_back("placement"); }
+    void on(const SurfaceExtent&, loom::Mail&) { order_->push_back("extent"); }
+
+private:
+    std::vector<std::string>* order_;
+};
+
+} // namespace
+
+TEST_CASE("WUX-3: the shell says where the window sits - on change, and silence for the absence") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    std::vector<SurfacePlacement> heard;
+    loom::WeaveId skin{};
+    SkinT<FakeMedium>* raw = mount_fake_skin(bus, log, skin);
+    (void)loom::mount<PlaceEars>(bus, heard);
+
+    // A MEDIUM WITH NO DESKTOP PLACEMENT SAYS NOTHING -- and unlike the extent there is
+    // no in-band absent value to guard against: (0,0) is a real place on every desktop,
+    // so the absence is the optional, and the silence is structural.
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    CHECK(heard.empty());
+
+    // The window exists somewhere: said once.
+    raw->medium().desk = SurfacePlacement{240, 180, false};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].x == 240);
+    CHECK(heard[0].y == 180);
+    CHECK_FALSE(heard[0].maximized);
+
+    // ...and not again while it is the same: a still window is silent on every beat.
+    for (int i = 0; i < 20; ++i) {
+        bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    }
+    bus.drain_until_idle();
+    CHECK(heard.size() == 1);
+
+    // A hand dragging the window: one sentence per place it passes through.
+    raw->medium().desk = SurfacePlacement{300, 180, false};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(heard.size() == 2);
+    CHECK(heard[1].x == 300);
+
+    // The maximized STATE is part of the fact: flipping it alone is a change.
+    raw->medium().desk = SurfacePlacement{300, 180, true};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(heard.size() == 3);
+    CHECK(heard[2].maximized);
+    CHECK(heard[2].x == 300); // the normal position rides along, unchanged
+
+    // A window that went away is silence again, not a claim.
+    raw->medium().desk = std::nullopt;
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    CHECK(heard.size() == 3);
+}
+
+TEST_CASE("WUX-3: placement is reported BEFORE the extent, at every door") {
+    // THE ATTRIBUTION ORDER (skin.hpp says why once): a maximize changes both facts in
+    // one gesture, and a consumer keeping the normal window's room must hear the state
+    // before the size. One beat in which both changed must arrive placement-first.
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    std::vector<std::string> order;
+    loom::WeaveId skin{};
+    SkinT<FakeMedium>* raw = mount_fake_skin(bus, log, skin);
+    (void)loom::mount<OrderEars>(bus, order);
+
+    raw->medium().desk = SurfacePlacement{10, 10, true};
+    raw->medium().room = SurfaceExtent{160, 84};
+    bus.send(skin, loom::Message(loom::to_value(PumpSurface{})));
+    bus.drain_until_idle();
+    REQUIRE(order.size() == 2);
+    CHECK(order[0] == "placement");
+    CHECK(order[1] == "extent");
+}
+
+TEST_CASE("WUX-3: a remembered placement is the medium's to judge, and the truth reported back") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    std::vector<SurfacePlacement> heard;
+    loom::WeaveId skin{};
+    SkinT<FakeMedium>* raw = mount_fake_skin(bus, log, skin);
+    (void)loom::mount<PlaceEars>(bus, heard);
+
+    // The offer is delegated whole -- coordinates, maximized state and all.
+    SurfacePlacementRemembered want;
+    want.x = -1200;
+    want.y = 340;
+    want.maximized = true;
+    // What the medium then holds is ITS truth (here: the fake adapted nothing), and the
+    // shell reports that truth through the same change-guarded door every drag uses.
+    raw->medium().desk = SurfacePlacement{-1200, 340, true};
+    bus.send(skin, loom::Message(loom::to_value(want)));
+    bus.drain_until_idle();
+    REQUIRE_FALSE(log.empty());
+    CHECK(log.back() == "place x=-1200 y=340 max=1");
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0].x == -1200);
+    CHECK(heard[0].maximized);
+}
+
+// ---- The adaptation law, pure (placement_within) --------------------------------------
+
+TEST_CASE("WUX-3: a reachable remembered position restores VERBATIM, partial overhangs included") {
+    const std::vector<DesktopSpan> one = {{0, 0, 1920, 1040}};
+    // Comfortably inside.
+    auto at = placement_within(100, 100, 800, 600, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 100);
+    CHECK(at->y == 100);
+    // A maker who parked most of the window off the LEFT edge meant it: 100 visible
+    // pixels of the top strip is a grab, and the intent survives.
+    at = placement_within(-700, 100, 800, 600, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == -700);
+    // A title bar nudged one pixel above the top is intent too, not a defect.
+    at = placement_within(100, -1, 800, 600, one);
+    REQUIRE(at.has_value());
+    CHECK(at->y == -1);
+    // The title bar reaching the bottom edge of the work area is still a grab.
+    at = placement_within(100, 1030, 800, 600, one);
+    REQUIRE(at.has_value());
+    CHECK(at->y == 1030);
+}
+
+TEST_CASE("WUX-3: the grasp boundary is exact, in both axes") {
+    const std::vector<DesktopSpan> one = {{0, 0, 1000, 500}};
+    // 32 visible pixels of width: reachable. 31: stranded, clamped fully back inside.
+    auto at = placement_within(968, 100, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 968);
+    at = placement_within(969, 100, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 800); // clamped to span.x + span.w - w
+    CHECK(at->y == 100);
+    // The whole top strip above the display: stranded -- a window whose bottom half is
+    // visible but whose title bar is not is exactly as lost as one wholly off.
+    at = placement_within(100, -32, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 100);
+    CHECK(at->y == 0);
+    // ...and one row of the strip still on screen is a grab.
+    at = placement_within(100, -31, 200, 100, one);
+    REQUIRE(at.has_value());
+    CHECK(at->y == -31);
+}
+
+TEST_CASE("WUX-3: a stranded position is clamped into the NEAREST current display") {
+    // Two monitors, one at negative x -- desktop coordinates are signed territory.
+    const std::vector<DesktopSpan> two = {{0, 0, 1920, 1040}, {-1920, 0, 1920, 1040}};
+    // On the negative monitor, verbatim.
+    auto at = placement_within(-1800, 50, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == -1800);
+    // Far left of everything: the negative monitor is nearest, and the clamp lands on
+    // its usable edge.
+    at = placement_within(-5000, 50, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == -1920);
+    CHECK(at->y == 50);
+    // Far right of everything: the primary is nearest.
+    at = placement_within(5000, 50, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 1920 - 800);
+    // Wholly below the primary (no overlap with anything): the center distance picks
+    // the primary, and only the stranded axis moves.
+    at = placement_within(400, 1200, 800, 600, two);
+    REQUIRE(at.has_value());
+    CHECK(at->x == 400);
+    CHECK(at->y == 1040 - 600);
+}
+
+TEST_CASE("WUX-3: a window larger than the work area aligns to its top-left corner") {
+    const std::vector<DesktopSpan> one = {{0, 0, 1280, 720}};
+    const auto at = placement_within(-4000, -4000, 2400, 1400, one);
+    REQUIRE(at.has_value());
+    // The grab strip is brought fully inside; the excess overflows right and down,
+    // where the platform's own affordances still reach it. The SIZE is untouched --
+    // this law moves a window, never sizes one.
+    CHECK(at->x == 0);
+    CHECK(at->y == 0);
+}
+
+TEST_CASE("WUX-3: with no display truth there is NO answer, and no blind move") {
+    // An empty span list means the platform could tell the medium nothing. Answering
+    // the remembered position anyway would be the blind replay this law exists to
+    // refuse; answering any other position would be a guess. No answer: the window
+    // stays where the platform put it.
+    CHECK_FALSE(placement_within(100, 100, 800, 600, {}).has_value());
 }

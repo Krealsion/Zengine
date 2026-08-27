@@ -35,6 +35,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -676,6 +677,114 @@ inline std::vector<PlanLayer> plan_canvas(const SurfaceCanvas& c, const SurfaceE
                                 plan_layer_regions(layer, metric, surface)});
     }
     return out;
+}
+
+// ---- Safe restoration of a remembered desktop placement (WUX-3) -----------------------
+//
+// The judgment `SurfacePlacementRemembered` hands the medium, as pure arithmetic every
+// lane pins: given where a window used to be, how big it is now, and the desktops that
+// exist NOW, where should it go? The SDL edge supplies the inputs (`SDL_GetDisplays` +
+// `SDL_GetDisplayUsableBounds`, the window's current size) and applies the answer; nothing
+// in here touches SDL, so the law is testable without a display.
+
+/// One display's USABLE area — its bounds less the platform's own reservations (taskbar,
+/// dock, menu bar) — in the same desktop units window positions are spoken in.
+struct DesktopSpan {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+};
+
+/// A position in those units. Distinct from `PlanSize` because a desktop coordinate is
+/// signed territory — a monitor left of the primary lives at negative x, legitimately.
+struct DesktopPoint {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+};
+
+/// How much of a window must be visible for a remembered position to count as reachable:
+/// at least this much of the window's width, inside the window's TOP STRIP (its first
+/// this-many rows), on some single display's usable area. The top strip is the part a
+/// hand can drag the window somewhere better by, so it is the part whose visibility
+/// decides — a window whose bottom half is on screen but whose title bar is above every
+/// display is exactly as stranded as one that is wholly off. Desktop units, sized to a
+/// comfortable grab rather than a sliver.
+inline constexpr std::int64_t kPlacementGraspPx = 32;
+
+/// THE ADAPTATION LAW, WHOLE:
+///
+///   remembered, and reachable    the position restores VERBATIM — a maker who deliberately
+///                                hangs a window half off an edge gets that intent back;
+///   remembered, and stranded     the position is CLAMPED into the usable area of the
+///                                nearest current display (the one its rectangle overlaps
+///                                most; with no overlap anywhere, the one whose usable area
+///                                sits closest), top-left first — so the grab strip is
+///                                always brought back inside, and a window larger than the
+///                                work area aligns to its top-left and overflows right and
+///                                down, where the platform's own affordances still reach it;
+///   no display truth at all      NO ANSWER. An empty span list means the platform could
+///                                tell the medium nothing, and a move made without display
+///                                knowledge is the blind replay this law exists to refuse —
+///                                the window stays where the platform put it.
+///
+/// Reachable means: the window's TOP STRIP (its first `kPlacementGraspPx` of height, or
+/// all of it when shorter) intersects some single span at all vertically, showing at
+/// least `kPlacementGraspPx` of the window's width (or all of it, when narrower). The
+/// vertical test is deliberately "intersects at all": a maker who parks a title bar
+/// partly above the screen edge has stated an intent a one-pixel-strict law would
+/// silently repair, and the horizontal grasp requirement is what keeps a sliver from
+/// counting as reachable. The size is taken as it is — the window's extent is the canvas
+/// conversation's business (WUX-0's floor law), and this law moves a window, never sizes
+/// one.
+inline std::optional<DesktopPoint> placement_within(std::int64_t x, std::int64_t y,
+                                                    std::int64_t w, std::int64_t h,
+                                                    const std::vector<DesktopSpan>& usable) {
+    if (usable.empty()) {
+        return std::nullopt;
+    }
+    const std::int64_t need_w = w < kPlacementGraspPx ? w : kPlacementGraspPx;
+    const std::int64_t strip_h = h < kPlacementGraspPx ? h : kPlacementGraspPx;
+    // Reachable on some single display, verbatim.
+    for (const DesktopSpan& s : usable) {
+        const std::int64_t vis_w =
+            (x + w < s.x + s.w ? x + w : s.x + s.w) - (x > s.x ? x : s.x);
+        const std::int64_t vis_h =
+            (y + strip_h < s.y + s.h ? y + strip_h : s.y + s.h) - (y > s.y ? y : s.y);
+        if (vis_w >= need_w && vis_h >= 1) {
+            return DesktopPoint{x, y};
+        }
+    }
+    // Stranded: pick the nearest display — most overlap with the remembered rectangle,
+    // else smallest center-to-center distance — and clamp the top-left into its usable
+    // area.
+    const DesktopSpan* home = &usable.front();
+    std::int64_t best_overlap = -1;
+    std::int64_t best_distance = std::numeric_limits<std::int64_t>::max();
+    for (const DesktopSpan& s : usable) {
+        const std::int64_t ox = (x + w < s.x + s.w ? x + w : s.x + s.w) - (x > s.x ? x : s.x);
+        const std::int64_t oy = (y + h < s.y + s.h ? y + h : s.y + s.h) - (y > s.y ? y : s.y);
+        const std::int64_t overlap = (ox > 0 && oy > 0) ? ox * oy : 0;
+        // Centers, times two, so the arithmetic stays integral.
+        const std::int64_t dx = (2 * x + w) - (2 * s.x + s.w);
+        const std::int64_t dy = (2 * y + h) - (2 * s.y + s.h);
+        const std::int64_t distance = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+        if (overlap > best_overlap ||
+            (overlap == best_overlap && distance < best_distance)) {
+            best_overlap = overlap;
+            best_distance = distance;
+            home = &s;
+        }
+    }
+    const auto clamp_into = [](std::int64_t v, std::int64_t lo, std::int64_t hi) {
+        // hi may sit below lo when the window outsizes the span; the top-left edge wins.
+        if (hi < lo) {
+            return lo;
+        }
+        return v < lo ? lo : (v > hi ? hi : v);
+    };
+    return DesktopPoint{clamp_into(x, home->x, home->x + home->w - w),
+                        clamp_into(y, home->y, home->y + home->h - h)};
 }
 
 /// The window title carries the text slots — a real, visible projection of

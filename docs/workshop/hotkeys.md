@@ -63,9 +63,11 @@ hotkey view remains the complete list, one keystroke away in every mode.
 
 ## The keymap file
 
-Overrides live in one hand-edited JSON file, `workshop-keymap.json` beside the binary by
-default (`--keymap <path>` chooses another). The defaults live in the program; the file
-carries only your differences:
+Overrides live in one hand-edited JSON file, `workshop-keymap.json` in your per-user config
+folder by default — `%APPDATA%\zengine-workshop` on Windows, `$XDG_CONFIG_HOME/zengine-workshop`
+(else `~/.config/zengine-workshop`) elsewhere — so your bindings follow *you* rather than the
+directory you launched from (`--keymap <path>` chooses another file; `--isolated` reads none).
+The defaults live in the program; the file carries only your differences:
 
 ```json
 {"zen":"1","schema":"WorkshopKeymap","version":"1","value":{
