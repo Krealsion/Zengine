@@ -27236,16 +27236,29 @@ TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the se
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
     };
+    // ...and the sharpest arm: a NEW form stands, typed into, before the answer arrives
+    // -- same field index, a fresh box (whose epoch matches a fresh recording), present.
+    // Only the form's own identity (the draft generation) tells the two apart, and it
+    // must: the old form's paste landing here would be "whichever field owns the cursor
+    // later" wearing the same index.
     enqueue_key(input::scan::kA, input::mod::kCtrl);
-    enqueue_key(input::scan::kV, input::mod::kCtrl);
-    enqueue_key(input::scan::kEscape, input::mod::kNone);
+    enqueue_key(input::scan::kV, input::mod::kCtrl);      // the OLD form's field asks
+    enqueue_key(input::scan::kEscape, input::mod::kNone); // the form is dropped whole
+    enqueue_key(input::scan::kReturn, input::mod::kNone); // a NEW form opens (cursor row 0)
+    (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{"z"}),
+                                      loom::WeaveId{}, loom::WeaveId{}, 0)); // typed: present
     r.bus.drain_until_idle();
     CHECK(skin->clipboard_reads == 2); // the request was real; the read happened
+    bool typed_visible = false;
     for (const std::string& row :
          external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
         CAPTURE(row);
         CHECK(row.find("SECRET") == std::string::npos);
+        typed_visible = typed_visible || row.find("[z") != std::string::npos;
     }
+    // The staging reached the vulnerable state -- the new form's field is present and
+    // holds the typed byte -- so the absence above is a measurement, not a vacancy.
+    CHECK(typed_visible);
 }
 
 // ============================================================================
