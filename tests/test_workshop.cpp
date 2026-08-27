@@ -19613,20 +19613,23 @@ TEST_CASE("WIND-2: the cell and pixel bounds are pinned at both ends") {
         check_pane_place(PanePlace{pane_unit::kSubcells, kPaneSubMax + 1, 0}).accepted);
 }
 
-TEST_CASE("WIND-2: a refused proposal writes nothing, on either axis") {
+TEST_CASE("WIND-2: a refused VALUE writes nothing, on either axis") {
     Setup s = two_overlays();
     const Setup before = s;
     const PaneRef builder = ref_of(panel::kBuilder);
 
-    // A NEGATIVE PLACE IS REFUSED ATOMICALLY -- a diagonal proposal whose y is illegal does
-    // not slide the pane along x and report a refusal.
+    // THE VALUE DOORS ARE ATOMIC WHOLE. `author_pane_place`/`author_pane_size` take one
+    // stated value and judge it as one thing -- a proposal wrong anywhere writes nothing
+    // at all, `doc::move`/`doc::resize`'s law verbatim. This is deliberately NOT the
+    // gesture door's law: a HAND's axes settle independently through
+    // `author_pane_window` (WUX-2a), but a value stated as one thing is refused as one.
     CHECK_FALSE(author_pane_place(s, builder, 4, -1).accepted);
     CHECK(s == before);
     CHECK_FALSE(author_pane_place(s, builder, -1, 4).accepted);
     CHECK(s == before);
 
-    // AND A CORNER PROPOSAL WHOSE HEIGHT IS ILLEGAL NARROWS NOTHING. `doc::resize`'s law,
-    // carried whole: both axes are judged before either is written.
+    // AND A SIZE VALUE WHOSE HEIGHT IS ILLEGAL NARROWS NOTHING: both axes are judged
+    // before either is written.
     CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kSubcells, subs(30)},
                                  PaneSize{pane_unit::kSubcells, 0})
                     .accepted);
@@ -19639,7 +19642,8 @@ TEST_CASE("WIND-2: a refused proposal writes nothing, on either axis") {
         pane_window_proposal(pane_edge::kBottomRight, 0, 0, kBig, kBig, kBig, kBig);
     CHECK(huge.w == kBig);
     CHECK(huge.h == kBig);
-    CHECK_FALSE(huge.place_moved);
+    CHECK_FALSE(huge.place_moved_x);
+    CHECK_FALSE(huge.place_moved_y);
     CHECK_FALSE(author_pane_size(s, builder, PaneSize{pane_unit::kSubcells, huge.w},
                                  PaneSize{pane_unit::kSubcells, huge.h})
                     .accepted);
@@ -21184,10 +21188,12 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
         CHECK(pulled->width.amount == 0);
     }
 
-    // ---- ONE CORNER, ONE ILLEGAL AXIS, AND NEITHER OF THEM WRITTEN. The atomic door has
-    // its own case; what this proves is that the REAL management route still reaches that
-    // door WHOLE, so a corner whose height is illegal cannot widen the pane on its way to
-    // the refusal.
+    // ---- ONE CORNER, ONE ILLEGAL AXIS, AND ONLY ITS OWN AXIS HELD (WUX-2a). This block
+    // used to pin the WHOLE window as one indivisible transaction — a corner whose height
+    // was illegal could not widen — and that coupling was the measured live defect WUX-2a
+    // removed. What the REAL management route now proves, at the terminal's cell grain:
+    // the vertical axis refuses atomically while the legal horizontal transaction still
+    // lands, and the write is a status rather than an alert.
     {
         Live t;
         t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
@@ -21200,9 +21206,6 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
                       screen_of(t.session()));
         REQUIRE(where.rect.w > 2);
         REQUIRE(where.rect.h > 2);
-        const SetupPane* start = pane_of(t.session().setup.active, builder);
-        REQUIRE(start != nullptr);
-        const SetupPane before = *start;
 
         // BOTH AXES PARTICIPATE, because a corner names two of them.
         const ui::Rect vis_cells = cells_covered(where.rect);
@@ -21223,19 +21226,21 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
                 surface::kTuiCanvasTopRow,
             0, 0, input::space::kCells, input::mod::kNone}));
 
-        // THE REFUSAL IS SAID, AND THE WHOLE ROW IS WHAT IT WAS -- the otherwise-legal width
-        // included, which is the half a partial write would have taken.
+        // THE LEGAL AXIS LANDED AND THE ILLEGAL ONE HELD: the width is authored one cell
+        // out, the height keeps its default mode untouched, and the place — a trailing
+        // corner proposes no position — stays reactive on both axes.
         INFO(t.session().notice);
-        CHECK(t.session().notice_is_bad);
-        CHECK(t.session().notice.find("height") != std::string::npos);
+        CHECK_FALSE(t.session().notice_is_bad);
         const SetupPane* held = pane_of(t.session().setup.active, builder);
         REQUIRE(held != nullptr);
-        CHECK(*held == before);
-        CHECK(held->width.mode == pane_unit::kDefault);
+        CHECK(held->width.mode == pane_unit::kSubcells);
+        CHECK(held->width.amount == where.resolved.w + subs(1));
         CHECK(held->height.mode == pane_unit::kDefault);
+        CHECK(held->height.amount == 0);
+        CHECK(held->place.mode == pane_unit::kDefault);
 
-        // AND THE GESTURE ENDS THE ORDINARY WAY, because a refusal is an answer rather than
-        // a broken hand.
+        // AND THE GESTURE ENDS THE ORDINARY WAY, because an answer — either answer — is
+        // not a broken hand.
         t.release(0, 0);
         CHECK_FALSE(t.session().pane_drag.active);
     }
@@ -28828,9 +28833,10 @@ TEST_CASE("WUX-2: the reported top-edge defect is dead -- the bottom edge holds 
 
 TEST_CASE("WUX-2: a refused anchored resize writes neither the place nor the size") {
     // PULL THE TOP EDGE DOWN PAST THE MINIMUM: the proposed height is illegal, and the
-    // proposal carries a moved `y` beside it. The atomic door refuses BOTH — a moved
-    // corner beside a refused height is exactly what `author_pane_window` exists to make
-    // unsayable.
+    // proposal carries a moved `y` beside it in the SAME vertical axis. The axis is
+    // atomic (WUX-2a): `y` and the height settle together or not at all, so a moved top
+    // edge beside a refused height is exactly what `author_pane_window` makes unsayable
+    // — and with no other axis proposed, the whole gesture is a refusal.
     FineRig t;
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), subs(4),
                               subs(20))
@@ -28848,8 +28854,9 @@ TEST_CASE("WUX-2: a refused anchored resize writes neither the place nor the siz
     CHECK(t.session().notice_is_bad);
     CHECK(*t.builder_row() == before);
 
-    // AND THE PLACE WALL HOLDS THE WHOLE PROPOSAL TOO: pulling the LEFT edge past the
-    // canvas's own origin proposes a negative x beside a legal width, and neither lands.
+    // AND THE PLACE WALL HOLDS THE WHOLE AXIS TOO: pulling the LEFT edge past the
+    // canvas's own origin proposes a negative x beside a legal width — one horizontal
+    // transaction — and neither member lands.
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), subs(1),
                               subs(20))
                 .accepted);
@@ -28895,6 +28902,216 @@ TEST_CASE("WUX-2: a right or bottom resize leaves a default place reactive") {
     CHECK(t.builder_row()->place.mode == pane_unit::kSubcells);
     CHECK(t.builder_row()->place.y == grown.y - surface::kPixelGrainSubs);
     t.release(0, 0);
+}
+
+TEST_CASE("WUX-2a: a move blocked at the left wall still follows the hand down") {
+    // THE LIVE DEFECT: a drag whose proposal leaves the canvas on ONE axis used to refuse
+    // the WHOLE proposal, so a pane slid along the left wall froze on both axes.
+    // Independent axes settle independently -- and the blocked coordinate KEEPS ITS OWN
+    // VALUE rather than clamping to the wall, which is what staging the pane five
+    // sub-units off the wall distinguishes (a clamp would write 0 here).
+    FineRig t;
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), 5, subs(20))
+                .accepted);
+    const FineRect at = t.builder_rect();
+    REQUIRE(at.x == 5);
+    const std::int64_t press_x = surface::px_of_subs(at.x) + 30;
+    const std::int64_t press_y = surface::px_of_subs(at.y) + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+
+    // TEN PIXELS LEFT (past the wall) AND SEVEN DOWN: x' = 5 - 40 is refused, y' lands.
+    t.motion_at(press_x - 10, press_y + 7, input::space::kPixels);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row != nullptr);
+    REQUIRE(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.x == 5);
+    CHECK(row->place.y == at.y + 7 * surface::kPixelGrainSubs);
+    // SOMETHING LANDED, so this is a status and not an alert: the visible stop at the wall
+    // is the refusal's consequence, and the pane tracking the hand is the statement.
+    CHECK_FALSE(t.session().notice_is_bad);
+    t.release(0, 0);
+}
+
+TEST_CASE("WUX-2a: a move blocked at the top wall still follows the hand sideways") {
+    // THE MIRROR ORIENTATION: y refused, x lands.
+    FineRig t;
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), subs(20), 5)
+                .accepted);
+    const FineRect at = t.builder_rect();
+    REQUIRE(at.y == 5);
+    const std::int64_t press_x = surface::px_of_subs(at.x) + 30;
+    const std::int64_t press_y = surface::px_of_subs(at.y) + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
+
+    t.motion_at(press_x + 7, press_y - 10, input::space::kPixels);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row != nullptr);
+    REQUIRE(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.x == at.x + 7 * surface::kPixelGrainSubs);
+    CHECK(row->place.y == 5);
+    CHECK_FALSE(t.session().notice_is_bad);
+    t.release(0, 0);
+}
+
+TEST_CASE("WUX-2a: a move past two walls at once writes nothing") {
+    // BOTH AXES REFUSED is the one case a move gesture is still refused WHOLE: authored
+    // geometry is untouched, byte for byte, and the refusal is said as an alert.
+    FineRig t;
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), 5, 5)
+                .accepted);
+    const SetupPane before = *t.builder_row();
+    const FineRect at = t.builder_rect();
+    const std::int64_t press_x = surface::px_of_subs(at.x) + 30;
+    const std::int64_t press_y = surface::px_of_subs(at.y) + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    t.motion_at(press_x - 10, press_y - 10, input::space::kPixels);
+    CHECK(*t.builder_row() == before);
+    CHECK(t.session().notice_is_bad);
+    t.release(0, 0);
+}
+
+TEST_CASE("WUX-2a: a refused nudge does not author a reactive place") {
+    // A KEY INTO THE WALL proposes a change on exactly one axis; the other axis, unchanged,
+    // is NOT a proposal -- so nothing lands, the refusal is said, and in particular a
+    // DEFAULT place is not converted to an authored one as a side effect of a step that
+    // visibly did nothing. The reactive pane stays reactive.
+    FineRig t;
+    REQUIRE(t.builder_row()->place.mode == pane_unit::kDefault);
+    const FineRect at = t.builder_rect();
+    REQUIRE(at.x == 0); // the first stack tile sits on the wall (`kStackX`)
+    t.key(input::scan::kM);
+    REQUIRE(t.session().manage.doing == pane_manage::kMove);
+    t.key(input::scan::kLeft);
+    CHECK(t.builder_row()->place.mode == pane_unit::kDefault);
+    CHECK(t.builder_rect() == at);
+    CHECK(t.session().notice_is_bad);
+
+    // AND THE PANE IS NOT FROZEN: the very next step away from the wall lands, authoring
+    // the place -- the blocked axis contributes the value it already stood at.
+    t.key(input::scan::kDown);
+    const SetupPane* row = t.builder_row();
+    REQUIRE(row != nullptr);
+    CHECK(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.x == at.x);
+    CHECK(row->place.y == at.y + surface::kCellSubs);
+    CHECK_FALSE(t.session().notice_is_bad);
+}
+
+TEST_CASE("WUX-2a: a corner resize blocked on one axis still resizes the other") {
+    // FOR ALL FOUR CORNERS: one axis meets a wall (the canvas origin, or the one-cell
+    // minimum) and refuses ATOMICALLY -- its anchored position+extent pair holds together
+    // -- while the other axis settles its own transaction, anchor law intact. Two corners
+    // are blocked horizontally, two vertically, across both kinds of wall.
+    const PaneRef builder = ref_of(panel::kBuilder);
+
+    {
+        CAPTURE("top-left: horizontal blocked at the canvas origin");
+        FineRig t;
+        REQUIRE(author_pane_place(live(t).setup.active, builder, 5, subs(20)).accepted);
+        REQUIRE(author_pane_size(live(t).setup.active, builder,
+                                 PaneSize{pane_unit::kSubcells, subs(9)},
+                                 PaneSize{pane_unit::kSubcells, subs(9)})
+                    .accepted);
+        const FineRect base = t.builder_rect();
+        const FineRect mark = pane_edge_cell(base, pane_edge::kTopLeft);
+        const std::int64_t px = surface::px_of_subs(mark.x) + 2;
+        const std::int64_t py = surface::px_of_subs(mark.y) + 2;
+        t.press_at(px, py, input::space::kPixels);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kTopLeft);
+        // TEN LEFT: x' = 5 - 40 is illegal, so x + width HOLD TOGETHER. SEVEN DOWN: the
+        // top edge comes down legally, y + height settle together, bottom edge anchored.
+        t.motion_at(px - 10, py + 7, input::space::kPixels);
+        const SetupPane* row = t.builder_row();
+        REQUIRE(row != nullptr);
+        CHECK(row->place.x == 5);
+        CHECK(row->width.amount == subs(9));
+        CHECK(row->place.y == subs(20) + 7 * surface::kPixelGrainSubs);
+        CHECK(row->height.amount == subs(9) - 7 * surface::kPixelGrainSubs);
+        CHECK(row->place.y + row->height.amount == subs(20) + subs(9));
+        t.release(0, 0);
+    }
+    {
+        CAPTURE("bottom-left: horizontal blocked at the canvas origin");
+        FineRig t;
+        REQUIRE(author_pane_place(live(t).setup.active, builder, 5, subs(20)).accepted);
+        REQUIRE(author_pane_size(live(t).setup.active, builder,
+                                 PaneSize{pane_unit::kSubcells, subs(9)},
+                                 PaneSize{pane_unit::kSubcells, subs(9)})
+                    .accepted);
+        const FineRect base = t.builder_rect();
+        const FineRect mark = pane_edge_cell(base, pane_edge::kBottomLeft);
+        const std::int64_t px = surface::px_of_subs(mark.x) + 2;
+        const std::int64_t py = surface::px_of_subs(mark.y) + 2;
+        t.press_at(px, py, input::space::kPixels);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kBottomLeft);
+        // TEN LEFT refused; SEVEN DOWN grows the height from the bottom, top edge anchored
+        // by not writing the place at all.
+        t.motion_at(px - 10, py + 7, input::space::kPixels);
+        const SetupPane* row = t.builder_row();
+        REQUIRE(row != nullptr);
+        CHECK(row->place.x == 5);
+        CHECK(row->place.y == subs(20));
+        CHECK(row->width.amount == subs(9));
+        CHECK(row->height.amount == subs(9) + 7 * surface::kPixelGrainSubs);
+        t.release(0, 0);
+    }
+    {
+        CAPTURE("top-right: vertical blocked at the one-cell minimum");
+        FineRig t;
+        REQUIRE(author_pane_place(live(t).setup.active, builder, subs(6), subs(20))
+                    .accepted);
+        REQUIRE(author_pane_size(live(t).setup.active, builder,
+                                 PaneSize{pane_unit::kSubcells, subs(9)},
+                                 PaneSize{pane_unit::kSubcells, subs(9)})
+                    .accepted);
+        const FineRect base = t.builder_rect();
+        const FineRect mark = pane_edge_cell(base, pane_edge::kTopRight);
+        const std::int64_t px = surface::px_of_subs(mark.x) + 2;
+        const std::int64_t py = surface::px_of_subs(mark.y) + 2;
+        t.press_at(px, py, input::space::kPixels);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kTopRight);
+        // 102 DOWN: h' = 9 cells - 408 subs is below the floor, so y + height HOLD.
+        // EIGHT RIGHT: the width grows legally on its own axis.
+        t.motion_at(px + 8, py + 102, input::space::kPixels);
+        const SetupPane* row = t.builder_row();
+        REQUIRE(row != nullptr);
+        CHECK(row->place.x == subs(6));
+        CHECK(row->place.y == subs(20));
+        CHECK(row->height.amount == subs(9));
+        CHECK(row->width.amount == subs(9) + 8 * surface::kPixelGrainSubs);
+        t.release(0, 0);
+    }
+    {
+        CAPTURE("bottom-right: vertical blocked at the one-cell minimum");
+        FineRig t;
+        REQUIRE(author_pane_place(live(t).setup.active, builder, subs(6), subs(20))
+                    .accepted);
+        REQUIRE(author_pane_size(live(t).setup.active, builder,
+                                 PaneSize{pane_unit::kSubcells, subs(9)},
+                                 PaneSize{pane_unit::kSubcells, subs(9)})
+                    .accepted);
+        const FineRect base = t.builder_rect();
+        const FineRect mark = pane_edge_cell(base, pane_edge::kBottomRight);
+        const std::int64_t px = surface::px_of_subs(mark.x) + 2;
+        const std::int64_t py = surface::px_of_subs(mark.y) + 2;
+        t.press_at(px, py, input::space::kPixels);
+        REQUIRE(t.session().pane_drag.edge == pane_edge::kBottomRight);
+        // 102 UP: h' is below the floor, height holds. EIGHT LEFT: the width shrinks
+        // legally, place untouched on both axes (trailing edges write no place).
+        t.motion_at(px - 8, py - 102, input::space::kPixels);
+        const SetupPane* row = t.builder_row();
+        REQUIRE(row != nullptr);
+        CHECK(row->place.x == subs(6));
+        CHECK(row->place.y == subs(20));
+        CHECK(row->height.amount == subs(9));
+        CHECK(row->width.amount == subs(9) - 8 * surface::kPixelGrainSubs);
+        t.release(0, 0);
+    }
 }
 
 TEST_CASE("WUX-2: the hand meets exactly the pixels a fine pane paints") {

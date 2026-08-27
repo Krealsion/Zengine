@@ -2175,17 +2175,21 @@ inline std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
 /// follows the hand; the edge opposite stays exactly where it was:
 ///
 ///     right/bottom   the place IS the anchor -- the size changes, the place is untouched,
-///                    and `place_moved` stays false so a reactive pane stays reactive
+///                    and the axis's place flag stays false so a reactive pane stays
+///                    reactive
 ///     left/top       the far edge is the anchor -- the size changes and the place moves
 ///                    WITH it (`x' = base_x + base_w - w'`), so pulling the top edge up
 ///                    grows the pane UPWARD while the bottom edge holds still
 ///     corners        both axes, each by its own rule
 ///
 /// Before WUX-2 a top-edge pull grew the height with the place fixed, so the BOTTOM edge
-/// moved instead of the one under the hand -- reproduced at this phase's START, and made
-/// unsayable here: the proposal carries the place and the size as one rectangle, judged
-/// and written together (`author_pane_window`), so a refused height can never leave a
-/// moved corner behind.
+/// moved instead of the one under the hand -- reproduced at that phase's START, and made
+/// unsayable here: the position and extent an anchor couples travel as ONE AXIS of the
+/// proposal, judged and written together (`author_pane_window`), so a refused height can
+/// never leave a moved top edge behind. THE TWO AXES ARE INDEPENDENT FACTS (WUX-2a):
+/// which axes carry a place proposal is said PER AXIS below, so the door can settle a
+/// corner's legal vertical transaction while its horizontal one is refused -- the whole
+/// window is not one indivisible transaction, and never needed to be.
 ///
 /// IT LIVES HERE, BELOW `detail`, ONLY BECAUSE IT SPENDS IT. Everything else about a pane
 /// edge is up beside `pane_edge`, where a reader looks for it.
@@ -2194,16 +2198,18 @@ struct PaneWindowProposal {
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
-    /// TRUE EXACTLY WHEN THE EDGE NAMES THE LEFT OR TOP — the gesture must author the
-    /// place for the anchor to hold. False keeps the place unwritten, mode included.
-    bool place_moved = false;
+    /// TRUE EXACTLY WHEN THE EDGE NAMES THE LEFT — the horizontal axis must author the
+    /// place's `x` for the right-edge anchor to hold. False keeps `x` unproposed.
+    bool place_moved_x = false;
+    /// TRUE EXACTLY WHEN THE EDGE NAMES THE TOP — the vertical twin, for `y`.
+    bool place_moved_y = false;
 };
 
 inline PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t base_x,
                                                std::int64_t base_y, std::int64_t base_w,
                                                std::int64_t base_h, std::int64_t dx,
                                                std::int64_t dy) noexcept {
-    PaneWindowProposal out{base_x, base_y, base_w, base_h, false};
+    PaneWindowProposal out{base_x, base_y, base_w, base_h, false, false};
     const bool wide = edge == pane_edge::kLeft || edge == pane_edge::kRight ||
                       edge == pane_edge::kTopLeft || edge == pane_edge::kTopRight ||
                       edge == pane_edge::kBottomLeft || edge == pane_edge::kBottomRight;
@@ -2219,7 +2225,7 @@ inline PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t b
         if (leftwards) {
             // The RIGHT edge is the anchor: base_x + base_w == x' + w', rearranged.
             out.x = detail::minus(detail::step(base_x, base_w), out.w);
-            out.place_moved = true;
+            out.place_moved_x = true;
         }
     }
     if (tall) {
@@ -2227,7 +2233,7 @@ inline PaneWindowProposal pane_window_proposal(std::int64_t edge, std::int64_t b
         if (upwards) {
             // The BOTTOM edge is the anchor.
             out.y = detail::minus(detail::step(base_y, base_h), out.h);
-            out.place_moved = true;
+            out.place_moved_y = true;
         }
     }
     return out;

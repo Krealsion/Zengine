@@ -183,17 +183,26 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   authoring **five cells' worth**. The affordance stays on the visible boundary — that is
   where the eye and the hand are — and its delta applies to the resolved window, for the key
   and the pointer alike.
-- **EVERY RESIZE EDGE PRESERVES ITS OPPOSITE ANCHOR (WUX-2, reversing WIND-2's rule).** The
-  edge a hand pulls follows the hand; the edge opposite holds still: a top pull changes `y`
-  and the height TOGETHER so the bottom edge stays put (`pane_window_proposal` — the START
-  tree's measured top-edge defect, where the bottom edge moved instead, is pinned dead), and
-  a corner holds the corner across from it. Right/bottom pulls anchor the place by NOT
-  writing it — a default place stays reactive — while left/top pulls author place and size as
-  ONE transaction through `author_pane_window`, every part judged before any part written, so
-  a refused height can never leave a moved corner behind (`doc::resize`'s both-before-either
-  law, widened to the axis pair a place is). WIND-2's old objection — that a left edge moving
-  the place is two writes for one gesture — is answered by making it one door rather than by
-  refusing the geometry a hand plainly means.
+- **EVERY RESIZE EDGE PRESERVES ITS OPPOSITE ANCHOR (WUX-2, reversing WIND-2's rule), AND
+  INDEPENDENT AXES SETTLE INDEPENDENTLY (WUX-2a).** The edge a hand pulls follows the hand;
+  the edge opposite holds still: a top pull changes `y` and the height TOGETHER so the
+  bottom edge stays put (`pane_window_proposal` — WUX-2's START tree measured the bottom
+  edge moving instead, pinned dead), and a corner holds the corner across from it.
+  Right/bottom pulls anchor the place by NOT writing it — a default place stays reactive —
+  while a left/top pull authors place and size as one AXIS-LOCAL transaction: the
+  position+extent pair its anchor couples settles together or not at all, so a refused
+  height can never leave a moved top edge behind (`doc::resize`'s both-before-either law,
+  scoped to the axis the anchor actually couples). The OTHER axis is not part of that
+  transaction: a move or corner gesture blocked on one axis — a drag past the left wall —
+  still settles the other axis's legal proposal, the refused axis keeps its own value
+  rather than clamping (refuse-never-clamp, per axis), and an axis the gesture did not
+  change is not a proposal at all, so a refused single-axis step writes nothing and cannot
+  author a reactive place as a side effect. `author_pane_window` (setup.hpp) is the one
+  gesture door owning that settlement; `author_pane_place`/`author_pane_size` remain the
+  VALUE doors, atomic whole, for a value stated as one thing. WIND-2's old objection — that
+  a left edge moving the place is two writes for one gesture — is answered by making each
+  axis one door-judged transaction rather than by refusing the geometry a hand plainly
+  means.
 - **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is
   reversible only by performing the inverse, and there is no undo. The help says `esc back`.
 - **`w` enters pane management from command mode**, paying the `swallow_text_` rule once, after

@@ -3027,10 +3027,13 @@ private:
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one (WIND-2) ----
     //
     // ONE MODE, FOUR STEPS, AND EVERY GESTURE ENDS AT A SETUP DOOR. The keyboard and the
-    // pointer converge on `author_pane_place`, `author_pane_size`, the four ordering
-    // operations and the three resets (setup.hpp) -- there is no second arithmetic and no
-    // second refusal, which is the `nudge`/`drag_to` pattern this file has used for a
-    // document object since W-2, said about a pane.
+    // pointer converge on `author_pane_window` (the gesture door, WUX-2a), the four
+    // ordering operations and the three resets (setup.hpp) -- there is no second
+    // arithmetic and no second refusal, which is the `nudge`/`drag_to` pattern this file
+    // has used for a document object since W-2, said about a pane. The door owns the
+    // settlement law -- independent axes settle independently; an anchored position+extent
+    // pair settles atomically within its axis -- so every gesture inherits it and none may
+    // restate it.
     //
     // EDITS COMMIT IMMEDIATELY AND ESCAPE IS NOT A ROLLBACK. Every existing immediate-commit
     // gesture in this application (`nudge`, `grow`, `drag_to`) is reversible only by
@@ -3228,25 +3231,66 @@ private:
         return bounds_of(session_.panels, session_.setup.active, *kind, screen_of(session_));
     }
 
-    /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller, and
-    /// a refused one writes NOTHING -- the atomicity `doc::move` established.
+    /// THE WINDOW A GESTURE MEASURES FROM: authored where authored, resolved where
+    /// reactive — the RESOLVED window, never the visible one (see `managed_bounds`).
+    /// One spelling for the keys, the pointer's zero-delta test and the axis bases a
+    /// partially-settled write falls back to (WUX-2a); three hand-kept copies of this
+    /// authored-or-resolved read is how two gestures come to start from different places.
+    FineRect managed_window_base() {
+        const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
+        FineRect out = managed_bounds().resolved;
+        if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
+            out.x = row->place.x;
+            out.y = row->place.y;
+        }
+        if (row != nullptr && row->width.mode == pane_unit::kSubcells) {
+            out.w = row->width.amount;
+        }
+        if (row != nullptr && row->height.mode == pane_unit::kSubcells) {
+            out.h = row->height.amount;
+        }
+        return out;
+    }
+
+    /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
+    ///
+    /// EACH AXIS IS ITS OWN PROPOSAL (WUX-2a): a coordinate that would leave the canvas is
+    /// refused and KEEPS ITS CURRENT VALUE — never clamped to the wall — while the other
+    /// axis, an independent fact, still follows the hand. An axis the gesture did not
+    /// change proposes nothing, so a step refused on its one moving axis writes nothing at
+    /// all and is said as a refusal; in particular it cannot author a reactive place as a
+    /// side effect. Only a proposal refused on EVERY axis it moved is refused whole.
     void manage_place(std::int64_t x, std::int64_t y, loom::Mail& mail) {
         const Written ready = manage_geometry_ready();
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
-        const Written done =
-            author_pane_place(session_.setup.active, session_.manage.selected, x, y);
-        if (!done.accepted) {
-            say(done.refusal, true);
+        const FineRect from = managed_window_base();
+        PaneAxisProposal horizontal;
+        horizontal.base = from.x;
+        if (x != from.x) {
+            horizontal.position = x;
+        }
+        PaneAxisProposal vertical;
+        vertical.base = from.y;
+        if (y != from.y) {
+            vertical.position = y;
+        }
+        const WindowWritten done = author_pane_window(session_.setup.active,
+                                                      session_.manage.selected, horizontal,
+                                                      vertical);
+        if (!done.written.accepted) {
+            say(done.written.refusal, true);
             return;
         }
         // AND THE SEATING IS RECONCILED, because authoring a place takes the pane OUT of the
         // reactive stack -- it stops spending a tile, and whatever was waiting for one may
         // now have it. Resetting the place puts it back. This is the one door that opens or
         // closes a panel, so a geometry edit cannot produce a screen the setup disagrees with.
-        apply_setup(mail);
+        if (done.place_written) {
+            apply_setup(mail);
+        }
         say(manage_status(), false);
     }
 
@@ -3262,29 +3306,27 @@ private:
             say(ready.refusal, true);
             return;
         }
-        const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
         // THE RESOLVED CORNER, NEVER THE CLIPPED ONE (WIND-2a) -- see `managed_bounds`.
-        const FineRect now = managed_bounds().resolved;
-        const std::int64_t from_x =
-            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.x : now.x;
-        const std::int64_t from_y =
-            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.y : now.y;
-        manage_place(detail::step(from_x, dx * surface::kCellSubs),
-                     detail::step(from_y, dy * surface::kCellSubs), mail);
+        const FineRect from = managed_window_base();
+        manage_place(detail::step(from.x, dx * surface::kCellSubs),
+                     detail::step(from.y, dy * surface::kCellSubs), mail);
     }
 
-    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units (WUX-2).
+    /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units (WUX-2),
+    /// split into its two axes (WUX-2a).
     ///
     /// THE EDGE PRESERVES ITS OPPOSITE ANCHOR (`pane_window_proposal`): pulling the top
-    /// edge proposes a new `y` WITH the new height so the bottom edge stays put, and the
-    /// two land through `author_pane_window` — every part judged before any part written —
-    /// so a corner gesture whose height is illegal does not narrow the pane, and a top
-    /// pull whose height is illegal does not move the corner it failed to resize.
+    /// edge proposes a new `y` WITH the new height as ONE VERTICAL AXIS, and the pair
+    /// lands through `author_pane_window` together or not at all — so a top pull whose
+    /// height is illegal does not move the top edge it failed to resize. THE OTHER AXIS IS
+    /// AN INDEPENDENT FACT: a corner gesture whose height is illegal still widens the pane
+    /// by its legal horizontal transaction, and the blocked axis keeps what it had.
     ///
-    /// THE AXES THE EDGE DID NOT NAME KEEP WHAT THEY HAD, mode included -- so resizing a
-    /// width leaves a default height still reacting to the room, and a right-edge or
-    /// bottom-edge resize leaves a default PLACE still reactive: those edges anchor the
-    /// place by not writing it at all.
+    /// THE AXES THE EDGE DID NOT NAME KEEP WHAT THEY HAD, mode included -- a member is
+    /// proposed exactly when the gesture CHANGED it -- so resizing a width leaves a
+    /// default height still reacting to the room, and a right-edge or bottom-edge resize
+    /// leaves a default PLACE still reactive: those edges anchor the place by not writing
+    /// it at all.
     void manage_resize(std::int64_t base_x, std::int64_t base_y, std::int64_t base_w,
                        std::int64_t base_h, std::int64_t dx, std::int64_t dy,
                        loom::Mail& mail) {
@@ -3295,31 +3337,30 @@ private:
         }
         const PaneWindowProposal want =
             pane_window_proposal(session_.manage.edge, base_x, base_y, base_w, base_h, dx, dy);
-        const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
-        PaneSize width = row != nullptr ? row->width : PaneSize{};
-        PaneSize height = row != nullptr ? row->height : PaneSize{};
-        if (want.w != base_w || width.mode == pane_unit::kSubcells) {
-            width = PaneSize{pane_unit::kSubcells, want.w};
+        PaneAxisProposal horizontal;
+        horizontal.base = base_x;
+        if (want.place_moved_x && want.x != base_x) {
+            horizontal.position = want.x;
         }
-        if (want.h != base_h || height.mode == pane_unit::kSubcells) {
-            height = PaneSize{pane_unit::kSubcells, want.h};
+        if (want.w != base_w) {
+            horizontal.extent = PaneSize{pane_unit::kSubcells, want.w};
         }
-        // THE PLACE IS WRITTEN EXACTLY WHEN THE ANCHOR NEEDS IT: a left/top pull whose
-        // geometry actually moved, or one on a pane whose place is already authored (a
-        // zero-delta write of the same value is skipped, W-3's nothing-changed rule).
-        const bool moves_place =
-            want.place_moved &&
-            (want.x != base_x || want.y != base_y ||
-             (row != nullptr && row->place.mode == pane_unit::kSubcells));
-        const PanePlace place{pane_unit::kSubcells, want.x, want.y};
-        const Written done =
-            author_pane_window(session_.setup.active, session_.manage.selected,
-                               moves_place ? &place : nullptr, width, height);
-        if (!done.accepted) {
-            say(done.refusal, true);
+        PaneAxisProposal vertical;
+        vertical.base = base_y;
+        if (want.place_moved_y && want.y != base_y) {
+            vertical.position = want.y;
+        }
+        if (want.h != base_h) {
+            vertical.extent = PaneSize{pane_unit::kSubcells, want.h};
+        }
+        const WindowWritten done = author_pane_window(session_.setup.active,
+                                                      session_.manage.selected, horizontal,
+                                                      vertical);
+        if (!done.written.accepted) {
+            say(done.written.refusal, true);
             return;
         }
-        if (moves_place) {
+        if (done.place_written) {
             // AUTHORING A PLACE TAKES THE PANE OUT OF THE REACTIVE STACK — `manage_place`'s
             // own reconciliation, owed here the moment an anchored resize writes one.
             apply_setup(mail);
@@ -3343,20 +3384,9 @@ private:
             say(ready.refusal, true);
             return;
         }
-        const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
         // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
-        const FineRect now = managed_bounds().resolved;
-        const std::int64_t base_x =
-            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.x : now.x;
-        const std::int64_t base_y =
-            row != nullptr && row->place.mode == pane_unit::kSubcells ? row->place.y : now.y;
-        const std::int64_t base_w = row != nullptr && row->width.mode == pane_unit::kSubcells
-                                        ? row->width.amount
-                                        : now.w;
-        const std::int64_t base_h = row != nullptr && row->height.mode == pane_unit::kSubcells
-                                        ? row->height.amount
-                                        : now.h;
-        manage_resize(base_x, base_y, base_w, base_h, dx * surface::kCellSubs,
+        const FineRect base = managed_window_base();
+        manage_resize(base.x, base.y, base.w, base.h, dx * surface::kCellSubs,
                       dy * surface::kCellSubs, mail);
     }
 

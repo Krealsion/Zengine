@@ -740,6 +740,24 @@ inline Written check_pane_ref(const PaneRef& ref) {
 // something half out of view has not made a mistake"), and a second, stricter law
 // for a pane would be the same situation answered twice.
 
+/// ONE COORDINATE of an authored place. NEGATIVE IS REFUSED AT THE ROOT,
+/// `doc::check_coord`'s own rule and its own reason: the canvas has no cells
+/// there. The walls are the CELL bounds this law has always had, expressed on
+/// the sub-unit lattice (WUX-2) — the sentences still speak in cells because
+/// that is the bound a maker can act on. Per coordinate since WUX-2a, because
+/// the gesture door judges each axis on its own; `check_pane_place` composes
+/// the same wall over both, so there is exactly one spelling of it.
+inline Written check_pane_place_coord(std::int64_t v) {
+    if (v < 0) {
+        return Written::no("a pane place cannot be negative");
+    }
+    if (v > kPaneSubMax) {
+        return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
+                           " cells");
+    }
+    return Written::ok();
+}
+
 /// A PLACE: default with nothing said, or an absolute position on the fine lattice.
 inline Written check_pane_place(const PanePlace& p) {
     if (p.mode == pane_unit::kDefault) {
@@ -751,18 +769,11 @@ inline Written check_pane_place(const PanePlace& p) {
     if (p.mode != pane_unit::kSubcells) {
         return Written::no("a pane place is either default or subcells");
     }
-    // NEGATIVE IS REFUSED AT THE ROOT, `doc::check_coord`'s own rule and its own
-    // reason: the canvas has no cells there. The walls are the CELL bounds this
-    // law has always had, expressed on the sub-unit lattice (WUX-2) — the
-    // sentences still speak in cells because that is the bound a maker can act on.
-    if (p.x < 0 || p.y < 0) {
-        return Written::no("a pane place cannot be negative");
+    const Written x = check_pane_place_coord(p.x);
+    if (!x.accepted) {
+        return x;
     }
-    if (p.x > kPaneSubMax || p.y > kPaneSubMax) {
-        return Written::no("a pane place is at most " + std::to_string(doc::kMaxCells) +
-                           " cells");
-    }
-    return Written::ok();
+    return check_pane_place_coord(p.y);
 }
 
 /// ONE AXIS OF A SIZE: default, a count of sub-cell units, or a count of device
@@ -1243,14 +1254,26 @@ inline bool lower_one(Setup& s, const PaneRef& ref) {
     return true;
 }
 
-// ---- THE GEOMETRY DOORS: what a hand and a key both end at (WIND-2) -----------
+// ---- THE GEOMETRY DOORS: what a hand and a key both end at (WIND-2, WUX-2a) ---
 //
-// TWO DOORS, AND BOTH ARE ATOMIC. `doc::move` writes a position and never an
-// extent; `doc::resize` checks BOTH extents before writing EITHER, because "a
-// diagonal resize whose height is illegal would narrow the object AND report a
-// refusal". Both laws carry here verbatim: moving a pane freezes neither size
-// axis, resizing one axis freezes neither the place nor the other axis, and a
-// refused proposal writes nothing at all.
+// TWO KINDS OF DOOR, AND TWO SETTLEMENT LAWS -- one per kind, stated apart on
+// purpose:
+//
+//   the VALUE doors     `author_pane_place`, `author_pane_size`. A whole value,
+//                       judged whole: a proposal wrong anywhere writes nothing at
+//                       all -- `doc::move`/`doc::resize`'s atomicity, verbatim.
+//                       That is the right answer for a value stated as one thing
+//                       (a file row, a staged test arrangement, a typed
+//                       coordinate if one ever exists).
+//
+//   the GESTURE door    `author_pane_window`. What one hand or key gesture
+//                       proposes for the whole window, split into its two axes.
+//                       INDEPENDENT AXES SETTLE INDEPENDENTLY; the facts an
+//                       anchored edge couples -- a position and an extent on ONE
+//                       axis -- settle atomically within that axis (WUX-2a). A
+//                       hand at the left wall has said nothing illegal about
+//                       DOWN, and refusing the whole window was the measured
+//                       defect: a pane dragged diagonally along a wall froze.
 //
 // THEY TAKE THE WHOLE PROPOSED VALUE AND NOT A DELTA. Saturating the arithmetic is
 // the CALLER's job and is done before the proposal is made (`screen.hpp`'s
@@ -1299,47 +1322,102 @@ inline Written author_pane_size(Setup& s, const PaneRef& ref, const PaneSize& wi
     return Written::ok();
 }
 
-/// AUTHOR A WHOLE WINDOW — a place beside both sizes, judged together and
-/// written together, or nothing at all (WUX-2).
+/// ONE AXIS of what a single gesture proposes for a pane's window (WUX-2a).
 ///
-/// IT EXISTS BECAUSE A RESIZE STOPPED BEING A SIZE-ONLY WRITE. Since WUX-2 an
-/// edge PRESERVES ITS OPPOSITE ANCHOR: pulling the top edge changes `y` and the
-/// height together so the bottom edge stays under the maker's eye, and pulling a
-/// corner moves both axes of the place with both sizes. That is one gesture
-/// proposing one rectangle, so it must be one authored transaction —
-/// `doc::resize`'s both-before-either law, widened to the axis pair a place is.
-/// A top-left pull whose height is illegal must not leave a moved corner beside
-/// a refused height; through this door it leaves nothing.
+/// A member that is absent is NOT PROPOSED and is left exactly as it is, mode
+/// included — a right-edge pull proposes only the width, a move proposes only
+/// positions, and an axis a gesture did not change proposes nothing at all
+/// (which is what keeps a refused step from authoring a reactive place as a
+/// side effect). `base` is the axis's current effective position — authored or
+/// resolved, the caller's `managed_window_base` — and is what this axis
+/// contributes to a place write it did not itself settle, since a place is one
+/// field carrying both coordinates.
+struct PaneAxisProposal {
+    std::optional<std::int64_t> position;
+    std::optional<PaneSize> extent;
+    std::int64_t base = 0;
+};
+
+/// What authoring a window proposal did: `written` answers for the gesture as a
+/// whole, and `place_written` says whether the place moved — the caller owes a
+/// reseat (`apply_setup`) exactly then, because an authored place leaves the
+/// reactive stack.
+struct WindowWritten {
+    Written written;
+    bool place_written = false;
+};
+
+/// AUTHOR WHAT ONE GESTURE PROPOSES FOR A PANE'S WINDOW — per axis (WUX-2a).
 ///
-/// `place` MAY BE NULL, meaning "leave the place exactly as it is, mode
-/// included" — the right/bottom edges' resize, which anchors the place by NOT
-/// writing it, and keeps a default-placed pane's place reactive.
-inline Written author_pane_window(Setup& s, const PaneRef& ref, const PanePlace* place,
-                                  const PaneSize& width, const PaneSize& height) {
+/// INDEPENDENT AXES SETTLE INDEPENDENTLY. A move blocked at the left wall still
+/// follows the hand vertically; a corner pull whose horizontal proposal is
+/// illegal still resizes the legal vertical axis. The refused axis KEEPS ITS OWN
+/// VALUE — refuse-never-clamp, per axis: nothing here writes a wall value the
+/// hand never reached.
+///
+/// WITHIN AN AXIS, THE ANCHORED PAIR IS ATOMIC. A leading-edge pull proposes a
+/// position AND an extent on one axis (WUX-2's anchor law: the opposite edge
+/// holds still), and they settle together or not at all — a refused height can
+/// never leave a moved top edge behind. Every proposed member of an axis must be
+/// legal for that axis to land.
+///
+/// NOTHING LANDING IS A REFUSAL; nothing PROPOSED is a no-op. When both axes
+/// asked and both were refused — or the one asking axis was — the authored
+/// state is untouched, byte for byte, and the first refusal is returned.
+inline WindowWritten author_pane_window(Setup& s, const PaneRef& ref,
+                                        const PaneAxisProposal& horizontal,
+                                        const PaneAxisProposal& vertical) {
     SetupPane* row = pane_of(s, ref);
     if (row == nullptr) {
-        return Written::no("`" + ref_text(ref) + "` is not in this setup");
+        return WindowWritten{Written::no("`" + ref_text(ref) + "` is not in this setup"),
+                             false};
     }
-    if (place != nullptr) {
-        const Written placed = check_pane_place(*place);
-        if (!placed.accepted) {
-            return placed;
+    Written wide = Written::ok();
+    if (horizontal.position.has_value()) {
+        wide = check_pane_place_coord(*horizontal.position);
+    }
+    if (wide.accepted && horizontal.extent.has_value()) {
+        wide = check_pane_size(*horizontal.extent, "width");
+    }
+    Written tall = Written::ok();
+    if (vertical.position.has_value()) {
+        tall = check_pane_place_coord(*vertical.position);
+    }
+    if (tall.accepted && vertical.extent.has_value()) {
+        tall = check_pane_size(*vertical.extent, "height");
+    }
+    const bool h_asks = horizontal.position.has_value() || horizontal.extent.has_value();
+    const bool v_asks = vertical.position.has_value() || vertical.extent.has_value();
+    const bool h_lands = h_asks && wide.accepted;
+    const bool v_lands = v_asks && tall.accepted;
+    if (!h_lands && !v_lands) {
+        if (!h_asks && !v_asks) {
+            return WindowWritten{Written::ok(), false};
         }
+        return WindowWritten{!wide.accepted ? wide : tall, false};
     }
-    const Written wide = check_pane_size(width, "width");
-    if (!wide.accepted) {
-        return wide;
+    const bool place_written = (h_lands && horizontal.position.has_value()) ||
+                               (v_lands && vertical.position.has_value());
+    if (place_written) {
+        // A PLACE IS ONE FIELD. The axis that settled a position writes it; the
+        // other contributes what it already stood at — its authored coordinate,
+        // or the resolved base the caller measured — never a clamped wall.
+        const bool authored = row->place.mode == pane_unit::kSubcells;
+        const std::int64_t x = h_lands && horizontal.position.has_value()
+                                   ? *horizontal.position
+                                   : (authored ? row->place.x : horizontal.base);
+        const std::int64_t y = v_lands && vertical.position.has_value()
+                                   ? *vertical.position
+                                   : (authored ? row->place.y : vertical.base);
+        row->place = PanePlace{pane_unit::kSubcells, x, y};
     }
-    const Written tall = check_pane_size(height, "height");
-    if (!tall.accepted) {
-        return tall;
+    if (h_lands && horizontal.extent.has_value()) {
+        row->width = *horizontal.extent;
     }
-    if (place != nullptr) {
-        row->place = *place;
+    if (v_lands && vertical.extent.has_value()) {
+        row->height = *vertical.extent;
     }
-    row->width = width;
-    row->height = height;
-    return Written::ok();
+    return WindowWritten{Written::ok(), place_written};
 }
 
 /// THE RESETS. Each removes ONE authored difference and leaves every other
