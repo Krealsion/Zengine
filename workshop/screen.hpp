@@ -56,6 +56,7 @@
 
 #include <zen/terminal/transcript.hpp> // the participant's own record, rendered HERE
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -144,33 +145,31 @@ inline constexpr std::int64_t kPanelCols = 28;
 inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's edge and it
 
 /// The rows INSIDE the side region's bounds. There used to be four of them and now there
-/// are two, which is the measurable half of HD-7: `kListRows = 5` and `kRowsY = 8` were a
-/// fixed OBJECTS height and a fixed PROPERTIES origin, and both are gone. How many objects
-/// the panel shows and where the inspector begins under them are answers about the ROOM the
-/// active medium reports, resolved by `info_body_place`, and a constant cannot hold either.
+/// is one, which is the measurable half of HD-7 and then of WUX-1: `kListRows = 5` and
+/// `kRowsY = 8` were a fixed OBJECTS height and a fixed PROPERTIES origin, and both are
+/// gone; `kInfoBodyY = 1` was the heading's own cell row, and it is gone too. How many
+/// objects the panel shows and where the inspector begins under them are answers about the
+/// ROOM the active medium reports, resolved by `info_body_place`, and a constant cannot
+/// hold either.
 ///
-/// WHAT SURVIVES IS WHERE THE PANEL'S OWN CHROME IS. `kSideY` is the region's top edge and
-/// `kInfoBodyY` is the first row under the `OBJECTS` heading -- the heading stays an ordinary
-/// label on the panel's row 0 because that row is SHARED with the screen's own
-/// `shift+space terminal` hint, which is not this panel's to cover. Everything below it
-/// belongs to one bounded region.
+/// THE `OBJECTS` HEADING IS THE PANEL REGION'S FIRST PROSE ROW SINCE WUX-1. It used to be
+/// an ordinary label on the panel's row 0, because that cell row was SHARED with the
+/// screen's own terminal hint and a region owns its interior; the shared top row is
+/// retired, so the panel's whole rectangle is the panel's, and the heading is reserved out
+/// of the body's PROSE budget exactly the way an external pane's header row is
+/// (`kExternalHeaderRows`) -- one row of whatever type the active medium sets, before
+/// either list is offered anything.
 inline constexpr std::int64_t kSideY = 0; ///< the region's top edge: the canvas's own
-inline constexpr std::int64_t kInfoBodyY = 1; ///< the body's first row, under `OBJECTS`
+inline constexpr std::int64_t kInfoHeadingRows = 1; ///< prose rows the `OBJECTS` heading keeps
 
-/// The band under the workspace: the setup line, the notice, a spare row, and the two help
-/// lines. FIXED for the same reason the panel is -- it holds a known number of sentences.
-/// (The first row was spare until WS-0 gave it the setup line.)
+/// The band under the workspace. FIXED for the same reason the panel is -- how many rows
+/// of chrome are worth reserving is a decision, not a share of the screen. WHAT the rows
+/// say is `band_region`'s (WUX-1): the band is one bounded region composed against the
+/// budget the ACTIVE medium fits in these five cells -- a character medium answers five
+/// rows (the setup line, the notice, the workspace fact, two legend rows), and the shipped
+/// 18-pixel face answers three, so the tool's own chrome is set in the tool's own type
+/// instead of one bitmap sentence per cell row.
 inline constexpr std::int64_t kBottomRows = 5;
-
-/// THE NOTICE'S OWN ROOM, IN CELLS: its row and the spare one beneath it (TYPE-0).
-///
-/// TWO, and the number is a measurement rather than a margin. The notice is one sentence and
-/// wants one row -- but a bounded region is set in the ACTIVE medium's type, and a face whose
-/// line is 18 device pixels does not fit in a 12-pixel cell: `fit_region` answers zero rows
-/// for a one-cell region and hands it back to the cell projection (HD-5). Two cells is the
-/// smallest room that holds one row of this repository's face, and the second of them is the
-/// spare row `kBottomRows` already reserves and nothing else paints. Nothing moved to make it.
-inline constexpr std::int64_t kNoticeRows = 2;
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
 //
@@ -1353,6 +1352,16 @@ struct Session {
     Keymap keymap;
     /// ...and the full hotkey view over it, when a maker has opened one.
     HotkeysView hotkeys;
+    /// WHETHER THE ARRANGEABLE PANES PAINT THEIR TITLE ROWS (WUX-1) -- a presentation
+    /// preference, the legend's own class: it governs what the screen SAYS and never what
+    /// a pane IS. Hiding titles changes no pane identity, no setup byte, no grant door and
+    /// no persistence -- what it changes is the row `external_title_rows` reserves, which
+    /// the existing grant-on-change door then re-tells each provider. Session state, and
+    /// deliberately NOT a field of the keymap file: the maker-config domain is a later
+    /// phase's, and a preference parked in whichever durable file already existed would be
+    /// that phase decided by accident. Until then the choice lives exactly as long as the
+    /// run.
+    bool pane_titles = true;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1559,14 +1568,9 @@ inline std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
     return out;
 }
 
-/// The two help rows of the bottom band, packed from `help_pairs` and cut where the room
-/// ran out -- `detail::fit`'s mark says so, exactly as it does for every other bounded
-/// sentence on this screen. Defined after `detail::fit` is; declared here so the reader
-/// meets the band's projection beside the truth it projects.
-struct HelpRows {
-    std::string first;
-    std::string second;
-};
+// The band's legend rows are packed from `help_pairs` by `help_rows` below `detail` --
+// against however many rows the band's budget composition granted the legend, which is
+// what stopped being a constant two in WUX-1.
 
 /// TAKE THE ROOM A SURFACE OFFERED, and re-fit the workspace to it. Answers whether anything
 /// actually changed, so a caller can decline to repaint over a surface that merely repeated
@@ -1911,41 +1915,51 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 
 } // namespace detail
 
-/// The band's two help rows, as the legend projects them (KEY-0): FULL packs the context's
-/// `help_pairs` across both rows and marks the cut; COMPACT says only how to reach the
-/// full hotkey view, spelled from the effective binding it opens with; HIDDEN is two blank
-/// rows -- the composition is untouched (`screen_of` reserves the band whether or not
-/// anything is written in it), and nothing about DISPATCH reads the legend at all, which
-/// is what "hidden never unbinds anything" means structurally.
-inline HelpRows help_rows(const Keymap& k, KeyContext ctx, std::int64_t width) {
-    HelpRows out;
+/// The band's legend rows, as the legend projects them (KEY-0, budget-composed since
+/// WUX-1): FULL packs the context's `help_pairs` across the rows the band's composition
+/// granted -- two on a character medium, one where a real face makes the band three rows
+/// -- and marks the cut; COMPACT says only how to reach the full hotkey view, spelled
+/// from the effective binding it opens with; HIDDEN says nothing at all. The band's
+/// GEOMETRY is untouched by any of it (`screen_of` reserves it whether or not anything is
+/// written in it), and nothing about DISPATCH reads the legend, which is what "hidden
+/// never unbinds anything" means structurally.
+///
+/// At most `rows` rows come back, possibly fewer, never more. The full hotkey view
+/// remains the one authoritative list in every mode -- a legend row is an advertisement,
+/// and what its room cannot carry is marked rather than swallowed.
+inline std::vector<std::string> help_rows(const Keymap& k, KeyContext ctx,
+                                          std::int64_t width, std::size_t rows) {
+    std::vector<std::string> out;
+    if (rows == 0) {
+        return out;
+    }
     const std::int64_t legend = k.resolved_legend();
     if (legend == legend_mode::kHidden) {
         return out;
     }
     if (legend == legend_mode::kCompact) {
-        out.first = detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width);
+        out.push_back(detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width));
         return out;
     }
     const std::vector<std::string> pairs = help_pairs(k, ctx);
-    std::string* row = &out.first;
+    std::string row;
     std::size_t taken = 0;
     for (const std::string& pair : pairs) {
-        const std::string grown = row->empty() ? pair : *row + " | " + pair;
+        const std::string grown = row.empty() ? pair : row + " | " + pair;
         if (static_cast<std::int64_t>(grown.size()) <= width) {
-            *row = grown;
+            row = grown;
             ++taken;
             continue;
         }
-        if (row == &out.first) {
-            row = &out.second;
-            if (static_cast<std::int64_t>(pair.size()) <= width) {
-                *row = pair;
-                ++taken;
-            }
-            continue;
+        if (out.size() + 1 >= rows) {
+            break; // this is the last row the legend was granted: the mark below says so
         }
-        break;
+        out.push_back(std::move(row));
+        row.clear();
+        if (static_cast<std::int64_t>(pair.size()) <= width) {
+            row = pair;
+            ++taken;
+        }
     }
     // WHAT DID NOT FIT IS MARKED, NOT SWALLOWED: the next pair is written into the cut so
     // `detail::fit`'s mark says there was more -- a help row that silently loses its last
@@ -1953,8 +1967,10 @@ inline HelpRows help_rows(const Keymap& k, KeyContext ctx, std::int64_t width) {
     // keystroke away in every legend mode.
     if (taken < pairs.size()) {
         const std::string& next = pairs[taken];
-        out.second =
-            detail::fit(out.second.empty() ? next : out.second + " | " + next, width);
+        row = detail::fit(row.empty() ? next : row + " | " + next, width);
+    }
+    if (!row.empty()) {
+        out.push_back(std::move(row));
     }
     return out;
 }
@@ -3366,26 +3382,12 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
 /// question about BOUNDS (`occupied_at`), because a mask would make what a maker can press
 /// depend on the length of a label.
 ///
-/// `paint_panel_row` below is still the OVERLAY's shape and not every panel's -- that half of
-/// BLD-0's prediction is still a prediction. Info writes bare labels, and padding them to the
-/// bounds' width would erase the screen-level hint that shares the side region's top row.
+/// (`paint_panel_row` -- the cell-lattice spelling of a panel row -- is gone since WUX-1:
+/// its last consumer was the Builder, whose rows are a budget-composed region now. The
+/// cell projection of a region writes byte-for-byte the padded rows it used to write, so a
+/// character medium cannot tell the spelling ever changed.)
 inline void paint_panel_frame(surface::SurfaceLayer& layer, const ui::Rect& b) {
     layer.rects.push_back(surface::SurfaceRect{b.x, b.y, b.w, b.h, surface::role::kMuted});
-}
-
-/// One row of an overlaid panel, fitted and padded to its bounds' width.
-///
-/// THE CELL-LATTICE SPELLING OF A PANEL ROW, and since TYPE-0 it has ONE consumer left: the
-/// Builder, whose nine rows are a fixed composition against a nine-cell slot — fixed in
-/// COUNT, with one row that trades places: while the project is waiting on a buildable
-/// artifact a `project` row takes one of the three output rows (see `paint_builder`). Every
-/// other panel says its rows through `panel_prose_place` below, which is what lets a medium
-/// that owns a face set them in it.
-inline void paint_panel_row(surface::SurfaceLayer& layer, const ui::Rect& b, std::int64_t line,
-                            const std::string& text, std::int64_t role) {
-    layer.labels.push_back(surface::SurfaceLabel{
-        b.x, b.y + line, detail::pad(detail::fit(text, b.w), static_cast<std::size_t>(b.w)),
-        role});
 }
 
 /// A PANEL WHOSE WHOLE BODY IS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE (TYPE-0).
@@ -3399,10 +3401,10 @@ inline void paint_panel_row(surface::SurfaceLayer& layer, const ui::Rect& b, std
 ///
 /// WHY A PANEL IS ONE REGION AND NOT A COLUMN OF LABELS. A label is one cell per byte in every
 /// medium; a region is the one shape on this canvas whose interior a medium may set in its own
-/// type. So the difference between `paint_panel_row` and this is the difference between a
+/// type. So the difference between a column of labels and this is the difference between a
 /// panel a maker reads in a 5x5 bitmap letterform and a panel they read in the face the
 /// Inspector beside it already uses. The cell projection of a region is one row per cell row,
-/// padded to the region's width and cut at it -- byte-for-byte what `paint_panel_row` wrote --
+/// padded to the region's width and cut at it -- byte-for-byte what the old label rows wrote --
 /// so a character medium cannot tell which spelling a panel chose.
 ///
 /// A REGION TAKES ITS RECTANGLE, which is why this is only for panels whose whole bounds are
@@ -3489,14 +3491,45 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// no pending frontier paints the exact BLD-1a panel, because the absence of a frontier is
 /// itself the answer and manufacturing a "nothing blocked" sentence would be publishing a
 /// fact no owner said.
+///
+/// ...AND SINCE WUX-1 THE ROWS ARE A REGION, COMPOSED AGAINST THE BUDGET THE ACTIVE MEDIUM
+/// FITS. A character medium's nine-row budget seats every fact -- byte-for-byte the panel
+/// above -- and the shipped face's five-row budget keeps the facts a maker acts on, by the
+/// explicit priority written on each row below. The `Screen` argument is the metric's
+/// carrier, exactly as it is for every other bounded region here.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const ui::Rect& b, const Keymap& keymap,
+                          const ui::Rect& b, const Screen& sc, const Keymap& keymap,
                           const ProjectFrontier& frontier = {}) {
     paint_panel_frame(layer, b);
-    const auto row = [&layer, &b](std::int64_t line, const std::string& text,
-                                 std::int64_t role) {
-        paint_panel_row(layer, b, line, text, role);
+    // THE PANEL IS ONE REGION AND ITS ROWS ARE COMPOSED AGAINST THE BUDGET (WUX-1). The
+    // Builder was the last consumer of the cell-lattice row spelling, and the recorded
+    // reason was never typography: nine facts do not fit five rows, and until the panel
+    // had a COMPOSITION PRIORITY there was no honest way to choose which five. The
+    // priority is written below, on each fact, and the rule is:
+    //
+    //     what survives longest is what a maker is ACTING on -- the office's identity,
+    //     the live build's activity/result, the frontier the project is waiting on, what
+    //     `b` will build next, the realization outcome, the compiler's own words --
+    //     and what yields first is static metadata (the exit code's row, the command
+    //     echo) and the tail of the output block.
+    //
+    // The DISPLAY order never changes with the budget: a shorter face shows the same
+    // rows in the same order minus the ones that did not fit, so growing the window
+    // reveals more truth rather than switching to a different panel. A character medium's
+    // nine-row budget selects every fact, byte-for-byte the composition this panel has
+    // painted since BLD-2.
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // no room for one row of this medium's type: say nothing at all
+    }
+    const std::int64_t columns = place.columns;
+    struct Fact {
+        std::string text;
+        std::int64_t role = surface::role::kFill;
+        std::int64_t priority = 0; ///< smaller survives longer; all distinct
     };
+    std::vector<Fact> facts; // display order, priorities deciding survival
+
     // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
     // header follows: a presentation that shows somebody else's facts without saying whose
     // is a presentation that will eventually be read as its own.
@@ -3505,23 +3538,60 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // advertising its own removal key is exactly the per-panel binding the second kind
     // made untenable. Every gesture here is the keymap's effective spelling (KEY-0) --
     // this header was one of the independently-authored claim sites KEY-R0 measured.
-    row(0,
-        std::string("BUILDER @") + builder::kBuilderRole + " -- " +
-            hotkey_text(keymap, Act::kBuild) + "/" + hotkey_text(keymap, Act::kBuildRealize) +
-            " build, " + hotkey_text(keymap, Act::kRecipeNext) + " pick, " +
-            hotkey_text(keymap, Act::kBuildFrontier) + " frontier, " +
-            hotkey_text(keymap, Act::kPicker) + " removes",
-        surface::role::kAccent);
+    facts.push_back(Fact{std::string("BUILDER @") + builder::kBuilderRole + " -- " +
+                             hotkey_text(keymap, Act::kBuild) + "/" +
+                             hotkey_text(keymap, Act::kBuildRealize) + " build, " +
+                             hotkey_text(keymap, Act::kRecipeNext) + " pick, " +
+                             hotkey_text(keymap, Act::kBuildFrontier) + " frontier, " +
+                             hotkey_text(keymap, Act::kPicker) + " removes",
+                         surface::role::kAccent, 0});
+
+    const auto publish = [&](std::vector<Fact> chosen, const std::string& said_detail) {
+        // KEEP WHAT THE BUDGET SEATS, IN DISPLAY ORDER. The priorities are distinct, so
+        // "the `place.rows` smallest" is one threshold; the said block is wrapped LAST,
+        // into exactly the rows that survived, so its elision mark tells the truth about
+        // this budget rather than about the nine-row one. A dropped fact is dropped WHOLE
+        // -- nothing substitutes for it, and the rows that remain neither move nor reword.
+        std::vector<std::int64_t> priorities;
+        priorities.reserve(chosen.size());
+        for (const Fact& f : chosen) {
+            priorities.push_back(f.priority);
+        }
+        std::sort(priorities.begin(), priorities.end());
+        const std::size_t seats = static_cast<std::size_t>(place.rows);
+        const std::int64_t cut =
+            priorities.size() > seats ? priorities[seats] : priorities.back() + 1;
+        std::size_t said_kept = 0;
+        for (const Fact& f : chosen) {
+            if (f.priority < cut && f.text.empty()) {
+                ++said_kept; // a said placeholder: counted now, written below
+            }
+        }
+        std::vector<std::string> said;
+        if (said_kept > 0) {
+            said = panel_block("said", said_detail.empty() ? std::string("--") : said_detail,
+                               said_kept, columns);
+        }
+        surface::SurfaceTextRegion region = panel_prose_region(b);
+        std::size_t said_at = 0;
+        for (Fact& f : chosen) {
+            if (f.priority >= cut) {
+                continue;
+            }
+            std::string text = f.text.empty() ? said[said_at++] : std::move(f.text);
+            region.rows.push_back(surface::SurfaceTextRow{
+                detail::fit(std::move(text), columns), f.role});
+        }
+        layer.texts.push_back(std::move(region));
+    };
 
     if (!pane.heard) {
         // NOT THE SAME AS "NEVER BUILT", and the panel must not show it as though it were.
         // This is a fact about this panel -- it has asked and is waiting -- and the recipe's
         // own history is not knowable from here until the tool says it.
-        row(1, panel_field("recipe", "(the Builder has not answered yet)"),
-            surface::role::kMuted);
-        for (std::int64_t i = 2; i < b.h; ++i) {
-            row(i, std::string(), surface::role::kFill);
-        }
+        facts.push_back(Fact{panel_field("recipe", "(the Builder has not answered yet)"),
+                             surface::role::kMuted, 1});
+        publish(std::move(facts), std::string());
         return;
     }
 
@@ -3538,25 +3608,29 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // like one that had not heard yet, which is the distinction `heard` exists to keep.
     const std::size_t held = pane.known.recipes.size();
     if (held == 0) {
-        row(1, panel_field("recipe", "(this project has no build recipes)"),
-            surface::role::kMuted);
+        facts.push_back(Fact{panel_field("recipe", "(this project has no build recipes)"),
+                             surface::role::kMuted, 3});
     } else {
         const std::size_t at = pane.chosen < held ? pane.chosen : std::size_t{0};
-        row(1,
-            panel_field("recipe", pane.known.recipes[at].recipe + " -> " +
-                                      pane.known.recipes[at].artifact + "  (" +
-                                      std::to_string(at + 1) + "/" + std::to_string(held) + ")"),
-            surface::role::kFill);
+        facts.push_back(
+            Fact{panel_field("recipe", pane.known.recipes[at].recipe + " -> " +
+                                           pane.known.recipes[at].artifact + "  (" +
+                                           std::to_string(at + 1) + "/" +
+                                           std::to_string(held) + ")"),
+                 surface::role::kFill, 3});
     }
     // ---- WHAT THE PROJECT IS WAITING ON, WHILE IT IS (BLD-2) --------------------------
     //
-    // THE ROW EXISTS EXACTLY WHILE THE FRONTIER DOES, and every later row steps down one
-    // to make room -- the one it costs is the third `said` row, which is the row this
-    // panel can best afford exactly here: a maker whose project is WAITING has no build
-    // output yet, and one whose frontier build FAILED still reads two rows of the
-    // compiler's ending plus the whole stream on the bus. When nothing is waiting the
-    // composition below is byte-for-byte BLD-1a's, because absence of a pending frontier
-    // is the whole answer and this panel will not invent a "nothing blocked" to fill a row.
+    // THE ROW EXISTS EXACTLY WHILE THE FRONTIER DOES, and it costs the third `said` row,
+    // which is the row this panel can best afford exactly here: a maker whose project is
+    // WAITING has no build output yet, and one whose frontier build FAILED still reads two
+    // rows of the compiler's ending plus the whole stream on the bus. When nothing is
+    // waiting the composition is byte-for-byte BLD-1a's, because absence of a pending
+    // frontier is the whole answer and this panel will not invent a "nothing blocked" to
+    // fill a row. Under a constrained budget the row OUTLIVES everything but the header
+    // and the live activity row -- it is the actionable pressure this panel exists to
+    // surface, and a face that hid it while showing the command echo would be showing the
+    // less useful truth (WUX-1).
     //
     // THREE FACTS, ONE ROW, TWO OWNERS. The artifact and the blocked count are the
     // realization owner's, read alive through the host at this paint; which recipes can
@@ -3583,7 +3657,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
             said += std::to_string(makers) + " recipes";
         }
         said += ", blocks " + std::to_string(frontier.blocked) + ")";
-        row(2, panel_field("project", said), surface::role::kAccent);
+        facts.push_back(Fact{panel_field("project", said), surface::role::kAccent, 2});
     }
     // WHAT THIS PANEL IS WATCHING beats what it was last told. `awaiting` is the panel's own
     // fact and it is the truer one while it holds: the tool's last OUTCOME is still the
@@ -3597,24 +3671,27 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // process ran, and has watched the count climb while doing it. A build that had frozen
     // the pump could not have produced either number, because nothing would have been
     // delivered to change them. They stay on the row after it ends, so the evidence does not
-    // vanish at the moment it becomes a result.
+    // vanish at the moment it becomes a result. It is the LIVE row, so under a constrained
+    // budget it outlives everything but the header (WUX-1).
     const bool named_op = s.op != 0;
     const std::string carried =
         named_op ? " -- op #" + std::to_string(s.op) + ", " + std::to_string(s.chunks) + " out"
                  : std::string();
     const bool unanswered = pane.awaiting && s.outcome != builder::outcome::kRunning;
-    row(2 + static_cast<std::int64_t>(shift),
-        unanswered ? panel_field("last", "asked -- waiting for it to start")
-                   : panel_field("last", std::string(builder::name_of_outcome(s.outcome)) +
-                                             carried),
-        unanswered || s.outcome == builder::outcome::kRunning
-            ? surface::role::kAccent
-            : (s.outcome == builder::outcome::kFailed ||
-                       s.outcome == builder::outcome::kNotStarted ||
-                       s.outcome == builder::outcome::kNoArtifact ||
-                       s.outcome == builder::outcome::kUnknownRecipe
-                   ? surface::role::kAlert
-                   : surface::role::kFill));
+    facts.push_back(
+        Fact{unanswered ? panel_field("last", "asked -- waiting for it to start")
+                        : panel_field("last",
+                                      std::string(builder::name_of_outcome(s.outcome)) +
+                                          carried),
+             unanswered || s.outcome == builder::outcome::kRunning
+                 ? surface::role::kAccent
+                 : (s.outcome == builder::outcome::kFailed ||
+                            s.outcome == builder::outcome::kNotStarted ||
+                            s.outcome == builder::outcome::kNoArtifact ||
+                            s.outcome == builder::outcome::kUnknownRecipe
+                        ? surface::role::kAlert
+                        : surface::role::kFill),
+             1});
     // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
     // never started reads as success, which is the exact wrong answer at the exact moment a
     // maker most needs the right one.
@@ -3623,21 +3700,23 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // number that proves the tool outlives its presentation: close this panel, reopen it,
     // build again, and it reads 2 -- which a panel that owned the state could not say. It
     // shares rather than taking its own because the rows below are worth more to a maker
-    // whose build just failed, and this one has a column to spare.
-    row(3 + static_cast<std::int64_t>(shift),
-        panel_field("exit", detail::pad(s.outcome == builder::outcome::kSucceeded ||
-                                                s.outcome == builder::outcome::kFailed
-                                            ? std::to_string(s.status)
-                                            : std::string("--"),
-                                        11) +
-                                "asks " + std::to_string(s.builds) + " ever"),
-        surface::role::kMuted);
+    // whose build just failed, and this one has a column to spare. Static metadata: under a
+    // constrained budget it yields to every outcome row and to the first `said` row.
+    facts.push_back(
+        Fact{panel_field("exit", detail::pad(s.outcome == builder::outcome::kSucceeded ||
+                                                     s.outcome == builder::outcome::kFailed
+                                                 ? std::to_string(s.status)
+                                                 : std::string("--"),
+                                             11) +
+                                     "asks " + std::to_string(s.builds) + " ever"),
+             surface::role::kMuted, 6});
     // WHAT WAS ACTUALLY RUN, as the runner reported it. Empty until something has been run,
     // because the tool holds no command and this panel will not invent one to fill a row.
-    row(4 + static_cast<std::int64_t>(shift),
-        panel_field("ran", s.command.empty() ? std::string("(nothing has run yet)")
-                                             : s.command),
-        surface::role::kMuted);
+    // The first fact a constrained budget gives up: it is an echo of the maker's own act.
+    facts.push_back(Fact{panel_field("ran", s.command.empty()
+                                                ? std::string("(nothing has run yet)")
+                                                : s.command),
+                         surface::role::kMuted, 7});
     // ---- THE SECOND OUTCOME, ON ITS OWN ROW (BLD-1) -------------------------------------
     //
     // A BUILD OUTCOME AND A REALIZATION OUTCOME ARE TWO ANSWERS AND THIS PANEL SHOWS TWO.
@@ -3646,17 +3725,18 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // in the case a maker most needs: a build that WORKED whose realization was REFUSED.
     // The row is present even when nothing was asked, because an absent row reads as an
     // absent question rather than as an unasked one.
-    row(5 + static_cast<std::int64_t>(shift),
-        panel_field("realize", s.realization == builder::realization::kNotAsked
-                                   ? std::string("-- (B builds and realizes)")
-                                   : std::string(builder::name_of_realization(s.realization)) +
-                                         (s.realized_detail.empty()
-                                              ? std::string()
-                                              : " -- " + s.realized_detail)),
-        s.realization == builder::realization::kRefused
-            ? surface::role::kAlert
-            : (s.realization == builder::realization::kRealized ? surface::role::kFill
-                                                                : surface::role::kMuted));
+    facts.push_back(
+        Fact{panel_field("realize",
+                         s.realization == builder::realization::kNotAsked
+                             ? std::string("-- (B builds and realizes)")
+                             : std::string(builder::name_of_realization(s.realization)) +
+                                   (s.realized_detail.empty() ? std::string()
+                                                              : " -- " + s.realized_detail)),
+             s.realization == builder::realization::kRefused
+                 ? surface::role::kAlert
+                 : (s.realization == builder::realization::kRealized ? surface::role::kFill
+                                                                     : surface::role::kMuted),
+             4});
     // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a maker spends when
     // something has gone wrong, and one row of a compiler's answer is a row of nothing.
     //
@@ -3666,13 +3746,17 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // spending the wrong row.
     //
     // ...AND WHILE THE PROJECT IS WAITING, THE `project` ROW HOLDS THE THIRD OF THEM
-    // (BLD-2). The trade is argued where the row is painted, above.
-    const std::vector<std::string> said =
-        panel_block("said", s.detail.empty() ? std::string("--") : s.detail, 3 - shift, b.w);
-    for (std::size_t i = 0; i < said.size(); ++i) {
-        row(6 + static_cast<std::int64_t>(shift) + static_cast<std::int64_t>(i), said[i],
-            surface::role::kMuted);
+    // (BLD-2). The trade is argued where the row is painted, above. The rows are
+    // PLACEHOLDERS here (empty text, `publish` wraps the detail into exactly the rows that
+    // survive the budget, so the elision mark tells the truth about THIS face): the first
+    // of them outlives the exit and command rows -- the compiler's own words are what a
+    // maker acts on when something went wrong -- and the rest go first.
+    const std::size_t said_max = 3 - shift;
+    const std::int64_t said_priorities[3] = {5, 8, 9};
+    for (std::size_t i = 0; i < said_max; ++i) {
+        facts.push_back(Fact{std::string(), surface::role::kMuted, said_priorities[i]});
     }
+    publish(std::move(facts), s.detail);
 }
 
 /// The `+ panel` picker: the catalog, where a maker's cursor is in it, and WHICH KINDS ARE
@@ -4521,7 +4605,10 @@ inline std::string action_row_text(std::size_t which, bool pressable, std::int64
 /// than a rectangle somewhere it is not.
 struct InfoBodyPlace {
     bool present = false;
-    std::int64_t region_x = 0; ///< the body's own cell origin — a region coordinate
+    /// THE PANEL'S WHOLE RECTANGLE (WUX-1): the `OBJECTS` heading is the region's first
+    /// prose row and the body begins under it, so the region and the panel are one
+    /// rectangle and `kInfoHeadingRows` is subtracted from the PROSE budget, not the cells.
+    std::int64_t region_x = 0;
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
@@ -4535,7 +4622,8 @@ struct InfoBodyPlace {
     /// draft, the window `keep_caret_visible` reconciles, the width a RESTING value is fitted
     /// to, and the room a press is answered against are all this number.
     std::int64_t value_columns = 0;
-    /// PROSE ROWS THE WHOLE BODY HOLDS, both lists, the heading and the spare rows together.
+    /// PROSE ROWS THE WHOLE BODY HOLDS -- both lists, the `PROPERTIES` heading and the
+    /// spare rows together, with the `OBJECTS` heading's rows already reserved off the top.
     std::size_t capacity = 0;
     std::size_t objects_rows = 0;    ///< of those, the OBJECTS list's share
     std::size_t properties_rows = 0; ///< of those, the property list's share
@@ -4594,22 +4682,37 @@ inline InfoBodyPlace info_body_place(const ui::Rect& panel, const Screen& sc,
                                      std::size_t total_objects, std::size_t selected_at,
                                      std::size_t total_properties, std::size_t focus) {
     InfoBodyPlace p;
-    const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
-    if (panel.w <= used || panel.h <= kInfoBodyY) {
-        return p; // no panel, no room for a value beside a name, or no rows under the heading
+    if (panel.w <= 0 || panel.h <= 0) {
+        return p; // no panel at all
     }
+    // THE REGION IS THE WHOLE PANEL AND THE `OBJECTS` HEADING IS ITS FIRST PROSE ROW
+    // (WUX-1) -- `external_body_place`'s ordering exactly, and for its reason: the heading
+    // is reserved out of the PROSE budget before either list is offered anything, so the
+    // body's own rows still begin at zero and a press on the heading names nothing. In a
+    // character medium one prose row is one cell row and the arithmetic is byte-for-byte
+    // what `kInfoBodyY = 1` used to subtract; in a medium that sets type, the heading is a
+    // row of that type like everything under it. The region fields and the fit are filled
+    // for every non-empty panel -- present or not -- because the heading is sayable in a
+    // panel whose body is not seatable, and the painter must not resolve the rectangle a
+    // second time to say it.
     p.region_x = panel.x;
-    p.region_y = surface::add_cells(panel.y, kInfoBodyY);
+    p.region_y = panel.y;
     p.region_w = panel.w;
-    p.region_h = panel.h - kInfoBodyY;
+    p.region_h = panel.h;
     p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
                                 sc.text_advance_px, sc.text_line_px);
     p.columns = p.fit.columns;
+    const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
+    if (panel.w <= used) {
+        return p; // no room for a value beside a name
+    }
     p.value_columns = p.fit.columns - used - kPropertyCaretCols;
     if (p.value_columns < 0) {
         p.value_columns = 0;
     }
-    p.capacity = p.fit.rows > 0 ? static_cast<std::size_t>(p.fit.rows) : 0;
+    p.capacity = p.fit.rows > kInfoHeadingRows
+                     ? static_cast<std::size_t>(p.fit.rows - kInfoHeadingRows)
+                     : 0;
     if (p.capacity < kInfoBodyMinRows + kActionRows) {
         return p; // not enough to seat a row of each list, the heading, and the controls
     }
@@ -4667,9 +4770,12 @@ struct InfoBodyAt {
     /// of all three: a closed panel, a panel too small to seat a body and a position in a
     /// `space` this application does not recognise are three different facts about the
     /// picture and exactly one fact about this press, which is that it named nothing here.
+    /// A press on the `OBJECTS` heading row is a fourth (WUX-1): the position is understood
+    /// and it names no row of the BODY, so it reads not-present here and the panel's own
+    /// occupancy answers it — `external_press_at`'s header-row rule, one panel over.
     bool present = false;
     InfoBodyPlace body{}; ///< the body the painter resolved, not a second reading of it
-    ProseAt at{};         ///< and where the fact landed in ITS prose
+    ProseAt at{};         ///< where the fact landed, in BODY rows: 0 is the row under `OBJECTS`
 };
 
 /// The preamble itself: the Info panel's body resolved from the same `bounds_of` the painter
@@ -4690,7 +4796,14 @@ inline InfoBodyAt info_body_at(const WorkshopDoc& d, const Session& s, std::int6
     InfoBodyAt where;
     where.body = info_body_place(info.rect, sc, d, s);
     where.at = prose_at(space, x, y, where.body.region_x, where.body.region_y, where.body.fit);
-    where.present = where.body.present && where.at.understood;
+    // THE HEADING ROW IS SUBTRACTED HERE BECAUSE IT WAS RESERVED THERE (WUX-1).
+    // `info_body_place` keeps `kInfoHeadingRows` out of the body's budget before either
+    // list is offered anything, so the row a handler means by 0 is the region's prose row
+    // 1 -- doing that subtraction in one direction and forgetting it in the other is
+    // precisely the off-by-one `external_press_at` already guards against, one panel over.
+    // A press ON the heading names no body row and falls to the panel's occupancy answer.
+    where.at.row -= kInfoHeadingRows;
+    where.present = where.body.present && where.at.understood && where.at.row >= 0;
     return where;
 }
 
@@ -4931,15 +5044,12 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// panel destroys nothing and reopening it asks nobody, which is exactly how it differs from
 /// the Builder beside it and exactly why it is worth having as the second kind.
 ///
-/// IT IS NOT IN THE STACK, and it still does not use the stack's ROWS. `paint_panel_row` is
-/// the OVERLAY's shape — rows padded to a panel's full width — and BLD-0's comment on it ("so
-/// a second kind writes its content and inherits its shape") is still a prediction rather
-/// than a description here: the second kind is a column of bare labels. What PNL-2a changed
-/// is the other half of that sentence. This panel takes a BACKDROP across the whole of its
-/// bounds, from the same `paint_panel_frame` the Builder and the picker take theirs from,
-/// because a backdrop is not chrome — it is what a place LOOKS like when something is in it,
-/// and PNL-2 had already given this rectangle the maker's hand. A region a press cannot
-/// reach through and an eye can is one rectangle telling a maker two different things.
+/// IT IS NOT IN THE STACK, and it does not use the stack's ROWS. This panel takes a
+/// BACKDROP across the whole of its bounds, from the same `paint_panel_frame` the Builder
+/// and the picker take theirs from, because a backdrop is not chrome — it is what a place
+/// LOOKS like when something is in it, and PNL-2 had already given this rectangle the
+/// maker's hand. A region a press cannot reach through and an eye can is one rectangle
+/// telling a maker two different things.
 ///
 /// IT IS THE SAME RECTANGLE, NOT A SECOND ONE. The backdrop is painted at `b` — the bounds
 /// this painter was handed, which `paint_panels` got from `bounds_of` and which
@@ -4947,11 +5057,12 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// occupancy answer, which is why widening this panel moves what it covers and what it
 /// refuses in one edit.
 ///
-/// WHAT THE BACKDROP DOES NOT DO IS PAD THE ROWS, and that is deliberate. Padding each label
-/// to `b.w` — the shape a stacked panel has — would also erase the `shift+space terminal`
-/// hint, which `paint` writes on this region's top row beside OBJECTS and which belongs to
-/// the SCREEN rather than to this panel. A rect is drawn under every label by construction,
-/// so the hint survives a backdrop; it would not have survived a padded row.
+/// THE WHOLE PANEL IS ONE REGION SINCE WUX-1, HEADING INCLUDED. Until the shared top row
+/// was retired, `OBJECTS` was an ordinary label kept out of the body's region because the
+/// panel's cell row 0 also carried the screen's own terminal hint, and a region owns its
+/// interior. Nothing shares the rectangle any more, so the heading is the region's first
+/// prose row — set in the active medium's own type, reserved out of the prose budget by
+/// `info_body_place` before either list is offered anything.
 ///
 /// AND THE INK IS THE ROLE'S, NOT THIS PANEL'S. `paint_panel_frame` says `kMuted` — quiet
 /// ground — which is the same role the workspace's own backdrop carries, so in both shipped
@@ -4962,23 +5073,16 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// or by a new role once something has measured that they must be. Neither is this phase's to
 /// decide, and what it is worth is the observation that a filled region is no longer a hole.
 ///
-/// EVERY COORDINATE BELOW IS RELATIVE TO `b`. `kInfoBodyY` is a row within this panel; `b.x`
-/// is its column. There is no `Screen` here any more, which is the measurable half of PNL-1
-/// for this kind: what used to be "the painter reads `sc.panel_x`, the same number `screen_of`
-/// gives the workspace to measure against" is now "the painter is told where it is".
+/// EVERY COORDINATE BELOW IS RELATIVE TO `b`. There is no `Screen` here any more, which is
+/// the measurable half of PNL-1 for this kind: what used to be "the painter reads
+/// `sc.panel_x`, the same number `screen_of` gives the workspace to measure against" is now
+/// "the painter is told where it is".
 inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const Session& s,
                        const ui::Rect& b, const Screen& sc) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
     // presentations make.
     paint_panel_frame(layer, b);
-
-    // `OBJECTS` STAYS CHROME ON THE PANEL'S OWN ROW 0, and it is the one thing in this panel
-    // that is not a row of the body (HD-7). That row is SHARED: `paint` writes the screen's
-    // `shift+space terminal` hint eight cells to the right of it, and a region owns its
-    // interior -- a body starting here would blank a sentence that is not this panel's.
-    layer.labels.push_back(surface::SurfaceLabel{b.x, b.y + kInfoBodyY - 1, "OBJECTS",
-                                             surface::role::kAccent});
 
     // THE BODY IS ONE BOUNDED REGION AND IT HOLDS BOTH LISTS (HD-7, widening HD-6).
     //
@@ -4999,14 +5103,28 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
     // by the room. Both bounds are windows now, both omissions are counted on the side they
     // happened, and both come from the OBJECTS list's own two functions.
     const InfoBodyPlace body = info_body_place(b, sc, d, s);
-    if (!body.present) {
-        return; // a panel with no room under its heading says nothing rather than lying
+    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
+        return; // no room for one row of this medium's type: say nothing at all
     }
     surface::SurfaceTextRegion region;
     region.x = body.region_x;
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
+    // `OBJECTS` IS THE REGION'S FIRST PROSE ROW (WUX-1). It used to be an ordinary label on
+    // the panel's cell row 0, kept OUT of the body's region because that row was shared
+    // with the screen's own terminal hint; the shared top row is retired, the rectangle is
+    // whole-panel and wholly this panel's, and the heading is set in whatever type the
+    // active medium owns, like everything under it.
+    region.rows.push_back(surface::SurfaceTextRow{detail::fit("OBJECTS", body.fit.columns),
+                                                  surface::role::kAccent});
+    // A PANEL WITH ROOM FOR THE HEADING AND NOTHING ELSE STILL SAYS WHAT IT IS -- the
+    // external panes' own rule, one panel over: a rectangle showing a maker nothing at all
+    // is the worse of the two answers.
+    if (!body.present) {
+        layer.texts.push_back(std::move(region));
+        return; // no room under the heading: the heading, and no invented room
+    }
     // A ROW MAY BE SET ON A GROUND, AND ALMOST NONE OF THEM IS (HD-9). The ground is
     // defaulted rather than spelled at every call because `role::kNone` is not a value a row
     // could be wrong about -- it is the absence of one, and the picture it draws is the
@@ -5039,7 +5157,10 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
     // controls are anchored to `action_row` and a region's rows are positional. It is the same
     // padding the object list's share already gets when it has less to say than it was given.
     const auto say_footer = [&] {
-        while (region.rows.size() < static_cast<std::size_t>(body.action_row)) {
+        // `action_row` is a BODY row; the region's rows carry the heading above the body,
+        // so every positional bound below is offset by the rows the heading keeps.
+        while (region.rows.size() <
+               static_cast<std::size_t>(kInfoHeadingRows + body.action_row)) {
             say_row(std::string(), surface::role::kFill);
         }
         for (std::size_t which = 0; which < kActionCount; ++which) {
@@ -5093,7 +5214,7 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
     // The object list's share is spent whether or not it had that much to say, because the
     // heading below it is at a row the composition chose and not at the row this loop happened
     // to reach. A list that says less than its share leaves blank rows under itself.
-    while (region.rows.size() < body.objects_rows) {
+    while (region.rows.size() < static_cast<std::size_t>(kInfoHeadingRows) + body.objects_rows) {
         say_row(std::string(), surface::role::kFill);
     }
 
@@ -5138,7 +5259,7 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
             // `property_caret_column`, the same offset the row's own text was built with. So
             // a caret cannot land where the text is not, and a click cannot land where the
             // caret would not, on either axis.
-            region.caret_row = prose_row_of_property(body, i);
+            region.caret_row = kInfoHeadingRows + prose_row_of_property(body, i);
             region.caret_col = property_caret_column(row);
             // AND THE DRAFT'S SELECTION, THROUGH THE SAME TWO ANSWERS (TEXT-0): the same
             // prose row, and the same value offset the caret's column was built with — so
@@ -5206,6 +5327,25 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
 /// (INTR-0): a budget that shrank is a budget, and a windowed list says what it left out.
 inline constexpr std::int64_t kExternalHeaderRows = 1;
 
+/// HOW MANY HEADER ROWS THIS PANE'S PRESENTATION RESERVES RIGHT NOW (WUX-1) -- the ONE
+/// resolution of the title preference, asked by the painter, the press path and the room
+/// grant alike. Three parties spending three private answers to this question is a maker
+/// pressing one row and selecting another, which is HD-3's defect arriving through a
+/// preference toggle.
+///
+/// TITLES SHOWN reserves the header row, exactly as every external pane always has. TITLES
+/// HIDDEN returns the row to the provider -- with ONE exception, and the exception is the
+/// law (SC of WUX-1): the pane HOLDING THE KEYBOARD keeps its title, because the header's
+/// `> ` mark is one of exactly two on-screen statements of where typing goes (MSG-0), and a
+/// presentation preference may hide ordinary chrome but may not recreate the measured lie
+/// where keystrokes land somewhere the screen does not name. The answer is derived fresh
+/// from `keyboard_pane` at every spend -- focus moves, and the title follows it with
+/// nothing to clear.
+inline std::int64_t external_title_rows(const Panels& panels, std::int64_t kind,
+                                        bool titles_shown) noexcept {
+    return (titles_shown || keyboard_pane(panels) == kind) ? kExternalHeaderRows : 0;
+}
+
 /// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING. The Builder pane's
 /// distinction, one provider further out: this is a fact about THIS PANEL -- a
 /// room has been granted and nothing valid has answered it -- and it is not a
@@ -5229,6 +5369,9 @@ struct ExternalBodyPlace {
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
     surface::RegionFit fit{};
+    /// THE HEADER ROWS THIS RESOLUTION RESERVED -- carried so the painter and the press
+    /// path spend the number the budget was computed with, never a re-derivation (WUX-1).
+    std::int64_t header_rows = 0;
     std::int64_t rows = 0;    ///< prose rows -- the `PaneRoom` budget's first half
     std::int64_t columns = 0; ///< ...and its second
 };
@@ -5247,7 +5390,13 @@ struct ExternalBodyPlace {
 /// header is reserved from the budget BEFORE the provider is told what it has (HD-8's
 /// reservation argument, INTR-0's second occurrence), so a provider is never granted a row
 /// Workshop is about to write over.
-inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen& sc) {
+///
+/// `header_rows` IS AN ARGUMENT SINCE WUX-1, and a REQUIRED one: pane titles are a
+/// presentation preference now, so how many rows the header keeps is `external_title_rows`'s
+/// answer, and every caller must ask it rather than assume the constant -- a defaulted
+/// parameter here would be exactly the forgotten fourth caller that ships a one-row offset.
+inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen& sc,
+                                             std::int64_t header_rows) {
     ExternalBodyPlace p;
     if (panel.w <= 0 || panel.h <= 0) {
         return p;
@@ -5258,7 +5407,8 @@ inline ExternalBodyPlace external_body_place(const ui::Rect& panel, const Screen
     p.region_h = panel.h;
     p.fit = surface::fit_region(p.region_x, p.region_y, p.region_w, p.region_h,
                                 sc.text_advance_px, sc.text_line_px);
-    p.rows = p.fit.rows > kExternalHeaderRows ? p.fit.rows - kExternalHeaderRows : 0;
+    p.header_rows = header_rows;
+    p.rows = p.fit.rows > header_rows ? p.fit.rows - header_rows : 0;
     p.columns = p.fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
     return p;
@@ -5303,13 +5453,14 @@ struct ExternalPressAt {
 /// TOTAL over every screen, every medium and every position, including ones no pointer
 /// reaches: a closed panel answers with an empty rectangle and an absent body.
 inline ExternalPressAt external_press_at(const Panels& panels, const Setup& setup,
-                                         const Screen& sc, std::int64_t kind,
+                                         const Screen& sc, std::int64_t kind, bool titles,
                                          std::int64_t space, std::int64_t x, std::int64_t y) {
     const PanelBounds where = bounds_of(panels, setup, kind, sc);
     if (!where.open) {
         return ExternalPressAt{};
     }
-    const ExternalBodyPlace body = external_body_place(where.rect, sc);
+    const ExternalBodyPlace body =
+        external_body_place(where.rect, sc, external_title_rows(panels, kind, titles));
     if (!body.present) {
         return ExternalPressAt{};
     }
@@ -5317,7 +5468,7 @@ inline ExternalPressAt external_press_at(const Panels& panels, const Setup& setu
     if (!at.understood) {
         return ExternalPressAt{};
     }
-    const std::int64_t row = at.row - kExternalHeaderRows;
+    const std::int64_t row = at.row - body.header_rows;
     if (row < 0 || row >= body.rows || at.column < 0 || at.column >= body.columns) {
         return ExternalPressAt{};
     }
@@ -5374,13 +5525,14 @@ inline std::string external_header(const RuntimePane& row, bool typing) {
 /// row -- the same column `kTerminalCaretCols` costs the Terminal's line, for the same reason.
 /// What Workshop adds is the HEADER's mark, which says which pane the keys are going to.
 inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
-                           const ui::Rect& b, const Screen& sc) {
+                           const ui::Rect& b, const Screen& sc, bool titles) {
     paint_panel_frame(layer, b);
     const RuntimePane* row = panels.runtime.of_kind(kind);
     if (row == nullptr) {
         return; // an open kind with no catalog row cannot happen; drawing a lie could
     }
-    const ExternalBodyPlace body = external_body_place(b, sc);
+    const ExternalBodyPlace body =
+        external_body_place(b, sc, external_title_rows(panels, kind, titles));
     if (body.fit.rows <= 0 || body.fit.columns <= 0) {
         return; // no room for one row of this medium's type: say nothing at all
     }
@@ -5391,22 +5543,31 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     region.h = body.region_h;
     // WORKSHOP'S HEADER IS THE REGION'S FIRST ROW (TYPE-0), so the provenance line and the
     // provider's sentences are the same kind of text in whatever face this medium owns. It is
-    // fitted to the region's own columns, which is what marks its cut.
-    region.rows.push_back(surface::SurfaceTextRow{
-        detail::fit(external_header(*row, keyboard_pane(panels) == kind), body.columns),
-        surface::role::kAccent});
+    // fitted to the region's own columns, which is what marks its cut. SINCE WUX-1 the row
+    // exists exactly when the resolution reserved one: hidden titles return it to the
+    // provider, and the pane holding the keyboard keeps its title -- and with it the `> `
+    // mark -- whatever the preference says (`external_title_rows`).
+    if (body.header_rows > 0) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            detail::fit(external_header(*row, keyboard_pane(panels) == kind), body.columns),
+            surface::role::kAccent});
+    }
     // A PANE WITH ROOM FOR THE HEADER AND NOTHING ELSE STILL SAYS WHOSE IT IS. `present` is
     // the question "was a body granted", and it is asked AFTER the header is written rather
     // than before it -- a rectangle showing a maker nothing at all is the worse of the two
     // answers, and it is what this painter gave for one frame when the header stopped being
     // a cell row of its own.
     if (!body.present) {
-        layer.texts.push_back(std::move(region));
+        if (!region.rows.empty()) {
+            layer.texts.push_back(std::move(region));
+        }
         return; // no room under the heading: the heading, and no invented room
     }
     const ExternalPane* pane = panels.external_pane(kind);
     if (pane == nullptr) {
-        layer.texts.push_back(std::move(region));
+        if (!region.rows.empty()) {
+            layer.texts.push_back(std::move(region));
+        }
         return;
     }
     if (!pane->refusal.empty()) {
@@ -5520,7 +5681,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         }
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, s.keymap, frontier);
+                paint_builder(layer, panels.builder, b, sc, s.keymap, frontier);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc);
             } else if (is_runtime_kind(p.kind)) {
@@ -5530,7 +5691,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
                 // is the case where it can be, because every external pane is presented
                 // identically: a header Workshop writes and a region the provider fills. A
                 // second provider costs this function nothing at all.
-                paint_external(layer, panels, p.kind, b, sc);
+                paint_external(layer, panels, p.kind, b, sc, s.pane_titles);
             }
         });
     }
@@ -5547,29 +5708,24 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
 
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down (WS-0) ----
 //
-// ONE ROW OF THE BOTTOM BAND, the one directly under the workspace, which was blank. The
-// band has always been five rows -- a spare, the notice, a spare, and two help lines -- and
-// this spends the first spare on the one fact WS-0 adds that a maker needs CONTINUOUSLY
-// rather than at the moment they act: which setup they are in, whether it matches its file,
-// and whether any of its panes could not be presented.
+// THE STATUS ROW OF THE BOTTOM BAND, directly under the workspace: the one fact WS-0 adds
+// that a maker needs CONTINUOUSLY rather than at the moment they act -- which setup they
+// are in, whether it matches its file, and whether any of its panes could not be presented.
+// Since WUX-1 it is a ROW OF THE BAND'S OWN REGION (`band_region` below), so a medium that
+// owns a face sets it in that face, and the one-line name editor's caret is the region's
+// caret rather than a glyph written into the text -- the cell projection inserts the same
+// glyph at the same column, so a character medium's row is the row it always was.
 //
 // WHY NOT THE STATUS SLOT. That line is the DOCUMENT's -- object count, selection, document
 // path, document saved marker -- and it is already 56 cells with the default path and past
 // 78 with any real one, so a setup half appended to it would be clipped by the terminal with
 // no mark at all. `SurfaceText` carries no width and the medium clips in silence; a canvas
-// label goes through `detail::fit`, which SAYS it cut something. The choice is therefore
+// row goes through `detail::fit`, which SAYS it cut something. The choice is therefore
 // between two silences and one honest elision, and this is the honest one.
 //
-// WHY NOT A BOUNDED REGION WITH A REAL CARET (HD-3). Because the row is ONE CELL TALL, and
-// HD-6 measured what that means: `fit_region` over a one-cell-high rectangle answers ZERO
-// rows of a real face, so a graphical medium would draw nothing at all there. A caret said
-// in prose needs a region with room for prose. So the editor below writes its caret INTO the
-// text as `surface::kCaretGlyph` -- which is byte-for-byte what the cell projection does with
-// a region's caret anyway -- and both media show the same row.
-//
 // IT OCCUPIES NO POINTER SPACE. There is no hit test here, no press, no pointer editing:
-// `occupied_at` answers about panels and the picker, and this line is furniture beside the
-// notice, exactly as the help lines are.
+// `occupied_at` answers about panels and the picker, and this row is furniture beside the
+// notice, exactly as the legend rows are.
 
 /// What the one-line name editor puts before and after the name a maker is typing. The
 /// hint is spelled from the effective keymap (KEY-0), like every other gesture claim.
@@ -5596,51 +5752,33 @@ inline constexpr const char* kNoSetupFileShown = "no setup file";
 /// narrow enough for the chrome to exceed it still shows some of what is being typed.
 inline constexpr std::int64_t kSetupNameMinCols = 8;
 
+/// THE BAND'S RECTANGLE AND ITS FIT -- the one resolution the status row, the name
+/// editor's window and the composition below all measure against (WUX-1). The band is the
+/// last `kBottomRows` cell rows, full width; what those cells hold is the ACTIVE medium's
+/// answer, through the same `fit_region` every bounded region resolves with. A character
+/// medium answers five rows of the band's own cells; an 18-pixel face answers three rows
+/// of real type.
+inline constexpr ui::Rect band_bounds(const Screen& sc) noexcept {
+    return ui::Rect{0, sc.h - kBottomRows, sc.w, kBottomRows};
+}
+
+inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
+    const ui::Rect b = band_bounds(sc);
+    return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+}
+
 /// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
 /// the window the `component::TextBox` is kept against and the slice the painter cuts are the
 /// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
-/// the row it is drawn on (HD-4).
+/// the row it is drawn on (HD-4). The room is the BAND'S row, not the screen's cell width
+/// (WUX-1): in a character medium the two are the same number, and in a medium that sets
+/// real type the editor's row holds however many characters the face fits.
 inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
         static_cast<std::int64_t>(setup_name_hint(keymap).size()) + 1;
-    const std::int64_t room = sc.w - chrome;
+    const std::int64_t room = band_fit(sc).columns - chrome;
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
-}
-
-/// The name being typed, windowed, with the caret in it — and, since TEXT-0, the selection
-/// AROUND it, said in this row's only voice: characters. A one-cell chrome row has no
-/// region to carry a range on (the header above says why), and a label's cell has no second
-/// attribute, so the selected span is bracketed — `setup name> Morning [buil_]d` — exactly
-/// the way the caret has always been a `_` here rather than a bar. The marks follow the
-/// cell projection's own caret-beside-selection order (the glyph lands inside the brackets
-/// exactly when the caret is strictly inside the range), so the two spellings of one
-/// selection cannot disagree about where the active end is. `[`, `]` and `_` are all
-/// typeable characters and the ambiguity is accepted, as it always was for the caret.
-inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc,
-                                     const Keymap& keymap) {
-    const std::int64_t cols = setup_name_columns(sc, keymap);
-    const std::string shown = naming.line.visible(cols);
-    const component::TextBox::VisibleSpan vis = naming.line.visible_selection(cols);
-    const std::size_t n = shown.size();
-    const std::size_t at = naming.line.caret_column() < n ? naming.line.caret_column() : n;
-    std::string marked;
-    marked.reserve(n + 3);
-    for (std::size_t i = 0; i <= n; ++i) {
-        if (vis.present() && i == static_cast<std::size_t>(vis.end)) {
-            marked += ']';
-        }
-        if (i == at) {
-            marked += surface::kCaretGlyph;
-        }
-        if (vis.present() && i == static_cast<std::size_t>(vis.begin)) {
-            marked += '[';
-        }
-        if (i < n) {
-            marked += shown[i];
-        }
-    }
-    return std::string(kSetupNamePrompt) + marked + setup_name_hint(keymap);
 }
 
 /// WHICH SETUP THIS IS, IN THE ORDER A MAKER NEEDS IT.
@@ -5677,13 +5815,175 @@ inline std::string setup_status_text(const SetupState& setup, const std::string&
     return line;
 }
 
-/// The setup line as it is painted: the editor while a maker is naming, and the identity
-/// otherwise. Fitted here, at the presentation boundary and nowhere upstream.
-inline std::string setup_line(const Session& s, const std::string& path, const Screen& sc) {
-    return detail::fit(s.setup.naming.open ? setup_naming_text(s.setup.naming, sc, s.keymap)
-                                           : setup_status_text(s.setup, path,
-                                                               s.panels.runtime, s.keymap),
-                       sc.w);
+/// The workspace's extent, as the band states it -- the one fact the retired shared top
+/// row carried that nothing else says (WUX-1). It is a STATUS fact (what a share of the
+/// workspace currently resolves against), so it lives beside the setup identity in the
+/// band's own voice rather than as a heading of its own.
+inline std::string workspace_text(const Session& s) {
+    return "workspace " + std::to_string(s.workspace_w) + "x" +
+           std::to_string(s.workspace_h) + " cells";
+}
+
+// ---- THE BOTTOM BAND, COMPOSED AGAINST ITS BUDGET (WUX-1) --------------------------------
+//
+// ONE REGION, AND THE ROWS ARE DECIDED BY HOW MANY THE ACTIVE MEDIUM FITS. Until WUX-1 the
+// band was five independent one-cell voices -- a label per sentence -- which is why every
+// one of them reached a graphical maker as bitmap cells: `fit_region` answers zero face
+// rows for one cell, and no typography fixes a room (WUX-R1's finding, HD-6's repair
+// applied to the screen's own furniture). Now the band takes its room ONCE and composes:
+//
+//     budget >= 5   status | notice | workspace | two legend rows     a character medium:
+//                                                                     exactly the five rows
+//                                                                     this band always had
+//     budget == 4   status+workspace | notice | two legend rows
+//     budget == 3   status+workspace | notice | one legend row        the shipped face
+//     budget == 2   status+workspace | notice
+//     budget == 1   the one row that matters most right now
+//
+// THE LAYOUT IS THE BUDGET'S AND ONLY THE BUDGET'S. The legend preference changes what the
+// legend rows SAY (full | compact | hidden), never where any other fact sits -- a maker
+// toggling the legend must not watch the status row reformat. Facts degrade in a fixed
+// order: the legend first (the full hotkey view remains the authoritative list, one
+// keystroke away in every mode), the workspace fact folds into the status row, and the
+// last row standing is the notice while there is one -- the tool's own voice -- or the
+// identity line when there is not. Every fold and every cut is `detail::fit`-marked, never
+// silent.
+//
+// THE CONTENT STAYS SINGLE-SOURCED. The legend rows are `help_pairs` projections of the
+// effective keymap exactly as before; the status row is `setup_status_text`; nothing here
+// grows a second binding truth or a second status truth. What changed is the VOICE: the
+// band is a region, so a medium that owns a face sets the tool's own chrome in it.
+
+/// The band as one published region: rows, the name editor's caret, and its selection.
+inline surface::SurfaceTextRegion band_region(const Session& s, const std::string& setup_path,
+                                              const Screen& sc) {
+    const ui::Rect b = band_bounds(sc);
+    const surface::RegionFit fit = band_fit(sc);
+    surface::SurfaceTextRegion band;
+    band.x = b.x;
+    band.y = b.y;
+    band.w = b.w;
+    band.h = b.h;
+    const std::int64_t budget = fit.rows;
+    const std::int64_t columns = fit.columns;
+    if (budget <= 0 || columns <= 0) {
+        return band; // a region with no room says nothing, and says nothing about it
+    }
+
+    // THE STATUS ROW: the name editor while a maker is typing a name, the identity line
+    // otherwise. The editor's caret is the REGION's caret -- a bar in a medium with a
+    // face, and the same inserted glyph as ever in the cell projection -- and its
+    // selection is the region's, said the way every other selection on this screen is
+    // said. The workspace fact folds into this row wherever the budget gives it no row of
+    // its own; while the editor holds the row, the fact yields to the name being typed.
+    const bool naming = s.setup.naming.open;
+    std::string status;
+    std::int64_t caret_col = surface::kNoCaret;
+    std::int64_t sel_begin = 0;
+    std::int64_t sel_end = 0;
+    if (naming) {
+        const std::int64_t cols = setup_name_columns(sc, s.keymap);
+        const std::string shown = s.setup.naming.line.visible(cols);
+        const component::TextBox::VisibleSpan vis =
+            s.setup.naming.line.visible_selection(cols);
+        const std::int64_t prompt =
+            static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt));
+        const std::int64_t at =
+            static_cast<std::int64_t>(s.setup.naming.line.caret_column());
+        caret_col = prompt + (at < static_cast<std::int64_t>(shown.size())
+                                  ? at
+                                  : static_cast<std::int64_t>(shown.size()));
+        if (vis.present()) {
+            sel_begin = prompt + vis.begin;
+            sel_end = prompt + vis.end;
+        }
+        status = detail::fit(std::string(kSetupNamePrompt) + shown +
+                                 setup_name_hint(s.keymap),
+                             columns);
+    } else {
+        status = setup_status_text(s.setup, setup_path, s.panels.runtime, s.keymap);
+        if (budget < 5) {
+            status += " | " + workspace_text(s);
+        }
+        status = detail::fit(status, columns);
+    }
+
+    const std::string notice = s.notice.empty() ? std::string() : detail::fit(s.notice, columns);
+    const std::int64_t notice_role =
+        s.notice_is_bad ? surface::role::kAlert : surface::role::kFill;
+
+    // THE LEGEND ROWS: two while the budget seats the full composition, one on the
+    // shipped face, none below that. While an external pane holds the keyboard and the
+    // legend is FULL, the first of them still says so (MSG-0) -- that sentence is
+    // keyboard-ownership truth, not a binding list, and where the legend has one row the
+    // sentence takes it and the chorded survivors follow in whatever room is left.
+    const std::size_t legend_rows = budget >= 4 ? 2 : (budget == 3 ? 1 : 0);
+    std::vector<std::string> legend;
+    if (legend_rows > 0) {
+        const KeyContext ctx = keyboard_context(s);
+        const std::int64_t typing = keyboard_pane(s.panels);
+        const RuntimePane* typed_into =
+            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+        if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
+            const std::string said = "typing goes to " + typed_into->name + " @" +
+                                     typed_into->provider +
+                                     " -- press elsewhere for Workshop's keys";
+            if (legend_rows == 1) {
+                const std::int64_t rest =
+                    columns - static_cast<std::int64_t>(said.size()) - 3;
+                const std::vector<std::string> pairs = help_rows(s.keymap, ctx, rest, 1);
+                legend.push_back(detail::fit(
+                    pairs.empty() ? said : said + " | " + pairs.front(), columns));
+            } else {
+                legend.push_back(detail::fit(said, columns));
+                const std::vector<std::string> pairs = help_rows(s.keymap, ctx, columns, 1);
+                if (!pairs.empty()) {
+                    legend.push_back(pairs.front());
+                }
+            }
+        } else {
+            legend = help_rows(s.keymap, ctx, columns, legend_rows);
+        }
+    }
+
+    const auto push = [&band](std::string text, std::int64_t role) {
+        band.rows.push_back(surface::SurfaceTextRow{std::move(text), role});
+    };
+    if (budget >= 2) {
+        push(std::move(status), surface::role::kMuted);
+        if (naming && caret_col != surface::kNoCaret) {
+            band.caret_row = 0;
+            band.caret_col = caret_col;
+        }
+        push(notice, notice_role);
+        if (budget >= 5) {
+            push(detail::fit(workspace_text(s), columns), surface::role::kMuted);
+        }
+        for (std::string& row : legend) {
+            push(std::move(row), surface::role::kMuted);
+        }
+    } else {
+        // One row: the editor while a maker is mid-name (their hand is IN it), the
+        // notice while the tool has something to say, the identity line otherwise.
+        if (naming) {
+            push(std::move(status), surface::role::kMuted);
+            if (caret_col != surface::kNoCaret) {
+                band.caret_row = 0;
+                band.caret_col = caret_col;
+            }
+        } else if (!notice.empty()) {
+            push(notice, notice_role);
+        } else {
+            push(std::move(status), surface::role::kMuted);
+        }
+    }
+    if (naming && sel_end > sel_begin) {
+        band.sel_begin_row = 0;
+        band.sel_begin_col = sel_begin;
+        band.sel_end_row = 0;
+        band.sel_end_col = sel_end;
+    }
+    return band;
 }
 
 /// The whole screen as one published canvas — an ORDERED LIST OF PLANES since WIND-2a.
@@ -5694,7 +5994,8 @@ inline std::string setup_line(const Session& s, const std::string& path, const S
 ///     one plane per pane  `presentation_order`, ascending by canonical `front`
 ///     the affordances     over the selected pane's own content, so no handle is hidden
 ///     picker / management over the panes they are covering
-///     the screen's chrome the shared top row and the bottom band the tool speaks in
+///     the screen's chrome the bottom band the tool speaks in -- one budget-composed
+///                         region since WUX-1; the shared top row is retired
 ///     the Terminal        the final modal plane, when it is open
 ///
 /// Inside any one plane painter's order is list order across its three primitive kinds, as
@@ -5732,12 +6033,10 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // picture now agrees with instead of merely being told.
     //
     // THE SCREEN'S OWN CHROME IS NOT HERE. It is a plane of its own, added after the panes,
-    // for a reason worth stating where both are decided: the top row is SHARED with the side
-    // region by design (HD-7 -- `OBJECTS` names the panel's column and the terminal hint
-    // names a mode, on one row that neither owns outright), and the bottom band is where the
-    // tool SPEAKS. Painting a panel's backdrop over either would take the notice that just
-    // told a maker what happened, and the two gestures that open a panel and a window, and
-    // erase them under the furniture they describe.
+    // for a reason worth stating where both are decided: the bottom band is where the tool
+    // SPEAKS, and a panel's backdrop painted over it would take the notice that just told a
+    // maker what happened and erase it under the furniture it describes. (The shared top
+    // row that used to be this note's other half is retired -- WUX-1; see the band below.)
     //
     // A REFERENCE INTO `c.layers` IS SPENT BEFORE ANY OTHER LAYER IS ADDED. That is not a
     // coincidence to be preserved by care: `paint_panels` is the first thing that grows the
@@ -5896,165 +6195,42 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // owns that kind rather than by `paint`.
     paint_panels(c, d, s, sc, frontier);
 
-    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane. See the note at the top of
-    // this function for why it is in front rather than behind: this is the row the
-    // composition shares and the band the tool speaks in.
-    c.layers.emplace_back();
-    on = &c.layers.back();
-
-    label(0, 0,
-          "WORKSPACE " + std::to_string(s.workspace_w) + "x" + std::to_string(s.workspace_h) +
-              " cells",
-          surface::role::kAccent);
-
-    // HOW TO OPEN THE TERMINAL, and it is up here rather than on the help lines because the
-    // help lines have no room -- both are within a few cells of the canvas width already, and
-    // abbreviating a gesture a maker uses constantly to advertise one they may never use would
-    // be paying for the new thing with the old. This row has twenty-one free cells to its
-    // right; the hint is twenty. A mode with no way to discover it is not a feature. Both
-    // this and OBJECTS below are measured from the RIGHT edge, so a wider surface moves them
-    // together and the twenty-one cells between them are the same twenty-one cells.
-    {
-        // SPELLED FROM THE KEYMAP (KEY-0), fitted to the room the old hint measured: a
-        // remapped chord may be longer than `^t`, and a spelling that ran left into the
-        // `[+ panel]` block would trade one hint for another. Twenty cells is the old
-        // hint's own envelope, and `detail::fit` marks a chord it cannot finish.
-        const std::string hint =
-            detail::fit(hotkey_text(s.keymap, Act::kTerminalToggle) + " terminal", 20);
-        label(sc.w - static_cast<std::int64_t>(hint.size()), 0, hint,
-              surface::role::kMuted);
-    }
-
-    // THE TWO GESTURES THAT OPEN SOMETHING, on the same row and for the same reason the
-    // terminal hint is there: the two help lines at the bottom are within a few cells of the
-    // canvas width already, and this row has twenty-nine free cells between the workspace
-    // title and OBJECTS. They are LEFT-anchored beside the title rather than right-anchored
-    // beside the terminal hint, because a maker looking for something to do with the
-    // workspace reads left to right and the stack `p` opens into is on this side.
+    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which since WUX-1 is the
+    // bottom band, whole, as ONE budget-composed region (`band_region`). See the note at
+    // the top of this function for why it is in front rather than behind: the band is
+    // where the tool SPEAKS, and a panel backdrop drawn over it would erase the notice
+    // that just told a maker what happened.
     //
-    // `w` IS HERE BECAUSE A MODE WITH NO WAY TO DISCOVER IT IS NOT A FEATURE (WIND-2a).
-    // WIND-2 documented pane management's keys inside the mode and named none of them
-    // outside it, so the one gesture that gets a maker in was reachable only by reading the
-    // source. It is ONE label with both hints rather than two labels, because what has to
-    // be true is a fact about the whole run -- 25 cells beginning at column 24, ending at
-    // 48, one clear of `OBJECTS` at the minimum composition's column 50 -- and a single
-    // string is the only spelling of that fact that cannot be half-moved.
-    // ...and both gestures are spelled from the keymap now (KEY-0), fitted to the same 25
-    // cells the measured fact above was stated over, so a longer remapped spelling is cut
-    // with the mark rather than walking into `OBJECTS`.
-    label(24, 0,
-          detail::fit("[+ panel]  " + hotkey_text(s.keymap, Act::kPicker) + "  [window]  " +
-                          hotkey_text(s.keymap, Act::kManage),
-                      25),
-          surface::role::kMuted);
-
-    // THE BOTTOM BAND, AND IT BELONGS TO THE OVERLAY WHILE THAT IS OPEN, which is why these
-    // three lines are conditional. The pane is anchored to the bottom-right corner and
-    // covers most of the screen's width at every extent, so a notice or a help line painted
-    // underneath it would survive only in the cells to its left -- a sentence beheaded
-    // mid-word with nothing to say so, which is the exact failure `detail::fit` exists to
-    // prevent one line further down. Half a hint beside a pane is worse than no hint, and
-    // the pane's own header carries the one gesture that matters while it is open.
+    // THE SHARED TOP ROW IS RETIRED (WUX-1). Canvas row 0 carried four one-cell voices --
+    // the workspace's extent, the picker and window hints, the terminal hint -- each
+    // structurally unable to hold a row of a real face (`kWorkspaceY` is one cell). The
+    // facts moved rather than died: the extent is the band's `workspace_text` row, and
+    // the three gestures are ordinary rows of the effective keymap, said by the band's
+    // legend (`help_pairs` lists `workshop.picker`, `workshop.manage` and the global
+    // `workshop.terminal` row) and authoritatively by the full hotkey view. What remains
+    // at row 0 is nothing at all: the workspace did not grow (its extent is what a share
+    // resolves against, and a chrome retirement must not resize a maker's document), and
+    // no other furniture moved.
     //
-    // IT IS THE SCREEN'S FURNITURE, SO IT IS ON THE SCREEN'S PLANE (WIND-2a), and that plane
-    // is written AFTER the panes rather than before them -- the always-on-top host chrome
-    // this function's opening note selects. No panel's reactive rectangle reaches this band
-    // -- `screen_of` reserves it and the assertions above say so -- so for every arrangement
-    // the developer composes the picture is byte-identical. What changed is the one case a
-    // maker can now author: a pane PLACED over the notice line is covered BY it, because the
-    // panes are in front of the DOCUMENT and not in front of the tool's own voice. The band
-    // occupies no pointer space, so `occupied_at` still answers the pane for those cells.
-    if (!s.terminal.open) {
-        // WHICH SETUP THIS IS -- the band's first row, which was blank, and the one fact
-        // WS-0 added that a maker needs continuously rather than at the moment they act.
-        // Painted with the notice and the help lines rather than with the panels, because it
-        // is the screen's own furniture and no panel's: removing every panel does not remove
-        // it.
-        label(0, sc.notice_y - 1, setup_line(s, setup_path, sc), surface::role::kMuted);
-
-        // The notice, fitted to the one line it has. `Session::notice` keeps the
-        // whole sentence -- the fit happens HERE, at the presentation boundary, and
-        // nowhere upstream, so no document operation is made less informative
-        // because this screen happens to be as wide as it is. What a maker sees is
-        // bounded; what Workshop knows is not, and the mark is what tells them the
-        // two are different right now. A wider surface therefore needs nothing from
-        // anybody but room, which is what this line said before there was any, and
-        // a bigger window now spends that room on more of the sentence.
-        //
-        // IT IS THE ONE PIECE OF SCREEN CHROME THAT COULD MIGRATE (TYPE-0), and the reason is
-        // arithmetic rather than importance. The band under the workspace is FIVE cells for
-        // FOUR sentences and a spare -- the setup line, the notice, that spare, and two help
-        // lines -- and
-        // a graphical face's line is taller than a cell: 18 device pixels against 12, so a
-        // region N cells tall holds `(12N - 4) / 18` rows of type. One cell holds ZERO, which
-        // is why `fit_region` sends a one-cell region back to the cell projection (HD-5) and
-        // why every other row of this band would be block text however it was published. The
-        // notice is the only one with a neighbour to borrow: the spare row beneath it is
-        // reserved by `kBottomRows`, painted by nobody, and two cells hold exactly one row of
-        // the face. So the tool's own VOICE is set in the tool's own type, and nothing moved.
-        //
-        // A REGION TAKES ITS RECTANGLE, and here that is a widening: the label cleared only
-        // the cells its characters landed on, and the region clears both rows across the
-        // canvas. Over the workspace that is invisible in both media (the band is below it);
-        // over a panel in the stack's second slot it erases one row more than the sentence
-        // used to. That is the band doing what a band is for, and it happens only while there
-        // is something to say -- an empty notice publishes no region at all, exactly as it
-        // published no label.
-        if (!s.notice.empty()) {
-            surface::SurfaceTextRegion notice;
-            notice.x = 0;
-            notice.y = sc.notice_y;
-            notice.w = sc.w;
-            notice.h = kNoticeRows;
-            const surface::RegionFit fit =
-                surface::fit_region(notice.x, notice.y, notice.w, notice.h,
-                                    sc.text_advance_px, sc.text_line_px);
-            notice.rows.push_back(surface::SurfaceTextRow{
-                detail::fit(s.notice, fit.columns),
-                s.notice_is_bad ? surface::role::kAlert : surface::role::kFill});
-            on->texts.push_back(std::move(notice));
+    // THE BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN, which is why the region is
+    // conditional. The pane is anchored to the bottom-right corner and covers most of the
+    // screen's width at every extent, so band rows painted underneath it would survive
+    // only in the cells to its left -- a sentence beheaded mid-word with nothing to say
+    // so. Half a hint beside a pane is worse than no hint, and the pane's own header
+    // carries the one gesture that matters while it is open.
+    //
+    // A REGION TAKES ITS RECTANGLE, and that is a deliberate widening over the labels it
+    // replaced: the old rows cleared only the cells their characters landed on, and the
+    // band clears all five rows across the canvas. A pane a maker authors over the band
+    // is covered BY it, because the panes are in front of the DOCUMENT and not in front
+    // of the tool's own voice -- the rule the notice region already followed, now true of
+    // the whole band. The band occupies no pointer space, so `occupied_at` still answers
+    // the pane for those cells.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        if (!s.terminal.open) {
+            layer.texts.push_back(band_region(s, setup_path, sc));
         }
-        // THE TWO HELP ROWS ARE A PROJECTION OF THE EFFECTIVE KEYMAP NOW (KEY-0), through
-        // the same `keyboard_context` the dispatch chain routes by and the same
-        // `Keymap` it resolves against -- which retires this band's oldest discipline
-        // by making it structural. This surface always refused to advertise a key that
-        // would not work (the `shift+hjkl`-not-`,.`-`-=` rule; `^c` leaving the list in
-        // TEXT-0; the whole pane-focused fork, born of a first live run that could not
-        // be quit by its own help line) -- but the refusing was HAND-KEPT, and KEY-R0
-        // measured the hand losing: the cheat sheet, a seam comment, and this band's
-        // own cousins had already drifted. A row that is derived from the binding truth
-        // cannot drift from it.
-        //
-        // THE LEGEND IS THE MAKER'S (full | compact | hidden, authored in the keymap
-        // file). It governs exactly these two rows: hidden writes nothing here and
-        // changes nothing anywhere else -- the band's geometry is `screen_of`'s and
-        // stays reserved, and no gesture is unbound by a maker choosing not to look.
-        //
-        // ...AND WHILE AN EXTERNAL PANE HOLDS THE KEYBOARD THE FIRST ROW STILL SAYS SO
-        // (MSG-0). That sentence is keyboard-ownership truth, not a binding list, and it
-        // rides the FULL legend in the row the pairs would take: the pairs the keymap
-        // yields for the pane context are exactly the chorded survivors (every bare key
-        // is the pane's, `q` included -- a bare printable cannot be global once anything
-        // on the screen can take text), so the second row names them and nothing else.
-        const KeyContext ctx = keyboard_context(s);
-        const HelpRows rows = help_rows(s.keymap, ctx, sc.w);
-        const std::int64_t typing = keyboard_pane(s.panels);
-        const RuntimePane* typed_into =
-            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
-        std::string first = rows.first;
-        std::string second = rows.second;
-        if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
-            second = first;
-            first = "typing goes to " + typed_into->name + " @" + typed_into->provider +
-                    " -- press elsewhere for Workshop's keys";
-        }
-        if (!first.empty()) {
-            label(0, sc.help_y, detail::fit(first, sc.w), surface::role::kMuted);
-        }
-        if (!second.empty()) {
-            label(0, sc.help_y + 1, detail::fit(second, sc.w), surface::role::kMuted);
-        }
-    }
+    });
 
     if (s.terminal.open) {
         // THE FINAL MODAL PLANE, and that is the whole of what "overlay" means here. A pane

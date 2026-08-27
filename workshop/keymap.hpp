@@ -175,6 +175,7 @@ enum class Act : std::uint8_t {
     kSetupName,
     kSetupRestore,
     kManage,
+    kPaneTitles,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -300,6 +301,14 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
     {Act::kManage, "workshop.manage", "window", KeyContext::kCommand, {scan::kW, mod::kNone}},
+    // A PRESENTATION PREFERENCE WITH A KEY (WUX-1): whether the arrangeable panes paint
+    // their title rows. Last in the command group because the band packs these in order
+    // and a toggle a maker reaches for occasionally must not displace the gestures they
+    // reach for constantly. `t` bare: portable (a plain letter arrives from every
+    // backend), and free in every context that intersects kCommand -- the global rows are
+    // all chords, kNoText holds only `^c`, and no other kCommand row spends it.
+    {Act::kPaneTitles, "workshop.pane-titles", "titles", KeyContext::kCommand,
+     {scan::kT, mod::kNone}},
     // -- the Terminal line's controls --------------------------------------------------
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},

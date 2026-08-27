@@ -103,12 +103,12 @@ underneath it, so the maker always keeps half.
 The status line is where every refusal appears. Workshop refuses rather than clamps: an
 illegal extent leaves both stored coordinates untouched and says why.
 
-The title row advertises the two gestures that open things — `[+ panel]  p` and `[window]  w` —
-plus the terminal toggle. The setup line carries `s name/save  r restore`, and the bottom
-help rows carry the current context's gestures. Every one of those hints is a projection of
-the effective keymap — remap a binding and the screen spells the new one — and `Ctrl`+`k`
-opens the full hotkey view. So the keys are on screen; this page is the fuller version, not
-the only source. See [hotkeys and the keymap](hotkeys.md).
+The bottom band advertises the current context's gestures on its legend rows — the picker,
+pane management and the terminal toggle among them — and the setup line carries
+`s name/save  r restore`. Every one of those hints is a projection of the effective keymap —
+remap a binding and the screen spells the new one — and `Ctrl`+`k` opens the full hotkey
+view, the complete list for whatever context you are in. So the keys are on screen; this
+page is the fuller version, not the only source. See [hotkeys and the keymap](hotkeys.md).
 
 ## Your first five minutes
 

@@ -12,8 +12,8 @@ tell them apart to use them:
 
 ## Opening and closing — the picker
 
-Press **`p`** — the title row advertises it as `[+ panel]  p`, so this one is on screen from
-the first frame.
+Press **`p`** — the band's legend advertises it as `p + panel`, and the full hotkey view
+(`Ctrl`+`k`) lists it, so this one is on screen from the first frame.
 
 | key | does |
 |---|---|
@@ -35,8 +35,8 @@ medium there is no edge between an overlay and what is under it, so a short pick
 
 ## Moving, resizing and ordering — management mode
 
-Press **`w`** — the title row advertises it as `[window]  w`. This is a mode, so its keys need
-no modifier.
+Press **`w`** — the band's legend advertises it as `w window`, and the full hotkey view
+lists it. This is a mode, so its keys need no modifier.
 
 **Its sub-keys are not announced.** On entry the status line names the selected pane and its
 current window; it does not list `m`, `s`, `f`, `b`, `r`, `l` or `0`. The sub-modes do announce
@@ -95,13 +95,26 @@ Judged plainly, and repeated in [limitations](limitations.md):
 | | |
 |---|---|
 | feature absent? | **no** — authored per-pane size exists, persists, and is honoured |
-| feature undiscoverable? | **partly.** The title row advertises `[window]  w`, so the *mode* is discoverable. Once inside it, the select-mode status line names the selected pane's window but not the keys that change it — so `s` is the step nothing on screen points at |
+| feature undiscoverable? | **partly.** The band's legend and the hotkey view advertise `w window`, so the *mode* is discoverable. Once inside it, the select-mode status line names the selected pane's window but not the keys that change it — so `s` is the step nothing on screen points at |
 | feature tedious? | **yes** — one cell per keypress, with no larger step, no drag-to-size, and no "fill the room" |
 | product-hostile? | **no**, but the default is: a 9-row pane over the material you are building is the arrangement a maker meets first |
 
 The smallest things that would change the felt experience: one help line in select mode naming
 its own keys (the pattern the reset sub-mode already uses), a coarse step on a modifier, and a
 pane-height default that reads the surface. None is built, and none is designed here.
+
+## Pane titles
+
+Every loaded pane carries a one-row title — `name @provider` — reserved out of the room its
+provider is granted. Press **`t`** (`workshop.pane-titles`, remappable like every binding) to
+hide the titles and return that row to each provider's content; press it again to bring them
+back. The choice is presentation only — no pane's identity, geometry or saved setup changes —
+and it lasts for the current run.
+
+**One exception, and it is the law rather than a leftover:** the pane currently holding the
+keyboard keeps its title, mark and all. The `> ` mark is one of the two on-screen statements
+of where typing goes, and hiding chrome may never hide that — so with titles off, focusing a
+pane shows its title for exactly as long as the focus holds.
 
 ## Panes as an author
 

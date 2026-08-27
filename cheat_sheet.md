@@ -512,6 +512,7 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `[` `]` | narrow / widen the workspace by 4 cells |
 | `p` | open the pane picker |
 | `w` | open pane management |
+| `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
 | `s` | name and save the current setup |
 | `r` | restore the setup from its file |
 | `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
@@ -564,10 +565,12 @@ never told them. See [workspace continuity](docs/workshop/setups.md#workspace-co
 
 **On-screen hints** (so you need this page less): every hint is a projection of the
 effective keymap, so a remapped binding is spelled correctly everywhere it appears — the
-title row (`[+ panel]  p`, `[window]  w`, the terminal toggle), the setup line, the bottom
-band's two help rows, each mode's heading, and the full hotkey view (`Ctrl`+`k`). The band's
-legend preference (`full` / `compact` / `hidden`) lives in the keymap file; hidden blanks the
-two help rows and unbinds nothing.
+setup line, the bottom band's legend rows, each mode's heading, and the full hotkey view
+(`Ctrl`+`k`). The band composes its rows against the room the active medium's type actually
+fits — a terminal reads five rows (the setup line, the notice, the workspace size, two
+legend rows), a graphical window reads three in real type — and the legend preference
+(`full` / `compact` / `hidden`) in the keymap file governs the legend rows only; hidden
+blanks them and unbinds nothing.
 
 ---
 
