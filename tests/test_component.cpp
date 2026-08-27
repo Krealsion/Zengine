@@ -835,8 +835,474 @@ TEST_CASE("component: a TextBox is a value with no identity and no policy") {
     CHECK(copy.text() == "60%!");
     CHECK(t.property.text() == "60%");
 
-    // SMALL ENOUGH THAT A ROW MAY OWN ONE WITHOUT A MEASUREMENT BEING NEEDED: a std::string
-    // and two indices, and nothing else. The bound is generous on purpose -- what would fail
-    // it is a cache, a viewport object or a retained view sneaking in.
-    CHECK(sizeof(TextBox) <= sizeof(std::string) + 4 * sizeof(std::size_t));
+    // SMALL ENOUGH THAT A ROW MAY OWN ONE WITHOUT A MEASUREMENT BEING NEEDED: a std::string,
+    // three indices, the two history vectors and the grouping kind, and nothing else (the
+    // TEXT-0 growth: the anchor, undo/redo, one enum). The bound is generous on purpose --
+    // what would fail it is a cache, a viewport object or a retained view sneaking in.
+    CHECK(sizeof(TextBox) <=
+          sizeof(std::string) + 2 * sizeof(std::vector<int>) + 6 * sizeof(std::size_t));
+}
+
+// ---- 6. The selection (TEXT-0) ------------------------------------------------------------
+//
+// AN ANCHOR AND THE CARET, and no third fact: `anchor() == caret()` IS "no selection", so an
+// empty selection cannot exist as a distinct state and nothing below ever has to test a flag
+// against a range. The cases walk the conventional grammar -- extend with Shift, collapse on
+// plain movement, replace on type -- because "conventional" is exactly the claim TEXT-0 makes.
+
+TEST_CASE("component: shift-movement extends a selection and plain movement collapses it") {
+    TextBox box;
+    box.set("hello world", 5); // caret between the words
+    CHECK_FALSE(box.has_selection());
+    CHECK(box.anchor() == 5);
+
+    // Extending leaves the anchor and walks the caret -- in both directions through zero.
+    box.select_left();
+    box.select_left();
+    CHECK(box.has_selection());
+    CHECK(box.anchor() == 5);
+    CHECK(box.caret() == 3);
+    CHECK(box.selection_begin() == 3);
+    CHECK(box.selection_end() == 5);
+    CHECK(box.selected_text() == "lo");
+    box.select_right(); // shrink from the same anchor
+    CHECK(box.selected_text() == "o");
+    box.select_right(); // ...to nothing: anchor == caret is the absence
+    CHECK_FALSE(box.has_selection());
+
+    // Home/End extend to the line's own boundaries.
+    box.select_home();
+    CHECK(box.selected_text() == "hello");
+    CHECK(box.caret() == 0); // the caret is the ACTIVE end, and it is at the left
+    box.select_end();
+    box.select_end(); // idempotent at the boundary
+    CHECK(box.selection_begin() == 5);
+    CHECK(box.selection_end() == 11);
+
+    // PLAIN LEFT/RIGHT WITH A SELECTION COLLAPSE TO ITS ENDS rather than stepping a
+    // character: after sweeping a range the arrows mean "put me at this side of it".
+    box.left();
+    CHECK_FALSE(box.has_selection());
+    CHECK(box.caret() == 5); // the selection's begin, not 10
+    box.select_end();
+    box.right();
+    CHECK(box.caret() == 11); // the selection's end, not one past it
+}
+
+TEST_CASE("component: select_all takes everything with the caret at the end") {
+    TextBox box;
+    box.set("abc", 1);
+    box.select_all();
+    CHECK(box.selection_begin() == 0);
+    CHECK(box.selection_end() == 3);
+    CHECK(box.caret() == 3);
+    // On empty text there is nothing to select, and nothing is: the absence is honest.
+    TextBox empty;
+    empty.select_all();
+    CHECK_FALSE(empty.has_selection());
+}
+
+TEST_CASE("component: typing, backspace and delete act on the selection first") {
+    TextBox box;
+    box.set("hello world", 0);
+    box.place(6);
+    box.select_end(); // "world"
+    box.type("there");
+    CHECK(box.text() == "hello there");
+    CHECK(box.caret() == 11);
+    CHECK_FALSE(box.has_selection());
+
+    box.place(0);
+    box.select_word_right(); // "hello " -- through the space to the next word's start
+    box.backspace();
+    CHECK(box.text() == "there");
+    CHECK(box.caret() == 0);
+
+    box.select_end();
+    box.erase_forward();
+    CHECK(box.text().empty());
+}
+
+TEST_CASE("component: a selection is character-whole over multi-byte text") {
+    TextBox box;
+    box.set("a\xC3\xA9z", 0); // a, e-acute (2 bytes), z
+    box.select_right();
+    box.select_right(); // over 'a' and the whole accented letter
+    CHECK(box.selection_end() == 3);
+    CHECK(box.selected_text() == "a\xC3\xA9");
+    // place() into the middle of a character snaps, and the anchor snaps with it: no
+    // gesture leaves either end of a selection between two bytes of one character.
+    box.place(2);
+    CHECK(box.caret() == 1);
+    CHECK(box.anchor() == 1);
+    box.select_left();
+    CHECK(box.selected_text() == "a");
+}
+
+TEST_CASE("component: word movement is space-delimited runs, walked from either side") {
+    const std::string line = "send @a  Ping";
+    CHECK(word_before(line, 13) == 9);  // from the end to Ping's start
+    CHECK(word_before(line, 9) == 5);   // over the double space to @a's start
+    CHECK(word_before(line, 5) == 0);
+    CHECK(word_before(line, 0) == 0);
+    CHECK(word_after(line, 0) == 5);    // over "send" and its space
+    CHECK(word_after(line, 5) == 9);    // over "@a" and both spaces
+    CHECK(word_after(line, 9) == 13);
+    CHECK(word_after(line, 13) == 13);
+
+    TextBox box;
+    box.set(line, 13);
+    box.word_left();
+    CHECK(box.caret() == 9);
+    CHECK_FALSE(box.has_selection());
+    box.select_word_left();
+    CHECK(box.selected_text() == "@a  ");
+    box.word_right(); // collapses and walks
+    CHECK(box.caret() == 9);
+    // The word erases: one gesture, one word (plus the spaces that ride with it).
+    box.end();
+    box.erase_word_before();
+    CHECK(box.text() == "send @a  ");
+    box.home();
+    box.erase_word_after();
+    CHECK(box.text() == "@a  ");
+}
+
+TEST_CASE("component: the visible selection is the span both media may spend") {
+    TextBox box;
+    box.set("0123456789", 10);
+    box.place(2);
+    box.select_end();          // [2, 10)
+    box.keep_caret_visible(4); // window shows "6789"
+    CHECK(box.first_visible() == 6);
+    const TextBox::VisibleSpan all = box.visible_selection(4);
+    CHECK(all.present());
+    CHECK(all.begin == 0); // clamped to the slice's start
+    CHECK(all.end == 4);
+    // A selection near the start shows whole once the window is back there.
+    box.place(0);
+    box.select_right(); // [0,1)
+    box.keep_caret_visible(4);
+    CHECK(box.first_visible() == 0);
+    const TextBox::VisibleSpan head = box.visible_selection(4);
+    CHECK(head.present());
+    CHECK(head.begin == 0);
+    CHECK(head.end == 1);
+    // Zero columns can show nothing, whatever is selected.
+    CHECK_FALSE(box.visible_selection(0).present());
+}
+
+TEST_CASE("component: drag_to_column extends from the pressed anchor and can leave the slice") {
+    TextBox box;
+    box.set("0123456789", 0);
+    box.keep_caret_visible(5); // window "01234"
+    box.place(box.position_at_column(2));
+    CHECK(box.caret() == 2);
+    box.drag_to_column(4);
+    CHECK(box.selected_text() == "23");
+    CHECK(box.anchor() == 2);
+    // Dragging past the right edge names bytes past the window -- ordinary arithmetic --
+    // and the next reconcile scrolls to them.
+    box.drag_to_column(8);
+    CHECK(box.caret() == 8);
+    box.keep_caret_visible(5);
+    CHECK(box.first_visible() == 3);
+    // Dragging LEFT of the slice steps one character per motion: deterministic, minimal,
+    // and enough to walk a selection out of the window a motion at a time.
+    box.place(box.position_at_column(2)); // caret 5 in the scrolled window
+    box.drag_to_column(-1);
+    CHECK(box.caret() == 2); // one character before first_visible (3)
+    box.drag_to_column(-1);
+    CHECK(box.caret() == 1); // (the window followed via settle: first <= caret)
+}
+
+// ---- 7. The clipboard (TEXT-0) ------------------------------------------------------------
+
+TEST_CASE("component: copy, cut and paste move text through the owner's clipboard") {
+    TextBox box;
+    Clipboard clip;
+    box.set("hello world", 0);
+    box.select_word_right();
+    box.copy(clip);
+    CHECK(clip.text == "hello ");
+    CHECK(clip.writes == 1);
+    CHECK(box.text() == "hello world"); // a copy erases nothing
+    CHECK(box.has_selection());         // ...and keeps the selection
+
+    box.end();
+    box.select_word_left();
+    box.cut(clip);
+    CHECK(clip.text == "world");
+    CHECK(clip.writes == 2);
+    CHECK(box.text() == "hello ");
+    CHECK_FALSE(box.has_selection());
+
+    box.home();
+    box.paste(clip);
+    CHECK(box.text() == "worldhello ");
+    CHECK(box.caret() == 5);
+    // Paste replaces a selection when one exists.
+    box.select_end();
+    box.paste(clip);
+    CHECK(box.text() == "worldworld");
+}
+
+TEST_CASE("component: copy with nothing selected leaves the clipboard alone") {
+    TextBox box;
+    Clipboard clip;
+    clip.text = "precious";
+    clip.writes = 3;
+    box.set("abc", 1);
+    box.copy(clip);
+    box.cut(clip);
+    CHECK(clip.text == "precious"); // a stray chord does not overwrite a maker's copy
+    CHECK(clip.writes == 3);
+    CHECK(box.text() == "abc");
+    // And pasting an empty clipboard is nothing, not an empty edit in the history.
+    Clipboard empty;
+    box.paste(empty);
+    CHECK(box.text() == "abc");
+    CHECK_FALSE(box.undo()); // set() opened fresh history and nothing has been written to it
+}
+
+TEST_CASE("component: paste flattens foreign bytes into one line") {
+    CHECK(pasteable_line("a\r\nb") == "a b");    // a CRLF pair is ONE space
+    CHECK(pasteable_line("a\nb\rc") == "a b c"); // lone LF and CR are one each
+    CHECK(pasteable_line("a\tb") == "a b");      // a tab would break the byte=column grid
+    CHECK(pasteable_line("a\x7F") == "a ");
+    CHECK(pasteable_line("caf\xC3\xA9") == "caf\xC3\xA9"); // multi-byte text passes whole
+
+    TextBox box;
+    Clipboard clip;
+    clip.text = "two\r\nlines";
+    box.paste(clip);
+    CHECK(box.text() == "two lines");
+    // UTF-8 through the round trip: what was copied is what is pasted, byte for byte.
+    box.select_all();
+    box.type("\xE2\x82\xAC z");
+    box.home();
+    box.select_word_right();
+    box.copy(clip);
+    CHECK(clip.text == "\xE2\x82\xAC ");
+    box.end();
+    box.paste(clip);
+    CHECK(box.text() == "\xE2\x82\xAC z\xE2\x82\xAC ");
+}
+
+// ---- 8. The history (TEXT-0) --------------------------------------------------------------
+
+TEST_CASE("component: undo restores text, caret and selection; redo replays it") {
+    TextBox box;
+    Clipboard clip;
+    box.set("hello", 5);
+    box.type(" world");
+    CHECK(box.text() == "hello world");
+    CHECK(box.undo());
+    CHECK(box.text() == "hello");
+    CHECK(box.caret() == 5);
+    CHECK(box.redo());
+    CHECK(box.text() == "hello world");
+    CHECK(box.caret() == 11);
+
+    // A cut is one entry, and undoing it restores the selection that was cut.
+    box.place(0);
+    box.select_word_right();
+    box.cut(clip);
+    CHECK(box.text() == "world");
+    CHECK(box.undo());
+    CHECK(box.text() == "hello world");
+    CHECK(box.selected_text() == "hello ");
+
+    // Undo past the bottom is a no-op that says so; so is redo past the top.
+    while (box.undo()) {
+    }
+    CHECK(box.text() == "hello");
+    CHECK_FALSE(box.undo());
+    while (box.redo()) {
+    }
+    CHECK_FALSE(box.redo());
+}
+
+TEST_CASE("component: contiguous typing coalesces into one undo entry") {
+    TextBox box;
+    box.type("h");
+    box.type("e");
+    box.type("y");
+    CHECK(box.text() == "hey");
+    CHECK(box.undo());
+    CHECK(box.text().empty()); // one gesture takes the whole burst
+
+    // Movement breaks the group: type, move, type is two edits in two places.
+    box.redo();
+    box.left();
+    box.type("X");
+    CHECK(box.text() == "heXy");
+    CHECK(box.undo());
+    CHECK(box.text() == "hey");
+    CHECK(box.undo());
+    CHECK(box.text().empty());
+
+    // A change of KIND breaks it too: typing then backspacing is two entries...
+    box.type("abc");
+    box.backspace();
+    box.backspace();
+    CHECK(box.text() == "a");
+    CHECK(box.undo());
+    CHECK(box.text() == "abc"); // the backspace burst, together
+    CHECK(box.undo());
+    CHECK(box.text().empty());
+
+    // ...and an edit that replaced a selection stands alone, however it was made.
+    box.type("hello");
+    box.select_home();
+    box.type("X");
+    CHECK(box.text() == "X");
+    CHECK(box.undo());
+    CHECK(box.text() == "hello");
+    CHECK(box.selected_text() == "hello"); // the replaced selection comes back selected
+}
+
+TEST_CASE("component: a new edit discards the redone future") {
+    TextBox box;
+    box.type("ab");
+    box.left();
+    box.type("X"); // "aXb"
+    box.undo();    // "ab"
+    CHECK(box.can_redo());
+    box.type("Y"); // a new road: "aYb"
+    CHECK_FALSE(box.can_redo());
+    CHECK(box.text() == "aYb");
+    CHECK(box.undo());
+    CHECK(box.text() == "ab");
+}
+
+TEST_CASE("component: set and clear open a fresh draft with no inherited history") {
+    TextBox box;
+    box.type("first draft");
+    CHECK(box.can_undo());
+    // `set` is how every consumer opens a draft on a value: an undo surviving it would
+    // resurrect a DIFFERENT draft's text under this one's label.
+    box.set("second", 6);
+    CHECK_FALSE(box.can_undo());
+    CHECK_FALSE(box.can_redo());
+    CHECK_FALSE(box.undo());
+    CHECK(box.text() == "second");
+    box.type("!");
+    box.select_all(); // and the selection dies with the draft too
+    box.clear();
+    CHECK_FALSE(box.can_undo());
+    CHECK_FALSE(box.has_selection());
+    CHECK(box.text().empty());
+}
+
+TEST_CASE("component: the history is bounded and forgets its far past first") {
+    TextBox box;
+    // Alternate kinds so every edit is its own entry, far past any reasonable depth.
+    for (int i = 0; i < 130; ++i) {
+        box.type("x");
+        box.backspace();
+    }
+    box.type("end");
+    int undone = 0;
+    while (box.undo()) {
+        ++undone;
+    }
+    CHECK(undone == 100);            // the cap: deep enough for any draft, bounded on purpose
+    CHECK_FALSE(box.text().empty()); // the far past is forgotten, the present never refused
+}
+
+// ---- 9. The vocabulary (TEXT-0) -----------------------------------------------------------
+//
+// `consume` is QR-2's bool at the component boundary: true = this vocabulary owned the
+// gesture, stop routing; false = not mine, yours. The table below is the WHOLE vocabulary,
+// and the declines are as load-bearing as the consumptions -- an owner's policy keys must
+// come back false forever, without the component ever learning what they mean.
+
+TEST_CASE("component: consume owns exactly the editing vocabulary and declines the rest") {
+    TextBox box;
+    Clipboard clip;
+    box.set("hello world", 11);
+
+    // The six base gestures, shift-transparent on the erasers and extending on movement.
+    CHECK(box.consume(key::kLeft, mod::kNone, clip));
+    CHECK(box.caret() == 10);
+    CHECK(box.consume(key::kLeft, mod::kShift, clip));
+    CHECK(box.selected_text() == "l");
+    CHECK(box.consume(key::kHome, mod::kShift, clip));
+    CHECK(box.selection_begin() == 0);
+    CHECK(box.consume(key::kEnd, mod::kNone, clip));
+    CHECK_FALSE(box.has_selection());
+    CHECK(box.consume(key::kBackspace, mod::kShift, clip)); // shift mid-word still erases
+    CHECK(box.text() == "hello worl");
+    CHECK(box.consume(key::kHome, mod::kNone, clip));
+    CHECK(box.consume(key::kDelete, mod::kNone, clip));
+    CHECK(box.text() == "ello worl");
+
+    // The chords.
+    CHECK(box.consume(key::kA, mod::kCtrl, clip));
+    CHECK(box.selected_text() == "ello worl");
+    CHECK(box.consume(key::kC, mod::kCtrl, clip));
+    CHECK(clip.text == "ello worl");
+    CHECK(box.consume(key::kX, mod::kCtrl, clip));
+    CHECK(box.text().empty());
+    CHECK(box.consume(key::kV, mod::kCtrl, clip));
+    CHECK(box.text() == "ello worl");
+    CHECK(box.consume(key::kZ, mod::kCtrl, clip));
+    CHECK(box.text().empty()); // undo the paste
+    CHECK(box.consume(key::kY, mod::kCtrl, clip));
+    CHECK(box.text() == "ello worl"); // redo, the Windows spelling
+    CHECK(box.consume(key::kZ, mod::kCtrl, clip));
+    CHECK(box.consume(key::kZ, mod::kCtrl | mod::kShift, clip));
+    CHECK(box.text() == "ello worl"); // redo, the other conventional spelling
+    CHECK(box.consume(key::kLeft, mod::kCtrl, clip));
+    CHECK(box.caret() == 5); // word left
+    CHECK(box.consume(key::kRight, mod::kCtrl | mod::kShift, clip));
+    CHECK(box.selected_text() == "worl"); // word extend
+    CHECK(box.consume(key::kEnd, mod::kNone, clip));
+    CHECK(box.consume(key::kBackspace, mod::kCtrl, clip)); // word backspace
+    CHECK(box.text() == "ello ");
+
+    // THE DECLINES. Policy keys and unknown chords are not this vocabulary's, and neither
+    // is any chord carrying Alt or Super -- those belong to applications and window systems.
+    CHECK_FALSE(box.consume(40 /*Return*/, mod::kNone, clip));
+    CHECK_FALSE(box.consume(41 /*Escape*/, mod::kNone, clip));
+    CHECK_FALSE(box.consume(43 /*Tab*/, mod::kNone, clip));
+    CHECK_FALSE(box.consume(22 /*S*/, mod::kCtrl, clip)); // save is an application's
+    CHECK_FALSE(box.consume(18 /*O*/, mod::kCtrl, clip)); // so is open
+    CHECK_FALSE(box.consume(20 /*Q*/, mod::kNone, clip)); // a bare printable is text's
+    CHECK_FALSE(box.consume(key::kLeft, mod::kAlt, clip));
+    CHECK_FALSE(box.consume(key::kC, mod::kCtrl | mod::kSuper, clip));
+    CHECK_FALSE(box.consume(key::kC, mod::kCtrl | mod::kShift, clip));
+    CHECK(box.text() == "ello "); // and none of the declines touched anything
+}
+
+TEST_CASE("component: a consumed gesture that changes nothing is still consumed") {
+    // QR-2's whole sentence: a consumed press does not have to change anything, it only has
+    // to have reached the layer that owns what it means. A copy with nothing selected, an
+    // undo with no history and a Home at 0 are the boundary's own no-ops -- and if any of
+    // them answered false, the chord would fall through to an application binding the moment
+    // it happened to be idle, which for ^c means "copy nothing" quitting the program.
+    TextBox box;
+    Clipboard clip;
+    box.set("abc", 0);
+    CHECK(box.consume(key::kC, mod::kCtrl, clip)); // nothing selected: consumed, no copy
+    CHECK(clip.writes == 0);
+    CHECK(box.consume(key::kZ, mod::kCtrl, clip)); // no history: consumed, nothing restored
+    CHECK(box.consume(key::kY, mod::kCtrl, clip));
+    CHECK(box.consume(key::kHome, mod::kNone, clip)); // already at 0: consumed
+    CHECK(box.consume(key::kV, mod::kCtrl, clip));    // empty clipboard: consumed
+    CHECK(box.text() == "abc");
+}
+
+TEST_CASE("component: ctrl+Home and ctrl+End are the line's own ends") {
+    // On one line the document's ends and the line's ends are the same two places, so the
+    // chorded spellings collapse to the plain ones rather than being declined -- a maker
+    // who holds Ctrl out of multiline habit still lands where they meant.
+    TextBox box;
+    Clipboard clip;
+    box.set("abc", 1);
+    CHECK(box.consume(key::kEnd, mod::kCtrl, clip));
+    CHECK(box.caret() == 3);
+    CHECK(box.consume(key::kHome, mod::kCtrl | mod::kShift, clip));
+    CHECK(box.selected_text() == "abc");
 }

@@ -228,12 +228,24 @@ the Terminal        the final modal plane
   accumulating. **Management owns the pointer while it is open**, the Terminal's own shape;
   outside it nothing changed, so a selected pane behind another claims no press and no
   selection auto-raises.
+- **A TEXT-SELECTION DRAG IS THE THIRD GESTURE RECORD (TEXT-0).** `Session::text_drag` holds
+  WHICH editable line a press began sweeping (the Terminal's, or the live property draft) and
+  nothing else — the anchor and caret live in the `TextBox` the press placed, and every motion
+  re-resolves the CURRENT geometry through the same functions the press spent
+  (`terminal_input_place` + `terminal_value_column`, or `info_body_at` +
+  `property_value_column`) and hands the component a column (`drag_to_column`). The ROW is
+  deliberately not re-tested mid-drag — a hand that wanders off the line keeps sweeping it by
+  column, which is what keeps the selection stable — and a drag left of the slice steps one
+  character per motion, the component's own leftward auto-scroll. A press begins it only on
+  the paths that CONSUME the press (QR-2's mutate-nothing-on-decline rule holds); release
+  ends the gesture and keeps the selection, silently — the selection on screen is the
+  statement.
 - **`end_held_gestures()` is the one release owner**, called by the Terminal branch, the
   management branch and the ordinary path. A gesture begins under one mode and is released
   under another, so whichever mode answers a release first must end them all — ending only one
   kind leaves a gesture alive with the button up, following the pointer afterwards. It says
   nothing; what to tell a maker is the caller's, because the answer genuinely differs. It is
-  not a capture framework: two records and one function.
+  not a capture framework: three records and one function.
 - **`forget_removed_selection()` clears on MEMBERSHIP, never on presentation.** A pane that
   becomes waiting, refused, covered, off-room or unresolved keeps its selection — every one is
   a pane the setup still names and whose management row is still reachable. A reference LEAVING
@@ -277,34 +289,64 @@ after keep_caret_visible(N)        caret - first_visible <= N
   wheel or drag scrolling and no scroll command; the viewport moves only because the caret did.
   Adding one is not free: its width would have to come out of the same one capacity.
 
-## Editing text is a COMPONENT, and it belongs to neither consumer (HD-5)
+## Editing text is a COMPONENT, and it belongs to no consumer (HD-5, TEXT-0)
 
-`zengine::component::TextBox` (`component/text_box.hpp`) owns text, a caret and a horizontal
-window as one state, with the operations as the only door. The Terminal's command line and an
-Inspector property draft are two instances of one implementation.
+`zengine::component::TextBox` (`component/text_box.hpp`) owns text, a caret, a selection
+anchor and a horizontal window as one state, with the operations as the only door. The
+Terminal's command line, an Inspector property draft, the setup-name editor and the Composer's
+field drafts are four instances of one implementation.
 
 ```text
-what the component owns      text, caret, first_visible; the character walk; the four
-                             caret-follow rules; the slice; column <-> byte, through the window
-what a consumer owns         the capacity (an ARGUMENT), where its prose begins, and what the
-                             text MEANS -- submit, parse, validate, commit, refuse, complete
+what the component owns      text, caret, anchor, first_visible; the character walk; the four
+                             caret-follow rules; the slice; column <-> byte, through the window;
+                             the selection grammar (extend/collapse/replace); copy/cut/paste
+                             over an owner-held Clipboard; a bounded local undo/redo; the
+                             editing-KEY vocabulary: consume(scancode, modifiers, clip) -> bool
+what a consumer owns         the capacity (an ARGUMENT), where its prose begins, the Clipboard
+                             instance and its custody beyond the process, and what the text
+                             MEANS -- submit, parse, validate, commit, refuse, complete.
+                             Return, Escape and Tab are policy in every consumer and are never
+                             in the component's vocabulary.
 ```
 
+- **`consume()` is QR-2's bool at the component boundary**: true = the box's own vocabulary,
+  stop routing; false = not mine, yours. A consumed gesture need not change anything — a copy
+  with nothing selected is consumed, or "copy nothing" would fall through to whatever the
+  application binds. Declining is `default:`, not knowledge: the box never learns an
+  application chord to refuse it, and a chord carrying Alt or Super is never the box's. The
+  owner's handler is `if (box.consume(k.scancode, k.modifiers, session.clipboard)) return;`
+  followed by its policy switch — the shape all four consumers now spell instead of four
+  copies of one six-case mapping.
+- **The history is the DRAFT's and dies with it**: `set`/`clear` — how every consumer opens
+  and closes a draft — wipe it, so undo can never resurrect a previous draft's text under a
+  new label. Contiguous same-kind keystrokes coalesce; paste, cut and any selection
+  replacement are one entry each. There is still no application-wide undo and none may grow
+  from this.
+- **The clipboard is `Session::clipboard`, one for all of Workshop's own boxes**, a MIRROR of
+  the freshest truth heard: the component writes it on copy/cut, `on(KeyPressed)` notices
+  (`writes` compared around the whole chain, once) and publishes `ClipboardCopy`;
+  `ClipboardChanged`/`ClipboardCopy` from elsewhere land in it without bumping `writes`
+  (mirrors never echo). It is deliberately not persisted — WUX-0 keeps the desk, never the
+  work-in-progress.
 - **`zengine-component` links nothing**, not even `loom::core`. A TextBox has no wire form,
-  nothing serializes it and nothing hosts it; the absence of that link is the enforcement.
-- **The character helpers live with it.** `is_continuation_byte`, `character_before`,
-  `character_after`, `character_boundary` and `character_boundary_at_or_after` are the
-  component's, because both consumers that spend them ARE the component. There is deliberately
-  no end-of-line eraser — erasing from the END of a line is the only edit a draft with no caret
-  could make, and that shape was deleted.
-- **`terminal_caret_column`/`terminal_caret_of_column` take the BOX**, not two indices. A
-  defaulted window argument would let a call site keep the two-argument spelling and be
-  silently correct until the first line long enough to scroll; taking the component makes that
-  hazard unsayable — there is no argument left to forget, and no way to pair a caret from one
-  line with a window from another.
-- **Do not give the component a focus flag, a filter, a selection, a clipboard or a blink.**
-  Neither consumer has asked, and the pre-Zen `Zen::TextBox` in `reference/` had four of those
-  and could not move its caret.
+  nothing serializes it and nothing hosts it; the absence of that link is the enforcement —
+  which is why the vocabulary's key identities are spelled locally in `component::key`/`mod`
+  and pinned against `input::scan`/`mod` in the input suite, translate_sdl.hpp's own pattern.
+- **The character helpers live with it**, and since TEXT-0 the word helpers too
+  (`word_before`/`word_after` — space-delimited runs, deliberately a shell's word and not an
+  editor's) and `pasteable_line` (what foreign clipboard bytes become in a one-line box: CRLF
+  pairs and control bytes flatten to spaces, tabs included, for the byte=column grid's sake).
+  There is deliberately no end-of-line eraser — that shape was deleted in HD-5.
+- **`terminal_caret_column`/`terminal_caret_of_column` take the BOX**, not two indices — no
+  argument left to forget, no way to pair a caret from one line with a window from another.
+  The selection has the same one-measurer family: `TextBox::visible_selection(columns)` is
+  the only span arithmetic, and `terminal_selection_columns`/`property_selection_columns`
+  add exactly the prose offset the caret helpers add.
+- **Do not give the component a focus flag, a filter, a max length, a multiline mode or a
+  blink.** The pre-Zen `Zen::TextBox` in `reference/` had most of those and could not move
+  its caret. Selection, clipboard and undo arrived in TEXT-0 because with four consumers the
+  ordinary expectations had stopped being per-consumer projects; a fifth absence a competent
+  user would trip on gets the same test, not a reflex extraction.
 
 ## The Info panel BODY, resolved once (HD-5..HD-7)
 
@@ -569,22 +611,32 @@ granted; the same three `external_press` already requires.
   so does the keyboard. `bounds_of`'s discipline applied to a focus.
 - **The modes above it never reach that line**, so opening the Terminal or pane management
   leaves the candidate exactly where it was and closing it hands the keys straight back. The
-  priority reads: the four same-in-every-mode keys, then the five modes, then a focused pane,
-  then a live property draft, then `command()`.
+  priority reads: the same-in-every-mode keys (`shift+space`, `^s`, `^o` — and `^c` exactly
+  where nothing takes text, TEXT-0), then the five modes, then a focused pane, then a live
+  property draft, then `command()`.
 - **A focused pane sits ABOVE a live property draft**, and the symmetry is what decides it:
   both are PLACES reached by pressing into them, so the one that answers is the one the maker
   pressed into LAST. Pressing back into the Info body clears the candidate by the same line
   that set it. The draft is never cancelled, committed or touched by any of it.
-- **THE PANE GETS EVERY BARE KEY, `q` INCLUDED, AND THAT IS THE DESIGN.** All four survivors
-  are CHORDED (`^c`, `shift+space`, `^s`, `^o`) and that is a rule rather than a coincidence: a
-  bare printable cannot be global once anything on the screen can take text, which is the whole
-  reason typing `p` into a field does not open the picker.
+- **THE PANE GETS EVERY BARE KEY, `q` INCLUDED, AND THAT IS THE DESIGN.** The global
+  survivors are CHORDED (`shift+space`, `^s`, `^o`) and that is a rule rather than a
+  coincidence: a bare printable cannot be global once anything on the screen can take text,
+  which is the whole reason typing `p` into a field does not open the picker.
+- **`^c` FOLLOWS THE KEYBOARD SINCE TEXT-0.** It quits exactly where nothing takes text
+  (command mode, the picker, pane management) and travels the chain everywhere text has the
+  keyboard — the Terminal line, the name editor, a live property draft, and a focused runtime
+  pane, which receives it as an ordinary `PaneKey` because a pane that takes every character
+  is a place `^c` means copy at. The gate is `editable_text_has_keyboard()`, which MIRRORS the
+  mode chain branch for branch so the two cannot disagree; `^s`/`^o`/`shift+space` stay above
+  every mode, and quit stays one press-elsewhere (or `q`, or the close box) away. A consumed
+  `^c` with nothing selected is still consumed — "copy nothing" must never quit the program.
 - **So the screen says so, in two places, in CHARACTERS.** `external_header` marks the pane
   that has the keys (`> Loaded @…`, unmarked `  Loaded @…`, the same width either way), and the
   bottom band replaces both help lines with `typing goes to <name> @<office> — press elsewhere
-  for Workshop's keys` and the four that still work. **`keyboard_pane` is in `panel.hpp`
-  because the ROUTER and the PAINTER both ask it**; two answers would be a screen that says a
-  maker is typing somewhere the keys do not go.
+  for Workshop's keys` and the three that still work (`^c` left that list with TEXT-0 — a band
+  advertising a quit that would not happen is the lie the band exists to refuse).
+  **`keyboard_pane` is in `panel.hpp` because the ROUTER and the PAINTER both ask it**; two
+  answers would be a screen that says a maker is typing somewhere the keys do not go.
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
   pane protocol's law: [`panes.md`](panes.md).
 

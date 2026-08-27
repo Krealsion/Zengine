@@ -22,13 +22,41 @@ day extracting became the **smaller** repair. That is the rule this package is b
 component/text_box.hpp   is_continuation_byte / character_before / character_after
                          character_boundary / character_boundary_at_or_after
                                           what a CHARACTER is, in this application
+                         word_before / word_after
+                                          what a WORD is: space-delimited runs, nothing more
+                         pasteable_line   what foreign bytes become in a one-line box
+                         Clipboard        text a maker copied + a writes counter; the OWNER
+                                          holds it, the component only operates on it
+                         key:: / mod::    the editing vocabulary's identities -- the same
+                                          numbers input::scan::/mod:: name, spelled locally
+                                          because this package includes nothing (pinned
+                                          against the wire in the input suite)
 
-                         TextBox          text + caret + first_visible, as one state
-                           text/caret/first_visible/size/empty/at_end/caret_column
-                           visible(columns) / position_at_column(column)
-                           keep_caret_visible(columns)
+                         TextBox          text + caret + anchor + first_visible, as one state
+                           text/caret/anchor/first_visible/size/empty/at_end/caret_column
+                           has_selection/selection_begin/selection_end/selected_text
+                           visible(columns) / visible_selection(columns)
+                           position_at_column(column) / keep_caret_visible(columns)
                            type/backspace/erase_forward/left/right/home/end/place/clear/set
+                           select_left/right/home/end / select_all / word + select_word moves
+                           erase_word_before/after / drag_to_column(column)
+                           copy/cut/paste(Clipboard) / undo/redo/can_undo/can_redo
+                           consume(scancode, modifiers, Clipboard) -> bool
 ```
+
+**Since TEXT-0 the ordinary expectations are mechanics, not omissions.** A selection is the
+anchor and the caret (`anchor == caret` *is* "no selection"); typing replaces it, Shift-movement
+extends it, plain movement collapses it, and both ends stay on character boundaries always. The
+clipboard operations move text through a `Clipboard` the **owner** holds — where its text goes
+beyond this process (a platform clipboard through a Skin, a bus publication, nowhere) is the
+owner's custody. Undo is a bounded local snapshot history that dies with the draft: `set` and
+`clear` — how every consumer opens and closes one — wipe it, so a new draft can never resurrect
+an old one's text; contiguous same-kind keystrokes coalesce into one entry. And
+`consume(scancode, modifiers, clip)` is the one owner of the editing-key vocabulary, under the
+press chain's own bool: *true* = mine, stop routing; *false* = not my vocabulary, yours.
+Declining is `default:`, not knowledge — Return, Escape, Tab, `^s` and every application chord
+ever invented come back `false` from a switch that was never edited, which is what four
+consumers used to spell as four copies of the same mapping.
 
 Four things are structural rather than promised:
 
@@ -55,9 +83,12 @@ needs for `zen/weave/shape.hpp`. A TextBox has no wire form, nothing serializes 
 hosts it, and the absence of that link is the enforcement of "a component is not content".
 
 What it is **not**: a widget set. There is no Button, List, Dropdown, ScrollView, focus tree,
-tab order, selection range, clipboard, undo stack, multiline mode or theme, and none of them
-will arrive because a toolkit is expected to have one — the rule this package is built on is
-*extract from repeated working behaviour, never from a list of widgets*. The pre-Zen
-`Zen::TextBox` (`reference/`, archaeology only) is not its ancestor in anything but the name: it
-carried a filter, a focus flag, a blink timer, two signals and a child `Text` entity, and it
-could not move its caret, could not scroll, and erased one **byte** at a time.
+tab order, multiline mode or theme, and none of them will arrive because a toolkit is expected
+to have one — the rule this package is built on is *extract from repeated working behaviour,
+never from a list of widgets*. (Selection, the clipboard operations and a local undo *did*
+arrive, in TEXT-0, and the reason is the same rule read forward: with four consumers carrying
+one editing surface, "a text box that cannot select, copy or undo" had stopped being a smaller
+component and become a surprising one.) The pre-Zen `Zen::TextBox` (`reference/`, archaeology
+only) is not its ancestor in anything but the name: it carried a filter, a focus flag, a blink
+timer, two signals and a child `Text` entity, and it could not move its caret, could not
+scroll, and erased one **byte** at a time.

@@ -151,6 +151,15 @@ inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
 /// its whole cell rather than sitting on top of whatever was under it.
 inline constexpr PlanInk kCanvasBackground{18, 18, 24};
 
+/// WHAT THIS MEDIUM PUTS UNDER SELECTED TEXT (TEXT-0) — a band the glyphs are drawn over,
+/// which is the graphical answer to the terminal's reverse video: the text keeps its own
+/// ink and the GROUND under exactly the selected span changes. It is a medium constant and
+/// not a role, because a selection is not something a publisher styles — the publisher said
+/// WHICH text is selected (the region's `sel_*` fields) and each medium answers with the
+/// one voice it has. A distinctly-hued dark blue, so every ink in `ink_for_role` stays
+/// legible on it and it can never be mistaken for a row's own `kMuted` ground.
+inline constexpr PlanInk kSelectionBand{40, 64, 112};
+
 /// One glyph pixel, in device pixels. Chosen so a glyph fills a canvas cell
 /// exactly: no resampling, no partial cells, and a label's Nth character sits in
 /// the canvas cell the publisher named and nowhere else.
@@ -297,8 +306,15 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     // fidelity a bitmap face has. Both arguments are passed at every call site rather
     // than defaulted, because "does this text take its cells" is precisely the
     // question a publisher must have answered and a caller must not be able to skip.
+    // ...AND A SELECTED CELL'S QUAD IS THE SELECTION BAND (TEXT-0), whatever the row's own
+    // ground was going to be — the same precedence the terminal's reverse video has, in the
+    // ink this face uses for it. A selected cell of a `kGroundBeneath` row is banded too:
+    // giving up the rectangle is about the ROW's ground, and a selection is a fact about
+    // exactly these cells that must not become invisible because the material under them is
+    // somebody else's.
     const auto draw_label = [&](const SurfaceLabel& l, std::int64_t background,
-                                std::int64_t region_ground) {
+                                std::int64_t region_ground, std::int64_t sel_begin,
+                                std::int64_t sel_end) {
         if (l.y < 0 || l.y >= h) {
             return; // no row of this canvas belongs to it
         }
@@ -315,7 +331,11 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                 break; // every remaining character is further right still
             }
             const std::int64_t cell_x = cx * kCanvasCellPx;
-            if (takes_the_cell) {
+            const bool in_selection =
+                static_cast<std::int64_t>(i) >= sel_begin && static_cast<std::int64_t>(i) < sel_end;
+            if (in_selection) {
+                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, kSelectionBand);
+            } else if (takes_the_cell) {
                 quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
             }
             const Glyph& g = glyph_of(static_cast<unsigned char>(l.text[i]));
@@ -340,14 +360,14 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
     for (const SurfaceLabel& l : layer.labels) {
         // A LABEL TAKES ITS CELL, always: `SurfaceLabel` has no ground of its own to
         // name and no region to have given one up, so it is the ordinary answer on
-        // both counts. TYPE-1 changed nothing here -- the affordance glyphs and the
-        // shared top row are cell text by design and are drawn exactly as before.
-        draw_label(l, role::kNone, kGroundOwn);
+        // both counts — and no cell of a bare label is ever selected, because a
+        // selection is a region's fact and a label is not a region.
+        draw_label(l, role::kNone, kGroundOwn, 0, 0);
     }
     for (const ProjectedRow& p : projected) {
         // Last IN THIS LAYER: a region is the topmost thing its own presentation draws.
         // A later layer still covers it -- see `plan_canvas` below.
-        draw_label(p.label, p.background, p.ground);
+        draw_label(p.label, p.background, p.ground, p.sel_begin, p.sel_end);
     }
     return out;
 }
@@ -432,6 +452,20 @@ struct PlanCaret {
     friend bool operator==(const PlanCaret&, const PlanCaret&) = default;
 };
 
+/// ONE ROW'S WORTH OF SELECTION, RESOLVED TO A RECTANGLE (TEXT-0). Local to its region's
+/// clipped viewport, exactly as `PlanCaret` is and for the same reason: the renderer draws
+/// inside the viewport and never holds a window coordinate. The ink is not on it because
+/// there is exactly one — `kSelectionBand` — and a field restating a constant per row would
+/// be a second place for the one answer to live.
+struct PlanSelectionBand {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    std::int64_t w = 0;
+    std::int64_t h = 0;
+
+    friend bool operator==(const PlanSelectionBand&, const PlanSelectionBand&) = default;
+};
+
 struct PlanTextRegion {
     RegionViewport view{};
     std::int64_t origin_x = 0;
@@ -453,6 +487,13 @@ struct PlanTextRegion {
     std::int64_t ground = kGroundOwn;
     std::vector<PlanTextRow> rows;
     PlanCaret caret{};
+    /// THE SELECTED SPANS, one band per row the selection touches, DRAWN AFTER the row
+    /// grounds and BEFORE the text — so the glyphs keep their ink and sit on the band,
+    /// which is this face's reverse video (TEXT-0). Resolved here, from the same
+    /// `selection_span_of_row` the cell projection spends and the same `RegionFit` the
+    /// rows were cut with, because a renderer's own copy of span arithmetic would be the
+    /// second answer this package exists not to have.
+    std::vector<PlanSelectionBand> selection;
 
     friend bool operator==(const PlanTextRegion&, const PlanTextRegion&) = default;
 };
@@ -543,6 +584,20 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
             std::string text = r.rows[i].text;
             if (text.size() > width) {
                 text.resize(width);
+            }
+            // THE SELECTED SPAN OF THIS ROW, over the CUT text — the highlight meets the
+            // same right-hand cut every byte of the row met, so a selection running past
+            // the columns this region holds is covered exactly as far as its text is
+            // drawn. The rule itself is region.hpp's one function; what is resolved here
+            // is only geometry: columns become pixels through the SAME fit that placed
+            // the row, which is what makes the band and the glyphs one picture.
+            const RowSpan span = selection_span_of_row(r, static_cast<std::int64_t>(i),
+                                                       static_cast<std::int64_t>(text.size()));
+            if (span.present()) {
+                p.selection.push_back(PlanSelectionBand{
+                    add_cells(p.origin_x, mul_px(span.begin, fit.advance_px)),
+                    add_cells(p.origin_y, mul_px(static_cast<std::int64_t>(i), fit.line_px)),
+                    mul_px(span.end - span.begin, fit.advance_px), fit.line_px});
             }
             const std::int64_t ground = r.rows[i].background;
             p.rows.push_back(PlanTextRow{std::move(text), ink_for_role(r.rows[i].role),

@@ -156,6 +156,8 @@ public:
                 loom::schema_of<PaneKey>(),
                 loom::schema_of<PaneTextInput>(),
                 loom::schema_of<LoadedSelected>(),
+                loom::schema_of<surface::ClipboardCopy>(),
+                loom::schema_of<surface::ClipboardChanged>(),
                 loom::accepted_shapes_schema(),
                 loom::schema_of<loom::Refused>()};
     }
@@ -177,6 +179,15 @@ public:
             on_text(loom::from_value<PaneTextInput>(in.payload), mail);
         } else if (loom::same_identity(*loom::schema_of<LoadedSelected>(), shape)) {
             on_selected(loom::from_value<LoadedSelected>(in.payload), mail);
+        } else if (loom::same_identity(*loom::schema_of<surface::ClipboardCopy>(), shape)) {
+            // A copy said anywhere in the process, mirrored so a maker can copy in the
+            // Terminal and paste into a field here. The writes counter is untouched: it
+            // counts THIS pane's copies, which is what keeps the publish below from
+            // echoing another participant's copy back at the bus (TEXT-0).
+            clip_.text = loom::from_value<surface::ClipboardCopy>(in.payload).text;
+        } else if (loom::same_identity(*loom::schema_of<surface::ClipboardChanged>(), shape)) {
+            // The platform's clipboard, same mirror, same no-echo rule (TEXT-0).
+            clip_.text = loom::from_value<surface::ClipboardChanged>(in.payload).text;
         } else if (loom::same_identity(*loom::accepted_shapes_schema(), shape)) {
             on_described(in.payload, mail);
         } else if (loom::same_identity(*loom::schema_of<loom::Refused>(), shape)) {
@@ -312,18 +323,24 @@ private:
         if (key.pane != kComposePane) {
             return;
         }
+        // THE FIELD'S OWN VOCABULARY FIRST (TEXT-0) — the fourth of the four switches the
+        // component call collapsed, and the one this weave was about to make a fifth of.
+        // A copy the field took is then said to the process once, from the same
+        // writes-comparison Workshop makes around its own chain.
+        const std::uint64_t copied_before = clip_.writes;
+        if (edit_field(key.scancode, key.modifiers)) {
+            if (clip_.writes != copied_before) {
+                mail.publish(surface::ClipboardCopy{clip_.text});
+            }
+            say(mail);
+            return;
+        }
         switch (key.scancode) {
         case input::scan::kUp: move_cursor(-1); break;
         case input::scan::kDown: move_cursor(+1); break;
         case input::scan::kReturn: enter(mail); return;
         case input::scan::kEscape: back_to_catalog(mail); return;
         case input::scan::kTab: cycle_field(); break;
-        case input::scan::kBackspace: edit_field(key.scancode); break;
-        case input::scan::kDelete: edit_field(key.scancode); break;
-        case input::scan::kLeft: edit_field(key.scancode); break;
-        case input::scan::kRight: edit_field(key.scancode); break;
-        case input::scan::kHome: edit_field(key.scancode); break;
-        case input::scan::kEnd: edit_field(key.scancode); break;
         default: return; // a key this pane has no word for changes nothing and says nothing
         }
         say(mail);
@@ -638,23 +655,24 @@ private:
         zengine::composer::cycle(*d, kind);
     }
 
-    /// The editing keys, spent on the `TextBox` under the cursor. HD-5's component,
-    /// third consumer, unchanged: the caret walk, the four caret-follow rules and
-    /// the horizontal window are all its, and this only names the operations.
-    void edit_field(std::int64_t scancode) {
+    /// The editing keys, spent on the `TextBox` under the cursor — HD-5's component,
+    /// fourth consumer, now through the vocabulary the component owns (TEXT-0): the six
+    /// gestures this used to spell, and selection, clipboard, word movement and history
+    /// behind them, one call. QR-2's bool: false means "not the field's", so a chord this
+    /// pane binds (or ignores) still reaches its own switch.
+    ///
+    /// THE HONEST LIMIT, stated where the capability lives: the pane seam carries ROWS and
+    /// no spans (`PaneContent`'s own discipline — a provider supplies no geometry), so a
+    /// selection in a field here moves the caret character to its active end and cannot be
+    /// shown as a highlight until the seam can carry one. The mechanics are uniform anyway
+    /// — typing replaces what Shift+arrows swept, and Ctrl+Z takes it back — because a
+    /// vocabulary that shrank per consumer would be four vocabularies again.
+    bool edit_field(std::int64_t scancode, std::int64_t modifiers) {
         zengine::composer::FieldDraft* d = field_under_cursor();
         if (d == nullptr || !zengine::composer::typeable(kind_under_cursor()) || !d->present) {
-            return;
+            return false;
         }
-        switch (scancode) {
-        case input::scan::kBackspace: d->value.backspace(); break;
-        case input::scan::kDelete: d->value.erase_forward(); break;
-        case input::scan::kLeft: d->value.left(); break;
-        case input::scan::kRight: d->value.right(); break;
-        case input::scan::kHome: d->value.home(); break;
-        case input::scan::kEnd: d->value.end(); break;
-        default: break;
-        }
+        return d->value.consume(scancode, modifiers, clip_);
     }
 
     // ---- submission ---------------------------------------------------------
@@ -778,6 +796,13 @@ private:
     /// THE TARGET, THE VOCABULARY AND THE DRAFT -- transient, local, and in no state
     /// shape. See `ComposerState`.
     zengine::composer::Composing composing_;
+    /// THE CLIPBOARD THIS PANE'S FIELDS OPERATE ON (TEXT-0) — transient for the draft's own
+    /// reason: what a maker copied is part of what they are doing, and a revived
+    /// incarnation holding a dead pane has no business resurrecting it. A MIRROR of the
+    /// freshest truth this weave has heard (its own copies, other participants'
+    /// `ClipboardCopy`, the platform's `ClipboardChanged`), so copy-in-the-Terminal,
+    /// paste-here works wherever the process's clipboard story does.
+    zengine::component::Clipboard clip_;
     /// WHAT THIS PANE IS CURRENTLY SHOWING, and the map from its rows back to the
     /// items they name. It is the PRESENTATION and not an inventory: it holds only
     /// what reached a row, is bounded by the granted room rather than by the

@@ -455,6 +455,23 @@ public:
         }
     }
 
+    /// EXTEND THE SELECTION TO THE COLUMN A DRAG REACHED — `place`'s other half, forwarded
+    /// under the same guard (TEXT-0). The column is of the VALUE's visible slice, resolved
+    /// by whoever knows where this row's editable region is.
+    void drag_to_column(std::int64_t column) {
+        if (editing_) {
+            draft_.drag_to_column(column);
+        }
+    }
+
+    /// SPEND ONE KEY TRANSITION ON THE DRAFT'S OWN VOCABULARY, or learn it is not the
+    /// draft's (TEXT-0). The component's `consume` contract verbatim — QR-2's bool, the
+    /// clipboard the owner's — behind this class's own invariant: a row nobody opened
+    /// consumes nothing, so a stray chord cannot edit a draft that does not exist.
+    bool consume(std::int64_t scancode, std::int64_t modifiers, component::Clipboard& clip) {
+        return editing_ && draft_.consume(scancode, modifiers, clip);
+    }
+
     /// RECONCILE THE DRAFT'S WINDOW AGAINST THE ROOM THIS ROW HAS, once per repaint.
     ///
     /// The capacity is an ARGUMENT and is never remembered: this row and the Terminal's

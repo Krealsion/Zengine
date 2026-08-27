@@ -259,6 +259,25 @@ public:
                                       static_cast<float>(p.line_px)};
                 SDL_RenderFillRect(renderer, &strip);
             }
+        }
+        // THE SELECTION BANDS, AFTER EVERY ROW'S GROUND AND BEFORE ANY ROW'S TEXT (TEXT-0):
+        // a band covers exactly the selected span of its row, so it must win over that row's
+        // ground strip and lose to the glyphs — which keep their own ink and sit ON the
+        // band, this face's reverse video. The plan already resolved each band from the
+        // same fit that placed the rows; this loop only fills rectangles.
+        if (!p.selection.empty()) {
+            SDL_SetRenderDrawColor(renderer, kSelectionBand.r, kSelectionBand.g,
+                                   kSelectionBand.b, SDL_ALPHA_OPAQUE);
+            for (const PlanSelectionBand& band : p.selection) {
+                const SDL_FRect fill{static_cast<float>(band.x), static_cast<float>(band.y),
+                                     static_cast<float>(band.w), static_cast<float>(band.h)};
+                SDL_RenderFillRect(renderer, &fill);
+            }
+        }
+        for (std::size_t i = 0; i < p.rows.size(); ++i) {
+            const PlanTextRow& row = p.rows[i];
+            const float top = static_cast<float>(p.origin_y +
+                                                 static_cast<std::int64_t>(i) * p.line_px);
             if (row.text.empty()) {
                 continue; // a blank row is a row with nothing in it, not a row to draw
             }

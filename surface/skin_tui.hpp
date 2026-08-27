@@ -258,9 +258,17 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
     // makes the addition byte-invisible to every canvas that does not use it,
     // which the unchanged goldens are the proof of.
     std::vector<signed char> grounds(cells, static_cast<signed char>(zengine::surface::role::kNone));
+    // A FOURTH GRID, AND ONLY A TEXT REGION'S SELECTED SPAN EVER WRITES IT (TEXT-0). It is a
+    // separate channel rather than a fifth ground value because a selection composes with
+    // every ink and every ground a row already has: the terminal's own word for "these exact
+    // cells, whatever they are wearing" is reverse video, which swaps the two attributes the
+    // other grids chose instead of competing with either. Rects and labels never set it, so a
+    // canvas with no selection emits not one byte of it — the goldens are the proof.
+    std::vector<signed char> selected(cells, static_cast<signed char>(0));
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
-                         std::int64_t ground = zengine::surface::role::kNone) {
+                         std::int64_t ground = zengine::surface::role::kNone,
+                         bool in_selection = false) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
             return;
         }
@@ -268,12 +276,16 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         glyphs[i] = g;
         roles[i] = static_cast<signed char>(role);
         grounds[i] = static_cast<signed char>(ground);
+        selected[i] = static_cast<signed char>(in_selection ? 1 : 0);
     };
 
     const auto write_label = [&](const zengine::surface::SurfaceLabel& l,
-                                 std::int64_t ground = zengine::surface::role::kNone) {
+                                 std::int64_t ground = zengine::surface::role::kNone,
+                                 std::int64_t sel_begin = 0, std::int64_t sel_end = 0) {
         for (std::size_t i = 0; i < l.text.size(); ++i) {
-            put(add_cells(l.x, static_cast<std::int64_t>(i)), l.y, l.text[i], l.role, ground);
+            const std::int64_t col = static_cast<std::int64_t>(i);
+            put(add_cells(l.x, col), l.y, l.text[i], l.role, ground,
+                col >= sel_begin && col < sel_end);
         }
     };
 
@@ -315,7 +327,7 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // last IN THIS LAYER, because a region is the topmost thing its own presentation
         // draws. A LATER layer still covers it, which is the whole of WIND-2a.
         for (const ProjectedRow& p : project_text_regions(layer)) {
-            write_label(p.label, p.background);
+            write_label(p.label, p.background, p.sel_begin, p.sel_end);
         }
     }
 
@@ -338,14 +350,22 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         // rather than one per cell. With no row asking for a ground this whole
         // branch never fires and the bytes are the ones every golden already holds.
         int open_bg = zengine::surface::role::kNone;
+        // AND WHETHER REVERSE VIDEO IS IN EFFECT (TEXT-0), tracked like the ground and for
+        // the ground's reason: `\x1b[0m` is all-attributes and clears it, so a reset
+        // re-states a selection that is still meant to be showing, and a run of selected
+        // cells costs one `\x1b[7m` rather than one per cell. With no selected cell on the
+        // canvas this branch never fires and the bytes are the ones every golden holds.
+        bool open_sel = false;
         for (std::int64_t x = 0; x < w; ++x) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
             const int role = static_cast<int>(roles[i]);
             const int ground = static_cast<int>(grounds[i]);
+            const bool in_selection = selected[i] != 0;
             if (role != open) {
                 out += role < 0 ? "\x1b[0m" : sgr_for_role(role);
                 if (role < 0) {
                     open_bg = zengine::surface::role::kNone; // the reset took the ground too
+                    open_sel = false;                        // ...and the selection with it
                 }
                 open = role;
             }
@@ -353,9 +373,13 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
                 out += ground < 0 ? "\x1b[49m" : sgr_bg_for_role(ground);
                 open_bg = ground;
             }
+            if (in_selection != open_sel) {
+                out += in_selection ? "\x1b[7m" : "\x1b[27m";
+                open_sel = in_selection;
+            }
             out += glyphs[i];
         }
-        if (open >= 0 || open_bg >= 0) {
+        if (open >= 0 || open_bg >= 0 || open_sel) {
             out += "\x1b[0m";
         }
         out += "\r\n";
@@ -410,6 +434,61 @@ inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept
         return SurfaceExtent{};
     }
     return SurfaceExtent{t.cols, t.rows - kTuiReservedRows, 0, 0};
+}
+
+/// STANDARD BASE64, because OSC 52 speaks nothing else. Pure and total; no padding
+/// subtleties beyond the two `=` forms, and no alternate alphabets — the sequence's
+/// consumers are terminals, and terminals read RFC 4648 or read nothing.
+inline std::string tui_base64(const std::string& bytes) {
+    static constexpr char kAlphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    out.reserve(((bytes.size() + 2) / 3) * 4);
+    std::size_t i = 0;
+    for (; i + 3 <= bytes.size(); i += 3) {
+        const std::uint32_t n = (static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i])) << 16) |
+                                (static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i + 1])) << 8) |
+                                static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i + 2]));
+        out.push_back(kAlphabet[(n >> 18) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 12) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 6) & 0x3Fu]);
+        out.push_back(kAlphabet[n & 0x3Fu]);
+    }
+    const std::size_t left = bytes.size() - i;
+    if (left == 1) {
+        const std::uint32_t n = static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i])) << 16;
+        out.push_back(kAlphabet[(n >> 18) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 12) & 0x3Fu]);
+        out += "==";
+    } else if (left == 2) {
+        const std::uint32_t n = (static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i])) << 16) |
+                                (static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i + 1])) << 8);
+        out.push_back(kAlphabet[(n >> 18) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 12) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 6) & 0x3Fu]);
+        out.push_back('=');
+    }
+    return out;
+}
+
+/// WHAT A TERMINAL MEDIUM DOES WITH A COPY: `OSC 52 ; c ; <base64> BEL` — the in-band
+/// set-clipboard sequence, written to the same stream the alternate screen and pointer
+/// reporting already travel, because the OUTPUT side of the terminal is the Skin's (the rule
+/// `kTuiPointerOn` states). Pure, so the suite pins the exact bytes.
+///
+/// THE HONEST LIMIT, STATED RATHER THAN DRESSED UP: whether the terminal on the far end
+/// honours OSC 52 is a per-terminal, per-configuration fact this medium has no way to ask —
+/// modern emulators largely do, stock xterm wants `allowWindowOps`, and a pipe is not a
+/// terminal at all. Writing the sequence where it is not honoured costs nothing and does
+/// nothing; what this medium therefore never claims is that the SYSTEM clipboard took the
+/// text. Inside the process the copy is already true either way — the application heard the
+/// same `ClipboardCopy` this medium did (vocabulary.hpp) — and READING a system clipboard
+/// has no truthful terminal route at all (the OSC 52 query is disabled almost everywhere for
+/// exactly the reason it should be), so paste on this medium means what the process itself
+/// has copied. That asymmetry is the medium's, and it is the strongest truthful answer a
+/// terminal has.
+inline std::string tui_clipboard_sequence(const std::string& text) {
+    return "\x1b]52;c;" + tui_base64(text) + "\x07";
 }
 
 /// The terminal layout — the shared convention, now in exactly one place:
@@ -487,6 +566,11 @@ public:
     /// A terminal needs no servicing between writes; the pump is the window
     /// media's lifeline (see vocabulary.hpp), honestly idle here.
     void pump() {}
+
+    /// A maker copied text: offer it to the terminal's clipboard, in the one voice a
+    /// terminal has for that. See `tui_clipboard_sequence` for exactly what is and is not
+    /// being claimed.
+    void clipboard_copy(const std::string& text) { sink_.write(tui_clipboard_sequence(text)); }
 
     /// HOW MUCH ROOM THERE IS — ASKED OF THE SINK, BECAUSE THE SINK IS THE TERMINAL.
     ///

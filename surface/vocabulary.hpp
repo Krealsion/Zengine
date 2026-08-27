@@ -228,6 +228,11 @@ inline constexpr std::int64_t kGroundBeneath = 1;
 /// caret that can now be anywhere, without teaching it what a pixel is.
 inline constexpr char kCaretGlyph = '_';
 
+/// A REGION THAT HAS NO SELECTION SAYS SO WITH THIS — negative for `kNoCaret`'s
+/// reason exactly: a prose row index is non-negative by construction, so the
+/// absence cannot collide with a row anybody might one day mean.
+inline constexpr std::int64_t kNoSelection = -1;
+
 /// A BOUNDED REGION OF PROSE: placed in canvas CELLS like everything else here,
 /// and filled with rows the active medium sets in its OWN text metric.
 ///
@@ -253,15 +258,16 @@ inline constexpr char kCaretGlyph = '_';
 /// rect is: publishers truncate because the cell projection needs them to, and a
 /// graphical medium clips as well because it cannot have its overflow predicted
 /// by anybody else.
-/// VERSION 3, AND IT HAS BEEN BUMPED TWICE FOR TWO DIFFERENT REASONS. Version 2
-/// was bookkeeping rather than ceremony: this shape's wire identity is computed
+/// VERSION 5, AND THE LADDER OF REASONS IS WORTH KEEPING. Version 2 was
+/// bookkeeping rather than ceremony: this shape's wire identity is computed
 /// from its field types, one of which is a list of `SurfaceTextRow`, so a row
 /// gaining a background changed what a region IS on the wire even though nothing
 /// here was edited. Version 3 is the ordinary kind — HD-3 added the two caret
-/// fields below. Either way, leaving the declared version alone would have meant
-/// two different content-ids wearing one version number, which is the exact
-/// failure a version exists to prevent. The same sentence one layer out made
-/// `SurfaceCanvas` version 4, and WIND-2a's own field change made it version 5.
+/// fields below — and version 4 is TYPE-1's `ground`. Version 5 is TEXT-0's
+/// selection, below. Either way, leaving the declared version alone would have
+/// meant two different content-ids wearing one version number, which is the
+/// exact failure a version exists to prevent. The same sentence one layer out
+/// has moved `SurfaceLayer` and `SurfaceCanvas` in step every time.
 ///
 /// A REGION MAY HAVE A CARET, AND IT IS SAID IN THE REGION'S OWN PROSE LATTICE
 /// (HD-3). `caret_row`/`caret_col` are a row index and a column index into this
@@ -278,11 +284,28 @@ inline constexpr char kCaretGlyph = '_';
 /// negative half of the number line is free and unambiguous. A publisher that
 /// says nothing gets exactly the picture every region drew before this existed.
 ///
-/// WHAT IT IS NOT. It is not a selection (there is no range, and no anchor), not
-/// a focus fact (a canvas has no focus, and two regions may each carry one), not
-/// blinking (there is no clock on this shape), and not a promise about where a
-/// medium's own text cursor is. It is one insertion point in one region's prose,
-/// which is exactly what a publisher knows and a medium does not.
+/// A REGION MAY ALSO HAVE A SELECTED RANGE, SAID IN THE SAME LATTICE (TEXT-0).
+/// `sel_begin_*`/`sel_end_*` are two caret-like positions — begin inclusive, end
+/// exclusive, in READING ORDER — and the range between them is the text a
+/// maker's next gesture acts on: what typing replaces, what copy takes, what
+/// delete removes. On one row that is the columns `[begin_col, end_col)` of that
+/// row; across rows it is the begin row from `begin_col` to that row's own end,
+/// every row between whole, and the end row up to `end_col` — the shape a
+/// multiline editor needs, carried now so the single-line publisher and the
+/// future one speak one vocabulary. `surface/region.hpp` owns that per-row
+/// arithmetic in ONE function both media consume.
+///
+/// WHICH END THE CARET IS AT IS NOT RESTATED HERE. A publisher whose selection
+/// has an active end says so with the caret fields it already has; the range is
+/// normalized so a medium never re-derives reading order from gesture history it
+/// cannot see. A range that is absent (`kNoSelection`), empty, or not in reading
+/// order shows nothing — a medium draws what a publisher meant, and a value no
+/// publisher could mean is the absence, never a guess.
+///
+/// WHAT THE PAIR IS NOT. Not per-span styling (there is one range and it means
+/// selection, not "these words are blue"), not focus, not multiple selections,
+/// and not a claim the medium must track anything — it is a fact about THIS
+/// picture, republished whenever the picture is.
 struct SurfaceTextRegion {
     std::int64_t x = 0;
     std::int64_t y = 0;
@@ -292,8 +315,14 @@ struct SurfaceTextRegion {
     std::int64_t caret_row = kNoCaret; ///< the prose row it is on; kNoCaret = there is none
     std::int64_t caret_col = 0;        ///< ...and the prose column it sits BEFORE
     std::int64_t ground = kGroundOwn;  ///< whose rectangle this is; see kGroundOwn above
-    ZEN_SHAPE(SurfaceTextRegion, 4, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
-              ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground));
+    std::int64_t sel_begin_row = kNoSelection; ///< reading-order start; kNoSelection = none
+    std::int64_t sel_begin_col = 0;            ///< inclusive, a caret-like position
+    std::int64_t sel_end_row = kNoSelection;   ///< reading-order end row
+    std::int64_t sel_end_col = 0;              ///< exclusive, a caret-like position
+    ZEN_SHAPE(SurfaceTextRegion, 5, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
+              ZEN_FIELD(rows), ZEN_FIELD(caret_row), ZEN_FIELD(caret_col), ZEN_FIELD(ground),
+              ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
+              ZEN_FIELD(sel_end_col));
 };
 
 /// ONE ORDERED PAINTER PLANE: the three primitive kinds, drawn as one complete
@@ -327,7 +356,9 @@ struct SurfaceLayer {
     std::vector<SurfaceRect> rects;
     std::vector<SurfaceLabel> labels;
     std::vector<SurfaceTextRegion> texts;
-    ZEN_SHAPE(SurfaceLayer, 2, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
+    // v3: a layer IS a list of regions, so a region gaining its selection fields (TEXT-0)
+    // changed what a layer is on the wire — the same bookkeeping bump v2 was for the ground.
+    ZEN_SHAPE(SurfaceLayer, 3, ZEN_FIELD(rects), ZEN_FIELD(labels), ZEN_FIELD(texts));
 };
 
 /// A whole canvas: an extent in cells, and the ordered planes that fill it.
@@ -362,18 +393,20 @@ struct SurfaceLayer {
 /// a region belonging to a presentation somebody put BEHIND another one is behind
 /// it, kind for kind, and no primitive had to gain a field to say so.
 ///
-/// VERSION 5 SINCE WIND-2a, and this is the first time it has gained and lost
-/// fields of its own. Versions 2, 3 and 4 it gained nothing at all and changed
-/// anyway, because its identity is derived from what it carries; version 5 is the
-/// ordinary kind. There is no v4 reader, no compatibility root list, no implicit
-/// base layer beside the explicit ones and no second spelling of one picture —
-/// two valid ways to say the same thing is how two orderings come to disagree,
-/// which is the defect this version exists to end.
+/// VERSION 7 SINCE TEXT-0, and only WIND-2a's 5 ever changed the fields written
+/// here. Versions 2, 3, 4, 6 and 7 it gained nothing at all and changed anyway,
+/// because its identity is derived from what it carries — a canvas is a list of
+/// layers is a list of regions, so the region's ground (v6) and its selection
+/// (v7) each moved this number without an edit on this struct. There is no
+/// old-version reader, no compatibility root list, no implicit base layer beside
+/// the explicit ones and no second spelling of one picture — two valid ways to
+/// say the same thing is how two orderings come to disagree, which is the defect
+/// versioning exists to end.
 struct SurfaceCanvas {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::vector<SurfaceLayer> layers;
-    ZEN_SHAPE(SurfaceCanvas, 6, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
+    ZEN_SHAPE(SurfaceCanvas, 7, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
 /// One canvas cell in a graphical medium. The terminal needs no such number —
@@ -494,6 +527,46 @@ struct PumpSurface {
 /// application's surface, so no consumer has to read it as a key.
 struct SurfaceCloseRequested {
     ZEN_SHAPE(SurfaceCloseRequested, 1);
+};
+
+/// A MAKER COPIED THIS TEXT — an application's offer of it to the medium's clipboard, and
+/// to anything else in this process that holds editable text (TEXT-0).
+///
+/// IT IS INTENT, THE DIRECTION EVERY OTHER SHAPE HERE TRAVELS: the active Skin executes it
+/// with whatever its medium honestly has. The SDL medium sets the real platform clipboard.
+/// A terminal medium WRITES the OSC 52 set-clipboard sequence to its own stream — the
+/// output stream is the Skin's, exactly as the alternate screen is — which terminals that
+/// support it honour and the rest ignore; a terminal offers no way to ask which happened,
+/// so nothing here claims the system took it. Either way the text is on the BUS, so every
+/// participant that mirrors a clipboard (Workshop, a pane provider with a field) heard the
+/// same copy — which is what keeps copy-here-paste-there true inside this process even on a
+/// medium whose platform clipboard cannot answer.
+///
+/// WHY IT IS NOT A SEND TO `kSkinRole`: the Skin is one interested party, not the only one.
+/// A publication is the honest shape for a fact several unrelated parties mirror.
+struct ClipboardCopy {
+    std::string text;
+    ZEN_SHAPE(ClipboardCopy, 1, ZEN_FIELD(text));
+};
+
+/// THE PLATFORM'S CLIPBOARD NOW HOLDS THIS TEXT — the medium's own fact, travelling the
+/// extent's direction: medium -> application (TEXT-0).
+///
+/// WHO PUBLISHES IT is `SurfaceCloseRequested`'s answer verbatim: SDL reports clipboard
+/// changes and input through ONE process-global event queue, so the weave that owns that
+/// queue — the SDL Input reader — is the only thing in the process that can see the change,
+/// and it routes the fact in the vocabulary that owns the application's surface rather than
+/// dressing it as a keystroke. The terminal backends never publish it, because a terminal
+/// has no way to say it; on those media the process's clipboard truth is whatever
+/// `ClipboardCopy` last carried, and that asymmetry is the media's, stated rather than
+/// papered over.
+///
+/// A consumer treats it as a MIRROR update: remember the text, replace what a local copy
+/// held, and never echo it back — echoing would be this fact and `ClipboardCopy` chasing
+/// each other around the loop the platform already closes.
+struct ClipboardChanged {
+    std::string text;
+    ZEN_SHAPE(ClipboardChanged, 1, ZEN_FIELD(text));
 };
 
 /// The role that IS surface ownership. Singleton by the Loom's role rules, so

@@ -290,6 +290,49 @@ inline constexpr RegionViewport clip_viewport(const RegionViewport& v, std::int6
 inline constexpr std::int64_t kMaxProjectedWidth = 16384;
 inline constexpr std::int64_t kMaxProjectedRows = 16384;
 
+/// WHICH COLUMNS OF ONE ROW A REGION'S SELECTION COVERS — the per-row half of the
+/// selection contract, written ONCE and consumed by every medium (TEXT-0).
+///
+/// The vocabulary carries a range as two caret-like positions in reading order
+/// (`SurfaceTextRegion`); what a medium needs is a span per row it is about to
+/// draw, and two media computing that independently is the two-measurers defect
+/// with a highlight for a symptom: an omission marker that lies became a
+/// highlight that covers different characters in each medium. So the rule lives
+/// here: the begin row is covered from `sel_begin_col` to its own end, the end
+/// row up to `sel_end_col`, every row between whole, and everything is clamped
+/// into `[0, row_len]` — a highlight covers characters that exist, and a
+/// position past a short row covers nothing rather than inventing cells.
+///
+/// TOTAL over garbage, absence included: a range that is absent (`kNoSelection`),
+/// empty, or not in reading order answers the empty span for every row. A medium
+/// draws what a publisher meant, and a value no publisher could mean is the
+/// absence, never a guess.
+struct RowSpan {
+    std::int64_t begin = 0;
+    std::int64_t end = 0; ///< exclusive; `end > begin` is what "selected here" means
+    constexpr bool present() const noexcept { return end > begin; }
+};
+
+inline constexpr RowSpan selection_span_of_row(const SurfaceTextRegion& r, std::int64_t row,
+                                               std::int64_t row_len) noexcept {
+    if (r.sel_begin_row < 0 || r.sel_end_row < r.sel_begin_row ||
+        (r.sel_begin_row == r.sel_end_row && r.sel_end_col <= r.sel_begin_col)) {
+        return RowSpan{}; // no selection, or a range no publisher could mean
+    }
+    if (row < r.sel_begin_row || row > r.sel_end_row || row_len <= 0) {
+        return RowSpan{};
+    }
+    std::int64_t begin = row == r.sel_begin_row ? r.sel_begin_col : 0;
+    std::int64_t end = row == r.sel_end_row ? r.sel_end_col : row_len;
+    if (begin < 0) {
+        begin = 0;
+    }
+    if (end > row_len) {
+        end = row_len;
+    }
+    return begin < end ? RowSpan{begin, end} : RowSpan{};
+}
+
 /// ONE PROJECTED ROW: the label a cell medium draws, and the ground it draws it
 /// on.
 ///
@@ -311,6 +354,12 @@ struct ProjectedRow {
     /// once -- the row's ground if it named one, otherwise the canvas's own ground
     /// if the region took its rectangle, otherwise nothing at all.
     std::int64_t ground = kGroundOwn;
+    /// THE SELECTED COLUMNS OF THIS PROJECTED ROW (TEXT-0), in the label's own bytes
+    /// -- caret glyph included and cut applied, so a consumer highlights `text[i]`
+    /// for `sel_begin <= i < sel_end` and nothing else. `begin >= end` is the
+    /// absence, the shape's default.
+    std::int64_t sel_begin = 0;
+    std::int64_t sel_end = 0;
 };
 
 /// A REGION'S ROWS AS ORDINARY CANVAS LABELS — the cell projection, written once
@@ -371,6 +420,15 @@ struct ProjectedRow {
 /// no ground of its own would be a label that writes not one cell, in either medium.
 /// So it is not produced -- which is also what keeps a name over an authored object
 /// ONE projected row rather than one per cell of the object's height.
+/// A SELECTION SPAN RIDES ALONG TOO (TEXT-0), in the projected label's OWN bytes. The one
+/// arithmetic worth writing down is the caret's: this projection INSERTS the caret as a
+/// character, which moves every column at or after it one cell right, so a span computed
+/// against the row's text is mapped through the insertion — the begin shifts when the caret
+/// sits at or before it, the end shifts when the caret sits strictly inside the range (which
+/// also puts the inserted glyph INSIDE the highlight, the honest picture for a caret a
+/// publisher placed mid-selection). Then the same cut every byte of the row meets: a span is
+/// clamped to the projected width, and a selection wholly past it vanishes with the text it
+/// covered.
 inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<ProjectedRow>& out) {
     if (r.w <= 0 || r.h <= 0) {
         return; // a region with no bounds shows nothing, and says nothing about it
@@ -385,9 +443,14 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         std::string text = said ? r.rows[at].text : std::string();
         const std::int64_t role = said ? r.rows[at].role : role::kFill;
         const std::int64_t back = said ? r.rows[at].background : role::kNone;
+        RowSpan span = selection_span_of_row(r, i, static_cast<std::int64_t>(text.size()));
         if (r.caret_row == i && r.caret_col >= 0 &&
             r.caret_col <= static_cast<std::int64_t>(text.size())) {
             text.insert(static_cast<std::size_t>(r.caret_col), 1, kCaretGlyph);
+            if (span.present()) {
+                span.begin += r.caret_col <= span.begin ? 1 : 0;
+                span.end += r.caret_col < span.end ? 1 : 0;
+            }
         }
         // `!= kGroundBeneath`, never `== kGroundOwn`: an unknown ground reads as OWNING its
         // room, so a number nobody chose cannot stop a region padding. See vocabulary.hpp.
@@ -399,8 +462,14 @@ inline void project_one_text_region(const SurfaceTextRegion& r, std::vector<Proj
         } else if (text.empty()) {
             continue; // nothing to write and no cells to claim: not a row at all
         }
-        out.push_back(ProjectedRow{
-            SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role}, back, r.ground});
+        if (span.begin > static_cast<std::int64_t>(text.size())) {
+            span.begin = static_cast<std::int64_t>(text.size());
+        }
+        if (span.end > static_cast<std::int64_t>(text.size())) {
+            span.end = static_cast<std::int64_t>(text.size()); // the cut cuts highlights too
+        }
+        out.push_back(ProjectedRow{SurfaceLabel{r.x, add_cells(r.y, i), std::move(text), role},
+                                   back, r.ground, span.begin, span.end});
     }
 }
 

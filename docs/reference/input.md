@@ -26,18 +26,28 @@ application meaning and is not spoken here at any version.
 | `PointerButton` v1 | button, transition, **the position it happened at**, space, modifiers. |
 | `PointerWheel` v1 | notches, position, space, modifiers. |
 
-Positions are int64 and carry a `space` (`kCells` on both current backends, `kPixels` declared)
-so a terminal cell can never be mistaken for an SDL pixel. Editing controls are keys, never text:
-Backspace, Enter and Escape arrive as transitions, and what they *mean* is the application's.
+Positions are int64 and carry a `space` (`kCells` on the two terminal backends, `kPixels` on the
+SDL one) so a terminal cell can never be mistaken for an SDL pixel. Editing controls are keys,
+never text: Backspace, Enter and Escape arrive as transitions, and what they *mean* is the
+application's.
 
 Backends today are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode
 bytes with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a
 mouse report split across reads is rejoined rather than translated into the keystrokes its bytes
 happen to spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer
-reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract. The
-**Win32 console** reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the
-modifiers, `dwMousePosition` the position — all present on the record and all now preserved. An
-SDL **Reader** (the window's own input, including its close box) is the named follow-on.
+reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and —
+since TEXT-0 — the CSI editing keys are named too: the arrows, Home, End and Delete in their
+bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *measured* (xterm's
+1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). The **Win32 console**
+reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,
+`dwMousePosition` the position — all present on the record and all preserved — and its VK table
+names Home, End and Delete. The SDL **Reader** owns the window's one process-global event
+queue: SDL scancodes pass through as the wire identity they already are, and two facts on that
+queue are not input moments and are routed in the Surface vocabulary instead — the close box
+(`SurfaceCloseRequested`) and, since TEXT-0, a platform clipboard change (`ClipboardChanged`,
+read at the moment the queue reports it, the pre-existing clipboard said once on the first
+poll). Each backend's exact honest reach — which modifiers it can vouch for on which keys —
+stays documented in `input/translate.hpp`.
 
 **Who turns the terminal's pointer on:** the **Skin**, because terminal modes are output and the
 output stream is already claimed and released on the Skin's own lifetime (`surface/skin_tui.hpp`).

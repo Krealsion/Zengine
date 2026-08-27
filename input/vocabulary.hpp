@@ -135,23 +135,22 @@ inline constexpr std::int64_t kGrave = 53;
 inline constexpr std::int64_t kComma = 54;
 inline constexpr std::int64_t kPeriod = 55;
 inline constexpr std::int64_t kSlash = 56;
-/// THE EDITING KEYS, NAMED SINCE HD-3 — and naming is the whole of what was
-/// added. These three values already arrived on this wire: the SDL backend
+/// THE EDITING KEYS, NAMED SINCE HD-3 — and naming is the whole of what HD-3
+/// added. These three values already arrived on the SDL wire: that backend
 /// passes SDL's scancode through untranslated (translate_sdl.hpp says so in as
 /// many words), so a maker pressing Delete has always produced
-/// `KeyPressed{76, "", …}`. What did not exist was a name for it, which meant a
-/// consumer could only bind it by writing the number down — the one thing this
+/// `KeyPressed{76, "", …}`. What did not exist was a name, which meant a
+/// consumer could only bind one by writing the number down — the one thing this
 /// namespace exists to stop.
 ///
-/// WHAT THEY DO NOT MEAN, stated because a bare constant otherwise implies more
-/// than it is: this is not a claim that every backend can produce them. The
-/// POSIX terminal backend recognises four CSI sequences and drops the rest, so
-/// `\x1b[3~` (Delete) and `\x1b[H` (Home) are consumed and never named; the
-/// Win32 console backend's VK table maps VK_HOME/VK_END/VK_DELETE to
-/// `kUnknown`. HD-3 deliberately did NOT widen either — its own surface is the
-/// graphical Terminal, both terminal paths would need their own evidence, and
-/// widening an input backend "for symmetry" is how a backend acquires a key
-/// nobody has ever pressed on it. Each backend's honest reach is in
+/// SINCE TEXT-0 EVERY BACKEND CAN PRODUCE ALL THREE. HD-3 deliberately left the
+/// two terminal paths narrow — widening an input backend "for symmetry" is how
+/// a backend acquires a key nobody has ever pressed on it — and the consumer
+/// that ended the symmetry argument is `component::TextBox::consume`, which
+/// binds these keys on every backend at once. So the POSIX parser now names the
+/// CSI spellings (`\x1b[H`, `\x1b[3~`, the `1;m`-modified forms) and the Win32
+/// console table names VK_HOME/VK_END/VK_DELETE. Each backend's honest reach —
+/// including which modifiers each can vouch for on these keys — is in
 /// translate.hpp, exactly as it was.
 inline constexpr std::int64_t kHome = 74;
 inline constexpr std::int64_t kDelete = 76;
@@ -198,10 +197,11 @@ inline constexpr std::int64_t kSuper = 8;
 /// without a position: a number whose meaning the consumer has to guess from
 /// which backend it thinks is loaded. A terminal cell and an SDL pixel are both
 /// small non-negative integers, and nothing but this field tells them apart.
-/// Both backends that exist today report kCells; kPixels is declared so a
-/// graphical backend cannot arrive by silently changing what the old value
-/// meant. A consumer that does not recognise the space should ignore the event
-/// rather than assume its own.
+/// The two terminal backends report kCells; the SDL backend reports kPixels on
+/// every pointer shape (translate_sdl.hpp) — which is exactly the arrival this
+/// field was declared against: a graphical backend could not change what the
+/// old value meant, because the new unit came stamped. A consumer that does not
+/// recognise the space should ignore the event rather than assume its own.
 namespace space {
 inline constexpr std::int64_t kUnknown = 0;
 inline constexpr std::int64_t kCells = 1;
