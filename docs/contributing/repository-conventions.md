@@ -112,7 +112,11 @@ maintained against the current one. Do not fix it and do not cite it as current.
 read. Nothing in it is built by this repository, and ports out of it are read-and-rewrite —
 landing in their proper home from birth, never lift-and-shift. Its provenance is a plain file
 import of that project's working tree rather than a history-carrying subtree split, so its
-history stays in the original working copy.
+history stays in the original working copy. What is actually in there is indexed by
+[reference/QUARRY-CATALOG.md](../../reference/QUARRY-CATALOG.md) — capability by capability,
+with source paths, the legacy interaction shape, and where the comparable question is answered
+today. It is archaeology, not authority: an entry saying a capability is absent is a statement
+about coverage, never a request for work.
 
 ## Source comment conventions
 
