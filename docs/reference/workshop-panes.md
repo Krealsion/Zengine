@@ -338,9 +338,13 @@ authored setup                 resolved presentation          session interactio
   the edge that moves, and the one opposite holds still — pulling the top edge changes `y` and
   the height *together* so the bottom edge stays put, and a corner holds the corner across from
   it. Right and bottom pulls anchor the place by not writing it, so a reactive pane stays
-  reactive; left and top pulls author the place with the size, judged and written as one
-  transaction — a refused height can never leave a moved corner behind. Edits commit
-  immediately; `esc` is *back*, not *cancel*, and there is no undo.
+  reactive; a left or top pull authors the place with the size as one transaction *on its own
+  axis* — a refused height can never leave a moved top edge behind. **Independent axes settle
+  independently** (WUX-2a): a move or corner gesture blocked on one axis — dragged past the
+  left wall, or pulled under the one-cell minimum — still applies the other axis's legal
+  proposal, and the blocked coordinate keeps its own value rather than clamping to the wall.
+  Only a gesture refused on every axis it moved writes nothing. Edits commit immediately;
+  `esc` is *back*, not *cancel*, and there is no undo.
 - **Graphical interaction is pixel-responsive; the TUI stays honestly cell-grained.** A window
   pointer's press and motion are spent at their own resolution — one pixel of hand is four
   sub-units of lattice, with no whole-cell threshold anywhere on the path — and what a medium
