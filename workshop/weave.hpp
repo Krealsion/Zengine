@@ -97,6 +97,7 @@
 //                   the quit policy `q` already had.
 
 #include "persist.hpp"
+#include "keymap_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
@@ -111,6 +112,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
@@ -216,6 +218,17 @@ struct HostContext {
     /// by default, so a case has to opt IN to touching a file.
     std::string session_path;
 
+    /// The one file this Workshop's KEYMAP is read from (KEY-0).
+    ///
+    /// A FOURTH PATH, AND A SIXTH KIND OF DURABLE FACT: the maker's hand. It is the
+    /// host's to choose (`--keymap <path>`, defaulted) for the reasons the other three
+    /// are, and a separate file because binding overrides describe neither the work, nor
+    /// a desk, nor the desk in use -- see keymap_persist.hpp. Empty means no keymap file
+    /// was chosen and the defaults-in-code stand, silently; an ABSENT file at a chosen
+    /// path means exactly the same, because deleting the file is how a maker returns to
+    /// the defaults. Only a file that EXISTS and cannot be admitted is refused, out loud.
+    std::string keymap_path;
+
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
     /// THE ONE RULE, AND IT IS THE HOST'S (LOAD-0). A directory, a separator and a
@@ -289,6 +302,61 @@ public:
         open_on_first();
     }
 
+    /// READ THE MAKER'S KEYMAP, OR STAND ON THE DEFAULTS (KEY-0).
+    ///
+    /// Three quiet endings and two spoken ones: no path chosen and no file present are
+    /// both simply the defaults (deleting the file IS resetting the keymap, so an absent
+    /// file must never be a complaint); an admitted file is applied and announced; an
+    /// admitted file with a known backend gap carries the gap in the announcement; a file
+    /// that exists and cannot be admitted is refused in its own words and the defaults
+    /// stand -- Workshop does not rewrite, half-apply, or delete a file it could not
+    /// understand.
+    /// It runs on the FIRST `SurfaceReady`, the session restore's own moment and guard
+    /// shape: once per process, before the restore's repaint, so the first band a maker
+    /// reads is already projected from their own bindings. A key arriving before any
+    /// surface exists is answered by the defaults, exactly as it is answered by the
+    /// default desk -- the two files share one startup story.
+    void load_keymap() {
+        if (keymap_loaded_) {
+            return;
+        }
+        keymap_loaded_ = true;
+        if (host_->keymap_path.empty()) {
+            return;
+        }
+        if (!std::filesystem::exists(host_->keymap_path)) {
+            return;
+        }
+        const keymap_persist::LoadedKeymap loaded =
+            keymap_persist::load_file(host_->keymap_path);
+        if (!loaded.outcome.accepted) {
+            keymap_word_ = loaded.outcome.refusal + " -- the default bindings stand";
+            keymap_bad_ = true;
+            return;
+        }
+        session_.keymap = loaded.keymap;
+        if (!session_.keymap.authored.empty() || session_.keymap.legend != legend_mode::kDefault) {
+            keymap_word_ = "keymap " + host_->keymap_path + " applied -- " +
+                           std::to_string(session_.keymap.authored.size()) + " override" +
+                           (session_.keymap.authored.size() == 1 ? "" : "s");
+            if (!session_.keymap.note.empty()) {
+                keymap_word_ += "; " + session_.keymap.note;
+            }
+        }
+    }
+
+    /// Say once what the keymap load produced, on the first surface that can show it --
+    /// after the session restore, deliberately, so a refusal a maker must act on is the
+    /// sentence that survives on the one notice line.
+    void speak_keymap(loom::Mail& mail) {
+        if (keymap_spoken_ || keymap_word_.empty()) {
+            return;
+        }
+        keymap_spoken_ = true;
+        say(keymap_word_, keymap_bad_);
+        repaint(mail);
+    }
+
     /// A Skin claimed the surface and said hello: give it the whole screen. The
     /// operator weave's precedent, and the only thing Workshop needs in order to
     /// paint for the first time -- so load order decides nothing here either.
@@ -331,8 +399,10 @@ public:
         // and the room it is trying to get BACK is the second -- a want, not a floor.
         // Reversing the two costs a maker the ability to shrink their window, which is a
         // stranger thing to lose to a continuity feature than anything it could have bought.
+        load_keymap();
         repaint(mail);
         restore_last_session(mail);
+        speak_keymap(mail);
     }
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
@@ -399,134 +469,81 @@ public:
 
     /// A key TRANSITION: which key changed, and what was held when it did.
     ///
-    /// Ctrl+C MEANS QUIT EXACTLY WHERE IT CANNOT MEAN COPY (TEXT-0). It was the one key
-    /// that meant the same thing in every mode; then the TextBox earned a clipboard, and
-    /// `^c` became the collision SC-form routing exists to resolve deliberately: a maker
-    /// pressing it over selected text means "copy this", and an application that quit
-    /// instead — saving the session, closing the window, orderly and catastrophic — would
-    /// be the worst available answer to the most ordinary gesture there is. So the quit
-    /// branch asks `editable_text_has_keyboard()` first: wherever the keyboard chain would
-    /// hand keys to a place that takes text (the Terminal line, the name editor, a live
-    /// property draft, a focused runtime pane — which receives every bare key already and
-    /// takes text by the same law), `^c` travels the chain like any chord and the box's own
-    /// vocabulary answers it; everywhere else (command mode, the picker, pane management)
-    /// it quits exactly as it always has. `q`, the close box and `SurfaceCloseRequested`
-    /// are untouched, so quitting is never more than one press-elsewhere away.
+    /// SINCE KEY-0 THE GESTURE IS RESOLVED THROUGH ONE BINDING TRUTH. The context comes
+    /// from `keyboard_context(session_)` -- the routing chain, spelled once, where this
+    /// function used to spell it and two hand-kept mirrors spelled it again -- and the
+    /// gesture becomes an action identity through `session_.keymap`, exactly the value
+    /// every help surface projects. What each action DOES is untouched: every arm below
+    /// calls the same owner function it always called, because the keymap resolves names
+    /// and can perform nothing.
     ///
-    /// `^s` AND `^o` STAY ABOVE EVERY MODE, deliberately: they are the DOCUMENT's two keys,
-    /// their recorded rationale stands, and the TextBox vocabulary never binds them — a
-    /// draft-open `^s` still reaches `save_document`, whose draft-open refusal is the
-    /// policy, spoken by its owner.
+    /// FIVE ACTIONS ARE ANSWERED ABOVE EVERY MODE, in the position the old four chords
+    /// held. `document.save`/`document.open` are the document's two keys (a maker halfway
+    /// through a width still means "save my work"; the draft-open refusal is
+    /// save_document's own policy); `workshop.terminal` toggles the pane a maker must be
+    /// able to reach from inside anything (its default moved to `ctrl+t` in KEY-0 -- the
+    /// old `shift+space` cannot arrive from the POSIX backend at all, and is gone rather
+    /// than kept as an invisible alias); `workshop.hotkeys` opens the view that explains
+    /// the rest. `workshop.quit` is declared for exactly the contexts where nothing takes
+    /// text (TEXT-0's `^c` law, carried by the declaration's kNoText context now): where
+    /// text has the keyboard the chord travels the chain and the box's own vocabulary
+    /// answers it, and quitting stays one press-elsewhere away.
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        if (k.scancode == input::scan::kC && held(k.modifiers, input::mod::kCtrl) &&
-            !editable_text_has_keyboard()) {
-            quit();
-            return;
+        // THE CONTEXT IS RESOLVED ONCE, AT ENTRY, and every decision this turn -- the
+        // above-mode arm, the swallow, the chain -- spends the same answer, so a mode a
+        // dispatch arm opens cannot change what THIS keystroke meant.
+        const KeyContext ctx = keyboard_context(session_);
+        // THE SWALLOW BELONGS TO ONE MOMENT: cleared on every key, armed only when this
+        // keystroke is consumed as an application binding whose key also enters text
+        // (`expected_text_of` derives the owed character from the binding -- the
+        // generalization of the three hard-coded `" "`/`"s"`/`"w"` sites KEY-R0 found,
+        // and deliberately not a swallow-the-next-text rule: an unmatched or absent
+        // expectation eats nothing).
+        swallow_text_.clear();
+        if (session_.keymap.action_for(ctx, k.scancode, k.modifiers) != Act::kNone) {
+            swallow_text_ = expected_text_of(k.scancode, k.modifiers);
         }
-        // SHIFT+SPACE OPENS AND CLOSES THE TERMINAL, above every mode, because a
-        // maker who cannot reach the pane from inside a half-typed width has a
-        // pane with a trapdoor rather than a toggle.
-        //
-        // AND IT SWALLOWS ITS OWN TEXT. A key transition and the character it
-        // produced are two facts that were simultaneously true, and both arrive:
-        // the SDL and Win32 backends report Shift+Space as `KeyPressed{Space,
-        // shift}` AND `TextEntered{" "}`. Without this the gesture that closed
-        // the pane would also have typed a space into the line it closed over.
-        // The flag is set here and cleared by the very next key OR the very next
-        // text, so it cannot outlive the moment it belongs to and eat a space a
-        // maker meant -- which a lingering one-shot flag would do on a backend
-        // that reports the key and no text at all.
-        const bool toggling =
-            k.scancode == input::scan::kSpace && held(k.modifiers, input::mod::kShift);
-        // THE SWALLOW IS A STRING SINCE WS-0, and the widening is the whole of what a SECOND
-        // printable trigger cost. `s` opens a one-line name editor exactly as Shift+Space
-        // opens the pane, and the same two facts arrive: the key transition, and the `s` the
-        // platform's layout made of it. One flag hard-coded to `" "` could not have covered
-        // both, and a second flag beside it would have been the same mechanism written twice.
-        // Cleared here, on every key, for the reason it always was: it belongs to one moment.
-        swallow_text_ = toggling ? " " : "";
-        if (toggling) {
+        // ONLY THE ROWS DECLARED ABOVE THE MODES ARE ANSWERED HERE. `workshop.quit`'s
+        // ordinary `q` row resolves to the same action and still travels the chain --
+        // which is what keeps the hotkey view's swallow, and every mode's ownership,
+        // ahead of it.
+        switch (session_.keymap.above_mode_action(ctx, k.scancode, k.modifiers)) {
+        case Act::kQuit: quit(); return;
+        case Act::kTerminalToggle:
             toggle_terminal();
             repaint(mail);
             return;
+        case Act::kSaveDocument:
+            save_document();
+            repaint(mail);
+            return;
+        case Act::kOpenDocument:
+            load_document();
+            repaint(mail);
+            return;
+        case Act::kHotkeys:
+            toggle_hotkeys();
+            repaint(mail);
+            return;
+        default: break;
         }
-        // Save and open are the two commands that mean the same thing in every
-        // mode, so they sit beside Ctrl+C rather than inside `command()`: a
-        // maker halfway through typing a width still means "save my work" when
-        // they press ^s, and what Workshop does about the half-typed width is
-        // save_document's answer, not a reason to make the key unreachable.
-        //
-        // BOTH ARE TRUTHFUL ON BOTH BACKENDS, and ^s in particular is a claim
-        // worth source-tracing rather than assuming. Ctrl+S is byte 0x13, which
-        // is XOFF: on a terminal that still has flow control it never reaches
-        // the application at all. The Input weave's TerminalReader clears IXON
-        // when it takes raw mode (input.cpp), so the byte arrives, and the
-        // parser reads 1..26 as Ctrl+letter with the modifier MEASURED rather
-        // than inferred. On the Win32 console it is VK_S with the control-key
-        // state the record already carries. Neither backend was changed.
-        if (held(k.modifiers, input::mod::kCtrl)) {
-            if (k.scancode == input::scan::kS) {
-                save_document();
-                repaint(mail);
-                return;
-            }
-            if (k.scancode == input::scan::kO) {
-                load_document();
-                repaint(mail);
-                return;
-            }
+        // THE HOTKEY VIEW IS KEYS-MODAL WHILE IT IS OPEN: the five arms above still
+        // answer (its own toggle is one of them), and everything else is the view's to
+        // spend or swallow -- a maker reading a key list must not be executing it. The
+        // context beneath is untouched, which is why `ctx` above still names it.
+        if (session_.hotkeys.open) {
+            hotkeys_key(k);
+            repaint(mail);
+            return;
         }
-        // FOUR MODES NOW, and the order is the priority. The overlay is what a
-        // maker most recently asked for, so while it is open it has the keys --
-        // an open inspector draft is not cancelled, not committed and not
-        // touched, and is still there when the pane closes.
+        // THE CHAIN IS `keyboard_context`'S ANSWER NOW (KEY-0). Its order -- and every
+        // recorded rationale behind it: the modes that own the keyboard whole, the
+        // reachability arguments that are written down anyway, the pressed-into-LAST
+        // symmetry that puts a focused pane above a live draft, `keyboard_pane` resolved
+        // fresh with nothing to clear -- lives with the resolver, where the paint path
+        // and the paste mirror read the same answer. This switch is what remains of four
+        // hand-copies of that order: which owner the resolved context names.
         //
-        // THE PICKER SITS SECOND, AND IT CANNOT COLLIDE WITH THE THIRD. It is
-        // reachable only from command mode, and command mode is exactly the
-        // state in which no row is being edited -- so "picker open" and "a draft
-        // is live" cannot both be true. The order is written anyway rather than
-        // left to that argument: an ordering that depends on a reachability
-        // proof is one refactor away from being wrong silently, and this costs
-        // one line. It is NOT a focus framework: there is no focused panel, no
-        // z-order and no capture -- one `if` per mode, the same shape the
-        // overlay's was.
-        //
-        // FIVE MODES SINCE WS-0, and the new one sits SECOND for the picker's own reason.
-        // The setup-name editor is reachable only from command mode -- `s` is a command --
-        // so "naming" and "a draft is live" cannot both be true, and neither can "naming"
-        // and "the picker is open". The order is written anyway rather than left to that
-        // argument, because an ordering that depends on a reachability proof is one refactor
-        // away from being wrong silently, and this costs one line. It is still not a focus
-        // framework: one `if` per mode, and nothing captures anything.
-        //
-        // SIX MODES SINCE WIND-2, and pane management sits BELOW the Terminal and ABOVE
-        // ordinary command handling -- which is the whole of the priority claim the phase
-        // makes. It is reachable only from command mode, so it cannot be live with a
-        // property draft, with the picker, or with the name editor; the order is written
-        // anyway rather than left to that argument, for the reason every line of this chain
-        // is. Terminal behaviour and input ownership are untouched: `shift+space` still
-        // outranks all six, three lines up.
-        //
-        // AND SINCE MSG-0 A FOCUSED EXTERNAL PANE SITS BETWEEN THE FIVE MODES AND
-        // WORKSHOP'S OWN COMMANDS -- which is the whole of the priority claim this
-        // phase makes, and the answer to "does typing `p` into a field open the
-        // picker". It does not, because nothing below this line is reached while a
-        // pane holds the keyboard. What is ABOVE it is unchanged and is the whole
-        // list: the four keys that mean the same thing in every mode (three lines
-        // up), then the five modes that own the keyboard whole while they are open.
-        //
-        // IT IS ABOVE A LIVE PROPERTY DRAFT, and that is a decision with a
-        // symmetry behind it rather than a tie broken arbitrarily. Both are PLACES
-        // rather than modes, and both are reached by a maker pressing into them --
-        // so the one that answers is the one the maker pressed into LAST, which is
-        // exactly what `panels.keyboard` records. Pressing back into the Info body
-        // clears the candidate by the same line that set it, and the draft has the
-        // keys again; the draft itself is never cancelled, committed or touched by
-        // any of this, which is the Terminal overlay's own rule for the same state.
-        //
-        // IT IS RESOLVED, NOT READ. `keyboard_pane` re-derives the target from the
-        // open panel list and the granted room every time, so a pane that stopped
-        // being presentable stops being asked with nothing to clear.
         // A COPY ANYWHERE BELOW IS SAID TO THE PROCESS ONCE, HERE (TEXT-0). The component
         // bumps the clipboard's `writes` exactly when a copy or cut took text, so one
         // comparison around the whole chain notices it whichever consumer it happened in —
@@ -538,26 +555,24 @@ public:
         // component bumps `paste_requests` instead of pasting, because the value a paste
         // means is the clipboard's CURRENT value and only this owner can obtain it — a
         // read performed BECAUSE this paste was requested, never a mirror kept fresh by
-        // watching. The same one comparison notices it, `paste_owner_now()` (the chain's
-        // mirror, `editable_text_has_keyboard`'s pattern) says which draft asked, and
-        // `begin_clipboard_paste` opens the conversation with the Skin. The text lands a
-        // turn later, in that draft or nowhere (`on(ClipboardText)`).
+        // watching. The same one comparison notices it, `paste_owner_now()` (a derivation
+        // of the resolved context since KEY-0, not a second spelling of the chain) says
+        // which draft asked, and `begin_clipboard_paste` opens the conversation with the
+        // Skin. The text lands a turn later, in that draft or nowhere
+        // (`on(ClipboardText)`).
         const std::uint64_t copied_before = session_.clipboard.writes;
         const std::uint64_t pastes_before = session_.clipboard.paste_requests;
-        if (session_.terminal.open) {
-            terminal_key(k);
-        } else if (session_.manage.open) {
-            manage_key(k, mail);
-        } else if (session_.setup.naming.open) {
-            naming_key(k, mail);
-        } else if (session_.panels.picker.open) {
-            picker_key(k, mail);
-        } else if (is_runtime_kind(keyboard_pane())) {
-            external_key(keyboard_pane(), k, mail);
-        } else if (editing_row() != nullptr) {
-            editing_key(k);
-        } else {
-            command(k, mail);
+        switch (ctx) {
+        case KeyContext::kTerminal: terminal_key(k); break;
+        case KeyContext::kManageSelect:
+        case KeyContext::kManageMove:
+        case KeyContext::kManageSize:
+        case KeyContext::kManageReset: manage_key(k, mail); break;
+        case KeyContext::kNaming: naming_key(k, mail); break;
+        case KeyContext::kPicker: picker_key(k, mail); break;
+        case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
+        case KeyContext::kDraft: editing_key(k); break;
+        default: command(k, mail); break;
         }
         if (session_.clipboard.writes != copied_before) {
             mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});
@@ -566,6 +581,23 @@ public:
             begin_clipboard_paste(mail);
         }
         repaint(mail);
+    }
+
+    /// Open or close the full hotkey view. The whole of the mode change --
+    /// `toggle_terminal`'s own shape, one screen element over.
+    void toggle_hotkeys() { session_.hotkeys.open = !session_.hotkeys.open; }
+
+    /// THE VIEW'S OWN KEYS: Escape closes it, and everything else is swallowed -- the
+    /// view is modal for exactly as long as it is being read, so a maker cannot execute
+    /// a binding while looking it up. The toggle itself is answered above (it is a
+    /// global), so both advertised ways out work; the heading's `esc closes` claim and
+    /// this branch are one pinned pair, and Escape is deliberately NOT a keymap action:
+    /// the view is not a context, and a modal surface's one structural way out must not
+    /// be authorable into a lockout.
+    void hotkeys_key(const zengine::input::KeyPressed& k) {
+        if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone) {
+            session_.hotkeys.open = false;
+        }
     }
 
     /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo
@@ -672,61 +704,57 @@ public:
         if (t.text.empty()) {
             return;
         }
-        // THE NAME EDITOR TAKES TEXT WHEREVER THE KEYS GO. It sits under the overlay for the
-        // same reason an inspector draft does -- the pane is what a maker most recently asked
-        // for -- and above everything else, because while it is open there is nothing else
-        // for a character to mean.
-        if (!session_.terminal.open && session_.setup.naming.open) {
+        // THE HOTKEY VIEW TAKES NO TEXT AND TYPES NONE, exactly as it spends the keys: a
+        // maker reading a key list is not typing anywhere, and the surface beneath must
+        // come back untouched when the view closes.
+        if (session_.hotkeys.open) {
+            return;
+        }
+        // WHERE A CHARACTER GOES IS THE SAME QUESTION AS WHERE A KEY GOES, and since
+        // KEY-0 it is answered by the same resolver instead of by this function's own
+        // hand-copy of the chain (the second of the five spellings KEY-R0 measured).
+        // Per branch, the standing law is unchanged: a mode that owns the keyboard whole
+        // takes the text or deliberately types none (management and the picker are driven
+        // by unmodified letters, so every character produced while they are open belongs
+        // to a gesture); a focused pane receives the text in exactly the position it
+        // receives the keys -- the half that makes `%` reach a provider at all, since
+        // Workshop maps no key to any character; a live draft types; and in command mode
+        // text is simply not a command.
+        switch (keyboard_context(session_)) {
+        case KeyContext::kNaming:
             session_.setup.naming.line.type(t.text);
             repaint(mail);
             return;
-        }
-        // The overlay is where typing goes while it is open. Same rule as the
-        // keys, same reason, and the inspector draft underneath is untouched.
-        if (session_.terminal.open) {
-            // AT THE CARET, WHICH SINCE HD-3 IS NOT ALWAYS THE END. `type` is the only door
-            // that moves the text and the caret together, so a keystroke in the middle of a
-            // line cannot leave one behind.
+        case KeyContext::kTerminal:
+            // AT THE CARET, WHICH SINCE HD-3 IS NOT ALWAYS THE END. `type` is the only
+            // door that moves the text and the caret together, so a keystroke in the
+            // middle of a line cannot leave one behind. The line changed, so what could
+            // be said next changed with it (HD-2): typing IS the completion gesture.
             session_.terminal.input.type(t.text);
-            // The line changed, so what could be said next changed with it (HD-2).
-            // Typing IS the completion gesture -- there is no second key that
-            // summons the list, because a maker who has to ask for discovery has to
-            // know discovery is there.
             refresh_terminal();
             repaint(mail);
             return;
-        }
-        // PANE MANAGEMENT TAKES NO TEXT AND TYPES NONE, for the picker's reason exactly: it
-        // is driven by unmodified letters and arrows, so every character produced while it
-        // is open belongs to a gesture rather than to a draft -- and the `w` that opened it
-        // produces one, which `swallow_text_` accounts for at the moment it is spent.
-        if (session_.manage.open) {
+        case KeyContext::kManageSelect:
+        case KeyContext::kManageMove:
+        case KeyContext::kManageSize:
+        case KeyContext::kManageReset:
+        case KeyContext::kPicker:
             return;
-        }
-        // THE PICKER TAKES NO TEXT AND TYPES NONE. It is chosen from with arrow
-        // keys, so every character produced while it is open belongs to nothing
-        // -- and the `p` that opened it produces one. Without this the picker
-        // would be unreachable from an open draft anyway (there can be none),
-        // but the rule is written where a reader looks for it rather than left
-        // as a consequence of the branch below.
-        if (session_.panels.picker.open) {
-            return;
-        }
-        // A FOCUSED EXTERNAL PANE TAKES THE TEXT, in exactly the position it takes
-        // the keys, and this is the half that makes `%` reach a provider at all:
-        // Workshop maps no key to any character and never has, so a pane that was
-        // sent only `PaneKey` would be a pane a maker could not type into on any
-        // layout this application supports.
-        if (is_runtime_kind(keyboard_pane())) {
+        case KeyContext::kPane:
             external_text(keyboard_pane(), t, mail);
             return;
-        }
-        Row* row = editing_row();
-        if (row == nullptr) {
+        case KeyContext::kDraft: {
+            Row* row = editing_row();
+            if (row == nullptr) {
+                return; // unreachable while the resolver holds; written anyway
+            }
+            row->type(t.text);
+            repaint(mail);
             return;
         }
-        row->type(t.text);
-        repaint(mail);
+        default:
+            return; // command mode: text is simply not a command
+        }
     }
 
     /// WHAT A BUTTON-1 RELEASE ENDED — and it is asked, not assumed (WIND-2a).
@@ -1498,9 +1526,10 @@ private:
         return a >= 'a' && a <= 'z' && a == lower(owed[0]);
     }
 
-    static bool held(std::int64_t modifiers, std::int64_t which) {
-        return (modifiers & which) != 0;
-    }
+    /// The effective spelling of one action, for this weave's own notices -- the same
+    /// `hotkey_text` every screen surface spends, so a hint in the notice line and the
+    /// band cannot spell one binding two ways.
+    std::string hotkey(Act a) const { return hotkey_text(session_.keymap, a); }
 
     Row* editing_row() {
         for (Row& r : session_.rows) {
@@ -1511,35 +1540,14 @@ private:
         return nullptr;
     }
 
-    /// WOULD THE KEYBOARD CHAIN HAND THIS KEY TO A PLACE THAT TAKES TEXT? (TEXT-0)
-    ///
-    /// The `^c` gate's one question, answered by MIRRORING THE CHAIN in `on(KeyPressed)`
-    /// branch for branch — same conditions, same order — so the two cannot disagree about
-    /// who owns the keyboard. Per arm: the Terminal overlay edits a line (yes); pane
-    /// management is gestures and takes no text (no); the name editor edits a line (yes);
-    /// the picker is chosen from with arrows (no); a focused runtime pane receives every
-    /// bare key and every character precisely because it may hold editable text — Workshop
-    /// cannot see whether it currently does, and the maker pressed into it LAST, so the
-    /// chord is the pane's to spend or waste (yes); a live property draft edits a line
-    /// (yes); command mode is commands (no).
-    bool editable_text_has_keyboard() {
-        if (session_.terminal.open) {
-            return true;
-        }
-        if (session_.manage.open) {
-            return false;
-        }
-        if (session_.setup.naming.open) {
-            return true;
-        }
-        if (session_.panels.picker.open) {
-            return false;
-        }
-        if (is_runtime_kind(keyboard_pane())) {
-            return true;
-        }
-        return editing_row() != nullptr;
-    }
+    // WHERE `editable_text_has_keyboard()` AND THE OLD `paste_owner_now()` CHAIN USED TO
+    // BE (TEXT-0, QR-11 -> KEY-0): both were hand-kept mirrors of the routing chain, each
+    // annotated "MIRRORS THE CHAIN branch for branch so the two cannot disagree" -- the
+    // discipline was real and it was still a discipline, held in three places by hand.
+    // `keyboard_context(session_)` (screen.hpp) is the chain now, and both questions are
+    // one-line derivations of its answer: `context_takes_text(ctx)` is the `^c` gate
+    // (carried by `workshop.quit`'s kNoText declaration context), and the paste owner
+    // below reads the same value. Per branch the old answers are unchanged, arm for arm.
 
     /// Which of this weave's own editable places a consumed paste request came from
     /// (QR-11). `kNone` for every armless branch — a focused runtime pane's paste is the
@@ -1548,27 +1556,16 @@ private:
     enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft };
 
     /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? — `paste_requests`
-    /// bumped, so one of the box-holding branches ran; this names it by MIRRORING THE
-    /// CHAIN branch for branch, `editable_text_has_keyboard`'s own pattern and for its
-    /// reason: two spellings of the routing is a paste delivered to a draft the keys never
-    /// reached.
+    /// bumped, so one of the box-holding branches ran; since KEY-0 this is a projection of
+    /// the one resolved context rather than a second spelling of the routing, which closes
+    /// the way two spellings could deliver a paste to a draft the keys never reached.
     PasteOwner paste_owner_now() {
-        if (session_.terminal.open) {
-            return PasteOwner::kTerminal;
+        switch (keyboard_context(session_)) {
+        case KeyContext::kTerminal: return PasteOwner::kTerminal;
+        case KeyContext::kNaming: return PasteOwner::kNaming;
+        case KeyContext::kDraft: return PasteOwner::kDraft;
+        default: return PasteOwner::kNone;
         }
-        if (session_.manage.open) {
-            return PasteOwner::kNone;
-        }
-        if (session_.setup.naming.open) {
-            return PasteOwner::kNaming;
-        }
-        if (session_.panels.picker.open) {
-            return PasteOwner::kNone;
-        }
-        if (is_runtime_kind(keyboard_pane())) {
-            return PasteOwner::kNone;
-        }
-        return editing_row() != nullptr ? PasteOwner::kDraft : PasteOwner::kNone;
     }
 
     /// ONE PASTE STILL IN FLIGHT: the conversation (by the book's own id) and the draft it
@@ -1648,14 +1645,19 @@ private:
         // THE DRAFT'S OWN VOCABULARY FIRST (TEXT-0). One call owns what four switches used
         // to spell separately — the six editing keys, and now selection, clipboard, word
         // movement and history behind them — and a `true` is QR-2's bool: the gesture
-        // reached the layer that owns what it means, whether or not anything changed. What
-        // is left below is exactly the policy: what a draft MEANS when a maker commits or
-        // abandons it, which the component is deliberately unable to know.
+        // reached the layer that owns what it means, whether or not anything changed. The
+        // component's vocabulary outranks the application keymap INSIDE a text context,
+        // deliberately (owner-first refusal): a maker who remaps a draft control onto an
+        // editing chord has authored a binding the box will answer first, and the hotkey
+        // view shows both rows. What is left below is exactly the policy: what a draft
+        // MEANS when a maker commits or abandons it, which the component is deliberately
+        // unable to know -- resolved through the keymap since KEY-0, executed here as
+        // ever.
         if (row->consume(k.scancode, k.modifiers, session_.clipboard)) {
             return;
         }
-        switch (k.scancode) {
-        case input::scan::kReturn: {
+        switch (session_.keymap.action_for(KeyContext::kDraft, k.scancode, k.modifiers)) {
+        case Act::kDraftCommit: {
             const Commit result = row->commit();
             if (result == Commit::Accepted) {
                 say("committed " + row->label() + " = " + row->value(), false);
@@ -1671,7 +1673,7 @@ private:
             }
             break;
         }
-        case input::scan::kEscape:
+        case Act::kDraftCancel:
             row->cancel();
             say("edit cancelled -- nothing was written", false);
             break;
@@ -1852,7 +1854,7 @@ private:
             return false; // a list row, the heading, a spare row, or off the body entirely
         }
         if (action_availability(which, state_, session_) == Availability::kDraftLive) {
-            say(kFinishDraftFirst, true);
+            say(finish_draft_first(), true);
             return true; // consumed, and refused in this application's own words
         }
         if (which == kActionCreate) {
@@ -1914,7 +1916,7 @@ private:
             return false; // a marker, the heading, a property row, a spare row, or off the body
         }
         if (draft_live(session_)) {
-            say(kFinishDraftFirst, true);
+            say(finish_draft_first(), true);
             return true; // consumed: nothing moved, and the reason is on the notice line
         }
         const std::int64_t id = state_.elements[which].id;
@@ -1947,7 +1949,7 @@ private:
             // be a sentence nobody could read that then reappeared, stale, at the
             // moment it stopped being true. The pane's own header says how to
             // close it, which is the fact a maker needs while it is open.
-            say("terminal closed -- shift+space reopens it", false);
+            say("terminal closed -- " + hotkey(Act::kTerminalToggle) + " reopens it", false);
         }
         refresh_terminal();
     }
@@ -1984,9 +1986,9 @@ private:
             refresh_terminal();
             return;
         }
-        switch (k.scancode) {
-        case input::scan::kReturn: submit_terminal_line(); break;
-        case input::scan::kEscape:
+        switch (session_.keymap.action_for(KeyContext::kTerminal, k.scancode, k.modifiers)) {
+        case Act::kTerminalSubmit: submit_terminal_line(); break;
+        case Act::kTerminalBack:
             if (completion_selectable()) {
                 // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted
                 // the line gone presses it again; a maker who wanted only the list
@@ -2004,9 +2006,9 @@ private:
                 pane.dismissed = false;
             }
             break;
-        case input::scan::kUp: move_completion(-1); return;   // the line did not change
-        case input::scan::kDown: move_completion(+1); return; // ...so nothing is recomputed
-        case input::scan::kTab:
+        case Act::kTerminalUp: move_completion(-1); return;   // the line did not change
+        case Act::kTerminalDown: move_completion(+1); return; // ...so nothing is recomputed
+        case Act::kTerminalComplete:
             // ONE KEY, ONE MEANING: "help me here". With a list on screen that is
             // taking the selected candidate; with nothing on screen it is asking
             // for one, which is the only gesture discovery needs because every
@@ -2456,57 +2458,48 @@ private:
     /// rule: it is the same sentence `b` says by doing nothing, said out loud
     /// because unlike `b` these keys used to do something.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        const bool shift = held(k.modifiers, input::mod::kShift);
-        switch (k.scancode) {
-        case input::scan::kTab: select_next(); break;
-        case input::scan::kUp: move_cursor(-1); break;
-        case input::scan::kDown: move_cursor(+1); break;
-        case input::scan::kReturn: begin_edit(); break;
-        case input::scan::kN: create_object(); break;
-        case input::scan::kD: delete_object(); break;
-        case input::scan::kH: shift ? size_by(-1, 0) : move_by(-1, 0); break;
-        case input::scan::kJ: shift ? size_by(0, +1) : move_by(0, +1); break;
-        case input::scan::kK: shift ? size_by(0, -1) : move_by(0, -1); break;
-        case input::scan::kL: shift ? size_by(+1, 0) : move_by(+1, 0); break;
-        case input::scan::kLeftBracket: resize_workspace(-4); break;
-        case input::scan::kRightBracket: resize_workspace(+4); break;
-        case input::scan::kP: open_picker(); break;
-        // `b` BUILDS AND `Shift+b` BUILDS AND REALIZES (BLD-1), which is the `hjkl`
-        // decision taken again for the same reason: one gesture family spelled two
-        // ways, rather than a second family competing for a free letter. The modifier
-        // is what makes the more consequential half of the pair deliberate -- realizing
-        // an artifact is the one Builder gesture that changes what is running -- and it
-        // is spellable at all only because the wire carries the modifiers held at the
-        // transition.
-        case input::scan::kB: build_now(mail, shift); break;
-        // `c` CHOOSES, and `Shift+c` chooses backwards. It was unbound before this
-        // phase -- the WIND-1 census left fifteen letters free and `c` is one of them --
-        // so nothing a maker knew changed meaning, and with no Builder panel open it
-        // does exactly what `b` does with no Builder panel open, which is nothing.
-        case input::scan::kC: choose_recipe(shift ? -1 : +1, mail); break;
-        // `f` BUILDS AND REALIZES THE FRONTIER (BLD-2): the one authored row project
-        // realization is waiting on, by the recipe that produces it, through exactly the
-        // route `Shift+b` spends. It was unbound before this phase (the WIND-1 census
-        // left fifteen letters free and `f` is one of them; the `f` in pane management
-        // is that mode's own key), so nothing a maker knew changed meaning, and with no
-        // Builder panel open it does exactly what `b` does with no Builder panel open,
-        // which is nothing.
-        case input::scan::kF: build_frontier(mail); break;
-        // THE TWO SETUP GESTURES (WS-0). They are commands rather than another `^`-pair
-        // beside the document's, and that is the visible half of the separation: `^s`/`^o`
-        // are the DOCUMENT's two keys and mean the same thing in every mode, while naming and
-        // restoring a setup are ordinary maker gestures that belong beside `p`. Both were
-        // unbound before this phase, so nothing a maker knew changed meaning.
-        case input::scan::kS: open_setup_name(); break;
-        case input::scan::kR: restore_setup(mail); break;
-        // PANE MANAGEMENT (WIND-2). `w` for window, and it was unbound before this phase --
-        // a complete census of `command()` at WIND-1 left fifteen letters free, `w` among
-        // them, so nothing a maker knew changed meaning. It is a PRINTABLE trigger and
-        // therefore pays the `swallow_text_` rule exactly as `shift+space` and `s` do; what
-        // it buys for that one payment is a mode whose own keys need no modifier at all,
-        // which is strictly cheaper than binding six more gestures out here (P48).
-        case input::scan::kW: open_management(); break;
-        case input::scan::kQ: quit(); break;
+        // EVERY ARM CALLS THE OPERATION IT ALWAYS CALLED; what changed in KEY-0 is only
+        // how a gesture becomes an action. Exact matching split the old `shift ?` pairs
+        // into declared siblings (`object.left`/`object.narrower`,
+        // `builder.build`/`builder.build-realize`) -- one gesture family spelled two ways
+        // remains the design (hjkl's own decision), each half its own remappable row now,
+        // and the accidental subset aliases the old per-site tests produced (Ctrl+N
+        // created; Alt+Q quit) are gone on purpose.
+        switch (session_.keymap.action_for(KeyContext::kCommand, k.scancode, k.modifiers)) {
+        case Act::kObjectNext: select_next(); break;
+        case Act::kInfoUp: move_cursor(-1); break;
+        case Act::kInfoDown: move_cursor(+1); break;
+        case Act::kInfoEdit: begin_edit(); break;
+        case Act::kObjectNew: create_object(); break;
+        case Act::kObjectDelete: delete_object(); break;
+        case Act::kObjectLeft: move_by(-1, 0); break;
+        case Act::kObjectDown: move_by(0, +1); break;
+        case Act::kObjectUp: move_by(0, -1); break;
+        case Act::kObjectRight: move_by(+1, 0); break;
+        case Act::kObjectNarrower: size_by(-1, 0); break;
+        case Act::kObjectTaller: size_by(0, +1); break;
+        case Act::kObjectShorter: size_by(0, -1); break;
+        case Act::kObjectWider: size_by(+1, 0); break;
+        case Act::kWorkspaceNarrower: resize_workspace(-4); break;
+        case Act::kWorkspaceWider: resize_workspace(+4); break;
+        case Act::kPicker: open_picker(); break;
+        // BUILDING AND REALIZING stay two deliberate halves (BLD-1): realizing an
+        // artifact is the one Builder gesture that changes what is running, and its
+        // default is the chorded sibling of the plain build's.
+        case Act::kBuild: build_now(mail, false); break;
+        case Act::kBuildRealize: build_now(mail, true); break;
+        case Act::kRecipeNext: choose_recipe(+1, mail); break;
+        case Act::kRecipeBack: choose_recipe(-1, mail); break;
+        case Act::kBuildFrontier: build_frontier(mail); break;
+        // THE TWO SETUP GESTURES (WS-0): ordinary maker commands beside `+ panel`,
+        // deliberately not another `^`-pair beside the document's.
+        case Act::kSetupName: open_setup_name(); break;
+        case Act::kSetupRestore: restore_setup(mail); break;
+        // PANE MANAGEMENT (WIND-2): a printable trigger pays the swallow rule -- armed
+        // centrally from the binding since KEY-0 -- and buys a mode whose own keys need
+        // no modifier at all (P48).
+        case Act::kManage: open_management(); break;
+        case Act::kQuit: quit(); break;
         default: break;
         }
     }
@@ -2546,7 +2539,10 @@ private:
     void open_picker() {
         session_.panels.picker.open = true;
         session_.panels.picker.cursor = 0;
-        say("+ panel -- up/down chooses, enter opens or removes, esc or p cancels", false);
+        say("+ panel -- " + hotkey(Act::kPickerUp) + "/" + hotkey(Act::kPickerDown) +
+                " chooses, " + hotkey(Act::kPickerChoose) + " opens or removes, " +
+                hotkey(Act::kPickerClose) + " or " + hotkey(Act::kPicker) + " cancels",
+            false);
     }
 
     /// The picker's keys. Escape and `p` both close it: the key that opened it
@@ -2562,13 +2558,13 @@ private:
         if (picker.cursor >= population) {
             picker.cursor = population == 0 ? 0 : population - 1;
         }
-        switch (k.scancode) {
-        case input::scan::kUp:
+        switch (session_.keymap.action_for(KeyContext::kPicker, k.scancode, k.modifiers)) {
+        case Act::kPickerUp:
             if (picker.cursor > 0) {
                 --picker.cursor;
             }
             break;
-        case input::scan::kDown:
+        case Act::kPickerDown:
             // THE BOUND IS THE PAINTED POPULATION (WIND-2a), which since WIND-2 is the
             // shared inventory rather than what this build could present. `kPanelKinds` was
             // the whole list until an office could offer one, and the combined catalog was
@@ -2577,13 +2573,21 @@ private:
                 ++picker.cursor;
             }
             break;
-        case input::scan::kReturn: choose_panel(mail); break;
-        case input::scan::kEscape:
-        case input::scan::kP:
+        case Act::kPickerChoose: choose_panel(mail); break;
+        case Act::kPickerClose:
             picker.open = false;
             say("no panel opened or removed", false);
             break;
-        default: break;
+        default:
+            // THE KEY THAT OPENED IT CLOSES IT -- the terminal overlay's rule, and since
+            // KEY-0 it follows the OPENER'S effective binding wherever the maker moved
+            // it: dispatch consults the same truth the row-0 hint spells, so `p` closes
+            // exactly while `p` opens.
+            if (session_.keymap.matches(Act::kPicker, k.scancode, k.modifiers)) {
+                picker.open = false;
+                say("no panel opened or removed", false);
+            }
+            break;
         }
     }
 
@@ -2649,7 +2653,7 @@ private:
             // keeps every object, the selection and the inspector's rows. A
             // panel is a presentation, and removing one removes a presentation.
             say("removed " + chosen.name +
-                    " -- p brings it back; nothing behind it was touched",
+                    " -- " + hotkey(Act::kPicker) + " brings it back; nothing behind it was touched",
                 false);
             return;
         }
@@ -2683,7 +2687,9 @@ private:
         // touches no role and needs no weave mounted anywhere. A Workshop
         // hosting no tools at all opens Info and it works.
         apply_setup(mail);
-        say(std::string("opened ") + chosen.name + " -- p removes it", false);
+        say(std::string("opened ") + chosen.name + " -- " + hotkey(Act::kPicker) +
+                " removes it",
+            false);
     }
 
     // ---- The setup: name it, save it, restore it ------------------------------
@@ -2751,8 +2757,12 @@ private:
         SetupNaming& naming = session_.setup.naming;
         naming.open = true;
         naming.line.set(session_.setup.active.name, session_.setup.active.name.size());
-        swallow_text_ = "s";
-        say("name this setup -- enter saves it, esc cancels", false);
+        // The trigger's own character is swallowed centrally since KEY-0: `on(KeyPressed)`
+        // arms the expectation from the consumed binding, whatever gesture the maker
+        // authored for `setup.name`, so this door no longer hard-codes an `s`.
+        say("name this setup -- " + hotkey(Act::kNamingCommit) + " saves it, " +
+                hotkey(Act::kNamingCancel) + " cancels",
+            false);
     }
 
     /// The name editor's keys. Return commits and saves; Escape cancels and
@@ -2766,9 +2776,9 @@ private:
         if (naming.line.consume(k.scancode, k.modifiers, session_.clipboard)) {
             return;
         }
-        switch (k.scancode) {
-        case input::scan::kReturn: commit_setup_name(); break;
-        case input::scan::kEscape:
+        switch (session_.keymap.action_for(KeyContext::kNaming, k.scancode, k.modifiers)) {
+        case Act::kNamingCommit: commit_setup_name(); break;
+        case Act::kNamingCancel:
             naming.open = false;
             naming.line.clear();
             say("the setup name is unchanged", false);
@@ -2789,7 +2799,9 @@ private:
         const std::string wanted = naming.line.text();
         const Written legal = check_setup_name(wanted);
         if (!legal.accepted) {
-            say(legal.refusal + " -- enter tries again, esc cancels", true);
+            say(legal.refusal + " -- " + hotkey(Act::kNamingCommit) + " tries again, " +
+                hotkey(Act::kNamingCancel) + " cancels",
+            true);
             return;
         }
         Setup candidate = session_.setup.active;
@@ -3037,10 +3049,11 @@ private:
         PaneManagement& m = session_.manage;
         m.open = true;
         m.doing = pane_manage::kSelect;
-        swallow_text_ = "w";
         if (rows.empty()) {
             m.selected = PaneRef{};
-            say("+ window -- this setup names no panes; p opens one, esc leaves", false);
+            say("+ window -- this setup names no panes; " + hotkey(Act::kPicker) +
+                    " opens one, " + hotkey(Act::kManageClose) + " leaves",
+                false);
             return;
         }
         bool kept = false;
@@ -3112,7 +3125,7 @@ private:
     void manage_step(std::int64_t by) {
         const std::vector<PaneRef> rows = manageable();
         if (rows.empty()) {
-            say("this setup names no panes -- p opens one", true);
+            say("this setup names no panes -- " + hotkey(Act::kPicker) + " opens one", true);
             return;
         }
         std::size_t at = 0;
@@ -3366,62 +3379,20 @@ private:
             false);
     }
 
-    /// Pane management's keys. Four steps, and every one of them returns one level on Escape.
+    /// Pane management's keys. Four steps, and every one of them returns one level on its
+    /// `manage.done` binding. The four hand switches this used to be are ONE switch since
+    /// KEY-0: each submode is its own keymap context (`keyboard_context` reads
+    /// `manage.doing`), so `action_for` already answers `kNone` for a gesture that
+    /// belongs to a submode the maker is not in, and an arm below cannot fire out of its
+    /// step by construction.
     void manage_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         PaneManagement& m = session_.manage;
-        if (m.doing == pane_manage::kMove) {
-            switch (k.scancode) {
-            case input::scan::kLeft: manage_nudge(-1, 0, mail); break;
-            case input::scan::kRight: manage_nudge(+1, 0, mail); break;
-            case input::scan::kUp: manage_nudge(0, -1, mail); break;
-            case input::scan::kDown: manage_nudge(0, +1, mail); break;
-            case input::scan::kEscape:
-                m.doing = pane_manage::kSelect;
-                say(manage_status(), false);
-                break;
-            default: break;
-            }
-            return;
-        }
-        if (m.doing == pane_manage::kSize) {
-            switch (k.scancode) {
-            case input::scan::kTab:
-                m.edge = (m.edge + 1) % pane_edge::kCount;
-                say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
-                        pane_edge_name(m.edge),
-                    false);
-                break;
-            case input::scan::kLeft: manage_grow(-1, 0, mail); break;
-            case input::scan::kRight: manage_grow(+1, 0, mail); break;
-            case input::scan::kUp: manage_grow(0, -1, mail); break;
-            case input::scan::kDown: manage_grow(0, +1, mail); break;
-            case input::scan::kEscape:
-                m.doing = pane_manage::kSelect;
-                say(manage_status(), false);
-                break;
-            default: break;
-            }
-            return;
-        }
-        if (m.doing == pane_manage::kReset) {
-            switch (k.scancode) {
-            case input::scan::kP: manage_reset(0, mail); break;
-            case input::scan::kW: manage_reset(1, mail); break;
-            case input::scan::kH: manage_reset(2, mail); break;
-            case input::scan::kO: manage_reset(3, mail); break;
-            case input::scan::kEscape:
-                m.doing = pane_manage::kSelect;
-                say(manage_status(), false);
-                break;
-            default: break;
-            }
-            return;
-        }
-        switch (k.scancode) {
-        case input::scan::kTab:
-        case input::scan::kDown: manage_step(+1); break;
-        case input::scan::kUp: manage_step(-1); break;
-        case input::scan::kM: {
+        const KeyContext ctx = keyboard_context(session_);
+        switch (session_.keymap.action_for(ctx, k.scancode, k.modifiers)) {
+        // -- selecting ------------------------------------------------------------------
+        case Act::kManageNext: manage_step(+1); break;
+        case Act::kManagePrevious: manage_step(-1); break;
+        case Act::kManageMove: {
             const Written ready = manage_geometry_ready();
             if (!ready.accepted) {
                 say(ready.refusal, true);
@@ -3431,7 +3402,7 @@ private:
             say(manage_status(), false);
             break;
         }
-        case input::scan::kS: {
+        case Act::kManageSize: {
             const Written ready = manage_geometry_ready();
             if (!ready.accepted) {
                 say(ready.refusal, true);
@@ -3443,15 +3414,46 @@ private:
                 false);
             break;
         }
-        case input::scan::kF: manage_order(0); break;
-        case input::scan::kB: manage_order(1); break;
-        case input::scan::kR: manage_order(2); break;
-        case input::scan::kL: manage_order(3); break;
-        case input::scan::k0:
+        case Act::kManageFront: manage_order(0); break;
+        case Act::kManageBack: manage_order(1); break;
+        case Act::kManageRaise: manage_order(2); break;
+        case Act::kManageLower: manage_order(3); break;
+        case Act::kManageReset:
             m.doing = pane_manage::kReset;
-            say("+ window reset -- p place, w width, h height, o order, esc back", false);
+            say("+ window reset -- " + hotkey_text(session_.keymap, Act::kManageResetPlace) +
+                    " place, " + hotkey_text(session_.keymap, Act::kManageResetWidth) +
+                    " width, " + hotkey_text(session_.keymap, Act::kManageResetHeight) +
+                    " height, " + hotkey_text(session_.keymap, Act::kManageResetOrder) +
+                    " order, " + hotkey_text(session_.keymap, Act::kManageDone) + " back",
+                false);
             break;
-        case input::scan::kEscape: close_management(); break;
+        case Act::kManageClose: close_management(); break;
+        // -- moving ---------------------------------------------------------------------
+        case Act::kManagePlaceLeft: manage_nudge(-1, 0, mail); break;
+        case Act::kManagePlaceRight: manage_nudge(+1, 0, mail); break;
+        case Act::kManagePlaceUp: manage_nudge(0, -1, mail); break;
+        case Act::kManagePlaceDown: manage_nudge(0, +1, mail); break;
+        // -- sizing ---------------------------------------------------------------------
+        case Act::kManageEdge:
+            m.edge = (m.edge + 1) % pane_edge::kCount;
+            say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
+                    pane_edge_name(m.edge),
+                false);
+            break;
+        case Act::kManagePullLeft: manage_grow(-1, 0, mail); break;
+        case Act::kManagePullRight: manage_grow(+1, 0, mail); break;
+        case Act::kManagePullUp: manage_grow(0, -1, mail); break;
+        case Act::kManagePullDown: manage_grow(0, +1, mail); break;
+        // -- resetting ------------------------------------------------------------------
+        case Act::kManageResetPlace: manage_reset(0, mail); break;
+        case Act::kManageResetWidth: manage_reset(1, mail); break;
+        case Act::kManageResetHeight: manage_reset(2, mail); break;
+        case Act::kManageResetOrder: manage_reset(3, mail); break;
+        // -- one level back, from any submode -------------------------------------------
+        case Act::kManageDone:
+            m.doing = pane_manage::kSelect;
+            say(manage_status(), false);
+            break;
         default: break;
         }
     }
@@ -3543,7 +3545,9 @@ private:
                 }
             }
         }
-        say("nothing to arrange there -- esc leaves pane management", false);
+        say("nothing to arrange there -- " + hotkey(Act::kManageClose) +
+            " leaves pane management",
+            false);
     }
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
@@ -3770,8 +3774,8 @@ private:
         }
         const Row* draft = editing_row();
         if (draft != nullptr) {
-            say(draft->label() + " is still being edited -- enter commits, esc cancels; "
-                                 "nothing was saved",
+            say(draft->label() + " is still being edited -- " + hotkey(Act::kDraftCommit) +
+                    " commits, " + hotkey(Act::kDraftCancel) + " cancels; nothing was saved",
                 true);
             return;
         }
@@ -3953,7 +3957,9 @@ private:
         if (inspector_shown()) {
             return false;
         }
-        say("the properties are not showing -- p opens the Info panel", true);
+        say("the properties are not showing -- " + hotkey(Act::kPicker) +
+            " opens the Info panel",
+            true);
         return true;
     }
 
@@ -3994,7 +4000,9 @@ private:
             return;
         }
         row.begin();
-        say("editing " + row.label() + " -- enter commits, esc cancels", false);
+        say("editing " + row.label() + " -- " + hotkey(Act::kDraftCommit) + " commits, " +
+                hotkey(Act::kDraftCancel) + " cancels",
+            false);
     }
 
     /// Resize the workspace: NO authored value changes, and a share visibly
@@ -4057,7 +4065,7 @@ private:
             return;
         }
         session_.setup.naming.line.keep_caret_visible(
-            setup_name_columns(screen_of(session_)));
+            setup_name_columns(screen_of(session_), session_.keymap));
     }
 
     void say(std::string text, bool bad) {
@@ -4326,9 +4334,12 @@ private:
     /// selection out from under a live property draft. HD-7 wrote it for a press
     /// on the object list; HD-8's action controls are the second gesture to meet
     /// the same wall, which is the duplication that turns a literal into a name.
-    /// Same sentence, same reason, same two ways out.
-    static constexpr const char* kFinishDraftFirst =
-        "finish the draft first -- enter commits it, esc cancels";
+    /// Same sentence, same reason, same two ways out -- spelled from the effective
+    /// keymap since KEY-0, like every other gesture this application advertises.
+    std::string finish_draft_first() const {
+        return "finish the draft first -- " + hotkey(Act::kDraftCommit) + " commits it, " +
+               hotkey(Act::kDraftCancel) + " cancels";
+    }
 
     /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
     /// a schema version is 32, so a wider number is REFUSED rather than
@@ -4368,6 +4379,14 @@ private:
     /// is doing and nothing paints it: it is this run's own bookkeeping about a thing that
     /// happens once.
     bool restored_ = false;
+
+    /// What loading the keymap produced, held until the first surface can show it, and
+    /// this run's own bookkeeping for the same reason `restored_` is. Empty means there
+    /// is nothing to say: no path, no file, or a file with no authored difference.
+    bool keymap_loaded_ = false;
+    std::string keymap_word_;
+    bool keymap_bad_ = false;
+    bool keymap_spoken_ = false;
 
     /// The document as it is ON DISK, or an empty one when nothing has been
     /// written yet. Session, emphatically: it is a copy kept so the status line

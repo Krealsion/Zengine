@@ -40,6 +40,7 @@
 
 #include "complete.hpp"
 #include "document.hpp"
+#include "keymap.hpp"
 #include "panel.hpp"
 #include "property.hpp"
 #include "setup.hpp"
@@ -744,6 +745,21 @@ inline constexpr ui::Rect picker_bounds(const Screen& sc) noexcept {
     return placement_bounds(placement::kOverlayStack, 0, sc);
 }
 
+/// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0): the stack's column, from its first slot's
+/// top to the workspace's bottom -- the floor `stack_capacity` itself respects, one row
+/// above the setup line, so the view can never erase the line naming the arrangement.
+///
+/// A single slot was measured too small for this list at the minimum composition
+/// (INTR-1's own 8-rows-showing-one-entry arithmetic): a command context alone declares
+/// more rows than a slot holds, and a view whose default state is `... 20 more` would be
+/// a list a maker cannot actually read. The column is the room the screen already
+/// reserves beside the workspace, and the view is a MODE with a rectangle -- the
+/// picker's own kind of place, one slot taller.
+inline constexpr ui::Rect hotkeys_bounds(const Screen& sc) noexcept {
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    return ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y};
+}
+
 /// HOW MANY OVERLAY SLOTS THIS SCREEN ACTUALLY HAS ROOM FOR (WP-0) -- the one
 /// answer to "may another panel be presented", asked before anything reaches
 /// `Panels::open`.
@@ -1240,6 +1256,16 @@ struct TextDrag {
 /// two kinds of fact cannot be mistaken for each other -- selection is not
 /// content, and neither is the size of the window it is being looked at through,
 /// and neither is a half-finished drag.
+/// THE FULL HOTKEY VIEW'S ONE FACT: whether it is open. It is a modal plane in the
+/// Terminal overlay's family and deliberately NOT a context of its own -- it intercepts
+/// keys above the chain (its toggle and Escape) and swallows the rest, while
+/// `keyboard_context` keeps answering for the surface BENEATH it, which is exactly what
+/// the view exists to describe. No cursor, no scroll offset, no selection: it is a
+/// projection a maker reads, not a place they operate.
+struct HotkeysView {
+    bool open = false;
+};
+
 struct Session {
     std::int64_t selected = 0;              ///< the selected object's IDENTITY (0 = none)
     /// HOW MUCH ROOM THE SURFACE SAID IT HAS, in canvas cells -- session, and the most
@@ -1318,6 +1344,15 @@ struct Session {
     /// (`ClipboardTextRequested`), and only falls back to this text where no platform
     /// read truthfully exists (a terminal).
     component::Clipboard clipboard;
+    /// THE EFFECTIVE BINDING TRUTH (KEY-0): declaration defaults plus the maker's
+    /// authored overrides, plus the legend preference. On the Session so the paint path
+    /// -- a pure projection of what it is handed -- reads the SAME value dispatch reads;
+    /// that one fact is the phase. Loaded once at construction from the host's keymap
+    /// file; default-constructed it IS the defaults, which is what every suite fixture
+    /// and every file-less run gets.
+    Keymap keymap;
+    /// ...and the full hotkey view over it, when a maker has opened one.
+    HotkeysView hotkeys;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1329,6 +1364,209 @@ struct Session {
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px);
 }
+
+/// WHERE THE KEYBOARD CURRENTLY GOES, AS ONE VALUE -- the routing chain, spelled once
+/// (KEY-0).
+///
+/// This order IS `on(KeyPressed)`'s chain, and before this function existed it was
+/// hand-copied five ways: the key chain, the `on(TextEntered)` chain, and two predicates
+/// each annotated "MIRRORS THE CHAIN branch for branch so the two cannot disagree"
+/// (`editable_text_has_keyboard`, `paste_owner_now`). All four are consumers of this one
+/// resolution now, and so is every help surface -- which is what makes contextual help a
+/// projection of routing truth instead of a sixth copy of it.
+///
+/// It is RESOLVED FRESH from live session state at every spend and stored nowhere
+/// (`keyboard_pane`'s own discipline): there is no context stack, nothing pushes or pops,
+/// and a mode that closes stops being the answer with nothing to clear. Pane management
+/// answers as its SUBMODE, because the sub-switches are genuinely different vocabularies
+/// and a help surface that said `manage` while the arrows meant `pull an edge` would be
+/// describing a different keyboard than the one in the maker's hands.
+///
+/// The reachability arguments the old chain carried still hold (naming is reachable only
+/// from command mode, so it cannot be live with a draft) -- and the order is still written
+/// rather than left to them, for the recorded reason: an ordering that depends on a
+/// reachability proof is one refactor away from being wrong silently.
+inline KeyContext keyboard_context(const Session& s) {
+    if (s.terminal.open) {
+        return KeyContext::kTerminal;
+    }
+    if (s.manage.open) {
+        switch (s.manage.doing) {
+        case pane_manage::kMove: return KeyContext::kManageMove;
+        case pane_manage::kSize: return KeyContext::kManageSize;
+        case pane_manage::kReset: return KeyContext::kManageReset;
+        default: return KeyContext::kManageSelect;
+        }
+    }
+    if (s.setup.naming.open) {
+        return KeyContext::kNaming;
+    }
+    if (s.panels.picker.open) {
+        return KeyContext::kPicker;
+    }
+    if (is_runtime_kind(keyboard_pane(s.panels))) {
+        return KeyContext::kPane;
+    }
+    for (const Row& r : s.rows) {
+        if (r.editing()) {
+            return KeyContext::kDraft;
+        }
+    }
+    return KeyContext::kCommand;
+}
+
+// ---- Spelling the effective bindings (KEY-0) ---------------------------------------------
+//
+// Every gesture a surface names from here down is SPELLED FROM THE KEYMAP, through these
+// helpers, and never written as a literal. That is the phase's one-truth claim made
+// structural: a maker who remaps an action watches every heading, hint and band row move
+// with the binding, because none of them has a spelling of its own to go stale.
+
+/// The effective gesture of one action, in the screen's compact voice (`^s`, `shift+h`,
+/// `enter`). The one call every claim site makes.
+inline std::string hotkey_text(const Keymap& k, Act a) {
+    return gesture_text(k.gesture_of(a));
+}
+
+/// Four direction actions said as one word WHEN THAT WORD IS TRUE: `arrows` exactly while
+/// all four sit on their arrow defaults, their own spellings otherwise. The old headings
+/// hand-folded four gestures into `arrows`; the fold survives only as long as it is a
+/// fact.
+inline std::string arrows_text(const Keymap& k, Act left, Act right, Act up, Act down) {
+    const bool folded = k.gesture_of(left) == Gesture{input::scan::kLeft, input::mod::kNone} &&
+                        k.gesture_of(right) ==
+                            Gesture{input::scan::kRight, input::mod::kNone} &&
+                        k.gesture_of(up) == Gesture{input::scan::kUp, input::mod::kNone} &&
+                        k.gesture_of(down) == Gesture{input::scan::kDown, input::mod::kNone};
+    if (folded) {
+        return "arrows";
+    }
+    return hotkey_text(k, left) + "/" + hotkey_text(k, right) + "/" + hotkey_text(k, up) +
+           "/" + hotkey_text(k, down);
+}
+
+/// The `gesture label` pairs requestable in this context, one string each, in the order
+/// the band should spend room on them: the context's own rows first, then what is
+/// answered above the mode chain. The band packs these; the hotkey view says the same
+/// rows with their layers labeled.
+///
+/// FOUR GESTURE FAMILIES FOLD, EXACTLY WHILE THE FOLD IS A FACT (`arrows_text`'s rule).
+/// The old hand-written band said `hjkl move` and `up/down row` because a family spelled
+/// out costs the room three other hints need; the generated band keeps each fold for as
+/// long as every member sits on the default that makes the folded word true, and spells
+/// the members individually the moment a remap makes it false. A fold is presentation
+/// only -- the actions stay separate rows of the keymap and remap independently.
+inline std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
+    std::vector<std::string> out;
+    // A fold: the run of actions it covers (in catalog order, keyed on the first), the
+    // gestures that make it true, and the folded pair it becomes.
+    struct Fold {
+        Act first;
+        Act rest[3];
+        std::size_t others;
+        Gesture wants[4];
+        const char* pair;
+    };
+    namespace sc = input::scan;
+    namespace mo = input::mod;
+    static const Fold kFolds[] = {
+        {Act::kObjectLeft,
+         {Act::kObjectDown, Act::kObjectUp, Act::kObjectRight},
+         3,
+         {{sc::kH, mo::kNone}, {sc::kJ, mo::kNone}, {sc::kK, mo::kNone}, {sc::kL, mo::kNone}},
+         "hjkl move"},
+        {Act::kObjectNarrower,
+         {Act::kObjectTaller, Act::kObjectShorter, Act::kObjectWider},
+         3,
+         {{sc::kH, mo::kShift},
+          {sc::kJ, mo::kShift},
+          {sc::kK, mo::kShift},
+          {sc::kL, mo::kShift}},
+         "shift+hjkl size"},
+        {Act::kInfoUp,
+         {Act::kInfoDown, Act::kNone, Act::kNone},
+         1,
+         {{sc::kUp, mo::kNone}, {sc::kDown, mo::kNone}, {}, {}},
+         "up/down row"},
+        {Act::kWorkspaceNarrower,
+         {Act::kWorkspaceWider, Act::kNone, Act::kNone},
+         1,
+         {{sc::kLeftBracket, mo::kNone}, {sc::kRightBracket, mo::kNone}, {}, {}},
+         "[ ] workspace"},
+    };
+    const auto fold_holding = [&k](const Fold& f) {
+        if (k.gesture_of(f.first) != f.wants[0]) {
+            return false;
+        }
+        for (std::size_t i = 0; i < f.others; ++i) {
+            if (k.gesture_of(f.rest[i]) != f.wants[i + 1]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const auto folded_member = [&](Act a, const Fold*& holds) {
+        for (const Fold& f : kFolds) {
+            if (!fold_holding(f)) {
+                continue;
+            }
+            if (f.first == a) {
+                holds = &f;
+                return true;
+            }
+            for (std::size_t i = 0; i < f.others; ++i) {
+                if (f.rest[i] == a) {
+                    holds = nullptr; // covered by the fold its first member emitted
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    const auto take = [&](bool concrete) {
+        for (const ActionRow& row : kActionCatalog) {
+            const bool is_concrete =
+                row.context != KeyContext::kGlobal && row.context != KeyContext::kNoText;
+            if (is_concrete != concrete || !active_in(row.context, ctx)) {
+                continue;
+            }
+            const Fold* holds = nullptr;
+            if (ctx == KeyContext::kCommand && folded_member(row.act, holds)) {
+                if (holds != nullptr) {
+                    out.push_back(holds->pair);
+                }
+                continue;
+            }
+            std::string pair = gesture_text(k.row_gesture(row));
+            pair += " ";
+            pair += row.label;
+            // TWO ROWS OF ONE ACTION CAN COME TO ONE SPELLING (an override moves them
+            // both), and one meaning said twice in one band is noise, not truth.
+            bool repeated = false;
+            for (const std::string& seen : out) {
+                if (seen == pair) {
+                    repeated = true;
+                    break;
+                }
+            }
+            if (!repeated) {
+                out.push_back(std::move(pair));
+            }
+        }
+    };
+    take(true);
+    take(false);
+    return out;
+}
+
+/// The two help rows of the bottom band, packed from `help_pairs` and cut where the room
+/// ran out -- `detail::fit`'s mark says so, exactly as it does for every other bounded
+/// sentence on this screen. Defined after `detail::fit` is; declared here so the reader
+/// meets the band's projection beside the truth it projects.
+struct HelpRows {
+    std::string first;
+    std::string second;
+};
 
 /// TAKE THE ROOM A SURFACE OFFERED, and re-fit the workspace to it. Answers whether anything
 /// actually changed, so a caller can decline to repaint over a surface that merely repeated
@@ -1672,6 +1910,54 @@ inline std::int64_t minus(std::int64_t a, std::int64_t b) noexcept {
 }
 
 } // namespace detail
+
+/// The band's two help rows, as the legend projects them (KEY-0): FULL packs the context's
+/// `help_pairs` across both rows and marks the cut; COMPACT says only how to reach the
+/// full hotkey view, spelled from the effective binding it opens with; HIDDEN is two blank
+/// rows -- the composition is untouched (`screen_of` reserves the band whether or not
+/// anything is written in it), and nothing about DISPATCH reads the legend at all, which
+/// is what "hidden never unbinds anything" means structurally.
+inline HelpRows help_rows(const Keymap& k, KeyContext ctx, std::int64_t width) {
+    HelpRows out;
+    const std::int64_t legend = k.resolved_legend();
+    if (legend == legend_mode::kHidden) {
+        return out;
+    }
+    if (legend == legend_mode::kCompact) {
+        out.first = detail::fit(hotkey_text(k, Act::kHotkeys) + " hotkeys", width);
+        return out;
+    }
+    const std::vector<std::string> pairs = help_pairs(k, ctx);
+    std::string* row = &out.first;
+    std::size_t taken = 0;
+    for (const std::string& pair : pairs) {
+        const std::string grown = row->empty() ? pair : *row + " | " + pair;
+        if (static_cast<std::int64_t>(grown.size()) <= width) {
+            *row = grown;
+            ++taken;
+            continue;
+        }
+        if (row == &out.first) {
+            row = &out.second;
+            if (static_cast<std::int64_t>(pair.size()) <= width) {
+                *row = pair;
+                ++taken;
+            }
+            continue;
+        }
+        break;
+    }
+    // WHAT DID NOT FIT IS MARKED, NOT SWALLOWED: the next pair is written into the cut so
+    // `detail::fit`'s mark says there was more -- a help row that silently loses its last
+    // hints is the failure that mark exists to prevent, and the full list is one
+    // keystroke away in every legend mode.
+    if (taken < pairs.size()) {
+        const std::string& next = pairs[taken];
+        out.second =
+            detail::fit(out.second.empty() ? next : out.second + " | " + next, width);
+    }
+    return out;
+}
 
 /// A PANE SIZE PROPOSAL, IN CELLS (WIND-2). Saturating on both axes, so a delta arriving off
 /// the wire can never leave the number line before the law that judges it gets to see it --
@@ -2926,7 +3212,7 @@ inline std::vector<surface::SurfaceTextRow> completion_rows(const Completion& co
 /// PRESENTATION decision -- the pane is choosing what it can show -- and the number it
 /// truncates to is the same `terminal_cols` its snapshot chose entries with.
 inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
-                           const Screen& sc) {
+                           const Screen& sc, const Keymap& keymap) {
     if (!t.open) {
         return;
     }
@@ -2950,8 +3236,8 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
     // more than one identity, and the moment it stops saying which one it is showing is the
     // moment the two look like one thing with two windows.
     row(0,
-        t.attached ? "TERMINAL -- weave #" + std::to_string(t.id.value) +
-                         "  (shift+space closes)"
+        t.attached ? "TERMINAL -- weave #" + std::to_string(t.id.value) + "  (" +
+                         hotkey_text(keymap, Act::kTerminalToggle) + " closes)"
                    : "TERMINAL -- no participant was mounted on this bus",
         surface::role::kAccent);
 
@@ -3004,7 +3290,8 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
     const TerminalInputPlace typing = terminal_input_place(sc);
     const bool prompting = t.input.empty() && !t.completion.open;
     row(sc.terminal_lines - 1,
-        prompting ? ">    tab: what can this terminal say?"
+        prompting ? ">    " + hotkey_text(keymap, Act::kTerminalComplete) +
+                        ": what can this terminal say?"
                   : "> " + t.input.visible(typing.columns),
         t.attached ? surface::role::kAccent : surface::role::kAlert);
     // ONE MEASURER: the column comes from the same resolution the row was written against,
@@ -3203,7 +3490,8 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// itself the answer and manufacturing a "nothing blocked" sentence would be publishing a
 /// fact no owner said.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const ui::Rect& b, const ProjectFrontier& frontier = {}) {
+                          const ui::Rect& b, const Keymap& keymap,
+                          const ProjectFrontier& frontier = {}) {
     paint_panel_frame(layer, b);
     const auto row = [&layer, &b](std::int64_t line, const std::string& text,
                                  std::int64_t role) {
@@ -3212,12 +3500,17 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
     // header follows: a presentation that shows somebody else's facts without saying whose
     // is a presentation that will eventually be read as its own.
-    // `p removes` and not `x closes`: PNL-0 gave panel presence one owner, and it is the
-    // picker. A panel's own header advertising its own removal key is exactly the per-panel
-    // binding the second kind made untenable.
+    // The removal hint follows the PICKER's binding and not an `x closes` of its own:
+    // PNL-0 gave panel presence one owner, and it is the picker. A panel's own header
+    // advertising its own removal key is exactly the per-panel binding the second kind
+    // made untenable. Every gesture here is the keymap's effective spelling (KEY-0) --
+    // this header was one of the independently-authored claim sites KEY-R0 measured.
     row(0,
-        std::string("BUILDER @") + builder::kBuilderRole +
-            " -- b/B build, c pick, f frontier, p removes",
+        std::string("BUILDER @") + builder::kBuilderRole + " -- " +
+            hotkey_text(keymap, Act::kBuild) + "/" + hotkey_text(keymap, Act::kBuildRealize) +
+            " build, " + hotkey_text(keymap, Act::kRecipeNext) + " pick, " +
+            hotkey_text(keymap, Act::kBuildFrontier) + " frontier, " +
+            hotkey_text(keymap, Act::kPicker) + " removes",
         surface::role::kAccent);
 
     if (!pane.heard) {
@@ -3582,7 +3875,7 @@ inline std::string picker_entry_text(const std::string& name, const char* state,
 }
 
 inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, const Setup& setup,
-                         const Screen& sc) {
+                         const Screen& sc, const Keymap& keymap) {
     const PanelPicker& picker = panels.picker;
     if (!picker.open) {
         return;
@@ -3603,7 +3896,10 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
         region.rows.push_back(
             surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
-    say("+ PANEL -- up/down, enter opens or removes", surface::role::kAccent);
+    say("+ PANEL -- " + hotkey_text(keymap, Act::kPickerUp) + "/" +
+            hotkey_text(keymap, Act::kPickerDown) + ", " +
+            hotkey_text(keymap, Act::kPickerChoose) + " opens or removes",
+        surface::role::kAccent);
     // THE POPULATION IS THE COMBINED CATALOG AND THE BUDGET IS THE SLOT'S (WP-0).
     // Before this the list was `kPanelKinds` long and the picker's height was a
     // constant derived from it, which is a catalog census standing in for a
@@ -3691,24 +3987,39 @@ inline std::string pane_window_text(const SetupPane* row) {
 
 /// The heading, which is where the SUBMODE and the chosen edge are said. One row, because
 /// the surface has one -- and the edge is named AND marked, so a medium with no colour
-/// carries the whole answer.
-inline std::string management_heading(const PaneManagement& manage, const std::string& what) {
+/// carries the whole answer. Every gesture in it is spelled from the effective keymap
+/// (KEY-0): the `arrows` fold survives exactly as long as it is a fact.
+inline std::string management_heading(const PaneManagement& manage, const std::string& what,
+                                      const Keymap& k) {
+    const auto ht = [&k](Act a) { return hotkey_text(k, a); };
     switch (manage.doing) {
     case pane_manage::kMove:
-        return "+ WINDOW move " + what + " -- arrows place, esc back";
+        return "+ WINDOW move " + what + " -- " +
+               arrows_text(k, Act::kManagePlaceLeft, Act::kManagePlaceRight,
+                           Act::kManagePlaceUp, Act::kManagePlaceDown) +
+               " place, " + ht(Act::kManageDone) + " back";
     case pane_manage::kSize:
         return std::string("+ WINDOW size ") + pane_edge_mark(manage.edge) + " " +
-               pane_edge_name(manage.edge) + " -- tab edge, arrows size, esc back";
+               pane_edge_name(manage.edge) + " -- " + ht(Act::kManageEdge) + " edge, " +
+               arrows_text(k, Act::kManagePullLeft, Act::kManagePullRight,
+                           Act::kManagePullUp, Act::kManagePullDown) +
+               " size, " + ht(Act::kManageDone) + " back";
     case pane_manage::kReset:
-        return "+ WINDOW reset " + what + " -- p place, w width, h height, o order, esc back";
+        return "+ WINDOW reset " + what + " -- " + ht(Act::kManageResetPlace) + " place, " +
+               ht(Act::kManageResetWidth) + " width, " + ht(Act::kManageResetHeight) +
+               " height, " + ht(Act::kManageResetOrder) + " order, " +
+               ht(Act::kManageDone) + " back";
     default:
-        return "+ WINDOW -- m move, s size, f/b front/back, r/l raise/lower, 0 reset";
+        return "+ WINDOW -- " + ht(Act::kManageMove) + " move, " + ht(Act::kManageSize) +
+               " size, " + ht(Act::kManageFront) + "/" + ht(Act::kManageBack) +
+               " front/back, " + ht(Act::kManageRaise) + "/" + ht(Act::kManageLower) +
+               " raise/lower, " + ht(Act::kManageReset) + " reset";
     }
 }
 
 inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
                              const Setup& setup, const PaneManagement& manage,
-                             const Screen& sc) {
+                             const Screen& sc, const Keymap& keymap) {
     if (!manage.open) {
         return;
     }
@@ -3734,7 +4045,7 @@ inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
         region.rows.push_back(
             surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
-    say(management_heading(manage, what), surface::role::kAccent);
+    say(management_heading(manage, what, keymap), surface::role::kAccent);
     const std::size_t budget =
         place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
     const ListWindow win = list_window(rows.size(), cursor, budget);
@@ -3751,6 +4062,135 @@ inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
     }
     if (win.after > 0) {
         say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+    }
+    layer.texts.push_back(std::move(region));
+}
+
+// ---- THE FULL HOTKEY VIEW (KEY-0) -----------------------------------------------------
+//
+// THE PICKER'S OWN SURFACE, WITH A THIRD PURPOSE: the same slot, the same frame, the same
+// bounded region of prose. It is a PROJECTION and not an owner -- every row is derived
+// from the keymap and the component's declaration rows at this paint, nothing here is
+// stored, there is no cursor, no scroll state and no press vocabulary. It answers for
+// the context BENEATH it: the view is not a context of its own (`HotkeysView`), so
+// `keyboard_context` keeps resolving the surface a maker was actually in, which is
+// exactly the list they opened this to read.
+
+/// What to call the context beneath the view, in the heading's voice.
+inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
+    switch (ctx) {
+    case KeyContext::kTerminal: return "the terminal line";
+    case KeyContext::kNaming: return "naming a setup";
+    case KeyContext::kPicker: return "the + panel picker";
+    case KeyContext::kManageSelect: return "pane management";
+    case KeyContext::kManageMove: return "pane management -- move";
+    case KeyContext::kManageSize: return "pane management -- size";
+    case KeyContext::kManageReset: return "pane management -- reset";
+    case KeyContext::kDraft: return "editing a property";
+    case KeyContext::kPane: {
+        const std::int64_t typing = keyboard_pane(s.panels);
+        const RuntimePane* row =
+            typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+        return row != nullptr ? "pane " + row->name + " @" + row->provider
+                              : "a focused pane";
+    }
+    default: return "command mode";
+    }
+}
+
+inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    if (!s.hotkeys.open) {
+        return;
+    }
+    const ui::Rect b = hotkeys_bounds(sc);
+    paint_panel_frame(layer, b);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a slot with no room for a row says nothing rather than lying about the room
+    }
+    const KeyContext ctx = keyboard_context(s);
+    const Keymap& k = s.keymap;
+
+    // THE ROWS, COMPOSED WHOLE AND THEN CUT HONESTLY. Groups are labeled by the layer
+    // that owns them, because "which layer answers this key" is the question a context
+    // list exists to answer: the context's own rows, then what is answered above the
+    // chain, then the component's editing vocabulary wherever a text box has the keys --
+    // shown from the component's OWN declaration rows and marked as not remappable,
+    // because their executable truth is `TextBox::consume` and not this keymap.
+    struct ViewRow {
+        std::string text;
+        std::int64_t role;
+    };
+    std::vector<ViewRow> rows;
+    const auto entry = [&rows](const std::string& gesture, const std::string& label) {
+        rows.push_back(ViewRow{"  " + detail::pad(gesture, 14) + label,
+                               surface::role::kFill});
+    };
+    const auto group = [&rows](const std::string& name) {
+        if (!rows.empty()) {
+            rows.push_back(ViewRow{std::string(), surface::role::kMuted});
+        }
+        rows.push_back(ViewRow{name, surface::role::kAccent});
+    };
+
+    group(keyboard_context_name(s, ctx));
+    if (ctx == KeyContext::kPane) {
+        // THE HONEST WHOLE OF A PANE'S KEY STORY. Workshop forwards every ordinary key
+        // and every character uninterpreted and is deliberately never told what they
+        // mean (the seam's own doctrine), so the one truthful sentence is ownership --
+        // pretending to know a provider's bindings would be a claim made out of silence.
+        rows.push_back(ViewRow{"  every ordinary key and character goes to the pane;",
+                               surface::role::kFill});
+        rows.push_back(ViewRow{"  what each one means there is the provider's own.",
+                               surface::role::kFill});
+    } else {
+        for (const ActionRow& row : kActionCatalog) {
+            if (row.context == ctx) {
+                entry(gesture_text(k.row_gesture(row)), row.label);
+            }
+        }
+    }
+    bool above = false;
+    for (const ActionRow& row : kActionCatalog) {
+        const bool is_class =
+            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText;
+        if (!is_class || !active_in(row.context, ctx)) {
+            continue;
+        }
+        if (!above) {
+            group("answered above every mode");
+            above = true;
+        }
+        entry(gesture_text(k.row_gesture(row)), row.label);
+    }
+    if (ctx == KeyContext::kTerminal || ctx == KeyContext::kNaming ||
+        ctx == KeyContext::kDraft) {
+        group("the text box's own keys (not remappable)");
+        for (const component::EditingGesture& g : component::kEditingVocabulary) {
+            entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
+        }
+    }
+
+    surface::SurfaceTextRegion region = panel_prose_region(b);
+    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
+        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+    };
+    say("HOTKEYS -- " + hotkey_text(k, Act::kHotkeys) + " or esc closes",
+        surface::role::kAccent);
+    const std::size_t budget =
+        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
+    // NO CURSOR, SO NO WINDOW TO KEEP IT IN: the list is cut at the room and the cut is
+    // counted, the completion list's own wording -- this place cannot show a row AND tell
+    // a maker what it is hiding, so it tells them.
+    std::size_t shown = rows.size();
+    if (rows.size() > budget) {
+        shown = budget > 0 ? budget - 1 : 0;
+    }
+    for (std::size_t i = 0; i < shown; ++i) {
+        say(rows[i].text, rows[i].role);
+    }
+    if (shown < rows.size() && budget > 0) {
+        say("  " + omitted_text(rows.size() - shown, "more"), surface::role::kMuted);
     }
     layer.texts.push_back(std::move(region));
 }
@@ -5080,7 +5520,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         }
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, frontier);
+                paint_builder(layer, panels.builder, b, s.keymap, frontier);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc);
             } else if (is_runtime_kind(p.kind)) {
@@ -5098,10 +5538,10 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         paint_pane_affordances(layer, s, sc);
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_picker(layer, panels, s.setup.active, sc);
+        paint_picker(layer, panels, s.setup.active, sc, s.keymap);
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_management(layer, panels, s.setup.active, s.manage, sc);
+        paint_management(layer, panels, s.setup.active, s.manage, sc, s.keymap);
     });
 }
 
@@ -5131,16 +5571,23 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
 // `occupied_at` answers about panels and the picker, and this line is furniture beside the
 // notice, exactly as the help lines are.
 
-/// What the one-line name editor puts before and after the name a maker is typing.
+/// What the one-line name editor puts before and after the name a maker is typing. The
+/// hint is spelled from the effective keymap (KEY-0), like every other gesture claim.
 inline constexpr const char* kSetupNamePrompt = "setup name> ";
-inline constexpr const char* kSetupNameHint = "  enter saves  esc cancels";
+inline std::string setup_name_hint(const Keymap& k) {
+    return "  " + hotkey_text(k, Act::kNamingCommit) + " saves  " +
+           hotkey_text(k, Act::kNamingCancel) + " cancels";
+}
 
 /// The two gestures the setup line advertises, on the line the thing they act on is on --
 /// the `[+ panel]  p` precedent, and for the same measured reason: the two help lines at the
 /// bottom are 68 and 73 cells of a 78-cell minimum screen, so neither has room for a gesture
 /// pair, and abbreviating one a maker uses constantly to advertise one they may not would be
 /// paying for the new thing with the old.
-inline constexpr const char* kSetupHints = "s name/save  r restore";
+inline std::string setup_hints(const Keymap& k) {
+    return hotkey_text(k, Act::kSetupName) + " name/save  " +
+           hotkey_text(k, Act::kSetupRestore) + " restore";
+}
 
 /// What the line says where a path would be when the host chose none.
 inline constexpr const char* kNoSetupFileShown = "no setup file";
@@ -5153,10 +5600,10 @@ inline constexpr std::int64_t kSetupNameMinCols = 8;
 /// the window the `component::TextBox` is kept against and the slice the painter cuts are the
 /// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
 /// the row it is drawn on (HD-4).
-inline std::int64_t setup_name_columns(const Screen& sc) noexcept {
+inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
-        static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNameHint)) + 1;
+        static_cast<std::int64_t>(setup_name_hint(keymap).size()) + 1;
     const std::int64_t room = sc.w - chrome;
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
@@ -5170,8 +5617,9 @@ inline std::int64_t setup_name_columns(const Screen& sc) noexcept {
 /// exactly when the caret is strictly inside the range), so the two spellings of one
 /// selection cannot disagree about where the active end is. `[`, `]` and `_` are all
 /// typeable characters and the ambiguity is accepted, as it always was for the caret.
-inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc) {
-    const std::int64_t cols = setup_name_columns(sc);
+inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc,
+                                     const Keymap& keymap) {
+    const std::int64_t cols = setup_name_columns(sc, keymap);
     const std::string shown = naming.line.visible(cols);
     const component::TextBox::VisibleSpan vis = naming.line.visible_selection(cols);
     const std::size_t n = shown.size();
@@ -5192,7 +5640,7 @@ inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc
             marked += shown[i];
         }
     }
-    return std::string(kSetupNamePrompt) + marked + kSetupNameHint;
+    return std::string(kSetupNamePrompt) + marked + setup_name_hint(keymap);
 }
 
 /// WHICH SETUP THIS IS, IN THE ORDER A MAKER NEEDS IT.
@@ -5207,7 +5655,7 @@ inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc
 /// static hint rather than on any of the truths above it -- which is why they are in this
 /// order rather than in the order they were designed in.
 inline std::string setup_status_text(const SetupState& setup, const std::string& path,
-                                     const RuntimeCatalog& runtime) {
+                                     const RuntimeCatalog& runtime, const Keymap& keymap) {
     std::string line = "setup " + quoted_setup_name(setup.active.name) + " " +
                        (setup.saved() ? "saved" : "UNSAVED");
     // THE RUNTIME CATALOG IS ASKED, AND THIS IS THE LINE THAT MADE IT A REQUIRED ARGUMENT
@@ -5225,16 +5673,16 @@ inline std::string setup_status_text(const SetupState& setup, const std::string&
     line += " | ";
     line += path.empty() ? std::string(kNoSetupFileShown) : path;
     line += " | ";
-    line += kSetupHints;
+    line += setup_hints(keymap);
     return line;
 }
 
 /// The setup line as it is painted: the editor while a maker is naming, and the identity
 /// otherwise. Fitted here, at the presentation boundary and nowhere upstream.
 inline std::string setup_line(const Session& s, const std::string& path, const Screen& sc) {
-    return detail::fit(s.setup.naming.open ? setup_naming_text(s.setup.naming, sc)
+    return detail::fit(s.setup.naming.open ? setup_naming_text(s.setup.naming, sc, s.keymap)
                                            : setup_status_text(s.setup, path,
-                                                               s.panels.runtime),
+                                                               s.panels.runtime, s.keymap),
                        sc.w);
 }
 
@@ -5466,7 +5914,16 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // right; the hint is twenty. A mode with no way to discover it is not a feature. Both
     // this and OBJECTS below are measured from the RIGHT edge, so a wider surface moves them
     // together and the twenty-one cells between them are the same twenty-one cells.
-    label(sc.w - 20, 0, "shift+space terminal", surface::role::kMuted);
+    {
+        // SPELLED FROM THE KEYMAP (KEY-0), fitted to the room the old hint measured: a
+        // remapped chord may be longer than `^t`, and a spelling that ran left into the
+        // `[+ panel]` block would trade one hint for another. Twenty cells is the old
+        // hint's own envelope, and `detail::fit` marks a chord it cannot finish.
+        const std::string hint =
+            detail::fit(hotkey_text(s.keymap, Act::kTerminalToggle) + " terminal", 20);
+        label(sc.w - static_cast<std::int64_t>(hint.size()), 0, hint,
+              surface::role::kMuted);
+    }
 
     // THE TWO GESTURES THAT OPEN SOMETHING, on the same row and for the same reason the
     // terminal hint is there: the two help lines at the bottom are within a few cells of the
@@ -5482,7 +5939,14 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // be true is a fact about the whole run -- 25 cells beginning at column 24, ending at
     // 48, one clear of `OBJECTS` at the minimum composition's column 50 -- and a single
     // string is the only spelling of that fact that cannot be half-moved.
-    label(24, 0, "[+ panel]  p  [window]  w", surface::role::kMuted);
+    // ...and both gestures are spelled from the keymap now (KEY-0), fitted to the same 25
+    // cells the measured fact above was stated over, so a longer remapped spelling is cut
+    // with the mark rather than walking into `OBJECTS`.
+    label(24, 0,
+          detail::fit("[+ panel]  " + hotkey_text(s.keymap, Act::kPicker) + "  [window]  " +
+                          hotkey_text(s.keymap, Act::kManage),
+                      25),
+          surface::role::kMuted);
 
     // THE BOTTOM BAND, AND IT BELONGS TO THE OVERLAY WHILE THAT IS OPEN, which is why these
     // three lines are conditional. The pane is anchored to the bottom-right corner and
@@ -5550,47 +6014,45 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
                 s.notice_is_bad ? surface::role::kAlert : surface::role::kFill});
             on->texts.push_back(std::move(notice));
         }
-        // Two lines, because the canvas clips at its own width and a help line that
-        // silently loses its last hint is worse than no hint. The maker's gestures
-        // come first; the tool's own furniture second.
+        // THE TWO HELP ROWS ARE A PROJECTION OF THE EFFECTIVE KEYMAP NOW (KEY-0), through
+        // the same `keyboard_context` the dispatch chain routes by and the same
+        // `Keymap` it resolves against -- which retires this band's oldest discipline
+        // by making it structural. This surface always refused to advertise a key that
+        // would not work (the `shift+hjkl`-not-`,.`-`-=` rule; `^c` leaving the list in
+        // TEXT-0; the whole pane-focused fork, born of a first live run that could not
+        // be quit by its own help line) -- but the refusing was HAND-KEPT, and KEY-R0
+        // measured the hand losing: the cheat sheet, a seam comment, and this band's
+        // own cousins had already drifted. A row that is derived from the binding truth
+        // cannot drift from it.
         //
-        // It advertises `shift+hjkl` and not `,. width | -= height`: those four
-        // literal bindings do not exist, and a help line naming them would be the
-        // tool's own instructions telling a maker to press keys that do nothing.
+        // THE LEGEND IS THE MAKER'S (full | compact | hidden, authored in the keymap
+        // file). It governs exactly these two rows: hidden writes nothing here and
+        // changes nothing anywhere else -- the band's geometry is `screen_of`'s and
+        // stays reserved, and no gesture is unbound by a maker choosing not to look.
         //
-        // ...AND WHILE AN EXTERNAL PANE HOLDS THE KEYBOARD IT SAYS SOMETHING ELSE
-        // ENTIRELY (MSG-0), for exactly that rule's reason one gesture further on.
-        // Every bare key in the two lines above is that pane's while it has the keys --
-        // `q` included -- so leaving them standing would be this tool telling a maker to
-        // press keys that do nothing, which is the one thing this band already refuses
-        // to do. The first live run of the phase produced a Workshop that could not be
-        // quit with the key its own help line advertised.
-        //
-        // WHAT IT NAMES INSTEAD IS EVERYTHING THAT STILL WORKS, and the list is exact:
-        // the keys that mean the same thing in every mode. All are CHORDED, which is not
-        // a coincidence -- a bare printable cannot be global once anything on the screen
-        // can take text, and that is the whole reason `q` is the pane's. `^c` LEFT THIS
-        // LIST IN TEXT-0: a focused pane is a place that takes text, so `^c` is the
-        // pane's now too (its fields mean copy by it), and a help line advertising a quit
-        // that would not happen is the exact lie this band exists to refuse. Quitting is
-        // one press-elsewhere away, and the line above still says so.
+        // ...AND WHILE AN EXTERNAL PANE HOLDS THE KEYBOARD THE FIRST ROW STILL SAYS SO
+        // (MSG-0). That sentence is keyboard-ownership truth, not a binding list, and it
+        // rides the FULL legend in the row the pairs would take: the pairs the keymap
+        // yields for the pane context are exactly the chorded survivors (every bare key
+        // is the pane's, `q` included -- a bare printable cannot be global once anything
+        // on the screen can take text), so the second row names them and nothing else.
+        const KeyContext ctx = keyboard_context(s);
+        const HelpRows rows = help_rows(s.keymap, ctx, sc.w);
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* typed_into =
             typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
-        if (typed_into != nullptr) {
-            label(0, sc.help_y,
-                  "typing goes to " + typed_into->name + " @" + typed_into->provider +
-                      " -- press elsewhere for Workshop's keys",
-                  surface::role::kMuted);
-            label(0, sc.help_y + 1,
-                  "shift+space terminal | ^s save | ^o open", surface::role::kMuted);
-        } else {
-            label(0, sc.help_y,
-                  "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",
-                  surface::role::kMuted);
-            label(0, sc.help_y + 1,
-                  "enter edit | esc cancel | up/down row | [ ] workspace | ^s save | ^o open",
-                  surface::role::kMuted);
+        std::string first = rows.first;
+        std::string second = rows.second;
+        if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
+            second = first;
+            first = "typing goes to " + typed_into->name + " @" + typed_into->provider +
+                    " -- press elsewhere for Workshop's keys";
+        }
+        if (!first.empty()) {
+            label(0, sc.help_y, detail::fit(first, sc.w), surface::role::kMuted);
+        }
+        if (!second.empty()) {
+            label(0, sc.help_y + 1, detail::fit(second, sc.w), surface::role::kMuted);
         }
     }
 
@@ -5600,7 +6062,18 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // composed exactly as it was before this phase, with no row budget taken from it and
         // no constant moved. A closed pane appends no layer at all.
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            paint_terminal(layer, s.terminal, sc);
+            paint_terminal(layer, s.terminal, sc, s.keymap);
+        });
+    }
+
+    // THE HOTKEY VIEW, LATER STILL (KEY-0): a maker can open it OVER the Terminal to read
+    // the Terminal line's own keys, so it must be readable above the pane whose context it
+    // is describing. It is the one plane after the Terminal's, and it is a projection --
+    // the screen beneath it, the Terminal included, is composed exactly as if it were
+    // closed, which is also why the context it reports is the context beneath it.
+    if (s.hotkeys.open) {
+        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+            paint_hotkeys(layer, s, sc);
         });
     }
 

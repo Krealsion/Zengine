@@ -354,6 +354,12 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   nothing serializes it and nothing hosts it; the absence of that link is the enforcement —
   which is why the vocabulary's key identities are spelled locally in `component::key`/`mod`
   and pinned against `input::scan`/`mod` in the input suite, translate_sdl.hpp's own pattern.
+- **The editing vocabulary is DECLARED beside the switch since KEY-0**:
+  `component::kEditingVocabulary` rows `{scancode, modifiers, label}` are exactly the
+  gestures `consume` answers `true` to, swept against it in both directions by the component
+  suite, so a consumer's contextual help can SHOW the vocabulary without re-spelling it. The
+  rows carry no context, no command id and no remappability — the component still knows
+  nothing of Workshop, and these gestures' executable truth remains `consume` alone.
 - **The character helpers live with it**, and since TEXT-0 the word helpers too
   (`word_before`/`word_after` — space-delimited runs, deliberately a shell's word and not an
   editor's) and `pasteable_line` (what foreign clipboard bytes become in a one-line box: CRLF
@@ -617,6 +623,80 @@ words.
 - **Pointer order:** the terminal overlay (a MODE), then the active property editor, then the
   action controls, then the object list, then the panel's occupancy, then the workspace.
 
+## One executable binding truth (KEY-0)
+
+`workshop/keymap.hpp` owns the split every keyboard question routes through:
+
+```text
+ACTION      stable dotted id + label + context + default gesture   constexpr kActionCatalog rows
+BINDING     the gesture that requests it                           default + maker override
+EXECUTION   the owner that performs it                             untouched -- each dispatch
+                                                                   site switches on the action
+                                                                   id and calls its own function
+```
+
+- **`Session::keymap` is the effective truth** (defaults + admitted overrides + the legend),
+  read by dispatch, by every help surface, and by persistence. No surface spells an
+  executable gesture as a literal any more: the band rows, the title hints, the setup line,
+  the mode headings, the Builder header, the terminal header and prompt, the notice hints and
+  the boot line are all projections through `hotkey_text`/`gesture_text`. Adding a gesture
+  claim as a string literal is reintroducing the drift KEY-R0 measured in six places.
+- **`keyboard_context(const Session&)` (screen.hpp) is the routing chain, spelled once.** It
+  replaced the chain's five hand-kept spellings: `on(KeyPressed)` and `on(TextEntered)` both
+  switch on it, `paste_owner_now()` derives from it, and the old
+  `editable_text_has_keyboard()` mirror is `context_takes_text(ctx)`. Pane management answers
+  as its submode (`kManageSelect/Move/Size/Reset`) because the sub-switches are different
+  vocabularies. It is resolved fresh, stored nowhere; there is no context stack, no
+  registration, no focus framework.
+- **Matching is exact.** A binding matches the observed modifier bits exactly; the old
+  subset aliases (Ctrl+N created, Alt+Q quit) are removed and behaviorally falsified. One
+  family spelled two ways (`hjkl` / `Shift+hjkl`, `b` / `Shift+b`) is two declared actions.
+- **Two declaration-only activity classes:** `kGlobal` rows are answered above every mode
+  (`document.save`, `document.open`, `workshop.terminal` = `ctrl+t`, `workshop.hotkeys` =
+  `ctrl+k`); `kNoText` is `workshop.quit`'s (`ctrl+c`) — active exactly where no editable
+  text has the keyboard, TEXT-0's law as a declarable fact. `on(KeyPressed)`'s head answers
+  ONLY rows declared in those classes (`above_mode_action`); an action's ordinary context row
+  — quit's own `q` — travels the chain, which is what keeps the hotkey view's modal swallow
+  ahead of it. `shift+space` is GONE, not aliased: it could never arrive from the POSIX
+  backend, which is the remapping capability's own motivating defect.
+- **An action may own several rows** (`workshop.quit`'s `^c` + `q`; `manage.next`'s tab +
+  down; `manage.done`'s esc in three submodes); an override moves all of an action's rows.
+- **The keymap file is the sixth durable artifact** (`keymap_persist.hpp`,
+  `zengine-workshop-keymap` v1, `--keymap`, default `workshop-keymap.json`): defaults in
+  code, authored differences only, absent ≡ defaults, hand-edited, never rewritten. Loaded
+  once on the first `SurfaceReady` (the session restore's own moment), answered in words.
+  Admission refuses — naming what a maker can fix — a gesture outside the grammar on a KNOWN
+  action, an action authored twice, a same-context collision (both actions and the contested
+  gesture named; the check runs over the EFFECTIVE map, so an override colliding with
+  another action's default is caught), a bare printable on a global, and a component-owned
+  chord on a global (the old "the TextBox never binds ^s/^o" discipline, checkable for the
+  first time). An unknown action's row is PRESERVED byte-for-byte, gesture unjudged — the
+  setup law's ACCEPTED clause; `Keymap::authored` is what a save writes back, so round-trips
+  edit nothing. A known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
+- **The legend** (`full`/`compact`/`hidden`, `default` = the code's answer) governs exactly
+  the band's two help rows; hidden blanks them, reclaims no geometry, and unbinds nothing —
+  dispatch never reads it. The FULL rows fold four families (`hjkl move`, `shift+hjkl size`,
+  `up/down row`, `[ ] workspace`) exactly while every member sits on the default that makes
+  the folded word true (`help_pairs`).
+- **The full hotkey view** (`Session::hotkeys`, `paint_hotkeys`, `hotkeys_bounds` — the
+  stack COLUMN, floor to ceiling, one row above the setup line; a single slot was measured
+  too small) is a projection, not an owner: it lists the context BENEATH it, grouped by
+  owning layer, with the component's editing vocabulary shown from
+  `component::kEditingVocabulary` and marked not remappable, and a focused pane described
+  only as ownership — Workshop is never told a provider's bindings and must not guess. It is
+  keys-modal while open (its toggle and bare Escape close it; Escape is deliberately NOT a
+  keymap action — a modal surface's structural way out must not be authorable into a
+  lockout); the pointer chain is untouched, the picker's own precedent.
+- **The printable-trigger swallow is derived from the binding** (`expected_text_of`), armed
+  centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, cleared by
+  the very next key or text. No site hard-codes an expected character, and nothing swallows
+  an unrelated later one. The correspondence is the US-layout face with case-folded letters
+  — the same honest reach the old three hard-coded sites had.
+- **What deliberately does not exist:** no callback or `std::function` in the keymap, no
+  command bus, no registry object, no provider-contributed declarations (the pane seam still
+  has no shape for wanted keys), no TextBox remapping, no sequences/leaders/macros, no new
+  wire vocabulary — KEY-0 added zero bus shapes.
+
 ## The keyboard goes where the maker last pressed (MSG-0)
 
 `Panels::keyboard` is a PRESS's memory: which external pane a maker last pressed into.
@@ -633,30 +713,35 @@ granted; the same three `external_press` already requires.
   so does the keyboard. `bounds_of`'s discipline applied to a focus.
 - **The modes above it never reach that line**, so opening the Terminal or pane management
   leaves the candidate exactly where it was and closing it hands the keys straight back. The
-  priority reads: the same-in-every-mode keys (`shift+space`, `^s`, `^o` — and `^c` exactly
-  where nothing takes text, TEXT-0), then the five modes, then a focused pane, then a live
-  property draft, then `command()`.
+  priority reads: the above-mode actions (the keymap's `kGlobal` rows — save, open, the
+  terminal toggle, the hotkey view — and quit's `kNoText` chord exactly where nothing takes
+  text, TEXT-0), then the five modes, then a focused pane, then a live property draft, then
+  `command()` — spelled once, in `keyboard_context` (KEY-0).
 - **A focused pane sits ABOVE a live property draft**, and the symmetry is what decides it:
   both are PLACES reached by pressing into them, so the one that answers is the one the maker
   pressed into LAST. Pressing back into the Info body clears the candidate by the same line
   that set it. The draft is never cancelled, committed or touched by any of it.
 - **THE PANE GETS EVERY BARE KEY, `q` INCLUDED, AND THAT IS THE DESIGN.** The global
-  survivors are CHORDED (`shift+space`, `^s`, `^o`) and that is a rule rather than a
-  coincidence: a bare printable cannot be global once anything on the screen can take text,
-  which is the whole reason typing `p` into a field does not open the picker.
+  survivors are CHORDED and that is a rule rather than a coincidence — since KEY-0 an
+  ENFORCED one (keymap admission refuses a bare printable on a global row): a bare printable
+  cannot be global once anything on the screen can take text, which is the whole reason
+  typing `p` into a field does not open the picker.
 - **`^c` FOLLOWS THE KEYBOARD SINCE TEXT-0.** It quits exactly where nothing takes text
   (command mode, the picker, pane management) and travels the chain everywhere text has the
   keyboard — the Terminal line, the name editor, a live property draft, and a focused runtime
   pane, which receives it as an ordinary `PaneKey` because a pane that takes every character
-  is a place `^c` means copy at. The gate is `editable_text_has_keyboard()`, which MIRRORS the
-  mode chain branch for branch so the two cannot disagree; `^s`/`^o`/`shift+space` stay above
-  every mode, and quit stays one press-elsewhere (or `q`, or the close box) away. A consumed
+  is a place `^c` means copy at. The gate is `context_takes_text(keyboard_context(...))`
+  since KEY-0 — a derivation of the one resolved context, where a hand-kept mirror predicate
+  used to stand; the other above-mode chords stay above every mode, and quit stays one
+  press-elsewhere (or `q`, or the close box) away. A consumed
   `^c` with nothing selected is still consumed — "copy nothing" must never quit the program.
 - **So the screen says so, in two places, in CHARACTERS.** `external_header` marks the pane
   that has the keys (`> Loaded @…`, unmarked `  Loaded @…`, the same width either way), and the
-  bottom band replaces both help lines with `typing goes to <name> @<office> — press elsewhere
-  for Workshop's keys` and the three that still work (`^c` left that list with TEXT-0 — a band
-  advertising a quit that would not happen is the lie the band exists to refuse).
+  bottom band's first help row becomes `typing goes to <name> @<office> — press elsewhere
+  for Workshop's keys` and the second lists exactly the chords that still work — generated
+  from the keymap's global rows since KEY-0, so the list that once had to be hand-kept
+  truthful (`^c` left it with TEXT-0) is derived now; a band advertising a quit that would
+  not happen is the lie this band exists to refuse.
   **`keyboard_pane` is in `panel.hpp` because the ROUTER and the PAINTER both ask it**; two
   answers would be a screen that says a maker is typing somewhere the keys do not go.
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
@@ -665,13 +750,14 @@ granted; the same three `external_press` already requires.
 ## The desk comes back on its own, and the window with it (WUX-0)
 
 Workshop writes the desk it was arranged into and the room it was in when it closes, and reads
-them back when it starts. Three files, three promises, and the third one is the one nobody
-types:
+them back when it starts. Four files, four promises — the third is the one nobody types, and
+the fourth (KEY-0) is the one nobody but the maker writes:
 
 ```text
 --document   workshop.json           what a maker MADE
 --setup      workshop-setup.json     a desk they NAMED -- `s` writes it, `r` reads it
 --session    workshop-session.json   the desk they were USING, and the room it was in
+--keymap     workshop-keymap.json    the maker's HAND -- hand-edited overrides + the legend
 ```
 
 - **ONE REPRESENTATION OF A DESK, TWO FILES.** `session_persist::WorkshopSession` nests

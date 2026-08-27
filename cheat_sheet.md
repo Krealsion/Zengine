@@ -485,11 +485,19 @@ build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   
 | `--document <path>` | `workshop.json` beside the binary | the authored objects |
 | `--setup <path>` | `workshop-setup.json` | a pane arrangement you named and saved |
 | `--session <path>` | `workshop-session.json` | the last desk and window size — written on close, read on start |
+| `--keymap <path>` | `workshop-keymap.json` | your hotkey overrides and the legend preference — hand-edited, read on start |
 | `--load-plan <path>` | `default-load-plan.json` beside the binary | which artifacts run |
 | `--log <path>` | none | durable journal, appended as things happen |
 | `--dump <path>` | none | what the volatile recorder still held at exit |
 
 ### Keys
+
+These are the **defaults**. Every application binding below can be remapped through the
+keymap file (`--keymap`, default `workshop-keymap.json`), and the executable truth is always
+on screen: `Ctrl`+`k` opens the full hotkey view for whatever context you are in, and the
+bottom band projects the same effective bindings. A binding matches its modifiers **exactly**
+— `n` creates and `Ctrl`+`n` does nothing. See
+[hotkeys and the keymap](docs/workshop/hotkeys.md).
 
 **Command mode** (the default)
 
@@ -506,9 +514,12 @@ build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   
 | `w` | open pane management |
 | `s` | name and save the current setup |
 | `r` | restore the setup from its file |
-| `b` | build the Builder's target |
+| `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
+| `c` / `Shift`+`c` | choose the next / previous recipe |
+| `f` | build and realize the project frontier |
 | `Ctrl`+`s` / `Ctrl`+`o` | save / open the document |
-| `Shift`+`Space` | open the terminal overlay |
+| `Ctrl`+`t` | open or close the terminal overlay |
+| `Ctrl`+`k` | open the hotkey view |
 | `Ctrl`+`c`, `q` | quit |
 
 **Pane picker** (`p`) — `↑` `↓` choose, `Enter` opens or removes, `Esc` or `p` cancels.
@@ -551,10 +562,12 @@ fresh Workshop *seeds two example objects*, so forgetting it looks like a state 
 omission. The window's screen position and maximized state are not restored either; Workshop is
 never told them. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
 
-**On-screen hints** (so you need this page less): the title row carries `[+ panel]  p` and
-`[window]  w` plus `shift+space terminal`; the setup line carries `s name/save  r restore`; the
-bottom line carries the object gestures. Management mode's own sub-keys are the ones not
-announced.
+**On-screen hints** (so you need this page less): every hint is a projection of the
+effective keymap, so a remapped binding is spelled correctly everywhere it appears — the
+title row (`[+ panel]  p`, `[window]  w`, the terminal toggle), the setup line, the bottom
+band's two help rows, each mode's heading, and the full hotkey view (`Ctrl`+`k`). The band's
+legend preference (`full` / `compact` / `hidden`) lives in the keymap file; hidden blanks the
+two help rows and unbinds nothing.
 
 ---
 
@@ -614,9 +627,10 @@ mail.send_to_role(builder::kBuildRunnerRole, builder::RunBuild{"my-target"});
 The wire **cannot spell a command**: no shape here has a field that is a program, an argument
 list or a directory. The runner holds the catalog; the host writes it.
 
-⚠ **friction — Workshop's catalog holds exactly one recipe**, fixed at configure time
-(`zengine-snake`, built in Zengine's own build tree). A maker cannot choose a target or build
-their own project. See [Workshop's Builder](docs/workshop/builder.md).
+Workshop's recipes are **authored** (`--recipes`, a durable JSON catalog): `c` chooses among
+them, `b` builds the chosen one, and `Shift`+`b` / `f` also realize. The shipped default
+catalog is small and points at Zengine's own build tree; a maker edits the file to build
+their own targets. See [Workshop's Builder](docs/workshop/builder.md).
 
 ---
 

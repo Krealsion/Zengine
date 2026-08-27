@@ -228,13 +228,15 @@ struct PanePressed {
 /// pane that closes, loses its provider or loses its room simply stops being the
 /// answer, with nothing to release and no notification owed to anybody.
 ///
-/// IT IS NOT EVERY KEY. Four keys mean the same thing in every mode of this
-/// application and are answered above all of them (`ctrl+c`, `shift+space`,
-/// `ctrl+s`, `ctrl+o`), and the Terminal overlay, pane management, the setup-name
-/// editor and the pane picker each own the keyboard whole while they are open. A
-/// pane gets what is left, which is every ordinary key -- including the printable
-/// ones Workshop otherwise binds as commands, because a maker typing `p` into a
-/// field is typing a `p`.
+/// IT IS NOT EVERY KEY. The application keymap answers a small set of chorded
+/// actions above every mode (which chords those are is the keymap's own truth --
+/// `workshop/keymap.hpp` declares them and a maker's authored keymap can move
+/// them; a comment here spelling them is how this sentence went stale twice), and
+/// the Terminal overlay, pane management, the setup-name editor and the pane
+/// picker each own the keyboard whole while they are open. A pane gets what is
+/// left, which is every ordinary key -- including the printable ones Workshop
+/// otherwise binds as commands, because a maker typing `p` into a field is typing
+/// a `p`.
 ///
 /// WORKSHOP SENDS IT AND ASKS NOTHING BACK, for `PanePressed`'s reason exactly:
 /// there is no reply shape and no `consumed`. Whether the key meant anything is
