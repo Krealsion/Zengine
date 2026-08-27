@@ -15,8 +15,8 @@ Source: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp) ·
 
 > A weave may provide a tool; a **panel** is its presentation.
 
-`[+ panel]` on the screen's title row (`p`) opens a small picker over the catalog of panel
-kinds Workshop knows how to present (`panel.hpp`). The picker is still the only door — a pane
+`p` — advertised as `p + panel` by the band's legend and the hotkey view — opens a small
+picker over the catalog of panel kinds Workshop knows how to present (`panel.hpp`). The picker is still the only door — a pane
 that is not in the catalog cannot be opened by any gesture at all — and the catalog
 has **two halves**: a compile-time constant array of Workshop's own, and a bounded
 **session-local runtime catalog** of panes some office actually offered this run (see

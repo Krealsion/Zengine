@@ -180,9 +180,9 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   which its own keys need no modifier: `tab`/`up` select, `m` move, `s` size, `f`/`b`
   front/back, `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o`
   order), `esc` back one level. It is the sixth mode, below the Terminal and above ordinary
-  command handling. **`w` is on screen before the mode is entered** — row 0 carries one label,
-  `[+ panel]  p  [window]  w`, one string rather than two labels, because what has to be true
-  is a fact about the whole run and a single string cannot be half-moved.
+  command handling. **`w` is on screen before the mode is entered** — as `w window` among the
+  band legend's pairs and in the full hotkey view, both projections of the one keymap (the
+  row-0 label that used to carry it is retired with the row, WUX-1).
 - **The picker and pane management share one list and NOT one purpose.** `inventory_rows` is
   the combined catalog UNION every reference the setup names, so an unresolved pane has a row
   and can be removed by the gesture that removes any other; an unresolved row carries
@@ -206,16 +206,23 @@ one plane per pane  presentation_order(setup, panels), ascending by canonical `f
 the affordances     over the selected pane's own content, so no handle is hidden
 picker / management over the panes they cover -- a provider's text cannot bury the row that
                     recovers it
-the screen's chrome the shared top row and the bottom band
+the screen's chrome the bottom band, one budget-composed region (WUX-1)
 the Terminal        the final modal plane
 ```
 
-- **The screen's chrome is in FRONT of the panes, and that is a decision with a reason.** Row 0
-  is shared with the side region by design (`OBJECTS` names the panel's column and
-  `shift+space terminal` names a mode, on one row neither owns outright), and the bottom band
-  is where the tool SPEAKS. A panel backdrop drawn over either would erase the notice that just
-  told a maker what happened. Panes are in front of the DOCUMENT, which is what `occupied_at`
-  has answered since PNL-2; they are not in front of the tool's own voice.
+- **The screen's chrome is in FRONT of the panes, and that is a decision with a reason.** The
+  bottom band is where the tool SPEAKS: a panel backdrop drawn over it would erase the notice
+  that just told a maker what happened, and since WUX-1 the band OWNS its whole rectangle (one
+  region, `kGroundOwn`), so a pane a maker authors over it is covered by it — the rule the
+  notice region alone used to carry. Panes are in front of the DOCUMENT, which is what
+  `occupied_at` has answered since PNL-2; they are not in front of the tool's own voice.
+- **The shared top row is RETIRED (WUX-1).** Canvas row 0 carried four one-cell voices — the
+  workspace extent, the picker/window hints, the terminal hint — each structurally unable to
+  hold a row of a real face. The facts moved rather than died: the extent is the band's
+  `workspace_text` row, and the gestures are ordinary keymap rows said by the band's legend
+  and the full hotkey view. The workspace did NOT grow (its extent is what a share resolves
+  against; a chrome retirement must not resize a maker's document), so row 0 is empty canvas
+  now, the side region's reservation and every other constant unmoved.
 - `presentation_order` is the one order helper; paint walks it ascending and `occupied_at` its
   exact reverse. Nothing derives hit order from canvas layers.
 
@@ -440,10 +447,15 @@ vertical windows, `info_press` and `objects_press` all call it.
   read backwards — a second arithmetic beside the one function that turns a metric into a
   capacity. One region asks `fit_region` once, gets a budget in PROSE ROWS, and spends it. The
   two sections then cannot overlap: they are disjoint runs of one budget.
-- **`OBJECTS` stays chrome on the panel's row 0** and `PROPERTIES` is a row of the body. That
-  asymmetry is not an oversight: row 0 is SHARED with the screen's own `shift+space terminal`
-  hint, and a region owns its interior. `PROPERTIES` names a section inside the body whose
-  position moves.
+- **`OBJECTS` is the panel region's first prose row since WUX-1** — reserved out of the PROSE
+  budget by `info_body_place` before either list is offered anything (`kInfoHeadingRows`,
+  `external_body_place`'s own ordering), so the region is the WHOLE panel and the heading is
+  set in whatever type the active medium owns. Until the shared top row was retired it was an
+  ordinary label kept out of the region, because the panel's cell row 0 also carried the
+  screen's terminal hint and a region owns its interior; nothing shares the rectangle now.
+  Body rows still begin at zero — `info_body_at` subtracts the heading on the way back, so a
+  press on the heading names no body row and falls to the panel's occupancy answer.
+  `PROPERTIES` is a row OF the body, a section whose position moves.
 - **An object row is fitted WHOLE** (`object_row_text`). There is no fixed column after the
   name to protect: cutting the row at the body's width cuts exactly the name and leaves the
   mark and the identity intact by construction. The identity comes before the name because a
@@ -550,16 +562,28 @@ every other row           role as before background kNone     whatever the regio
   whole rectangle is its own** (the picker, the pane-management surface, an external pane). It
   returns the prose rows and columns the ACTIVE medium fits, and the painter spends them. Its
   cell projection is byte-for-byte what `paint_panel_row` wrote.
-- **`paint_panel_row` has one consumer left: the Builder.** Its nine rows are a fixed
-  composition against a nine-cell slot and the face holds five, so migrating it would drop four
-  rows — the build outcome and the realization outcome among them. Fixed-row panels need a
-  row-budget composition before they can be semantic text; that is a design phase, not a
-  typography one. (Since BLD-2 the count is fixed and one row trades places: while the project
-  is waiting on a buildable artifact, a `project` frontier row takes the third `said` row —
-  [`realization.md`](realization.md#the-frontier-is-visible-and-actionable-and-gained-no-authority-bld-2).)
-- **The screen's own band is 5 cells for 4 sentences and cannot migrate either**, for the same
-  arithmetic: 5 cells hold 3 rows of the face. The NOTICE is the one piece of it that could —
-  two cells, one prose row (`kNoticeRows`).
+- **The Builder is a region composed by explicit priority since WUX-1** (`paint_panel_row`,
+  the cell-lattice row spelling, is gone with its last consumer). Each fact carries a
+  distinct priority; the budget keeps the most important and the DISPLAY order never changes
+  — header, recipe, `project` frontier while one is waiting (BLD-2's row, which under a
+  constrained budget outlives everything but the header and the live `last` row), last,
+  exit, ran, realize, `said…`. A character medium's nine-row budget selects every fact,
+  byte-for-byte the panel BLD-2 shipped; the shipped face's five keep header/recipe/last/
+  realize/said (frontier displacing said while waiting); the `said` block is wrapped into
+  exactly the rows that survived, so its elision mark tells the truth about THIS budget.
+  Dropped facts are dropped WHOLE — nothing substitutes, nothing reorders.
+- **The band is ONE budget-composed region since WUX-1** (`band_bounds`/`band_fit`/
+  `band_region`, screen.hpp): budget ≥5 (a character medium) reads the setup line, the
+  notice, the `workspace WxH cells` fact and two legend rows — the five-cell composition
+  every golden pinned, with the old spare row spent on the workspace fact; the shipped
+  face's 3 reads status (workspace fact folded in after the hints), notice, one packed
+  legend row; 2 drops the legend (the hotkey view remains the full claim surface); 1 keeps
+  the notice while there is one, the identity line otherwise, and the name editor's row
+  outranks both while a maker is mid-name. The name editor's caret and selection are the
+  REGION's now — a bar and a band in a medium with a face, the same inserted glyph and
+  reverse video as ever in the cell projection — and `setup_name_columns` measures against
+  the band's own fit (one measurer). The layout is the budget's ALONE: the legend preference
+  changes what the legend rows say, never where any other fact sits.
 - **The workspace object's name is a `kGroundBeneath` region over the object's own
   rectangle.** The two things it is NOT were built and run live to measure them: an ordinary
   region over the object's rect turns every object into an empty dark box; rows carrying the
@@ -674,10 +698,12 @@ EXECUTION   the owner that performs it                             untouched -- 
   setup law's ACCEPTED clause; `Keymap::authored` is what a save writes back, so round-trips
   edit nothing. A known POSIX-gap gesture is accepted and the gap said once (`posix_gap`).
 - **The legend** (`full`/`compact`/`hidden`, `default` = the code's answer) governs exactly
-  the band's two help rows; hidden blanks them, reclaims no geometry, and unbinds nothing —
-  dispatch never reads it. The FULL rows fold four families (`hjkl move`, `shift+hjkl size`,
-  `up/down row`, `[ ] workspace`) exactly while every member sits on the default that makes
-  the folded word true (`help_pairs`).
+  the band's legend rows — two in a cell medium, one on the shipped face, however many the
+  band's budget composition granted (WUX-1) — hidden blanks them, reclaims no geometry, and
+  unbinds nothing — dispatch never reads it. The FULL rows fold four families (`hjkl move`,
+  `shift+hjkl size`, `up/down row`, `[ ] workspace`) exactly while every member sits on the
+  default that makes the folded word true (`help_pairs`); what a packed row cannot carry is
+  marked, and the full hotkey view remains the complete list in every mode.
 - **The full hotkey view** (`Session::hotkeys`, `paint_hotkeys`, `hotkeys_bounds` — the
   stack COLUMN, floor to ceiling, one row above the setup line; a single slot was measured
   too small) is a projection, not an owner: it lists the context BENEATH it, grouped by
@@ -736,14 +762,27 @@ granted; the same three `external_press` already requires.
   press-elsewhere (or `q`, or the close box) away. A consumed
   `^c` with nothing selected is still consumed — "copy nothing" must never quit the program.
 - **So the screen says so, in two places, in CHARACTERS.** `external_header` marks the pane
-  that has the keys (`> Loaded @…`, unmarked `  Loaded @…`, the same width either way), and the
-  bottom band's first help row becomes `typing goes to <name> @<office> — press elsewhere
-  for Workshop's keys` and the second lists exactly the chords that still work — generated
-  from the keymap's global rows since KEY-0, so the list that once had to be hand-kept
-  truthful (`^c` left it with TEXT-0) is derived now; a band advertising a quit that would
-  not happen is the lie this band exists to refuse.
+  that has the keys (`> Loaded @…`, unmarked `  Loaded @…`, the same width either way), and
+  the band's first legend row becomes `typing goes to <name> @<office> — press elsewhere
+  for Workshop's keys`, the chords that still work following it — in the second legend row
+  where the budget grants two, packed after the sentence where it grants one (WUX-1) —
+  generated from the keymap's global rows since KEY-0, so the list that once had to be
+  hand-kept truthful (`^c` left it with TEXT-0) is derived now; a band advertising a quit
+  that would not happen is the lie this band exists to refuse.
   **`keyboard_pane` is in `panel.hpp` because the ROUTER and the PAINTER both ask it**; two
   answers would be a screen that says a maker is typing somewhere the keys do not go.
+- **PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1):** `workshop.pane-titles`,
+  default bare `t` in command mode, flips `Session::pane_titles` — runtime state only, not
+  persisted (the maker-config domain is a later phase's; do not park it in the keymap file).
+  `external_title_rows(panels, kind, titles)` is the ONE resolution of how many header rows a
+  pane's presentation reserves, and the painter, the press path (`external_press_at`) and the
+  room grant (`refresh_external_rooms`) all spend its answer through
+  `ExternalBodyPlace::header_rows` — a hidden title RETURNS its row to the provider through
+  the ordinary grant-on-change door. **The pane holding the keyboard always keeps its title**:
+  the header's `> ` mark is one of the two on-screen statements of where typing goes, and a
+  presentation preference may hide ordinary chrome but may not recreate the measured MSG-0
+  lie where keystrokes land somewhere the screen does not name. Focus moves, and the title
+  follows it with nothing to clear — `keyboard_pane`'s own resolved-fresh discipline.
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
   pane protocol's law: [`panes.md`](panes.md).
 
@@ -823,4 +862,6 @@ the fourth (KEY-0) is the one nobody but the maker writes:
 - The last session and a named setup are the same thing saved twice — they are two promises in
   two files, and an automatic save that could land on `--setup` would rewrite a maker's named
   desk every time they closed the window.
+- Hiding pane titles can hide where typing goes — it cannot: the pane holding the keyboard
+  keeps its title and its `> ` mark whatever the preference says (WUX-1).
 - Docking exists — it is still absent and still refused.

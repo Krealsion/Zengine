@@ -41,9 +41,14 @@ external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{n
   ordinary `PaneContent`. INT-R0's rule decides it: a refusal belongs to the deepest layer
   whose vocabulary contains the reason, and this layer's does not.
 - **The header row is subtracted in BOTH directions or in neither.** `external_body_place`
-  reserves `kExternalHeaderRows` out of the fit before a provider is told its budget, so the
-  row a provider means by 0 is the region's prose row 1. Forgetting the subtraction on the way
-  back is the off-by-one that would be invisible until a pane had more than one selectable row.
+  reserves the resolved header rows out of the fit before a provider is told its budget, so
+  the row a provider means by 0 is the region's prose row under the header. Forgetting the
+  subtraction on the way back is the off-by-one that would be invisible until a pane had more
+  than one selectable row. Since WUX-1 the count is `external_title_rows`'s answer — the
+  pane-title preference, with the keyboard-holding pane always keeping its title — resolved
+  once and carried on `ExternalBodyPlace::header_rows`; the painter, the press path and the
+  room grant spend that one answer, and a hidden title RETURNS its row to the provider's
+  budget through the ordinary grant-on-change door.
 - **A row that fits no prose is not a row.** Anything outside `[0, rows) × [0, columns)` — the
   header, the pixel remainder under the last prose line of a graphical medium, an unrecognised
   `space` — is refused rather than clamped. Rounding to a nearest row hands a provider a press

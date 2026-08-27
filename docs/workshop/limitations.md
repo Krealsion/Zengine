@@ -93,9 +93,9 @@ and none of those is claimed anywhere else either.
 
 Width scales with the surface; height does not. A larger pane is authored in management mode
 (`w` → `s` → arrows) at **one cell per keypress**, with no coarse step, no drag-to-size and no
-"fill the room". It persists correctly once authored. The mode is advertised on the title row;
-its sub-keys are not announced once you are in it. Detail in [pane
-geometry](panes.md#pane-geometry).
+"fill the room". It persists correctly once authored. The mode is advertised by the band's
+legend and the hotkey view; its sub-keys are not announced once you are in it. Detail in
+[pane geometry](panes.md#pane-geometry).
 
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.

@@ -2499,6 +2499,21 @@ private:
         // centrally from the binding since KEY-0 -- and buys a mode whose own keys need
         // no modifier at all (P48).
         case Act::kManage: open_management(); break;
+        // PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1). The flip is one
+        // session bit; everything it changes on screen -- the arrangeable panes' header
+        // rows, the row returned to or taken back from each provider's budget -- follows
+        // from the ordinary repaint this keystroke already earns (`refresh_external_rooms`
+        // re-grants exactly the rooms whose capacity moved). The notice says which state
+        // the toggle landed in, because a maker with no external pane open would otherwise
+        // watch nothing change; its second half names the one exception, which is the
+        // keyboard-identity law, not a courtesy.
+        case Act::kPaneTitles:
+            session_.pane_titles = !session_.pane_titles;
+            say(session_.pane_titles
+                    ? "pane titles shown"
+                    : "pane titles hidden -- a pane holding the keyboard still shows its own",
+                false);
+            break;
         case Act::kQuit: quit(); break;
         default: break;
         }
@@ -4132,7 +4147,9 @@ private:
                 continue;
             }
             const PanelBounds where = bounds_of(session_.panels, session_.setup.active, p.kind, sc);
-            const ExternalBodyPlace body = external_body_place(where.rect, sc);
+            const ExternalBodyPlace body = external_body_place(
+                where.rect, sc,
+                external_title_rows(session_.panels, p.kind, session_.pane_titles));
             if (!body.present) {
                 continue;
             }
@@ -4190,7 +4207,7 @@ private:
                         loom::Mail& mail) {
         const ExternalPressAt at =
             external_press_at(session_.panels, session_.setup.active, screen_of(session_), kind,
-                              b.space, b.x, b.y);
+                              session_.pane_titles, b.space, b.x, b.y);
         if (!at.named) {
             return;
         }

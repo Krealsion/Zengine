@@ -10,9 +10,9 @@ listed key true.
 Workshop keeps one table of **actions** — a stable identity like `object.new` or
 `workshop.terminal`, a label, the context it is available in, and a default gesture. Dispatch
 resolves your keystroke against that table, and every place a gesture is written on screen —
-the bottom band, the title-row hints, each mode's heading, the notices, the full hotkey view —
-is a projection of the same table. There is no second list to drift: remap a binding and the
-screen spells the new one everywhere, because nothing else has a spelling of its own.
+the bottom band, each mode's heading, the notices, the full hotkey view — is a projection of
+the same table. There is no second list to drift: remap a binding and the screen spells the
+new one everywhere, because nothing else has a spelling of its own.
 
 A binding matches its modifiers **exactly**. `n` creates an object; `Ctrl`+`n` is a different
 gesture and does nothing unless something is bound to it. Where one family is deliberately
@@ -45,17 +45,21 @@ told a provider's bindings and will not guess them.
 
 ## The band legend
 
-The two help rows at the bottom of the screen carry the same projection, in three persisted
-modes — the `legend` word in the keymap file:
+The bottom band carries the same projection on its legend rows — two rows in a terminal, one
+row of real type in a graphical window, however many the band's room genuinely holds of the
+medium's own text — in three persisted modes, the `legend` word in the keymap file:
 
-| word | the two rows show |
+| word | the legend rows show |
 |---|---|
 | `full` (and `default`) | the current context's bindings, packed as room permits, cut with a mark |
 | `compact` | only how to open the hotkey view, e.g. `^k hotkeys` |
 | `hidden` | nothing |
 
-`hidden` blanks the rows and does nothing else. The screen keeps its shape, and no binding —
-the hotkey view's included — is unbound by choosing not to look at the legend.
+`hidden` blanks the legend rows and does nothing else. The band's other rows — the setup
+line, the notice, the workspace size — never move with the preference, the screen keeps its
+shape, and no binding — the hotkey view's included — is unbound by choosing not to look at
+the legend. Where the packed rows cannot carry every pair, the cut is marked and the full
+hotkey view remains the complete list, one keystroke away in every mode.
 
 ## The keymap file
 
