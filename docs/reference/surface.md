@@ -123,9 +123,25 @@ it already resolved — a window fills a bar `kCaretWidthPx` wide at
 same column, which for a caret at the end of a line is byte-for-byte the row the Workshop
 Terminal used to append for itself. `kNoCaret` is **negative** on purpose, the same argument
 `role::kNone` makes: a prose row index is non-negative by construction, so the absence of a
-caret cannot collide with a row anybody might mean. It is emphatically *not* a selection (no
-range, no anchor), not a focus fact (a canvas has no focus, and two regions may each carry
-one), and not blinking — there is no clock on this shape.
+caret cannot collide with a row anybody might mean. It is not a focus fact (a canvas has no
+focus, and two regions may each carry one), and not blinking — there is no clock on this shape.
+
+**A region may have a selected range**, said in the same lattice: `sel_begin_row`/`sel_begin_col`
+and `sel_end_row`/`sel_end_col` are two caret-like positions — begin inclusive, end exclusive,
+in **reading order** — and the text between them is what a maker's next gesture acts on. On the
+begin row the range covers from `sel_begin_col` to that row's own end, every row between whole,
+and the end row up to `sel_end_col`; `surface/region.hpp` owns that per-row arithmetic in one
+function (`selection_span_of_row`) both media consume, so the highlight cannot cover different
+characters in different media. Each medium then answers in its own voice: the character medium
+sets exactly the selected cells in **reverse video** (composing with whatever ink and ground
+they already wear — and a `\x1b[0m` reset restores it, so the goldens of a selection-free canvas
+are byte-identical), and the graphical medium fills a **band** under the glyphs
+(`kSelectionBand`, resolved per row from the same `RegionFit` that placed the text; the bitmap
+face paints a selected cell's clear in the band's ink). `kNoSelection` is negative for
+`kNoCaret`'s reason, and a range that is absent, empty, or not in reading order shows nothing —
+a value no publisher could mean is the absence, never a guess. Which end the caret is at is not
+restated: the caret fields already say it. It is *not* per-span styling — one range, meaning
+selection — and not multiple selections.
 
 ## Current wire versions
 
@@ -138,11 +154,11 @@ one field to a row moves three numbers.
 | `SurfaceRect` | 1 |
 | `SurfaceLabel` | 1 |
 | `SurfaceTextRow` | 2 |
-| `SurfaceTextRegion` | 4 |
-| `SurfaceLayer` | 2 |
-| `SurfaceCanvas` | 6 |
+| `SurfaceTextRegion` | 5 |
+| `SurfaceLayer` | 3 |
+| `SurfaceCanvas` | 7 |
 | `SurfaceText` | 1 |
-| `SurfaceExtent` | 1 |
+| `SurfaceExtent` | 2 |
 
 **A region too small for a medium's own type is a CELL region in that medium**, and
 that is the same sentence a zero metric already means rather than a new rule. A face's line is
@@ -156,6 +172,20 @@ asks the same function for its capacity, the publisher, the window and the termi
 one answer. The split between the two draw lists is the predicate
 `fit_region(r, metric).graphical()` rather than a test on the metric alone, so they remain
 exactly disjoint and exactly complete.
+
+**The clipboard travels as a pair of shapes**, one in each direction (TEXT-0).
+`ClipboardCopy{text}` is intent: *a maker copied this* — published by whichever application or
+pane provider hosted the copy, executed by the active skin with whatever its medium honestly
+has (the SDL medium sets the real platform clipboard; a terminal medium writes the OSC 52
+set-clipboard sequence to the stream it already owns, which terminals that support it honour
+and the rest ignore — and no terminal offers a way to ask which happened, so nothing claims the
+system took it), and mirrored by every other text-holding participant, which is what keeps
+copy-here-paste-there true inside the process even on a medium whose platform cannot answer.
+`ClipboardChanged{text}` is the medium's own fact travelling the extent's direction: *the
+platform clipboard now holds this* — routed by the SDL Input reader, which owns the one event
+queue that reports it (`SurfaceCloseRequested`'s own arrangement), and never published by a
+terminal backend, because a terminal has no way to say it. A consumer treats either as a mirror
+update and echoes nothing back.
 
 `SurfaceExtent{width, height, text_advance_px, text_line_px}` is the one fact that travels the
 *other* way — a medium answering how much room it has, in canvas cells, and how big one

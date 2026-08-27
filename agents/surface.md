@@ -42,8 +42,55 @@ end of a line is byte-for-byte the row the Terminal used to append for itself. `
 **negative** for `role::kNone`'s reason — a row index is non-negative by construction, so an
 absence cannot collide with a row anybody meant.
 
-**A caret is an insertion point, so it is a bar and never a block**, and it is not a
-selection, not a focus fact and not a clock. Two regions on one canvas may each carry one.
+**A caret is an insertion point, so it is a bar and never a block**, and it is not a focus
+fact and not a clock. Two regions on one canvas may each carry one.
+
+## A region may have a selected range, and each medium answers in its own voice (TEXT-0)
+
+`SurfaceTextRegion` carries `sel_begin_row/col` and `sel_end_row/col` — two caret-like
+positions in **reading order** (begin inclusive, end exclusive, `kNoSelection` = none), in the
+region's own prose lattice. The per-row arithmetic is ONE function both media consume:
+`selection_span_of_row` (`surface/region.hpp`) — begin row from `sel_begin_col` to its own
+end, middle rows whole, end row to `sel_end_col`, everything clamped into the text that
+exists, and a range that is absent, empty or not in reading order answers the empty span for
+every row. Do not re-derive a span at a call site; two spellings of it is a highlight that
+covers different characters in different media.
+
+- **The character medium answers in REVERSE VIDEO over exactly the selected cells** — a
+  fourth grid in `canvas_body` beside glyph/role/ground, emitted as `\x1b[7m`/`\x1b[27m`
+  runs. It composes with any ink and any ground, `\x1b[0m` resets it (so it is re-stated
+  after a reset exactly as a ground is), and a canvas with no selection emits not one byte of
+  it — the goldens are the proof.
+- **The graphical medium answers with a BAND under the glyphs** — `kSelectionBand`
+  (`skin_sdl_plan.hpp`), one `PlanSelectionBand` per touched row, resolved from the SAME
+  `RegionFit` that placed the rows and drawn after the row grounds, before the text, so
+  glyphs keep their ink and sit on it. The bitmap face paints a selected cell's clear in the
+  band's ink, `kGroundBeneath` rows included — a selection must not vanish because the
+  material under it is somebody else's.
+- **The cell projection carries the span on `ProjectedRow` (`sel_begin`/`sel_end`)**, in the
+  projected label's own bytes: the inserted caret glyph shifts a span at or after it, sits
+  INSIDE the highlight when the caret is strictly inside the range, and the region-width cut
+  cuts highlights exactly as it cuts text.
+- **Which end the caret is at is not restated** — the caret fields already say it — and the
+  pair is NOT per-span styling: one range, meaning selection. The role vocabulary is still
+  closed.
+- The selection made `SurfaceTextRegion` v5, `SurfaceLayer` v3, `SurfaceCanvas` v7 — the same
+  compose-upward bump every region field has cost.
+
+## The clipboard crosses the Skin seam as a pair of shapes (TEXT-0)
+
+`ClipboardCopy{text}` is intent (a maker copied this): the active Skin executes it —
+`SDL_SetClipboardText` on the SDL medium; the OSC 52 set-clipboard sequence
+(`tui_clipboard_sequence`, base64 and all) written to the stream a terminal Skin already owns,
+honoured where the terminal supports it and harmless where not, with **no claim ever made**
+that the system took it. Every text-holding participant mirrors the same publication, which is
+what keeps copy-here-paste-there true in-process on media whose platform cannot answer.
+`ClipboardChanged{text}` is the platform's own fact, routed by the SDL Input reader
+(`SurfaceCloseRequested`'s arrangement — the reader owns the one queue that reports it) and
+never published by a terminal backend. Consumers mirror and never echo. `clipboard_copy` is a
+REQUIRED Medium method, the Sink's own rule for the Sink's own reason: a Medium that quietly
+lacked it would be one on which copy silently reaches nothing, and the mistake would look
+exactly like the truth on every lane.
 
 ## Which text primitive: who owns the room (TYPE-0, answered in three by TYPE-1)
 

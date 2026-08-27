@@ -546,6 +546,20 @@
 # entry is a second build system in the population, and a nested BUILD is what a recipe IS.
 # The suite's wall clock roughly doubled and that is the cost of measuring the production path.
 #
+# TEXT-0 raised four floors at once -- component 15 -> 33, surface 71 -> 78 (always), input
+# 35 -> 42 (always), workshop 767 -> 775 -- and the spread IS the phase's shape: a component
+# earned selection, clipboard, history and the one key vocabulary (component); a region may
+# carry a selected range and each medium answers in its own voice (surface); every backend can
+# now produce the editing keys with measured modifiers, and the SDL reader routes the
+# platform's clipboard fact (input); and Workshop's four editable places reach all of it, with
+# `^c` meaning copy exactly where text has the keyboard and quit exactly where it cannot
+# (workshop). EVERY ONE IS IN THE `always` POPULATION, for the reason every phase since TYPE-0
+# has given: the metric is an ARGUMENT, a selection span is arithmetic, a clipboard sequence is
+# bytes, and the one live-library case drives the real zengine-composer through the real seam
+# with no medium anywhere near it. The composer suite's floor did not move, which is that
+# file's own doctrine: it holds the PURE half, and the fourth consumer's live behavior is a
+# workshop-tier claim.
+#
 # WHAT IS NOT IN THIS FILE, DELIBERATELY: the single-source route's REAL compile. It needs an
 # installed Zengine prefix and a toolchain, it is a lane and not a ctest entry
 # (tests/build/run.cmake), and folding it in here would put an install and two nested projects
@@ -561,16 +575,16 @@
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
-input                             doctest           always  35
+input                             doctest           always  42
 input                             doctest           sdl     2
-surface                           doctest           always  71
+surface                           doctest           always  78
 surface                           doctest           sdl     6
 ui                                doctest           always  22
-component                         doctest           always  15
+component                         doctest           always  33
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  767
+workshop                          doctest           always  775
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

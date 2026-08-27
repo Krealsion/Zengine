@@ -256,12 +256,15 @@ class WorkshopWeave
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfaceCloseRequested,
+                                          zengine::surface::ClipboardChanged,
+                                          zengine::surface::ClipboardCopy,
                                           zengine::builder::BuildStatus,
                                           zengine::builder::RecipeCatalog,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::PaneContent>,
                              loom::Emit<zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
+                                        zengine::surface::ClipboardCopy,
                                         zengine::builder::StatusRequested,
                                         zengine::builder::BuildRequested,
                                         zengine::workshop::PaneCatalogRequested,
@@ -393,12 +396,27 @@ public:
 
     /// A key TRANSITION: which key changed, and what was held when it did.
     ///
-    /// Ctrl+C is the one key that means the same thing in every mode, and it is
-    /// now spelled as what it is. V1 had no modifier vocabulary, so the backends
-    /// dressed the courtesy NAME as "Ctrl+C" and this branch trusted a courtesy;
-    /// that contract is retired and the modifier is read from the modifier field.
+    /// Ctrl+C MEANS QUIT EXACTLY WHERE IT CANNOT MEAN COPY (TEXT-0). It was the one key
+    /// that meant the same thing in every mode; then the TextBox earned a clipboard, and
+    /// `^c` became the collision SC-form routing exists to resolve deliberately: a maker
+    /// pressing it over selected text means "copy this", and an application that quit
+    /// instead — saving the session, closing the window, orderly and catastrophic — would
+    /// be the worst available answer to the most ordinary gesture there is. So the quit
+    /// branch asks `editable_text_has_keyboard()` first: wherever the keyboard chain would
+    /// hand keys to a place that takes text (the Terminal line, the name editor, a live
+    /// property draft, a focused runtime pane — which receives every bare key already and
+    /// takes text by the same law), `^c` travels the chain like any chord and the box's own
+    /// vocabulary answers it; everywhere else (command mode, the picker, pane management)
+    /// it quits exactly as it always has. `q`, the close box and `SurfaceCloseRequested`
+    /// are untouched, so quitting is never more than one press-elsewhere away.
+    ///
+    /// `^s` AND `^o` STAY ABOVE EVERY MODE, deliberately: they are the DOCUMENT's two keys,
+    /// their recorded rationale stands, and the TextBox vocabulary never binds them — a
+    /// draft-open `^s` still reaches `save_document`, whose draft-open refusal is the
+    /// policy, spoken by its owner.
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        if (k.scancode == input::scan::kC && held(k.modifiers, input::mod::kCtrl)) {
+        if (k.scancode == input::scan::kC && held(k.modifiers, input::mod::kCtrl) &&
+            !editable_text_has_keyboard()) {
             quit();
             return;
         }
@@ -506,6 +524,13 @@ public:
         // IT IS RESOLVED, NOT READ. `keyboard_pane` re-derives the target from the
         // open panel list and the granted room every time, so a pane that stopped
         // being presentable stops being asked with nothing to clear.
+        // A COPY ANYWHERE BELOW IS SAID TO THE PROCESS ONCE, HERE (TEXT-0). The component
+        // bumps the clipboard's `writes` exactly when a copy or cut took text, so one
+        // comparison around the whole chain notices it whichever consumer it happened in —
+        // three handlers each publishing would be the fourth-copy accident arriving in the
+        // routing. What is published is `ClipboardCopy`: the Skin offers it to the
+        // platform's clipboard and every other text-holding participant mirrors it.
+        const std::uint64_t copied_before = session_.clipboard.writes;
         if (session_.terminal.open) {
             terminal_key(k);
         } else if (session_.manage.open) {
@@ -521,7 +546,27 @@ public:
         } else {
             command(k, mail);
         }
+        if (session_.clipboard.writes != copied_before) {
+            mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});
+        }
         repaint(mail);
+    }
+
+    /// THE PLATFORM'S CLIPBOARD CHANGED — update the mirror every paste reads. The counter
+    /// is left alone: `writes` counts what THIS process copied, and a mirror that bumped it
+    /// would republish the platform's own fact back at the platform, which is the echo loop
+    /// ClipboardChanged's contract forbids.
+    void on(const zengine::surface::ClipboardChanged& c, loom::Mail&) {
+        session_.clipboard.text = c.text;
+    }
+
+    /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored for the same reason
+    /// and under the same no-echo rule. On a medium whose platform reports changes this
+    /// arrives twice (once as the publication, once as the platform's echo), and both
+    /// deliveries write the same bytes; on a terminal medium this publication is the only
+    /// road there is, which is exactly why it exists.
+    void on(const zengine::surface::ClipboardCopy& c, loom::Mail&) {
+        session_.clipboard.text = c.text;
     }
 
     /// TEXT the maker actually entered — the platform's answer, not a guess made
@@ -639,6 +684,11 @@ public:
             out.pane = session_.pane_drag.pane;
             session_.pane_drag = PaneGesture{};
         }
+        // The text-selection drag ends silently and is not reported: the selection it swept
+        // is on screen, which is the whole statement (TEXT-0). The selection itself SURVIVES
+        // the release — ending the sweep is not unselecting — so only the gesture record is
+        // cleared here.
+        session_.text_drag = TextDrag{};
         return out;
     }
 
@@ -952,7 +1002,27 @@ public:
     /// object goes where the hand puts it, and the panel goes on covering it.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
         if (session_.terminal.open) {
-            return; // the same rule as the press above: the overlay has the input
+            // THE OVERLAY HAS THE INPUT, and since TEXT-0 one motion matters inside it: a
+            // selection drag the mode's own press began on its editable line. The geometry
+            // is re-resolved from the CURRENT screen — the same two calls the press spent —
+            // and the ROW is deliberately not re-tested: a drag owns the gesture until
+            // release (`PaneGesture`'s law), so a hand that wanders off the line keeps
+            // sweeping the line by column, which is what makes the selection stable rather
+            // than flickering with the pointer's row (SC-form: stable across the region).
+            if (session_.text_drag.active &&
+                session_.text_drag.place == text_drag_place::kTerminalLine) {
+                const Screen sc = screen_of(session_);
+                const TerminalInputPlace place = terminal_input_place(sc);
+                const ProseAt at =
+                    prose_at(m.space, m.x, m.y, place.region_x, place.region_y, place.fit);
+                if (at.understood) {
+                    session_.terminal.input.drag_to_column(
+                        terminal_value_column(place, at.column));
+                    refresh_terminal();
+                    repaint(mail);
+                }
+            }
+            return;
         }
         // AND PANE MANAGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
         // with no pane gesture held does nothing at all: only a PRESS begins one, which is
@@ -964,6 +1034,21 @@ public:
             }
             manage_motion(here.cell.x, here.cell.y, mail);
             repaint(mail);
+            return;
+        }
+        // A SELECTION DRAG ON THE LIVE PROPERTY DRAFT (TEXT-0) — the Terminal branch's twin
+        // on the ordinary path, before the document's drag for the same reason the press
+        // chain asks the draft first: it is the narrower claim, and the two cannot both be
+        // active (a press `info_press` consumed never reached `take_hold`).
+        if (session_.text_drag.active &&
+            session_.text_drag.place == text_drag_place::kPropertyDraft) {
+            Row* row = editing_row();
+            const InfoBodyAt where = info_body_at(state_, session_, m.space, m.x, m.y);
+            if (row != nullptr && where.present) {
+                row->drag_to_column(property_value_column(where.at.column));
+                refresh_inspector();
+                repaint(mail);
+            }
             return;
         }
         const PointedAt at = canvas_point_of(m.space, m.x, m.y);
@@ -1340,6 +1425,36 @@ private:
         return nullptr;
     }
 
+    /// WOULD THE KEYBOARD CHAIN HAND THIS KEY TO A PLACE THAT TAKES TEXT? (TEXT-0)
+    ///
+    /// The `^c` gate's one question, answered by MIRRORING THE CHAIN in `on(KeyPressed)`
+    /// branch for branch — same conditions, same order — so the two cannot disagree about
+    /// who owns the keyboard. Per arm: the Terminal overlay edits a line (yes); pane
+    /// management is gestures and takes no text (no); the name editor edits a line (yes);
+    /// the picker is chosen from with arrows (no); a focused runtime pane receives every
+    /// bare key and every character precisely because it may hold editable text — Workshop
+    /// cannot see whether it currently does, and the maker pressed into it LAST, so the
+    /// chord is the pane's to spend or waste (yes); a live property draft edits a line
+    /// (yes); command mode is commands (no).
+    bool editable_text_has_keyboard() {
+        if (session_.terminal.open) {
+            return true;
+        }
+        if (session_.manage.open) {
+            return false;
+        }
+        if (session_.setup.naming.open) {
+            return true;
+        }
+        if (session_.panels.picker.open) {
+            return false;
+        }
+        if (is_runtime_kind(keyboard_pane())) {
+            return true;
+        }
+        return editing_row() != nullptr;
+    }
+
     /// Editing mode, KEY half: the three keys that are editor CONTROLS rather
     /// than text. Commit, cancel, erase -- meanings that belong to Workshop and
     /// that Input deliberately does not know. Everything else a key press might
@@ -1347,6 +1462,15 @@ private:
     /// here and is the whole reason Ctrl+C is handled above this branch.
     void editing_key(const zengine::input::KeyPressed& k) {
         Row* row = editing_row();
+        // THE DRAFT'S OWN VOCABULARY FIRST (TEXT-0). One call owns what four switches used
+        // to spell separately — the six editing keys, and now selection, clipboard, word
+        // movement and history behind them — and a `true` is QR-2's bool: the gesture
+        // reached the layer that owns what it means, whether or not anything changed. What
+        // is left below is exactly the policy: what a draft MEANS when a maker commits or
+        // abandons it, which the component is deliberately unable to know.
+        if (row->consume(k.scancode, k.modifiers, session_.clipboard)) {
+            return;
+        }
         switch (k.scancode) {
         case input::scan::kReturn: {
             const Commit result = row->commit();
@@ -1368,27 +1492,6 @@ private:
             row->cancel();
             say("edit cancelled -- nothing was written", false);
             break;
-        case input::scan::kBackspace: row->backspace(); break;
-        // THE EDITING KEYS THE SECOND CONSUMER EARNED (HD-5). Until this phase a property
-        // draft could only be appended to and backspaced from, so a typo six characters back
-        // cost six deletions and six retypes -- reproduced before the change, on a draft of
-        // `hellp world`, where Left, Right, Home, End and Delete were every one of them
-        // `default: break`.
-        //
-        // ALL FIVE WERE UNBOUND IN THIS MODE, source-traced exactly as HD-2's three and
-        // HD-3's three were: `editing_key`'s switch had Return, Escape and Backspace, and
-        // everything else fell through. Up/Down step the INSPECTOR's rows and Tab selects the
-        // next OBJECT -- both in COMMAND mode, which is a different mode and is not reachable
-        // while a draft is live. So no gesture anywhere changed meaning.
-        //
-        // They are the same five the Terminal binds, spelled the same way, because they now
-        // reach the same implementation: `Row` forwards to the `component::TextBox` it owns,
-        // and `TerminalPane` calls the same six methods on the one it owns.
-        case input::scan::kLeft: row->left(); break;
-        case input::scan::kRight: row->right(); break;
-        case input::scan::kHome: row->home(); break;
-        case input::scan::kEnd: row->end(); break;
-        case input::scan::kDelete: row->erase_forward(); break;
         default: break;
         }
     }
@@ -1506,6 +1609,12 @@ private:
             // is the one subtraction and it is the inverse of the one
             // `property_caret_column` added.
             row.place(row.editor().position_at_column(property_value_column(where.at.column)));
+            // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0). The press placed the caret,
+            // which is the anchor; every motion until release extends from it. The record
+            // holds WHICH line and nothing else — the geometry is re-resolved per motion by
+            // the same functions this press just spent, `PaneGesture`'s no-live-position law.
+            session_.text_drag.active = true;
+            session_.text_drag.place = text_drag_place::kPropertyDraft;
             return true; // consumed: the press was on the draft's own row
         }
         return false; // no draft is live, so this panel has no editor to press
@@ -1681,26 +1790,19 @@ private:
     /// no gesture changed meaning anywhere.
     void terminal_key(const zengine::input::KeyPressed& k) {
         TerminalPane& pane = session_.terminal;
+        // THE LINE'S OWN VOCABULARY FIRST (TEXT-0): the six editing keys this switch used
+        // to spell, and selection, clipboard, word movement and history behind them, all
+        // through the one component call every consumer now makes. A consumed gesture
+        // still reaches `refresh_terminal`, for the reason the caret keys always fell
+        // through rather than `return`ing the way Up/Down do: an edit or a caret move
+        // changes whether the caret is AT THE END, which is the question the completer is
+        // allowed to be asked.
+        if (pane.input.consume(k.scancode, k.modifiers, session_.clipboard)) {
+            refresh_terminal();
+            return;
+        }
         switch (k.scancode) {
         case input::scan::kReturn: submit_terminal_line(); break;
-        case input::scan::kBackspace: pane.input.backspace(); break;
-        // THE CARET KEYS (HD-3). All three were `default: break` before this phase --
-        // source-traced, exactly as HD-2 traced its three. Left/Right are bound in COMMAND
-        // mode to nothing at all (that mode's directional gestures are `hjkl` and the
-        // up/down arrows), and this mode is not reachable from it, so no gesture anywhere
-        // changed meaning.
-        //
-        // THEY DO NOT `return` THE WAY Up/Down DO, and the difference is the phase. Up/Down
-        // move a selection and skip the rebuild because the line did not change; a caret
-        // move does not change the line either, but it changes whether the caret is AT THE
-        // END -- which is the question the completer is allowed to be asked (see
-        // `refresh_terminal`). Falling through is what makes the list appear and disappear
-        // as the caret leaves and returns to the end.
-        case input::scan::kLeft: pane.input.left(); break;
-        case input::scan::kRight: pane.input.right(); break;
-        case input::scan::kDelete: pane.input.erase_forward(); break;
-        case input::scan::kHome: pane.input.home(); break;
-        case input::scan::kEnd: pane.input.end(); break;
         case input::scan::kEscape:
             if (completion_selectable()) {
                 // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A maker who wanted
@@ -1811,6 +1913,7 @@ private:
                                     place.fit);
         if (at.understood && terminal_input_hit(place, at.column, at.row)) {
             const std::size_t was = pane.input.caret();
+            const bool had_selection = pane.input.has_selection();
             // THROUGH THE WINDOW THE ROW WAS DRAWN WITH (HD-4). A visible column names
             // `first_visible + offset` of the WHOLE authored line, never the offset alone --
             // that is the one subtraction a horizontal viewport adds to a hit test, and
@@ -1818,9 +1921,15 @@ private:
             // scroll. The offset read here is the one the last repaint resolved, which is
             // the one the maker is looking at.
             pane.input.place(terminal_caret_of_column(place, pane.input, at.column));
+            // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0), `info_press`'s twin: the
+            // caret just placed is the anchor, and motion until release extends from it.
+            session_.text_drag.active = true;
+            session_.text_drag.place = text_drag_place::kTerminalLine;
             // The caret moving is what changes whether completion may be asked, so a press
-            // that moved it has to reach `refresh_terminal` exactly as a caret key does.
-            if (pane.input.caret() != was) {
+            // that moved it has to reach `refresh_terminal` exactly as a caret key does. A
+            // press that COLLAPSED a selection changed the picture too, even where the
+            // caret stood still — the highlight has to leave the screen (TEXT-0).
+            if (pane.input.caret() != was || had_selection) {
                 refresh_terminal();
                 return true;
             }
@@ -2468,6 +2577,12 @@ private:
     /// the component that owns the text, the caret and the window together.
     void naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
         SetupNaming& naming = session_.setup.naming;
+        // The line's own vocabulary first (TEXT-0) — the third of the four switches the
+        // component call collapsed. What stays is the policy pair every consumer keeps to
+        // itself: what a committed name MEANS and what abandoning one leaves standing.
+        if (naming.line.consume(k.scancode, k.modifiers, session_.clipboard)) {
+            return;
+        }
         switch (k.scancode) {
         case input::scan::kReturn: commit_setup_name(); break;
         case input::scan::kEscape:
@@ -2475,12 +2590,6 @@ private:
             naming.line.clear();
             say("the setup name is unchanged", false);
             break;
-        case input::scan::kBackspace: naming.line.backspace(); break;
-        case input::scan::kDelete: naming.line.erase_forward(); break;
-        case input::scan::kLeft: naming.line.left(); break;
-        case input::scan::kRight: naming.line.right(); break;
-        case input::scan::kHome: naming.line.home(); break;
-        case input::scan::kEnd: naming.line.end(); break;
         default: break;
         }
     }

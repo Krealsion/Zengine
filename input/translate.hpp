@@ -21,19 +21,29 @@
 // only as honest as this table:
 //
 //   POSIX terminal (raw-mode stdin bytes)
-//     key identity   yes, for the bytes terminal_byte_scancode names
-//     entered text   YES, and authoritatively: the terminal has already applied
-//                    the keyboard layout, so `%` arrives as the byte 0x25. This
-//                    is the canonical route Workshop was missing.
-//     Shift          INFERRED, letters only, from the byte's case. CapsLock
+//     key identity   yes, for the bytes terminal_byte_scancode names, and — since
+//                    TEXT-0 — for the CSI-named editing keys: the arrows, Home
+//                    (`ESC [ H`, `ESC [ 1 ~`, `ESC [ 7 ~`), End (`ESC [ F`,
+//                    `ESC [ 4 ~`, `ESC [ 8 ~`) and Delete (`ESC [ 3 ~`). Before
+//                    TEXT-0 the non-arrow forms were consumed whole and dropped,
+//                    so Home on this backend produced nothing; a component
+//                    vocabulary binding them is what made naming them owed.
+//     Shift          INFERRED for letters, from the byte's case (CapsLock
 //                    produces the same byte, so this is "the terminal delivered
-//                    the shifted form", not "the Shift key was down". Named as
-//                    a limit rather than dressed up.
-//     Ctrl           yes, for Ctrl+letter — a terminal sends control byte 1..26
-//     Alt            NO. The ESC-prefix convention is byte-identical to Escape
-//                    followed by a key, and Escape is load-bearing (it cancels
-//                    an edit), so Alt is not claimed here.
-//     Super          NO. A terminal cannot report it.
+//                    the shifted form", not "the Shift key was down"); MEASURED
+//                    for the CSI editing keys, from xterm's `1;m` modifier
+//                    parameter — `ESC [ 1 ; 2 D` genuinely says Shift was held.
+//     Ctrl           yes, for Ctrl+letter — a terminal sends control byte 1..26 —
+//                    and for the CSI editing keys, from the same `1;m` parameter.
+//     Alt            NO for ordinary keys: the ESC-prefix convention is
+//                    byte-identical to Escape followed by a key, and Escape is
+//                    load-bearing (it cancels an edit), so Alt is not claimed
+//                    there. MEASURED on the CSI editing keys, where the `1;m`
+//                    parameter carries it unambiguously.
+//     Super          NO. A terminal cannot report it. xterm's Meta bit in `1;m`
+//                    is deliberately NOT read as kSuper — what a terminal calls
+//                    Meta is a per-emulator story, and a modifier this backend
+//                    cannot vouch for is one it does not claim.
 //     pointer        yes, ONCE SOMETHING TURNS REPORTING ON — see the Skin
 //                    (surface/skin_tui.hpp), which owns terminal modes. The
 //                    reports are SGR (ESC [ < b ; x ; y M/m) and carry position
@@ -225,6 +235,28 @@ inline std::size_t utf8_len_of_lead(unsigned char b) {
 // same instant by `[` is indistinguishable from a CSI introducer, on every
 // terminal, and this parser does not distinguish it either.
 
+/// THE `1;m` KEY-MODIFIER PARAMETER, DECODED — xterm's own encoding, spoken by every
+/// emulator that reports modified editing keys at all: the parameter is 1 + a bitmask,
+/// 1 = Shift, 2 = Alt, 4 = Control. The Meta bit (8) is deliberately not mapped; see the
+/// backend table above. Total: 0 and 1 both mean unmodified, because both arrive.
+inline constexpr std::int64_t terminal_csi_modifiers(std::int64_t param) noexcept {
+    if (param < 2) {
+        return mod::kNone;
+    }
+    const std::int64_t bits = param - 1;
+    std::int64_t m = mod::kNone;
+    if ((bits & 1) != 0) {
+        m |= mod::kShift;
+    }
+    if ((bits & 2) != 0) {
+        m |= mod::kAlt;
+    }
+    if ((bits & 4) != 0) {
+        m |= mod::kCtrl;
+    }
+    return m;
+}
+
 /// The SGR mouse protocol's own numbers, spelled once. `Cb`'s low two bits pick
 /// the button; the rest are flags.
 namespace sgr {
@@ -412,22 +444,27 @@ private:
         }
         if (pending_.size() == 2) { // ESC [
             switch (b) {
-            case 'A': arrow(out, scan::kUp); return;
-            case 'B': arrow(out, scan::kDown); return;
-            case 'C': arrow(out, scan::kRight); return;
-            case 'D': arrow(out, scan::kLeft); return;
+            case 'A': named_key(out, scan::kUp, mod::kNone); return;
+            case 'B': named_key(out, scan::kDown, mod::kNone); return;
+            case 'C': named_key(out, scan::kRight, mod::kNone); return;
+            case 'D': named_key(out, scan::kLeft, mod::kNone); return;
+            // Home and End, in the bare cursor-key forms xterm sends them (TEXT-0). The
+            // tilde spellings (`ESC [ 1 ~`, `ESC [ 4 ~`, rxvt's 7/8) arrive with a digit
+            // and are read by `csi_key` below.
+            case 'H': named_key(out, scan::kHome, mod::kNone); return;
+            case 'F': named_key(out, scan::kEnd, mod::kNone); return;
             case '<': pending_.push_back(b); return; // an SGR mouse report opens
             default: break;
             }
             if ((b >= '0' && b <= '9') || b == ';' || b == '?') {
-                pending_.push_back(b); // some other CSI: consume it whole
+                pending_.push_back(b); // a parameterized CSI: read on
                 return;
             }
             drop(); // an unrecognised CSI final byte
             return;
         }
-        // Inside the body. Either an SGR mouse report (pending_[2] == '<') or
-        // another CSI we are consuming only so that it cannot leak.
+        // Inside the body. An SGR mouse report (pending_[2] == '<'), a parameterized key
+        // (TEXT-0), or a CSI this backend does not speak, consumed whole so it cannot leak.
         const bool mouse = pending_[2] == '<';
         if ((b >= '0' && b <= '9') || b == ';') {
             pending_.push_back(b);
@@ -437,16 +474,87 @@ private:
             sgr_report(b == 'M', out);
             return;
         }
-        if (b >= 0x40 && b <= 0x7e) { // any other CSI final byte: consumed, dropped
-            drop();
+        if (!mouse && b >= 0x40 && b <= 0x7e) {
+            csi_key(b, out); // a final byte: a key if this backend can name one, else dropped
             return;
         }
         drop();
     }
 
-    void arrow(std::vector<InputEvent>& out, std::int64_t sc) {
-        detail::emit_stroke(out, sc, scancode_name(sc), mod::kNone);
+    void named_key(std::vector<InputEvent>& out, std::int64_t sc, std::int64_t mods) {
+        detail::emit_stroke(out, sc, scancode_name(sc), mods);
         pending_.clear();
+    }
+
+    /// A PARAMETERIZED CSI ENDED — the editing keys a real terminal spells with parameters
+    /// (TEXT-0). Two families, both xterm's and both spoken nearly everywhere:
+    ///
+    ///     ESC [ 1 ; m {A B C D H F}    a cursor/edit key with the `1;m` modifier parameter
+    ///     ESC [ k ~   /  ESC [ k ; m ~ a keypad-named key: 1/7 Home, 4/8 End, 3 Delete
+    ///
+    /// Everything else — a `?` private-mode body, a key number this backend has no name
+    /// for (Insert, PageUp/Down), a shape that is not one of these — is dropped whole,
+    /// exactly as every unrecognised CSI always was: silence is the honest answer to a key
+    /// you cannot name, and HALF-reading a sequence is the leak this parser exists to stop.
+    void csi_key(unsigned char final, std::vector<InputEvent>& out) {
+        std::int64_t field[2] = {0, 0};
+        int at = 0;
+        bool digits = false;
+        for (std::size_t i = 2; i < pending_.size(); ++i) {
+            const unsigned char c = pending_[i];
+            if (c == ';') {
+                if (!digits || at == 1) {
+                    drop(); // an empty field, or more fields than any key sequence has
+                    return;
+                }
+                ++at;
+                digits = false;
+                continue;
+            }
+            if (c < '0' || c > '9') {
+                drop(); // a `?` or other private body: not a key
+                return;
+            }
+            const std::int64_t d = c - '0';
+            if (field[at] > (kMaxField - d) / 10) {
+                drop();
+                return;
+            }
+            field[at] = field[at] * 10 + d;
+            digits = true;
+        }
+        if (!digits) {
+            drop(); // a trailing `;` with nothing after it
+            return;
+        }
+        const std::int64_t mods = at == 1 ? terminal_csi_modifiers(field[1]) : mod::kNone;
+        if (final == '~') {
+            switch (field[0]) {
+            case 1:
+            case 7: named_key(out, scan::kHome, mods); return;
+            case 4:
+            case 8: named_key(out, scan::kEnd, mods); return;
+            case 3: named_key(out, scan::kDelete, mods); return;
+            default: drop(); return; // a keypad key this backend has no name for
+            }
+        }
+        // The letter finals carry their key in the FINAL and their modifier in the second
+        // field; the first field is the literal 1 the protocol requires. Anything else —
+        // a lone-parameter letter, a first field that is not 1 — is a spelling no terminal
+        // this backend has met produces for a key, and it is dropped rather than guessed.
+        if (at != 1 || field[0] != 1) {
+            drop();
+            return;
+        }
+        switch (final) {
+        case 'A': named_key(out, scan::kUp, mods); return;
+        case 'B': named_key(out, scan::kDown, mods); return;
+        case 'C': named_key(out, scan::kRight, mods); return;
+        case 'D': named_key(out, scan::kLeft, mods); return;
+        case 'H': named_key(out, scan::kHome, mods); return;
+        case 'F': named_key(out, scan::kEnd, mods); return;
+        default: drop(); return;
+        }
     }
 
     /// `ESC [ < Cb ; Cx ; Cy M|m` — decoded into the moment it describes.
@@ -586,10 +694,17 @@ inline constexpr std::uint16_t kVkTab = 0x09;
 inline constexpr std::uint16_t kVkReturn = 0x0D;
 inline constexpr std::uint16_t kVkEscape = 0x1B;
 inline constexpr std::uint16_t kVkSpace = 0x20;
+// The editing keys the component vocabulary binds (TEXT-0). HD-3 declined to widen this
+// table "for symmetry" when the names were minted, and was right: no consumer bound them on
+// this backend. `TextBox::consume` is that consumer now, on every backend at once, so a
+// console maker pressing Home is owed the key the record already carried.
+inline constexpr std::uint16_t kVkEnd = 0x23;
+inline constexpr std::uint16_t kVkHome = 0x24;
 inline constexpr std::uint16_t kVkLeft = 0x25;
 inline constexpr std::uint16_t kVkUp = 0x26;
 inline constexpr std::uint16_t kVkRight = 0x27;
 inline constexpr std::uint16_t kVkDown = 0x28;
+inline constexpr std::uint16_t kVkDelete = 0x2E;
 // The OEM punctuation keys, on the US layout the console reports them for.
 // V1 dropped every one of these, so `[` and `]` — the two keys Workshop binds
 // to its workspace width — were simply not deliverable on the Windows lane.
@@ -623,10 +738,13 @@ inline std::int64_t vk_scancode(std::uint16_t vk) {
     case kVkReturn: return scan::kReturn;
     case kVkEscape: return scan::kEscape;
     case kVkSpace: return scan::kSpace;
+    case kVkEnd: return scan::kEnd;
+    case kVkHome: return scan::kHome;
     case kVkLeft: return scan::kLeft;
     case kVkUp: return scan::kUp;
     case kVkRight: return scan::kRight;
     case kVkDown: return scan::kDown;
+    case kVkDelete: return scan::kDelete;
     case kVkOem1: return scan::kSemicolon;
     case kVkOemPlus: return scan::kEquals;
     case kVkOemComma: return scan::kComma;

@@ -1213,6 +1213,28 @@ struct PaneGesture {
     std::int64_t base_h = 0;
 };
 
+/// WHICH EDITABLE LINE A TEXT-SELECTION DRAG IS SWEEPING (TEXT-0). Session, beside the
+/// other two gesture records and deliberately a THIRD one: a document object, a pane and a
+/// run of text are three different things to be holding, and `PaneGesture`'s note applies
+/// verbatim — one variable for all of them would make "a release ends the gesture it began"
+/// a question about what was underneath rather than a fact about the press.
+///
+/// IT HOLDS WHICH LINE AND NOTHING ELSE. The selection itself — anchor and caret — lives in
+/// the `component::TextBox` the press placed the caret in, so a motion resolves the CURRENT
+/// geometry (the same place the press resolved) and hands the component a column; there is
+/// no cached rectangle here to go stale under a resize mid-drag, which is `PaneGesture`'s
+/// no-live-position law arriving at text.
+namespace text_drag_place {
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kTerminalLine = 1;  ///< the Terminal pane's editable line
+inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
+} // namespace text_drag_place
+
+struct TextDrag {
+    bool active = false;
+    std::int64_t place = text_drag_place::kNone;
+};
+
 /// The session: what a maker is currently doing, as opposed to what they have
 /// authored. Kept out of WorkshopDoc deliberately (see vocabulary.hpp) so the
 /// two kinds of fact cannot be mistaken for each other -- selection is not
@@ -1277,6 +1299,19 @@ struct Session {
     /// variable for both would make "a release ends the gesture it began" a question about
     /// which kind of thing was underneath rather than a fact about the press.
     PaneGesture pane_drag;
+    /// ...and the text selection their pointer is sweeping, if any (TEXT-0). The third
+    /// gesture record, for the two records' own reason; see `TextDrag`.
+    TextDrag text_drag;
+    /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON (TEXT-0) — session in the
+    /// plainest sense: what a maker copied is part of what they are DOING, dies with the
+    /// process like every draft (WUX-0 keeps the desk, never the work-in-progress), and is
+    /// deliberately not persisted. It is one clipboard for all of Workshop's own boxes —
+    /// the Terminal line, a property draft, the setup name — because a maker has one
+    /// clipboard in their head; and it is a MIRROR of the freshest clipboard truth this
+    /// process has heard: the component writes it on copy/cut, `ClipboardCopy` publications
+    /// from other participants land in it, and on a medium whose platform reports changes
+    /// (SDL) `ClipboardChanged` keeps it current with the outside world.
+    component::Clipboard clipboard;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -2644,6 +2679,37 @@ inline std::size_t terminal_caret_of_column(const TerminalInputPlace& p,
     return box.position_at_column(surface::sub_px(column, p.first_column));
 }
 
+/// A PROSE COLUMN AS A COLUMN OF THE LINE ITSELF — the prompt taken off and NOTHING
+/// clamped, which is what a selection DRAG needs and a press does not (TEXT-0): a drag
+/// sitting left of the prompt must arrive at the component as a negative column, because
+/// that is the fact `TextBox::drag_to_column` turns into a leftward scroll step. The one
+/// subtraction is owned here, beside its two siblings, so a fourth copy of "where does the
+/// line begin" cannot be written at a call site.
+inline constexpr std::int64_t terminal_value_column(const TerminalInputPlace& p,
+                                                    std::int64_t column) noexcept {
+    return surface::sub_px(column, p.first_column);
+}
+
+/// THE VISIBLE SELECTION AS PROSE COLUMNS OF THE PANE'S ROW (TEXT-0) — the prompt added to
+/// the component's own answer, `terminal_caret_column`'s shape for a span: the box owns
+/// which bytes of the slice are selected (`visible_selection`, clamped to the same capacity
+/// the painter cuts with), and what is left here is the one thing that is about a TERMINAL,
+/// which is that this pane's prose begins with `> `.
+struct TerminalSelectionSpan {
+    std::int64_t begin = 0;
+    std::int64_t end = 0;
+    bool present = false;
+};
+inline TerminalSelectionSpan terminal_selection_columns(const TerminalInputPlace& p,
+                                                        const component::TextBox& box) noexcept {
+    const component::TextBox::VisibleSpan vis = box.visible_selection(p.columns);
+    if (!vis.present()) {
+        return TerminalSelectionSpan{};
+    }
+    return TerminalSelectionSpan{surface::add_cells(p.first_column, vis.begin),
+                                 surface::add_cells(p.first_column, vis.end), true};
+}
+
 /// IS THIS PROSE POSITION ON THE EDITABLE LINE AT ALL?
 ///
 /// The row is the whole test, and the column is deliberately NOT: a press anywhere along the
@@ -2942,6 +3008,18 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
     // `TerminalInput` holds rather than each deciding for itself.
     pane.caret_row = typing.prose_row;
     pane.caret_col = terminal_caret_column(typing, t.input);
+    // AND THE SELECTION, THE SAME WAY (TEXT-0): the visible part of the component's own
+    // range, prompt-shifted by the same helper family the caret goes through, published as
+    // the region's selection so each medium answers in its own voice — reverse video in a
+    // cell, a band under the glyphs in a window. A selection scrolled wholly off the slice
+    // publishes nothing, which is the truthful picture of a row that shows none of it.
+    const TerminalSelectionSpan marked = terminal_selection_columns(typing, t.input);
+    if (marked.present) {
+        pane.sel_begin_row = typing.prose_row;
+        pane.sel_begin_col = marked.begin;
+        pane.sel_end_row = typing.prose_row;
+        pane.sel_end_col = marked.end;
+    }
 
     layer.texts.push_back(std::move(pane));
 
@@ -4341,6 +4419,21 @@ inline std::int64_t property_caret_column(const Row& row) {
            static_cast<std::int64_t>(row.editor().caret_column());
 }
 
+/// THE DRAFT'S VISIBLE SELECTION AS PROSE COLUMNS OF ITS BODY ROW (TEXT-0) —
+/// `property_caret_column`'s shape for a span, and `terminal_selection_columns`' twin one
+/// editor over: the component answers which columns of its slice are selected against the
+/// SAME capacity the painter cuts the value with, and this adds the one offset that is
+/// about a PROPERTY ROW, which is that its prose begins with the mark and the padded name.
+inline TerminalSelectionSpan property_selection_columns(const Row& row,
+                                                        std::int64_t value_columns) {
+    const component::TextBox::VisibleSpan vis = row.editor().visible_selection(value_columns);
+    if (!vis.present()) {
+        return TerminalSelectionSpan{};
+    }
+    return TerminalSelectionSpan{kPropertyMarkCols + kPropertyLabelCols + vis.begin,
+                                 kPropertyMarkCols + kPropertyLabelCols + vis.end, true};
+}
+
 /// IS THIS PROSE POSITION ON THE BODY ROW SHOWING PROPERTY `index` AT ALL?
 ///
 /// `terminal_input_hit`'s rule, one editor over: the ROW is the whole test and the column is
@@ -4601,6 +4694,19 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
             // caret would not, on either axis.
             region.caret_row = prose_row_of_property(body, i);
             region.caret_col = property_caret_column(row);
+            // AND THE DRAFT'S SELECTION, THROUGH THE SAME TWO ANSWERS (TEXT-0): the same
+            // prose row, and the same value offset the caret's column was built with — so
+            // the highlight cannot land where the caret would not, on either axis, in
+            // either medium (a band under the glyphs where the body is real type, reverse
+            // video over exactly the selected characters where it is cells).
+            const TerminalSelectionSpan marked =
+                property_selection_columns(row, body.value_columns);
+            if (marked.present) {
+                region.sel_begin_row = region.caret_row;
+                region.sel_begin_col = marked.begin;
+                region.sel_end_row = region.caret_row;
+                region.sel_end_col = marked.end;
+            }
         }
     }
     say_omission(body.properties.after, "more");
@@ -5049,12 +5155,38 @@ inline std::int64_t setup_name_columns(const Screen& sc) noexcept {
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
 
-/// The name being typed, windowed, with the caret in it.
+/// The name being typed, windowed, with the caret in it — and, since TEXT-0, the selection
+/// AROUND it, said in this row's only voice: characters. A one-cell chrome row has no
+/// region to carry a range on (the header above says why), and a label's cell has no second
+/// attribute, so the selected span is bracketed — `setup name> Morning [buil_]d` — exactly
+/// the way the caret has always been a `_` here rather than a bar. The marks follow the
+/// cell projection's own caret-beside-selection order (the glyph lands inside the brackets
+/// exactly when the caret is strictly inside the range), so the two spellings of one
+/// selection cannot disagree about where the active end is. `[`, `]` and `_` are all
+/// typeable characters and the ambiguity is accepted, as it always was for the caret.
 inline std::string setup_naming_text(const SetupNaming& naming, const Screen& sc) {
-    std::string shown = naming.line.visible(setup_name_columns(sc));
-    const std::size_t at = naming.line.caret_column();
-    shown.insert(at < shown.size() ? at : shown.size(), 1, surface::kCaretGlyph);
-    return std::string(kSetupNamePrompt) + shown + kSetupNameHint;
+    const std::int64_t cols = setup_name_columns(sc);
+    const std::string shown = naming.line.visible(cols);
+    const component::TextBox::VisibleSpan vis = naming.line.visible_selection(cols);
+    const std::size_t n = shown.size();
+    const std::size_t at = naming.line.caret_column() < n ? naming.line.caret_column() : n;
+    std::string marked;
+    marked.reserve(n + 3);
+    for (std::size_t i = 0; i <= n; ++i) {
+        if (vis.present() && i == static_cast<std::size_t>(vis.end)) {
+            marked += ']';
+        }
+        if (i == at) {
+            marked += surface::kCaretGlyph;
+        }
+        if (vis.present() && i == static_cast<std::size_t>(vis.begin)) {
+            marked += '[';
+        }
+        if (i < n) {
+            marked += shown[i];
+        }
+    }
+    return std::string(kSetupNamePrompt) + marked + kSetupNameHint;
 }
 
 /// WHICH SETUP THIS IS, IN THE ORDER A MAKER NEEDS IT.
@@ -5429,9 +5561,13 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
         // quit with the key its own help line advertised.
         //
         // WHAT IT NAMES INSTEAD IS EVERYTHING THAT STILL WORKS, and the list is exact:
-        // the four keys that mean the same thing in every mode. All four are CHORDED,
-        // which is not a coincidence -- a bare printable cannot be global once anything
-        // on the screen can take text, and that is the whole reason `q` is the pane's.
+        // the keys that mean the same thing in every mode. All are CHORDED, which is not
+        // a coincidence -- a bare printable cannot be global once anything on the screen
+        // can take text, and that is the whole reason `q` is the pane's. `^c` LEFT THIS
+        // LIST IN TEXT-0: a focused pane is a place that takes text, so `^c` is the
+        // pane's now too (its fields mean copy by it), and a help line advertising a quit
+        // that would not happen is the exact lie this band exists to refuse. Quitting is
+        // one press-elsewhere away, and the line above still says so.
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* typed_into =
             typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
@@ -5441,7 +5577,7 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
                       " -- press elsewhere for Workshop's keys",
                   surface::role::kMuted);
             label(0, sc.help_y + 1,
-                  "shift+space terminal | ^s save | ^o open | ^c quit", surface::role::kMuted);
+                  "shift+space terminal | ^s save | ^o open", surface::role::kMuted);
         } else {
             label(0, sc.help_y,
                   "n new | d delete | hjkl move | shift+hjkl size | tab object | q quit",

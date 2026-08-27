@@ -299,6 +299,22 @@ public:
         notice_unread_queue();
     }
 
+    /// A maker copied text: put it on the REAL platform clipboard (TEXT-0). This is the
+    /// medium where the offer lands somewhere every other application on the machine can
+    /// paste from, and the platform then reports its own change back through the one event
+    /// queue — which the SDL Input reader owns and routes as `ClipboardChanged`, closing
+    /// the loop without this medium saying anything itself. A failure is complained about
+    /// in SDL's own words and costs nothing else: the copy is already true inside this
+    /// process, because it travelled the bus to get here.
+    void clipboard_copy(const std::string& text) {
+        if (!ok_) {
+            return;
+        }
+        if (!SDL_SetClipboardText(text.c_str())) {
+            complain("SDL_SetClipboardText");
+        }
+    }
+
     /// HOW MUCH ROOM THIS WINDOW HAS, in canvas cells — the one question this
     /// medium answers rather than obeys.
     ///

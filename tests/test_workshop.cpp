@@ -5819,15 +5819,32 @@ TEST_CASE("while the overlay is open the keys and the pointer belong to it") {
     CHECK(t.pane().open);
 }
 
-TEST_CASE("Ctrl+C and ^s still mean the same thing with the overlay open") {
+TEST_CASE("^s still means save with the overlay open, and ^c means copy there (TEXT-0)") {
     Live t;
     t.mount_terminal();
     t.toggle_terminal();
     // ^s is not text -- a control byte is never TextEntered -- so it cannot be typed into a
-    // command line, and its meaning is deliberately mode-independent.
+    // command line, and its meaning is deliberately mode-independent: the TextBox
+    // vocabulary never binds it, and the global branch answers it above every mode.
     t.key(input::scan::kS, input::mod::kCtrl);
     CHECK(t.notice() == "no document file -- start Workshop with --document <path>");
     CHECK(t.pane().open);
+    // ^c, by contrast, IS the editing surface's chord now (TEXT-0): while the overlay's
+    // line has the keyboard it means copy, is consumed by the line's own vocabulary even
+    // with nothing selected, and must never fall through to quit -- "copy nothing" ending
+    // the whole application is the exact accident the consumed-bool contract exists to
+    // make unwritable. Quit stays one mode away: close the overlay and the same chord
+    // quits, exactly as it always did.
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK_FALSE(t.host.quit);
+    CHECK(t.pane().open);
+    // With text selected the same chord takes the selection, so paste brings it back.
+    t.text("abc");
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(t.session().clipboard.text == "abc");
+    CHECK_FALSE(t.host.quit);
+    t.toggle_terminal();
     t.key(input::scan::kC, input::mod::kCtrl);
     CHECK(t.host.quit);
 }
@@ -6706,8 +6723,9 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
     loom::TerminalSession me("t", workshop_vocab());
 
     // THE HOST'S DECLARED ORDER, preserved -- no ranking, no sorting, no learned order.
+    // (SurfaceCanvas is v7 since TEXT-0's selection fields; the list follows the wire.)
     const Completion all = complete_line(me, "send * ");
-    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v6",
+    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v7",
                                                     "zen.Ack v1"});
     // ACCEPTANCE WRITES THE VERSION TOO, because a shape without one is never a command
     // this pane can run: the grammar wants four words and the version is the fourth.
@@ -6717,7 +6735,7 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
     // CASE FOLLOWS THE WIRE. A schema name is identity; matching `surfacetext` against
     // `SurfaceText` would offer a completion that composes to UnknownShape.
     CHECK(displays(complete_line(me, "send * Surface")) ==
-          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v6"});
+          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v7"});
     CHECK(complete_line(me, "send * surface").candidates.empty());
     CHECK(complete_line(me, "send * surface").heading.find("(3 known)") != std::string::npos);
 
@@ -24014,11 +24032,26 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
     r.key(input::scan::kA);
     CHECK(seat->keys.size() == 1);
 
-    // CTRL+C still quits from inside a focused pane.
+    // CTRL+C IS THE PANE'S WHILE IT HOLDS THE KEYBOARD (TEXT-0). A focused pane is a place
+    // that takes text, and `^c` over text means copy, so the chord travels the chain and
+    // crosses the seam like any other -- the provider decides what it means. `^s` and `^o`
+    // still outrank the pane (the case below this one drives them), and quit is one
+    // press-elsewhere away.
     CHECK_FALSE(r.host.quit);
     r.key(input::scan::kC, input::mod::kCtrl);
+    CHECK_FALSE(r.host.quit);
+    REQUIRE(seat->keys.size() == 2); // forwarded, beside the bare `a` above
+    CHECK(seat->keys[1].scancode == input::scan::kC);
+    CHECK(seat->keys[1].modifiers == input::mod::kCtrl);
+
+    // ...AND QUIT COMES BACK WITH THE KEYBOARD. A press outside the pane clears the
+    // candidate, and the same chord is the application's again.
+    const ui::Rect panel = external_panel_rect(r.session(), kind);
+    r.press_cell(panel.x + 1, panel.y + panel.h + 1);
+    REQUIRE(r.session().panels.keyboard == kNoPaneKind);
+    r.key(input::scan::kC, input::mod::kCtrl);
     CHECK(r.host.quit);
-    CHECK(seat->keys.size() == 1); // and it was not forwarded
+    CHECK(seat->keys.size() == 2); // and this one was not forwarded
 }
 
 TEST_CASE("MSG-0: every Workshop mode owns the keyboard above a focused pane") {
@@ -24251,9 +24284,11 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
     press_body(r, kind);
 
     // AFTER: the mark is on the pane a maker is looking at, and the band names it and
-    // lists what still works. All four survivors are CHORDED, which is the rule
-    // rather than a coincidence: a bare printable cannot be global once anything on
-    // the screen can take text.
+    // lists what still works. All survivors are CHORDED, which is the rule rather than
+    // a coincidence: a bare printable cannot be global once anything on the screen can
+    // take text. `^c` left the list in TEXT-0 -- a focused pane takes text, so the chord
+    // is the pane's now, and a band advertising a quit that would not happen is the lie
+    // this band exists to refuse.
     CHECK(header() == std::string(kTypingHere) + "Seat @" + std::string(kHelloOffice));
     {
         const std::vector<std::string> lines = band();
@@ -24262,7 +24297,8 @@ TEST_CASE("MSG-0: the screen says which pane the keys are going to, in two place
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "shift+space terminal | ^s save | ^o open | ^c quit");
+        CHECK(lines[1] == "shift+space terminal | ^s save | ^o open");
+        CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 
     // ...AND THE MARK COSTS NO COLUMNS, which is what keeps a header from starting to
@@ -26724,4 +26760,413 @@ TEST_CASE("WUX-0: `r` keeps its unresolved note -- a maker asking is asking late
     t.publish(loom::to_value(surface::SurfaceReady{}));
     t.key(input::scan::kR);
     CHECK(t.notice().find("1 pane unresolved") != std::string::npos);
+}
+
+// ============================================================================
+// TEXT-0: the TextBox contract, driven end to end through the weave
+// ============================================================================
+//
+// The component suite owns what the vocabulary DOES; these cases own that Workshop's four
+// editable places actually reach it -- keys in, published selection out, clipboard across
+// consumers and across the bus, and the routing that keeps `^c` copy where text is being
+// edited and quit where it cannot be.
+
+namespace {
+
+/// An ordinary accepter of a maker's copy -- what the active Skin (and any text-holding
+/// pane provider) looks like to the bus when `ClipboardCopy` is said.
+struct CopyHeard {
+    std::int64_t count = 0;
+    ZEN_SHAPE(CopyHeard, 1, ZEN_FIELD(count));
+};
+class ClipboardEars
+    : public loom::WeaveBase<ClipboardEars, CopyHeard,
+                             loom::Accept<surface::ClipboardCopy>, loom::Emit<>> {
+public:
+    explicit ClipboardEars(std::vector<std::string>& heard) : heard_(&heard) {}
+    void on(const surface::ClipboardCopy& c, loom::Mail&) { heard_->push_back(c.text); }
+
+private:
+    std::vector<std::string>* heard_;
+};
+
+} // namespace
+
+TEST_CASE("TEXT-0: the terminal line selects, copies, cuts, pastes and undoes by keys") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("hello world")) {
+        t.text(std::string(1, c));
+    }
+
+    // Shift+Left sweeps a selection, and the PUBLISHED pane region says exactly which
+    // prose columns are selected -- the same prompt shift the caret has always had.
+    for (int i = 0; i < 5; ++i) {
+        t.key(input::scan::kLeft, input::mod::kShift);
+    }
+    CHECK(t.pane().input.selected_text() == "world");
+    {
+        const surface::SurfaceTextRegion& pane =
+            *pane_of(t.canvases.back(), screen_of(t.session()));
+        const TerminalInputPlace p = terminal_input_place(screen_of(t.session()));
+        CHECK(pane.sel_begin_row == p.prose_row);
+        CHECK(pane.sel_end_row == p.prose_row);
+        CHECK(pane.sel_begin_col == kTerminalPromptCols + 6);
+        CHECK(pane.sel_end_col == kTerminalPromptCols + 11);
+        CHECK(pane.caret_col == kTerminalPromptCols + 6); // the active end is the caret
+    }
+
+    // Typing replaces what was swept.
+    t.text("there");
+    CHECK(t.pane().input.text() == "hello there");
+    // ...and the selection's absence is published as the absence.
+    {
+        const surface::SurfaceTextRegion& pane =
+            *pane_of(t.canvases.back(), screen_of(t.session()));
+        CHECK(pane.sel_begin_row == surface::kNoSelection);
+    }
+
+    // Ctrl+A, copy, cut, paste, undo, redo -- the chords land on the line while the
+    // overlay has the keyboard, and the session clipboard is the mirror they move through.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(t.session().clipboard.text == "hello there");
+    CHECK(t.pane().input.text() == "hello there"); // a copy erases nothing
+    t.key(input::scan::kX, input::mod::kCtrl);
+    CHECK(t.pane().input.empty());
+    t.key(input::scan::kV, input::mod::kCtrl);
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "hello therehello there");
+    t.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "hello there");
+    t.key(input::scan::kY, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "hello therehello there");
+    // Word movement is part of the same vocabulary.
+    t.key(input::scan::kHome);
+    t.key(input::scan::kRight, input::mod::kCtrl);
+    CHECK(t.pane().input.caret() == 6);
+}
+
+TEST_CASE("TEXT-0: a copy is said to the process once, and a heard copy fills the mirror") {
+    Live t;
+    std::vector<std::string> heard;
+    (void)loom::mount<ClipboardEars>(t.bus, heard);
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("abc")) {
+        t.text(std::string(1, c));
+    }
+
+    // A copy with nothing selected publishes nothing -- there was no copy.
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK(heard.empty());
+
+    // A real copy is one publication, carrying the copied bytes.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    REQUIRE(heard.size() == 1);
+    CHECK(heard[0] == "abc");
+    // A cut is a copy too, said the same way.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kX, input::mod::kCtrl);
+    REQUIRE(heard.size() == 2);
+
+    // THE PLATFORM'S CLIPBOARD FILLS THE MIRROR: what the SDL reader routes as
+    // ClipboardChanged is what the next paste means -- text copied in another
+    // application entirely.
+    t.publish(loom::to_value(surface::ClipboardChanged{"from outside"}));
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "from outside");
+    // ...and hearing a change is not copying: nothing new was published.
+    CHECK(heard.size() == 2);
+
+    // ANOTHER PARTICIPANT'S ClipboardCopy fills it too -- the terminal-media road, where
+    // no platform ever answers back.
+    t.publish(loom::to_value(surface::ClipboardCopy{"a pane's copy"}));
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.pane().input.text() == "a pane's copy");
+}
+
+TEST_CASE("TEXT-0: the property draft speaks the same vocabulary and keeps its policy keys") {
+    Live t;
+    t.begin_editing("Name");
+    const Row* name = t.row("Name");
+    REQUIRE(name != nullptr);
+    REQUIRE(name->editing());
+    REQUIRE(name->draft() == "panel");
+
+    // Select-all + type replaces the whole draft in one gesture...
+    t.key(input::scan::kA, input::mod::kCtrl);
+    // ...and while the selection is live, the PUBLISHED Info region marks exactly the
+    // value's columns of the editing row, through the same offsets the caret uses.
+    {
+        const InfoBodyPlace body = body_place(t);
+        const surface::SurfaceTextRegion* region = body_region(t.canvases.back(), body);
+        REQUIRE(region != nullptr);
+        CHECK(region->sel_begin_row == region->caret_row);
+        CHECK(region->sel_begin_col == kPropertyMarkCols + kPropertyLabelCols);
+        CHECK(region->sel_end_col == kPropertyMarkCols + kPropertyLabelCols + 5);
+    }
+    t.text("frame");
+    CHECK(name->draft() == "frame");
+
+    // ^c over a live draft is copy, never quit; the clipboard chords work; undo works.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK_FALSE(t.host.quit);
+    CHECK(t.session().clipboard.text == "frame");
+    t.key(input::scan::kEnd);
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(name->draft() == "frameframe");
+    t.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(name->draft() == "frame");
+
+    // RETURN IS STILL THE OWNER'S: it commits through the property, exactly as before.
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(name->editing());
+    CHECK(t.doc().elements[0].label == "frame");
+    CHECK(t.notice() == "committed Name = frame");
+}
+
+TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in characters") {
+    TempDir dir("text0-naming");
+    Live t;
+    t.host.setup_path = dir.file("setup.json");
+    (void)t.mount_terminal();
+
+    // Copy in the Terminal first -- the cross-consumer half of the claim.
+    t.toggle_terminal();
+    for (const char c : std::string("Morning")) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    t.toggle_terminal();
+
+    t.key(input::scan::kS);
+    t.text("s");
+    REQUIRE(t.session().setup.naming.open);
+    REQUIRE(t.session().setup.naming.line.text() == "Default");
+
+    // Ctrl+A selects the name, and the one-cell chrome row SAYS so in its only voice:
+    // characters. The selected span is bracketed with the caret at its active end,
+    // exactly as the caret has always been a `_` here rather than a bar.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    CHECK(t.session().setup.naming.line.selected_text() == "Default");
+    CHECK(setup_line(t.session(), t.host.setup_path, screen_of(t.session()))
+              .find("setup name> [Default]_") == 0);
+
+    // Paste replaces the selection: the name a maker copied in the Terminal arrives here.
+    t.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(t.session().setup.naming.line.text() == "Morning");
+    // ^c with a selection copies rather than quitting, in this mode too.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kC, input::mod::kCtrl);
+    CHECK_FALSE(t.host.quit);
+    // Escape is still the owner's: the name is unchanged and nothing was saved.
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().setup.active.name == "Default");
+}
+
+TEST_CASE("TEXT-0: a drag sweeps a selection on the terminal line, and release keeps it") {
+    Live t;
+    (void)t.mount_terminal();
+    t.toggle_terminal();
+    for (const char c : std::string("send something")) {
+        t.text(std::string(1, c));
+    }
+    const TerminalInputPlace p = terminal_input_place(screen_of(t.session()));
+
+    // The press places the caret AND opens the drag; no selection yet.
+    t.press_at(pane_cell_x(p, p.first_column + 5), pane_cell_y(p, p.prose_row),
+               input::space::kCells);
+    REQUIRE(t.pane().input.caret() == 5);
+    CHECK(t.session().text_drag.active);
+    CHECK_FALSE(t.pane().input.has_selection());
+
+    // Motion extends from the pressed anchor -- the same geometry the press resolved.
+    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 9),
+                                                 pane_cell_y(p, p.prose_row), 0, 0,
+                                                 input::space::kCells, input::mod::kNone}));
+    CHECK(t.pane().input.selected_text() == "some");
+    CHECK(t.pane().input.anchor() == 5);
+
+    // ...and sweeping back through the anchor selects the other way. The ROW is
+    // deliberately not re-tested mid-drag: a hand that wanders off the line keeps
+    // sweeping it by column, so the selection is stable rather than flickering.
+    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 1),
+                                                 pane_cell_y(p, p.prose_row - 1), 0, 0,
+                                                 input::space::kCells, input::mod::kNone}));
+    CHECK(t.pane().input.selected_text() == "end ");
+    CHECK(t.pane().input.caret() == 1);
+
+    // Release ends the GESTURE and keeps the SELECTION -- ending the sweep is not
+    // unselecting -- and a motion after release moves nothing.
+    t.publish(loom::to_value(input::PointerButton{1, false, pane_cell_x(p, p.first_column + 1),
+                                                  pane_cell_y(p, p.prose_row),
+                                                  input::space::kCells, input::mod::kNone}));
+    CHECK_FALSE(t.session().text_drag.active);
+    CHECK(t.pane().input.selected_text() == "end ");
+    t.publish(loom::to_value(input::PointerMoved{pane_cell_x(p, p.first_column + 12),
+                                                 pane_cell_y(p, p.prose_row), 0, 0,
+                                                 input::space::kCells, input::mod::kNone}));
+    CHECK(t.pane().input.selected_text() == "end ");
+
+    // A fresh press collapses the old selection: it is the gesture that STARTS one.
+    t.press_at(pane_cell_x(p, p.first_column + 3), pane_cell_y(p, p.prose_row),
+               input::space::kCells);
+    CHECK_FALSE(t.pane().input.has_selection());
+    CHECK(t.pane().input.caret() == 3);
+}
+
+TEST_CASE("TEXT-0: a drag sweeps a selection on the property draft through its own row") {
+    Live t;
+    t.begin_editing("Name"); // the draft is "panel", caret at its end
+    const Row* name = t.row("Name");
+    REQUIRE(name != nullptr);
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    const std::size_t editing = editing_index(t);
+    const std::int64_t row = prose_row_of_property(body, editing);
+    const std::int64_t value0 = kPropertyMarkCols + kPropertyLabelCols;
+
+    // Press at the value's second character, then sweep right.
+    t.press_at(body.region_x + value0 + 1, body.region_y + row + surface::kTuiCanvasTopRow,
+               input::space::kCells);
+    REQUIRE(name->editor().caret() == 1);
+    CHECK(t.session().text_drag.active);
+    t.publish(loom::to_value(input::PointerMoved{
+        body.region_x + value0 + 4, body.region_y + row + surface::kTuiCanvasTopRow, 0, 0,
+        input::space::kCells, input::mod::kNone}));
+    CHECK(name->editor().selected_text() == "ane");
+
+    // Typing replaces what the hand swept -- the point of sweeping it.
+    t.publish(loom::to_value(input::PointerButton{
+        1, false, body.region_x + value0 + 4, body.region_y + row + surface::kTuiCanvasTopRow,
+        input::space::kCells, input::mod::kNone}));
+    CHECK_FALSE(t.session().text_drag.active);
+    t.text("X");
+    CHECK(name->draft() == "pXl");
+}
+
+TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
+    // Command mode: the rewritten MSG-0 case covers a focused pane and the overlay; this
+    // one pins the three keyboard owners that take no text -- the picker, pane management,
+    // and plain command mode -- so the narrowing cannot creep.
+    {
+        Live t;
+        t.key(input::scan::kP); // the picker is open and owns the keyboard
+        t.text("p");
+        REQUIRE(t.session().panels.picker.open);
+        t.key(input::scan::kC, input::mod::kCtrl);
+        CHECK(t.host.quit);
+    }
+    {
+        Live t;
+        t.key(input::scan::kW); // pane management
+        t.text("w");
+        REQUIRE(t.session().manage.open);
+        t.key(input::scan::kC, input::mod::kCtrl);
+        CHECK(t.host.quit);
+    }
+    {
+        Live t; // command mode, nothing open
+        t.key(input::scan::kC, input::mod::kCtrl);
+        CHECK(t.host.quit);
+    }
+}
+
+TEST_CASE("TEXT-0: the real Composer's fields speak the vocabulary across the seam") {
+    // The fourth consumer, driven as a STRANGER: the real `zengine-composer` library, loaded
+    // through the real Kernel, receiving the chords as `PaneKey` across the pane seam -- so
+    // what is proven is the whole road: Workshop's routing hands `^c` to the focused pane,
+    // the provider's field consumes it, the copy is SAID to the process, and Workshop's own
+    // mirror (and therefore every other text box in the application) holds the bytes.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(240, 80);
+    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
+    REQUIRE(r.load_refusals.empty());
+    r.pick(intro_ref());
+    r.pick(composer_ref());
+    std::int64_t intro_kind = kNoPaneKind;
+    std::int64_t compose_kind = kNoPaneKind;
+    for (const RuntimePane& row : r.session().panels.runtime.entries) {
+        if (row.provider == std::string(kIntroOffice) && row.pane == std::string(kIntroPane)) {
+            intro_kind = row.kind;
+        }
+        if (row.provider == std::string(kComposerOffice)) {
+            compose_kind = row.kind;
+        }
+    }
+    REQUIRE(is_runtime_kind(intro_kind));
+    REQUIRE(is_runtime_kind(compose_kind));
+
+    // The target: the introspection office itself, selected through the REAL Loaded pane --
+    // press the row naming the introspection stem, exactly as a maker would. That office is
+    // loaded and answers `zen.DescribeAccepted` in the same turn.
+    {
+        const std::vector<std::string> loaded = loaded_rows(r, intro_kind);
+        std::int64_t which = -1;
+        for (std::size_t i = 0; i < loaded.size(); ++i) {
+            if (is_entry_row(loaded[i]) && named_by(loaded[i]) == intro::kIntrospectionStem) {
+                which = static_cast<std::int64_t>(i);
+            }
+        }
+        REQUIRE(which >= 0);
+        const ui::Rect intro_body = external_body_rect(r.session(), intro_kind);
+        r.press_cell(intro_body.x + 1, intro_body.y + kExternalHeaderRows + which);
+    }
+
+    // Focus the pane and open a form: press rows until the form's own notice appears. Which
+    // row is a message is the provider's business, so the case walks rather than assumes.
+    press_body(r, compose_kind);
+    bool form_open = false;
+    {
+        const ui::Rect body = external_body_rect(r.session(), compose_kind);
+        const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
+        for (std::size_t i = 0; i < rows.size() && !form_open; ++i) {
+            r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(i));
+            for (const std::string& row :
+                 external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+                form_open = form_open || row.find("enter acts") != std::string::npos;
+            }
+        }
+    }
+    REQUIRE(form_open);
+
+    // Type into the field under the cursor (typing makes it present), select all, copy.
+    r.text("hello");
+    r.key(input::scan::kA, input::mod::kCtrl);
+    r.key(input::scan::kC, input::mod::kCtrl);
+    CHECK_FALSE(r.host.quit); // ^c crossed the seam instead of quitting
+    CHECK(r.session().clipboard.text == "hello"); // ...and the copy reached the mirror
+
+    // The other direction: a clipboard fact from anywhere (the platform's, another box's)
+    // reaches the provider's own mirror, and paste replaces the selected field value --
+    // visible in the pane's published rows, which is the only window this case has.
+    (void)r.bus.publish(loom::Message(loom::to_value(surface::ClipboardChanged{"pasted-in"}),
+                                      loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    r.key(input::scan::kA, input::mod::kCtrl);
+    r.key(input::scan::kV, input::mod::kCtrl);
+    bool shown = false;
+    for (const std::string& row :
+         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+        shown = shown || row.find("pasted-in") != std::string::npos;
+    }
+    CHECK(shown);
+    // ...and undo is local to the field, one chord away.
+    r.key(input::scan::kZ, input::mod::kCtrl);
+    bool restored = false;
+    for (const std::string& row :
+         external_rows(r.last_canvas(), external_body_rect(r.session(), compose_kind))) {
+        restored = restored || row.find("hello") != std::string::npos;
+    }
+    CHECK(restored);
 }

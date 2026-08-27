@@ -75,21 +75,22 @@ namespace zengine::input {
 
 /// One translated SDL event.
 ///
-/// It is the Input variant PLUS ONE, and the one is not an input moment:
-/// `surface::SurfaceCloseRequested`. SDL reports window lifecycle and input
-/// through a single process-global queue, so the weave that owns that queue is
-/// the only thing that can see a close request — and the whole point of this
-/// variant is that the request is carried as the LIFECYCLE FACT it is, in the
+/// It is the Input variant PLUS TWO, and neither of the two is an input moment:
+/// `surface::SurfaceCloseRequested` and, since TEXT-0,
+/// `surface::ClipboardChanged`. SDL reports window lifecycle, clipboard changes
+/// and input through a single process-global queue, so the weave that owns that
+/// queue is the only thing that can see either fact — and the whole point of
+/// this variant is that each is carried as the SURFACE FACT it is, in the
 /// vocabulary that owns the application's surface, rather than being smuggled
-/// through as a fake `KeyPressed{Q}` because Workshop already knows how to quit
-/// from a key. Owning a queue does not entitle a package to rename what is on
-/// it.
+/// through as a fake key. Owning a queue does not entitle a package to rename
+/// what is on it.
 ///
 /// The weave (input_weave.hpp) derives its Emit set from this variant, so the
 /// terminal and Win32 readers declare exactly the six input shapes they had
-/// before and only the SDL reader declares the seventh.
+/// before and only the SDL reader declares the extra two.
 using SdlEvent = std::variant<KeyPressed, KeyReleased, TextEntered, PointerMoved, PointerButton,
-                              PointerWheel, zengine::surface::SurfaceCloseRequested>;
+                              PointerWheel, zengine::surface::SurfaceCloseRequested,
+                              zengine::surface::ClipboardChanged>;
 
 /// SDL's own numbers, spelled locally so this header stays SDL-free — and
 /// pinned against the real headers by an SDL-gated case in the suite, exactly
@@ -100,6 +101,7 @@ namespace sdl {
 // SDL_EVENT_WINDOW_SHOWN = 0x202; CLOSE_REQUESTED is the fifteenth of them.
 inline constexpr std::uint32_t kEventQuit = 0x100;
 inline constexpr std::uint32_t kEventWindowCloseRequested = 0x210;
+inline constexpr std::uint32_t kEventClipboardUpdate = 0x900; // SDL_EVENT_CLIPBOARD_UPDATE
 inline constexpr std::uint32_t kEventKeyDown = 0x300;
 inline constexpr std::uint32_t kEventKeyUp = 0x301;
 inline constexpr std::uint32_t kEventTextEditing = 0x302;
@@ -317,6 +319,25 @@ inline std::vector<SdlEvent> sdl_close_to_events() {
     return out;
 }
 
+/// SDL_EVENT_CLIPBOARD_UPDATE -> the surface fact (TEXT-0).
+///
+/// The event itself carries no text; the reader asks `SDL_GetClipboardText` at the moment
+/// it sees one and hands the answer here, so what travels is the fact a consumer needs
+/// ("the platform clipboard now holds this") rather than a notification it would have to
+/// chase. An EMPTY answer still travels: a clipboard emptied — or holding something that is
+/// not text — is a real state, and a consumer whose mirror kept yesterday's text over it
+/// would paste text the platform no longer has.
+///
+/// This includes the echo of this process's own copies (the Skin's SDL_SetClipboardText
+/// lands back here through the platform); a mirror that updates to the text it already
+/// holds is the cheap, correct answer, and no de-echo bookkeeping is invented for it.
+inline std::vector<SdlEvent> sdl_clipboard_to_events(const char* text) {
+    std::vector<SdlEvent> out;
+    out.push_back(zengine::surface::ClipboardChanged{
+        text != nullptr ? std::string(text) : std::string()});
+    return out;
+}
+
 /// Is this SDL event type one this backend translates?
 ///
 /// The complement is the ignored set, and it is large and deliberately so: SDL
@@ -330,6 +351,7 @@ inline constexpr bool sdl_event_is_translated(std::uint32_t type) noexcept {
     switch (type) {
     case sdl::kEventQuit:
     case sdl::kEventWindowCloseRequested:
+    case sdl::kEventClipboardUpdate:
     case sdl::kEventKeyDown:
     case sdl::kEventKeyUp:
     case sdl::kEventTextInput:

@@ -125,6 +125,21 @@ public:
         if (!ok_) {
             return out;
         }
+        // WHAT THE CLIPBOARD ALREADY HELD WHEN THIS READER ARRIVED (TEXT-0). The platform
+        // reports CHANGES, so text copied before this process started would be a truth no
+        // event ever carries — and the first paste of a run is exactly the gesture that
+        // wants it. Read once, on the first poll rather than in the constructor, so the
+        // fact travels the same road every later change does.
+        if (!said_initial_clipboard_) {
+            said_initial_clipboard_ = true;
+            if (SDL_HasClipboardText()) {
+                char* text = SDL_GetClipboardText();
+                for (SdlEvent& e : sdl_clipboard_to_events(text)) {
+                    out.push_back(std::move(e));
+                }
+                SDL_free(text);
+            }
+        }
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
             append(out, ev);
@@ -143,6 +158,15 @@ private:
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
             batch = sdl_close_to_events();
             break;
+        case SDL_EVENT_CLIPBOARD_UPDATE: {
+            // The event says the clipboard CHANGED; the text is fetched at that moment so
+            // the message carries the fact a consumer needs. SDL's buffer is this reader's
+            // to free; nothing downstream ever sees the pointer.
+            char* text = SDL_GetClipboardText();
+            batch = sdl_clipboard_to_events(text);
+            SDL_free(text);
+            break;
+        }
         case SDL_EVENT_KEY_DOWN:
         case SDL_EVENT_KEY_UP:
             batch = sdl_key_to_events(static_cast<std::int64_t>(ev.key.scancode),
@@ -171,19 +195,20 @@ private:
             break;
         default:
             // Everything else SDL speaks about: displays, joysticks, gamepads,
-            // sensors, pens, touch, drops, clipboards, audio devices, cameras,
-            // and the rest of the window events (shown, moved, focus, exposed).
-            // None of them carries a current Zen semantic obligation, so they
-            // are ignored — and ignored is not the same as dropped: the four
-            // populations this application lives on are all above, and
-            // translate_sdl.hpp's `sdl_event_is_translated` is the assertable
-            // statement of exactly which those are.
+            // sensors, pens, touch, drops, audio devices, cameras, and the rest
+            // of the window events (shown, moved, focus, exposed). None of them
+            // carries a current Zen semantic obligation, so they are ignored —
+            // and ignored is not the same as dropped: the populations this
+            // application lives on are all above, and translate_sdl.hpp's
+            // `sdl_event_is_translated` is the assertable statement of exactly
+            // which those are.
             return;
         }
         out.insert(out.end(), batch.begin(), batch.end());
     }
 
     bool ok_ = false;
+    bool said_initial_clipboard_ = false; ///< the pre-existing clipboard is said once
 };
 
 /// The local constants in translate_sdl.hpp ARE SDL's, checked by the compiler
@@ -198,6 +223,7 @@ private:
 /// to fail than a run.
 static_assert(sdl::kEventQuit == SDL_EVENT_QUIT);
 static_assert(sdl::kEventWindowCloseRequested == SDL_EVENT_WINDOW_CLOSE_REQUESTED);
+static_assert(sdl::kEventClipboardUpdate == SDL_EVENT_CLIPBOARD_UPDATE);
 static_assert(sdl::kEventKeyDown == SDL_EVENT_KEY_DOWN);
 static_assert(sdl::kEventKeyUp == SDL_EVENT_KEY_UP);
 static_assert(sdl::kEventTextEditing == SDL_EVENT_TEXT_EDITING);

@@ -10,9 +10,18 @@
 //   void frame(const zengine::snake::SnakeVisual&, bool first);
 //   void canvas(const SurfaceCanvas&, bool first);
 //   void note(std::string_view slot, std::string_view text);
+//   void clipboard_copy(const std::string& text);   // a maker copied this: offer it to the
+//                                                   // medium's clipboard, with the medium's
+//                                                   // own honesty (TEXT-0)
 //   SurfaceExtent extent() const;   // how much room I have, in cells; {0,0} = no opinion
 //                                   // and, since HD-1, how big one character of
 //                                   // mine is; zeroes there mean "text is a cell"
+//
+// `clipboard_copy` is REQUIRED of a Medium rather than detected on one, the Sink's own rule
+// (skin_tui.hpp) for the Sink's own reason: a Medium that quietly lacked it would be a
+// medium on which copy silently reaches nothing, which is an ordinary honest state a fake in
+// a suite reaches every day — so the mistake would look exactly like the truth, forever.
+// Requiring it makes a forgetful Medium a compile error instead of a silent dead chord.
 //
 // The real ones own an actual surface RAII-style — the terminal medium enters
 // the alternate screen in its constructor and restores it in its destructor,
@@ -68,7 +77,8 @@ struct SkinState {
 template <class Medium>
 class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
                                      loom::Accept<zengine::snake::SnakeVisual, SurfaceCanvas,
-                                                  SurfaceText, PumpSurface, loom::Activated,
+                                                  SurfaceText, ClipboardCopy, PumpSurface,
+                                                  loom::Activated,
                                                   zengine::timer::TimerReady,
                                                   zengine::timer::TimerFired>,
                                      loom::Emit<SurfaceReady, SurfaceExtent,
@@ -100,6 +110,15 @@ public:
         announce_surface_once(mail);
         medium_.note(t.slot, t.text);
         ++this->state_.texts;
+    }
+
+    /// A maker copied text somewhere in this process: hand it to the medium, which offers
+    /// it to whatever clipboard the medium honestly has (see ClipboardCopy's contract in
+    /// vocabulary.hpp). Deliberately uncounted — SkinState is a wire shape, and a field
+    /// there is a version, not a convenience.
+    void on(const ClipboardCopy& c, loom::Mail& mail) {
+        announce_surface_once(mail);
+        medium_.clipboard_copy(c.text);
     }
 
     /// Execution time, not intent: service the medium's OS surface, on

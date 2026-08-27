@@ -31,6 +31,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "component/text_box.hpp" // TEXT-0: the one TU that pins its key spellings to scan::
 #include "input/input_weave.hpp"
 #include "input/translate.hpp"
 #include "input/translate_sdl.hpp"
@@ -1910,3 +1911,180 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
 }
 
 #endif // INPUT_HAS_SDL
+
+// ============================================================================
+// TEXT-0: the editing keys every backend can now produce
+// ============================================================================
+//
+// The POSIX parser names the CSI spellings of Home, End and Delete -- bare, tilde-numbered,
+// and `1;m`-modified -- and the Win32 table names their VKs. The consumer that ended HD-3's
+// deliberate narrowness is `component::TextBox::consume`, which binds these keys with their
+// modifiers on every backend at once; the cases below are the wire's half of that promise.
+
+TEST_CASE("TEXT-0: bare Home, End and Delete arrive from a POSIX terminal, named") {
+    std::size_t i = 0;
+    auto home = term("\x1b[H");
+    expect_stroke(home, i, scan::kHome, "Home");
+    CHECK(home.size() == 2);
+    i = 0;
+    expect_stroke(term("\x1b[F"), i, scan::kEnd, "End");
+    i = 0;
+    expect_stroke(term("\x1b[3~"), i, scan::kDelete, "Delete");
+    // The older tilde spellings some terminals still send mean the same two keys.
+    i = 0;
+    expect_stroke(term("\x1b[1~"), i, scan::kHome, "Home");
+    i = 0;
+    expect_stroke(term("\x1b[4~"), i, scan::kEnd, "End");
+    i = 0;
+    expect_stroke(term("\x1b[7~"), i, scan::kHome, "Home");
+    i = 0;
+    expect_stroke(term("\x1b[8~"), i, scan::kEnd, "End");
+    // And none of them typed anything: an editing control is never text.
+    CHECK(typed(term("\x1b[H\x1b[F\x1b[3~")).empty());
+}
+
+TEST_CASE("TEXT-0: the 1;m modifier parameter is MEASURED modifiers on the editing keys") {
+    // xterm's encoding: parameter = 1 + bits, 1 Shift, 2 Alt, 4 Control. The pure decode
+    // first, then the parser reading it off real sequences.
+    CHECK(terminal_csi_modifiers(0) == mod::kNone);
+    CHECK(terminal_csi_modifiers(1) == mod::kNone);
+    CHECK(terminal_csi_modifiers(2) == mod::kShift);
+    CHECK(terminal_csi_modifiers(3) == mod::kAlt);
+    CHECK(terminal_csi_modifiers(5) == mod::kCtrl);
+    CHECK(terminal_csi_modifiers(6) == (mod::kShift | mod::kCtrl));
+    CHECK(terminal_csi_modifiers(8) == (mod::kShift | mod::kAlt | mod::kCtrl));
+    // The Meta bit is deliberately not claimed as kSuper: what a terminal calls Meta is a
+    // per-emulator story, and 9 (1 + 8) therefore reads as unmodified.
+    CHECK(terminal_csi_modifiers(9) == mod::kNone);
+
+    std::size_t i = 0;
+    expect_stroke(term("\x1b[1;2D"), i, scan::kLeft, "Left", mod::kShift);
+    i = 0;
+    expect_stroke(term("\x1b[1;5C"), i, scan::kRight, "Right", mod::kCtrl);
+    i = 0;
+    expect_stroke(term("\x1b[1;6H"), i, scan::kHome, "Home", mod::kShift | mod::kCtrl);
+    i = 0;
+    expect_stroke(term("\x1b[1;2F"), i, scan::kEnd, "End", mod::kShift);
+    i = 0;
+    expect_stroke(term("\x1b[1;5A"), i, scan::kUp, "Up", mod::kCtrl);
+    i = 0;
+    expect_stroke(term("\x1b[3;2~"), i, scan::kDelete, "Delete", mod::kShift);
+    // Shift+Left then the letter it must not eat: the parser returns to ground exactly.
+    auto both = term("\x1b[1;2Da");
+    i = 0;
+    expect_stroke(both, i, scan::kLeft, "Left", mod::kShift);
+    expect_typed(both, i, scan::kA, "A", "a");
+}
+
+TEST_CASE("TEXT-0: a modified editing sequence survives any read boundary") {
+    // The incremental parser's whole reason, applied to the new spellings: a sequence split
+    // anywhere still means one keystroke, and never leaks its digits as typed text.
+    const std::string all = "\x1b[1;5D";
+    for (std::size_t cut = 1; cut < all.size(); ++cut) {
+        TerminalParser p;
+        auto first = feed(p, std::string_view(all).substr(0, cut));
+        CHECK(first.empty());
+        auto rest = feed(p, std::string_view(all).substr(cut));
+        std::size_t i = 0;
+        expect_stroke(rest, i, scan::kLeft, "Left", mod::kCtrl);
+        CHECK(rest.size() == 2);
+        CHECK(p.malformed() == 0);
+    }
+}
+
+TEST_CASE("TEXT-0: a parameterized CSI this backend cannot name is dropped whole") {
+    // Insert (2~), PageUp/Down (5~/6~), a lone-parameter letter, a private `?` body, an
+    // empty field -- each is consumed as one sequence and produces nothing, so its digits
+    // cannot type into whatever has focus (the leak this parser exists to stop).
+    CHECK(term("\x1b[2~").empty());
+    CHECK(term("\x1b[5~").empty());
+    CHECK(term("\x1b[6~").empty());
+    CHECK(term("\x1b[5A").empty());   // a spelling no terminal sends for a key
+    CHECK(term("\x1b[2;5H").empty()); // a first field that is not the protocol's 1
+    CHECK(term("\x1b[?25h").empty()); // a private mode report is not a key
+    CHECK(term("\x1b[1;~").empty());  // an empty modifier field is malformed
+    // ...and each was COUNTED rather than silently swallowed -- `malformed()` has always
+    // covered "abandoned because it could not be what it claimed", and a key this backend
+    // has no name for lands there exactly as an unknown final byte always has.
+    TerminalParser p;
+    CHECK(feed(p, "\x1b[1;~").empty());
+    CHECK(p.malformed() == 1);
+    CHECK(feed(p, "\x1b[2~").empty());
+    CHECK(p.malformed() == 2);
+}
+
+TEST_CASE("TEXT-0: the Win32 console names Home, End and Delete with their modifiers") {
+    KeyTrack track;
+    const auto down = [&](std::uint16_t vk, std::uint32_t mods_state) {
+        return win32_key_to_events(track, vk, 0, true, mods_state);
+    };
+    auto home = down(win32::kVkHome, 0);
+    REQUIRE(home.size() == 1);
+    CHECK(as<KeyPressed>(home, 0).scancode == scan::kHome);
+    CHECK(as<KeyPressed>(home, 0).name == "Home");
+
+    auto end_sel = down(win32::kVkEnd, win32::kShift);
+    CHECK(as<KeyPressed>(end_sel, 0).scancode == scan::kEnd);
+    CHECK(as<KeyPressed>(end_sel, 0).modifiers == mod::kShift);
+
+    auto del = down(win32::kVkDelete, win32::kLeftCtrl);
+    CHECK(as<KeyPressed>(del, 0).scancode == scan::kDelete);
+    CHECK(as<KeyPressed>(del, 0).modifiers == mod::kCtrl);
+    // A release is the same identity coming back up, and types nothing.
+    auto up = win32_key_to_events(track, win32::kVkHome, 0, false, 0);
+    REQUIRE(up.size() == 1);
+    CHECK(as<KeyReleased>(up, 0).scancode == scan::kHome);
+}
+
+TEST_CASE("TEXT-0: the component's key spellings ARE the wire's") {
+    // component/text_box.hpp spells its vocabulary's identities locally because the
+    // component includes nothing; this is the one translation unit that sees both
+    // spellings, so this is where a drift becomes a red build rather than a silently
+    // different world (translate_sdl.hpp's own pattern for SDL's constants).
+    namespace ckey = zengine::component::key;
+    namespace cmod = zengine::component::mod;
+    static_assert(ckey::kA == scan::kA);
+    static_assert(ckey::kC == scan::kC);
+    static_assert(ckey::kV == scan::kV);
+    static_assert(ckey::kX == scan::kX);
+    static_assert(ckey::kY == scan::kY);
+    static_assert(ckey::kZ == scan::kZ);
+    static_assert(ckey::kBackspace == scan::kBackspace);
+    static_assert(ckey::kHome == scan::kHome);
+    static_assert(ckey::kDelete == scan::kDelete);
+    static_assert(ckey::kEnd == scan::kEnd);
+    static_assert(ckey::kRight == scan::kRight);
+    static_assert(ckey::kLeft == scan::kLeft);
+    static_assert(cmod::kNone == mod::kNone);
+    static_assert(cmod::kShift == mod::kShift);
+    static_assert(cmod::kCtrl == mod::kCtrl);
+    static_assert(cmod::kAlt == mod::kAlt);
+    static_assert(cmod::kSuper == mod::kSuper);
+    CHECK(true); // the case is the static_asserts; doctest wants one runtime assertion
+}
+
+// ============================================================================
+// TEXT-0: the SDL reader routes the platform's clipboard fact
+// ============================================================================
+
+TEST_CASE("TEXT-0: a clipboard update translates to the surface fact, empty included") {
+    auto changed = sdl_clipboard_to_events("hello");
+    REQUIRE(changed.size() == 1);
+    const auto* fact = std::get_if<zengine::surface::ClipboardChanged>(&changed[0]);
+    REQUIRE(fact != nullptr);
+    CHECK(fact->text == "hello");
+
+    // An emptied clipboard is a real state a mirror must follow -- and a null pointer is
+    // the same sentence said the way a C API says it.
+    const auto empty_batch = sdl_clipboard_to_events("");
+    const auto* emptied = std::get_if<zengine::surface::ClipboardChanged>(&empty_batch[0]);
+    REQUIRE(emptied != nullptr);
+    CHECK(emptied->text.empty());
+    const auto null_batch = sdl_clipboard_to_events(nullptr);
+    const auto* gone = std::get_if<zengine::surface::ClipboardChanged>(&null_batch[0]);
+    REQUIRE(gone != nullptr);
+    CHECK(gone->text.empty());
+
+    // The event type is in the translated set, so the four-population guarantee holds.
+    CHECK(sdl_event_is_translated(sdl::kEventClipboardUpdate));
+}

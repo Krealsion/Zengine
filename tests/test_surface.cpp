@@ -164,6 +164,9 @@ struct FakeMedium {
         log->push_back("note " + std::string(slot) + "=" + std::string(text));
     }
     void pump() { log->push_back("pump"); }
+    /// Required of every Medium since TEXT-0 (skin.hpp says why it is required rather than
+    /// detected); a fake logs the offer the way it logs every other delegation.
+    void clipboard_copy(const std::string& text) { log->push_back("clipboard " + text); }
 
     /// The one thing a Medium is ASKED. A fake answers whatever a case set, so the
     /// shell's own rule -- publish on change, never publish "no opinion" -- can be
@@ -489,12 +492,14 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // three declared versions had to follow -- a version that did not would be two
     // different wire shapes wearing one number.
     //
-    // VERSION 4 SINCE TYPE-1, and its three bumps are two different KINDS of bump: version
-    // 2 was a row gaining a field underneath it, and versions 3 and 4 are this shape gaining
-    // fields of its own (the caret, then the ground). Both kinds had to happen; only one of
-    // them is visible in the field list below, which is exactly why the identity is built
-    // out of the pieces rather than spelled independently.
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 4)
+    // VERSION 5 SINCE TEXT-0, and its four bumps are two different KINDS of bump: version
+    // 2 was a row gaining a field underneath it, and versions 3, 4 and 5 are this shape
+    // gaining fields of its own (the caret, the ground, then the selection). Both kinds had
+    // to happen; only one of them is visible in the field list below, which is exactly why
+    // the identity is built out of the pieces rather than spelled independently. The four
+    // selection fields are LAST, HD-2's reader rule again: an existing publisher's fields
+    // are where they were, and the new ones are at the end.
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 5)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -503,6 +508,10 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
                                  .field("caret_row", Kind::Int)
                                  .field("caret_col", Kind::Int)
                                  .field("ground", Kind::Int)
+                                 .field("sel_begin_row", Kind::Int)
+                                 .field("sel_begin_col", Kind::Int)
+                                 .field("sel_end_row", Kind::Int)
+                                 .field("sel_end_col", Kind::Int)
                                  .build();
     CHECK(schema_of<SurfaceTextRegion>()->content_id() == text_region->content_id());
 
@@ -511,12 +520,12 @@ TEST_CASE("contract: the canvas shapes derive their declared spellings exactly")
     // makes a drift anywhere in this vocabulary a red here rather than a surprise on a
     // wire. The layer's own spelling and the canvas's version are pinned in this file's
     // WIND-2a tier, built out of these same pieces for this same reason.
-    const auto layer = SchemaBuilder("SurfaceLayer", 2)
+    const auto layer = SchemaBuilder("SurfaceLayer", 3)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 6)
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 7)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
@@ -2798,7 +2807,7 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                               .field("role", Kind::Int)
                               .field("background", Kind::Int)
                               .build();
-    const auto text_region = SchemaBuilder("SurfaceTextRegion", 4)
+    const auto text_region = SchemaBuilder("SurfaceTextRegion", 5)
                                  .field("x", Kind::Int)
                                  .field("y", Kind::Int)
                                  .field("w", Kind::Int)
@@ -2807,44 +2816,50 @@ TEST_CASE("contract: the layer shapes derive their declared spellings exactly") 
                                  .field("caret_row", Kind::Int)
                                  .field("caret_col", Kind::Int)
                                  .field("ground", Kind::Int)
+                                 .field("sel_begin_row", Kind::Int)
+                                 .field("sel_begin_col", Kind::Int)
+                                 .field("sel_end_row", Kind::Int)
+                                 .field("sel_end_col", Kind::Int)
                                  .build();
 
     // THE PLANE ITSELF: the three lists the canvas used to carry, in the order a medium
     // executes them, and NOTHING ELSE. No name, no handle, no key, no z, no opacity, no
     // transform -- every one of those is a fact a compositor holds and a publisher would
-    // then have to hold with it. VERSION 2 SINCE TYPE-1, and it gained no field of its own:
-    // a region below it did, and a layer IS a list of those. The same sentence this file
-    // has now had to write four times, one level further out each time.
-    const auto layer = SchemaBuilder("SurfaceLayer", 2)
+    // then have to hold with it. VERSION 3 SINCE TEXT-0, and it has never gained a field of
+    // its own: a region below it did (the ground, then the selection), and a layer IS a
+    // list of those. The same sentence this file has now had to write five times, one level
+    // further out each time.
+    const auto layer = SchemaBuilder("SurfaceLayer", 3)
                            .list("rects", loom::type_message(rect))
                            .list("labels", loom::type_message(label))
                            .list("texts", loom::type_message(text_region))
                            .build();
     CHECK(schema_of<SurfaceLayer>()->content_id() == layer->content_id());
     CHECK(std::string(SurfaceLayer::zen_name) == "SurfaceLayer");
-    CHECK(SurfaceLayer::zen_version == 2);
+    CHECK(SurfaceLayer::zen_version == 3);
 
-    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 6, of which
-    // exactly one bump (5) was the ordinary kind: 2, 3, 4 and 6 it gained no field at all
-    // and changed anyway, because its identity is computed from what it carries.
-    const auto canvas = SchemaBuilder("SurfaceCanvas", 6)
+    // AND THE CANVAS, WHICH IS NOW AN EXTENT AND A LIST OF THOSE. Version 7, of which
+    // exactly one bump (5) was the ordinary kind: 2, 3, 4, 6 and 7 it gained no field at
+    // all and changed anyway, because its identity is computed from what it carries.
+    const auto canvas = SchemaBuilder("SurfaceCanvas", 7)
                             .field("width", Kind::Int)
                             .field("height", Kind::Int)
                             .list("layers", loom::type_message(layer))
                             .build();
     CHECK(schema_of<SurfaceCanvas>()->content_id() == canvas->content_id());
-    CHECK(SurfaceCanvas::zen_version == 6);
+    CHECK(SurfaceCanvas::zen_version == 7);
 
     // NO PRIMITIVE GAINED ANYTHING IN WIND-2a. A layer is a position in a vector, so a rect,
     // a label, a row and a region were byte-identical to what they were -- which is what
-    // made that an ordering change rather than a depth model. TYPE-1 moved exactly one of
-    // them, and only the bounded one: a rect, a label and a row are still untouched, which
-    // keeps "type on material" a property of the shape that owns a RECTANGLE rather than a
-    // new rule every primitive has to be read against.
+    // made that an ordering change rather than a depth model. TYPE-1 and TEXT-0 each moved
+    // exactly one of them, and both times the bounded one: a rect, a label and a row are
+    // still untouched, which keeps "type on material" and "these characters are selected"
+    // properties of the shape that owns a RECTANGLE rather than new rules every primitive
+    // has to be read against.
     CHECK(SurfaceRect::zen_version == 1);
     CHECK(SurfaceLabel::zen_version == 1);
     CHECK(SurfaceTextRow::zen_version == 2);
-    CHECK(SurfaceTextRegion::zen_version == 4);
+    CHECK(SurfaceTextRegion::zen_version == 5);
 }
 
 TEST_CASE("canvas: no layers and empty layers are both legitimate pictures") {
@@ -3767,3 +3782,274 @@ TEST_CASE("the SDL skin executes a canvas one PLANE at a time, over a real rende
 }
 
 #endif // SURFACE_HAS_SDL
+
+// ============================================================================
+// TEXT-0: a region may carry a SELECTED RANGE, and each medium answers in its own voice
+// ============================================================================
+//
+// The vocabulary carries two caret-like positions in reading order; region.hpp owns the ONE
+// per-row span rule both media consume; the character medium answers with reverse video over
+// exactly the selected cells, and the graphical one with a band under the glyphs. Everything
+// below is pure -- the metric is an argument -- so the lane with no SDL proves all of it.
+
+TEST_CASE("TEXT-0: selection_span_of_row is one rule, total over garbage") {
+    SurfaceTextRegion r;
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 2;
+    r.sel_end_row = 2;
+    r.sel_end_col = 3;
+
+    // The three row kinds: begin row to its own end, middle rows whole, end row to the col.
+    CHECK(selection_span_of_row(r, 0, 6).begin == 2);
+    CHECK(selection_span_of_row(r, 0, 6).end == 6);
+    CHECK(selection_span_of_row(r, 1, 4).begin == 0);
+    CHECK(selection_span_of_row(r, 1, 4).end == 4);
+    CHECK(selection_span_of_row(r, 2, 6).begin == 0);
+    CHECK(selection_span_of_row(r, 2, 6).end == 3);
+    // Rows outside the range, and rows with no text, cover nothing.
+    CHECK_FALSE(selection_span_of_row(r, 3, 6).present());
+    CHECK_FALSE(selection_span_of_row(r, 1, 0).present());
+    // Clamped into the text that exists: a position past a short row covers what is there.
+    CHECK(selection_span_of_row(r, 2, 2).end == 2);
+    CHECK(selection_span_of_row(SurfaceTextRegion{}, 0, 6).present() == false);
+
+    // GARBAGE IS THE ABSENCE, NEVER A GUESS: absent, reversed rows, reversed columns on one
+    // row, and an empty range all answer nothing for every row.
+    SurfaceTextRegion bad;
+    bad.sel_begin_row = 2;
+    bad.sel_end_row = 0;
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    bad.sel_begin_row = 1;
+    bad.sel_end_row = 1;
+    bad.sel_begin_col = 4;
+    bad.sel_end_col = 2;
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    bad.sel_end_col = 4; // empty
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    // ...and a begin column off the row's left is clamped, not refused.
+    SurfaceTextRegion wide;
+    wide.sel_begin_row = 0;
+    wide.sel_begin_col = -3;
+    wide.sel_end_row = 0;
+    wide.sel_end_col = 2;
+    CHECK(selection_span_of_row(wide, 0, 6).begin == 0);
+    CHECK(selection_span_of_row(wide, 0, 6).end == 2);
+}
+
+TEST_CASE("TEXT-0: the cell projection carries the span, shifted around the inserted caret") {
+    SurfaceTextRegion r;
+    r.w = 10;
+    r.h = 1;
+    r.rows.push_back(SurfaceTextRow{"abcdef", role::kFill});
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 2;
+    r.sel_end_row = 0;
+    r.sel_end_col = 4; // "cd"
+
+    // No caret: the span is the text's own columns.
+    std::vector<ProjectedRow> out;
+    project_one_text_region(r, out);
+    REQUIRE(out.size() == 1);
+    CHECK(out[0].sel_begin == 2);
+    CHECK(out[0].sel_end == 4);
+    CHECK(out[0].label.text.substr(static_cast<std::size_t>(out[0].sel_begin),
+                                   static_cast<std::size_t>(out[0].sel_end - out[0].sel_begin)) ==
+          "cd");
+
+    // A caret AT OR BEFORE the span shifts it whole; the glyph sits outside the highlight.
+    r.caret_row = 0;
+    r.caret_col = 2;
+    out.clear();
+    project_one_text_region(r, out);
+    CHECK(out[0].label.text == "ab_cdef   ");
+    CHECK(out[0].sel_begin == 3);
+    CHECK(out[0].sel_end == 5);
+
+    // A caret STRICTLY INSIDE widens the span around the glyph -- the honest picture of an
+    // insertion point in the middle of what is selected.
+    r.caret_col = 3;
+    out.clear();
+    project_one_text_region(r, out);
+    CHECK(out[0].label.text == "abc_def   ");
+    CHECK(out[0].sel_begin == 2);
+    CHECK(out[0].sel_end == 5);
+
+    // A caret AT THE END of the span sits after it, unshifted.
+    r.caret_col = 4;
+    out.clear();
+    project_one_text_region(r, out);
+    CHECK(out[0].sel_begin == 2);
+    CHECK(out[0].sel_end == 4);
+
+    // AND THE CUT CUTS HIGHLIGHTS TOO: a span past the region's width covers exactly as far
+    // as the text is drawn.
+    SurfaceTextRegion narrow;
+    narrow.w = 3;
+    narrow.h = 1;
+    narrow.rows.push_back(SurfaceTextRow{"abcdef", role::kFill});
+    narrow.sel_begin_row = 0;
+    narrow.sel_begin_col = 1;
+    narrow.sel_end_row = 0;
+    narrow.sel_end_col = 6;
+    out.clear();
+    project_one_text_region(narrow, out);
+    CHECK(out[0].label.text == "abc");
+    CHECK(out[0].sel_begin == 1);
+    CHECK(out[0].sel_end == 3);
+}
+
+TEST_CASE("TEXT-0: the character medium says a selection in reverse video, exactly") {
+    // One region, one row, cells 1..3 selected: the ink opens once, the selection opens at
+    // the span's first cell and closes after its last, and the row's final reset covers it.
+    SurfaceCanvas c;
+    c.width = 6;
+    c.height = 1;
+    SurfaceTextRegion r;
+    r.w = 6;
+    r.h = 1;
+    r.rows.push_back(SurfaceTextRow{"abcde", role::kFill});
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 1;
+    r.sel_end_row = 0;
+    r.sel_end_col = 3;
+    plane(c).texts.push_back(r);
+    CHECK(canvas_body(c) == "\x1b[2K\x1b[37ma\x1b[7mbc\x1b[27mde \x1b[0m\r\n");
+
+    // A RESET TAKES THE SELECTION WITH IT, so a selection running to the region's edge is
+    // closed by the reset the untouched background already emits -- one sequence, not two.
+    SurfaceCanvas edge;
+    edge.width = 8;
+    edge.height = 1;
+    SurfaceTextRegion half;
+    half.w = 4;
+    half.h = 1;
+    half.rows.push_back(SurfaceTextRow{"abcd", role::kFill});
+    half.sel_begin_row = 0;
+    half.sel_begin_col = 2;
+    half.sel_end_row = 0;
+    half.sel_end_col = 4;
+    plane(edge).texts.push_back(half);
+    CHECK(canvas_body(edge) == "\x1b[2K\x1b[37mab\x1b[7mcd\x1b[0m    \r\n");
+
+    // AND WITH NO SELECTION THE BYTES ARE THE ONES EVERY GOLDEN HOLDS: a garbage range is
+    // the absence, byte for byte.
+    SurfaceCanvas plainc;
+    plainc.width = 6;
+    plainc.height = 1;
+    SurfaceTextRegion none = r;
+    none.sel_begin_row = kNoSelection;
+    none.sel_end_row = kNoSelection;
+    plane(plainc).texts.push_back(none);
+    SurfaceCanvas garbage = plainc;
+    garbage.layers.back().texts[0].sel_begin_row = 5; // rows the region does not have
+    garbage.layers.back().texts[0].sel_end_row = 2;   // ...and not in reading order
+    CHECK(canvas_body(plainc) == "\x1b[2K\x1b[37mabcde \x1b[0m\r\n");
+    CHECK(canvas_body(garbage) == canvas_body(plainc));
+}
+
+TEST_CASE("TEXT-0: the bitmap face grounds a selected cell in the selection band") {
+    // The cell path (no metric): each label cell is cleared before its glyph, and a selected
+    // cell's clear IS the band -- same precedence as the terminal's reverse video, in this
+    // face's own ink.
+    SurfaceLayer layer;
+    SurfaceTextRegion r;
+    r.w = 4;
+    r.h = 1;
+    r.rows.push_back(SurfaceTextRow{"abc", role::kFill});
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 1;
+    r.sel_end_row = 0;
+    r.sel_end_col = 2;
+    layer.texts.push_back(r);
+    const std::vector<PlanRect> quads = plan_layer_quads(layer, 4, 1);
+
+    int band_quads = 0;
+    int background_quads = 0;
+    for (const PlanRect& q : quads) {
+        if (q.w == kCanvasCellPx && q.h == kCanvasCellPx && q.y == 0) {
+            if (PlanInk{q.r, q.g, q.b} == kSelectionBand) {
+                ++band_quads;
+                CHECK(q.x == 1 * kCanvasCellPx); // exactly the selected cell
+            } else if (PlanInk{q.r, q.g, q.b} == kCanvasBackground) {
+                ++background_quads;
+            }
+        }
+    }
+    CHECK(band_quads == 1);
+    CHECK(background_quads == 3); // the other three cells keep the ordinary clear
+}
+
+TEST_CASE("TEXT-0: the real face resolves selection bands from the fit that placed the rows") {
+    // A three-row region with a range across all three: one band per touched row, each at
+    // origin + col*advance / row*line, wide as the CUT text -- the same clamp every byte of
+    // the row met.
+    const SurfaceExtent metric{0, 0, 8, 18};
+    SurfaceLayer layer;
+    SurfaceTextRegion r;
+    r.x = 0;
+    r.y = 0;
+    r.w = 10; // 120px; inner 116 -> 14 columns
+    r.h = 5;  // 60px; inner 56 -> 3 rows
+    r.rows.push_back(SurfaceTextRow{"first line", role::kFill});
+    r.rows.push_back(SurfaceTextRow{"second, much longer than fourteen", role::kFill});
+    r.rows.push_back(SurfaceTextRow{"third", role::kFill});
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 6;
+    r.sel_end_row = 2;
+    r.sel_end_col = 3;
+    layer.texts.push_back(r);
+
+    const std::vector<PlanTextRegion> planned =
+        plan_layer_regions(layer, metric, PlanSize{400, 300});
+    REQUIRE(planned.size() == 1);
+    const PlanTextRegion& p = planned[0];
+    REQUIRE(p.rows.size() == 3);
+    REQUIRE(p.selection.size() == 3);
+
+    // Row 0: from column 6 to its own length (10).
+    CHECK(p.selection[0] == PlanSelectionBand{p.origin_x + 6 * 8, p.origin_y + 0 * 18,
+                                              (10 - 6) * 8, 18});
+    // Row 1: whole, and CUT at the region's 14 columns exactly as its text was.
+    CHECK(p.rows[1].text.size() == 14);
+    CHECK(p.selection[1] == PlanSelectionBand{p.origin_x, p.origin_y + 1 * 18, 14 * 8, 18});
+    // Row 2: up to the end column.
+    CHECK(p.selection[2] == PlanSelectionBand{p.origin_x, p.origin_y + 2 * 18, 3 * 8, 18});
+
+    // No selection, no bands -- the vector is empty rather than full of absences.
+    layer.texts[0].sel_begin_row = kNoSelection;
+    layer.texts[0].sel_end_row = kNoSelection;
+    CHECK(plan_layer_regions(layer, metric, PlanSize{400, 300})[0].selection.empty());
+}
+
+// ============================================================================
+// TEXT-0: a maker's copy reaches the medium's clipboard through the Skin
+// ============================================================================
+
+TEST_CASE("TEXT-0: ClipboardCopy is delegated to the medium, whichever medium is active") {
+    loom::Switchboard bus;
+    std::vector<std::string> log;
+    const loom::WeaveId skin = loom::mount<SkinT<FakeMedium>>(bus, FakeMedium{&log});
+    bus.send(skin, loom::Message(loom::to_value(ClipboardCopy{"hello there"})));
+    bus.drain_until_idle();
+    REQUIRE(log.size() == 1);
+    CHECK(log[0] == "clipboard hello there");
+}
+
+TEST_CASE("TEXT-0: a terminal medium offers a copy as OSC 52, base64 and all") {
+    // The base64 is RFC 4648's, pinned on its own test vectors because OSC 52 speaks
+    // nothing else and a wrong pad byte is a clipboard that silently holds garbage.
+    CHECK(tui_base64("") == "");
+    CHECK(tui_base64("f") == "Zg==");
+    CHECK(tui_base64("fo") == "Zm8=");
+    CHECK(tui_base64("foo") == "Zm9v");
+    CHECK(tui_base64("foob") == "Zm9vYg==");
+    CHECK(tui_base64("fooba") == "Zm9vYmE=");
+    CHECK(tui_base64("foobar") == "Zm9vYmFy");
+
+    CHECK(tui_clipboard_sequence("hi") == "\x1b]52;c;aGk=\x07");
+
+    // ...and the medium writes exactly that to the stream it already owns.
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.clipboard_copy("hi");
+    CHECK(m.sink().out == "\x1b]52;c;aGk=\x07");
+}
