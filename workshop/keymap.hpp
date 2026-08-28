@@ -75,6 +75,7 @@ enum class KeyContext : std::uint8_t {
     kNaming,
     kPicker,
     kAttention,
+    kContext,
     kPane,
     kDraft,
     kManageSelect,
@@ -209,6 +210,7 @@ enum class Act : std::uint8_t {
     kManageBack,
     kManageRaise,
     kManageLower,
+    kManageRemove,
     kManageReset,
     kManageClose,
     kManageDone,
@@ -225,6 +227,12 @@ enum class Act : std::uint8_t {
     kManageResetWidth,
     kManageResetHeight,
     kManageResetOrder,
+    // -- the contextual-action surface -------------------------------------------------
+    kContextOpen,
+    kContextUp,
+    kContextDown,
+    kContextChoose,
+    kContextBack,
 };
 
 /// One declaration row: the identity, the human meaning, where it is requestable, and the
@@ -329,6 +337,15 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
     {Act::kManage, "workshop.manage", "window", KeyContext::kCommand, {scan::kW, mod::kNone}},
+    // WHAT CAN I DO WITH THIS? -- the keyboard door to the contextual-action surface
+    // (CTX-0), on the subject command mode can truthfully name: the selected object, or
+    // the empty room. The pointer's door is a right press, which needs no row here; this
+    // row exists because a surface reachable only by a mouse button would be Workshop's
+    // first gesture with no catalog identity -- exactly the drift this file ended.
+    // `a` bare: portable, and free in every context that intersects kCommand (the globals
+    // are all chords, kNoText holds `^c`/`^a`, and no other kCommand row spends it).
+    {Act::kContextOpen, "workshop.context", "actions", KeyContext::kCommand,
+     {scan::kA, mod::kNone}},
     // A PRESENTATION PREFERENCE WITH A KEY (WUX-1): whether the arrangeable panes paint
     // their title rows. Last in the command group because the band packs these in order
     // and a toggle a maker reaches for occasionally must not displace the gestures they
@@ -400,6 +417,13 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kManageLower, "manage.lower", "lower", KeyContext::kManageSelect,
      {scan::kL, mod::kNone}},
+    // REMOVE THE SELECTED PANE (CTX-0). Earned on its own keyboard merits, not minted for
+    // the context menu: this mode's vocabulary is one-letter verbs on the selected pane,
+    // and before this row a maker arranging windows could not remove one at all -- they
+    // had to leave, open the picker, and find the row. `d` bare is free here (the
+    // intersecting contexts are kGlobal's chords and kNoText's `^c`/`^a`).
+    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kManageSelect,
+     {scan::kD, mod::kNone}},
     {Act::kManageReset, "manage.reset", "reset", KeyContext::kManageSelect,
      {scan::k0, mod::kNone}},
     {Act::kManageClose, "manage.close", "leave", KeyContext::kManageSelect,
@@ -435,6 +459,22 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kManageResetOrder, "manage.reset-order", "reset order", KeyContext::kManageReset,
      {scan::kO, mod::kNone}},
     {Act::kManageDone, "manage.done", "back", KeyContext::kManageReset,
+     {scan::kEscape, mod::kNone}},
+    // -- the contextual-action surface (CTX-0) -----------------------------------------
+    //
+    // The picker's four, one purpose over: a list with a cursor and a gesture on the
+    // selected row. `context.choose` is ONE action whose meaning the row decides -- a
+    // group row descends, an action row requests (`picker.choose`'s own shape) -- and
+    // `context.back` is Escape doing the appropriate smaller thing: out of an open group,
+    // else out of the surface. The opener's own gesture also closes it, by `matches`,
+    // like every other toggled surface here.
+    {Act::kContextUp, "context.up", "row up", KeyContext::kContext,
+     {scan::kUp, mod::kNone}},
+    {Act::kContextDown, "context.down", "row down", KeyContext::kContext,
+     {scan::kDown, mod::kNone}},
+    {Act::kContextChoose, "context.choose", "choose", KeyContext::kContext,
+     {scan::kReturn, mod::kNone}},
+    {Act::kContextBack, "context.back", "back", KeyContext::kContext,
      {scan::kEscape, mod::kNone}},
 };
 

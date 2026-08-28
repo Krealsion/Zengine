@@ -157,7 +157,11 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
    - Try an illegal value. The refusal names what is wrong and the property does not move.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
-5. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
+5. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
+   with the thing you pointed at, without selecting it. `Enter` chooses, `Esc` closes, and
+   **`a`** opens the same menu from the keyboard. See
+   [the context menu](panes.md#the-context-menu--what-can-i-do-with-this).
+6. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
    open it again.
 
 > **Your desk comes back; your document does not.** The panes you had open, where you put them,
@@ -176,6 +180,7 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 | inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
 | panes | `p` picker · `w` management ([panes](panes.md)) |
+| anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
 | other | `b` / `Shift`+`b` / `c` / `f` build ([builder](builder.md)) · `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `Ctrl`+`a` what needs attention ([attention](attention.md)) · `q` / `Ctrl`+`c` quit |

@@ -5354,3 +5354,375 @@ TEST_CASE("WUX-4: the condition path carries no timer, no callback and no histor
     CHECK(text.find("<zen/") == std::string::npos);
     CHECK(text.find("ZEN_SHAPE") == std::string::npos);
 }
+
+// ============================================================================
+// CTX-0 — What can I do with this? The contextual-action surface
+// ============================================================================
+//
+// Two laws, and every case below is one of their falsifiers. POINTING NAMES A SUBJECT
+// FOR ONE REQUEST; SELECTION IS A STATE A MAKER ENTERED: opening the surface captures a
+// temporary subject and changes no persistent selection, no management selection and no
+// keyboard candidate -- Move and Size alone may select, and only after their explicit
+// target passes admission. OPEN REMEMBERS AN IDENTITY; SPEND RE-ASKS ITS OWNER: the
+// surface holds a `PaneRef`, an object id, or nothing, and the owner operations answer
+// for a subject that has since disappeared.
+
+TEST_CASE("CTX-0: a right press captures a subject and selects nothing") {
+    Live t;
+    const std::int64_t selected_before = t.session().selected;
+    const std::int64_t keyboard_before = t.session().panels.keyboard;
+    REQUIRE_FALSE(t.session().manage.has_selection());
+
+    SUBCASE("on a pane: the durable reference, and no selection of any kind") {
+        open_pane(t, ref_of(panel::kBuilder));
+        const ui::Rect slot = cells_covered(
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                      screen_of(t.session()))
+                .rect);
+        t.right_press_canvas(slot.x + 1, slot.y + 1);
+        CHECK(t.menu().open);
+        CHECK(t.menu().subject == context_subject::kPane);
+        CHECK(t.menu().pane == ref_of(panel::kBuilder));
+        CHECK(t.session().selected == selected_before);
+        CHECK_FALSE(t.session().manage.open);
+        CHECK_FALSE(t.session().manage.has_selection());
+        CHECK(t.session().panels.keyboard == keyboard_before);
+    }
+    SUBCASE("on a document object: the identity, and the selection untouched") {
+        REQUIRE(t.session().selected == 1); // a fresh Workshop opens on #1
+        t.right_press(7, 11);              // #2's body
+        CHECK(t.menu().open);
+        CHECK(t.menu().subject == context_subject::kObject);
+        CHECK(t.menu().object == 2);
+        CHECK(t.session().selected == 1); // pointing at #2 did not select it
+    }
+    SUBCASE("on the empty room: a real subject with no identity") {
+        t.right_press(40, 0);
+        CHECK(t.menu().open);
+        CHECK(t.menu().subject == context_subject::kRoot);
+    }
+    SUBCASE("a further right press re-targets instead of toggling") {
+        t.right_press(40, 0);
+        REQUIRE(t.menu().subject == context_subject::kRoot);
+        t.right_press(7, 11);
+        CHECK(t.menu().open);
+        CHECK(t.menu().subject == context_subject::kObject);
+        CHECK(t.menu().object == 2);
+    }
+}
+
+TEST_CASE("CTX-0: the declared populations are the researched ones, keyed by id") {
+    // The pane's top level: two mode entries, two groups at their first members'
+    // positions, and remove -- groups appear ONCE, and an empty group is structurally
+    // impossible (a group entry exists only where a member declared it).
+    const std::vector<ContextEntry> pane = context_population(context_subject::kPane, "");
+    REQUIRE(pane.size() == 5);
+    CHECK_FALSE(pane[0].is_group);
+    CHECK(pane[0].row->act == Act::kManageMove);
+    CHECK(pane[1].row->act == Act::kManageSize);
+    CHECK(pane[2].is_group);
+    CHECK(std::string(pane[2].group) == "Arrange");
+    CHECK(pane[3].is_group);
+    CHECK(std::string(pane[3].group) == "Reset");
+    CHECK(pane[4].row->act == Act::kManageRemove);
+
+    const std::vector<ContextEntry> arrange =
+        context_population(context_subject::kPane, "Arrange");
+    REQUIRE(arrange.size() == 4);
+    CHECK(arrange[0].row->act == Act::kManageFront);
+    CHECK(arrange[1].row->act == Act::kManageBack);
+    CHECK(arrange[2].row->act == Act::kManageRaise);
+    CHECK(arrange[3].row->act == Act::kManageLower);
+
+    const std::vector<ContextEntry> reset =
+        context_population(context_subject::kPane, "Reset");
+    REQUIRE(reset.size() == 3);
+    CHECK(reset[0].row->act == Act::kManageResetPlace);
+    CHECK(reset[1].row->act == Act::kManageResetWidth);
+    CHECK(reset[2].row->act == Act::kManageResetHeight);
+
+    // The object's whole first population is deletion -- Inspect is deferred until Info
+    // has an honest pane-subject model, and nothing pads a menu to look fuller.
+    const std::vector<ContextEntry> object =
+        context_population(context_subject::kObject, "");
+    REQUIRE(object.size() == 1);
+    CHECK(object[0].row->act == Act::kObjectDelete);
+
+    // The room: eleven zero-target doors, no groups.
+    const std::vector<ContextEntry> root = context_population(context_subject::kRoot, "");
+    REQUIRE(root.size() == 11);
+    for (const ContextEntry& e : root) {
+        CHECK_FALSE(e.is_group);
+    }
+    CHECK(root[0].row->act == Act::kObjectNew);
+    CHECK(root[10].row->act == Act::kManageResetOrder);
+
+    // EVERY DECLARATION RESOLVES AND OWNS NO POWER: an id `row_of_id` answers and three
+    // plain fields -- the compile-time cross-check, restated where a reader looks.
+    for (const ContextRow& row : kContextCatalog) {
+        CHECK(row_of_id(row.action) != nullptr);
+    }
+}
+
+TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selection") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    // The management selection is a state the maker entered, and it is INFO here.
+    enter_management(t);
+    select_pane(t, ref_of(panel::kInfo));
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.session().manage.open);
+    REQUIRE(t.session().manage.selected == ref_of(panel::kInfo));
+    const std::int64_t doc_selected = t.session().selected;
+    REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1});
+
+    // Point at the BUILDER and send it to the back through Arrange.
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    t.key(input::scan::kDown);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kReturn); // descend into Arrange
+    REQUIRE(t.menu().group == "Arrange");
+    t.key(input::scan::kDown);   // back
+    t.key(input::scan::kReturn); // choose: send the POINTED pane to the back
+    CHECK_FALSE(t.menu().open);  // a choice closes the surface
+
+    // The pointed pane moved; every selection stayed exactly where the maker left it.
+    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 0});
+    CHECK(t.session().manage.selected == ref_of(panel::kInfo));
+    CHECK_FALSE(t.session().manage.open);
+    CHECK(t.session().selected == doc_selected);
+    CHECK(t.notice().find("back-most") != std::string::npos);
+    CHECK(t.notice().find(ref_text(ref_of(panel::kBuilder))) != std::string::npos);
+}
+
+TEST_CASE("CTX-0: contextual Move admission precedes selection") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+
+    SUBCASE("a refused entry establishes nothing") {
+        // Info sits in the reserved side column -- the screen owns its place, and the
+        // owner's own sentence says so. No management mode, no selection, no submode.
+        const ui::Rect side = cells_covered(
+            bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
+                      screen_of(t.session()))
+                .rect);
+        t.right_press_canvas(side.x + 1, side.y + 1);
+        REQUIRE(t.menu().subject == context_subject::kPane);
+        REQUIRE(t.menu().pane == ref_of(panel::kInfo));
+        t.key(input::scan::kReturn); // the top row is Move
+        CHECK_FALSE(t.menu().open);
+        CHECK_FALSE(t.session().manage.open);
+        CHECK_FALSE(t.session().manage.has_selection());
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.notice().find("reserved side column") != std::string::npos);
+    }
+    SUBCASE("an accepted entry selects as part of entering the mode") {
+        const ui::Rect slot = cells_covered(
+            bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                      screen_of(t.session()))
+                .rect);
+        t.right_press_canvas(slot.x + 1, slot.y + 1);
+        t.key(input::scan::kReturn); // Move
+        CHECK_FALSE(t.menu().open);
+        CHECK(t.session().manage.open);
+        CHECK(t.session().manage.selected == ref_of(panel::kBuilder));
+        CHECK(t.session().manage.doing == pane_manage::kMove);
+        // ...and Size is the same door: leave, re-open contextually, choose Size.
+        t.key(input::scan::kEscape); // back to select
+        t.key(input::scan::kEscape); // leave management
+        REQUIRE_FALSE(t.session().manage.open);
+        t.right_press_canvas(slot.x + 1, slot.y + 1);
+        t.key(input::scan::kDown);
+        t.key(input::scan::kReturn); // Size
+        CHECK(t.session().manage.open);
+        CHECK(t.session().manage.doing == pane_manage::kSize);
+    }
+}
+
+TEST_CASE("CTX-0: a captured pane that left the setup is refused truthfully") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    // The reference leaves the setup UNDER the open surface -- the clearing that keeps
+    // the mode's own selection fresh does not know this subject exists.
+    REQUIRE(remove_pane(live(t).setup.active, ref_of(panel::kBuilder)));
+
+    SUBCASE("Move refuses with absence, not with an unrelated geometry sentence") {
+        t.key(input::scan::kReturn); // Move
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.notice().find("no longer in this setup") != std::string::npos);
+        CHECK(t.notice().find("no room") == std::string::npos);
+        // ...and no dead management state was left behind.
+        CHECK_FALSE(t.session().manage.open);
+        CHECK_FALSE(t.session().manage.has_selection());
+    }
+    SUBCASE("a targeted operation answers the same absence") {
+        t.key(input::scan::kDown);
+        t.key(input::scan::kDown);
+        t.key(input::scan::kReturn); // Arrange
+        t.key(input::scan::kReturn); // front
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.notice().find("no longer in this setup") != std::string::npos);
+        CHECK(t.notice().find("already where") == std::string::npos);
+    }
+}
+
+TEST_CASE("CTX-0: manage.remove removes the selected pane by its own key") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    enter_management(t);
+    select_pane(t, ref_of(panel::kBuilder));
+    t.key(input::scan::kD);
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+    // The presentation followed the intent through the one door, and the removed
+    // reference cleared the mode's selection on membership.
+    for (const Panel& p : t.session().panels.open) {
+        CHECK(p.kind != panel::kBuilder);
+    }
+    CHECK(t.session().manage.open);
+    CHECK_FALSE(t.session().manage.has_selection());
+    CHECK(t.notice().find("removed") != std::string::npos);
+    CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
+}
+
+TEST_CASE("CTX-0: a contextual remove removes the pointed pane") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const std::int64_t selected_before = t.session().selected;
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    t.key(input::scan::kUp); // the cursor bound keeps it at the top; up is a no-op
+    t.key(input::scan::kDown);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kDown); // remove, the last top-level row
+    t.key(input::scan::kReturn);
+    CHECK_FALSE(t.menu().open);
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+    for (const Panel& p : t.session().panels.open) {
+        CHECK(p.kind != panel::kBuilder);
+    }
+    CHECK(t.session().selected == selected_before);
+    CHECK(t.notice().find("removed") != std::string::npos);
+}
+
+TEST_CASE("CTX-0: navigation backtracks cleanly and every way out closes") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+
+    SUBCASE("descend, back out onto the group row, escape closes from the top") {
+        t.right_press_canvas(slot.x + 1, slot.y + 1);
+        t.key(input::scan::kDown);
+        t.key(input::scan::kDown);
+        t.key(input::scan::kDown); // Reset
+        t.key(input::scan::kReturn);
+        REQUIRE(t.menu().group == "Reset");
+        REQUIRE(t.menu().cursor == 0);
+        t.key(input::scan::kEscape);
+        CHECK(t.menu().open);
+        CHECK(t.menu().group.empty());
+        CHECK(t.menu().cursor == 3); // back on the Reset row the maker came from
+        t.key(input::scan::kEscape);
+        CHECK_FALSE(t.menu().open);
+    }
+    SUBCASE("the key that opened it closes it") {
+        t.key(input::scan::kA);
+        t.text("a"); // the printable trigger pays the swallow rule
+        REQUIRE(t.menu().open);
+        t.key(input::scan::kA);
+        CHECK_FALSE(t.menu().open);
+    }
+    SUBCASE("the keyboard door opens on what command mode can name") {
+        REQUIRE(t.session().selected == 1);
+        t.key(input::scan::kA);
+        t.text("a");
+        CHECK(t.menu().open);
+        CHECK(t.menu().subject == context_subject::kObject);
+        CHECK(t.menu().object == 1);
+        t.key(input::scan::kEscape);
+        // ...and with nothing selected, the room.
+        live(t).selected = 0;
+        t.key(input::scan::kA);
+        t.text("a");
+        CHECK(t.menu().subject == context_subject::kRoot);
+    }
+}
+
+TEST_CASE("CTX-0: input spent on the open surface does not leak through it") {
+    Live t;
+    const std::size_t inspector_before = t.session().cursor;
+    t.right_press(40, 0); // the room's menu
+    REQUIRE(t.menu().open);
+    REQUIRE(t.menu().subject == context_subject::kRoot);
+
+    SUBCASE("navigation keys move the surface's cursor and nothing beneath") {
+        t.key(input::scan::kDown);
+        t.key(input::scan::kDown);
+        CHECK(t.menu().cursor == 2);
+        CHECK(t.session().cursor == inspector_before); // the Inspector did not move
+        CHECK(t.session().selected == 1);
+    }
+    SUBCASE("a press outside dismisses, is consumed, and operates nothing") {
+        const std::int64_t selected_before = t.session().selected;
+        const std::string notice_before = t.notice();
+        // The reserved side column is outside the surface's rectangle at every extent;
+        // without the surface this press would be answered by whatever occupies it, or
+        // by the document -- with it open, the press is spent whole on dismissal.
+        t.press_canvas(screen_of(t.session()).panel_x + 1, 4);
+        CHECK_FALSE(t.menu().open);
+        CHECK(t.session().selected == selected_before); // nothing was selected
+        CHECK_FALSE(t.session().drag.active);           // nothing was taken hold of
+        CHECK(t.notice() == notice_before);             // nothing was said
+    }
+    SUBCASE("a press on the surface's own furniture is consumed silently") {
+        const std::string notice_before = t.notice();
+        // The heading row: inside the rectangle, on no population row.
+        t.press_canvas(context_cell_x(t.session()),
+                       surface::cell_of_subs(context_bounds(screen_of(t.session())).y));
+        CHECK(t.menu().open); // not a dismissal
+        CHECK(t.notice() == notice_before);
+        CHECK(t.session().selected == 1);
+    }
+    SUBCASE("a press on a row is the pointer's choose") {
+        // Row 1 of the room's population is the picker door -- the press lands exactly
+        // where the painter drew the row (the inverse-pair claim, spent live).
+        t.press_canvas(context_cell_x(t.session()),
+                       context_entry_cell_y(t.session(), 1));
+        CHECK_FALSE(t.menu().open);
+        CHECK(t.session().panels.picker.open);
+    }
+}
+
+TEST_CASE("CTX-0: a right press means nothing while a mode owns the pointer") {
+    Live t;
+    SUBCASE("the terminal overlay") {
+        t.toggle_terminal();
+        REQUIRE(t.session().terminal.open);
+        t.right_press(7, 11);
+        CHECK_FALSE(t.menu().open);
+    }
+    SUBCASE("pane management") {
+        open_pane(t, ref_of(panel::kBuilder));
+        enter_management(t);
+        t.right_press(7, 11);
+        CHECK_FALSE(t.menu().open);
+    }
+}

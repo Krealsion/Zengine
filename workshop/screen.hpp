@@ -40,6 +40,7 @@
 
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "complete.hpp"
+#include "context.hpp" // what can be done with a pointed subject (CTX-0)
 #include "document.hpp"
 #include "keymap.hpp"
 #include "panel.hpp"
@@ -1519,6 +1520,11 @@ struct Session {
     /// Presentation only: it holds a mode flag, a cursor and a set of hidden statements,
     /// and nothing it shows.
     AttentionView attention;
+    /// THE CONTEXTUAL-ACTION SURFACE (CTX-0): open, the captured subject, the open group
+    /// and a cursor -- an identity and a cursor, never a snapshot (context.hpp). Opening
+    /// it changes no selection and no keyboard candidate; the subject it holds is spent
+    /// through the owner operations at the moment a row is chosen, and nowhere else.
+    ContextMenu context;
     TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
     /// THE DYNAMIC PANELS a maker has opened, and the picker they opened them from
     /// (panel.hpp). Session like everything else here, and for the sharpest version of the
@@ -1635,6 +1641,15 @@ inline KeyContext keyboard_context(const Session& s) {
         case pane_manage::kReset: return KeyContext::kManageReset;
         default: return KeyContext::kManageSelect;
         }
+    }
+    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE PICKER'S BAND (CTX-0):
+    // below the Terminal and pane management, above everything a press or a draft could
+    // otherwise reach. It must answer before a focused pane and a live draft or its own
+    // navigation keys would leak into the thing beneath it -- the first-refusal rule --
+    // and it sits above the other transient overlays because it is opened by the LATER
+    // deliberate gesture whenever both are somehow open at once.
+    if (s.context.open) {
+        return KeyContext::kContext;
     }
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
@@ -2710,6 +2725,22 @@ inline std::int64_t take_hold(WorkshopDoc& d, Session& s, std::int64_t cx, std::
         return handle.id;
     }
     return begin_drag(d, s, cx, cy);
+}
+
+/// THE OBJECT UNDER A WORKSPACE CELL, AND NOTHING ELSE -- `take_hold`'s pure half
+/// (CTX-0). A contextual request needs to NAME the pointed object without beginning a
+/// drag, without touching the selection and without consulting the size handle: the
+/// handle is a drag affordance of the selected object, not a subject, so the cell it sits
+/// on (one cell outside its object) truthfully names whatever authored object is there,
+/// usually nothing. Same geometry the canvas is painted from, same `ui::hit` the press
+/// path spends -- a second resolver here would be the two-measurers defect.
+inline std::int64_t object_at(const WorkshopDoc& d, const Session& s, std::int64_t cx,
+                              std::int64_t cy) {
+    // The scene must outlive the answer read from it -- `hit` returns a pointer into it
+    // (`begin_drag`'s own spelling).
+    const ui::Scene scene = workspace_scene(d, s);
+    const ui::Placed* under = ui::hit(scene, cx, cy);
+    return under == nullptr ? 0 : under->id;
 }
 
 /// Where the gesture in flight now proposes the object should BE, or how big it
@@ -4502,6 +4533,7 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kNaming: return "naming a setup";
     case KeyContext::kPicker: return "the + panel picker";
     case KeyContext::kAttention: return "what needs attention";
+    case KeyContext::kContext: return "the contextual actions";
     case KeyContext::kManageSelect: return "pane management";
     case KeyContext::kManageMove: return "pane management -- move";
     case KeyContext::kManageSize: return "pane management -- size";
@@ -4875,6 +4907,177 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
         say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
     layer.texts.push_back(std::move(region));
+}
+
+// ---- WHAT CAN I DO WITH THIS, PRESENTED (CTX-0) ------------------------------------------
+//
+// THE PICKER'S SURFACE WITH A FIFTH PURPOSE: the same frame, the same bounded region of
+// prose, the same `list_window` and the same omission wording, over the population
+// `context.hpp` declares for the captured subject. What differs is that this one has a
+// POINTER PRESS PATH -- the first overlay-stack presentation to own one -- so its painter
+// and its press resolver are an inverse pair over ONE composition (HD-3's law): the same
+// heading reservation, the same budget, the same window arithmetic, or a maker would press
+// one row and choose another.
+//
+// PAINT DOES NOT PREDICT POLICY. The rows are what is DECLARED meaningful for the subject
+// KIND -- a static fact -- and the heading renders the captured subject's IDENTITY, which
+// is pure string arithmetic and stays honest after the subject is gone. Whether an exact
+// operation would succeed is the owner's answer at spend, in the owner's own words.
+
+/// WHERE THE CONTEXTUAL SURFACE OPENS: the stack column, `hotkeys_bounds`' rectangle for
+/// `attention_bounds`' reason -- a grouped menu with a heading, markers and a dozen rows
+/// does not fit one slot, and the column is the room the screen already reserves.
+inline constexpr FineRect context_bounds(const Screen& sc) noexcept {
+    return hotkeys_bounds(sc);
+}
+
+/// The two fixed rows the surface spends before its list: the title naming the subject,
+/// and the interaction hint. Shared by the painter and the press resolver -- the one
+/// number that keeps them the same geometry.
+inline constexpr std::int64_t kContextHeadingRows = 2;
+
+/// The rows left for the list under a prose budget. `prose_rows` is `fit_region`'s answer
+/// for `context_bounds`, however the caller obtained it.
+inline constexpr std::size_t context_row_budget(std::int64_t prose_rows) noexcept {
+    return prose_rows > kContextHeadingRows
+               ? static_cast<std::size_t>(prose_rows - kContextHeadingRows)
+               : 0;
+}
+
+/// The cursor, bounded through the population's own size -- the attention view's rule,
+/// resolved once and spent by every question (the population is derived, so it can move
+/// between a keystroke and a repaint with no gesture in between).
+inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
+                                                  std::size_t population) noexcept {
+    if (cursor < population) {
+        return cursor;
+    }
+    return population == 0 ? 0 : population - 1;
+}
+
+/// THE SUBJECT, AS THE HEADING NAMES IT. An IDENTITY and never an existence claim:
+/// `ref_text` is string arithmetic over the two admitted halves and `#n` over a number,
+/// so both stay truthful about a subject that has since disappeared -- what they say is
+/// "this is what you pointed at", and the owner says the rest at spend.
+inline std::string context_subject_text(const ContextMenu& menu) {
+    switch (menu.subject) {
+    case context_subject::kPane: return ref_text(menu.pane);
+    case context_subject::kObject: return "#" + std::to_string(menu.object);
+    default: return "Workshop";
+    }
+}
+
+/// One entry as its row reads: a group descends and says so, an action is its declared
+/// label -- `row_of_id`'s answer, never a second spelling.
+inline std::string context_entry_text(const ContextEntry& entry) {
+    if (entry.is_group) {
+        return std::string(entry.group) + " >";
+    }
+    return entry.row != nullptr ? entry.row->label : std::string();
+}
+
+inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    if (!s.context.open) {
+        return;
+    }
+    const FineRect b = context_bounds(sc);
+    paint_panel_frame(layer, b);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a slot with no room for a row says nothing rather than lying about the room
+    }
+    surface::SurfaceTextRegion region = panel_prose_region(b);
+    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
+        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+    };
+    const ContextMenu& menu = s.context;
+    say("ACTIONS -- " + context_subject_text(menu), surface::role::kAccent);
+    const std::string ways_out =
+        hotkey_text(s.keymap, Act::kContextChoose) + " chooses, " +
+        hotkey_text(s.keymap, Act::kContextBack) +
+        (menu.group.empty() ? " closes" : " backs out");
+    say(menu.group.empty() ? ways_out : menu.group + " -- " + ways_out,
+        surface::role::kMuted);
+    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::size_t budget = context_row_budget(place.rows);
+    const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
+    const ListWindow win = list_window(rows.size(), cursor, budget);
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const bool here = i == cursor;
+        say(std::string(here ? "> " : "  ") + context_entry_text(rows[i]),
+            here ? surface::role::kAccent : surface::role::kFill);
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+    }
+    layer.texts.push_back(std::move(region));
+}
+
+/// WHERE A PRESS LANDED ON THE OPEN CONTEXTUAL SURFACE -- the painter's inverse, over the
+/// same composition (`info_body_at`'s family: it answers WHERE and nothing about what
+/// that means; the weave decides what a hit does).
+///
+///   !inside          the press is off the surface's rectangle -- the caller's to spend
+///   inside, !entry   the frame, the heading, a marker or the padding: the surface's own
+///                    furniture, a press on which means nothing and travels nowhere
+///   entry            a population row, by index into `context_population`'s answer
+struct ContextPressAt {
+    bool inside = false;
+    bool entry = false;
+    std::size_t index = 0;
+};
+
+inline ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t space,
+                                       std::int64_t x, std::int64_t y, const PointedAt& at) {
+    ContextPressAt out;
+    if (!s.context.open) {
+        return out;
+    }
+    const FineRect b = context_bounds(sc);
+    if (!b.contains_at(at.sub.x, at.sub.y, at.grain)) {
+        return out;
+    }
+    out.inside = true;
+    // The same fit the painter's `panel_prose_place` resolves for the same rectangle --
+    // one geometry draws this surface and hits it. `prose_at` takes the region's CELL
+    // origin (the number on the published `SurfaceTextRegion`), so the wire spelling of
+    // the same bounds is what it is handed.
+    const surface::RegionFit fit =
+        surface::fit_region_subs(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+    if (fit.rows <= 0 || fit.columns <= 0) {
+        return out;
+    }
+    const surface::SurfaceTextRegion wire = panel_prose_region(b);
+    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, fit);
+    if (!where.understood || where.column < 0 || where.column >= fit.columns ||
+        where.row < 0 || where.row >= fit.rows) {
+        return out;
+    }
+    const std::int64_t row = where.row - kContextHeadingRows;
+    if (row < 0) {
+        return out; // the heading rows
+    }
+    const std::vector<ContextEntry> rows =
+        context_population(s.context.subject, s.context.group);
+    const std::size_t budget = context_row_budget(fit.rows);
+    const std::size_t cursor = context_cursor_bound(s.context.cursor, rows.size());
+    const ListWindow win = list_window(rows.size(), cursor, budget);
+    std::int64_t offset = row;
+    if (win.before > 0) {
+        if (offset == 0) {
+            return out; // the `... n earlier` marker
+        }
+        --offset;
+    }
+    if (static_cast<std::size_t>(offset) >= win.count) {
+        return out; // the `... n more` marker, or the region's own emptiness
+    }
+    out.entry = true;
+    out.index = win.first + static_cast<std::size_t>(offset);
+    return out;
 }
 
 // ---- The Info panel's BODY, resolved ONCE (HD-5, widened by HD-6, widened again by HD-7) --
@@ -6359,6 +6562,13 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     // just happened, and those are two different sentences that must not cover each other.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_attention(layer, s, sc, frontier);
+    });
+    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND (CTX-0): over the picker, the
+    // management surface and the attention view, because it is the band's later, more
+    // deliberate gesture -- and it takes the band's keys first for the same reason
+    // (`keyboard_context`), so what is frontmost and what answers agree.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_context(layer, s, sc);
     });
 }
 

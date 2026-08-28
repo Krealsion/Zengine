@@ -700,6 +700,18 @@
 # floor -- and it now protects it six times, once per area, so a deletion names the area it
 # happened in instead of moving one number by one.
 #
+# CTX-0 raised four of the six workshop floors -- panels 139 -> 149, document 134 -> 139,
+# screen 169 -> 172, panes 180 -> 182 -- and needed no new row, which is the family's own
+# split doing its job: the contextual-action surface's twenty cases land in the area each
+# one proves. Panels holds the surface itself (subject capture, the declared populations,
+# spending on the pointed pane, admission before selection, the truthful absence refusal,
+# `manage.remove` by key and by menu, navigation, input containment, mode precedence);
+# document holds the explicit-id deletion and its selection-repair pin, the live-draft
+# hold-back, the document-replacement invalidation and the keymap admission of the two new
+# identities; screen holds the painted-where-hit inverse pair and the generated claim
+# surfaces; panes holds the seam silence -- a right press over a provider's pane, and every
+# gesture spent on the open surface, crossing the pane seam not at all.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -713,10 +725,10 @@ component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop_document                 doctest           always  134
-workshop_screen                   doctest           always  169
-workshop_panels                   doctest           always  139
-workshop_panes                    doctest           always  180
+workshop_document                 doctest           always  139
+workshop_screen                   doctest           always  172
+workshop_panels                   doctest           always  149
+workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 audit_probes                      doctest           always  4

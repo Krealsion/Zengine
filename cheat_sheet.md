@@ -515,6 +515,7 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
 | `s` | name and save the current setup |
 | `r` | restore the setup from its file |
+| `a` | context menu — what can I do with the selected object, or the room |
 | `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
 | `c` / `Shift`+`c` | choose the next / previous recipe |
 | `f` | build and realize the project frontier |
@@ -546,8 +547,20 @@ happens next. See [what needs your attention](docs/workshop/attention.md).
 | `s` | size mode — `Tab` picks the edge, arrows grow one cell, `Esc` back |
 | `f` `b` | send to front / back |
 | `r` `l` | raise / lower one step |
+| `d` | remove the selected pane (the picker brings it back) |
 | `0` | reset — then `p` place, `w` width, `h` height, `o` order |
 | `Esc` | close management |
+
+**Context menu** — right-click a pane, a document object, or the empty room, and Workshop
+lists what can be done with the thing you pointed at: pane arrangement (move, size,
+Arrange, Reset, remove), object deletion, or Workshop's own doors. `↑` `↓` choose, `Enter`
+chooses (a `… >` row opens its group), `Esc` backs out or closes, a click outside
+dismisses. Pointing does not select — only choosing `move` or `size` establishes the pane
+as the management selection, after the same admission the `w` road applies. `a` opens the
+same menu from the keyboard on the selected object or the room, so no mouse is required —
+on a terminal, right-click delivery is the emulator's decision first (the Windows console
+and Windows Terminal both deliver it). See
+[the context menu](docs/workshop/panes.md#the-context-menu--what-can-i-do-with-this).
 
 ### Panes
 

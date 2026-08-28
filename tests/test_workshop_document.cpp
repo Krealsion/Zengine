@@ -5033,3 +5033,103 @@ TEST_CASE("WUX-1/SC-6: the press lattice follows the reserved rows, titles hidde
     REQUIRE(seat->presses.size() == focused_before + 1);
     CHECK(seat->presses.back().row == 0);
 }
+
+// ============================================================================
+// CTX-0 — deleting the pointed object: the explicit-id door
+// ============================================================================
+//
+// `delete_object_at(id)` is `delete_selected`'s target-taking sibling, and the pin is the
+// branch: the neighbour/selection repair runs EXACTLY when the deleted id is the selected
+// one, and a deletion that touched no selection perturbs none.
+
+TEST_CASE("CTX-0: contextually deleting the selected object uses the existing repair") {
+    Live t;
+    REQUIRE(t.session().selected == 1);
+    t.right_press(4, 3); // #1's body -- the selected one
+    REQUIRE(t.menu().subject == context_subject::kObject);
+    REQUIRE(t.menu().object == 1);
+    t.key(input::scan::kReturn); // the object's one row: delete
+    CHECK_FALSE(t.menu().open);
+    CHECK(doc::find(t.doc(), 1) == nullptr);
+    // The post-delete selection rule, byte for byte the keyboard's: the object that took
+    // the deleted one's place in authored order.
+    CHECK(t.session().selected == 2);
+    CHECK(t.notice() == "deleted #1 -- now on #2");
+}
+
+TEST_CASE("CTX-0: contextually deleting a pointed object preserves an unrelated selection") {
+    Live t;
+    REQUIRE(t.session().selected == 1);
+    t.right_press(7, 11); // #2's body -- NOT the selection
+    REQUIRE(t.menu().object == 2);
+    t.key(input::scan::kReturn);
+    CHECK(doc::find(t.doc(), 2) == nullptr);
+    CHECK(t.session().selected == 1); // the maker's selection was never transport
+    CHECK(t.notice() == "deleted #2");
+    // ...and the inspector still describes the selected object, rebuilt, never patched.
+    REQUIRE_FALSE(t.session().rows.empty());
+}
+
+TEST_CASE("CTX-0: a live draft holds a contextual deletion back") {
+    Live t;
+    t.begin_editing("Name");
+    REQUIRE(editing_index(t) < t.session().rows.size());
+    t.right_press(7, 11);
+    REQUIRE(t.menu().object == 2);
+    t.key(input::scan::kReturn); // choose delete -- and the application holds it back
+    CHECK_FALSE(t.menu().open);
+    CHECK(doc::find(t.doc(), 2) != nullptr); // nothing was deleted
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("finish the draft first") != std::string::npos);
+    CHECK(editing_index(t) < t.session().rows.size()); // the draft survived whole
+}
+
+TEST_CASE("CTX-0: replacing the document drops a captured object subject") {
+    Live t;
+    TempDir dir("ctx-doc");
+    t.host.document_path = dir.document();
+    t.key(input::scan::kS, input::mod::kCtrl); // save the two-object document
+    REQUIRE_FALSE(t.session().notice_is_bad);
+
+    SUBCASE("an object subject cannot alias into the replacement") {
+        t.right_press(7, 11);
+        REQUIRE(t.menu().subject == context_subject::kObject);
+        // `document.open` is a global, answered above the open surface -- which is
+        // exactly why the surface must notice the ground moving underneath it.
+        t.key(input::scan::kO, input::mod::kCtrl);
+        REQUIRE_FALSE(t.session().notice_is_bad);
+        CHECK_FALSE(t.menu().open);
+    }
+    SUBCASE("a room subject names nothing the replacement touched, and stands") {
+        t.right_press(40, 0);
+        REQUIRE(t.menu().subject == context_subject::kRoot);
+        t.key(input::scan::kO, input::mod::kCtrl);
+        REQUIRE_FALSE(t.session().notice_is_bad);
+        CHECK(t.menu().open);
+    }
+}
+
+TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
+    // `apply_overrides` over an empty authored set runs the same-gesture collision sweep
+    // across the EFFECTIVE map -- the defaults themselves. A new declaration colliding
+    // with an existing one in an intersecting context would refuse right here.
+    Keymap out;
+    const Written admitted = apply_overrides({}, legend_mode::kDefault, out);
+    REQUIRE(admitted.accepted);
+    // The two CTX-0 identities hold their researched defaults.
+    CHECK(out.gesture_of(Act::kManageRemove) ==
+          Gesture{input::scan::kD, input::mod::kNone});
+    CHECK(out.gesture_of(Act::kContextOpen) ==
+          Gesture{input::scan::kA, input::mod::kNone});
+    // ...and both remap like any other action, all rows moving together.
+    Keymap moved;
+    const Written re = apply_overrides(
+        {{"manage.remove", "x"}, {"workshop.context", "."}}, legend_mode::kDefault, moved);
+    REQUIRE(re.accepted);
+    CHECK(moved.gesture_of(Act::kManageRemove) ==
+          Gesture{input::scan::kX, input::mod::kNone});
+    CHECK(moved.action_for(KeyContext::kManageSelect, input::scan::kX, input::mod::kNone) ==
+          Act::kManageRemove);
+    CHECK(moved.action_for(KeyContext::kManageSelect, input::scan::kD, input::mod::kNone) ==
+          Act::kNone);
+}
