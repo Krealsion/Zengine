@@ -29,6 +29,42 @@ current.
   for you. See [`packaging.md`](packaging.md).
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them all, plus
   compile-negative targets judged on their diagnostics.
+- **The lane may be run in parallel on Linux/GCC** — `-DZEN_CTEST_ARGS=-j<n>`; measured
+  58.4 s → 19.4 s at `-j24`, same 22 entries, same proofs (ZOOM-P1). **Windows/MSVC stays
+  serial**: `timer` fails there under `-j16` on `REQUIRE(swapped != nullptr)`
+  (`tests/test_timer.cpp`), 2 of 6 runs on current main and 4 of 6 on the commit before the
+  compile-test repair — an open defect in weave loading under concurrent processes, measured
+  as untouched by that repair rather than caused by it. Serial is 22/22 there.
+
+## The compile-judged entries build in a tree of their own (ZOOM-P1)
+
+A compile test's evidence is a build, so the entry is a WRITER of whatever build tree it names.
+All eight of them used to name `${CMAKE_BINARY_DIR}`, which made eight independent proofs into
+eight competing owners of the one tree the whole repository shares — invisible serially, and
+reproducibly destructive under `ctest -j` whenever CMake owed that tree a regeneration
+(measured: 5–7 of 22 entries failing, 3 of 3).
+
+`tests/compile_negative/CMakeLists.txt` holds the fixture targets, and `tests/CMakeLists.txt`
+configures them into `<build>/tests/compile-fixtures` — this same project, entered under
+`ZENGINE_COMPILE_FIXTURES`, with `BUILD_TESTING`, `ZENGINE_SDL_SKIN` and `ZENGINE_INSTALL` off
+and `CMAKE_SUPPRESS_REGENERATION` on. Three consequences worth knowing before touching it:
+
+- **The fixtures compile exactly as an in-tree target would**, because the tree they are in is
+  this project: one `zengine-warnings`, one `zengine-sanitize`, one vocabulary per package, and
+  the compiler, its launcher, the flags, the build type, the sanitizer switch and the resolved
+  Loom all passed through. A private fixture project would have needed a second copy of all
+  three, and a second copy of a contract is a second answer.
+- **No FetchContent lives in that tree**, so no compile test can inherit a dependency
+  population or leave one half-extracted. That was the second half of the defect and it is why
+  the SDL skin is off there.
+- **It cannot re-run CMake** (no `RERUN_CMAKE` edge is generated), and one entry writes it at a
+  time (`RESOURCE_LOCK`, free here: the eight serialize into ~9 s against an ~19 s critical
+  path). The two protect different halves — a lock alone leaves the entries owning the tree
+  they lock, which is what makes the regeneration cost unbounded rather than absent.
+
+It is configured during **configure**, not as a build step, because this lane has no target a
+build-time dependency could hang from: configure, `--build --target <one suite>`, run a compile
+test, and the entry would fail on `compile-fixtures is not a directory`.
 
 ## The sanitizer lane is a SECOND kind of evidence (W-3a)
 
