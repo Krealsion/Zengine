@@ -74,6 +74,7 @@ enum class KeyContext : std::uint8_t {
     kTerminal,
     kNaming,
     kPicker,
+    kAttention,
     kPane,
     kDraft,
     kManageSelect,
@@ -149,6 +150,7 @@ enum class Act : std::uint8_t {
     kOpenDocument,
     kTerminalToggle,
     kHotkeys,
+    kAttention,
     // -- command mode ------------------------------------------------------------------
     kObjectNew,
     kObjectDelete,
@@ -187,6 +189,11 @@ enum class Act : std::uint8_t {
     kPickerDown,
     kPickerChoose,
     kPickerClose,
+    // -- the current-condition view -----------------------------------------------------
+    kAttentionUp,
+    kAttentionDown,
+    kAttentionDismiss,
+    kAttentionClose,
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
     kNamingCancel,
@@ -259,6 +266,27 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kT, mod::kCtrl}},
     {Act::kHotkeys, "workshop.hotkeys", "hotkeys", KeyContext::kGlobal,
      {scan::kK, mod::kCtrl}},
+    // THE CURRENT-CONDITION VIEW, AND IT FOLLOWS THE KEYBOARD -- `^c`-quit's
+    // class, for `^c`-quit's exact reason.
+    //
+    // `^a` IS THE MNEMONIC AND THE COMPONENT ALREADY OWNS IT (select all). That is not a
+    // collision, it is the `kNoText` class doing the one job it exists for: the row is
+    // active precisely where no editable text has the keyboard, so nothing can consume it
+    // first and no text field ever loses its own gesture. `workshop.quit` shipped this
+    // shape first -- `ctrl+c` is the copy chord AND the quit chord, told apart by where the
+    // keys are going -- and the admission rule that refuses a component-owned
+    // chord is scoped to `kGlobal` for the same reason.
+    //
+    // A GLOBAL WOULD HAVE COST A MNEMONIC AND BOUGHT THE TERMINAL. The measured portable
+    // free set holds no chord that says "attention" (the conventional `?` and F1 are both
+    // structurally unavailable on the console backends), and every free ctrl+letter echoes
+    // some other bare gesture on this screen -- `^w` window, `^n` new, `^p` picker. What
+    // this row gives up is reachability from inside a live text field, which is where a
+    // maker is reading their own words rather than the tool's.
+    //
+    // `0x01` on every supported backend (input/translate.hpp), and no `posix_gap`.
+    {Act::kAttention, "workshop.attention", "attention", KeyContext::kNoText,
+     {scan::kA, mod::kCtrl}},
     // -- command mode ------------------------------------------------------------------
     {Act::kObjectNew, "object.new", "new", KeyContext::kCommand, {scan::kN, mod::kNone}},
     {Act::kObjectDelete, "object.delete", "delete", KeyContext::kCommand,
@@ -327,6 +355,21 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kPickerChoose, "picker.choose", "open or remove", KeyContext::kPicker,
      {scan::kReturn, mod::kNone}},
     {Act::kPickerClose, "picker.close", "cancel", KeyContext::kPicker,
+     {scan::kEscape, mod::kNone}},
+    // -- the current-condition view's own keys ------------------------------------------
+    //
+    // The picker's four, one purpose over. `d` rather than Return for the one gesture that
+    // ACTS on a row, because Return in every other list here opens or commits and this one
+    // does neither: it HIDES a presentation and changes nothing about what is true. A bare
+    // letter is legal in a mode nothing in which takes text, exactly as the management
+    // submodes' are.
+    {Act::kAttentionUp, "attention.up", "row up", KeyContext::kAttention,
+     {scan::kUp, mod::kNone}},
+    {Act::kAttentionDown, "attention.down", "row down", KeyContext::kAttention,
+     {scan::kDown, mod::kNone}},
+    {Act::kAttentionDismiss, "attention.dismiss", "hide this one", KeyContext::kAttention,
+     {scan::kD, mod::kNone}},
+    {Act::kAttentionClose, "attention.close", "close", KeyContext::kAttention,
      {scan::kEscape, mod::kNone}},
     // -- the setup-name editor's controls ----------------------------------------------
     {Act::kNamingCommit, "naming.commit", "save the name", KeyContext::kNaming,

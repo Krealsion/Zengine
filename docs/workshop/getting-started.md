@@ -115,8 +115,15 @@ inventing a docking system before anybody had felt the discomfort would be answe
 nobody had made. A wider terminal splits the surplus evenly between a pane and the material
 underneath it, so the maker always keeps half.
 
-The status line is where every refusal appears. Workshop refuses rather than clamps: an
-illegal extent leaves both stored coordinates untouched and says why.
+The status line is where a refusal to what you just did appears. Workshop refuses rather than
+clamps: an illegal extent leaves both stored coordinates untouched and says why. It is a
+report about the gesture you made, and the next thing Workshop says replaces it.
+
+Something that is **still true** when you read it — a settings file that could not be read, a
+pane of yours that is off the screen — does not go there. It goes to attention: one compact
+line where the medium can always show it (a box in the corner of the window, the second
+reserved row of a terminal), and `Ctrl`+`a` opens the full list. Those disappear when they
+stop being true and at no other moment. See [what needs your attention](attention.md).
 
 The bottom band advertises the current context's gestures on its legend rows — the picker,
 pane management and the terminal toggle among them — and the setup line carries
@@ -171,7 +178,7 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 | panes | `p` picker · `w` management ([panes](panes.md)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
-| other | `b` / `Shift`+`b` / `c` / `f` build ([builder](builder.md)) · `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `q` / `Ctrl`+`c` quit |
+| other | `b` / `Shift`+`b` / `c` / `f` build ([builder](builder.md)) · `Ctrl`+`t` terminal overlay · `Ctrl`+`k` hotkey view · `Ctrl`+`a` what needs attention ([attention](attention.md)) · `q` / `Ctrl`+`c` quit |
 
 These are the defaults; every application binding can be remapped through the keymap file,
 and the on-screen hints and the hotkey view always spell the effective one
@@ -188,11 +195,13 @@ not.
 | labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
 | colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to | RGB per role |
 | the title | two reserved slot lines | the window title carries the slot lines |
+| what needs attention | the second reserved line | a compact box in the picture's top-right corner, and the title |
 
 Neither is a degraded version of the other, and the same published intent produces both.
 
 ## Next
 
+- [Attention](attention.md) — what is true right now, and why hiding one is not fixing it.
 - [Panes](panes.md) — the picker, management, and how to get a bigger one.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.

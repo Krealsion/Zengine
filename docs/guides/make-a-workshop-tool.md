@@ -835,8 +835,11 @@ every row     row count <= granted rows; each row's bytes <= granted columns;
 
 - **An invalid update is refused whole, never truncated.** A pane showing the first eight rows
   of a twelve-row answer, unmarked, presents a partial sentence as your complete one. Workshop
-  clears what it was showing, leaves one bounded refusal sentence of its own, names only the
-  already-admitted `PaneRef` in the notice, and stays open so a later valid update recovers it.
+  clears what it was showing, leaves one bounded refusal sentence of its own in the pane, and
+  stays open so a later valid update recovers it. The reason is a **standing condition** the
+  maker can read in full — named against the already-admitted `PaneRef` and carrying none of
+  your message's bytes — and it disappears the moment your next valid update arrives, without
+  anything having to be said over it ([what needs a maker's attention](../workshop/attention.md)).
   **Measure your rows against the room you were granted**; a provider that does not loses the
   whole update.
 - **A new room clears the stale cache before it is sent**, so the cache can never hold rows

@@ -28,10 +28,11 @@ keymap holds names and gestures only; the operations stay with their owners.
 `Ctrl`+`k` opens a full list of what the keyboard means **right now**, grouped by the layer
 that owns each row:
 
-- the current context's own keys — command mode, the terminal line, the picker, pane
-  management and its sub-modes, a property being edited, or a focused pane;
-- the keys answered above every mode (save, open, the terminal toggle, this view, and quit
-  where nothing is taking text);
+- the current context's own keys — command mode, the terminal line, the picker, the
+  current-condition view, pane management and its sub-modes, a property being edited, or a
+  focused pane;
+- the keys answered above every mode (save, open, the terminal toggle, this view, and — where
+  nothing is taking text — quit and the current-condition view);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
   movement, undo — shown for discovery but **not remappable**: they belong to the editing
   component, in every box at once, and the keymap does not reach into it.
@@ -79,15 +80,18 @@ The defaults live in the program; the file carries only your differences:
   ]}}
 ```
 
-A gesture is modifier words joined to one key name with `+`: `ctrl+k`, `shift+h`, `[`.
+A gesture is modifier words joined to one key name with `+`: `ctrl+k`, `shift+h`, `[`, `]`.
 Modifiers are `ctrl`, `shift`, `alt`, `super`; key names are the letters and digits, the
 punctuation keys by their own character, and `return`, `escape`, `backspace`, `tab`, `space`,
 `home`, `end`, `delete`, `left`, `right`, `up`, `down`. Nothing else is a binding: there are
 no sequences, no leader keys and no macros.
 
-The file is read once at startup and answered in words on the notice line: applied, with the
-override count — or refused, with the reason, in which case the defaults stand and the file
-is left exactly as you wrote it. Workshop never rewrites, trims or "fixes" this file.
+The file is read once at startup and answered in words. A file that **applied** says so on the
+notice line, with the override count — that happened, once, at this launch. A file that was
+**refused** is a standing condition instead: the defaults stand for the whole run and for
+every run until you change the file, so it goes to attention with the loader's own reason and
+stays there until it is no longer true ([what needs your attention](attention.md)). Either
+way the file is left exactly as you wrote it: Workshop never rewrites, trims or "fixes" it.
 
 **What is refused, by name:**
 
@@ -101,6 +105,11 @@ is left exactly as you wrote it. Workshop never rewrites, trims or "fixes" this 
   a bare letter cannot be global — it would be stolen from every field you type into;
 - an editing chord (`ctrl+c`, `ctrl+v`, …) on an always-available action: every text field
   would consume it first, so the binding could not mean what it says where it matters most.
+
+An action that is available only **where nothing is taking text** is a different class and is
+allowed an editing chord, because in that class no text field is listening: that is exactly
+how `Ctrl`+`c` quits from command mode and copies inside a field, and how `Ctrl`+`a` opens the
+current-condition view from command mode and selects all inside one.
 
 **What is kept:** an override whose action id this build does not know is preserved exactly
 as you wrote it — byte for byte, in place — not deleted and not an error. It is your intent,

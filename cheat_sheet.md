@@ -521,9 +521,21 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `Ctrl`+`s` / `Ctrl`+`o` | save / open the document |
 | `Ctrl`+`t` | open or close the terminal overlay |
 | `Ctrl`+`k` | open the hotkey view |
+| `Ctrl`+`a` | what needs attention — everything currently true and worth knowing |
 | `Ctrl`+`c`, `q` | quit |
 
 **Pane picker** (`p`) — `↑` `↓` choose, `Enter` opens or removes, `Esc` or `p` cancels.
+
+**What needs attention** (`Ctrl`+`a`) — `↑` `↓` choose, `d` hides one, `Esc` or `Ctrl`+`a`
+closes. It lists what is **currently true** and worth knowing — a settings file that could not
+be read, a pane of yours with no part of it on the screen, a project waiting on an artifact —
+each in its owner's own words. One compact line advertises it wherever the medium can always
+show it: a box in the window's top-right corner, or the terminal's second reserved row.
+Hiding one is not fixing it: the condition stays true, and it reappears if it materially
+changes. A condition disappears when it stops being true and at no other moment — nothing
+expires, nothing fades, and nothing here is a notification history. The **notice row** in the
+bottom band is the other voice and keeps its own job: what just happened, replaced by whatever
+happens next. See [what needs your attention](docs/workshop/attention.md).
 
 **Pane management** (`w`)
 
@@ -560,8 +572,9 @@ persists in the setup file. See [pane geometry](docs/workshop/panes.md#pane-geom
 geometry, their order and the window's size all come back on their own from the last session
 (`--session`, default `workshop-session.json`). The **document** still needs `Ctrl`+`o` — and a
 fresh Workshop *seeds two example objects*, so forgetting it looks like a state rather than an
-omission. The window's screen position and maximized state are not restored either; Workshop is
-never told them. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
+omission. On a graphical run the window's screen position and maximized state come back too,
+validated against the displays that exist now; a terminal run has neither to restore and keeps
+the last one it was told. See [workspace continuity](docs/workshop/setups.md#workspace-continuity).
 
 **On-screen hints** (so you need this page less): every hint is a projection of the
 effective keymap, so a remapped binding is spelled correctly everywhere it appears — the

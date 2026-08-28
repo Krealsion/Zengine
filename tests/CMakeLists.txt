@@ -630,8 +630,14 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # rigs are untouched and still pump to empty; they never see a Timer, because a weave
 # lives on the bus that loaded it and each case builds its own.
 add_executable(zengine-workshop-tests test_workshop.cpp test_workshop_load.cpp doctest_main.cpp)
+# `loom::history` IS LINKED BY THE SUITE AND BY NOTHING IN WORKSHOP, and the
+# asymmetry is the claim. The current-condition lifecycle must not reach the Recorder or the
+# Logger, and "it does not" is only a measurement if a Recorder and a Logger are ACTUALLY
+# ATTACHED to the bus while a condition is established, read, hidden and resolved. So the
+# suite attaches both and reads their counters; the Workshop package still links neither,
+# which is where the property is actually enforced.
 target_link_libraries(zengine-workshop-tests
-    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal
+    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
             zengine-workshop-vocabulary zengine-workshop-load
             zengine-surface-vocabulary zengine-ui-vocabulary
             zengine-introspection-view zengine-composer-vocabulary
@@ -709,6 +715,7 @@ target_compile_definitions(zengine-workshop-tests PRIVATE
     "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
     "WORKSHOP_WEAVE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/weave.hpp\""
     "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
+    "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\""
     "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
     "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
     "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\"")

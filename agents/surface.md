@@ -279,6 +279,36 @@ faceless medium gets, so no canvas painted in a character medium moved. A body s
 for one line of the face still resolves to cells and is still drawn by exactly one of the two
 lists — grant more room rather than special-casing past this.
 
+## The attention chip is the Medium's own furniture (WUX-4)
+
+`SurfaceText` is two fields and always was; what changed is what the graphical medium MAKES of
+the `score` slot. It still lands in the window title (`title_of`), and since WUX-4 it is also
+composed INTO the frame as a compact box in the canvas's top-right corner.
+
+- **`attention_chip_layer(text, canvas_w, metric)` composes it in CANVAS CELLS**, as an
+  ordinary `SurfaceTextRegion` with one row — so its fit, its cut, its ink, its ground strip,
+  its real-face-versus-bitmap partition and its clip are all machinery this medium already
+  has. There is no second text path and no `if` that could make the chip disagree with the
+  picture beside it. `plan_attention_chip` is the one door, and the SDL edge runs it through
+  the identical two lists `plan_canvas` hands it for every plane.
+- **Two cells tall by arithmetic, not by constant**: `line_px + 2·kTextInsetPx` rounded up to
+  whole cells, which is 2 for an 18-pixel face (24 pixels less the inset on each side is 20,
+  one line and no more) and more for a taller one. A ONE-cell region would fall into the cell
+  fallback and reach a graphical maker as block glyphs, which is exactly what a compact,
+  intentional indicator must not be.
+- **ONE VOICE, and it is `role::kAlert`.** A slot carries text and no role, so the loudest
+  honest thing a medium can say about a line somebody put on the attention slot is *look
+  here*. Proportional severity lives where roles actually travel — in the canvas, where a
+  publisher's own conditions each paint in their own role — and a role field on `SurfaceText`
+  would be new wire vocabulary bought for a colour.
+- **EMPTY COMPOSES AN EMPTY LAYER.** Nothing is drawn, so the indicator's disappearance needs
+  no path of its own; a publisher retracts by publishing the slot empty. The terminal medium's
+  answer to the same emptiness is its existing `\x1b[2K` on row 2.
+- **The chip is not hit-testable and deliberately so.** It is placed in the medium's own
+  pixels, which no publisher can compute without a second measurer, so a press on it would
+  need a Surface shape that does not exist. Whatever a publisher wants a maker to be able to
+  DO about the slot is reachable from the publisher's own canvas and its own keymap.
+
 ## The terminal is a medium with a SIZE, and the Sink is what holds it (TUI-0)
 
 `TuiMedium::extent()` asks its `Sink`. A Sink is anything with `write(std::string_view)` **and**

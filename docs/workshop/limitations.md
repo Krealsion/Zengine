@@ -208,6 +208,10 @@ expected to have them:
 - **No widget set.** The component package has one component, earned by working consumers
   (four of them, since TEXT-0) needing the same machinery. There is no Button, List, Dropdown,
   ScrollView, focus tree, tab order or theme.
+- **No notifications.** [Attention](attention.md) shows what is **true right now**, and that
+  is the whole of it: nothing accumulates, nothing is unread, nothing pops up, nothing expires
+  and nothing animates. There is no history of things that stopped being true — a record of
+  what happened is `--log` and `--dump`, which are a different question.
 - **No layout system.** The drawing vocabulary has no parent/child, anchors or percentages —
   whoever publishes has already decided where things go. The `ui` package resolves an authored
   extent against a frame and states no containment.

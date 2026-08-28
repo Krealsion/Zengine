@@ -766,6 +766,71 @@ EXECUTION   the owner that performs it                             untouched -- 
   has no shape for wanted keys), no TextBox remapping, no sequences/leaders/macros, no new
   wire vocabulary — KEY-0 added zero bus shapes.
 
+## A thing that HAPPENED and a thing that is TRUE are two surfaces (WUX-4)
+
+Workshop says outward truth two structurally different ways, and using the wrong one is the
+defect this section exists to prevent.
+
+```text
+AN UTTERANCE          `Session::notice`, written by `say(text, bad)`. About a moment that has
+                      passed. Replaced by the next thing said, and retracted no other way.
+                      `committed Width = 40%` · `removed Info` · `released #12`
+A CONDITION           true when it is READ. Held under a key (`Session::conditions`,
+                      workshop/attention.hpp) or DERIVED from a live owner. It disappears
+                      because it resolved, never because something else was said.
+```
+
+- **`Session::notice` is the utterance row and nothing else now.** Its ~104 producers keep
+  their job; what left it is the standing truths — the refused keymap file, the refused prefs
+  file, a shadowed legacy file, a pane's refused update, a waiting frontier. The severity bit
+  went with them: `speak_startup_notes` joins only the EVENT halves and says them `bad=false`.
+- **`attention_conditions(session, frontier)` is a PURE PROJECTION in `paint`'s family.** It
+  reads the held set and the derived owners, ranks, and owns nothing. `attention_shown` is the
+  same list less what this session dismissed, and it is the ONE population the compact
+  indicator, the view, the cursor bound and the dismissal all spend.
+- **A derived condition must stay derived.** `ExternalPane::refusal`/`refusal_why`,
+  `pane_state_of` and `ProjectFrontier` are correct by construction; copying one into
+  `HeldConditions` to make it presentable buys the staleness it currently cannot have. The
+  pane-content refusal is the case that proves it: the pane clears its refusal on the next
+  valid content and the condition is gone with no retraction call anywhere on the path.
+- **THREE PANE STATES EARN AMBIENT ATTENTION AND FOUR DO NOT**, and the exclusions are the
+  judgement: `refused` / `waiting` / `off-room` (authored, resolvable, and no cell of it on
+  the screen) are conditions; `closed` is the maker's own choice, `unresolved` is already
+  counted on the band's status row all day, `covered` has something of it visible, `open` is
+  nothing. The model may know more than the projection elects to surface.
+- **The compact channel is the `kSlotScore` `SurfaceText` slot** — published on every repaint,
+  BEFORE the canvas, because the SDL medium composes it INTO the picture it draws
+  ([`surface.md`](surface.md#the-attention-chip-is-the-mediums-own-furniture-wux-4)). The
+  loudest condition plus an honest `(+N more)`; **empty is the retraction**, so nothing has to
+  be un-said when the last one resolves. No band row was taken.
+- **Ranking is `ranks_before`: loudness, then key.** `surface::role`'s integers are a
+  vocabulary and not a ladder, so `attention_rank` is the one place this application claims
+  one role is more urgent than another — total, with an unknown role last.
+- **DISMISSAL IS SCOPED TO THE STATEMENT, NOT THE KEY.** `AttentionView::dismissed` holds
+  `{key, stamp}`; `Condition::stamp()` is an opaque comparison token over compact + detail +
+  role + action. A condition whose content moves is a different statement, so a prior
+  dismissal does not reach it and it is visible again with nobody clearing anything — the
+  Terminal completion's `dismissed`/`dismissed_at` rule one layer out. Session-only, never
+  persisted, and it changes no underlying truth.
+- **`KeyContext::kAttention` is a MODE in the picker's place** — below the Terminal and pane
+  management, above a focused pane and a live draft — deliberately not keys-modal like the
+  hotkey view, because its four gestures are real catalog rows the help surfaces and a
+  maker's keymap file must be able to see. `workshop.attention` is a `kNoText` row on `^a`:
+  the component owns that chord inside a text field and this class is exactly what tells the
+  two apart, `workshop.quit`'s own shape.
+- **A condition NAMES an action and holds no power.** `Condition::action` is an
+  `ActionRow::id` or nothing; the view paints that row's CURRENT gesture through the effective
+  keymap and stops there. There is no invocation path from the view, and adding one would need
+  its own authority argument.
+- **Nothing may open this surface but a maker's gesture.** No severity, no count and no
+  condition becoming true reaches `toggle_attention`, and a modal is still earned by required
+  maker intent rather than by diagnostic severity.
+- **The condition path touches neither the Recorder nor the Logger.** `workshop/attention.hpp`
+  includes exactly `surface/vocabulary.hpp`: no substrate header, no `ZEN_SHAPE`, so a
+  condition has no wire form and cannot be observed, recorded, selected or persisted.
+  Displaying one implies no history; if some condition ever deserves durable history, the
+  host-authored diagnostic seam is a separate decision.
+
 ## The keyboard goes where the maker last pressed (MSG-0)
 
 `Panels::keyboard` is a PRESS's memory: which external pane a maker last pressed into.

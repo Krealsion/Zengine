@@ -236,7 +236,7 @@ public:
         // `plan_canvas` hands back the layers already ordered and this edge walks them. The
         // only ordering decision left in this file is the one the compiler enforces: the
         // quads of a layer, then its regions, then the next layer.
-        for (const PlanLayer& layer : plan_canvas(c, metric, drawable())) {
+        const auto execute = [this](const PlanLayer& layer) {
             for (const PlanRect& r : layer.quads) {
                 SDL_SetRenderDrawColor(renderer_, r.r, r.g, r.b, SDL_ALPHA_OPAQUE);
                 const SDL_FRect fr{static_cast<float>(r.x), static_cast<float>(r.y),
@@ -246,7 +246,18 @@ public:
             for (const PlanTextRegion& p : layer.regions) {
                 text_.draw(renderer_, p);
             }
+        };
+        for (const PlanLayer& layer : plan_canvas(c, metric, drawable())) {
+            execute(layer);
         }
+        // THE ATTENTION CHIP, AFTER THE WHOLE PICTURE: what this medium makes of
+        // the `score` slot IN the window rather than only on it. It is FURNITURE and so it
+        // is composed here rather than by the publisher -- the same reason the title is not
+        // a plane of the canvas -- and it goes through the identical two lists, so a chip
+        // cannot be drawn by a path the picture is not. An empty slot composes an empty
+        // layer and draws nothing at all, which is how the indicator disappears when the
+        // last condition resolves.
+        execute(plan_attention_chip(score_, c, metric, drawable()));
         SDL_RenderPresent(renderer_);
     }
 
