@@ -30486,6 +30486,48 @@ TEST_CASE("WUX-4: the view's gestures are the keymap's, and every help surface s
     CHECK(posix_gap(t.session().keymap.gesture_of(Act::kAttention)) == nullptr);
 }
 
+TEST_CASE("WUX-4: the view never publishes more rows than its region can show") {
+    // A REGION PADS WHAT IT WAS NOT GIVEN AND SILENTLY DROPS WHAT WILL NOT FIT, in BOTH
+    // media -- so a painter that over-spends its budget loses whatever it wrote last, which
+    // here is the omission marker: the one row that exists to say something was dropped. A
+    // bound that grows when it is exceeded is not a bound, so this sweeps the population
+    // against the room and asserts the published row count against the room's own answer.
+    Live t;
+    Session& s = const_cast<Session&>(t.session());
+    for (int i = 0; i < 12; ++i) {
+        // Long explanations on purpose: the cursor's block is what makes the naive window
+        // arithmetic wrong, and a one-line detail would never reach the defect.
+        s.conditions.establish(Condition{
+            "k." + std::to_string(i), "condition number " + std::to_string(i),
+            std::string("a long explanation that will certainly have to be wrapped across "
+                        "several rows of any column this view is ever given, ") +
+                std::to_string(i),
+            i % 2 == 0 ? surface::role::kAlert : surface::role::kAccent, "workshop.manage"});
+    }
+    t.key(input::scan::kA, input::mod::kCtrl);
+    REQUIRE(t.session().attention.open);
+
+    // EVERY EXTENT THIS COMPOSITION IS HONEST AT, and every cursor position in it.
+    for (const std::int64_t height : {kScreenMinH, kScreenMinH + 7, kScreenMinH + 20}) {
+        t.publish(loom::to_value(surface::tui_canvas_extent(
+            surface::TerminalSize{static_cast<int>(kScreenMinW), static_cast<int>(height)})));
+        const Screen sc = screen_of(t.session());
+        const PanelProsePlace place = panel_prose_place(attention_bounds(sc), sc);
+        REQUIRE(place.present);
+        for (std::size_t at = 0; at < 12; ++at) {
+            const_cast<Session&>(t.session()).attention.cursor = at;
+            t.key(input::scan::kUp); // any key at all repaints; the cursor is set above
+            const_cast<Session&>(t.session()).attention.cursor = at;
+            surface::SurfaceLayer layer;
+            paint_attention(layer, t.session(), sc, ProjectFrontier{});
+            REQUIRE(layer.texts.size() == 1);
+            CAPTURE(height);
+            CAPTURE(at);
+            CHECK(static_cast<std::int64_t>(layer.texts[0].rows.size()) <= place.rows);
+        }
+    }
+}
+
 TEST_CASE("WUX-4: the condition path carries no timer, no callback and no history") {
     // The mechanical gate beside the behavioural cases, and it is here for the reason
     // every source probe in this repository is: a property that is true because of what
