@@ -160,6 +160,17 @@ claims:
 
 Pass extra CTest flags through with `-DZEN_CTEST_ARGS=-V`.
 
+**On Linux the lane is safe to run in parallel.** `-DZEN_CTEST_ARGS=-j<n>` spends the machine on
+the suites without changing what any of them proves; on a 12-core desktop it takes the lane from
+about a minute to about twenty seconds. On Windows keep it serial for now — the `timer` suite
+has a separate, still-open failure under concurrent CTest, unrelated to the one below and
+present before it was fixed. What made parallel unsafe everywhere for a while was the
+compile-judged entries: each of them proves its point by trying to build a fixture, and they
+used to build it in this build tree — so eight tests that have nothing to do with each other
+were all writers of the tree everything else depends on, and whenever CMake owed the tree a
+regeneration they raced through it. They build in a small tree of their own now, prepared by
+this tree's configure, which nothing else writes and which cannot re-run CMake at all.
+
 ### Per-repo green
 
 Zengine's lane runs Zengine's tests against its pinned or installed Loom and **does not re-run

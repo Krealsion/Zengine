@@ -240,17 +240,111 @@ zengine_doctest_test(timer zengine-timer-tests)
 # The positive control is the same source with the collision replaced by the
 # supported hook, and it must BUILD — without it, "the build refused" would be
 # satisfied by a fixture that never compiled for any reason.
-set(ZENGINE_CN_NAMES collision hook missing-using cursor missing-using-no-binding)
-set(ZENGINE_CN_IDS 1 2 3 4 5)
-foreach(case_name case_id IN ZIP_LISTS ZENGINE_CN_NAMES ZENGINE_CN_IDS)
-    add_executable(zengine-cn-${case_name} EXCLUDE_FROM_ALL
-        compile_negative/activation_collision.cpp)
-    target_link_libraries(zengine-cn-${case_name}
-        PRIVATE loom::switchboard loom::core zengine-timer-vocabulary zengine-warnings
-                zengine-sanitize)
-    target_include_directories(zengine-cn-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
-    target_compile_definitions(zengine-cn-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
+#
+# ---- THE FIXTURES' OWN BUILD TREE, CONFIGURED AT BUILD TIME (ZOOM-P1) --------
+#
+# The targets themselves are in tests/compile_negative/CMakeLists.txt now, and
+# they are built HERE — in a second, small build tree of this same project — and
+# never in ${CMAKE_BINARY_DIR}. `cmake --build` makes its caller responsible for
+# bringing that tree's build system up to date, so eight compile tests naming the
+# main tree were eight independent proofs holding a claim on it; run in parallel
+# with a regeneration owed, they raced each other through CMake and reported
+# `configure_file` errors where a diagnostic should have been.
+#
+# CONFIGURED AT BUILD TIME AND BUILT AT TEST TIME — the split the Builder suite's
+# fixture tree already uses, and for the reason its header gives: the expensive,
+# environment-sensitive half belongs where the environment is already known, and
+# what the test does at run time is the one thing it is about. A nested CONFIGURE
+# inside a ctest entry is exactly what went wrong here.
+#
+# WHAT IS SWITCHED OFF IS AS DELIBERATE AS WHAT IS PASSED THROUGH:
+#
+#   BUILD_TESTING=OFF        no suites, and no fixture tree of its own — this
+#                            tree is the leaf, not another branch.
+#   ZENGINE_SDL_SKIN=OFF     no FetchContent AT ALL, so no compile test can
+#                            inherit a dependency population. That was the
+#                            second half of the defect: the failing entries were
+#                            re-entering the SDL3 sub-build, outside this tree
+#                            and shared between every build directory of the same
+#                            name.
+#   ZENGINE_INSTALL=OFF      this tree ships nothing, so it declares no package —
+#                            and in dev mode it MUST NOT, because a build that
+#                            takes the Loom from the sibling source cannot honestly
+#                            export targets naming loom::core
+#                            (cmake/ZengineInstall.cmake refuses that pair, and
+#                            would refuse this configure with it).
+#   SUPPRESS_REGENERATION=ON no `RERUN_CMAKE` edge in the generated build files,
+#                            so `cmake --build` on this tree CANNOT re-run CMake.
+#                            The custody is structural, not a matter of timing.
+#
+# Everything that decides what the compiler is handed IS passed through — the
+# generator, the compiler, its launcher, the flags, the build type, the sanitizer
+# switch and the very Loom this tree resolved — because a fixture compiled under
+# some other configuration would be proving a wall that this build does not have.
+#
+# IT HAPPENS DURING THIS CONFIGURE, not during a build, and that was measured
+# rather than assumed. Preparing it as a build step (the shape the Builder suite's
+# fixture tree uses, since a suite BINARY can depend on one) left a hole this lane
+# has no target to close: configure, `--build --target zengine-ui-tests`, run a
+# compile test, and the entry fails with `compile-fixtures is not a directory` —
+# a developer being asked for a ceremony they were never told about. Configuring
+# here costs 1.1 s and means the tree exists the moment configure returns, for
+# every build order anyone might use. It also makes the ownership exact: the
+# fixtures' configuration is written by the parent's configure and by nothing
+# else, so it can neither drift behind it nor be produced by a test.
+set(zengine_cn_tree ${CMAKE_CURRENT_BINARY_DIR}/compile-fixtures)
+
+set(zengine_cn_args -G "${CMAKE_GENERATOR}")
+if(CMAKE_MAKE_PROGRAM)
+    list(APPEND zengine_cn_args "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}")
+endif()
+if(CMAKE_GENERATOR_PLATFORM)
+    list(APPEND zengine_cn_args -A "${CMAKE_GENERATOR_PLATFORM}")
+endif()
+if(CMAKE_GENERATOR_TOOLSET)
+    list(APPEND zengine_cn_args -T "${CMAKE_GENERATOR_TOOLSET}")
+endif()
+foreach(passthrough CMAKE_CXX_COMPILER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_CXX_FLAGS
+                    CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+    if(DEFINED ${passthrough})
+        list(APPEND zengine_cn_args "-D${passthrough}=${${passthrough}}")
+    endif()
 endforeach()
+# The Loom this tree actually resolved, by whichever of the two routes it took —
+# the exported package at the directory find_package() settled on, or the sibling
+# source tree. A fixture that found a DIFFERENT Loom would be judging a different
+# wall, so neither route is left to be re-decided down there.
+if(ZEN_LOOM_DEV)
+    list(APPEND zengine_cn_args "-DZEN_LOOM_DEV=ON")
+else()
+    list(APPEND zengine_cn_args "-Dloom_DIR=${loom_DIR}")
+endif()
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -S ${CMAKE_SOURCE_DIR} -B ${zengine_cn_tree}
+            ${zengine_cn_args}
+            "-DZENGINE_COMPILE_FIXTURES=ON"
+            "-DZENGINE_SANITIZE=${ZENGINE_SANITIZE}"
+            "-DZENGINE_SDL_SKIN=OFF"
+            "-DZENGINE_INSTALL=OFF"
+            "-DBUILD_TESTING=OFF"
+            "-DCMAKE_SUPPRESS_REGENERATION=ON"
+    OUTPUT_VARIABLE zengine_cn_out ERROR_VARIABLE zengine_cn_out
+    RESULT_VARIABLE zengine_cn_rc)
+# Loud here rather than as a puzzling test failure later: a compile test whose tree
+# was never configured fails on `is not a directory`, which names the symptom and
+# not one thing about the cause.
+if(NOT zengine_cn_rc EQUAL 0)
+    message(FATAL_ERROR
+        "zengine: could not configure the compile-judged lane's fixture build tree at\n"
+        "  ${zengine_cn_tree}\n"
+        "The compile tests build their fixtures there — never in this build tree — so "
+        "without it they have nothing to judge.\n${zengine_cn_out}")
+endif()
+message(STATUS "zengine: compile-lane fixtures configured in ${zengine_cn_tree}")
+
+# Read by zengine_compile_test(), which refuses to register an entry without it.
+set(ZENGINE_COMPILE_FIXTURE_TREE ${zengine_cn_tree})
 
 # zengine_compile_test() is the single registration path for this lane: it adds the entry,
 # attaches the PASS_REGULAR_EXPRESSION that does the judging, and records in the build tree
@@ -563,17 +657,11 @@ zengine_doctest_test(composer zengine-composer-tests)
 # fail; each test drives `cmake --build --target` itself, and each asserts the
 # DIAGNOSTIC rather than the exit code. The positive control is the same source
 # with the violation removed, and it must BUILD.
-set(ZENGINE_UI_CN_NAMES extent resolved ok)
-set(ZENGINE_UI_CN_IDS 1 2 3)
-foreach(case_name case_id IN ZIP_LISTS ZENGINE_UI_CN_NAMES ZENGINE_UI_CN_IDS)
-    add_executable(zengine-cn-ui-${case_name} EXCLUDE_FROM_ALL
-        compile_negative/ui_fence.cpp)
-    target_link_libraries(zengine-cn-ui-${case_name}
-        PRIVATE loom::core zengine-ui-vocabulary zengine-warnings zengine-sanitize)
-    target_include_directories(zengine-cn-ui-${case_name} PRIVATE ${CMAKE_SOURCE_DIR})
-    target_compile_definitions(zengine-cn-ui-${case_name} PRIVATE ZENGINE_CN_CASE=${case_id})
-endforeach()
-
+#
+# These targets are defined in tests/compile_negative/CMakeLists.txt beside the
+# Timer suite's, and built in the fixtures' own build tree — never in this one.
+# The block that configures that tree, and why it exists, is up with the Timer
+# lane that needed it first.
 zengine_compile_test(ui_authored_extent_required zengine-cn-ui-extent
                      "a resolvable dimension must be an authored Extent")
 

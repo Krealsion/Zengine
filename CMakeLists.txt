@@ -354,9 +354,53 @@ endfunction()
 # build records and the verifier can require -- COLD-2 credited these tests for judging the
 # diagnostic, and C4's job is to keep them from silently degrading into
 # `the compiler returned non-zero, therefore PASS`.
+#
+# THE TREE IT BUILDS IN IS NOT THIS ONE, AND THAT IS THE WHOLE OF WHAT MAKES IT SAFE TO RUN
+# THESE CONCURRENTLY (ZOOM-P1). `cmake --build <tree>` does two things: it brings that tree's
+# build system up to date, and then it builds the target. A compile test only ever wanted the
+# second, but naming ${CMAKE_BINARY_DIR} bought it the first as well -- so eight entries that
+# have nothing to do with each other each became a writer of the one build tree the whole
+# repository shares. Under `ctest -j` with a regeneration owed, all eight re-ran CMake over it
+# at once and 5-7 of 22 entries failed on `configure_file` and a half-written `build.ninja`.
+# Measured 3 of 3 before this changed; 3 of 3 clean after.
+#
+# So the fixtures live in a build tree of their own (ZENGINE_COMPILE_FIXTURE_TREE), configured
+# for them by tests/CMakeLists.txt at BUILD time and configured to be unable to regenerate
+# itself at all. This function will not register an entry without one: a compile test with no
+# tree of its own would silently be a compile test with a claim on everyone's.
+#
+# AND ONE AT A TIME IN IT. The tree is small and nothing else writes it, but it is still ONE
+# build tree with one ninja log, and two concurrent builders of one build tree is the shape
+# this phase exists to remove -- not a shape that becomes acceptable when the tree gets small.
+# RESOURCE_LOCK is CTest's own answer and it is measured free here: the eight entries serialize
+# into 9.4 s of work against an 18.8 s critical path (the `workshop` suite), so the lane's
+# parallel floor never notices them.
 function(zengine_compile_test entry target)
+    if(NOT ZENGINE_COMPILE_FIXTURE_TREE)
+        message(FATAL_ERROR
+            "zengine_compile_test(${entry}): no ZENGINE_COMPILE_FIXTURE_TREE. A compile test "
+            "builds a target to read the compiler, which makes it a writer of whatever build "
+            "tree it names -- and the one tree it must never name is this one.")
+    endif()
+    # AND THE WALL IS HERE, NOT IN THE LANE, because this defect is SILENT. Pointing these
+    # entries back at ${CMAKE_BINARY_DIR} still passes: serially there is nothing to race, and
+    # in parallel it fails only when a regeneration happens to be owed -- so the repository
+    # would go on reporting 22/22 while carrying the defect again. Nothing downstream can see
+    # it either; `ctest -N` prints names, not commands. So it is refused where the choice is
+    # made, and a configure that would produce it does not happen.
+    if(ZENGINE_COMPILE_FIXTURE_TREE STREQUAL CMAKE_BINARY_DIR)
+        message(FATAL_ERROR
+            "zengine_compile_test(${entry}): the fixture tree is this build tree.\n"
+            "A compile test proves its point by BUILDING something, so the entry is a writer "
+            "of the tree it names. Eight of them naming this one makes eight independent "
+            "proofs into eight competing owners of the tree the whole repository shares -- and "
+            "under `ctest -j`, with a CMake regeneration owed, they race it: 5-7 of 22 entries "
+            "failing on configure_file errors and a half-written build.ninja. The fixtures have "
+            "a tree of their own; see tests/CMakeLists.txt.")
+    endif()
     add_test(NAME ${entry}
-             COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${target})
+             COMMAND ${CMAKE_COMMAND} --build ${ZENGINE_COMPILE_FIXTURE_TREE} --target ${target})
+    set_tests_properties(${entry} PROPERTIES RESOURCE_LOCK zengine_compile_fixture_tree)
     set(diagnostic "")
     if(ARGC GREATER 2)
         set(diagnostic "${ARGV2}")
@@ -450,6 +494,25 @@ add_subdirectory(introspection)
 add_subdirectory(composer)
 add_subdirectory(snake)
 add_subdirectory(workshop)
+
+# ---- The compile-judged lane's fixtures, when this tree is the one that holds them -------
+#
+# OFF here and ON in exactly one place: the small second tree tests/CMakeLists.txt configures
+# for the compile tests to build in. Both trees read the same definitions above -- the same
+# warnings, the same sanitizer flags, the same package vocabularies -- which is the whole
+# reason the fixtures are reached through this project rather than through a private one of
+# their own that would have had to restate all three.
+#
+# WHY THEY ARE NOT IN THIS TREE. A compile test's evidence is a build, so it WRITES the tree
+# it names, and eight of them naming ${CMAKE_BINARY_DIR} made eight independent proofs into
+# eight competing owners of the build tree everything else here depends on. tests/compile_negative/
+# CMakeLists.txt carries the account; zengine_compile_test() above carries the rule.
+option(ZENGINE_COMPILE_FIXTURES
+       "Add the compile-judged lane's fixture targets (the compile tests' own build tree sets this)"
+       OFF)
+if(ZENGINE_COMPILE_FIXTURES)
+    add_subdirectory(tests/compile_negative)
+endif()
 
 if(BUILD_TESTING)
     enable_testing()
