@@ -579,9 +579,24 @@ never saved                  which kinds resolved this run, and to what
 
 ## A9. Test the truths your panel owns
 
-Add cases to `tests/test_workshop.cpp`; the suite is already registered, so nothing in
+Workshop's tests are six suites, one per area, and a case goes in the one whose subject it
+proves:
+
+| suite | what it proves |
+|---|---|
+| `tests/test_workshop_document.cpp` | the authored material and the maker's hands on it |
+| `tests/test_workshop_screen.cpp` | composition and geometry — what is painted where |
+| `tests/test_workshop_panels.cpp` | the panels Workshop ships, and the attention surface |
+| `tests/test_workshop_panes.cpp` | the external pane seam, from both sides |
+| `tests/test_workshop_persistence.cpp` | what survives a process |
+| `tests/test_workshop_load.cpp` | which artifacts are in the room at all |
+
+A panel of your own is `test_workshop_panels.cpp`; a pane your office authors and Workshop
+grants a room to is `test_workshop_panes.cpp`. Each is already registered, so nothing in
 `tests/CMakeLists.txt` or `tests/test_population.txt` changes unless you are deliberately raising
-the floor. Three shapes cover almost everything a panel owes:
+a floor. Fixtures more than one suite needs live in `tests/workshop_support.hpp`; a helper only
+your suite uses stays in your suite's file, and moving one into the shared header makes every
+Workshop suite rebuild. Three shapes cover almost everything a panel owes:
 
 **It gets the room the placement path says it gets** — resolved the painter's way, never by
 computing a rectangle in the test:
@@ -1024,8 +1039,11 @@ reasoning in `workshop/pane_vocabulary.hpp` and in the root README section this 
 # The normal maker loop
 
 ```bash
-cmake --build build -j"$(nproc)" --target zengine-workshop-tests && ./build/tests/zengine-workshop-tests
+cmake --build build -j"$(nproc)" --target zengine-workshop-panels-tests && ./build/tests/zengine-workshop-panels-tests
 ```
+
+— naming the suite your change can falsify (`document`, `screen`, `panels`, `panes`,
+`persistence`, `load`), so the loop builds one Workshop source rather than all six —
 
 then
 

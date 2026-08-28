@@ -30,11 +30,45 @@ current.
 - Suites are separate binaries (`zengine-timer-tests` etc.); ctest runs them all, plus
   compile-negative targets judged on their diagnostics.
 - **The lane may be run in parallel on Linux/GCC** — `-DZEN_CTEST_ARGS=-j<n>`; measured
-  58.4 s → 19.4 s at `-j24`, same 22 entries, same proofs (ZOOM-P1). **Windows/MSVC stays
-  serial**: `timer` fails there under `-j16` on `REQUIRE(swapped != nullptr)`
+  56.2 s → 9.4 s at `-j24`, same proofs (ZOOM-P1, halved again by ZOOM-P2). **Windows/MSVC
+  stays serial**: `timer` fails there under `-j16` on `REQUIRE(swapped != nullptr)`
   (`tests/test_timer.cpp`), 2 of 6 runs on current main and 4 of 6 on the commit before the
   compile-test repair — an open defect in weave loading under concurrent processes, measured
-  as untouched by that repair rather than caused by it. Serial is 22/22 there.
+  as untouched by that repair rather than caused by it. Serial is green there.
+- **A parallel lane's floor is its LONGEST ENTRY, not its total.** What the parallel number
+  buys is bounded by whichever single entry runs longest, so the thing worth watching is a
+  suite growing past its neighbours — and the thing worth knowing before optimizing is which
+  entry that is. Ask CTest, not the suite count.
+
+## The Workshop family is six entries, and the split is semantic (ZOOM-P2)
+
+`tests/test_workshop.cpp` had reached thirty thousand lines behind one CTest entry: thirty
+seconds of compiling before an assertion could run, and a nineteen-second test the scheduler
+could only ever hand to one worker — a floor neither the machine nor the population explained.
+It is six sources now, cut along the headings the file already had:
+
+```text
+workshop_document      the authored material and the maker's hands on it
+workshop_screen        composition and geometry -- what is painted where
+workshop_panels        the panels Workshop ships, and the attention surface
+workshop_panes         the external pane seam, from both sides
+workshop_persistence   what survives a process
+workshop_load          which artifacts are in the room at all
+```
+
+- **Pick the one your change can falsify** and build that target alone: a Workshop test edit
+  costs one suite's compile now, not the whole file's.
+- **`tests/workshop_support.hpp` holds what more than one of them needs** — fixtures, canvas
+  readers, the `Live` and `PaneRig` rigs. A helper one suite uses stays in that suite's file.
+  It is not free: measured, the header adds ~0.4 s of parse to a translation unit that only
+  reads it, and roughly 5–8 s to one that USES it, because every suite emits the helpers it
+  calls. Editing it rebuilds five suites. Moving a helper into it is a decision.
+- **A temporary directory belongs to the suite that made it.** Six binaries run at once and
+  every `TempDir` counter starts at zero, so the root carries `ZENGINE_WORKSHOP_SUITE`; a case
+  in `workshop_persistence` asserts that rather than trusting it. Nothing else in the family
+  shares a filesystem path — the load-plan stage directory is `workshop_load`'s alone.
+- **Their floors sum to what the one entry's was.** Six numbers instead of one, so a deleted
+  case names the area it went missing from.
 
 ## The compile-judged entries build in a tree of their own (ZOOM-P1)
 

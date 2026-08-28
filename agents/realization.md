@@ -348,8 +348,8 @@ feature is one read-only seam plus one gesture over the existing route.
   by-value `ProjectFrontier{waiting, artifact, blocked}` (panel.hpp); the weave derives it
   fresh at every repaint and every gesture and stores it NOWHERE. ⚠ No copy exists on the
   path — a `ProjectFrontier` member, session field, or answer cached between paints is the
-  mirror this seam exists to refuse, and the live-mutation witness in `test_workshop.cpp`
-  reddens one.
+  mirror this seam exists to refuse, and the live-mutation witness in
+  `tests/test_workshop_panels.cpp` reddens one.
 - **THE JOIN IS THE STEM, PERFORMED AT PRESENTATION.** Which recipes produce the frontier is
   answered by comparing the frontier artifact against the `RecipeCatalog` the tool itself
   published — the panel's existing copy. No plan→recipe edge was added anywhere, and the

@@ -7,6 +7,11 @@ tools that arrive through it are [`panes.md`](panes.md); the Surface vocabulary 
 [`surface.md`](surface.md). Phase tags like (HD-7) are provenance markers into this
 repository's history; the law here is current.
 
+**Where a case goes.** Workshop's tests are six suites, one per area — document, screen,
+panels, panes, persistence, load — and a new case belongs to the one whose subject it proves.
+[`verification.md`](verification.md) names them, says what shared support may be, and says why
+a temporary directory belongs to a suite.
+
 ## One geometry draws a thing and hits it (HD-3)
 
 **The geometry that draws a thing and the geometry that hits it must be the same geometry.**

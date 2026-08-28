@@ -55,11 +55,13 @@ cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run
 
 - **Quote `tests/verify.cmake`, never a bare `ctest`** — a bare run cannot say whether the
   population that ran is the population this repository meant to run.
-- **The lane runs in parallel on Linux/GCC**: add `-DZEN_CTEST_ARGS=-j<n>` (measured 58.4 s →
-  19.4 s at `-j24`, 22/22). Same entries, same proofs. It is safe because no CTest entry writes
+- **The lane runs in parallel on Linux/GCC**: add `-DZEN_CTEST_ARGS=-j<n>` (measured 56.2 s →
+  9.4 s at `-j24`, 27/27). Same proofs. It is safe because no CTest entry writes
   this build tree — the compile-judged ones build their fixtures in a tree of their own
   ([agents/verification.md](agents/verification.md)); an entry that took custody of
   `${CMAKE_BINARY_DIR}` would put that back, and the registration helper refuses one that tries.
+  What sets the floor now is the longest single entry, so a suite that grows past its
+  neighbours is the thing to watch, not the suite count.
   **Not yet on Windows/MSVC**: `timer` fails there under `-j16` about a third to two thirds of
   runs on a weave-load assertion, measured at the same rate before this was true of the compile
   tests, so it is a separate open defect and not this seam. Windows stays serial.
