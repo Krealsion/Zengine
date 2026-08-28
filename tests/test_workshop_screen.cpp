@@ -7345,3 +7345,87 @@ TEST_CASE("WUX-2: the management row says a fine value exactly, as a reduced fra
     plain.front = 0;
     CHECK(pane_window_text(&plain) == "@6,5 40x- f0");
 }
+
+// ============================================================================
+// CTX-0 — the contextual surface's picture is the surface a press meets
+// ============================================================================
+
+TEST_CASE("CTX-0: the contextual surface is painted where it is hit") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+
+    // The published region, at `context_bounds` exactly: the heading names the SUBJECT'S
+    // IDENTITY, the hint row the ways out, and the rows are the declared population with
+    // the cursor's own mark -- labels from the one action truth, groups saying they
+    // descend.
+    const std::vector<std::string> rows = context_rows_on(t.canvases.back(), t.session());
+    REQUIRE(rows.size() >= 7);
+    CHECK(rows[0].find("ACTIONS") != std::string::npos);
+    CHECK(rows[0].find(ref_text(ref_of(panel::kBuilder))) != std::string::npos);
+    CHECK(rows[1].find("chooses") != std::string::npos);
+    CHECK(rows[1].find("closes") != std::string::npos);
+    CHECK(rows[2] == "> move");
+    CHECK(rows[3] == "  size");
+    CHECK(rows[4] == "  Arrange >");
+    CHECK(rows[5] == "  Reset >");
+    CHECK(rows[6] == "  remove");
+
+    // THE INVERSE PAIR, SPENT: a press at the row the painter drew chooses that row.
+    // Row 4 is `remove` -- and the pane is gone, through the one door.
+    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 4));
+    CHECK_FALSE(t.menu().open);
+    CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
+
+    // ...and inside a group the heading's hint says the smaller way out.
+    t.right_press(40, 0); // any subject re-opens; the room serves
+    REQUIRE(t.menu().open);
+}
+
+TEST_CASE("CTX-0: an open group paints its own rows and its own way out") {
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kReturn); // Arrange
+    REQUIRE(t.menu().group == "Arrange");
+    const std::vector<std::string> rows = context_rows_on(t.canvases.back(), t.session());
+    REQUIRE(rows.size() >= 6);
+    CHECK(rows[1].find("Arrange") != std::string::npos);
+    CHECK(rows[1].find("backs out") != std::string::npos);
+    CHECK(rows[2] == "> front");
+    CHECK(rows[3] == "  back");
+    CHECK(rows[4] == "  raise");
+    CHECK(rows[5] == "  lower");
+}
+
+TEST_CASE("CTX-0: manage.remove speaks through the keymap's own claim surfaces") {
+    // The band's legend for pane management carries the new verb the moment the row is
+    // declared -- generated, never hand-kept -- and its spelling is the effective
+    // binding's.
+    const Keymap defaults;
+    const std::vector<std::string> pairs = help_pairs(defaults, KeyContext::kManageSelect);
+    bool said = false;
+    for (const std::string& pair : pairs) {
+        if (pair == "d remove") {
+            said = true;
+        }
+    }
+    CHECK(said);
+    // ...and the contextual surface's own vocabulary is a declared context like any
+    // other, so the hotkey view can describe it and a keymap file can rebind it.
+    CHECK(defaults.action_for(KeyContext::kContext, input::scan::kReturn,
+                              input::mod::kNone) == Act::kContextChoose);
+    CHECK(defaults.action_for(KeyContext::kContext, input::scan::kEscape,
+                              input::mod::kNone) == Act::kContextBack);
+}

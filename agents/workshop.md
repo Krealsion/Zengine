@@ -692,8 +692,12 @@ words.
   (`Written`, `Handled`, `Commit`, `Availability`, `Occupancy`) and they are all on SEMANTIC
   paths; the bare bool survives only on the routing path, which is the one place it is
   adequate.
-- **Pointer order:** the terminal overlay (a MODE), then the active property editor, then the
-  action controls, then the object list, then the panel's occupancy, then the workspace.
+- **Pointer order:** the terminal overlay (a MODE), then pane management (a mode), then the
+  open contextual surface (a mode, CTX-0), then the active property editor, then the
+  action controls, then the object list, then the panel's occupancy, then the workspace. A
+  right press (button 3) is the contextual surface's opener on the ordinary path and its
+  re-targeter while it is open; inside the two modes above it, a second button still means
+  nothing.
 
 ## One executable binding truth (KEY-0)
 
@@ -770,6 +774,54 @@ EXECUTION   the owner that performs it                             untouched -- 
   command bus, no registry object, no provider-contributed declarations (the pane seam still
   has no shape for wanted keys), no TextBox remapping, no sequences/leaders/macros, no new
   wire vocabulary — KEY-0 added zero bus shapes.
+
+## What can I do with this? The contextual surface (CTX-0)
+
+A maker points at a thing — a pane, a document object, or the empty room — and Workshop
+lists the actions declared meaningful for that KIND of thing. Right-click opens it on the
+pointed subject (every backend already delivered button 3; Workshop used to drop it);
+`workshop.context` (`a`, command mode) opens it on the subject command mode can truthfully
+name: the selected object, else the room. Two laws bound the whole surface:
+
+```text
+POINTING NAMES A SUBJECT FOR ONE REQUEST.    Opening captures a temporary subject and
+SELECTION IS A STATE A MAKER ENTERED.        changes no selection, no keyboard candidate,
+                                             no focus. Move/Size are the one exception and
+                                             select only AFTER their explicit target passes
+                                             admission (`enter_pane_mode` -> the target-
+                                             taking `manage_geometry_ready`).
+OPEN REMEMBERS AN IDENTITY.                  `ContextMenu` holds a `PaneRef`, an object id,
+SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, row or handle.
+                                             The owner answers absence in its own words; a
+                                             ref outside the setup gets ONE truthful
+                                             absence sentence, not a geometry refusal.
+                                             `load_document()` drops a captured OBJECT
+                                             subject -- the one identity-aliasing door.
+```
+
+- **`kContextCatalog` (context.hpp) declares, and owns no power**: `{action id, subject
+  bits, group}` referencing `kActionCatalog` ids — no callback, no label, no gesture, no
+  availability. A stale reference is a compile error (`context_actions_resolve`). Groups
+  are their names; an empty group cannot exist (a group entry exists only where a member
+  declared it). `context_population` is the ONE population owner — painter, cursor bound,
+  keyboard choose and pointer press all spend it.
+- **Spending is one seam per subject kind**: `spend_pane_action(Act, PaneRef, Mail&)` (the
+  one switch; `manage_key` passes the mode's selection, the menu its captured ref — mode
+  bookkeeping stays with the keyboard caller), `delete_object_at(id)` (`delete_selected`
+  reused exactly when the id IS the selection, so its neighbour repair stays authoritative;
+  a live draft holds the contextual delete back with `finish_draft_first`), and the room's
+  rows call their zero-target owners directly (deliberate one-line duplication — a
+  zero-target call has no target to drift).
+- **Paint is not policy**: the menu shows what is DECLARED for the subject kind and renders
+  the captured identity (an identity, not an existence claim); the owner refuses at spend.
+  No owner predicate runs on the paint path.
+- **A mode with first refusal**: `KeyContext::kContext` sits at the top of the picker band
+  (`keyboard_context`), and the pointer branch consumes every press while open — inside:
+  navigate/choose through the painter's inverse (`context_press_at`, one composition with
+  `paint_context`, HD-3); outside: dismissal, consumed whole. `manage.remove` (`d`,
+  kManageSelect) completes the management vocabulary and is the same owner arm the menu's
+  remove row spends. The provider seam is untouched: no `PanePressed` for a second button,
+  no provider-contributed rows, nothing crosses.
 
 ## A thing that HAPPENED and a thing that is TRUE are two surfaces (WUX-4)
 
@@ -854,7 +906,8 @@ granted; the same three `external_press` already requires.
   leaves the candidate exactly where it was and closing it hands the keys straight back. The
   priority reads: the above-mode actions (the keymap's `kGlobal` rows — save, open, the
   terminal toggle, the hotkey view — and quit's `kNoText` chord exactly where nothing takes
-  text, TEXT-0), then the five modes, then a focused pane, then a live property draft, then
+  text, TEXT-0), then the six modes (the contextual surface joined the picker's band at its
+  top, CTX-0), then a focused pane, then a live property draft, then
   `command()` — spelled once, in `keyboard_context` (KEY-0).
 - **A focused pane sits ABOVE a live property draft**, and the symmetry is what decides it:
   both are PLACES reached by pressing into them, so the one that answers is the one the maker

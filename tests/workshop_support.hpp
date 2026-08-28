@@ -830,6 +830,27 @@ struct Live {
         publish(loom::to_value(input::PointerButton{1, false, term_x(wx), term_y(wy),
                                                     input::space::kCells, input::mod::kNone}));
     }
+    /// A SECOND-BUTTON press at a workspace cell (CTX-0) -- the same translation `press`
+    /// uses, for the button that asks a question instead of taking hold.
+    void right_press(std::int64_t wx, std::int64_t wy) {
+        publish(loom::to_value(input::PointerButton{3, true, term_x(wx), term_y(wy),
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    /// The same two gestures at a CANVAS cell -- for presses on Workshop's own furniture
+    /// (a pane's slot, the contextual surface), which is placed on the canvas and never
+    /// in the document's room.
+    void press_canvas(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{1, true, cx,
+                                                    cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    void right_press_canvas(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{3, true, cx,
+                                                    cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    /// The contextual-action surface's state, as every CTX-0 case reads it.
+    const ContextMenu& menu() const { return w->session().context; }
     void motion(std::int64_t wx, std::int64_t wy) {
         publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
                                                    input::space::kCells, input::mod::kNone}));
@@ -1797,6 +1818,11 @@ struct PaneRig {
         publish(loom::to_value(input::PointerButton{1, true, px, py, input::space::kPixels,
                                                     input::mod::kNone}));
     }
+    /// A SECOND-BUTTON press at a canvas cell (CTX-0), `press_cell`'s own translation.
+    void right_press_cell(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{3, true, cx, cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
     void release_cell(std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerButton{1, false, cx, cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
@@ -2023,6 +2049,46 @@ inline bool is_permutation(const Setup& s) {
         seen[static_cast<std::size_t>(row.front)] = true;
     }
     return true;
+}
+
+/// THE CONTEXTUAL SURFACE'S GEOMETRY IN CANVAS CELLS on a CELL medium (CTX-0) -- through
+/// the same `context_bounds` the painter and the press resolver spend, never a second
+/// arithmetic. `context_entry_cell_y` is population row `index`'s canvas row WHILE the
+/// window shows the population from its top with no `earlier` marker, which every case
+/// using it arranges (the pane and object populations always fit the column).
+inline std::int64_t context_cell_x(const Session& s) {
+    return surface::cell_of_subs(context_bounds(screen_of(s)).x) + 1;
+}
+inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
+    return surface::cell_of_subs(context_bounds(screen_of(s)).y) + kContextHeadingRows +
+           static_cast<std::int64_t>(index);
+}
+
+/// The surface's published region, read off a canvas at exactly its bounds -- searched
+/// BACK TO FRONT because the picker, a slot-seated pane and the attention view can share
+/// the column's origin, and the contextual surface paints over all of them.
+inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
+                                                const Session& s) {
+    const surface::SurfaceTextRegion want = panel_prose_region(context_bounds(screen_of(s)));
+    for (std::size_t li = c.layers.size(); li > 0; --li) {
+        const surface::SurfaceLayer& layer = c.layers[li - 1];
+        for (std::size_t ri = layer.texts.size(); ri > 0; --ri) {
+            const surface::SurfaceTextRegion& r = layer.texts[ri - 1];
+            if (r.x != want.x || r.y != want.y || r.w != want.w || r.h != want.h) {
+                continue;
+            }
+            std::vector<std::string> out;
+            for (const surface::SurfaceTextRow& row : r.rows) {
+                std::string text = row.text;
+                while (!text.empty() && text.back() == ' ') {
+                    text.pop_back();
+                }
+                out.push_back(std::move(text));
+            }
+            return out;
+        }
+    }
+    return {};
 }
 
 /// OPEN A PANE THROUGH THE PICKER, the way a maker does -- and BOUNDED, so a case that

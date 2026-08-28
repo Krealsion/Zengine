@@ -6606,3 +6606,67 @@ TEST_CASE("INTR-1: neither projection names a power, a provider or an artifact")
         }
     }
 }
+
+// ============================================================================
+// CTX-0 — the contextual surface at the pane seam: Workshop-owned, seam-silent
+// ============================================================================
+
+TEST_CASE("CTX-0: a right press over a provider's pane crosses the seam not at all") {
+    // Workshop may offer its OWN actions about the rectangle it placed; the provider
+    // hears nothing -- no `PanePressed` (the seam cannot say a second button, in writing
+    // and in the case above this one), no key, no text, no room change.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const std::int64_t keyboard_before = r.session().panels.keyboard;
+    const std::int64_t said_before = seat->said;
+
+    r.right_press_cell(panel.x + 1, panel.y + 2);
+    CHECK(r.session().context.open);
+    CHECK(r.session().context.subject == context_subject::kPane);
+    CHECK(r.session().context.pane == hello_ref());
+    CHECK(seat->presses.empty());
+    CHECK(seat->said == said_before);
+    // ...and asking about a pane did not point the keyboard at it.
+    CHECK(r.session().panels.keyboard == keyboard_before);
+
+    // The population offered ABOUT it is Workshop's arrangement vocabulary -- rows that
+    // act on the rectangle, never on the provider's content.
+    const std::vector<ContextEntry> rows = context_population(context_subject::kPane, "");
+    REQUIRE(rows.size() == 5);
+    CHECK(rows[4].row->act == Act::kManageRemove);
+}
+
+TEST_CASE("CTX-0: input spent on the open surface reaches no provider") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    r.right_press_cell(panel.x + 1, panel.y + 2);
+    REQUIRE(r.session().context.open);
+    const std::size_t presses_before = seat->presses.size();
+
+    // The surface's column and the pane's slot share cells; a primary press there is the
+    // surface's to spend while it is open, and the provider hears nothing of it. The
+    // heading row: the surface's own furniture, consumed silently.
+    r.press_cell(panel.x + 1, panel.y);
+    CHECK(seat->presses.size() == presses_before);
+    CHECK(r.session().context.open);
+    // Removing THIS pane through its own menu: still nothing crosses -- a panel is a
+    // presentation, and removing one removes a presentation.
+    for (int step = 0; step < 4; ++step) {
+        r.key(input::scan::kDown);
+    }
+    r.key(input::scan::kReturn);
+    CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    CHECK(seat->presses.empty());
+    CHECK(seat->keys.empty());
+    CHECK(seat->typed.empty());
+}

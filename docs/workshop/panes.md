@@ -52,11 +52,41 @@ width, h height, o order, esc back`), so the table below is the missing first st
 | `b` | send to back |
 | `r` | raise one step |
 | `l` | lower one step |
+| `d` | remove the selected pane — the picker brings it back |
 | `0` | **reset** — then `p` place, `w` width, `h` height, `o` order; `Esc` back |
 | `Esc` | close management |
 
 Everything you author here goes into the **setup**, so it survives if you save it with `s`.
 See [setups](setups.md).
+
+## The context menu — what can I do with this?
+
+**Right-click anything** and Workshop lists what can be done with the thing you pointed at —
+the same operations its keys already perform, aimed at that thing:
+
+- **a pane** — `move`, `size`, `Arrange >` (front / back / raise / lower), `Reset >`
+  (place / width / height), `remove`;
+- **a document object** — `delete`;
+- **the empty room** — Workshop's own doors: a new object, the picker, management, the
+  terminal, attention, the hotkey view, save / open, the setup gestures, reset order.
+
+While the menu is open: `↑` `↓` choose a row, `Enter` chooses it (a `… >` row opens its
+group), `Esc` backs out of a group or closes the menu, and a click outside dismisses it —
+a click spent on closing the menu never also operates whatever it landed on. **`a`** opens
+the same menu from the keyboard, on the selected object or the empty room, so the
+capability does not depend on a mouse.
+
+**Pointing is not selecting.** Opening the menu on a pane or an object changes no
+selection and moves no keyboard focus — the menu holds the pointed thing only for the one
+action you choose. `move` and `size` are the deliberate exception: choosing one enters
+management **on that pane**, because arranging is an ongoing state, and only after the
+pane passes the same checks the `w` road applies.
+
+The menu offers what is *meaningful* for that kind of thing, not a prediction of success —
+choose `move` on the Info panel and the owner answers in its own words (`the screen owns
+its place`). On a terminal, whether a right-click reaches Workshop at all is the terminal
+emulator's decision first (the Windows console and Windows Terminal both hand it through);
+the `a` key works everywhere.
 
 ### What "front" means
 

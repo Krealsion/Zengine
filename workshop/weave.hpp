@@ -748,6 +748,7 @@ public:
         case KeyContext::kNaming: naming_key(k, mail); break;
         case KeyContext::kPicker: picker_key(k, mail); break;
         case KeyContext::kAttention: attention_key(k); break;
+        case KeyContext::kContext: context_key(k, mail); break;
         case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
         case KeyContext::kDraft: editing_key(k); break;
         default: command(k, mail); break;
@@ -844,6 +845,209 @@ public:
             }
             break;
         }
+    }
+
+    // ---- What can I do with this? The contextual-action surface (CTX-0) -------
+    //
+    // POINTING NAMES A SUBJECT FOR ONE REQUEST. SELECTION IS A STATE A MAKER ENTERED.
+    // Opening this surface captures a temporary subject -- a `PaneRef`, an object id, or
+    // nothing -- and changes no persistent selection, no keyboard candidate and no focus.
+    // OPEN REMEMBERS AN IDENTITY; SPEND RE-ASKS ITS OWNER: a chosen row closes the
+    // surface and hands the captured identity to the same owner operation the keyboard
+    // reaches, which answers absence and refusal in its own words. The surface owns only
+    // its subject and its own interaction mode, and it performs nothing itself.
+
+    /// OPEN ON WHAT IS POINTED AT. The subject resolvers are the pointer route's own --
+    /// `occupied_at` for a presentation, `object_at` for the authored material -- asked
+    /// once, at the press, for identity ONLY. A presentation that is not an arrangeable
+    /// pane (the picker's rectangle) and an empty cell both name the room: a subject with
+    /// no identity is a real subject here.
+    ///
+    /// DELIBERATELY UNWRITTEN: `session_.panels.keyboard`. A LEFT press points the
+    /// keyboard at what it lands on; a right press asks a question about it, and asking
+    /// about a pane must not steal the keys from wherever the maker was typing.
+    void open_context_at(const PointedAt& at) {
+        ContextMenu next;
+        next.open = true;
+        const Occupancy here =
+            occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
+        if (here.occupied) {
+            // The setup row that RESOLVES to the pointed presentation -- the durable
+            // identity, never the kind handle (`manage_press`'s own walk). The picker's
+            // rectangle resolves to no row and falls through to the room.
+            for (const SetupPane& row : session_.setup.active.panes) {
+                const std::optional<std::int64_t> named =
+                    resolve_pane(row.ref, session_.panels.runtime);
+                if (named.has_value() && *named == here.kind) {
+                    next.subject = context_subject::kPane;
+                    next.pane = row.ref;
+                    break;
+                }
+            }
+        } else {
+            const std::int64_t id = object_at(state_, session_, workspace_cell_x(at.cell.x),
+                                              workspace_cell_y(at.cell.y));
+            if (id != 0) {
+                next.subject = context_subject::kObject;
+                next.object = id;
+            }
+        }
+        session_.context = next;
+    }
+
+    /// OPEN BY KEY, on the subject command mode can truthfully name: the selected object
+    /// while one resolves, else the room. This is the route that keeps the capability
+    /// honest on a medium whose environment never delivers the second button -- and it
+    /// deliberately does not reach for a pane: pane management IS the keyboard's road to
+    /// the pane vocabulary, `manage.remove` included, and a subject the current state
+    /// does not name must not be guessed at.
+    void open_context_ambient() {
+        ContextMenu next;
+        next.open = true;
+        if (doc::find(state_, session_.selected) != nullptr) {
+            next.subject = context_subject::kObject;
+            next.object = session_.selected;
+        }
+        session_.context = next;
+    }
+
+    /// Close it whole: subject, group and cursor go together, so a later open cannot
+    /// inherit a stale identity. Silent -- the surface disappearing is the statement.
+    void close_context() { session_.context = ContextMenu{}; }
+
+    /// The surface's own keys: the picker's four, plus the opener closing it.
+    void context_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        ContextMenu& menu = session_.context;
+        const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+        menu.cursor = context_cursor_bound(menu.cursor, rows.size());
+        switch (session_.keymap.action_for(KeyContext::kContext, k.scancode, k.modifiers)) {
+        case Act::kContextUp:
+            if (menu.cursor > 0) {
+                --menu.cursor;
+            }
+            break;
+        case Act::kContextDown:
+            if (menu.cursor + 1 < rows.size()) {
+                ++menu.cursor;
+            }
+            break;
+        case Act::kContextChoose: choose_context_row(mail); break;
+        case Act::kContextBack:
+            // ESCAPE DOES THE APPROPRIATE SMALLER THING: out of an open group, else out
+            // of the surface -- pane management's done/close pair, in a surface whose
+            // depth is presentation state rather than a submode.
+            if (!menu.group.empty()) {
+                leave_context_group();
+            } else {
+                close_context();
+            }
+            break;
+        default:
+            // THE KEY THAT OPENED IT CLOSES IT -- the shared rule, following the
+            // opener's effective binding wherever a maker moved it.
+            if (session_.keymap.matches(Act::kContextOpen, k.scancode, k.modifiers)) {
+                close_context();
+            }
+            break;
+        }
+    }
+
+    /// Back out one level, with the cursor landing on the group the maker just left --
+    /// what makes backtracking read as returning rather than starting over.
+    void leave_context_group() {
+        ContextMenu& menu = session_.context;
+        const std::string was = menu.group;
+        menu.group.clear();
+        menu.cursor = 0;
+        const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].is_group && was == rows[i].group) {
+                menu.cursor = i;
+                break;
+            }
+        }
+    }
+
+    /// CHOOSE THE ROW THE CURSOR IS ON. One action whose meaning the row decides
+    /// (`picker.choose`'s shape): a group row descends, an action row requests -- and a
+    /// request CLOSES THE SURFACE FIRST, because the maker's question is answered the
+    /// moment they choose; what remains is the operation, and the operation may open a
+    /// mode of its own.
+    void choose_context_row(loom::Mail& mail) {
+        ContextMenu& menu = session_.context;
+        const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+        if (menu.cursor >= rows.size()) {
+            return; // the belt, not the door
+        }
+        const ContextEntry chosen = rows[menu.cursor];
+        if (chosen.is_group) {
+            menu.group = chosen.group;
+            menu.cursor = 0;
+            return;
+        }
+        if (chosen.row == nullptr) {
+            return; // unreachable: the catalog cross-check is a compile-time assertion
+        }
+        const ContextMenu spent = menu;
+        close_context();
+        spend_context_choice(chosen.row->act, spent, mail);
+    }
+
+    /// SPEND ONE CHOSEN ACTION against the captured subject. Every arm calls the owner
+    /// the keyboard calls: the pane rows go through the one target-taking seam with the
+    /// CAPTURED pane, the object row through the explicit-id delete, and the room rows
+    /// are the same zero-target owner calls `command()` makes -- duplicated one-line
+    /// arms, deliberately, because a zero-target call has no target to drift.
+    void spend_context_choice(Act a, const ContextMenu& spent, loom::Mail& mail) {
+        switch (a) {
+        // -- the pointed pane ---------------------------------------------------------
+        case Act::kManageMove:
+        case Act::kManageSize: enter_pane_mode(a, spent.pane); break;
+        case Act::kManageFront:
+        case Act::kManageBack:
+        case Act::kManageRaise:
+        case Act::kManageLower:
+        case Act::kManageResetPlace:
+        case Act::kManageResetWidth:
+        case Act::kManageResetHeight:
+        case Act::kManageRemove: spend_pane_action(a, spent.pane, mail); break;
+        // -- the pointed object -------------------------------------------------------
+        case Act::kObjectDelete: context_delete_object(spent.object); break;
+        // -- the room -----------------------------------------------------------------
+        case Act::kObjectNew: create_object(); break;
+        case Act::kPicker: open_picker(); break;
+        case Act::kManage: open_management(); break;
+        case Act::kTerminalToggle: toggle_terminal(); break;
+        case Act::kAttention: toggle_attention(); break;
+        case Act::kHotkeys: toggle_hotkeys(); break;
+        case Act::kSaveDocument: save_document(); break;
+        case Act::kOpenDocument: load_document(); break;
+        case Act::kSetupName: open_setup_name(); break;
+        case Act::kSetupRestore: restore_setup(mail); break;
+        case Act::kManageResetOrder: reset_front_order(); break;
+        default: break;
+        }
+    }
+
+    /// A BUTTON-1 PRESS WHILE THE SURFACE IS OPEN. Inside the rectangle a press is the
+    /// pointer's choose -- the same population index the painter drew, through the
+    /// painter's inverse -- and the surface's own furniture consumes a press silently.
+    /// OUTSIDE it, the press is spent on dismissal: consumed whole, reaching no pane, no
+    /// provider, no object and no keyboard candidate, because a click that closes a menu
+    /// must not also operate what it happened to land on.
+    void context_press(const PointedAt& at, std::int64_t space, std::int64_t x,
+                       std::int64_t y, loom::Mail& mail) {
+        const ContextPressAt hit =
+            context_press_at(session_, screen_of(session_), space, x, y, at);
+        if (!hit.inside) {
+            close_context();
+            return;
+        }
+        if (!hit.entry) {
+            return;
+        }
+        session_.context.cursor = hit.index;
+        choose_context_row(mail);
     }
 
     /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo
@@ -1172,7 +1376,52 @@ public:
             repaint(mail);
             return;
         }
+        // THE CONTEXTUAL SURFACE HAS FIRST REFUSAL WHILE IT IS OPEN (CTX-0) -- a mode in
+        // the two above's family, below both because both existed first and neither can
+        // be open at the same time as this one through any current door. A press inside
+        // it navigates or chooses; a press outside it dismisses and is CONSUMED, so a
+        // click spent on closing a menu cannot also select an object, focus a pane or
+        // reach a provider. A further right press re-asks the question about whatever is
+        // pointed at now -- opening is re-targeting, not a toggle.
+        if (session_.context.open) {
+            const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+            if (b.pressed && b.button == 3) {
+                if (where.understood) {
+                    open_context_at(where);
+                    repaint(mail);
+                }
+                return;
+            }
+            if (b.button != 1) {
+                return;
+            }
+            if (!b.pressed) {
+                // A RELEASE STILL ENDS A GESTURE THAT BEGAN BEFORE THE SURFACE OPENED --
+                // the Terminal's and management's own repair: a right press can arrive
+                // mid-drag, and occluding the release would leave a drag active with the
+                // button up.
+                (void)end_held_gestures();
+                return;
+            }
+            if (!where.understood) {
+                return;
+            }
+            context_press(where, b.space, b.x, b.y, mail);
+            repaint(mail);
+            return;
+        }
         const PointedAt at = canvas_point_of(b.space, b.x, b.y);
+        // A RIGHT PRESS ASKS "WHAT CAN I DO WITH THIS?" (CTX-0). Before this branch a
+        // second button meant nothing anywhere in Workshop, so consuming it displaces no
+        // behaviour and steals nothing from any provider -- the pane seam cannot say a
+        // second button, deliberately, and no `PanePressed` is sent for one. Only a press
+        // opens; a release of button 3 falls through to the gate below and is dropped, as
+        // every non-primary transition always was.
+        if (b.pressed && b.button == 3 && at.understood) {
+            open_context_at(at);
+            repaint(mail);
+            return;
+        }
         if (b.button != 1 || !at.understood) {
             return;
         }
@@ -2747,6 +2996,9 @@ private:
         // centrally from the binding since KEY-0 -- and buys a mode whose own keys need
         // no modifier at all (P48).
         case Act::kManage: open_management(); break;
+        // WHAT CAN I DO WITH THIS? -- the contextual-action surface, on the subject
+        // command mode can truthfully name (CTX-0).
+        case Act::kContextOpen: open_context_ambient(); break;
         // PANE TITLES ARE A PRESENTATION PREFERENCE WITH A KEY (WUX-1). The flip is one
         // session bit; everything it changes on screen -- the arrangeable panes' header
         // rows, the row returned to or taken back from each provider's budget -- follows
@@ -3480,21 +3732,34 @@ private:
     /// objects in a maker's document, which PNL-0 refuses. A pane with no rectangle right now
     /// has nothing to measure a move or a resize against; its RESET and its ORDER still work,
     /// which is what makes the row a recovery path rather than a dead end.
-    Written manage_geometry_ready() const {
-        const PaneManagement& m = session_.manage;
-        if (!m.has_selection()) {
+    ///
+    /// THE TARGET IS EXPLICIT SINCE CTX-0. The keyboard passes the mode's selection and the
+    /// contextual surface passes its captured subject, so Move and Size can CHECK a pointed
+    /// pane before anything selects it -- admission precedes selection, and a refusal leaves
+    /// no dead management state behind.
+    Written manage_geometry_ready(const PaneRef& ref) const {
+        if (ref.provider.empty()) {
             return Written::no("no pane is selected");
         }
-        const std::optional<std::int64_t> kind = resolve_pane(m.selected, session_.panels.runtime);
+        // A CAPTURED SUBJECT HAS NO `forget_removed_selection` KEEPING IT FRESH, so absence
+        // is answered here, first, in its own words -- falling through would report a
+        // removed pane as "has no room on this screen yet": true of the screen, wrong about
+        // the cause. For the mode's own selection this branch is unreachable today (the
+        // clearing runs inside `apply_setup`), and it is written anyway: belt, not door.
+        if (!has_pane(session_.setup.active, ref)) {
+            return Written::no(ref_text(ref) + " is no longer in this setup -- " +
+                               hotkey(Act::kPicker) + " can bring it back");
+        }
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
         if (!kind.has_value()) {
-            return Written::no(ref_text(m.selected) +
+            return Written::no(ref_text(ref) +
                                " is unresolved -- its place and size cannot be measured; "
                                "0 resets it and f/b/r/l still order it");
         }
         // A UNIT OUTRANKS A RESERVATION, the same precedence `pane_state_of` spends between
         // a unit and a want of room (WIND-2a). Both sentences are true of a fixed pane
         // sized in pixels, and only one of them tells a maker what to press.
-        if (!pane_unit_projectable(pane_of(session_.setup.active, m.selected))) {
+        if (!pane_unit_projectable(pane_of(session_.setup.active, ref))) {
             return Written::no(kind_name(session_.panels, *kind) +
                                " is sized in pixels, which no medium here can project -- "
                                "0 then w or h resets that axis");
@@ -3575,7 +3840,7 @@ private:
     /// all and is said as a refusal; in particular it cannot author a reactive place as a
     /// side effect. Only a proposal refused on EVERY axis it moved is refused whole.
     void manage_place(std::int64_t x, std::int64_t y, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready();
+        const Written ready = manage_geometry_ready(session_.manage.selected);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
@@ -3615,7 +3880,7 @@ private:
     /// honest step; what the finer lattice buys it is that a nudge PRESERVES a fine
     /// remainder a pointer authored — plus forty-eight sub-units is still plus one cell.
     void manage_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready();
+        const Written ready = manage_geometry_ready(session_.manage.selected);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
@@ -3644,7 +3909,7 @@ private:
     void manage_resize(std::int64_t base_x, std::int64_t base_y, std::int64_t base_w,
                        std::int64_t base_h, std::int64_t dx, std::int64_t dy,
                        loom::Mail& mail) {
-        const Written ready = manage_geometry_ready();
+        const Written ready = manage_geometry_ready(session_.manage.selected);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
@@ -3693,7 +3958,7 @@ private:
     /// One press is one CELL of delta, through the same anchored proposal the pointer takes,
     /// so a key on the top edge moves `y` with the height exactly as a hand there does.
     void manage_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready();
+        const Written ready = manage_geometry_ready(session_.manage.selected);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
@@ -3704,72 +3969,149 @@ private:
                       dy * surface::kCellSubs, mail);
     }
 
-    /// THE FOUR ORDERING OPERATIONS. They are available for EVERY selected row, including an
-    /// unresolved one, because the rank is over all authored rows and reordering one writes
-    /// nothing that seating or placement reads.
-    void manage_order(std::int64_t which) {
-        PaneManagement& m = session_.manage;
-        if (!m.has_selection()) {
+    /// ONE PANE ACTION, PERFORMED ON AN EXPLICIT TARGET -- the one place a targeted pane
+    /// operation is spent, whatever asked for it (CTX-0; `end_held_gestures`' shape: one
+    /// owner, several callers, not a framework).
+    ///
+    /// TWO CALLERS, ONE ARM PER ACTION. `manage_key` passes the mode's ambient selection;
+    /// the contextual surface passes its captured subject. Selection is never written as
+    /// request transport in either direction, and the operation's own sentences stay here
+    /// with the operation (INT-R0: the sentence belongs to the layer whose vocabulary
+    /// holds the reason). Mode bookkeeping -- a reset dropping the submode back to select
+    /// -- stays with the keyboard caller, because the contextual caller is not in a mode.
+    ///
+    /// ABSENCE IS ANSWERED FIRST, IN ITS OWN WORDS. Every operation underneath already
+    /// answers a reference outside the setup with `false`, but that `false` shares a
+    /// sentence with "nothing to do" -- and "is already where that would put it" about a
+    /// pane that is GONE is a true bool wearing a wrong sentence. One membership test, one
+    /// truthful sentence, for every arm. (For the keyboard caller this is unreachable
+    /// today -- `forget_removed_selection` runs inside `apply_setup` -- belt, not door.)
+    void spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mail) {
+        if (ref.provider.empty()) {
             say("no pane is selected", true);
             return;
         }
         Setup& s = session_.setup.active;
-        bool moved = false;
-        const char* what = "";
-        switch (which) {
-        case 0: moved = send_to_front(s, m.selected); what = "front-most"; break;
-        case 1: moved = send_to_back(s, m.selected); what = "back-most"; break;
-        case 2: moved = raise_one(s, m.selected); what = "raised"; break;
-        default: moved = lower_one(s, m.selected); what = "lowered"; break;
-        }
-        if (!moved) {
-            say(ref_text(m.selected) + " is already where that would put it", true);
+        if (!has_pane(s, ref)) {
+            say(ref_text(ref) + " is no longer in this setup -- " + hotkey(Act::kPicker) +
+                    " can bring it back",
+                true);
             return;
         }
-        say(ref_text(m.selected) + " " + what + " -- " +
-                pane_window_text(pane_of(s, m.selected)),
-            false);
+        switch (a) {
+        // THE FOUR ORDERING OPERATIONS. Available for EVERY row, including an unresolved
+        // one, because the rank is over all authored rows and reordering one writes
+        // nothing that seating or placement reads.
+        case Act::kManageFront:
+        case Act::kManageBack:
+        case Act::kManageRaise:
+        case Act::kManageLower: {
+            bool moved = false;
+            const char* what = "";
+            switch (a) {
+            case Act::kManageFront: moved = send_to_front(s, ref); what = "front-most"; break;
+            case Act::kManageBack: moved = send_to_back(s, ref); what = "back-most"; break;
+            case Act::kManageRaise: moved = raise_one(s, ref); what = "raised"; break;
+            default: moved = lower_one(s, ref); what = "lowered"; break;
+            }
+            if (!moved) {
+                say(ref_text(ref) + " is already where that would put it", true);
+                return;
+            }
+            say(ref_text(ref) + " " + what + " -- " + pane_window_text(pane_of(s, ref)),
+                false);
+            return;
+        }
+        // THE PER-PANE RESETS, one per authored dimension. (`order` is the whole setup's
+        // and zero-target -- `reset_front_order` below -- because the rank is a
+        // permutation over all of it.)
+        case Act::kManageResetPlace:
+        case Act::kManageResetWidth:
+        case Act::kManageResetHeight: {
+            bool moved = false;
+            const char* what = "";
+            if (a == Act::kManageResetPlace) {
+                moved = reset_pane_place(s, ref);
+                what = "place";
+            } else if (a == Act::kManageResetWidth) {
+                moved = reset_pane_width(s, ref);
+                what = "width";
+            } else {
+                moved = reset_pane_height(s, ref);
+                what = "height";
+            }
+            if (!moved) {
+                say(ref_text(ref) + " already takes the developer's " + what, true);
+                return;
+            }
+            // A PLACE RESET PUTS THE PANE BACK IN THE REACTIVE STACK, so the seating has
+            // to be reconciled for the same reason authoring one does.
+            apply_setup(mail);
+            say(ref_text(ref) + " " + what + " reset -- " +
+                    pane_window_text(pane_of(s, ref)),
+                false);
+            return;
+        }
+        // REMOVE THIS PANE (CTX-0). The picker's own semantics through the picker's own
+        // door: the intent leaves the setup, `apply_setup` is what closes the
+        // presentation, and what the pane was presenting is untouched -- a panel is a
+        // presentation, and removing one removes a presentation. A removal works on a
+        // waiting or unresolved row exactly as on an open one (WP-0's rule).
+        case Act::kManageRemove: {
+            const std::string name = ref_text(ref);
+            if (!remove_pane(s, ref)) {
+                say(name + " is no longer in this setup -- " + hotkey(Act::kPicker) +
+                        " can bring it back",
+                    true);
+                return;
+            }
+            apply_setup(mail);
+            say("removed " + name + " -- " + hotkey(Act::kPicker) +
+                    " brings it back; nothing behind it was touched",
+                false);
+            return;
+        }
+        default: return;
+        }
     }
 
-    /// THE RESETS, one per authored dimension. `order` is the whole setup's, because the rank
-    /// is a permutation over all of it and there is no such thing as resetting one row's
-    /// place in an order without deciding every other row's.
-    void manage_reset(std::int64_t which, loom::Mail& mail) {
+    /// RESET THE WHOLE SETUP'S FRONT ORDER -- zero-target, one owner call and its
+    /// sentence, spent by the keyboard's reset submode and by the room's contextual row.
+    void reset_front_order() {
+        reset_front(session_.setup.active);
+        say("front order reset to the setup's own order", false);
+    }
+
+    /// ENTER MOVE OR SIZE ON AN EXPLICIT PANE -- admission BEFORE selection (CTX-0).
+    ///
+    /// The check runs against the explicit target and a refusal returns before anything
+    /// is written, so a contextual entry that cannot proceed establishes no management
+    /// selection, no submode and no mode -- a maker is never left inside pane management
+    /// aimed at nothing. Only ACCEPTANCE establishes the selection, and that is the one
+    /// deliberate exception to "pointing is not selection": Move and Size begin ongoing
+    /// maker interest, and entering them on a pane IS selecting it.
+    ///
+    /// The keyboard's own Move/Size arms come through here too, with the mode's current
+    /// selection -- the mode is already open, so `m.open = true` and the re-assignment of
+    /// the same selection change nothing, and the two doors cannot drift.
+    void enter_pane_mode(Act a, const PaneRef& ref) {
+        const Written ready = manage_geometry_ready(ref);
+        if (!ready.accepted) {
+            say(ready.refusal, true);
+            return;
+        }
         PaneManagement& m = session_.manage;
-        Setup& s = session_.setup.active;
-        if (which == 3) {
-            reset_front(s);
-            m.doing = pane_manage::kSelect;
-            say("front order reset to the setup's own order", false);
-            return;
-        }
-        if (!m.has_selection()) {
-            say("no pane is selected", true);
-            return;
-        }
-        bool moved = false;
-        const char* what = "";
-        if (which == 0) {
-            moved = reset_pane_place(s, m.selected);
-            what = "place";
-        } else if (which == 1) {
-            moved = reset_pane_width(s, m.selected);
-            what = "width";
+        m.open = true;
+        m.selected = ref;
+        if (a == Act::kManageMove) {
+            m.doing = pane_manage::kMove;
+            say(manage_status(), false);
         } else {
-            moved = reset_pane_height(s, m.selected);
-            what = "height";
+            m.doing = pane_manage::kSize;
+            say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
+                    pane_edge_name(m.edge),
+                false);
         }
-        m.doing = pane_manage::kSelect;
-        if (!moved) {
-            say(ref_text(m.selected) + " already takes the developer's " + what, true);
-            return;
-        }
-        // A PLACE RESET PUTS THE PANE BACK IN THE REACTIVE STACK, so the seating has to be
-        // reconciled for the same reason authoring one does.
-        apply_setup(mail);
-        say(ref_text(m.selected) + " " + what + " reset -- " +
-                pane_window_text(pane_of(s, m.selected)),
-            false);
     }
 
     /// Pane management's keys. Four steps, and every one of them returns one level on its
@@ -3777,7 +4119,9 @@ private:
     /// KEY-0: each submode is its own keymap context (`keyboard_context` reads
     /// `manage.doing`), so `action_for` already answers `kNone` for a gesture that
     /// belongs to a submode the maker is not in, and an arm below cannot fire out of its
-    /// step by construction.
+    /// step by construction. The targeted operations go through `spend_pane_action` with
+    /// the mode's selection since CTX-0 -- the ambient read is this caller's, the
+    /// operation is the shared owner's, and the submode bookkeeping stays here.
     void manage_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         PaneManagement& m = session_.manage;
         const KeyContext ctx = keyboard_context(session_);
@@ -3785,32 +4129,15 @@ private:
         // -- selecting ------------------------------------------------------------------
         case Act::kManageNext: manage_step(+1); break;
         case Act::kManagePrevious: manage_step(-1); break;
-        case Act::kManageMove: {
-            const Written ready = manage_geometry_ready();
-            if (!ready.accepted) {
-                say(ready.refusal, true);
-                break;
-            }
-            m.doing = pane_manage::kMove;
-            say(manage_status(), false);
+        case Act::kManageMove: enter_pane_mode(Act::kManageMove, m.selected); break;
+        case Act::kManageSize: enter_pane_mode(Act::kManageSize, m.selected); break;
+        case Act::kManageFront: spend_pane_action(Act::kManageFront, m.selected, mail); break;
+        case Act::kManageBack: spend_pane_action(Act::kManageBack, m.selected, mail); break;
+        case Act::kManageRaise: spend_pane_action(Act::kManageRaise, m.selected, mail); break;
+        case Act::kManageLower: spend_pane_action(Act::kManageLower, m.selected, mail); break;
+        case Act::kManageRemove:
+            spend_pane_action(Act::kManageRemove, m.selected, mail);
             break;
-        }
-        case Act::kManageSize: {
-            const Written ready = manage_geometry_ready();
-            if (!ready.accepted) {
-                say(ready.refusal, true);
-                break;
-            }
-            m.doing = pane_manage::kSize;
-            say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
-                    pane_edge_name(m.edge),
-                false);
-            break;
-        }
-        case Act::kManageFront: manage_order(0); break;
-        case Act::kManageBack: manage_order(1); break;
-        case Act::kManageRaise: manage_order(2); break;
-        case Act::kManageLower: manage_order(3); break;
         case Act::kManageReset:
             m.doing = pane_manage::kReset;
             say("+ window reset -- " + hotkey_text(session_.keymap, Act::kManageResetPlace) +
@@ -3838,10 +4165,31 @@ private:
         case Act::kManagePullUp: manage_grow(0, -1, mail); break;
         case Act::kManagePullDown: manage_grow(0, +1, mail); break;
         // -- resetting ------------------------------------------------------------------
-        case Act::kManageResetPlace: manage_reset(0, mail); break;
-        case Act::kManageResetWidth: manage_reset(1, mail); break;
-        case Act::kManageResetHeight: manage_reset(2, mail); break;
-        case Act::kManageResetOrder: manage_reset(3, mail); break;
+        // The submode drops back to select exactly when the reset REACHED its operation
+        // (the pre-CTX-0 behaviour, preserved: a refusal for want of a selection leaves
+        // the maker in the reset step they were in).
+        case Act::kManageResetPlace:
+            spend_pane_action(Act::kManageResetPlace, m.selected, mail);
+            if (m.has_selection()) {
+                m.doing = pane_manage::kSelect;
+            }
+            break;
+        case Act::kManageResetWidth:
+            spend_pane_action(Act::kManageResetWidth, m.selected, mail);
+            if (m.has_selection()) {
+                m.doing = pane_manage::kSelect;
+            }
+            break;
+        case Act::kManageResetHeight:
+            spend_pane_action(Act::kManageResetHeight, m.selected, mail);
+            if (m.has_selection()) {
+                m.doing = pane_manage::kSelect;
+            }
+            break;
+        case Act::kManageResetOrder:
+            reset_front_order();
+            m.doing = pane_manage::kSelect;
+            break;
         // -- one level back, from any submode -------------------------------------------
         case Act::kManageDone:
             m.doing = pane_manage::kSelect;
@@ -4248,6 +4596,14 @@ private:
         }
         end_drag(session_);
         open_on_first();
+        // A DOCUMENT REPLACEMENT IS THE ONE PATH an old object identity can come to
+        // alias a different object -- the file restores the mint -- so a captured
+        // contextual subject from the old document is dropped at this door, exactly as
+        // the selection is re-established rather than preserved (CTX-0). A room or pane
+        // subject names nothing the replacement touched and stands.
+        if (session_.context.subject == context_subject::kObject) {
+            session_.context = ContextMenu{};
+        }
         saved_ = state_;
         say("loaded " + host_->document_path + " -- " + std::to_string(state_.elements.size()) +
                 " objects",
@@ -4277,9 +4633,20 @@ private:
         say("created #" + std::to_string(id) + " -- a new identity, not a new name", false);
     }
 
-    /// Delete the selected one, and say where the selection went. "Deleted, and
-    /// you are now on #2" is one fact; leaving a maker to work out which object
-    /// the inspector is suddenly showing is two.
+    /// What deleting THE SELECTED object says, read after the repair: where the selection
+    /// went. One spelling for the keyboard's delete and the contextual one, so the two
+    /// gestures cannot describe the same act differently -- "deleted, and you are now on
+    /// #2" is one fact; leaving a maker to work out which object the inspector is
+    /// suddenly showing is two.
+    std::string deleted_notice(std::int64_t was) const {
+        if (session_.selected == 0) {
+            return "deleted #" + std::to_string(was) + " -- the document is empty";
+        }
+        return "deleted #" + std::to_string(was) + " -- now on #" +
+               std::to_string(session_.selected);
+    }
+
+    /// Delete the selected one, and say where the selection went.
     void delete_object() {
         const std::int64_t was = session_.selected;
         const Written gone = delete_selected(state_, session_);
@@ -4287,11 +4654,49 @@ private:
             say(gone.refusal, true);
             return;
         }
-        say(session_.selected == 0
-                ? "deleted #" + std::to_string(was) + " -- the document is empty"
-                : "deleted #" + std::to_string(was) + " -- now on #" +
-                      std::to_string(session_.selected),
-            false);
+        say(deleted_notice(was), false);
+    }
+
+    /// DELETE AN EXPLICIT OBJECT -- `delete_selected`'s target-taking sibling (CTX-0),
+    /// and `delete_selected` itself is untouched.
+    ///
+    /// THE NEIGHBOUR/SELECTION REPAIR RUNS EXACTLY WHEN THE DELETED ID IS THE SELECTED
+    /// ONE, and never otherwise: in the other branch `session_.selected` still names a
+    /// live object (the document refuses to remove anything something else measures
+    /// against, so a non-selected deletion cannot change how the selected one resolves),
+    /// and perturbing a valid selection would be this gesture selecting something the
+    /// maker did not point at. The rows are rebuilt, never patched.
+    Written delete_object_at(std::int64_t id) {
+        if (id == session_.selected) {
+            return delete_selected(state_, session_);
+        }
+        const Written removed = doc::remove(state_, id);
+        if (removed.accepted) {
+            rebuild_rows();
+        }
+        return removed;
+    }
+
+    /// THE CONTEXTUAL DELETE: the captured object id, spent through the explicit-id door,
+    /// under HD-8's live-draft hold-back. The hold-back is the application's own carve-out
+    /// (`actions_press`'s rule, same sentence): deletion rebuilds the inspector rows out
+    /// from under a live draft, `doc::remove` knows nothing about drafts, and nobody
+    /// downstream would speak -- so the press is held here, before the operation. It is on
+    /// the PRESS path, never on paint: the menu still offers the row.
+    void context_delete_object(std::int64_t id) {
+        if (draft_live(session_)) {
+            say(finish_draft_first(), true);
+            return;
+        }
+        const bool was_selected = id == session_.selected;
+        const Written gone = delete_object_at(id);
+        if (!gone.accepted) {
+            say(gone.refusal, true);
+            return;
+        }
+        // The selection moved only when the deleted one WAS it; a deletion that touched
+        // no selection must not claim one moved.
+        say(was_selected ? deleted_notice(id) : "deleted #" + std::to_string(id), false);
     }
 
     /// One cell, through the same document operation a typed X or Y goes through.
