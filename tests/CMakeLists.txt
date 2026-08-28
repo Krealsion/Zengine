@@ -869,8 +869,22 @@ target_include_directories(zengine-builder-tests PRIVATE
 # generator and make program it was configured with; the fixture inherits both, so the
 # suite cannot end up driving a generator this machine's CMake merely defaults to. The
 # fixture declares `LANGUAGES NONE`, so no compiler is named, checked or needed.
+#
+# TWO TREES, BECAUSE ONE CASE RUNS TWO BUILDS AT ONCE. A build tree has ONE owner while a
+# build is in it: `cmake --build` drives a generator that keeps private bookkeeping beside
+# the manifest, and two of them entered concurrently can collide there and abort before the
+# target is reached. Measured on Ninja, whose `.ninja_log` recompaction writes one fixed
+# temp name per directory: two builds of one tree lost a child in 2 of 400, and in 9 of 40
+# once the log was over the recompaction threshold; the same pairs against two trees lost
+# none of 400. The case that runs two operations at once therefore gets a second tree, so
+# the concurrency it is measuring is Builder's and not the generator's.
 set(zengine_fixture_src ${CMAKE_CURRENT_SOURCE_DIR}/buildfixture)
 set(zengine_fixture_tree ${CMAKE_CURRENT_BINARY_DIR}/build-fixture)
+set(zengine_fixture_tree_b ${CMAKE_CURRENT_BINARY_DIR}/build-fixture-b)
+# ONE ARTIFACTS DIRECTORY IS STILL SHARED, and that is not the same hazard: the fixture's
+# successes end in `cmake -E make_directory` and `cmake -E touch`, both of which two
+# processes may do to one path at the same time. What may not be shared is the tree a
+# generator is running in.
 set(zengine_fixture_artifacts ${CMAKE_CURRENT_BINARY_DIR}/build-fixture-artifacts)
 set(zengine_fixture_gen -G "${CMAKE_GENERATOR}")
 if(CMAKE_MAKE_PROGRAM)
@@ -882,21 +896,26 @@ endif()
 if(CMAKE_GENERATOR_TOOLSET)
     list(APPEND zengine_fixture_gen -T "${CMAKE_GENERATOR_TOOLSET}")
 endif()
-add_custom_command(OUTPUT ${zengine_fixture_tree}/CMakeCache.txt
-    COMMAND ${CMAKE_COMMAND} -S ${zengine_fixture_src} -B ${zengine_fixture_tree}
-            ${zengine_fixture_gen}
-            "-DZENGINE_FIXTURE_ARTIFACTS=${zengine_fixture_artifacts}"
-            "-DZENGINE_FIXTURE_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}"
-            "-DZENGINE_FIXTURE_SLOW=${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake"
-    DEPENDS ${zengine_fixture_src}/CMakeLists.txt
-    COMMENT "builder suite: configuring the fixture build tree a recipe can point at")
-add_custom_target(zengine-build-fixture DEPENDS ${zengine_fixture_tree}/CMakeCache.txt)
+set(zengine_fixture_stamps)
+foreach(zengine_fixture_one ${zengine_fixture_tree} ${zengine_fixture_tree_b})
+    add_custom_command(OUTPUT ${zengine_fixture_one}/CMakeCache.txt
+        COMMAND ${CMAKE_COMMAND} -S ${zengine_fixture_src} -B ${zengine_fixture_one}
+                ${zengine_fixture_gen}
+                "-DZENGINE_FIXTURE_ARTIFACTS=${zengine_fixture_artifacts}"
+                "-DZENGINE_FIXTURE_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}"
+                "-DZENGINE_FIXTURE_SLOW=${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake"
+        DEPENDS ${zengine_fixture_src}/CMakeLists.txt
+        COMMENT "builder suite: configuring the fixture build tree a recipe can point at")
+    list(APPEND zengine_fixture_stamps ${zengine_fixture_one}/CMakeCache.txt)
+endforeach()
+add_custom_target(zengine-build-fixture DEPENDS ${zengine_fixture_stamps})
 add_dependencies(zengine-builder-tests zengine-build-fixture)
 
 target_compile_definitions(zengine-builder-tests PRIVATE
     "ZENGINE_TEST_CMAKE=\"${CMAKE_COMMAND}\""
     "ZENGINE_TEST_SLOW_SCRIPT=\"${CMAKE_CURRENT_SOURCE_DIR}/slow_build.cmake\""
     "ZENGINE_TEST_FIXTURE_TREE=\"${zengine_fixture_tree}\""
+    "ZENGINE_TEST_FIXTURE_TREE_B=\"${zengine_fixture_tree_b}\""
     "ZENGINE_TEST_FIXTURE_ARTIFACTS=\"${zengine_fixture_artifacts}\""
     "ZENGINE_TEST_ARTIFACT_SUFFIX=\"${CMAKE_SHARED_LIBRARY_SUFFIX}\""
     # ---- The two halves of the package, READ AS SOURCE FILES (BLD-1) --------------
