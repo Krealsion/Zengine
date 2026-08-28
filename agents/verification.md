@@ -66,6 +66,17 @@ It is configured during **configure**, not as a build step, because this lane ha
 build-time dependency could hang from: configure, `--build --target <one suite>`, run a compile
 test, and the entry would fail on `compile-fixtures is not a directory`.
 
+**The same rule reaches inside one test process (BQR-0).** A build tree has ONE owner while a
+build is in it, and that is not only a `ctest -j` question — the Builder suite has a case that
+starts two builds at once on purpose, and both of them named the same fixture tree. Ninja's
+`.ninja_log` recompaction writes one fixed temp name per directory, so two builds entered
+concurrently there can collide and one aborts before it reaches its target: measured 2 of 400
+children on a settled log, 9 of 40 with the log over the recompaction threshold, and 0 of 400
+once each operation had a tree of its own (`tests/CMakeLists.txt` configures `build-fixture` and
+`build-fixture-b`). Unix Makefiles showed 0 of 120 — the hazard is the generator's private
+bookkeeping, so a suite that is green under one generator says nothing about another. **Ask how
+many builds a case runs at once, not only how many entries CTest runs at once.**
+
 ## The sanitizer lane is a SECOND kind of evidence (W-3a)
 
 `-DZENGINE_SANITIZE=ON` (ASan + UBSan, non-recovering) runs the same population under

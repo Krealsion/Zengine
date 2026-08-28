@@ -76,6 +76,11 @@ const char* const kSlowScript = ZENGINE_TEST_SLOW_SCRIPT;
 /// The fixture build tree a `CMakeTargetRecipe` can point at, and where its one
 /// producing target puts the file it makes (tests/buildfixture/CMakeLists.txt).
 const char* const kFixtureTree = ZENGINE_TEST_FIXTURE_TREE;
+/// A SECOND CONFIGURED TREE, FOR THE ONE CASE THAT RUNS TWO BUILDS AT ONCE. A build
+/// tree has one owner while a build is in it, so two operations that must genuinely
+/// overlap need two of them -- see the case below, and tests/CMakeLists.txt for what
+/// was measured.
+const char* const kFixtureTreeB = ZENGINE_TEST_FIXTURE_TREE_B;
 const char* const kFixtureArtifacts = ZENGINE_TEST_FIXTURE_ARTIFACTS;
 const char* const kArtifactSuffix = ZENGINE_TEST_ARTIFACT_SUFFIX;
 
@@ -132,6 +137,15 @@ Recipe cmake_recipe(const std::string& id, const std::string& target,
 
 Recipe cmake_recipe(const std::string& id, const std::string& target) {
     return cmake_recipe(id, target, target);
+}
+
+/// THE SAME RECIPE, IN A BUILD TREE OF ITS OWN. Nothing about the recipe kind changes --
+/// a configured tree and a target in it, exactly as before; what changes is WHICH tree,
+/// which is a thing a maker's recipe names too.
+Recipe cmake_recipe_in(const char* tree, const std::string& id, const std::string& target) {
+    Recipe r = cmake_recipe(id, target);
+    r.cmake_target->build_dir = tree;
+    return r;
 }
 
 /// The file a fixture recipe's artifact stem means, spelled the way a host spells
@@ -853,7 +867,14 @@ TEST_CASE("output is attributed to its own operation, and two can run at once") 
     // because refusing a second build is the tool's product policy and this case
     // is about the mechanism underneath it -- the two must be able to disagree,
     // or the policy is a limitation wearing a policy's clothes.
-    Bench bench({cmake_recipe("alpha", "fixture-slow4"), cmake_recipe("beta", "fixture-slow4")});
+    //
+    // ONE TREE EACH, BECAUSE THE SUBJECT IS BUILDER'S CONCURRENCY AND NOT THE
+    // GENERATOR'S. Both operations pointed at one build tree until a generator's own
+    // bookkeeping was measured colliding there -- one child aborting before it built
+    // anything, whose only output was that abort. Two trees is what a maker's two
+    // recipes are anyway, and it leaves this case measuring what it names.
+    Bench bench({cmake_recipe("alpha", "fixture-slow4"),
+                 cmake_recipe_in(kFixtureTreeB, "beta", "fixture-slow4")});
     bench.order("alpha");
     bench.order("beta");
     CHECK(bench.runner->live() == 2);
@@ -865,6 +886,14 @@ TEST_CASE("output is attributed to its own operation, and two can run at once") 
     bench.beat_until_idle();
     CHECK(bench.runner->live() == 0);
     REQUIRE(bench.foreman->finished.size() == 2);
+    // BOTH OF THEM ACTUALLY BUILT SOMETHING, asserted before anything is asked about
+    // their output. A child that died before reaching its target still ends, still ends
+    // exactly once and is still attributed correctly -- so without this line the only
+    // case that notices is the one below, and it reports a missing line rather than the
+    // build that never happened.
+    for (const BuildFinished& f : bench.foreman->finished) {
+        CHECK(f.status == 0);
+    }
 
     // EVERY OUTPUT FACT NAMES THE OPERATION IT BELONGS TO, and the two streams
     // did not mix: `alpha`'s output is about alpha and nothing else.
