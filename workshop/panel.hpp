@@ -586,7 +586,26 @@ struct ExternalPane {
     /// rather than anywhere a provider's bytes could reach. Empty when there is
     /// nothing to refuse.
     std::string refusal;
+    /// ...AND WHY, IN THE JUDGE'S OWN WORDS. `refusal` is the row this pane
+    /// SHOWS -- one bounded sentence in a body that may be forty-eight cells wide --
+    /// and this is the reason `judge_content` gave for it: `9 rows into a pane granted
+    /// 8`, `49 bytes into a pane granted 48 columns`, `a byte a canvas cannot draw`.
+    /// Both are Workshop's own bytes and neither echoes the refused message; they are
+    /// one truth with two presentations, set and cleared together, and this half exists
+    /// because the maker-facing explanation used to live only on the notice line, where
+    /// it outlived the refusal it described. Empty exactly when `refusal` is.
+    std::string refusal_why;
     std::vector<surface::SurfaceTextRow> shown;
+
+    /// THERE IS NOTHING TO REFUSE ANY MORE -- one door, because the sentence and its reason
+    /// are one fact and THREE sites clear them (a valid update arrives, a re-offer corrects
+    /// the descriptor, a new room is granted). Two fields cleared by hand at three sites is
+    /// how one of them comes to outlive the other, and the survivor would be an explanation
+    /// of a refusal that is over -- an explanation with nothing left to explain.
+    void clear_refusal() {
+        refusal.clear();
+        refusal_why.clear();
+    }
 };
 
 /// One panel a maker has opened.

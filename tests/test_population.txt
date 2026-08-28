@@ -649,20 +649,51 @@
 # and the weave cases drive published messages -- the live Windows window is the phase's
 # witness, not a case.
 #
+# WUX-4 raised the workshop floor 832 -> 848 and the surface always-floor 94 -> 96, and the
+# spread is the phase's own split. The sixteen workshop cases are the DISTINCTION between a
+# thing that happened and a thing that is true: a held condition that stands until its owner
+# retracts it and outlives every sentence said over it, a derived one that enters and leaves
+# attention because its subject's state moved (with no retraction call anywhere on the path),
+# the judgement about which true pane states earn a glance and which belong in their own
+# contextual projection, the frontier's waiting condition, dismissal proved
+# presentation-only against a file on disk that is still refused afterwards, the re-arm on a
+# materially changed statement (each field of the statement on its own), dismiss != resolve
+# and resolve != dismiss pinned separately, an ordinary event sentence that does not become a
+# condition, an alert that opens no mode however many beats pass, a condition that names an
+# action and cannot execute one, the ranked compact line with its honest count, the view and
+# its projection through KEY-0's help surfaces, and the source tripwire over the condition
+# model itself. The two surface cases are the MEDIA's half: what the SDL plan makes of the
+# attention slot in the picture (a region in the real face, its box sized from the metric,
+# the cell fallback, the narrow-canvas clamp, and NOTHING at all for an empty slot) and the
+# terminal's own row-2 answer including the erase that retracts it.
+#
+# EVERY ONE IS IN THE `always` POPULATION, and this phase is the sharpest case for that rule
+# yet: a condition is a value with no wire form, the projection is a pure function of a
+# session, the ranking is arithmetic, and the chip is a `SurfaceLayer` composed in canvas
+# cells -- so the lane that builds no SDL at all proves the graphical indicator's geometry,
+# its ink, its fallback and its retraction. What genuinely needs a window is that a human can
+# SEE it, which is the phase's live witness and not a case.
+#
+# ONE EXISTING SUITE CLAIM MOVED RATHER THAN GREW. `notes.back()` used to mean "the status
+# line", because a repaint published exactly one `SurfaceText`; it publishes two now, so the
+# cases that read it ask BY SLOT (`status_note`, `attention_note`). That is a fixture repair,
+# not new evidence, and it is named here because a reader comparing floors would otherwise
+# have to find it in a diff.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
 input                             doctest           sdl     3
-surface                           doctest           always  94
+surface                           doctest           always  96
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  832
+workshop                          doctest           always  848
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

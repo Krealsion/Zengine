@@ -679,6 +679,79 @@ inline std::vector<PlanLayer> plan_canvas(const SurfaceCanvas& c, const SurfaceE
     return out;
 }
 
+// ---- THE ATTENTION CHIP: what this medium makes of the `score` slot, IN THE PICTURE ------
+//
+// A SLOT IS A LINE OF TEXT A PUBLISHER HANDS THE MEDIUM, AND THE MEDIUM OWNS WHAT IT MAKES
+// OF IT. This one lands in the window title (`title_of`), which is a real projection and
+// costs no font stack -- and which a maker looking at the picture is not reading. So since
+// the `score` slot is ALSO composed into the frame: a compact box in the canvas's
+// top-right corner, in the same face and through the same machinery as every other region
+// this medium draws. Nothing about the slot changed to obtain that; `SurfaceText` is the
+// two fields it has always been, and no vocabulary was added to buy a visual treatment.
+//
+// ONE VOICE, AND IT IS DELIBERATE. A slot carries text and no role, so the loudest honest
+// thing a medium can say about a line somebody put on the attention slot is *look here* --
+// which is what `role::kAlert` means in this vocabulary. Proportional severity lives where
+// roles actually travel: in the CANVAS, where a publisher's own conditions each paint in
+// their own role, and in the WORDS of the compact line itself. A role field on `SurfaceText`
+// would be new wire vocabulary bought for a colour.
+//
+// TOP-RIGHT, AND OVER EVERYTHING. A chip is furniture, not content: it is composed after
+// the canvas's own planes for the same reason the window title is not part of the picture.
+// It takes the corner opposite the origin, where a canvas's own first row is least likely
+// to be carrying something a maker is reading.
+
+/// The chip as a canvas LAYER, authored in canvas cells.
+///
+/// IN CELLS, BECAUSE THAT IS THE UNIT EVERY OTHER ANSWER HERE IS IN. Composing the chip as
+/// an ordinary `SurfaceTextRegion` means its fitting, its cut, its ink, its ground strip,
+/// its real-face-versus-bitmap fallback and its clip are all the machinery this medium
+/// already has -- there is no second text path, no second layout and no `if` anywhere that
+/// could make the chip disagree with the picture beside it.
+///
+/// THE BOX IS SIZED FROM THE METRIC AND THEN CLAMPED TO THE CANVAS. Two cells hold one row
+/// of an 18-pixel face (24 pixels less the region inset on each side is 20, which is one
+/// line and no more) and one row of a cell medium; a taller face takes the cells it needs.
+/// The width is what the text asks for, and a canvas too narrow to hold the whole line gets
+/// the whole canvas and the region's own honest cut rather than a box hanging off the edge.
+inline SurfaceLayer attention_chip_layer(const std::string& text, std::int64_t canvas_w,
+                                         const SurfaceExtent& metric) {
+    SurfaceLayer layer;
+    if (text.empty() || canvas_w <= 0) {
+        return layer; // NOTHING TO SAY, AND NOTHING DRAWN -- empty is the retraction
+    }
+    const std::int64_t advance =
+        metric.text_advance_px > 0 ? metric.text_advance_px : kCanvasCellPx;
+    const std::int64_t line = metric.text_line_px > 0 ? metric.text_line_px : kCanvasCellPx;
+    const std::int64_t want_w =
+        add_cells(mul_px(static_cast<std::int64_t>(text.size()), advance), 2 * kTextInsetPx);
+    const std::int64_t cells_w = want_w / kCanvasCellPx + (want_w % kCanvasCellPx != 0 ? 1 : 0);
+    const std::int64_t want_h = add_cells(line, 2 * kTextInsetPx);
+    const std::int64_t cells_h = want_h / kCanvasCellPx + (want_h % kCanvasCellPx != 0 ? 1 : 0);
+    SurfaceTextRegion region;
+    region.w = cells_w < canvas_w ? cells_w : canvas_w;
+    region.h = cells_h;
+    region.x = canvas_w - region.w;
+    region.y = 0;
+    // THE ROW NAMES ITS OWN GROUND, the structural-row rule one medium in: the region owns its
+    // rectangle and clears it to the canvas ground, and the row paints its strip over that
+    // -- so the chip reads as a box with a hairline of ground around it rather than as a
+    // slab, and the glyphs keep their own ink and sit ON the strip.
+    region.rows.push_back(SurfaceTextRow{text, role::kFill, role::kAlert});
+    layer.texts.push_back(std::move(region));
+    return layer;
+}
+
+/// ...and the same chip ready to execute, through the identical two calls `plan_canvas`
+/// makes for every plane of the picture. One door, so what a suite asserts is what the edge
+/// draws.
+inline PlanLayer plan_attention_chip(const std::string& text, const SurfaceCanvas& c,
+                                     const SurfaceExtent& metric, const PlanSize& surface) {
+    const SurfaceLayer chip = attention_chip_layer(text, c.width, metric);
+    return PlanLayer{plan_layer_quads(chip, c.width, c.height, metric),
+                     plan_layer_regions(chip, metric, surface)};
+}
+
 // ---- Safe restoration of a remembered desktop placement (WUX-3) -----------------------
 //
 // The judgment `SurfacePlacementRemembered` hands the medium, as pure arithmetic every

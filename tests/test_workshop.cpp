@@ -78,6 +78,9 @@
 #include <zen/kernel/kernel.hpp>
 #include <zen/kernel/manager.hpp>
 
+#include <zen/history/logger.hpp>   // the durable record attention must not reach
+#include <zen/history/recorder.hpp> // ...and the working memory it must not reach either
+
 #include <zen/host/terminal_wiring.hpp>
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -95,6 +98,7 @@
 #include <iterator>
 #include <memory>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -2992,6 +2996,20 @@ std::string pane_text(const surface::SurfaceCanvas& c) {
     return out;
 }
 
+/// ONE CONDITION OUT OF A PROJECTION, BY KEY -- or nothing, which is the answer a resolved
+/// condition gives. It takes the vector rather than a fixture so the two rigs share
+/// one spelling, and it deliberately reads the PROJECTION rather than `Session::conditions`:
+/// a derived condition is never in the held set, and a case that looked there would be
+/// asserting about the wrong half of the model.
+const Condition* condition_by_key(const std::vector<Condition>& all, const std::string& key) {
+    for (const Condition& c : all) {
+        if (c.key == key) {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
 /// A live Workshop: the real weave on a real bus, driven only by published
 /// input messages. Nothing here reaches past the message boundary except to
 /// READ the result.
@@ -3171,6 +3189,29 @@ struct Live {
     const WorkshopDoc& doc() const { return w->document(); }
     const Session& session() const { return w->session(); }
     std::string notice() const { return w->session().notice; }
+
+    /// THE FRESHEST TEXT ON ONE SLOT -- asked BY SLOT, because a repaint now
+    /// publishes two (`status` and `score`) and `notes.back()` means "whichever this
+    /// repaint said last", which is a fact about publication order rather than about the
+    /// screen. The medium already keeps them apart by name; a case must too.
+    std::string note_on(const char* slot) const {
+        for (std::size_t i = notes.size(); i > 0; --i) {
+            if (notes[i - 1].slot == slot) {
+                return notes[i - 1].text;
+            }
+        }
+        return std::string();
+    }
+    std::string status_note() const { return note_on(surface::kSlotStatus); }
+    /// The compact attention line, as the medium was handed it. Empty is the honest answer
+    /// and the retraction both: nothing currently deserves a glance.
+    std::string attention_note() const { return note_on(surface::kSlotScore); }
+    /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the one projection the
+    /// screen, the compact indicator and the view all spend.
+    std::vector<Condition> conditions() const {
+        return attention_conditions(w->session(),
+                                    host.frontier ? host.frontier() : ProjectFrontier{});
+    }
     const ui::Element* first() const { return &w->document().elements.front(); }
     const ui::Element* second() const { return &w->document().elements[1]; }
 
@@ -3749,8 +3790,7 @@ TEST_CASE("canvas, object list and inspector stay coherent through a message-dri
 
     // And a status line went out with every frame.
     REQUIRE_FALSE(t.notes.empty());
-    CHECK(t.notes.back().slot == surface::kSlotStatus);
-    CHECK(t.notes.back().text.rfind("[workshop] 2 objects", 0) == 0);
+    CHECK(t.status_note().rfind("[workshop] 2 objects", 0) == 0);
 }
 
 TEST_CASE("the selection marker never disappears as a maker walks past the list's share") {
@@ -3792,8 +3832,8 @@ TEST_CASE("the selection marker never disappears as a maker walks past the list'
 
         // The status line and the inspector name the same object, on the same
         // frame the list was read from.
-        CHECK(t.notes.back().text.rfind("[workshop] 9 objects | selected #" + std::to_string(id),
-                                        0) == 0);
+        CHECK(t.status_note().rfind("[workshop] 9 objects | selected #" + std::to_string(id), 0) ==
+              0);
         CHECK(property_row(t.canvases.back(), t.doc(), t.session(), 0) ==
               " Identity #" + std::to_string(id));
     }
@@ -4545,34 +4585,34 @@ TEST_CASE("^s saves and ^o loads, through the real message path") {
     // Nothing has been saved yet, and the status line says so.
     t.key(input::scan::kN); // republish, so the note reflects the path
     REQUIRE_FALSE(t.notes.empty());
-    CHECK(t.notes.back().text.find(dir.document()) != std::string::npos);
-    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+    CHECK(t.status_note().find(dir.document()) != std::string::npos);
+    CHECK(t.status_note().find("UNSAVED") != std::string::npos);
 
     t.key(input::scan::kS, input::mod::kCtrl);
     CHECK(t.notice() == "saved " + dir.document());
     CHECK(std::filesystem::exists(dir.document()));
-    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+    CHECK(t.status_note().find(dir.document() + " saved") != std::string::npos);
     const WorkshopDoc as_saved = t.doc();
 
     // Change it. The status line notices without anyone setting a flag.
     t.key(input::scan::kL);
-    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+    CHECK(t.status_note().find("UNSAVED") != std::string::npos);
     CHECK_FALSE(t.doc() == as_saved);
 
     // And ^o brings the saved one back.
     t.key(input::scan::kO, input::mod::kCtrl);
     CHECK(t.doc() == as_saved);
     CHECK(t.notice() == "loaded " + dir.document() + " -- 3 objects");
-    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+    CHECK(t.status_note().find(dir.document() + " saved") != std::string::npos);
 
     // Editing back to what was saved says `saved` again -- a comparison cannot
     // drift from the thing it describes, and a dirty flag would have said
     // otherwise here.
     t.key(input::scan::kL);
-    CHECK(t.notes.back().text.find("UNSAVED") != std::string::npos);
+    CHECK(t.status_note().find("UNSAVED") != std::string::npos);
     t.key(input::scan::kH);
     CHECK(t.doc() == as_saved);
-    CHECK(t.notes.back().text.find(dir.document() + " saved") != std::string::npos);
+    CHECK(t.status_note().find(dir.document() + " saved") != std::string::npos);
 }
 
 TEST_CASE("^s refuses while a row is being edited, and writes nothing") {
@@ -4747,8 +4787,8 @@ TEST_CASE("with no document file, save and open say so instead of guessing one")
     CHECK(t.doc() == before);
 
     // And the status line does not claim a file it does not have.
-    CHECK(t.notes.back().text.find("saved") == std::string::npos);
-    CHECK(t.notes.back().text.find("UNSAVED") == std::string::npos);
+    CHECK(t.status_note().find("saved") == std::string::npos);
+    CHECK(t.status_note().find("UNSAVED") == std::string::npos);
 }
 
 TEST_CASE("a bare s and a bare o are not commands, and Ctrl is what makes them one") {
@@ -16470,7 +16510,7 @@ TEST_CASE("saving and restoring a setup does not touch the document or its saved
     CHECK(slurp(t.host.document_path) == document_bytes);
     // The document status line still says the document is saved -- a setup round
     // trip is not a document edit.
-    CHECK(t.notes.back().text.find(t.host.document_path + " saved") != std::string::npos);
+    CHECK(t.status_note().find(t.host.document_path + " saved") != std::string::npos);
 
     // And the two commands stayed apart: `^o` loads the document and leaves the
     // setup exactly where it was.
@@ -17597,8 +17637,25 @@ struct PaneRig {
     const surface::SurfaceCanvas& last_canvas() const { return canvases.back(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the
     /// canvas, not published as a `SurfaceText` -- the published texts are the status
-    /// slot, which is the document's line and says nothing about a pane.
+    /// slot, which is the document's line and says nothing about a pane, and (since
+    /// the attention slot, which says what is CURRENTLY true.
     const std::string& last_notice() const { return w->session().notice; }
+
+    /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
+    /// screen and the compact indicator both spend -- never a second walk of the owners.
+    std::vector<Condition> conditions() const {
+        return attention_conditions(w->session(),
+                                    host.frontier ? host.frontier() : ProjectFrontier{});
+    }
+    /// The compact attention line, as the medium was handed it.
+    std::string attention_note() const {
+        for (std::size_t i = notes.size(); i > 0; --i) {
+            if (notes[i - 1].slot == surface::kSlotScore) {
+                return notes[i - 1].text;
+            }
+        }
+        return std::string();
+    }
 
     std::vector<loom::WeaveId> seat_ids;
     std::vector<ProviderSeat*> seats_;
@@ -19080,8 +19137,20 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     CHECK(pane->shown.empty()); // NOT ONE of the nine rows was kept
     CHECK_FALSE(pane->heard);
     CHECK_FALSE(pane->refusal.empty());
-    CHECK(r.last_notice().find("zengine.test.workshop-hello/hello") != std::string::npos);
-    CHECK(r.last_notice().find("9 rows into a pane granted 8") != std::string::npos);
+    // AND IT IS A CONDITION, NOT A SENTENCE SOMEBODY SAID. The refusal names the
+    // pane and carries the judge's own reason, it is derived from the pane that holds it,
+    // and it reaches the maker on the compact attention slot -- the notice row is for
+    // things that HAPPENED and this is something that is TRUE.
+    const std::string content_key = pane_content_key(hello_ref());
+    {
+        const std::vector<Condition> now = r.conditions();
+        const Condition* refused = condition_by_key(now, content_key);
+        REQUIRE(refused != nullptr);
+        CHECK(refused->compact.find("zengine.test.workshop-hello/hello") != std::string::npos);
+        CHECK(refused->detail.find("9 rows into a pane granted 8") != std::string::npos);
+        CHECK(refused->role == surface::role::kAlert);
+    }
+    CHECK(r.attention_note().find("zengine.test.workshop-hello/hello") != std::string::npos);
     // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
     std::vector<std::string> after = external_rows(r.last_canvas(), body);
     REQUIRE(after.size() == 1);
@@ -19093,7 +19162,12 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     pane = r.session().panels.external_pane(kind);
     CHECK(pane->heard);
     CHECK(pane->refusal.empty());
+    CHECK(pane->refusal_why.empty()); // the reason went with the refusal it explained
     CHECK(external_rows(r.last_canvas(), body)[0] == "a good row");
+    // ...AND THE CONDITION IS GONE BECAUSE ITS TRUTH RESOLVED. Nobody retracted it
+    // and nothing was said over it: it stopped being returned.
+    CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
+    CHECK(r.attention_note().find("zengine.test.workshop-hello/hello") == std::string::npos);
 
     // ONE BYTE TOO WIDE, on the LAST row -- so the earlier rows would have been kept
     // by anything that copied as it validated.
@@ -19104,7 +19178,13 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     r.drive(seat, [wide](ProviderSeat& s, loom::Mail& m) { s.say(m, wide); });
     pane = r.session().panels.external_pane(kind);
     CHECK(pane->shown.empty());
-    CHECK(r.last_notice().find("49 bytes into a pane granted 48 columns") != std::string::npos);
+    {
+        const std::vector<Condition> now = r.conditions();
+        const Condition* refused = condition_by_key(now, content_key);
+        REQUIRE(refused != nullptr);
+        CHECK(refused->detail.find("49 bytes into a pane granted 48 columns") !=
+              std::string::npos);
+    }
     // ...and the 48-byte row on the boundary IS accepted.
     PaneContent edge;
     edge.pane = kHelloPane;
@@ -19133,7 +19213,10 @@ TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
         r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
         INFO("row bytes: ", bad.size());
         CHECK(r.session().panels.external_pane(kind)->shown.empty());
-        CHECK(r.last_notice().find("a byte a canvas cannot draw") != std::string::npos);
+        const std::vector<Condition> now = r.conditions();
+        const Condition* refused = condition_by_key(now, pane_content_key(hello_ref()));
+        REQUIRE(refused != nullptr);
+        CHECK(refused->detail.find("a byte a canvas cannot draw") != std::string::npos);
     }
 }
 
@@ -27986,8 +28069,16 @@ TEST_CASE("KEY-0: a same-context collision is refused naming both actions and th
     const std::string path = dir.file("keymap.json");
     write_keymap_file(path, keymap_file_text("default", {{"object.new", "d"}}));
     Keyed t(path);
-    CHECK(t.notice().find("object.delete") != std::string::npos);
-    CHECK(t.notice().find("default bindings stand") != std::string::npos);
+    // ...OUT LOUD, AND AS A CONDITION. The file is still refused an hour
+    // later and at the next launch, so it is not a sentence about a moment: it stands
+    // under its own key, in the loader's own words, and it disappears from attention only
+    // if it stops being true.
+    const std::vector<Condition> now = attention_conditions(t.session());
+    const Condition* wall = condition_by_key(now, kKeymapWallKey);
+    REQUIRE(wall != nullptr);
+    CHECK(wall->detail.find("object.delete") != std::string::npos);
+    CHECK(wall->compact.find("default bindings stand") != std::string::npos);
+    CHECK(wall->role == surface::role::kAlert);
     const std::size_t before = t.doc().elements.size();
     t.key(input::scan::kN);
     CHECK(t.doc().elements.size() == before + 1); // the default still creates
@@ -29658,9 +29749,17 @@ TEST_CASE("WUX-3: a refused prefs file is spoken, stands, and is never overwritt
     Live t;
     t.host.prefs_path = prefs;
     t.publish(loom::to_value(surface::SurfaceReady{}));
-    // The refusal is on the notice line, and the defaults stand.
-    CHECK(t.session().notice_is_bad);
-    CHECK(t.notice().find("the default presentation stands") != std::string::npos);
+    // THE REFUSAL IS A STANDING CONDITION, and the defaults stand. It is not
+    // on the notice line because the notice line is for things that HAPPENED, and this is
+    // a wall that is still there at the next launch.
+    {
+        const std::vector<Condition> now = attention_conditions(t.session());
+        const Condition* wall = condition_by_key(now, kPrefsWallKey);
+        REQUIRE(wall != nullptr);
+        CHECK(wall->compact.find("defaults stand") != std::string::npos);
+        CHECK(wall->role == surface::role::kAlert);
+    }
+    CHECK(t.attention_note().find("preferences refused") != std::string::npos);
     CHECK(t.session().pane_titles);
 
     // A toggle changes the LIVE preference and deliberately writes nothing: Workshop
@@ -29927,4 +30026,519 @@ TEST_CASE("WUX-3: a restored maximized flag alone does not gate this run's viewp
     t.publish(loom::to_value(surface::SurfaceExtent{100, 33, 0, 0}));
     CHECK(t.session().normal_w == 100);
     CHECK(t.session().normal_h == 33);
+}
+
+// ==========================================================================================
+// ATTENTION HAS A PLACE -- the current-condition surface
+// ==========================================================================================
+//
+// The phase's subject is a DISTINCTION, not a feature: Workshop can say a thing that
+// HAPPENED and a thing that is TRUE, and both used to go out through one unowned
+// string with no lifetime. So the cases below are mostly about what does NOT happen -- a
+// condition that does not go stale, a dismissal that does not resolve, a resolution that
+// does not need un-saying, a severity that does not open anything, and a presentation that
+// does not become history.
+//
+// EACH OF THE EIGHT NAMED FALSIFIERS HAS A CASE, and each is written so that the defect it
+// names would turn it red rather than merely leaving it unproven.
+
+TEST_CASE("WUX-4: a healthy Workshop says nothing on the attention slot at all") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.conditions().empty());
+    CHECK(t.attention_note().empty()); // EMPTY IS THE RETRACTION, and it is also the floor
+    // ...and the view is still reachable, because "is anything wrong?" is a question a
+    // maker is entitled to ask when the answer is no.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    REQUIRE(t.session().attention.open);
+    CHECK(stack_text(t.canvases.back()).find("nothing needs your attention") !=
+          std::string::npos);
+    CHECK(keyboard_context(t.session()) == KeyContext::kAttention);
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().attention.open);
+}
+
+TEST_CASE("WUX-4: a held condition stands until its owner retracts it") {
+    // FALSIFIER 1 -- a stale held condition: the owner resolves and the presentation
+    // wrongly remains. And its inverse, which is the defect that was actually measured: a
+    // standing truth that only disappears because somebody said something else.
+    Session s;
+    CHECK(attention_conditions(s).empty());
+
+    s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
+                                     surface::role::kAlert, std::string()});
+    REQUIRE(attention_conditions(s).size() == 1);
+    CHECK(attention_compact(attention_shown(s)) == "a wall");
+
+    // AN UPDATE UNDER THE SAME KEY IS ONE CONDITION, not a second row.
+    s.conditions.establish(Condition{"test.wall", "the same wall", "a better reason",
+                                     surface::role::kAlert, std::string()});
+    REQUIRE(attention_conditions(s).size() == 1);
+    CHECK(attention_conditions(s).front().detail == "a better reason");
+
+    // AND IT GOES BECAUSE ITS OWNER SAID SO, by name.
+    s.conditions.retract("test.wall");
+    CHECK(attention_conditions(s).empty());
+    CHECK(attention_compact(attention_shown(s)).empty());
+    // Retracting what was never established is silence rather than an error.
+    s.conditions.retract("test.wall");
+    CHECK(attention_conditions(s).empty());
+}
+
+TEST_CASE("WUX-4: a derived condition enters and leaves attention with its subject") {
+    // FALSIFIER 4 -- a derived condition that is latched: the underlying state resolves
+    // and the copy stays. There is no copy, so there is nothing to go stale: the pane's
+    // own state IS the condition, and NOTHING in this case calls a retraction.
+    Session s;
+    s.setup.active = two_overlays();
+    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    const Screen sc = screen_of(s);
+    const PaneRef builder = ref_of(panel::kBuilder);
+    REQUIRE(attention_conditions(s).empty());
+
+    // A PANE THE MAKER AUTHORED, WITH NO CELL OF IT ON THE SCREEN.
+    REQUIRE(author_pane_place(s.setup.active, builder, subs(sc.w + 40), subs(sc.h + 40))
+                .accepted);
+    const std::vector<Condition> off = attention_conditions(s);
+    REQUIRE(off.size() == 1);
+    CHECK(off.front().key == pane_window_key(builder));
+    CHECK(off.front().compact.find("off-room") != std::string::npos);
+    CHECK(off.front().compact.find(ref_text(builder)) != std::string::npos);
+    // THE REMEDY IS `pane_state`'S OWN COLUMN, said where a maker can read it.
+    CHECK(off.front().detail == std::string(pane_state_remedy(pane_state::kOffRoom)));
+    CHECK(off.front().role == surface::role::kAccent); // actionable, not an error
+    CHECK(off.front().action == "workshop.manage");
+
+    // ...AND IT IS GONE THE MOMENT THE PLACE IS RESET. No retract call exists on this
+    // path, and none is needed: the derivation stopped returning it.
+    REQUIRE(reset_pane_place(s.setup.active, builder));
+    CHECK(attention_conditions(s).empty());
+}
+
+TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
+    // The judgement, pinned in both directions. A pane a maker CLOSED is their own
+    // choice; an `unresolved` one is already counted on the band's own status row, all
+    // day, derived; a `covered` one has something of it on the screen and stacking is
+    // what arranging does. What earns the glance is the one thing none of those is:
+    // authored, resolvable, and nothing of it to look at.
+    Session s;
+    s.setup.active = two_overlays();
+    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    const Screen sc = screen_of(s);
+    const PaneRef builder = ref_of(panel::kBuilder);
+
+    // OPEN: nothing is wrong.
+    REQUIRE(pane_state_of(s.panels, s.setup.active, sc,
+                          CatalogRow{panel::kBuilder, builder, "Builder", ""}) ==
+            pane_state::kOpen);
+    CHECK(attention_conditions(s).empty());
+
+    // CLOSED: a state with an available action, and deliberately not a warning.
+    Session closed;
+    closed.setup.active.panes.push_back(s.setup.active.panes[1]);
+    closed.panels.open = {Panel{panel::kInfo}};
+    REQUIRE(pane_state_of(closed.panels, closed.setup.active, screen_of(closed),
+                          CatalogRow{panel::kBuilder, builder, "Builder", ""}) ==
+            pane_state::kClosed);
+    CHECK(attention_conditions(closed).empty());
+}
+
+TEST_CASE("WUX-4: the project frontier is a condition while it waits and nothing after") {
+    Live t;
+    ProjectFrontier live;
+    t.host.frontier = [&live] { return live; };
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.conditions().empty());
+    CHECK(t.attention_note().empty());
+
+    live.waiting = true;
+    live.artifact = "zengine-thing";
+    live.blocked = 2;
+    t.key(input::scan::kTab); // any gesture at all repaints; nothing here says a sentence
+    {
+        const std::vector<Condition> now = t.conditions();
+        const Condition* waiting = condition_by_key(now, kFrontierKey);
+        REQUIRE(waiting != nullptr);
+        CHECK(waiting->compact.find("zengine-thing") != std::string::npos);
+        CHECK(waiting->detail.find("2 authored rows behind it") != std::string::npos);
+        // WAITING IS NOT A FAILURE, and the role says so.
+        CHECK(waiting->role == surface::role::kAccent);
+        CHECK(waiting->action == "builder.frontier");
+    }
+    CHECK(t.attention_note().find("project waiting") != std::string::npos);
+
+    live = ProjectFrontier{};
+    t.key(input::scan::kTab);
+    CHECK(condition_by_key(t.conditions(), kFrontierKey) == nullptr);
+    CHECK(t.attention_note().empty());
+}
+
+TEST_CASE("WUX-4: dismissal hides a presentation and changes nothing that is true") {
+    // FALSIFIER 2 -- a dismissal that mutates truth. The condition is a standing wall
+    // whose owner is a file on disk, so "did anything change" has an answer outside this
+    // process: the file is still refused and is still not overwritten.
+    TempDir dir("wux4-dismiss");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    spillout(prefs, "{ not a prefs file");
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
+    REQUIRE_FALSE(t.attention_note().empty());
+
+    // OPEN, AND HIDE THE ONE THE CURSOR IS ON.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    REQUIRE(t.session().attention.open);
+    t.key(input::scan::kD);
+    CHECK(t.session().attention.dismissed.size() == 1);
+
+    // THE PRESENTATION IS GONE...
+    CHECK(attention_shown(t.session()).empty());
+    CHECK(t.attention_note().empty());
+    // ...AND THE TRUTH IS NOT. The condition is still returned by the projection, its
+    // owner still holds it, and the wall it describes is still standing: a toggle changes
+    // the live preference and still writes nothing.
+    CHECK(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
+    CHECK(t.session().conditions.holds(kPrefsWallKey));
+    t.key(input::scan::kEscape);
+    t.key(input::scan::kT);
+    t.text("t");
+    CHECK_FALSE(t.session().pane_titles);
+    CHECK(t.notice().find("will not be overwritten") != std::string::npos);
+    CHECK(slurp(prefs) == "{ not a prefs file");
+}
+
+TEST_CASE("WUX-4: a dismissed condition comes back when it materially changes") {
+    // FALSIFIER 3 -- a dismissal that never re-arms. The dismissal is scoped to the
+    // STATEMENT and not to the key alone, which is the Terminal completion's
+    // `dismissed_at` rule one layer out.
+    Session s;
+    s.conditions.establish(Condition{"test.wall", "a wall", "the first reason",
+                                     surface::role::kAlert, std::string()});
+    const std::vector<Condition> before = attention_conditions(s);
+    REQUIRE(before.size() == 1);
+    s.attention.dismiss(before.front());
+    CHECK(attention_shown(s).empty());
+
+    // THE SAME STATEMENT, SAID AGAIN, IS STILL HIDDEN -- a dismissal a repaint undid
+    // would be a gesture with no effect.
+    s.conditions.establish(Condition{"test.wall", "a wall", "the first reason",
+                                     surface::role::kAlert, std::string()});
+    CHECK(attention_shown(s).empty());
+
+    // A MATERIALLY DIFFERENT STATEMENT UNDER THE SAME KEY IS VISIBLE AGAIN, with nobody
+    // clearing anything, and each field of the statement is enough on its own.
+    const Condition moved[] = {
+        Condition{"test.wall", "a WIDER wall", "the first reason", surface::role::kAlert,
+                  std::string()},
+        Condition{"test.wall", "a wall", "a WORSE reason", surface::role::kAlert,
+                  std::string()},
+        Condition{"test.wall", "a wall", "the first reason", surface::role::kAccent,
+                  std::string()},
+        Condition{"test.wall", "a wall", "the first reason", surface::role::kAlert,
+                  "workshop.manage"}};
+    for (const Condition& changed : moved) {
+        Session moved_session = s;
+        moved_session.conditions.establish(changed);
+        CHECK(attention_shown(moved_session).size() == 1);
+    }
+}
+
+TEST_CASE("WUX-4: dismiss is not resolve, resolve is not dismiss") {
+    // The two halves pinned SEPARATELY, because they are two different mistakes.
+    Session s;
+    s.conditions.establish(Condition{"test.wall", "a wall", "why", surface::role::kAlert,
+                                     std::string()});
+
+    // DISMISS != RESOLVE: hiding leaves the condition true and its owner untouched.
+    s.attention.dismiss(attention_conditions(s).front());
+    CHECK(attention_shown(s).empty());
+    CHECK(attention_conditions(s).size() == 1);
+    CHECK(s.conditions.holds("test.wall"));
+
+    // RESOLVE != DISMISS: retracting removes the condition itself, and the dismissal
+    // that outlived it is simply irrelevant -- there is nothing for it to hide.
+    s.conditions.retract("test.wall");
+    CHECK(attention_conditions(s).empty());
+    CHECK(attention_shown(s).empty());
+    CHECK_FALSE(s.attention.dismissed.empty()); // held, and about nothing
+
+    // ...and a condition that becomes true again under the same key with the same
+    // statement is still hidden, which is the honest reading of what the maker said.
+    s.conditions.establish(Condition{"test.wall", "a wall", "why", surface::role::kAlert,
+                                     std::string()});
+    CHECK(attention_shown(s).empty());
+}
+
+TEST_CASE("WUX-4: event sentences stay events, and a condition needs no sentence") {
+    // FALSIFIER 5 -- event/condition conflation, in both directions.
+    TempDir dir("wux4-events");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    spillout(prefs, "{ not a prefs file");
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const std::string standing = t.attention_note();
+    REQUIRE_FALSE(standing.empty());
+
+    // AN ORDINARY EVENT SENTENCE DOES NOT BECOME A CONDITION.
+    t.key(input::scan::kN);
+    REQUIRE_FALSE(t.notice().empty());
+    const std::size_t conditions_now = t.conditions().size();
+    t.key(input::scan::kN);
+    t.key(input::scan::kD);
+    t.key(input::scan::kLeftBracket);
+    CHECK(t.conditions().size() == conditions_now);
+
+    // ...AND THE STANDING CONDITION DOES NOT DEPEND ON A LATER `say()` TO SURVIVE OR TO
+    // BE HEARD. Four sentences have been written over the notice row since; the compact
+    // attention line is byte-for-byte what it was, because it was never a sentence.
+    CHECK(t.attention_note() == standing);
+    CHECK(t.session().notice != standing);
+}
+
+TEST_CASE("WUX-4: an alert condition opens nothing") {
+    // FALSIFIER 6 -- severity causing modality. Nothing in this tree can enter a mode
+    // except a maker's gesture, and a condition is not a gesture however loud it is.
+    TempDir dir("wux4-modal");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    spillout(prefs, "{ not a prefs file");
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const std::vector<Condition> now = t.conditions();
+    const Condition* wall = condition_by_key(now, kPrefsWallKey);
+    REQUIRE(wall != nullptr);
+    REQUIRE(wall->role == surface::role::kAlert);
+
+    for (int beat = 0; beat < 4; ++beat) {
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.key(input::scan::kTab);
+        CHECK_FALSE(t.session().attention.open);
+        CHECK_FALSE(t.session().hotkeys.open);
+        CHECK_FALSE(t.session().panels.picker.open);
+        CHECK_FALSE(t.session().terminal.open);
+        CHECK_FALSE(t.session().manage.open);
+        CHECK_FALSE(t.session().setup.naming.open);
+        CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
+    }
+}
+
+TEST_CASE("WUX-4: showing a condition writes no history") {
+    // FALSIFIER 7 -- attention implying history. `loom::Recorder` is working memory and
+    // `loom::Logger` is a durable selected record; a condition is neither, and showing one
+    // must not quietly imply the other. Both are attached to the real bus for
+    // the whole lifecycle below, which is the only way "nothing was written" is a
+    // measurement rather than an absence of wiring.
+    TempDir dir("wux4-history");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    spillout(prefs, "{ not a prefs file");
+    Live t;
+    loom::Recorder history(t.bus);
+    loom::Logger journal(t.bus);
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
+
+    // THE WHOLE LIFECYCLE: establish (above), read, hide, re-read, close.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kUp);
+    t.key(input::scan::kD);
+    t.key(input::scan::kEscape);
+
+    // NOT ONE DIAGNOSTIC. `journal.info(...)` is the one door a host-authored fact has
+    // into durable history, and nothing on the condition path goes near it.
+    CHECK(journal.counters().diagnostics == 0);
+    CHECK(journal.counters().appended == 0);
+
+    // AND NO SHAPE OF ITS OWN. A condition is a value on the session; it has no wire
+    // form, so it cannot be observed, recorded, selected, or retained -- and the
+    // recorder's per-shape tally is where that would show up if it ever gained one.
+    for (const loom::ShapeTally& tally : history.tallies()) {
+        CHECK_MESSAGE(tally.shape.find("ondition") == std::string::npos,
+                      "a condition reached the bus as shape ", tally.shape);
+        CHECK_MESSAGE(tally.shape.find("ttention") == std::string::npos,
+                      "attention reached the bus as shape ", tally.shape);
+    }
+}
+
+TEST_CASE("WUX-4: a condition names an action and cannot execute one") {
+    // FALSIFIER 8 -- a displayed action gaining authority. The condition holds an
+    // `ActionRow::id` and nothing else; what the view paints is that action's CURRENT
+    // gesture, looked up in the effective keymap at the moment it paints, and the view's
+    // own vocabulary is four gestures that do not include it.
+    TempDir dir("wux4-action");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"workshop.manage", "y"}}));
+    Keyed t(path);
+    Session& s = const_cast<Session&>(t.session());
+    s.setup.active = two_overlays();
+    s.panels.open = {Panel{panel::kBuilder}, Panel{panel::kInfo}};
+    const Screen sc = screen_of(s);
+    REQUIRE(author_pane_place(s.setup.active, ref_of(panel::kBuilder), subs(sc.w + 40),
+                              subs(sc.h + 40))
+                .accepted);
+    t.key(input::scan::kA, input::mod::kCtrl);
+    REQUIRE(t.session().attention.open);
+
+    // THE PAINTED GESTURE IS THE MAKER'S, not the default: one truth, projected.
+    const std::string view = stack_text(t.canvases.back());
+    CHECK(view.find("try: y window") != std::string::npos);
+    CHECK(view.find("try: w window") == std::string::npos);
+
+    // AND PRESSING IT HERE DOES NOTHING. The action's own context is command mode; the
+    // view is a mode of its own, and a condition is not an execution path.
+    t.key(input::scan::kY);
+    CHECK_FALSE(t.session().manage.open);
+    CHECK(t.session().attention.open); // still reading, still not executing
+}
+
+TEST_CASE("WUX-4: the compact line is ranked by truth, and says how many it is not saying") {
+    Session s;
+    // Established in the OPPOSITE order to the one they rank in, so a projection that
+    // ordered by arrival would pick the wrong winner.
+    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why", surface::role::kAccent,
+                                     std::string()});
+    s.conditions.establish(Condition{"a.quiet", "another quiet thing", "why",
+                                     surface::role::kAccent, std::string()});
+    s.conditions.establish(Condition{"z.loud", "a loud thing", "why", surface::role::kAlert,
+                                     std::string()});
+    const std::vector<Condition> shown = attention_shown(s);
+    REQUIRE(shown.size() == 3);
+    CHECK(shown[0].key == "z.loud");  // loudest first, whatever its key
+    CHECK(shown[1].key == "a.quiet"); // then the key, so the order cannot wobble
+    CHECK(shown[2].key == "b.quiet");
+    CHECK(attention_compact(shown) == "a loud thing (+2 more)");
+
+    // ONE CONDITION SAYS NO COUNT AT ALL -- a bound that announces itself when there is
+    // nothing to bound is noise.
+    s.conditions.retract("a.quiet");
+    s.conditions.retract("b.quiet");
+    CHECK(attention_compact(attention_shown(s)) == "a loud thing");
+
+    // AND RANKING IS TOTAL OVER A ROLE THIS VOCABULARY DOES NOT HAVE YET.
+    CHECK(attention_rank(surface::role::kAlert) < attention_rank(surface::role::kAccent));
+    CHECK(attention_rank(surface::role::kAccent) < attention_rank(surface::role::kFill));
+    CHECK(attention_rank(surface::role::kFill) < attention_rank(9999));
+}
+
+TEST_CASE("WUX-4: the view shows every current condition in its owner's own words") {
+    Live t;
+    Session& s = const_cast<Session&>(t.session());
+    s.conditions.establish(Condition{"a.one", "the first thing",
+                                     "a sentence its owner already had", surface::role::kAlert,
+                                     std::string()});
+    s.conditions.establish(Condition{"b.two", "the second thing", "and one for the second",
+                                     surface::role::kAccent, std::string()});
+    t.key(input::scan::kA, input::mod::kCtrl);
+    const std::string view = stack_text(t.canvases.back());
+
+    // ALL OF THEM, not only the compact winner.
+    CHECK(view.find("ATTENTION -- 2 conditions") != std::string::npos);
+    CHECK(view.find("the first thing") != std::string::npos);
+    CHECK(view.find("the second thing") != std::string::npos);
+    // ...and the owner's own explanation for the one being read.
+    CHECK(view.find("a sentence its owner already had") != std::string::npos);
+
+    // MOVING THE CURSOR MOVES WHICH EXPLANATION IS SPENT, and changes nothing else.
+    t.key(input::scan::kDown);
+    const std::string second = stack_text(t.canvases.back());
+    CHECK(second.find("and one for the second") != std::string::npos);
+    CHECK(t.conditions().size() == 2);
+
+    // CLOSING CHANGES NO CONDITION.
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(t.session().attention.open);
+    CHECK(t.conditions().size() == 2);
+    CHECK(t.session().attention.dismissed.empty());
+}
+
+TEST_CASE("WUX-4: the view's gestures are the keymap's, and every help surface says so") {
+    Live t;
+    Session& s = const_cast<Session&>(t.session());
+    s.conditions.establish(Condition{"a.one", "a thing", "why", surface::role::kAlert,
+                                     std::string()});
+    t.key(input::scan::kA, input::mod::kCtrl);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kAttention);
+
+    // THE FULL HOTKEY VIEW DESCRIBES THE SURFACE BENEATH IT, this one included -- the
+    // view's four gestures are ordinary catalog rows, not a parallel vocabulary.
+    t.key(input::scan::kK, input::mod::kCtrl);
+    const std::string hotkeys = stack_text(t.canvases.back());
+    CHECK(hotkeys.find("what needs attention") != std::string::npos);
+    CHECK(hotkeys.find("hide this one") != std::string::npos);
+    CHECK(hotkeys.find("row up") != std::string::npos);
+    t.key(input::scan::kK, input::mod::kCtrl);
+
+    // ...AND THE OPENER IS ADVERTISED WHEREVER THE ABOVE-MODE CHORDS ARE.
+    const std::vector<std::string> pairs = help_pairs(t.session().keymap, KeyContext::kCommand);
+    bool advertised = false;
+    for (const std::string& pair : pairs) {
+        advertised = advertised || pair == "^a attention";
+    }
+    CHECK(advertised);
+
+    // THE OPENER CLOSES IT, wherever a maker moved it -- and it is a gesture every
+    // supported backend can actually produce.
+    t.key(input::scan::kA, input::mod::kCtrl);
+    CHECK_FALSE(t.session().attention.open);
+    CHECK(posix_gap(t.session().keymap.gesture_of(Act::kAttention)) == nullptr);
+}
+
+TEST_CASE("WUX-4: the condition path carries no timer, no callback and no history") {
+    // The mechanical gate beside the behavioural cases, and it is here for the reason
+    // every source probe in this repository is: a property that is true because of what
+    // the code does NOT contain cannot be proved by running the code.
+    //
+    // THE PROSE GOES FIRST, this repository's own source-probe discipline. The header
+    // EXPLAINS what it
+    // refuses to be -- it names the Recorder, the Logger and every timed lifetime out loud
+    // in order to say that none of them is here -- and a probe that could not tell a
+    // sentence from a statement would forbid the explanation.
+    std::ifstream in(WORKSHOP_ATTENTION_HPP);
+    REQUIRE_MESSAGE(in.good(), "cannot read the condition model at ", WORKSHOP_ATTENTION_HPP);
+    std::ostringstream all;
+    all << in.rdbuf();
+    const std::string whole = all.str();
+    std::string text;
+    text.reserve(whole.size());
+    for (std::size_t i = 0; i < whole.size();) {
+        if (whole.compare(i, 2, "//") == 0) {
+            while (i < whole.size() && whole[i] != '\n') {
+                ++i;
+            }
+            continue;
+        }
+        text.push_back(whole[i]);
+        ++i;
+    }
+
+    // NO EXPIRY OF ANY KIND. Nothing in this path has a time axis, and nothing here may
+    // invent one.
+    for (const char* forbidden : {"Timer", "timeout", "expire", "expiry", "fuse", "elapsed",
+                                  "deadline", "chrono", "TimerFired"}) {
+        CHECK_MESSAGE(text.find(forbidden) == std::string::npos, "attention.hpp names ",
+                      forbidden, ", which is a lifetime nobody asked for");
+    }
+    // NO CALLBACK, NO AUTHORITY, NO REGISTRY.
+    for (const char* forbidden : {"std::function", "Manager", "register", "subscribe",
+                                  "dispatch", "invoke", "callback"}) {
+        CHECK_MESSAGE(text.find(forbidden) == std::string::npos, "attention.hpp names ",
+                      forbidden, ", which is a power a condition may not hold");
+    }
+    // NO HISTORY, AND NO DOMAIN TRUTH.
+    for (const char* forbidden : {"Recorder", "Logger", "journal", "BuildStatus",
+                                  "pane_state", "Keymap", "prefs"}) {
+        CHECK_MESSAGE(text.find(forbidden) == std::string::npos, "attention.hpp names ",
+                      forbidden, ", which belongs to somebody else");
+    }
+    // ...and the one package include it has is the ONE vocabulary it spends: no Workshop
+    // header, and nothing of the substrate at all. A condition has no wire form, so it
+    // cannot be sent, recorded, logged or persisted, and this is where that is enforced.
+    CHECK(text.find("#include \"surface/vocabulary.hpp\"") != std::string::npos);
+    CHECK(text.find("#include \"screen.hpp\"") == std::string::npos);
+    CHECK(text.find("#include \"panel.hpp\"") == std::string::npos);
+    CHECK(text.find("<zen/") == std::string::npos);
+    CHECK(text.find("ZEN_SHAPE") == std::string::npos);
 }

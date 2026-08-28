@@ -4767,3 +4767,80 @@ TEST_CASE("WUX-3: with no display truth there is NO answer, and no blind move") 
     // stays where the platform put it.
     CHECK_FALSE(placement_within(100, 100, 800, 600, {}).has_value());
 }
+
+// ---- What a medium makes of the attention slot --------------------------------------------
+
+TEST_CASE("WUX-4: the attention chip is a region in the picture, and empty draws nothing") {
+    SurfaceCanvas c;
+    c.width = 40;
+    c.height = 6;
+
+    // NOTHING TO SAY DRAWS NOTHING AT ALL. Empty is the retraction, so the disappearance
+    // of the indicator needs no path of its own -- and a chip that left an empty box
+    // behind would be a medium claiming something is true when nothing is.
+    const SurfaceExtent face{40, 6, 8, 18};
+    const PlanLayer none = plan_attention_chip("", c, face, PlanSize{480, 72});
+    CHECK(none.quads.empty());
+    CHECK(none.regions.empty());
+
+    // A REAL FACE: the chip is set in TYPE, not in block glyphs, and it takes the corner
+    // opposite the origin.
+    const PlanLayer typed = plan_attention_chip("keymap refused", c, face, PlanSize{480, 72});
+    CHECK(typed.quads.empty());
+    REQUIRE(typed.regions.size() == 1);
+    REQUIRE(typed.regions[0].rows.size() == 1);
+    CHECK(typed.regions[0].rows[0].text == "keymap refused");
+    // ...IN THE ALERT VOICE, over the canvas ground the region put down, so the box reads
+    // as a box rather than as loose words over the picture.
+    CHECK(typed.regions[0].rows[0].background == ink_for_role(role::kAlert));
+    CHECK(typed.regions[0].background == kCanvasBackground);
+    CHECK(typed.regions[0].rows[0].ink == ink_for_role(role::kFill));
+    // TOP-RIGHT: its right edge is the canvas's right edge, and its top is the canvas's.
+    CHECK(typed.regions[0].view.y == 0);
+    CHECK(typed.regions[0].view.x + typed.regions[0].view.w == c.width * kCanvasCellPx);
+    // WIDE ENOUGH FOR ITS OWN TEXT, which is what makes the box fit the words rather than
+    // the words the box.
+    CHECK(fit_region(attention_chip_layer("keymap refused", c.width, face).texts[0], face)
+              .columns >= 14);
+
+    // NO FACE: the same chip degrades to the cell projection through the SAME machinery
+    // every other region does -- one list, never both.
+    const PlanLayer cells =
+        plan_attention_chip("keymap refused", c, SurfaceExtent{}, PlanSize{480, 72});
+    CHECK(cells.regions.empty());
+    CHECK_FALSE(cells.quads.empty());
+
+    // A CANVAS TOO NARROW FOR THE LINE GETS THE WHOLE CANVAS AND THE REGION'S OWN HONEST
+    // CUT, never a box hanging off the edge somebody would have to scroll to.
+    SurfaceCanvas narrow;
+    narrow.width = 4;
+    narrow.height = 4;
+    const SurfaceLayer squeezed =
+        attention_chip_layer("a very long condition indeed", narrow.width, face);
+    REQUIRE(squeezed.texts.size() == 1);
+    CHECK(squeezed.texts[0].w == narrow.width);
+    CHECK(squeezed.texts[0].x == 0);
+
+    // AND A TALLER FACE TAKES THE CELLS IT NEEDS: two cells hold an 18-pixel line, and a
+    // 30-pixel one does not fit in them. The height is arithmetic, not a constant.
+    const SurfaceLayer small = attention_chip_layer("x", 40, face);
+    const SurfaceLayer big = attention_chip_layer("x", 40, SurfaceExtent{40, 6, 8, 30});
+    CHECK(small.texts[0].h == 2);
+    CHECK(big.texts[0].h > small.texts[0].h);
+    CHECK(fit_region(big.texts[0], SurfaceExtent{40, 6, 8, 30}).rows >= 1);
+}
+
+TEST_CASE("WUX-4: the terminal says the same semantic fact on its own row") {
+    // THE OTHER MEDIUM'S HONEST ANSWER. The slot is the same slot and the fact is the same
+    // fact; what differs is the appearance, which is the medium's. Row 2 is where this
+    // medium has always put the score slot, and nothing about that moved.
+    TuiMedium<ClassicStyle, StringSink> m;
+    m.note(kSlotScore, "keymap refused -- default bindings stand (+1 more)");
+    CHECK(m.sink().out == "\x1b[2;1H\x1b[2K keymap refused -- default bindings stand (+1 more)");
+
+    // ...AND AN EMPTY SLOT ERASES THE ROW rather than leaving a stale line on it, which is
+    // the whole of how a resolved condition disappears from a terminal.
+    m.sink().out.clear();
+    m.note(kSlotScore, "");
+    CHECK(m.sink().out == "\x1b[2;1H\x1b[2K ");
+}

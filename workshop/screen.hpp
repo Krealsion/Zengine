@@ -38,6 +38,7 @@
 // the two are not competitors, and neither replaces the other
 // (docs/reference/ui.md).
 
+#include "attention.hpp" // what is true right now, held and dismissed
 #include "complete.hpp"
 #include "document.hpp"
 #include "keymap.hpp"
@@ -1498,8 +1499,26 @@ struct Session {
     std::size_t cursor = 0;   ///< which inspector row the maker is on
     std::vector<Row> rows;    ///< the inspector, rebuilt when the selection changes
     Drag drag;                ///< a pointer drag in flight, if any
-    std::string notice;       ///< the last thing Workshop had to say
+    /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
+    ///
+    /// AN UTTERANCE ABOUT A MOMENT THAT HAS PASSED -- `committed Width = 40%`, `removed
+    /// Info`, `released #12`. It is replaced by the next thing said and it retracts no
+    /// other way, which is exactly right for an event and exactly wrong for a fact that is
+    /// still true when it is read. Standing truths do not live on this row; they live in
+    /// `conditions` (and in their own owners) instead; `notice_is_bad` remains what it has
+    /// always been, one bool reaching one paint role and read nowhere else.
+    std::string notice;
     bool notice_is_bad = false; ///< whether that thing was a refusal
+    /// WHAT IS TRUE RIGHT NOW AND HAS NO LIVE OWNER TO DERIVE IT FROM (attention.hpp) -- the refused keymap file, the refused prefs file, a shadowed
+    /// legacy file. Each is written under a stable key by whoever knows it and erased by
+    /// the same owner when it stops being true; the conditions that DO have a live owner
+    /// (a pane's refusal, a pane's state, the project frontier) are not copied in here and
+    /// are read where they live (`attention_conditions`).
+    HeldConditions conditions;
+    /// ...and the view a maker reads them in, plus the ones they have hidden this session.
+    /// Presentation only: it holds a mode flag, a cursor and a set of hidden statements,
+    /// and nothing it shows.
+    AttentionView attention;
     TerminalPane terminal;    ///< the terminal overlay, when a maker has opened it
     /// THE DYNAMIC PANELS a maker has opened, and the picker they opened them from
     /// (panel.hpp). Session like everything else here, and for the sharpest version of the
@@ -1622,6 +1641,15 @@ inline KeyContext keyboard_context(const Session& s) {
     }
     if (s.panels.picker.open) {
         return KeyContext::kPicker;
+    }
+    // THE CURRENT-CONDITION VIEW IS A MODE, IN THE PICKER'S OWN PLACE: below the
+    // Terminal and pane management, above a focused pane and a live draft. It owns the
+    // keyboard while it is open for the picker's reason -- it is a list with a cursor and a
+    // gesture on the selected row -- and it is deliberately NOT keys-modal like the hotkey
+    // view, because its gestures are real application actions that every help surface
+    // and the maker's own keymap file must be able to see.
+    if (s.attention.open) {
+        return KeyContext::kAttention;
     }
     if (is_runtime_kind(keyboard_pane(s.panels))) {
         return KeyContext::kPane;
@@ -4048,6 +4076,30 @@ inline const char* pane_state_word(std::int64_t state) {
     }
 }
 
+/// WHAT A MAKER CAN DO ABOUT ONE STATE -- the remedy column of the table above, as a
+/// function.
+///
+/// THE TABLE ALREADY SAID EVERY ONE OF THESE and said them only to a reader of this file.
+/// The remedies were written down beside the states because each of the six is *a different
+/// thing for a maker to DO about it*, which is the whole reason the states are not collapsed
+/// into one bit -- and then the only surface that could have spent them was a comment. This
+/// is that column, said in the same words, where a presentation can reach it.
+///
+/// IT IS A FUNCTION OF THE STATE AND OF NOTHING ELSE, exactly as `pane_state_word` is: no
+/// pane, no screen, no setup, nothing to fall out of step with. Total over the integer, for
+/// `panel_kind`'s reason, and `open` has no remedy because there is nothing wrong.
+inline const char* pane_state_remedy(std::int64_t state) {
+    switch (state) {
+    case pane_state::kClosed: return "open it from the picker";
+    case pane_state::kUnresolved: return "check the spelling, or the provider is not loaded";
+    case pane_state::kRefused: return "reset its size, or open it on the other medium";
+    case pane_state::kWaiting: return "make the window taller, or place it yourself";
+    case pane_state::kOffRoom: return "reset its place";
+    case pane_state::kCovered: return "raise it";
+    default: return "";
+    }
+}
+
 /// HOW WIDE THE STATE COLUMN IS.
 ///
 /// ELEVEN, and it moved from eight in WIND-2 because the honest words outgrew it:
@@ -4449,6 +4501,7 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kTerminal: return "the terminal line";
     case KeyContext::kNaming: return "naming a setup";
     case KeyContext::kPicker: return "the + panel picker";
+    case KeyContext::kAttention: return "what needs attention";
     case KeyContext::kManageSelect: return "pane management";
     case KeyContext::kManageMove: return "pane management -- move";
     case KeyContext::kManageSize: return "pane management -- size";
@@ -4558,6 +4611,243 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
     }
     if (shown < rows.size() && budget > 0) {
         say("  " + omitted_text(rows.size() - shown, "more"), surface::role::kMuted);
+    }
+    layer.texts.push_back(std::move(region));
+}
+
+// ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
+//
+// A PURE PROJECTION, IN `paint`'S OWN FAMILY. It collects the conditions that are currently
+// true, ranks them, and owns none of them: it may HIDE one and it may ORDER them, and it may
+// not resolve, mutate, expire or forget one. Truth flows owner -> here -> screen and never
+// back, which is why every function below takes const references and returns values.
+//
+// TWO FAMILIES, READ THE SAME WAY:
+//
+//     HELD      `Session::conditions` -- the walls and the shadowed file, written under a
+//               key by their owners because no live state answers them (attention.hpp)
+//     DERIVED   `ExternalPane::refusal`, `pane_state_of` and `ProjectFrontier` -- already
+//               correct by construction, asked here and copied nowhere. A derived condition
+//               ENTERS attention because its subject's state changed and LEAVES the same
+//               way, with nobody calling a retraction and nothing able to go stale.
+//
+// NOT EVERY TRUE THING IS ATTENTION-WORTHY, and the exclusions are the judgement this
+// projection makes. `pane_state`'s seven words are all true and only three of them are here:
+//
+//     closed        the maker's own choice -- the picker is where presence is decided
+//     unresolved    already counted on the band's own status row, permanently and derived
+//     covered       something of it IS on the screen; stacking is what arranging DOES
+//     open          nothing is wrong
+//     refused       authored, resolvable, and NO cell of it is on the screen   <- attention
+//     waiting       authored, resolvable, and NO cell of it is on the screen   <- attention
+//     off-room      authored, resolvable, and NO cell of it is on the screen   <- attention
+//
+// One rule with three members: a maker put a pane in their setup, this build can resolve it,
+// and yet there is nothing of it to look at. A `closed` pane with an available `open` action
+// is not a warning, and this is where that is decided rather than in the condition model --
+// the model may know more than the projection elects to surface.
+
+/// KEYS. Durable dotted strings, `ActionRow::id`'s own kind of name, spelled once so an
+/// owner's `establish` and a reader's `find` cannot drift. The two per-subject families
+/// carry the subject in the key, because a key identifies exactly one condition and two
+/// panes refusing content are two conditions.
+inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
+inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
+inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
+inline std::string pane_content_key(const PaneRef& ref) {
+    return "pane.content-refused." + ref_text(ref);
+}
+inline std::string pane_window_key(const PaneRef& ref) {
+    return "pane.not-presented." + ref_text(ref);
+}
+inline constexpr const char* kFrontierKey = "project.frontier-waiting";
+
+/// EVERY CONDITION THAT IS CURRENTLY TRUE AND WORTH AMBIENT ATTENTION, ranked.
+///
+/// THE FRONTIER IS AN ARGUMENT for `paint`'s own reason: it is a reading of the
+/// living realization owner taken by the weave at the moment it repaints, and a projection
+/// that reached for one would be storing a fact about the clock. Defaulted to "not waiting",
+/// so a caller with no realization owner -- every screen case in the suite -- projects the
+/// conditions that do not need one.
+inline std::vector<Condition> attention_conditions(const Session& s,
+                                                   const ProjectFrontier& frontier = {}) {
+    std::vector<Condition> out = s.conditions.rows;
+    const Screen sc = screen_of(s);
+
+    // DERIVED: a provider's update this pane could not keep. The pane holds it (`refusal`
+    // is the body's sentence, `refusal_why` the reason), clears it on the next valid
+    // content, and knows nothing about this projection -- so the condition disappears
+    // because the pane recovered, with no retraction call anywhere in the path. That is
+    // the measured defect this replaced, closed by construction rather than by discipline.
+    for (const ExternalPane& pane : s.panels.external) {
+        if (pane.refusal.empty()) {
+            continue;
+        }
+        const RuntimePane* named = s.panels.runtime.of_kind(pane.kind);
+        if (named == nullptr) {
+            continue; // a pane whose catalog row has gone has no subject to name
+        }
+        const PaneRef ref{named->provider, named->pane};
+        out.push_back(Condition{pane_content_key(ref),
+                                "`" + ref_text(ref) + "` refused an update",
+                                pane.refusal_why.empty() ? pane.refusal : pane.refusal_why,
+                                surface::role::kAlert, std::string()});
+    }
+
+    // DERIVED: a pane the maker authored, that this build can resolve, and of which no cell
+    // is on the screen. The word and the remedy are `pane_state`'s own -- one enumeration,
+    // one classifier, and the remedy column that was already written beside it.
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+        const std::int64_t state = pane_state_of(s.panels, s.setup.active, sc, row);
+        if (state != pane_state::kRefused && state != pane_state::kWaiting &&
+            state != pane_state::kOffRoom) {
+            continue;
+        }
+        out.push_back(Condition{pane_window_key(row.ref),
+                                "`" + ref_text(row.ref) + "` " + pane_state_word(state),
+                                std::string(pane_state_remedy(state)), surface::role::kAccent,
+                                "workshop.manage"});
+    }
+
+    // DERIVED: realization is stopped at a row waiting on the maker. Informative and
+    // actionable, and deliberately NOT an error -- "waiting to be built is not a failure
+    // and is not silence either" is the host's own sentence about this exact state.
+    if (frontier.waiting) {
+        std::string detail = "realization is stopped at `" + frontier.artifact + "`";
+        if (frontier.blocked > 0) {
+            detail += " with " + std::to_string(frontier.blocked) + " authored row" +
+                      (frontier.blocked == 1 ? "" : "s") + " behind it";
+        }
+        out.push_back(Condition{kFrontierKey, "project waiting on `" + frontier.artifact + "`",
+                                detail, surface::role::kAccent, "builder.frontier"});
+    }
+
+    std::sort(out.begin(), out.end(), ranks_before);
+    return out;
+}
+
+/// ...LESS THE ONES THIS SESSION HAS HIDDEN. The one function every presentation spends, so
+/// the compact indicator, the view, the cursor bound and the dismissal all agree about which
+/// list they are talking about -- the one-geometry rule, applied to a population.
+inline std::vector<Condition> attention_shown(const Session& s,
+                                              const ProjectFrontier& frontier = {}) {
+    std::vector<Condition> out;
+    for (Condition& c : attention_conditions(s, frontier)) {
+        if (!s.attention.hides(c)) {
+            out.push_back(std::move(c));
+        }
+    }
+    return out;
+}
+
+/// THE COMPACT LINE, or empty when nothing currently deserves attention.
+///
+/// THE HIGHEST-RANKED CONDITION PLUS AN HONEST COUNT. One line cannot carry several
+/// conditions, and a line that silently carried one of five would be a bound that hides
+/// itself -- so the multiplicity is said, and the view is where the complete set lives.
+/// Empty is the retraction: a slot published empty clears the medium's presentation of it,
+/// which is why nothing has to be un-said when the last condition resolves.
+inline std::string attention_compact(const std::vector<Condition>& shown) {
+    if (shown.empty()) {
+        return std::string();
+    }
+    std::string line = shown.front().compact;
+    if (shown.size() > 1) {
+        line += " (+" + std::to_string(shown.size() - 1) + " more)";
+    }
+    return line;
+}
+
+/// WHERE THE CURRENT-CONDITION VIEW OPENS: the hotkey view's rectangle, for the hotkey
+/// view's reason. Each condition spends a row for its statement and a row for its owner's
+/// explanation, so a single overlay slot would show two of them; the column is the room the
+/// screen already reserves beside the workspace, and it stops one row above the setup line
+/// exactly as `hotkeys_bounds` does.
+inline constexpr FineRect attention_bounds(const Screen& sc) noexcept {
+    return hotkeys_bounds(sc);
+}
+
+/// THE VIEW: every currently-true, non-dismissed condition, in the owner's own words.
+///
+/// THE PICKER'S SURFACE WITH A FOURTH PURPOSE -- the same frame, the same bounded region of
+/// prose, the same `list_window` and the same omission wording. What differs is that a row
+/// here is a CONDITION rather than a name, so it spends two lines: the compact statement in
+/// the condition's own role, and beneath it the explanation its owner already possesses,
+/// wrapped rather than fitted (a refusal beheaded at the right margin is the defect `wrap`
+/// exists for). A relevant action is named and never carried: the gesture is looked up in
+/// the effective keymap at this paint, and pressing it is the ordinary dispatch's business
+/// somewhere else entirely.
+///
+/// OPENING THIS IS NOT A DECISION AND CANNOT BECOME ONE. It is entered by a maker's gesture
+/// like every other mode in this application; no severity, no count and no role opens it,
+/// and there is no branch anywhere that could.
+inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, const Screen& sc,
+                            const ProjectFrontier& frontier) {
+    if (!s.attention.open) {
+        return;
+    }
+    const FineRect b = attention_bounds(sc);
+    paint_panel_frame(layer, b);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a slot with no room for a row says nothing rather than lying about the room
+    }
+    surface::SurfaceTextRegion region = panel_prose_region(b);
+    const auto say = [&region, &place](const std::string& text, std::int64_t role) {
+        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+    };
+    const std::vector<Condition> shown = attention_shown(s, frontier);
+    say("ATTENTION -- " + std::to_string(shown.size()) +
+            (shown.size() == 1 ? " condition, " : " conditions, ") +
+            hotkey_text(s.keymap, Act::kAttentionDismiss) + " hides one, " +
+            hotkey_text(s.keymap, Act::kAttentionClose) + " closes",
+        surface::role::kAccent);
+    const std::size_t budget =
+        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
+    if (shown.empty()) {
+        // NOTHING IS WRONG, SAID IN WORDS. A maker who opened this deliberately is owed an
+        // answer, and an empty box is not one. (The compact indicator is already absent --
+        // this surface is reachable whether or not anything is true.)
+        if (budget > 0) {
+            say("  nothing needs your attention right now", surface::role::kMuted);
+        }
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    // ONE ROW PER CONDITION IN THE WINDOW, and the detail beneath it wherever a row is
+    // left. The window is `list_window`'s -- the OBJECTS list's own function, its own three
+    // rules and its own wording -- counted over CONDITIONS, so the cursor is always in it
+    // and every omission is counted on the side it was omitted on.
+    const ListWindow win = list_window(shown.size(), s.attention.cursor, budget);
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const Condition& c = shown[i];
+        const bool here = i == s.attention.cursor;
+        say(std::string(here ? "> " : "  ") + c.compact, c.role);
+        // THE OWNER'S OWN SENTENCE, and only where the room after the statements allows it:
+        // a list that showed one condition's prose and hid another condition entirely would
+        // be spending a maker's room on the wrong half.
+        if (!here) {
+            continue;
+        }
+        for (const std::string& line :
+             detail::wrap(c.detail, place.columns - detail::kWrapIndent)) {
+            say("    " + line, surface::role::kMuted);
+        }
+        if (!c.action.empty()) {
+            for (const ActionRow& row : kActionCatalog) {
+                if (c.action == row.id) {
+                    say("    try: " + gesture_text(s.keymap.row_gesture(row)) + " " + row.label,
+                        surface::role::kFill);
+                    break;
+                }
+            }
+        }
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
     }
     layer.texts.push_back(std::move(region));
 }
@@ -6037,6 +6327,13 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     });
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_management(layer, panels, s.setup.active, s.manage, sc, s.keymap);
+    });
+    // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
+    // covers, under the screen's own chrome. The band keeps speaking while it is open --
+    // what a maker is READING is what is currently true, and what the band SAYS is what
+    // just happened, and those are two different sentences that must not cover each other.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_attention(layer, s, sc, frontier);
     });
 }
 

@@ -418,9 +418,24 @@ int main(int argc, char** argv) {
     // itself -- import once into an absent destination, never overwrite an existing one,
     // never delete the original, converge by existence -- is `user_paths.hpp`'s, pinned
     // in the suite; what the host owns is the wiring and the words.
+    //
+    // AND THE TRANSITION PRODUCES TWO KINDS OF FACT, WHICH ARE NOT JOINED WITH A
+    // SEMICOLON. An IMPORT happened once, at this launch, and converges by existence so it
+    // can never happen again -- an event, and it belongs on the notice row, which is where
+    // things that happened go. A SHADOWED file is still shadowed at the next launch and has
+    // a standing maker action ("delete it to end this note"); it is a CONDITION, it travels
+    // to the weave under a key of its own, and it disappears the day the maker deletes the
+    // file rather than the moment something else is said.
     std::string transition;
-    const auto note_transition = [&transition](const user_paths::LegacyImport& did) {
+    const auto note_transition = [&](const user_paths::LegacyImport& did, const char* what) {
         if (did.note.empty()) {
+            return;
+        }
+        if (did.shadowed) {
+            host.standing_conditions.push_back(
+                Condition{std::string(kLegacyShadowedKeyPrefix) + what,
+                          std::string("older local ") + what + " file is not read",
+                          did.note, surface::role::kAccent, std::string()});
             return;
         }
         if (!transition.empty()) {
@@ -430,11 +445,14 @@ int main(int argc, char** argv) {
     };
     if (args.keymap.empty() && !args.isolated) {
         note_transition(user_paths::import_legacy_file(
-            host.keymap_path, keymap_persist::kDefaultKeymapFileName, "keymap"));
+                            host.keymap_path, keymap_persist::kDefaultKeymapFileName, "keymap"),
+                        "keymap");
     }
     if (args.session.empty() && !args.isolated) {
         note_transition(user_paths::import_legacy_file(
-            host.session_path, session_persist::kDefaultSessionFileName, "session"));
+                            host.session_path, session_persist::kDefaultSessionFileName,
+                            "session"),
+                        "session");
     }
     host.transition_note = transition;
 
@@ -461,6 +479,13 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - prefs: %s\n", path_or_absence(host.prefs_path).c_str());
     if (!transition.empty()) {
         std::printf("zengine-workshop - %s\n", transition.c_str());
+    }
+    // THE BANNER STILL PRINTS BOTH KINDS. A scrollback launch and a shortcut launch overlap
+    // in neither direction, so the host says what it knows here as well -- and it says the
+    // standing ones in the same words the weave will show them in, because they are the
+    // same conditions and not a second account of them.
+    for (const Condition& standing : host.standing_conditions) {
+        std::printf("zengine-workshop - %s\n", standing.detail.c_str());
     }
     std::printf("zengine-workshop - load plan: %s\n", plan_path.c_str());
     std::fflush(stdout);

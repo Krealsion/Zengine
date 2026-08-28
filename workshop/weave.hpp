@@ -253,7 +253,25 @@ struct HostContext {
     /// whatever the host puts here is spoken once on the notice line at startup, beside
     /// the keymap's own word. The host also prints it to its banner; the two audiences
     /// (a terminal launch, a shortcut launch) overlap in neither direction.
+    ///
+    /// IT CARRIES ONLY WHAT HAPPENED. An import is an EVENT -- it ran once, at
+    /// this launch, and converges by existence so it can never run again -- and that is what
+    /// belongs on a row whose next sentence replaces it. A file that is still SHADOWED is a
+    /// standing condition with a maker action, and travels in `standing_conditions` below.
     std::string transition_note;
+
+    /// WHAT THE HOST ALREADY KNEW WAS TRUE, AND STILL IS.
+    ///
+    /// The conditions decided BEFORE this weave exists: today, exactly the shadowed legacy
+    /// files. The host resolves the per-user roots and runs the one-time import in `main`,
+    /// against paths the weave never learns, so the host is the owner of that truth and
+    /// hands it over as a condition -- key, compact statement, its own explanation, its own
+    /// role -- rather than as a sentence to be joined with somebody else's.
+    ///
+    /// IT IS NOT A CHANNEL. Nothing reads it back, nothing writes to it after startup, and
+    /// the weave copies it once (`take_host_conditions`). A host that has nothing standing
+    /// leaves it empty, which is what every suite fixture gets.
+    std::vector<Condition> standing_conditions;
 
     /// AN ARTIFACT STEM, AS THIS PLATFORM SPELLS A SHARED LIBRARY.
     ///
@@ -358,8 +376,15 @@ public:
         const keymap_persist::LoadedKeymap loaded =
             keymap_persist::load_file(host_->keymap_path);
         if (!loaded.outcome.accepted) {
-            keymap_word_ = loaded.outcome.refusal + " -- the default bindings stand";
+            // A STANDING WALL, AND IT IS SAID AS ONE. The file is still refused
+            // an hour later and every later launch meets the same wall, so this is a
+            // CONDITION and not a sentence about a moment -- established under its own key,
+            // with the loader's own refusal as the explanation, and retracted by nobody
+            // because nothing in a run can make an unreadable file readable.
             keymap_bad_ = true;
+            session_.conditions.establish(
+                Condition{kKeymapWallKey, "keymap refused -- default bindings stand",
+                          loaded.outcome.refusal, surface::role::kAlert, std::string()});
             return;
         }
         session_.keymap = loaded.keymap;
@@ -398,27 +423,45 @@ public:
         }
         const prefs_persist::LoadedPrefs loaded = prefs_persist::load_file(host_->prefs_path);
         if (!loaded.outcome.accepted) {
-            prefs_word_ = loaded.outcome.refusal + " -- the default presentation stands";
+            // THE KEYMAP WALL'S TWIN, one file over, and this one is load-bearing beyond
+            // the sentence: `prefs_bad_` blocks every later write, so a maker who toggles a
+            // preference is told again, in different words, at each toggle. The CONDITION
+            // is the standing half -- true from this load until the process ends -- and the
+            // toggle's refusal stays an event, because it is about the press.
             prefs_bad_ = true;
+            session_.conditions.establish(
+                Condition{kPrefsWallKey, "preferences refused -- defaults stand",
+                          loaded.outcome.refusal, surface::role::kAlert, std::string()});
             return;
         }
         session_.pane_titles = loaded.titles_shown;
     }
 
-    /// Say once what the startup file work produced, on the first surface that can show
-    /// it -- after the session restore, deliberately, so a sentence a maker must act on is
-    /// the one that survives on the one notice line. Three voices share it (the keymap's
-    /// word, the prefs file's, and the host's legacy-transition note), joined rather than
-    /// spoken over each other: the notice line holds one sentence, and three `say` calls
-    /// would keep only the last.
+    /// Say once what the startup file work DID, on the first surface that can show it --
+    /// after the session restore, deliberately, so the sentence that survives on the one
+    /// notice line is the one about this launch.
+    ///
+    /// THIS ROW CARRIES ONLY THE EVENT HALF, and the split is the whole point. A
+    /// startup produces two kinds of fact and they used to share one string and one
+    /// severity bit:
+    ///
+    ///     EVENT      `keymap <path> applied -- 3 overrides`, `imported your local keymap
+    ///                from ... (the original was left in place)`. True once, about a moment
+    ///                that has passed, and replaced by whatever is said next. THIS row.
+    ///     CONDITION  a refused keymap file, a refused prefs file, a legacy file that is
+    ///                still shadowed. Still true when it is read, an hour later and at the
+    ///                next launch. `Session::conditions`, under a key, with a lifetime.
+    ///
+    /// So the severity bit is gone from here: everything left is something that HAPPENED
+    /// and none of it is a wall. `keymap_bad_`/`prefs_bad_` remain what they always were
+    /// beyond the sentence -- one blocks nothing, the other blocks every later prefs write.
     void speak_startup_notes(loom::Mail& mail) {
         if (startup_spoken_) {
             return;
         }
         startup_spoken_ = true;
         std::string word;
-        for (const std::string* part :
-             {&keymap_word_, &prefs_word_, &host_->transition_note}) {
+        for (const std::string* part : {&keymap_word_, &host_->transition_note}) {
             if (part->empty()) {
                 continue;
             }
@@ -430,8 +473,26 @@ public:
         if (word.empty()) {
             return;
         }
-        say(word, keymap_bad_ || prefs_bad_);
+        say(word, false);
         repaint(mail);
+    }
+
+    /// TAKE THE CONDITIONS THE HOST ALREADY KNEW.
+    ///
+    /// A shadowed legacy file is decided before this weave exists -- the host resolves the
+    /// per-user roots and runs the one-time import in `main`, against paths the weave never
+    /// learns -- so the host is the OWNER of that truth and hands it over rather than being
+    /// asked for it. Establishing them here, once, beside the two file loads, is what keeps
+    /// the whole standing-condition population arriving through one door on one occasion.
+    ///
+    /// THE HOST HANDS OVER CONDITIONS AND NOT SENTENCES. A refused file's word and a
+    /// shadowed file's word used to be the same kind of thing joined with `"; "`; they are
+    /// two kinds of thing now, and the host's own banner still prints both because a
+    /// scrollback launch and a shortcut launch overlap in neither direction.
+    void take_host_conditions() {
+        for (const Condition& c : host_->standing_conditions) {
+            session_.conditions.establish(c);
+        }
     }
 
     /// A Skin claimed the surface and said hello: give it the whole screen. The
@@ -480,6 +541,9 @@ public:
         // The prefs beside it (WUX-3), BEFORE the first paint: the first band and the
         // first pane headers a maker reads are already wearing their own preference.
         load_prefs();
+        // ...and whatever the host already knew was standing, so the first picture
+        // of the run already carries every condition this launch is going to have.
+        take_host_conditions();
         repaint(mail);
         restore_last_session(mail);
         speak_startup_notes(mail);
@@ -634,6 +698,10 @@ public:
             toggle_hotkeys();
             repaint(mail);
             return;
+        case Act::kAttention:
+            toggle_attention();
+            repaint(mail);
+            return;
         default: break;
         }
         // THE HOTKEY VIEW IS KEYS-MODAL WHILE IT IS OPEN: the five arms above still
@@ -679,6 +747,7 @@ public:
         case KeyContext::kManageReset: manage_key(k, mail); break;
         case KeyContext::kNaming: naming_key(k, mail); break;
         case KeyContext::kPicker: picker_key(k, mail); break;
+        case KeyContext::kAttention: attention_key(k); break;
         case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
         case KeyContext::kDraft: editing_key(k); break;
         default: command(k, mail); break;
@@ -706,6 +775,74 @@ public:
     void hotkeys_key(const zengine::input::KeyPressed& k) {
         if (k.scancode == input::scan::kEscape && k.modifiers == input::mod::kNone) {
             session_.hotkeys.open = false;
+        }
+    }
+
+    /// Open or close the current-condition view -- `toggle_hotkeys`' own shape,
+    /// one surface over. Opening it puts the cursor back on the loudest condition, because
+    /// a cursor left where the maker last was would point at whatever happens to be in that
+    /// position now: the population is recomputed from live owners and a row is a fact
+    /// about the world, not a slot.
+    ///
+    /// IT IS A MAKER'S GESTURE AND NOTHING ELSE CAN CALL IT. No severity opens this, no
+    /// count opens it, and no condition becoming true opens it -- a modal is earned by
+    /// required maker intent, never by diagnostic severity, and there is no branch anywhere
+    /// in this weave that reaches this function from an arrival.
+    void toggle_attention() {
+        session_.attention.open = !session_.attention.open;
+        session_.attention.cursor = 0;
+    }
+
+    /// THE VIEW'S OWN KEYS: move the cursor, hide the condition it is on, close.
+    ///
+    /// THE CURSOR IS REPAIRED THROUGH THE POPULATION'S OWN OWNER BEFORE ANYTHING INDEXES IT
+    /// -- the picker's rule, and this list needs it more, not less: its population is
+    /// DERIVED, so a pane recovering or a build finishing can shrink it between two
+    /// keystrokes with no gesture in between.
+    ///
+    /// DISMISSAL IS PRESENTATION-ONLY AND THIS IS THE WHOLE OF IT. It writes one entry in
+    /// the view's own set; it does not touch `HeldConditions`, any pane, any build, the
+    /// keymap, the prefs, or any file. The condition is still true afterwards, still
+    /// returned by `attention_conditions`, still readable by its owner -- and it comes back
+    /// on its own the moment its content changes, because the dismissal was scoped to the
+    /// statement rather than to the key alone (`AttentionView::hides`).
+    void attention_key(const zengine::input::KeyPressed& k) {
+        AttentionView& view = session_.attention;
+        std::vector<Condition> shown = attention_shown(session_, frontier_now());
+        if (view.cursor >= shown.size()) {
+            view.cursor = shown.empty() ? 0 : shown.size() - 1;
+        }
+        switch (session_.keymap.action_for(KeyContext::kAttention, k.scancode, k.modifiers)) {
+        case Act::kAttentionUp:
+            if (view.cursor > 0) {
+                --view.cursor;
+            }
+            break;
+        case Act::kAttentionDown:
+            if (view.cursor + 1 < shown.size()) {
+                ++view.cursor;
+            }
+            break;
+        case Act::kAttentionDismiss:
+            if (view.cursor < shown.size()) {
+                const std::string hidden = shown[view.cursor].compact;
+                view.dismiss(shown[view.cursor]);
+                // AN EVENT, SAID AS ONE. What just happened is that a maker hid a
+                // presentation; what remains true is the condition, which is why the
+                // sentence is about the gesture and not about the subject.
+                say("hidden -- " + hidden + " is still true", false);
+            }
+            break;
+        case Act::kAttentionClose: view.open = false; break;
+        default:
+            // THE KEY THAT OPENED IT CLOSES IT -- the picker's and the terminal overlay's
+            // shared rule, following the OPENER'S effective binding wherever a maker moved
+            // it. The toggle is a global, so it is answered above this switch and never
+            // reaches here; this arm is what makes a remapped opener still close.
+            if (session_.keymap.matches(Act::kAttention, k.scancode, k.modifiers)) {
+                view.open = false;
+            }
+            break;
         }
     }
 
@@ -1486,7 +1623,7 @@ public:
             // panel to vanish.
             if (ExternalPane* pane = session_.panels.external_pane(admitted.kind)) {
                 pane->shown.clear();
-                pane->refusal.clear();
+                pane->clear_refusal();
                 pane->heard = false;
                 pane->awaiting = true;
                 pane->granted = false;
@@ -1547,19 +1684,22 @@ public:
             pane->heard = false;
             pane->awaiting = true;
             pane->refusal = kExternalRefused;
-            // THE MAKER-FACING NOTICE NAMES ONLY THE ALREADY-ADMITTED `PaneRef` and carries
-            // none of the refused message: what was wrong with it was its content.
-            if (const RuntimePane* named = session_.panels.runtime.of_kind(kind)) {
-                say("`" + ref_text(PaneRef{named->provider, named->pane}) + "` " + judged.refusal,
-                    true);
-            }
+            // AND WHY, KEPT WHERE THE REFUSAL IS. This is Workshop's own sentence
+            // about the content and carries none of the refused message; what changed in
+            // what changed is where it LIVES. It used to be said on the notice row, which has no
+            // lifetime: the pane cleared its refusal on the next valid content and the row
+            // kept the refusal sentence for the rest of the process -- resolving a
+            // condition could not un-say it. Held beside the refusal it explains, it is
+            // gone the moment the refusal is, and the attention projection reads it where
+            // it lives rather than being told about it (`attention_conditions`).
+            pane->refusal_why = judged.refusal;
             repaint(mail);
             return;
         }
         pane->shown = content.rows; // only the validated rows, and only now
         pane->heard = true;
         pane->awaiting = false;
-        pane->refusal.clear();
+        pane->clear_refusal();
         repaint(mail);
     }
 
@@ -4426,7 +4566,7 @@ private:
             pane->columns = body.columns;
             pane->granted = true;
             pane->shown.clear();
-            pane->refusal.clear();
+            pane->clear_refusal();
             pane->heard = false;
             pane->awaiting = true;
             // DELIBERATELY AUTHORED AS `zengine.workshop` AND ADDRESSED TO THE OFFICE THE
@@ -4574,9 +4714,24 @@ private:
         // pure projection of what it is handed, and what it is handed is this repaint's
         // reading of the living realization owner — never a member, never a field of the
         // session, never yesterday's answer (BLD-2).
-        mail.publish(paint(state_, session_, host_->setup_path, frontier_now()));
+        const ProjectFrontier frontier = frontier_now();
+        // THE SLOTS GO FIRST, AND THE PICTURE LAST. A slot is a line of text a
+        // publisher hands the MEDIUM, and the medium owns what it makes of it — the SDL
+        // medium composes the attention slot INTO the picture it draws, so a slot published
+        // after the canvas would show one frame late. Ordering them ahead costs nothing
+        // anywhere else (a title is set, a terminal row is written) and it is what makes
+        // "the compact indicator is current" a fact rather than a race.
         mail.publish(
             zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
+        // WHAT IS CURRENTLY TRUE AND WORTH A GLANCE, ON THE ONE ALWAYS-VISIBLE SLOT
+        // WORKSHOP HAD NEVER SPENT. It is derived at every repaint from live owners and
+        // held nowhere, exactly as the canvas is — so a condition that resolved is gone
+        // from it because it stopped being returned, and NOBODY had to un-say anything.
+        // EMPTY IS THE RETRACTION: a medium clears its presentation of a slot published
+        // empty, which is why the disappearance needs no path of its own.
+        mail.publish(zengine::surface::SurfaceText{
+            zengine::surface::kSlotScore, attention_compact(attention_shown(session_, frontier))});
+        mail.publish(paint(state_, session_, host_->setup_path, frontier));
     }
 
     /// LEAVE -- and write down what was on the desk on the way out (WUX-0).
@@ -4656,21 +4811,24 @@ private:
     /// happens once.
     bool restored_ = false;
 
-    /// What loading the keymap produced, held until the first surface can show it, and
-    /// this run's own bookkeeping for the same reason `restored_` is. Empty means there
-    /// is nothing to say: no path, no file, or a file with no authored difference.
+    /// What loading the keymap DID, held until the first surface can show it, and this
+    /// run's own bookkeeping for the same reason `restored_` is. Empty means there is
+    /// nothing that happened worth saying: no path, no file, or a file with no authored
+    /// difference. A file that could not be admitted says nothing HERE -- that
+    /// is a standing wall and it is a condition (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
     std::string keymap_word_;
     bool keymap_bad_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
     /// What loading the PREFS file produced (WUX-3), the keymap's own bookkeeping one file
-    /// over. `prefs_bad_` is load-bearing beyond the notice: a file that exists and could
+    /// over. `prefs_bad_` is load-bearing beyond any sentence: a file that exists and could
     /// not be admitted is never overwritten, so a toggle while it stands changes the live
     /// preference and deliberately writes nothing (KEY-0's do-not-rewrite law, applied to
-    /// the file Workshop itself writes).
+    /// the file Workshop itself writes). There is no `prefs_word_` beside it: a prefs file
+    /// that APPLIED speaks for itself on screen (hidden titles are visibly hidden), and one
+    /// that was refused is a condition, so this file has no event to announce at all.
     bool prefs_loaded_ = false;
-    std::string prefs_word_;
     bool prefs_bad_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT (WUX-3) -- the gate that
