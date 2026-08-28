@@ -4814,36 +4814,61 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
         layer.texts.push_back(std::move(region));
         return;
     }
-    // ONE ROW PER CONDITION IN THE WINDOW, and the detail beneath it wherever a row is
-    // left. The window is `list_window`'s -- the OBJECTS list's own function, its own three
-    // rules and its own wording -- counted over CONDITIONS, so the cursor is always in it
-    // and every omission is counted on the side it was omitted on.
-    const ListWindow win = list_window(shown.size(), s.attention.cursor, budget);
+    // THE CURSOR'S OWN BLOCK IS COMPOSED AND RESERVED BEFORE THE LIST IS WINDOWED, and that
+    // ordering is the whole of this painter's honesty.
+    //
+    // A window computed over the COMPACT rows alone is right until the row it is keeping in
+    // view spends three more beneath it -- and what then falls off the bottom of the region
+    // is the omission marker, which is the one row that was there to say something had been
+    // dropped. A region PADS what it was not given and SILENTLY DROPS what will not fit
+    // (region.hpp's projection), so the over-spend is invisible in both media. A bound that
+    // grows when it is exceeded is not a bound, so the block comes out of the budget first
+    // and `list_window`'s three rules then run over what is left.
+    //
+    // THE CURSOR IS RESOLVED ONCE, HERE, and every question below spends the same answer.
+    // The population is DERIVED, so it can shrink between a keystroke and a repaint with no
+    // gesture in between -- and a painter that clamped in one place and compared the raw
+    // value in another would compose an explanation for a row it then never marks.
+    const std::size_t cursor =
+        s.attention.cursor < shown.size() ? s.attention.cursor : shown.size() - 1;
+    const Condition& at = shown[cursor];
+    std::vector<std::string> block =
+        detail::wrap(at.detail, place.columns - detail::kWrapIndent);
+    if (!at.action.empty()) {
+        // AN ACTION IS A NAME AND ITS GESTURE IS THE KEYMAP'S, resolved at this paint. The
+        // row says what a maker could press somewhere else; nothing here can press it.
+        for (const ActionRow& row : kActionCatalog) {
+            if (at.action == row.id) {
+                block.push_back("try: " + gesture_text(s.keymap.row_gesture(row)) + " " +
+                                row.label);
+                break;
+            }
+        }
+    }
+    // THE LIST KEEPS `list_window`'S OWN FLOOR OF THREE, so the cursor's row is always in
+    // the window it is being explained inside of. Below four rows there is no explanation at
+    // all rather than an explanation with no statement over it, and what the reserve cannot
+    // hold is counted in the same words every other omission on this screen is counted in.
+    const std::size_t reserve = budget >= 4 ? (block.size() < budget - 3 ? block.size()
+                                                                        : budget - 3)
+                                            : 0;
+    const ListWindow win = list_window(shown.size(), cursor, budget - reserve);
     if (win.before > 0) {
         say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
     }
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const Condition& c = shown[i];
-        const bool here = i == s.attention.cursor;
+        const bool here = i == cursor;
         say(std::string(here ? "> " : "  ") + c.compact, c.role);
-        // THE OWNER'S OWN SENTENCE, and only where the room after the statements allows it:
-        // a list that showed one condition's prose and hid another condition entirely would
-        // be spending a maker's room on the wrong half.
-        if (!here) {
+        if (!here || reserve == 0) {
             continue;
         }
-        for (const std::string& line :
-             detail::wrap(c.detail, place.columns - detail::kWrapIndent)) {
-            say("    " + line, surface::role::kMuted);
+        const std::size_t said = block.size() > reserve ? reserve - 1 : block.size();
+        for (std::size_t line = 0; line < said; ++line) {
+            say("    " + block[line], surface::role::kMuted);
         }
-        if (!c.action.empty()) {
-            for (const ActionRow& row : kActionCatalog) {
-                if (c.action == row.id) {
-                    say("    try: " + gesture_text(s.keymap.row_gesture(row)) + " " + row.label,
-                        surface::role::kFill);
-                    break;
-                }
-            }
+        if (said < block.size()) {
+            say("    " + omitted_text(block.size() - said, "more"), surface::role::kMuted);
         }
     }
     if (win.after > 0) {

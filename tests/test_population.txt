@@ -649,8 +649,8 @@
 # and the weave cases drive published messages -- the live Windows window is the phase's
 # witness, not a case.
 #
-# WUX-4 raised the workshop floor 832 -> 848 and the surface always-floor 94 -> 96, and the
-# spread is the phase's own split. The sixteen workshop cases are the DISTINCTION between a
+# WUX-4 raised the workshop floor 832 -> 849 and the surface always-floor 94 -> 96, and the
+# spread is the phase's own split. The seventeen workshop cases are the DISTINCTION between a
 # thing that happened and a thing that is true: a held condition that stands until its owner
 # retracts it and outlives every sentence said over it, a derived one that enters and leaves
 # attention because its subject's state moved (with no retraction call anywhere on the path),
@@ -662,7 +662,10 @@
 # condition, an alert that opens no mode however many beats pass, a condition that names an
 # action and cannot execute one, the ranked compact line with its honest count, the view and
 # its projection through KEY-0's help surfaces, and the source tripwire over the condition
-# model itself. The two surface cases are the MEDIA's half: what the SDL plan makes of the
+# model itself, and the bound witness beside it -- the view's published row count swept against
+# the room's own answer at three extents by twelve cursor positions, because a region PADS what
+# it was not given and SILENTLY DROPS what will not fit, so an over-spending painter loses
+# exactly the omission marker that existed to say so. The two surface cases are the MEDIA's half: what the SDL plan makes of the
 # attention slot in the picture (a region in the real face, its box sized from the metric,
 # the cell fallback, the narrow-canvas clamp, and NOTHING at all for an empty slot) and the
 # terminal's own row-2 answer including the erase that retracts it.
@@ -693,7 +696,7 @@ component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  848
+workshop                          doctest           always  849
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always
