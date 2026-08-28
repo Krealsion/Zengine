@@ -162,7 +162,7 @@ Pass extra CTest flags through with `-DZEN_CTEST_ARGS=-V`.
 
 **On Linux the lane is safe to run in parallel.** `-DZEN_CTEST_ARGS=-j<n>` spends the machine on
 the suites without changing what any of them proves; on a 12-core desktop it takes the lane from
-about a minute to about twenty seconds. On Windows keep it serial for now — the `timer` suite
+about a minute to under ten seconds. On Windows keep it serial for now — the `timer` suite
 has a separate, still-open failure under concurrent CTest, unrelated to the one below and
 present before it was fixed. What made parallel unsafe everywhere for a while was the
 compile-judged entries: each of them proves its point by trying to build a fixture, and they
@@ -194,7 +194,12 @@ their diagnostics, plus script entries.
 | `input` | the locked contract and SDL-scancode identity by content-id and literal value; both backends' translations as pure math on every lane; the weave's publish path and self-arranged beat through a real bus |
 | `surface` | the contract by content-id; terminal skins as golden bytes; the SDL frame plan as pure math; the hello handshake and the one-owner rule through the real kernel; the general canvas as golden bytes; and, where built, the SDL skin under SDL's dummy video driver |
 | `ui`, `component`, `operator`, `composer` | those packages' own contracts |
-| `workshop` | authored shapes by content-id; identity-is-not-the-name; the typed property connection including both ways a commit can fail; authored-versus-resolved as two facts only one of which moves; hit testing against real authored objects; the maker's own gestures; and whole screens asserted as `SurfaceCanvas` values |
+| `workshop_document` | authored shapes by content-id; identity-is-not-the-name; the typed property connection including both ways a commit can fail; authored-versus-resolved as two facts only one of which moves; the maker's own gestures; editable text as a component; and the keymap that says which gesture a key is |
+| `workshop_screen` | whole screens asserted as `SurfaceCanvas` values; hit testing against real authored objects; one object read in another's frame; what a hand can and cannot reach; and the sub-cell lattice a pane arrangement is authored on |
+| `workshop_panels` | the panels Workshop itself ships — the terminal, the Builder, Info and its bounded bodies — and the surface that says what is currently true |
+| `workshop_panes` | the external pane seam from both sides: an office authors a pane, Workshop grants the room, and a press inside that room reaches the office that owns it — against real loaded libraries through the real kernel |
+| `workshop_persistence` | what survives a process and what deliberately does not: the document format and its refusals, the named arrangement, the desk that comes back on its own, and the installed application's per-user roots |
+| `workshop_load` | which artifacts are in the room at all: the authored load plan, its codec, and the executor that walks it |
 | `builder` | real child processes — every recipe is `cmake -E …` or this repository's own deliberately slow script, so it needs no shell and no assumption about what is installed — plus the regression canary for non-blocking custody |
 | `audit_probes` | a different **kind** of suite, kept deliberately: what the substrate measurably does to a live beat chain when the timer service is swapped, reloaded, double-wound or joined late — *including where that was unwanted*. Read its header before changing it |
 | the `ui_*` and `timer_*` compile entries | that a fence is a compile error, with its positive control |

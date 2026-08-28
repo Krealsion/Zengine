@@ -115,14 +115,18 @@ target_compile_options(zengine-warnings INTERFACE
 # AND MSVC HAS THE SAME CEILING, WHICH HD-1 GUESSED WRONG AND HD-10 MEASURED. The sentence
 # here used to read "scoped to MinGW because nothing else has the limit -- MSVC has its own
 # object format and its own `/bigobj`", which is half right: the flag is MSVC's own, and the
-# LIMIT is the same COFF limit, because MSVC emits COFF too. HD-10 added nine cases to
-# `tests/test_workshop.cpp` and the MSVC stranger lane stopped on a file that had compiled
-# there the phase before, with
+# LIMIT is the same COFF limit, because MSVC emits COFF too. HD-10 added nine cases to the
+# Workshop suite -- then one file, `tests/test_workshop.cpp` -- and the MSVC stranger lane
+# stopped on a file that had compiled there the phase before, with
 #
 #   fatal error C1128: number of sections exceeded object file format limit: compile with /bigobj
 #
 # Same ceiling, same repair, said in each toolchain's own spelling. ELF has no such ceiling,
 # so the GCC/Linux lanes ask for nothing.
+#
+# THAT WORKSHOP FILE IS SIX FILES NOW, so the object nearest the ceiling is a fraction of
+# what it was -- and the flags stay exactly as they are. The ceiling is the toolchain's and
+# always was; the only thing the decomposition changed is which phase meets it next.
 if(MINGW)
     target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
 endif()

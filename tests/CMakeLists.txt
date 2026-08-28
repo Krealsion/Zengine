@@ -670,151 +670,196 @@ zengine_compile_test(ui_resolved_geometry_refused zengine-cn-ui-resolved
 
 zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 
-# The Workshop suite: the maker-facing surface, proven headless. The typed
-# property connection (read, commit, the two ways a commit fails), the document's
-# refusals, and whole screens asserted as SurfaceCanvas values.
+# ---- The Workshop suites -------------------------------------------------------------
 #
-# After W-1 it also proves the INTEGRATION the relocation created: that the
-# geometry a maker sees comes from the UI package and from nowhere else — the
+# SIX BINARIES, NOT ONE, AND THE BOUNDARIES ARE THE SOURCE'S OWN. Workshop's cases had
+# grown to a single thirty-thousand-line translation unit: thirty seconds to compile
+# before one assertion could run, and nineteen seconds of test time CTest could only ever
+# give to one worker. Neither number is about how much Workshop proves -- it is the same
+# population -- and both are about it being presented to the machine as one indivisible
+# job. So the file was cut along the seams its own headings already had:
+#
+#   workshop_document      the authored material and the maker's hands on it
+#   workshop_screen        composition and geometry -- what is painted where
+#   workshop_panels        the panels Workshop ships, and the attention surface
+#   workshop_panes         the external pane seam, from both sides
+#   workshop_persistence   what survives a process
+#   workshop_load          which artifacts are in the room at all
+#
+# `tests/workshop_support.hpp` holds what more than one of them needs -- the fixtures, the
+# canvas readers, the `Live` and `PaneRig` rigs -- and says in its own header what may go
+# there and what may not. `test_workshop_load.cpp` does not include it: its rigs are its
+# own, because a Timer in a rig that drains to empty never returns and every one of its
+# cases owns a Switchboard and a Kernel of its own.
+#
+# WHAT IS PROVEN IS UNCHANGED. Every case moved verbatim into the suite that owns its
+# subject; `tests/test_population.txt` carries six floors where it carried one, and their
+# sum is what the one was.
+#
+# The Workshop surface is proven headless. That is not a limitation of the suites, it is a
+# property of the design: the authored objects are plain data, the operations on them are
+# functions that can refuse, the inspector is a list of values, and the screen is a
+# SurfaceCanvas returned by a function. What headless cannot prove is that a Skin carries
+# the canvas to a human's eyes -- that is the Surface suite's job, plus the live run.
+#
+# After W-1 they also prove the INTEGRATION the relocation created: that the
+# geometry a maker sees comes from the UI package and from nowhere else -- the
 # painted rectangle, the inspector's resolved reading and the answer to a click
 # are all derived from one ui::Scene, so they cannot come to disagree. What
 # resolution and hit testing DO is the ui suite's claim; that Workshop gets its
-# answers from there is this one's.
+# answers from there is these ones'.
 #
 # Workshop's OWN weave is still mounted in-process, so there is still no artifact of
-# Workshop's for the kernel to load — but since WP-0 this suite DOES define a `_SO` path,
-# and the comment that used to say otherwise is corrected rather than deleted. The path is
-# a PROVIDER's: `zengine-workshop-hello` is a real dynamic library the suite loads through
+# Workshop's for the kernel to load -- but since WP-0 these suites DO define `_SO` paths,
+# and the comment that used to say otherwise is corrected rather than deleted. The first is
+# a PROVIDER's: `zengine-workshop-hello` is a real dynamic library they load through
 # the real Kernel and Manager, because the claim WP-0 has to make is about the real ABI and
 # load path and a mock loader would prove nothing about either.
 #
-# What it also needs is the surface vocabulary and the terminal rasterizer, because one case
+# What they also need is the surface vocabulary and the terminal rasterizer, because one case
 # runs a real painted screen through the medium's own pure function.
 #
-# INTR-0 gave it a SECOND `_SO` path, and the two are different KINDS of artifact rather
+# INTR-0 gave a SECOND `_SO` path, and the two are different KINDS of artifact rather
 # than two of a kind. `zengine-workshop-hello` is a fixture this directory builds, whose
 # whole job is to be the smallest thing that exercises the protocol. `zengine-introspection`
-# is a PRODUCT — a package beside timer/ and input/, staged and booted by the real Workshop
-# host — and the suite loads the very library a maker runs. So a case here that reads its
+# is a PRODUCT -- a package beside timer/ and input/, staged and booted by the real Workshop
+# host -- and the suites load the very library a maker runs. So a case here that reads its
 # rows is reading the shipped tool's answer, not a stand-in's, which is the only way the
 # claim "every displayed fact is true" can be tested at all.
 #
-# LOAD-0 adds a SECOND SOURCE FILE to the same binary, on the terms every phase since
-# CAT-0 has used: the population contract counts ENTRIES, and registering a new CTest
-# entry for a new tier of an existing suite would be splitting the inventory in order
-# to record a file. `test_workshop.cpp` asks what a maker sees and does;
-# `test_workshop_load.cpp` asks which artifacts are in the room at all.
-#
-# It brings `zengine-workshop-load` -- the typed plan, its codec and its executor --
-# and with it `zengine-operator`, because a plan row's provider mode IS `op::MountMode`
-# and the executor mounts through `op::mount_provider`.
-#
-# ⚠ AND IT BRINGS A TIMER `_SO` INTO THIS BINARY, which the paragraph below says this
-# suite deliberately did not have. That paragraph is CORRECTED rather than deleted: the
-# hazard it measured is real and unchanged -- a live Timer re-arms its own beat inside
-# its own handler, so a rig that pumps to EMPTY never returns. What makes the new file
-# safe is that every one of its rigs is a LOCAL of its case, owns its own Switchboard
-# and Kernel, and drains with `pump_pending()` in bounded turns. `test_workshop.cpp`'s
-# rigs are untouched and still pump to empty; they never see a Timer, because a weave
-# lives on the bus that loaded it and each case builds its own.
-add_executable(zengine-workshop-tests test_workshop.cpp test_workshop_load.cpp doctest_main.cpp)
-# `loom::history` IS LINKED BY THE SUITE AND BY NOTHING IN WORKSHOP, and the
-# asymmetry is the claim. The current-condition lifecycle must not reach the Recorder or the
-# Logger, and "it does not" is only a measurement if a Recorder and a Logger are ACTUALLY
-# ATTACHED to the bus while a condition is established, read, hidden and resolved. So the
-# suite attaches both and reads their counters; the Workshop package still links neither,
-# which is where the property is actually enforced.
-target_link_libraries(zengine-workshop-tests
-    PRIVATE loom::kernel loom::switchboard loom::core loom::terminal loom::history
-            zengine-workshop-vocabulary zengine-workshop-load
-            zengine-surface-vocabulary zengine-ui-vocabulary
-            zengine-introspection-view zengine-composer-vocabulary
-            zengine-timer-vocabulary zengine-warnings
-            zengine-sanitize)
-target_include_directories(zengine-workshop-tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-# MSG-0 gave it a THIRD `_SO` path, and it is a PRODUCT rather than a fixture -- the
+# MSG-0 gave a THIRD `_SO` path, and it is a PRODUCT rather than a fixture -- the
 # same distinction INTR-0 drew for the second. `zengine-composer` is the tool under
-# test, and the cases below load the very library a maker runs: what a maker sees is
+# test, and the cases that name it load the very library a maker runs: what a maker sees is
 # read off the published canvas at the rectangle Workshop's own painter used, so
 # nothing about the pane is asserted from the inside.
 #
-# THERE IS NO `_SO` FOR THE TIMER, AND THAT ABSENCE IS MEASURED RATHER THAN CHOSEN.
-# The shipped Timer service re-arms its own beat inside its own handler and
-# `Switchboard::drain_until_idle()` does what it says, so loading it into a rig whose
-# every gesture drains never returns -- it hung, at the load. The Timer's real SHAPES are still what
-# these cases compose (see `TimerSeat` in test_workshop.cpp), and the real SERVICE is
-# exercised where a real service can be, which is the live run.
-target_compile_definitions(zengine-workshop-tests PRIVATE
+# THERE IS NO `_SO` FOR THE TIMER IN THE FIVE SUITES ABOVE `workshop_load`, AND THAT
+# ABSENCE IS MEASURED RATHER THAN CHOSEN. The shipped Timer service re-arms its own beat
+# inside its own handler and `Switchboard::drain_until_idle()` does what it says, so
+# loading it into a rig whose every gesture drains never returns -- it hung, at the load.
+# The Timer's real SHAPES are still what these cases compose (see `TimerSeat` in
+# test_workshop_panes.cpp), and the real SERVICE is exercised where a real service can be:
+# in `workshop_load`, whose rigs drain in bounded turns, and in the live run.
+set(ZENGINE_WORKSHOP_LIBS
+    loom::kernel loom::switchboard loom::core loom::terminal
+    zengine-workshop-vocabulary zengine-workshop-load
+    zengine-surface-vocabulary zengine-ui-vocabulary
+    zengine-introspection-view zengine-composer-vocabulary
+    zengine-timer-vocabulary zengine-warnings
+    zengine-sanitize)
+
+# The artifacts `workshop_support.hpp` itself names, so every suite that includes it needs
+# them. The three fixtures stand in for the things a plan can point at and get wrong;
+# `zengine-operators-basic` is what the shipped plan actually names.
+set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
-    "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
-    # ---- LOAD-0's artifacts, and the directory they are STAGED INTO --------------
-    #
-    # A REAL DIRECTORY, because the claim "filesystem presence is not load authority"
-    # cannot be made against a lookup table -- with a table, "not in the plan" and
-    # "not reachable" are the same thing and the interesting question cannot be
-    # asked. The suite copies these files into `WORKSHOP_LOAD_STAGE_DIR` itself and
-    # then resolves stems against it with the HOST's own rule, so the directory holds
-    # more artifacts than any plan in the file names.
-    #
-    # SIX PATHS, AND FOUR OF THEM ARE PRODUCTION ARTIFACTS. `zengine-operators-basic`
-    # and `zengine-timer` are what the shipped plan actually names, so a case here
-    # drives the very files a maker runs; the three fixtures stand in for the things a
-    # plan can point at and get wrong.
-    "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
     "PROVIDER_BASIC_SO=\"$<TARGET_FILE:zengine-operators-basic>\""
-    "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
     # SEM-0's substitution instrument as an ARTIFACT: `math.max` supplied as a MIN at
-    # the same signature. It is the overlay a plan persists, and -- staged and never
-    # named by most plans here -- it is also the no-scan witness.
+    # the same signature.
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
     # ...and INTR-1's GENERICITY witness, which needs powers this repository's
     # projections and panes have never heard of. `zengine-provider-a` supplies
     # `prov.function.1/2/3` -- two composites over one native leaf -- under a provider
     # identity no source outside `tests/` names. A projection that had to be edited to
     # show them would not be a projection over the store.
-    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\""
-    # An ordinary weave that is not a provider and not an operator consumer, built by
-    # another phase's rules and untouched by this one.
-    "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
-    # A provider surface at a version this host does not speak, and a CONSUMER surface
-    # at a version this host does not speak. Two different refusals; both must remain
-    # distinguishable from "an ordinary artifact".
-    "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
-    "BROKEN_CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
-    # The two plan files this repository SHIPS, read as files rather than as a
-    # description of files.
-    "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
-    "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\""
-    # ---- INTR-1's SOURCE TRIPWIRES ---------------------------------------------
-    #
-    # FIVE FILES READ AS FILES, and the pair of claims is why. Workshop's four say
-    # "this host was TAUGHT no pane" -- neither of the two INTR-1 added, nor the one
-    # INTR-0 added -- which no rig can prove, because every rig here would stay green
-    # if Workshop grew a special case that happened to agree with the generic path.
-    # The two projections say "no view branches on an identity", which is the whole
-    # genericity feature: a provider added later must appear without an edit.
-    #
-    # They are TRIPWIRES rather than proofs, exactly as `test_operator_provider.cpp`
-    # declares its own to be. Workshop's `main()` claims a terminal and no case here
-    # can run it; what a source read adds is that a claim every case rests on cannot
-    # quietly stop being true.
-    "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
-    "WORKSHOP_WEAVE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/weave.hpp\""
-    "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
-    "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\""
-    "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
-    "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
-    "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\"")
-add_dependencies(zengine-workshop-tests zengine-workshop-hello zengine-introspection
-                                        zengine-composer zengine-operators-basic
-                                        zengine-timer zengine-provider-min
-                                        zengine-provider-a
-                                        zengine-provider-abi
-                                        zengine-operator-consumer-weave-abi)
+    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\"")
+set(ZENGINE_WORKSHOP_FIXTURES
+    zengine-workshop-hello zengine-introspection
+    zengine-operators-basic zengine-provider-min zengine-provider-a)
 
-zengine_doctest_test(workshop zengine-workshop-tests)
+# One Workshop suite: the shared link line, the shared artifact paths, the shared
+# third_party include, plus whatever this one alone needs. It exists so the six agree by
+# construction -- a second copy of a link line is a second answer -- and so that adding a
+# seventh is one call rather than forty lines.
+function(zengine_workshop_suite entry source)
+    cmake_parse_arguments(WS "" "" "DEFINITIONS;NEEDS;LINKS" ${ARGN})
+    set(target zengine-workshop-${entry}-tests)
+    add_executable(${target} ${source} doctest_main.cpp)
+    target_link_libraries(${target} PRIVATE ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+    # THE SUITE'S OWN NAME, because the six now run at once and a temporary directory has
+    # to belong to one of them (`workshop_temp_root` in workshop_support.hpp).
+    target_compile_definitions(${target} PRIVATE
+        "ZENGINE_WORKSHOP_SUITE=\"${entry}\"" ${ZENGINE_WORKSHOP_DEFS} ${WS_DEFINITIONS})
+    add_dependencies(${target} ${ZENGINE_WORKSHOP_FIXTURES} ${WS_NEEDS})
+    zengine_doctest_test(workshop_${entry} ${target})
+endfunction()
+
+zengine_workshop_suite(document test_workshop_document.cpp
+    DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+    NEEDS zengine-composer)
+
+zengine_workshop_suite(screen test_workshop_screen.cpp)
+
+# `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
+# OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
+# reach the Recorder or the Logger, and "it does not" is only a measurement if a Recorder
+# and a Logger are ACTUALLY ATTACHED to the bus while a condition is established, read,
+# hidden and resolved. So this suite attaches both and reads their counters; the Workshop
+# package still links neither, which is where the property is actually enforced.
+zengine_workshop_suite(panels test_workshop_panels.cpp
+    LINKS loom::history
+    DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
+
+# ---- INTR-1's SOURCE TRIPWIRES -------------------------------------------------------
+#
+# FIVE FILES READ AS FILES, and the pair of claims is why. Workshop's four say
+# "this host was TAUGHT no pane" -- neither of the two INTR-1 added, nor the one
+# INTR-0 added -- which no rig can prove, because every rig here would stay green
+# if Workshop grew a special case that happened to agree with the generic path.
+# The two projections say "no view branches on an identity", which is the whole
+# genericity feature: a provider added later must appear without an edit.
+#
+# They are TRIPWIRES rather than proofs, exactly as `test_operator_provider.cpp`
+# declares its own to be. Workshop's `main()` claims a terminal and no case here
+# can run it; what a source read adds is that a claim every case rests on cannot
+# quietly stop being true.
+zengine_workshop_suite(panes test_workshop_panes.cpp
+    NEEDS zengine-composer
+    DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
+                "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
+                "WORKSHOP_WEAVE_HPP=\"${CMAKE_SOURCE_DIR}/workshop/weave.hpp\""
+                "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
+                "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
+                "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
+                "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\"")
+
+zengine_workshop_suite(persistence test_workshop_persistence.cpp
+    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
+
+# LOAD-0's suite asks which artifacts are in the room at all, where the five above ask what
+# a maker sees and does. It is the one that STAGES artifacts into a real directory, because
+# the claim "filesystem presence is not load authority" cannot be made against a lookup
+# table -- with a table, "not in the plan" and "not reachable" are the same thing and the
+# interesting question cannot be asked. It copies these files into `WORKSHOP_LOAD_STAGE_DIR`
+# itself and then resolves stems against it with the HOST's own rule, so the directory holds
+# more artifacts than any plan in the file names.
+#
+# THE STAGE DIRECTORY IS THIS SUITE'S ALONE. No other Workshop suite names it, which is what
+# lets all six run as concurrent CTest entries: two processes staging over one directory
+# would be two owners of it.
+#
+# SIX PATHS, AND FOUR OF THEM ARE PRODUCTION ARTIFACTS. `zengine-operators-basic`
+# and `zengine-timer` are what the shipped plan actually names, so a case here
+# drives the very files a maker runs; the three fixtures stand in for the things a
+# plan can point at and get wrong.
+zengine_workshop_suite(load test_workshop_load.cpp
+    NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
+    DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
+                "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+                # An ordinary weave that is not a provider and not an operator consumer,
+                # built by another phase's rules and untouched by this one.
+                "PLAIN_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+                # A provider surface at a version this host does not speak, and a CONSUMER
+                # surface at a version this host does not speak. Two different refusals;
+                # both must remain distinguishable from "an ordinary artifact".
+                "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
+                "BROKEN_CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
+                # The two plan files this repository SHIPS, read as files rather than as a
+                # description of files.
+                "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
+                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
 
 # The Builder suite: a name, a command, the line between them, and the line
 # between a build and the turn that asked for it. It is the one suite here that

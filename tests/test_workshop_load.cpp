@@ -30,8 +30,8 @@
 //                     nowhere, and crossing a real bus as ordinary values.
 //
 // ⚠ EVERY RIG THAT LOADS THE TIMER IS A LOCAL OF ITS CASE, and that discipline is
-// load-bearing in THIS binary rather than merely tidy. `test_workshop.cpp`'s own rig
-// pumps to EMPTY, and a live Timer service re-arms its own beat inside its own
+// load-bearing in THIS binary rather than merely tidy. The other five Workshop suites'
+// rigs pump to EMPTY, and a live Timer service re-arms its own beat inside its own
 // handler -- so a Timer that outlived its case would hang the next one that pumped.
 // Each rig here owns its own `loom::Switchboard` and its own `loom::Kernel`, both
 // destroyed at the closing brace, and every drain in this file is `pump_pending()`

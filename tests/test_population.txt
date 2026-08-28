@@ -363,10 +363,12 @@
 # no-SDL lane and the Windows stranger lane prove the entire phase.
 #
 # The suite gained a SECOND SOURCE FILE rather than a second CTest entry --
-# `test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary -- for the
+# `test_workshop_load.cpp` compiled into the same `zengine-workshop-tests` binary -- for the
 # reason CAT-0 and PROV-0 both gave next door: the population contract counts ENTRIES, and a
 # phase that registered an entry for a new tier of an existing suite would be splitting the
-# inventory in order to record a file.
+# inventory in order to record a file. (It is its own `workshop_load` entry now, and that
+# reasoning still holds: what changed was not the tier, it was that one binary had become the
+# repository's whole compile and test floor. The note above the table has it.)
 #
 # WHAT IS WORTH READING BESIDE THE NUMBER is how much of it is REAL ARTIFACTS. Twenty-eight of
 # the 53 open at least one shared library across the native module boundary, and SIX images are
@@ -402,7 +404,7 @@
 # claim about where it lives: the suite's STAGING FIXTURE, no load-plan semantics, no provider
 # mounting, no pane and no medium. TWO cases, and they are permanent because the defect they pin
 # is one a green cannot see from inside a single run. `tests/load-plan-stage` sits in the build
-# tree, nothing deletes it, and the second run of `zengine-workshop-tests` in one build tree
+# tree, nothing deletes it, and the second run of that binary in one build tree
 # stages over its own previous output -- which on MinGW was refused `file_exists` by libstdc++'s
 # same-file guard (its `stat` reports st_ino 0 for every file), turning 683/683 into 642/683
 # with no source change between the two runs. Linux and MSVC never reproduced it.
@@ -437,8 +439,8 @@
 # secret.
 #
 # All eight are in the `always` row: this is bus traffic and plain arithmetic over a record, so
-# the no-SDL lane and the Windows stranger lane prove them all. They need no new CTest row --
-# `test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary -- and they
+# the no-SDL lane and the Windows stranger lane prove them all. They needed no new CTest row --
+# `test_workshop_load.cpp` compiled into the same `zengine-workshop-tests` binary -- and they
 # obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
 # Switchboard, and every drain is `pump_pending()` in bounded turns.
 #
@@ -478,7 +480,7 @@
 #
 # All twenty-three are in the `always` row: bus traffic, a catalog, a Kernel and plain arithmetic
 # over a record -- so the no-SDL lane and both Windows lanes prove every one. They need no new
-# CTest row (`test_workshop_load.cpp` compiles into the same `zengine-workshop-tests` binary) and
+# CTest row (`test_workshop_load.cpp` compiled into the same `zengine-workshop-tests` binary) and
 # they obey that file's standing rule unchanged: every rig is a LOCAL of its case with its own
 # Switchboard, and every turn any plan in this suite takes is spent by the CALLER.
 #
@@ -683,6 +685,21 @@
 # not new evidence, and it is named here because a reader comparing floors would otherwise
 # have to find it in a diff.
 #
+# ONE WORKSHOP ENTRY BECAME SIX, AND THE SUM IS THE INVARIANT. `test_workshop.cpp` had
+# grown to one thirty-thousand-line translation unit behind one CTest entry: thirty seconds
+# of compiling before an assertion could run, and a nineteen-second test CTest could only
+# ever hand to one worker. It was cut along the headings its own source already had --
+# document, screen, panels, panes, persistence -- beside `test_workshop_load.cpp`, which was
+# already a second file in that one binary and is now a sixth entry of its own.
+#
+# EVERY CASE MOVED VERBATIM. The floors below are the measured populations of the six, and
+# they sum to the population the single `workshop` entry ran (863) plus the one case the
+# split itself owes: that a `TempDir`'s root is named for the suite that made it, which is
+# what keeps six concurrent binaries out of one directory. What this file protects is
+# unchanged -- a deleted registration is still a red, a deleted case still fails its suite's
+# floor -- and it now protects it six times, once per area, so a deletion names the area it
+# happened in instead of moving one number by one.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -696,7 +713,12 @@ component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
 builder                           doctest           always  48
-workshop                          doctest           always  849
+workshop_document                 doctest           always  134
+workshop_screen                   doctest           always  169
+workshop_panels                   doctest           always  139
+workshop_panes                    doctest           always  180
+workshop_persistence              doctest           always  127
+workshop_load                     doctest           always  115
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

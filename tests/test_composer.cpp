@@ -10,9 +10,9 @@
 // Workshop and no medium: `composer/draft.hpp` and `composer/view.hpp` link no
 // switchboard, so what a DRAFT means and what a PANE would show can be asked of a
 // value rather than of a running system. Where the fact comes from -- a real
-// target's real answer, through the real load path -- is the Workshop suite's
-// claim (test_workshop.cpp, the MSG-0 tier), because that is where the real
-// library and the real pane protocol live.
+// target's real answer, through the real load path -- is the Workshop panes
+// suite's claim (test_workshop_panes.cpp, the MSG-0 tier), because that is where
+// the real library and the real pane protocol live.
 //
 // NOT ONE SHAPE IN THIS FILE IS ONE THE COMPOSER COMPILED AGAINST, and that is the
 // point of building them with `SchemaBuilder` rather than declaring ZEN_SHAPE

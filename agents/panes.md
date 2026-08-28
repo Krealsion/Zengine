@@ -220,7 +220,7 @@ stem      zengine-composer                a line in the HOST'S boot list
   contain an optional field**, in either repository. An optional field reaches a maker only
   from a weave that implements `loom::Weave` directly and answers `zen.DescribeAccepted`
   itself. The Composer's optional machinery is correct and is exercised by exactly such a
-  target (`Optionals` in test_workshop.cpp).
+  target (`Optionals` in tests/test_workshop_panes.cpp).
 - **The suite does not load the shipped Timer, and that is measured rather than chosen.** The
   Timer service re-arms its own beat inside its own handler and
   `Switchboard::drain_until_idle()` does exactly what it says, so loading it into a rig whose
