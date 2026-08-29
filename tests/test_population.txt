@@ -754,15 +754,15 @@ ui                                doctest           always  22
 component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
-builder                           doctest           always  51
-workshop_document                 doctest           always  139
+builder                           doctest           always  53
+workshop_document                 doctest           always  140
 workshop_screen                   doctest           always  172
-workshop_panels                   doctest           always  149
+workshop_panels                   doctest           always  155
 workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  36
+workshop_files                    doctest           always  49
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

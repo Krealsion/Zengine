@@ -813,8 +813,14 @@ zengine_workshop_suite(editor test_workshop_editor.cpp)
 # now has a session-long owner. The HOST'S SOURCE comes with it, because "there is ONE
 # completed catalog in this process" is a claim about an arrangement no rig can run --
 # `main()` claims a terminal -- and the tripwires next door read it for the same reason.
+#
+# ...AND SINCE PROJ-1 THE OWNER'S OWN HEADER COMES WITH IT, because the completion and the
+# custody the host used to spell now live in `install_recipes` -- one seam the launch and a
+# maker's live choice both go through. "There is one recipe policy" is a claim about that
+# arrangement, and the two files have to be read together to make it.
 zengine_workshop_suite(files test_workshop_files.cpp
-    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
+    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
+                "WORKSHOP_RECIPES_HPP=\"${CMAKE_SOURCE_DIR}/workshop/recipes.hpp\"")
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not

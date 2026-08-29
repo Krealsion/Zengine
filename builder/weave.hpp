@@ -58,6 +58,13 @@
 //     BuildFinished, status non-zero              -> FAILED, and the artifact is
 //                                                    never consulted
 //
+// THE FILE JUDGED IS THE ONE THE OPERATION WAS ORDERED FOR (PROJ-1), resolved out
+// of the catalog when the ask was accepted and held beside the stamp. The catalog
+// this weave reads can be replaced while a child is alive, so re-asking it at the
+// end would judge a running build against a recipe that has since changed, been
+// removed, or been pointed at another artifact -- three ways to report a fact about
+// somebody else's build.
+//
 // THE STALE-ARTIFACT TRAP IS CLOSED BY THE ORDER OF THOSE THREE, not by a
 // timestamp heuristic. A failed build leaves whatever was at the destination
 // before -- possibly a perfectly good artifact from an earlier build -- and the
@@ -78,10 +85,12 @@
 //
 // WHAT IT DELIBERATELY DOES NOT DO:
 //
-//   - it does not choose the recipes. The host does, at construction, out of an
-//     authored file. A tool that could be told a new recipe over the wire would
-//     be a tool whose reach is whatever somebody types, which is the thing this
-//     package is arranged not to build.
+//   - it does not choose the recipes. The host does, out of an authored file, and
+//     since PROJ-1 the host may do it AGAIN while this weave is alive -- what
+//     this weave reads is the host's own live catalog, so a replacement reaches
+//     it with nothing here to find and update. A tool that could be told a new
+//     recipe over the wire would be a tool whose reach is whatever somebody
+//     types, which is the thing this package is arranged not to build.
 //   - it does not hold a command, and cannot describe one until the runner has
 //     told it what is actually running. Before the first build the panel says so.
 //   - it does not hold a build tree, a source path, a package prefix or a link
@@ -238,10 +247,15 @@ public:
     /// build that is running right now.
     ///
     /// TWO SHAPES, BECAUSE THEY ANSWER TWO QUESTIONS THAT CHANGE AT DIFFERENT
-    /// RATES. The catalog changes only when the session's own catalog does -- which
-    /// today is once, at startup; the status moves on every line a compiler says.
-    /// Publishing the catalog on every status would put the whole thing on the bus
-    /// hundreds of times per build.
+    /// RATES. The catalog changes only when the session's own catalog does -- at
+    /// startup, and whenever a maker chooses another one (PROJ-1); the status moves
+    /// on every line a compiler says. Publishing the catalog on every status would
+    /// put the whole thing on the bus hundreds of times per build.
+    ///
+    /// ...WHICH IS ALSO WHY THIS IS THE REPUBLISH DOOR. A host that has just replaced
+    /// the catalog this weave reads says exactly this, and gets exactly the two
+    /// sentences a presentation needs -- no subscription, no observer, no shape of
+    /// its own.
     void on(const StatusRequested&, loom::Mail& mail) {
         RecipeCatalog said;
         said.recipes.reserve(recipes_.size());
@@ -296,10 +310,20 @@ public:
         state_.realization = ask.realize ? realization::kAsked : realization::kNotAsked;
         state_.realized_detail.clear();
         remembered_.clear();
+        // WHICH FILE THIS OPERATION IS ABOUT, TAKEN WHEN IT IS ORDERED (PROJ-1).
+        //
+        // AN OPERATION FACT, BESIDE THE STAMP AND FOR A SHARPER VERSION OF ITS REASON.
+        // The catalog this tool reads can be REPLACED while a build is running, so
+        // looking the recipe up again when the process ends would judge THIS operation
+        // against whatever recipe now happens to wear its name -- a different artifact, a
+        // different file, or no row at all. The recipe was resolved once, here, at the
+        // moment the maker asked; what comes back at the end is an answer about the build
+        // that was actually started.
+        path_ = chosen->path;
         // WHAT WAS THERE BEFORE, TAKEN BEFORE ANYTHING IS ORDERED. It is what lets
         // the ending say `produced` or `unchanged`; it is not, and must not become,
         // the test for whether this build succeeded (see this file's header).
-        before_ = stamp_of(chosen->path);
+        before_ = stamp_of(path_);
         // THE PREVIOUS COMMAND IS NOT CLEARED WHEN THE RECIPE IS THE SAME, and that
         // is the smaller lie of the two available: it describes how THIS recipe is
         // built, so it is about to be replaced by the same sentence. When the recipe
@@ -367,15 +391,20 @@ public:
             say(mail);
             return;
         }
-        const RecipeView* chosen = view_named(recipes_, done.recipe);
-        const ArtifactStamp after = chosen == nullptr ? ArtifactStamp{} : stamp_of(chosen->path);
+        // THE OPERATION'S OWN FILE, NOT THE CATALOG'S CURRENT ANSWER (PROJ-1). This used
+        // to re-ask `view_named(recipes_, done.recipe)`, which was the same answer for as
+        // long as a catalog could not change under a running build. It can now, so the
+        // re-ask had become three quiet lies waiting: a recipe edited mid-build would
+        // judge this operation against the NEW artifact, a recipe removed mid-build would
+        // report a perfectly good build as producing nothing, and a recipe reassigned to
+        // another artifact would relabel this operation as being about that one.
+        const ArtifactStamp after = stamp_of(path_);
         if (!after.present) {
             // A GREEN BUILD WITH NO PRODUCT. It is neither success nor failure and is
             // reported as neither: the process is fine and the project is not.
             state_.outcome = outcome::kNoArtifact;
-            state_.detail = "the build succeeded and `" + state_.artifact +
-                            "` is not at " +
-                            (chosen == nullptr ? std::string("(no recipe)") : chosen->path) +
+            state_.detail = "the build succeeded and `" + state_.artifact + "` is not at " +
+                            (path_.empty() ? std::string("(no recipe)") : path_) +
                             (said.empty() ? std::string() : " | " + said);
             if (state_.realize) {
                 state_.realization = realization::kRefused;
@@ -403,8 +432,7 @@ public:
         state_.realization = realization::kOffered;
         state_.realized_detail = "offered to the project";
         say(mail);
-        (void)mail.publish(
-            OfferArtifact{state_.op, state_.recipe, state_.artifact, chosen->path});
+        (void)mail.publish(OfferArtifact{state_.op, state_.recipe, state_.artifact, path_});
     }
 
     /// NOTHING RAN, and this is why.
@@ -459,6 +487,11 @@ public:
 
     /// What the artifact looked like before the current build began.
     const ArtifactStamp& before() const { return before_; }
+
+    /// The file the CURRENT operation is about -- resolved when it was ordered, and the
+    /// one this tool will look at when it ends. Read-only, and a suite's way of proving
+    /// that an operation kept its own subject across a catalog replacement.
+    const std::string& artifact_path() const { return path_; }
 
 private:
     /// IS THIS ABOUT THE RECIPE THIS TOOL IS FOLLOWING?
@@ -520,6 +553,13 @@ private:
     /// same for every reader. A second, larger copy reachable by a poke would be
     /// a second answer to "what did the build say".
     std::string remembered_;
+
+    /// THE ONE FILE THE CURRENT OPERATION IS ABOUT, resolved out of the catalog at the
+    /// moment the ask was accepted and owned by this tool from then on. Beside
+    /// `before_`, and for the same reason it is beside it: both are facts about the
+    /// build that was started, and a build that is already running must not have its
+    /// subject re-decided by a catalog that changed underneath it (PROJ-1).
+    std::string path_;
 
     /// What the expected artifact looked like when the current build was ordered.
     ArtifactStamp before_;

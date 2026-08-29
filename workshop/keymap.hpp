@@ -219,6 +219,7 @@ enum class Act : std::uint8_t {
     kFilesOpen,
     kFilesParent,
     kFilesRefresh,
+    kFilesUseRecipes,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -451,6 +452,15 @@ inline constexpr ActionRow kActionCatalog[] = {
     // popping the last name entered; at the root there is nothing to pop and the gesture
     // says so. That is the root boundary, and it is the representation rather than a
     // check somebody has to remember.
+    //
+    // SIX SINCE PROJ-1, AND THE SIXTH IS THE FIRST THING THIS BROWSER DOES THAT IS NOT
+    // ABOUT LOOKING. `u` is a bare letter for `r`'s reason exactly -- nothing in this
+    // context takes text -- and it is free in EVERY context this build declares, so no
+    // remap was needed to make room for it. It is a Files row rather than a contextual
+    // menu row because the contextual surface names three subject kinds (a pane, a
+    // document object, the room) and a browser ROW is none of them: minting a fourth
+    // subject to carry one action would widen a declaration protocol for a gesture the
+    // keymap already knows how to say.
     {Act::kFilesUp, "files.up", "row up", KeyContext::kFiles, {scan::kUp, mod::kNone}},
     {Act::kFilesDown, "files.down", "row down", KeyContext::kFiles, {scan::kDown, mod::kNone}},
     {Act::kFilesOpen, "files.open", "enter or edit", KeyContext::kFiles,
@@ -459,6 +469,8 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kBackspace, mod::kNone}},
     {Act::kFilesRefresh, "files.refresh", "look again", KeyContext::kFiles,
      {scan::kR, mod::kNone}},
+    {Act::kFilesUseRecipes, "files.use-recipes", "use as recipes", KeyContext::kFiles,
+     {scan::kU, mod::kNone}},
     // -- the Terminal line's controls --------------------------------------------------
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},

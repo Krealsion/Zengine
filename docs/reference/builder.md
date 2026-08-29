@@ -28,10 +28,14 @@ for.
   `BuildNotStarted`) plus two sentences to the Timer: ask for a beat, and give it back. A
   `RunBuild` naming something outside the catalog is refused by name, and nothing runs.
 - **Neither of them owns the catalog.** The host that composed the process holds one completed
-  recipe catalog for as long as it runs, and both weaves read it -- the runner the whole recipe,
-  the tool the reduced view. Neither keeps a copy that could go on answering for a catalog the
-  host has moved past, which is what makes "the recipe this build runs is the recipe this
-  Workshop means" a property of the arrangement rather than of two parties agreeing.
+  recipe catalog for as long as it runs -- and can replace what it holds, which is how Workshop
+  lets a maker choose another catalog file without restarting -- and both weaves read it: the
+  runner the whole recipe, the tool the reduced view. Neither keeps a copy that could go on
+  answering for a catalog the host has moved past, which is what makes "the recipe this build
+  runs is the recipe this Workshop means" a property of the arrangement rather than of two
+  parties agreeing. A build already in flight is the one thing a replacement does not reach:
+  the tool resolved the file that operation is about when the ask was accepted, and reports the
+  ending against that.
 - **The wire cannot spell a command.** `BuildRequested` and `RunBuild` carry a recipe *name*;
   there is no shape here whose field is a program, an argument list, a directory or a shell
   line — and no recipe *input* travels either, so the widest thing anything on this bus can say

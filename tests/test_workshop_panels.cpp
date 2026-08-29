@@ -1313,6 +1313,144 @@ TEST_CASE("BLD-1: `c` moves the maker's choice, wraps, and asks for nothing") {
     CHECK(tool->described == 1);
 }
 
+namespace {
+
+/// A CATALOG ARRIVING THE WAY A REPLACEMENT MAKES ONE ARRIVE: the tool is asked what it is
+/// and answers with what it now holds, WITHOUT the panel being closed -- which is exactly
+/// the shape the live gesture produces (workshop/weave.hpp sends the same
+/// `StatusRequested` after a successful replacement). `on(RecipeCatalog)` is the ONE place
+/// a new catalog reaches this panel, whichever gesture caused it, so a case driving it
+/// through this door is measuring the law at its owner.
+///
+/// ⚠ REMOVING AND REOPENING THE PANEL WOULD NOT DO. `close_panel` deliberately forgets the
+/// Builder pane whole (panel.hpp), selection included, so a round trip through the picker
+/// would arrange a case in which every answer below is 0 for a reason that has nothing to
+/// do with the law being measured.
+void recatalog(Live& t, ToolSeat* tool, const std::vector<const char*>& recipes) {
+    tool->catalog.recipes.clear();
+    for (const char* id : recipes) {
+        tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{id, id});
+    }
+    (void)t.bus.send_to_role(zengine::builder::kBuilderRole,
+                             loom::Message(loom::to_value(zengine::builder::StatusRequested{})));
+    t.bus.drain_until_idle();
+}
+
+} // namespace
+
+TEST_CASE("PROJ-1: a reordered catalog moves the maker's choice to its recipe, not its row") {
+    // THE ORDINAL TRAP, ARRANGED SO THE WRONG ANSWER IS VISIBLE. Until a catalog could
+    // change under a running Workshop, `chosen` being an index was harmless: the list it
+    // indexed never moved. Now it can, and the same index in a new catalog is a DIFFERENT
+    // RECIPE -- so an implementation that kept the number would silently re-aim `b`, `e`
+    // and `f` at something the maker never picked, with the panel looking exactly as it
+    // did a moment before.
+    //
+    // The new catalog is the SAME LENGTH, so no clamp can save a row-based answer: row 2
+    // still exists and now holds `beta`, while the recipe the maker actually picked has
+    // moved to row 1.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "alpha");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"gamma", "gamma"});
+    open_builder(t);
+
+    t.key(input::scan::kC);
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 2);
+    REQUIRE(t.w->session().panels.builder.picked);
+    REQUIRE(t.w->session().panels.builder.known.recipes[2].recipe == "gamma");
+
+    recatalog(t, tool, {"alpha", "gamma", "beta"});
+
+    // THE CHOICE FOLLOWED ITS RECIPE. Row 1 now, because that is where `gamma` is.
+    CHECK(t.w->session().panels.builder.chosen == 1);
+    CHECK(t.w->session().panels.builder.known.recipes[1].recipe == "gamma");
+    // ...AND THE PICK IS STILL THE MAKER'S. A reordering is not a reason to forget that
+    // they chose; `picked` records HOW a selection was made, and nothing about it moved.
+    CHECK(t.w->session().panels.builder.picked);
+    // THE BEHAVIOURAL HALF, which is the one that would have hurt: `b` asks for the
+    // recipe the maker picked and not for the one now sitting at the old row.
+    tool->asked.clear();
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "gamma");
+    CHECK(stack_text(t.canvases.back()).find("gamma -> gamma  (2/3)") != std::string::npos);
+}
+
+TEST_CASE("PROJ-1: a choice whose recipe is gone is cleared, not handed to its neighbour") {
+    // THE ADJACENT-ROW TRAP. The maker's recipe has been REMOVED and the row number they
+    // were on is still perfectly valid -- it holds somebody else's recipe now. A clamp
+    // cannot catch this, because there is nothing to clamp: the index is in range. A
+    // catalog replacement is allowed to INVALIDATE a standing choice and is not allowed to
+    // REINTERPRET one, and this is the case where the difference is the whole answer.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "alpha");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"gamma", "gamma"});
+    open_builder(t);
+
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 1);
+    REQUIRE(t.w->session().panels.builder.picked);
+    REQUIRE(t.w->session().panels.builder.known.recipes[1].recipe == "beta");
+
+    recatalog(t, tool, {"alpha", "gamma"});
+
+    // HOME, AND NOT THE MAKER'S ANY MORE. Row 1 exists and holds `gamma`; the selection
+    // does not go there, and the pick is released so the frontier action cannot read
+    // `chosen`'s default as an explicit intent (BLD-2's own distinction).
+    CHECK(t.w->session().panels.builder.chosen == 0);
+    CHECK_FALSE(t.w->session().panels.builder.picked);
+    tool->asked.clear();
+    t.key(input::scan::kB);
+    REQUIRE(tool->asked.size() == 1);
+    CHECK(tool->asked[0] == "alpha");
+}
+
+TEST_CASE("PROJ-1: a catalog that still holds the chosen recipe loses nothing") {
+    // THE THIRD ARM, and it is the one that keeps the two above from being satisfied by an
+    // implementation that simply forgets everything on every arrival. A re-ask that returns
+    // the SAME catalog -- the ordinary case, and the only one that existed before this
+    // phase -- leaves the row and the pick exactly where the maker left them.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "alpha");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
+    open_builder(t);
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 1);
+    REQUIRE(t.w->session().panels.builder.picked);
+
+    recatalog(t, tool, {"alpha", "beta"});
+
+    CHECK(t.w->session().panels.builder.chosen == 1);
+    CHECK(t.w->session().panels.builder.picked);
+    CHECK(t.w->session().panels.builder.known.recipes[1].recipe == "beta");
+}
+
+TEST_CASE("PROJ-1: an emptied catalog leaves no selection standing") {
+    // THE DEGENERATE END OF THE SAME LAW. A valid catalog may name no recipes at all
+    // (`builder::check_recipes` admits one deliberately), so a replacement can legitimately
+    // leave this panel with nothing to choose between -- and `chosen` must not go on naming
+    // a row that no longer exists in any sense.
+    Live t;
+    ToolSeat* tool = mount_tool(t, "alpha");
+    tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"beta", "beta"});
+    open_builder(t);
+    t.key(input::scan::kC);
+    REQUIRE(t.w->session().panels.builder.chosen == 1);
+
+    recatalog(t, tool, {});
+
+    CHECK(t.w->session().panels.builder.chosen == 0);
+    CHECK_FALSE(t.w->session().panels.builder.picked);
+    CHECK(t.w->session().panels.builder.known.recipes.empty());
+    CHECK(stack_text(t.canvases.back()).find("no build recipes") != std::string::npos);
+    tool->asked.clear();
+    t.key(input::scan::kB);
+    CHECK(tool->asked.empty());
+}
+
 TEST_CASE("BLD-1: `b` builds the recipe the maker chose, not the one last built") {
     Live t;
     ToolSeat* tool = mount_tool(t, "snake");

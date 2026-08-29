@@ -2140,6 +2140,88 @@ TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catal
     CHECK(true);
 }
 
+TEST_CASE("PROJ-1: a build in flight keeps the recipe it started with") {
+    // ⭐ THE OPERATION IS THE UNIT, NOT THE ROW. Since PROJ-0 both participants READ the
+    // host's catalog rather than keeping a copy, which is what lets PROJ-1 replace it
+    // while Workshop runs -- and the price of currency is that a build already in flight
+    // is now running against a catalog that can move underneath it. It must not move
+    // with it: the maker asked for a recipe as it was, a process is carrying that out,
+    // and the answer it eventually gets has to be about the build that actually started.
+    Live live({cmake_recipe("slow", "fixture-slow5")});
+    live.tell_tool(BuildRequested{"slow"});
+    REQUIRE(live.tool->known().outcome == outcome::kRunning);
+    REQUIRE(live.tool->known().op == 1);
+    // THE FILE THIS OPERATION IS ABOUT, RESOLVED WHEN IT WAS ORDERED. It is an owned
+    // operation fact from this moment on, beside the stamp taken in the same breath.
+    const std::string ordered_for = live.tool->artifact_path();
+    CHECK(ordered_for == fixture_path("fixture-slow5"));
+
+    // ---- THE CATALOG IS REPLACED WHILE THE CHILD IS ALIVE -------------------------
+    //
+    // THE ARRANGEMENT MAKES THE WRONG ANSWER OBSERVABLE, which is the whole point of
+    // writing it this way. `slow` still EXISTS in the new catalog and names a different
+    // artifact, and another recipe now occupies row 0 -- so an implementation that looked
+    // its recipe up again when the process ended would judge this operation against a file
+    // this build was never going to produce, and would report a perfectly good build as
+    // having produced nothing.
+    live.catalog.clear();
+    live.views.clear();
+    live.catalog.push_back(cmake_recipe("quick", "fixture-quick"));
+    live.catalog.push_back(cmake_recipe("slow", "fixture-quick", "zengine-fixture-elsewhere"));
+    for (const Recipe& r : live.catalog) {
+        live.views.push_back(view_of(r));
+    }
+
+    live.carry_until_over();
+    CHECK(live.tool->known().outcome == outcome::kSucceeded);
+    CHECK(live.tool->known().status == 0);
+    // THE OPERATION'S OWN IDENTITY AND ITS OWN SUBJECT, both unmoved.
+    CHECK(live.tool->known().op == 1);
+    CHECK(live.tool->known().recipe == "slow");
+    CHECK(live.tool->known().artifact == "fixture-slow5");
+    CHECK(live.tool->artifact_path() == ordered_for);
+    // NOTHING WAS CANCELLED AND NOTHING WAS RESTARTED: one process ever began.
+    CHECK(live.runner->ran() == 1);
+    CHECK(live.runner->live() == 0);
+}
+
+TEST_CASE("PROJ-1: a build in flight survives its recipe disappearing, and the next one "
+          "reads the new catalog") {
+    // THE OTHER HALF OF THE SAME LAW, at the harder end: the recipe this operation is
+    // carrying out is not merely CHANGED, it is GONE. The build is still a real process
+    // that a maker really started, and its ending is still an answer about it.
+    Live live({cmake_recipe("slow", "fixture-slow5"), cmake_recipe("quick", "fixture-quick")});
+    live.tell_tool(BuildRequested{"slow"});
+    REQUIRE(live.tool->known().outcome == outcome::kRunning);
+
+    live.catalog.clear();
+    live.views.clear();
+    live.catalog.push_back(cmake_recipe("quick", "fixture-quick"));
+    live.views.push_back(view_of(live.catalog[0]));
+
+    live.carry_until_over();
+    CHECK(live.tool->known().outcome == outcome::kSucceeded);
+    CHECK(live.tool->known().recipe == "slow");
+    CHECK(live.tool->known().artifact == "fixture-slow5");
+    CHECK(live.runner->ran() == 1);
+
+    // ...AND FUTURE ASKS ARE ANSWERED BY THE CATALOG THAT IS NOW CURRENT. The tool
+    // refuses the name it was just building, by name, and the runner would too -- which
+    // is the same currency PROJ-0 bought, said about the half that comes AFTER a
+    // replacement rather than the half that was already running.
+    live.tell_tool(BuildRequested{"slow"});
+    CHECK(live.tool->known().outcome == outcome::kUnknownRecipe);
+    CHECK(live.runner->ran() == 1);
+    live.tell_runner(RunBuild{"slow"});
+    CHECK(live.runner->refused() == 1);
+    CHECK(live.runner->ran() == 1);
+    live.tell_tool(BuildRequested{"quick"});
+    live.carry_until_over();
+    CHECK(live.tool->known().outcome == outcome::kSucceeded);
+    CHECK(live.tool->known().recipe == "quick");
+    CHECK(live.runner->ran() == 2);
+}
+
 // ---- The scheduler audit, as a tripwire -----------------------------------------
 
 namespace {

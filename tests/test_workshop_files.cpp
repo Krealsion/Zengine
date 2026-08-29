@@ -26,9 +26,15 @@
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
 #include "workshop/recipe_persist.hpp"
-// ...AND WHO HOLDS THE COMPLETED ANSWER (PROJ-0). One owner per running Workshop, read
-// by every recipe consumer; the tier at the end of this file is its own.
+// ...AND WHO HOLDS THE COMPLETED ANSWER (PROJ-0), and how a catalog file BECOMES that
+// answer (PROJ-1). One owner per running Workshop, read by every recipe consumer; the two
+// tiers at the end of this file are its own.
 #include "workshop/recipes.hpp"
+
+// THE REAL BUILDER TOOL, because "every consumer moved to the new catalog" is a claim
+// about the tool that actually reads the owner. The stand-in next door publishes a catalog
+// of its own and could not tell a live replacement from a rig assignment.
+#include "builder/weave.hpp"
 
 // ============================================================================
 // Support: a project on disk, and a Workshop launched into it
@@ -957,7 +963,7 @@ TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is hold
     second.artifact_dir = "/elsewhere";
     second.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
     completed.push_back(second);
-    owner.hold(completed, &HostContext::so_in);
+    owner.hold("/project/recipes.json", completed, &HostContext::so_in);
 
     REQUIRE(owner.all().size() == 2);
     REQUIRE(owner.views().size() == 2);
@@ -989,7 +995,7 @@ TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object
     const std::vector<zengine::builder::Recipe>* recipes = &owner.all();
     const std::vector<zengine::builder::RecipeView>* views = &owner.views();
 
-    owner.hold(completed_catalog("one", "/abs/one.cpp", "/install", "/project"),
+    owner.hold("/project/a.json", completed_catalog("one", "/abs/one.cpp", "/install", "/project"),
                &HostContext::so_in);
     CHECK(&owner.all() == recipes);
     CHECK(&owner.views() == views);
@@ -998,7 +1004,8 @@ TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object
 
     // A DIFFERENT CATALOG, THROUGH THE SAME DOOR: the bindings still name the live
     // answer, and the answer is the new one.
-    owner.hold(completed_catalog("later", "/abs/later.cpp", "/install", "/project"),
+    owner.hold("/project/b.json",
+               completed_catalog("later", "/abs/later.cpp", "/install", "/project"),
                &HostContext::so_in);
     CHECK(&owner.all() == recipes);
     CHECK(&owner.views() == views);
@@ -1011,7 +1018,7 @@ TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object
 
     // ...AND AN EMPTY ONE EMPTIES BOTH, rather than leaving the previous views standing
     // beside no recipes -- the half-installed catalog this phase must not create.
-    owner.hold({}, &HostContext::so_in);
+    owner.hold("/project/empty.json", {}, &HostContext::so_in);
     CHECK(recipes->empty());
     CHECK(views->empty());
 }
@@ -1030,7 +1037,7 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     // rather than a guess: `known` false is the whole statement.
     CHECK_FALSE(answer("one").known);
 
-    owner.hold(completed_catalog("one", "src/a.cpp", "/install", "/project"),
+    owner.hold("/project/a.json", completed_catalog("one", "src/a.cpp", "/install", "/project"),
                &HostContext::so_in);
     const HostContext::RecipeSource first = answer("one");
     CHECK(first.known);
@@ -1039,7 +1046,8 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     CHECK_FALSE(answer("two").known);
 
     // THE ONE PLACE CHANGES, AND THE SAME CLOSURE ANSWERS THE NEW CATALOG.
-    owner.hold(completed_catalog("two", "src/b.cpp", "/install", "/elsewhere"),
+    owner.hold("/elsewhere/b.json",
+               completed_catalog("two", "src/b.cpp", "/install", "/elsewhere"),
                &HostContext::so_in);
     CHECK_FALSE(answer("one").known);
     const HostContext::RecipeSource second = answer("two");
@@ -1052,7 +1060,7 @@ TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a
     target.id = "built";
     target.artifact = "built";
     target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string()};
-    owner.hold({target}, &HostContext::so_in);
+    owner.hold("/project/t.json", {target}, &HostContext::so_in);
     const HostContext::RecipeSource named = answer("built");
     CHECK(named.known);
     CHECK(named.kind == "cmake_target");
@@ -1085,7 +1093,7 @@ TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names"
     // THE OWNER TAKES IT, AND THE HOST'S SEAM IS WIRED OVER THE OWNER -- `workshop.cpp`,
     // in the order `workshop.cpp` does it.
     CurrentRecipes owner;
-    owner.hold(std::move(all), &HostContext::so_in);
+    owner.hold("/project/recipes.json", std::move(all), &HostContext::so_in);
     r.t.host.recipe_source = host_recipe_source(owner);
 
     ToolSeat* tool = mount_tool(r.t, "one");
@@ -1110,27 +1118,30 @@ TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names"
           HostContext::so_in(owner.all()[0].artifact_dir, owner.all()[0].artifact));
 }
 
-TEST_CASE("PROJ-0: the host holds the completed catalog once, and hands out no copies") {
+TEST_CASE("PROJ-0/PROJ-1: one completed catalog, installed through one seam") {
     // DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a seam; what a source
-    // read adds is that "there is ONE completed catalog in this process" cannot quietly
-    // stop being true while all of them stay green -- and no rig can run `main()`, which
-    // claims a terminal.
+    // read adds is that "there is ONE completed catalog in this process, installed by ONE
+    // function" cannot quietly stop being true while all of them stay green -- and no rig
+    // can run `main()`, which claims a terminal.
     //
     // ⚠ THE FORBIDDEN FORMS ARE EXPRESSIONS, never bare words, and the prose goes first
-    // (BLD-0's tripwire rule): this host EXPLAINS the ownership it used to have, and a
-    // check that could not tell a sentence from a statement would read the explanation
-    // as the defect.
-    std::string host;
-    {
-        std::ifstream in(WORKSHOP_HOST_CPP);
-        REQUIRE_MESSAGE(in.good(), "cannot read ", WORKSHOP_HOST_CPP);
+    // (BLD-0's tripwire rule): both files EXPLAIN the ownership they hold, and a check
+    // that could not tell a sentence from a statement would read the explanation as the
+    // defect.
+    const auto code_of = [](const char* path) {
+        std::string out;
+        std::ifstream in(path);
+        REQUIRE_MESSAGE(in.good(), "cannot read ", path);
         std::string line;
         while (std::getline(in, line)) {
             const std::size_t comment = line.find("//");
-            host += comment == std::string::npos ? line : line.substr(0, comment);
-            host += '\n';
+            out += comment == std::string::npos ? line : line.substr(0, comment);
+            out += '\n';
         }
-    }
+        return out;
+    };
+    const std::string host = code_of(WORKSHOP_HOST_CPP);
+    const std::string owner_file = code_of(WORKSHOP_RECIPES_HPP);
 
     // ONE OWNER, DECLARED BEFORE THE BUS -- and the ORDER is the lifetime proof, because
     // everything that reads it is destroyed with the Kernel.
@@ -1140,17 +1151,38 @@ TEST_CASE("PROJ-0: the host holds the completed catalog once, and hands out no c
     REQUIRE(bus != std::string::npos);
     CHECK(owner < bus);
 
-    // ...AND THE COMPLETION IS STILL EXACTLY ONE CALL, ahead of the hold. The owner holds
-    // the OUTPUT of the one completion law; it is not a second party that resolves an
-    // authored spelling.
-    const std::string one_completion = "recipe_persist::complete_recipes(";
-    const std::size_t completes = host.find(one_completion);
-    const std::size_t holds = host.find("current_recipes.hold(");
-    REQUIRE(completes != std::string::npos);
-    REQUIRE(holds != std::string::npos);
-    CHECK(completes < holds);
-    CHECK(host.find("complete_recipes(", completes + one_completion.size()) ==
-          std::string::npos);
+    // ⭐ THE COMPLETION AND THE CUSTODY MOVED INTO ONE SEAM (PROJ-1), and the whole point
+    // of moving them is that the launch and a maker's live choice cannot come to complete
+    // an authored recipe differently. So the host spells NEITHER any more: it wires one
+    // closure over `install_recipes` and everything -- including its own startup catalog
+    // -- goes through it.
+    CHECK(host.find("install_recipes(") != std::string::npos);
+    CHECK_MESSAGE(host.find("recipe_persist::complete_recipes(") == std::string::npos,
+                  "workshop.cpp completes recipes itself, which is a second recipe policy "
+                  "beside the one `install_recipes` holds");
+    CHECK_MESSAGE(host.find("current_recipes.hold(") == std::string::npos,
+                  "workshop.cpp installs a catalog directly, bypassing the one transaction "
+                  "every catalog change is supposed to be");
+    // ...AND THE SEAM ITSELF COMPLETES ONCE AND HOLDS ONCE. A second call to either inside
+    // the owner's own header would be the same drift one file over.
+    const auto occurrences = [](const std::string& text, const std::string& needle) {
+        std::size_t at = 0;
+        std::size_t seen = 0;
+        while ((at = text.find(needle, at)) != std::string::npos) {
+            ++seen;
+            at += needle.size();
+        }
+        return seen;
+    };
+    CHECK(occurrences(owner_file, "recipe_persist::complete_recipes(") == 1);
+    CHECK(occurrences(owner_file, "owner.hold(") == 1);
+    // ⭐ AND THE SOURCE PATH HAS EXACTLY ONE WRITER, WHICH IS `hold`. `hold` takes the
+    // path as a parameter precisely so that "the path moved and the recipes did not" has
+    // no spelling in this program; one assignment, in the same call that moves the rows,
+    // is what makes that a property of the type rather than of a caller's care.
+    CHECK(occurrences(owner_file, "source_ =") == 1);
+    CHECK_MESSAGE(owner_file.find("set_source") == std::string::npos,
+                  "workshop/recipes.hpp has a second writer for the catalog's source path");
 
     // EVERY CONSUMER READS THE OWNER. The runner, the tool, the edit-source answer and
     // the waiting-row predicate are the four, and each is spelled as a read.
@@ -1167,13 +1199,622 @@ TEST_CASE("PROJ-0: the host holds the completed catalog once, and hands out no c
         CHECK_MESSAGE(host.find(forbidden) == std::string::npos, "workshop.cpp declares '",
                       forbidden, "', which is a second long-lived catalog of views");
     }
-    // The only `std::vector<builder::Recipe>` this host still spells is the one inside the
-    // reading scope, which is moved into the owner and dies at the closing brace.
-    std::size_t at = 0;
-    std::size_t vectors = 0;
-    while ((at = host.find("std::vector<builder::Recipe> ", at)) != std::string::npos) {
-        ++vectors;
-        ++at;
+    // The host no longer spells a `std::vector<builder::Recipe>` at all: the candidate
+    // lives and dies inside `install_recipes`.
+    CHECK(occurrences(host, "std::vector<builder::Recipe> ") == 0);
+}
+
+
+// ============================================================================
+// Tier 6 — PROJ-1: choosing a recipe catalog while Workshop is running
+// ============================================================================
+
+namespace {
+
+/// ONE AUTHORED SINGLE-SOURCE RECIPE, as a maker writes one -- legal against
+/// `builder::check_recipes`, which is the law every file goes through.
+inline zengine::builder::Recipe authored_recipe(const std::string& id,
+                                                const std::string& source) {
+    zengine::builder::SingleSourceRecipe one;
+    one.source = source;
+    one.links.push_back("loom::kernel");
+    zengine::builder::Recipe r;
+    r.id = id;
+    r.artifact = id;
+    r.single_source = one;
+    return r;
+}
+
+/// A CATALOG FILE ON DISK, written through the codec that reads it -- never hand-rolled
+/// bytes, so a case cannot pass by agreeing with itself about a format.
+inline void put_catalog(const std::filesystem::path& at,
+                        const std::vector<zengine::builder::Recipe>& authored) {
+    put_file(at, recipe_persist::to_text(authored));
+}
+
+inline std::string bytes_of(const std::filesystem::path& at) {
+    std::ifstream in(at, std::ios::binary);
+    REQUIRE(in.good());
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+/// EVERYTHING THE OWNER IS HOLDING, AS ONE VALUE -- so a case can say "nothing moved"
+/// about the whole of it rather than about whichever half it remembered to check. The
+/// half-replacements this phase forbids are exactly the states in which two of these three
+/// agree with a previous reading and the third does not.
+struct Held {
+    std::string source;
+    std::vector<std::string> ids;
+    std::vector<std::string> paths;
+
+    friend bool operator==(const Held&, const Held&) = default;
+};
+
+inline Held held_by(const CurrentRecipes& owner) {
+    Held out;
+    out.source = owner.source();
+    for (const zengine::builder::Recipe& r : owner.all()) {
+        out.ids.push_back(r.id);
     }
-    CHECK(vectors == 1);
+    for (const zengine::builder::RecipeView& v : owner.views()) {
+        out.paths.push_back(v.path);
+    }
+    return out;
+}
+
+/// The host's own wiring of `HostContext::use_recipes`, said again here so a case measures
+/// the shape `workshop.cpp` actually installs rather than a shape a rig invented. The
+/// source-read case above is what keeps the two from drifting.
+inline std::function<HostContext::RecipeSwap(const std::string&)>
+host_use_recipes(CurrentRecipes& owner, std::string host_dir, std::string project_dir) {
+    return [&owner, host_dir, project_dir](const std::string& path) {
+        HostContext::RecipeSwap done;
+        const Written read = install_recipes(owner, path, host_dir, project_dir,
+                                             &HostContext::so_in);
+        done.accepted = read.accepted;
+        done.refusal = read.refusal;
+        done.path = owner.source();
+        done.recipes = owner.all().size();
+        return done;
+    };
+}
+
+/// THE REAL BUILDER TOOL, mounted over the owner's views the way the host mounts it. It is
+/// the participant a live replacement has to reach, and it holds no catalog of its own --
+/// which is the whole reason a replacement can reach it at all.
+inline zengine::builder::BuilderWeave* mount_live_tool(Live& t, const CurrentRecipes& owner) {
+    auto seat = std::make_unique<zengine::builder::BuilderWeave>(owner.views());
+    zengine::builder::BuilderWeave* raw = seat.get();
+    loom::Grant grant;
+    grant.allow_to_any(zengine::builder::BuildStatus::zen_name,
+                       zengine::builder::BuildStatus::zen_version);
+    grant.allow_to_any(zengine::builder::RecipeCatalog::zen_name,
+                       zengine::builder::RecipeCatalog::zen_version);
+    grant.allow_to_any(zengine::builder::OfferArtifact::zen_name,
+                       zengine::builder::OfferArtifact::zen_version);
+    grant.allow_to_role(zengine::builder::RunBuild::zen_name,
+                        zengine::builder::RunBuild::zen_version,
+                        zengine::builder::kBuildRunnerRole);
+    const loom::WeaveId id = t.bus.register_weave(std::move(seat), std::move(grant),
+                                                  std::string(zengine::builder::kBuilderRole));
+    raw->zen_set_self(id);
+    return raw;
+}
+
+/// Put the browser's cursor on a named row, the way a maker does: point the keys at the
+/// pane if they are elsewhere, then step. Fails loudly rather than acting on whatever row
+/// it ended on.
+///
+/// ⚠ IT PRESSES ONLY WHEN THE PANE DOES NOT ALREADY HOLD THE KEYS, because a press on the
+/// selected row of a pane that DOES hold them is the browser's activation gesture -- which
+/// would open the row in the editor instead of pointing at it. That asymmetry is the
+/// browser's own two-press promise, and a helper that ignored it would arrange a different
+/// case from the one it claims to.
+inline void point_at(FilesRig& r, const std::string& name) {
+    if (keyboard_context(r.session()) != KeyContext::kFiles) {
+        r.press_body(0);
+    }
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    for (std::size_t i = 0; i < r.listing().rows.size(); ++i) {
+        r.t.key(input::scan::kUp); // home, so the walk below starts from a known row
+    }
+    for (std::size_t i = 0; i < r.listing().rows.size(); ++i) {
+        if (r.at_cursor() == name) {
+            return;
+        }
+        r.t.key(input::scan::kDown);
+    }
+    REQUIRE_MESSAGE(r.at_cursor() == name, "no row called ", name);
+}
+
+/// The gesture itself: `u` in the browser.
+inline void use_as_recipes(FilesRig& r) {
+    r.t.key(input::scan::kU);
+    r.t.text("u");
+}
+
+} // namespace
+
+TEST_CASE("PROJ-1: installing a catalog moves its source, its rows and its views together") {
+    TempDir dir("install");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "recipes.json", {authored_recipe("one", "src/one.cpp"),
+                                        authored_recipe("two", "src/two.cpp")});
+
+    CurrentRecipes owner;
+    const Written done = install_recipes(owner, (root / "recipes.json").generic_string(),
+                                         "/install", root.generic_string(),
+                                         &HostContext::so_in);
+    REQUIRE(done.accepted);
+    // THE THREE ANSWERS, AND THEY ARE ONE ANSWER. The file it came from, what it holds,
+    // and the tool's reduced view of what it holds -- all installed by the one call.
+    CHECK(owner.source() == (root / "recipes.json").generic_string());
+    REQUIRE(owner.all().size() == 2);
+    CHECK(owner.all()[0].id == "one");
+    REQUIRE(owner.views().size() == 2);
+    CHECK(owner.views()[1].id == "two");
+    // ...AND THE COMPLETION LAW RAN, ONCE, ON THE WAY IN: a relative source means the
+    // PROJECT, and an empty artifact directory means the install.
+    CHECK(owner.all()[0].single_source->source == (root / "src/one.cpp").generic_string());
+    CHECK(owner.all()[0].artifact_dir == "/install");
+    CHECK(owner.views()[0].path == HostContext::so_in("/install", "one"));
+}
+
+TEST_CASE("PROJ-1: a candidate that cannot be read installs nothing at all") {
+    // ⭐ THE TRANSACTION, AT ITS FIRST STAGE. The interesting claim is not that the call
+    // said no -- it is that the session is holding exactly what it was holding, in all
+    // three of its answers. A implementation that cleared the owner before reading, or
+    // that wrote the path before the rows, passes a "was it refused" check and fails this.
+    TempDir dir("unreadable");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "good.json", {authored_recipe("one", "src/one.cpp")});
+
+    CurrentRecipes owner;
+    REQUIRE(install_recipes(owner, (root / "good.json").generic_string(), "/install",
+                            root.generic_string(), &HostContext::so_in)
+                .accepted);
+    const Held before = held_by(owner);
+
+    const Written no = install_recipes(owner, (root / "not-here.json").generic_string(),
+                                       "/install", root.generic_string(),
+                                       &HostContext::so_in);
+    CHECK_FALSE(no.accepted);
+    // THE OWNER'S OWN WORDS, unwrapped: `persist::read_file` names the file and says why.
+    CHECK(no.refusal.find("not-here.json") != std::string::npos);
+    CHECK(held_by(owner) == before);
+}
+
+TEST_CASE("PROJ-1: bytes that are not a catalog install nothing at all") {
+    // THE SECOND STAGE, AND THREE DIFFERENT WAYS TO FAIL IT: bytes that are not the wire
+    // format at all, a well-formed file that says it is something else, and a file whose
+    // RECIPE LAW is broken. Each is refused in its own owner's words and each leaves the
+    // session holding what it held.
+    TempDir dir("malformed");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "good.json", {authored_recipe("one", "src/one.cpp")});
+
+    CurrentRecipes owner;
+    REQUIRE(install_recipes(owner, (root / "good.json").generic_string(), "/install",
+                            root.generic_string(), &HostContext::so_in)
+                .accepted);
+    const Held before = held_by(owner);
+
+    put_file(root / "notes.txt", "these are notes, not recipes\n");
+    const Written garbage = install_recipes(owner, (root / "notes.txt").generic_string(),
+                                            "/install", root.generic_string(),
+                                            &HostContext::so_in);
+    CHECK_FALSE(garbage.accepted);
+    CHECK_FALSE(garbage.refusal.empty());
+    CHECK(held_by(owner) == before);
+
+    // A DIFFERENT WORKSHOP FILE, which is the honest confusion a maker actually makes:
+    // four durable artifacts sit beside each other and this one says which it is.
+    put_file(root / "plan.json", load_persist::to_text(load::LoadPlan{}));
+    const Written wrong_kind = install_recipes(owner, (root / "plan.json").generic_string(),
+                                               "/install", root.generic_string(),
+                                               &HostContext::so_in);
+    CHECK_FALSE(wrong_kind.accepted);
+    CHECK(held_by(owner) == before);
+
+    // AND A CATALOG THE RECIPE LAW REFUSES: one name, twice. The file parses; what fails
+    // is `builder::check_recipes`, which is the same function a typed catalog goes
+    // through, so a maker meets one sentence rather than two.
+    put_catalog(root / "twice.json", {authored_recipe("one", "src/a.cpp")});
+    {
+        std::string text = bytes_of(root / "twice.json");
+        // Two rows with one name cannot be produced by the writer, so the file is forged
+        // the way this suite forges every other refusal: by editing what the writer wrote.
+        const std::size_t at = text.find("\"recipes\"");
+        REQUIRE(at != std::string::npos);
+        const std::size_t open = text.find('[', at);
+        const std::size_t shut = text.rfind(']');
+        REQUIRE(open != std::string::npos);
+        REQUIRE(shut != std::string::npos);
+        const std::string row = text.substr(open + 1, shut - open - 1);
+        text = text.substr(0, open + 1) + row + "," + row + text.substr(shut);
+        put_file(root / "twice.json", text);
+    }
+    const Written twice = install_recipes(owner, (root / "twice.json").generic_string(),
+                                          "/install", root.generic_string(),
+                                          &HostContext::so_in);
+    CHECK_FALSE(twice.accepted);
+    CHECK(twice.refusal.find("declared twice") != std::string::npos);
+    CHECK(held_by(owner) == before);
+}
+
+TEST_CASE("PROJ-1: a valid EMPTY catalog is a replacement, not a failure") {
+    // ⭐ THE DISTINCTION A FAILURE-SHAPED IMPLEMENTATION LOSES. `builder::check_recipes`
+    // admits an empty catalog deliberately -- a project with nothing to build is a project
+    // -- so a maker who authors one MEANT it, and installing it must leave the session
+    // holding no recipes AND holding that file as its source. That is the opposite of a
+    // parse failure, which leaves the previous catalog untouched.
+    TempDir dir("emptycat");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "full.json", {authored_recipe("one", "src/one.cpp")});
+    put_catalog(root / "empty.json", {});
+
+    CurrentRecipes owner;
+    REQUIRE(install_recipes(owner, (root / "full.json").generic_string(), "/install",
+                            root.generic_string(), &HostContext::so_in)
+                .accepted);
+    REQUIRE(owner.all().size() == 1);
+
+    REQUIRE(install_recipes(owner, (root / "empty.json").generic_string(), "/install",
+                            root.generic_string(), &HostContext::so_in)
+                .accepted);
+    CHECK(owner.all().empty());
+    CHECK(owner.views().empty());
+    CHECK(owner.source() == (root / "empty.json").generic_string());
+}
+
+TEST_CASE("PROJ-1: selecting the catalog already in force is a reload, not a no-op") {
+    // ⭐ THE OPTIMIZATION THAT WOULD COST THE FEATURE. The authored file is DURABLE truth
+    // and a maker edits it; if installing the same path short-circuited, the one explicit
+    // way to pick up that edit would silently do nothing -- and this application would
+    // then need a watcher, a poll or a timer to be honest, which is exactly what it has
+    // refused to grow.
+    TempDir dir("reload");
+    const std::filesystem::path root = dir.path();
+    const std::string path = (root / "recipes.json").generic_string();
+    put_catalog(root / "recipes.json", {authored_recipe("before", "src/a.cpp")});
+
+    CurrentRecipes owner;
+    REQUIRE(install_recipes(owner, path, "/install", root.generic_string(),
+                            &HostContext::so_in)
+                .accepted);
+    REQUIRE(owner.all()[0].id == "before");
+
+    put_catalog(root / "recipes.json", {authored_recipe("after", "src/b.cpp")});
+    REQUIRE(install_recipes(owner, path, "/install", root.generic_string(),
+                            &HostContext::so_in)
+                .accepted);
+    CHECK(owner.source() == path); // the same file...
+    REQUIRE(owner.all().size() == 1);
+    CHECK(owner.all()[0].id == "after"); // ...read again
+    CHECK(owner.all()[0].single_source->source == (root / "src/b.cpp").generic_string());
+}
+
+TEST_CASE("PROJ-1: a catalog's own directory is not a source base") {
+    // ⭐⭐ THE COMPLETION FALSIFIER, and it is arranged so the wrong base names a REAL FILE
+    // WITH DIFFERENT BYTES. EDIT-1's law is that a relative authored `single_source` means
+    // the PROJECT -- where this Workshop was launched -- and PROJ-1 must not let picking a
+    // catalog somewhere else quietly move that. So both candidate bases hold
+    // `src/thing.cpp`: the project's, and the directory the catalog file itself sits in. A
+    // green with only one of them present would prove nothing at all.
+    TempDir dir("anchor");
+    const std::filesystem::path root = dir.path();
+    const std::filesystem::path elsewhere = root / "catalogs";
+    std::filesystem::create_directories(root / "src");
+    std::filesystem::create_directories(elsewhere / "src");
+    put_file(root / "src" / "thing.cpp", "the project\n");
+    put_file(elsewhere / "src" / "thing.cpp", "the decoy\n");
+    put_catalog(elsewhere / "recipes.json", {authored_recipe("thing", "src/thing.cpp")});
+
+    CurrentRecipes owner;
+    REQUIRE(install_recipes(owner, (elsewhere / "recipes.json").generic_string(), "/install",
+                            root.generic_string(), &HostContext::so_in)
+                .accepted);
+    REQUIRE(owner.all().size() == 1);
+    // THE PROJECT'S FILE, NOT THE CATALOG'S NEIGHBOUR.
+    CHECK(owner.all()[0].single_source->source ==
+          (root / "src" / "thing.cpp").generic_string());
+    CHECK(owner.all()[0].single_source->source.find("catalogs") == std::string::npos);
+    // ...AND THE GENERATED PROJECT NAMES THE SAME ONE, which is where the two files would
+    // actually have diverged: "the file you edit is the file the build compiles".
+    CHECK(zengine::builder::generated_project(owner.all()[0])
+              .find((root / "src" / "thing.cpp").generic_string()) != std::string::npos);
+}
+
+TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves with it") {
+    // ⭐ THE PHASE'S CENTRAL CLAIM, END TO END AND THROUGH THE REAL PARTICIPANTS. A maker
+    // points at an ordinary file, invokes one ordinary action, and the recipes this
+    // session means are the ones that file authored -- with no process restart, no second
+    // browser, no modal chooser and no extension test anywhere on the path.
+    //
+    // ⚠ THE OWNER IS DECLARED FIRST, exactly as `main` declares it above the bus: the tool
+    // below reads it for as long as it lives.
+    CurrentRecipes owner;
+    FilesRig r("uselive");
+    const std::string install = r.root.generic_string();
+    put_catalog(r.root / "a-recipes.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_catalog(r.root / "b-recipes.json", {authored_recipe("beta", "src/beta.cpp"),
+                                            authored_recipe("gamma", "src/gamma.cpp")});
+    r.t.host.use_recipes = host_use_recipes(owner, install, r.t.host.project_dir);
+    REQUIRE(r.t.host.use_recipes((r.root / "a-recipes.json").generic_string()).accepted);
+
+    zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
+    open_builder(r.t);
+    r.open();
+    REQUIRE(r.session().panels.builder.known.recipes.size() == 1);
+    REQUIRE(r.session().panels.builder.known.recipes[0].recipe == "alpha");
+    REQUIRE(r.shown().find("alpha -> alpha  (1/1)") != std::string::npos);
+    // NOTHING NAMES A CATALOG YET: the session has not moved, and the host's banner said
+    // the launch catalog correctly.
+    REQUIRE(r.shown().find("catalog") == std::string::npos);
+
+    point_at(r, "b-recipes.json");
+    use_as_recipes(r);
+
+    // THE OWNER MOVED, WHOLE.
+    CHECK(owner.source() == (r.root / "b-recipes.json").generic_string());
+    REQUIRE(owner.all().size() == 2);
+    CHECK(owner.all()[0].id == "beta");
+    // ...AND THE TOOL ANSWERS THE NEW CATALOG, because it reads the owner rather than a
+    // list it kept. It was never destroyed, never recreated, and never told a recipe.
+    REQUIRE(tool->recipes().size() == 2);
+    CHECK(tool->recipes()[1].id == "gamma");
+    // ...AND THE PANEL SHOWS IT, republished through the same `StatusRequested` an opening
+    // panel has always sent. No observer, no subscription, no second recipe event.
+    REQUIRE(r.session().panels.builder.known.recipes.size() == 2);
+    CHECK(r.session().panels.builder.known.recipes[0].recipe == "beta");
+    CHECK(r.shown().find("beta -> beta  (1/2)") != std::string::npos);
+    // THE MAKER IS TOLD WHAT HAPPENED AND WHAT IS NOW CURRENT.
+    CHECK(r.notice().find("b-recipes.json") != std::string::npos);
+    CHECK(r.notice().find("2 recipes") != std::string::npos);
+    // ...AND THE PANEL CAN STILL ANSWER IT LATER, because the banner has stopped being
+    // true and this is the row that says so. It is the project-relative spelling, which is
+    // what fits this panel's measured column; the absolute path is the notice's and the
+    // owner's.
+    const std::string panel = r.shown();
+    CHECK(panel.find("catalog  b-recipes.json") != std::string::npos);
+    // ...AND IT COST ONE `said` ROW AND NOTHING ELSE. Every fact a maker acts on is still
+    // on the panel, in the same order: this row yields first under any smaller budget, and
+    // a session that never moves its catalog pays nothing at all.
+    for (const char* kept : {"BUILDER @", "recipe   ", "last     ", "realize  ", "exit     ",
+                             "ran      ", "said     "}) {
+        CHECK_MESSAGE(panel.find(kept) != std::string::npos, "the catalog row displaced `",
+                      kept, "`");
+    }
+}
+
+TEST_CASE("PROJ-1: the chooser does not need the Builder panel to be open") {
+    // THE ORDERING CLAIM, MADE EXPLICITLY. Choosing what this project can build is not an
+    // act on the Builder's presentation, so requiring that presentation to exist first
+    // would be a gesture that depended on which panes a maker happened to have open.
+    CurrentRecipes owner;
+    FilesRig r("nobuilder");
+    put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+                                            r.t.host.project_dir);
+    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
+    r.open();
+    REQUIRE_FALSE(r.session().panels.has(panel::kBuilder));
+
+    point_at(r, "b.json");
+    use_as_recipes(r);
+
+    CHECK(owner.source() == (r.root / "b.json").generic_string());
+    REQUIRE(tool->recipes().size() == 1);
+    CHECK(tool->recipes()[0].id == "beta");
+    // ...AND A PANEL OPENED AFTERWARDS IS TOLD THE TRUTH BY THE ORDINARY ASK. The keys
+    // are in the browser, so they are handed back first -- the picker is command mode's.
+    r.to_command();
+    open_builder(r.t);
+    REQUIRE(r.session().panels.builder.known.recipes.size() == 1);
+    CHECK(r.session().panels.builder.known.recipes[0].recipe == "beta");
+}
+
+TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") {
+    // ⭐ THE RECOVERY CLAIM. A file that is not a catalog is an ordinary thing to point at
+    // -- the browser lists every real file and judges no contents -- so the refusal has to
+    // be survivable: the recipes in force are the old ones, the panel still shows them, the
+    // browser still works, and the maker is told BOTH halves.
+    CurrentRecipes owner;
+    FilesRig r("refused");
+    put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_file(r.root / "notes.txt", "not a catalog\n");
+    std::filesystem::create_directories(r.root / "somewhere");
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+                                            r.t.host.project_dir);
+    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    zengine::builder::BuilderWeave* tool = mount_live_tool(r.t, owner);
+    open_builder(r.t);
+    r.open();
+    const Held before = held_by(owner);
+    const std::size_t catalogs_before = r.session().panels.builder.known.recipes.size();
+
+    point_at(r, "notes.txt");
+    use_as_recipes(r);
+
+    CHECK(held_by(owner) == before);
+    CHECK(r.session().panels.builder.known.recipes.size() == catalogs_before);
+    CHECK(r.session().panels.builder.known.recipes[0].recipe == "alpha");
+    REQUIRE(tool->recipes().size() == 1);
+    CHECK(tool->recipes()[0].id == "alpha");
+    // BOTH HALVES IN ONE SENTENCE, AND THE ORDER IS PART OF THE CLAIM: the two short fixed
+    // statements come first because the notice row is cut at the band's width, and the
+    // half a maker most needs -- "you did not just lose your recipes" -- must not be the
+    // half that elides. The live witness measured exactly that failure with the reason
+    // first, which is why the order is asserted here and not merely the content.
+    const std::string said = r.notice();
+    CHECK(said.find("not a recipe catalog") == 0u);
+    CHECK(said.find("the recipes in force are unchanged") != std::string::npos);
+    CHECK(said.find("the recipes in force are unchanged") < said.find("not a Workshop"));
+    CHECK(said.find("still using " + (r.root / "a.json").generic_string()) !=
+          std::string::npos);
+    // ...AND NO CATALOG ROW APPEARED, because this session has not moved.
+    CHECK(r.shown().find("catalog  ") == std::string::npos);
+
+    // A DIRECTORY IS REFUSED IN THE BROWSER'S OWN WORDS, before the owner is troubled.
+    point_at(r, "somewhere");
+    use_as_recipes(r);
+    CHECK(r.notice().find("is a directory") != std::string::npos);
+    CHECK(held_by(owner) == before);
+
+    // AND WORKSHOP IS STILL WORKSHOP: the browser answers the next gesture.
+    r.t.key(input::scan::kR);
+    CHECK(r.notice().find("listed the project root again") != std::string::npos);
+}
+
+TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved editor buffer") {
+    // ⭐ THE DURABLE-AUTHORSHIP CLAIM. The same path can be open in the editor and pointed
+    // at in the browser, and the two are answering different questions: what a maker is
+    // WRITING, and what this session currently MEANS. Joining them -- consuming the buffer,
+    // or saving it first -- would make an unsaved draft into build procedure.
+    CurrentRecipes owner;
+    FilesRig r("dirtycat");
+    put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+                                            r.t.host.project_dir);
+    REQUIRE(r.t.host.use_recipes((r.root / "b.json").generic_string()).accepted);
+    const std::string durable = bytes_of(r.root / "b.json");
+    r.open();
+
+    // OPEN THE CATALOG IN THE EDITOR AND MAKE THE BUFFER DIFFER. One character at the
+    // caret is enough, and it is deliberately one that makes the BUFFER unreadable as a
+    // catalog: if the buffer were ever consumed, the install below could not succeed.
+    point_at(r, "b.json");
+    r.t.key(input::scan::kReturn);
+    REQUIRE(r.session().editor.open_document());
+    REQUIRE(r.session().editor.path == (r.root / "b.json").lexically_normal().generic_string());
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kEditor);
+    r.t.text("x");
+    REQUIRE(r.session().editor.dirty());
+
+    // THE DURABLE FILE IS WHAT IS READ.
+    point_at(r, "b.json");
+    use_as_recipes(r);
+    REQUIRE(owner.all().size() == 1);
+    CHECK(owner.all()[0].id == "beta");
+    // NOTHING WAS SAVED ON THE MAKER'S BEHALF, and the draft is still theirs.
+    CHECK(bytes_of(r.root / "b.json") == durable);
+    CHECK(r.session().editor.dirty());
+
+    // AND WHEN THEY DO SAVE, THE RELOAD READS WHAT THEY SAVED. The saved bytes are the
+    // buffer's, which is not a catalog -- so the refusal here IS the proof that the file on
+    // disk is the input, and that a same-path reload is a real read rather than a cached
+    // answer. `editor.save` is the editor's own row, so the keys go back to the editor the
+    // way they came: a press on the row this pane already has open reveals it.
+    point_at(r, "b.json");
+    r.t.key(input::scan::kReturn);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kEditor);
+    r.t.key(input::scan::kS, input::mod::kCtrl);
+    REQUIRE_FALSE(r.session().editor.dirty());
+    CHECK(bytes_of(r.root / "b.json") != durable);
+
+    const Held before = held_by(owner);
+    point_at(r, "b.json");
+    use_as_recipes(r);
+    CHECK(r.notice().find("not a recipe catalog") != std::string::npos);
+    CHECK(held_by(owner) == before);
+}
+
+TEST_CASE("PROJ-1: the republish is the ask the panel already sends, once") {
+    // ⭐ THE ROUTE, COUNTED. `Panels::builder.known` is a derived presentation copy and the
+    // one live catalog projection that still needs a push -- so a replacement has to push
+    // it, and the only honest question is WHAT it pushes with. The answer is the message an
+    // opening panel has always sent: one `StatusRequested`, to the office that already
+    // answers it, publishing the two shapes it already publishes.
+    //
+    // The stand-in is used here rather than the real tool precisely because it COUNTS: it
+    // records how many times it was asked, which is the fact this case is about. An
+    // observer graph, a subscription, a second recipe event or a repeated poll would all
+    // show up as a different number.
+    CurrentRecipes owner;
+    FilesRig r("republish");
+    put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
+    put_file(r.root / "notes.txt", "not a catalog\n");
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+                                            r.t.host.project_dir);
+    ToolSeat* tool = mount_tool(r.t, "alpha");
+    open_builder(r.t);
+    REQUIRE(tool->described == 1); // the panel opening
+    r.open();
+    REQUIRE(tool->described == 1); // ...and nothing since
+
+    point_at(r, "b.json");
+    use_as_recipes(r);
+
+    CHECK(tool->described == 2);
+    // NOTHING ELSE WAS SAID. No build was ordered, and the tool heard exactly one more
+    // sentence than it had heard before.
+    CHECK(tool->asked.empty());
+
+    // A SECOND CHOICE IS A SECOND ASK AND NOT A SECOND MECHANISM -- including the
+    // same-file reload, which is a real replacement and says so on the wire.
+    point_at(r, "b.json");
+    use_as_recipes(r);
+    CHECK(tool->described == 3);
+
+    // ...AND A REFUSAL PUSHES NOTHING, because nothing changed for a panel to be told about.
+    point_at(r, "notes.txt");
+    use_as_recipes(r);
+    CHECK(tool->described == 3);
+}
+
+TEST_CASE("PROJ-1: the chooser is an ordinary action on the ordinary binding truth") {
+    // NO PRIVATE SHORTCUT. The gesture is a `kActionCatalog` row like every other, so a
+    // maker's keymap file can move it, the help surfaces list it, and dispatch reads the
+    // same one fact all three read. A hard-coded key here would be the drift KEY-R0
+    // measured in six places, reintroduced for one action.
+    const ActionRow* row = row_of_id("files.use-recipes");
+    REQUIRE(row != nullptr);
+    CHECK(row->context == KeyContext::kFiles);
+    CHECK(std::string(row->label) == "use as recipes");
+
+    Keymap map;
+    CHECK(map.action_for(KeyContext::kFiles, input::scan::kU, input::mod::kNone) ==
+          Act::kFilesUseRecipes);
+    // ...AND A REMAP MOVES IT, which is what makes the claim above worth anything.
+    Keymap remapped;
+    REQUIRE(apply_overrides({{"files.use-recipes", "g"}}, legend_mode::kDefault, remapped)
+                .accepted);
+    CHECK(remapped.action_for(KeyContext::kFiles, input::scan::kG, input::mod::kNone) ==
+          Act::kFilesUseRecipes);
+    CHECK(remapped.action_for(KeyContext::kFiles, input::scan::kU, input::mod::kNone) ==
+          Act::kNone);
+}
+
+TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowhere") {
+    // THE PERSISTENCE POSTURE, MEASURED. PROJ-1 deliberately remembers no catalog choice:
+    // the next launch chooses exactly as this one did, from `--recipes` or the shipped
+    // default. So the fact lives on the `Session`, which is written to no file, and the
+    // durable session record a maker's next launch restores says nothing about it.
+    CurrentRecipes owner;
+    FilesRig r("nopersist");
+    const std::string session_file = (r.root / "last-session.json").generic_string();
+    r.t.host.session_path = session_file;
+    put_catalog(r.root / "a.json", {authored_recipe("alpha", "src/alpha.cpp")});
+    put_catalog(r.root / "b.json", {authored_recipe("beta", "src/beta.cpp")});
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(),
+                                            r.t.host.project_dir);
+    REQUIRE(r.t.host.use_recipes((r.root / "a.json").generic_string()).accepted);
+    r.open();
+    point_at(r, "b.json");
+    use_as_recipes(r);
+    REQUIRE(r.session().recipes_moved_to == "b.json");
+    REQUIRE(owner.source() == (r.root / "b.json").generic_string());
+
+    // WHAT A SAVE ACTUALLY CARRIES, read off the file this Workshop writes on its way
+    // out. No catalog path is in it -- not the one in force, not the one that was
+    // replaced, not a list of either -- and no new durable artifact appeared beside it.
+    r.to_command();
+    r.t.key(input::scan::kQ);
+    REQUIRE(std::filesystem::exists(session_file));
+    const std::string text = bytes_of(session_file);
+    CHECK(text.find("a.json") == std::string::npos);
+    CHECK(text.find("b.json") == std::string::npos);
+    CHECK(text.find("recipe") == std::string::npos);
 }

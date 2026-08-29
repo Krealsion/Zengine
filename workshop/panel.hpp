@@ -501,6 +501,11 @@ struct ProjectFrontier {
 /// outstanding at that instant. One latch for both would either release too early (and
 /// turn realization's answer into a fact this panel merely learned) or too late (and
 /// hold the build's own ending back behind it). Two questions, two latches.
+/// ⚠ WHICH CATALOG THIS SESSION IS USING IS DELIBERATELY NOT HERE (PROJ-1). This struct is
+/// destroyed and remade every time the panel is removed and reopened (`close_panel`), and
+/// a maker changing recipe catalogs has not changed anything about a PRESENTATION -- so
+/// that fact lives on the `Session`, beside the source document, where removing a pane
+/// cannot lose it. What lives here is what this panel was TOLD.
 struct BuilderPane {
     bool heard = false;
     bool awaiting = false;
@@ -702,11 +707,14 @@ struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
     BuilderPane builder;
-    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING. `BuilderPane`'s place, for the same
-    /// reason: it is the per-kind view of a built-in, so it outlives the PRESENTATION
-    /// being removed and restored -- close Project Files, reopen it, and a maker is where
-    /// they were, exactly as the Builder's chosen recipe survives the same round trip.
-    /// It does not outlive the RUN, and nothing writes it to a file.
+    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING. `BuilderPane`'s place, and NOT its
+    /// lifetime: this one survives the presentation being removed and restored -- close
+    /// Project Files, reopen it, and a maker is where they were -- while `close_panel`
+    /// deliberately forgets the Builder's copy, so that a reopened Builder asks the tool
+    /// and shows the TOOL's running total rather than looking instantly informed about
+    /// something minutes stale. Two per-kind views, two answers to "may this be kept",
+    /// each argued where it is taken. Neither outlives the RUN, and nothing writes either
+    /// to a file.
     FilesPane files;
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones (WP-0). It
     /// lives here rather than in `Session` for one measured reason: every
