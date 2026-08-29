@@ -7,12 +7,14 @@ write a weave.
 **What Workshop is today:** a working surface where you create authored rectangles, select
 them, move and resize them, inspect and edit their properties, watch invalid edits be refused,
 save the result, and reopen it. Around that sit panes that show what the running system is
-made of, a terminal overlay that talks to the live process, and a Builder that starts a real
-build.
+made of, a terminal overlay that talks to the live process, a Builder that starts a real
+build and offers the result to the running project, and a [source editor](editor.md) that
+opens the file a build recipe names — so `edit → save → build → realize → inspect` closes
+without leaving the application. Your desk comes back on its own when you relaunch.
 
-**What it is not yet:** a source editor, a project builder, or something that reopens where
-you left off. Those are written down in [limitations](limitations.md) rather than left to be
-discovered.
+**What it is not yet** is written down in [limitations](limitations.md) rather than left to
+be discovered — the editor holds one plain-ASCII file at a time, the document itself still
+needs `Ctrl`+`o` at launch, and a rebuilt artifact that is already live needs a restart.
 
 ## Launch it
 
@@ -211,6 +213,7 @@ Neither is a degraded version of the other, and the same published intent produc
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.
+- [The source editor](editor.md) — edit the file a recipe names, without leaving.
 - [Introspection](../reference/introspection.md) — `Loaded`, `Project`, `Powers`.
 - [Limitations](limitations.md) — read this before planning around Workshop.
 - [Making a Workshop tool](../guides/make-a-workshop-tool.md) — if you want to add a pane.

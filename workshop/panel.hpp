@@ -98,9 +98,10 @@
 
 namespace zengine::workshop {
 
-/// The KINDS of panel this Workshop can present. Two so far, and they are
+/// The KINDS of panel this Workshop can present. Three so far, and they are
 /// deliberately unalike: one presents a weave, one presents this application's
-/// own state, and nothing in this file can tell them apart.
+/// own state, one presents a source document the session holds -- and nothing
+/// in this file can tell them apart.
 ///
 /// A plain integer rather than an enum class, for the reason every other
 /// vocabulary constant in this repository is one: these values sit beside
@@ -109,6 +110,7 @@ namespace zengine::workshop {
 namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
+inline constexpr std::int64_t kEditor = 2;
 } // namespace panel
 
 /// WHERE a panel kind is presented. Two, because Workshop has two places and no
@@ -186,6 +188,7 @@ struct PanelKind {
 namespace pane_key {
 inline constexpr const char* kBuilder = "builder";
 inline constexpr const char* kInfo = "info";
+inline constexpr const char* kEditor = "editor";
 } // namespace pane_key
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
@@ -211,6 +214,14 @@ inline constexpr PanelKind kPanelCatalog[] = {
      "build a chosen recipe"},
     {panel::kInfo, placement::kSideRegion, kWorkshopProvider, pane_key::kInfo, "Info",
      "objects and properties"},
+    // THE SOURCE EDITOR'S PRESENTATION, AND ONLY ITS PRESENTATION. The document -- the
+    // path, the buffer, the saved copy, the dirty answer -- is Session state
+    // (`Session::editor`), which is exactly what makes removing, hiding or rearranging
+    // this pane unable to lose one byte of unsaved source: a panel is a presentation,
+    // and closing one destroys a presentation. Info's own shape, holding a document
+    // instead of holding nothing.
+    {panel::kEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kEditor, "Editor",
+     "edit a recipe's source"},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -239,7 +250,7 @@ inline constexpr const PanelKind& panel_kind(std::int64_t kind) noexcept {
 /// spent by this session, and never written to a file, never read off a message
 /// and never compared across processes.
 ///
-/// THE GAP IS DELIBERATE AND SO IS ITS SIZE. The built-ins are 0 and 1 and this
+/// THE GAP IS DELIBERATE AND SO IS ITS SIZE. The built-ins are small integers and this
 /// build's own vocabulary may grow; starting a thousand above leaves no arithmetic
 /// by which a runtime handle and a future built-in could collide, and the
 /// predicate below is the one place either question is asked.
@@ -254,7 +265,7 @@ inline constexpr bool is_runtime_kind(std::int64_t kind) noexcept {
 ///
 /// NEGATIVE, for `role::kNone`'s and `kNoCaret`'s reason, which is the sharpest
 /// one available here: every kind this build can name is non-negative by
-/// construction (the built-ins are 0 and 1, runtime handles start a thousand
+/// construction (the built-ins are small integers, runtime handles start a thousand
 /// above), so an absence CANNOT collide with a kind anybody meant. Zero would
 /// have been `panel::kBuilder`, which is the exact lie `resolve_pane` is fallible
 /// to prevent -- a maker's unresolved third-party reference presented as
@@ -682,25 +693,31 @@ struct Panels {
     /// has nowhere to put it. Saying `closed` would invite a maker to press the
     /// picker again; saying `unresolved` would blame the provider for the screen.
     std::vector<std::int64_t> waiting_for_room;
-    /// WHICH EXTERNAL PANE A MAKER LAST PRESSED INTO -- the keyboard's CANDIDATE,
-    /// and emphatically not its answer (MSG-0).
+    /// WHICH KEYBOARD-TAKING PANE A MAKER LAST POINTED THE KEYS AT -- an external
+    /// pane, or the built-in Editor -- the keyboard's CANDIDATE, and emphatically not
+    /// its answer (MSG-0).
     ///
     /// IT IS RESOLVED AT EVERY SPEND AND REMEMBERED BY NOBODY, which is
     /// `bounds_of`'s discipline applied to a focus: `keyboard_pane` (weave.hpp)
     /// asks whether this kind is still an open external pane holding a granted
-    /// room, and answers `kNoPaneKind` when it is not. So a pane that is closed,
+    /// room -- and the editor's own resolution (`editor_has_keyboard`, screen.hpp)
+    /// asks whether the Editor is still open with a document and visible cells --
+    /// and both answer nothing when it is not. So a pane that is closed,
     /// removed from the setup, left unresolved by a provider that went away, or
     /// pushed off the screen stops receiving keys with nothing to clear and no
     /// notification owed to anybody -- and if the same kind comes back, so does
     /// the keyboard, because the candidate was never a lie in the first place.
     ///
-    /// THE ONLY WRITER IS A PRESS. `on(PointerButton)` sets it from the occupancy
-    /// walk it already performs, before any layer answers the press, so there is
-    /// one decision rather than one per routing arm; a press Workshop resolves
-    /// that lands anywhere else -- another panel, the workspace, nothing at all --
-    /// clears it by the same line. Modes that own the pointer whole (the Terminal,
-    /// pane management) never reach that line, which is why closing one hands the
-    /// keyboard back exactly where it was.
+    /// TWO WRITERS, EACH A DELIBERATE POINTING. A PRESS: `on(PointerButton)` sets it
+    /// from the occupancy walk it already performs, before any layer answers, so there
+    /// is one decision rather than one per routing arm; a press that lands anywhere
+    /// else -- another panel, the workspace, nothing at all -- clears it by the same
+    /// line, and modes that own the pointer whole (the Terminal, pane management)
+    /// never reach it, which is why closing one hands the keyboard back exactly where
+    /// it was. And OPENING A SOURCE: the Builder's edit-source door points the keys at
+    /// the Editor it just filled, because "open this file for editing" is a maker
+    /// saying where their hands are going next, and an open that left the keyboard
+    /// elsewhere would make the first keystroke land in the wrong place.
     ///
     /// SESSION, and not even that: it is not in the setup, not in the document,
     /// not persisted and not restored. `kNoPaneKind` is where every session starts.
@@ -825,6 +842,13 @@ inline bool close_panel(Panels& panels, std::int64_t kind) {
             // of those outlive it and belong to somebody else. A panel with no
             // state of its own is the case that proves the branch above is one
             // kind's business rather than a slot in a framework.
+            //
+            // THE EDITOR HAS NOTHING TO FORGET EITHER, AND THAT ABSENCE IS LOAD-BEARING:
+            // the source document -- path, buffer, unsaved edits, caret, viewport --
+            // is `Session::editor`, so closing this presentation can lose none of it
+            // and reopening the pane shows the same document exactly where it was.
+            // A dirty buffer disappearing because a pane was removed is the defect
+            // this placement exists to make unsayable.
             //
             // AND AN EXTERNAL PANE FORGETS EVERYTHING IT WAS SHOWING (WP-0):
             // its granted room, its copy of the provider's rows, whether it had

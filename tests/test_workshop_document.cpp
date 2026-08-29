@@ -4269,38 +4269,39 @@ TEST_CASE("KEY-0: the view lists the context beneath it, and three contexts diff
 TEST_CASE("KEY-0: an authored override changes dispatch AND every displayed spelling") {
     TempDir dir("keymap-override");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "e"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "g"}}));
     Keyed t(path);
     // The load was announced first, in words, with the override counted -- read it
     // before any gesture writes its own sentence over the one notice line.
     CHECK(t.notice().find("1 override") != std::string::npos);
 
-    // DISPATCH: `e` creates and `n` no longer does -- the override moved the
-    // binding, not the action.
+    // DISPATCH: `g` creates and `n` no longer does -- the override moved the
+    // binding, not the action. (`g`, because it is a still-free letter: `e` stopped
+    // being one when the Builder's edit-source door took it.)
     const std::size_t before = t.doc().elements.size();
     t.key(input::scan::kN);
     CHECK(t.doc().elements.size() == before);
-    t.key(input::scan::kE);
+    t.key(input::scan::kG);
     CHECK(t.doc().elements.size() == before + 1);
 
     // DISPLAY: the band's first help row and the hotkey view both spell the
     // same effective binding, because both project the same value dispatch read.
     const Screen sc = screen_of(t.session());
-    CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("e new", 0) == 0);
+    CHECK(label_at(t.canvases.back(), 0, sc.help_y).rfind("g new", 0) == 0);
     t.key(input::scan::kK, input::mod::kCtrl);
     const std::string view = stack_text(t.canvases.back());
-    CHECK(view.find("e             new") != std::string::npos);
+    CHECK(view.find("g             new") != std::string::npos);
 
 }
 
 TEST_CASE("KEY-0: an override survives restart, and deleting the file restores defaults") {
     TempDir dir("keymap-restart");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"object.new", "e"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"object.new", "g"}}));
     {
         Keyed first(path);
         const std::size_t before = first.doc().elements.size();
-        first.key(input::scan::kE);
+        first.key(input::scan::kG);
         REQUIRE(first.doc().elements.size() == before + 1);
     }
     // RESTART: a new process reads the same authored file and reaches the same
@@ -4308,7 +4309,7 @@ TEST_CASE("KEY-0: an override survives restart, and deleting the file restores d
     {
         Keyed again(path);
         const std::size_t before = again.doc().elements.size();
-        again.key(input::scan::kE);
+        again.key(input::scan::kG);
         CHECK(again.doc().elements.size() == before + 1);
         again.key(input::scan::kN);
         CHECK(again.doc().elements.size() == before + 1);
@@ -4322,7 +4323,7 @@ TEST_CASE("KEY-0: an override survives restart, and deleting the file restores d
     const std::size_t before = defaults.doc().elements.size();
     defaults.key(input::scan::kN);
     CHECK(defaults.doc().elements.size() == before + 1);
-    defaults.key(input::scan::kE);
+    defaults.key(input::scan::kG);
     CHECK(defaults.doc().elements.size() == before + 1);
 }
 
@@ -4385,7 +4386,7 @@ TEST_CASE("KEY-0: an override for an unknown action survives with its intent who
     // The setup law's ACCEPTED clause, applied to the sixth file: a well-formed
     // row this build cannot resolve is not an error and must never become one.
     const std::string text = keymap_file_text(
-        "default", {{"object.new", "e"}, {"future.action", "hyper+z"}});
+        "default", {{"object.new", "g"}, {"future.action", "hyper+z"}});
     const keymap_persist::LoadedKeymap loaded = keymap_persist::from_text(text);
     REQUIRE(loaded.outcome.accepted);
     // The known row was applied...
@@ -4414,7 +4415,7 @@ TEST_CASE("KEY-0: a gesture outside the grammar on a KNOWN action is refused in 
     CHECK(bad_mod.outcome.refusal.find("`meta` is not a modifier") != std::string::npos);
 
     const keymap_persist::LoadedKeymap twice = keymap_persist::from_text(
-        keymap_file_text("default", {{"object.new", "e"}, {"object.new", "g"}}));
+        keymap_file_text("default", {{"object.new", "g"}, {"object.new", "i"}}));
     CHECK_FALSE(twice.outcome.accepted);
     CHECK(twice.outcome.refusal.find("authored twice") != std::string::npos);
 

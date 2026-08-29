@@ -19,6 +19,7 @@
 //   test_workshop_panels.cpp        the panels Workshop ships, and attention
 //   test_workshop_panes.cpp         the external pane seam
 //   test_workshop_persistence.cpp   what survives a process
+//   test_workshop_editor.cpp        the built-in source editor and its document
 //
 // `test_workshop_load.cpp` — which artifacts are in the room at all — carries its own
 // rigs and does not include this file: its cases own a Switchboard and a Kernel each and
@@ -844,6 +845,15 @@ struct Live {
                                                     cy + surface::kTuiCanvasTopRow,
                                                     input::space::kCells, input::mod::kNone}));
     }
+    void release_canvas(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerButton{1, false, cx,
+                                                    cy + surface::kTuiCanvasTopRow,
+                                                    input::space::kCells, input::mod::kNone}));
+    }
+    void motion_canvas(std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerMoved{cx, cy + surface::kTuiCanvasTopRow, 0, 0,
+                                                   input::space::kCells, input::mod::kNone}));
+    }
     void right_press_canvas(std::int64_t cx, std::int64_t cy) {
         publish(loom::to_value(input::PointerButton{3, true, cx,
                                                     cy + surface::kTuiCanvasTopRow,
@@ -853,6 +863,14 @@ struct Live {
     const ContextMenu& menu() const { return w->session().context; }
     void motion(std::int64_t wx, std::int64_t wy) {
         publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
+                                                   input::space::kCells, input::mod::kNone}));
+    }
+    /// THE WHEEL, AT A CANVAS CELL -- `press_canvas`'s translation for the one event the
+    /// editor's viewport consumes. `dy` is notches, +1 away from the maker (the wire's
+    /// own convention), fractional exactly as a high-resolution wheel reports.
+    void wheel_canvas(double dy, std::int64_t cx, std::int64_t cy) {
+        publish(loom::to_value(input::PointerWheel{0.0, dy, cx,
+                                                   cy + surface::kTuiCanvasTopRow,
                                                    input::space::kCells, input::mod::kNone}));
     }
 

@@ -40,6 +40,7 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`b`** | **build** the recipe you have chosen |
 | **`Shift+b`** | **build and realize** it — build, and if that works, offer the result to the running project |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
+| **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words |
 | **`p`** | remove the pane |
 
 The pane shows the chosen recipe and what it makes, where the last build got to (with its
@@ -205,7 +206,9 @@ An artifact that is **already loaded** is refused, in words:
 ## What the pane still asks of a maker
 
 - A recipe file is edited in a text editor, not in Workshop. There is no recipe editor, no
-  picker beyond `c`, and no way to add a recipe at run time.
+  picker beyond `c`, and no way to add a recipe at run time. (A `single_source` recipe's
+  **source** is the one file Workshop itself can edit — press `e`; see
+  [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
 - A rebuilt artifact that is already live needs a restart to take effect, and the refusal says

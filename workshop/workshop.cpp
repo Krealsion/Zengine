@@ -561,6 +561,46 @@ int main(int argc, char** argv) {
             }
         }
     }
+    // ---- THE EDIT-SOURCE SEAM (`HostContext::recipe_source`) ---------------------
+    //
+    // The host is the one party holding the AUTHORED recipes -- the same value the
+    // runner builds from -- so the host answers which source file a recipe names,
+    // verbatim, and the editor cannot come to open a subtly different join of the
+    // same bytes. A VALUE COPY of the three facts per recipe, taken here, because the
+    // full catalog is handed onward below and a closure over a moved-from vector
+    // would be a read of nothing. The kind words are the recipe FILE's own, so a
+    // refusal downstream speaks the vocabulary the maker authored in.
+    {
+        struct SourceRow {
+            std::string id;
+            std::string kind;
+            std::string source;
+        };
+        std::vector<SourceRow> sources;
+        sources.reserve(recipes.size());
+        for (const builder::Recipe& r : recipes) {
+            SourceRow row;
+            row.id = r.id;
+            row.kind = r.single_source.has_value() ? "single_source" : "cmake_target";
+            if (r.single_source.has_value()) {
+                row.source = r.single_source->source;
+            }
+            sources.push_back(std::move(row));
+        }
+        host.recipe_source =
+            [sources = std::move(sources)](const std::string& id) {
+                HostContext::RecipeSource out;
+                for (const SourceRow& row : sources) {
+                    if (row.id == id) {
+                        out.known = true;
+                        out.kind = row.kind;
+                        out.source = row.source;
+                        break;
+                    }
+                }
+                return out;
+            };
+    }
     std::fflush(stdout);
 
     loom::Switchboard bus;

@@ -519,13 +519,25 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
 | `c` / `Shift`+`c` | choose the next / previous recipe |
 | `f` | build and realize the project frontier |
-| `Ctrl`+`s` / `Ctrl`+`o` | save / open the document |
+| `e` | open the chosen recipe's **source** in the editor (single-source recipes) |
+| `Ctrl`+`s` / `Ctrl`+`o` | save / open the document (`Ctrl`+`s` saves the **source** while the editor holds the keys) |
 | `Ctrl`+`t` | open or close the terminal overlay |
 | `Ctrl`+`k` | open the hotkey view |
 | `Ctrl`+`a` | what needs attention — everything currently true and worth knowing |
 | `Ctrl`+`c`, `q` | quit |
 
 **Pane picker** (`p`) — `↑` `↓` choose, `Enter` opens or removes, `Esc` or `p` cancels.
+
+**Source editor** (`e` on a single-source recipe) — a built-in pane holding the one file the
+chosen recipe names; press into its body and your keys are in the source. Typing edits;
+`Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a preferred column
+through short ones); `Home`/`End` and `Ctrl`+`Home`/`End`; `Ctrl`+arrows by word;
+`Shift`+movement selects; `Ctrl`+`a`/`c`/`x`/`v`/`z`/`y` as expected, across lines; the
+mouse places and sweeps; the wheel scrolls. `Ctrl`+`s` saves the **source** while the editor
+holds the keys; `Ctrl`+`d` deliberately discards unsaved edits (undo takes them back). A dirty source
+refuses to be replaced or quit past until saved or discarded, and hiding or rearranging the
+pane loses nothing. Plain-ASCII files only; tabs, line endings and the final newline
+round-trip exactly. See [the source editor](docs/workshop/editor.md).
 
 **What needs attention** (`Ctrl`+`a`) — `↑` `↓` choose, `d` hides one, `Esc` or `Ctrl`+`a`
 closes. It lists what is **currently true** and worth knowing — a settings file that could not
@@ -570,8 +582,8 @@ deliver it). See
 
 ### Panes
 
-Built-in: **Builder**, **Info**. Loaded through the default plan: **Loaded**, **Project**,
-**Powers** (from `zengine-introspection`), and the **Composer**.
+Built-in: **Builder**, **Info**, **Editor**. Loaded through the default plan: **Loaded**,
+**Project**, **Powers** (from `zengine-introspection`), and the **Composer**.
 
 | pane | shows |
 |---|---|

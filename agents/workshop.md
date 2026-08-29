@@ -7,10 +7,10 @@ tools that arrive through it are [`panes.md`](panes.md); the Surface vocabulary 
 [`surface.md`](surface.md). Phase tags like (HD-7) are provenance markers into this
 repository's history; the law here is current.
 
-**Where a case goes.** Workshop's tests are six suites, one per area — document, screen,
-panels, panes, persistence, load — and a new case belongs to the one whose subject it proves.
-[`verification.md`](verification.md) names them, says what shared support may be, and says why
-a temporary directory belongs to a suite.
+**Where a case goes.** Workshop's tests are seven suites, one per area — document, screen,
+panels, panes, persistence, load, editor — and a new case belongs to the one whose subject it
+proves. [`verification.md`](verification.md) names them, says what shared support may be, and
+says why a temporary directory belongs to a suite.
 
 ## One geometry draws a thing and hits it (HD-3)
 
@@ -450,6 +450,84 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   ordinary expectations had stopped being per-consumer projects; a fifth absence a competent
   user would trip on gets the same test, not a reflex extraction.
 
+## The source editor: one document, session-owned, presented by a pane (EDIT-0)
+
+`workshop/editor.hpp` owns the editor's machinery; `Session::editor` (`EditorState`) owns the
+document; the Editor pane (`panel::kEditor`, overlay stack) is only its presentation.
+
+```text
+EditorState     path identity, the saved copy (dirty DERIVES by comparing lines), the
+                line-ending convention, `doc_epoch` (which document is open, comparable),
+                the viewport (first_row / first_col in DISPLAYED columns, follow flag)
+EditorBuffer    lines, caret, anchor, preferred column, bounded snapshot undo (depth AND
+                byte budget), `revision()` (moves with text/caret/selection and nothing
+                else), and `consume(scancode, mods, clip)` -- the component's bool at the
+                editor's boundary, its gestures DECLARED in `kEditorVocabulary` and swept
+                against `consume` both ways by the suite
+the weave       every refusal sentence and every file door: `edit_source` (the Builder's
+                `e`), `save_source`, `discard_source_edits`, the quit guard
+```
+
+- **THE FIRST MULTILINE CONSUMER OWNS ITS MULTILINE MACHINERY.** `component::TextBox` is
+  untouched and still exactly its four one-line consumers' width; the extraction trigger for
+  a shared seam is named in editor.hpp (a second multiline consumer, two simultaneous views,
+  or a replaceable backend). A future real Vim replaces `EditorBuffer` as a unit and must
+  never need to replace path custody, save authority, or the pane presentation.
+- **THE DOCUMENT IS SESSION STATE, AND THAT PLACEMENT IS THE NO-SILENT-LOSS FLOOR.** Hiding,
+  moving, covering, re-ordering or REMOVING the pane touches presentation only; the picker's
+  "nothing behind it was touched" sentence is true of the Editor because there is nothing in
+  the pane to lose. What ordinary acts may not do: a different source is refused over a dirty
+  buffer; an orderly quit (all three arrival doors) is refused with the two ways out named;
+  the ONE deliberate discard door is `editor.discard` (`ctrl+d` -- a PLAIN chord because the
+  POSIX wire cannot say ctrl+shift+letter, safe because `revert_to` keeps the history so
+  one undo takes a slip back; a row in kEditor AND
+  kCommand so the quit refusal names a reachable gesture). Process death still loses drafts,
+  WUX-0's own split, and no crash recovery is claimed.
+- **`^s` FOLLOWS THE KEYBOARD, AS TWO DECLARED IDENTITIES** — `document.save` (`kNoEditor`)
+  and `editor.save` (`kEditor`); see the activity-class rule under KEY-0 above. `^o` stays
+  global; `^c` is copy in the editor (`context_takes_text(kEditor)`), quit where nothing
+  takes text — TEXT-0's law reaching the fifth text place unchanged.
+- **THE ONE DOOR IS THE BUILDER'S CHOSEN RECIPE** (`builder.edit-source`, `e`, command mode;
+  unbound with no Builder panel exactly as `b`). The source path is the HOST's answer over
+  the same authored recipes the runner builds from (`HostContext::recipe_source` — the
+  `frontier` seam's shape: a function, spent at the gesture, stored nowhere), because the
+  Builder TOOL deliberately holds no source path and Workshop must not re-join it. A
+  `cmake_target` recipe refuses with the recipe file's own kind word; re-requesting the open
+  source reveals and focuses without touching buffer, caret, selection or viewport; the
+  pane is trial-seated BEFORE the file is read, so a no-room screen refuses whole.
+- **THE SOURCE-BYTE LAW IS THE MEDIA'S HONEST REACH**: printable ASCII + tab; line breaks
+  are structure. One convention per document (LF or CRLF, detected at open, spent on every
+  inserted newline); a final newline is a final empty line, so `source_in`/`source_text`
+  are exact inverses and round trips are an identity. Mixed endings, bare CR, control
+  bytes and non-ASCII refuse WHOLE, naming the line, and the file is never rewritten —
+  the ground is byte-columns vs glyph rendering (editor.hpp's header carries it). Typed
+  and pasted text meet the same law at the weave's doors; a non-ASCII paste is refused
+  rather than flattened.
+- **TABS EXPAND AT PRESENTATION ONLY**, at a fixed four-column stop: `visual_col_of` /
+  `byte_of_visual_col` / `expanded_slice` are the ONE measurer both the painter and every
+  press/drag spend (a column inside a tab's span names the tab byte; its right edge the
+  position after). The viewport's `first_col` is displayed columns; `kEditorCaretCols`
+  reserves the caret's column of every body row, `kTerminalCaretCols`' rule.
+- **THE VIEWPORT RECONCILES ONCE PER REPAINT** (`reconcile_editor_view`, in the
+  `refresh_terminal` family): offsets always clamp; the caret is FOLLOWED when a gesture
+  asked (`follow_caret` — every edit, navigation, placement) or the body's room changed
+  (resize must not strand the caret), and deliberately NOT after the wheel, whose whole
+  meaning is looking elsewhere. `on(PointerWheel)` is Workshop's first and only wheel
+  consumer: modes keep their ownership, the TOPMOST occupancy must be the Editor, the
+  header row is not the body, fractional notches accumulate — and there is no scroll
+  framework, no provider wheel protocol, and no second consumer to generalize for.
+- **A PASTE ANSWER LANDS WHERE THE MAKER ASKED OR NOWHERE** — QR-11's conversation with a
+  stricter settlement: the pending record pins `doc_epoch` AND `buffer.revision()`, so a
+  replaced document strands the payload silently (the dead draft's fate) and a document
+  that merely MOVED — any edit or caret change between request and answer — gets a
+  sentence (`paste again`) instead of a relocated paste.
+- **THE PANE PAINTS ONE REGION** (`paint_editor`): a header row — dirty word FIRST, then
+  `L:C/N`, then the path, ordered by what must survive `detail::fit`'s tail cut, with the
+  `> ` keyboard mark, `external_header`'s convention — and the document through the
+  viewport via `expanded_slice`, the caret and selection carried as the REGION's own so
+  each medium answers in its voice. The body resolution IS `external_body_place` with
+  `kEditorHeaderRows`; a second arithmetic for the same shape is the two-measurers defect.
+
 ## The Info panel BODY, resolved once (HD-5..HD-7)
 
 `info_body_place(panel_bounds, screen, document, session)` (`workshop/screen.hpp`) is the whole
@@ -756,12 +834,19 @@ EXECUTION   the owner that performs it                             untouched -- 
 - **Matching is exact.** A binding matches the observed modifier bits exactly; the old
   subset aliases (Ctrl+N created, Alt+Q quit) are removed and behaviorally falsified. One
   family spelled two ways (`hjkl` / `Shift+hjkl`, `b` / `Shift+b`) is two declared actions.
-- **Two declaration-only activity classes:** `kGlobal` rows are answered above every mode
-  (`document.save`, `document.open`, `workshop.terminal` = `ctrl+t`, `workshop.hotkeys` =
-  `ctrl+k`); `kNoText` is `workshop.quit`'s (`ctrl+c`) — active exactly where no editable
-  text has the keyboard, TEXT-0's law as a declarable fact. `on(KeyPressed)`'s head answers
+- **Three declaration-only activity classes:** `kGlobal` rows are answered above every mode
+  (`document.open`, `workshop.terminal` = `ctrl+t`, `workshop.hotkeys` = `ctrl+k`);
+  `kNoText` is `workshop.quit`'s (`ctrl+c`) and `workshop.attention`'s (`ctrl+a`) — active
+  exactly where no editable text has the keyboard, TEXT-0's law as a declarable fact; and
+  `kNoEditor` is `document.save`'s (`ctrl+s`) — above every mode EXCEPT the source editor,
+  where the same physical chord is `editor.save`'s own context row (EDIT-0). That is the
+  `^c` resolution one chord over: a global colliding with an editing surface's meaning is
+  resolved by following the keyboard, and the resolution is DECLARED so admission's
+  collision law, the help surfaces and dispatch read one fact — the two save rows' contexts
+  do not intersect, so no state ever has both. `on(KeyPressed)`'s head answers
   ONLY rows declared in those classes (`above_mode_action`); an action's ordinary context row
-  — quit's own `q` — travels the chain, which is what keeps the hotkey view's modal swallow
+  — quit's own `q`, and `editor.save`'s `^s` — travels the chain, which is what keeps the
+  hotkey view's modal swallow
   ahead of it. `shift+space` is GONE, not aliased: it could never arrive from the POSIX
   backend, which is the remapping capability's own motivating defect.
 - **An action may own several rows** (`workshop.quit`'s `^c` + `q`; since ARR-0 the whole
@@ -955,25 +1040,38 @@ A CONDITION           true when it is READ. Held under a key (`Session::conditio
 
 ## The keyboard goes where the maker last pressed (MSG-0)
 
-`Panels::keyboard` is a PRESS's memory: which external pane a maker last pressed into.
-`keyboard_pane(panels)` is the ANSWER, resolved fresh at every spend — open, runtime kind, room
-granted; the same three `external_press` already requires.
+`Panels::keyboard` is a POINTING's memory: which keyboard-taking pane — an external pane, or
+the built-in Editor (EDIT-0) — the maker last aimed the keys at. `keyboard_pane(panels)` is
+the external ANSWER, resolved fresh at every spend — open, runtime kind, room granted; the
+same three `external_press` already requires. `editor_has_keyboard(session)` is the Editor's
+twin resolution — candidate, document open, pane presented with visible cells — beside
+`keyboard_context` because the router, the Editor's header mark and the band all ask it.
 
 - **ONE LINE DECIDES WHERE THE KEYBOARD GOES**, at the top of the pressed branch, before any
-  layer answers: `keyboard = occupied ∧ is_runtime_kind ? kind : kNoPaneKind`. Putting it in
+  layer answers: `keyboard = occupied ∧ (is_runtime_kind ∨ kind == kEditor) ? kind :
+  kNoPaneKind`. The Editor is the ONE built-in in that disjunct — the only built-in with an
+  editable body — and every other built-in still clears the candidate; the narrowness is
+  deliberate, not a focus framework. Putting the line in
   the routing arms would be four decisions about one fact, and the fourth is the one nobody
   adds. `occupied_at` sits beside `info_body_at` in the route to make that possible — the same
-  hoist, one question further on, licensed by the same argument.
+  hoist, one question further on, licensed by the same argument. The candidate's SECOND
+  writer is the Builder's edit-source door (EDIT-0): opening a source points the keys at the
+  Editor it just filled, because an open that left the keyboard elsewhere would land the
+  first keystroke in the wrong place.
 - **The candidate is never cleared and the target is never stored.** A pane that closes, stops
   resolving, or loses its room stops being the answer with nothing to clear; if it comes back,
   so does the keyboard. `bounds_of`'s discipline applied to a focus.
 - **The modes above it never reach that line**, so opening the Terminal or an arrangement
   scope leaves the candidate exactly where it was and closing it hands the keys straight back. The
-  priority reads: the above-mode actions (the keymap's `kGlobal` rows — save, open, the
-  terminal toggle, the hotkey view — and quit's `kNoText` chord exactly where nothing takes
-  text, TEXT-0), then the six modes (the contextual surface joined the picker's band at its
-  top, CTX-0), then a focused pane, then a live property draft, then
-  `command()` — spelled once, in `keyboard_context` (KEY-0).
+  priority reads: the above-mode actions (the keymap's `kGlobal` rows — open, the
+  terminal toggle, the hotkey view — quit's and attention's `kNoText` chords exactly where
+  nothing takes text, TEXT-0, and the document save's `kNoEditor` chord everywhere but the
+  source editor, EDIT-0), then the six modes (the contextual surface joined the picker's
+  band at its top, CTX-0), then a focused pane, then the source editor holding a document,
+  then a live property draft, then
+  `command()` — spelled once, in `keyboard_context` (KEY-0). The pane and the editor share
+  the one candidate, so whichever was pointed at LAST answers, the pressed-into-last
+  symmetry unchanged.
 - **A focused pane sits ABOVE a live property draft**, and the symmetry is what decides it:
   both are PLACES reached by pressing into them, so the one that answers is the one the maker
   pressed into LAST. Pressing back into the Info body clears the candidate by the same line

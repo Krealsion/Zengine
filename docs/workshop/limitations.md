@@ -117,28 +117,23 @@ reload — an artifact that is already live is refused in words, and a rebuilt f
 changed the image that is running — and no automatic build-on-missing: a maker presses a key.
 Detail in [Builder](builder.md).
 
-### There is no text editor
+### The source editor holds one recipe-named file, in plain ASCII
 
-**Workshop cannot open, edit or save arbitrary project text.** Source-traced: the only file
-I/O in the Workshop package is the document JSON, the setup JSON, the load-plan JSON and the
-optional recorder dump. There is no file browser, no buffer, no editor pane, and no external
-editor integration.
-
-What text editing *does* exist is three single-line editors, each over the same component: an
-inspector property draft, the setup-name line, and the terminal overlay's command line. Each
-has a caret, character-safe edits and a horizontal window; none is a file.
+**Workshop can open, edit and save the source a single-source recipe names** — see [the
+source editor](editor.md) — and the loop `edit → save → build → realize → inspect` closes
+without leaving the application. The honest bounds on that capability today:
 
 | question | answer |
 |---|---|
-| Can Workshop edit project source today? | **no** |
-| Can it save source? | **no** |
-| Can it open arbitrary project text? | **no** |
-| Is an external editor the only realistic path? | **yes** |
+| Can it open a file a recipe does not name? | **no** — the Builder's chosen recipe is the one door; there is no file browser and no path argument |
+| More than one file at a time? | **no** — one document; opening another (with the first saved or deliberately discarded) replaces it |
+| Non-ASCII source? | **no** — the shipped media place columns by byte and glyphs by sequence, so a caret over multi-byte text would lie; such a file is refused whole and never rewritten |
+| Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
+| Search, syntax highlighting, line numbers, splits? | **no** — it is a competent plain editor, not an IDE |
+| Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit refuses while source is unsaved |
 
-The maker loop is `edit → build → load → observe`. Workshop today has **observe** (the
-introspection panes and the terminal overlay), a fixed-target **build**, and neither **edit**
-nor **load**. Those two are the missing links, and *load* is the one that also blocks Builder
-from being useful.
+What text editing also exists is three single-line editors, each over the same component: an
+inspector property draft, the setup-name line, and the terminal overlay's command line.
 
 ### Lifecycle
 
