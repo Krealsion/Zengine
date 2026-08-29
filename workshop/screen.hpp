@@ -1610,6 +1610,30 @@ struct Session {
     /// and writes it at the toggle, and a run with no prefs path -- every default fixture,
     /// and `--isolated` -- keeps the choice exactly as long as the run, as before.
     bool pane_titles = true;
+    /// THE AUTHORED RECIPE CATALOG THIS SESSION HAS MOVED TO (PROJ-1) -- empty until a
+    /// maker replaces one, and the emptiness is the whole of the fact.
+    ///
+    /// IT IS NOT THE CATALOG'S OWNER AND MUST NEVER BECOME ONE. `workshop::CurrentRecipes`
+    /// holds the recipes and the file they came from together, on the host, above every
+    /// weave; this is a PROJECTION of the owner's own answer, copied at the one door where
+    /// a replacement happens, for the one thing the owner cannot do -- appear on a screen.
+    /// The recipes themselves are never copied here.
+    ///
+    /// IT IS SESSION AND NOT PANE STATE, for `editor`'s reason exactly: removing the
+    /// Builder panel is a presentation act, `close_panel` forgets that panel's copy of
+    /// what the tool said, and a maker's catalog choice has nothing to do with either. A
+    /// fact that disappeared because a pane was closed would be a screen that stopped
+    /// being able to answer a question the session can still answer.
+    ///
+    /// WHY EMPTY MEANS "SAY NOTHING". The launch catalog is on the host's banner, said by
+    /// the party that read it, and it stays true until something replaces it; the moment
+    /// something does, the banner is stale. So this is exactly the fact the banner can no
+    /// longer carry, and the Builder panel spends it on the row it can afford (WUX-1's
+    /// composition -- that panel seats nine facts in nine rows, measured).
+    ///
+    /// Session, never document, never setup, and never written to a file: the next launch
+    /// chooses its catalog exactly as this one did (PROJ-1 persists no catalog choice).
+    std::string recipes_moved_to;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -3869,7 +3893,8 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// carrier, exactly as it is for every other bounded region here.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                           const FineRect& b, const Screen& sc, const Keymap& keymap,
-                          const ProjectFrontier& frontier = {}) {
+                          const ProjectFrontier& frontier = {},
+                          const std::string& catalog_moved_to = std::string()) {
     paint_panel_frame(layer, b);
     // THE PANEL IS ONE REGION AND ITS ROWS ARE COMPOSED AGAINST THE BUDGET (WUX-1). The
     // Builder was the last consumer of the cell-lattice row spelling, and the recorded
@@ -3989,6 +4014,27 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
                                            std::to_string(held) + ")"),
                  surface::role::kFill, 3});
     }
+    // ---- WHICH AUTHORED CATALOG THIS SESSION MOVED TO, WHILE IT HAS (PROJ-1) ----------
+    //
+    // THE ROW EXISTS EXACTLY WHILE THE FACT HAS MOVED, which is the `project` row's rule
+    // and is taken for the same reason: this panel is exactly full. Nine facts and nine
+    // rows of a character medium, measured -- so a tenth UNCONDITIONAL row would spend the
+    // third `said` row of every session, including every session that never changes a
+    // catalog, to restate what the host's own banner already said correctly at launch.
+    // What a replacement changes is that the banner STOPS being true, and that is the
+    // moment this row appears. It costs one `said` row while it holds (`shift`, below),
+    // and its priority puts it last, so a face whose budget seats five keeps the same five
+    // rows it seated before this phase.
+    //
+    // THE PATH IS SHOWN WHOLE AND CUT BY THE ONE MEASURER. `detail::fit` marks what it
+    // removed, so a catalog too long for this column is a marked truncation of the right
+    // answer rather than an unmarked prefix of it; nothing here reformats a path, shortens
+    // it to a basename, or widens the panel to hold one.
+    const bool moved_catalog = !catalog_moved_to.empty();
+    if (moved_catalog) {
+        facts.push_back(
+            Fact{panel_field("catalog", catalog_moved_to), surface::role::kMuted, 10});
+    }
     // ---- WHAT THE PROJECT IS WAITING ON, WHILE IT IS (BLD-2) --------------------------
     //
     // THE ROW EXISTS EXACTLY WHILE THE FRONTIER DOES, and it costs the third `said` row,
@@ -4008,7 +4054,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // the one edge BLD-1 allows. One producing recipe is named; several are counted
     // (`f` names them, and `c` shows each beside the artifact it makes); none is said
     // plainly, because a frontier this project cannot produce is a different problem.
-    const std::size_t shift = frontier.waiting ? 1 : 0;
+    const std::size_t shift = (frontier.waiting ? 1u : 0u) + (moved_catalog ? 1u : 0u);
     if (frontier.waiting) {
         std::size_t makers = 0;
         const builder::RecipeSummary* maker = nullptr;
@@ -7207,7 +7253,8 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
         }
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, sc, s.keymap, frontier);
+                paint_builder(layer, panels.builder, b, sc, s.keymap, frontier,
+                              s.recipes_moved_to);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc);
             } else if (p.kind == panel::kEditor) {

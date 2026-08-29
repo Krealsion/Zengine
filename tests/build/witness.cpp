@@ -290,7 +290,10 @@ int main(int argc, char** argv) {
                 r.single_source->workspace = args.dir + "/build-workspace/" + r.id;
             }
         }
-        current_recipes.hold(std::move(recipes), &so_in);
+        // THE CATALOG AND THE FILE IT CAME FROM GO IN TOGETHER (PROJ-1), which is why
+        // this hands over `args.recipes` beside the rows: there is no door that installs
+        // one without the other, here or in `workshop.cpp`.
+        current_recipes.hold(args.recipes, std::move(recipes), &so_in);
     }
 
     loom::Switchboard bus;

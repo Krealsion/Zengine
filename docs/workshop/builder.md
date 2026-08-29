@@ -19,7 +19,7 @@ row *is* an artifact. So "can this project build `zengine-oven`?" and "does this
 other's fields — no roles, mount modes or load order in a recipe, no compiler flags, source
 lists or build trees in a plan.
 
-Both files live **beside the executable**, and both can be replaced:
+Both files live **beside the executable**, and both can be named at launch:
 
 ```
 zengine-workshop --recipes <path> --load-plan <path>
@@ -29,6 +29,56 @@ An absent `--recipes` file is not an error — a project with nothing to build i
 project, and Workshop says so in its banner. A **malformed** one is refused out loud and
 Workshop exits, because silently ignoring an authored file a maker got wrong is the quiet
 wrong answer this repository keeps refusing.
+
+## Choosing a recipe catalog while Workshop is running
+
+`--recipes` and the shipped default choose the catalog this session **starts** with. They are
+not the only catalog the process can ever use: while Workshop is running you can point at any
+recipe file the [Files](files.md) pane can reach and make it the current one, with no restart.
+
+Press into Files, put the cursor on the file, and press **`u`** (*use as recipes*). It is an
+ordinary action like every other — your keymap file can move it, and the hotkey view lists it
+under the browser's own keys.
+
+What happens next is one transaction:
+
+```
+read the file  →  parse it  →  complete it against this project  →  make it current
+```
+
+Every step happens on a **candidate**. Nothing about the session changes until the whole
+candidate is ready, so:
+
+- **If it works**, the recipes this Workshop means are that file's. The Builder pane moves to
+  the new catalog straight away — it is not closed, rebuilt or reopened — and every other place
+  that asks what this project can build gets the same new answer. The notice names the file and
+  how many recipes it holds.
+- **If it does not**, the catalog you were already using is still the catalog you are using.
+  Nothing is half-replaced: the same recipes, the same Builder rows, the same builds. The
+  notice says what was wrong **and** that the previous catalog is still active.
+
+Three more things are worth knowing:
+
+- **Choosing the file that is already current re-reads it.** That is deliberate: it is how you
+  pick up an edit you just saved. Nothing watches the filesystem, nothing polls and nothing
+  reloads on its own — your press is the event.
+- **The file on disk is the input.** If that same catalog is open with unsaved edits in [the
+  source editor](editor.md), the *saved* file is what is read. Nothing is auto-saved, and an
+  unsaved draft never becomes build procedure. Save first, then press `u` again.
+- **Your selection follows the recipe, not the row.** If the recipe you had chosen still exists
+  in the new catalog, it stays chosen wherever it has moved to. If it is gone, the choice is
+  cleared rather than handed to whatever now occupies that row.
+
+Choosing a catalog changes **build intent and nothing else**. It does not move your project —
+relative sources still mean the directory you launched Workshop in, and the catalog file's own
+directory never becomes a source base — and it does not touch your document, your setup, or
+what is loaded.
+
+The choice lasts for the session. Nothing is remembered: the next launch picks its catalog from
+`--recipes` or the default exactly as this one did.
+
+Once you have changed catalogs, the Builder pane carries a `catalog` row naming the one in
+force, so the banner's answer being out of date is not something you have to keep in your head.
 
 ## Using it
 
@@ -126,8 +176,9 @@ around it, and CMake compiles and links it.
 - `source` may be absolute, as above, or **relative to the project** — the directory you
   launched Workshop in, printed on the startup banner. It is resolved once, when the catalog
   is read, so the editor, the check that the file exists, and the generated project that
-  compiles it all name the same file. Your recipe file is never rewritten: what you wrote
-  stays what you wrote.
+  compiles it all name the same file. That stays true of a catalog you choose later: it is
+  completed against the same project, wherever the file itself happens to live. Your recipe
+  file is never rewritten: what you wrote stays what you wrote.
 - `packages` is `CMAKE_PREFIX_PATH`. The generated project says `find_package(zengine CONFIG
   REQUIRED)` and nothing else, so it is an **ordinary external consumer** of the installed
   package — the same thing any other project is. If the prefix does not carry a Zengine
@@ -204,16 +255,24 @@ An artifact that is **already loaded** is refused, in words:
   has not changed the image that is running.
 - **No automatic build-on-missing.** Nothing starts a build because a file is absent. A maker
   presses a key.
+- **No recipe discovery.** Nothing searches for recipe files, adopts a conventional filename,
+  reads a `CMakeLists.txt`, detects a build system or writes a recipe for you. The catalog is a
+  file you named — at launch, or by pointing at it.
+- **No rewriting of a build that is already running.** Changing catalogs while a build is in
+  flight does not cancel it, restart it or re-aim it: that operation finishes from the facts it
+  started with, and its result is reported as being about the recipe that actually started it.
+  The next build you ask for uses the new catalog.
 - **No containment.** A build is an ordinary child process of Workshop, exactly as privileged
   as Workshop is. That is the honest description; implying a boundary that is not there is the
   one thing these pages will not do.
 
 ## What the pane still asks of a maker
 
-- A recipe file is edited in a text editor, not in Workshop. There is no recipe editor, no
-  picker beyond `c`, and no way to add a recipe at run time. (A `single_source` recipe's
-  **source** opens in Workshop's own editor with `e`; any other project file opens from the
-  [Files](files.md) pane — see [the source editor](editor.md).)
+- A recipe file is edited in a text editor, not in Workshop. There is no recipe editor and no
+  way to add a single recipe at run time — what you can change at run time is *which whole
+  catalog file* is in force. (A `single_source` recipe's **source** opens in Workshop's own
+  editor with `e`; any other project file — a recipe catalog included — opens from the
+  [Files](files.md) pane, see [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
 - A rebuilt artifact that is already live needs a restart to take effect, and the refusal says

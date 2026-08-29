@@ -38,6 +38,7 @@ Press into the pane to point your keys at it, then:
 | `Return` | **enter** a directory, or **open** a file in the editor |
 | `Backspace` | up one directory |
 | `r` | look again |
+| `u` | **use this file as the current recipe catalog** — see [the Builder](builder.md#choosing-a-recipe-catalog-while-workshop-is-running) |
 
 The mouse works the way the keys do, with one deliberate extra step: **the first press on a
 row selects it, and pressing the row that is already selected opens it.** So the press that
@@ -83,8 +84,23 @@ Nothing polls and nothing watches the filesystem. **If another program changes t
 while you are looking at it, the pane will not notice until one of the moments above.** Press
 `r` when you want to be certain.
 
+## Using a file as the recipe catalog
+
+`u` hands the file the cursor is on to the one owner of this session's build recipes. A
+directory refuses (a catalog is one file), and a name the pane cannot carry refuses for the
+same reason it cannot be opened. Nothing here looks at the file's **name** or **extension** to
+decide whether it is a catalog: you said it is, and the recipe owner reads it and answers in
+its own words. If it is not one, you are told so and the recipes you were already using are
+still the recipes you are using.
+
+The whole of what that gesture does — including what happens to a build already running, and
+why nothing is remembered for next time — is on [the Builder's
+page](builder.md#choosing-a-recipe-catalog-while-workshop-is-running).
+
 ## What it is not
 
 Not a file manager: nothing here renames, deletes, copies or creates. Not a search: there is
 no filter box and no recursive index. Not a second place where your project is described —
-what a row knows is a name and whether it is a directory, and nothing else.
+what a row knows is a name and whether it is a directory, and nothing else. In particular it
+knows nothing about recipes: `u` above hands over a *path*, and every judgement about what is
+in the file belongs to the owner that reads it.

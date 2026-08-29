@@ -104,12 +104,18 @@ no reflow.
 
 ### Builder builds what an authored file says, and no more
 
-What can be built is a **recipe catalog beside the binary**, and a maker edits it in a text
-editor: there is no recipe editor in Workshop, no picker beyond stepping through the list with
-`c`, and no way to add a recipe at run time. Two recipe kinds exist — an existing CMake target,
-and one `.cpp` that Zengine wraps in a generated CMake project — and there is deliberately no
-third: no arbitrary shell recipe, no multi-source recipe, no globbed source list, no dependency
-solver.
+What can be built is a **recipe catalog a maker wrote**, edited in a text editor: there is no
+recipe editor in Workshop and no way to add a single recipe at run time. Two recipe kinds exist
+— an existing CMake target, and one `.cpp` that Zengine wraps in a generated CMake project —
+and there is deliberately no third: no arbitrary shell recipe, no multi-source recipe, no
+globbed source list, no dependency solver.
+
+**Which catalog file** is in force can be changed while Workshop runs: point at it in the
+[Files](files.md) pane and press `u`. That is one explicit choice of one file a maker selected,
+and it is the whole of the automation: nothing searches for catalogs, adopts a conventional
+filename, reads a `CMakeLists.txt`, detects a build system or writes a recipe. The choice is
+not remembered either — the next launch starts from `--recipes` or the shipped default, exactly
+as before.
 
 A successful build **can** enter the running project, but only where the project already
 authored participation for that artifact and this run left the row waiting. There is no hot

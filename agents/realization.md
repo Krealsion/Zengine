@@ -200,14 +200,24 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
 
 - **ONE COMPLETED CATALOG PER RUNNING HOST, AND BOTH WEAVES READ IT (PROJ-0).**
   `workshop::CurrentRecipes` (`workshop/recipes.hpp`) is the session owner of the completed
-  catalog and of the tool's reduced views, derived from the same rows so they cannot disagree;
+  catalog, of the tool's reduced views, and (PROJ-1) of the authored FILE all three came from
+  — derived from the same rows in one `hold()` so they cannot disagree;
   `BuildRunnerWeave::catalog_` and `BuilderWeave::recipes_` are `const&` into it and neither
   keeps a copy, so replacing what the owner holds replaces what the whole program builds and
   shows. ⚠ The SUBTRACTION is untouched — the tool still reads only `RecipeView`, never a
-  build procedure — and ⚠ **no catalog-change gesture exists**: this is custody, and every
-  question a live change would raise (a chosen row, an in-flight build, how one is selected) is
-  deliberately unanswered. Lifetime is the host's declaration order, and a temporary catalog is
+  build procedure. Lifetime is the host's declaration order, and a temporary catalog is
   refused at compile time.
+- **A CATALOG IS REPLACED LIVE, AND IT IS ONE TRANSACTION (PROJ-1).** `install_recipes` (read
+  → parse → complete → hold) is the ONE seam, spent by the launch and by the maker's
+  `files.use-recipes` gesture alike, so `--recipes` is INITIAL STATE and not a second recipe
+  policy. Every pre-install step works on a candidate in its own frame, so a refusal leaves the
+  path, the rows and the views exactly as they were; a valid EMPTY catalog is a successful
+  replacement, not a failure. Completion stays project-parametric — the catalog file's own
+  directory is never a source base, and choosing one moves no project anchor. The Builder's
+  standing choice follows recipe IDENTITY across the arrival and never a row index
+  ([workshop.md](workshop.md)); a build already in flight keeps the artifact file it was
+  ordered for (`BuilderWeave::path_`) and is neither cancelled nor re-aimed. Nothing is
+  persisted, discovered or watched.
 - **The host keeps `ZENGINE_BUILDER_CMAKE`** — its own CMake, by absolute path — **and no
   target and no build directory.** What a FILE may name is inputs to a mechanism this package
   already holds; a program is the one thing it may not, which is why there is no third recipe

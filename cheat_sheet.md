@@ -674,10 +674,14 @@ mail.send_to_role(builder::kBuildRunnerRole, builder::RunBuild{"my-target"});
 The wire **cannot spell a command**: no shape here has a field that is a program, an argument
 list or a directory. The runner holds the catalog; the host writes it.
 
-Workshop's recipes are **authored** (`--recipes`, a durable JSON catalog): `c` chooses among
-them, `b` builds the chosen one, and `Shift`+`b` / `f` also realize. The shipped default
-catalog is small and points at Zengine's own build tree; a maker edits the file to build
-their own targets. See [Workshop's Builder](docs/workshop/builder.md).
+Workshop's recipes are **authored** (a durable JSON catalog): `c` chooses among them, `b`
+builds the chosen one, and `Shift`+`b` / `f` also realize. The shipped default catalog is small
+and points at Zengine's own build tree; a maker edits the file to build their own targets.
+`--recipes` chooses the catalog a session **starts** with; `u` in the Files pane makes any
+reachable catalog file the current one without restarting — one transaction, so a file that
+cannot be read or parsed leaves the previous catalog in force, and a build already running
+finishes from the facts it started with. The choice is session-only. See [Workshop's
+Builder](docs/workshop/builder.md).
 
 ---
 

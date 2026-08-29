@@ -564,20 +564,59 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
   that never arranged that proves nothing.
 - **THE COMPLETED CATALOG HAS ONE SESSION OWNER, AND EVERY CONSUMER READS IT (PROJ-0).**
   `workshop::CurrentRecipes` (`workshop/recipes.hpp`) holds the output of that one completion —
-  the recipes, and the tool's reduced `RecipeView`s derived beside them from the same rows, so
-  the two cannot drift. `main` declares one ABOVE the HostContext, the bus, the Kernel and
-  every weave, and that declaration order IS the lifetime proof; `hold()` assigns into members
-  it already owns, so a replacement changes CONTENTS and never the objects consumers bound to.
-  The four consumers are reads: `BuildRunnerWeave` and `BuilderWeave` take `const&` (and refuse
-  an rvalue outright — a temporary catalog is a dangling one), `HostContext::recipe_source`
-  captures the owner and asks it at the gesture, and the `AwaitingBuild` predicate asks it per
-  row. ⚠ **The owner is not authorship**: there is no non-const reach, the recipe FILE stays
-  authored truth, and nothing here decides how a maker changes catalogs — no gesture, no
-  picker, no reload, no policy for a chosen row or an in-flight build. Custody only.
+  the recipes, the tool's reduced `RecipeView`s derived beside them from the same rows, and
+  since PROJ-1 the authored FILE they came from, so none of the three can drift. `main` declares
+  one ABOVE the HostContext, the bus, the Kernel and every weave, and that declaration order IS
+  the lifetime proof; `hold()` assigns into members it already owns, so a replacement changes
+  CONTENTS and never the objects consumers bound to. The four consumers are reads:
+  `BuildRunnerWeave` and `BuilderWeave` take `const&` (and refuse an rvalue outright — a
+  temporary catalog is a dangling one), `HostContext::recipe_source` captures the owner and asks
+  it at the gesture, and the `AwaitingBuild` predicate asks it per row. ⚠ **The owner is not
+  authorship**: there is no non-const reach and the recipe FILE stays authored truth — nothing
+  completes host paths back into it.
+- **THE SOURCE PATH IS A PARAMETER OF `hold()`, NOT A SETTER (PROJ-1).** Which recipes are in
+  force and which file authored them are installed by one call, so "the path moved and the rows
+  did not" has no spelling in this program. `install_recipes(owner, path, host_dir, project_dir,
+  artifact_file)` beside it is the ONE seam that turns a file into that answer — read → parse →
+  complete → hold, every step on a CANDIDATE in its own frame, so a refusal at any stage leaves
+  all three answers exactly as they were. **The launch has no private path to the owner**: `main`
+  wires `HostContext::use_recipes` over that function and then installs its OWN startup catalog
+  through it, which is what keeps `--recipes` from becoming a second completion policy. A valid
+  EMPTY catalog installs (a project with nothing to build is a project) and is not a failure;
+  completion is TOTAL and adds no third refusal kind, so the distinctions a maker is offered are
+  exactly `persist::read_file`'s and `recipe_persist::from_text`'s and no invented third.
+- **THE FIRST LIVE CHOOSER IS `files.use-recipes` (`u`, `kFiles`).** The browser resolves a ROW
+  to a path exactly as activation does, refuses a directory and a name its path custody cannot
+  carry, and hands the path to `use_recipes`; every judgement about the BYTES is the recipe
+  owner's, in its own words — no extension test, no filename convention, no sniffing.
+  Same-path is a RELOAD and never a no-op (the durable file may have changed, and this is the
+  application's whole live-refresh mechanism — no watcher, no timer, no poll). A dirty Editor
+  buffer over the same path is NOT consumed and is NOT auto-saved: the durable file is the
+  input. It needs no Builder panel; a successful swap republishes through the `StatusRequested`
+  an opening panel already sends, and Workshop's own catalog handler is what ignores it when
+  there is no panel.
+- **STANDING BUILDER INTENT SURVIVES BY RECIPE IDENTITY, NEVER BY ROW POSITION (PROJ-1).**
+  `on(RecipeCatalog)` remembers the chosen recipe's NAME across the arrival: same identity →
+  follow it to its new row with `picked` intact; identity gone → home, and `picked` released.
+  There is deliberately no fallback to the old index, the artifact stem, a nearest row or a
+  similar name. A replacement may INVALIDATE a choice and may not REINTERPRET one.
+- **AN IN-FLIGHT BUILD IS THE OPERATION'S, NOT THE CATALOG'S.** `BuilderWeave` resolves the
+  artifact FILE when the ask is accepted (`path_`, beside `before_`) and judges the ending
+  against that, so a catalog replaced mid-build cannot re-aim, relabel or falsely fail an
+  operation already running. The runner's `Held` was already owned facts. Nothing cancels or
+  restarts a build because standing recipe truth changed; the NEXT ask reads the new catalog.
+- **`Session::recipes_moved_to` IS A PROJECTION AND NOT AN OWNER.** Empty until a maker
+  replaces a catalog; it holds the project-RELATIVE spelling (measured: a fitted absolute path
+  loses its tail, which is the file's own name) and the Builder panel spends it on a row that
+  exists exactly while the fact has moved — the `project` row's rule, because that panel seats
+  nine facts in nine rows of a character medium and an unconditional tenth would spend the third
+  `said` row of every session. It is on the `Session` and not on `BuilderPane` because
+  `close_panel` forgets that pane whole.
 - **`workshop/files.hpp` is the browser's machinery; `Panels::files` is its state.** Rows are
   `{name, kind, linked, openable}` and NOTHING else — no resolved path, no recipe, no artifact,
   no build or editor state — so the browser cannot become a second owner of source truth. What
-  a row denotes is derived at ACTIVATION from root + the entered-name stack + the row's name.
+  a row denotes is derived at ACTIVATION from root + the entered-name stack + the row's name,
+  and `files.use-recipes` (PROJ-1) derives it the same way for the same reason.
 - **THE ROOT BOUNDARY IS THE REPRESENTATION.** The current directory is a stack of names walked
   into; parent is a pop; there is no `..` row to press. So a maker cannot navigate above the
   root because there is nothing that says it — no canonicalization, no containment resolver.

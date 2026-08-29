@@ -566,8 +566,42 @@ int main(int argc, char** argv) {
     // (workshop/recipe_persist.hpp says this at length).
     //
     // A MISSING DEFAULT IS AN ANSWER AND A MALFORMED FILE IS NOT. See `Arguments`.
+    //
+    // ---- ...AND THE LAUNCH HAS NO PRIVATE PATH TO THE OWNER (PROJ-1) -------------
+    //
+    // WHAT AN AUTHORED RECIPE CANNOT SAY IS ANSWERED IN ONE PLACE, and this `main` is not
+    // it. Three facts a maker cannot write down -- where this install puts artifacts,
+    // where it may write a generated project, and what a relative source is relative to
+    // -- are the host's two directories, and `install_recipes` is the one seam that reads
+    // a file, gives them and installs the result (workshop/recipes.hpp holds the
+    // transaction). What is decided HERE is only WHICH of this host's two directories
+    // answers which question: `dir` is INSTALLATION truth and `project_dir` is where the
+    // maker is standing, and that decision is made once, in the closure below.
+    //
+    // SO THE LAUNCH INSTALLS THROUGH THE MAKER'S OWN DOOR. `--recipes` and the shipped
+    // default are INITIAL STATE and not a second recipe policy: the flag chooses which
+    // file this session STARTS with, and the block below hands that file to the very
+    // function a maker's later choice reaches. A launch that completed recipes its own way
+    // would be free to complete them DIFFERENTLY, which is EDIT-1's two-files defect
+    // waiting one layer up -- and it is why this closure is wired BEFORE the file is read
+    // rather than after.
+    host.use_recipes = [&host, &current_recipes](const std::string& path) {
+        HostContext::RecipeSwap done;
+        const Written read = install_recipes(current_recipes, path, host.dir,
+                                             host.project_dir, &HostContext::so_in);
+        done.accepted = read.accepted;
+        done.refusal = read.refusal;
+        // WHAT IS IN FORCE, ASKED OF THE OWNER AFTER THE ATTEMPT -- never echoed from the
+        // candidate. On acceptance the owner is holding the new catalog and answers with
+        // it; on a refusal the owner was never touched and answers with the OLD one, which
+        // is exactly the half of the sentence a maker needs to hear. Echoing the candidate
+        // here would let a presentation say "still using <the file just refused>" by doing
+        // the obvious thing with the obvious field.
+        done.path = current_recipes.source();
+        done.recipes = current_recipes.all().size();
+        return done;
+    };
     {
-        std::vector<builder::Recipe> recipes;
         const bool named = !args.recipes.empty();
         const std::string recipe_path =
             named ? args.recipes : host.dir + "/" + recipe_persist::kDefaultRecipesName;
@@ -576,36 +610,19 @@ int main(int argc, char** argv) {
                         "Workshop can build nothing)\n",
                         recipe_path.c_str());
         } else {
-            const recipe_persist::LoadedRecipes read = recipe_persist::load_file(recipe_path);
-            if (!read.outcome.accepted) {
+            const HostContext::RecipeSwap read = host.use_recipes(recipe_path);
+            if (!read.accepted) {
                 std::printf("zengine-workshop - build recipes refused: %s\n"
                             "zengine-workshop - nothing was mounted and nothing was loaded.\n",
-                            read.outcome.refusal.c_str());
+                            read.refusal.c_str());
                 return 5;
             }
-            recipes = read.recipes;
-            std::printf("zengine-workshop - build recipes: %s (%zu)\n", recipe_path.c_str(),
-                        recipes.size());
+            // THE PATH AND THE COUNT COME BACK FROM THE OWNER, so this banner line names
+            // the catalog that is actually in force rather than the argument this host
+            // passed in a moment ago.
+            std::printf("zengine-workshop - build recipes: %s (%zu)\n", read.path.c_str(),
+                        read.recipes);
         }
-        // ---- WHAT AN AUTHORED RECIPE CANNOT SAY, ANSWERED HERE ------------------
-        //
-        // Three facts a maker cannot write down: where this install puts artifacts, where
-        // it may write a generated project, and what a relative source is relative to. The
-        // first two are `host.dir` -- installation truth -- and the third is the PROJECT
-        // this Workshop was launched into. The rule itself lives with the function
-        // (`recipe_persist::complete_recipes`), because it is a law about recipes and not
-        // about this `main`; what is decided HERE is which of the host's two directories
-        // answers which question.
-        //
-        // ONE CALL, AND THE COMPLETED CATALOG GOES STRAIGHT INTO CUSTODY (PROJ-0). The
-        // completed value used to live on as this function's local while three consumers
-        // each took their own long-lived copy of it. It is handed to its owner instead,
-        // inside this scope, so the vector that carried it here is gone by the closing
-        // brace and there is exactly one completed catalog in the process afterwards.
-        // The owner derives the tool's reduced views from the same value, which is why
-        // nobody has to keep the two in step.
-        recipe_persist::complete_recipes(recipes, host.dir, host.project_dir);
-        current_recipes.hold(std::move(recipes), &HostContext::so_in);
     }
     // ---- THE EDIT-SOURCE SEAM (`HostContext::recipe_source`) ---------------------
     //

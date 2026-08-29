@@ -229,6 +229,43 @@ struct HostContext {
     /// edit-source door then refuses in words rather than guessing.
     std::function<RecipeSource(const std::string&)> recipe_source;
 
+    /// WHAT A MAKER'S CHOICE OF AUTHORED CATALOG ANSWERED (PROJ-1).
+    ///
+    /// One shape for both halves, because a maker needs both halves in one sentence: what
+    /// happened to their request, and what this session is using NOW. On acceptance those
+    /// are the same catalog; on a refusal they are not, and the second is the half that
+    /// keeps a failed replacement from reading as a lost one.
+    ///
+    /// ⚠ `path` AND `recipes` ALWAYS DESCRIBE WHAT IS IN FORCE, never the candidate. A
+    /// refusal that echoed the rejected path here would let a presentation say "using
+    /// <the file that was just refused>" by doing the obvious thing with the obvious
+    /// field, which is the one sentence this whole transaction exists to make false.
+    struct RecipeSwap {
+        bool accepted = false;   ///< the candidate became this session's catalog
+        std::string refusal;     ///< the owner's own words; empty exactly when accepted
+        std::string path;        ///< the authored catalog IN FORCE after this request
+        std::size_t recipes = 0; ///< how many that catalog holds
+    };
+
+    /// USE THIS AUTHORED FILE AS THE CURRENT RECIPE CATALOG -- `recipe_source`'s seam
+    /// again, this time carrying the one thing a maker can CHANGE (PROJ-1).
+    ///
+    /// The host owns the catalog, so the host performs the replacement: it reads, parses,
+    /// completes against its own two directories and installs, all through the one
+    /// `install_recipes` seam its own launch went through. The weave hands over a path and
+    /// receives an answer; it holds no catalog, no parser, no completion rule and no copy
+    /// of the result, exactly as it holds no realization cursor behind `frontier`.
+    ///
+    /// ⚠ IT IS A REPLACEMENT AND NOT A PROJECT SWITCH. The file selected answers "which
+    /// authored recipes should this session use" and nothing else: `project_dir` does not
+    /// move, the catalog's own directory never becomes a source base, and Files' reach is
+    /// unchanged. A gesture that could relocate the project by naming a file somewhere
+    /// else would be two decisions wearing one press.
+    ///
+    /// EMPTY IS ORDINARY -- a suite fixture with no host answers the refusal in words
+    /// rather than pretending a catalog changed.
+    std::function<RecipeSwap(const std::string&)> use_recipes;
+
     /// The one file this Workshop saves to and loads from.
     ///
     /// It is the host's to choose (`--document <path>`, defaulted) and it is
@@ -2077,23 +2114,59 @@ public:
     /// this application can offer a maker a CHOICE of what to build without holding one
     /// recipe of its own.
     ///
-    /// THE CHOICE IS CLAMPED HERE AND NOWHERE ELSE. A catalog that arrived shorter than
-    /// the last one -- a second panel, a re-ask -- must not leave a selection pointing
-    /// past its end, and clamping at the arrival is the one place that can be true for
-    /// every later reader.
+    /// THE CHOICE IS REVALIDATED HERE AND NOWHERE ELSE. A catalog that arrived shorter
+    /// than the last one -- a second panel, a re-ask -- must not leave a selection
+    /// pointing past its end, and doing it at the arrival is the one place that can be
+    /// true for every later reader.
+    ///
+    /// ⚠ STANDING INTENT SURVIVES BY RECIPE IDENTITY, NEVER BY ROW POSITION (PROJ-1).
+    /// Once a catalog can be REPLACED while Workshop runs, an index is no longer a
+    /// harmless shorthand for a choice: the same row number in a new catalog is a
+    /// different recipe, so keeping the number would silently re-aim `b`, `e` and `f` at
+    /// something the maker never picked -- the quietest possible wrong answer, because
+    /// the panel would look exactly as it did a moment ago. So the recipe the maker was
+    /// on is remembered by NAME across the arrival and looked up again:
+    ///
+    ///     the same identity is still here   -> follow it to its new row, pick intact
+    ///     the identity is gone              -> home, and the pick is not the maker's
+    ///
+    /// A catalog replacement is allowed to INVALIDATE a standing choice; it is not
+    /// allowed to REINTERPRET one. There is deliberately no fallback to the old index, to
+    /// the artifact stem, to a nearest row or to a similar name -- every one of those is
+    /// a rule that answers "which recipe did they mean" with a guess, and a cleared
+    /// selection is a thing a maker can see.
     void on(const zengine::builder::RecipeCatalog& said, loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return;
         }
         BuilderPane& pane = session_.panels.builder;
+        // THE IDENTITY IS TAKEN BEFORE THE CATALOG MOVES, because it is the only thing
+        // about the old catalog worth carrying across. An empty string is the honest
+        // absence -- nothing was selected, or nothing was there to select.
+        const std::string was = pane.chosen < pane.known.recipes.size()
+                                    ? pane.known.recipes[pane.chosen].recipe
+                                    : std::string();
         pane.known = said;
-        if (pane.chosen >= pane.known.recipes.size()) {
-            pane.chosen = 0;
-            // A CLAMPED SELECTION IS NOT THE MAKER'S ANY MORE (BLD-2): the row their
-            // pick named is gone, and 0 is where the panel put them, not where they
-            // went. The frontier action must not read it as an explicit choice.
-            pane.picked = false;
+        std::size_t now = pane.known.recipes.size(); // = not found
+        for (std::size_t i = 0; i < pane.known.recipes.size(); ++i) {
+            if (!was.empty() && pane.known.recipes[i].recipe == was) {
+                now = i;
+                break;
+            }
         }
+        if (now < pane.known.recipes.size()) {
+            // THE SAME RECIPE, WHEREVER IT NOW SITS. `picked` is untouched: whether this
+            // selection was the maker's explicit act or the catalog's own first row is a
+            // fact about how it was made, and a reordering does not change it.
+            pane.chosen = now;
+            repaint(mail);
+            return;
+        }
+        pane.chosen = 0;
+        // A SELECTION THAT NO LONGER NAMES ANYTHING IS NOT THE MAKER'S ANY MORE (BLD-2):
+        // the recipe their pick named is gone, and 0 is where the panel put them, not
+        // where they went. The frontier action must not read it as an explicit choice.
+        pane.picked = false;
         repaint(mail);
     }
 
@@ -5078,7 +5151,109 @@ private:
         open_source(dir + "/" + row->name, mail);
     }
 
-    /// THE BROWSER'S KEYS -- five verbs, every one of them a keymap row, so a maker who
+    /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG (PROJ-1).
+    ///
+    /// THE BROWSER'S SECOND VERB, AND ITS FIRST THAT IS NOT ABOUT LOOKING. It is the same
+    /// shape as `files_open` one door over: this pane resolves a ROW to a path -- root,
+    /// the entered-name stack, the row's own name, exactly as activation does -- refuses
+    /// what its own path custody cannot carry, and hands the path to the one owner that
+    /// can act on it. Everything after the path is the HOST's: reading, parsing,
+    /// completing against the current project, and installing atomically.
+    ///
+    /// ⚠ THE REFUSALS HERE ARE ABOUT THE PATH AND NEVER ABOUT THE CONTENTS. A directory
+    /// is refused because a catalog is a file; a name this application cannot carry is
+    /// refused because it would arrive as a different path or as none. Whether the BYTES
+    /// are a recipe catalog is the recipe owner's question, answered at the owner's door
+    /// in the owner's own words -- so there is no extension test, no filename convention
+    /// and no sniffing here, and a `.png` walks into the refusal that actually knows why.
+    /// That is `files_open`'s law, and it is the same law because it is the same browser.
+    ///
+    /// ⚠ THE SAME FILE AGAIN IS A RELOAD AND NOT A NO-OP. Nothing here compares the path
+    /// to the one in force: the durable file may have changed since it was read, and a
+    /// short-circuit would turn the maker's one explicit way of picking up an edit into
+    /// silence. That is what buys this application a live refresh with no watcher, no
+    /// timer and no poll -- the maker's press is the event.
+    ///
+    /// ⚠ AND IT DOES NOT NEED THE BUILDER. A maker can change what this session can build
+    /// without ever opening the panel that presents it; the republish below is sent
+    /// regardless, and Workshop's own catalog handler is the party that ignores it when
+    /// there is no panel to put it on.
+    void files_use_recipes(loom::Mail& mail) {
+        FilesPane& pane = session_.panels.files;
+        const FileRow* row = row_at(pane.listing, pane.cursor);
+        if (row == nullptr) {
+            say("no row is selected -- the recipes in force are unchanged", true);
+            return;
+        }
+        if (!row->openable) {
+            say("`" + shown_name(row->name) +
+                    "` has bytes this Workshop cannot carry in a path -- the recipes in "
+                    "force are unchanged",
+                true);
+            return;
+        }
+        if (row->directory) {
+            say("`" + shown_name(row->name) +
+                    "` is a directory -- a recipe catalog is one authored file",
+                true);
+            return;
+        }
+        if (!host_->use_recipes) {
+            say("this host cannot change recipe catalogs -- the recipes in force are "
+                "unchanged",
+                true);
+            return;
+        }
+        const std::string dir = files_dir();
+        if (dir.empty()) {
+            say("this run has no project directory -- the recipes in force are unchanged",
+                true);
+            return;
+        }
+        const HostContext::RecipeSwap done = host_->use_recipes(dir + "/" + row->name);
+        if (!done.accepted) {
+            // BOTH HALVES, IN ONE SENTENCE, AND IN THE ORDER THAT SURVIVES THE CUT. What
+            // went wrong and what is still running are both owed here -- a refusal that
+            // named only the first would leave a maker guessing whether they had just lost
+            // the catalog they were using. The notice row is `detail::fit`-cut at the
+            // band's width, so the two SHORT fixed statements go first and the two long
+            // variable ones -- the owner's own sentence, then the path -- take the tail in
+            // that order. MEASURED (the live witness): with the reason first, the reassuring
+            // half was exactly the half that elided.
+            say("not a recipe catalog -- the recipes in force are unchanged: " +
+                    done.refusal + "; still using " +
+                    (done.path.empty() ? std::string("no catalog") : done.path),
+                true);
+            return;
+        }
+        // THE SESSION LEARNS THAT ITS CATALOG HAS MOVED, AND TO WHAT. It is a projection
+        // for the screen and never a second owner: no recipe is copied here, and every
+        // consumer goes on reading the one owner exactly as before.
+        //
+        // ⚠ IT IS THE PROJECT-RELATIVE SPELLING, and that is a presentation choice with a
+        // measured reason. The Builder panel's row is `kStackW` cells wide and a fitted
+        // absolute path loses its TAIL -- which is the file's own name, the half that
+        // says which catalog this is. This browser cannot reach outside the project, so
+        // every file this door can name has a short relative spelling built from the
+        // stack of names the maker walked into; the absolute path is what the notice
+        // below says, and what the owner holds. The two cannot disagree about WHICH file
+        // because the owner accepted the very path this row composed.
+        const std::string where = relative_dir(pane.entered);
+        session_.recipes_moved_to =
+            where.empty() ? shown_name(row->name) : where + "/" + shown_name(row->name);
+        // ...AND THE BUILDER IS ASKED TO SAY WHAT IT IS, through the same message an
+        // opening panel has always sent. The tool reads the owner's views, so it already
+        // holds the new catalog; what it has not done is SAY so, and this is the existing
+        // sentence for that. No observer, no subscription, no second recipe event.
+        (void)mail.send_to_role(zengine::builder::kBuilderRole,
+                                zengine::builder::StatusRequested{});
+        say("build recipes: " + done.path + " (" + std::to_string(done.recipes) +
+                (done.recipes == 1 ? " recipe)" : " recipes)"),
+            false);
+        repaint(mail);
+    }
+
+    /// THE BROWSER'S KEYS -- six verbs, every one of them a keymap row, so a maker who
     /// remapped them gets their own bindings here and on every help surface.
     void files_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         switch (session_.keymap.action_for(KeyContext::kFiles, k.scancode, k.modifiers)) {
@@ -5090,6 +5265,7 @@ private:
             files_refresh();
             say("listed " + files_where() + " again", false);
             break;
+        case Act::kFilesUseRecipes: files_use_recipes(mail); break;
         default: break; // an unbound key in this pane means nothing, and says nothing
         }
     }
