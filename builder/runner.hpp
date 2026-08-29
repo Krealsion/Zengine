@@ -209,16 +209,29 @@ using BuildRunnerBase =
 
 class BuildRunnerWeave : public BuildRunnerBase {
 public:
-    /// THE CATALOG ARRIVES AT CONSTRUCTION, FROM THE HOST, and it is a plain
+    /// THE CATALOG IS READ FROM ITS OWNER, WHICH IS THE HOST, and it is a plain
     /// member rather than part of the weave's state.
     ///
     /// That placement is deliberate and it is the same distinction Workshop
     /// draws between its document and its session: `ZEN_SHAPE` state is
     /// poke-writable by design (the operator's door), and a poke that could
-    /// write a new program path into this vector would be a door onto arbitrary
+    /// write a new program path into these recipes would be a door onto arbitrary
     /// execution wearing an inspection tool's clothes. So the recipes live where
     /// the substrate has no words for them, and what IS exposed is a tally that
     /// tells an operator how often this runner has run, refused and looked.
+    ///
+    /// ⚠ IT IS A READ AND NOT A COPY (PROJ-0), and the reference is the whole point.
+    /// This weave used to take the completed catalog BY VALUE, which made it a second
+    /// session-long owner of a truth the host had already completed once -- so a host
+    /// that later replaced its catalog would have had to come and find this one. It
+    /// now reads the one the host holds, which is what makes "the recipe this runner
+    /// builds is the recipe this Workshop currently means" structural. What it reads
+    /// is `const`: a runner that could write into somebody else's catalog would be a
+    /// build procedure with no author.
+    ///
+    /// ⚠ THE OWNER MUST OUTLIVE THIS WEAVE, and an rvalue is refused below rather
+    /// than left to a reader's care -- binding this to a temporary would be a
+    /// dangling catalog whose first symptom is a build of nothing in particular.
     ///
     /// THE LIVE HANDLES ARE UNDER THE SAME ROOF, and for a sharper version of
     /// the same reason: a writable `pid` is that door with the lock already off.
@@ -226,11 +239,16 @@ public:
     /// THE CMAKE ARRIVES THE SAME WAY AND FOR A SHARPER VERSION OF THE SAME REASON.
     /// It is the one program this weave will ever start, it is chosen by the party
     /// that composed the process, and no recipe, message or poke can reach it.
-    BuildRunnerWeave(std::vector<Recipe> catalog, std::string cmake)
-        : catalog_(std::move(catalog)), cmake_(std::move(cmake)) {
+    BuildRunnerWeave(const std::vector<Recipe>& catalog, std::string cmake)
+        : catalog_(catalog), cmake_(std::move(cmake)) {
         look_ = timers().repeat(std::string(kLookTimerId), std::chrono::milliseconds(kLookBeatMs),
                                 &BuildRunnerWeave::on_look_beat);
     }
+
+    /// THE WALL UNDER THE SENTENCE ABOVE. A caller that hands over a temporary catalog
+    /// is not composing a runner, it is arranging a use-after-free, and the compiler is
+    /// the only party that can catch it before a maker does.
+    BuildRunnerWeave(std::vector<Recipe>&&, std::string) = delete;
 
     /// The one line of ceremony the binding layer cannot remove: this weave has
     /// its own `on` handlers, which would otherwise HIDE the binding layer's.
@@ -297,7 +315,7 @@ public:
 
     /// What this runner can build, for a host that wants to say so in its banner.
     /// Read-only, and it is the host's own list coming back -- no weave learns it
-    /// this way.
+    /// this way, and this weave never held a second one to hand back.
     const std::vector<Recipe>& catalog() const { return catalog_; }
 
     /// How many processes this runner has tried to start, how many names it has
@@ -377,7 +395,10 @@ private:
         }
     }
 
-    std::vector<Recipe> catalog_;
+    /// THE OWNER'S CATALOG, NOT THIS WEAVE'S. Bound once at construction to the vector
+    /// the host holds for the session, so a replacement of its CONTENTS is a
+    /// replacement of what this runner builds -- with nothing here to find and update.
+    const std::vector<Recipe>& catalog_;
     /// THE ONE PROGRAM THIS WEAVE STARTS, under the same roof as the catalog and for
     /// the same reason: a poke that could write a new program path here would be a
     /// door onto arbitrary execution wearing an inspection tool's clothes.

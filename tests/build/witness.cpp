@@ -60,6 +60,7 @@
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/recipe_persist.hpp"
+#include "workshop/recipes.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
@@ -77,6 +78,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -87,6 +89,7 @@ namespace load = zengine::workshop::load;
 namespace load_persist = zengine::workshop::load_persist;
 namespace op = zengine::op;
 namespace recipe_persist = zengine::workshop::recipe_persist;
+namespace workshop = zengine::workshop;
 namespace timer = zengine::timer;
 
 /// Mount an in-process weave into an OFFICE, with the grant this host chose --
@@ -108,8 +111,8 @@ loom::WeaveId mount_in_office(loom::Switchboard& bus, loom::Grant grant, const c
 /// THE ONE RULE THAT SPELLS A STEM AS A FILE, and it is the host's -- `HostContext::so`
 /// said again here rather than reached for, because this program deliberately does not
 /// link Workshop's UI vocabulary.
-std::string so_in(const std::string& dir, const std::string& stem) {
-    return dir + "/" + stem +
+std::string so_in(std::string_view dir, std::string_view stem) {
+    return std::string(dir) + "/" + std::string(stem) +
 #if defined(_WIN32)
            ".dll";
 #else
@@ -270,20 +273,24 @@ int main(int argc, char** argv) {
         std::printf("witness: build recipes refused: %s\n", read_recipes.outcome.refusal.c_str());
         return 5;
     }
-    std::vector<builder::Recipe> recipes = std::move(read_recipes.recipes);
-    // THE HOST'S TWO DEFAULTS, filled in exactly as `workshop.cpp` fills them.
-    for (builder::Recipe& r : recipes) {
-        if (r.artifact_dir.empty()) {
-            r.artifact_dir = args.dir;
+    // THE ONE CURRENT COMPLETED CATALOG, held exactly as `workshop.cpp` holds it
+    // (PROJ-0) -- declared before the bus, so it outlives every weave that reads it.
+    workshop::CurrentRecipes current_recipes;
+    {
+        std::vector<builder::Recipe> recipes = std::move(read_recipes.recipes);
+        // THE HOST'S TWO DEFAULTS, filled in exactly as `workshop.cpp` fills them. This
+        // host completes no SOURCE, because it has no project to complete one against:
+        // the lane authors absolute spellings, and guessing a base is the one thing
+        // worse than the refusal (`recipe_persist::complete_recipes` says so at length).
+        for (builder::Recipe& r : recipes) {
+            if (r.artifact_dir.empty()) {
+                r.artifact_dir = args.dir;
+            }
+            if (r.single_source.has_value() && r.single_source->workspace.empty()) {
+                r.single_source->workspace = args.dir + "/build-workspace/" + r.id;
+            }
         }
-        if (r.single_source.has_value() && r.single_source->workspace.empty()) {
-            r.single_source->workspace = args.dir + "/build-workspace/" + r.id;
-        }
-    }
-    std::vector<builder::RecipeView> views;
-    views.reserve(recipes.size());
-    for (const builder::Recipe& r : recipes) {
-        views.push_back(builder::RecipeView{r.id, r.artifact, so_in(r.artifact_dir, r.artifact)});
+        current_recipes.hold(std::move(recipes), &so_in);
     }
 
     loom::Switchboard bus;
@@ -309,7 +316,8 @@ int main(int argc, char** argv) {
                              timer::kTimerRole);
     builder::BuildRunnerWeave* runner = nullptr;
     (void)mount_in_office<builder::BuildRunnerWeave>(bus, std::move(run_builds),
-                                                     builder::kBuildRunnerRole, &runner, recipes,
+                                                     builder::kBuildRunnerRole, &runner,
+                                                     current_recipes.all(),
                                                      std::string(ZENGINE_BUILDER_CMAKE));
 
     loom::Grant order_builds;
@@ -323,7 +331,7 @@ int main(int argc, char** argv) {
     (void)mount_in_office<builder::BuilderWeave>(bus, std::move(order_builds),
                                                  builder::kBuilderRole,
                                                  static_cast<builder::BuilderWeave**>(nullptr),
-                                                 views);
+                                                 current_recipes.views());
 
     // ---- The realization owner, its voice, and the one dangerous grant ----------
     loom::Grant operate;
@@ -360,8 +368,8 @@ int main(int argc, char** argv) {
         },
         // IS THIS ROW WAITING ON THE MAKER? `workshop.cpp`'s predicate, said again:
         // the artifact is not on this disk AND some authored recipe can produce it.
-        [&args, &recipes](const std::string& stem) {
-            for (const builder::Recipe& r : recipes) {
+        [&args, &current_recipes](const std::string& stem) {
+            for (const builder::Recipe& r : current_recipes.all()) {
                 if (r.artifact != stem) {
                     continue;
                 }

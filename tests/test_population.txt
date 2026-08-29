@@ -80,6 +80,13 @@
 # same kind of case: a real SDL queue read by a real weave library, and both SDL weaves live
 # at once.
 #
+# THIS FILE IS ASCII, PROSE INCLUDED, AND THAT IS A PARSING FACT AND NOT A STYLE ONE.
+# `check_population.cmake` reads it with `file(STRINGS)`, which extracts runs of printable
+# ASCII and BREAKS A LINE at anything else -- so one non-ASCII glyph inside a comment splits
+# that comment in two and hands the parser the second half as if it were a manifest row. The
+# symptom is a fatal error naming a WORD as an entry with an unknown kind (measured, PROJ-0),
+# which is loud enough to catch but points nowhere near the cause. Write the notes in ASCII.
+#
 # G-0's ten new cases are all in the ALWAYS row on purpose, and that placement is the
 # claim: the SDL medium's whole label path is pure arithmetic in skin_sdl_plan.hpp, so the
 # lane that builds no SDL at all -- the Windows stranger lane -- still proves that a
@@ -722,6 +729,19 @@
 # the edit-source door now binds) and `workshop_screen` (the picker-census fixture now
 # counts three built-ins) moved no floor.
 #
+# EDIT-1 added an EIGHTH workshop entry, `workshop_files`, for the same reason -- where
+# source comes from is its own area -- and its floor was written at 20 while the suite
+# shipped 31, which is eleven cases of the downward slack this file's own rule forbids.
+# PROJ-0 closes it: `workshop_files` 20 -> 36 and `builder` 48 -> 51, no new row, no gate.
+# The five files cases are the completed catalog's OWNER (the derived view, replacement by
+# contents rather than by object, the edit-source closure asked of the owner, the two-base
+# decoy re-proven over it, and the host read as a source file); the three builder cases are
+# the two participants that read it -- the same-object check, the behavioural falsifier that
+# changes the catalog in one place and asks both weaves what they answer, and the
+# compile-time refusal of a temporary. NOTE: the eleven cases the old floor was not
+# protecting were EDIT-1's, not this phase's: raising the number to the measured count
+# is the correction, and lowering it again would be a deliberate decrease in evidence.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -734,7 +754,7 @@ ui                                doctest           always  22
 component                         doctest           always  35
 operator                          doctest           always  90
 composer                          doctest           always  35
-builder                           doctest           always  48
+builder                           doctest           always  51
 workshop_document                 doctest           always  139
 workshop_screen                   doctest           always  172
 workshop_panels                   doctest           always  149
@@ -742,7 +762,7 @@ workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  20
+workshop_files                    doctest           always  36
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

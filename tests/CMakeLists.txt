@@ -807,7 +807,14 @@ zengine_workshop_suite(editor test_workshop_editor.cpp)
 # name admission, the root boundary, the press/wheel routing and the path from a row to
 # the editor's one door. Its temporary directories are its own, and the project root it
 # browses is one of them -- no case here reads the machine's real working directory.
-zengine_workshop_suite(files test_workshop_files.cpp)
+#
+# ...AND WHO OWNS THE COMPLETED RECIPE CATALOG (PROJ-0), which is the same subject one
+# noun over: this suite already asks what a project-relative source MEANS, and the answer
+# now has a session-long owner. The HOST'S SOURCE comes with it, because "there is ONE
+# completed catalog in this process" is a claim about an arrangement no rig can run --
+# `main()` claims a terminal -- and the tripwires next door read it for the same reason.
+zengine_workshop_suite(files test_workshop_files.cpp
+    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
