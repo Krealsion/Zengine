@@ -31,7 +31,7 @@ external_press_at(panels, setup, screen, kind, space, x, y) -> ExternalPressAt{n
 - **Consumed by occupancy, before anything is sent.** A pane that owns visible room owns
   pointer refusal for that room, and nothing waits for the provider: there is no reply shape,
   `consumed` never crosses the wire (WP-R0), and a press that named no row is consumed
-  identically and simply travels no further. The Terminal overlay and pane management still
+  identically and simply travels no further. The Terminal overlay and arrangement still
   take every press whole, one layer up, and the picker still answers first inside
   `occupied_at`.
 - **Workshop says NOTHING on the notice line for an external pane**, and that inverts the rule

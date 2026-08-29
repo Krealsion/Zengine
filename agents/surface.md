@@ -279,6 +279,12 @@ faceless medium gets, so no canvas painted in a character medium moved. A body s
 for one line of the face still resolves to cells and is still drawn by exactly one of the two
 lists — grant more room rather than special-casing past this.
 
+`region_cells_for(columns, rows, metric)` is the same resolution read BACKWARDS (ARR-0): the
+smallest whole-cell extent whose forward fit holds the asked capacity, for a publisher sizing a
+region to its content (the contextual popup). It lives beside `fit_region` so both directions
+stay one arithmetic — a consumer inverting the metric with arithmetic of its own is the second
+measurer this file exists to refuse.
+
 ## The attention chip is the Medium's own furniture (WUX-4)
 
 `SurfaceText` is two fields and always was; what changed is what the graphical medium MAKES of

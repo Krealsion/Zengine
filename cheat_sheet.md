@@ -511,7 +511,7 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `Shift`+`h` `j` `k` `l` | resize the selected object |
 | `[` `]` | narrow / widen the workspace by 4 cells |
 | `p` | open the pane picker |
-| `w` | open pane management |
+| `w` | arrange the desk |
 | `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
 | `s` | name and save the current setup |
 | `r` | restore the setup from its file |
@@ -538,28 +538,34 @@ expires, nothing fades, and nothing here is a notification history. The **notice
 bottom band is the other voice and keeps its own job: what just happened, replaced by whatever
 happens next. See [what needs your attention](docs/workshop/attention.md).
 
-**Pane management** (`w`)
+**Arranging** — right-click a pane → `arrange` binds the interaction to that one pane;
+`w` arranges the whole desk. In either scope the panes wear their handles: drag a body to
+move, an edge or corner to resize (pixel-fine in a window, cell by cell on a terminal),
+and a right-click or `Esc` leaves — leaving is all that press does.
 
 | key | does |
 |---|---|
-| `Tab` `↑` `↓` | choose a pane |
-| `m` | move mode — arrows nudge one cell, `Esc` back |
-| `s` | size mode — `Tab` picks the edge, arrows grow one cell, `Esc` back |
+| `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane (desk only) |
+| `← → ↑ ↓` | move that pane one cell |
+| `Shift`+arrows | resize it one cell, top-left corner staying put |
+| `Enter` | narrow the desk to arranging exactly that pane |
 | `f` `b` | send to front / back |
 | `r` `l` | raise / lower one step |
-| `d` | remove the selected pane (the picker brings it back) |
+| `d` | remove that pane (the picker brings it back) |
 | `0` | reset — then `p` place, `w` width, `h` height, `o` order |
-| `Esc` | close management |
+| `Esc` | leave |
 
-**Context menu** — right-click a pane, a document object, or the empty room, and Workshop
-lists what can be done with the thing you pointed at: pane arrangement (move, size,
-Arrange, Reset, remove), object deletion, or Workshop's own doors. `↑` `↓` choose, `Enter`
-chooses (a `… >` row opens its group), `Esc` backs out or closes, a click outside
-dismisses. Pointing does not select — only choosing `move` or `size` establishes the pane
-as the management selection, after the same admission the `w` road applies. `a` opens the
-same menu from the keyboard on the selected object or the room, so no mouse is required —
-on a terminal, right-click delivery is the emulator's decision first (the Windows console
-and Windows Terminal both deliver it). See
+**Context menu** — right-click a pane, a document object, or the empty room, and a small
+menu beside the click lists what can be done with the thing you pointed at: pane
+arrangement (arrange, Order, Reset, remove), object deletion, or Workshop's own doors.
+Rows whose action has a working shortcut in the place you are returning to show it after
+the label, spelled from the live keymap. `↑` `↓` choose, `Enter` chooses (a `… >` row
+opens its group, staying beside the click), `Esc` backs out or closes, a click outside
+dismisses. Pointing does not select — only choosing `arrange` binds the pane, after the
+same admission every arranging road applies. `a` opens the same menu from the keyboard on
+the selected object or the room, so no mouse is required — on a terminal, right-click
+delivery is the emulator's decision first (the Windows console and Windows Terminal both
+deliver it). See
 [the context menu](docs/workshop/panes.md#the-context-menu--what-can-i-do-with-this).
 
 ### Panes

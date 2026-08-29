@@ -33,57 +33,79 @@ The picker paints a whole pane's worth of rows even when it has fewer to show. I
 medium there is no edge between an overlay and what is under it, so a short picker over a
 9-row pane left the pane's last rows showing beneath — one box saying two unrelated things.
 
-## Moving, resizing and ordering — management mode
+## Moving, resizing and ordering — Arrange
 
-Press **`w`** — the band's legend advertises it as `w window`, and the full hotkey view
-lists it. This is a mode, so its keys need no modifier.
+Arranging has two scopes, and both mean the same thing: manipulate panes directly.
 
-**Its sub-keys are not announced.** On entry the status line names the selected pane and its
-current window; it does not list `m`, `s`, `f`, `b`, `r`, `l` or `0`. The sub-modes do announce
-their own keys once you are in them (`+ window size <edge>`, `+ window reset -- p place, w
-width, h height, o order, esc back`), so the table below is the missing first step.
+**Arrange one pane**: right-click the pane and choose **`arrange`**. The interaction is
+bound to exactly that pane — its eight edge and corner handles appear, dragging its body
+moves it, dragging a handle resizes it, and the arrow keys do the same one cell at a time.
+Clicking anywhere else changes nothing and reminds you which pane you are arranging.
+`Esc` or a right-click leaves.
+
+**Arrange the desk**: press **`w`** — the band's legend advertises it as `w arrange desk`,
+and the full hotkey view lists it. Every arrangeable pane wears its handles; drag any
+pane's body or edges directly. No pane is "selected" when the scope opens and none has to
+be: a press is its own targeting. The keyboard steps between panes instead:
 
 | key | does |
 |---|---|
-| `Tab` `↑` `↓` | choose a pane |
-| `m` | **move** — arrows nudge one cell; `Esc` back |
-| `s` | **size** — `Tab` picks which edge, arrows grow one cell; `Esc` back |
-| `f` | send to front |
-| `b` | send to back |
-| `r` | raise one step |
-| `l` | lower one step |
-| `d` | remove the selected pane — the picker brings it back |
+| `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane |
+| `← → ↑ ↓` | move that pane one cell |
+| `Shift`+arrows | resize it one cell — wider / narrower / taller / shorter, its top-left corner staying put |
+| `Enter` | narrow to arranging exactly that pane |
+| `f` `b` `r` `l` | send to front / back, raise / lower one step |
+| `d` | remove that pane — the picker brings it back |
 | `0` | **reset** — then `p` place, `w` width, `h` height, `o` order; `Esc` back |
-| `Esc` | close management |
+| `Esc` or right-click | leave |
+
+The same movement and resize keys work in the one-pane scope; `Tab` and `Enter` belong to
+the desk, which is the only place there is a next pane to step to. The pointer's handles
+reach all eight edges and corners, each keeping its opposite edge anchored; the keyboard's
+resize always grows from the top-left corner, and a move plus a resize composes any
+rectangle the handles can make.
+
+A right-click while arranging **leaves the interaction and does nothing else** — it never
+also opens the context menu. The next right-click, in ordinary Workshop, does.
+
+Which panes are on the desk at all is the **picker**'s job (`p`), before and after any of
+this — arranging never adds or offers a pane.
 
 Everything you author here goes into the **setup**, so it survives if you save it with `s`.
 See [setups](setups.md).
 
 ## The context menu — what can I do with this?
 
-**Right-click anything** and Workshop lists what can be done with the thing you pointed at —
-the same operations its keys already perform, aimed at that thing:
+**Right-click anything** and a small menu opens **beside the click**, listing what can be
+done with the thing you pointed at — the same operations Workshop's keys already perform,
+aimed at that thing:
 
-- **a pane** — `move`, `size`, `Arrange >` (front / back / raise / lower), `Reset >`
+- **a pane** — `arrange`, `Order >` (front / back / raise / lower), `Reset >`
   (place / width / height), `remove`;
 - **a document object** — `delete`;
-- **the empty room** — Workshop's own doors: a new object, the picker, management, the
+- **the empty room** — Workshop's own doors: a new object, the picker, arrange desk, the
   terminal, attention, the hotkey view, save / open, the setup gestures, reset order.
 
+The menu is sized by what it has to say, and near a screen edge it shifts just enough to
+stay whole. Where a row's action has a working shortcut in the place you are returning to,
+the menu shows it after the label — those spellings are the live keymap's, so remapping a
+binding moves them, and a key that would not work there is simply not shown.
+
 While the menu is open: `↑` `↓` choose a row, `Enter` chooses it (a `… >` row opens its
-group), `Esc` backs out of a group or closes the menu, and a click outside dismisses it —
-a click spent on closing the menu never also operates whatever it landed on. **`a`** opens
-the same menu from the keyboard, on the selected object or the empty room, so the
-capability does not depend on a mouse.
+group, staying beside the click), `Esc` backs out of a group or closes the menu, and a
+click outside dismisses it — a click spent on closing the menu never also operates
+whatever it landed on. **`a`** opens the same menu from the keyboard, on the selected
+object or the empty room, so the capability does not depend on a mouse; with no pointer
+position to open beside, it opens at the panel column's corner.
 
 **Pointing is not selecting.** Opening the menu on a pane or an object changes no
 selection and moves no keyboard focus — the menu holds the pointed thing only for the one
-action you choose. `move` and `size` are the deliberate exception: choosing one enters
-management **on that pane**, because arranging is an ongoing state, and only after the
-pane passes the same checks the `w` road applies.
+action you choose. `arrange` is the deliberate exception: choosing it begins arranging
+**that pane**, because arranging is an ongoing state, and only after the pane passes the
+same checks every arranging road applies.
 
 The menu offers what is *meaningful* for that kind of thing, not a prediction of success —
-choose `move` on the Info panel and the owner answers in its own words (`the screen owns
+choose `arrange` on the Info panel and the owner answers in its own words (`the screen owns
 its place`). On a terminal, whether a right-click reaches Workshop at all is the terminal
 emulator's decision first (the Windows console and Windows Terminal both hand it through);
 the `a` key works everywhere.
@@ -114,24 +136,25 @@ rows.
 
 ### How to actually get a bigger pane
 
-`w` → choose the pane → `s` → `Tab` to pick the edge → arrows.
-
-Each arrow press grows the pane by **one cell**. Going from the 9-row default to something
-comfortable is therefore twenty-odd keypresses, and then `Esc` `Esc` `s` `Enter` to persist it.
-An authored size in cells is accepted up to the document's cell maximum.
+Right-click the pane → `arrange` → drag its bottom edge (or any handle) to the size you
+want, then `s` `Enter` to persist the setup. In a window the drag is pixel-fine; on a
+terminal it moves cell by cell, which is the honest grain a terminal has. By keyboard,
+`Shift`+arrows grow one cell per press — reaching a comfortable height from the 9-row
+default that way is a dozen-odd presses, and there is still no coarse step and no "fill
+the room". An authored size in cells is accepted up to the document's cell maximum.
 
 Judged plainly, and repeated in [limitations](limitations.md):
 
 | | |
 |---|---|
-| feature absent? | **no** — authored per-pane size exists, persists, and is honoured |
-| feature undiscoverable? | **partly.** The band's legend and the hotkey view advertise `w window`, so the *mode* is discoverable. Once inside it, the select-mode status line names the selected pane's window but not the keys that change it — so `s` is the step nothing on screen points at |
-| feature tedious? | **yes** — one cell per keypress, with no larger step, no drag-to-size, and no "fill the room" |
+| feature absent? | **no** — authored per-pane size exists, persists, is honoured, and a hand can drag it |
+| feature undiscoverable? | **mostly not.** The band's legend advertises `w arrange desk`, the pane's context menu offers `arrange`, and entering either scope puts visible handles on the panes — the affordance is on the thing itself |
+| feature tedious? | **by keyboard** — one cell per press, no larger step; by pointer, no |
 | product-hostile? | **no**, but the default is: a 9-row pane over the material you are building is the arrangement a maker meets first |
 
-The smallest things that would change the felt experience: one help line in select mode naming
-its own keys (the pattern the reset sub-mode already uses), a coarse step on a modifier, and a
-pane-height default that reads the surface. None is built, and none is designed here.
+The smallest things that would change the felt experience: a coarse keyboard step on a
+modifier, and a pane-height default that reads the surface. Neither is built, and neither
+is designed here.
 
 ## Pane titles
 

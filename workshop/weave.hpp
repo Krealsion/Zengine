@@ -741,10 +741,9 @@ public:
         const std::uint64_t pastes_before = session_.clipboard.paste_requests;
         switch (ctx) {
         case KeyContext::kTerminal: terminal_key(k); break;
-        case KeyContext::kManageSelect:
-        case KeyContext::kManageMove:
-        case KeyContext::kManageSize:
-        case KeyContext::kManageReset: manage_key(k, mail); break;
+        case KeyContext::kArrangePane:
+        case KeyContext::kArrangeDesk:
+        case KeyContext::kArrangeReset: arrange_key(k, mail); break;
         case KeyContext::kNaming: naming_key(k, mail); break;
         case KeyContext::kPicker: picker_key(k, mail); break;
         case KeyContext::kAttention: attention_key(k); break;
@@ -869,11 +868,18 @@ public:
     void open_context_at(const PointedAt& at) {
         ContextMenu next;
         next.open = true;
+        // THE PRESS'S OWN CELL IS THE ANCHOR (ARR-0): the surface opens beside the hand
+        // that asked, on both media at the cell grain -- the composition is settled in
+        // cells before any metric is consulted, HD-10's own medium-independence rule.
+        // The bounds stay derived; only the gesture's place is captured.
+        next.anchored = true;
+        next.anchor_x = at.cell.x;
+        next.anchor_y = at.cell.y;
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
         if (here.occupied) {
             // The setup row that RESOLVES to the pointed presentation -- the durable
-            // identity, never the kind handle (`manage_press`'s own walk). The picker's
+            // identity, never the kind handle (`arrange_press`'s own walk). The picker's
             // rectangle resolves to no row and falls through to the room.
             for (const SetupPane& row : session_.setup.active.panes) {
                 const std::optional<std::int64_t> named =
@@ -1001,8 +1007,7 @@ public:
     void spend_context_choice(Act a, const ContextMenu& spent, loom::Mail& mail) {
         switch (a) {
         // -- the pointed pane ---------------------------------------------------------
-        case Act::kManageMove:
-        case Act::kManageSize: enter_pane_mode(a, spent.pane); break;
+        case Act::kArrange: enter_arrange_pane(spent.pane); break;
         case Act::kManageFront:
         case Act::kManageBack:
         case Act::kManageRaise:
@@ -1016,7 +1021,7 @@ public:
         // -- the room -----------------------------------------------------------------
         case Act::kObjectNew: create_object(); break;
         case Act::kPicker: open_picker(); break;
-        case Act::kManage: open_management(); break;
+        case Act::kArrangeDesk: open_arrange_desk(); break;
         case Act::kTerminalToggle: toggle_terminal(); break;
         case Act::kAttention: toggle_attention(); break;
         case Act::kHotkeys: toggle_hotkeys(); break;
@@ -1164,7 +1169,7 @@ public:
         // KEY-0 it is answered by the same resolver instead of by this function's own
         // hand-copy of the chain (the second of the five spellings KEY-R0 measured).
         // Per branch, the standing law is unchanged: a mode that owns the keyboard whole
-        // takes the text or deliberately types none (management and the picker are driven
+        // takes the text or deliberately types none (arrangement and the picker are driven
         // by unmodified letters, so every character produced while they are open belongs
         // to a gesture); a focused pane receives the text in exactly the position it
         // receives the keys -- the half that makes `%` reach a provider at all, since
@@ -1184,10 +1189,9 @@ public:
             refresh_terminal();
             repaint(mail);
             return;
-        case KeyContext::kManageSelect:
-        case KeyContext::kManageMove:
-        case KeyContext::kManageSize:
-        case KeyContext::kManageReset:
+        case KeyContext::kArrangePane:
+        case KeyContext::kArrangeDesk:
+        case KeyContext::kArrangeReset:
         case KeyContext::kPicker:
             return;
         case KeyContext::kPane:
@@ -1344,18 +1348,34 @@ public:
             }
             return;
         }
-        // PANE MANAGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN (WIND-2) --
-        // the Terminal's own shape, four lines up, for the same reason. While a maker is
-        // arranging windows, every press is about a window: letting one fall through to the
+        // ARRANGEMENT IS A MODE AND IT OWNS THE POINTER WHILE IT IS OPEN (WIND-2) -- the
+        // Terminal's own shape, four lines up, for the same reason. While a maker is
+        // arranging, every press is about a pane: letting one fall through to the
         // document would begin a drag on an object underneath a pane they are looking at,
         // which is the defect PNL-2 removed from panels in the first place.
+        //
+        // A SECONDARY PRESS IS THIS STATE'S WAY BACK OUT (ARR-0). The active interaction
+        // that can truthfully interpret a secondary press receives first refusal, and
+        // leaving is what this one truthfully means by it: the press leaves the
+        // arrangement -- whichever scope, the reset prompt included -- and is CONSUMED
+        // WHOLE. One consumed gesture performs one interaction transition: no context
+        // menu opens from this press, and its release falls to the ordinary path's
+        // non-primary drop exactly as every second-button release always has. This is a
+        // state-local reading, not a Back command: there is no `right_click_back` action,
+        // no keymap row, and the ordinary contextual opener still answers only the
+        // presses no active interaction claimed.
         //
         // A RELEASE STILL ENDS A DOCUMENT DRAG THAT BEGAN BEFORE THE MODE DID, and this is
         // the same repair HD-3 made for the pane: entering a mode mid-drag must not swallow
         // the release, or `drag.active` stays true with the button up and the next bare
         // motion drags an object nobody is holding.
-        if (session_.manage.open) {
+        if (session_.arrange.open) {
             const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+            if (b.pressed && b.button == 3) {
+                close_arrange();
+                repaint(mail);
+                return;
+            }
             if (b.button != 1) {
                 return;
             }
@@ -1364,7 +1384,7 @@ public:
                 if (done.pane_held) {
                     // A RELEASE ENDS THE GESTURE WHEREVER THE HAND LANDS, and it is not asked
                     // where that is -- the position is not part of ending something.
-                    say("placed " + ref_text(done.pane) + " -- " + manage_status(), false);
+                    say("placed " + ref_text(done.pane) + " -- " + arrange_status(), false);
                     repaint(mail);
                 }
                 return;
@@ -1372,7 +1392,7 @@ public:
             if (!where.understood) {
                 return;
             }
-            manage_press(where);
+            arrange_press(where);
             repaint(mail);
             return;
         }
@@ -1632,15 +1652,15 @@ public:
             }
             return;
         }
-        // AND PANE MANAGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
+        // AND ARRANGEMENT OWNS MOTION WHILE IT IS OPEN, for the press's reason. A motion
         // with no pane gesture held does nothing at all: only a PRESS begins one, which is
         // the same sentence this handler already said about the document.
-        if (session_.manage.open) {
+        if (session_.arrange.open) {
             const PointedAt here = canvas_point_of(m.space, m.x, m.y);
             if (!here.understood || !session_.pane_drag.active) {
                 return;
             }
-            manage_motion(here.sub.x, here.sub.y, mail);
+            arrange_motion(here.sub.x, here.sub.y, mail);
             repaint(mail);
             return;
         }
@@ -2992,10 +3012,10 @@ private:
         // deliberately not another `^`-pair beside the document's.
         case Act::kSetupName: open_setup_name(); break;
         case Act::kSetupRestore: restore_setup(mail); break;
-        // PANE MANAGEMENT (WIND-2): a printable trigger pays the swallow rule -- armed
-        // centrally from the binding since KEY-0 -- and buys a mode whose own keys need
-        // no modifier at all (P48).
-        case Act::kManage: open_management(); break;
+        // ARRANGE THE DESK (WIND-2's mode, rescoped by ARR-0): a printable trigger pays
+        // the swallow rule -- armed centrally from the binding since KEY-0 -- and buys a
+        // mode whose own keys need no modifier at all (P48).
+        case Act::kArrangeDesk: open_arrange_desk(); break;
         // WHAT CAN I DO WITH THIS? -- the contextual-action surface, on the subject
         // command mode can truthfully name (CTX-0).
         case Act::kContextOpen: open_context_ambient(); break;
@@ -3609,10 +3629,10 @@ private:
     // arriving as a side effect of a window packet.
 
     /// THE ROWS A MAKER MAY ARRANGE: the shared inventory, restricted to what the setup
-    /// names. A catalog pane the setup does not name is SHOWN -- so the surface is one list
-    /// and a maker can see what else exists -- and is not selectable, because a pane with no
-    /// authored row has no window to arrange and every operation here would have to refuse.
-    std::vector<PaneRef> manageable() const {
+    /// names. A catalog pane the setup does not name has no authored row, no window to
+    /// arrange, and every operation here would have to refuse -- it is the PICKER's to
+    /// offer, because participation is the picker's concern and never arrangement's.
+    std::vector<PaneRef> arrangeable() const {
         std::vector<PaneRef> out;
         for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
             if (has_pane(session_.setup.active, row.ref)) {
@@ -3622,106 +3642,137 @@ private:
         return out;
     }
 
-    /// OPEN PANE MANAGEMENT, on the pane it was last on if that pane is still there.
+    /// ARRANGE THE DESK (ARR-0): the global arrangement scope.
     ///
-    /// AND IT SWALLOWS ITS OWN `w`, for the reason `s` and `shift+space` do: the key
-    /// transition and the character the platform's layout made of it are two facts that were
-    /// simultaneously true and both arrive.
-    void open_management() {
-        const std::vector<PaneRef> rows = manageable();
-        PaneManagement& m = session_.manage;
-        m.open = true;
-        m.doing = pane_manage::kSelect;
-        if (rows.empty()) {
-            m.selected = PaneRef{};
-            say("+ window -- this setup names no panes; " + hotkey(Act::kPicker) +
+    /// NO PANE IS CHOSEN MERELY BECAUSE THE SCOPE OPENED. The desk is the subject; every
+    /// arrangeable pane answers the pointer directly, and the keyboard chooses its own
+    /// target by stepping. The old mode opened ON a pane because it was a SELECTOR --
+    /// choose, then choose a manipulation -- and that prerequisite is exactly what this
+    /// scope retired.
+    void open_arrange_desk() {
+        PaneArrange& a = session_.arrange;
+        a.open = true;
+        a.desk = true;
+        a.resetting = false;
+        a.pane = PaneRef{};
+        if (arrangeable().empty()) {
+            say("arrange desk -- this setup names no panes; " + hotkey(Act::kPicker) +
                     " opens one, " + hotkey(Act::kManageClose) + " leaves",
                 false);
             return;
         }
-        bool kept = false;
-        for (const PaneRef& ref : rows) {
-            if (m.has_selection() && ref == m.selected) {
-                kept = true;
+        say("arrange desk -- drag a pane's body or edges; " + hotkey(Act::kManageNext) +
+                " steps, " + hotkey(Act::kManageClose) + " or right-click leaves",
+            false);
+    }
+
+    /// ARRANGE ONE PANE (ARR-0): the pane-local scope, on an explicit target -- the
+    /// context menu's captured subject, or the desk's keyboard target. ADMISSION PRECEDES
+    /// BINDING, the rule CTX-0 introduced for Move/Size: a refusal is said in the owner's
+    /// words and no state is entered, so a pane that cannot be arranged leaves the maker
+    /// exactly where they were.
+    void enter_arrange_pane(const PaneRef& ref) {
+        const Written ready = arrange_geometry_ready(ref);
+        if (!ready.accepted) {
+            say(ready.refusal, true);
+            return;
+        }
+        PaneArrange& a = session_.arrange;
+        a.open = true;
+        a.desk = false;
+        a.resetting = false;
+        a.pane = ref;
+        say("arranging " + ref_text(ref) + " -- drag its body to move, its edges to size; " +
+                hotkey(Act::kManageClose) + " or right-click leaves",
+            false);
+    }
+
+    /// THE ACTIVE SETUP NO LONGER NAMES THE ADDRESSED PANE, SO NOTHING DOES (WIND-2a).
+    ///
+    /// MEMBERSHIP IS THE LAW AND PRESENTATION IS NOT. A pane that becomes waiting, refused,
+    /// covered, off-room or UNRESOLVED stays addressed: every one of those is a pane the
+    /// setup still names, and reaching it is the whole of WIND-2's recovery claim. What
+    /// clears the address is the reference leaving the setup, which is the one event after
+    /// which there is nothing to address.
+    ///
+    /// THE ONE-PANE SCOPE CLOSES WITH ITS PANE (ARR-0): an interaction bound to exactly
+    /// one pane is a state about nothing once that pane is gone, and holding a maker
+    /// inside it would make every press a refusal about a thing no longer on the desk.
+    /// It closes SILENTLY, because this runs inside `apply_setup` and the operation that
+    /// removed the pane has its own sentence on the notice line -- writing over it here
+    /// would erase the answer the maker just earned. The desk scope stays open: its
+    /// subject is the desk, which is still there.
+    void forget_removed_selection() {
+        PaneArrange& a = session_.arrange;
+        if (!a.addressed() || has_pane(session_.setup.active, a.pane)) {
+            return;
+        }
+        a.pane = PaneRef{};
+        session_.pane_drag = PaneGesture{};
+        if (a.open && !a.desk) {
+            a.open = false;
+            a.resetting = false;
+        }
+    }
+
+    /// Leave the arrangement whole: scope, target and the reset prompt go together, so a
+    /// later open cannot inherit a stale address -- the desk deliberately opens on no
+    /// pane, and the one-pane scope binds its own.
+    void close_arrange() {
+        session_.arrange = PaneArrange{};
+        session_.pane_drag = PaneGesture{};
+        say("left arranging", false);
+    }
+
+    /// What a maker reads about the pane the vocabulary addresses. One sentence, spent by
+    /// every gesture that succeeds, so the notice line always names the thing that just
+    /// moved -- and since the roster panel retired (ARR-0) it carries the pane's STATE
+    /// word too, which is how an off-room or unresolved pane stays recoverable by ear:
+    /// step to it, read what it is, reset it.
+    std::string arrange_status() const {
+        const PaneArrange& a = session_.arrange;
+        if (!a.addressed()) {
+            return "arrange -- no pane addressed";
+        }
+        const char* state = "";
+        for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panels)) {
+            if (row.ref == a.pane) {
+                state = pane_state_word(pane_state_of(session_.panels, session_.setup.active,
+                                                      screen_of(session_), row));
                 break;
             }
         }
-        if (!kept) {
-            m.selected = rows.front();
-        }
-        say(manage_status(), false);
+        const SetupPane* row = pane_of(session_.setup.active, a.pane);
+        return "arrange " + ref_text(a.pane) + " (" + state + ") -- " + pane_window_text(row);
     }
 
-    /// THE ACTIVE SETUP NO LONGER NAMES THE SELECTED PANE, SO NOTHING DOES (WIND-2a).
-    ///
-    /// MEMBERSHIP IS THE LAW AND PRESENTATION IS NOT. A pane that becomes waiting, refused,
-    /// covered, off-room or UNRESOLVED keeps its selection: every one of those is a pane the
-    /// setup still names, the management row is still there, and the row being reachable
-    /// while the pane is not is the whole of WIND-2's recovery claim. What clears a
-    /// selection is the reference leaving the setup, which is the one event after which
-    /// there is no row to be on.
-    ///
-    /// WHAT WIND-2 CLEARED WAS THE GESTURE ALONE, and the rest went stale in place:
-    /// `manage.selected` went on naming a removed reference and `manage.doing` went on
-    /// being `move` or `size`. The painter then found no row matching the selection,
-    /// defaulted its cursor to zero, and marked the FIRST REMAINING ROW as chosen under a
-    /// heading naming the pane that was gone -- two panes' worth of answer in one surface.
-    ///
-    /// THE EDGE RETURNS TO ITS ORDINARY DEFAULT rather than being left where a size gesture
-    /// on a pane that no longer exists happened to leave it.
-    void forget_removed_selection() {
-        PaneManagement& m = session_.manage;
-        if (!m.has_selection() || has_pane(session_.setup.active, m.selected)) {
-            return;
-        }
-        m.selected = PaneRef{};
-        m.doing = pane_manage::kSelect;
-        m.edge = PaneManagement{}.edge;
-        session_.pane_drag = PaneGesture{};
-    }
-
-    void close_management() {
-        session_.manage.open = false;
-        session_.manage.doing = pane_manage::kSelect;
-        // THE SELECTION SURVIVES LEAVING THE MODE, and the PRIORITY does not. That pairing is
-        // what makes the click-through control measurable: a maker leaves management with a
-        // pane still selected, presses inside the part of it another pane covers, and the
-        // VISIBLE pane answers -- because outside this mode nothing about the pointer changed.
-        session_.pane_drag = PaneGesture{};
-        say("left pane management", false);
-    }
-
-    /// What a maker reads about the pane they are arranging. One sentence, spent by every
-    /// gesture that succeeds, so the notice line always names the thing that just moved.
-    std::string manage_status() const {
-        const PaneManagement& m = session_.manage;
-        if (!m.has_selection()) {
-            return "+ window -- no pane selected";
-        }
-        const SetupPane* row = pane_of(session_.setup.active, m.selected);
-        return "+ window " + ref_text(m.selected) + " -- " + pane_window_text(row);
-    }
-
-    /// MOVE THE SELECTION BY ONE ROW, wrapping. Over `manageable()`, so an unresolved,
-    /// waiting, off-room, covered or refused pane is reached by exactly the same two keys as
-    /// a visible one -- which is the recovery invariant spent as a keyboard path.
-    void manage_step(std::int64_t by) {
-        const std::vector<PaneRef> rows = manageable();
+    /// MOVE THE KEYBOARD'S TARGET BY ONE ROW, wrapping. Over `arrangeable()`, so an
+    /// unresolved, waiting, off-room, covered or refused pane is reached by exactly the
+    /// same keys as a visible one -- which is the recovery invariant spent as a keyboard
+    /// path. The desk opens on no target, so the first step lands on the first row.
+    void arrange_step(std::int64_t by) {
+        const std::vector<PaneRef> rows = arrangeable();
         if (rows.empty()) {
             say("this setup names no panes -- " + hotkey(Act::kPicker) + " opens one", true);
             return;
         }
+        PaneArrange& a = session_.arrange;
+        if (!a.addressed()) {
+            a.pane = by > 0 ? rows.front() : rows.back();
+            say(arrange_status(), false);
+            return;
+        }
         std::size_t at = 0;
         for (std::size_t i = 0; i < rows.size(); ++i) {
-            if (session_.manage.has_selection() && rows[i] == session_.manage.selected) {
+            if (rows[i] == a.pane) {
                 at = i;
                 break;
             }
         }
         const std::size_t n = rows.size();
         const std::size_t next = by > 0 ? (at + 1) % n : (at + n - 1) % n;
-        session_.manage.selected = rows[next];
-        say(manage_status(), false);
+        a.pane = rows[next];
+        say(arrange_status(), false);
     }
 
     /// CAN THIS PANE'S GEOMETRY BE AUTHORED RIGHT NOW, and if not, why not.
@@ -3733,13 +3784,14 @@ private:
     /// has nothing to measure a move or a resize against; its RESET and its ORDER still work,
     /// which is what makes the row a recovery path rather than a dead end.
     ///
-    /// THE TARGET IS EXPLICIT SINCE CTX-0. The keyboard passes the mode's selection and the
-    /// contextual surface passes its captured subject, so Move and Size can CHECK a pointed
-    /// pane before anything selects it -- admission precedes selection, and a refusal leaves
-    /// no dead management state behind.
-    Written manage_geometry_ready(const PaneRef& ref) const {
+    /// THE TARGET IS EXPLICIT SINCE CTX-0. The keyboard passes its addressed pane and the
+    /// contextual surface passes its captured subject, so Arrange can CHECK a pointed
+    /// pane before anything binds to it -- admission precedes binding, and a refusal
+    /// leaves no dead arrangement state behind.
+    Written arrange_geometry_ready(const PaneRef& ref) const {
         if (ref.provider.empty()) {
-            return Written::no("no pane is selected");
+            return Written::no("no pane is addressed -- " + hotkey(Act::kManageNext) +
+                               " steps to one");
         }
         // A CAPTURED SUBJECT HAS NO `forget_removed_selection` KEEPING IT FRESH, so absence
         // is answered here, first, in its own words -- falling through would report a
@@ -3803,7 +3855,7 @@ private:
     /// to be the size the pane actually has.
     PanelBounds managed_bounds() const {
         const std::optional<std::int64_t> kind =
-            resolve_pane(session_.manage.selected, session_.panels.runtime);
+            resolve_pane(session_.arrange.pane, session_.panels.runtime);
         if (!kind.has_value()) {
             return PanelBounds{};
         }
@@ -3816,7 +3868,7 @@ private:
     /// partially-settled write falls back to (WUX-2a); three hand-kept copies of this
     /// authored-or-resolved read is how two gestures come to start from different places.
     FineRect managed_window_base() {
-        const SetupPane* row = pane_of(session_.setup.active, session_.manage.selected);
+        const SetupPane* row = pane_of(session_.setup.active, session_.arrange.pane);
         FineRect out = managed_bounds().resolved;
         if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
             out.x = row->place.x;
@@ -3839,8 +3891,8 @@ private:
     /// change proposes nothing, so a step refused on its one moving axis writes nothing at
     /// all and is said as a refusal; in particular it cannot author a reactive place as a
     /// side effect. Only a proposal refused on EVERY axis it moved is refused whole.
-    void manage_place(std::int64_t x, std::int64_t y, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready(session_.manage.selected);
+    void arrange_place(std::int64_t x, std::int64_t y, loom::Mail& mail) {
+        const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
@@ -3857,7 +3909,7 @@ private:
             vertical.position = y;
         }
         const WindowWritten done = author_pane_window(session_.setup.active,
-                                                      session_.manage.selected, horizontal,
+                                                      session_.arrange.pane, horizontal,
                                                       vertical);
         if (!done.written.accepted) {
             say(done.written.refusal, true);
@@ -3870,7 +3922,7 @@ private:
         if (done.place_written) {
             apply_setup(mail);
         }
-        say(manage_status(), false);
+        say(arrange_status(), false);
     }
 
     /// The place a one-cell nudge proposes: the resolved corner if this pane has no authored
@@ -3879,16 +3931,16 @@ private:
     /// CELL-granular on purpose (WUX-2): a key press is a discrete gesture and a cell is its
     /// honest step; what the finer lattice buys it is that a nudge PRESERVES a fine
     /// remainder a pointer authored — plus forty-eight sub-units is still plus one cell.
-    void manage_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready(session_.manage.selected);
+    void arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
+        const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
         // THE RESOLVED CORNER, NEVER THE CLIPPED ONE (WIND-2a) -- see `managed_bounds`.
         const FineRect from = managed_window_base();
-        manage_place(detail::step(from.x, dx * surface::kCellSubs),
-                     detail::step(from.y, dy * surface::kCellSubs), mail);
+        arrange_place(detail::step(from.x, dx * surface::kCellSubs),
+                      detail::step(from.y, dy * surface::kCellSubs), mail);
     }
 
     /// AUTHOR WHAT ONE RESIZE GESTURE PROPOSES — the whole window, in sub-units (WUX-2),
@@ -3906,16 +3958,16 @@ private:
     /// default height still reacting to the room, and a right-edge or bottom-edge resize
     /// leaves a default PLACE still reactive: those edges anchor the place by not writing
     /// it at all.
-    void manage_resize(std::int64_t base_x, std::int64_t base_y, std::int64_t base_w,
-                       std::int64_t base_h, std::int64_t dx, std::int64_t dy,
-                       loom::Mail& mail) {
-        const Written ready = manage_geometry_ready(session_.manage.selected);
+    void arrange_resize(std::int64_t edge, std::int64_t base_x, std::int64_t base_y,
+                        std::int64_t base_w, std::int64_t base_h, std::int64_t dx,
+                        std::int64_t dy, loom::Mail& mail) {
+        const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
         const PaneWindowProposal want =
-            pane_window_proposal(session_.manage.edge, base_x, base_y, base_w, base_h, dx, dy);
+            pane_window_proposal(edge, base_x, base_y, base_w, base_h, dx, dy);
         PaneAxisProposal horizontal;
         horizontal.base = base_x;
         if (want.place_moved_x && want.x != base_x) {
@@ -3933,14 +3985,14 @@ private:
             vertical.extent = PaneSize{pane_unit::kSubcells, want.h};
         }
         const WindowWritten done = author_pane_window(session_.setup.active,
-                                                      session_.manage.selected, horizontal,
+                                                      session_.arrange.pane, horizontal,
                                                       vertical);
         if (!done.written.accepted) {
             say(done.written.refusal, true);
             return;
         }
         if (done.place_written) {
-            // AUTHORING A PLACE TAKES THE PANE OUT OF THE REACTIVE STACK — `manage_place`'s
+            // AUTHORING A PLACE TAKES THE PANE OUT OF THE REACTIVE STACK — `arrange_place`'s
             // own reconciliation, owed here the moment an anchored resize writes one.
             apply_setup(mail);
         } else {
@@ -3949,36 +4001,42 @@ private:
             // and `repaint` owns that (`refresh_external_rooms`). Nothing is reconciled here.
             (void)mail;
         }
-        say(manage_status(), false);
+        say(arrange_status(), false);
     }
 
     /// The size a one-cell key press proposes: the authored window if there is one, else the
     /// resolved one -- the same "author the current resolved value, then apply the delta"
     /// rule the pointer follows, so the two gestures cannot disagree about where they start.
-    /// One press is one CELL of delta, through the same anchored proposal the pointer takes,
-    /// so a key on the top edge moves `y` with the height exactly as a hand there does.
-    void manage_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
-        const Written ready = manage_geometry_ready(session_.manage.selected);
+    /// One press is one CELL of delta, through the same anchored proposal the pointer takes.
+    ///
+    /// THE KEYBOARD'S ANCHOR IS THE PLACE (ARR-0): a key pull moves the bottom-right
+    /// corner, so `pull-right` widens, `pull-left` narrows, and the pane never moves under
+    /// a resize key -- the document's `shift+hjkl` family, said about a pane. The other
+    /// six anchors are the pointer's, on the handles themselves; a maker who wants a
+    /// left-anchored keyboard resize composes it from a pull and a place, each one honest
+    /// cell.
+    void arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& mail) {
+        const Written ready = arrange_geometry_ready(session_.arrange.pane);
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
         }
         // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE (WIND-2a) -- see `managed_bounds`.
         const FineRect base = managed_window_base();
-        manage_resize(base.x, base.y, base.w, base.h, dx * surface::kCellSubs,
-                      dy * surface::kCellSubs, mail);
+        arrange_resize(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
+                       dx * surface::kCellSubs, dy * surface::kCellSubs, mail);
     }
 
     /// ONE PANE ACTION, PERFORMED ON AN EXPLICIT TARGET -- the one place a targeted pane
     /// operation is spent, whatever asked for it (CTX-0; `end_held_gestures`' shape: one
     /// owner, several callers, not a framework).
     ///
-    /// TWO CALLERS, ONE ARM PER ACTION. `manage_key` passes the mode's ambient selection;
-    /// the contextual surface passes its captured subject. Selection is never written as
+    /// TWO CALLERS, ONE ARM PER ACTION. `arrange_key` passes its addressed pane; the
+    /// contextual surface passes its captured subject. The address is never written as
     /// request transport in either direction, and the operation's own sentences stay here
     /// with the operation (INT-R0: the sentence belongs to the layer whose vocabulary
-    /// holds the reason). Mode bookkeeping -- a reset dropping the submode back to select
-    /// -- stays with the keyboard caller, because the contextual caller is not in a mode.
+    /// holds the reason). Mode bookkeeping -- a reset closing its prompt -- stays with
+    /// the keyboard caller, because the contextual caller is not in a mode.
     ///
     /// ABSENCE IS ANSWERED FIRST, IN ITS OWN WORDS. Every operation underneath already
     /// answers a reference outside the setup with `false`, but that `false` shares a
@@ -3988,7 +4046,8 @@ private:
     /// today -- `forget_removed_selection` runs inside `apply_setup` -- belt, not door.)
     void spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mail) {
         if (ref.provider.empty()) {
-            say("no pane is selected", true);
+            say("no pane is addressed -- " + hotkey(Act::kManageNext) + " steps to one",
+                true);
             return;
         }
         Setup& s = session_.setup.active;
@@ -4076,213 +4135,182 @@ private:
     }
 
     /// RESET THE WHOLE SETUP'S FRONT ORDER -- zero-target, one owner call and its
-    /// sentence, spent by the keyboard's reset submode and by the room's contextual row.
+    /// sentence, spent by the keyboard's reset prompt and by the room's contextual row.
     void reset_front_order() {
         reset_front(session_.setup.active);
         say("front order reset to the setup's own order", false);
     }
 
-    /// ENTER MOVE OR SIZE ON AN EXPLICIT PANE -- admission BEFORE selection (CTX-0).
-    ///
-    /// The check runs against the explicit target and a refusal returns before anything
-    /// is written, so a contextual entry that cannot proceed establishes no management
-    /// selection, no submode and no mode -- a maker is never left inside pane management
-    /// aimed at nothing. Only ACCEPTANCE establishes the selection, and that is the one
-    /// deliberate exception to "pointing is not selection": Move and Size begin ongoing
-    /// maker interest, and entering them on a pane IS selecting it.
-    ///
-    /// The keyboard's own Move/Size arms come through here too, with the mode's current
-    /// selection -- the mode is already open, so `m.open = true` and the re-assignment of
-    /// the same selection change nothing, and the two doors cannot drift.
-    void enter_pane_mode(Act a, const PaneRef& ref) {
-        const Written ready = manage_geometry_ready(ref);
-        if (!ready.accepted) {
-            say(ready.refusal, true);
-            return;
-        }
-        PaneManagement& m = session_.manage;
-        m.open = true;
-        m.selected = ref;
-        if (a == Act::kManageMove) {
-            m.doing = pane_manage::kMove;
-            say(manage_status(), false);
-        } else {
-            m.doing = pane_manage::kSize;
-            say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
-                    pane_edge_name(m.edge),
-                false);
-        }
-    }
-
-    /// Pane management's keys. Four steps, and every one of them returns one level on its
-    /// `manage.done` binding. The four hand switches this used to be are ONE switch since
-    /// KEY-0: each submode is its own keymap context (`keyboard_context` reads
-    /// `manage.doing`), so `action_for` already answers `kNone` for a gesture that
-    /// belongs to a submode the maker is not in, and an arm below cannot fire out of its
-    /// step by construction. The targeted operations go through `spend_pane_action` with
-    /// the mode's selection since CTX-0 -- the ambient read is this caller's, the
-    /// operation is the shared owner's, and the submode bookkeeping stays here.
-    void manage_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        PaneManagement& m = session_.manage;
+    /// THE ARRANGEMENT KEYS -- one switch for both scopes and the reset prompt (ARR-0).
+    /// Each scope is its own keymap context, so `action_for` already answers `kNone` for
+    /// a gesture the current scope does not declare (the desk's stepping keys inside the
+    /// one-pane scope, every non-reset key inside the prompt), and an arm below cannot
+    /// fire out of its scope by construction. The targeted operations go through
+    /// `spend_pane_action` with the addressed pane -- the ambient read is this caller's,
+    /// the operation is the shared owner's, and the mode bookkeeping stays here.
+    void arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        PaneArrange& a = session_.arrange;
         const KeyContext ctx = keyboard_context(session_);
         switch (session_.keymap.action_for(ctx, k.scancode, k.modifiers)) {
-        // -- selecting ------------------------------------------------------------------
-        case Act::kManageNext: manage_step(+1); break;
-        case Act::kManagePrevious: manage_step(-1); break;
-        case Act::kManageMove: enter_pane_mode(Act::kManageMove, m.selected); break;
-        case Act::kManageSize: enter_pane_mode(Act::kManageSize, m.selected); break;
-        case Act::kManageFront: spend_pane_action(Act::kManageFront, m.selected, mail); break;
-        case Act::kManageBack: spend_pane_action(Act::kManageBack, m.selected, mail); break;
-        case Act::kManageRaise: spend_pane_action(Act::kManageRaise, m.selected, mail); break;
-        case Act::kManageLower: spend_pane_action(Act::kManageLower, m.selected, mail); break;
-        case Act::kManageRemove:
-            spend_pane_action(Act::kManageRemove, m.selected, mail);
-            break;
+        // -- the desk's stepping, and its door into the one-pane scope ------------------
+        case Act::kManageNext: arrange_step(+1); break;
+        case Act::kManagePrevious: arrange_step(-1); break;
+        case Act::kArrange: enter_arrange_pane(a.pane); break;
+        // -- moving: arrows place the addressed pane ------------------------------------
+        case Act::kManagePlaceLeft: arrange_nudge(-1, 0, mail); break;
+        case Act::kManagePlaceRight: arrange_nudge(+1, 0, mail); break;
+        case Act::kManagePlaceUp: arrange_nudge(0, -1, mail); break;
+        case Act::kManagePlaceDown: arrange_nudge(0, +1, mail); break;
+        // -- sizing: shifted arrows pull the extent, anchored at the place --------------
+        case Act::kManagePullLeft: arrange_grow(-1, 0, mail); break;
+        case Act::kManagePullRight: arrange_grow(+1, 0, mail); break;
+        case Act::kManagePullUp: arrange_grow(0, -1, mail); break;
+        case Act::kManagePullDown: arrange_grow(0, +1, mail); break;
+        // -- ordering and removal, on the addressed pane --------------------------------
+        case Act::kManageFront: spend_pane_action(Act::kManageFront, a.pane, mail); break;
+        case Act::kManageBack: spend_pane_action(Act::kManageBack, a.pane, mail); break;
+        case Act::kManageRaise: spend_pane_action(Act::kManageRaise, a.pane, mail); break;
+        case Act::kManageLower: spend_pane_action(Act::kManageLower, a.pane, mail); break;
+        case Act::kManageRemove: spend_pane_action(Act::kManageRemove, a.pane, mail); break;
+        // -- the reset prompt -----------------------------------------------------------
         case Act::kManageReset:
-            m.doing = pane_manage::kReset;
-            say("+ window reset -- " + hotkey_text(session_.keymap, Act::kManageResetPlace) +
+            a.resetting = true;
+            say("reset -- " + hotkey_text(session_.keymap, Act::kManageResetPlace) +
                     " place, " + hotkey_text(session_.keymap, Act::kManageResetWidth) +
                     " width, " + hotkey_text(session_.keymap, Act::kManageResetHeight) +
                     " height, " + hotkey_text(session_.keymap, Act::kManageResetOrder) +
                     " order, " + hotkey_text(session_.keymap, Act::kManageDone) + " back",
                 false);
             break;
-        case Act::kManageClose: close_management(); break;
-        // -- moving ---------------------------------------------------------------------
-        case Act::kManagePlaceLeft: manage_nudge(-1, 0, mail); break;
-        case Act::kManagePlaceRight: manage_nudge(+1, 0, mail); break;
-        case Act::kManagePlaceUp: manage_nudge(0, -1, mail); break;
-        case Act::kManagePlaceDown: manage_nudge(0, +1, mail); break;
-        // -- sizing ---------------------------------------------------------------------
-        case Act::kManageEdge:
-            m.edge = (m.edge + 1) % pane_edge::kCount;
-            say(std::string("+ window size ") + pane_edge_mark(m.edge) + " " +
-                    pane_edge_name(m.edge),
-                false);
-            break;
-        case Act::kManagePullLeft: manage_grow(-1, 0, mail); break;
-        case Act::kManagePullRight: manage_grow(+1, 0, mail); break;
-        case Act::kManagePullUp: manage_grow(0, -1, mail); break;
-        case Act::kManagePullDown: manage_grow(0, +1, mail); break;
-        // -- resetting ------------------------------------------------------------------
-        // The submode drops back to select exactly when the reset REACHED its operation
-        // (the pre-CTX-0 behaviour, preserved: a refusal for want of a selection leaves
-        // the maker in the reset step they were in).
+        // The prompt closes exactly when the reset REACHED its operation (the pre-CTX-0
+        // behaviour, preserved: a refusal for want of an addressed pane leaves the maker
+        // in the prompt they were in).
         case Act::kManageResetPlace:
-            spend_pane_action(Act::kManageResetPlace, m.selected, mail);
-            if (m.has_selection()) {
-                m.doing = pane_manage::kSelect;
+            spend_pane_action(Act::kManageResetPlace, a.pane, mail);
+            if (a.addressed()) {
+                a.resetting = false;
             }
             break;
         case Act::kManageResetWidth:
-            spend_pane_action(Act::kManageResetWidth, m.selected, mail);
-            if (m.has_selection()) {
-                m.doing = pane_manage::kSelect;
+            spend_pane_action(Act::kManageResetWidth, a.pane, mail);
+            if (a.addressed()) {
+                a.resetting = false;
             }
             break;
         case Act::kManageResetHeight:
-            spend_pane_action(Act::kManageResetHeight, m.selected, mail);
-            if (m.has_selection()) {
-                m.doing = pane_manage::kSelect;
+            spend_pane_action(Act::kManageResetHeight, a.pane, mail);
+            if (a.addressed()) {
+                a.resetting = false;
             }
             break;
         case Act::kManageResetOrder:
             reset_front_order();
-            m.doing = pane_manage::kSelect;
+            a.resetting = false;
             break;
-        // -- one level back, from any submode -------------------------------------------
         case Act::kManageDone:
-            m.doing = pane_manage::kSelect;
-            say(manage_status(), false);
+            a.resetting = false;
+            say(arrange_status(), false);
             break;
+        // -- leaving --------------------------------------------------------------------
+        case Act::kManageClose: close_arrange(); break;
         default: break;
         }
     }
 
-    // ---- The pointer, inside pane management ---------------------------------
+    // ---- The pointer, inside arrangement -------------------------------------
     //
     // ONE PRESS CLAIMS ONE GESTURE UNTIL RELEASE, and the whole of that is the absence of a
-    // re-resolution: `manage_motion` reads `session_.pane_drag.pane` and never asks what is
+    // re-resolution: `arrange_motion` reads `session_.pane_drag.pane` and never asks what is
     // under the pointer now. So crossing another pane, crossing the Terminal's rectangle, and
     // raising something mid-drag all change nothing about who is being moved -- which is
     // `Drag`'s own law, and the reason neither struct holds a position.
 
-    /// A PRESS WHILE ARRANGING. The selected pane's affordances first, then its body, then
-    /// any other presented pane -- and a press on empty canvas selects nothing and says so.
+    /// TAKE HOLD OF ONE PANE AT A POINTED POSITION -- the edge ring sizes, the body
+    /// moves, and a press outside its rectangle is not this pane's. One function for both
+    /// scopes, so the desk and the one-pane state cannot come to grab differently.
     /// EVERYTHING HERE IS THE POINTER'S OWN RESOLUTION (WUX-2): the press arrives as a
     /// sub-unit position with the reporting medium's grain, every hit is the aligned-span
     /// law the paint uses, and the grab and the base are captured in sub-units — so the
     /// motion that follows can spend a single pixel of hand.
-    void manage_press(const PointedAt& at) {
-        PaneManagement& m = session_.manage;
-        const Screen sc = screen_of(session_);
-        if (m.has_selection()) {
-            const std::optional<std::int64_t> kind =
-                resolve_pane(m.selected, session_.panels.runtime);
-            if (kind.has_value()) {
-                const PanelBounds mine =
-                    bounds_of(session_.panels, session_.setup.active, *kind, sc);
-                if (mine.open && mine.rect.w > 0 && mine.rect.h > 0 &&
-                    placement_of(*kind) == placement::kOverlayStack) {
-                    // THE SELECTED PANE'S RECTANGLE OWNS THE PRESS WHILE THIS MODE IS OPEN,
-                    // and only while it is. That is the priority §9 grants and its whole
-                    // extent: outside this mode a covered pane claims nothing, which is what
-                    // stops a selection from becoming a click-through.
-                    const std::int64_t edge =
-                        pane_edge_at(mine.rect, at.sub.x, at.sub.y, at.grain);
-                    if (edge != kNoPaneEdge) {
-                        m.doing = pane_manage::kSize;
-                        m.edge = edge;
-                        session_.pane_drag = PaneGesture{};
-                        session_.pane_drag.active = true;
-                        session_.pane_drag.pane = m.selected;
-                        session_.pane_drag.sizing = true;
-                        session_.pane_drag.edge = edge;
-                        session_.pane_drag.from_x = at.sub.x;
-                        session_.pane_drag.from_y = at.sub.y;
-                        const SetupPane* row = pane_of(session_.setup.active, m.selected);
-                        // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the
-                        // eye and the hand are -- AND THE BASE IS THE RESOLVED WINDOW
-                        // (WIND-2a): place beside size since WUX-2, because an anchored
-                        // top or left pull authors both from this one captured rectangle.
-                        // A hand and a key author from the same numbers, which is the
-                        // pairing this file has kept since both gestures existed.
-                        session_.pane_drag.base_x =
-                            row != nullptr && row->place.mode == pane_unit::kSubcells
-                                ? row->place.x
-                                : mine.resolved.x;
-                        session_.pane_drag.base_y =
-                            row != nullptr && row->place.mode == pane_unit::kSubcells
-                                ? row->place.y
-                                : mine.resolved.y;
-                        session_.pane_drag.base_w =
-                            row != nullptr && row->width.mode == pane_unit::kSubcells
-                                ? row->width.amount
-                                : mine.resolved.w;
-                        session_.pane_drag.base_h =
-                            row != nullptr && row->height.mode == pane_unit::kSubcells
-                                ? row->height.amount
-                                : mine.resolved.h;
-                        say(std::string("sizing ") + ref_text(m.selected) + " by its " +
-                                pane_edge_name(edge),
-                            false);
-                        return;
-                    }
-                    if (mine.rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
-                        m.doing = pane_manage::kMove;
-                        session_.pane_drag = PaneGesture{};
-                        session_.pane_drag.active = true;
-                        session_.pane_drag.pane = m.selected;
-                        session_.pane_drag.grab_dx = detail::minus(at.sub.x, mine.rect.x);
-                        session_.pane_drag.grab_dy = detail::minus(at.sub.y, mine.rect.y);
-                        say("moving " + ref_text(m.selected) + " -- drag to place it", false);
-                        return;
-                    }
-                }
-            }
+    bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
+        if (!kind.has_value() || placement_of(*kind) != placement::kOverlayStack) {
+            return false;
         }
-        // ANY OTHER PRESENTED PANE, TOPMOST FIRST -- the ordinary answer, through the one
-        // function the painter and the pointer share.
+        const PanelBounds mine = bounds_of(session_.panels, session_.setup.active, *kind, sc);
+        if (!mine.open || mine.rect.w <= 0 || mine.rect.h <= 0) {
+            return false;
+        }
+        const std::int64_t edge = pane_edge_at(mine.rect, at.sub.x, at.sub.y, at.grain);
+        if (edge != kNoPaneEdge) {
+            session_.pane_drag = PaneGesture{};
+            session_.pane_drag.active = true;
+            session_.pane_drag.pane = ref;
+            session_.pane_drag.sizing = true;
+            session_.pane_drag.edge = edge;
+            session_.pane_drag.from_x = at.sub.x;
+            session_.pane_drag.from_y = at.sub.y;
+            const SetupPane* row = pane_of(session_.setup.active, ref);
+            // THE AFFORDANCE IS ON THE VISIBLE BOUNDARY -- that is where the eye and the
+            // hand are -- AND THE BASE IS THE RESOLVED WINDOW (WIND-2a): place beside
+            // size since WUX-2, because an anchored top or left pull authors both from
+            // this one captured rectangle. A hand and a key author from the same numbers,
+            // which is the pairing this file has kept since both gestures existed.
+            session_.pane_drag.base_x = row != nullptr && row->place.mode == pane_unit::kSubcells
+                                            ? row->place.x
+                                            : mine.resolved.x;
+            session_.pane_drag.base_y = row != nullptr && row->place.mode == pane_unit::kSubcells
+                                            ? row->place.y
+                                            : mine.resolved.y;
+            session_.pane_drag.base_w = row != nullptr && row->width.mode == pane_unit::kSubcells
+                                            ? row->width.amount
+                                            : mine.resolved.w;
+            session_.pane_drag.base_h =
+                row != nullptr && row->height.mode == pane_unit::kSubcells
+                    ? row->height.amount
+                    : mine.resolved.h;
+            say(std::string("sizing ") + ref_text(ref) + " by its " + pane_edge_name(edge),
+                false);
+            return true;
+        }
+        if (mine.rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
+            session_.pane_drag = PaneGesture{};
+            session_.pane_drag.active = true;
+            session_.pane_drag.pane = ref;
+            session_.pane_drag.grab_dx = detail::minus(at.sub.x, mine.rect.x);
+            session_.pane_drag.grab_dy = detail::minus(at.sub.y, mine.rect.y);
+            say("moving " + ref_text(ref) + " -- drag to place it", false);
+            return true;
+        }
+        return false;
+    }
+
+    /// A PRESS WHILE ARRANGING (ARR-0), and the two scopes answer it differently because
+    /// they are ABOUT different things.
+    ///
+    /// THE ONE-PANE SCOPE IS BOUND: every press belongs to the bound pane -- its ring
+    /// sizes, its body moves -- and a press anywhere else is CONSUMED with the sentence
+    /// naming the state, because an interaction about exactly one pane must not quietly
+    /// become an interaction about another. Leaving is one gesture away and the sentence
+    /// says which.
+    ///
+    /// THE DESK IS DIRECT: every arrangeable pane answers, topmost first through the one
+    /// presentation order the painter uses, and the pane a press takes hold of becomes
+    /// the keyboard's target by that same press -- no selection is a prerequisite of
+    /// anything. A pane whose place the screen reserves (the side column) is addressed
+    /// and answered in the admission's own words rather than dragged.
+    void arrange_press(const PointedAt& at) {
+        PaneArrange& a = session_.arrange;
+        const Screen sc = screen_of(session_);
+        if (!a.desk) {
+            if (a.addressed() && take_pane_hold(a.pane, at, sc)) {
+                return;
+            }
+            say("arranging " + ref_text(a.pane) + " -- " + hotkey(Act::kManageClose) +
+                    " or right-click leaves",
+                false);
+            return;
+        }
         const std::vector<std::int64_t> order =
             presentation_order(session_.setup.active, session_.panels);
         for (std::size_t i = order.size(); i > 0; --i) {
@@ -4295,16 +4323,18 @@ private:
                 const std::optional<std::int64_t> named =
                     resolve_pane(row.ref, session_.panels.runtime);
                 if (named.has_value() && *named == kind) {
-                    m.selected = row.ref;
-                    m.doing = pane_manage::kSelect;
-                    say(manage_status(), false);
+                    a.pane = row.ref;
+                    if (!take_pane_hold(row.ref, at, sc)) {
+                        // Addressed and not draggable -- the reserved side column. The
+                        // admission owns the sentence.
+                        const Written why = arrange_geometry_ready(row.ref);
+                        say(why.accepted ? arrange_status() : why.refusal, !why.accepted);
+                    }
                     return;
                 }
             }
         }
-        say("nothing to arrange there -- " + hotkey(Act::kManageClose) +
-            " leaves pane management",
-            false);
+        say("nothing to arrange there -- " + hotkey(Act::kManageClose) + " leaves", false);
     }
 
     /// A MOTION WHILE A PANE GESTURE IS HELD. It targets the pane that CLAIMED THE PRESS,
@@ -4312,7 +4342,7 @@ private:
     /// The deltas are sub-units — a one-pixel hand movement is four of them on the shipped
     /// skin, and a terminal's cell is forty-eight — proposed from the captured base, never
     /// accumulated (WUX-2).
-    void manage_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail) {
+    void arrange_motion(std::int64_t sub_x, std::int64_t sub_y, loom::Mail& mail) {
         PaneGesture& g = session_.pane_drag;
         if (!g.active) {
             return;
@@ -4326,19 +4356,18 @@ private:
             return;
         }
         const PaneRef held = g.pane;
-        const PaneRef was_selected = session_.manage.selected;
-        session_.manage.selected = held;
+        const PaneRef was_addressed = session_.arrange.pane;
+        session_.arrange.pane = held;
         if (g.sizing) {
-            session_.manage.edge = g.edge;
-            manage_resize(g.base_x, g.base_y, g.base_w, g.base_h,
-                          detail::minus(sub_x, g.from_x), detail::minus(sub_y, g.from_y),
-                          mail);
+            arrange_resize(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
+                           detail::minus(sub_x, g.from_x), detail::minus(sub_y, g.from_y),
+                           mail);
         } else {
-            manage_place(detail::minus(sub_x, g.grab_dx), detail::minus(sub_y, g.grab_dy),
-                         mail);
+            arrange_place(detail::minus(sub_x, g.grab_dx), detail::minus(sub_y, g.grab_dy),
+                          mail);
         }
         if (!has_pane(session_.setup.active, held)) {
-            session_.manage.selected = was_selected;
+            session_.arrange.pane = was_addressed;
         }
     }
 

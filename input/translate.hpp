@@ -32,7 +32,9 @@
 //                    produces the same byte, so this is "the terminal delivered
 //                    the shifted form", not "the Shift key was down"); MEASURED
 //                    for the CSI editing keys, from xterm's `1;m` modifier
-//                    parameter — `ESC [ 1 ; 2 D` genuinely says Shift was held.
+//                    parameter — `ESC [ 1 ; 2 D` genuinely says Shift was held —
+//                    and for Tab, whose shifted form is its own CSI final:
+//                    `ESC [ Z` is back-tab, the shift carried by the Z itself.
 //     Ctrl           yes, for Ctrl+letter — a terminal sends control byte 1..26 —
 //                    and for the CSI editing keys, from the same `1;m` parameter.
 //     Alt            NO for ordinary keys: the ESC-prefix convention is
@@ -453,6 +455,10 @@ private:
             // and are read by `csi_key` below.
             case 'H': named_key(out, scan::kHome, mod::kNone); return;
             case 'F': named_key(out, scan::kEnd, mod::kNone); return;
+            // Back-tab: the one CSI whose final IS its modifier. Every emulator this
+            // backend speaks to spells Shift+Tab as `ESC [ Z` (xterm's CBT), so the
+            // shift is carried by the final rather than a `1;m` parameter (ARR-0).
+            case 'Z': named_key(out, scan::kTab, mod::kShift); return;
             case '<': pending_.push_back(b); return; // an SGR mouse report opens
             default: break;
             }
@@ -553,6 +559,9 @@ private:
         case 'D': named_key(out, scan::kLeft, mods); return;
         case 'H': named_key(out, scan::kHome, mods); return;
         case 'F': named_key(out, scan::kEnd, mods); return;
+        // Back-tab with a further modifier parameter (`ESC [ 1 ; m Z`): the final still
+        // carries the shift, and the parameter carries what was held beside it (ARR-0).
+        case 'Z': named_key(out, scan::kTab, mods | mod::kShift); return;
         default: drop(); return;
         }
     }

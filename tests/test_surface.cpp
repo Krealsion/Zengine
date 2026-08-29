@@ -4844,3 +4844,43 @@ TEST_CASE("WUX-4: the terminal says the same semantic fact on its own row") {
     m.note(kSlotScore, "");
     CHECK(m.sink().out == "\x1b[2;1H\x1b[2K ");
 }
+
+TEST_CASE("ARR-0: region_cells_for is fit_region read backwards, and minimal") {
+    // THE ONE MEASURER, BOTH DIRECTIONS: a publisher that wants a region sized to its
+    // content asks THIS function, so the inset, the division and the cell fallback stay
+    // one arithmetic. The property, swept over metrics a real medium reports and asks a
+    // real level makes: the answer satisfies the forward read, and one cell less on
+    // either axis no longer does.
+    const std::int64_t metrics[][2] = {{8, 18}, {7, 15}, {9, 21}, {0, 0}};
+    for (const auto& m : metrics) {
+        for (std::int64_t columns = 1; columns <= 48; columns += 7) {
+            for (std::int64_t rows = 1; rows <= 20; rows += 3) {
+                CAPTURE(m[0]);
+                CAPTURE(columns);
+                CAPTURE(rows);
+                const RegionCells cells = region_cells_for(columns, rows, m[0], m[1]);
+                const RegionFit forward =
+                    fit_region(0, 0, cells.w, cells.h, m[0], m[1]);
+                CHECK(forward.columns >= columns);
+                CHECK(forward.rows >= rows);
+                // MINIMAL WITHIN ITS OWN PROJECTION: one cell less no longer holds the
+                // ask. (A region that small may instead FALL BACK to the cell
+                // projection -- HD-5's own rule -- which is a different honest
+                // presentation, not a smaller version of this one.)
+                const RegionFit less_w =
+                    fit_region(0, 0, cells.w - 1, cells.h, m[0], m[1]);
+                if (less_w.graphical() == forward.graphical()) {
+                    CHECK(less_w.columns < columns);
+                }
+                const RegionFit less_h =
+                    fit_region(0, 0, cells.w, cells.h - 1, m[0], m[1]);
+                if (less_h.graphical() == forward.graphical()) {
+                    CHECK(less_h.rows < rows);
+                }
+            }
+        }
+    }
+    // A NON-POSITIVE ASK IS AN EMPTY EXTENT, never a negative one.
+    CHECK(region_cells_for(0, 5, 8, 18) == RegionCells{});
+    CHECK(region_cells_for(5, -1, 8, 18) == RegionCells{});
+}

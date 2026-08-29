@@ -4811,31 +4811,6 @@ TEST_CASE("HD-10: the same composition truth in a medium that sets type") {
 
 namespace {
 
-/// Remove a pane THROUGH THE PICKER, the way a maker does. `open_pane`'s twin, and bounded
-/// for the same reason: a case that cannot reach its row fails with a sentence.
-void remove_through_picker(Live& t, const PaneRef& ref) {
-    REQUIRE_FALSE(t.session().manage.open); // `p` belongs to command mode
-    t.key(input::scan::kP);
-    REQUIRE(t.session().panels.picker.open);
-    const std::vector<CatalogRow> rows =
-        inventory_rows(t.session().setup.active, t.session().panels);
-    std::size_t want = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i].ref == ref) {
-            want = i;
-        }
-    }
-    REQUIRE(want < rows.size());
-    for (std::size_t guard = 0; guard <= rows.size(); ++guard) {
-        if (t.session().panels.picker.cursor == want) {
-            break;
-        }
-        t.key(input::scan::kDown);
-    }
-    REQUIRE(t.session().panels.picker.cursor == want);
-    t.key(input::scan::kReturn);
-}
-
 /// One cell of a canvas AS THE TERMINAL MEDIUM ACTUALLY DRAWS IT -- through `canvas_body`,
 /// the Skin's own rasterizer, rather than through any reading of the canvas invented here.
 char seen_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
@@ -4955,11 +4930,9 @@ TEST_CASE("WIND-2a: a clipped default resize begins from the full resolved size"
 
         // THE KEY. One cell wider than what the pane RESOLVES to, not one cell wider than
         // the sliver of it a maker can currently see.
-        enter_management(t);
+        enter_arrange_desk(t);
         select_pane(t, builder);
-        t.key(input::scan::kS);
-        REQUIRE(t.session().manage.doing == pane_manage::kSize);
-        t.key(input::scan::kRight);
+        t.key(input::scan::kRight, input::mod::kShift);
         const SetupPane* row = pane_of(t.session().setup.active, builder);
         REQUIRE(row != nullptr);
         CHECK(row->width.mode == pane_unit::kSubcells);
@@ -4975,7 +4948,6 @@ TEST_CASE("WIND-2a: a clipped default resize begins from the full resolved size"
         // asserted: a case that stopped at `base_w` would witness what the gesture
         // remembered rather than what it authored, which is the half a maker actually sees.
         REQUIRE(reset_pane_width(live(t).setup.active, builder));
-        t.key(input::scan::kEscape);
         const ui::Rect vis =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
                       screen_of(t.session())).rect);
@@ -5013,11 +4985,9 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
         REQUIRE(where.resolved.h == subs(9));
         REQUIRE(where.rect.h == subs(2));
 
-        enter_management(t);
+        enter_arrange_desk(t);
         select_pane(t, builder);
-        t.key(input::scan::kS);
-        REQUIRE(t.session().manage.doing == pane_manage::kSize);
-        t.key(input::scan::kDown);
+        t.key(input::scan::kDown, input::mod::kShift);
         const SetupPane* row = pane_of(t.session().setup.active, builder);
         REQUIRE(row != nullptr);
         CHECK(row->height.mode == pane_unit::kSubcells);
@@ -5026,7 +4996,6 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
         CHECK(row->width.amount == 0);
 
         REQUIRE(reset_pane_height(live(t).setup.active, builder));
-        t.key(input::scan::kEscape);
         const ui::Rect vis =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
                       screen_of(t.session())).rect);
@@ -5062,7 +5031,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
         t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
         open_pane(t, ref_of(panel::kBuilder));
         const PaneRef builder = ref_of(panel::kBuilder);
-        enter_management(t);
+        enter_arrange_desk(t);
         select_pane(t, builder);
         const PanelBounds where =
             bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
@@ -5114,7 +5083,7 @@ TEST_CASE("WIND-2a: a release ends a pane gesture whatever mode sees it") {
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     open_pane(t, ref_of(panel::kBuilder));
     const PaneRef builder = ref_of(panel::kBuilder);
-    enter_management(t);
+    enter_arrange_desk(t);
     select_pane(t, builder);
     const Screen sc = screen_of(t.session());
     const ui::Rect rect =
@@ -5159,14 +5128,14 @@ TEST_CASE("WIND-2a: a removed target leaves no stale selection, submode or headi
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     open_pane(t, ref_of(panel::kBuilder));
     const PaneRef builder = ref_of(panel::kBuilder);
-    enter_management(t);
+    enter_arrange_desk(t);
     select_pane(t, builder);
     const Screen sc = screen_of(t.session());
     const ui::Rect rect =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect);
     t.press_at(rect.x + 1, rect.y + 1 + surface::kTuiCanvasTopRow, input::space::kCells);
     REQUIRE(t.session().pane_drag.active);
-    REQUIRE(t.session().manage.doing == pane_manage::kMove);
+    REQUIRE_FALSE(t.session().pane_drag.sizing);
 
     // THE TARGET LEAVES THE SETUP UNDER THE HAND.
     REQUIRE(remove_pane(live(t).setup.active, builder));
@@ -5174,48 +5143,45 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBu
                                                  rect.y + 4 + surface::kTuiCanvasTopRow, 0, 0,
                                                  input::space::kCells, input::mod::kNone}));
     CHECK_FALSE(t.session().pane_drag.active);
-    // MEMBERSHIP IS THE LAW: the pane is not in the setup, so it is not selected, and the
-    // submode that was about it is over.
-    CHECK_FALSE(t.session().manage.has_selection());
-    CHECK(t.session().manage.doing == pane_manage::kSelect);
-    // AND THE SURFACE SAYS SO: no heading names the removed pane, and no remaining row is
-    // marked as though it were the one that was chosen.
-    const std::string surface_text = management_text(t);
-    INFO(surface_text);
-    CHECK(surface_text.find("builder") == std::string::npos);
-    CHECK(surface_text.find("> ") == std::string::npos);
+    // MEMBERSHIP IS THE LAW: the pane is not in the setup, so nothing addresses it -- and
+    // the DESK stays open, because its subject is the desk (ARR-0).
+    CHECK_FALSE(t.session().arrange.addressed());
+    CHECK(t.session().arrange.open);
+    CHECK(t.session().arrange.desk);
 
-    // AND AN UNRESOLVED SELECTION IS KEPT, because unresolved is recoverable and still
+    // AND AN UNRESOLVED ADDRESS IS KEPT, because unresolved is recoverable and still
     // authored -- membership, not presentation, is what clears one.
     REQUIRE(add_pane(live(t).setup.active, stranger()));
     for (std::size_t guard = 0; guard < 8; ++guard) {
-        if (t.session().manage.selected == stranger()) {
+        if (t.session().arrange.pane == stranger()) {
             break;
         }
         t.key(input::scan::kTab);
     }
-    REQUIRE(t.session().manage.selected == stranger());
-    t.key(input::scan::kEscape);
-    t.key(input::scan::kW);
-    t.text("w");
-    CHECK(t.session().manage.selected == stranger());
+    REQUIRE(t.session().arrange.pane == stranger());
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    CHECK(t.session().arrange.pane == stranger());
 }
 
-TEST_CASE("WIND-2a: the ordinary picker removal clears a stale management selection") {
+TEST_CASE("ARR-0: removing the pane being arranged ends the arrangement about it") {
+    // THE ONE-PANE SCOPE CLOSES WITH ITS PANE: an interaction bound to exactly one pane
+    // is a state about nothing once that pane is gone -- and it closes SILENTLY, so the
+    // removal's own sentence stays on the notice line. The desk's half of the same law
+    // is pinned above; this is the scope the law was written for.
     Live t;
     t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
     open_pane(t, ref_of(panel::kBuilder));
     const PaneRef builder = ref_of(panel::kBuilder);
-    enter_management(t);
+    enter_arrange_desk(t);
     select_pane(t, builder);
-    t.key(input::scan::kEscape);
-    REQUIRE_FALSE(t.session().manage.open);
-    // THE SELECTION SURVIVES LEAVING THE MODE (WIND-2's own rule) -- and it may not survive
-    // the pane leaving the setup.
-    REQUIRE(t.session().manage.selected == builder);
-    remove_through_picker(t, builder);
+    t.key(input::scan::kReturn); // narrow to arranging exactly this pane
+    REQUIRE(t.session().arrange.open);
+    REQUIRE_FALSE(t.session().arrange.desk);
+    t.key(input::scan::kD); // remove the bound pane, by the scope's own key
     REQUIRE_FALSE(has_pane(t.session().setup.active, builder));
-    CHECK_FALSE(t.session().manage.has_selection());
+    CHECK_FALSE(t.session().arrange.open);
+    CHECK_FALSE(t.session().arrange.addressed());
+    CHECK(t.notice().find("removed") != std::string::npos);
 }
 
 TEST_CASE("WIND-2a: a pixel axis refuses every current pane projection, Info included") {
@@ -5270,7 +5236,7 @@ TEST_CASE("WIND-2a/WUX-1: the opening gestures are claimed by the band's own tru
         }
         return false;
     };
-    CHECK(has_pair("w window"));
+    CHECK(has_pair("w arrange desk"));
     CHECK(has_pair("p + panel"));
     CHECK(has_pair("^t terminal"));
     CHECK(has_pair("^k hotkeys")); // the recovery key: the full list is one keystroke away
@@ -5962,22 +5928,65 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     CHECK(in_type.find("each one's role") != std::string::npos);
 }
 
-TEST_CASE("TYPE-0: the pane-management surface is a region on the same terms") {
-    Panels panels;
-    Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    s.manage.open = true;
-    const Screen sc = screen_of(s);
-    const ui::Rect box = cells_covered(picker_bounds(sc));
-
-    surface::SurfaceCanvas c;
-    paint_management(plane(c), panels, s.setup.active, s.manage, sc, s.keymap);
-    const std::vector<surface::SurfaceTextRegion> at_slot = regions_at(c, box.x, box.y);
-    REQUIRE(at_slot.size() == 1);
-    const surface::SurfaceTextRegion& list = at_slot.front();
-    CHECK(list.rows[0].text.rfind("+ WINDOW", 0) == 0);
-    CHECK(list.rows[0].role == surface::role::kAccent);
-    for (const surface::SurfaceLayer& l : c.layers) {
-        CHECK(l.labels.empty());
+TEST_CASE("ARR-0: the arrangement's visible statement is the ring on the pane itself") {
+    // THE ROSTER PANEL IS RETIRED: entering a scope publishes no region in the picker's
+    // slot; what says "you are arranging" is the affordance ring on the panes -- muted
+    // over the arrangeable SET on the desk, accent on the pane the keyboard addresses --
+    // eight glyphs at the same edge cells the pointer grabs (one geometry, HD-3).
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    enter_arrange_desk(t);
+    const FineRect at = bounds_of(t.session().panels, t.session().setup.active,
+                                  panel::kBuilder, screen_of(t.session()))
+                            .rect;
+    const auto ring_roles = [&](std::int64_t edge) {
+        // THE WIRE CURRENCY: a label's x/y are canvas CELLS with the fine anchor in the
+        // remainders -- asserting the sub-unit values here is how the misplaced WUX-2
+        // construction stayed green while every mark painted off the canvas.
+        const FineRect cell = pane_edge_cell(at, edge);
+        std::vector<std::int64_t> roles;
+        for (const surface::SurfaceLayer& l : t.canvases.back().layers) {
+            for (const surface::SurfaceLabel& g : l.labels) {
+                if (g.x == surface::cell_of_subs(cell.x) &&
+                    g.y == surface::cell_of_subs(cell.y) &&
+                    surface::subs_of_wire(g.x, g.sub_x) == cell.x &&
+                    surface::subs_of_wire(g.y, g.sub_y) == cell.y &&
+                    g.text == std::string(pane_edge_glyph(edge))) {
+                    roles.push_back(g.role);
+                }
+            }
+        }
+        return roles;
+    };
+    // UNADDRESSED: the desk shows the arrangeable set, muted.
+    for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
+        const std::vector<std::int64_t> roles = ring_roles(edge);
+        REQUIRE(roles.size() == 1);
+        CHECK(roles.front() == surface::role::kMuted);
+    }
+    // ADDRESSED: the keyboard's target wears the ring in accent.
+    select_pane(t, ref_of(panel::kBuilder));
+    for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
+        const std::vector<std::int64_t> roles = ring_roles(edge);
+        REQUIRE(roles.size() == 1);
+        CHECK(roles.front() == surface::role::kAccent);
+    }
+    // AND NO REGION OPENED OVER THE PICKER'S SLOT: the statement is on the pane, not in
+    // a panel covering another one.
+    const ui::Rect box = cells_covered(picker_bounds(screen_of(t.session())));
+    for (const surface::SurfaceLayer& l : t.canvases.back().layers) {
+        for (const surface::SurfaceTextRegion& r : l.texts) {
+            const bool roster_panel = r.x == box.x && r.y == box.y && !r.rows.empty() &&
+                                      r.rows[0].text.rfind("+ WINDOW", 0) == 0;
+            CHECK_FALSE(roster_panel);
+        }
+    }
+    // LEAVING TAKES THE RING WITH IT -- the state's existence and its statement are one.
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.session().arrange.open);
+    for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
+        CHECK(ring_roles(edge).empty());
     }
 }
 
@@ -6634,7 +6643,7 @@ struct FineRig : Live {
     FineRig() {
         publish(loom::to_value(surface::SurfaceExtent{160, 44, 8, 18}));
         open_pane(*this, ref_of(panel::kBuilder));
-        enter_management(*this);
+        enter_arrange_desk(*this);
         select_pane(*this, ref_of(panel::kBuilder));
     }
 
@@ -6962,8 +6971,6 @@ TEST_CASE("WUX-2a: a refused nudge does not author a reactive place") {
     REQUIRE(t.builder_row()->place.mode == pane_unit::kDefault);
     const FineRect at = t.builder_rect();
     REQUIRE(at.x == 0); // the first stack tile sits on the wall (`kStackX`)
-    t.key(input::scan::kM);
-    REQUIRE(t.session().manage.doing == pane_manage::kMove);
     t.key(input::scan::kLeft);
     CHECK(t.builder_row()->place.mode == pane_unit::kDefault);
     CHECK(t.builder_rect() == at);
@@ -7365,20 +7372,19 @@ TEST_CASE("CTX-0: the contextual surface is painted where it is hit") {
     // the cursor's own mark -- labels from the one action truth, groups saying they
     // descend.
     const std::vector<std::string> rows = context_rows_on(t.canvases.back(), t.session());
-    REQUIRE(rows.size() >= 7);
+    REQUIRE(rows.size() >= 6);
     CHECK(rows[0].find("ACTIONS") != std::string::npos);
     CHECK(rows[0].find(ref_text(ref_of(panel::kBuilder))) != std::string::npos);
     CHECK(rows[1].find("chooses") != std::string::npos);
     CHECK(rows[1].find("closes") != std::string::npos);
-    CHECK(rows[2] == "> move");
-    CHECK(rows[3] == "  size");
-    CHECK(rows[4] == "  Arrange >");
-    CHECK(rows[5] == "  Reset >");
-    CHECK(rows[6] == "  remove");
+    CHECK(rows[2] == "> arrange");
+    CHECK(rows[3] == "  Order >");
+    CHECK(rows[4] == "  Reset >");
+    CHECK(rows[5] == "  remove");
 
     // THE INVERSE PAIR, SPENT: a press at the row the painter drew chooses that row.
-    // Row 4 is `remove` -- and the pane is gone, through the one door.
-    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 4));
+    // Row 3 is `remove` -- and the pane is gone, through the one door.
+    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 3));
     CHECK_FALSE(t.menu().open);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
 
@@ -7396,12 +7402,11 @@ TEST_CASE("CTX-0: an open group paints its own rows and its own way out") {
             .rect);
     t.right_press_canvas(slot.x + 1, slot.y + 1);
     t.key(input::scan::kDown);
-    t.key(input::scan::kDown);
-    t.key(input::scan::kReturn); // Arrange
-    REQUIRE(t.menu().group == "Arrange");
+    t.key(input::scan::kReturn); // Order
+    REQUIRE(t.menu().group == "Order");
     const std::vector<std::string> rows = context_rows_on(t.canvases.back(), t.session());
     REQUIRE(rows.size() >= 6);
-    CHECK(rows[1].find("Arrange") != std::string::npos);
+    CHECK(rows[1].find("Order") != std::string::npos);
     CHECK(rows[1].find("backs out") != std::string::npos);
     CHECK(rows[2] == "> front");
     CHECK(rows[3] == "  back");
@@ -7410,11 +7415,11 @@ TEST_CASE("CTX-0: an open group paints its own rows and its own way out") {
 }
 
 TEST_CASE("CTX-0: manage.remove speaks through the keymap's own claim surfaces") {
-    // The band's legend for pane management carries the new verb the moment the row is
+    // The band's legend for an arrangement scope carries the verb the moment the row is
     // declared -- generated, never hand-kept -- and its spelling is the effective
     // binding's.
     const Keymap defaults;
-    const std::vector<std::string> pairs = help_pairs(defaults, KeyContext::kManageSelect);
+    const std::vector<std::string> pairs = help_pairs(defaults, KeyContext::kArrangePane);
     bool said = false;
     for (const std::string& pair : pairs) {
         if (pair == "d remove") {
@@ -7428,4 +7433,228 @@ TEST_CASE("CTX-0: manage.remove speaks through the keymap's own claim surfaces")
                               input::mod::kNone) == Act::kContextChoose);
     CHECK(defaults.action_for(KeyContext::kContext, input::scan::kEscape,
                               input::mod::kNone) == Act::kContextBack);
+}
+
+// ============================================================================
+// ARR-0 — the contextual surface opens beside the hand, sized by what it says
+// ============================================================================
+
+TEST_CASE("ARR-0: the popup opens at the press's own cell, and its extent is its content") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+
+    // TWO WIDELY SEPARATED PRESSES, TWO LOCAL RECTANGLES -- the falsifier the old
+    // spelling failed: one fixed column, wherever the maker clicked.
+    t.right_press_canvas(10, 5);
+    REQUIRE(t.menu().open);
+    const FineRect near_a = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(surface::cell_of_subs(near_a.x) == 10);
+    CHECK(surface::cell_of_subs(near_a.y) == 5);
+    t.right_press_canvas(100, 10);
+    const FineRect near_b = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(surface::cell_of_subs(near_b.x) == 100);
+    CHECK(surface::cell_of_subs(near_b.y) == 10);
+
+    // THE EXTENT IS THE LEVEL'S OWN COMPOSITION: on a cell medium, exactly the heading
+    // rows plus the population -- never the old floor-to-ceiling column.
+    const std::vector<ContextEntry> rows =
+        context_population(t.menu().subject, t.menu().group);
+    const PanelProsePlace place =
+        panel_prose_place(near_b, screen_of(t.session()));
+    CHECK(place.rows == kContextHeadingRows + static_cast<std::int64_t>(rows.size()));
+    const FineRect column = hotkeys_bounds(screen_of(t.session()));
+    CHECK(near_b.h < column.h);
+    CHECK(near_b.w <= surface::subs_of_cells(kContextMaxCols));
+    CHECK(near_b.w < column.w);
+}
+
+TEST_CASE("ARR-0: the popup shifts to stay usable inside the room, at every boundary") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    const Screen sc = screen_of(t.session());
+    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+
+    // NEAR THE FAR CORNER: the menu may not fit rightward or downward of the press, so
+    // it shifts left and up exactly as far as wholeness requires -- and stays a popup.
+    t.right_press_canvas(sc.w - 2, floor_y - 2);
+    REQUIRE(t.menu().open);
+    const FineRect clamped = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(clamped.x + clamped.w <= surface::subs_of_cells(sc.w));
+    CHECK(clamped.y + clamped.h <= surface::subs_of_cells(floor_y));
+    CHECK(clamped.x >= 0);
+    CHECK(clamped.y >= surface::subs_of_cells(kStackY));
+
+    // ...AND THE PAINTED SURFACE IS AT THE SHIFTED PLACE, whole: the press resolver and
+    // the painter read one geometry, so a row chosen at the clamped rectangle is the row
+    // the maker sees there (the inverse pair, spent at the wall).
+    const std::vector<std::string> shown = context_rows_on(t.canvases.back(), t.session());
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown[0].find("ACTIONS") != std::string::npos);
+
+    // NEAR THE ORIGIN, nothing shifts: the anchor is already legal.
+    t.right_press_canvas(0, 1);
+    const FineRect origin = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(surface::cell_of_subs(origin.x) == 0);
+    CHECK(surface::cell_of_subs(origin.y) == 1);
+}
+
+TEST_CASE("ARR-0: the keyboard entrance has no pointer and invents none") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    t.key(input::scan::kA);
+    t.text("a");
+    REQUIRE(t.menu().open);
+    CHECK_FALSE(t.menu().anchored);
+    // The deterministic non-pointer placement: the overlay stack's own corner, the home
+    // of every keyboard surface on this screen -- and still content-sized.
+    const Screen sc = screen_of(t.session());
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    const FineRect at = context_bounds(t.session(), sc);
+    CHECK(surface::cell_of_subs(at.x) == slot.x);
+    CHECK(surface::cell_of_subs(at.y) == slot.y);
+}
+
+TEST_CASE("ARR-0: entering a group stays at the anchor, and the popup resizes to it") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    // Author the pane somewhere unmistakably far from the old column, and ask beside it.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), subs(90),
+                              subs(20))
+                .accepted);
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+    const FineRect top = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(surface::cell_of_subs(top.x) == slot.x + 1);
+
+    // DESCEND: the level's rows change, the anchor does not -- context stays local
+    // instead of jumping back to any global column.
+    t.key(input::scan::kDown);
+    t.key(input::scan::kReturn); // Order
+    REQUIRE(t.menu().group == "Order");
+    const FineRect inside = context_bounds(t.session(), screen_of(t.session()));
+    CHECK(inside.x == top.x);
+    CHECK(inside.y == top.y);
+    const PanelProsePlace place = panel_prose_place(inside, screen_of(t.session()));
+    CHECK(place.rows == kContextHeadingRows + 4); // exactly the Order group's rows
+
+    // AND THE INVERSE PAIR HOLDS AT THE ANCHORED PLACE: pressing the `back` row where
+    // the painter drew it performs back on the captured pane.
+    t.press_canvas(context_cell_x(t.session()), context_entry_cell_y(t.session(), 1));
+    CHECK_FALSE(t.menu().open);
+    CHECK(t.notice().find("back-most") != std::string::npos);
+}
+
+TEST_CASE("ARR-0: shortcut annotations teach only truthful surrounding bindings") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+
+    const auto entry_of = [&](const char* id) {
+        const std::vector<ContextEntry> rows =
+            context_population(t.menu().subject, t.menu().group);
+        for (const ContextEntry& e : rows) {
+            if (!e.is_group && e.row != nullptr && std::string(e.row->id) == id) {
+                return e;
+            }
+        }
+        FAIL("no entry for ", id);
+        return ContextEntry{};
+    };
+
+    // OVER COMMAND MODE, the room's doors teach their command keys and the globals their
+    // chords -- and `manage.reset-order`, whose only row lives in a mode the maker is NOT
+    // returning to, teaches nothing (the distant-mode refusal).
+    t.right_press(40, 0);
+    REQUIRE(t.menu().subject == context_subject::kRoot);
+    CHECK(context_annotation(t.session(), entry_of("workshop.picker")) == "p");
+    CHECK(context_annotation(t.session(), entry_of("workshop.manage")) == "w");
+    CHECK(context_annotation(t.session(), entry_of("workshop.terminal")) == "^t");
+    CHECK(context_annotation(t.session(), entry_of("workshop.attention")) == "^a");
+    CHECK(context_annotation(t.session(), entry_of("manage.reset-order")).empty());
+
+    // ...AND THE PAINTED ROW CARRIES THE GESTURE AT THE LEVEL'S ANNOTATION COLUMN,
+    // visually subordinate by position, the label leading.
+    {
+        const std::vector<std::string> shown =
+            context_rows_on(t.canvases.back(), t.session());
+        bool painted = false;
+        for (const std::string& row : shown) {
+            if (row.find("+ panel") != std::string::npos) {
+                painted = row.size() > 2 && row.back() == 'p' &&
+                          row.find("+ panel") < row.rfind('p');
+            }
+        }
+        CHECK(painted);
+    }
+
+    t.key(input::scan::kEscape); // close the room menu before walking the picker
+
+    // A PANE ROW NEVER ANNOTATES: its actions live in the arrangement scopes, which are
+    // not the interaction the maker returns to when this surface closes.
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+    CHECK(context_annotation(t.session(), entry_of("manage.arrange")).empty());
+    CHECK(context_annotation(t.session(), entry_of("manage.remove")).empty());
+
+    // AND A MODE BENEATH THAT SWALLOWS BARE KEYS SUPPRESSES THE COMMAND ANNOTATIONS
+    // WHILE THE GLOBALS SURVIVE: over the open picker, `n` would not create -- so the
+    // menu does not teach it -- while `^t` still works everywhere.
+    t.key(input::scan::kEscape); // close the pane menu
+    t.key(input::scan::kP);
+    t.text("p");
+    REQUIRE(t.session().panels.picker.open);
+    t.right_press(40, 15);
+    REQUIRE(t.menu().open);
+    CHECK(context_annotation(t.session(), entry_of("object.new")).empty());
+    CHECK(context_annotation(t.session(), entry_of("workshop.terminal")) == "^t");
+    t.key(input::scan::kEscape); // the menu
+    t.key(input::scan::kEscape); // the picker
+    REQUIRE_FALSE(t.session().panels.picker.open);
+
+    // A REMAP MOVES THE ANNOTATION WITH NOTHING HERE TO UPDATE: the spelling is the
+    // effective keymap's, so one truth moves every claim.
+    REQUIRE(apply_overrides({{"workshop.picker", "y"}}, legend_mode::kDefault,
+                            live(t).keymap)
+                .accepted);
+    t.right_press(40, 15);
+    REQUIRE(t.menu().subject == context_subject::kRoot);
+    CHECK(context_annotation(t.session(), entry_of("workshop.picker")) == "y");
+}
+
+TEST_CASE("ARR-0: object.delete teaches its key exactly when the subject IS the selection") {
+    Live t;
+    REQUIRE(t.session().selected == 1);
+
+    const auto delete_entry = [&]() {
+        const std::vector<ContextEntry> rows =
+            context_population(t.menu().subject, t.menu().group);
+        REQUIRE(rows.size() == 1);
+        return rows[0];
+    };
+
+    // The selected object: the key and the row perform the same act, so it is taught.
+    // (The keyboard entrance names exactly the selection, so the equivalence holds by
+    // construction on this route.)
+    t.key(input::scan::kA);
+    t.text("a");
+    REQUIRE(t.menu().subject == context_subject::kObject);
+    REQUIRE(t.menu().object == 1);
+    CHECK(context_annotation(t.session(), delete_entry()) == "d");
+    t.key(input::scan::kEscape);
+
+    // A pointed-but-unselected object: the key would delete a DIFFERENT object than the
+    // row it sits beside, so nothing is advertised.
+    t.right_press(7, 11); // #2's body
+    REQUIRE(t.menu().object == 2);
+    REQUIRE(t.session().selected == 1);
+    CHECK(context_annotation(t.session(), delete_entry()).empty());
 }

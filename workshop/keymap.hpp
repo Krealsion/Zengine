@@ -57,11 +57,13 @@ namespace zengine::workshop {
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
 ///
-/// The first ten are the resolvable contexts: exactly the branches of
-/// `WorkshopWeave::on(KeyPressed)`'s chain, with pane management split by its submode
-/// because its sub-switches are genuinely different vocabularies (the arrows place a pane
-/// in one and pull an edge in another). The last two are DECLARATION-ONLY activity
-/// classes -- `keyboard_context()` never returns them:
+/// The first eleven are the resolvable contexts: exactly the branches of
+/// `WorkshopWeave::on(KeyPressed)`'s chain. Arrangement is TWO SCOPES and a reset prompt
+/// (ARR-0): `kArrangePane` is one pane being arranged -- moving and resizing it are one
+/// vocabulary, not two submodes -- and `kArrangeDesk` is the same vocabulary over the
+/// whole desk, plus the keys that step between panes. `kArrangeReset` is the one
+/// remaining prompt step: `0`, then which authored dimension. The last two are
+/// DECLARATION-ONLY activity classes -- `keyboard_context()` never returns them:
 ///
 ///   kGlobal   active in every context: answered above the whole chain, the `^s`/`^o`
 ///             position. A focused pane does not receive these, exactly as it never
@@ -78,10 +80,9 @@ enum class KeyContext : std::uint8_t {
     kContext,
     kPane,
     kDraft,
-    kManageSelect,
-    kManageMove,
-    kManageSize,
-    kManageReset,
+    kArrangePane,
+    kArrangeDesk,
+    kArrangeReset,
     kGlobal,
     kNoText,
 };
@@ -112,8 +113,8 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
 /// Can two declared contexts ever be active at the same moment? The collision question's
 /// other half: two actions conflict only when a maker could press their shared gesture in
 /// a state where both are requestable. Reusing one gesture across mutually exclusive
-/// contexts is the working norm (`s` names a setup in command mode and sizes a pane in
-/// management), and stays legal.
+/// contexts is the working norm (`w` opens the desk arrangement in command mode and
+/// resets a width inside the reset prompt), and stays legal.
 inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
     if (a == b || a == KeyContext::kGlobal || b == KeyContext::kGlobal) {
         return true;
@@ -177,7 +178,7 @@ enum class Act : std::uint8_t {
     kBuildFrontier,
     kSetupName,
     kSetupRestore,
-    kManage,
+    kArrangeDesk,
     kPaneTitles,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
@@ -201,11 +202,10 @@ enum class Act : std::uint8_t {
     // -- a live property draft's controls ----------------------------------------------
     kDraftCommit,
     kDraftCancel,
-    // -- pane management ---------------------------------------------------------------
+    // -- arranging panes ---------------------------------------------------------------
     kManageNext,
     kManagePrevious,
-    kManageMove,
-    kManageSize,
+    kArrange,
     kManageFront,
     kManageBack,
     kManageRaise,
@@ -218,7 +218,6 @@ enum class Act : std::uint8_t {
     kManagePlaceRight,
     kManagePlaceUp,
     kManagePlaceDown,
-    kManageEdge,
     kManagePullLeft,
     kManagePullRight,
     kManagePullUp,
@@ -240,10 +239,11 @@ enum class Act : std::uint8_t {
 /// no callback, no availability flag, no ordering weight.
 ///
 /// AN ACTION MAY OWN MORE THAN ONE ROW, and a maker's override moves ALL of an action's
-/// rows to the one authored gesture. Three actions use it: `workshop.quit` (`^c` wherever
-/// text cannot take the keyboard, `q` as a command), `manage.next` (tab and down are one
-/// meaning), and `manage.done` (esc backs out of each of the three submodes). Two rows of
-/// one action are one meaning twice requestable, so they are never a collision.
+/// rows to the one authored gesture. `workshop.quit` uses it (`^c` wherever text cannot
+/// take the keyboard, `q` as a command), and so does the whole arrangement vocabulary
+/// (ARR-0): every gesture shared by the two arrangement scopes is one action with a row
+/// in each. Two rows of one action are one meaning twice requestable, so they are never
+/// a collision.
 struct ActionRow {
     Act act = Act::kNone;
     const char* id = "";
@@ -336,7 +336,12 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kS, mod::kNone}},
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
-    {Act::kManage, "workshop.manage", "window", KeyContext::kCommand, {scan::kW, mod::kNone}},
+    // ARRANGE THE DESK (ARR-0): the global arrangement scope. The IDENTITY is the old
+    // `workshop.manage` -- a maker's authored override for it keeps working -- and what
+    // changed is the meaning's scope: it opens the desk-wide arrangement state, never a
+    // pane-selection prerequisite.
+    {Act::kArrangeDesk, "workshop.manage", "arrange desk", KeyContext::kCommand,
+     {scan::kW, mod::kNone}},
     // WHAT CAN I DO WITH THIS? -- the keyboard door to the contextual-action surface
     // (CTX-0), on the subject command mode can truthfully name: the selected object, or
     // the empty room. The pointer's door is a right press, which needs no row here; this
@@ -378,8 +383,8 @@ inline constexpr ActionRow kActionCatalog[] = {
     // The picker's four, one purpose over. `d` rather than Return for the one gesture that
     // ACTS on a row, because Return in every other list here opens or commits and this one
     // does neither: it HIDES a presentation and changes nothing about what is true. A bare
-    // letter is legal in a mode nothing in which takes text, exactly as the management
-    // submodes' are.
+    // letter is legal in a mode nothing in which takes text, exactly as the arrangement
+    // scopes' are.
     {Act::kAttentionUp, "attention.up", "row up", KeyContext::kAttention,
      {scan::kUp, mod::kNone}},
     {Act::kAttentionDown, "attention.down", "row down", KeyContext::kAttention,
@@ -398,67 +403,102 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kReturn, mod::kNone}},
     {Act::kDraftCancel, "draft.cancel", "cancel", KeyContext::kDraft,
      {scan::kEscape, mod::kNone}},
-    // -- pane management ---------------------------------------------------------------
-    {Act::kManageNext, "manage.next", "next pane", KeyContext::kManageSelect,
+    // -- arranging panes (ARR-0) -------------------------------------------------------
+    //
+    // ONE VOCABULARY, TWO SCOPES. Moving and resizing a pane are one maker intent --
+    // arrange it -- so the old move/size submodes are gone and their gestures live
+    // side by side: arrows place, shift+arrows pull an extent (the document's own
+    // `hjkl` / `shift+hjkl` family, said with the keys a pane already used). Every
+    // action shared by the two scopes owns a row in each, so one maker override moves
+    // both. The IDENTITIES keep the `manage.` prefix on purpose: the ids are the
+    // durable spelling a maker's keymap file holds, and this transition preserves
+    // authored intent (`manage.move`, `manage.size` and `manage.edge` are RETIRED --
+    // an authored row naming one is preserved as an unknown id, byte-for-byte,
+    // exactly as the admission has always treated ids it cannot spend).
+    //
+    // A KEYBOARD PULL IS ANCHORED AT THE PLACE: `pull-right` widens and `pull-left`
+    // narrows by moving the RIGHT edge, `pull-down`/`pull-up` the bottom one -- so a
+    // key never moves a pane it is resizing, `doc::resize`'s own law. The other six
+    // anchors remain the pointer's: every edge and corner of the pane is a handle.
+    {Act::kManageNext, "manage.next", "next pane", KeyContext::kArrangeDesk,
      {scan::kTab, mod::kNone}},
-    {Act::kManageNext, "manage.next", "next pane", KeyContext::kManageSelect,
-     {scan::kDown, mod::kNone}},
-    {Act::kManagePrevious, "manage.previous", "previous pane", KeyContext::kManageSelect,
+    {Act::kManagePrevious, "manage.previous", "previous pane", KeyContext::kArrangeDesk,
+     {scan::kTab, mod::kShift}},
+    // NARROW TO ONE PANE: the desk's Return binds the arrangement to the pane the
+    // keyboard is on -- the same act the pane context menu's `arrange` row performs on
+    // the pointed pane, which is what earns this action its key (no action receives a
+    // key merely so a menu has something to print; this one has a job in this scope).
+    {Act::kArrange, "manage.arrange", "arrange", KeyContext::kArrangeDesk,
+     {scan::kReturn, mod::kNone}},
+    {Act::kManagePlaceLeft, "manage.place-left", "place left", KeyContext::kArrangePane,
+     {scan::kLeft, mod::kNone}},
+    {Act::kManagePlaceRight, "manage.place-right", "place right", KeyContext::kArrangePane,
+     {scan::kRight, mod::kNone}},
+    {Act::kManagePlaceUp, "manage.place-up", "place up", KeyContext::kArrangePane,
      {scan::kUp, mod::kNone}},
-    {Act::kManageMove, "manage.move", "move", KeyContext::kManageSelect,
-     {scan::kM, mod::kNone}},
-    {Act::kManageSize, "manage.size", "size", KeyContext::kManageSelect,
-     {scan::kS, mod::kNone}},
-    {Act::kManageFront, "manage.front", "front", KeyContext::kManageSelect,
+    {Act::kManagePlaceDown, "manage.place-down", "place down", KeyContext::kArrangePane,
+     {scan::kDown, mod::kNone}},
+    {Act::kManagePullLeft, "manage.pull-left", "narrower", KeyContext::kArrangePane,
+     {scan::kLeft, mod::kShift}},
+    {Act::kManagePullRight, "manage.pull-right", "wider", KeyContext::kArrangePane,
+     {scan::kRight, mod::kShift}},
+    {Act::kManagePullUp, "manage.pull-up", "shorter", KeyContext::kArrangePane,
+     {scan::kUp, mod::kShift}},
+    {Act::kManagePullDown, "manage.pull-down", "taller", KeyContext::kArrangePane,
+     {scan::kDown, mod::kShift}},
+    {Act::kManageFront, "manage.front", "front", KeyContext::kArrangePane,
      {scan::kF, mod::kNone}},
-    {Act::kManageBack, "manage.back", "back", KeyContext::kManageSelect,
+    {Act::kManageBack, "manage.back", "back", KeyContext::kArrangePane,
      {scan::kB, mod::kNone}},
-    {Act::kManageRaise, "manage.raise", "raise", KeyContext::kManageSelect,
+    {Act::kManageRaise, "manage.raise", "raise", KeyContext::kArrangePane,
      {scan::kR, mod::kNone}},
-    {Act::kManageLower, "manage.lower", "lower", KeyContext::kManageSelect,
+    {Act::kManageLower, "manage.lower", "lower", KeyContext::kArrangePane,
      {scan::kL, mod::kNone}},
-    // REMOVE THE SELECTED PANE (CTX-0). Earned on its own keyboard merits, not minted for
-    // the context menu: this mode's vocabulary is one-letter verbs on the selected pane,
-    // and before this row a maker arranging windows could not remove one at all -- they
-    // had to leave, open the picker, and find the row. `d` bare is free here (the
-    // intersecting contexts are kGlobal's chords and kNoText's `^c`/`^a`).
-    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kManageSelect,
+    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kArrangePane,
      {scan::kD, mod::kNone}},
-    {Act::kManageReset, "manage.reset", "reset", KeyContext::kManageSelect,
+    {Act::kManageReset, "manage.reset", "reset", KeyContext::kArrangePane,
      {scan::k0, mod::kNone}},
-    {Act::kManageClose, "manage.close", "leave", KeyContext::kManageSelect,
+    {Act::kManageClose, "manage.close", "leave", KeyContext::kArrangePane,
      {scan::kEscape, mod::kNone}},
-    {Act::kManagePlaceLeft, "manage.place-left", "place left", KeyContext::kManageMove,
+    {Act::kManagePlaceLeft, "manage.place-left", "place left", KeyContext::kArrangeDesk,
      {scan::kLeft, mod::kNone}},
-    {Act::kManagePlaceRight, "manage.place-right", "place right", KeyContext::kManageMove,
+    {Act::kManagePlaceRight, "manage.place-right", "place right", KeyContext::kArrangeDesk,
      {scan::kRight, mod::kNone}},
-    {Act::kManagePlaceUp, "manage.place-up", "place up", KeyContext::kManageMove,
+    {Act::kManagePlaceUp, "manage.place-up", "place up", KeyContext::kArrangeDesk,
      {scan::kUp, mod::kNone}},
-    {Act::kManagePlaceDown, "manage.place-down", "place down", KeyContext::kManageMove,
+    {Act::kManagePlaceDown, "manage.place-down", "place down", KeyContext::kArrangeDesk,
      {scan::kDown, mod::kNone}},
-    {Act::kManageDone, "manage.done", "back", KeyContext::kManageMove,
+    {Act::kManagePullLeft, "manage.pull-left", "narrower", KeyContext::kArrangeDesk,
+     {scan::kLeft, mod::kShift}},
+    {Act::kManagePullRight, "manage.pull-right", "wider", KeyContext::kArrangeDesk,
+     {scan::kRight, mod::kShift}},
+    {Act::kManagePullUp, "manage.pull-up", "shorter", KeyContext::kArrangeDesk,
+     {scan::kUp, mod::kShift}},
+    {Act::kManagePullDown, "manage.pull-down", "taller", KeyContext::kArrangeDesk,
+     {scan::kDown, mod::kShift}},
+    {Act::kManageFront, "manage.front", "front", KeyContext::kArrangeDesk,
+     {scan::kF, mod::kNone}},
+    {Act::kManageBack, "manage.back", "back", KeyContext::kArrangeDesk,
+     {scan::kB, mod::kNone}},
+    {Act::kManageRaise, "manage.raise", "raise", KeyContext::kArrangeDesk,
+     {scan::kR, mod::kNone}},
+    {Act::kManageLower, "manage.lower", "lower", KeyContext::kArrangeDesk,
+     {scan::kL, mod::kNone}},
+    {Act::kManageRemove, "manage.remove", "remove", KeyContext::kArrangeDesk,
+     {scan::kD, mod::kNone}},
+    {Act::kManageReset, "manage.reset", "reset", KeyContext::kArrangeDesk,
+     {scan::k0, mod::kNone}},
+    {Act::kManageClose, "manage.close", "leave", KeyContext::kArrangeDesk,
      {scan::kEscape, mod::kNone}},
-    {Act::kManageEdge, "manage.edge", "next edge", KeyContext::kManageSize,
-     {scan::kTab, mod::kNone}},
-    {Act::kManagePullLeft, "manage.pull-left", "pull left", KeyContext::kManageSize,
-     {scan::kLeft, mod::kNone}},
-    {Act::kManagePullRight, "manage.pull-right", "pull right", KeyContext::kManageSize,
-     {scan::kRight, mod::kNone}},
-    {Act::kManagePullUp, "manage.pull-up", "pull up", KeyContext::kManageSize,
-     {scan::kUp, mod::kNone}},
-    {Act::kManagePullDown, "manage.pull-down", "pull down", KeyContext::kManageSize,
-     {scan::kDown, mod::kNone}},
-    {Act::kManageDone, "manage.done", "back", KeyContext::kManageSize,
-     {scan::kEscape, mod::kNone}},
-    {Act::kManageResetPlace, "manage.reset-place", "reset place", KeyContext::kManageReset,
+    {Act::kManageResetPlace, "manage.reset-place", "reset place", KeyContext::kArrangeReset,
      {scan::kP, mod::kNone}},
-    {Act::kManageResetWidth, "manage.reset-width", "reset width", KeyContext::kManageReset,
+    {Act::kManageResetWidth, "manage.reset-width", "reset width", KeyContext::kArrangeReset,
      {scan::kW, mod::kNone}},
-    {Act::kManageResetHeight, "manage.reset-height", "reset height", KeyContext::kManageReset,
-     {scan::kH, mod::kNone}},
-    {Act::kManageResetOrder, "manage.reset-order", "reset order", KeyContext::kManageReset,
+    {Act::kManageResetHeight, "manage.reset-height", "reset height",
+     KeyContext::kArrangeReset, {scan::kH, mod::kNone}},
+    {Act::kManageResetOrder, "manage.reset-order", "reset order", KeyContext::kArrangeReset,
      {scan::kO, mod::kNone}},
-    {Act::kManageDone, "manage.done", "back", KeyContext::kManageReset,
+    {Act::kManageDone, "manage.done", "back", KeyContext::kArrangeReset,
      {scan::kEscape, mod::kNone}},
     // -- the contextual-action surface (CTX-0) -----------------------------------------
     //
@@ -716,7 +756,9 @@ inline const char* posix_gap(const Gesture& g) noexcept {
                "terminal";
     }
     if ((g.modifiers & mod::kShift) != 0 && !is_letter_scan(g.scancode) &&
-        !is_posix_editing_scan(g.scancode)) {
+        !is_posix_editing_scan(g.scancode) && g.scancode != scan::kTab) {
+        // Tab is the one non-letter whose shifted form a terminal spells on its own:
+        // `ESC [ Z` is back-tab, and the translator reads it (ARR-0).
         return "shift is not observable on that key from a POSIX terminal";
     }
     return nullptr;

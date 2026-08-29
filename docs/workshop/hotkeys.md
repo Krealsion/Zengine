@@ -29,8 +29,8 @@ keymap holds names and gestures only; the operations stay with their owners.
 that owns each row:
 
 - the current context's own keys — command mode, the terminal line, the picker, the
-  current-condition view, pane management and its sub-modes, a property being edited, or a
-  focused pane;
+  current-condition view, the two arranging scopes and their reset prompt, a property
+  being edited, or a focused pane;
 - the keys answered above every mode (save, open, the terminal toggle, this view, and — where
   nothing is taking text — quit and the current-condition view);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
@@ -99,8 +99,8 @@ way the file is left exactly as you wrote it: Workshop never rewrites, trims or 
 - an action authored twice;
 - two actions holding one gesture in contexts that can be active together — the refusal names
   both actions and the contested gesture, because a lockout must not be savable. Reusing a
-  gesture across contexts that cannot coexist is fine, and the defaults already do it (`s`
-  names a setup in command mode and sizes a pane in management);
+  gesture across contexts that cannot coexist is fine, and the defaults already do it (`w`
+  opens the desk arrangement in command mode and resets a width inside the reset prompt);
 - a **bare printable** on an always-available action: once anything on screen can take text,
   a bare letter cannot be global — it would be stolen from every field you type into;
 - an editing chord (`ctrl+c`, `ctrl+v`, …) on an always-available action: every text field
