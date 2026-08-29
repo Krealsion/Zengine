@@ -206,12 +206,30 @@ class BuilderWeave
                                           ArtifactRealized>,
                              loom::Emit<RunBuild, BuildStatus, RecipeCatalog, OfferArtifact>> {
 public:
-    /// THE RECIPE VIEWS ARRIVE AT CONSTRUCTION, FROM THE HOST, and they are a plain
-    /// member rather than part of the weave's state -- the runner's reason, one layer
-    /// out: `ZEN_SHAPE` state is poke-writable by design, and a poke that could write
-    /// a new artifact path in here would be a poke that could make this tool announce
-    /// somebody else's file as a build product.
-    explicit BuilderWeave(std::vector<RecipeView> recipes) : recipes_(std::move(recipes)) {}
+    /// THE RECIPE VIEWS ARE READ FROM THEIR OWNER, WHICH IS THE HOST, and they are a
+    /// plain member rather than part of the weave's state -- the runner's reason, one
+    /// layer out: `ZEN_SHAPE` state is poke-writable by design, and a poke that could
+    /// write a new artifact path in here would be a poke that could make this tool
+    /// announce somebody else's file as a build product.
+    ///
+    /// ⚠ IT IS A READ AND NOT A COPY (PROJ-0), the runner's own change one subtraction
+    /// over. This tool used to be handed a vector of views to keep, which made it a
+    /// second session-long holder of a picture the host had derived once. It now reads
+    /// the views the host derives beside its completed catalog, so the two can never
+    /// drift apart and there is nothing here for a replacement to come and find.
+    ///
+    /// ⚠ AND THE SUBTRACTION IS UNTOUCHED. What this reads is still a `RecipeView` --
+    /// an identity, an artifact stem and the one file that stem means -- and never a
+    /// source path, a build tree, a package prefix or a link list. Reading the owner
+    /// buys currency, not reach.
+    ///
+    /// ⚠ THE OWNER MUST OUTLIVE THIS WEAVE, and an rvalue is refused below rather than
+    /// left to a reader's care.
+    explicit BuilderWeave(const std::vector<RecipeView>& recipes) : recipes_(recipes) {}
+
+    /// THE WALL UNDER THE SENTENCE ABOVE: a temporary catalog of views is a dangling
+    /// one, and the compiler is the only party that can say so in time.
+    explicit BuilderWeave(std::vector<RecipeView>&&) = delete;
 
     /// SAY WHAT YOU ARE. The message a presentation sends when it opens, so a
     /// fresh panel shows a LIVE tool rather than an empty one -- including what
@@ -220,9 +238,10 @@ public:
     /// build that is running right now.
     ///
     /// TWO SHAPES, BECAUSE THEY ANSWER TWO QUESTIONS THAT CHANGE AT DIFFERENT
-    /// RATES. The catalog is fixed for the life of the process; the status moves
-    /// on every line a compiler says. Publishing the catalog on every status would
-    /// put the whole thing on the bus hundreds of times per build.
+    /// RATES. The catalog changes only when the session's own catalog does -- which
+    /// today is once, at startup; the status moves on every line a compiler says.
+    /// Publishing the catalog on every status would put the whole thing on the bus
+    /// hundreds of times per build.
     void on(const StatusRequested&, loom::Mail& mail) {
         RecipeCatalog said;
         said.recipes.reserve(recipes_.size());
@@ -434,8 +453,8 @@ public:
     /// presentation has no business showing.
     const BuilderState& known() const { return state_; }
 
-    /// The recipes this tool holds -- the host's own list coming back. Read-only, and
-    /// no weave learns it this way.
+    /// The recipes this tool answers for -- the host's own list coming back. Read-only,
+    /// and no weave learns it this way.
     const std::vector<RecipeView>& recipes() const { return recipes_; }
 
     /// What the artifact looked like before the current build began.
@@ -488,8 +507,10 @@ private:
     }
 
     /// The recipes this tool may be asked for -- identity, artifact, and the one file
-    /// that artifact means. Never state; see the constructor.
-    std::vector<RecipeView> recipes_;
+    /// that artifact means. THE OWNER'S VIEWS, NOT THIS WEAVE'S: bound once to the
+    /// vector the host holds for the session, so replacing its CONTENTS replaces what
+    /// this tool will answer for. Never state; see the constructor.
+    const std::vector<RecipeView>& recipes_;
 
     /// The current operation's output so far, bounded.
     ///

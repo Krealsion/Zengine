@@ -36,6 +36,7 @@
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "recipe_persist.hpp"
+#include "recipes.hpp"
 #include "user_paths.hpp"
 #include "weave.hpp"
 
@@ -382,6 +383,21 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    // ---- THE RECIPES THIS WORKSHOP CURRENTLY MEANS, DECLARED FIRST (PROJ-0) ------
+    //
+    // EMPTY UNTIL THE CATALOG IS READ, far below -- what is decided HERE is only where
+    // it stands in this function, and that position IS the lifetime proof. The runner
+    // and the Builder tool read this object for as long as they live, and the host's
+    // edit-source answer reads it too; declaring it above the HostContext, the bus, the
+    // Kernel and every weave makes reverse-destruction order say what no comment could,
+    // which is the argument `HostContext::frontier` already makes for the realization
+    // owner one screen down.
+    //
+    // ⚠ DO NOT MOVE THIS DECLARATION BELOW THE BUS. Everything that reads it is
+    // destroyed with the Kernel; a catalog destroyed before them is a catalog they
+    // could read on the way out.
+    CurrentRecipes current_recipes;
+
     // WHERE THE HOST'S OWN FILES ARE, resolved once and before anything is said
     // about them, because the load plan's default IS this directory and a banner
     // that named a path this host had not resolved would be naming a guess.
@@ -550,8 +566,8 @@ int main(int argc, char** argv) {
     // (workshop/recipe_persist.hpp says this at length).
     //
     // A MISSING DEFAULT IS AN ANSWER AND A MALFORMED FILE IS NOT. See `Arguments`.
-    std::vector<builder::Recipe> recipes;
     {
+        std::vector<builder::Recipe> recipes;
         const bool named = !args.recipes.empty();
         const std::string recipe_path =
             named ? args.recipes : host.dir + "/" + recipe_persist::kDefaultRecipesName;
@@ -581,50 +597,42 @@ int main(int argc, char** argv) {
         // about this `main`; what is decided HERE is which of the host's two directories
         // answers which question.
         //
-        // ONE CALL, AND THE COMPLETED CATALOG IS THE ONLY ONE ANYBODY SEES: the closure
-        // below, the build runner, and the artifact lookup all read this vector.
+        // ONE CALL, AND THE COMPLETED CATALOG GOES STRAIGHT INTO CUSTODY (PROJ-0). The
+        // completed value used to live on as this function's local while three consumers
+        // each took their own long-lived copy of it. It is handed to its owner instead,
+        // inside this scope, so the vector that carried it here is gone by the closing
+        // brace and there is exactly one completed catalog in the process afterwards.
+        // The owner derives the tool's reduced views from the same value, which is why
+        // nobody has to keep the two in step.
         recipe_persist::complete_recipes(recipes, host.dir, host.project_dir);
+        current_recipes.hold(std::move(recipes), &HostContext::so_in);
     }
     // ---- THE EDIT-SOURCE SEAM (`HostContext::recipe_source`) ---------------------
     //
-    // The host is the one party holding the AUTHORED recipes -- the same value the
+    // The host is the one party holding the completed recipes -- the same value the
     // runner builds from -- so the host answers which source file a recipe names,
     // verbatim, and the editor cannot come to open a subtly different join of the
-    // same bytes. A VALUE COPY of the three facts per recipe, taken here, because the
-    // full catalog is handed onward below and a closure over a moved-from vector
-    // would be a read of nothing. The kind words are the recipe FILE's own, so a
-    // refusal downstream speaks the vocabulary the maker authored in.
-    {
-        struct SourceRow {
-            std::string id;
-            std::string kind;
-            std::string source;
-        };
-        std::vector<SourceRow> sources;
-        sources.reserve(recipes.size());
-        for (const builder::Recipe& r : recipes) {
-            SourceRow row;
-            row.id = r.id;
-            row.kind = r.single_source.has_value() ? "single_source" : "cmake_target";
-            if (r.single_source.has_value()) {
-                row.source = r.single_source->source;
+    // same bytes. The kind words are the recipe FILE's own, so a refusal downstream
+    // speaks the vocabulary the maker authored in.
+    //
+    // ⚠ IT ASKS THE OWNER AT THE MOMENT OF THE GESTURE (PROJ-0). This closure used to
+    // capture a private copy of three fields per recipe -- a third session-long store
+    // of completed truth whose whole reason was that the catalog was about to be handed
+    // onward by value. Nothing is handed onward by value any more, so it captures the
+    // owner and reads it when asked: the same shape `frontier` has, and the reason the
+    // editor's answer cannot outlive the catalog it came from.
+    host.recipe_source = [&current_recipes](const std::string& id) {
+        HostContext::RecipeSource out;
+        const builder::Recipe* found = builder::recipe_named(current_recipes.all(), id);
+        if (found != nullptr) {
+            out.known = true;
+            out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
+            if (found->single_source.has_value()) {
+                out.source = found->single_source->source;
             }
-            sources.push_back(std::move(row));
         }
-        host.recipe_source =
-            [sources = std::move(sources)](const std::string& id) {
-                HostContext::RecipeSource out;
-                for (const SourceRow& row : sources) {
-                    if (row.id == id) {
-                        out.known = true;
-                        out.kind = row.kind;
-                        out.source = row.source;
-                        break;
-                    }
-                }
-                return out;
-            };
-    }
+        return out;
+    };
     std::fflush(stdout);
 
     loom::Switchboard bus;
@@ -928,13 +936,12 @@ int main(int argc, char** argv) {
     // build trees, package prefixes and link lists stay with the runner. So the Builder
     // panel can show a maker what this project builds without anything on the
     // presentation side ever holding a build procedure.
-    std::vector<builder::RecipeView> recipe_views;
-    recipe_views.reserve(recipes.size());
-    for (const builder::Recipe& r : recipes) {
-        recipe_views.push_back(
-            builder::RecipeView{r.id, r.artifact, HostContext::so_in(r.artifact_dir, r.artifact)});
-    }
-
+    //
+    // ⚠ THE SUBTRACTION IS THE OWNER'S NOW, AND SO IS THE CUSTODY (PROJ-0). This file
+    // used to derive the views into a local and hand each weave a vector to KEEP, which
+    // left two long-lived catalogs beside the one it had just completed. The owner
+    // derives the views beside the recipes they come from and both weaves read it, so
+    // the split is exactly as wide as it was and there is one truth behind it.
     loom::Grant run_builds;
     run_builds.allow_to_role(builder::BuildStarted::zen_name, builder::BuildStarted::zen_version,
                              builder::kBuilderRole);
@@ -949,7 +956,7 @@ int main(int argc, char** argv) {
     run_builds.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                              timer::kTimerRole);
     const loom::WeaveId runner = mount_in_office<builder::BuildRunnerWeave>(
-        bus, std::move(run_builds), builder::kBuildRunnerRole, recipes,
+        bus, std::move(run_builds), builder::kBuildRunnerRole, current_recipes.all(),
         std::string(ZENGINE_BUILDER_CMAKE));
 
     loom::Grant order_builds;
@@ -982,7 +989,7 @@ int main(int argc, char** argv) {
     order_builds.allow_to_any(builder::OfferArtifact::zen_name,
                               builder::OfferArtifact::zen_version);
     const loom::WeaveId builder_tool = mount_in_office<builder::BuilderWeave>(
-        bus, std::move(order_builds), builder::kBuilderRole, recipe_views);
+        bus, std::move(order_builds), builder::kBuilderRole, current_recipes.views());
 
     // THE RECIPE IS PRINTED IN PLAIN SCROLLBACK, beside the containment note and
     // for the same reason: what a button in this program will actually run is a
@@ -1000,10 +1007,10 @@ int main(int argc, char** argv) {
     // it has since ASYNC-1, from the participant that ran it, as it starts.
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (p opens the "
                 "panel)\n",
-                std::to_string(builder_tool.value).c_str(), recipe_views.size());
+                std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
     std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
                 std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
-    for (const builder::RecipeView& r : recipe_views) {
+    for (const builder::RecipeView& r : current_recipes.views()) {
         std::printf("zengine-workshop - recipe: %s -> %s\n", r.id.c_str(), r.path.c_str());
     }
     std::fflush(stdout);
@@ -1292,8 +1299,14 @@ int main(int argc, char** argv) {
         //
         // ⚠ AND IT IS NOT BUILD-ON-MISSING. Nothing here starts a build, asks for one,
         // or remembers to. The maker presses Build.
-        [&host, &recipes](const std::string& stem) {
-            for (const builder::Recipe& r : recipes) {
+        //
+        // ⚠ AND THE SECOND HALF IS ASKED OF THE OWNER (PROJ-0), at the moment the walk
+        // asks -- never of a catalog this closure kept. "Some authored recipe produces
+        // this stem" is a question about what this Workshop currently means, and a
+        // predicate answering it from an older catalog would leave one row's fate
+        // decided by a project nobody is in any more.
+        [&host, &current_recipes](const std::string& stem) {
+            for (const builder::Recipe& r : current_recipes.all()) {
                 if (r.artifact != stem) {
                     continue;
                 }

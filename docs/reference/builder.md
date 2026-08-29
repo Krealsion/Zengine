@@ -16,17 +16,22 @@ something means starting an operating-system process, with a real exit status, a
 here had ever done that. So the package is arranged as a split, and the split is what it is
 for.
 
-- **The tool** (`weave.hpp`) is ordinary. It holds recipe **names** and the **artifact** each
-  produces, follows how the build of one is going, and publishes that as `BuildStatus` for any
+- **The tool** (`weave.hpp`) is ordinary. It answers for recipe **names** and the **artifact**
+  each produces, follows how the build of one is going, and publishes that as `BuildStatus` for any
   presentation to read. Three grant rules: order the runner, say what it knows, and say that an
   artifact somebody asked to have realized is now on disk. It holds no command and cannot spell
   one, holds no build tree, no source path, no package prefix and no timer, and never asks
   anything whether it is done yet.
-- **The runner** (`runner.hpp`) holds the host's catalog of **authored recipes** and is the only
+- **The runner** (`runner.hpp`) reads the host's catalog of **authored recipes** and is the only
   weave in the program that turns one into a process. Its reach is the four observations it may
   report to whoever holds the Builder office (`BuildStarted`, `BuildOutput`, `BuildFinished`,
   `BuildNotStarted`) plus two sentences to the Timer: ask for a beat, and give it back. A
   `RunBuild` naming something outside the catalog is refused by name, and nothing runs.
+- **Neither of them owns the catalog.** The host that composed the process holds one completed
+  recipe catalog for as long as it runs, and both weaves read it -- the runner the whole recipe,
+  the tool the reduced view. Neither keeps a copy that could go on answering for a catalog the
+  host has moved past, which is what makes "the recipe this build runs is the recipe this
+  Workshop means" a property of the arrangement rather than of two parties agreeing.
 - **The wire cannot spell a command.** `BuildRequested` and `RunBuild` carry a recipe *name*;
   there is no shape here whose field is a program, an argument list, a directory or a shell
   line — and no recipe *input* travels either, so the widest thing anything on this bus can say

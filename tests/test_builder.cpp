@@ -55,6 +55,7 @@
 #include <sstream>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -479,16 +480,23 @@ loom::Grant tool_grant() {
 }
 
 /// The runner, watched directly by whoever holds the Builder office.
+///
+/// THE CATALOG IS THE RIG'S, NOT THE RUNNER'S (PROJ-0), and the field order is the
+/// lifetime: `catalog` is declared above the bus, so it outlives the weave that reads
+/// it -- exactly as the host declares its owner above the bus for the same reason. The
+/// runner takes a reference and keeps no copy, so a fixture that wants to change what
+/// this runner can build changes `catalog` and nothing else.
 struct Bench {
+    std::vector<Recipe> catalog;
     loom::Switchboard bus;
     BuildRunnerWeave* runner = nullptr;
     Foreman* foreman = nullptr;
     TimerClerk* clerk = nullptr;
     loom::WeaveId runner_id{};
 
-    explicit Bench(std::vector<Recipe> catalog) {
+    explicit Bench(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
-                                                   std::move(catalog), std::string(kCMake));
+                                                   catalog, std::string(kCMake));
         mount_office<Foreman>(bus, loom::Grant{}, kBuilderRole, &foreman);
         mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
     }
@@ -522,6 +530,8 @@ struct Bench {
 /// bystander to count what the bus carried, and a clerk holding the Timer's
 /// office. The grants are the host's.
 struct Live {
+    std::vector<Recipe> catalog;
+    std::vector<RecipeView> views;
     loom::Switchboard bus;
     BuilderWeave* tool = nullptr;
     BuildRunnerWeave* runner = nullptr;
@@ -532,21 +542,24 @@ struct Live {
     loom::WeaveId runner_id{};
     loom::WeaveId bystander_id{};
 
-    /// ONE CATALOG, TWO VIEWS OF IT (BLD-1). The runner is handed the authored
-    /// recipes; the tool is handed the reduced view -- identity, artifact, and the
-    /// one file it means -- exactly as the host derives one from the other. A
-    /// fixture that handed both halves the same object would be a fixture in which
-    /// the split this package is built on had quietly stopped existing.
-    explicit Live(std::vector<Recipe> catalog) {
-        std::vector<RecipeView> views;
+    /// ONE CATALOG, TWO VIEWS OF IT (BLD-1). The runner reads the authored recipes;
+    /// the tool reads the reduced view -- identity, artifact, and the one file it
+    /// means -- exactly as the host derives one from the other. A fixture that gave
+    /// both halves the same object would be a fixture in which the split this package
+    /// is built on had quietly stopped existing.
+    ///
+    /// BOTH ARE THE RIG'S OWN (PROJ-0), declared above the bus so they outlive the
+    /// weaves that read them. Neither weave keeps a copy any more, which is what lets
+    /// a case below change `catalog`/`views` in ONE place and ask what the two weaves
+    /// then answer.
+    explicit Live(std::vector<Recipe> recipes) : catalog(std::move(recipes)) {
         views.reserve(catalog.size());
         for (const Recipe& r : catalog) {
             views.push_back(view_of(r));
         }
         runner_id = mount_office<BuildRunnerWeave>(bus, runner_grant(), kBuildRunnerRole, &runner,
-                                                   std::move(catalog), std::string(kCMake));
-        tool_id = mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool,
-                                             std::move(views));
+                                                   catalog, std::string(kCMake));
+        tool_id = mount_office<BuilderWeave>(bus, tool_grant(), kBuilderRole, &tool, views);
         mount_office<TimerClerk>(bus, loom::Grant{}, timer::kTimerRole, &clerk);
         mount_plain<Listener>(bus, loom::Grant{}, &ears);
         bystander_id = mount_plain<Bystander>(bus, loom::Grant{}, &bystander);
@@ -1371,15 +1384,17 @@ TEST_CASE("a runner destroyed while holding work takes it with it, and says noth
     // completion. This case is the one that would fail if any of the three
     // appeared.
     Ledger ledger; // the CASE's own memory: it outlives the bus below
+    // ...AND SO DOES THE CATALOG (PROJ-0). The runner reads it and does not own it, so
+    // it is declared here, above the bus that is deliberately destroyed mid-case. The
+    // constructor refuses a temporary outright, which is what stops this line from
+    // being written the dangling way.
+    const std::vector<Recipe> catalog{cmake_recipe("forever", "fixture-forever")};
     auto bus = std::make_unique<loom::Switchboard>();
     mount_office<Undertaker>(*bus, loom::Grant{}, kBuilderRole,
                              static_cast<Undertaker**>(nullptr), &ledger);
     BuildRunnerWeave* runner = nullptr;
-    mount_office<BuildRunnerWeave>(
-        *bus, runner_grant(), kBuildRunnerRole, &runner,
-        std::vector<Recipe>{
-            cmake_recipe("forever", "fixture-forever")},
-        std::string(kCMake));
+    mount_office<BuildRunnerWeave>(*bus, runner_grant(), kBuildRunnerRole, &runner, catalog,
+                                   std::string(kCMake));
 
     (void)bus->send_to_role(kBuildRunnerRole, loom::Message(loom::to_value(RunBuild{"forever"})));
     bus->drain_until_idle();
@@ -2036,6 +2051,95 @@ TEST_CASE("BLD-1: a single-source recipe writes its project, and is one `cmake -
     CHECK(stamp_of(workspace + "/" + kGeneratedProjectFile).size != first.size);
 }
 
+// ============================================================================
+// Tier 9 -- custody: the catalog belongs to its owner, and both halves READ it
+// ============================================================================
+
+TEST_CASE("PROJ-0: neither build participant keeps a catalog of its own") {
+    // ⭐ THE FALSIFIER FOR THE WHOLE CUSTODY CLAIM, and the only shape that can carry
+    // it. Both weaves used to be HANDED the completed catalog -- the runner a whole
+    // copy, the tool a copy of its reduced view -- and with nothing in the process ever
+    // replacing either, a copy and a read answer identically forever. So this case does
+    // the one thing that tells them apart: it changes the catalog in the ONE place that
+    // owns it and asks both weaves what they now answer.
+    //
+    // ⚠ IT ADDS NO GESTURE AND NO POLICY. Nothing here says what a maker does to change
+    // a catalog, what happens to a chosen row, or what an in-flight build makes of it;
+    // those belong to the phase that adds a real catalog-change gesture. What is
+    // measured is custody alone.
+    Live live({cmake_recipe("greet", "fixture-quick")});
+
+    // FIRST: THE OBJECTS THEMSELVES. Not "the same contents" -- the SAME OBJECT. A
+    // participant holding a vector of its own would fail here before any behaviour was
+    // consulted, which is why this line comes first.
+    CHECK(&live.runner->catalog() == &live.catalog);
+    CHECK(&live.tool->recipes() == &live.views);
+
+    // ...AND NEITHER KNOWS A NAME THE CATALOG DOES NOT HOLD. The tool refuses by name
+    // and counts what it holds; the runner refuses the same name in its own words.
+    live.tell_tool(BuildRequested{"late"});
+    CHECK(live.tool->known().outcome == outcome::kUnknownRecipe);
+    CHECK(live.tool->known().detail.find("(it holds 1)") != std::string::npos);
+    live.tell_runner(RunBuild{"late"});
+    CHECK(live.runner->refused() == 1);
+    CHECK(live.runner->ran() == 0);
+
+    // ---- ONE PLACE CHANGES, AND IT IS NOT EITHER WEAVE ----------------------------
+    //
+    // The rig owns the catalog and the views the way the host owns its `CurrentRecipes`,
+    // so this is the whole of what a replacement touches. The recipe names a build tree
+    // that was never configured, deliberately: what is being measured is that the two
+    // weaves can FIND it, and a recipe that could start a compiler would measure that
+    // and a build.
+    Recipe late = cmake_recipe("late", "anything", "zengine-fixture-late");
+    late.cmake_target->build_dir = std::string(kFixtureTree) + "-that-does-not-exist";
+    live.catalog.push_back(late);
+    live.views.push_back(view_of(late));
+
+    // THE TOOL ANSWERS THE NEW CATALOG. Its published picture is derived at the moment
+    // it is asked, from the views it reads rather than from a list it kept.
+    live.ears->catalogs.clear();
+    live.tell_tool(StatusRequested{});
+    REQUIRE(live.ears->catalogs.size() == 1);
+    REQUIRE(live.ears->catalogs[0].recipes.size() == 2);
+    CHECK(live.ears->catalogs[0].recipes[1].recipe == "late");
+    CHECK(live.ears->catalogs[0].recipes[1].artifact == "zengine-fixture-late");
+
+    // ...AND SO DOES THE RUNNER, WHICH IS THE HALF A PUBLISHED PICTURE CANNOT PROVE.
+    // The ask goes the whole way now: the tool no longer refuses the name, the order
+    // reaches the runner, and the refusal that comes back is the PREFLIGHT's -- a build
+    // tree with no `CMakeCache.txt` -- which only a runner that found the recipe can
+    // say. Nothing started, so nothing has to be waited for.
+    live.tell_tool(BuildRequested{"late"});
+    live.carry_until_over();
+    const BuildStatus& done = live.ears->last();
+    CHECK(done.recipe == "late");
+    CHECK(done.outcome == outcome::kNotStarted);
+    CHECK(done.detail.find("CMakeCache.txt") != std::string::npos);
+    CHECK(live.runner->refused() == 2);
+    CHECK(live.runner->ran() == 0);
+}
+
+TEST_CASE("PROJ-0: a build participant cannot be composed over a temporary catalog") {
+    // THE LIFETIME WALL, ASSERTED AT COMPILE TIME because that is the only moment it can
+    // be asserted at: a weave bound to a temporary catalog is a use-after-free whose
+    // first symptom is a build of nothing in particular, and no runtime case can be
+    // written that survives to check it. Both participants take a reference to somebody
+    // else's catalog and both refuse an rvalue outright.
+    static_assert(std::is_constructible_v<BuildRunnerWeave, const std::vector<Recipe>&,
+                                          std::string>,
+                  "the runner must read a catalog it does not own");
+    static_assert(!std::is_constructible_v<BuildRunnerWeave, std::vector<Recipe>&&, std::string>,
+                  "a runner over a temporary catalog is a dangling runner");
+    static_assert(std::is_constructible_v<BuilderWeave, const std::vector<RecipeView>&>,
+                  "the tool must read views it does not own");
+    static_assert(!std::is_constructible_v<BuilderWeave, std::vector<RecipeView>&&>,
+                  "a tool over temporary views is a dangling tool");
+    // doctest wants a runtime assertion in every case, and this is the honest one: the
+    // four claims above are already decided by the time this line runs.
+    CHECK(true);
+}
+
 // ---- The scheduler audit, as a tripwire -----------------------------------------
 
 namespace {
@@ -2123,4 +2227,43 @@ TEST_CASE("BLD-1: no semantic build consumer drives dispatch waiting for its own
         CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp names '",
                       forbidden, "', which is realization authority in the BUILD half");
     }
+}
+
+TEST_CASE("PROJ-0: the two build participants declare no catalog storage of their own") {
+    // DEFENCE IN DEPTH, AND SAID TO BE. The case above drives the real seam and would
+    // go red the moment either weave kept a copy -- but it can only say that while a
+    // fixture is there to change the catalog underneath it. This says the same thing
+    // about the SOURCE, so a helpful future edit that puts a storing member back is
+    // refused at the declaration rather than at the one case that happened to notice.
+    //
+    // ⚠ THE FORBIDDEN FORMS ARE DECLARATIONS, never bare words, and the prose is
+    // stripped first for the reason `code_of` gives: both files EXPLAIN that they store
+    // no catalog, and a check that could not tell a sentence from a member would report
+    // the explanation as the defect.
+    const std::string tool = code_of(ZENGINE_TEST_TOOL_SOURCE);
+    const std::string runner = code_of(ZENGINE_TEST_RUNNER_SOURCE);
+
+    // WHAT MUST BE THERE: a reference to somebody else's vector, in each file.
+    CHECK(runner.find("const std::vector<Recipe>& catalog_;") != std::string::npos);
+    CHECK(tool.find("const std::vector<RecipeView>& recipes_;") != std::string::npos);
+
+    // WHAT MUST NOT: a vector of its own, under any of the spellings a by-value member
+    // or a by-value constructor parameter would take.
+    for (const char* forbidden : {"std::vector<Recipe> catalog_", "std::vector<Recipe> catalog)",
+                                  "std::vector<Recipe> catalog,"}) {
+        CHECK_MESSAGE(runner.find(forbidden) == std::string::npos, "builder/runner.hpp declares '",
+                      forbidden, "', which is a second session-long catalog");
+    }
+    for (const char* forbidden : {"std::vector<RecipeView> recipes_",
+                                  "std::vector<RecipeView> recipes)",
+                                  "std::vector<RecipeView> recipes,"}) {
+        CHECK_MESSAGE(tool.find(forbidden) == std::string::npos, "builder/weave.hpp declares '",
+                      forbidden, "', which is a second session-long catalog of views");
+    }
+
+    // ...AND THE RVALUE DOOR IS SHUT IN BOTH, which is the compile-time half of the
+    // lifetime claim the case two above asserts.
+    CHECK(runner.find("BuildRunnerWeave(std::vector<Recipe>&&, std::string) = delete;") !=
+          std::string::npos);
+    CHECK(tool.find("BuilderWeave(std::vector<RecipeView>&&) = delete;") != std::string::npos);
 }

@@ -555,14 +555,25 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
 - **⚠⚠ A RELATIVE AUTHORED `single_source` MEANT TWO FILES, and the repair is ONE completion.**
   Editor and the runner's exists-preflight resolved the authored spelling against the PROCESS
   CWD while the generated project embedded it verbatim for CMake to resolve against the
-  WORKSPACE. `recipe_persist::complete_recipes(recipes, host_dir, project_dir)` is now the one
+  WORKSPACE. `recipe_persist::complete_recipes(recipes, host_dir, project_dir)` is the one
   place any host fact enters a recipe — `artifact_dir` and `workspace` from the install,
-  `source` resolved against the PROJECT — and `main` calls it once. Every downstream reader
-  (the `recipe_source` closure, `BuildRunnerWeave`'s catalog, the artifact lookup) reads that
-  same completed vector, so "the file you edit is the file the build compiles" is structural
-  rather than three parties agreeing. The FILE is never rewritten. **Falsifier that must stay
-  green:** `workshop_files`' two-base case — the project and the workspace both holding
-  `src/example.cpp` with different bytes; a green build that never arranged that proves nothing.
+  `source` resolved against the PROJECT — and `main` calls it once, so "the file you edit is
+  the file the build compiles" is structural rather than three parties agreeing. The FILE is
+  never rewritten. **Falsifier that must stay green:** `workshop_files`' two-base case — the
+  project and the workspace both holding `src/example.cpp` with different bytes; a green build
+  that never arranged that proves nothing.
+- **THE COMPLETED CATALOG HAS ONE SESSION OWNER, AND EVERY CONSUMER READS IT (PROJ-0).**
+  `workshop::CurrentRecipes` (`workshop/recipes.hpp`) holds the output of that one completion —
+  the recipes, and the tool's reduced `RecipeView`s derived beside them from the same rows, so
+  the two cannot drift. `main` declares one ABOVE the HostContext, the bus, the Kernel and
+  every weave, and that declaration order IS the lifetime proof; `hold()` assigns into members
+  it already owns, so a replacement changes CONTENTS and never the objects consumers bound to.
+  The four consumers are reads: `BuildRunnerWeave` and `BuilderWeave` take `const&` (and refuse
+  an rvalue outright — a temporary catalog is a dangling one), `HostContext::recipe_source`
+  captures the owner and asks it at the gesture, and the `AwaitingBuild` predicate asks it per
+  row. ⚠ **The owner is not authorship**: there is no non-const reach, the recipe FILE stays
+  authored truth, and nothing here decides how a maker changes catalogs — no gesture, no
+  picker, no reload, no policy for a chosen row or an in-flight build. Custody only.
 - **`workshop/files.hpp` is the browser's machinery; `Panels::files` is its state.** Rows are
   `{name, kind, linked, openable}` and NOTHING else — no resolved path, no recipe, no artifact,
   no build or editor state — so the browser cannot become a second owner of source truth. What

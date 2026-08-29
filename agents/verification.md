@@ -56,8 +56,9 @@ workshop_panes         the external pane seam, from both sides
 workshop_persistence   what survives a process
 workshop_load          which artifacts are in the room at all
 workshop_editor        the built-in source editor and its document
-workshop_files         where source comes from: the project browser, and what a
-                       project-relative recipe source means to editor and build alike
+workshop_files         where source comes from: the project browser, what a
+                       project-relative recipe source means to editor and build alike,
+                       and who owns the completed recipe catalog for the session
 ```
 
 - **Pick the one your change can falsify** and build that target alone: a Workshop test edit

@@ -26,6 +26,9 @@
 // same completed catalog the editor reads.
 #include "builder/generate.hpp"
 #include "workshop/recipe_persist.hpp"
+// ...AND WHO HOLDS THE COMPLETED ANSWER (PROJ-0). One owner per running Workshop, read
+// by every recipe consumer; the tier at the end of this file is its own.
+#include "workshop/recipes.hpp"
 
 // ============================================================================
 // Support: a project on disk, and a Workshop launched into it
@@ -890,4 +893,287 @@ TEST_CASE("EDIT-1: the press inverse answers the graphical medium's geometry too
             CHECK(r.pane().cursor == was); // a marker row invents nothing here either
         }
     }
+}
+
+// ============================================================================
+// Tier 5 — PROJ-0: one owner for the completed catalog this session means
+// ============================================================================
+
+namespace {
+
+/// The host's own wiring of `HostContext::recipe_source`, said again here so a case
+/// measures the shape `workshop.cpp` actually installs rather than a shape a rig
+/// invented. It captures the OWNER and asks it at the moment of the gesture; that is
+/// the whole of what this tier is about.
+inline std::function<HostContext::RecipeSource(const std::string&)>
+host_recipe_source(const CurrentRecipes& owner) {
+    return [&owner](const std::string& id) {
+        HostContext::RecipeSource out;
+        const zengine::builder::Recipe* found = zengine::builder::recipe_named(owner.all(), id);
+        if (found != nullptr) {
+            out.known = true;
+            out.kind = found->single_source.has_value() ? "single_source" : "cmake_target";
+            if (found->single_source.has_value()) {
+                out.source = found->single_source->source;
+            }
+        }
+        return out;
+    };
+}
+
+/// One authored single-source recipe, completed against a project the way the host
+/// completes one -- the same function, the same two directories, in the same order.
+inline std::vector<zengine::builder::Recipe> completed_catalog(const std::string& id,
+                                                               const std::string& source,
+                                                               const std::string& install,
+                                                               const std::string& project) {
+    zengine::builder::SingleSourceRecipe one;
+    one.source = source;
+    zengine::builder::Recipe authored;
+    authored.id = id;
+    authored.artifact = id;
+    authored.single_source = one;
+    std::vector<zengine::builder::Recipe> all{authored};
+    recipe_persist::complete_recipes(all, install, project);
+    return all;
+}
+
+} // namespace
+
+TEST_CASE("PROJ-0: the owner derives the tool's view from the recipes it is holding") {
+    // THE TWO HALVES COME OUT OF ONE VALUE, which is why nobody has to keep them in
+    // step. `views()` is not a second catalog a host assembles beside the first; it is
+    // the same rows with the build procedure subtracted (BLD-1) -- an identity, an
+    // artifact stem, and the one file that stem means on this platform.
+    CurrentRecipes owner;
+    CHECK(owner.all().empty());
+    CHECK(owner.views().empty()); // the "this Workshop can build nothing" state, held
+
+    std::vector<zengine::builder::Recipe> completed =
+        completed_catalog("one", "/abs/one.cpp", "/install", "/project");
+    zengine::builder::Recipe second;
+    second.id = "two";
+    second.artifact = "zengine-two";
+    second.artifact_dir = "/elsewhere";
+    second.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "two", std::string()};
+    completed.push_back(second);
+    owner.hold(completed, &HostContext::so_in);
+
+    REQUIRE(owner.all().size() == 2);
+    REQUIRE(owner.views().size() == 2);
+    // ROW FOR ROW, IN THE CATALOG'S OWN ORDER, so an index into one is an index into
+    // the other -- which is what the Builder panel's `chosen` has always assumed.
+    for (std::size_t i = 0; i < owner.all().size(); ++i) {
+        CHECK(owner.views()[i].id == owner.all()[i].id);
+        CHECK(owner.views()[i].artifact == owner.all()[i].artifact);
+        CHECK(owner.views()[i].path ==
+              HostContext::so_in(owner.all()[i].artifact_dir, owner.all()[i].artifact));
+    }
+    // ...AND THE COMPLETED ARTIFACT DIRECTORY IS WHAT THE VIEW SPELLS, not the host's
+    // own: a recipe whose product lands in somebody else's tree is the reason `so_in`
+    // takes a directory at all.
+    CHECK(owner.views()[0].path == HostContext::so_in("/install", "one"));
+    CHECK(owner.views()[1].path == HostContext::so_in("/elsewhere", "zengine-two"));
+    // AND NOTHING IN THE VIEW CARRIES A BUILD PROCEDURE. The subtraction is the split,
+    // and it survived being derived by the owner instead of by `main`.
+    CHECK(owner.views()[0].path.find("one.cpp") == std::string::npos);
+}
+
+TEST_CASE("PROJ-0: holding a new catalog replaces the contents, never the object") {
+    // ⭐ THE PROPERTY THAT MAKES ONE OWNER WORTH HAVING. Every consumer binds to these
+    // two vectors once, at construction, and keeps that binding for the life of the
+    // process -- so a replacement has to leave the OBJECTS alone and change only what is
+    // in them. If `hold` ever replaces the vectors themselves, every consumer in the
+    // process is reading freed memory, and this is where that is caught.
+    CurrentRecipes owner;
+    const std::vector<zengine::builder::Recipe>* recipes = &owner.all();
+    const std::vector<zengine::builder::RecipeView>* views = &owner.views();
+
+    owner.hold(completed_catalog("one", "/abs/one.cpp", "/install", "/project"),
+               &HostContext::so_in);
+    CHECK(&owner.all() == recipes);
+    CHECK(&owner.views() == views);
+    REQUIRE(recipes->size() == 1);
+    CHECK((*recipes)[0].id == "one");
+
+    // A DIFFERENT CATALOG, THROUGH THE SAME DOOR: the bindings still name the live
+    // answer, and the answer is the new one.
+    owner.hold(completed_catalog("later", "/abs/later.cpp", "/install", "/project"),
+               &HostContext::so_in);
+    CHECK(&owner.all() == recipes);
+    CHECK(&owner.views() == views);
+    REQUIRE(recipes->size() == 1);
+    CHECK((*recipes)[0].id == "later");
+    REQUIRE((*recipes)[0].single_source.has_value());
+    CHECK((*recipes)[0].single_source->source == "/abs/later.cpp");
+    REQUIRE(views->size() == 1);
+    CHECK((*views)[0].id == "later");
+
+    // ...AND AN EMPTY ONE EMPTIES BOTH, rather than leaving the previous views standing
+    // beside no recipes -- the half-installed catalog this phase must not create.
+    owner.hold({}, &HostContext::so_in);
+    CHECK(recipes->empty());
+    CHECK(views->empty());
+}
+
+TEST_CASE("PROJ-0: the host's edit-source answer is asked of the owner, not of a copy") {
+    // ⭐ THE CLOSURE FALSIFIER. `HostContext::recipe_source` used to capture its own list
+    // of three fields per recipe -- a third session-long store of completed truth, taken
+    // because the catalog was about to be handed onward by value. It captures the owner
+    // now and reads it when asked, and this is the case that can tell the two apart: the
+    // answer has to follow a catalog the closure never saw.
+    CurrentRecipes owner;
+    const std::function<HostContext::RecipeSource(const std::string&)> answer =
+        host_recipe_source(owner);
+
+    // WITH NOTHING HELD, NOTHING IS KNOWN -- and it is a refusal in the caller's hands
+    // rather than a guess: `known` false is the whole statement.
+    CHECK_FALSE(answer("one").known);
+
+    owner.hold(completed_catalog("one", "src/a.cpp", "/install", "/project"),
+               &HostContext::so_in);
+    const HostContext::RecipeSource first = answer("one");
+    CHECK(first.known);
+    CHECK(first.kind == "single_source"); // the recipe FILE's own word for the kind
+    CHECK(first.source == "/project/src/a.cpp");
+    CHECK_FALSE(answer("two").known);
+
+    // THE ONE PLACE CHANGES, AND THE SAME CLOSURE ANSWERS THE NEW CATALOG.
+    owner.hold(completed_catalog("two", "src/b.cpp", "/install", "/elsewhere"),
+               &HostContext::so_in);
+    CHECK_FALSE(answer("one").known);
+    const HostContext::RecipeSource second = answer("two");
+    CHECK(second.known);
+    CHECK(second.source == "/elsewhere/src/b.cpp");
+
+    // ...AND A KIND WITH NO SOURCE STILL SAYS SO IN THE FILE'S WORDS, so a refusal
+    // downstream speaks the vocabulary the maker authored in.
+    zengine::builder::Recipe target;
+    target.id = "built";
+    target.artifact = "built";
+    target.cmake_target = zengine::builder::CMakeTargetRecipe{"/tree", "t", std::string()};
+    owner.hold({target}, &HostContext::so_in);
+    const HostContext::RecipeSource named = answer("built");
+    CHECK(named.known);
+    CHECK(named.kind == "cmake_target");
+    CHECK(named.source.empty());
+}
+
+TEST_CASE("PROJ-0: the editor opens the file the OWNER's completed recipe names") {
+    // EDIT-1'S SENTENCE, RE-PROVEN OVER THE NEW CUSTODY. The two-base decoy is arranged
+    // exactly as it is above -- the project and the generated workspace both holding
+    // `src/example.cpp` with different bytes -- and the only thing that changed is who
+    // holds the completed value the editor's answer comes from. A green here with the
+    // decoy absent would prove nothing, which is why the decoy is written first.
+    FilesRig r("ownerdoor");
+    const std::filesystem::path workspace = r.root / "build-workspace" / "one";
+    std::filesystem::create_directories(r.root / "src");
+    std::filesystem::create_directories(workspace / "src");
+    put_file(r.root / "src" / "example.cpp", "the project\n");
+    put_file(workspace / "src" / "example.cpp", "the decoy\n");
+
+    zengine::builder::SingleSourceRecipe one;
+    one.source = "src/example.cpp"; // relative, exactly as a maker writes it
+    one.workspace = workspace.generic_string();
+    zengine::builder::Recipe authored;
+    authored.id = "one";
+    authored.artifact = "one";
+    authored.single_source = one;
+    std::vector<zengine::builder::Recipe> all{authored};
+    recipe_persist::complete_recipes(all, r.root.generic_string(), r.t.host.project_dir);
+
+    // THE OWNER TAKES IT, AND THE HOST'S SEAM IS WIRED OVER THE OWNER -- `workshop.cpp`,
+    // in the order `workshop.cpp` does it.
+    CurrentRecipes owner;
+    owner.hold(std::move(all), &HostContext::so_in);
+    r.t.host.recipe_source = host_recipe_source(owner);
+
+    ToolSeat* tool = mount_tool(r.t, "one");
+    (void)tool;
+    open_builder(r.t);
+    r.t.key(input::scan::kE);
+    r.t.text("e");
+    REQUIRE(r.session().editor.open_document());
+    CHECK(r.session().editor.path ==
+          (r.root / "src" / "example.cpp").lexically_normal().generic_string());
+    CHECK(r.session().editor.buffer.line(0) == "the project");
+    // AND THE GENERATED PROJECT, FROM THE OWNER'S OWN ROW, NAMES THE SAME FILE -- which
+    // is the whole of "the file you edit is the file the build compiles", now carried by
+    // one object instead of by three parties agreeing.
+    REQUIRE(owner.all().size() == 1);
+    CHECK(zengine::builder::generated_project(owner.all()[0]).find(r.session().editor.path) !=
+          std::string::npos);
+    // ...AND THE ARTIFACT LOOKUP READS THE SAME ROW: one view, whose path is the
+    // completed artifact directory and the stem, spelled by the host's one rule.
+    REQUIRE(owner.views().size() == 1);
+    CHECK(owner.views()[0].path ==
+          HostContext::so_in(owner.all()[0].artifact_dir, owner.all()[0].artifact));
+}
+
+TEST_CASE("PROJ-0: the host holds the completed catalog once, and hands out no copies") {
+    // DEFENCE IN DEPTH, AND SAID TO BE. Every case above drives a seam; what a source
+    // read adds is that "there is ONE completed catalog in this process" cannot quietly
+    // stop being true while all of them stay green -- and no rig can run `main()`, which
+    // claims a terminal.
+    //
+    // ⚠ THE FORBIDDEN FORMS ARE EXPRESSIONS, never bare words, and the prose goes first
+    // (BLD-0's tripwire rule): this host EXPLAINS the ownership it used to have, and a
+    // check that could not tell a sentence from a statement would read the explanation
+    // as the defect.
+    std::string host;
+    {
+        std::ifstream in(WORKSHOP_HOST_CPP);
+        REQUIRE_MESSAGE(in.good(), "cannot read ", WORKSHOP_HOST_CPP);
+        std::string line;
+        while (std::getline(in, line)) {
+            const std::size_t comment = line.find("//");
+            host += comment == std::string::npos ? line : line.substr(0, comment);
+            host += '\n';
+        }
+    }
+
+    // ONE OWNER, DECLARED BEFORE THE BUS -- and the ORDER is the lifetime proof, because
+    // everything that reads it is destroyed with the Kernel.
+    const std::size_t owner = host.find("CurrentRecipes current_recipes;");
+    const std::size_t bus = host.find("loom::Switchboard bus;");
+    REQUIRE(owner != std::string::npos);
+    REQUIRE(bus != std::string::npos);
+    CHECK(owner < bus);
+
+    // ...AND THE COMPLETION IS STILL EXACTLY ONE CALL, ahead of the hold. The owner holds
+    // the OUTPUT of the one completion law; it is not a second party that resolves an
+    // authored spelling.
+    const std::string one_completion = "recipe_persist::complete_recipes(";
+    const std::size_t completes = host.find(one_completion);
+    const std::size_t holds = host.find("current_recipes.hold(");
+    REQUIRE(completes != std::string::npos);
+    REQUIRE(holds != std::string::npos);
+    CHECK(completes < holds);
+    CHECK(host.find("complete_recipes(", completes + one_completion.size()) ==
+          std::string::npos);
+
+    // EVERY CONSUMER READS THE OWNER. The runner, the tool, the edit-source answer and
+    // the waiting-row predicate are the four, and each is spelled as a read.
+    CHECK(host.find("kBuildRunnerRole, current_recipes.all()") != std::string::npos);
+    CHECK(host.find("kBuilderRole, current_recipes.views()") != std::string::npos);
+    CHECK(host.find("[&current_recipes](const std::string& id)") != std::string::npos);
+    CHECK(host.find("[&host, &current_recipes](const std::string& stem)") != std::string::npos);
+
+    // ...AND NOTHING ELSE KEEPS ONE. The two locals this host used to carry past the read
+    // -- a completed catalog and a derived view list -- are gone, and a `main` that grew
+    // either back would be a `main` with two answers again.
+    for (const char* forbidden : {"std::vector<builder::RecipeView> recipe_views",
+                                  "recipe_views.reserve", "recipe_views.push_back"}) {
+        CHECK_MESSAGE(host.find(forbidden) == std::string::npos, "workshop.cpp declares '",
+                      forbidden, "', which is a second long-lived catalog of views");
+    }
+    // The only `std::vector<builder::Recipe>` this host still spells is the one inside the
+    // reading scope, which is moved into the owner and dies at the closing brace.
+    std::size_t at = 0;
+    std::size_t vectors = 0;
+    while ((at = host.find("std::vector<builder::Recipe> ", at)) != std::string::npos) {
+        ++vectors;
+        ++at;
+    }
+    CHECK(vectors == 1);
 }

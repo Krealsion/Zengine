@@ -198,6 +198,16 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
                           \___ joined by ONE STRING: the artifact stem ___/
 ```
 
+- **ONE COMPLETED CATALOG PER RUNNING HOST, AND BOTH WEAVES READ IT (PROJ-0).**
+  `workshop::CurrentRecipes` (`workshop/recipes.hpp`) is the session owner of the completed
+  catalog and of the tool's reduced views, derived from the same rows so they cannot disagree;
+  `BuildRunnerWeave::catalog_` and `BuilderWeave::recipes_` are `const&` into it and neither
+  keeps a copy, so replacing what the owner holds replaces what the whole program builds and
+  shows. ⚠ The SUBTRACTION is untouched — the tool still reads only `RecipeView`, never a
+  build procedure — and ⚠ **no catalog-change gesture exists**: this is custody, and every
+  question a live change would raise (a chosen row, an in-flight build, how one is selected) is
+  deliberately unanswered. Lifetime is the host's declaration order, and a temporary catalog is
+  refused at compile time.
 - **The host keeps `ZENGINE_BUILDER_CMAKE`** — its own CMake, by absolute path — **and no
   target and no build directory.** What a FILE may name is inputs to a mechanism this package
   already holds; a program is the one thing it may not, which is why there is no third recipe
@@ -392,6 +402,8 @@ feature is one read-only seam plus one gesture over the existing route.
 - Builder builds one hard-coded target — it builds an **authored recipe catalog**, and the
   host names no target and no build directory. What it still names is the CMake, because a
   file may not.
+- The Builder or its runner owns the recipe catalog — **neither does**. The host that composed
+  the process owns one completed catalog for the session, and both of them read it.
 - A recipe and a plan row are two views of one thing — they are two truths with two owners,
   joined by the artifact stem and nothing else. A role, a mount mode or a load order in a
   recipe, or a source path, package prefix or build tree in a plan, is the duplication this
