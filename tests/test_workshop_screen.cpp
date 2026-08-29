@@ -5585,15 +5585,19 @@ TEST_CASE("INTR-0 bounded extension: a provider's long name is MARKED in the pic
     // and `detail::pad` truncates in silence -- so `Loaded Weaves` arrived at a maker's
     // eye as `Loaded Wea`, which reads as a finished name that means something else.
     //
+    // WRITTEN AGAINST THE CONSTANT rather than against ten (EDIT-1): what this case pins
+    // is that the cut is MARKED and that the state column does not move, and neither of
+    // those is a fact about the number.
+    //
     // The repair is `detail::fit` before `detail::pad`: the mark for the truth, the pad
     // for the alignment. Both halves are asserted, because a fix that marked the cut and
     // moved the state column would have traded one defect for another.
     const std::string wide = picker_entry_text("a-very-long-provider-name", "closed", "tail");
-    CHECK(wide.rfind("a-very-...", 0) == 0);
+    CHECK(wide.rfind(detail::fit("a-very-long-provider-name", kPickerNameCols), 0) == 0);
     CHECK(wide.find("closed") == kPickerNameCols);
     // A name that FITS is untouched -- not padded differently, not marked, not moved.
     const std::string narrow = picker_entry_text("Loaded", "closed", "tail");
-    CHECK(narrow.rfind("Loaded    closed", 0) == 0);
+    CHECK(narrow.rfind(detail::pad("Loaded", kPickerNameCols) + "closed", 0) == 0);
     CHECK(narrow.find(detail::kElided) == std::string::npos);
     // AND THE NAME THIS TOOL ACTUALLY SHIPS NEEDS NO MARK, which is the other half of
     // the answer: a name that only reads correctly because a truncation is marked is a
@@ -5837,13 +5841,18 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     CHECK(typed_place.columns > cell_place.columns); // ...and more characters across each one
 
     // A CATALOG TALLER THAN THE GRAPHICAL BUDGET IS WINDOWED THERE AND WHOLE IN CELLS, which
-    // is the assertion that actually spends the difference: five offers plus three built-ins
+    // is the assertion that actually spends the difference: four offers plus four built-ins
     // fit the nine rows a terminal has (heading included) and not the five an 18-pixel face
     // has, so the two media show different lists of one population and each says what it
     // left out. The marker is paid for OUT of the budget rather than added beneath it --
     // `list_window`'s rule, which this migration spends rather than reimplements.
+    //
+    // THE OFFER COUNT IS EIGHT MINUS THE BUILT-INS, and it moved when a fourth built-in
+    // arrived (EDIT-1): what this case needs is a population that exactly fills the
+    // character medium, so the number of probes is derived from that and not a constant
+    // that happened to be right while there were three.
     Panels crowded = panels;
-    for (std::int64_t i = 0; i < 5; ++i) {
+    for (std::int64_t i = 0; i < 8 - static_cast<std::int64_t>(kPanelKinds); ++i) {
         crowded.runtime.entries.push_back(
             RuntimePane{kFirstRuntimeKind + i, "zengine.probe",
                         "p" + std::to_string(i), "Probe" + std::to_string(i), "a summary"});
@@ -5905,6 +5914,11 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     offered.runtime.entries.push_back(
         RuntimePane{kFirstRuntimeKind, "zengine.introspection", "loaded", "Loaded",
                     "what the kernel has loaded, and each one's role"});
+    // THE MEASURED ROW IS THE SELECTED ONE, because the graphical budget no longer holds
+    // the whole catalog: `list_window` keeps the selection in the window (its rule 2), so
+    // selecting the offered pane is what makes "the same row, read by two media" a
+    // question both media can answer.
+    offered.picker.cursor = kPanelKinds;
     const auto loaded_row = [&](const Screen& medium) {
         surface::SurfaceCanvas paint_to;
         paint_picker(plane(paint_to), offered, setup_for(offered), medium, Keymap{});

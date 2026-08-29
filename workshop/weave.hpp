@@ -132,6 +132,32 @@ struct HostContext {
     std::function<void()> request_stop;
     std::string dir;
 
+    /// THE PROJECT THIS WORKSHOP WAS LAUNCHED INTO -- the directory the process was
+    /// started from, captured ONCE by the host and never recomputed.
+    ///
+    /// IT IS NOT A NEW LAW; IT IS AN EXISTING LAW'S MISSING VALUE. "A project is where
+    /// you are standing" is already how this application decides where a document and a
+    /// named setup live (user_paths.hpp), and until now that sentence had no variable
+    /// behind it: the launch directory was only ever spent IMPLICITLY, by whichever
+    /// relative path happened to be resolved against the process's own working
+    /// directory. Two parties resolving one relative spelling at two different moments
+    /// is exactly how a single authored source came to mean two files, so the directory
+    /// becomes a value the host holds and hands over, like the five paths beside it.
+    ///
+    /// IT IS NOT `dir`. `dir` is where this BINARY lives -- installation truth, and the
+    /// right answer for a generated workspace and an artifact's directory. This is where
+    /// the MAKER is standing, and one install serves two projects precisely because the
+    /// two are different facts. Nothing derives one from the other, and nothing derives
+    /// this from `--document`, `--recipes`, a generated workspace or an install prefix:
+    /// one file flag silently relocating a maker's project would be a second join of a
+    /// fact that already has an owner.
+    ///
+    /// EMPTY IS THE DESIGNED ABSENCE, exactly as it is for the five paths: a working
+    /// directory the platform will not report is refused in words wherever it is needed,
+    /// never guessed and never substituted. The host says the absence once, on its
+    /// banner (`user_paths.hpp`'s own rule for an unresolvable root).
+    std::string project_dir;
+
     /// THE TERMINAL PARTICIPANT WORKSHOP PRESENTS — non-owning, and null when the
     /// host mounted none.
     ///
@@ -176,14 +202,21 @@ struct HostContext {
     std::function<ProjectFrontier()> frontier;
 
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
-    /// HOST -- the party that read the recipes file and holds the authored truth the
+    /// HOST -- the party that read the recipes file and holds the completed catalog the
     /// runner builds from. The Builder TOOL deliberately holds no source path
     /// (`RecipeView`'s own subtraction), so asking it would first mean teaching it one;
     /// and Workshop re-deriving the path from the file would be a second, subtly
-    /// different join of the same authored bytes. `source` is the recipe's authored
-    /// string, verbatim -- the identical bytes the generated build project references --
-    /// and `kind` is the recipe file's own word for what this recipe is, so a refusal
-    /// can speak the recipe owner's vocabulary.
+    /// different join of the same authored bytes.
+    ///
+    /// `source` IS THE FILE THE BUILD WILL ACTUALLY COMPILE, and that is the whole point
+    /// of asking the host rather than the file. The host completes each authored recipe
+    /// once -- a relative source resolved against the project it was launched into, an
+    /// absolute one left exactly as authored -- and the SAME completed value reaches the
+    /// runner's preflight and the generated project's `add_library`. So the editor cannot
+    /// open one file while the build reads another, and it is true by construction
+    /// instead of by three parties resolving one spelling the same way. `kind` is the
+    /// recipe file's own word for what this recipe is, so a refusal can speak the recipe
+    /// owner's vocabulary.
     struct RecipeSource {
         bool known = false; ///< the id names an authored recipe of this project
         std::string kind;   ///< `single_source` or `cmake_target`, the file's own words
@@ -778,6 +811,7 @@ public:
         case KeyContext::kContext: context_key(k, mail); break;
         case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
         case KeyContext::kEditor: editor_key(k); break;
+        case KeyContext::kFiles: files_key(k, mail); break;
         case KeyContext::kDraft: editing_key(k); break;
         default: command(k, mail); break;
         }
@@ -1561,14 +1595,25 @@ public:
             // which is the same "closing it restores every gesture exactly" this file
             // already promises about the pointer.
             //
-            // THE EDITOR IS THE ONE BUILT-IN THAT CAN BE A CANDIDATE: it is the only
-            // built-in with an editable body, so a press into it is a maker pointing
-            // the keys at their source exactly as a press into an external pane points
-            // them at a provider. Every other built-in still clears the candidate --
-            // the asymmetry `is_runtime_kind` used to carry alone, kept narrow on
-            // purpose rather than widened into a focus framework.
+            // A BUILT-IN CAN BE A CANDIDATE WHEN ITS CATALOG ROW SAYS SO. The Editor was
+            // the first -- a body a maker types into, so a press there points the keys at
+            // their source exactly as a press into an external pane points them at a
+            // provider -- and Project Files is the second, a list with a cursor and
+            // gestures of its own. At two, the distinction stopped being something this
+            // line should know: it is a fact about a KIND, so it is declared on the kind
+            // (`PanelKind::takes_keyboard`) and read here. Every other built-in still
+            // clears the candidate, and this is still not a focus framework -- one
+            // declaration moved, nothing registered.
+            //
+            // ⚠ THE PRIOR ANSWER IS READ BEFORE IT IS OVERWRITTEN, because one arm below
+            // needs it: Project Files activates a row only when the pane ALREADY had the
+            // keys, and this line is what makes that untrue a moment later. Reading it
+            // afterwards would make every first press look like a press in a pane the
+            // maker was already working in.
+            const bool files_had_keyboard = files_has_keyboard(session_);
             session_.panels.keyboard =
-                here.occupied && (is_runtime_kind(here.kind) || here.kind == panel::kEditor)
+                here.occupied &&
+                        (is_runtime_kind(here.kind) || panel_kind(here.kind).takes_keyboard)
                     ? here.kind
                     : kNoPaneKind;
             // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
@@ -1664,6 +1709,11 @@ public:
                 // header or past the body's rows moves nothing and is consumed exactly
                 // as an external pane's header press is.
                 editor_press(b);
+            } else if (here.occupied && here.kind == panel::kProjectFiles) {
+                // AND A PRESS INTO THE PROJECT BROWSER SELECTS A ROW -- the editor's arm,
+                // over a list. A press on the header or past the last row moves nothing
+                // and is consumed exactly as the editor's is.
+                files_press(b, files_had_keyboard, mail);
             } else if (here.occupied) {
                 say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                     false);
@@ -1827,11 +1877,13 @@ public:
         repaint(mail);
     }
 
-    /// THE WHEEL TURNED. One consumer exists and the routing is exactly its size: over
-    /// the source editor's text body the wheel scrolls that viewport and is consumed
-    /// there; everywhere else the event means what it always meant here, which is
-    /// nothing. No scroll framework, no provider wheel protocol, no per-region wheel
-    /// registry -- a second consumer is the day this grows a shape, and not before.
+    /// THE WHEEL TURNED. Two consumers exist and the routing is exactly their size: over
+    /// the source editor's text body the wheel scrolls that viewport, over the project
+    /// browser's body it moves that list, and everywhere else the event means what it
+    /// always meant here, which is nothing. That is one arm per consumer, chosen by the
+    /// SAME topmost-occupancy answer the press uses -- still no scroll framework, no
+    /// provider wheel protocol and no per-region wheel registry. The second consumer was
+    /// the day this could have grown one; it did not, because two arms are two arms.
     ///
     /// THE MODES KEEP THEIR OWNERSHIP: while the Terminal or an arrangement scope owns
     /// the pointer, the wheel is theirs to ignore, exactly as motion is -- a wheel that
@@ -1844,20 +1896,24 @@ public:
         if (session_.terminal.open || session_.arrange.open || session_.context.open) {
             return;
         }
-        if (!session_.editor.open_document()) {
-            return;
-        }
         const Screen sc = screen_of(session_);
         const PointedAt at = canvas_point_of(w.space, w.x, w.y);
         if (!at.understood) {
             return;
         }
-        // The TOPMOST presentation under the wheel must be the Editor -- a pane in
-        // front of it owns its own cells, and scrolling a document under somebody
-        // else's pane is the imaginary-reach this test refuses.
+        // The TOPMOST presentation under the wheel decides -- a pane in front owns its
+        // own cells, and scrolling something under somebody else's pane is the
+        // imaginary-reach this test refuses.
         const Occupancy here =
             occupied_at(session_.panels, session_.setup.active, sc, at);
-        if (!here.occupied || here.kind != panel::kEditor) {
+        if (!here.occupied) {
+            return;
+        }
+        if (here.kind == panel::kProjectFiles) {
+            files_wheel(w, sc, mail);
+            return;
+        }
+        if (here.kind != panel::kEditor || !session_.editor.open_document()) {
             return;
         }
         if (!over_editor_body(session_, sc, w.space, w.x, w.y)) {
@@ -1972,6 +2028,18 @@ public:
             repaint(mail);
             return;
         }
+        // A FINISHED BUILD IS THE ONE THING THIS APPLICATION ALREADY KNOWS ABOUT THAT
+        // CHANGES THE PROJECT ON DISK, so it is the one message that earns the browser a
+        // fresh listing -- which is how Project Files stays truthful with no watcher, no
+        // poll and no timer, and without one byte added to any protocol.
+        //
+        // IT IS GATED ON `build_news` AND NOT ON THE ARRIVAL. The tool republishes its
+        // whole picture on every transition and again whenever a panel opens, so
+        // "a status arrived" is not "a build finished": scanning on arrival would walk
+        // the directory for a build that ended before this pane existed. `build_news` is
+        // the fact this weave already derives for exactly that distinction -- a build
+        // this session watched, which has now reached an outcome it will not leave.
+        files_build_settled();
         switch (said.outcome) {
         case zengine::builder::outcome::kSucceeded:
             // TWO OUTCOMES, TWO SENTENCES, AND THE SECOND IS NOT SUPPRESSED BY THE
@@ -3511,6 +3579,13 @@ private:
             if (kind == panel::kBuilder) {
                 (void)mail.send_to_role(zengine::builder::kBuilderRole,
                                         zengine::builder::StatusRequested{});
+            } else if (kind == panel::kProjectFiles) {
+                // A BROWSER THAT HAS JUST BECOME PRESENT LOOKS. This is the Builder's own
+                // arm one kind over -- a pane that opens asks its subject what is true now
+                // -- and it is where "the listing is a snapshot" becomes usable: reopening
+                // the pane is a maker's way of asking for a fresh one, and it costs the
+                // same walk as pressing refresh.
+                files_refresh();
             }
         }
     }
@@ -4832,13 +4907,282 @@ private:
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor() { reconcile_editor_view(session_); }
 
-    /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- the one door into the
-    /// editor's document, and it is Builder-owned on purpose: the recipe it opens is
-    /// exactly the row `b` would build, resolved through the panel's own choice, so the
-    /// gesture cannot open one file while the build reads another. There is no file
-    /// browser, no path argument and no second identity join: the path is the HOST's
-    /// answer over the same authored recipes the runner builds from
-    /// (`HostContext::recipe_source`).
+    // ---- The project browser (EDIT-1) ----------------------------------------
+    //
+    // FIVE VERBS AND ONE SNAPSHOT. Everything the browser does is: look at a directory,
+    // move a cursor, go in, go up, and hand a path to the editor's door. What it never
+    // does is hold a second copy of anything somebody else owns -- a row is a name and a
+    // kind, and the path it denotes is derived at the instant it is activated.
+
+    /// The directory the browser is showing, spelled from the host's project root and the
+    /// names walked into. Empty when this run has no project.
+    std::string files_dir() const {
+        return current_dir(host_->project_dir, session_.panels.files.entered);
+    }
+
+    /// TAKE A FRESH LISTING OF WHERE THE MAKER IS STANDING.
+    ///
+    /// THIS IS AN OS WALK, AND IT IS THEREFORE NOT A PAINT-TIME QUESTION. Every other
+    /// population this application shows is one it already holds in memory; a directory
+    /// belongs to somebody else and costs a syscall per entry. So it is recomputed at
+    /// moments a person caused -- the pane opening, entering, going up, asking, and a build
+    /// finishing -- and at no others. There is no watcher, no poll and no timer, and the
+    /// cost of that honesty is named where a maker can read it: a file another program
+    /// writes between two of those moments is not on screen until one of them happens.
+    ///
+    /// THE CURSOR GOES HOME because the rows underneath it are gone. Keeping an index
+    /// across a re-enumeration would point at whatever now happens to be in that position,
+    /// which is a cursor that appears to move on its own.
+    void files_refresh() {
+        FilesPane& pane = session_.panels.files;
+        const std::string dir = files_dir();
+        if (dir.empty()) {
+            pane.listing = Listing{};
+            pane.listing.refusal =
+                "this run has no project directory -- Workshop could not tell where it was "
+                "launched from, so there is nothing to browse";
+            pane.cursor = 0;
+            return;
+        }
+        pane.listing = enumerate_directory(dir);
+        pane.cursor = 0;
+        pane.wheel_accum = 0.0;
+    }
+
+    /// A BUILD THIS SESSION WATCHED HAS FINISHED, so what is on disk may have changed --
+    /// take a fresh listing if the browser is open, and put the maker back where they
+    /// were.
+    ///
+    /// THE CURSOR IS PRESERVED BY NAME BECAUSE THE MAKER DID NOT ASK FOR THIS ONE. A
+    /// refresh a person requested may reasonably start at the top; a refresh that happens
+    /// because a build ended must not move their place out from under them. If the row
+    /// they were on is gone -- the build deleted it -- the cursor goes home, which is the
+    /// honest answer to "where were you" when the answer no longer exists.
+    void files_build_settled() {
+        if (!session_.panels.has(panel::kProjectFiles)) {
+            return;
+        }
+        const FileRow* row = row_at(session_.panels.files.listing, session_.panels.files.cursor);
+        const std::string was = row != nullptr ? row->name : std::string();
+        files_refresh();
+        if (!was.empty()) {
+            files_point_at(was);
+        }
+    }
+
+    /// Put the cursor on a named row if this listing has one -- the ONE place a refresh
+    /// does not send it home, because going UP has an answer to the question "which row
+    /// did I come from" and landing at the top of a long directory would throw it away.
+    void files_point_at(const std::string& name) {
+        const FilesPane& pane = session_.panels.files;
+        for (std::size_t i = 0; i < pane.listing.rows.size(); ++i) {
+            if (pane.listing.rows[i].name == name) {
+                session_.panels.files.cursor = i;
+                return;
+            }
+        }
+    }
+
+    /// MOVE THE CURSOR BY `by` ROWS, bounded at both ends. Bounded at USE, because the
+    /// listing under it is replaced wholesale by every refresh.
+    void files_move(std::int64_t by) {
+        FilesPane& pane = session_.panels.files;
+        const std::size_t total = pane.listing.rows.size();
+        if (total == 0) {
+            pane.cursor = 0;
+            return;
+        }
+        std::int64_t at = static_cast<std::int64_t>(pane.cursor < total ? pane.cursor : 0) + by;
+        if (at < 0) {
+            at = 0;
+        }
+        if (at >= static_cast<std::int64_t>(total)) {
+            at = static_cast<std::int64_t>(total) - 1;
+        }
+        pane.cursor = static_cast<std::size_t>(at);
+    }
+
+    /// GO UP ONE ENTERED NAME.
+    ///
+    /// THE ROOT BOUNDARY IS HERE AND IT IS AN EMPTY STACK, not a comparison: at the root
+    /// there is no name to pop, so there is nothing this can do and it says so. No `..` is
+    /// ever constructed, no path is ever compared against the root, and no canonical
+    /// resolution is required for the promise to hold.
+    void files_parent() {
+        FilesPane& pane = session_.panels.files;
+        if (pane.entered.empty()) {
+            say("this is the project root -- Project Files does not go above it", false);
+            return;
+        }
+        const std::string came_from = pane.entered.back();
+        pane.entered.pop_back();
+        files_refresh();
+        files_point_at(came_from);
+        say("in " + files_where(), false);
+    }
+
+    /// What to call where the maker is, in a notice: the project-relative projection, or
+    /// the project itself at the root.
+    std::string files_where() const {
+        const std::string rel = relative_dir(session_.panels.files.entered);
+        return rel.empty() ? std::string("the project root") : rel;
+    }
+
+    /// ACT ON THE ROW THE CURSOR IS ON -- enter a directory, or hand a file to the one
+    /// editor door.
+    ///
+    /// THE TWO REFUSALS ARE THIS BROWSER'S OWN, and both are about the PATH rather than
+    /// about the file's contents. A name this application's narrow path custody cannot
+    /// carry would reach the editor as a different path or as none, so it is refused here,
+    /// where the loss is known. A LINKED directory would leave the project while every
+    /// name on the stack still claimed otherwise, so entering it is refused here too --
+    /// the row stays visible, because hiding a real entry is the other way to be wrong.
+    ///
+    /// EVERYTHING ELSE IS THE EDITOR'S. A `.png`, a binary, a file with mixed line endings
+    /// or bytes outside plain ASCII all travel to the door and are refused THERE, in the
+    /// editor's own vocabulary. This browser has no file-type list, no extension policy and
+    /// no opinion about contents -- an opinion here would be a second, quietly different
+    /// copy of a law that already has an owner.
+    void files_open(loom::Mail& mail) {
+        FilesPane& pane = session_.panels.files;
+        const FileRow* row = row_at(pane.listing, pane.cursor);
+        if (row == nullptr) {
+            say("no row is selected -- nothing was opened", true);
+            return;
+        }
+        if (!row->openable) {
+            say("`" + shown_name(row->name) +
+                    "` has bytes this Workshop cannot carry in a path -- it is shown so you "
+                    "know it is there, and cannot be opened from here",
+                true);
+            return;
+        }
+        if (row->directory) {
+            if (row->linked) {
+                say("`" + shown_name(row->name) +
+                        "` is a linked directory -- Project Files stays inside the project "
+                        "and does not follow links out of it",
+                    true);
+                return;
+            }
+            pane.entered.push_back(row->name);
+            files_refresh();
+            say("in " + files_where(), false);
+            return;
+        }
+        const std::string dir = files_dir();
+        if (dir.empty()) {
+            say("this run has no project directory -- nothing was opened", true);
+            return;
+        }
+        open_source(dir + "/" + row->name, mail);
+    }
+
+    /// THE BROWSER'S KEYS -- five verbs, every one of them a keymap row, so a maker who
+    /// remapped them gets their own bindings here and on every help surface.
+    void files_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        switch (session_.keymap.action_for(KeyContext::kFiles, k.scancode, k.modifiers)) {
+        case Act::kFilesUp: files_move(-1); break;
+        case Act::kFilesDown: files_move(1); break;
+        case Act::kFilesOpen: files_open(mail); break;
+        case Act::kFilesParent: files_parent(); break;
+        case Act::kFilesRefresh:
+            files_refresh();
+            say("listed " + files_where() + " again", false);
+            break;
+        default: break; // an unbound key in this pane means nothing, and says nothing
+        }
+    }
+
+    /// A PRESS IN THE BROWSER'S BODY: the first press on a row SELECTS it, and a press on
+    /// the row that is already selected ACTIVATES it.
+    ///
+    /// ACTIVATION NEEDS THE PANE TO HAVE HELD THE KEYS ALREADY, and that condition is the
+    /// whole safety of this gesture. The press that arrives at a pane the maker was not
+    /// working in is the same press that points the keyboard here -- so without the
+    /// condition, a maker whose cursor happened to be resting on the row they pressed
+    /// would open a file, or meet a dirty refusal, by doing nothing more than aiming at
+    /// the pane. Two presses to open something from cold is the cost, and it buys the
+    /// promise that no single press can replace what is open.
+    ///
+    /// AND DOUBLE-CLICK IS NOT WHAT THIS IS. `PointerButton` carries no click count, so
+    /// timing is unsayable on this wire; there is nothing to hold, nothing to time out and
+    /// no second interpretation of a press. Two presses on one row is a state machine with
+    /// one bit, and the bit is already on the screen as the selection.
+    /// THE WHEEL OVER THE BROWSER'S BODY MOVES THE CURSOR, and the window follows it.
+    ///
+    /// A LIST IS NOT A DOCUMENT, which is why this differs from the editor's wheel by
+    /// design rather than by omission. The editor keeps its caret still while the view
+    /// moves, because a caret is a place in text a maker is editing and looking elsewhere
+    /// is a thing they mean to do. Here the cursor IS where the maker is looking -- every
+    /// list in this application derives its window from it -- so a second, independent
+    /// scroll position would be a second answer to one question, free to disagree with the
+    /// row the header names and the row Return would act on.
+    ///
+    /// MOVING THE CURSOR CANNOT OPEN ANYTHING. Selection here is inert (a press on the
+    /// selected row is the activation, and only in a pane that already held the keys), so
+    /// a wheel cannot replace a document however far it is spun.
+    void files_wheel(const zengine::input::PointerWheel& w, const Screen& sc,
+                     loom::Mail& mail) {
+        if (!over_files_body(session_, sc, w.space, w.x, w.y)) {
+            return;
+        }
+        FilesPane& pane = session_.panels.files;
+        if (!pane.listing.known || pane.listing.rows.empty()) {
+            return;
+        }
+        // +dy is a notch AWAY from the maker (the wire's own convention), which every
+        // desktop reads as "scroll up": earlier rows. Fractional notches accumulate until
+        // they are worth whole rows, so a precise wheel is not rounded to zero.
+        pane.wheel_accum += w.dy * static_cast<double>(kFilesWheelRows);
+        const std::int64_t rows = static_cast<std::int64_t>(pane.wheel_accum);
+        if (rows == 0) {
+            return;
+        }
+        pane.wheel_accum -= static_cast<double>(rows);
+        const std::size_t was = pane.cursor;
+        files_move(-rows);
+        if (pane.cursor == was) {
+            return; // already at the edge: nothing moved, nothing repaints
+        }
+        repaint(mail);
+    }
+
+    void files_press(const zengine::input::PointerButton& b, bool had_keyboard,
+                     loom::Mail& mail) {
+        FilesPane& pane = session_.panels.files;
+        if (!pane.listing.known) {
+            return; // consumed: a press into a browser with nothing listed is a focus statement
+        }
+        const Screen sc = screen_of(session_);
+        const FilesPressAt at = files_press_at(session_, sc, b.space, b.x, b.y);
+        if (!at.named) {
+            return; // the header, or the strip below the last row: consumed, still
+        }
+        const ExternalBodyPlace body = files_body(session_, sc);
+        std::size_t which = 0;
+        if (!files_row_of_body_row(pane, body.rows, at.row, which)) {
+            return; // a marker row or blank space names no entry, and invents none
+        }
+        if (had_keyboard && which == pane.cursor) {
+            files_open(mail);
+            return;
+        }
+        pane.cursor = which;
+    }
+
+    /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- Builder's half, and only its
+    /// half: which recipe is chosen, whether that kind of recipe has a source at all, and
+    /// what the recipe catalog calls it. The recipe it opens is exactly the row `b` would
+    /// build, resolved through the panel's own choice and answered by the HOST over the
+    /// same completed recipes the runner builds from (`HostContext::recipe_source`), so
+    /// the gesture cannot open one file while the build reads another.
+    ///
+    /// EVERYTHING AFTER THE PATH IS `open_source`'S, and Builder gets no privilege there.
+    /// Whether a document may be replaced, what bytes may become source, whether the pane
+    /// can be seated, what the maker is told -- all of it is the editor's law, applied
+    /// identically to every referrer, because a door a favoured caller could walk past is
+    /// a door that promises nothing.
     void edit_source(loom::Mail& mail) {
         if (!session_.panels.has(panel::kBuilder)) {
             return; // an unbound key with no Builder panel open, exactly as `b` is
@@ -4874,8 +5218,43 @@ private:
                 true);
             return;
         }
+        open_source(named.source, mail);
+    }
+
+    /// THE ONE DOOR INTO THE EDITOR'S DOCUMENT -- a path in, this session's one open
+    /// source out, and every referrer arrives through it.
+    ///
+    /// IT KNOWS NOTHING ABOUT WHO ASKED. A recipe, a row in the project browser, and
+    /// whatever later surface wants to open a file all hand it the same thing -- a path
+    /// -- and receive the same law: the same reveal, the same refusal, the same
+    /// sentences. That symmetry is the point. While opening lived inside the Builder
+    /// gesture, "may this replace what is open" was a rule one caller happened to obey;
+    /// a second caller would have had to obey it again, by hand, correctly, forever.
+    /// Here there is one copy, and a new referrer cannot fail to observe it because
+    /// there is nothing else to call.
+    ///
+    /// THE REQUESTED SPELLING IS NORMALIZED BEFORE ANYTHING IS COMPARED. Identity here
+    /// is a STRING comparison against the open document's path, so `a.cpp` and `./a.cpp`
+    /// would otherwise be two documents -- and two referrers spelling one file
+    /// differently would each get their own, with the dirty refusal (which asks the same
+    /// question) quietly disagreeing about which file is at risk. One resolution against
+    /// the project (`persist::resolved_against`) applied to EVERY entrant is what makes
+    /// both answers one answer.
+    ///
+    /// IT IS A SPELLING AND NOT A FILESYSTEM OBJECT, and the limit is named where it is
+    /// imposed: nothing canonicalizes, so two paths reaching one file through a link --
+    /// or differing only in case on Windows -- are still two documents here. Solving
+    /// that means asking the filesystem about identity on every open, which nothing yet
+    /// needs and which would make a path a question rather than a value.
+    ///
+    /// NOTHING PARTIALLY MOVES. The file is read and judged before the pane is touched
+    /// and long before the buffer is, so a refused open costs the maker a notice and
+    /// nothing else: the current document keeps its path, its buffer, its saved copy,
+    /// its epoch and its dirty answer, and the file on disk is untouched either way.
+    void open_source(const std::string& requested, loom::Mail& mail) {
+        const std::string path = persist::resolved_against(host_->project_dir, requested);
         EditorState& e = session_.editor;
-        if (e.open_document() && e.path == named.source) {
+        if (e.open_document() && e.path == path) {
             // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
             // its caret, its selection, its history and its viewport all stand; what
             // moves is presence (a removed pane comes back) and the keyboard.
@@ -4901,21 +5280,20 @@ private:
         // notice and nothing else -- the pane, the setup, the current document (if any)
         // and the file itself are all exactly as they were.
         const persist::FileText read =
-            persist::read_file(named.source, kMaxSourceBytes, "a source file");
+            persist::read_file(path, kMaxSourceBytes, "a source file");
         if (!read.outcome.accepted) {
             say(read.outcome.refusal, true);
             return;
         }
         SourceIn admitted = source_in(read.text);
         if (!admitted.outcome.accepted) {
-            say(named.source + ": " + admitted.outcome.refusal, true);
+            say(path + ": " + admitted.outcome.refusal, true);
             return;
         }
         if (!ensure_editor_pane(mail)) {
             return;
         }
-        e.path = named.source;
-        e.recipe = chosen;
+        e.path = path;
         e.saved_lines = admitted.lines;
         e.buffer.set_lines(std::move(admitted.lines));
         e.convention = admitted.convention;

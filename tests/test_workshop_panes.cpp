@@ -694,8 +694,8 @@ TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
                  before.keymap);
     const std::string shown = stack_text(c);
     CHECK(shown.find("+ PANEL") != std::string::npos);
-    CHECK(shown.find("Builder   closed") != std::string::npos);
-    CHECK(shown.find("Info      open") != std::string::npos);
+    CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
     CHECK(shown.find("... ") == std::string::npos); // no omission marker at this population
 }
 
@@ -723,7 +723,7 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     r.pick(hello_ref());
     r.key(input::scan::kP);
     const std::string open = stack_text(r.last_canvas());
-    CHECK(open.find("Hello     open") != std::string::npos);
+    CHECK(open.find(detail::pad("Hello", kPickerNameCols) + "open") != std::string::npos);
     r.key(input::scan::kEscape);
 
     // AND SELECTING IT AGAIN REMOVES IT -- the picker is still the one owner of
@@ -731,7 +731,7 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     r.pick(hello_ref());
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     r.key(input::scan::kP);
-    CHECK(stack_text(r.last_canvas()).find("Hello     closed") != std::string::npos);
+    CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
 }
 
 TEST_CASE("a picker population larger than its rows is windowed, not truncated") {
@@ -814,7 +814,7 @@ TEST_CASE("a picker population larger than its rows is windowed, not truncated")
             const std::size_t at = first + k;
             INFO("catalog row ", at, " on picker line ", line0 + k);
             CHECK(out[line0 + k].find((at == cursor ? "> " : "  ") +
-                                      detail::pad(catalog[at].name, 10)) == 0);
+                                      detail::pad(catalog[at].name, kPickerNameCols)) == 0);
         }
         std::size_t marked = 0;
         for (const std::string& row : out) {
@@ -1065,8 +1065,8 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`.
     r.key(input::scan::kP);
     const std::string shown = stack_text(r.last_canvas());
-    CHECK(shown.find("Hello     waiting") != std::string::npos);
-    CHECK(shown.find("Builder   open") != std::string::npos);
+    CHECK(shown.find(detail::pad("Hello", kPickerNameCols) + "waiting") != std::string::npos);
+    CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
     r.key(input::scan::kEscape);
 
     // GROWTH OPENS IT, with no gesture at all.
@@ -1105,7 +1105,7 @@ TEST_CASE("selecting a waiting row removes the intent, exactly as selecting an o
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     CHECK_FALSE(r.session().panels.waiting(hello));
     r.key(input::scan::kP);
-    CHECK(stack_text(r.last_canvas()).find("Hello     closed") != std::string::npos);
+    CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
 }
 
 // ---- The room contract ------------------------------------------------------------

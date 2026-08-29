@@ -1645,6 +1645,30 @@ inline bool editor_has_keyboard(const Session& s) {
     return where.w > 0 && where.h > 0;
 }
 
+/// DOES THE PROJECT BROWSER HAVE THE KEYBOARD RIGHT NOW? -- the same four live conditions,
+/// one pane over: the candidate names Project Files, it has a listing to navigate, the
+/// pane is presented, and some cell of it is on this screen.
+///
+/// THE CANDIDACY IS DECLARED AND THE READINESS IS RESOLVED, and this is the readiness half
+/// (`PanelKind::takes_keyboard` is the other). It is a separate function from the Editor's
+/// rather than one generalized predicate because the middle condition is genuinely
+/// different -- an open DOCUMENT there, a known LISTING here -- and folding two different
+/// questions behind one name would make the shared half look like the whole rule.
+///
+/// A LISTING IT COULD NOT MAKE RESOLVES TO NOTHING, exactly as an Editor with no document
+/// does: a press into a Project Files pane that has no project to browse sets the
+/// candidate and leaves the keys in command mode, so the maker's next gesture means what
+/// it means everywhere else instead of vanishing into a pane with nothing to navigate.
+inline bool files_has_keyboard(const Session& s) {
+    if (s.panels.keyboard != panel::kProjectFiles || !s.panels.files.listing.known ||
+        !s.panels.has(panel::kProjectFiles)) {
+        return false;
+    }
+    const FineRect where =
+        bounds_of(s.panels, s.setup.active, panel::kProjectFiles, screen_of(s)).rect;
+    return where.w > 0 && where.h > 0;
+}
+
 /// WHERE THE KEYBOARD CURRENTLY GOES, AS ONE VALUE -- the routing chain, spelled once
 /// (KEY-0).
 ///
@@ -1697,6 +1721,14 @@ inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     // MSG-0's own symmetry, with the same resolved-fresh discipline behind it.
     if (editor_has_keyboard(s)) {
         return KeyContext::kEditor;
+    }
+    // AND THE PROJECT BROWSER IS THE THIRD MEMBER OF THAT FAMILY, on the same terms. The
+    // three share one candidate field, so at most one of them can be the answer and the
+    // order between these two branches decides nothing -- it is written down anyway,
+    // because an ordering that rests on a mutual-exclusion proof is one refactor from
+    // being silently wrong.
+    if (files_has_keyboard(s)) {
+        return KeyContext::kFiles;
     }
     for (const Row& r : s.rows) {
         if (r.editing()) {
@@ -4197,12 +4229,20 @@ inline constexpr std::size_t kPaneStateCols = 11;
 /// HOW WIDE THE NAME COLUMN IS -- and it is a bound a party outside this build can
 /// reach, which is what makes it a constant rather than the `10` it used to be.
 ///
-/// A NAME HERE IS NOT ALWAYS THIS TOOL'S. Workshop's own two are `Builder` and `Info`,
-/// so for two phases the cut was arithmetic that never fired; an offered pane's name is
+/// A NAME HERE IS NOT ALWAYS THIS TOOL'S. Workshop's own were `Builder` and `Info`, so
+/// for two phases the cut was arithmetic that never fired; an offered pane's name is
 /// admitted at up to THIRTY-TWO bytes (`check_pane_text`), so a provider's name reaching
 /// this column three times too long is the ordinary case rather than the odd one. INTR-0
 /// was the first to do it, on its first live run, and what a maker read was a shorter
 /// name that looked finished.
+///
+/// TEN IS ALSO A BOUND ON THIS BUILD'S OWN NAMES, and EDIT-1 measured what moving it
+/// costs. A fourth built-in wanted a two-word name; widening this column to hold it
+/// narrowed every SUMMARY by the same three cells, and the first casualty was a sentence
+/// this repository already has a case about -- INTR-0's `what the kernel has loaded, and
+/// each one's role`, whole at 71 columns and cut at 72. A provider's sentence being
+/// readable is a product fact; a built-in's display name is a choice this file makes. So
+/// the name fits the column, and the column did not move.
 inline constexpr std::size_t kPickerNameCols = 10;
 
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
@@ -4523,6 +4563,7 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kArrangeReset: return "arranging -- reset";
     case KeyContext::kDraft: return "editing a property";
     case KeyContext::kEditor: return "the source editor";
+    case KeyContext::kFiles: return "the project browser";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* row =
@@ -6827,6 +6868,221 @@ inline void paint_editor(surface::SurfaceLayer& layer, const Session& s, const F
     layer.texts.push_back(std::move(region));
 }
 
+// ---- THE PROJECT BROWSER, PRESENTED (EDIT-1) --------------------------------------------
+//
+// THE EDITOR'S SHAPE OVER A LIST INSTEAD OF A DOCUMENT: one header row, one bounded body,
+// `external_body_place`'s resolution for both, and the press inverse standing beside the
+// painter so what a maker can press is what the paint just drew. Nothing new is measured
+// here -- the row budget is the pane body's, the omission wording is `omitted_text`'s, and
+// the window is `list_window`'s.
+//
+// THE WINDOW FOLLOWS THE CURSOR, WHICH IS WHY THIS PANE HAS NO SEPARATE SCROLL POSITION.
+// Every list in this application anchors its window on the row a maker is on -- the picker,
+// the inventory, the Info panel -- because in a list the cursor IS the place you are
+// looking. (The source editor is the exception, and for a reason that does not apply here:
+// a caret is a place in a DOCUMENT you are editing, so looking elsewhere without moving it
+// is a thing a maker means to do.) So the wheel here moves the cursor, the window follows,
+// and there is no second viewport for the two to fall out of step over.
+
+inline constexpr std::int64_t kFilesHeaderRows = 1;
+
+/// How many rows the wheel is worth in this list -- the editor's number, for its reason: a
+/// notch that moved one row would make a wheel feel broken, and one that moved a page would
+/// make it unusable for aiming.
+inline constexpr std::int64_t kFilesWheelRows = 3;
+
+/// The browser body's resolved place on this screen: the pane's rectangle less its header.
+/// Absent whenever the pane is closed, off-room, or too small for one row.
+inline ExternalBodyPlace files_body(const Session& s, const Screen& sc) {
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kProjectFiles, sc);
+    if (!where.open) {
+        return ExternalBodyPlace{};
+    }
+    return external_body_place(where.rect, sc, kFilesHeaderRows);
+}
+
+/// THE HEADER: where the maker is, and how far into the listing -- in the order the facts
+/// must survive `detail::fit`'s TAIL cut, which is the editor header's rule and its reason.
+/// The POSITION is short and fixed-width, so it comes first and cannot be the thing that
+/// elides; the LOCATION is the fact of arbitrary length and goes last, where a cut still
+/// leaves its leading directories readable.
+///
+/// THE LOCATION IS A PROJECTION AND THE ROOT IS NOT IN IT. What identifies a file here is
+/// the absolute path derived at activation; what a header has room for is where the maker
+/// is standing INSIDE their project, which is the half they do not already know. `.` is the
+/// root itself -- a name for the place, rather than an empty space where a fact should be.
+inline std::string files_header(const FilesPane& pane, bool typing) {
+    const std::size_t total = pane.listing.rows.size();
+    std::string out = "Files";
+    if (typing) {
+        out += " *"; // the keys are here -- the Editor header's own mark, same voice
+    }
+    if (!pane.listing.known) {
+        return out + " --";
+    }
+    if (total == 0) {
+        out += " empty";
+    } else {
+        const std::size_t at = pane.cursor < total ? pane.cursor + 1 : total;
+        out += " " + std::to_string(at) + "/" + std::to_string(total);
+        // A BOUND CLAIMS WHAT IT READ (QR-4). The walk stopped at the ceiling, so what
+        // stands beside the count is the fact that counting STOPPED -- never a total this
+        // browser never reached, and never a fraction of one.
+        if (pane.listing.bounded) {
+            out += "+ (stopped counting)";
+        }
+    }
+    const std::string where = relative_dir(pane.entered);
+    return out + "  " + (where.empty() ? "." : where);
+}
+
+/// ONE ROW'S TEXT: the name, a directory marked as one, and a name this application cannot
+/// carry marked as that. The two marks are deliberately different words, because they are
+/// different facts and only one of them is a refusal.
+inline std::string files_row_text(const FileRow& row) {
+    std::string out = shown_name(row.name);
+    if (row.directory) {
+        out += "/";
+        if (row.linked) {
+            out += "  (link -- not entered)";
+        }
+    }
+    if (!row.openable) {
+        out += "  (name this Workshop cannot open)";
+    }
+    return out;
+}
+
+/// WHERE A PRESS LANDED IN THE BROWSER'S BODY -- `editor_press_at`'s shape, answering a
+/// row of the WINDOW rather than a position in a document. The header is subtracted here
+/// because the resolution reserved it there.
+struct FilesPressAt {
+    bool named = false;
+    std::int64_t row = 0; ///< a prose row of the BODY: 0 is the row under the header
+};
+
+inline FilesPressAt files_press_at(const Session& s, const Screen& sc, std::int64_t space,
+                                   std::int64_t x, std::int64_t y) {
+    const ExternalBodyPlace body = files_body(s, sc);
+    if (!body.present) {
+        return FilesPressAt{};
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    if (!at.understood) {
+        return FilesPressAt{};
+    }
+    const std::int64_t row = at.row - body.header_rows;
+    if (row < 0 || row >= body.rows) {
+        return FilesPressAt{};
+    }
+    return FilesPressAt{true, row};
+}
+
+/// IS THIS POSITION OVER THE BROWSER'S BODY -- the wheel's one question, `over_editor_body`
+/// exactly: the header row is not the body, and the column is not asked.
+inline bool over_files_body(const Session& s, const Screen& sc, std::int64_t space,
+                            std::int64_t x, std::int64_t y) {
+    const ExternalBodyPlace body = files_body(s, sc);
+    if (!body.present) {
+        return false;
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    return at.understood && at.row >= body.header_rows && at.row < body.fit.rows;
+}
+
+/// WHICH LISTING ROW A BODY ROW SHOWS, for the press inverse -- the SAME window the painter
+/// walks, resolved from the same three numbers. It is a function rather than a remembered
+/// mapping for `bounds_of`'s reason: a window recomputed at every spend cannot describe a
+/// listing that has since been replaced.
+///
+/// A MARKER ROW NAMES NO ENTRY. The `... n earlier` and `... n more` lines spend rows of the
+/// budget and are not entries, so a press on one lands on nothing -- which is the truthful
+/// answer, and the alternative (nearest entry wins) would open a file the maker did not
+/// press on.
+inline bool files_row_of_body_row(const FilesPane& pane, std::int64_t body_rows,
+                                  std::int64_t body_row, std::size_t& out) {
+    if (body_rows <= 0 || body_row < 0) {
+        return false;
+    }
+    const std::size_t total = pane.listing.rows.size();
+    const ListWindow win = list_window(total, pane.cursor, static_cast<std::size_t>(body_rows));
+    const std::int64_t first_entry_row = win.before > 0 ? 1 : 0;
+    const std::int64_t offset = body_row - first_entry_row;
+    if (offset < 0 || offset >= static_cast<std::int64_t>(win.count)) {
+        return false;
+    }
+    out = win.first + static_cast<std::size_t>(offset);
+    return out < total;
+}
+
+/// THE PROJECT BROWSER, PAINTED: the frame, the header, and one directory's rows through
+/// the shared list window. Every branch here says something -- an absent project, a
+/// directory that would not open, and an empty directory are three different facts and a
+/// pane that showed blankness for all three would be hiding two of them.
+inline void paint_files(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+                        const Screen& sc, const Keymap& k) {
+    paint_panel_frame(layer, b);
+    const ExternalBodyPlace body = external_body_place(b, sc, kFilesHeaderRows);
+    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
+        return; // no room for one row of this medium's type: say nothing at all
+    }
+    surface::SurfaceTextRegion region;
+    region.x = body.region_x;
+    region.y = body.region_y;
+    region.w = body.region_w;
+    region.h = body.region_h;
+    region.sub_x = body.region_sub_x;
+    region.sub_y = body.region_sub_y;
+    region.sub_w = body.region_sub_w;
+    region.sub_h = body.region_sub_h;
+    const FilesPane& pane = s.panels.files;
+    const auto say = [&region, &body](const std::string& text, std::int64_t role) {
+        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, body.columns), role});
+    };
+    if (body.header_rows > 0) {
+        say(files_header(pane, files_has_keyboard(s)), surface::role::kAccent);
+    }
+    if (!body.present) {
+        if (!region.rows.empty()) {
+            layer.texts.push_back(std::move(region));
+        }
+        return; // room for the heading and nothing else: the heading, honestly
+    }
+    if (!pane.listing.known) {
+        say(pane.listing.refusal.empty() ? std::string("nothing has been listed yet")
+                                         : pane.listing.refusal,
+            surface::role::kMuted);
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    if (pane.listing.rows.empty()) {
+        say("this directory is empty", surface::role::kMuted);
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    const std::size_t rows = static_cast<std::size_t>(body.rows);
+    const ListWindow win = list_window(pane.listing.rows.size(), pane.cursor, rows);
+    if (win.before > 0) {
+        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+    }
+    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        const bool here = i == pane.cursor;
+        const FileRow& row = pane.listing.rows[i];
+        say(std::string(here ? "> " : "  ") + files_row_text(row),
+            here ? surface::role::kAccent
+                 : (row.openable ? surface::role::kFill : surface::role::kMuted));
+    }
+    if (win.after > 0) {
+        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+    }
+    // THE GESTURES ARE NOT PAINTED HERE. What Return and Backspace do in this pane is the
+    // band's to say, from the one action truth (`help_rows` over `KeyContext::kFiles`), so
+    // a maker who remapped them reads their own bindings rather than this file's guess --
+    // and the pane spends every row it has on the project instead of on instructions.
+    (void)k;
+    layer.texts.push_back(std::move(region));
+}
+
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE (ARR-0). A maker must
 /// never have to infer from failed clicks that they are arranging; the rings say it, on
 /// the panes themselves, in both scopes:
@@ -6956,6 +7212,8 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
                 paint_info(layer, d, s, b, sc);
             } else if (p.kind == panel::kEditor) {
                 paint_editor(layer, s, b, sc);
+            } else if (p.kind == panel::kProjectFiles) {
+                paint_files(layer, s, b, sc, s.keymap);
             } else if (is_runtime_kind(p.kind)) {
                 // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
                 // add. The branch above chooses a PAINTER, which PNL-1 named as the one
@@ -7217,6 +7475,13 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
         } else if (ctx == KeyContext::kEditor &&
                    s.keymap.resolved_legend() == legend_mode::kFull) {
             said = "typing goes to the source editor -- press elsewhere for Workshop's keys";
+        } else if (ctx == KeyContext::kFiles &&
+                   s.keymap.resolved_legend() == legend_mode::kFull) {
+            // THE BROWSER TAKES KEYS WITHOUT TAKING TEXT, so the sentence says KEYS. The
+            // row exists for the same measured reason the two above it do: a maker whose
+            // arrows have stopped meaning what they mean in command mode is entitled to
+            // read why on the screen rather than infer it from a gesture that did nothing.
+            said = "keys go to Project Files -- press elsewhere for Workshop's keys";
         }
         if (!said.empty()) {
             if (legend_rows == 1) {

@@ -40,7 +40,7 @@ Open the pane with **`p`** → `Builder` → `Enter`. Then:
 | **`b`** | **build** the recipe you have chosen |
 | **`Shift+b`** | **build and realize** it — build, and if that works, offer the result to the running project |
 | **`f`** | **build and realize the frontier** — the one artifact the project is waiting on (below) |
-| **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words |
+| **`e`** | **open the chosen recipe's source** in [the source editor](editor.md) — `single_source` recipes only; a `cmake_target` recipe names no single source and refuses in those words. The [Files](files.md) pane opens any project file through the same door |
 | **`p`** | remove the pane |
 
 The pane shows the chosen recipe and what it makes, where the last build got to (with its
@@ -123,6 +123,11 @@ around it, and CMake compiles and links it.
                        "workspace": "" } ] }
 ```
 
+- `source` may be absolute, as above, or **relative to the project** — the directory you
+  launched Workshop in, printed on the startup banner. It is resolved once, when the catalog
+  is read, so the editor, the check that the file exists, and the generated project that
+  compiles it all name the same file. Your recipe file is never rewritten: what you wrote
+  stays what you wrote.
 - `packages` is `CMAKE_PREFIX_PATH`. The generated project says `find_package(zengine CONFIG
   REQUIRED)` and nothing else, so it is an **ordinary external consumer** of the installed
   package — the same thing any other project is. If the prefix does not carry a Zengine
@@ -207,8 +212,8 @@ An artifact that is **already loaded** is refused, in words:
 
 - A recipe file is edited in a text editor, not in Workshop. There is no recipe editor, no
   picker beyond `c`, and no way to add a recipe at run time. (A `single_source` recipe's
-  **source** is the one file Workshop itself can edit — press `e`; see
-  [the source editor](editor.md).)
+  **source** opens in Workshop's own editor with `e`; any other project file opens from the
+  [Files](files.md) pane — see [the source editor](editor.md).)
 - A single-source recipe names its package prefixes by hand. Nothing discovers where a Zengine
   package is installed.
 - A rebuilt artifact that is already live needs a restart to take effect, and the refusal says

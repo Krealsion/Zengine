@@ -87,6 +87,8 @@
 // SAYS which kinds are open, because a toggle whose current state is invisible
 // is a gesture a maker has to guess at.
 
+#include "files.hpp"
+
 #include "builder/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -98,10 +100,10 @@
 
 namespace zengine::workshop {
 
-/// The KINDS of panel this Workshop can present. Three so far, and they are
+/// The KINDS of panel this Workshop can present. Four so far, and they are
 /// deliberately unalike: one presents a weave, one presents this application's
-/// own state, one presents a source document the session holds -- and nothing
-/// in this file can tell them apart.
+/// own state, one presents a source document the session holds, one presents the
+/// project on disk -- and nothing in this file can tell them apart.
 ///
 /// A plain integer rather than an enum class, for the reason every other
 /// vocabulary constant in this repository is one: these values sit beside
@@ -111,6 +113,7 @@ namespace panel {
 inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
 inline constexpr std::int64_t kEditor = 2;
+inline constexpr std::int64_t kProjectFiles = 3;
 } // namespace panel
 
 /// WHERE a panel kind is presented. Two, because Workshop has two places and no
@@ -179,6 +182,22 @@ struct PanelKind {
     const char* pane = "";    ///< the durable pane key, in that provider's namespace
     const char* name = "";    ///< what the picker lists
     const char* summary = ""; ///< one line, so a maker can tell what they are opening
+    /// CAN A PRESS INTO THIS BUILT-IN POINT THE KEYBOARD AT IT?
+    ///
+    /// A DECLARATION THAT USED TO BE A HAND-KEPT EXCEPTION. While the Editor was the only
+    /// built-in with a body a maker types into, the routing layer simply named it -- one
+    /// `kind == panel::kEditor` inside the press handler's candidate line. At the SECOND
+    /// such built-in that spelling becomes a disjunction somebody has to remember to
+    /// extend, in a file that has no other reason to know which panes take keys, so the
+    /// fact moves to where every other fact about a kind already lives: this row.
+    ///
+    /// IT IS CANDIDACY AND NOT FOCUS. This says a press here MAY point the keyboard at
+    /// this pane; whether the pane can actually take keys at this instant is live state
+    /// its own resolver answers (the Editor needs a document open, Project Files needs a
+    /// project to browse), resolved fresh at every spend and stored nowhere. Two facts,
+    /// two owners -- and this is deliberately not a focus framework: nothing here
+    /// registers, subscribes, or orders anything.
+    bool takes_keyboard = false;
 };
 
 /// The pane keys the built-ins are spelled with in a saved setup. Named
@@ -189,6 +208,7 @@ namespace pane_key {
 inline constexpr const char* kBuilder = "builder";
 inline constexpr const char* kInfo = "info";
 inline constexpr const char* kEditor = "editor";
+inline constexpr const char* kProjectFiles = "project-files";
 } // namespace pane_key
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
@@ -221,7 +241,18 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // and closing one destroys a presentation. Info's own shape, holding a document
     // instead of holding nothing.
     {panel::kEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kEditor, "Editor",
-     "edit a recipe's source"},
+     "edit a source file", true},
+    // THE PROJECT ON DISK, AS A PLACE A MAKER CAN LEAVE OPEN. An ordinary catalog row and
+    // nothing more: it opens and closes through the picker, arranges, stacks, hides and
+    // rides a saved setup exactly as the three above do, because it is a pane and not a
+    // dialog. Deliberately NOT a modal picker -- a browser a maker must reopen every time
+    // they want to look at their project is a browser they stop using -- and deliberately
+    // not a provider pane, since nothing external offers it.
+    //
+    // ITS STATE IS `Panels::files`, and none of it is durable. What persists is that the
+    // PANE is on the desk, which is the setup's business and arrives for free.
+    {panel::kProjectFiles, placement::kOverlayStack, kWorkshopProvider, pane_key::kProjectFiles,
+     "Files", "browse and open files", true},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -671,6 +702,12 @@ struct Panels {
     std::vector<Panel> open = default_panels();
     PanelPicker picker;
     BuilderPane builder;
+    /// WHAT THE PROJECT BROWSER IS CURRENTLY SHOWING. `BuilderPane`'s place, for the same
+    /// reason: it is the per-kind view of a built-in, so it outlives the PRESENTATION
+    /// being removed and restored -- close Project Files, reopen it, and a maker is where
+    /// they were, exactly as the Builder's chosen recipe survives the same round trip.
+    /// It does not outlive the RUN, and nothing writes it to a file.
+    FilesPane files;
     /// THE PANES OFFERED TO THIS RUN, beside the compile-time ones (WP-0). It
     /// lives here rather than in `Session` for one measured reason: every
     /// presentation question that has to know a runtime pane's NAME or its PLACE

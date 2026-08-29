@@ -460,6 +460,50 @@ inline Written load_into(WorkshopDoc& live, std::string_view bytes) {
 
 // ---- The file itself -------------------------------------------------------
 
+/// ONE SPELLING OF A PATH, RESOLVED AGAINST THE PLACE IT WAS MEANT RELATIVE TO.
+///
+/// THIS IS NOT A PATH TYPE AND NOT A PATH FRAMEWORK. It is one pure function, and it
+/// exists because the alternative was measured and is a defect: a relative spelling that
+/// several parties each resolve at the moment they happen to spend it means whatever each
+/// party's own footing happens to be, and a build recipe naming `src/a.cpp` came to mean
+/// the editor's file and the compiler's file -- two different files, silently. A spelling
+/// is resolved ONCE, against a base somebody named, and what comes out is what everybody
+/// afterwards compares and opens.
+///
+/// THREE STEPS, AND DELIBERATELY NO FOURTH:
+///
+///   absolute      a relative spelling is joined to `base`; an absolute one is already an
+///                 answer and is left exactly as it was authored.
+///   lexical       `lexically_normal` folds `.` and `..` as TEXT. It touches no disk, so
+///                 it cannot fail, cannot block, and cannot be defeated by a path that is
+///                 not there yet -- which matters, because a source file is a legitimate
+///                 thing to name before it exists.
+///   one separator `generic_string` so `a/b` and `a\b` are one spelling on Windows and the
+///                 answer reads the same in every notice on either platform.
+///
+/// WHAT IT IS NOT: `canonical`/`weakly_canonical` are not called, so this resolves
+/// SPELLINGS and never filesystem OBJECTS. Two spellings this returns equal name one file;
+/// two it returns different MAY still be one file -- through a symbolic link, a hard link,
+/// or Windows' case-insensitive comparison -- and nothing here claims otherwise. That is a
+/// genuine limit, named where it is imposed rather than discovered downstream.
+///
+/// AN EMPTY BASE RESOLVES NOTHING. A relative spelling with no base to stand on is
+/// returned unchanged, because inventing a base is precisely the guess every absence in
+/// this application refuses to make; the caller that has no base refuses in words instead.
+inline std::string resolved_against(const std::string& base, const std::string& spelling) {
+    if (spelling.empty()) {
+        return spelling;
+    }
+    std::filesystem::path p(spelling);
+    if (p.is_absolute()) {
+        return p.lexically_normal().generic_string();
+    }
+    if (base.empty()) {
+        return spelling;
+    }
+    return (std::filesystem::path(base) / p).lexically_normal().generic_string();
+}
+
 /// What reading a file produced.
 struct FileText {
     Written outcome;

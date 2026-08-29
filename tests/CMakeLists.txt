@@ -672,7 +672,7 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 
 # ---- The Workshop suites -------------------------------------------------------------
 #
-# SIX BINARIES, NOT ONE, AND THE BOUNDARIES ARE THE SOURCE'S OWN. Workshop's cases had
+# EIGHT BINARIES, NOT ONE, AND THE BOUNDARIES ARE THE SOURCE'S OWN. Workshop's cases had
 # grown to a single thirty-thousand-line translation unit: thirty seconds to compile
 # before one assertion could run, and nineteen seconds of test time CTest could only ever
 # give to one worker. Neither number is about how much Workshop proves -- it is the same
@@ -686,6 +686,11 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 #   workshop_persistence   what survives a process
 #   workshop_load          which artifacts are in the room at all
 #   workshop_editor        the built-in source editor and its document
+#   workshop_files         the project browser, its bounds and its root
+#
+# THE COUNT IN THAT FIRST SENTENCE IS THE ONE THING HERE THAT DATES: the split's argument
+# is about boundaries, not about how many there are, and each later phase that earns a suite
+# adds a line above rather than restating the case for cutting.
 #
 # `tests/workshop_support.hpp` holds what more than one of them needs -- the fixtures, the
 # canvas readers, the `Live` and `PaneRig` rigs -- and says in its own header what may go
@@ -694,8 +699,8 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # cases owns a Switchboard and a Kernel of its own.
 #
 # WHAT IS PROVEN IS UNCHANGED. Every case moved verbatim into the suite that owns its
-# subject; `tests/test_population.txt` carries six floors where it carried one, and their
-# sum is what the one was.
+# subject; `tests/test_population.txt` carries a floor per suite where it carried one, and
+# at the split their sum was what the one was.
 #
 # The Workshop surface is proven headless. That is not a limitation of the suites, it is a
 # property of the design: the authored objects are plain data, the operations on them are
@@ -797,6 +802,12 @@ zengine_workshop_suite(screen test_workshop_screen.cpp)
 # door, save/dirty truth, the viewport and the no-silent-loss floor. Its temporary
 # directories are its own, exactly as the family rule requires.
 zengine_workshop_suite(editor test_workshop_editor.cpp)
+
+# The PROJECT BROWSER: enumeration and its bound, the directories-first order, the
+# name admission, the root boundary, the press/wheel routing and the path from a row to
+# the editor's one door. Its temporary directories are its own, and the project root it
+# browses is one of them -- no case here reads the machine's real working directory.
+zengine_workshop_suite(files test_workshop_files.cpp)
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not

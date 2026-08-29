@@ -34,7 +34,8 @@ Every page below has one reader purpose, named.
 | [workshop/setups.md](workshop/setups.md) | the three persisted files, saving an arrangement under a name, the last session that comes back on its own, and an explicit verdict on workspace continuity |
 | [workshop/load-plans.md](workshop/load-plans.md) | choosing what a run is made of, from a maker's side |
 | [workshop/builder.md](workshop/builder.md) | authored build recipes, the two recipe kinds, and build & realize |
-| [workshop/editor.md](workshop/editor.md) | the built-in source editor — open a recipe's source, edit, save, and back to the build |
+| [workshop/editor.md](workshop/editor.md) | the built-in source editor — open a source, edit, save, and back to the build |
+| [workshop/files.md](workshop/files.md) | the Files pane — browse the project you launched in and open a file from it |
 | [workshop/limitations.md](workshop/limitations.md) | **what does not work yet**, in one place |
 
 ## Reference — exact contracts

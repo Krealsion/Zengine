@@ -63,8 +63,12 @@ namespace zengine::workshop {
 /// vocabulary, not two submodes -- and `kArrangeDesk` is the same vocabulary over the
 /// whole desk, plus the keys that step between panes. `kArrangeReset` is the one
 /// remaining prompt step: `0`, then which authored dimension. `kEditor` is the built-in
-/// source editor holding the keyboard with a document open -- a PLACE a maker pressed
-/// into, in the focused pane's family, not a mode. The last three are DECLARATION-ONLY
+/// source editor holding the keyboard with a document open, and `kFiles` the built-in
+/// project browser holding it with a project to browse -- both are PLACES a maker pressed
+/// into, in the focused pane's family, not modes: they answer only while a press has
+/// pointed the keys there, and the same press pointed elsewhere takes the keys straight
+/// back. Neither takes TEXT, which is what keeps `^c` and `^s` meaning what they mean
+/// everywhere a maker is not typing. The last three are DECLARATION-ONLY
 /// activity classes -- `keyboard_context()` never returns them:
 ///
 ///   kGlobal    active in every context: answered above the whole chain, the `^o`
@@ -91,6 +95,7 @@ enum class KeyContext : std::uint8_t {
     kPane,
     kDraft,
     kEditor,
+    kFiles,
     kArrangePane,
     kArrangeDesk,
     kArrangeReset,
@@ -208,6 +213,12 @@ enum class Act : std::uint8_t {
     kEditorNewline,
     kEditorTab,
     kEditorDiscard,
+    // -- the project browser's controls ------------------------------------------------
+    kFilesUp,
+    kFilesDown,
+    kFilesOpen,
+    kFilesParent,
+    kFilesRefresh,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -426,6 +437,28 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kD, mod::kCtrl}},
     {Act::kEditorDiscard, "editor.discard", "discard source edits", KeyContext::kCommand,
      {scan::kD, mod::kCtrl}},
+    // -- the project browser's controls ------------------------------------------------
+    //
+    // FIVE VERBS, ALL SAYABLE ON EVERY BACKEND THIS APPLICATION SHIPS. Up, Down, Return
+    // and Backspace are plain named keys the POSIX terminal wire carries as themselves,
+    // and `r` is a bare letter, which is legal here for the arrangement scopes' reason:
+    // nothing in this context takes text, so a letter cannot be swallowed by a buffer.
+    // There is deliberately no ctrl+shift+letter anywhere -- the POSIX wire cannot say
+    // one at all (EDIT-0 measured it), so binding one would ship a door a terminal maker
+    // could not open.
+    //
+    // BACKSPACE MEANS PARENT, AND THERE IS NO `..` ROW FOR IT TO PRESS. Going up is
+    // popping the last name entered; at the root there is nothing to pop and the gesture
+    // says so. That is the root boundary, and it is the representation rather than a
+    // check somebody has to remember.
+    {Act::kFilesUp, "files.up", "row up", KeyContext::kFiles, {scan::kUp, mod::kNone}},
+    {Act::kFilesDown, "files.down", "row down", KeyContext::kFiles, {scan::kDown, mod::kNone}},
+    {Act::kFilesOpen, "files.open", "enter or edit", KeyContext::kFiles,
+     {scan::kReturn, mod::kNone}},
+    {Act::kFilesParent, "files.parent", "up a directory", KeyContext::kFiles,
+     {scan::kBackspace, mod::kNone}},
+    {Act::kFilesRefresh, "files.refresh", "look again", KeyContext::kFiles,
+     {scan::kR, mod::kNone}},
     // -- the Terminal line's controls --------------------------------------------------
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},

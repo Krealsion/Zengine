@@ -73,6 +73,7 @@ entitled to before you press anything:
 zengine-workshop - containment: in-process; trusted; no OS sandbox (out-of-process isolation is the isolation host's job)
 zengine-workshop - document: workshop.json
 zengine-workshop - setup: workshop-setup.json
+zengine-workshop - project: /home/you/my-thing
 zengine-workshop - last session: C:/Users/you/AppData/Local/zengine-workshop/workshop-session.json (restored at startup, written on quit)
 zengine-workshop - keymap: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-keymap.json
 zengine-workshop - prefs: C:/Users/you/AppData/Roaming/zengine-workshop/workshop-prefs.json
@@ -89,6 +90,8 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 - **what this host isolates** — `Kernel::containment_note()`, verbatim. An in-process Zengine
   host isolates nothing; read the sentence literally.
 - **which files this run is using**, and how many artifacts the plan declared.
+- **which project this is** — the directory you launched in. It is what the Files pane
+  browses and what a relative source path in a build recipe is relative to.
 - **whether anything durable is being kept**, so a session that mattered is not discovered to
   have been unrecorded afterwards.
 - **what the Builder will actually run** — the program and its arguments, because a panel cannot

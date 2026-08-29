@@ -45,8 +45,8 @@ current.
 `tests/test_workshop.cpp` had reached thirty thousand lines behind one CTest entry: thirty
 seconds of compiling before an assertion could run, and a nineteen-second test the scheduler
 could only ever hand to one worker — a floor neither the machine nor the population explained.
-It was cut into six sources along the headings the file already had, and the source editor
-added a seventh for its own new area:
+It was cut into six sources along the headings the file already had, and each later phase
+that opened a genuinely new area has added one:
 
 ```text
 workshop_document      the authored material and the maker's hands on it
@@ -56,6 +56,8 @@ workshop_panes         the external pane seam, from both sides
 workshop_persistence   what survives a process
 workshop_load          which artifacts are in the room at all
 workshop_editor        the built-in source editor and its document
+workshop_files         where source comes from: the project browser, and what a
+                       project-relative recipe source means to editor and build alike
 ```
 
 - **Pick the one your change can falsify** and build that target alone: a Workshop test edit
@@ -65,7 +67,7 @@ workshop_editor        the built-in source editor and its document
   It is not free: measured, the header adds ~0.4 s of parse to a translation unit that only
   reads it, and roughly 5–8 s to one that USES it, because every suite emits the helpers it
   calls. Editing it rebuilds five suites. Moving a helper into it is a decision.
-- **A temporary directory belongs to the suite that made it.** Seven binaries run at once and
+- **A temporary directory belongs to the suite that made it.** They run at once and
   every `TempDir` counter starts at zero, so the root carries `ZENGINE_WORKSHOP_SUITE`; a case
   in `workshop_persistence` asserts that rather than trusting it. Nothing else in the family
   shares a filesystem path — the load-plan stage directory is `workshop_load`'s alone.
