@@ -712,6 +712,16 @@
 # surfaces; panes holds the seam silence -- a right press over a provider's pane, and every
 # gesture spent on the open surface, crossing the pane seam not at all.
 #
+# The source editor added a SEVENTH workshop entry, `workshop_editor`, with its own floor:
+# a new area of the product (the multiline buffer, the source-byte law, the tab geometry,
+# the Builder's edit-source door, save/dirty truth, the viewport, the deferred-paste
+# settlement and the no-silent-loss floor) gets a suite of its own, exactly as the family
+# split intends, so a deleted case names the area it went missing from. The six existing
+# floors are untouched: every editor case is new evidence, and the two example-gesture
+# updates inside `workshop_document` (a keymap override illustration moved off the letter
+# the edit-source door now binds) and `workshop_screen` (the picker-census fixture now
+# counts three built-ins) moved no floor.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -731,6 +741,7 @@ workshop_panels                   doctest           always  149
 workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
+workshop_editor                   doctest           always  66
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

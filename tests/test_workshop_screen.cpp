@@ -5837,13 +5837,13 @@ TEST_CASE("TYPE-0: the picker spends the ACTIVE medium's rows, and says what it 
     CHECK(typed_place.columns > cell_place.columns); // ...and more characters across each one
 
     // A CATALOG TALLER THAN THE GRAPHICAL BUDGET IS WINDOWED THERE AND WHOLE IN CELLS, which
-    // is the assertion that actually spends the difference: six offers plus two built-ins fit
-    // the nine rows a terminal has and not the five an 18-pixel face has, so the two media
-    // show different lists of one population and each says what it left out. The marker is
-    // paid for OUT of the budget rather than added beneath it -- `list_window`'s rule, which
-    // this migration spends rather than reimplements.
+    // is the assertion that actually spends the difference: five offers plus three built-ins
+    // fit the nine rows a terminal has (heading included) and not the five an 18-pixel face
+    // has, so the two media show different lists of one population and each says what it
+    // left out. The marker is paid for OUT of the budget rather than added beneath it --
+    // `list_window`'s rule, which this migration spends rather than reimplements.
     Panels crowded = panels;
-    for (std::int64_t i = 0; i < 6; ++i) {
+    for (std::int64_t i = 0; i < 5; ++i) {
         crowded.runtime.entries.push_back(
             RuntimePane{kFirstRuntimeKind + i, "zengine.probe",
                         "p" + std::to_string(i), "Probe" + std::to_string(i), "a summary"});

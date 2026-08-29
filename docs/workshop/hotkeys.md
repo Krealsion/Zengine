@@ -30,12 +30,15 @@ that owns each row:
 
 - the current context's own keys — command mode, the terminal line, the picker, the
   current-condition view, the two arranging scopes and their reset prompt, a property
-  being edited, or a focused pane;
-- the keys answered above every mode (save, open, the terminal toggle, this view, and — where
-  nothing is taking text — quit and the current-condition view);
+  being edited, the source editor, or a focused pane;
+- the keys answered above every mode (open, the terminal toggle, this view; where nothing
+  is taking text, quit and the current-condition view; and everywhere but the source
+  editor, the document's save — inside the editor the same chord is the editor's own
+  `save source`);
 - inside any text field, the text box's own editing keys — copy, cut, paste, select, word
   movement, undo — shown for discovery but **not remappable**: they belong to the editing
-  component, in every box at once, and the keymap does not reach into it.
+  component, in every box at once, and the keymap does not reach into it. The source
+  editor's own editing keys are listed the same way, from its own declared vocabulary.
 
 The view describes the context **beneath** it — open it over the terminal line and you read
 the terminal line's keys — and it is modal while open: `Esc` or `Ctrl`+`k` puts it away, and
@@ -109,7 +112,10 @@ way the file is left exactly as you wrote it: Workshop never rewrites, trims or 
 An action that is available only **where nothing is taking text** is a different class and is
 allowed an editing chord, because in that class no text field is listening: that is exactly
 how `Ctrl`+`c` quits from command mode and copies inside a field, and how `Ctrl`+`a` opens the
-current-condition view from command mode and selects all inside one.
+current-condition view from command mode and selects all inside one. A third class is
+available **everywhere but the source editor** — the document's save, whose `Ctrl`+`s` is the
+editor's own `save source` while your keys are in the source; because that class *is* active
+inside the other text fields, it meets the same two guards a fully global action does.
 
 **What is kept:** an override whose action id this build does not know is preserved exactly
 as you wrote it — byte for byte, in place — not deleted and not an error. It is your intent,

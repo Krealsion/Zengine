@@ -175,6 +175,27 @@ struct HostContext {
     /// frontier by so much as an ask.
     std::function<ProjectFrontier()> frontier;
 
+    /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
+    /// HOST -- the party that read the recipes file and holds the authored truth the
+    /// runner builds from. The Builder TOOL deliberately holds no source path
+    /// (`RecipeView`'s own subtraction), so asking it would first mean teaching it one;
+    /// and Workshop re-deriving the path from the file would be a second, subtly
+    /// different join of the same authored bytes. `source` is the recipe's authored
+    /// string, verbatim -- the identical bytes the generated build project references --
+    /// and `kind` is the recipe file's own word for what this recipe is, so a refusal
+    /// can speak the recipe owner's vocabulary.
+    struct RecipeSource {
+        bool known = false; ///< the id names an authored recipe of this project
+        std::string kind;   ///< `single_source` or `cmake_target`, the file's own words
+        std::string source; ///< the one authored source file; empty when the kind has none
+    };
+
+    /// `frontier`'s exact seam, one catalog over: the host wires a function over its own
+    /// authored recipes, the weave spends it at the moment of the gesture and stores
+    /// nothing. Empty is ordinary -- every suite fixture gets it by default -- and the
+    /// edit-source door then refuses in words rather than guessing.
+    std::function<RecipeSource(const std::string&)> recipe_source;
+
     /// The one file this Workshop saves to and loads from.
     ///
     /// It is the host's to choose (`--document <path>`, defaulted) and it is
@@ -312,6 +333,7 @@ class WorkshopWeave
                              loom::Accept<zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
+                                          zengine::input::PointerWheel,
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
                                           zengine::surface::SurfacePlacement,
@@ -681,7 +703,13 @@ public:
         // which is what keeps the hotkey view's swallow, and every mode's ownership,
         // ahead of it.
         switch (session_.keymap.above_mode_action(ctx, k.scancode, k.modifiers)) {
-        case Act::kQuit: quit(); return;
+        case Act::kQuit:
+            // A quit REFUSED for unsaved source says so on the notice line, which has to
+            // be painted to be read; a quit that proceeded publishes one last unchanged
+            // frame on its way out, which costs nothing anybody sees.
+            quit();
+            repaint(mail);
+            return;
         case Act::kTerminalToggle:
             toggle_terminal();
             repaint(mail);
@@ -749,6 +777,7 @@ public:
         case KeyContext::kAttention: attention_key(k); break;
         case KeyContext::kContext: context_key(k, mail); break;
         case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
+        case KeyContext::kEditor: editor_key(k); break;
         case KeyContext::kDraft: editing_key(k); break;
         default: command(k, mail); break;
         }
@@ -1097,6 +1126,45 @@ public:
         Row* row = nullptr;
         switch (p.owner) {
         case PasteOwner::kNone: return;
+        case PasteOwner::kEditor: {
+            // THE EDITOR'S SETTLEMENT PINS THE WHOLE POSITION, not just the draft: the
+            // request recorded which document was open and exactly where it stood, and
+            // the answer applies there or nowhere. A replaced or closed document strands
+            // the payload silently (the dead draft's own fate); a document that MOVED --
+            // any edit, any caret or selection change between request and answer -- gets
+            // a sentence instead of a paste, because relocating the text to wherever the
+            // caret is now would be answering a question the maker no longer asked.
+            EditorState& e = session_.editor;
+            if (!e.open_document() || e.doc_epoch != p.editor_doc) {
+                return; // the document that asked is gone; discarded, silently
+            }
+            if (e.buffer.revision() != p.editor_revision) {
+                say("the paste answer arrived after the source moved -- nothing was "
+                    "pasted; paste again",
+                    true);
+                repaint(mail);
+                return;
+            }
+            if (a.readable) {
+                session_.clipboard.text = a.text; // the platform's current truth, asked for
+            }
+            if (session_.clipboard.text.empty()) {
+                repaint(mail);
+                return; // an empty clipboard pastes nothing, the component's own law
+            }
+            const PasteableSource judged = pasteable_source(session_.clipboard.text);
+            if (!judged.representable) {
+                say("the clipboard holds bytes outside plain ASCII, which this editor "
+                    "cannot carry truthfully -- nothing was pasted",
+                    true);
+                repaint(mail);
+                return;
+            }
+            e.buffer.paste_lines(judged.lines);
+            e.follow_caret = true;
+            repaint(mail);
+            return;
+        }
         case PasteOwner::kTerminal:
             // The line outlives the pane's visibility (shift+space hides it and keeps the
             // draft), so an open pane is not required — the same DRAFT is.
@@ -1196,6 +1264,10 @@ public:
             return;
         case KeyContext::kPane:
             external_text(keyboard_pane(), t, mail);
+            return;
+        case KeyContext::kEditor:
+            editor_text(t.text);
+            repaint(mail);
             return;
         case KeyContext::kDraft: {
             Row* row = editing_row();
@@ -1488,8 +1560,17 @@ public:
             // exactly where it was and closing it hands the keyboard straight back --
             // which is the same "closing it restores every gesture exactly" this file
             // already promises about the pointer.
+            //
+            // THE EDITOR IS THE ONE BUILT-IN THAT CAN BE A CANDIDATE: it is the only
+            // built-in with an editable body, so a press into it is a maker pointing
+            // the keys at their source exactly as a press into an external pane points
+            // them at a provider. Every other built-in still clears the candidate --
+            // the asymmetry `is_runtime_kind` used to carry alone, kept narrow on
+            // purpose rather than widened into a focus framework.
             session_.panels.keyboard =
-                here.occupied && is_runtime_kind(here.kind) ? here.kind : kNoPaneKind;
+                here.occupied && (is_runtime_kind(here.kind) || here.kind == panel::kEditor)
+                    ? here.kind
+                    : kNoPaneKind;
             // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
             // rather than a mode (HD-5). The order is the same one the pane and the
             // completion list already have: the innermost thing that owns the pointer where
@@ -1575,6 +1656,14 @@ public:
             // vocabulary contains the reason -- and this one's does not).
             if (here.occupied && is_runtime_kind(here.kind)) {
                 external_press(here.kind, b, mail);
+            } else if (here.occupied && here.kind == panel::kEditor) {
+                // A PRESS INTO THE EDITOR PLACES THE CARET AND BEGINS A SELECTION SWEEP
+                // -- the draft's and the Terminal line's own press, over a document. It
+                // says nothing: the caret is the statement, and the candidate line above
+                // already pointed the keys here for the whole rectangle. A press on the
+                // header or past the body's rows moves nothing and is consumed exactly
+                // as an external pane's header press is.
+                editor_press(b);
             } else if (here.occupied) {
                 say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                     false);
@@ -1679,6 +1768,42 @@ public:
             }
             return;
         }
+        // A SELECTION DRAG IN THE SOURCE EDITOR — the third editable place, and the first
+        // where the ROW is meaningful mid-drag: a document has many. The geometry is
+        // re-resolved per motion through the same resolution the press spent; a hand past
+        // the body's top or bottom edge steps the caret one row further per motion (the
+        // component's leftward-step law turned vertical), and the follow flag then pulls
+        // the viewport after it -- deterministic, minimal, and enough to sweep a
+        // selection out of the window a motion at a time.
+        if (session_.text_drag.active &&
+            session_.text_drag.place == text_drag_place::kEditorBody &&
+            session_.editor.open_document()) {
+            const Screen sc = screen_of(session_);
+            const ExternalBodyPlace body = editor_body(session_, sc);
+            if (!body.present) {
+                return;
+            }
+            const ProseAt at = prose_at(m.space, m.x, m.y, body.region_x, body.region_y,
+                                        body.fit);
+            if (!at.understood) {
+                return;
+            }
+            EditorState& e = session_.editor;
+            const std::int64_t brow = at.row - body.header_rows;
+            std::size_t target;
+            if (brow < 0) {
+                target = e.first_row > 0 ? e.first_row - 1 : 0;
+            } else if (brow >= body.rows) {
+                target = e.first_row + static_cast<std::size_t>(body.rows);
+            } else {
+                target = e.first_row + static_cast<std::size_t>(brow);
+            }
+            e.buffer.drag_to(target,
+                             at.column < 0 ? std::int64_t{-1} : e.first_col + at.column);
+            e.follow_caret = true;
+            repaint(mail);
+            return;
+        }
         const PointedAt at = canvas_point_of(m.space, m.x, m.y);
         if (!at.understood || !session_.drag.active) {
             return;
@@ -1699,6 +1824,76 @@ public:
                 say(sizing ? size_notice(*e, done) : move_notice(*e, done), false);
             }
         }
+        repaint(mail);
+    }
+
+    /// THE WHEEL TURNED. One consumer exists and the routing is exactly its size: over
+    /// the source editor's text body the wheel scrolls that viewport and is consumed
+    /// there; everywhere else the event means what it always meant here, which is
+    /// nothing. No scroll framework, no provider wheel protocol, no per-region wheel
+    /// registry -- a second consumer is the day this grows a shape, and not before.
+    ///
+    /// THE MODES KEEP THEIR OWNERSHIP: while the Terminal or an arrangement scope owns
+    /// the pointer, the wheel is theirs to ignore, exactly as motion is -- a wheel that
+    /// scrolled a pane under the overlay would be the click-through defect, rolling.
+    ///
+    /// THE CARET STAYS PUT AND THE VIEW MOVES -- scrolling is looking, not editing --
+    /// so the follow flag is deliberately not set, and the next caret gesture brings
+    /// the view back to the caret through the ordinary reconcile.
+    void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+        if (session_.terminal.open || session_.arrange.open || session_.context.open) {
+            return;
+        }
+        if (!session_.editor.open_document()) {
+            return;
+        }
+        const Screen sc = screen_of(session_);
+        const PointedAt at = canvas_point_of(w.space, w.x, w.y);
+        if (!at.understood) {
+            return;
+        }
+        // The TOPMOST presentation under the wheel must be the Editor -- a pane in
+        // front of it owns its own cells, and scrolling a document under somebody
+        // else's pane is the imaginary-reach this test refuses.
+        const Occupancy here =
+            occupied_at(session_.panels, session_.setup.active, sc, at);
+        if (!here.occupied || here.kind != panel::kEditor) {
+            return;
+        }
+        if (!over_editor_body(session_, sc, w.space, w.x, w.y)) {
+            return;
+        }
+        EditorState& e = session_.editor;
+        // +dy is a notch AWAY from the maker (the wire's own convention), which every
+        // desktop reads as "scroll up": earlier lines. Fractional notches accumulate
+        // until they are worth whole lines, so a precise wheel is not rounded to zero.
+        e.wheel_accum += w.dy * static_cast<double>(kEditorWheelLines);
+        const std::int64_t lines = static_cast<std::int64_t>(e.wheel_accum);
+        if (lines == 0) {
+            return;
+        }
+        e.wheel_accum -= static_cast<double>(lines);
+        const ExternalBodyPlace body = editor_body(session_, sc);
+        if (!body.present) {
+            return;
+        }
+        const std::size_t rows = static_cast<std::size_t>(body.rows);
+        const std::size_t total = e.buffer.line_count();
+        const std::size_t furthest = total > rows ? total - rows : 0;
+        std::size_t first = e.first_row;
+        if (lines > 0) {
+            const std::size_t up = static_cast<std::size_t>(lines);
+            first = first > up ? first - up : 0;
+        } else {
+            first += static_cast<std::size_t>(-lines);
+        }
+        if (first > furthest) {
+            first = furthest;
+        }
+        if (first == e.first_row) {
+            return; // already at the edge: nothing moved, nothing repaints
+        }
+        e.first_row = first;
         repaint(mail);
     }
 
@@ -2070,7 +2265,7 @@ private:
     /// (QR-11). `kNone` for every armless branch — a focused runtime pane's paste is the
     /// provider's own conversation with the Skin, and the gesture branches that hold no
     /// box cannot have bumped the counter this answers about.
-    enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft };
+    enum class PasteOwner : std::uint8_t { kNone, kTerminal, kNaming, kDraft, kEditor };
 
     /// WHICH DRAFT WOULD THE CHAIN HAVE HANDED THE CLIPBOARD TO? — `paste_requests`
     /// bumped, so one of the box-holding branches ran; since KEY-0 this is a projection of
@@ -2081,6 +2276,7 @@ private:
         case KeyContext::kTerminal: return PasteOwner::kTerminal;
         case KeyContext::kNaming: return PasteOwner::kNaming;
         case KeyContext::kDraft: return PasteOwner::kDraft;
+        case KeyContext::kEditor: return PasteOwner::kEditor;
         default: return PasteOwner::kNone;
         }
     }
@@ -2098,6 +2294,15 @@ private:
         std::uint64_t epoch = 0;
         std::int64_t object = 0;
         std::string label;
+        /// THE SOURCE EDITOR'S OWN IDENTITY PAIR, meaningful only for `kEditor`: which
+        /// document was open (`EditorState::doc_epoch` -- a replacement or close in
+        /// flight must strand the answer), and exactly where it stood
+        /// (`EditorBuffer::revision` -- every text, caret or selection change moves it).
+        /// A paste answer may not land at whatever caret happens to exist when it
+        /// arrives, so the editor pins the WHOLE position: the answer applies where the
+        /// maker asked or it does not apply at all.
+        std::uint64_t editor_doc = 0;
+        std::uint64_t editor_revision = 0;
     };
 
     /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR (QR-11). The
@@ -2114,6 +2319,10 @@ private:
         case PasteOwner::kNone: return; // no box of this weave's asked; nothing to do
         case PasteOwner::kTerminal: p.epoch = session_.terminal.input.draft_epoch(); break;
         case PasteOwner::kNaming: p.epoch = session_.setup.naming.line.draft_epoch(); break;
+        case PasteOwner::kEditor:
+            p.editor_doc = session_.editor.doc_epoch;
+            p.editor_revision = session_.editor.buffer.revision();
+            break;
         case PasteOwner::kDraft: {
             Row* row = editing_row();
             if (row == nullptr) {
@@ -3008,6 +3217,12 @@ private:
         case Act::kRecipeNext: choose_recipe(+1, mail); break;
         case Act::kRecipeBack: choose_recipe(-1, mail); break;
         case Act::kBuildFrontier: build_frontier(mail); break;
+        // EDIT THE SOURCE the chosen recipe names -- the Builder-owned door into the
+        // source editor, unbound without a Builder panel exactly as `b` is.
+        case Act::kEditSource: edit_source(mail); break;
+        // The editor's deliberate discard, reachable from command mode too so the quit
+        // refusal names a gesture that works where the maker is standing.
+        case Act::kEditorDiscard: discard_source_edits(); break;
         // THE TWO SETUP GESTURES (WS-0): ordinary maker commands beside `+ panel`,
         // deliberately not another `^`-pair beside the document's.
         case Act::kSetupName: open_setup_name(); break;
@@ -4534,6 +4749,255 @@ private:
         build_now(mail, /*realize=*/true);
     }
 
+    // ---- THE SOURCE EDITOR: choose source, edit, save, and never lose a byte ----------
+    //
+    // THE DOCUMENT LAYER LIVES HERE AND IN `Session::editor`, AND MECHANICS LIVE IN THE
+    // BUFFER -- editor.hpp's custody split, spent: these functions own which file is
+    // open, when it is written, what the dirty answer is and every refusal sentence; the
+    // buffer owns lines, caret, selection and history and could be replaced whole (a
+    // real Vim backend someday) without a byte of this policy moving.
+
+    /// The editor's keys: the buffer's own vocabulary first (QR-2's consumed bool, the
+    /// shape every text consumer here spells), then the editor's policy -- save, newline,
+    /// tab, discard -- resolved through the keymap like every other owner's. Every
+    /// consumed gesture asks the reconcile to keep the caret in view, because navigation
+    /// that scrolls a caret off screen is the viewport failing at its one job.
+    void editor_key(const zengine::input::KeyPressed& k) {
+        EditorState& e = session_.editor;
+        if (e.buffer.consume(k.scancode, k.modifiers, session_.clipboard)) {
+            e.follow_caret = true;
+            return;
+        }
+        switch (session_.keymap.action_for(KeyContext::kEditor, k.scancode, k.modifiers)) {
+        case Act::kEditorSave: save_source(); break;
+        case Act::kEditorNewline:
+            e.buffer.newline();
+            e.follow_caret = true;
+            break;
+        case Act::kEditorTab:
+            // A TAB BYTE, PRESERVED AS ONE -- the byte policy's insertion half. It
+            // arrives as a key rather than as text because no backend delivers a
+            // control byte as entered text (input's own law).
+            e.buffer.type("\t");
+            e.follow_caret = true;
+            break;
+        case Act::kEditorDiscard: discard_source_edits(); break;
+        default: break;
+        }
+    }
+
+    /// Text the maker typed into the source. The byte law is judged HERE -- the buffer
+    /// is mechanics and cannot speak -- and a refusal costs the keystroke and says why:
+    /// silently inserting a substitute would corrupt source, and silently dropping it
+    /// would read as a broken keyboard.
+    void editor_text(const std::string& text) {
+        if (text.empty()) {
+            return;
+        }
+        if (!source_text_ok(text)) {
+            say("that text holds bytes outside plain ASCII, which this editor cannot "
+                "carry truthfully -- nothing was inserted",
+                true);
+            return;
+        }
+        session_.editor.buffer.type(text);
+        session_.editor.follow_caret = true;
+    }
+
+    /// A press in the editor's body places the caret and begins the selection sweep --
+    /// `info_press`'s pipeline over a document: the resolved body, a prose row and
+    /// column of it, the viewport's offsets, the tab arithmetic, the caret. Through the
+    /// same functions the painter spends, so what a maker aims at is what answers.
+    void editor_press(const zengine::input::PointerButton& b) {
+        EditorState& e = session_.editor;
+        if (!e.open_document()) {
+            return; // consumed: a press into the empty editor is only a focus statement
+        }
+        const EditorPressAt at =
+            editor_press_at(session_, screen_of(session_), b.space, b.x, b.y);
+        if (!at.named) {
+            return; // the header, or the strip below the last prose row: consumed, still
+        }
+        const std::size_t row = e.first_row + static_cast<std::size_t>(at.row);
+        const std::size_t target =
+            row < e.buffer.line_count() ? row : e.buffer.line_count() - 1;
+        e.buffer.place(target,
+                       byte_of_visual_col(e.buffer.line(target), e.first_col + at.column));
+        session_.text_drag.active = true;
+        session_.text_drag.place = text_drag_place::kEditorBody;
+        e.follow_caret = true;
+    }
+
+    /// THE ONE PLACE THE EDITOR'S VIEWPORT IS RECONCILED -- `refresh_terminal`'s
+    /// argument, two dimensions instead of one, on the same once-per-repaint path.
+    void refresh_editor() { reconcile_editor_view(session_); }
+
+    /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- the one door into the
+    /// editor's document, and it is Builder-owned on purpose: the recipe it opens is
+    /// exactly the row `b` would build, resolved through the panel's own choice, so the
+    /// gesture cannot open one file while the build reads another. There is no file
+    /// browser, no path argument and no second identity join: the path is the HOST's
+    /// answer over the same authored recipes the runner builds from
+    /// (`HostContext::recipe_source`).
+    void edit_source(loom::Mail& mail) {
+        if (!session_.panels.has(panel::kBuilder)) {
+            return; // an unbound key with no Builder panel open, exactly as `b` is
+        }
+        const BuilderPane& pane = session_.panels.builder;
+        if (!pane.heard) {
+            say("the Builder has not said what it builds yet -- nothing was opened", true);
+            return;
+        }
+        if (pane.known.recipes.empty()) {
+            say("this project has no build recipes -- nothing was opened", true);
+            return;
+        }
+        const std::size_t at =
+            pane.chosen < pane.known.recipes.size() ? pane.chosen : std::size_t{0};
+        const std::string chosen = pane.known.recipes[at].recipe;
+        if (!host_->recipe_source) {
+            say("this host resolves no recipe sources -- nothing was opened", true);
+            return;
+        }
+        const HostContext::RecipeSource named = host_->recipe_source(chosen);
+        if (!named.known) {
+            say("the Builder's catalog and this project's recipes disagree about `" +
+                    chosen + "` -- nothing was opened",
+                true);
+            return;
+        }
+        if (named.source.empty()) {
+            // THE RECIPE OWNER'S OWN VOCABULARY: the kind word is the recipe file's, so
+            // the refusal reads in the terms the maker authored.
+            say("`" + chosen + "` is a " + named.kind +
+                    " recipe -- it names no single source file to edit",
+                true);
+            return;
+        }
+        EditorState& e = session_.editor;
+        if (e.open_document() && e.path == named.source) {
+            // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
+            // its caret, its selection, its history and its viewport all stand; what
+            // moves is presence (a removed pane comes back) and the keyboard.
+            if (!ensure_editor_pane(mail)) {
+                return;
+            }
+            session_.panels.keyboard = panel::kEditor;
+            e.follow_caret = true;
+            say("editing " + e.path + (e.dirty() ? " -- UNSAVED edits stand" : ""), false);
+            return;
+        }
+        if (e.dirty()) {
+            // THE UNSAVED-LOSS FLOOR: a different source must not silently replace a
+            // dirty buffer. The two ways out are the editor's own save and its one
+            // deliberate discard door, both named with their effective gestures.
+            say(e.path + " has unsaved changes -- " + hotkey(Act::kEditorSave) +
+                    " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
+                    " discards them; nothing was opened",
+                true);
+            return;
+        }
+        // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the maker the
+        // notice and nothing else -- the pane, the setup, the current document (if any)
+        // and the file itself are all exactly as they were.
+        const persist::FileText read =
+            persist::read_file(named.source, kMaxSourceBytes, "a source file");
+        if (!read.outcome.accepted) {
+            say(read.outcome.refusal, true);
+            return;
+        }
+        SourceIn admitted = source_in(read.text);
+        if (!admitted.outcome.accepted) {
+            say(named.source + ": " + admitted.outcome.refusal, true);
+            return;
+        }
+        if (!ensure_editor_pane(mail)) {
+            return;
+        }
+        e.path = named.source;
+        e.recipe = chosen;
+        e.saved_lines = admitted.lines;
+        e.buffer.set_lines(std::move(admitted.lines));
+        e.convention = admitted.convention;
+        ++e.doc_epoch;
+        e.first_row = 0;
+        e.first_col = 0;
+        e.wheel_accum = 0.0;
+        e.follow_caret = true;
+        session_.panels.keyboard = panel::kEditor;
+        say("editing " + e.path, false);
+    }
+
+    /// MAKE THE EDITOR PANE PRESENT AND SEATABLE, or refuse with the room named -- the
+    /// picker's own trial-seat shape, so the edit-source door cannot author a pane the
+    /// screen has no room to show and then pour a document into the invisible result.
+    bool ensure_editor_pane(loom::Mail& mail) {
+        const PaneRef ref = pane_ref_of(panel::kEditor);
+        Setup candidate = session_.setup.active;
+        const bool added = add_pane(candidate, ref);
+        const Seating trial = seat_panes(candidate, session_.panels.runtime,
+                                         stack_capacity(screen_of(session_)));
+        for (const std::int64_t k : trial.waiting) {
+            if (k == panel::kEditor) {
+                say("no room for the Editor on this screen -- make the window taller, "
+                    "then try again",
+                    true);
+                return false;
+            }
+        }
+        if (added) {
+            session_.setup.active = std::move(candidate);
+        }
+        apply_setup(mail);
+        return true;
+    }
+
+    /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority, through the same
+    /// bounded atomic persistence door every other Workshop file goes through. On
+    /// success the saved copy advances to exactly what was written, so dirty derives to
+    /// false; on refusal the buffer is untouched, dirty stays true, and the maker gets
+    /// the writer's own sentence. Saving an unchanged file writes it again, plainly.
+    void save_source() {
+        EditorState& e = session_.editor;
+        if (!e.open_document()) {
+            say("no source is open -- nothing was saved", true);
+            return;
+        }
+        const Written written =
+            persist::write_file(e.path, source_text(e.buffer.lines(), e.convention));
+        if (!written.accepted) {
+            say(written.refusal, true);
+            return;
+        }
+        e.saved_lines = e.buffer.lines();
+        say("saved " + e.path, false);
+    }
+
+    /// THE ONE DELIBERATE DISCARD DOOR: put the buffer back to the last saved state.
+    /// Explicit and its own gesture -- so no ordinary action ever throws dirty source
+    /// away as a side effect, and quit's refusal has a real door to name. It reads the
+    /// in-memory saved copy rather than the disk, so it cannot fail and cannot observe a
+    /// file changed behind Workshop's back as if this session wrote it. AND IT IS ITSELF
+    /// AN ORDINARY UNDOABLE EDIT (`revert_to` keeps the history): the default chord is a
+    /// plain ctrl+letter because the POSIX wire cannot say ctrl+shift+letter at all, and
+    /// a soft chord is honest to bind only because one undo takes a slip back.
+    void discard_source_edits() {
+        EditorState& e = session_.editor;
+        if (!e.open_document()) {
+            say("no source is open -- nothing to discard", true);
+            return;
+        }
+        if (!e.dirty()) {
+            say("the source matches its last saved state -- nothing to discard", false);
+            return;
+        }
+        e.buffer.revert_to(e.saved_lines);
+        e.follow_caret = true;
+        say("discarded unsaved edits -- " + e.path +
+                " is back to its last saved state; undo takes them back",
+            false);
+    }
+
     // ---- Save and open -------------------------------------------------------
 
     /// Write the document to its file.
@@ -5143,6 +5607,7 @@ private:
         refresh_terminal();  // the pane is a snapshot, and a snapshot is only true when taken
         refresh_inspector(); // and a draft's window is only true against the room it has now
         refresh_setup_name(); // ...and so is the name editor's, against the same room
+        refresh_editor();     // ...and the source viewport, against the body it has now
         refresh_external_rooms(mail); // ...and an external pane's room, against the same one
         // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
         // pure projection of what it is handed, and what it is handed is this repaint's
@@ -5176,6 +5641,21 @@ private:
     /// to be invented to find it. What that buys and what it costs are both said out loud:
     /// an ORDERLY close is remembered, and a Workshop that is killed is not.
     void quit() {
+        // THE UNSAVED-LOSS FLOOR AT THE ONE EXIT: dirty source may leave this process
+        // only by the maker's own deliberate act. All three arrival doors -- `q`, the
+        // ctrl chord, a native close box -- meet the same refusal, which names the two
+        // real ways out; there is no confirmation surface and no armed second press,
+        // because a maker who has saved or discarded simply quits. The OBJECT document
+        // keeps its recorded policy (its UNSAVED marker is its statement); the source
+        // buffer is the one draft in this application whose loss is a file's worth of
+        // work, which is why it alone holds the door.
+        if (session_.editor.dirty()) {
+            say("the source editor has unsaved changes -- " + hotkey(Act::kEditorSave) +
+                    " in the editor saves them, " + hotkey(Act::kEditorDiscard) +
+                    " discards them; Workshop stays open",
+                true);
+            return;
+        }
         save_last_session();
         host_->quit = true;
         if (host_->request_stop) {

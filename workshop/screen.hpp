@@ -42,6 +42,7 @@
 #include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject (CTX-0)
 #include "document.hpp"
+#include "editor.hpp" // the source editor's buffer, byte law and tab geometry
 #include "keymap.hpp"
 #include "panel.hpp"
 #include "property.hpp"
@@ -1436,6 +1437,7 @@ namespace text_drag_place {
 inline constexpr std::int64_t kNone = 0;
 inline constexpr std::int64_t kTerminalLine = 1;  ///< the Terminal pane's editable line
 inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
+inline constexpr std::int64_t kEditorBody = 3;    ///< the source editor's document body
 } // namespace text_drag_place
 
 struct TextDrag {
@@ -1562,6 +1564,14 @@ struct Session {
     /// variable for both would make "a release ends the gesture it began" a question about
     /// which kind of thing was underneath rather than a fact about the press.
     PaneGesture pane_drag;
+    /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
+    /// buffer with its caret/selection/history, the saved copy the dirty answer derives
+    /// from, and the viewport. Session and not pane state, emphatically: the Editor PANE
+    /// is one presentation of this, and hiding, rearranging or removing the presentation
+    /// must not be able to lose a byte of unsaved source. Like every draft it dies with
+    /// the process (WUX-0 keeps the desk, never the work-in-progress) -- what it must
+    /// survive is everything short of that.
+    EditorState editor;
     /// ...and the text selection their pointer is sweeping, if any (TEXT-0). The third
     /// gesture record, for the two records' own reason; see `TextDrag`.
     TextDrag text_drag;
@@ -1612,6 +1622,29 @@ inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px);
 }
 
+/// DOES THE SOURCE EDITOR HAVE THE KEYBOARD RIGHT NOW? -- `keyboard_pane`'s discipline for
+/// the one built-in pane that can truthfully take keys: the candidate names the Editor, a
+/// document is open, the pane is presented, and some cell of it is on this screen. Every
+/// condition is live state resolved fresh at the spend, so a pane that closes, loses its
+/// document, or moves off-room stops being the answer with nothing to clear -- and comes
+/// back the same way. A press into the empty Editor (no document) sets the candidate and
+/// resolves to nothing here, which leaves the keys exactly where a press into any other
+/// built-in leaves them: command mode.
+///
+/// IT IS HERE, BESIDE `keyboard_context`, BECAUSE THE ROUTER AND THE PAINTER BOTH ASK IT
+/// (the `keyboard_pane` rule): the chain routes keys by it, the Editor's header marks it,
+/// and the band names it -- two answers would be a screen that says a maker is typing
+/// into the source while the keys go somewhere else.
+inline bool editor_has_keyboard(const Session& s) {
+    if (s.panels.keyboard != panel::kEditor || !s.editor.open_document() ||
+        !s.panels.has(panel::kEditor)) {
+        return false;
+    }
+    const FineRect where =
+        bounds_of(s.panels, s.setup.active, panel::kEditor, screen_of(s)).rect;
+    return where.w > 0 && where.h > 0;
+}
+
 /// WHERE THE KEYBOARD CURRENTLY GOES, AS ONE VALUE -- the routing chain, spelled once
 /// (KEY-0).
 ///
@@ -1657,6 +1690,13 @@ inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     }
     if (is_runtime_kind(keyboard_pane(s.panels))) {
         return KeyContext::kPane;
+    }
+    // THE SOURCE EDITOR IS A PLACE IN THE FOCUSED PANE'S FAMILY: the candidate is the
+    // same last-pressed memory an external pane rides, so the two cannot both be the
+    // answer, and whichever the maker pointed the keys at LAST is the one that speaks --
+    // MSG-0's own symmetry, with the same resolved-fresh discipline behind it.
+    if (editor_has_keyboard(s)) {
+        return KeyContext::kEditor;
     }
     for (const Row& r : s.rows) {
         if (r.editing()) {
@@ -1798,8 +1838,9 @@ inline std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
     };
     const auto take = [&](bool concrete) {
         for (const ActionRow& row : kActionCatalog) {
-            const bool is_concrete =
-                row.context != KeyContext::kGlobal && row.context != KeyContext::kNoText;
+            const bool is_concrete = row.context != KeyContext::kGlobal &&
+                                     row.context != KeyContext::kNoText &&
+                                     row.context != KeyContext::kNoEditor;
             if (is_concrete != concrete || !active_in(row.context, ctx)) {
                 continue;
             }
@@ -4481,6 +4522,7 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kArrangeDesk: return "arranging the desk";
     case KeyContext::kArrangeReset: return "arranging -- reset";
     case KeyContext::kDraft: return "editing a property";
+    case KeyContext::kEditor: return "the source editor";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* row =
@@ -4547,7 +4589,8 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
     bool above = false;
     for (const ActionRow& row : kActionCatalog) {
         const bool is_class =
-            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText;
+            row.context == KeyContext::kGlobal || row.context == KeyContext::kNoText ||
+            row.context == KeyContext::kNoEditor;
         if (!is_class || !active_in(row.context, ctx)) {
             continue;
         }
@@ -4561,6 +4604,15 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
         ctx == KeyContext::kDraft) {
         group("the text box's own keys (not remappable)");
         for (const component::EditingGesture& g : component::kEditingVocabulary) {
+            entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
+        }
+    }
+    // THE EDITOR'S OWN MECHANICS, from its declaration rows (editor.hpp) exactly as the
+    // component's come from theirs: shown for discovery, marked not remappable, their
+    // executable truth being `EditorBuffer::consume` and never this keymap.
+    if (ctx == KeyContext::kEditor) {
+        group("the editor's own keys (not remappable)");
+        for (const component::EditingGesture& g : kEditorVocabulary) {
             entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
         }
     }
@@ -6509,6 +6561,272 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     layer.texts.push_back(std::move(region));
 }
 
+// ---- THE SOURCE EDITOR'S PANE: one document, projected through a viewport ---------------
+//
+// THE PANE IS A PRESENTATION OF `Session::editor` AND OWNS NONE OF IT. Everything below
+// reads the buffer and the viewport and publishes a region; the one writer of viewport
+// state is `reconcile_editor_view`, which runs on the repaint path beside the other
+// refresh_* reconciles -- so the window a press is answered with is the window the last
+// repaint drew (HD-4's guarantee, one pane over).
+//
+// THE ROOM IS `external_body_place`'S RESOLUTION, deliberately: the editor's body is a
+// header row and a bounded region exactly as an external pane's is, and a second
+// arithmetic for the same shape is the two-measurers defect this file keeps refusing.
+// What differs is everything ABOVE the resolution -- the rows come from a document this
+// session owns rather than from a provider's cache.
+
+inline constexpr std::int64_t kEditorHeaderRows = 1;
+
+/// ONE COLUMN OF EVERY BODY ROW THE TEXT MAY NOT USE -- `kTerminalCaretCols`' rule, for
+/// its reason: a caret is BETWEEN characters, so the position after a full row's last
+/// character needs somewhere to be on a cell medium. Uniform across all rows because the
+/// caret can be on any of them, and a per-row capacity would scroll rows to different
+/// places for a reason invisible in either projection.
+inline constexpr std::int64_t kEditorCaretCols = 1;
+
+/// The editor body's resolved place on this screen: the pane's rectangle less its header,
+/// as prose. Absent whenever the pane is closed, off-room, or too small for one row.
+inline ExternalBodyPlace editor_body(const Session& s, const Screen& sc) {
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kEditor, sc);
+    if (!where.open) {
+        return ExternalBodyPlace{};
+    }
+    return external_body_place(where.rect, sc, kEditorHeaderRows);
+}
+
+/// The columns of the body a LINE may spend -- the body's columns less the caret's one.
+inline constexpr std::int64_t editor_text_columns(const ExternalBodyPlace& body) noexcept {
+    const std::int64_t text = body.columns - kEditorCaretCols;
+    return text > 0 ? text : 0;
+}
+
+/// THE HEADER: whether the buffer matches the file, where the caret is, and what is
+/// being edited -- in the order the facts must survive `detail::fit`'s TAIL cut. The
+/// dirty word comes first because the save truth may never be the thing that elides; the
+/// position is short and next; the PATH is last precisely because it is the one fact of
+/// arbitrary length, and a cut path still names its leading directories while a cut
+/// `UNSAVED` would be a silent lie about a maker's work. The `> ` mark is the keyboard
+/// statement, `external_header`'s exact convention.
+inline std::string editor_header(const EditorState& e, bool typing) {
+    std::string head = std::string(typing ? kTypingHere : kTypingElsewhere);
+    if (!e.open_document()) {
+        return head + "Editor -- no source open";
+    }
+    head += std::string("Editor ") + (e.dirty() ? "UNSAVED" : "saved");
+    head += " L" + std::to_string(e.buffer.caret_row() + 1) + ":C" +
+            std::to_string(visual_col_of(e.buffer.line(e.buffer.caret_row()),
+                                         e.buffer.caret_byte()) +
+                           1);
+    head += "/" + std::to_string(e.buffer.line_count());
+    head += " -- " + e.path;
+    return head;
+}
+
+/// KEEP THE VIEWPORT TRUE AGAINST THE ROOM AND THE DOCUMENT IT HAS NOW -- the editor's
+/// member of the once-per-repaint reconcile family (`refresh_terminal`'s argument, two
+/// dimensions instead of one). Offsets are always clamped into the document; the caret is
+/// FOLLOWED when a gesture asked for it (`EditorState::follow_caret` -- every edit,
+/// navigation and placement sets it) and when the body's room CHANGED (a resize must not
+/// strand the caret off screen), and deliberately not otherwise: the wheel's whole
+/// meaning is to look elsewhere while the caret stays put, and a reconcile that always
+/// followed would snap every scroll back on the next repaint.
+inline void reconcile_editor_view(Session& s) {
+    EditorState& e = s.editor;
+    if (!e.open_document()) {
+        return;
+    }
+    const ExternalBodyPlace body = editor_body(s, screen_of(s));
+    if (!body.present) {
+        return; // no presented body: the viewport keeps its answer for the room to come
+    }
+    const bool resized = body.rows != e.last_rows || body.columns != e.last_cols;
+    e.last_rows = body.rows;
+    e.last_cols = body.columns;
+    const std::size_t rows = static_cast<std::size_t>(body.rows);
+    const std::size_t total = e.buffer.line_count();
+    const std::size_t furthest_row = total > rows ? total - rows : 0;
+    if (e.first_row > furthest_row) {
+        e.first_row = furthest_row; // rule 1's vertical half: no blank rows below while
+    }                               // lines are hidden above
+    if (e.first_col < 0) {
+        e.first_col = 0;
+    }
+    if (!e.follow_caret && !resized) {
+        return;
+    }
+    e.follow_caret = false;
+    const std::size_t cr = e.buffer.caret_row();
+    if (cr < e.first_row) {
+        e.first_row = cr;
+    }
+    if (cr >= e.first_row + rows) {
+        e.first_row = cr + 1 - rows;
+    }
+    const std::int64_t text_cols = editor_text_columns(body);
+    if (text_cols <= 0) {
+        return;
+    }
+    const std::string& line = e.buffer.line(cr);
+    const std::int64_t vis = visual_col_of(line, e.buffer.caret_byte());
+    // Rule 1's horizontal half, measured on the caret's own line: no blank room at the
+    // right while its text is hidden at the left, so erasing a long line back down
+    // recovers the room it freed.
+    const std::int64_t need = visual_len(line) + kEditorCaretCols;
+    const std::int64_t furthest_col = need > text_cols ? need - text_cols : 0;
+    if (e.first_col > furthest_col) {
+        e.first_col = furthest_col;
+    }
+    if (vis < e.first_col) {
+        e.first_col = vis;
+    }
+    if (vis - e.first_col > text_cols) {
+        e.first_col = vis - text_cols;
+    }
+}
+
+/// WHERE A PRESS LANDED IN THE EDITOR'S BODY -- `external_press_at`'s shape for the one
+/// built-in whose body is a document: the header subtracted here because the resolution
+/// reserved it there, the bound the material's own. `column` may equal the text columns
+/// (the caret's own column names the position after a full row's last character); a
+/// press past THAT is still the pane's -- occupancy said so -- and simply names no place.
+struct EditorPressAt {
+    bool named = false;
+    std::int64_t row = 0;    ///< a prose row of the BODY: 0 is the row under the header
+    std::int64_t column = 0; ///< a displayed column of the viewport's window
+};
+
+inline EditorPressAt editor_press_at(const Session& s, const Screen& sc, std::int64_t space,
+                                     std::int64_t x, std::int64_t y) {
+    const ExternalBodyPlace body = editor_body(s, sc);
+    if (!body.present) {
+        return EditorPressAt{};
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    if (!at.understood) {
+        return EditorPressAt{};
+    }
+    const std::int64_t row = at.row - body.header_rows;
+    if (row < 0 || row >= body.rows || at.column < 0 || at.column > body.columns) {
+        return EditorPressAt{};
+    }
+    return EditorPressAt{true, row, at.column};
+}
+
+/// IS THIS POSITION OVER THE EDITOR'S TEXT BODY -- the wheel's one question. The header
+/// row is not the body; the column is not asked, because a wheel aimed at the pane's
+/// body is aimed at the document however far right of its last character it sits.
+inline bool over_editor_body(const Session& s, const Screen& sc, std::int64_t space,
+                             std::int64_t x, std::int64_t y) {
+    const ExternalBodyPlace body = editor_body(s, sc);
+    if (!body.present) {
+        return false;
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    return at.understood && at.row >= body.header_rows && at.row < body.fit.rows;
+}
+
+/// THE EDITOR, PAINTED: the frame, the header, and the document through the viewport --
+/// one region, so the caret and the selection are the REGION's and each medium answers
+/// in its own voice (a bar and a band on the face; the inserted glyph and reverse video
+/// in cells). Every row is `expanded_slice`'s answer, which is the same tab arithmetic
+/// the press resolves through -- what you see is what you can press (HD-3).
+inline void paint_editor(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+                         const Screen& sc) {
+    paint_panel_frame(layer, b);
+    const ExternalBodyPlace body = external_body_place(b, sc, kEditorHeaderRows);
+    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
+        return; // no room for one row of this medium's type: say nothing at all
+    }
+    surface::SurfaceTextRegion region;
+    region.x = body.region_x;
+    region.y = body.region_y;
+    region.w = body.region_w;
+    region.h = body.region_h;
+    region.sub_x = body.region_sub_x;
+    region.sub_y = body.region_sub_y;
+    region.sub_w = body.region_sub_w;
+    region.sub_h = body.region_sub_h;
+    const EditorState& e = s.editor;
+    if (body.header_rows > 0) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            detail::fit(editor_header(e, editor_has_keyboard(s)), body.columns),
+            surface::role::kAccent});
+    }
+    if (!body.present) {
+        if (!region.rows.empty()) {
+            layer.texts.push_back(std::move(region));
+        }
+        return; // room for the heading and nothing else: the heading, honestly
+    }
+    if (!e.open_document()) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            detail::fit("no source open -- " + hotkey_text(s.keymap, Act::kEditSource) +
+                            " opens the Builder's chosen recipe",
+                        body.columns),
+            surface::role::kMuted});
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    const std::int64_t text_cols = editor_text_columns(body);
+    const std::size_t total = e.buffer.line_count();
+    const std::size_t rows = static_cast<std::size_t>(body.rows);
+    const std::size_t last = e.first_row + rows < total ? e.first_row + rows : total;
+    for (std::size_t r = e.first_row; r < last; ++r) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            expanded_slice(e.buffer.line(r), e.first_col, text_cols), surface::role::kFill});
+    }
+    // THE CARET, WHEN ITS ROW IS IN THE WINDOW -- region prose coordinates, the header
+    // counted, the column in the viewport's own displayed lattice.
+    const std::size_t cr = e.buffer.caret_row();
+    if (cr >= e.first_row && cr < last) {
+        const std::int64_t vis = visual_col_of(e.buffer.line(cr), e.buffer.caret_byte());
+        std::int64_t col = vis - e.first_col;
+        if (col >= 0 && col <= text_cols) {
+            region.caret_row = body.header_rows + static_cast<std::int64_t>(cr - e.first_row);
+            region.caret_col = col;
+        }
+    }
+    // THE SELECTION, CLAMPED INTO THE WINDOW. The range travels in reading order on the
+    // region (begin inclusive, end exclusive) and `selection_span_of_row` does the
+    // per-row arithmetic in both media; what this clamps is only the part outside the
+    // viewport, which no medium could show.
+    if (e.buffer.has_selection()) {
+        const EditorPos from = e.buffer.selection_begin();
+        const EditorPos to = e.buffer.selection_end();
+        if (from.row < last && to.row >= e.first_row) {
+            std::int64_t brow;
+            std::int64_t bcol;
+            if (from.row < e.first_row) {
+                brow = body.header_rows;
+                bcol = 0;
+            } else {
+                brow = body.header_rows + static_cast<std::int64_t>(from.row - e.first_row);
+                const std::int64_t v =
+                    visual_col_of(e.buffer.line(from.row), from.byte) - e.first_col;
+                bcol = v < 0 ? 0 : (v > text_cols ? text_cols : v);
+            }
+            std::int64_t erow;
+            std::int64_t ecol;
+            if (to.row >= last) {
+                erow = body.header_rows + static_cast<std::int64_t>(last - e.first_row);
+                ecol = 0;
+            } else {
+                erow = body.header_rows + static_cast<std::int64_t>(to.row - e.first_row);
+                const std::int64_t v =
+                    visual_col_of(e.buffer.line(to.row), to.byte) - e.first_col;
+                ecol = v < 0 ? 0 : (v > text_cols ? text_cols : v);
+            }
+            if (erow > brow || ecol > bcol) {
+                region.sel_begin_row = brow;
+                region.sel_begin_col = bcol;
+                region.sel_end_row = erow;
+                region.sel_end_col = ecol;
+            }
+        }
+    }
+    layer.texts.push_back(std::move(region));
+}
+
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE (ARR-0). A maker must
 /// never have to infer from failed clicks that they are arranging; the rings say it, on
 /// the panes themselves, in both scopes:
@@ -6636,6 +6954,8 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
                 paint_builder(layer, panels.builder, b, sc, s.keymap, frontier);
             } else if (p.kind == panel::kInfo) {
                 paint_info(layer, d, s, b, sc);
+            } else if (p.kind == panel::kEditor) {
+                paint_editor(layer, s, b, sc);
             } else if (is_runtime_kind(p.kind)) {
                 // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
                 // add. The branch above chooses a PAINTER, which PNL-1 named as the one
@@ -6887,10 +7207,18 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* typed_into =
             typing == kNoPaneKind ? nullptr : s.panels.runtime.of_kind(typing);
+        // THE SOURCE EDITOR IS THE SECOND KEYBOARD-TAKING PANE, and it gets the same
+        // sentence for the same measured reason (MSG-0): keystrokes landing somewhere
+        // the screen does not name is the lie this row exists to refuse.
+        std::string said;
         if (typed_into != nullptr && s.keymap.resolved_legend() == legend_mode::kFull) {
-            const std::string said = "typing goes to " + typed_into->name + " @" +
-                                     typed_into->provider +
-                                     " -- press elsewhere for Workshop's keys";
+            said = "typing goes to " + typed_into->name + " @" + typed_into->provider +
+                   " -- press elsewhere for Workshop's keys";
+        } else if (ctx == KeyContext::kEditor &&
+                   s.keymap.resolved_legend() == legend_mode::kFull) {
+            said = "typing goes to the source editor -- press elsewhere for Workshop's keys";
+        }
+        if (!said.empty()) {
             if (legend_rows == 1) {
                 const std::int64_t rest =
                     columns - static_cast<std::int64_t>(said.size()) - 3;

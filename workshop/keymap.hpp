@@ -57,20 +57,30 @@ namespace zengine::workshop {
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
 ///
-/// The first eleven are the resolvable contexts: exactly the branches of
+/// The first twelve are the resolvable contexts: exactly the branches of
 /// `WorkshopWeave::on(KeyPressed)`'s chain. Arrangement is TWO SCOPES and a reset prompt
 /// (ARR-0): `kArrangePane` is one pane being arranged -- moving and resizing it are one
 /// vocabulary, not two submodes -- and `kArrangeDesk` is the same vocabulary over the
 /// whole desk, plus the keys that step between panes. `kArrangeReset` is the one
-/// remaining prompt step: `0`, then which authored dimension. The last two are
-/// DECLARATION-ONLY activity classes -- `keyboard_context()` never returns them:
+/// remaining prompt step: `0`, then which authored dimension. `kEditor` is the built-in
+/// source editor holding the keyboard with a document open -- a PLACE a maker pressed
+/// into, in the focused pane's family, not a mode. The last three are DECLARATION-ONLY
+/// activity classes -- `keyboard_context()` never returns them:
 ///
-///   kGlobal   active in every context: answered above the whole chain, the `^s`/`^o`
-///             position. A focused pane does not receive these, exactly as it never
-///             received the old four.
-///   kNoText   active wherever no editable text has the keyboard -- `^c`-quit's measured
-///             activity set (TEXT-0's gate, now a declarable fact instead of a predicate
-///             mirroring the chain by hand).
+///   kGlobal    active in every context: answered above the whole chain, the `^o`
+///              position. A focused pane does not receive these, exactly as it never
+///              received the old four.
+///   kNoText    active wherever no editable text has the keyboard -- `^c`-quit's measured
+///              activity set (TEXT-0's gate, now a declarable fact instead of a predicate
+///              mirroring the chain by hand).
+///   kNoEditor  active wherever the source editor does NOT have the keyboard -- the
+///              document's `^s` position: `document.save` keeps its above-every-mode
+///              meaning everywhere a maker is not editing source, and the same physical
+///              chord travels the chain to the editor where they are. The `^c` law's
+///              shape, one chord over: a global that collides with an editing surface's
+///              own meaning is resolved by following the keyboard, and the resolution is
+///              DECLARED rather than special-cased, so admission's collision law, the
+///              help surfaces and dispatch all read one fact.
 enum class KeyContext : std::uint8_t {
     kCommand,
     kTerminal,
@@ -80,20 +90,23 @@ enum class KeyContext : std::uint8_t {
     kContext,
     kPane,
     kDraft,
+    kEditor,
     kArrangePane,
     kArrangeDesk,
     kArrangeReset,
     kGlobal,
     kNoText,
+    kNoEditor,
 };
 
 /// Does this context hand ordinary keys to something that takes text? The `^c` gate's one
 /// question (TEXT-0), now derived from the resolved context instead of mirrored by hand.
 /// A focused runtime pane counts: it receives every bare key and every character precisely
 /// because it may hold editable text, and Workshop cannot see whether it currently does.
+/// The source editor counts for the plain reason: it IS editable text.
 inline constexpr bool context_takes_text(KeyContext c) noexcept {
     return c == KeyContext::kTerminal || c == KeyContext::kNaming || c == KeyContext::kPane ||
-           c == KeyContext::kDraft;
+           c == KeyContext::kDraft || c == KeyContext::kEditor;
 }
 
 /// Is an action declared for `declared` requestable while `current` is the resolved
@@ -106,6 +119,9 @@ inline constexpr bool active_in(KeyContext declared, KeyContext current) noexcep
     }
     if (declared == KeyContext::kNoText) {
         return !context_takes_text(current);
+    }
+    if (declared == KeyContext::kNoEditor) {
+        return current != KeyContext::kEditor;
     }
     return declared == current;
 }
@@ -120,10 +136,16 @@ inline constexpr bool contexts_intersect(KeyContext a, KeyContext b) noexcept {
         return true;
     }
     if (a == KeyContext::kNoText) {
-        return !context_takes_text(b);
+        return b == KeyContext::kNoEditor || !context_takes_text(b);
     }
     if (b == KeyContext::kNoText) {
-        return !context_takes_text(a);
+        return a == KeyContext::kNoEditor || !context_takes_text(a);
+    }
+    if (a == KeyContext::kNoEditor) {
+        return b != KeyContext::kEditor;
+    }
+    if (b == KeyContext::kNoEditor) {
+        return a != KeyContext::kEditor;
     }
     return false;
 }
@@ -180,6 +202,12 @@ enum class Act : std::uint8_t {
     kSetupRestore,
     kArrangeDesk,
     kPaneTitles,
+    kEditSource,
+    // -- the source editor's controls --------------------------------------------------
+    kEditorSave,
+    kEditorNewline,
+    kEditorTab,
+    kEditorDiscard,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -268,7 +296,16 @@ namespace mod = input::mod;
 inline constexpr ActionRow kActionCatalog[] = {
     // -- above every mode -------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kNoText, {scan::kC, mod::kCtrl}},
-    {Act::kSaveDocument, "document.save", "save", KeyContext::kGlobal, {scan::kS, mod::kCtrl}},
+    // `^s` FOLLOWS THE KEYBOARD. The document's save is answered above every mode
+    // EXCEPT the source editor -- there the same physical chord is `editor.save`'s, the
+    // editor's own row below, because a maker with their hands in source who presses the
+    // one save chord every editor teaches must not write the OBJECT document instead.
+    // Two meanings are two action identities with complementary declared activity
+    // (`kNoEditor` / `kEditor`), never one identity with a branch -- so a maker may
+    // remap either without touching the other, and the collision law sees no collision
+    // because there is none: no state has both rows active.
+    {Act::kSaveDocument, "document.save", "save", KeyContext::kNoEditor,
+     {scan::kS, mod::kCtrl}},
     {Act::kOpenDocument, "document.open", "open", KeyContext::kGlobal, {scan::kO, mod::kCtrl}},
     {Act::kTerminalToggle, "workshop.terminal", "terminal", KeyContext::kGlobal,
      {scan::kT, mod::kCtrl}},
@@ -359,6 +396,36 @@ inline constexpr ActionRow kActionCatalog[] = {
     // all chords, kNoText holds only `^c`, and no other kCommand row spends it.
     {Act::kPaneTitles, "workshop.pane-titles", "titles", KeyContext::kCommand,
      {scan::kT, mod::kNone}},
+    // EDIT THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- the Builder-owned door into
+    // the source editor. `e` bare: portable, free in every context that intersects
+    // kCommand, and the recipe it opens is exactly the row `builder.build` would build,
+    // so the two gestures cannot come to mean different recipes. With no Builder panel
+    // open it does nothing, exactly as `b` does.
+    {Act::kEditSource, "builder.edit-source", "edit source", KeyContext::kCommand,
+     {scan::kE, mod::kNone}},
+    // -- the source editor's controls --------------------------------------------------
+    //
+    // THE EDITOR'S POLICY KEYS, beside its component-shaped mechanics (which live in
+    // `EditorBuffer::consume` and are deliberately not remappable -- editor.hpp's own
+    // vocabulary table shows them). Save is the chord that follows the keyboard (see
+    // `document.save` above); newline and tab are the two keys whose MEANING is the
+    // editor's rather than the buffer's mechanics, declared here so no executable
+    // gesture is a hand-written literal; discard is the one deliberate door out of an
+    // unsaved buffer, with a second row in command mode so the quit refusal can name a
+    // gesture that works where the maker is standing. Its default is a PLAIN ctrl
+    // chord on purpose: the POSIX wire cannot carry ctrl+shift+letter at all (0x04 is
+    // 0x04), so a hard chord would be a door a terminal maker cannot open -- and the
+    // soft one is honest to bind because the discard is itself an undoable edit.
+    {Act::kEditorSave, "editor.save", "save source", KeyContext::kEditor,
+     {scan::kS, mod::kCtrl}},
+    {Act::kEditorNewline, "editor.newline", "newline", KeyContext::kEditor,
+     {scan::kReturn, mod::kNone}},
+    {Act::kEditorTab, "editor.tab", "insert tab", KeyContext::kEditor,
+     {scan::kTab, mod::kNone}},
+    {Act::kEditorDiscard, "editor.discard", "discard source edits", KeyContext::kEditor,
+     {scan::kD, mod::kCtrl}},
+    {Act::kEditorDiscard, "editor.discard", "discard source edits", KeyContext::kCommand,
+     {scan::kD, mod::kCtrl}},
     // -- the Terminal line's controls --------------------------------------------------
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},
@@ -913,17 +980,19 @@ struct Keymap {
     }
 
     /// WHICH ABOVE-THE-MODES ACTION THIS GESTURE REQUESTS, or kNone -- `action_for`
-    /// restricted to the rows DECLARED kGlobal or kNoText. The distinction matters at
-    /// exactly one place: `on(KeyPressed)`'s head answers these five before any mode
-    /// (and before the hotkey view's swallow), while an action's ordinary context row --
-    /// `workshop.quit`'s own `q` among them -- must still travel the chain, or a modal
-    /// surface could be quit through by the very key it exists to intercept.
+    /// restricted to the rows DECLARED kGlobal, kNoText or kNoEditor. The distinction
+    /// matters at exactly one place: `on(KeyPressed)`'s head answers these before any
+    /// mode (and before the hotkey view's swallow), while an action's ordinary context
+    /// row -- `workshop.quit`'s own `q` among them, and `editor.save`'s `^s` -- must
+    /// still travel the chain, or a modal surface could be quit through by the very key
+    /// it exists to intercept.
     Act above_mode_action(KeyContext current, std::int64_t scancode,
                           std::int64_t modifiers) const noexcept {
         const Gesture pressed{scancode, modifiers};
         for (const ActionRow& row : kActionCatalog) {
             const bool above = row.context == KeyContext::kGlobal ||
-                               row.context == KeyContext::kNoText;
+                               row.context == KeyContext::kNoText ||
+                               row.context == KeyContext::kNoEditor;
             if (above && active_in(row.context, current) && row_gesture(row) == pressed) {
                 return row.act;
             }
@@ -1024,7 +1093,11 @@ inline Written apply_overrides(
         if (!parsed.accepted) {
             return Written::no("`" + row.first + "`: " + parsed.refusal);
         }
-        if (declared->context == KeyContext::kGlobal) {
+        // A kNoEditor row is above every mode BUT the editor, so it is active inside
+        // every ordinary text context -- the two refusals that keep a global honest
+        // there apply to it identically.
+        if (declared->context == KeyContext::kGlobal ||
+            declared->context == KeyContext::kNoEditor) {
             if (parsed.gesture.modifiers == mod::kNone &&
                 !expected_text_of(parsed.gesture.scancode, parsed.gesture.modifiers)
                      .empty()) {

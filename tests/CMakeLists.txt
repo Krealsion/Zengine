@@ -685,6 +685,7 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 #   workshop_panes         the external pane seam, from both sides
 #   workshop_persistence   what survives a process
 #   workshop_load          which artifacts are in the room at all
+#   workshop_editor        the built-in source editor and its document
 #
 # `tests/workshop_support.hpp` holds what more than one of them needs -- the fixtures, the
 # canvas readers, the `Live` and `PaneRig` rigs -- and says in its own header what may go
@@ -791,6 +792,11 @@ zengine_workshop_suite(document test_workshop_document.cpp
     NEEDS zengine-composer)
 
 zengine_workshop_suite(screen test_workshop_screen.cpp)
+
+# The SOURCE EDITOR: the multiline buffer, the byte law, the Builder's edit-source
+# door, save/dirty truth, the viewport and the no-silent-loss floor. Its temporary
+# directories are its own, exactly as the family rule requires.
+zengine_workshop_suite(editor test_workshop_editor.cpp)
 
 # `loom::history` IS LINKED BY THIS SUITE AND BY NOTHING IN WORKSHOP -- AND BY NONE OF THE
 # OTHER FIVE -- and the asymmetry is the claim. The current-condition lifecycle must not
