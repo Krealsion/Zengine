@@ -464,8 +464,9 @@ EditorBuffer    lines, caret, anchor, preferred column, bounded snapshot undo (d
                 else), and `consume(scancode, mods, clip)` -- the component's bool at the
                 editor's boundary, its gestures DECLARED in `kEditorVocabulary` and swept
                 against `consume` both ways by the suite
-the weave       every refusal sentence and every file door: `edit_source` (the Builder's
-                `e`), `save_source`, `discard_source_edits`, the quit guard
+the weave       every refusal sentence and every file door: `open_source(path, mail)` (the
+                ONE door), `edit_source` (the Builder's `e`: discovery, then that door),
+                `save_source`, `discard_source_edits`, the quit guard
 ```
 
 - **THE FIRST MULTILINE CONSUMER OWNS ITS MULTILINE MACHINERY.** `component::TextBox` is
@@ -487,14 +488,24 @@ the weave       every refusal sentence and every file door: `edit_source` (the B
   and `editor.save` (`kEditor`); see the activity-class rule under KEY-0 above. `^o` stays
   global; `^c` is copy in the editor (`context_takes_text(kEditor)`), quit where nothing
   takes text — TEXT-0's law reaching the fifth text place unchanged.
-- **THE ONE DOOR IS THE BUILDER'S CHOSEN RECIPE** (`builder.edit-source`, `e`, command mode;
-  unbound with no Builder panel exactly as `b`). The source path is the HOST's answer over
-  the same authored recipes the runner builds from (`HostContext::recipe_source` — the
-  `frontier` seam's shape: a function, spent at the gesture, stored nowhere), because the
-  Builder TOOL deliberately holds no source path and Workshop must not re-join it. A
-  `cmake_target` recipe refuses with the recipe file's own kind word; re-requesting the open
-  source reveals and focuses without touching buffer, caret, selection or viewport; the
-  pane is trial-seated BEFORE the file is read, so a no-room screen refuses whole.
+- **THE ONE DOOR IS `open_source(path, mail)` AND IT TAKES A PATH (EDIT-1).** Every referrer
+  arrives through it and none may bypass it: normalize (`persist::resolved_against` against
+  `HostContext::project_dir`) → same-path reveal → dirty refusal → bounded read → `source_in`
+  → trial-seat → install + `doc_epoch++` + viewport reset → focus + sentence. Two callers
+  today — the Files pane hands it a row's path, and `edit_source` (`builder.edit-source`,
+  `e`, command mode; unbound with no Builder panel exactly as `b`) keeps ONLY the Builder half:
+  which recipe is chosen, the `cmake_target` refusal in the recipe file's own kind word, and
+  the HOST's answer over the completed catalog (`HostContext::recipe_source` — the `frontier`
+  seam's shape: a function, spent at the gesture, stored nowhere). A third referrer is a call,
+  not a policy. `EditorState` holds NO acquisition provenance: the `recipe` field was
+  write-only and went out with the factoring — the editor owns the document it has open, not
+  the reason somebody asked for it.
+- **⚠ IDENTITY IS A NORMALIZED SPELLING, NOT A FILESYSTEM OBJECT.** `e.path == path` is still
+  a string comparison; what changed is that every entrant is normalized first (absolute
+  against the project, `lexically_normal`, forward slashes), so `a.cpp` and `./a.cpp` cannot
+  become two documents and two referrers cannot disagree about which file the dirty refusal
+  is protecting. Nothing canonicalizes: Windows case-folding and hard links remain NAMED
+  residuals, and claiming otherwise would need a filesystem question on every open.
 - **THE SOURCE-BYTE LAW IS THE MEDIA'S HONEST REACH**: printable ASCII + tab; line breaks
   are structure. One convention per document (LF or CRLF, detected at open, spent on every
   inserted newline); a final newline is a final empty line, so `source_in`/`source_text`
@@ -514,8 +525,12 @@ the weave       every refusal sentence and every file door: `edit_source` (the B
   (resize must not strand the caret), and deliberately NOT after the wheel, whose whole
   meaning is looking elsewhere. `on(PointerWheel)` is Workshop's first and only wheel
   consumer: modes keep their ownership, the TOPMOST occupancy must be the Editor, the
-  header row is not the body, fractional notches accumulate — and there is no scroll
-  framework, no provider wheel protocol, and no second consumer to generalize for.
+  header row is not the body, fractional notches accumulate. Project Files is the SECOND
+  (EDIT-1) and it cost one more arm on the same topmost-occupancy answer — still no scroll
+  framework and no provider wheel protocol. Its wheel moves the CURSOR, because a list
+  derives its window from the cursor (`list_window`) and a second viewport would be a second
+  answer to one question; the editor's keeps the caret still because a caret is a place in a
+  document rather than a place you are looking.
 - **A PASTE ANSWER LANDS WHERE THE MAKER ASKED OR NOWHERE** — QR-11's conversation with a
   stricter settlement: the pending record pins `doc_epoch` AND `buffer.revision()`, so a
   replaced document strands the payload silently (the dead draft's fate) and a document
@@ -527,6 +542,65 @@ the weave       every refusal sentence and every file door: `edit_source` (the B
   viewport via `expanded_slice`, the caret and selection carried as the REGION's own so
   each medium answers in its voice. The body resolution IS `external_body_place` with
   `kEditorHeaderRows`; a second arithmetic for the same shape is the two-measurers defect.
+
+## Where source comes from: the project, and the browser over it (EDIT-1)
+
+`HostContext::project_dir` is the launch directory, captured ONCE by the host
+(`current_path`, error_code form; empty = the designed absence, said on the banner). It is
+not `dir` — that is where the BINARY is, installation truth — and nothing derives one from
+the other or from `--document`, `--recipes`, a workspace or a prefix. There is no
+`--project`: one install serves two projects by being launched in two places, which is the
+law `user_paths.hpp` already wrote down and which had, until now, no value behind it.
+
+- **⚠⚠ A RELATIVE AUTHORED `single_source` MEANT TWO FILES, and the repair is ONE completion.**
+  Editor and the runner's exists-preflight resolved the authored spelling against the PROCESS
+  CWD while the generated project embedded it verbatim for CMake to resolve against the
+  WORKSPACE. `recipe_persist::complete_recipes(recipes, host_dir, project_dir)` is now the one
+  place any host fact enters a recipe — `artifact_dir` and `workspace` from the install,
+  `source` resolved against the PROJECT — and `main` calls it once. Every downstream reader
+  (the `recipe_source` closure, `BuildRunnerWeave`'s catalog, the artifact lookup) reads that
+  same completed vector, so "the file you edit is the file the build compiles" is structural
+  rather than three parties agreeing. The FILE is never rewritten. **Falsifier that must stay
+  green:** `workshop_files`' two-base case — the project and the workspace both holding
+  `src/example.cpp` with different bytes; a green build that never arranged that proves nothing.
+- **`workshop/files.hpp` is the browser's machinery; `Panels::files` is its state.** Rows are
+  `{name, kind, linked, openable}` and NOTHING else — no resolved path, no recipe, no artifact,
+  no build or editor state — so the browser cannot become a second owner of source truth. What
+  a row denotes is derived at ACTIVATION from root + the entered-name stack + the row's name.
+- **THE ROOT BOUNDARY IS THE REPRESENTATION.** The current directory is a stack of names walked
+  into; parent is a pop; there is no `..` row to press. So a maker cannot navigate above the
+  root because there is nothing that says it — no canonicalization, no containment resolver.
+  ⚠ The one hole is a LINKED directory, and it is closed at entry: a directory row is `linked`
+  when following it says directory and NOT following it does not (`entry.symlink_status()`),
+  which is standard C++ and catches whatever this platform reports a reparse point as. The row
+  is shown; entering refuses. Never claim more containment than that test imposes.
+  ⚠⚠ **Do not "simplify" that to `is_symlink()`.** MEASURED on Windows/MSVC (EDIT-1): a
+  directory JUNCTION answers `is_symlink() == false` while `symlink_status().type()` is a
+  platform extension that is not `directory` — so the disagreement test refuses it and an
+  `is_symlink` test would have walked straight into it. Probe and table:
+  `Zen/reportbacks/EDIT-1-evidence.md`.
+- **⚠ FILENAMES ARE `std::string` EVERYWHERE, so admission is a PATH law and not a content law.**
+  Names are taken as `u8string()` bytes; printable-ASCII names are exact and openable, and any
+  other keeps its row, shows a `?`-marked projection (never an identity), and refuses
+  ACTIVATION. What may be INSIDE a file stays the editor's question, answered at the door in
+  the editor's words — no file-type registry, no extension list, and a `.png` is allowed to
+  walk into the refusal that actually knows why.
+- **A LISTING IS NOT A PER-PAINT POPULATION.** Every other population Workshop paints is in
+  memory; this one is an OS walk. It is recomputed at open (the `Reconciled::opened` arm the
+  Builder's `StatusRequested` already uses), enter, parent, `files.refresh`, and on a FINISHED
+  build — gated on `build_news`, the fact this weave already derives, not on a status ARRIVING
+  (the tool republishes its whole picture on every transition and on every panel open). No
+  watcher, no timer, no poll, no protocol widened. External staleness between those moments is
+  named in `docs/workshop/limitations.md`, not solved.
+- **Bounds and order:** `kMaxListedEntries` stops the walk and the header says `stopped
+  counting` — QR-4, never a total the walk never reached. Directories first, then files,
+  bytewise over the admitted name bytes inside each class; no locale, no natural sort, no
+  extension grouping, no configuration.
+- **⚠ THE PICKER'S NAME COLUMN BOUNDS THIS BUILD'S OWN NAMES TOO.** `Files` is one word because
+  `kPickerNameCols` is ten: widening it to hold a two-word name narrowed every SUMMARY by the
+  same three cells and began cutting INTR-0's own measured sentence at 71 columns. A provider's
+  sentence being readable is a product fact; a built-in's display name is a choice. Measured,
+  reverted, recorded — do not re-widen it for a name.
 
 ## The Info panel BODY, resolved once (HD-5..HD-7)
 
@@ -1041,23 +1115,40 @@ A CONDITION           true when it is READ. Held under a key (`Session::conditio
 ## The keyboard goes where the maker last pressed (MSG-0)
 
 `Panels::keyboard` is a POINTING's memory: which keyboard-taking pane — an external pane, or
-the built-in Editor (EDIT-0) — the maker last aimed the keys at. `keyboard_pane(panels)` is
-the external ANSWER, resolved fresh at every spend — open, runtime kind, room granted; the
-same three `external_press` already requires. `editor_has_keyboard(session)` is the Editor's
-twin resolution — candidate, document open, pane presented with visible cells — beside
-`keyboard_context` because the router, the Editor's header mark and the band all ask it.
+a built-in whose catalog row declares it takes keys — the maker last aimed the keys at.
+`keyboard_pane(panels)` is the external ANSWER, resolved fresh at every spend — open, runtime
+kind, room granted; the same three `external_press` already requires. `editor_has_keyboard`
+and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, beside
+`keyboard_context` because the router, each pane's header mark and the band all ask them.
 
+- **CANDIDACY IS DECLARED; READINESS IS RESOLVED (EDIT-1).** `PanelKind::takes_keyboard` is a
+  fact about a KIND and lives on its catalog row; whether that pane can take keys AT THIS
+  INSTANT is live state its own resolver answers — the Editor needs a document open, Project
+  Files needs a listing — and both resolve fresh and store nothing. Two questions, two owners.
+  ⚠ Extraction trigger, recorded: while the Editor was the only such built-in the routing
+  layer simply named it (`kind == panel::kEditor`); at the SECOND consumer that spelling
+  became a disjunction somebody must remember to extend, in a file with no other reason to
+  know which panes take keys. The declaration moved; nothing registered, and this is still
+  not a focus framework.
 - **ONE LINE DECIDES WHERE THE KEYBOARD GOES**, at the top of the pressed branch, before any
-  layer answers: `keyboard = occupied ∧ (is_runtime_kind ∨ kind == kEditor) ? kind :
-  kNoPaneKind`. The Editor is the ONE built-in in that disjunct — the only built-in with an
-  editable body — and every other built-in still clears the candidate; the narrowness is
-  deliberate, not a focus framework. Putting the line in
+  layer answers: `keyboard = occupied ∧ (is_runtime_kind ∨ panel_kind(kind).takes_keyboard)
+  ? kind : kNoPaneKind`. Every other built-in still clears the candidate. ⚠ The PRIOR answer
+  is read one line ABOVE it (`files_has_keyboard`) because Project Files' press rule needs
+  it: reading it after would make every first press look like a press in a pane the maker was
+  already working in. Putting the line in
   the routing arms would be four decisions about one fact, and the fourth is the one nobody
   adds. `occupied_at` sits beside `info_body_at` in the route to make that possible — the same
   hoist, one question further on, licensed by the same argument. The candidate's SECOND
   writer is the Builder's edit-source door (EDIT-0): opening a source points the keys at the
   Editor it just filled, because an open that left the keyboard elsewhere would land the
   first keystroke in the wrong place.
+- **⚠ THE PRESS THAT POINTS THE KEYS IS NOT AN ACT IN THE PANE.** Project Files activates a
+  row on a press only when the pane ALREADY held the keyboard (EDIT-1) — without that, a maker
+  aiming at a cold pane whose cursor happens to rest on the pointed row would open a file, or
+  meet the dirty refusal, having done nothing but look. Two presses from cold is the price of
+  "no single press replaces what is open". Double-click was not available to consider:
+  `input::PointerButton` carries no click count, and widening the pointer wire for a file
+  browser is the shape this repository refuses.
 - **The candidate is never cleared and the target is never stored.** A pane that closes, stops
   resolving, or loses its room stops being the answer with nothing to clear; if it comes back,
   so does the keyboard. `bounds_of`'s discipline applied to a focus.

@@ -387,6 +387,25 @@ int main(int argc, char** argv) {
     // that named a path this host had not resolved would be naming a guess.
     HostContext host;
     host.dir = exe_dir();
+    // AND WHERE THE MAKER IS STANDING, captured in the same breath and for the same
+    // reason -- once, before anything is said about it. `exe_dir()` above is where this
+    // BINARY lives; this is the PROJECT, which this application has always defined as the
+    // launch directory (user_paths.hpp) and has never until now held as a value. Both are
+    // resolved here because the host is the party that knows either.
+    //
+    // NON-THROWING, AND AN UNANSWERABLE ONE IS AN ABSENCE. `current_path()` throws on
+    // failure; the error_code form does not, and a working directory the platform will not
+    // report leaves this empty -- which every consumer already knows how to refuse in
+    // words. There is deliberately no fallback: substituting `exe_dir()` here would hand
+    // two projects one root, which is the exact quiet wrong answer WUX-3 removed from the
+    // maker's own files.
+    {
+        std::error_code cwd_ec;
+        const std::filesystem::path cwd = std::filesystem::current_path(cwd_ec);
+        if (!cwd_ec) {
+            host.project_dir = cwd.generic_string();
+        }
+    }
     host.document_path = args.document;
     host.setup_path = args.setup;
 
@@ -466,6 +485,15 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - containment: %s\n", loom::Kernel::containment_note());
     std::printf("zengine-workshop - document: %s\n", args.document.c_str());
     std::printf("zengine-workshop - setup: %s\n", args.setup.c_str());
+    // THE PROJECT, SAID ONCE. It is where Project Files browses from and what a relative
+    // source in a build recipe means, so a maker whose shell was somewhere unexpected can
+    // read it here rather than deduce it from a listing. An absence is said on the same
+    // line rather than left to be discovered later as a refusal.
+    std::printf("zengine-workshop - project: %s\n",
+                host.project_dir.empty()
+                    ? "none (this system did not report a working directory -- Project "
+                      "Files and relative recipe sources are refused)"
+                    : host.project_dir.c_str());
     const auto path_or_absence = [&args](const std::string& path) {
         if (!path.empty()) {
             return path;
@@ -543,23 +571,19 @@ int main(int argc, char** argv) {
             std::printf("zengine-workshop - build recipes: %s (%zu)\n", recipe_path.c_str(),
                         recipes.size());
         }
-        // ---- THE TWO DEFAULTS THE HOST FILLS IN, AND ONLY THESE TWO --------------
+        // ---- WHAT AN AUTHORED RECIPE CANNOT SAY, ANSWERED HERE ------------------
         //
-        // A recipe is written by a maker who should not have to know where this binary
-        // put itself. Both of these are "leave it blank and the host decides", and both
-        // are decided HERE rather than in the Builder, because both are deployment
-        // facts: where this host resolves an artifact from, and where it is willing to
-        // write a generated project. The recipe file is never rewritten with the
-        // answers -- a catalog that recorded this machine's paths would stop being a
-        // catalog a project can carry.
-        for (builder::Recipe& r : recipes) {
-            if (r.artifact_dir.empty()) {
-                r.artifact_dir = host.dir;
-            }
-            if (r.single_source.has_value() && r.single_source->workspace.empty()) {
-                r.single_source->workspace = host.dir + "/build-workspace/" + r.id;
-            }
-        }
+        // Three facts a maker cannot write down: where this install puts artifacts, where
+        // it may write a generated project, and what a relative source is relative to. The
+        // first two are `host.dir` -- installation truth -- and the third is the PROJECT
+        // this Workshop was launched into. The rule itself lives with the function
+        // (`recipe_persist::complete_recipes`), because it is a law about recipes and not
+        // about this `main`; what is decided HERE is which of the host's two directories
+        // answers which question.
+        //
+        // ONE CALL, AND THE COMPLETED CATALOG IS THE ONLY ONE ANYBODY SEES: the closure
+        // below, the build runner, and the artifact lookup all read this vector.
+        recipe_persist::complete_recipes(recipes, host.dir, host.project_dir);
     }
     // ---- THE EDIT-SOURCE SEAM (`HostContext::recipe_source`) ---------------------
     //

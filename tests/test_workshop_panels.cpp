@@ -1097,11 +1097,12 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
         const PanelKind& k = kPanelCatalog[i];
         const std::string state = s.panels.has(k.kind) ? "open" : "closed";
         INFO("catalog entry ", i, ": ", std::string(k.name));
-        CHECK(shown.find(detail::pad(k.name, 10) + detail::pad(state, kPaneStateCols) + k.summary) !=
+        CHECK(shown.find(detail::pad(k.name, kPickerNameCols) + detail::pad(state, kPaneStateCols) +
+                         k.summary) !=
               std::string::npos);
     }
-    CHECK(shown.find("Builder   closed") != std::string::npos);
-    CHECK(shown.find("Info      open") != std::string::npos);
+    CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
 }
 
 TEST_CASE("a panel opens from the picker, is removed, and opens again") {
@@ -2532,15 +2533,15 @@ TEST_CASE("the picker's state column follows the panels, not a memory of them") 
     (void)mount_tool(t, "zengine-snake");
 
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find("Builder   closed") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("Info      open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
     t.key(input::scan::kEscape);
 
     open_builder(t);
     pick(t, panel::kInfo);
     t.key(input::scan::kP);
-    CHECK(stack_text(t.canvases.back()).find("Builder   open") != std::string::npos);
-    CHECK(stack_text(t.canvases.back()).find("Info      closed") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
+    CHECK(stack_text(t.canvases.back()).find(detail::pad("Info", kPickerNameCols) + "closed") != std::string::npos);
     t.key(input::scan::kEscape);
 }
 
@@ -2578,7 +2579,7 @@ TEST_CASE("the picker covers the whole slot it opens over, so nothing reads thro
         visible += '\n';
     }
     CHECK(visible.find("+ PANEL") != std::string::npos);
-    CHECK(visible.find("Builder   open") != std::string::npos);
+    CHECK(visible.find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
     // Not one row of the panel underneath survives. (`asks` and not `recipe`: since
     // KEY-0 the picker's own Builder row says `build a chosen recipe`, so that word
     // stopped being panel-unique; `asks N ever` is the exit row's and only the panel's.)

@@ -324,6 +324,54 @@ inline Written save_file(const std::string& path, const std::vector<builder::Rec
     return persist::write_file(path, to_text(recipes));
 }
 
+/// FILL IN THE FACTS AN AUTHORED RECIPE CANNOT CARRY, and only those.
+///
+/// A recipe file is a thing a PROJECT carries: it is written by a maker who cannot know
+/// where the binary reading it will be installed, and should not have to know which
+/// directory their shell was in. Three answers are therefore the host's, and this is the
+/// one place any of them is given -- because the moment two parties complete a recipe
+/// independently, the recipe means two things.
+///
+///   `artifact_dir`  where the built file lands. Empty means beside the host's own
+///                   artifacts: INSTALLATION truth, and `host_dir` is where this binary is.
+///   `workspace`     where a generated project is written. Empty means the same place, for
+///                   the same reason -- it is scratch this INSTALL owns.
+///   `source`        the one file a `single_source` recipe compiles. A relative spelling
+///                   means "relative to the PROJECT", which is where this Workshop was
+///                   launched, and it is resolved here into a path that means one file.
+///
+/// THE THIRD IS THE ONE THAT IS NOT OPTIONAL, and it exists because leaving it undone was a
+/// defect rather than a gap. Nothing wrote it down, so three parties each resolved the
+/// authored spelling wherever they happened to stand: the editor and the runner's
+/// exists-preflight against the PROCESS's working directory, and the generated CMake
+/// project against the generated WORKSPACE, which CMake resolves `add_library` sources
+/// against. A recipe naming `src/a.cpp` therefore named two different files, and only an
+/// absolute spelling was safe. Resolved once, here, every later reader is reading one
+/// answer -- which is what makes "the file you edit is the file the build reads" a property
+/// of the structure rather than a coincidence three parties maintain.
+///
+/// THE FILE IS NEVER REWRITTEN. This completes the VALUE in memory; a catalog that recorded
+/// this machine's paths would stop being a catalog a project can carry.
+///
+/// AN ABSENT PROJECT COMPLETES NOTHING. With no launch directory to stand on, a relative
+/// spelling is left exactly as authored -- to be refused downstream, in words, by whoever
+/// tries to spend it. Guessing a base is the one thing worse than the refusal.
+inline void complete_recipes(std::vector<builder::Recipe>& recipes, const std::string& host_dir,
+                             const std::string& project_dir) {
+    for (builder::Recipe& r : recipes) {
+        if (r.artifact_dir.empty()) {
+            r.artifact_dir = host_dir;
+        }
+        if (r.single_source.has_value()) {
+            if (r.single_source->workspace.empty()) {
+                r.single_source->workspace = host_dir + "/build-workspace/" + r.id;
+            }
+            r.single_source->source =
+                persist::resolved_against(project_dir, r.single_source->source);
+        }
+    }
+}
+
 /// Read a catalog from a file. The composition of every layer: the file, the format,
 /// and the recipe law.
 inline LoadedRecipes load_file(const std::string& path) {

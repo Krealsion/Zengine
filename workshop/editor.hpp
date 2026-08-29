@@ -1121,9 +1121,19 @@ private:
 /// `doc_epoch` IS WHICH DOCUMENT IS OPEN, as a comparable fact (QR-11's lesson about
 /// reborn identities): it moves at every open and close, so an answer in flight for one
 /// document -- a paste -- can prove the document it meant is still the one standing.
+/// THE DOCUMENT IS WHAT IS OPEN, NOT WHY IT WAS OPENED. There is deliberately no record
+/// of which referrer asked -- no recipe, no browser row, no provenance. It was here once,
+/// as a recipe id written at every open and read by nothing, and it went out with the one
+/// door: an editor that remembered its acquisition path would owe an answer for every
+/// future referrer that has no recipe to name, and the honest answer would still be "the
+/// file this editor has open".
 struct EditorState {
-    std::string path;   ///< the source identity, exactly as the recipe authored it; empty = none
-    std::string recipe; ///< the recipe that named it, for the maker's own orientation
+    /// The source identity: one NORMALIZED spelling, produced by the open door from
+    /// whatever the referrer asked for (`persist::resolved_against`). Empty = none. It is
+    /// what `save_source` writes to and what the same-document check compares, so it is
+    /// deliberately not the prettiest form -- what a header SHOWS is a projection of this,
+    /// never the other way round.
+    std::string path;
     EditorBuffer buffer;
     std::vector<std::string> saved_lines{std::string()}; ///< the content as last loaded/saved
     std::int64_t convention = line_ending::kLF;

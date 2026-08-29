@@ -117,15 +117,16 @@ reload — an artifact that is already live is refused in words, and a rebuilt f
 changed the image that is running — and no automatic build-on-missing: a maker presses a key.
 Detail in [Builder](builder.md).
 
-### The source editor holds one recipe-named file, in plain ASCII
+### The source editor holds one file at a time, in plain ASCII
 
-**Workshop can open, edit and save the source a single-source recipe names** — see [the
-source editor](editor.md) — and the loop `edit → save → build → realize → inspect` closes
-without leaving the application. The honest bounds on that capability today:
+**Workshop can open, edit and save any file in the project** — from the [Files](files.md)
+pane, or from the Builder for a recipe's own source; see [the source editor](editor.md) — and
+the loop `edit → save → build → realize → inspect` closes without leaving the application. The
+honest bounds on that capability today:
 
 | question | answer |
 |---|---|
-| Can it open a file a recipe does not name? | **no** — the Builder's chosen recipe is the one door; there is no file browser and no path argument |
+| Can it open a file outside the project? | **no** — the browser stays inside the directory you launched in, and a linked directory is shown but not entered |
 | More than one file at a time? | **no** — one document; opening another (with the first saved or deliberately discarded) replaces it |
 | Non-ASCII source? | **no** — the shipped media place columns by byte and glyphs by sequence, so a caret over multi-byte text would lie; such a file is refused whole and never rewritten |
 | Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
@@ -134,6 +135,25 @@ without leaving the application. The honest bounds on that capability today:
 
 What text editing also exists is three single-line editors, each over the same component: an
 inspector property draft, the setup-name line, and the terminal overlay's command line.
+
+### The Files pane is a snapshot, and two identity questions are unanswered
+
+The [Files](files.md) listing is taken when the pane opens, when you navigate, when you press
+`r`, and when a build you started finishes. **Nothing watches the filesystem**, so a file
+another program creates or deletes in between is not on screen until one of those moments.
+Press `r` when it matters.
+
+Two things this release deliberately does not decide:
+
+| question | today |
+|---|---|
+| Are `Src.cpp` and `src.cpp` the same file on Windows? | **Workshop treats them as two documents** — paths are compared as text, and asking the filesystem about identity on every open is a cost nothing yet needs |
+| Are two hard links to one file the same document? | **no** — same answer, same reason |
+
+A **Windows directory junction** *is* refused like a symbolic link — measured, not assumed:
+Workshop asks whether an entry is a directory when followed but not when unfollowed, and a
+junction answers exactly that way. (Asking whether it is a *symbolic link* would have missed
+it, which is why Workshop does not ask that.)
 
 ### Lifecycle
 

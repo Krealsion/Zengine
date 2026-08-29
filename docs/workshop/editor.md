@@ -1,24 +1,42 @@
 # The source editor
 
-**Reference, current state.** Workshop's built-in editor for the one source file a build
-recipe names — open it, edit it like an ordinary text document, save exactly what you meant
-to save, and continue through the existing build-and-realize loop without leaving the
-application.
+**Reference, current state.** Workshop's built-in editor for one source file at a time —
+open it, edit it like an ordinary text document, save exactly what you meant to save, and
+continue through the existing build-and-realize loop without leaving the application.
 
 ## Opening a source
 
-The editor's one door is the **Builder**: choose a recipe (`c` steps through them) and press
-**`e`**. If the chosen recipe is a `single_source` recipe, its source opens in the **Editor
-pane** and your keys go there; the recipe the editor opens is exactly the recipe `b` would
-build, so the file you are editing and the file the build reads cannot quietly be two
-different files.
+Two things can ask the editor to open a file, and both ask the **same door**, so both get
+the same behaviour, the same refusals and the same words:
+
+- the **Files** pane — browse the project you launched Workshop in and open any file in it
+  (see [Files](files.md));
+- the **Builder** — choose a recipe (`c` steps through them) and press **`e`**, which opens
+  that recipe's source.
 
 A recipe that names no single source — a `cmake_target` recipe builds a project of its own —
-refuses in those words. There is no file browser, no path argument and no multi-file session:
-the editor holds **one** document, and asking for a different source while the current one
-has unsaved edits is refused until you save them (`Ctrl`+`s`) or deliberately discard them
-(`Ctrl`+`d`). Asking for the source that is *already* open just brings the pane and
-your keys back to it, edits, caret and selection intact.
+refuses in those words. There is no path argument and no multi-file session: the editor holds
+**one** document, and asking for a different source while the current one has unsaved edits
+is refused until you save them (`Ctrl`+`s`) or deliberately discard them (`Ctrl`+`d`). Asking
+for the source that is *already* open just brings the pane and your keys back to it, edits,
+caret and selection intact — including when you ask for it the *other* way, because the two
+doors resolve a file to the same identity.
+
+### The file you edit is the file the build reads
+
+A `single_source` recipe may spell its source **relative** — `src/main.cpp` — and a relative
+spelling only means something once you say what it is relative to. Workshop's answer is the
+**project**: the directory you launched it in, printed on the startup banner as
+`zengine-workshop - project: ...`.
+
+That resolution happens **once**, when the recipe catalog is read, and everything afterwards
+spends the same answer — the editor's door, the build's own check that the file is there, and
+the generated project that actually compiles it. So the file `e` opens and the file `b`
+compiles are the same file, whether the recipe spelled it relatively or absolutely.
+
+An **absolute** source keeps exactly the meaning it has. If Workshop could not determine a
+launch directory at all it says so on the banner, and a relative source is then refused rather
+than guessed at.
 
 The Editor is an ordinary pane: the picker (`p`) opens and removes it, arranging moves and
 resizes it, and its row in a saved setup comes back like any other. **None of that touches
@@ -110,11 +128,13 @@ The editor edits what is in the file and writes what you edited — nothing else
 ## The loop
 
 ```
-choose the recipe (c) → open its source (e) → edit → save (Ctrl+s)
+open a file (Files pane, or the Builder's e) → edit → save (Ctrl+s)
     → build (b) or build & realize (Shift+b / f) → inspect (Project / Powers / Loaded)
     → press back into the editor and go again
 ```
 
 Everything after **save** is the Builder's and the project's, unchanged — the editor adds no
 second build path, no auto-save and no auto-build; every compile still starts from your own
-gesture, over the bytes you explicitly saved.
+gesture, over the bytes you explicitly saved. Opening a file you have no recipe for is fine:
+you can read and edit anything in the project, and what can be *built* is still whatever the
+recipes say.

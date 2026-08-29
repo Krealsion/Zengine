@@ -742,6 +742,7 @@ workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
+workshop_files                    doctest           always  20
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

@@ -54,8 +54,14 @@ struct EditorRig {
         tool = mount_tool(t, "hello");
         tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"block", "zen-block"});
         tool->catalog.recipes.push_back(zengine::builder::RecipeSummary{"world", "zen-world"});
-        src = dir.file("hello.cpp");
-        second = dir.file("world.cpp");
+        // THE IDENTITY IS THE DOOR'S NORMALIZED SPELLING, not the platform's native one
+        // (EDIT-1). `open_source` resolves every entrant through `persist::resolved_against`
+        // -- absolute, lexically normal, one separator convention -- so on Windows the stored
+        // path uses forward slashes while `TempDir::file()` hands back backslashes. Spelling
+        // the rig's own expectation through the SAME function is what keeps these cases
+        // asserting the law rather than a platform's punctuation.
+        src = persist::resolved_against(std::string(), dir.file("hello.cpp"));
+        second = persist::resolved_against(std::string(), dir.file("world.cpp"));
         raw_write(src, bytes);
         raw_write(second, "alpha\nbeta\n");
         t.host.recipe_source = [this](const std::string& id) {
@@ -639,7 +645,6 @@ TEST_CASE("EDIT-0: `e` opens the chosen recipe's source, focuses the editor, and
     EditorRig r("open");
     r.open_hello();
     CHECK(r.ed().path == r.src);
-    CHECK(r.ed().recipe == "hello");
     CHECK(r.notice() == "editing " + r.src);
     REQUIRE(r.buf().line_count() == 4); // one, two, three, and the final empty line
     CHECK(r.buf().line(0) == "one");
