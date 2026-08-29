@@ -11,9 +11,9 @@
 //
 //   POINTING NAMES A SUBJECT FOR ONE REQUEST. SELECTION IS A STATE A MAKER ENTERED.
 //   Opening this surface captures a temporary subject and changes no selection, no
-//   keyboard candidate and no mode. The one deliberate exception is choosing Move or
-//   Size, whose meaning IS entering ongoing interest -- and even they admit their
-//   explicit target first and select only on acceptance.
+//   keyboard candidate and no mode. The one deliberate exception is choosing Arrange,
+//   whose meaning IS entering ongoing interest -- and even it admits its explicit
+//   target first and binds only on acceptance.
 //
 //   OPEN REMEMBERS AN IDENTITY. SPEND RE-ASKS ITS OWNER.
 //   The captured subject is only what a file could hold -- a `PaneRef`, an object id, or
@@ -72,6 +72,16 @@ inline constexpr std::int64_t kOnObject = context_bit(context_subject::kObject);
 /// holds an IDENTITY and a cursor, never a snapshot: no bounds, no rows, no resolved
 /// handles. `pane` is read exactly when `subject == kPane` and `object` exactly when
 /// `subject == kObject`; the other fields rest at their defaults.
+///
+/// THE ANCHOR IS THE GESTURE'S PLACE, NOT THE SUBJECT'S (ARR-0). A pointer-opened
+/// surface belongs beside the press that asked for it, so the opening press's canvas
+/// cell is captured here -- a fact about the maker's hand, exactly as `PaneGesture`
+/// captures where a drag began. It is two numbers and never a rectangle: the surface's
+/// bounds are DERIVED fresh at every paint and every press from this anchor, the level's
+/// own content and the live screen, so a resize re-clamps and the painter and the hit
+/// test cannot hold two geometries. A keyboard-opened surface has no pointer place and
+/// says so (`anchored == false`); its placement is the overlay stack's own corner --
+/// deterministic, never an invented coordinate.
 struct ContextMenu {
     bool open = false;
     std::int64_t subject = context_subject::kRoot;
@@ -81,6 +91,9 @@ struct ContextMenu {
     /// no identity, no gesture and no dispatch arm, and an empty one is never shown.
     std::string group;
     std::size_t cursor = 0;
+    bool anchored = false;   ///< a pointer opened this, at the cell below
+    std::int64_t anchor_x = 0; ///< the opening press's canvas cell
+    std::int64_t anchor_y = 0;
 };
 
 /// ONE DECLARATION: an action id, the subject kinds it is meaningful for, and the
@@ -113,12 +126,16 @@ inline constexpr ContextRow kContextCatalog[] = {
     // is a room action here and not a pane one.
     {"manage.reset-order", kOnRoot, ""},
     // -- a pane: the arrangement vocabulary, on the pointed pane -----------------------
-    {"manage.move", kOnPane, ""},
-    {"manage.size", kOnPane, ""},
-    {"manage.front", kOnPane, "Arrange"},
-    {"manage.back", kOnPane, "Arrange"},
-    {"manage.raise", kOnPane, "Arrange"},
-    {"manage.lower", kOnPane, "Arrange"},
+    //
+    // ARRANGE IS ONE ROW BECAUSE IT IS ONE INTENT (ARR-0): moving and resizing the
+    // pointed pane are one interaction state, entered here on the captured reference.
+    // The ordering verbs live under `Order` -- the group's old name was `Arrange`,
+    // which this row's arrival made a lie one indentation deep.
+    {"manage.arrange", kOnPane, ""},
+    {"manage.front", kOnPane, "Order"},
+    {"manage.back", kOnPane, "Order"},
+    {"manage.raise", kOnPane, "Order"},
+    {"manage.lower", kOnPane, "Order"},
     {"manage.reset-place", kOnPane, "Reset"},
     {"manage.reset-width", kOnPane, "Reset"},
     {"manage.reset-height", kOnPane, "Reset"},

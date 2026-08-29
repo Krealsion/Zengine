@@ -3795,7 +3795,7 @@ TEST_CASE("TEXT-0: ^c still quits exactly where nothing takes text") {
         Live t;
         t.key(input::scan::kW); // pane management
         t.text("w");
-        REQUIRE(t.session().manage.open);
+        REQUIRE(t.session().arrange.open);
         t.key(input::scan::kC, input::mod::kCtrl);
         CHECK(t.host.quit);
     }
@@ -4787,7 +4787,7 @@ TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the mo
     const std::string view = panel_text(t.canvases.back(),
                                         cells_covered(hotkeys_bounds(screen_of(t.session()))));
     CHECK(view.find("terminal") != std::string::npos);
-    CHECK(view.find("window") != std::string::npos);
+    CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
     CHECK(view.find("titles") != std::string::npos); // the new action is discoverable too
 }
@@ -5128,8 +5128,11 @@ TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
     REQUIRE(re.accepted);
     CHECK(moved.gesture_of(Act::kManageRemove) ==
           Gesture{input::scan::kX, input::mod::kNone});
-    CHECK(moved.action_for(KeyContext::kManageSelect, input::scan::kX, input::mod::kNone) ==
+    CHECK(moved.action_for(KeyContext::kArrangeDesk, input::scan::kX, input::mod::kNone) ==
           Act::kManageRemove);
-    CHECK(moved.action_for(KeyContext::kManageSelect, input::scan::kD, input::mod::kNone) ==
+    CHECK(moved.action_for(KeyContext::kArrangeDesk, input::scan::kD, input::mod::kNone) ==
           Act::kNone);
+    // ...and the one override moved BOTH scopes' rows -- one action, one authored gesture.
+    CHECK(moved.action_for(KeyContext::kArrangePane, input::scan::kX, input::mod::kNone) ==
+          Act::kManageRemove);
 }

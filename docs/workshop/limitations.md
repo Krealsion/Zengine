@@ -94,11 +94,10 @@ and none of those is claimed anywhere else either.
 
 ### Panes are 9 rows tall by default and a bigger terminal does not change that
 
-Width scales with the surface; height does not. A larger pane is authored in management mode
-(`w` → `s` → arrows) at **one cell per keypress**, with no coarse step, no drag-to-size and no
-"fill the room". It persists correctly once authored. The mode is advertised by the band's
-legend and the hotkey view; its sub-keys are not announced once you are in it. Detail in
-[pane geometry](panes.md#pane-geometry).
+Width scales with the surface; height does not. A larger pane is authored by arranging it —
+drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), or grow it by
+keyboard at **one cell per press** with no coarse step and no "fill the room". It persists
+correctly once authored. Detail in [pane geometry](panes.md#pane-geometry).
 
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.

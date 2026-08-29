@@ -2051,25 +2051,27 @@ inline bool is_permutation(const Setup& s) {
     return true;
 }
 
-/// THE CONTEXTUAL SURFACE'S GEOMETRY IN CANVAS CELLS on a CELL medium (CTX-0) -- through
-/// the same `context_bounds` the painter and the press resolver spend, never a second
-/// arithmetic. `context_entry_cell_y` is population row `index`'s canvas row WHILE the
-/// window shows the population from its top with no `earlier` marker, which every case
-/// using it arranges (the pane and object populations always fit the column).
+/// THE CONTEXTUAL SURFACE'S GEOMETRY IN CANVAS CELLS on a CELL medium (CTX-0; local
+/// bounds since ARR-0) -- through the same `context_bounds` the painter and the press
+/// resolver spend, never a second arithmetic. `context_entry_cell_y` is population row
+/// `index`'s canvas row WHILE the window shows the population from its top with no
+/// `earlier` marker, which every case using it arranges (the pane and object populations
+/// always fit the room).
 inline std::int64_t context_cell_x(const Session& s) {
-    return surface::cell_of_subs(context_bounds(screen_of(s)).x) + 1;
+    return surface::cell_of_subs(context_bounds(s, screen_of(s)).x) + 1;
 }
 inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return surface::cell_of_subs(context_bounds(screen_of(s)).y) + kContextHeadingRows +
+    return surface::cell_of_subs(context_bounds(s, screen_of(s)).y) + kContextHeadingRows +
            static_cast<std::int64_t>(index);
 }
 
 /// The surface's published region, read off a canvas at exactly its bounds -- searched
 /// BACK TO FRONT because the picker, a slot-seated pane and the attention view can share
-/// the column's origin, and the contextual surface paints over all of them.
+/// the popup's origin, and the contextual surface paints over all of them.
 inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
-    const surface::SurfaceTextRegion want = panel_prose_region(context_bounds(screen_of(s)));
+    const surface::SurfaceTextRegion want =
+        panel_prose_region(context_bounds(s, screen_of(s)));
     for (std::size_t li = c.layers.size(); li > 0; --li) {
         const surface::SurfaceLayer& layer = c.layers[li - 1];
         for (std::size_t ri = layer.texts.size(); ri > 0; --ri) {
@@ -2096,7 +2098,7 @@ inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
 /// `while (cursor != want)` is right until the first case that reaches it with the picker
 /// closed, at which point the suite stops rather than reddens.
 inline void open_pane(Live& t, const PaneRef& ref) {
-    REQUIRE_FALSE(t.session().manage.open); // `p` belongs to command mode
+    REQUIRE_FALSE(t.session().arrange.open); // `p` belongs to command mode
     t.key(input::scan::kP);
     REQUIRE(t.session().panels.picker.open);
     const std::vector<CatalogRow> rows =
@@ -2119,51 +2121,27 @@ inline void open_pane(Live& t, const PaneRef& ref) {
     REQUIRE(has_pane(t.session().setup.active, ref));
 }
 
-/// Put the management cursor on a setup-named pane, by the key a maker presses. Bounded for
-/// `open_pane`'s reason.
+/// Put the desk's keyboard address on a setup-named pane, by the key a maker presses.
+/// Bounded for `open_pane`'s reason.
 inline void select_pane(Live& t, const PaneRef& ref) {
-    REQUIRE(t.session().manage.open);
-    for (std::size_t guard = 0; guard <= t.session().setup.active.panes.size(); ++guard) {
-        if (t.session().manage.selected == ref) {
+    REQUIRE(t.session().arrange.open);
+    for (std::size_t guard = 0; guard <= t.session().setup.active.panes.size() + 1; ++guard) {
+        if (t.session().arrange.pane == ref) {
             return;
         }
         t.key(input::scan::kTab);
     }
-    FAIL("no management row for ", ref_text(ref));
+    FAIL("no arrangeable row for ", ref_text(ref));
 }
 
-/// A `Live` driven into pane management, on a screen with room for two overlay slots.
-/// Every keyboard case begins here, and it goes through the REAL input path -- the `w`
-/// transition and the character the platform's layout made of it, both, in the order the
-/// backends report them.
-inline void enter_management(Live& t) {
+/// A `Live` driven into the desk arrangement scope (ARR-0). Every keyboard case begins
+/// here, and it goes through the REAL input path -- the `w` transition and the character
+/// the platform's layout made of it, both, in the order the backends report them.
+inline void enter_arrange_desk(Live& t) {
     t.key(input::scan::kW);
     t.text("w");
-    REQUIRE(t.session().manage.open);
-}
-
-/// The management panel as a maker READS it, off the canvas at the slot it opens over.
-///
-/// THROUGH THE VISIBILITY ORDER AND NOT THROUGH A LIST OF LABELS (WIND-2a). The management
-/// surface opens over the overlay stack's first slot, so a pane seated there publishes rows
-/// at the same column and the same rows -- and before this phase both sets were in one
-/// `labels` list, so a helper that gathered them all was reading two presentations at once
-/// and calling the result the management panel. `cell_text_of` walks the planes in the
-/// Skin's own order, so the LAST row at a cell is the one actually on screen.
-inline std::string management_text(Live& t) {
-    const Screen sc = screen_of(t.session());
-    const ui::Rect b = cells_covered(picker_bounds(sc));
-    std::vector<std::string> rows(static_cast<std::size_t>(b.h > 0 ? b.h : 0));
-    for (const surface::SurfaceLabel& l : cell_text_of(t.canvases.back())) {
-        if (l.x == b.x && l.y >= b.y && l.y < b.y + b.h) {
-            rows[static_cast<std::size_t>(l.y - b.y)] = l.text;
-        }
-    }
-    std::string all;
-    for (const std::string& row : rows) {
-        all += row + "\n";
-    }
-    return all;
+    REQUIRE(t.session().arrange.open);
+    REQUIRE(t.session().arrange.desk);
 }
 
 namespace intro = zengine::introspection;

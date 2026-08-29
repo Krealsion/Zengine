@@ -620,11 +620,23 @@ TEST_CASE("terminal: the arrow sequences, and an unknown sequence leaks nothing"
     CHECK(i == ev.size());
     CHECK(typed(ev).empty()); // an arrow is not text
 
+    // BACK-TAB: the one CSI whose final IS its modifier (ARR-0). Every emulator spells
+    // Shift+Tab as `ESC [ Z`, and a parameterized `1;m Z` composes what was held BESIDE
+    // the shift the final already carries.
+    i = 0;
+    ev = term("\x1b[Z");
+    expect_stroke(ev, i, scan::kTab, "Tab", mod::kShift);
+    CHECK(i == ev.size());
+    i = 0;
+    ev = term("\x1b[1;5Z");
+    expect_stroke(ev, i, scan::kTab, "Tab", mod::kShift | mod::kCtrl);
+    CHECK(i == ev.size());
+
     // An unknown CSI is CONSUMED WHOLE and dropped. V1 emitted Escape, then
     // `[`, then the final byte as three keystrokes -- and `[` is a key Workshop
     // binds. This is the same defect the mouse report has, in miniature.
     TerminalParser p;
-    CHECK(feed(p, "\x1b[Z").empty());
+    CHECK(feed(p, "\x1b[Y").empty());
     CHECK(p.malformed() == 1);
     CHECK_FALSE(p.mid_sequence());
 

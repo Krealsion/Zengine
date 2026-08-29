@@ -578,7 +578,7 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
 // movable Info would change the resolved size of every share-width object in a maker's
 // document, which is exactly the outcome PNL-0 refuses when it leaves the vacated column
 // empty. A side-region row's authored geometry is therefore RETAINED in the file, never
-// rewritten, and never spent; pane management refuses to author one and says why.
+// rewritten, and never spent; arrangement refuses to author one and says why.
 
 /// WHAT ONE PANE'S AUTHORED INTENT RESOLVES TO ON THIS SCREEN.
 ///
@@ -674,7 +674,7 @@ inline constexpr ui::Rect clip_to_canvas(const ui::Rect& r, const Screen& sc) no
 ///
 /// SO THE UNIT IS A FACT ABOUT THE AUTHORED ROW AND THE PLACEMENT IS NOT PART OF IT. Fixed
 /// placement is still fixed: Info's PLACE and SIZE remain the screen's, a side-region row's
-/// retained cell geometry stays inert, and management still refuses to author one and says
+/// retained cell geometry stays inert, and arrangement still refuses to author one and says
 /// which reservation it hit. What fixed placement is not is permission to present an
 /// unsupported unit as though it were understood. Dropping the parameter rather than
 /// ignoring it is what makes the old spelling unsayable at the call sites.
@@ -1200,13 +1200,6 @@ struct TerminalPane {
 // holding are four facts that die with the process, exactly as `PanelPicker` and
 // `SetupNaming` do. What SURVIVES is what the gestures WROTE, which is the authored setup.
 
-namespace pane_manage {
-inline constexpr std::int64_t kSelect = 0; ///< choosing which pane; ordering acts from here
-inline constexpr std::int64_t kMove = 1;   ///< arrows author an absolute place
-inline constexpr std::int64_t kSize = 2;   ///< an edge is chosen; arrows author that axis
-inline constexpr std::int64_t kReset = 3;  ///< one key per authored dimension
-} // namespace pane_manage
-
 /// THE EIGHT MANIPULATION AFFORDANCES of a rectangle, and there is not a ninth.
 ///
 /// AN EDGE NAMES AN AXIS AND A DIRECTION -- IT IS NOT AN ANCHOR, and that is the phase's
@@ -1369,23 +1362,32 @@ inline std::int64_t pane_edge_at(const FineRect& r, std::int64_t sx, std::int64_
     return kNoPaneEdge;
 }
 
-/// WHICH PANE A MAKER IS ARRANGING, AND WHICH STEP THEY ARE ON.
+/// THE ARRANGEMENT STATE: WHICH SCOPE A MAKER IS ARRANGING, AND WHICH PANE THE
+/// VOCABULARY ADDRESSES (ARR-0).
 ///
-/// THE SELECTION IS A `PaneRef` AND NOT A KIND, and that is the identity law spent where it
-/// matters most: a runtime kind is session-local and a pane a maker selected may stop
+/// TWO SCOPES, ONE VOCABULARY. `desk == false` is ARRANGE THIS PANE: the interaction is
+/// bound to exactly `pane`, moving and resizing it are one state, and no other pane can
+/// be drawn into it. `desk == true` is ARRANGE THE DESK: every arrangeable pane answers
+/// the pointer directly, and `pane` is only the KEYBOARD's current target -- the desk is
+/// open whether or not one is chosen, which is the whole difference from the old
+/// selector mode this replaced. `resetting` is the one remaining prompt step (`0`, then
+/// which authored dimension), reachable from either scope.
+///
+/// THE PANE IS A `PaneRef` AND NOT A KIND, and that is the identity law spent where it
+/// matters most: a runtime kind is session-local and a pane a maker addressed may stop
 /// resolving between two frames, while the reference they chose is the durable thing they
-/// meant. It is also what lets an UNRESOLVED pane be selected at all, which is the whole of
-/// the recovery path -- a maker cannot reset the place of a pane they cannot name.
+/// meant. It is also what lets an UNRESOLVED pane be addressed at all, which is the whole
+/// of the recovery path -- a maker cannot reset the place of a pane they cannot name.
 ///
-/// AN EMPTY `provider` MEANS NOTHING IS SELECTED. `check_pane_key` refuses an empty key, so
-/// no reference a file or a catalog can produce is ever equal to it.
-struct PaneManagement {
+/// AN EMPTY `provider` MEANS NO PANE IS ADDRESSED. `check_pane_key` refuses an empty key,
+/// so no reference a file or a catalog can produce is ever equal to it.
+struct PaneArrange {
     bool open = false;
-    PaneRef selected;
-    std::int64_t doing = pane_manage::kSelect;
-    std::int64_t edge = pane_edge::kBottomRight;
+    bool desk = false;
+    PaneRef pane;
+    bool resetting = false;
 
-    bool has_selection() const { return !selected.provider.empty(); }
+    bool addressed() const { return !pane.provider.empty(); }
 };
 
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
@@ -1549,11 +1551,12 @@ struct Session {
     /// The two persist to different files through different functions, and neither save
     /// touches the other's bytes.
     SetupState setup;
-    /// WHICH PANE A MAKER IS ARRANGING AND WHICH STEP THEY ARE ON (WIND-2). Session, beside
-    /// `panels` and `setup` rather than inside either: it is neither a presentation nor
-    /// authored intent -- it is the maker's hand halfway through a sentence, and it dies
-    /// with the process exactly as `PanelPicker` and `SetupNaming` do.
-    PaneManagement manage;
+    /// WHICH SCOPE A MAKER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES
+    /// (WIND-2, reshaped by ARR-0). Session, beside `panels` and `setup` rather than
+    /// inside either: it is neither a presentation nor authored intent -- it is the
+    /// maker's hand halfway through a sentence, and it dies with the process exactly as
+    /// `PanelPicker` and `SetupNaming` do.
+    PaneArrange arrange;
     /// ...and the pane gesture their pointer is holding, if any. Deliberately NOT `drag`:
     /// a document object and a pane are two different things to be holding, and one
     /// variable for both would make "a release ends the gesture it began" a question about
@@ -1621,36 +1624,22 @@ inline constexpr Screen screen_of(const Session& s) noexcept {
 ///
 /// It is RESOLVED FRESH from live session state at every spend and stored nowhere
 /// (`keyboard_pane`'s own discipline): there is no context stack, nothing pushes or pops,
-/// and a mode that closes stops being the answer with nothing to clear. Pane management
-/// answers as its SUBMODE, because the sub-switches are genuinely different vocabularies
-/// and a help surface that said `manage` while the arrows meant `pull an edge` would be
-/// describing a different keyboard than the one in the maker's hands.
+/// and a mode that closes stops being the answer with nothing to clear. Arrangement
+/// answers as its SCOPE (ARR-0) -- one pane, the desk, or the reset prompt -- because
+/// those are genuinely different vocabularies and a help surface that said one while the
+/// keys meant another would be describing a different keyboard than the one in the
+/// maker's hands.
 ///
 /// The reachability arguments the old chain carried still hold (naming is reachable only
 /// from command mode, so it cannot be live with a draft) -- and the order is still written
 /// rather than left to them, for the recorded reason: an ordering that depends on a
 /// reachability proof is one refactor away from being wrong silently.
-inline KeyContext keyboard_context(const Session& s) {
-    if (s.terminal.open) {
-        return KeyContext::kTerminal;
-    }
-    if (s.manage.open) {
-        switch (s.manage.doing) {
-        case pane_manage::kMove: return KeyContext::kManageMove;
-        case pane_manage::kSize: return KeyContext::kManageSize;
-        case pane_manage::kReset: return KeyContext::kManageReset;
-        default: return KeyContext::kManageSelect;
-        }
-    }
-    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE PICKER'S BAND (CTX-0):
-    // below the Terminal and pane management, above everything a press or a draft could
-    // otherwise reach. It must answer before a focused pane and a live draft or its own
-    // navigation keys would leak into the thing beneath it -- the first-refusal rule --
-    // and it sits above the other transient overlays because it is opened by the LATER
-    // deliberate gesture whenever both are somehow open at once.
-    if (s.context.open) {
-        return KeyContext::kContext;
-    }
+/// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode
+/// above them claims it. Split out of `keyboard_context` (ARR-0) because the contextual
+/// surface needs exactly this half as a VALUE: a shortcut annotation is truthful only if
+/// its gesture would be requestable in the state the maker returns to when the menu
+/// closes, and that state is this function's answer. One spelling, both askers.
+inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
     }
@@ -1658,11 +1647,11 @@ inline KeyContext keyboard_context(const Session& s) {
         return KeyContext::kPicker;
     }
     // THE CURRENT-CONDITION VIEW IS A MODE, IN THE PICKER'S OWN PLACE: below the
-    // Terminal and pane management, above a focused pane and a live draft. It owns the
-    // keyboard while it is open for the picker's reason -- it is a list with a cursor and a
-    // gesture on the selected row -- and it is deliberately NOT keys-modal like the hotkey
-    // view, because its gestures are real application actions that every help surface
-    // and the maker's own keymap file must be able to see.
+    // Terminal and the arrangement scopes, above a focused pane and a live draft. It owns
+    // the keyboard while it is open for the picker's reason -- it is a list with a cursor
+    // and a gesture on the selected row -- and it is deliberately NOT keys-modal like the
+    // hotkey view, because its gestures are real application actions that every help
+    // surface and the maker's own keymap file must be able to see.
     if (s.attention.open) {
         return KeyContext::kAttention;
     }
@@ -1675,6 +1664,28 @@ inline KeyContext keyboard_context(const Session& s) {
         }
     }
     return KeyContext::kCommand;
+}
+
+inline KeyContext keyboard_context(const Session& s) {
+    if (s.terminal.open) {
+        return KeyContext::kTerminal;
+    }
+    if (s.arrange.open) {
+        if (s.arrange.resetting) {
+            return KeyContext::kArrangeReset;
+        }
+        return s.arrange.desk ? KeyContext::kArrangeDesk : KeyContext::kArrangePane;
+    }
+    // THE CONTEXTUAL-ACTION SURFACE IS A MODE AT THE TOP OF THE PICKER'S BAND (CTX-0):
+    // below the Terminal and the arrangement scopes, above everything a press or a draft
+    // could otherwise reach. It must answer before a focused pane and a live draft or its
+    // own navigation keys would leak into the thing beneath it -- the first-refusal rule
+    // -- and it sits above the other transient overlays because it is opened by the LATER
+    // deliberate gesture whenever both are somehow open at once.
+    if (s.context.open) {
+        return KeyContext::kContext;
+    }
+    return keyboard_context_beneath_menu(s);
 }
 
 // ---- Spelling the effective bindings (KEY-0) ---------------------------------------------
@@ -4435,86 +4446,15 @@ inline std::string pane_window_text(const SetupPane* row) {
     return text;
 }
 
-/// The heading, which is where the SUBMODE and the chosen edge are said. One row, because
-/// the surface has one -- and the edge is named AND marked, so a medium with no colour
-/// carries the whole answer. Every gesture in it is spelled from the effective keymap
-/// (KEY-0): the `arrows` fold survives exactly as long as it is a fact.
-inline std::string management_heading(const PaneManagement& manage, const std::string& what,
-                                      const Keymap& k) {
-    const auto ht = [&k](Act a) { return hotkey_text(k, a); };
-    switch (manage.doing) {
-    case pane_manage::kMove:
-        return "+ WINDOW move " + what + " -- " +
-               arrows_text(k, Act::kManagePlaceLeft, Act::kManagePlaceRight,
-                           Act::kManagePlaceUp, Act::kManagePlaceDown) +
-               " place, " + ht(Act::kManageDone) + " back";
-    case pane_manage::kSize:
-        return std::string("+ WINDOW size ") + pane_edge_mark(manage.edge) + " " +
-               pane_edge_name(manage.edge) + " -- " + ht(Act::kManageEdge) + " edge, " +
-               arrows_text(k, Act::kManagePullLeft, Act::kManagePullRight,
-                           Act::kManagePullUp, Act::kManagePullDown) +
-               " size, " + ht(Act::kManageDone) + " back";
-    case pane_manage::kReset:
-        return "+ WINDOW reset " + what + " -- " + ht(Act::kManageResetPlace) + " place, " +
-               ht(Act::kManageResetWidth) + " width, " + ht(Act::kManageResetHeight) +
-               " height, " + ht(Act::kManageResetOrder) + " order, " +
-               ht(Act::kManageDone) + " back";
-    default:
-        return "+ WINDOW -- " + ht(Act::kManageMove) + " move, " + ht(Act::kManageSize) +
-               " size, " + ht(Act::kManageFront) + "/" + ht(Act::kManageBack) +
-               " front/back, " + ht(Act::kManageRaise) + "/" + ht(Act::kManageLower) +
-               " raise/lower, " + ht(Act::kManageReset) + " reset";
-    }
-}
-
-inline void paint_management(surface::SurfaceLayer& layer, const Panels& panels,
-                             const Setup& setup, const PaneManagement& manage,
-                             const Screen& sc, const Keymap& keymap) {
-    if (!manage.open) {
-        return;
-    }
-    const FineRect b = picker_bounds(sc);
-    paint_panel_frame(layer, b);
-    const std::vector<CatalogRow> rows = inventory_rows(setup, panels);
-    std::size_t cursor = 0;
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (manage.has_selection() && rows[i].ref == manage.selected) {
-            cursor = i;
-            break;
-        }
-    }
-    const std::string what =
-        manage.has_selection() ? quoted_setup_name(ref_text(manage.selected)) : std::string();
-    // ONE BOUNDED REGION OF PROSE, exactly as the picker it shares this slot with (TYPE-0).
-    const PanelProsePlace place = panel_prose_place(b, sc);
-    if (!place.present) {
-        return; // a slot with no room for a row says nothing rather than lying about the room
-    }
-    surface::SurfaceTextRegion region = panel_prose_region(b);
-    const auto say = [&](const std::string& text, std::int64_t role) {
-        region.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(text, place.columns), role});
-    };
-    say(management_heading(manage, what, keymap), surface::role::kAccent);
-    const std::size_t budget =
-        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
-    const ListWindow win = list_window(rows.size(), cursor, budget);
-    if (win.before > 0) {
-        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
-    }
-    for (std::size_t i = win.first; i < win.first + win.count; ++i) {
-        const bool here = i == cursor && manage.has_selection();
-        say(std::string(here ? "> " : "  ") +
-                picker_entry_text(rows[i].name,
-                                  pane_state_word(pane_state_of(panels, setup, sc, rows[i])),
-                                  pane_window_text(pane_of(setup, rows[i].ref))),
-            here ? surface::role::kAccent : surface::role::kFill);
-    }
-    if (win.after > 0) {
-        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
-    }
-    layer.texts.push_back(std::move(region));
-}
+// THE MANAGEMENT PANEL IS RETIRED (ARR-0). The old `+ WINDOW` surface -- the shared
+// inventory list with a submode heading, painted into the picker's slot -- existed
+// because the old mode was a SELECTOR: choose a pane, then choose a manipulation. The
+// arrangement scopes have no selector step, so the statement of the state moved to
+// where the maker's eye already is: the affordance rings on the panes themselves
+// (`paint_pane_affordances`), the band's legend rows for the scope's own keys, and the
+// notice line's sentences. Inventory remains the PICKER's (participation), and the
+// desk's keyboard reaches an invisible pane by stepping to it -- the notice names it
+// and its state, which is the recovery path said in words instead of a list.
 
 // ---- THE FULL HOTKEY VIEW (KEY-0) -----------------------------------------------------
 //
@@ -4534,10 +4474,12 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kPicker: return "the + panel picker";
     case KeyContext::kAttention: return "what needs attention";
     case KeyContext::kContext: return "the contextual actions";
-    case KeyContext::kManageSelect: return "pane management";
-    case KeyContext::kManageMove: return "pane management -- move";
-    case KeyContext::kManageSize: return "pane management -- size";
-    case KeyContext::kManageReset: return "pane management -- reset";
+    case KeyContext::kArrangePane: {
+        return s.arrange.addressed() ? "arranging " + ref_text(s.arrange.pane)
+                                     : "arranging a pane";
+    }
+    case KeyContext::kArrangeDesk: return "arranging the desk";
+    case KeyContext::kArrangeReset: return "arranging -- reset";
     case KeyContext::kDraft: return "editing a property";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
@@ -4909,51 +4851,33 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
     layer.texts.push_back(std::move(region));
 }
 
-// ---- WHAT CAN I DO WITH THIS, PRESENTED (CTX-0) ------------------------------------------
+// ---- WHAT CAN I DO WITH THIS, PRESENTED (CTX-0; placed beside the hand by ARR-0) ---------
 //
 // THE PICKER'S SURFACE WITH A FIFTH PURPOSE: the same frame, the same bounded region of
 // prose, the same `list_window` and the same omission wording, over the population
 // `context.hpp` declares for the captured subject. What differs is that this one has a
 // POINTER PRESS PATH -- the first overlay-stack presentation to own one -- so its painter
 // and its press resolver are an inverse pair over ONE composition (HD-3's law): the same
-// heading reservation, the same budget, the same window arithmetic, or a maker would press
-// one row and choose another.
+// bounds, the same heading reservation, the same budget, the same window arithmetic, or a
+// maker would press one row and choose another.
 //
 // PAINT DOES NOT PREDICT POLICY. The rows are what is DECLARED meaningful for the subject
 // KIND -- a static fact -- and the heading renders the captured subject's IDENTITY, which
 // is pure string arithmetic and stays honest after the subject is gone. Whether an exact
 // operation would succeed is the owner's answer at spend, in the owner's own words.
-
-/// WHERE THE CONTEXTUAL SURFACE OPENS: the stack column, `hotkeys_bounds`' rectangle for
-/// `attention_bounds`' reason -- a grouped menu with a heading, markers and a dozen rows
-/// does not fit one slot, and the column is the room the screen already reserves.
-inline constexpr FineRect context_bounds(const Screen& sc) noexcept {
-    return hotkeys_bounds(sc);
-}
+//
+// THE SURFACE IS LOCAL SINCE ARR-0. A pointer-opened menu is a bounded popup at the
+// press's own cell, sized by the content of the level it is showing, shifted only as far
+// as staying usable requires; the old spelling -- the whole stack column, wherever the
+// maker clicked -- answered every question from one corner of the screen. The bounds are
+// DERIVED, at every paint and every press, from the captured anchor, the level's own
+// rows and the live screen (`ContextMenu`'s anchor comment owns the reasoning), so the
+// painter and the hit test cannot disagree and a screen resize re-clamps by itself.
 
 /// The two fixed rows the surface spends before its list: the title naming the subject,
-/// and the interaction hint. Shared by the painter and the press resolver -- the one
-/// number that keeps them the same geometry.
+/// and the interaction hint. Shared by the painter and the press resolver -- one of the
+/// numbers that keep them the same geometry.
 inline constexpr std::int64_t kContextHeadingRows = 2;
-
-/// The rows left for the list under a prose budget. `prose_rows` is `fit_region`'s answer
-/// for `context_bounds`, however the caller obtained it.
-inline constexpr std::size_t context_row_budget(std::int64_t prose_rows) noexcept {
-    return prose_rows > kContextHeadingRows
-               ? static_cast<std::size_t>(prose_rows - kContextHeadingRows)
-               : 0;
-}
-
-/// The cursor, bounded through the population's own size -- the attention view's rule,
-/// resolved once and spent by every question (the population is derived, so it can move
-/// between a keystroke and a repaint with no gesture in between).
-inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
-                                                  std::size_t population) noexcept {
-    if (cursor < population) {
-        return cursor;
-    }
-    return population == 0 ? 0 : population - 1;
-}
 
 /// THE SUBJECT, AS THE HEADING NAMES IT. An IDENTITY and never an existence claim:
 /// `ref_text` is string arithmetic over the two admitted halves and `#n` over a number,
@@ -4976,15 +4900,165 @@ inline std::string context_entry_text(const ContextEntry& entry) {
     return entry.row != nullptr ? entry.row->label : std::string();
 }
 
+/// THE WIDEST THE POPUP MAY GROW, in prose columns -- the stack panel's own width, the
+/// established panel measure of this screen. Content chooses the extent BELOW this bound;
+/// a heading longer than the room falls to `detail::fit`'s mark, the ordinary answer for
+/// prose that outgrows its material (QR-3's bound, spent on furniture).
+inline constexpr std::int64_t kContextMaxCols = kStackW;
+
+/// The label column of one level: the widest entry text, so annotations start in one
+/// column down the whole menu rather than ragged after each label.
+inline std::int64_t context_label_columns(const std::vector<ContextEntry>& rows) {
+    std::int64_t widest = 0;
+    for (const ContextEntry& entry : rows) {
+        const std::int64_t len = static_cast<std::int64_t>(context_entry_text(entry).size());
+        widest = len > widest ? len : widest;
+    }
+    return widest;
+}
+
+/// THE GESTURE WORTH TEACHING BESIDE ONE ENTRY, or "" (SC of ARR-0). The annotation is a
+/// TRUTH about the surrounding interaction, never decoration: it appears exactly when the
+/// action owns a declared row that would be REQUESTABLE in the state the maker returns to
+/// when this surface closes (`keyboard_context_beneath_menu`, through the one activity
+/// rule `active_in`), and it is spelled from the effective keymap, so a remap moves it
+/// and unbinding truth removes it with nothing here to update. A pane row's actions live
+/// in the arrangement scopes -- states the maker is NOT returning to -- so pane rows
+/// carry no annotation, exactly as MSG-0's no-false-claim rule demands.
+///
+/// THE ONE SEMANTIC REFINEMENT: `object.delete`'s key deletes the SELECTED object, while
+/// this menu's row deletes the CAPTURED one. The two are the same act exactly when the
+/// captured object IS the selection, so the annotation is shown then and only then --
+/// anything else would teach a key that acts on a different object than the row it sits
+/// beside.
+inline std::string context_annotation(const Session& s, const ContextEntry& entry) {
+    if (entry.is_group || entry.row == nullptr) {
+        return std::string(); // folders are not actions and have no gesture to teach
+    }
+    const KeyContext beneath = keyboard_context_beneath_menu(s);
+    bool requestable = false;
+    for (const ActionRow& row : kActionCatalog) {
+        if (row.act == entry.row->act && active_in(row.context, beneath)) {
+            requestable = true;
+            break;
+        }
+    }
+    if (!requestable) {
+        return std::string();
+    }
+    if (entry.row->act == Act::kObjectDelete && s.context.object != s.selected) {
+        return std::string();
+    }
+    return hotkey_text(s.keymap, entry.row->act);
+}
+
+/// One population row as composed: the entry's text, and -- where one is truthful -- the
+/// effective gesture at the level's annotation column, visually subordinate by position.
+/// The painter and the extent both spend THIS spelling; a second copy of the composition
+/// would be the two-geometries defect HD-3 exists to refuse.
+inline std::string context_row_text(const Session& s, const ContextEntry& entry,
+                                    std::int64_t label_columns) {
+    const std::string text = context_entry_text(entry);
+    const std::string gesture = context_annotation(s, entry);
+    if (gesture.empty()) {
+        return text;
+    }
+    return detail::pad(text, static_cast<std::size_t>(label_columns + 2)) + gesture;
+}
+
+/// WHERE THE CONTEXTUAL SURFACE OPENS (ARR-0): beside the press that asked, sized by what
+/// it has to say.
+///
+/// The extent is the level's own composition -- the heading naming the subject, the hint
+/// row, and each row's composed text -- read backwards into whole cells through the one
+/// text measurer (`surface::region_cells_for`; a second inversion here would drift from
+/// `fit_region` by an inset). The room is the band the overlay stack itself respects:
+/// under the retired top row, above the setup line, inside the canvas -- and the popup
+/// SHIFTS to stay whole inside it, so a click near the screen's far corner reads its menu
+/// just inside that corner. A level taller than the room keeps the room's height and lets
+/// `list_window` say what was cut, the same sentence every bounded list here speaks.
+///
+/// A keyboard-opened surface (`anchored == false`) has no pointer place and invents none:
+/// it opens at the overlay stack's own corner, the deterministic home of every keyboard
+/// surface on this screen.
+inline FineRect context_bounds(const Session& s, const Screen& sc) {
+    const ContextMenu& menu = s.context;
+    const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::int64_t label_cols = context_label_columns(rows);
+    std::int64_t want_cols =
+        static_cast<std::int64_t>(("ACTIONS -- " + context_subject_text(menu)).size());
+    const std::string ways_out =
+        hotkey_text(s.keymap, Act::kContextChoose) + " chooses, " +
+        hotkey_text(s.keymap, Act::kContextBack) +
+        (menu.group.empty() ? " closes" : " backs out");
+    const std::string hint =
+        menu.group.empty() ? ways_out : menu.group + " -- " + ways_out;
+    const std::int64_t hint_len = static_cast<std::int64_t>(hint.size());
+    want_cols = hint_len > want_cols ? hint_len : want_cols;
+    for (const ContextEntry& entry : rows) {
+        const std::int64_t len =
+            2 + static_cast<std::int64_t>(context_row_text(s, entry, label_cols).size());
+        want_cols = len > want_cols ? len : want_cols;
+    }
+    want_cols = want_cols > kContextMaxCols ? kContextMaxCols : want_cols;
+    const std::int64_t want_rows =
+        kContextHeadingRows + static_cast<std::int64_t>(rows.size());
+    const surface::RegionCells cells =
+        surface::region_cells_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
+    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+    const std::int64_t w = cells.w > sc.w ? sc.w : cells.w;
+    const std::int64_t room_rows = floor_y - kStackY;
+    const std::int64_t h = cells.h > room_rows ? room_rows : cells.h;
+    std::int64_t x = menu.anchor_x;
+    std::int64_t y = menu.anchor_y;
+    if (!menu.anchored) {
+        const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+        x = slot.x;
+        y = slot.y;
+    }
+    if (x + w > sc.w) {
+        x = sc.w - w;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    if (y + h > floor_y) {
+        y = floor_y - h;
+    }
+    if (y < kStackY) {
+        y = kStackY;
+    }
+    return fine_of_cells(ui::Rect{x, y, w, h});
+}
+
+/// The rows left for the list under a prose budget. `prose_rows` is `fit_region`'s answer
+/// for `context_bounds`, however the caller obtained it.
+inline constexpr std::size_t context_row_budget(std::int64_t prose_rows) noexcept {
+    return prose_rows > kContextHeadingRows
+               ? static_cast<std::size_t>(prose_rows - kContextHeadingRows)
+               : 0;
+}
+
+/// The cursor, bounded through the population's own size -- the attention view's rule,
+/// resolved once and spent by every question (the population is derived, so it can move
+/// between a keystroke and a repaint with no gesture in between).
+inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
+                                                  std::size_t population) noexcept {
+    if (cursor < population) {
+        return cursor;
+    }
+    return population == 0 ? 0 : population - 1;
+}
+
 inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
     if (!s.context.open) {
         return;
     }
-    const FineRect b = context_bounds(sc);
+    const FineRect b = context_bounds(s, sc);
     paint_panel_frame(layer, b);
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
-        return; // a slot with no room for a row says nothing rather than lying about the room
+        return; // a popup with no room for a row says nothing rather than lying about the room
     }
     surface::SurfaceTextRegion region = panel_prose_region(b);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
@@ -4999,6 +5073,7 @@ inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const 
     say(menu.group.empty() ? ways_out : menu.group + " -- " + ways_out,
         surface::role::kMuted);
     const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
+    const std::int64_t label_cols = context_label_columns(rows);
     const std::size_t budget = context_row_budget(place.rows);
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
@@ -5007,7 +5082,7 @@ inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const 
     }
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == cursor;
-        say(std::string(here ? "> " : "  ") + context_entry_text(rows[i]),
+        say(std::string(here ? "> " : "  ") + context_row_text(s, rows[i], label_cols),
             here ? surface::role::kAccent : surface::role::kFill);
     }
     if (win.after > 0) {
@@ -5036,7 +5111,7 @@ inline ContextPressAt context_press_at(const Session& s, const Screen& sc, std::
     if (!s.context.open) {
         return out;
     }
-    const FineRect b = context_bounds(sc);
+    const FineRect b = context_bounds(s, sc);
     if (!b.contains_at(at.sub.x, at.sub.y, at.grain)) {
         return out;
     }
@@ -6434,38 +6509,63 @@ inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, s
     layer.texts.push_back(std::move(region));
 }
 
-/// THE EIGHT AFFORDANCES OF THE SELECTED PANE, drawn only while a maker is arranging.
+/// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE (ARR-0). A maker must
+/// never have to infer from failed clicks that they are arranging; the rings say it, on
+/// the panes themselves, in both scopes:
+///
+///     arranging one pane   its eight handles, ALL in the accent role -- the bound pane
+///                          is the interaction and the emphasis says so
+///     arranging the desk   every arrangeable pane wears its handles muted -- the SET a
+///                          hand may take hold of, visible at a glance -- and the pane
+///                          the keyboard addresses wears them in accent
 ///
 /// GLYPHS OVER THE PANE, not rectangles, and for `size_handle`'s reason exactly: the pane's
 /// own backdrop already fills these cells, so a rect here would be invisible, and an
-/// affordance a maker cannot tell from the furniture is not an affordance. The chosen one is
-/// in the accent role and the other seven are muted -- the SECOND signal, after the marks
-/// themselves, never the only one.
+/// affordance a maker cannot tell from the furniture is not an affordance. While a size
+/// drag is held, the edge the hand took is the accent one -- read from the gesture record,
+/// the one live owner of that fact since the submodes retired.
 ///
 /// NOTHING IS DRAWN FOR A PANE WITH NO PRESENTATION. A pane that is off-room, unprojectable,
-/// waiting or unresolved has no rectangle to ring, which is exactly why the management LIST
-/// is the recovery surface and the ring is not: a maker reaches an invisible pane by its row,
-/// and the row is always there.
+/// waiting or unresolved has no rectangle to ring; the desk's keyboard still reaches it by
+/// stepping to it, and the notice names its state -- the recovery path in words.
 inline void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
                                    const Screen& sc) {
-    if (!s.manage.open || !s.manage.has_selection()) {
+    if (!s.arrange.open) {
         return;
     }
-    const std::optional<std::int64_t> kind =
-        resolve_pane(s.manage.selected, s.panels.runtime);
-    if (!kind.has_value()) {
+    const auto ring = [&](const PaneRef& ref, bool emphasized) {
+        const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels.runtime);
+        if (!kind.has_value() || placement_of(*kind) != placement::kOverlayStack) {
+            return;
+        }
+        const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
+        if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
+            return;
+        }
+        const bool held = s.pane_drag.active && s.pane_drag.sizing && s.pane_drag.pane == ref;
+        for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
+            const FineRect at = pane_edge_cell(where.rect, edge);
+            const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
+            // THE WIRE SPELLING, cells plus remainders (`wire_rect_of`'s decomposition):
+            // a label's x/y ARE canvas cells, and the WUX-2 construction that handed
+            // them raw sub-units put every mark off the canvas -- rings that hit
+            // correctly and painted nowhere, the exact see/grab split HD-3 forbids.
+            const std::int64_t cx = surface::cell_of_subs(at.x);
+            const std::int64_t cy = surface::cell_of_subs(at.y);
+            layer.labels.push_back(surface::SurfaceLabel{
+                cx, cy, std::string(pane_edge_glyph(edge)),
+                chosen ? surface::role::kAccent : surface::role::kMuted,
+                at.x - surface::subs_of_cells(cx), at.y - surface::subs_of_cells(cy)});
+        }
+    };
+    if (!s.arrange.desk) {
+        if (s.arrange.addressed()) {
+            ring(s.arrange.pane, true);
+        }
         return;
     }
-    const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
-    if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
-        return;
-    }
-    for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
-        const FineRect at = pane_edge_cell(where.rect, edge);
-        const bool chosen = s.manage.doing == pane_manage::kSize && s.manage.edge == edge;
-        layer.labels.push_back(surface::SurfaceLabel{
-            at.x, at.y, std::string(pane_edge_glyph(edge)),
-            chosen ? surface::role::kAccent : surface::role::kMuted});
+    for (const SetupPane& row : s.setup.active.panes) {
+        ring(row.ref, s.arrange.addressed() && row.ref == s.arrange.pane);
     }
 }
 
@@ -6553,9 +6653,6 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_picker(layer, panels, s.setup.active, sc, s.keymap);
     });
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_management(layer, panels, s.setup.active, s.manage, sc, s.keymap);
-    });
     // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
     // covers, under the screen's own chrome. The band keeps speaking while it is open --
     // what a maker is READING is what is currently true, and what the band SAYS is what
@@ -6563,10 +6660,10 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_attention(layer, s, sc, frontier);
     });
-    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND (CTX-0): over the picker, the
-    // management surface and the attention view, because it is the band's later, more
-    // deliberate gesture -- and it takes the band's keys first for the same reason
-    // (`keyboard_context`), so what is frontmost and what answers agree.
+    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND (CTX-0): over the picker and the
+    // attention view, because it is the band's later, more deliberate gesture -- and it
+    // takes the band's keys first for the same reason (`keyboard_context`), so what is
+    // frontmost and what answers agree.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_context(layer, s, sc);
     });
@@ -6858,8 +6955,8 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
 ///                         (with the selected one's ring UNDER it, so the ring reads as a
 ///                         ring rather than a border the object grew), and the size handle
 ///     one plane per pane  `presentation_order`, ascending by canonical `front`
-///     the affordances     over the selected pane's own content, so no handle is hidden
-///     picker / management over the panes they are covering
+///     the affordances     over the panes' own content, so no handle is hidden
+///     picker / overlays   over the panes they are covering
 ///     the screen's chrome the bottom band the tool speaks in -- one budget-composed
 ///                         region since WUX-1; the shared top row is retired
 ///     the Terminal        the final modal plane, when it is open

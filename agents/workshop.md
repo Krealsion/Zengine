@@ -140,7 +140,7 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   — fixed placement is not permission to present an unsupported unit as understood. Authored
   bytes are exact through the refusal, and reset and order still recover. **Do not add a
   per-axis fallback**; it is exactly the silent default this refuses. A unit outranks a
-  reservation in `manage_geometry_ready`, the same precedence `pane_state_of` spends between a
+  reservation in `arrange_geometry_ready`, the same precedence `pane_state_of` spends between a
   unit and a want of room. `pane_unit_projectable(authored)` takes no placement.
 - **`front` is a canonical rank and never an accumulating counter.** `max + 1` is an operation
   TRACE: alternating `front(A)`/`front(B)` produces the same two semantic orders forever while
@@ -165,7 +165,7 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   column whether or not Info is open and `room_w` is what every share of the workspace resolves
   against, so a movable Info would change the resolved size of objects in a maker's document —
   PNL-0's refusal, unchanged. A side-region row's authored geometry is retained in the file,
-  never rewritten, and never spent; management refuses to author one and says which reservation
+  never rewritten, and never spent; arrangement refuses to author one and says which reservation
   it hit.
 - **The host clips and never rewrites.** `bounds_of` answers with the VISIBLE rectangle
   (resolved, then intersected with the canvas), so every consumer that already read an empty
@@ -210,22 +210,37 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   means.
 - **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is
   reversible only by performing the inverse, and there is no undo. The help says `esc back`.
-- **`w` enters pane management from command mode**, paying the `swallow_text_` rule once, after
-  which its own keys need no modifier: `tab`/`up` select, `m` move, `s` size, `f`/`b`
-  front/back, `r`/`l` raise/lower one, `0` reset (`p` place, `w` width, `h` height, `o`
-  order), `esc` back one level. It is the sixth mode, below the Terminal and above ordinary
-  command handling. **`w` is on screen before the mode is entered** — as `w window` among the
-  band legend's pairs and in the full hotkey view, both projections of the one keymap (the
-  row-0 label that used to carry it is retired with the row, WUX-1).
-- **The picker and pane management share one list and NOT one purpose.** `inventory_rows` is
-  the combined catalog UNION every reference the setup names, so an unresolved pane has a row
-  and can be removed by the gesture that removes any other; an unresolved row carries
+- **ARRANGEMENT IS TWO SCOPES AND ONE VOCABULARY (ARR-0).** `PaneArrange{open, desk, pane,
+  resetting}` replaced the old selector-with-submodes: moving and resizing a pane are ONE
+  maker intent, so there is no Move step, no Size step and no edge-picking step. The
+  ONE-PANE scope (`desk == false`, entered by the context menu's `arrange` row or the
+  desk's Return, admission BEFORE binding via `arrange_geometry_ready`) is bound to
+  exactly `pane`: its body moves it, its ring sizes it, and a press anywhere else is
+  consumed with the sentence naming the state — another pane cannot be drawn in. The DESK
+  (`desk == true`, `w` from command mode paying the `swallow_text_` rule once; id still
+  `workshop.manage`, label `arrange desk`) opens with NO pane addressed — a selection
+  prerequisite is exactly what it retired — and every arrangeable pane answers the pointer
+  directly, topmost first: a press takes hold AND makes that pane the keyboard's target.
+  Keys in both scopes: arrows place one cell, shift+arrows pull the extent one cell
+  anchored at the place (`pane_edge::kBottomRight` through the same proposal door — the
+  other six anchors are the pointer's, on the handles), `f`/`b`/`r`/`l` order, `d` remove,
+  `0` the reset prompt (`resetting`; `p`/`w`/`h`/`o`, `esc` back), `esc` leave; the desk
+  adds `tab`/`shift+tab` stepping (over `arrangeable()` — every setup row, the recovery
+  invariant) and Return. The ROSTER PANEL IS RETIRED: the state's visible statement is the
+  affordance RINGS on the panes themselves (`paint_pane_affordances` — one-pane scope
+  accent; desk muted over the set, accent on the target; a held size drag accents the
+  dragged edge from `pane_drag`), the band's generated legend, and `arrange_status()` on
+  the notice line, which carries the pane's STATE word so an invisible pane is recoverable
+  by ear: step to it, read what it is, reset it.
+- **The picker keeps PRESENCE and arrangement never touches it.** `inventory_rows` is
+  the combined catalog UNION every reference the setup names, so an unresolved pane has a
+  row and can be removed by the gesture that removes any other; an unresolved row carries
   `kNoPaneKind` (negative, for `role::kNone`'s reason) so nothing can present it as the
-  Builder. The picker keeps PRESENCE — selecting an open row removes it (PNL-0) — and
-  management owns ARRANGEMENT and **binds no toggle at all**. **One picker inventory:**
-  `picker_population()` is `inventory_rows(active, panels)` and the painter, the cursor bound,
-  the Return action and the cursor repair all spend it — widening only the painter to the union
-  leaves a row a maker can see and cannot reach.
+  Builder. Selecting an open picker row removes it (PNL-0); arrangement binds no toggle,
+  adds nothing and offers nothing — participation and arrangement are separate concerns.
+  **One picker inventory:** `picker_population()` is `inventory_rows(active, panels)` and
+  the painter, the cursor bound, the Return action and the cursor repair all spend it —
+  widening only the painter to the union leaves a row a maker can see and cannot reach.
 - **Pane rectangles are SUB-UNITS of the canvas lattice (`FineRect`, WUX-2)** — a distinct
   type from `ui::Rect` so the compiler separates the two lattices; convert only through
   `fine_of_cells` / `cells_covered` (the cell-grain quantization law), and never pass one
@@ -251,8 +266,9 @@ Workshop's publication order is the whole depth story:
 ```text
 the workspace       its backdrop, the scene, the size handle
 one plane per pane  presentation_order(setup, panels), ascending by canonical `front`
-the affordances     over the selected pane's own content, so no handle is hidden
-picker / management over the panes they cover -- a provider's text cannot bury the row that
+the affordances     over the panes' own content, so no handle is hidden (ARR-0: the
+                    rings ARE the arrangement state's visible statement)
+picker / overlays   over the panes they cover -- a provider's text cannot bury the row that
                     recovers it
 the screen's chrome the bottom band, one budget-composed region (WUX-1)
 the Terminal        the final modal plane
@@ -280,9 +296,9 @@ the Terminal        the final modal plane
   the size at the moment of the press — no rectangle and no live position, `Drag`'s own law —
   so crossing another pane, crossing the Terminal, and reordering mid-drag change nothing about
   who is being moved, and every motion proposes `base + (pointer - press)` rather than
-  accumulating. **Management owns the pointer while it is open**, the Terminal's own shape;
-  outside it nothing changed, so a selected pane behind another claims no press and no
-  selection auto-raises.
+  accumulating. **Arrangement owns the pointer while it is open**, the Terminal's own shape;
+  outside it nothing changed, so an addressed pane behind another claims no press and no
+  address auto-raises.
 - **A TEXT-SELECTION DRAG IS THE THIRD GESTURE RECORD (TEXT-0).** `Session::text_drag` holds
   WHICH editable line a press began sweeping (the Terminal's, or the live property draft) and
   nothing else — the anchor and caret live in the `TextBox` the press placed, and every motion
@@ -296,16 +312,19 @@ the Terminal        the final modal plane
   ends the gesture and keeps the selection, silently — the selection on screen is the
   statement.
 - **`end_held_gestures()` is the one release owner**, called by the Terminal branch, the
-  management branch and the ordinary path. A gesture begins under one mode and is released
+  arrangement branch and the ordinary path. A gesture begins under one mode and is released
   under another, so whichever mode answers a release first must end them all — ending only one
   kind leaves a gesture alive with the button up, following the pointer afterwards. It says
   nothing; what to tell a maker is the caller's, because the answer genuinely differs. It is
   not a capture framework: three records and one function.
 - **`forget_removed_selection()` clears on MEMBERSHIP, never on presentation.** A pane that
-  becomes waiting, refused, covered, off-room or unresolved keeps its selection — every one is
-  a pane the setup still names and whose management row is still reachable. A reference LEAVING
-  the setup clears the selection, the submode, the edge and the gesture. It runs inside
-  `apply_setup`, the one door membership changes through.
+  becomes waiting, refused, covered, off-room or unresolved stays addressed — every one is
+  a pane the setup still names and still reachable by stepping. A reference LEAVING the
+  setup clears the address and the gesture; the ONE-PANE scope closes with its pane (a
+  state bound to exactly one pane is a state about nothing once it is gone — silently,
+  because the removing operation's own sentence is on the notice line), while the desk
+  stays open, its subject being the desk. It runs inside `apply_setup`, the one door
+  membership changes through.
 
 ## The editable line is a WINDOW onto the command (HD-4)
 
@@ -607,7 +626,7 @@ every other row           role as before background kNone     whatever the regio
 ## Semantic text in Workshop panels (TYPE-1, QR-3)
 
 - **`panel_prose_place(b, sc)` + `panel_prose_region(b)` is the one call for a panel whose
-  whole rectangle is its own** (the picker, the pane-management surface, an external pane). It
+  whole rectangle is its own** (the picker, the contextual popup, an external pane). It
   returns the prose rows and columns the ACTIVE medium fits, and the painter spends them. Its
   cell projection is byte-for-byte what `paint_panel_row` wrote.
 - **The Builder is a region composed by explicit priority since WUX-1** (`paint_panel_row`,
@@ -692,12 +711,21 @@ words.
   (`Written`, `Handled`, `Commit`, `Availability`, `Occupancy`) and they are all on SEMANTIC
   paths; the bare bool survives only on the routing path, which is the one place it is
   adequate.
-- **Pointer order:** the terminal overlay (a MODE), then pane management (a mode), then the
+- **Pointer order:** the terminal overlay (a MODE), then arrangement (a mode), then the
   open contextual surface (a mode, CTX-0), then the active property editor, then the
-  action controls, then the object list, then the panel's occupancy, then the workspace. A
-  right press (button 3) is the contextual surface's opener on the ordinary path and its
-  re-targeter while it is open; inside the two modes above it, a second button still means
-  nothing.
+  action controls, then the object list, then the panel's occupancy, then the workspace.
+- **A SECONDARY PRESS IS STATE-LOCAL FIRST REFUSAL (ARR-0).** The active interaction that
+  can truthfully interpret a secondary press receives it; only an unclaimed one reaches
+  the ordinary contextual opener. Concretely: ordinary Workshop opens/re-targets the
+  contextual surface on a right press; an arrangement scope — either scope, the reset
+  prompt included — LEAVES on one, consumed whole; the open contextual surface keeps its
+  own established meaning (re-targeting); the Terminal still means nothing by it. **One
+  consumed gesture performs one interaction transition**: the press that closes a state
+  never also operates the state it revealed — no context menu opens from an
+  arrangement-leaving press, and its release is dropped on the ordinary path as every
+  non-primary release always was. This is each state's own local reading, NOT a global
+  Back: there is no `right_click_back` action, no keymap row, and a future state that
+  genuinely uses secondary press for something else is free to claim it.
 
 ## One executable binding truth (KEY-0)
 
@@ -720,10 +748,11 @@ EXECUTION   the owner that performs it                             untouched -- 
 - **`keyboard_context(const Session&)` (screen.hpp) is the routing chain, spelled once.** It
   replaced the chain's five hand-kept spellings: `on(KeyPressed)` and `on(TextEntered)` both
   switch on it, `paste_owner_now()` derives from it, and the old
-  `editable_text_has_keyboard()` mirror is `context_takes_text(ctx)`. Pane management answers
-  as its submode (`kManageSelect/Move/Size/Reset`) because the sub-switches are different
-  vocabularies. It is resolved fresh, stored nowhere; there is no context stack, no
-  registration, no focus framework.
+  `editable_text_has_keyboard()` mirror is `context_takes_text(ctx)`. Arrangement answers
+  as its scope (`kArrangePane`/`kArrangeDesk`/`kArrangeReset`, ARR-0) because those are
+  different vocabularies. It is resolved fresh, stored nowhere; there is no context stack,
+  no registration, no focus framework. `keyboard_context_beneath_menu()` is the chain's
+  tail below the contextual surface, split out because annotations need it as a value.
 - **Matching is exact.** A binding matches the observed modifier bits exactly; the old
   subset aliases (Ctrl+N created, Alt+Q quit) are removed and behaviorally falsified. One
   family spelled two ways (`hjkl` / `Shift+hjkl`, `b` / `Shift+b`) is two declared actions.
@@ -735,8 +764,18 @@ EXECUTION   the owner that performs it                             untouched -- 
   — quit's own `q` — travels the chain, which is what keeps the hotkey view's modal swallow
   ahead of it. `shift+space` is GONE, not aliased: it could never arrive from the POSIX
   backend, which is the remapping capability's own motivating defect.
-- **An action may own several rows** (`workshop.quit`'s `^c` + `q`; `manage.next`'s tab +
-  down; `manage.done`'s esc in three submodes); an override moves all of an action's rows.
+- **An action may own several rows** (`workshop.quit`'s `^c` + `q`; since ARR-0 the whole
+  arrangement vocabulary — every gesture shared by the two scopes is one action with a row
+  in each); an override moves all of an action's rows. **The Move/Size→Arrange migration
+  preserved identities**: `workshop.manage` (label `arrange desk`), `manage.next`/
+  `previous`, `place-*`, `pull-*`, the order/remove/reset family and `manage.close`/`done`
+  all kept their ids so authored overrides keep working; `manage.arrange` is new (Return,
+  kArrangeDesk — earned by the desk's narrowing, not minted for the menu); `manage.move`,
+  `manage.size` and `manage.edge` are RETIRED — an authored row naming one is preserved
+  byte-for-byte as an unknown id, exactly as admission has always treated ids it cannot
+  spend. `manage.previous` defaults to `shift+tab`, which the POSIX backend now delivers
+  (`ESC [ Z`, back-tab — input/translate.hpp learned the one CSI whose final IS its
+  modifier, and `posix_gap` no longer flags shift on Tab).
 - **The keymap file is the sixth durable artifact** (`keymap_persist.hpp`,
   `zengine-workshop-keymap` v1, `--keymap`, default `workshop-keymap.json`): defaults in
   code, authored differences only, absent ≡ defaults, hand-edited, never rewritten. Loaded
@@ -775,21 +814,22 @@ EXECUTION   the owner that performs it                             untouched -- 
   has no shape for wanted keys), no TextBox remapping, no sequences/leaders/macros, no new
   wire vocabulary — KEY-0 added zero bus shapes.
 
-## What can I do with this? The contextual surface (CTX-0)
+## What can I do with this? The contextual surface (CTX-0, placed beside the hand by ARR-0)
 
 A maker points at a thing — a pane, a document object, or the empty room — and Workshop
-lists the actions declared meaningful for that KIND of thing. Right-click opens it on the
-pointed subject (every backend already delivered button 3; Workshop used to drop it);
-`workshop.context` (`a`, command mode) opens it on the subject command mode can truthfully
-name: the selected object, else the room. Two laws bound the whole surface:
+lists the actions declared meaningful for that KIND of thing, in a bounded popup BESIDE
+the press. Right-click opens it on the pointed subject (every backend already delivered
+button 3; Workshop used to drop it); `workshop.context` (`a`, command mode) opens it on
+the subject command mode can truthfully name: the selected object, else the room. Two laws
+bound the whole surface:
 
 ```text
 POINTING NAMES A SUBJECT FOR ONE REQUEST.    Opening captures a temporary subject and
 SELECTION IS A STATE A MAKER ENTERED.        changes no selection, no keyboard candidate,
-                                             no focus. Move/Size are the one exception and
-                                             select only AFTER their explicit target passes
-                                             admission (`enter_pane_mode` -> the target-
-                                             taking `manage_geometry_ready`).
+                                             no focus. Arrange is the one exception and
+                                             binds only AFTER its explicit target passes
+                                             admission (`enter_arrange_pane` -> the target-
+                                             taking `arrange_geometry_ready`).
 OPEN REMEMBERS AN IDENTITY.                  `ContextMenu` holds a `PaneRef`, an object id,
 SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, row or handle.
                                              The owner answers absence in its own words; a
@@ -799,14 +839,38 @@ SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, ro
                                              subject -- the one identity-aliasing door.
 ```
 
+- **THE POPUP IS LOCAL AND ITS BOUNDS ARE DERIVED (ARR-0).** `ContextMenu` also captures
+  the opening press's canvas CELL (`anchored`/`anchor_x`/`anchor_y` — the GESTURE's place,
+  not the subject's; the keyboard entrance is `anchored == false` and opens at the overlay
+  stack's corner, a deterministic placement rather than an invented pointer).
+  `context_bounds(session, screen)` re-derives the rectangle at every paint and every
+  press: extent from the LEVEL's own composition (heading, hint, each composed row) read
+  backwards into whole cells through `surface::region_cells_for` — the one text measurer's
+  inverse, living beside `fit_region` so a second inversion cannot drift by an inset —
+  width capped at `kContextMaxCols` (= `kStackW`), then shifted to stay whole inside the
+  band the overlay stack itself respects (`kStackY` to `kWorkspaceY + room_h`, inside the
+  canvas). Entering a group re-derives at the SAME anchor, so depth stays local. A level
+  taller than the room keeps the room's height and `list_window` says what was cut.
 - **`kContextCatalog` (context.hpp) declares, and owns no power**: `{action id, subject
   bits, group}` referencing `kActionCatalog` ids — no callback, no label, no gesture, no
   availability. A stale reference is a compile error (`context_actions_resolve`). Groups
   are their names; an empty group cannot exist (a group entry exists only where a member
   declared it). `context_population` is the ONE population owner — painter, cursor bound,
-  keyboard choose and pointer press all spend it.
+  keyboard choose and pointer press all spend it. The pane's top level since ARR-0:
+  `arrange`, `Order >` (front/back/raise/lower — renamed from `Arrange`, which an
+  `arrange` action row one level up made a lie), `Reset >`, `remove`.
+- **A ROW MAY TEACH ITS SHORTCUT, AND ONLY A TRUTHFUL ONE (ARR-0).** `context_annotation`
+  shows an entry's effective gesture (through `hotkey_text` — a remap moves it) exactly
+  when the action owns a declared row `active_in` the context the maker RETURNS to when
+  the surface closes (`keyboard_context_beneath_menu`) — so room rows teach their command
+  keys over command mode, globals teach everywhere, a mode beneath that swallows bare keys
+  suppresses the command annotations, and pane rows never annotate (their contexts are the
+  arrangement scopes). One semantic refinement: `object.delete` is taught exactly when the
+  captured object IS the selection, because the key deletes the selection.
+  `context_row_text` is the one composition of label + annotation column; the painter and
+  the width both spend it (HD-3).
 - **Spending is one seam per subject kind**: `spend_pane_action(Act, PaneRef, Mail&)` (the
-  one switch; `manage_key` passes the mode's selection, the menu its captured ref — mode
+  one switch; `arrange_key` passes its addressed pane, the menu its captured ref — mode
   bookkeeping stays with the keyboard caller), `delete_object_at(id)` (`delete_selected`
   reused exactly when the id IS the selection, so its neighbour repair stays authoritative;
   a live draft holds the contextual delete back with `finish_draft_first`), and the room's
@@ -818,10 +882,11 @@ SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, ro
 - **A mode with first refusal**: `KeyContext::kContext` sits at the top of the picker band
   (`keyboard_context`), and the pointer branch consumes every press while open — inside:
   navigate/choose through the painter's inverse (`context_press_at`, one composition with
-  `paint_context`, HD-3); outside: dismissal, consumed whole. `manage.remove` (`d`,
-  kManageSelect) completes the management vocabulary and is the same owner arm the menu's
-  remove row spends. The provider seam is untouched: no `PanePressed` for a second button,
-  no provider-contributed rows, nothing crosses.
+  `paint_context` over the same derived bounds, HD-3); outside: dismissal, consumed whole;
+  a further right press re-targets. `manage.remove` (`d`, both arrangement scopes)
+  completes the arranging vocabulary and is the same owner arm the menu's remove row
+  spends. The provider seam is untouched: no `PanePressed` for a second button, no
+  provider-contributed rows, nothing crosses.
 
 ## A thing that HAPPENED and a thing that is TRUE are two surfaces (WUX-4)
 
@@ -869,8 +934,8 @@ A CONDITION           true when it is READ. Held under a key (`Session::conditio
   dismissal does not reach it and it is visible again with nobody clearing anything — the
   Terminal completion's `dismissed`/`dismissed_at` rule one layer out. Session-only, never
   persisted, and it changes no underlying truth.
-- **`KeyContext::kAttention` is a MODE in the picker's place** — below the Terminal and pane
-  management, above a focused pane and a live draft — deliberately not keys-modal like the
+- **`KeyContext::kAttention` is a MODE in the picker's place** — below the Terminal and the
+  arrangement scopes, above a focused pane and a live draft — deliberately not keys-modal like the
   hotkey view, because its four gestures are real catalog rows the help surfaces and a
   maker's keymap file must be able to see. `workshop.attention` is a `kNoText` row on `^a`:
   the component owns that chord inside a text field and this class is exactly what tells the
@@ -902,8 +967,8 @@ granted; the same three `external_press` already requires.
 - **The candidate is never cleared and the target is never stored.** A pane that closes, stops
   resolving, or loses its room stops being the answer with nothing to clear; if it comes back,
   so does the keyboard. `bounds_of`'s discipline applied to a focus.
-- **The modes above it never reach that line**, so opening the Terminal or pane management
-  leaves the candidate exactly where it was and closing it hands the keys straight back. The
+- **The modes above it never reach that line**, so opening the Terminal or an arrangement
+  scope leaves the candidate exactly where it was and closing it hands the keys straight back. The
   priority reads: the above-mode actions (the keymap's `kGlobal` rows — save, open, the
   terminal toggle, the hotkey view — and quit's `kNoText` chord exactly where nothing takes
   text, TEXT-0), then the six modes (the contextual surface joined the picker's band at its
@@ -919,7 +984,7 @@ granted; the same three `external_press` already requires.
   cannot be global once anything on the screen can take text, which is the whole reason
   typing `p` into a field does not open the picker.
 - **`^c` FOLLOWS THE KEYBOARD SINCE TEXT-0.** It quits exactly where nothing takes text
-  (command mode, the picker, pane management) and travels the chain everywhere text has the
+  (command mode, the picker, the arrangement scopes) and travels the chain everywhere text has the
   keyboard — the Terminal line, the name editor, a live property draft, and a focused runtime
   pane, which receives it as an ordinary `PaneKey` because a pane that takes every character
   is a place `^c` means copy at. The gate is `context_takes_text(keyboard_context(...))`

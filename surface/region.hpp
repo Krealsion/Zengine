@@ -352,6 +352,67 @@ inline constexpr RegionFit fit_region(const SurfaceTextRegion& r,
                            metric.text_advance_px, metric.text_line_px);
 }
 
+/// A prose capacity, read backwards into cells (ARR-0).
+struct RegionCells {
+    std::int64_t w = 0; ///< whole canvas cells
+    std::int64_t h = 0;
+
+    friend bool operator==(const RegionCells&, const RegionCells&) = default;
+};
+
+/// THE ONE RESOLUTION, READ THE OTHER WAY: the smallest whole-cell extent for
+/// which `fit_region` answers at least `columns` by `rows` of the given metric.
+///
+/// It lives HERE, beside the forward direction, because the two are one
+/// arithmetic: a publisher that wants a region sized to its content (a popup
+/// beside a pointer, rather than a slot the screen reserved) must not invert the
+/// metric with arithmetic of its own — that would be a second text measurer, one
+/// inset drift away from a region whose last row does not fit the rectangle it
+/// asked for. The inset, the integer division and the cell-fallback rule are all
+/// `resolve_region_fit`'s; this function is that division read as a ceiling.
+///
+/// A metric that says "text is a cell" (either number non-positive) answers in
+/// cells directly — the same sentence `resolve_region_fit`'s fallback speaks.
+/// A non-positive ask is an empty extent, never a negative one.
+inline constexpr RegionCells region_cells_for(std::int64_t columns, std::int64_t rows,
+                                              std::int64_t text_advance_px,
+                                              std::int64_t text_line_px) noexcept {
+    RegionCells out;
+    if (columns <= 0 || rows <= 0) {
+        return out;
+    }
+    if (text_advance_px > 0 && text_line_px > 0) {
+        const std::int64_t want_w = columns * text_advance_px + 2 * kTextInsetPx;
+        const std::int64_t want_h = rows * text_line_px + 2 * kTextInsetPx;
+        out.w = (want_w + kCanvasCellPx - 1) / kCanvasCellPx;
+        out.h = (want_h + kCanvasCellPx - 1) / kCanvasCellPx;
+        return out;
+    }
+    out.w = columns;
+    out.h = rows;
+    return out;
+}
+
+// The inverse property, held at compile time for the shipped face's metric (8x18) and the
+// cell projection: what this function answers is sufficient, and one cell less is not.
+static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
+                         region_cells_for(20, 5, 8, 18).h, 8, 18)
+                      .columns >= 20 &&
+                  fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
+                             region_cells_for(20, 5, 8, 18).h, 8, 18)
+                          .rows >= 5,
+              "the backward read must satisfy the forward one");
+static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w - 1,
+                         region_cells_for(20, 5, 8, 18).h, 8, 18)
+                      .columns < 20,
+              "one cell narrower no longer holds the asked columns");
+static_assert(fit_region(0, 0, region_cells_for(20, 5, 8, 18).w,
+                         region_cells_for(20, 5, 8, 18).h - 1, 8, 18)
+                      .rows < 5,
+              "one cell shorter no longer holds the asked rows");
+static_assert(region_cells_for(20, 5, 0, 0) == RegionCells{20, 5},
+              "a metric with no type answers in cells, the fallback's own sentence");
+
 /// THE PART OF A VIEWPORT THAT IS ACTUALLY ON THE SURFACE, in device pixels.
 ///
 /// Separate from `fit_region` on purpose. The FIT is authored geometry and must

@@ -126,7 +126,7 @@ reserved row of a terminal), and `Ctrl`+`a` opens the full list. Those disappear
 stop being true and at no other moment. See [what needs your attention](attention.md).
 
 The bottom band advertises the current context's gestures on its legend rows — the picker,
-pane management and the terminal toggle among them — and the setup line carries
+the desk arrangement and the terminal toggle among them — and the setup line carries
 `s name/save  r restore`. Every one of those hints is a projection of the effective keymap —
 remap a binding and the screen spells the new one — and `Ctrl`+`k` opens the full hotkey
 view, the complete list for whatever context you are in. So the keys are on screen; this
@@ -179,7 +179,7 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
 | objects | `n` new · `d` delete · `Tab` select · `h j k l` move · `Shift`+`h j k l` resize |
 | inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
-| panes | `p` picker · `w` management ([panes](panes.md)) |
+| panes | `p` picker · `w` arrange desk ([panes](panes.md)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
@@ -207,7 +207,7 @@ Neither is a degraded version of the other, and the same published intent produc
 ## Next
 
 - [Attention](attention.md) — what is true right now, and why hiding one is not fixing it.
-- [Panes](panes.md) — the picker, management, and how to get a bigger one.
+- [Panes](panes.md) — the picker, arranging, and how to get a bigger one.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.
