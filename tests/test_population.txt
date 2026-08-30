@@ -742,6 +742,17 @@
 # protecting were EDIT-1's, not this phase's: raising the number to the measured count
 # is the correction, and lowering it again would be a deliberate decrease in evidence.
 #
+# QR-12 takes `workshop_files` 49 -> 54, no new row and no gate: the admission boundary that
+# stops a filesystem path this application cannot say from ending the process. Two cases are
+# the boundary itself (an ordinary path and an ordinary name are carried unchanged; the
+# launch capture is the working directory when it can be said) and three are the hostile
+# conditions -- an unsayable filename is one inert row rather than the end of the listing, it
+# refuses at the live door, and a launch directory that cannot be said is the designed
+# absence. ALL FIVE ARE IN THE `always` ROW AND ALL FIVE RUN ON BOTH FAMILIES. Only the
+# ARRANGEMENT is per-platform (ill-formed UTF-16 on NTFS, arbitrary bytes on POSIX), behind
+# one helper, deliberately: a case compiled out on one family is a floor that cannot protect
+# it there, which is the same downward slack the paragraph above is about.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -762,7 +773,7 @@ workshop_panes                    doctest           always  182
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  49
+workshop_files                    doctest           always  54
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

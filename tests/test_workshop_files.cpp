@@ -36,6 +36,23 @@
 // of its own and could not tell a live replacement from a rig assignment.
 #include "builder/weave.hpp"
 
+// WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL (QR-12). The browser's names and the host's
+// launch directory are the two paths this application takes from the OS, and the boundary
+// they now share is asserted here directly rather than only through its consumers.
+#include "workshop/path_admission.hpp"
+
+// ...AND THE ONE PLATFORM CALL THIS SUITE MAKES. A filename holding ill-formed UTF-16 is
+// the measured condition the admission boundary exists for, and only `CreateFileW` will
+// create one; every case that arranges it still runs on both families, because what each
+// family can put in a directory is arranged behind one helper and the LAW being asserted is
+// the same law (see `put_unsayable_entry`).
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 // ============================================================================
 // Support: a project on disk, and a Workshop launched into it
 // ============================================================================
@@ -46,6 +63,47 @@ inline void put_file(const std::filesystem::path& at, const std::string& bytes) 
     out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     out.close();
     REQUIRE(out.good());
+}
+
+/// PUT THE HARDEST NAME THIS PLATFORM CAN HOLD IN `dir`, and say whether it went in.
+///
+/// THE HARDNESS IS A DIFFERENT HARDNESS ON EACH FAMILY, AND THAT IS THE POINT. Windows/NTFS
+/// accepts ILL-FORMED UTF-16 -- an unpaired surrogate, which `CreateFileW` takes and any
+/// other program can therefore leave in a directory a maker walks into -- and that is the
+/// MEASURED case where asking a path for its filename bytes THROWS. POSIX accepts arbitrary
+/// BYTES, where the same ask is a passthrough and the name is inert for the ordinary
+/// printable-ASCII reason instead.
+///
+/// So the ARRANGEMENT is per-platform and the LAW is not, and every case below runs on both
+/// families rather than one family quietly selecting fewer cases than the other.
+inline bool put_unsayable_entry(const std::filesystem::path& dir) {
+#if defined(_WIN32)
+    std::wstring name = (dir / "lone").wstring();
+    name.push_back(static_cast<wchar_t>(0xD800)); // a HIGH surrogate with no low half
+    name += L".txt";
+    const HANDLE made = ::CreateFileW(name.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                                      FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (made == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    ::CloseHandle(made);
+    return true;
+#else
+    put_file(dir / std::filesystem::path(std::string("lone\xff.txt")), "x");
+    return true;
+#endif
+}
+
+/// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
+/// with universal-character-names on purpose -- what these characters ARE is decided by the
+/// C++ standard rather than by whatever encoding a compiler guesses this file is in -- and
+/// nothing in a single-byte code page can hold them.
+inline std::filesystem::path unsayable_dir_name() {
+#if defined(_WIN32)
+    return std::filesystem::path(std::wstring(L"caf\u00E9-\u65E5\u672C"));
+#else
+    return std::filesystem::path(std::string("caf\xc3\xa9-\xff"));
+#endif
 }
 
 /// A Workshop standing in a project of this case's own making, with the Files pane open.
@@ -194,6 +252,140 @@ TEST_CASE("EDIT-1: a name outside printable ASCII keeps its row, marked, and can
     CHECK(odd->name != shown_name(odd->name));
     CHECK(shown_name(odd->name).find('?') != std::string::npos);
     CHECK_FALSE(printable_ascii_name(odd->name));
+}
+
+TEST_CASE("QR-12: an ordinary path and an ordinary name are carried exactly as they were") {
+    TempDir dir("admit");
+    // THE ADMISSION BOUNDARY CHANGES NOTHING IT CAN CARRY. Everything below this line is
+    // what every friendly path in this application got before the boundary existed, and
+    // the case is here so that making failure explicit cannot quietly re-spell success.
+    const AdmittedPath carried = admit_path(dir.path());
+    CHECK(carried.carried);
+    CHECK(carried.spelling == dir.path().generic_string());
+
+    const AdmittedName plain = admit_filename(std::filesystem::path("hello.cpp"));
+    CHECK(plain.exact);
+    CHECK(plain.name == "hello.cpp");
+    CHECK(printable_ascii_name(plain.name));
+}
+
+TEST_CASE("QR-12: the launch capture is the working directory, when it can be said") {
+    // THE CAPTURE IS ONE FUNCTION so that the thing proved is the thing `main` runs. This
+    // lane's own working directory is an ordinary path, so the ordinary arm is what this
+    // case pins; the arm where the platform refuses is Windows' own, below.
+    std::error_code ec;
+    const std::filesystem::path cwd = std::filesystem::current_path(ec);
+    REQUIRE_FALSE(ec);
+    const AdmittedPath carried = admit_path(cwd);
+    REQUIRE(carried.carried);
+    std::string captured;
+    REQUIRE_NOTHROW(captured = launch_project_dir());
+    CHECK(captured == carried.spelling);
+    CHECK_FALSE(captured.empty());
+}
+
+TEST_CASE("QR-12: a name this platform will not spell is one inert row, not the end of it") {
+    TempDir dir("unsayable");
+    put_file(dir.path() / "plain.cpp", "int x;\n");
+    // A case that cannot arrange its own condition must say so rather than pass.
+    REQUIRE(put_unsayable_entry(dir.path()));
+
+    Listing l;
+    // THE REPAIR, STATED AS THE FALSIFIER. On Windows this call THREW before the admission
+    // boundary existed -- measured, out of the browser, with no handler above it.
+    REQUIRE_NOTHROW(l = enumerate_directory(dir.path().generic_string()));
+    REQUIRE(l.known);
+    // NEITHER ROW WAS DROPPED. Hiding the hostile entry would make this browser lie about
+    // what is in the directory; losing the neighbour would let one name cost the listing.
+    REQUIRE(l.rows.size() == 2);
+
+    const FileRow* ordinary = nullptr;
+    const FileRow* unsayable = nullptr;
+    for (const FileRow& r : l.rows) {
+        (r.openable ? ordinary : unsayable) = &r;
+    }
+    REQUIRE(ordinary != nullptr);
+    REQUIRE(unsayable != nullptr);
+    // THE NEIGHBOUR IS UNTOUCHED -- exact bytes, still openable.
+    CHECK(ordinary->name == "plain.cpp");
+    // ...AND THE UNSAYABLE ROW IS VISIBLE, MARKED AND INERT, which is the law it joins
+    // rather than a new one.
+    CHECK_FALSE(unsayable->openable);
+    CHECK(shown_name(unsayable->name).find('?') != std::string::npos);
+#if defined(_WIN32)
+    // ⚠ WINDOWS-ONLY, AND IT IS THE WHOLE REASON `exact` EXISTS. Here the platform refused
+    // to hand over any bytes, so this row's name is a PROJECTION -- and the projection is
+    // entirely printable ASCII. A byte test alone would call it openable and hand a door a
+    // path that names a different file or no file.
+    CHECK(printable_ascii_name(unsayable->name));
+#endif
+}
+
+TEST_CASE("QR-12: a name this platform will not spell refuses at the browser's door") {
+    FilesRig r("unsayable-live");
+    REQUIRE(put_unsayable_entry(r.root));
+
+    r.open();
+    REQUIRE(r.listing().rows.size() == 1);
+    REQUIRE_FALSE(r.listing().rows.front().openable);
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    r.t.key(input::scan::kReturn);
+    // NO DOCUMENT, and the browser's EXISTING sentence about a path it cannot carry. The
+    // new way of failing to say a name arrives at the refusal that already knows why.
+    CHECK_FALSE(r.session().editor.open_document());
+    CHECK(r.notice().find("cannot carry in a path") != std::string::npos);
+}
+
+TEST_CASE("QR-12: a launch directory this Workshop cannot say is an absence, not an exit") {
+    TempDir dir("launch-dir");
+    const std::filesystem::path standing = dir.path() / unsayable_dir_name();
+    std::error_code ec;
+    std::filesystem::create_directory(standing, ec);
+    REQUIRE_FALSE(ec);
+
+    // THE PROCESS'S OWN DIRECTORY IS RESTORED WHATEVER THIS CASE DOES -- including through
+    // a failed REQUIRE, and before `TempDir` tries to remove the tree it is standing in.
+    struct Standing {
+        std::filesystem::path was;
+        Standing() {
+            std::error_code e;
+            was = std::filesystem::current_path(e);
+        }
+        ~Standing() {
+            std::error_code e;
+            std::filesystem::current_path(was, e);
+        }
+    } restore;
+
+    // ARRANGE THE DEFECT, DO NOT INJECT ONE BELOW IT. The process really stands there, and
+    // the narrowing question is really put to the platform -- exactly the call the capture
+    // used to make unguarded.
+    std::filesystem::current_path(standing, ec);
+    REQUIRE_FALSE(ec);
+    bool platform_refuses = false;
+    try {
+        std::error_code where_ec;
+        (void)std::filesystem::current_path(where_ec).generic_string();
+    } catch (const std::exception&) {
+        platform_refuses = true;
+    }
+
+    std::string captured;
+    // THE REPAIR, STATED AS THE FALSIFIER: on Windows this composition THREW out of `main`.
+    REQUIRE_NOTHROW(captured = launch_project_dir());
+    if (platform_refuses) {
+        // THE DESIGNED ABSENCE -- the same empty every consumer already refuses in words.
+        // Nothing adjacent was substituted for the directory that could not be said.
+        CHECK(captured.empty());
+    } else {
+        // The platform CAN say this name: POSIX, where narrowing is a byte passthrough, or
+        // a Windows whose active code page carries it. Then the capture owes the ordinary
+        // truth -- a hostile-looking name is not a reason to invent an absence either.
+        std::error_code where_ec;
+        CHECK(captured == std::filesystem::current_path(where_ec).generic_string());
+        CHECK_FALSE(captured.empty());
+    }
 }
 
 TEST_CASE("EDIT-1: a bound claims what it read, and never a total it never reached") {

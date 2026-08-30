@@ -35,6 +35,7 @@
 #include "arrangement.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
+#include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
 #include "user_paths.hpp"
@@ -409,19 +410,12 @@ int main(int argc, char** argv) {
     // launch directory (user_paths.hpp) and has never until now held as a value. Both are
     // resolved here because the host is the party that knows either.
     //
-    // NON-THROWING, AND AN UNANSWERABLE ONE IS AN ABSENCE. `current_path()` throws on
-    // failure; the error_code form does not, and a working directory the platform will not
-    // report leaves this empty -- which every consumer already knows how to refuse in
-    // words. There is deliberately no fallback: substituting `exe_dir()` here would hand
-    // two projects one root, which is the exact quiet wrong answer WUX-3 removed from the
-    // maker's own files.
-    {
-        std::error_code cwd_ec;
-        const std::filesystem::path cwd = std::filesystem::current_path(cwd_ec);
-        if (!cwd_ec) {
-            host.project_dir = cwd.generic_string();
-        }
-    }
+    // THE CAPTURE CANNOT FAIL FATALLY, AND THE WHOLE OF WHY IS `path_admission.hpp`'s: a
+    // working directory the platform will not report, and one it reports but this
+    // application cannot say, are the SAME absence -- empty, which every consumer already
+    // refuses in words and which the banner below states once. No fallback is invented for
+    // either, deliberately.
+    host.project_dir = launch_project_dir();
     host.document_path = args.document;
     host.setup_path = args.setup;
 
@@ -505,10 +499,16 @@ int main(int argc, char** argv) {
     // source in a build recipe means, so a maker whose shell was somewhere unexpected can
     // read it here rather than deduce it from a listing. An absence is said on the same
     // line rather than left to be discovered later as a refusal.
+    //
+    // ⚠ THE ABSENCE HAS TWO CAUSES AND ONE SENTENCE, DELIBERATELY. A system that reports no
+    // working directory and one that reports a directory this build cannot write down are
+    // the same fact to everything downstream, and the sentence has to be true of BOTH the
+    // moment it is read -- so it names what is missing (a directory this Workshop can carry)
+    // rather than guessing which way it went missing.
     std::printf("zengine-workshop - project: %s\n",
                 host.project_dir.empty()
-                    ? "none (this system did not report a working directory -- Project "
-                      "Files and relative recipe sources are refused)"
+                    ? "none (this system gave no working directory this Workshop can write "
+                      "down -- Project Files and relative recipe sources are refused)"
                     : host.project_dir.c_str());
     const auto path_or_absence = [&args](const std::string& path) {
         if (!path.empty()) {

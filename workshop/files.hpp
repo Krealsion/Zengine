@@ -52,6 +52,17 @@
 // would hand the editor a path that names a different file or no file, which is the one
 // outcome worse than a refusal.
 //
+// ...AND ASKING FOR THOSE BYTES IS ITSELF A CONVERSION THAT CAN REFUSE. MEASURED on
+// MSVC/NTFS: a filename holding ill-formed UTF-16 -- an unpaired surrogate, which
+// `CreateFileW` accepts and somebody else's program can therefore leave in any directory --
+// makes `u8string()` THROW, and an exception out of this walk is not a marked row, it is
+// the browser gone. So the name is taken through `path_admission.hpp`, which always answers
+// with something: the filesystem's own bytes when it has them, and the same `?` marking one
+// layer earlier when it does not. Such a row is shown, is NOT exact, and refuses activation
+// like any other name this application cannot say -- one law, one more way to enter it.
+
+
+//
 // THIS IS A FILENAME-CUSTODY LAW AND NOT A CONTENT LAW. What may be INSIDE a file is the
 // editor's question, answered at the editor's door in the editor's vocabulary. The browser
 // pre-judges nothing: a `.png`, a binary, a file with mixed line endings all reach the door
@@ -65,6 +76,11 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+
+// WHETHER A FILESYSTEM PATH CAN BE SAID AT ALL. The browser is one of two places that turn
+// something the OS reported into a Workshop path string, and both of them used to be able
+// to end the process by asking.
+#include "path_admission.hpp"
 
 namespace zengine::workshop {
 
@@ -83,17 +99,22 @@ inline constexpr std::size_t kMaxListedEntries = 2000;
 
 /// ONE ROW: a name and a kind, and deliberately nothing else.
 struct FileRow {
-    /// The exact filename bytes, UTF-8, as the filesystem gave them. This is IDENTITY:
-    /// it is what is joined to the current directory when the row is activated, and it is
-    /// never the projection a painter shows.
+    /// The filename bytes, UTF-8, as the filesystem gave them -- and IDENTITY exactly when
+    /// `openable` says so: these are the bytes joined to the current directory when the row
+    /// is activated, and they are never the projection a painter shows. When `openable` is
+    /// false they may not even BE the filesystem's bytes (a name the platform would not
+    /// spell at all is projected here); they name nothing, and no door spends them.
     std::string name;
     bool directory = false;
     /// A DIRECTORY THAT LEAVES THE TREE. True only for a directory row whose own
     /// (unfollowed) status is not a directory -- a symbolic link, or the platform's
     /// equivalent where the standard library reports one. Shown, never entered.
     bool linked = false;
-    /// Can this name be carried through Workshop's narrow path custody at all? False
-    /// makes the row a marked projection that refuses activation.
+    /// Can this name be carried through Workshop's narrow path custody at all? False makes
+    /// the row a marked projection that refuses activation, and there are TWO ways to earn
+    /// it: bytes outside printable ASCII, and a name this platform would not spell in this
+    /// application's vocabulary at all. This field, never the bytes, is what a door asks --
+    /// the second kind's `name` is already a projection and can look perfectly ordinary.
     bool openable = true;
 };
 
@@ -189,9 +210,14 @@ inline Listing enumerate_directory(const std::string& dir) {
         }
         const std::filesystem::directory_entry entry = *it;
         FileRow row;
-        const std::u8string u8 = entry.path().filename().u8string();
-        row.name.assign(reinterpret_cast<const char*>(u8.data()), u8.size());
-        row.openable = printable_ascii_name(row.name);
+        // TAKING THE NAME IS ITSELF A CONVERSION THAT CAN REFUSE, and a refusal here is a
+        // row rather than the end of the listing (`path_admission.hpp`). ⚠ `exact` is not
+        // redundant beside the byte test: a projection can be entirely printable ASCII, so
+        // dropping it would make an unsayable name openable under a spelling that names a
+        // different file or no file.
+        AdmittedName admitted = admit_filename(entry.path().filename());
+        row.name = std::move(admitted.name);
+        row.openable = admitted.exact && printable_ascii_name(row.name);
         std::error_code kind_ec;
         row.directory = entry.is_directory(kind_ec);
         if (kind_ec) {
