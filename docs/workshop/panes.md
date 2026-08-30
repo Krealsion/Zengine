@@ -7,7 +7,7 @@ A **pane** is one region of Workshop's screen. Two kinds exist and a maker does 
 tell them apart to use them:
 
 - **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor` and `Files`.
-- **external panes** — offered by a loaded weave through a bounded read-only protocol.
+- **external panes** — offered by a loaded weave through a bounded protocol.
   `Loaded`, `Project` and `Powers` arrive this way, from `zengine-introspection`.
 
 ## Opening and closing — the picker

@@ -4,42 +4,41 @@
 #ifndef ZENGINE_INTROSPECTION_RESOLVED_HPP
 #define ZENGINE_INTROSPECTION_RESOLVED_HPP
 
-// THE TWO VIEWS INTR-1 ADDED, as pure functions over the host's own answers.
+// THE ARRANGEMENT VIEW, and the vocabulary the Powers view still shares with it.
 //
 //     project_arrangement   `workshop::ResolvedArrangement` + a prose budget
 //                           -> the rows a maker reads
-//     project_powers        `workshop::ResolvedPowers` + a prose budget
-//                           -> the rows a maker reads
 //
-// NEITHER TOUCHES A BUS, for `loaded.hpp`'s reason exactly: the weave beside them owns
-// WHEN to ask and WHOM to believe, and this owns what an answer MEANS -- so both
-// questions are askable of a value in a test instead of of a running system.
+// IT TOUCHES NO BUS, for `loaded.hpp`'s reason exactly: the weave beside it owns WHEN
+// to ask and WHOM to believe, and this owns what an answer MEANS -- so the question is
+// askable of a value in a test instead of of a running system.
 //
-// ---- THEY MAKE NO TRUTH AND THEY KEEP NONE -------------------------------------
+// ---- IT MAKES NO TRUTH AND IT KEEPS NONE ---------------------------------------
 //
 // Every fact below arrived in one message and is spent building rows. There is no
 // inventory here, no arrangement mirror, no provider map, no diff against a previous
 // reading, no timestamp and no clock. `loaded.hpp` says at length why the Loaded pane
-// keeps a PROJECTION and never an INVENTORY; these two do not even keep the
-// projection, because neither pane has a gesture to read a row back against.
+// keeps a PROJECTION and never an INVENTORY; this one does not even keep the
+// projection, because the Project pane has no gesture to read a row back against.
 //
-// ---- WHY ONE FILE FOR TWO PANES -------------------------------------------------
+// ---- WHY IT STILL HOLDS TWO PANES' VOCABULARY ------------------------------------
 //
-// One thing: `lay_blocks`. Both views show a list whose entries are SEVERAL ROWS TALL,
-// so both meet the arithmetic INTR-0 was measured getting wrong once -- reserving one
-// row for "the list" bought a row the omission marker then took, and a four-row body
-// spent two rows on notes and named nothing at all. AN ENTRY AND ITS OMISSION MARKER
-// ARE ONE DEMAND ON THE BUDGET. That rule is spelled once, here, so the second pane
-// cannot inherit a subtly different version of it.
+// One rule and four sentences. `lay_blocks` is the rule: a list whose entries are
+// SEVERAL ROWS TALL meets the arithmetic INTR-0 was measured getting wrong once --
+// reserving one row for "the list" bought a row the omission marker then took, and a
+// four-row body spent two rows on notes and named nothing at all. AN ENTRY AND ITS
+// OMISSION MARKER ARE ONE DEMAND ON THE BUDGET, spelled once so a second consumer
+// cannot inherit a subtly different version of it. `elision` is its spelling.
 //
-// Everything else in the two is separate: separate headings, separate caveats,
-// separate row vocabularies, separate blocks. They share a law, not a layout.
+// The sentences are what the powers rows may CLAIM (`kHostResolution`,
+// `kPowersSource`, `kHostItself`) and the grammar a count is written in (`counted`).
+// `introspection/powers.hpp` spends all four rather than re-spelling any.
 //
 // ---- WHAT EACH COUNT MEANS, AND WHAT BOUNDS IT ----------------------------------
 //
 // A COUNT WITH AN UNSTATED POPULATION IS THE DEFECT BOTH VIEWS ARE SHAPED AROUND
-// (INTR-0, in a third place). So each pane reserves one row for the sentence that
-// bounds its own number, BEFORE the list is offered anything but its first entry:
+// (INTR-0, in a third place). So each pane reserves a row for the sentence that
+// bounds its own number:
 //
 //     arrangement   `kNotAuthored`     -- the in-process participants that were never
 //                                         authored artifacts, and so are not rows here
@@ -348,112 +347,22 @@ project_arrangement(const workshop::ResolvedArrangement& said, std::int64_t rows
     return out;
 }
 
-// ---- The powers view ------------------------------------------------------------
-
-/// THE ROWS ONE LOGICAL POWER OCCUPIES: its identity, then every contribution
-/// eligible to satisfy it, ACTIVE FIRST.
-///
-/// THE WIRE'S ORDER IS THE CATALOG'S AND THIS REVERSES IT DELIBERATELY.
-/// `op::Catalog` holds a stack whose BACK is active, because that is how contributions
-/// were pushed; a maker reads top-down and the first thing they should read is the one
-/// whose code actually runs. The reversal is total and lossless -- nothing is
-/// windowed inside a block and every contribution keeps its own label -- so this is
-/// putting the answer first rather than sorting a population by a second key.
-///
-/// THE LABEL IS THE STATEMENT AND THE INK IS THE SECOND SIGNAL, `kSelectedMark`'s rule:
-/// `active` and `shadowed` are words, so a monochrome terminal reads the same fact a
-/// coloured one does, and `kMuted` on a shadowed row is the picture agreeing with the
-/// word rather than carrying it.
-inline std::vector<surface::SurfaceTextRow> power_rows(const workshop::PowerStack& p,
-                                                       std::int64_t columns) {
-    std::vector<surface::SurfaceTextRow> rows;
-    rows.push_back(surface::SurfaceTextRow{fit("  " + p.power, columns), surface::role::kFill});
-    for (std::size_t i = p.contributions.size(); i > 0; --i) {
-        const workshop::PowerContribution& c = p.contributions[i - 1];
-        const bool active = i == p.contributions.size();
-        std::string said = active ? "      active    " : "      shadowed  ";
-        said += c.provider.empty() ? kHostItself : c.provider;
-        if (c.composite) {
-            said += " (composite)";
-        }
-        rows.push_back(surface::SurfaceTextRow{
-            fit(said, columns), active ? surface::role::kFill : surface::role::kMuted});
-    }
-    return rows;
-}
-
-/// THE WHOLE POWERS VIEW, spent against the room Workshop granted.
-///
-/// SAME PRIORITY ORDER AS THE ARRANGEMENT, and the same reasons:
-///
-///     the heading        how many powers resolve here, and from how many providers
-///     `kHostResolution`  whose resolution this is -- half of what the count means
-///     the list           whole blocks, with every omission counted
-///     `kPowersSource`    where it came from and how old it is, out of slack only
-///     one blank row      only out of room nothing else wanted
-///
-/// IT NAMES NO POWER AND NO PROVIDER. There is no `math.max` in this file, no
-/// `zengine.operators.basic`, and no branch that treats one identity differently from
-/// another: every row is built from whatever the host's resolution currently contains,
-/// so a provider mounted tomorrow appears here with nothing edited. That genericity is
-/// the feature, and it is why the suite may name identities that this cannot.
-inline std::vector<surface::SurfaceTextRow>
-project_powers(const workshop::ResolvedPowers& said, std::int64_t rows, std::int64_t columns) {
-    std::vector<surface::SurfaceTextRow> out;
-    if (rows <= 0 || columns <= 0) {
-        return out;
-    }
-    // THE VERB AGREES WITH THE COUNT TOO, because singularising the noun and leaving
-    // `resolve` behind would have traded one visible grammar defect for another.
-    const std::int64_t identities = static_cast<std::int64_t>(said.powers.size());
-    out.push_back(surface::SurfaceTextRow{
-        fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
-                " here -- from " +
-                providers_said(static_cast<std::int64_t>(said.providers.size())),
-            columns),
-        surface::role::kAccent});
-
-    std::vector<std::vector<surface::SurfaceTextRow>> blocks;
-    std::vector<std::int64_t> heights;
-    blocks.reserve(said.powers.size());
-    heights.reserve(said.powers.size());
-    std::int64_t total = 0;
-    for (const workshop::PowerStack& p : said.powers) {
-        blocks.push_back(power_rows(p, columns));
-        heights.push_back(static_cast<std::int64_t>(blocks.back().size()));
-        total += heights.back();
-    }
-
-    std::int64_t left = rows - 1;
-    const std::int64_t caveat = left >= 1 && (blocks.empty() || left >= 2) ? 1 : 0;
-    left -= caveat;
-    const std::int64_t source = caveat == 1 && total < left ? 1 : 0;
-    std::int64_t budget = left - source;
-
-    const Laid laid = lay_blocks(heights, budget);
-    for (std::size_t i = 0; i < laid.shown; ++i) {
-        for (surface::SurfaceTextRow& row : blocks[i]) {
-            out.push_back(std::move(row));
-        }
-        budget -= heights[i];
-    }
-    if (laid.marker) {
-        out.push_back(surface::SurfaceTextRow{elision(said.powers.size() - laid.shown, columns),
-                                              surface::role::kMuted});
-        --budget;
-    }
-    if (budget > 0 && caveat > 0) {
-        out.push_back(surface::SurfaceTextRow{std::string(), surface::role::kFill});
-    }
-    if (caveat > 0) {
-        out.push_back(
-            surface::SurfaceTextRow{fit(kHostResolution, columns), surface::role::kMuted});
-    }
-    if (source > 0) {
-        out.push_back(surface::SurfaceTextRow{fit(kPowersSource, columns), surface::role::kMuted});
-    }
-    return out;
-}
+// ---- The powers view -------------------------------------------------------------
+//
+// THE PROJECTION ITSELF IS NOT HERE ANY MORE (SOURCE-1). `project_powers` was the
+// whole of the Powers pane while that pane was a thing a maker could only read: a
+// heading, a block per identity, and no way to reach an entry the leading blocks did
+// not cover. The pane is a browser now -- two derived views, a query, a filter, an
+// identity-held cursor and one explicit sample -- and its projection lives in
+// `introspection/powers.hpp`, beside the state it is a projection OF.
+//
+// IT WAS DELETED RATHER THAN LEFT STANDING, and the subtraction is the point: two
+// projections of one pane are two answers to *what does Powers show*, and the one
+// nothing calls is the one that drifts. What stayed here is what the two panes
+// SHARE -- `lay_blocks`' one-demand rule, `elision`'s one spelling of a cut,
+// `counted`'s grammar, and the sentences that bound what the powers rows may claim
+// (`kHostResolution`, `kPowersSource`, `kHostItself`), which `powers.hpp` spends
+// rather than re-spelling.
 
 } // namespace zengine::introspection
 

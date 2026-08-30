@@ -794,10 +794,19 @@ set(ZENGINE_WORKSHOP_DEFS
     # `prov.function.1/2/3` -- two composites over one native leaf -- under a provider
     # identity no source outside `tests/` names. A projection that had to be edited to
     # show them would not be a projection over the store.
-    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\"")
+    "PROVIDER_A_SO=\"$<TARGET_FILE:zengine-provider-a>\""
+    # ...and SOURCE-1's evaluation witness, which needs a real cross-image SOURCE.
+    # `zengine-provider-source` supplies `prov.source.spends` (zero maker inputs, and a
+    # body that COUNTS ITS OWN SPENDS in its own image) beside an ordinary
+    # parameterized operator. `op::invocations()` is a vague-linkage static and cannot
+    # see a body running in another image, so a Source that answers 1, then 2, then 3
+    # is the only instrument that can tell an evaluation from a cached answer across
+    # the provider ABI.
+    "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
     zengine-workshop-hello zengine-introspection
-    zengine-operators-basic zengine-provider-min zengine-provider-a)
+    zengine-operators-basic zengine-provider-min zengine-provider-a
+    zengine-provider-source)
 
 # One Workshop suite: the shared link line, the shared artifact paths, the shared
 # third_party include, plus whatever this one alone needs. It exists so the six agree by
@@ -878,7 +887,15 @@ zengine_workshop_suite(panes test_workshop_panes.cpp
                 "WORKSHOP_SCREEN_HPP=\"${CMAKE_SOURCE_DIR}/workshop/screen.hpp\""
                 "WORKSHOP_PANEL_HPP=\"${CMAKE_SOURCE_DIR}/workshop/panel.hpp\""
                 "WORKSHOP_ARRANGEMENT_HPP=\"${CMAKE_SOURCE_DIR}/workshop/arrangement.hpp\""
-                "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\"")
+                "INTROSPECTION_RESOLVED_HPP=\"${CMAKE_SOURCE_DIR}/introspection/resolved.hpp\""
+                # SOURCE-1's structural half of "browsing does not evaluate": the pane's
+                # own two sources, read as text, so that "this image cannot reach an
+                # evaluator" is checked rather than trusted -- and the two host files
+                # whose narrowness the phase's whole authority argument rests on.
+                "INTROSPECTION_CPP=\"${CMAKE_SOURCE_DIR}/introspection/introspection.cpp\""
+                "INTROSPECTION_POWERS_HPP=\"${CMAKE_SOURCE_DIR}/introspection/powers.hpp\""
+                "WORKSHOP_SAMPLE_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/sample_door.hpp\""
+                "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\"")
 
 zengine_workshop_suite(persistence test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
