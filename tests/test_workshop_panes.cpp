@@ -5956,152 +5956,781 @@ TEST_CASE("INTR-1: an empty arrangement is an observed zero, and says what it is
     CHECK(row_with(shown, intro::kNotAuthored) >= 0);
 }
 
-// ---- Tier one, the powers half ----------------------------------------------------
+// ---- Tier one, the powers half: two views over one reading (SOURCE-1) -------------
+//
+// EVERYTHING HERE IS ASKED OF A VALUE. `PowersUi` holds one reading and the maker's
+// own state; `project_powers_ui` answers what a maker would SEE and what each place
+// would MEAN. There is no bus, no catalog, no weave and no evaluator in this tier --
+// which is also the structural half of the zero-evaluation claim: these cases could
+// not run a Source if they tried, because the code under test cannot name one.
 
-TEST_CASE("INTR-1: a power's ACTIVE contribution is read first, and the shadowed ones under it") {
-    ws::ResolvedPowers said = shaped_powers();
-    // The overlay's own shape: two contributions, active LAST on the wire.
-    said.powers[1].contributions = {supplied_by("zengine.operators.basic"),
-                                    supplied_by("zengine.operators.test.min")};
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_powers(said, 40, 70);
-    const std::vector<std::string> text = texts_of(rows);
-    const std::int64_t at = row_with(rows, "  math.max");
-    REQUIRE(at >= 0);
-    const std::size_t i = static_cast<std::size_t>(at);
-    REQUIRE(i + 2 < text.size());
+namespace {
 
-    // THE WORD IS THE STATEMENT AND THE INK IS THE SECOND SIGNAL. A monochrome terminal
-    // reads the same fact a coloured one does.
-    CHECK(text[i] == "  math.max");
-    CHECK(text[i + 1] == "      active    zengine.operators.test.min");
-    CHECK(text[i + 2] == "      shadowed  zengine.operators.basic");
-    CHECK(rows[i + 1].role == surface::role::kFill);
-    CHECK(rows[i + 2].role == surface::role::kMuted);
+std::vector<std::string> powers_text(const intro::PowersUi& ui, std::int64_t rows,
+                                     std::int64_t columns) {
+    return texts_of(intro::project_powers_ui(ui, rows, columns).rows);
 }
 
-TEST_CASE("INTR-1: composite is shown where the definition says so, and nowhere else") {
-    const std::vector<std::string> text = texts_of(intro::project_powers(shaped_powers(), 40, 70));
-    bool composite_marked = false;
-    for (const std::string& row : text) {
-        if (row.find("zengine.timer") != std::string::npos) {
-            composite_marked = composite_marked || row.find("(composite)") != std::string::npos;
-        }
-        if (row.find("zengine.operators.basic") != std::string::npos) {
-            CHECK(row.find("(composite)") == std::string::npos);
+/// The identities the projection actually drew as entry rows, in row order -- read
+/// back off the row map rather than off the text, because the map is what a press
+/// spends and a case that read the text would be checking a different function.
+std::vector<std::string> listed(const intro::PowersView& view) {
+    std::vector<std::string> out;
+    for (const intro::PowersSpan& s : view.spans) {
+        if (s.control == intro::powers_control::kEntry) {
+            out.push_back(s.identity);
         }
     }
-    CHECK(composite_marked);
+    return out;
 }
 
-TEST_CASE("INTR-1: a contribution the host published itself is named as the host") {
+std::vector<std::string> names_of(const std::vector<const ws::PowerStack*>& list) {
+    std::vector<std::string> out;
+    for (const ws::PowerStack* p : list) {
+        out.push_back(p->power);
+    }
+    return out;
+}
+
+/// Where a control was drawn, or {-1,-1}. Cases press through this so that every
+/// pointer assertion spends the SAME map the projection published.
+std::pair<std::int64_t, std::int64_t> place_of(const intro::PowersView& view,
+                                               std::int64_t control) {
+    for (const intro::PowersSpan& s : view.spans) {
+        if (s.control == control) {
+            return {s.row, s.first};
+        }
+    }
+    return {-1, -1};
+}
+
+} // namespace
+
+TEST_CASE("SOURCE-1: view membership is the exterior contract, never the identity's spelling") {
+    // ⭐ THE FALSIFIER THE WHOLE DERIVATION RESTS ON. `source.looks.like.one` takes
+    // arguments and `math.max` does not, so an implementation that read a view off an
+    // identity's spelling would put both in the wrong list -- and every other case in
+    // this file would stay green while it did.
+    intro::PowersUi ui = showing(four_cells());
+    ui.view = intro::powers_view::kSources;
+    CHECK(names_of(intro::filtered_of(ui)) ==
+          std::vector<std::string>{"math.max", "zengine.recipes.catalog"});
+    ui.view = intro::powers_view::kOperators;
+    CHECK(names_of(intro::filtered_of(ui)) ==
+          std::vector<std::string>{"logic.select_int", "source.looks.like.one"});
+
+    // AND THE CLASSIFICATION IS READ AND NEVER AUTHORED. Nothing a contributor writes
+    // says which list it belongs in: the wire shape carries `source`, which is
+    // `op::is_source` read off the definition the host resolves through, and there is
+    // no second field anywhere for a registration to disagree with.
+    const std::shared_ptr<const loom::Schema> shape = loom::schema_of<ws::PowerContribution>();
+    REQUIRE(shape != nullptr);
+    for (const loom::Field& f : shape->fields()) {
+        CHECK(f.name != "kind");
+        CHECK(f.name != "species");
+        CHECK(f.name != "declared_source");
+    }
+}
+
+TEST_CASE("SOURCE-1: all four Source x Composite cells are legal and independent") {
+    // THE FOUR COMBINATIONS ARE ARRANGED AND ALL FOUR ARE SHOWN. Source/Operator is
+    // the exterior contract of the IDENTITY; composite is the construction of the
+    // ACTIVE CONTRIBUTION; neither answers the other.
+    intro::PowersUi ui = showing(four_cells());
+    struct Cell {
+        const char* identity;
+        bool source;
+        bool composite;
+    };
+    const std::vector<Cell> want{{"logic.select_int", false, false},
+                                 {"math.max", true, false},
+                                 {"source.looks.like.one", false, true},
+                                 {"zengine.recipes.catalog", true, true}};
+    for (const Cell& c : want) {
+        bool found = false;
+        for (const ws::PowerStack& p : ui.reading.powers) {
+            if (p.power != c.identity) {
+                continue;
+            }
+            found = true;
+            CHECK_MESSAGE(intro::is_source_power(p) == c.source, c.identity);
+            CHECK_MESSAGE(intro::is_composite_power(p) == c.composite, c.identity);
+        }
+        CHECK_MESSAGE(found, c.identity);
+    }
+
+    // AND THE COMPOSITE FILTER CROSSES BOTH VIEWS, taking one cell out of each.
+    ui.composite_only = true;
+    ui.view = intro::powers_view::kSources;
+    CHECK(names_of(intro::filtered_of(ui)) ==
+          std::vector<std::string>{"zengine.recipes.catalog"});
+    ui.view = intro::powers_view::kOperators;
+    CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"source.looks.like.one"});
+
+    // NO OPENABILITY IS CLAIMED ANYWHERE. The badge says construction and nothing else;
+    // there is no Flow in this build and no row that offers one.
+    const std::vector<std::string> shown = powers_text(showing(four_cells()), 20, 70);
+    for (const char* absent : {"Flow", "flow", "Open in", "graph", "deconstruct"}) {
+        CHECK_MESSAGE(row_with_text(shown, absent) == -1, absent);
+    }
+}
+
+TEST_CASE("SOURCE-1: the composite badge and filter read the ACTIVE contribution") {
+    // ⭐ A BURIED CONTRIBUTION IS NOT THE ANSWER. A native covered by a composite is a
+    // composite power now; a composite covered by a native is not. An implementation
+    // reading `contributions[0]` would answer both backwards.
     ws::ResolvedPowers said;
-    said.powers.push_back(power_of("host.thing", {supplied_by("")}));
-    const std::vector<std::string> text = texts_of(intro::project_powers(said, 10, 60));
-    CHECK(row_with(intro::project_powers(said, 10, 60), intro::kHostItself) >= 0);
-    // ...and the empty provider never reaches a maker's eye as an empty column.
-    for (const std::string& row : text) {
-        CHECK(row != "      active    ");
+    said.providers = {"a", "b"};
+    said.powers.push_back(power_of("native.under.composite",
+                                   {source_from("a", /*composite=*/false),
+                                    source_from("b", /*composite=*/true)}));
+    said.powers.push_back(power_of("composite.under.native",
+                                   {source_from("a", /*composite=*/true),
+                                    source_from("b", /*composite=*/false)}));
+    intro::PowersUi ui = showing(said);
+    CHECK(intro::is_composite_power(ui.reading.powers[0]));
+    CHECK_FALSE(intro::is_composite_power(ui.reading.powers[1]));
+
+    ui.composite_only = true;
+    CHECK(names_of(intro::filtered_of(ui)) ==
+          std::vector<std::string>{"native.under.composite"});
+
+    // AND THE ROW A MAKER READS AGREES WITH THE FILTER, which is the half a badge
+    // computed somewhere else would get wrong silently.
+    const std::vector<std::string> shown = powers_text(showing(said), 20, 70);
+    const std::int64_t marked = row_with_text(shown, "native.under.composite");
+    const std::int64_t plain = row_with_text(shown, "composite.under.native");
+    REQUIRE(marked >= 0);
+    REQUIRE(plain >= 0);
+    CHECK(shown[static_cast<std::size_t>(marked)].find("(composite)") != std::string::npos);
+    CHECK(shown[static_cast<std::size_t>(plain)].find("(composite)") == std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: an overlay changing construction moves the badge and not the view") {
+    // THE NEXT READING IS THE BEAT, and what it changes is exactly one of the two
+    // independent facts: the identity is a Source before and after, and the badge
+    // follows the contribution that arrived on top.
+    ws::ResolvedPowers before;
+    before.providers = {"host"};
+    before.powers.push_back(power_of("thing", {source_from("host", /*composite=*/false)}));
+    intro::PowersUi ui = showing(before);
+    ui.select("thing");
+    CHECK(intro::is_source_power(ui.reading.powers[0]));
+    CHECK_FALSE(intro::is_composite_power(ui.reading.powers[0]));
+
+    ws::ResolvedPowers after;
+    after.providers = {"host", "overlay"};
+    after.powers.push_back(power_of("thing", {source_from("host", /*composite=*/false),
+                                              source_from("overlay", /*composite=*/true)}));
+    ui.reading = after;
+    intro::revalidate(ui);
+    CHECK(intro::is_source_power(ui.reading.powers[0]));    // the contract did not move
+    CHECK(intro::is_composite_power(ui.reading.powers[0])); // the construction did
+    CHECK(ui.selected() == "thing");                        // and the maker kept their place
+    CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"thing"});
+}
+
+TEST_CASE("SOURCE-1: search is a case-insensitive ASCII substring that filters, never ranks") {
+    CHECK(intro::matches_query("math.max", ""));   // empty selects all
+    CHECK(intro::matches_query("math.max", "MATH"));
+    CHECK(intro::matches_query("MATH.MAX", "math"));
+    CHECK(intro::matches_query("math.max", ".ma"));
+    CHECK(intro::matches_query("math.max", "math.max"));
+    CHECK_FALSE(intro::matches_query("math.max", "maths"));
+    CHECK_FALSE(intro::matches_query("max", "math.max")); // longer than the identity
+
+    // AND IT FILTERS RATHER THAN RANKING. `src.01` matches later in its name than
+    // `src.10` does, and what comes back is still the catalog's own order.
+    intro::PowersUi ui = showing(many_sources(12));
+    ui.query.type("1");
+    const std::vector<std::string> got = names_of(intro::filtered_of(ui));
+    REQUIRE(got.size() == 3);
+    CHECK(got[0] == "src.01");
+    CHECK(got[1] == "src.10");
+    CHECK(got[2] == "src.11");
+}
+
+TEST_CASE("SOURCE-1: bytes at or above 0x80 compare exactly") {
+    // NO LOCALE AND NO UNICODE FOLDING. This pane's matching is ASCII, and a byte
+    // outside it is compared for what it is rather than for what some table thinks it
+    // means.
+    const std::string high = "na\xC3\xAFve.thing";
+    CHECK(intro::matches_query(high, "\xC3\xAF"));
+    CHECK_FALSE(intro::matches_query(high, "\xC3\x8F")); // the other case, byte-wise
+    CHECK(intro::matches_query(high, "NA"));             // ...and the ASCII half still folds
+}
+
+TEST_CASE("SOURCE-1: composite-only and the query compose as AND, in both views") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.view = intro::powers_view::kOperators;
+    ui.query.type("o");
+    CHECK(names_of(intro::filtered_of(ui)) ==
+          std::vector<std::string>{"logic.select_int", "source.looks.like.one"});
+    ui.composite_only = true;
+    CHECK(names_of(intro::filtered_of(ui)) == std::vector<std::string>{"source.looks.like.one"});
+    ui.query.clear();
+    ui.query.type("logic");
+    CHECK(intro::filtered_of(ui).empty()); // composite AND the query, never either
+}
+
+TEST_CASE("SOURCE-1: each view holds its own selected IDENTITY, and switching restores both") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.view = intro::powers_view::kSources;
+    ui.select("zengine.recipes.catalog");
+    ui.view = intro::powers_view::kOperators;
+    CHECK(ui.selected().empty()); // the other view's place is not this view's
+    ui.select("logic.select_int");
+
+    ui.view = intro::powers_view::kSources;
+    CHECK(ui.selected() == "zengine.recipes.catalog");
+    ui.view = intro::powers_view::kOperators;
+    CHECK(ui.selected() == "logic.select_int");
+
+    // AND THE MARK RETURNS WITH THE ROW, in the picture a maker reads.
+    ui.view = intro::powers_view::kSources;
+    const std::vector<std::string> shown = powers_text(ui, 20, 70);
+    const std::int64_t at = row_with_text(shown, "zengine.recipes.catalog");
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
+}
+
+TEST_CASE("SOURCE-1: presentation hides a selection; only a fresh reading may clear it") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("math.max");
+
+    // HIDDEN BY A QUERY: held, and unmarked because there is no row to mark.
+    ui.query.type("recipes");
+    CHECK(ui.selected() == "math.max");
+    CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == -1);
+    // ⭐ AND A FRESH READING ARRIVING WHILE THE QUERY HIDES IT DOES NOT CLEAR IT EITHER.
+    // The population is what a reading is evidence about; the query is a fact about the
+    // maker, and revalidation that consulted it would clear a place because somebody
+    // typed three characters.
+    intro::revalidate(ui);
+    CHECK(ui.selected() == "math.max");
+    ui.query.clear();
+    CHECK(intro::cursor_in(intro::filtered_of(ui), ui.selected()) == 0);
+
+    // HIDDEN BY THE COMPOSITE FILTER: held.
+    ui.composite_only = true;
+    CHECK(ui.selected() == "math.max");
+    ui.composite_only = false;
+
+    // HIDDEN BY THE WINDOW: held. A short pane is not evidence about a population.
+    const intro::PowersView tiny = intro::project_powers_ui(ui, 2, 60);
+    CHECK(ui.selected() == "math.max");
+    CHECK(static_cast<std::int64_t>(tiny.rows.size()) <= 2);
+
+    // ⭐ AND A FRESH READING THAT NO LONGER HAS IT DOES CLEAR IT -- the only thing that
+    // may. Presentation hides; only the population invalidates.
+    ws::ResolvedPowers gone = four_cells();
+    gone.powers.erase(gone.powers.begin() + 1); // math.max
+    ui.reading = gone;
+    intro::revalidate(ui);
+    CHECK(ui.selected().empty());
+
+    // ...AND A READING THAT STILL HAS IT DOES NOT.
+    intro::PowersUi kept = showing(four_cells());
+    kept.select("math.max");
+    kept.reading = four_cells();
+    intro::revalidate(kept);
+    CHECK(kept.selected() == "math.max");
+
+    // NOR DOES A READING THAT LOST THE OTHER VIEW'S SELECTION TAKE THIS ONE WITH IT.
+    intro::PowersUi both = showing(four_cells());
+    both.selected_source = "math.max";
+    both.selected_operator = "logic.select_int";
+    ws::ResolvedPowers half = four_cells();
+    half.powers.erase(half.powers.begin()); // logic.select_int
+    both.reading = half;
+    intro::revalidate(both);
+    CHECK(both.selected_source == "math.max");
+    CHECK(both.selected_operator.empty());
+}
+
+TEST_CASE("SOURCE-1: the window is derived from the population and the cursor, never stored") {
+    // THE THREE RULES: a population that fits is shown whole, the cursor is inside the
+    // window, and every omission is counted and spends a row of the same budget.
+    CHECK(intro::powers_window(3, 0, 8).count == 3);
+    CHECK(intro::powers_window(3, 0, 8).before == 0);
+    CHECK(intro::powers_window(3, 0, 8).after == 0);
+
+    const intro::PowersWindow head = intro::powers_window(20, 0, 5);
+    CHECK(head.first == 0);
+    CHECK(head.count == 4); // one row of the five is the marker's
+    CHECK(head.after == 16);
+
+    const intro::PowersWindow tail = intro::powers_window(20, 19, 5);
+    CHECK(tail.first + tail.count == 20);
+    CHECK(tail.before == 16);
+    CHECK(tail.after == 0);
+
+    for (std::int64_t cursor = 0; cursor < 20; ++cursor) {
+        const intro::PowersWindow w = intro::powers_window(20, cursor, 5);
+        CHECK_MESSAGE(cursor >= w.first, "cursor=", cursor);
+        CHECK_MESSAGE(cursor < w.first + w.count, "cursor=", cursor);
+        CHECK(w.before + w.count + w.after == 20);
+    }
+    // TOTAL where nobody can spend it: a zero-row budget hides the population and says
+    // so rather than answering with numbers that do not add up.
+    CHECK(intro::powers_window(20, 3, 0).after == 20);
+    CHECK(intro::powers_window(20, 3, 1).after == 20);
+    CHECK(intro::powers_window(0, 0, 8).count == 0);
+
+    // ⭐ AND THE WINDOW MOVES WITH THE CURSOR WITHOUT ANYTHING BEING REMEMBERED. Two
+    // projections of the same state are identical; a projection after a cursor move
+    // shows the row the cursor is on, whichever way it came.
+    intro::PowersUi ui = showing(many_sources(40));
+    ui.select("src.30");
+    const std::vector<std::string> once = powers_text(ui, 8, 60);
+    CHECK(once == powers_text(ui, 8, 60));
+    CHECK(row_with_text(once, "src.30") >= 0);
+    ui.select("src.00");
+    const std::vector<std::string> home = powers_text(ui, 8, 60);
+    CHECK(row_with_text(home, "src.00") >= 0);
+    CHECK(row_with_text(home, "src.30") == -1);
+    ui.select("src.30");
+    CHECK(powers_text(ui, 8, 60) == once); // no scroll offset survived the round trip
+}
+
+TEST_CASE("SOURCE-1: Up and Down walk the visible list, and begin at its head when hidden") {
+    intro::PowersUi ui = showing(many_sources(6));
+    CHECK(ui.selected().empty());
+    intro::move_cursor(ui, +1);
+    CHECK(ui.selected() == "src.00"); // no cursor: begin at the beginning
+    intro::move_cursor(ui, +1);
+    CHECK(ui.selected() == "src.01");
+    intro::move_cursor(ui, -1);
+    CHECK(ui.selected() == "src.00");
+    intro::move_cursor(ui, -1);
+    CHECK(ui.selected() == "src.00"); // bounded at the head
+
+    for (int i = 0; i < 10; ++i) {
+        intro::move_cursor(ui, +1);
+    }
+    CHECK(ui.selected() == "src.05"); // ...and at the tail
+
+    // A HIDDEN SELECTION IS NOT PROJECTED INTO THE LIST TO BE LEFT. The identity is
+    // still held; the walk begins where the maker can actually see.
+    ui.select("src.03");
+    ui.query.type("src.05");
+    CHECK(ui.selected() == "src.03");
+    intro::move_cursor(ui, +1);
+    CHECK(ui.selected() == "src.05");
+
+    // AND AN EMPTY LIST MOVES NOTHING AT ALL.
+    intro::PowersUi none = showing(ws::ResolvedPowers{});
+    intro::move_cursor(none, +1);
+    CHECK(none.selected().empty());
+}
+
+TEST_CASE("SOURCE-1: the position marker counts the list the maker is navigating") {
+    intro::PowersUi ui = showing(many_sources(12));
+    CHECK(intro::position_marker(-1, 12) == "-/12"); // nothing selected is not position zero
+    CHECK(intro::position_marker(0, 12) == "1/12");  // and the first is one, not nought
+    CHECK(intro::position_marker(11, 12) == "12/12");
+
+    ui.select("src.05");
+    intro::PowersView view = intro::project_powers_ui(ui, 20, 70);
+    CHECK(view.population == 12);
+    CHECK(view.cursor == 5);
+    CHECK(row_with_text(texts_of(view.rows), "6/12") == 0);
+
+    // ⭐ THE DENOMINATOR FOLLOWS THE FILTER, because it describes the list actually
+    // being navigated. A total from the unfiltered reading over a cursor from the
+    // filtered one is never wrong on any single row and always wrong as a sentence.
+    ui.query.type("src.0");
+    view = intro::project_powers_ui(ui, 20, 70);
+    CHECK(view.population == 10);
+    CHECK(view.cursor == 5);
+    CHECK(row_with_text(texts_of(view.rows), "6/10") == 0);
+}
+
+TEST_CASE("SOURCE-1: an absent view and a filtered-away one are different sentences") {
+    // A VIEW WITH NOTHING IN IT.
+    intro::PowersUi empty = showing(four_cells());
+    empty.reading.powers.erase(empty.reading.powers.begin() + 3); // zengine.recipes.catalog
+    empty.reading.powers.erase(empty.reading.powers.begin() + 1); // math.max
+    empty.view = intro::powers_view::kSources;
+    CHECK(row_with_text(powers_text(empty, 8, 60), intro::kNoSourcesHere) >= 0);
+
+    intro::PowersUi no_ops = showing(four_cells());
+    no_ops.reading.powers.erase(no_ops.reading.powers.begin() + 2); // source.looks.like.one
+    no_ops.reading.powers.erase(no_ops.reading.powers.begin());     // logic.select_int
+    no_ops.view = intro::powers_view::kOperators;
+    CHECK(row_with_text(powers_text(no_ops, 8, 60), intro::kNoOperatorsHere) >= 0);
+
+    // ⭐ AND A VIEW THE MAKER FILTERED AWAY SAYS SO AND COUNTS WHAT IT IS HIDING, so an
+    // empty pane can never read as an empty system.
+    intro::PowersUi hidden = showing(four_cells());
+    hidden.view = intro::powers_view::kSources;
+    hidden.query.type("nothing-matches-this");
+    const std::vector<std::string> said = powers_text(hidden, 8, 60);
+    CHECK(row_with_text(said, intro::kNoSourcesHere) == -1);
+    CHECK(row_with_text(said, "2 sources here") >= 0);
+    CHECK(row_with_text(said, "hidden by the current filter") >= 0);
+}
+
+TEST_CASE("SOURCE-1: every projection fits the room it was given") {
+    std::vector<intro::PowersUi> arrangements;
+    arrangements.push_back(intro::PowersUi{});             // never read: no reading at all
+    arrangements.push_back(showing(ws::ResolvedPowers{})); // an observed empty catalog
+    arrangements.push_back(showing(four_cells()));
+    arrangements.push_back(showing(many_sources(40)));
+    {
+        intro::PowersUi busy = showing(four_cells());
+        busy.select("zengine.recipes.catalog");
+        busy.composite_only = true;
+        busy.query.type("cat");
+        busy.sample.present = true;
+        busy.sample.identity = "zengine.recipes.catalog";
+        busy.sample.ok = true;
+        busy.sample.lines = {"zengine.RecipeCatalog v1", "  catalog",
+                             "    source   \"/a/very/long/path/that/will/not/fit/at/all\"",
+                             "    recipes  6"};
+        arrangements.push_back(busy);
+        intro::PowersUi refused = busy;
+        refused.sample.ok = false;
+        refused.sample.lines.clear();
+        refused.sample.reason =
+            "nothing supplies 'zengine.recipes.catalog' in this catalog, and a sample "
+            "cannot invent one";
+        arrangements.push_back(refused);
+    }
+
+    for (const intro::PowersUi& ui : arrangements) {
+        for (std::int64_t rows = 0; rows <= 24; ++rows) {
+            for (std::int64_t columns = 0; columns <= 90; columns += 3) {
+                const intro::PowersView view = intro::project_powers_ui(ui, rows, columns);
+                REQUIRE(static_cast<std::int64_t>(view.rows.size()) <= rows);
+                for (const surface::SurfaceTextRow& row : view.rows) {
+                    REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
+                }
+                // AND THE MAP IS PARALLEL TO WHAT WAS DRAWN, always: a span naming a row
+                // that does not exist is a press resolved against a picture nobody
+                // published.
+                for (const intro::PowersSpan& s : view.spans) {
+                    REQUIRE(s.row >= 0);
+                    REQUIRE(s.row < static_cast<std::int64_t>(view.rows.size()));
+                    REQUIRE(s.first >= 0);
+                    REQUIRE(s.last < columns);
+                }
+            }
+        }
     }
 }
 
-TEST_CASE("INTR-1: the powers summary counts identities and providers, exactly") {
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_powers(shaped_powers(), 40, 70);
-    REQUIRE_FALSE(rows.empty());
-    CHECK(rows[0].text == "3 powers resolve here -- from 2 providers");
-    CHECK(rows[0].role == surface::role::kAccent);
-    CHECK(row_with(rows, "%") == -1);
+TEST_CASE("SOURCE-1: the two measured default budgets stay useful") {
+    // THE SHIPPED TERMINAL PANE IS EIGHT PROSE ROWS AND THE SHIPPED GRAPHICAL ONE IS
+    // FOUR. Every composition decision was made against those two numbers, so they are
+    // asserted rather than assumed.
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("math.max");
+    ui.sample.present = true;
+    ui.sample.identity = "math.max";
+    ui.sample.ok = true;
+    ui.sample.lines = {"zengine.MaxSoFar v1", "  value  7"};
+
+    const std::vector<std::pair<std::int64_t, std::int64_t>> budgets{{8, 48}, {4, 71}};
+    for (const std::pair<std::int64_t, std::int64_t>& budget : budgets) {
+        const intro::PowersView view =
+            intro::project_powers_ui(ui, budget.first, budget.second);
+        const std::vector<std::string> shown = texts_of(view.rows);
+        REQUIRE_FALSE(shown.empty());
+        // THE ACTIVE VIEW IS SAYABLE AT BOTH, and it is a WORD rather than an ink.
+        CHECK_MESSAGE(shown[0].find("[Sources]") != std::string::npos, budget.second);
+        // ...AND SO IS WHERE THE MAKER IS.
+        CHECK_MESSAGE(shown[0].find("1/2") != std::string::npos, budget.second);
+        // BOTH VIEW CONTROLS ARE REACHABLE BY POINTER AT BOTH BUDGETS.
+        CHECK(place_of(view, intro::powers_control::kSources).first == 0);
+        CHECK(place_of(view, intro::powers_control::kOperators).first == 0);
+        // AND THERE IS A LIST TO NAVIGATE, with the maker's own row in it.
+        CHECK_MESSAGE(!listed(view).empty(), budget.second);
+        CHECK_MESSAGE(row_with_text(shown, "math.max") >= 0, budget.second);
+    }
+
+    // AT FOUR ROWS THE RETAINED SAMPLE STILL ANNOUNCES ITSELF, because its header leads
+    // with the tense and counts what it could not show.
+    const std::vector<std::string> narrow = powers_text(ui, 4, 71);
+    CHECK(row_with_text(narrow, intro::kSampledWhenAsked) >= 0);
+
+    // AND A TALLER AUTHORED PANE REVEALS MORE WITH NOTHING HERE EDITED.
+    const std::vector<std::string> tall = powers_text(ui, 20, 89);
+    CHECK(row_with_text(tall, "yields zengine.MaxSoFar v1") >= 0);
+    CHECK(row_with_text(tall, intro::kSampleControl) >= 0);
+    CHECK(row_with_text(tall, "  value  7") >= 0);
+    CHECK(row_with_text(tall, intro::kHostResolution) >= 0);
+    CHECK(row_with_text(tall, intro::kPowersSource) >= 0);
 }
 
-TEST_CASE("QR-4: the powers heading agrees with its own counts, at one and at many") {
-    // THROUGH THE PRESENTATION BOTH MEDIA SPEND, not through the count word on its own:
-    // what a maker actually reads is `project_powers`' first row, and that is what is
-    // asserted here. A helper tested alone would have stayed correct while the heading
-    // that concatenated around it went on saying `1 providers`.
+TEST_CASE("SOURCE-1: one place means one thing, and the map is the projection read backwards") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("math.max");
+    const intro::PowersView view = intro::project_powers_ui(ui, 20, 70);
+
+    // THE CHROME CARRIES THREE SEPARATE CONTROLS ON ONE ROW, and a press resolves to
+    // exactly one of them -- which is why the map is columns and not just rows.
+    const std::pair<std::int64_t, std::int64_t> sources =
+        place_of(view, intro::powers_control::kSources);
+    const std::pair<std::int64_t, std::int64_t> operators =
+        place_of(view, intro::powers_control::kOperators);
+    const std::pair<std::int64_t, std::int64_t> composite =
+        place_of(view, intro::powers_control::kComposite);
+    REQUIRE(sources.first == 0);
+    REQUIRE(operators.first == 0);
+    REQUIRE(composite.first == 0);
+    CHECK(sources.second < operators.second);
+    CHECK(operators.second < composite.second);
+    CHECK(intro::target_at(view, 0, sources.second).control == intro::powers_control::kSources);
+    CHECK(intro::target_at(view, 0, operators.second).control ==
+          intro::powers_control::kOperators);
+    CHECK(intro::target_at(view, 0, composite.second).control ==
+          intro::powers_control::kComposite);
+
+    // ⭐ AN ENTRY ROW SELECTS, AND SELECTING IS ALL IT DOES. There is no place in this
+    // pane where one press is two acts -- which is what keeps a cold pane's FIRST
+    // press, the one that also points the keyboard here, from being a hidden double
+    // action.
+    for (const intro::PowersSpan& s : view.spans) {
+        CHECK(s.control != intro::powers_control::kNone);
+        if (s.control == intro::powers_control::kEntry) {
+            CHECK_FALSE(s.identity.empty());
+        }
+        for (std::int64_t c = s.first; c <= s.last; ++c) {
+            const intro::PowersTarget hit = intro::target_at(view, s.row, c);
+            CHECK_MESSAGE(hit.control == s.control, "row=", s.row, " column=", c);
+        }
+    }
+
+    // AND EVERY OTHER PLACE MEANS NOTHING AT ALL -- the caveat, the census, the source
+    // line and an omission marker included.
+    const std::int64_t bound = row_with_text(texts_of(view.rows), intro::kHostResolution);
+    REQUIRE(bound >= 0);
+    CHECK(intro::target_at(view, bound, 0).control == intro::powers_control::kNone);
+    CHECK(intro::target_at(view, -1, 0).control == intro::powers_control::kNone);
+    CHECK(intro::target_at(view, 9999, 0).control == intro::powers_control::kNone);
+
+    const intro::PowersView windowed =
+        intro::project_powers_ui(showing(many_sources(40)), 8, 60);
+    const std::int64_t omission = row_with_text(texts_of(windowed.rows), "more below");
+    REQUIRE(omission >= 0);
+    CHECK(intro::target_at(windowed, omission, 0).control == intro::powers_control::kNone);
+}
+
+TEST_CASE("SOURCE-1: a control the width cut is not a target") {
+    // ⭐ THE INVERSE MUST AGREE WITH THE PICTURE. A width too narrow for the second view
+    // control draws `...` where it would have been, and a press on that mark must not
+    // operate a control the maker cannot see.
+    const intro::PowersUi ui = showing(four_cells());
+    for (std::int64_t columns = 1; columns <= 24; ++columns) {
+        const intro::PowersView view = intro::project_powers_ui(ui, 8, columns);
+        REQUIRE_FALSE(view.rows.empty());
+        const std::string& chrome = view.rows[0].text;
+        for (const intro::PowersSpan& s : view.spans) {
+            if (s.row != 0) {
+                continue;
+            }
+            REQUIRE(s.last < static_cast<std::int64_t>(chrome.size()));
+            const std::string covered =
+                chrome.substr(static_cast<std::size_t>(s.first),
+                              static_cast<std::size_t>(s.last - s.first + 1));
+            CHECK_MESSAGE(covered.find("...") == std::string::npos, "columns=", columns);
+        }
+    }
+}
+
+TEST_CASE("SOURCE-1: the retained sample is history, and says so before it says whose") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("zengine.recipes.catalog");
+    ui.sample.present = true;
+    ui.sample.identity = "zengine.recipes.catalog";
+    ui.sample.ok = true;
+    ui.sample.lines = {"zengine.RecipeCatalog v1", "  catalog", "    source   \"/x\"",
+                       "    recipes  6"};
+
+    const std::vector<std::string> shown = powers_text(ui, 20, 70);
+    const std::int64_t at = row_with_text(shown, intro::kSampledWhenAsked);
+    REQUIRE(at >= 0);
+    CHECK(shown[static_cast<std::size_t>(at)].find("zengine.recipes.catalog") !=
+          std::string::npos);
+    CHECK(row_with_text(shown, "    recipes  6") >= 0);
+
+    // ⭐ NO WORDING IMPLIES THE VALUE IS STILL TRUE. `sampled when asked` is the whole
+    // claim, and the words that would overstate it appear nowhere.
+    for (const char* overclaim : {"current", "live", "latest", "up to date", "refresh"}) {
+        CHECK_MESSAGE(row_with_text(shown, overclaim) == -1, overclaim);
+    }
+
+    // ⭐ AND THE TENSE SURVIVES A CUT, because `fit` takes the tail and the tail is the
+    // identity -- which a maker can recover from the list, unlike the claim.
+    for (std::int64_t columns = 22; columns <= 70; ++columns) {
+        const std::vector<std::string> cut = powers_text(ui, 20, columns);
+        CHECK_MESSAGE(row_with_text(cut, "sampled when asked") >= 0, "columns=", columns);
+    }
+
+    // A REFUSAL IS THE OTHER TENSE OF THE SAME SENTENCE, and carries the reason the
+    // layer that detected it wrote.
+    ui.sample.ok = false;
+    ui.sample.lines.clear();
+    ui.sample.reason = "'x' is an operator and not a source: it declares 1 input (a)";
+    const std::vector<std::string> refused = powers_text(ui, 20, 70);
+    CHECK(row_with_text(refused, intro::kSampleRefusedWord) >= 0);
+    CHECK(row_with_text(refused, "is an operator and not a source") >= 0);
+}
+
+TEST_CASE("SOURCE-1: an unshowable sample line is COUNTED rather than dropped") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("math.max");
+    ui.sample.present = true;
+    ui.sample.identity = "math.max";
+    ui.sample.ok = true;
+    ui.sample.lines = {"one", "two", "three", "four", "five"};
+
+    bool marked_somewhere = false;
+    for (std::int64_t rows = 4; rows <= 20; ++rows) {
+        const std::vector<std::string> shown = powers_text(ui, rows, 60);
+        const std::int64_t at = row_with_text(shown, intro::kSampledWhenAsked);
+        if (at < 0) {
+            continue;
+        }
+        std::size_t seen = 0;
+        for (const char* line : {"one", "two", "three", "four", "five"}) {
+            seen += row_with_text(shown, std::string("  ") + line) >= 0 ? 1u : 0u;
+        }
+        const bool counted = row_with_text(shown, "more") >= 0;
+        if (seen < 5) {
+            CHECK_MESSAGE(counted, "rows=", rows); // nothing is hidden in silence
+            marked_somewhere = true;
+        }
+    }
+    CHECK(marked_somewhere);
+}
+
+TEST_CASE("SOURCE-1: a sample survives filters, view switches and a lost population") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.sample.present = true;
+    ui.sample.identity = "zengine.recipes.catalog";
+    ui.sample.ok = true;
+    ui.sample.lines = {"zengine.RecipeCatalog v1"};
+
+    // FILTERED OUT OF THE LIST: still shown, because a filter is not evidence about
+    // what a Source said.
+    ui.query.type("logic");
+    ui.view = intro::powers_view::kOperators;
+    CHECK(row_with_text(powers_text(ui, 20, 70), "zengine.RecipeCatalog v1") >= 0);
+
+    // THE PROVIDER UNLOADED: still shown. The answer was true when it was given, and a
+    // later reading of the catalog is a fact about the catalog rather than about it.
+    ui.query.clear();
+    ui.view = intro::powers_view::kSources;
+    ui.reading = ws::ResolvedPowers{};
+    intro::revalidate(ui);
+    CHECK(ui.selected().empty());
+    const std::vector<std::string> after = powers_text(ui, 20, 70);
+    CHECK(row_with_text(after, intro::kSampledWhenAsked) >= 0);
+    CHECK(row_with_text(after, "zengine.RecipeCatalog v1") >= 0);
+    CHECK(row_with_text(after, intro::kNoSourcesHere) >= 0); // and the list is honest too
+}
+
+TEST_CASE("SOURCE-1: the detail block names what a sample would yield, without sampling") {
+    intro::PowersUi ui = showing(four_cells());
+    ui.select("zengine.recipes.catalog");
+    const std::vector<std::string> shown = powers_text(ui, 20, 70);
+    CHECK(row_with_text(shown, "yields zengine.RecipeCatalog v1") >= 0);
+    CHECK(row_with_text(shown, "active    zengine.workshop.host") >= 0);
+    CHECK(row_with_text(shown, intro::kSampleControl) >= 0);
+
+    // ⭐ AND IT IS A READ OF WHAT REGISTRATION ALREADY CARRIED. The schema identity is
+    // in the reading; producing it needed no evaluator, no describe across a seam, and
+    // no guess from the identity's spelling.
+    ui.select("math.max");
+    CHECK(row_with_text(powers_text(ui, 20, 70), "yields zengine.MaxSoFar v1") >= 0);
+
+    // A CONTRIBUTION THE HOST PUBLISHED ITSELF IS NAMED AS THE HOST, and an empty
+    // provider never reaches a maker's eye as an empty column.
+    ws::ResolvedPowers hosted;
+    hosted.powers.push_back(power_of("host.thing", {source_from("")}));
+    intro::PowersUi own = showing(hosted);
+    own.select("host.thing");
+    CHECK(row_with_text(powers_text(own, 20, 70), intro::kHostItself) >= 0);
+
+    // A STACK IS SHOWN ACTIVE-FIRST, which is the wire's order reversed deliberately:
+    // a maker reads top-down and the first thing they should read is the one whose
+    // code runs.
+    ws::ResolvedPowers stacked;
+    stacked.powers.push_back(power_of("covered", {source_from("under"), source_from("over")}));
+    intro::PowersUi deep = showing(stacked);
+    deep.select("covered");
+    const std::vector<std::string> rows = powers_text(deep, 20, 70);
+    const std::int64_t live = row_with_text(rows, "active    over");
+    const std::int64_t buried = row_with_text(rows, "shadowed  under");
+    REQUIRE(live >= 0);
+    REQUIRE(buried >= 0);
+    CHECK(live < buried);
+}
+
+TEST_CASE("SOURCE-1: only a selected Source offers a sample gesture") {
+    intro::PowersUi ui = showing(four_cells());
+    CHECK(intro::sampleable(ui).empty()); // nothing selected
+
+    ui.view = intro::powers_view::kSources;
+    ui.select("math.max");
+    CHECK(intro::sampleable(ui) == "math.max");
+
+    // ⭐ THE OPERATORS VIEW OFFERS NONE, AND NOT BY REFUSING ONE: there is no control,
+    // no identity to spend, and nothing for an operator-invocation surface to grow
+    // from. `op::sample` owns the refusal at the spend; this owns the absence.
+    ui.view = intro::powers_view::kOperators;
+    ui.select("logic.select_int");
+    CHECK(intro::sampleable(ui).empty());
+    const intro::PowersView view = intro::project_powers_ui(ui, 20, 70);
+    CHECK(place_of(view, intro::powers_control::kSample).first == -1);
+    CHECK(row_with_text(texts_of(view.rows), intro::kSampleControl) == -1);
+
+    // AND A SELECTION THE CURRENT READING NO LONGER HAS OFFERS NONE EITHER.
+    intro::PowersUi stale = showing(four_cells());
+    stale.select("math.max");
+    stale.reading = ws::ResolvedPowers{};
+    CHECK(intro::sampleable(stale).empty());
+}
+
+TEST_CASE("SOURCE-1: the census is slack-only and keeps QR-4's grammar") {
+    // THE CATALOG CENSUS AND THE POSITION MARKER ARE TWO DIFFERENT COUNTS. `17/143`
+    // counts the list being navigated; this counts the whole reading, and it waits for
+    // room nothing else wanted.
     ws::ResolvedPowers one;
     one.providers = {"zengine.operators.basic"};
-    one.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
-    const std::vector<surface::SurfaceTextRow> lone = intro::project_powers(one, 40, 70);
-    REQUIRE_FALSE(lone.empty());
-    CHECK(lone[0].text == "1 power resolves here -- from 1 provider");
-    CHECK(lone[0].text.find("1 providers") == std::string::npos);
-    CHECK(lone[0].text.find("1 powers") == std::string::npos);
+    one.powers.push_back(power_of("math.max", {source_from("zengine.operators.basic")}));
+    CHECK(row_with_text(powers_text(showing(one), 20, 70),
+                        "1 power resolves here -- from 1 provider") >= 0);
 
-    // TWO PROVIDERS AND MANY POWERS STAY PLURAL, which is the half a singular repair is
-    // most likely to break.
-    const std::vector<surface::SurfaceTextRow> many =
-        intro::project_powers(shaped_powers(), 40, 70);
-    REQUIRE_FALSE(many.empty());
-    CHECK(many[0].text == "3 powers resolve here -- from 2 providers");
-
-    // AND EVERY OTHER CARDINALITY THE PAIR CAN TAKE, including the empty host, so no
-    // count in this heading can disagree with the word beside it.
-    ws::ResolvedPowers none;
-    CHECK(intro::project_powers(none, 40, 70)[0].text ==
-          "0 powers resolve here -- from 0 providers");
     ws::ResolvedPowers two_from_one;
     two_from_one.providers = {"zengine.operators.basic"};
-    two_from_one.powers.push_back(power_of("math.max", {supplied_by("zengine.operators.basic")}));
+    two_from_one.powers.push_back(power_of("math.max", {source_from("zengine.operators.basic")}));
     two_from_one.powers.push_back(
-        power_of("logic.select_int", {supplied_by("zengine.operators.basic")}));
-    CHECK(intro::project_powers(two_from_one, 40, 70)[0].text ==
-          "2 powers resolve here -- from 1 provider");
-}
+        power_of("logic.select_int", {source_from("zengine.operators.basic")}));
+    const std::vector<std::string> pair = powers_text(showing(two_from_one), 20, 70);
+    CHECK(row_with_text(pair, "2 powers resolve here -- from 1 provider") >= 0);
+    CHECK(row_with_text(pair, "1 providers") == -1);
 
-TEST_CASE("QR-4: the powers bound claims one host's resolution and nothing about a weave") {
-    // ⭐ THE SENTENCE MAY ONLY SAY WHAT THIS PANE READ. It read ONE catalog: the host's.
-    // The wording it replaced -- `a weave that took no offer holds its own catalog` --
-    // is true of the Timer's supported local fallback and is not a law of every weave
-    // that accepts no operator host, so a pane in no position to know it must not
-    // appear to settle it.
+    CHECK(row_with_text(powers_text(showing(ws::ResolvedPowers{}), 20, 70),
+                        "0 powers resolve here -- from 0 providers") >= 0);
+
+    // ⭐ AND THE SENTENCE THAT BOUNDS EVERY COUNT IS STILL THERE, unchanged, saying
+    // only what this pane actually read.
     CHECK(std::string(intro::kHostResolution) ==
           "this pane describes this host's operator resolution only");
-
-    const std::vector<surface::SurfaceTextRow> shown =
-        intro::project_powers(shaped_powers(), 40, 70);
-    REQUIRE(row_with(shown, intro::kHostResolution) >= 0);
-    // ...AND THE OLD CLAIM IS GONE FROM THE ROWS, by its own words rather than by the
-    // name of the constant that used to hold them.
-    CHECK(row_with(shown, "a weave that took no offer holds its own catalog") == -1);
+    const std::vector<std::string> shown = powers_text(showing(four_cells()), 20, 70);
+    REQUIRE(row_with_text(shown, intro::kHostResolution) >= 0);
     for (const char* claim : {"took no offer", "its own catalog", "holds its own"}) {
-        CHECK_MESSAGE(row_with(shown, claim) == -1, claim);
+        CHECK_MESSAGE(row_with_text(shown, claim) == -1, claim);
     }
-}
 
-TEST_CASE("INTR-1: a power BLOCK is shown whole or counted, and its bound is reserved") {
-    const ws::ResolvedPowers said = shaped_powers();
-    for (std::int64_t rows = 3; rows <= 20; ++rows) {
-        const std::vector<surface::SurfaceTextRow> shown = intro::project_powers(said, rows, 60);
-        CHECK(static_cast<std::int64_t>(shown.size()) <= rows);
-        CHECK_MESSAGE(row_with(shown, intro::kHostResolution) >= 0, "rows=", rows);
-        const std::vector<std::string> text = texts_of(shown);
-        std::size_t blocks = 0;
-        for (std::size_t i = 0; i < text.size(); ++i) {
-            if (text[i].rfind("  ", 0) == 0 && text[i].rfind("      ", 0) != 0 &&
-                text[i].rfind("  ...", 0) != 0 && !text[i].empty()) {
-                ++blocks;
-                // A POWER NAMED IS A POWER WHOSE ACTIVE CONTRIBUTION IS ON THE CANVAS.
-                REQUIRE(i + 1 < text.size());
-                CHECK(text[i + 1].rfind("      active    ", 0) == 0);
-            }
-        }
-        if (blocks < said.powers.size()) {
-            CHECK_MESSAGE(row_with(shown, "more") >= 0, "rows=", rows);
-        }
-    }
-}
-
-TEST_CASE("INTR-1: every powers projection fits the room it was given") {
-    const ws::ResolvedPowers said = shaped_powers();
-    for (std::int64_t rows = 0; rows <= 20; ++rows) {
-        for (std::int64_t columns = 0; columns <= 80; columns += 3) {
-            const std::vector<surface::SurfaceTextRow> shown =
-                intro::project_powers(said, rows, columns);
-            REQUIRE(static_cast<std::int64_t>(shown.size()) <= (rows < 0 ? 0 : rows));
-            for (const surface::SurfaceTextRow& row : shown) {
-                REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
-            }
-        }
-    }
+    // THE LIST OUTRANKS THE CENSUS. A pane that had to window its own list spends that
+    // row on the list instead.
+    const std::vector<std::string> cramped = powers_text(showing(many_sources(40)), 8, 60);
+    CHECK(row_with_text(cramped, "resolve here") == -1);
+    CHECK(row_with_text(cramped, "more below") >= 0);
 }
 
 TEST_CASE("INTR-1: an entry and its omission marker are ONE demand on the budget") {
@@ -6123,6 +6752,210 @@ TEST_CASE("INTR-1: an entry and its omission marker are ONE demand on the budget
     CHECK_FALSE(intro::lay_blocks(heights, 0).marker);
     CHECK(intro::lay_blocks({}, 5).shown == 0);
     CHECK_FALSE(intro::lay_blocks({}, 5).marker);
+}
+
+// ---- Tier one, the sample presenter: an admitted Value, as prose (SOURCE-1) --------
+//
+// `render_value` is the only maker-facing spelling of a sampled value in this
+// repository, and it is host-side because it HAS to be: the pane's image is a woven
+// weave whose accept-set is closed and links no operator code, so a value claiming a
+// schema nobody compiled against cannot cross to it. What crosses is these lines.
+//
+// EVERY CASE HERE IS OVER A VALUE. The function is pure -- no clock, no counter, no
+// static, no identity of the Source that produced it -- so what it MEANS is provable
+// without a catalog, and the two cases that DO use the real host Sources use them to
+// prove the generic path renders them, not to teach it about them.
+
+TEST_CASE("SOURCE-1: both real host Sources render through one identity-agnostic path") {
+    // ⭐ THE TWO SHIPPED SOURCES, THROUGH THE REAL SAMPLE SEAM. `mount_host_sources`
+    // installs them, `op::sample` spends them, and the renderer sees only a Value --
+    // there is no identity, no schema name and no special case anywhere in it.
+    std::string anchor = "G:/programming/cpp/Zen";
+    CurrentRecipes recipes;
+    op::Catalog catalog;
+    const op::MountReport mounted =
+        mount_host_sources(catalog, host_sources(anchor, recipes));
+    REQUIRE_MESSAGE(mounted.ok, mounted.reason);
+
+    const op::Evaluation project = op::sample(catalog, kProjectAnchorSource);
+    REQUIRE_MESSAGE(project.ok(), project.reason());
+    const std::vector<std::string> anchored = render_value(project.value());
+    REQUIRE(anchored.size() == 2);
+    CHECK(anchored[0] == "zengine.ProjectAnchor v1");
+    CHECK(anchored[1] == "  anchor  \"G:/programming/cpp/Zen\"");
+
+    const op::Evaluation catalogued = op::sample(catalog, kRecipeCatalogSource);
+    REQUIRE_MESSAGE(catalogued.ok(), catalogued.reason());
+    const std::vector<std::string> lines = render_value(catalogued.value());
+    REQUIRE(lines.size() == 4);
+    CHECK(lines[0] == "zengine.RecipeCatalog v1");
+    CHECK(lines[1] == "  catalog");
+    CHECK(lines[2] == "    source   \"\"");
+    CHECK(lines[3] == "    recipes  0");
+
+    // ⭐ AND THE INTEGER IS AN INTEGER. `loom::compat::serialize` renders it as a JSON
+    // *string* -- which is the measurement that disqualified the one total codec this
+    // repository already had: a maker reading `"0"` cannot tell a count from a caption.
+    const std::string debug = loom::compat::serialize(catalogued.value());
+    CHECK(debug.find("\"recipes\":\"0\"") != std::string::npos);
+    CHECK(lines[3].find('"') == std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: the presenter is total over every kind, and marks what it cannot spell") {
+    const std::shared_ptr<const loom::Schema> inner =
+        loom::SchemaBuilder("zengine.Inner", 2).field("deep", loom::Kind::Int).build();
+    const std::shared_ptr<const loom::Schema> shape =
+        loom::SchemaBuilder("zengine.Every", 3)
+            .field("count", loom::Kind::Int)
+            .field("ratio", loom::Kind::Float)
+            .field("label", loom::Kind::Text)
+            .field("flag", loom::Kind::Bool)
+            .field("blob", loom::Kind::Bytes)
+            .message("nested", inner)
+            .field("missing", loom::Kind::Text, /*required=*/false)
+            .build();
+
+    loom::Value nested(inner);
+    nested.set("deep", loom::Cell::integer(-7));
+    loom::Value v(shape);
+    v.set("count", loom::Cell::integer(42));
+    v.set("ratio", loom::Cell::real(1.5));
+    v.set("label", loom::Cell::text("hello"));
+    v.set("flag", loom::Cell::boolean(true));
+    v.set("blob", loom::Cell::bytes(loom::Bytes{1, 2, 3, 4}));
+    v.set("nested", loom::Cell::message(std::move(nested)));
+
+    const std::vector<std::string> lines = render_value(v);
+    REQUIRE(lines.size() == 9);
+    CHECK(lines[0] == "zengine.Every v3");
+    CHECK(row_with_text(lines, "count    42") >= 0);   // digits, never a quoted string
+    CHECK(row_with_text(lines, "ratio    1.5") >= 0);  // and not `1.500000`
+    CHECK(row_with_text(lines, "label    \"hello\"") >= 0); // quotes say Text
+    CHECK(row_with_text(lines, "flag     true") >= 0);
+    CHECK(row_with_text(lines, "blob     (bytes, 4 octets)") >= 0); // honest, not base64
+    CHECK(row_with_text(lines, "  nested") >= 0);
+    CHECK(row_with_text(lines, "    deep  -7") >= 0);  // the nested schema's own column
+    CHECK(row_with_text(lines, "missing  (absent)") >= 0); // an observed absence
+
+    // AND IT IS PURE: the same value renders identically, always.
+    CHECK(render_value(v) == lines);
+}
+
+TEST_CASE("SOURCE-1: Text is quoted and made safe for the row it will become") {
+    const std::shared_ptr<const loom::Schema> shape =
+        loom::SchemaBuilder("zengine.Said", 1).field("text", loom::Kind::Text).build();
+    loom::Value v(shape);
+    v.set("text", loom::Cell::text("a\nb\t\"c\"\\d\xC3\xAF"));
+    const std::vector<std::string> lines = render_value(v);
+    REQUIRE(lines.size() == 2);
+
+    // ⭐ THESE LINES BECOME `SurfaceTextRow`s, whose contract is plain printable ASCII
+    // -- one canvas cell per BYTE -- and Workshop refuses a whole update for one byte
+    // it cannot draw. So every byte is still REPORTED, in the one notation a reader
+    // already knows, rather than filtered away or left to poison the pane.
+    for (const std::string& line : lines) {
+        for (const char c : line) {
+            const unsigned char byte = static_cast<unsigned char>(c);
+            CHECK(byte >= 0x20u);
+            CHECK(byte < 0x7Fu);
+        }
+    }
+    CHECK(lines[1].find("\\x0A") != std::string::npos);
+    CHECK(lines[1].find("\\x09") != std::string::npos);
+    CHECK(lines[1].find("\\\"c\\\"") != std::string::npos);
+    CHECK(lines[1].find("\\\\d") != std::string::npos);
+    CHECK(lines[1].find("\\xC3\\xAF") != std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: a list is bounded and its remainder is COUNTED") {
+    const std::shared_ptr<const loom::Schema> shape =
+        loom::SchemaBuilder("zengine.Many", 1)
+            .list("names", loom::type_of(loom::Kind::Text))
+            .build();
+    loom::Cell::Array members;
+    for (int i = 0; i < 20; ++i) {
+        members.push_back(loom::Cell::text("n" + std::to_string(i)));
+    }
+    loom::Value v(shape);
+    v.set("names", loom::Cell::list(std::move(members)));
+
+    const std::vector<std::string> lines = render_value(v);
+    CHECK(row_with_text(lines, "names  20 items") >= 0); // the TOTAL, before any is cut
+    std::size_t spelled = 0;
+    for (const std::string& line : lines) {
+        spelled += line.find("[") != std::string::npos ? 1u : 0u;
+    }
+    CHECK(spelled == ws::kSampleMaxListItems);
+    CHECK(row_with_text(lines, "... 12 more") >= 0); // and the remainder counted exactly
+
+    // A SHORT LIST IS SHOWN WHOLE AND MARKS NOTHING.
+    loom::Value few(shape);
+    few.set("names", loom::Cell::list(loom::Cell::Array{loom::Cell::text("only")}));
+    const std::vector<std::string> small = render_value(few);
+    CHECK(row_with_text(small, "names  1 item") >= 0); // the noun agrees with the number
+    CHECK(row_with_text(small, "[0]  \"only\"") >= 0);
+    CHECK(row_with_text(small, "more") == -1);
+
+    // AN EMPTY LIST IS AN OBSERVED ZERO.
+    loom::Value none(shape);
+    none.set("names", loom::Cell::list(loom::Cell::Array{}));
+    CHECK(row_with_text(render_value(none), "names  0 items") >= 0);
+}
+
+TEST_CASE("SOURCE-1: depth is bounded and the cut says so") {
+    // A CHAIN DEEPER THAN THE BOUND. Nothing is silently missing: the walk stops and
+    // the line where it stopped names the LIMIT rather than pretending the value ended.
+    std::shared_ptr<const loom::Schema> level =
+        loom::SchemaBuilder("zengine.Leaf", 1).field("value", loom::Kind::Int).build();
+    std::vector<std::shared_ptr<const loom::Schema>> schemas{level};
+    for (int i = 0; i < 8; ++i) {
+        level = loom::SchemaBuilder("zengine.Level" + std::to_string(i), 1)
+                    .message("under", level)
+                    .build();
+        schemas.push_back(level);
+    }
+    loom::Value leaf(schemas[0]);
+    leaf.set("value", loom::Cell::integer(1));
+    loom::Cell held = loom::Cell::message(std::move(leaf));
+    for (std::size_t i = 1; i < schemas.size(); ++i) {
+        loom::Value up(schemas[i]);
+        up.set("under", std::move(held));
+        held = loom::Cell::message(std::move(up));
+    }
+    const std::shared_ptr<loom::Value>& top = held.as_message();
+    REQUIRE(top != nullptr);
+
+    const std::vector<std::string> lines = render_value(*top);
+    CHECK(static_cast<std::int64_t>(lines.size()) <= ws::kSampleMaxDepth + 2);
+    CHECK(row_with_text(lines, ws::kSampleDeeper) >= 0);
+    CHECK(row_with_text(lines, "value") == -1); // the leaf really is not shown
+}
+
+TEST_CASE("SOURCE-1: a very wide value is cut at the line backstop, and marked") {
+    // THE ONLY CUT WHOSE REMAINDER CANNOT BE COUNTED, so it is the only mark that
+    // carries no number -- and it says that in words rather than by stopping quietly.
+    loom::SchemaBuilder wide("zengine.Wide", 1);
+    for (int i = 0; i < 200; ++i) {
+        wide.field("f" + std::to_string(i), loom::Kind::Int);
+    }
+    const std::shared_ptr<const loom::Schema> shape = wide.build();
+    loom::Value v(shape);
+    for (int i = 0; i < 200; ++i) {
+        v.set("f" + std::to_string(i), loom::Cell::integer(i));
+    }
+    const std::vector<std::string> lines = render_value(v);
+    CHECK(lines.size() == ws::kSampleMaxLines + 1);
+    CHECK(lines.back().find(ws::kSampleTooLong) != std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: a message with no fields is an answer, not a silence") {
+    const std::shared_ptr<const loom::Schema> empty =
+        loom::make_schema("zengine.Nothing", 4, std::vector<loom::Field>());
+    const std::vector<std::string> lines = render_value(loom::Value(empty));
+    REQUIRE(lines.size() == 1);
+    // THE SCHEMA IDENTITY IS THE FLOOR OF THE ACCOUNTING: even where a value carries
+    // no field, what it CLAIMS to be is still said.
+    CHECK(lines[0] == "zengine.Nothing v4");
 }
 
 // ---- Tier two: the real library, over a real arrangement and a real catalog --------
@@ -6197,15 +7030,40 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
 
+    // ---- THE OPERATORS VIEW, WHICH IS WHERE THIS HOST'S POWERS ARE (SOURCE-1) ---
+    //
+    // This arrangement mounts no host Sources, so `Sources` is honestly empty and the
+    // maker's first act is to switch. `Tab` does it, through the real key seam: a press
+    // on a row that means nothing points the keyboard here, and then one key.
+    make_taller(r, intro::kPowersPane, 16);
+    focus_pane(r, kind);
+    r.key(input::scan::kTab);
+
     // ---- BASELINE -------------------------------------------------------------
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
-        const std::int64_t at = row_with_text(shown, "  math.max");
+        CHECK(shown[0].find("[Operators]") != std::string::npos);
+        CHECK(shown[0].find("-/2") != std::string::npos); // two operators, none chosen yet
+        CHECK(any_row(shown, "math.max"));
+        CHECK(any_row(shown, "logic.select_int"));
+        CHECK_FALSE(any_row(shown, "shadowed"));
+        CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
+    }
+
+    // A MAKER SELECTS ONE, and the detail says whose contribution satisfies it.
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        const std::int64_t at = row_with_text(shown, "math.max");
         REQUIRE(at >= 0);
-        CHECK(shown[static_cast<std::size_t>(at) + 1] ==
-              "      active    zengine.operators.basic");
+        press_pane(r, kind, at, 1);
+    }
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        const std::int64_t at = row_with_text(shown, "math.max");
+        REQUIRE(at >= 0);
+        CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
+        CHECK(any_row(shown, "active    zengine.operators.basic"));
         CHECK_FALSE(any_row(shown, "shadowed"));
     }
 
@@ -6216,23 +7074,25 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     const op::MountResult covered =
         op::mount_provider(r.catalog, PROVIDER_MIN_SO, op::MountMode::Overlay);
     REQUIRE_MESSAGE(covered.ok, covered.reason);
-    CHECK(pane_rows(r, kind)[0] == "2 powers resolve here -- from 1 provider");
+    CHECK_FALSE(any_row(pane_rows(r, kind), "shadowed"));
 
     r.extent(150, 44);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        CHECK(shown[0] == "2 powers resolve here -- from 2 providers");
-        const std::int64_t at = row_with_text(shown, "  math.max");
+        // THE VIEW, THE SELECTION AND THE CURSOR ALL SURVIVED THE FRESH READING,
+        // because the identity is still in the population it names.
+        CHECK(shown[0].find("[Operators]") != std::string::npos);
+        const std::int64_t at = row_with_text(shown, "math.max");
         REQUIRE(at >= 0);
-        const std::size_t i = static_cast<std::size_t>(at);
-        CHECK(shown[i + 1] == "      active    zengine.operators.test.min");
-        CHECK(shown[i + 2] == "      shadowed  zengine.operators.basic");
-        // AND THE OTHER POWER IS UNTOUCHED, which is what "covers one identity" means.
-        const std::int64_t other = row_with_text(shown, "  logic.select_int");
-        REQUIRE(other >= 0);
-        CHECK(shown[static_cast<std::size_t>(other) + 1] ==
-              "      active    zengine.operators.basic");
+        CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
+        // ...AND THE STACK UNDER IT MOVED, active first.
+        const std::int64_t live = row_with_text(shown, "active    zengine.operators.test.min");
+        const std::int64_t buried = row_with_text(shown, "shadowed  zengine.operators.basic");
+        REQUIRE(live >= 0);
+        REQUIRE(buried >= 0);
+        CHECK(live < buried);
+        CHECK(any_row(shown, "2 powers resolve here -- from 2 providers"));
     }
 
     // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED ----------------------------
@@ -6241,12 +7101,9 @@ TEST_CASE("INTR-1: THE OVERLAY WITNESS, through the pane a maker actually reads"
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
         REQUIRE_FALSE(shown.empty());
-        CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
-        const std::int64_t at = row_with_text(shown, "  math.max");
-        REQUIRE(at >= 0);
-        CHECK(shown[static_cast<std::size_t>(at) + 1] ==
-              "      active    zengine.operators.basic");
+        CHECK(any_row(shown, "active    zengine.operators.basic"));
         CHECK_FALSE(any_row(shown, "shadowed"));
+        CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
     }
     // NOTHING IN THE PANE'S SOURCE MOVED BETWEEN THOSE THREE READINGS.
 }
@@ -6258,10 +7115,11 @@ TEST_CASE("QR-4: the corrected wording reaches a maker's eye WHOLE, off the real
     // it. This host resolves two powers from ONE provider, which is the singular fixture.
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    make_taller(r, intro::kPowersPane, 16);
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
 
-    CHECK(shown[0] == "2 powers resolve here -- from 1 provider");
+    CHECK(any_row(shown, "2 powers resolve here -- from 1 provider"));
     CHECK_FALSE(any_row(shown, "1 providers"));
 
     const std::int64_t bound = row_with_text(shown, intro::kHostResolution);
@@ -6274,49 +7132,82 @@ TEST_CASE("QR-4: the corrected wording reaches a maker's eye WHOLE, off the real
 TEST_CASE("INTR-1: a provider nobody named appears in the pane with no source edit") {
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
+    make_taller(r, intro::kPowersPane, 16);
+    focus_pane(r, kind);
+    r.key(input::scan::kTab); // the Operators view: this host's powers all take arguments
     CHECK_FALSE(any_row(pane_rows(r, kind), "prov.function"));
 
     const op::MountResult added =
         op::mount_provider(r.catalog, PROVIDER_A_SO, op::MountMode::Ordinary);
     REQUIRE_MESSAGE(added.ok, added.reason);
-    make_taller(r, intro::kPowersPane, 16);
+    r.extent(150, 44); // a room grant, which is this tool's one beat
 
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown[0] == "5 powers resolve here -- from 2 providers");
+    CHECK(any_row(shown, "5 powers resolve here -- from 2 providers"));
     for (const char* power : {"prov.function.1", "prov.function.2", "prov.function.3"}) {
         CHECK_MESSAGE(any_row(shown, power), power);
     }
-    CHECK(any_row(shown, "zengine.provider.a"));
     // ...AND THE COMPOSITES SAY SO, off the definitions and with nothing here
     // classifying anything. This is the feature: a power added later is a row.
     CHECK(any_row(shown, "(composite)"));
+
+    // AND THE COMPOSITE-ONLY FILTER IS POINTER-OPERABLE, over the same population.
+    const std::int64_t at = chrome_column(r, kind, "[ ] " + std::string(intro::kCompositeWord));
+    REQUIRE(at >= 0);
+    press_pane(r, kind, 0, at);
+    const std::vector<std::string> filtered = pane_rows(r, kind);
+    CHECK(filtered[0].find("[x] " + std::string(intro::kCompositeWord)) != std::string::npos);
+    CHECK(any_row(filtered, "(composite)"));
+    CHECK_FALSE(any_row(filtered, "math.max"));
+    // ...and the identity of the provider that supplied them is unchanged by any of it.
+    press_pane(r, kind, 0, at);
+    CHECK(any_row(pane_rows(r, kind), "math.max"));
 }
 
-TEST_CASE("INTR-1: the two new panes carry no control, and a press changes nothing") {
+TEST_CASE("SOURCE-1: knowing a power is still not authority to change it") {
+    // ⭐ INTR-1'S LAW, RE-ASKED OF A PANE THAT NOW HAS CONTROLS. `Powers` gained view
+    // switching, selection, search and one explicit sample; it gained NO way to mount,
+    // unmount, overlay, replace, reload, disable or activate anything, and pressing
+    // every place in it -- controls included -- proves it against the live catalog
+    // rather than against the row text.
     PaneRig r;
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
-    const std::vector<std::string> before = pane_rows(r, kind);
+    make_taller(r, intro::kPowersPane, 16);
     const std::vector<std::string> providers_before = r.catalog.providers();
     const std::vector<std::string> identities_before = r.catalog.identities();
     const std::size_t panels_before = r.session().panels.open.size();
+    const std::uint64_t ran_before = op::invocations();
 
-    // KNOWLEDGE DOES NOT GRANT MUTATION. Every prose row of the pane is pressed --
-    // including the one naming a provider -- and nothing mounts, unmounts, loads,
-    // unloads, opens or closes.
-    const ui::Rect body = external_body_rect(r.session(), kind);
-    for (std::int64_t row = 0; row < static_cast<std::int64_t>(before.size()); ++row) {
-        r.press_cell(body.x + 1, body.y + kExternalHeaderRows + row);
+    for (std::int64_t pass = 0; pass < 2; ++pass) {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        for (std::int64_t row = 0; row < static_cast<std::int64_t>(shown.size()); ++row) {
+            for (std::int64_t column = 0; column < 40; column += 3) {
+                press_pane(r, kind, row, column);
+            }
+        }
     }
     CHECK(r.catalog.providers() == providers_before);
     CHECK(r.catalog.identities() == identities_before);
-    CHECK(pane_rows(r, kind) == before);
     CHECK(r.session().panels.open.size() == panels_before);
     CHECK(r.load_refusals.empty());
-    // AND NO ROW OF EITHER PANE OFFERS ONE.
-    for (const std::string& row : before) {
-        for (const char* verb : {"unmount", "replace", "reload", "disable", "activate",
-                                 "[x]", "(x)"}) {
+    // ⭐ AND NOT ONE EVALUATOR RAN. Every control in this pane except `[ Sample ]` is a
+    // presentation decision, and `[ Sample ]` needs a selected SOURCE -- which this
+    // arrangement, whose powers all take arguments, does not have.
+    CHECK(op::invocations() == ran_before);
+
+    // AND NO ROW OF THE PROJECT PANE OFFERS A CONTROL EITHER -- it is unchanged.
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
+    const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
+    const std::vector<std::string> rows = pane_rows(r, project);
+    for (std::int64_t row = 0; row < static_cast<std::int64_t>(rows.size()); ++row) {
+        press_pane(r, project, row, 1);
+    }
+    CHECK(pane_rows(r, project) == rows);
+    for (const std::string& row : rows) {
+        for (const char* verb :
+             {"unmount", "replace", "reload", "disable", "activate", "[x]", "(x)"}) {
             CHECK(row.find(verb) == std::string::npos);
         }
     }
@@ -6389,7 +7280,10 @@ TEST_CASE("INTR-1: all three panes may be open at once, each answering its own r
     REQUIRE_FALSE(powers.empty());
     CHECK(loaded[0].rfind("loaded weaves -- ", 0) == 0);
     CHECK(project[0].find("artifacts resolved") != std::string::npos);
-    CHECK(powers[0].find("powers resolve here") != std::string::npos);
+    // ...and the third one's first row is its chrome, which is the pane saying which
+    // of its two questions it is currently answering (SOURCE-1).
+    CHECK(powers[0].find(intro::kSourcesWord) != std::string::npos);
+    CHECK(powers[0].find(intro::kOperatorsWord) != std::string::npos);
     // ...and each stayed inside the room it was granted.
     for (const char* pane : {kIntroPane, intro::kArrangementPane, intro::kPowersPane}) {
         const std::int64_t kind = intro_row(r, pane)->kind;
@@ -6425,15 +7319,16 @@ TEST_CASE("INTR-1: the graphical medium grants a different room and both panes s
     const std::vector<std::string> in_pixels = pane_rows(r, kind);
     REQUIRE_FALSE(in_pixels.empty());
     // THE SAME TRUTH IN BOTH, which is the honesty claim: two projections of one fact.
-    CHECK(in_cells[0] == in_pixels[0]);
-    CHECK(in_pixels[0] == "2 powers resolve here -- from 1 provider");
-    // ...AND THE COUNT IS THE POPULATION'S IN BOTH, whatever the room could fit: a
-    // graphical row is taller than a cell, so this projection windows where the cell one
-    // did not -- and every power it could not name is counted on its own row.
-    CHECK(any_row(in_pixels, intro::kHostResolution));
-    if (!any_row(in_pixels, "zengine.operators.basic")) {
-        CHECK(any_row(in_pixels, "more"));
-    }
+    // The chrome row is composed to the width it was GIVEN, so the two are not
+    // byte-identical -- what is identical is what they say: which view, and where in it.
+    CHECK(in_cells[0].find("[Sources]") != std::string::npos);
+    CHECK(in_pixels[0].find("[Sources]") != std::string::npos);
+    CHECK(in_cells[0].find("-/0") != std::string::npos);
+    CHECK(in_pixels[0].find("-/0") != std::string::npos);
+    // ...AND THIS ARRANGEMENT HONESTLY HAS NO SOURCES, in both media, said in words
+    // rather than left as an empty strip.
+    CHECK(any_row(in_cells, intro::kNoSourcesHere));
+    CHECK(any_row(in_pixels, intro::kNoSourcesHere));
     // ...AND THE VIEW ANSWERED THE NEW ROOM rather than the old one. Workshop clears its
     // cache before every grant, so a projection that had not moved would read as
     // `waiting` here instead.
@@ -6570,6 +7465,720 @@ TEST_CASE("INTR-1: neither projection names a power, a provider or an artifact")
         }
     }
 }
+// ============================================================================
+// SOURCE-1 — the live seam: browsing runs nothing, sampling runs exactly one
+// ============================================================================
+//
+// Everything below drives the REAL `zengine-introspection` library, loaded through the
+// real Kernel and Manager, against a real `op::Catalog` holding the host's own two
+// Sources and a real cross-image provider -- because the claims are about a call graph
+// and a message path, and a rig that could reach the evaluator by hand would prove
+// nothing about either.
+//
+// THE TWO INSTRUMENTS, AND WHY BOTH ARE NEEDED:
+//
+//     op::invocations()      the HOST image's native-body counter. It sees the two
+//                            host Sources and every operator this executable compiled.
+//     prov.source.spends     a Source in ANOTHER image, whose body counts its own
+//                            spends and answers 1, then 2, then 3. `op::invocations()`
+//                            is a vague-linkage static and is BLIND to it, so this is
+//                            the only instrument that can tell an evaluation from a
+//                            cached answer across the provider ABI -- and it is the one
+//                            that makes "no memoization" a measurement instead of a
+//                            promise, because a memo would answer 1 twice.
+
+namespace {
+
+/// The office a second tool would ask the sample door from -- what makes "an office
+/// may ask; anonymous speech may not" a claim a case can put either way.
+constexpr const char* kAskerOffice = "zengine.test.sampler";
+
+struct SampleBook {
+    std::string identity;
+    bool anonymously = false; ///< speak personally instead of as the office
+    std::vector<SourceSampled> heard;
+    std::int64_t refusals = 0;
+};
+
+class SampleAsker : public loom::WeaveBase<SampleAsker, SeenState,
+                                           loom::Accept<SeatDo, SourceSampled, loom::Refused>,
+                                           loom::Emit<SampleRequested>> {
+public:
+    explicit SampleAsker(SampleBook& book) : book_(&book) {}
+
+    void on(const SeatDo&, loom::Mail& mail) {
+        const SampleRequested ask{book_->identity};
+        if (book_->anonymously) {
+            (void)mail.send_to_role(kSampleRole, ask, ++asked_);
+            return;
+        }
+        (void)mail.as_role(kAskerOffice).send_to_role(kSampleRole, ask, ++asked_);
+    }
+    void on(const SourceSampled& said, loom::Mail&) { book_->heard.push_back(said); }
+    void on(const loom::Refused&, loom::Mail&) { ++book_->refusals; }
+
+private:
+    SampleBook* book_;
+    std::uint64_t asked_ = 0;
+};
+
+/// Ask the sample door directly, once, for one identity.
+loom::WeaveId seat_asker(PaneRig& r, SampleBook& book) {
+    auto weave = std::make_unique<SampleAsker>(book);
+    SampleAsker* raw = weave.get();
+    loom::Grant may;
+    may.allow_to_role(SampleRequested::zen_name, SampleRequested::zen_version, kSampleRole);
+    const loom::WeaveId id =
+        r.bus.register_weave(std::move(weave), std::move(may), std::string(kAskerOffice));
+    raw->zen_set_self(id);
+    return id;
+}
+
+void ask_for(PaneRig& r, loom::WeaveId asker, SampleBook& book, std::string identity) {
+    book.identity = std::move(identity);
+    (void)r.bus.send(asker,
+                     loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+}
+
+/// WHAT `prov.source.spends` ANSWERS -- and asking is what makes it move, so a caller
+/// has to mean it. The number is process-cumulative (the body's counter lives in the
+/// provider's image and survives an unmount), so every case below compares DELTAS.
+std::int64_t spend_count(op::Catalog& catalog) {
+    const op::Evaluation done = op::sample(catalog, "prov.source.spends");
+    REQUIRE_MESSAGE(done.ok(), done.reason());
+    const loom::Cell* count = done.value().at(0);
+    REQUIRE(count != nullptr);
+    return count->as_int();
+}
+
+/// The count a rendered sample row on the pane is showing, or -1.
+std::int64_t shown_count(const std::vector<std::string>& rows) {
+    for (const std::string& row : rows) {
+        const std::size_t at = row.find("count  ");
+        if (at != std::string::npos) {
+            return std::stoll(row.substr(at + 7));
+        }
+    }
+    return -1;
+}
+
+/// The row of the Powers pane naming an identity, or -1.
+std::int64_t powers_row(PaneRig& r, std::int64_t kind, const std::string& identity) {
+    return row_with_text(pane_rows(r, kind), identity);
+}
+
+/// Select a power the way a maker does: press the row that names it.
+void select_power(PaneRig& r, std::int64_t kind, const std::string& identity) {
+    const std::int64_t at = powers_row(r, kind, identity);
+    REQUIRE_MESSAGE(at >= 0, identity);
+    press_pane(r, kind, at, 1);
+}
+
+} // namespace
+
+TEST_CASE("SOURCE-1: browsing the catalog runs no evaluator at all") {
+    // ⭐ THE TRIPWIRE THE WHOLE PHASE RESTS ON. Every browsing act a maker has -- a
+    // fresh reading, view switching, selection, search, filtering, navigation, the
+    // detail block and a repaint -- is performed against a catalog holding two host
+    // Sources and a cross-image one, and NOTHING RUNS.
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+
+    // BOTH BASELINES ARE TAKEN AFTER THE FIRST DELIBERATE SAMPLE, because that sample
+    // is itself an evaluation and `Catalog::run` counts it in this image whichever
+    // image the BODY happens to live in.
+    const std::int64_t spent_before = spend_count(r.catalog);
+    const std::uint64_t ran_before = op::invocations();
+    focus_pane(r, kind);
+
+    // A FRESH READING, twice.
+    r.extent(150, 44);
+    r.extent(160, 48);
+    // THE DERIVATION, both ways.
+    r.key(input::scan::kTab);
+    r.key(input::scan::kTab);
+    // NAVIGATION.
+    for (int i = 0; i < 6; ++i) {
+        r.key(input::scan::kDown);
+    }
+    r.key(input::scan::kUp);
+    // THE DETAIL BLOCK -- which is where a lazy implementation would have sampled to
+    // find out what a Source yields.
+    CHECK(any_row(pane_rows(r, kind), "yields"));
+    // SEARCH, one character at a time.
+    r.text("s");
+    r.text("p");
+    r.text("e");
+    // THE COMPOSITE FILTER.
+    const std::int64_t at = chrome_column(r, kind, "[ ] " + std::string(intro::kCompositeWord));
+    if (at >= 0) {
+        press_pane(r, kind, 0, at);
+        press_pane(r, kind, 0, at);
+    }
+    // AND A REPAINT.
+    r.extent(160, 48);
+
+    CHECK(op::invocations() == ran_before);
+    // ...AND THE CROSS-IMAGE SOURCE, WHOSE OWN COUNTER THE HOST'S CANNOT SEE, has not
+    // run either. Its body counts its own spends, so two deliberate samples that
+    // differ by exactly one prove that everything BETWEEN them ran it zero times.
+    CHECK(spend_count(r.catalog) == spent_before + 1);
+}
+
+TEST_CASE("SOURCE-1: the pane's own image cannot evaluate, and that is structural") {
+    // THE OTHER HALF OF THE SAME CLAIM, and the stronger one. `zengine-introspection`
+    // links no operator target: there is no `op::Catalog`, no `OperatorDef`, no
+    // callable and no `evaluate` in that image to reach, so "browsing does not
+    // evaluate" is a fact about the build graph rather than a discipline anybody keeps.
+    // READ AS INCLUDES AND LINK LINES, NEVER AS PROSE. Both files EXPLAIN at length
+    // what they refuse to reach, so a tripwire on bare identifiers would fire on the
+    // paragraph that promises the property -- INTR-1's own tripwire makes exactly this
+    // distinction. What is checked here is what the compiler acts on.
+    for (const char* file : {INTROSPECTION_CPP, INTROSPECTION_POWERS_HPP}) {
+        const std::string source = file_source(file);
+        for (const char* forbidden : {"#include \"operator/", "#include <operator/",
+                                      "#include \"workshop/host_sources"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, file, " ", forbidden);
+        }
+    }
+    // AND THE LINK LINE AGREES: this package names no operator target, so those symbols
+    // are not merely unused -- they are not in the image.
+    const std::string edges = file_source(INTROSPECTION_CMAKE);
+    CHECK(edges.find("zengine-operator") == std::string::npos);
+    CHECK(edges.find("zengine-workshop-load") == std::string::npos);
+    // ...and the one host header it DOES read is a wire vocabulary and nothing else.
+    const std::string weave = file_source(INTROSPECTION_CPP);
+    CHECK(weave.find("#include \"workshop/sample_vocabulary.hpp\"") != std::string::npos);
+    // AND THE ONE THING THAT DOES LEAVE IS A MESSAGE CARRYING AN IDENTITY.
+    CHECK(weave.find("SampleRequested") != std::string::npos);
+    const std::shared_ptr<const loom::Schema> ask = loom::schema_of<SampleRequested>();
+    REQUIRE(ask != nullptr);
+    REQUIRE(ask->fields().size() == 1);
+    CHECK(ask->fields()[0].name == "identity");
+    CHECK(ask->fields()[0].type.kind == loom::Kind::Text);
+}
+
+TEST_CASE("SOURCE-1: an explicit sample is exactly one evaluation, and there is no memo") {
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    select_power(r, kind, kProjectAnchorSource);
+
+    // ---- RETURN: ONE GESTURE, ONE EVALUATION ---------------------------------
+    const std::uint64_t before = op::invocations();
+    r.key(input::scan::kReturn);
+    CHECK(op::invocations() == before + 1);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(any_row(shown, intro::kSampledWhenAsked));
+        CHECK(any_row(shown, "zengine.ProjectAnchor v1"));
+        CHECK(any_row(shown, "anchor  \"/zen/pane-rig\""));
+    }
+
+    // ---- AGAIN: TWO GESTURES, TWO EVALUATIONS --------------------------------
+    r.key(input::scan::kReturn);
+    CHECK(op::invocations() == before + 2);
+
+    // ⭐ AND THE OWNER MOVED BETWEEN THEM, WHICH IS WHAT A COUNTER ALONE CANNOT PROVE.
+    // A memoised sample would still be showing the launch anchor; this one reads the
+    // live owner at the spend, so the answer moves with it.
+    r.project_anchor = "/zen/moved-since";
+    r.key(input::scan::kReturn);
+    CHECK(op::invocations() == before + 3);
+    CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/moved-since\""));
+
+    // ---- AND THE POINTER CONTROL REACHES THE SAME ONE PATH --------------------
+    const std::int64_t control = row_with_text(pane_rows(r, kind), intro::kSampleControl);
+    REQUIRE(control >= 0);
+    r.project_anchor = "/zen/by-hand";
+    press_pane(r, kind, control, 3);
+    CHECK(op::invocations() == before + 4);
+    CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/by-hand\""));
+
+    // ...AND NOTHING ELSE IN THE PANE DOES. Pressing the row that names the Source
+    // selects it and runs nothing, which is what keeps one press one act.
+    const std::uint64_t settled = op::invocations();
+    select_power(r, kind, kRecipeCatalogSource);
+    select_power(r, kind, kProjectAnchorSource);
+    CHECK(op::invocations() == settled);
+}
+
+TEST_CASE("SOURCE-1: in the Operators view Return invokes nothing") {
+    // ⭐ THERE IS NO OPERATOR-INVOCATION SURFACE TO GROW ONE FROM. The gesture is bound
+    // to nothing at all: no control is drawn, no identity is spent, and no ask is sent
+    // -- so `op::sample`'s own refusal is never even reached, and the pane does not
+    // have to hold a second copy of it.
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    r.key(input::scan::kTab);
+
+    std::vector<std::string> asks;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.schema_name == "SampleRequested") {
+            asks.push_back(e.schema_name);
+        }
+    });
+    select_power(r, kind, "math.max");
+    const std::uint64_t before = op::invocations();
+    r.key(input::scan::kReturn);
+    r.key(input::scan::kReturn);
+    r.bus.remove_observer(tap);
+
+    CHECK(asks.empty());
+    CHECK(op::invocations() == before);
+    CHECK_FALSE(any_row(pane_rows(r, kind), intro::kSampleControl));
+    CHECK_FALSE(any_row(pane_rows(r, kind), intro::kSampledWhenAsked));
+}
+
+TEST_CASE("SOURCE-1: the sample crosses one narrow office, and the arrangement door stays narrow") {
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    select_power(r, kind, kProjectAnchorSource);
+
+    std::vector<std::string> wire;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.schema_name == "SampleRequested" || e.schema_name == "SourceSampled" ||
+            e.schema_name == "PowersRequested" || e.schema_name == "ResolvedPowers") {
+            wire.push_back(e.schema_name);
+        }
+    });
+    r.key(input::scan::kReturn);
+    r.bus.remove_observer(tap);
+
+    // ⭐ EXACTLY TWO SENTENCES, AND NEITHER IS THE OBSERVATION DOOR'S. A sample does
+    // not re-read the catalog projection and the projection does not sample.
+    REQUIRE(wire.size() == 2);
+    CHECK(wire[0] == "SampleRequested");
+    CHECK(wire[1] == "SourceSampled");
+
+    // THE ARRANGEMENT DOOR IS UNCHANGED IN SEMANTIC AUTHORITY: two shapes, and neither
+    // of them can cause an evaluation.
+    const std::string door = file_source(WORKSHOP_ARRANGEMENT_HPP);
+    CHECK(door.find("op::sample") == std::string::npos);
+    CHECK(door.find("SampleRequested") == std::string::npos);
+    CHECK(door.find("SourceSampled") == std::string::npos);
+    CHECK(door.find("overlay, evaluate, load, unload, reload or replace anything") !=
+          std::string::npos);
+
+    // AND THE SAMPLE DOOR RETAINS NO PROVIDER, DEFINITION, CALLABLE OR ANSWER.
+    const std::string sampler = file_source(WORKSHOP_SAMPLE_DOOR_HPP);
+    for (const char* forbidden : {"std::map<", "std::unordered_map<", "std::vector<", "cache_",
+                                  "last_", "memo_", "static ", "mutable "}) {
+        CHECK_MESSAGE(sampler.find(forbidden) == std::string::npos, forbidden);
+    }
+    // ITS ONE MEMBER IS A POINTER TO SOMEBODY ELSE'S CATALOG, and there is no second.
+    CHECK(sampler.find("const op::Catalog* catalog_;") != std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: an office may ask the sample door; anonymous speech may not") {
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    (void)kind;
+    SampleBook book;
+    const loom::WeaveId asker = seat_asker(r, book);
+
+    // AN OFFICE ASKS AND IS ANSWERED. The rule names nobody -- there is no allow-list
+    // and no `zengine.introspection` anywhere in the door -- so a tool added tomorrow
+    // asks with no edit there.
+    const std::uint64_t before = op::invocations();
+    ask_for(r, asker, book, kProjectAnchorSource);
+    REQUIRE(book.heard.size() == 1);
+    CHECK(book.heard[0].ok);
+    CHECK(book.heard[0].identity == kProjectAnchorSource);
+    CHECK(op::invocations() == before + 1);
+
+    // ⭐ PERSONAL SPEECH CAUSES NOTHING. Not because the door knows who this is, but
+    // because it will not run a body for a sentence with nobody to be answerable to.
+    book.anonymously = true;
+    ask_for(r, asker, book, kProjectAnchorSource);
+    CHECK(book.heard.size() == 1);
+    CHECK(op::invocations() == before + 1);
+}
+
+TEST_CASE("SOURCE-1: the door quotes the refusal of whoever owns it, and invents none") {
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+    (void)kind;
+    SampleBook book;
+    const loom::WeaveId asker = seat_asker(r, book);
+
+    // A PARAMETERIZED OPERATOR: the Source seam's own sentence, verbatim, naming the
+    // ports sampling supplies none of.
+    ask_for(r, asker, book, "prov.source.doubled");
+    REQUIRE(book.heard.size() == 1);
+    CHECK_FALSE(book.heard[0].ok);
+    CHECK(book.heard[0].lines.empty());
+    CHECK(book.heard[0].reason.find("is an operator and not a source") != std::string::npos);
+    CHECK(book.heard[0].reason.find("(value)") != std::string::npos);
+    CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.doubled").reason());
+
+    // AN IDENTITY NOBODY SUPPLIES: the CATALOG's own sentence, reached by resolving
+    // again rather than by re-wording it anywhere.
+    ask_for(r, asker, book, "nothing.supplies.this");
+    REQUIRE(book.heard.size() == 2);
+    CHECK_FALSE(book.heard[1].ok);
+    CHECK(book.heard[1].reason == op::sample(r.catalog, "nothing.supplies.this").reason());
+    CHECK_FALSE(book.heard[1].reason.empty());
+
+    // AND A SOURCE THAT DISAPPEARED BETWEEN DISPLAY AND SPEND GETS THAT SAME SENTENCE,
+    // because the door resolves at the spend and never before it.
+    ask_for(r, asker, book, "prov.source.spends");
+    REQUIRE(book.heard.size() == 3);
+    CHECK(book.heard[2].ok);
+    REQUIRE(r.catalog.unmount("zengine.provider.source"));
+    ask_for(r, asker, book, "prov.source.spends");
+    REQUIRE(book.heard.size() == 4);
+    CHECK_FALSE(book.heard[3].ok);
+    CHECK(book.heard[3].reason == op::sample(r.catalog, "prov.source.spends").reason());
+}
+
+TEST_CASE("SOURCE-1: a cross-image Source proves the sample is an evaluation, not a lookup") {
+    // ⭐ THE INSTRUMENT THE HOST'S COUNTER CANNOT BE. `op::invocations()` is a
+    // vague-linkage static, so a body running inside the provider's own image is
+    // invisible to it. This Source counts its own spends and answers 1, then 2, then 3
+    // -- so a memoised sample, a cached answer or a re-shown retained value would all
+    // read as a repeated number.
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    select_power(r, kind, "prov.source.spends");
+
+    std::vector<std::int64_t> answers;
+    for (int i = 0; i < 3; ++i) {
+        r.key(input::scan::kReturn);
+        answers.push_back(shown_count(pane_rows(r, kind)));
+    }
+    REQUIRE(answers.size() == 3);
+    CHECK(answers[0] > 0);
+    CHECK(answers[1] == answers[0] + 1);
+    CHECK(answers[2] == answers[1] + 1);
+
+    // AND REPAINTING BETWEEN TWO SAMPLES CHANGES NOTHING, which is what says the
+    // retained answer is presentation rather than a subscription: a pane that re-asked
+    // on every grant would show a rising number with nobody having gestured.
+    r.extent(150, 44);
+    CHECK(shown_count(pane_rows(r, kind)) == answers[2]);
+    r.extent(160, 48);
+    CHECK(shown_count(pane_rows(r, kind)) == answers[2]);
+}
+
+TEST_CASE("SOURCE-1: a retained sample is history, and an unload does not erase it") {
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+    select_power(r, kind, "prov.source.spends");
+    r.key(input::scan::kReturn);
+    const std::int64_t answered = shown_count(pane_rows(r, kind));
+    REQUIRE(answered > 0);
+
+    // ---- THE PROVIDER GOES AWAY, AND THE ANSWER DOES NOT ----------------------
+    //
+    // ⭐ The sample was true when it was given. A later reading of the catalog is a
+    // fact about the CATALOG, and erasing a maker's answer because the population
+    // moved would be reinterpreting history from a fact that is not about it.
+    REQUIRE(r.catalog.unmount("zengine.provider.source"));
+    r.extent(150, 44); // a fresh reading, which is this tool's one beat
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK_FALSE(any_row(shown, "> prov.source.spends"));  // gone from the list
+        CHECK(any_row(shown, intro::kSampledWhenAsked));       // and still on the pane
+        CHECK(shown_count(shown) == answered);
+        CHECK(any_row(shown, "prov.source.spends"));           // ...labelled with whose it was
+    }
+
+    // ---- AND A RE-SAMPLE SHOWS THE CURRENT REFUSAL ---------------------------
+    //
+    // The maker asks again, and what they get is the catalog's own sentence about the
+    // identity NOW -- not the old answer, and not a second wording of the refusal.
+    SampleBook book;
+    const loom::WeaveId asker = seat_asker(r, book);
+    ask_for(r, asker, book, "prov.source.spends");
+    REQUIRE(book.heard.size() == 1);
+    CHECK_FALSE(book.heard[0].ok);
+    CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
+}
+
+TEST_CASE("SOURCE-1: the query is typed, edited, copied and pasted through the shipped seams") {
+    PaneRig r;
+    SkinSeat* skin = r.mount_skin_seat(); // the medium that owns the platform clipboard
+    REQUIRE(skin != nullptr);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    focus_pane(r, kind);
+
+    // TYPED TEXT IS THE QUERY. There is one editable field, so a printable character
+    // has exactly one place it could go and no gesture activates it.
+    r.text("rec");
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(shown[0].find("find:rec") != std::string::npos);
+        CHECK(any_row(shown, kRecipeCatalogSource));
+        CHECK_FALSE(any_row(shown, kProjectAnchorSource));
+        CHECK(shown[0].find("/1") != std::string::npos); // the filtered population
+    }
+
+    // ORDINARY EDITING, through `TextBox::consume` -- the component the Composer already
+    // ships, not a fifth copy of an editing switch.
+    r.key(input::scan::kBackspace);
+    CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
+
+    // ⭐ AND A NON-ADMISSIBLE CHUNK IS REFUSED WHOLE. The row contract is printable
+    // ASCII; a maker who typed `naive` with a diaeresis gets NONE of it rather than a
+    // mangled half, and the pane keeps speaking rather than losing a whole update.
+    r.text("na\xC3\xAFve");
+    CHECK(pane_rows(r, kind)[0].find("find:re") != std::string::npos);
+    CHECK(pane_rows(r, kind)[0].find("na") == std::string::npos);
+
+    // THE CLIPBOARD CONVERSATION, both directions.
+    r.key(input::scan::kA, input::mod::kCtrl);
+    r.key(input::scan::kC, input::mod::kCtrl);
+    // THE COPY REACHED THE MEDIUM THAT OWNS THE PLATFORM CLIPBOARD, which is the only
+    // place a copy can honestly be said to have landed.
+    CHECK(skin->platform == "re");
+
+    // AND A PASTE IS A READ PERFORMED BECAUSE THE MAKER ASKED (QR-11): the Skin is
+    // asked once, at the paste, and is never watched.
+    const int reads_before = skin->clipboard_reads;
+    r.key(input::scan::kEnd);
+    r.key(input::scan::kV, input::mod::kCtrl);
+    CHECK(skin->clipboard_reads == reads_before + 1);
+    CHECK(pane_rows(r, kind)[0].find("find:rere") != std::string::npos);
+}
+
+TEST_CASE("SOURCE-1: keys routed to another pane cannot move the Powers pane") {
+    // ⭐ WORKSHOP POINTS THE KEYBOARD AT THE PANE A MAKER LAST PRESSED INTO, and this
+    // office offers three. A key meant for `loaded` or `arrangement` must not edit the
+    // Powers query, switch its view or move its cursor -- and the guard is the first
+    // line of every arm rather than a convention.
+    PaneRig r;
+    const std::int64_t powers = open_powers(r);
+    // A SECOND PANE FROM THE SAME OFFICE, which is the sharpest form of the question:
+    // one weave, two panes, and only one of them may be typed into. It is opened BEFORE
+    // anything holds the keyboard, because `p` typed into a focused pane is a `p`
+    // (MSG-0) and would not open the picker at all.
+    r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
+    const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
+
+    focus_pane(r, powers);
+    REQUIRE(keyboard_pane(r.session().panels) == powers);
+    r.text("rec");
+    const std::vector<std::string> mine = pane_rows(r, powers);
+    REQUIRE(mine[0].find("find:rec") != std::string::npos);
+
+    press_pane(r, project, 1, 1);
+    REQUIRE(keyboard_pane(r.session().panels) == project); // the keyboard really moved
+
+    r.text("ZZZ");
+    r.key(input::scan::kTab);
+    r.key(input::scan::kDown);
+    r.key(input::scan::kReturn);
+
+    const std::vector<std::string> after = pane_rows(r, powers);
+    CHECK(after[0].find("find:rec") != std::string::npos);
+    CHECK(after[0].find("ZZZ") == std::string::npos);
+    CHECK(after[0].find("[Sources]") != std::string::npos);
+    CHECK_FALSE(any_row(after, intro::kSampledWhenAsked));
+}
+
+TEST_CASE("SOURCE-1: a cold pane's first press is exactly one act") {
+    // ⭐ THE PRESS THAT POINTS THE KEYBOARD AT A PANE IS AN ORDINARY PRESS, and the
+    // provider cannot even tell it apart. So the protection has to be that no target
+    // in this pane means two things -- which is asserted here through the live seam:
+    // the very first press a maker ever makes selects, and runs nothing.
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 18);
+    const std::uint64_t before = op::invocations();
+    const std::int64_t at = powers_row(r, kind, kProjectAnchorSource);
+    REQUIRE(at >= 0);
+
+    press_pane(r, kind, at, 1); // the FIRST press into this pane, ever
+    CHECK(op::invocations() == before);
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
+    CHECK_FALSE(any_row(shown, intro::kSampledWhenAsked));
+
+    // AND A PRESS BEFORE THE PANE HAS ANY PROJECTION AT ALL NAMES NOTHING -- the gap
+    // between a room grant and its answer, in which Workshop shows `(waiting for the
+    // provider)` and this pane holds no map to read a press against.
+    PaneRig cold;
+    cold.expose_host_sources();
+    cold.mount_workshop();
+    const load::Executed done = cold.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    cold.ready(); // NO arrangement door: the pane is granted room and never answered
+    cold.extent(160, 48);
+    REQUIRE(intro_row(cold, intro::kPowersPane) != nullptr);
+    cold.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    const std::int64_t waiting = intro_row(cold, intro::kPowersPane)->kind;
+    for (std::int64_t row = 0; row < 6; ++row) {
+        press_pane(cold, waiting, row, 0);
+    }
+    const ExternalPane* pane = cold.session().panels.external_pane(waiting);
+    REQUIRE(pane != nullptr);
+    CHECK(pane->awaiting);
+    CHECK(pane->shown.empty());
+}
+
+TEST_CASE("SOURCE-1: THE LIVE MAKER WITNESS, end to end through the real pane") {
+    // ⭐ THE WHOLE CAPABILITY, AS ONE SESSION. A maker opens Powers, meets the Sources
+    // view, navigates, searches, switches to Operators, works there, comes back and
+    // finds their place, filters by construction, samples a Source, sees an honest
+    // answer, moves the world, samples again, and reads the difference.
+    PaneRig r;
+    const op::MountResult sourced =
+        op::mount_provider(r.catalog, PROVIDER_SOURCE_SO, op::MountMode::Ordinary);
+    REQUIRE_MESSAGE(sourced.ok, sourced.reason);
+    const std::int64_t kind = open_powers(r);
+    make_taller(r, intro::kPowersPane, 20);
+
+    // 1-2. OPEN POWERS, AND MEET THE SOURCES VIEW.
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE_FALSE(shown.empty());
+        CHECK(shown[0].find("[Sources]") != std::string::npos);
+        CHECK(any_row(shown, kProjectAnchorSource));
+        CHECK(any_row(shown, kRecipeCatalogSource));
+        CHECK(any_row(shown, "prov.source.spends"));
+        CHECK(shown[0].find("-/3") != std::string::npos);
+    }
+
+    // 3. NAVIGATE, and watch the position marker follow.
+    focus_pane(r, kind);
+    r.key(input::scan::kDown);
+    CHECK(pane_rows(r, kind)[0].find("1/3") != std::string::npos);
+    r.key(input::scan::kDown);
+    r.key(input::scan::kDown);
+    CHECK(pane_rows(r, kind)[0].find("3/3") != std::string::npos);
+    r.key(input::scan::kUp);
+    CHECK(pane_rows(r, kind)[0].find("2/3") != std::string::npos);
+
+    // 4. SEARCH.
+    r.text("anchor");
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(shown[0].find("find:anchor") != std::string::npos);
+        CHECK(any_row(shown, kProjectAnchorSource));
+        CHECK_FALSE(any_row(shown, "prov.source.spends"));
+    }
+    select_power(r, kind, kProjectAnchorSource);
+    for (int i = 0; i < 6; ++i) {
+        r.key(input::scan::kBackspace);
+    }
+
+    // 5-6. SWITCH TO OPERATORS AND WORK THERE INDEPENDENTLY.
+    r.key(input::scan::kTab);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(shown[0].find("[Operators]") != std::string::npos);
+        CHECK(any_row(shown, "math.max"));
+        CHECK_FALSE(any_row(shown, kProjectAnchorSource));
+    }
+    r.text("select");
+    select_power(r, kind, "logic.select_int");
+    CHECK(pane_rows(r, kind)[0].find("1/1") != std::string::npos);
+    for (int i = 0; i < 6; ++i) {
+        r.key(input::scan::kBackspace);
+    }
+
+    // 7. SWITCH BACK, AND THE SOURCE IDENTITY IS STILL THE MAKER'S PLACE.
+    r.key(input::scan::kTab);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(shown[0].find("[Sources]") != std::string::npos);
+        const std::int64_t at = row_with_text(shown, kProjectAnchorSource);
+        REQUIRE(at >= 0);
+        CHECK(shown[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) == 0);
+    }
+    // ...and the Operators view kept its own, independently.
+    r.key(input::scan::kTab);
+    {
+        const std::int64_t at = row_with_text(pane_rows(r, kind), "logic.select_int");
+        REQUIRE(at >= 0);
+        CHECK(pane_rows(r, kind)[static_cast<std::size_t>(at)].rfind(intro::kSelectedMark, 0) ==
+              0);
+    }
+    r.key(input::scan::kTab);
+
+    // 8. TOGGLE COMPOSITE-ONLY against a catalog with none, and back.
+    const std::int64_t control =
+        chrome_column(r, kind, "[ ] " + std::string(intro::kCompositeWord));
+    REQUIRE(control >= 0);
+    press_pane(r, kind, 0, control);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(shown[0].find("[x] " + std::string(intro::kCompositeWord)) != std::string::npos);
+        CHECK(any_row(shown, "3 sources here"));
+        CHECK(any_row(shown, "hidden by the current filter"));
+    }
+    press_pane(r, kind, 0, control);
+
+    // 9-11. SELECT THE ANCHOR AND SAMPLE IT, and read an honest rendered answer.
+    select_power(r, kind, kProjectAnchorSource);
+    const std::uint64_t before = op::invocations();
+    r.key(input::scan::kReturn);
+    CHECK(op::invocations() == before + 1);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK(any_row(shown, intro::kSampledWhenAsked));
+        CHECK(any_row(shown, kProjectAnchorSource));
+        CHECK(any_row(shown, "zengine.ProjectAnchor v1"));
+        CHECK(any_row(shown, "anchor  \"/zen/pane-rig\""));
+    }
+
+    // 12-13. MOVE THE WORLD AND SAMPLE AGAIN. The retained answer did NOT follow the
+    // owner on its own -- it is historical presentation -- and the new one did.
+    r.project_anchor = "/zen/somewhere-else";
+    CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // still the old one
+    r.extent(150, 44);
+    CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // a repaint is not a re-ask
+    r.key(input::scan::kReturn);
+    CHECK(op::invocations() == before + 2);
+    CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/somewhere-else\""));
+
+    // 14-16. UNLOAD A SAMPLED FIXTURE SOURCE, KEEP THE HISTORY, AND RE-SAMPLE.
+    select_power(r, kind, "prov.source.spends");
+    r.key(input::scan::kReturn);
+    const std::int64_t said = shown_count(pane_rows(r, kind));
+    CHECK(said > 0);
+    REQUIRE(r.catalog.unmount("zengine.provider.source"));
+    r.extent(160, 48);
+    {
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        CHECK_FALSE(any_row(shown, "> prov.source.spends"));
+        CHECK(shown_count(shown) == said); // the answer that was true when it was asked
+    }
+    SampleBook book;
+    const loom::WeaveId asker = seat_asker(r, book);
+    ask_for(r, asker, book, "prov.source.spends");
+    REQUIRE(book.heard.size() == 1);
+    CHECK_FALSE(book.heard[0].ok);
+    CHECK(book.heard[0].reason == op::sample(r.catalog, "prov.source.spends").reason());
+}
+
+
 
 // ============================================================================
 // CTX-0 — the contextual surface at the pane seam: Workshop-owned, seam-silent

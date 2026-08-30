@@ -276,10 +276,13 @@ powers        the host's op::Catalog                   which POWERS resolve, and
   both files for quoted literals and identifiers (never bare words — these files EXPLAIN what
   they refuse to branch on). A hard-coded vocabulary turns the genericity witnesses AND the
   tripwire red.
-- **NO ROW CARRIES A CONTROL.** No unmount, replace, reload, disable or activate anywhere, and
-  no pane message mutates load or provider state. The maker gets the knowledge; the power is a
-  later phase's to grant.
-- **⚠ THE DEFAULT PANE IS EIGHT PROSE ROWS AND `kStackRows` IS FIXED**, so a bigger TERMINAL
+- **NO ROW CARRIES A CONTROL OVER THE SYSTEM.** No unmount, replace, reload, disable or
+  activate anywhere, and no pane message mutates load or provider state. `powers` has controls
+  since SOURCE-1 and every one of them is a decision about PRESENTATION except `[ Sample ]`,
+  which runs one Source and changes nothing. Knowledge of a power is still not authority to
+  replace it.
+- **⚠ THE DEFAULT PANE IS EIGHT PROSE ROWS ON THE TERMINAL AND FOUR ON THE SHIPPED
+  GRAPHICAL FACE, AND `kStackRows` IS FIXED**, so a bigger TERMINAL
   buys columns and no rows. A block-per-entry projection and an eight-row default are in
   tension: the shipped six-artifact `Project` pane shows ONE artifact and `... 5 more` until a
   maker authors a taller window. That is counted rather than hidden, and a second denser
@@ -290,3 +293,77 @@ powers        the host's op::Catalog                   which POWERS resolve, and
 - **Each pane keeps its OWN room and its OWN outstanding question.** All three can be open at
   once, and one shared `rows_`/`columns_` would have made the last grant decide how the other
   two were drawn.
+
+## The Powers pane became a browser, and the seam did not move (SOURCE-1)
+
+`powers` was a projection a maker could only read. It is now the first pane in this repository a
+maker BROWSES: two derived views over one catalog, a `component::TextBox` query, a composite
+filter, an identity-held cursor per view, and one explicit sample. **The pane protocol did not
+widen** — `PaneKey`, `PaneTextInput` and the two clipboard sentences were all already there, and
+the weave simply began accepting them. `introspection/powers.hpp` is the pure half.
+
+- **THE TWO VIEWS ARE DERIVED AND THE CLASSIFICATION IS NEVER AUTHORED TWICE.**
+  `PowerContribution::source` is `op::is_source` read off the definition the host resolves
+  through, so the pane asks the reading rather than the identity's spelling — `source.anything`
+  taking an argument is an Operator here, and a case arranges exactly that. There is no
+  registration flag, no `kind` field and nowhere for a second answer to live.
+  **Source/Operator and composite are independent**: all four cells are legal, the badge reads
+  the ACTIVE contribution (an overlay changes construction and not contract), and it promises
+  *this implementation has known compositional structure* and nothing about opening it.
+- **⚠ BROWSING CANNOT EVALUATE, STRUCTURALLY.** `zengine-introspection` links no operator
+  target: there is no catalog, definition, callable or `evaluate` in that image, so the property
+  is a fact about the build graph rather than a discipline. A tripwire reads the two sources for
+  `#include "operator/` and the CMake for an operator link edge — never for bare identifiers,
+  because both files EXPLAIN at length what they refuse to reach.
+- **ONE PLACE MEANS ONE THING, and the map is COLUMNS as well as rows.** The chrome row carries
+  three controls side by side, so `project_powers_ui` returns spans (`row`, `first..last`,
+  meaning) beside the rows it built — HD-3's one-geometry rule again. A row SELECTS and
+  `[ Sample ]` SAMPLES, never both: the first press into a cold pane is also the press that
+  points the keyboard at it, so nothing here may mean two things. **A control the width CUT is
+  not a target** — spans inside `fit`'s `...` are not recorded, or a press on an ellipsis would
+  operate a control the maker cannot see.
+- **THE SELECTION IS AN IDENTITY PER VIEW, AND PRESENTATION MAY ONLY HIDE IT.** A query, the
+  composite filter, the other view and a short window all hide the mark and hold the fact; only
+  a FRESH READING whose population lacks the identity clears it (`revalidate`, SEL-0's law one
+  pane on). No index, scroll offset or window start is stored — the window is derived from the
+  filtered population and the cursor every projection.
+- **THE PANE RETAINS ITS LAST READING, and that member is the one to read carefully.** It is
+  what search and the cursor operate over BETWEEN grants; it is replaced whole, never diffed,
+  and dropped at every grant, so between a grant and its answer there are no rows and no map and
+  Workshop's own `(waiting for the provider)` says so. What survives a reading is everything the
+  MAKER authored — view, query, filter, both selections, the retained sample — because none of
+  those is a fact about the host.
+- **TYPED AND PASTED TEXT IS GATED TO PRINTABLE ASCII AT THIS PANE'S DOOR, AND REFUSED WHOLE.**
+  `TextBox::type` admits any UTF-8 and `judge_content` refuses a whole update for one byte a
+  canvas cannot draw, so a chunk with any inadmissible byte is declined entirely — the editor's
+  own paste posture. Every road into the query passes that one door: typing, a mirrored
+  `ClipboardCopy`, and the answer to a paste ask. ⚠ **The shipped Composer has the same latent
+  exposure** and was deliberately not repaired here; it is a different owner and a bounded QR
+  candidate.
+- **THE QUERY'S SELECTION IS FUNCTIONAL AND INVISIBLE.** A provider row carries role and ground
+  and no spans, so cut and copy work and the highlight cannot be drawn. Named residual; not a
+  reason to widen the seam.
+- **A KEY IS GUARDED BY PANE BEFORE ANY STATE MOVES.** This office offers three panes and
+  Workshop points the keyboard at the last one pressed, so every arm is behind one
+  `key.pane != kPowersPane` test. A case drives it through the real seam with two panes from
+  this same office.
+- **THE SAMPLE LEAVES AS A MESSAGE AND COMES BACK AS PROSE.** `SampleRequested{identity}` to
+  `zengine.sources`; `op::sample` at the spend; the value rendered HOST-side; `SourceSampled`
+  answered. No `loom::Value`, `OperatorDef`, callable or provider image crosses — and could not,
+  because a woven weave's accept-set is closed at compile time and cannot name the answer's
+  shape. One outstanding sample, matched by `answers_ask()` plus the correlation; the identity a
+  retained answer wears is the one THIS PANE ASKED FOR, never the one the payload carries.
+- **A RETAINED SAMPLE IS HISTORY AND THE ROW LEADS WITH THE TENSE.** `sampled when asked` comes
+  FIRST because `fit` cuts the tail: a narrow pane loses the identity, which the list can
+  recover, and never the claim. It survives view switches, filters, cursor moves and the
+  provider unloading; nothing refreshes it, and a later sample replaces it with whatever is true
+  then.
+- **⚠ A HOST WITH NO SAMPLE DOOR MAKES THE GESTURE SILENT.** The ask reaches nobody, the
+  question is retired and NOTHING is said — the same rule the two waiting panes keep, because
+  rendering "the ask went nowhere" would put this tool's plumbing where a maker reads facts
+  about their system. Recorded as a limitation, not designed as a feature.
+- **THE COMPOSITION DROPS WHOLE, BY PRIORITY, against TWO measured defaults** — 8x48 on the
+  terminal and 4x71 on the shipped graphical face. Chrome, then the list (which keeps up to
+  three rows before anything else takes any), then the selected detail, the retained sample, the
+  bounding sentence, the catalog census and the provenance line. At four rows with a long list
+  the pane is chrome and a list, and that is the honest answer for four rows.

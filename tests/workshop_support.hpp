@@ -51,6 +51,7 @@
 
 #include "composer/vocabulary.hpp"
 #include "introspection/loaded.hpp"
+#include "introspection/powers.hpp"
 #include "introspection/resolved.hpp"
 #include "introspection/vocabulary.hpp"
 #include "operator/catalog.hpp"
@@ -58,8 +59,13 @@
 #include "operator/provider_host.hpp"
 #include "workshop/arrangement.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
+#include "workshop/host_sources.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_plan.hpp"
+#include "workshop/recipes.hpp"
+#include "workshop/sample_door.hpp"
+#include "workshop/sample_presentation.hpp"
+#include "workshop/sample_vocabulary.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "timer/vocabulary.hpp"
 #include "surface/skin_tui.hpp"
@@ -1634,6 +1640,21 @@ struct PaneRig {
     /// declared before the bus, because the door held it by reference; the owner is
     /// persistent now and holds the plan it is realizing, so there is one copy and the
     /// door reads it from there.
+    /// ---- SOURCE-1: the owners this host's OWN Sources read ---------------------
+    ///
+    /// DECLARED BEFORE THE CATALOG, which is the host's own lifetime claim once more:
+    /// each Source's native body closes over a REFERENCE to one of these and reads it
+    /// at the moment of the sample, so reverse-order destruction must drop the catalog
+    /// holding those closures first. `workshop.cpp` declares them far above its own
+    /// `op::Catalog` for exactly this reason, and this rig copies the order rather
+    /// than the outcome.
+    ///
+    /// THEY ARE ORDINARY MUTABLE OWNERS, and a case moving one between two samples is
+    /// how "a sample is an evaluation and not a cached answer" is proved with the
+    /// answers themselves rather than with a counter alone.
+    std::string project_anchor = "/zen/pane-rig";
+    CurrentRecipes host_recipes;
+
     loom::Switchboard bus;
     op::Catalog catalog;
     op::OperatorHostSurface operator_host{catalog};
@@ -1930,6 +1951,48 @@ struct PaneRig {
         say.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
         const loom::WeaveId id = bus.register_weave(std::move(door), std::move(say),
                                                     std::string(kArrangementRole));
+        raw->zen_set_self(id);
+        bus.drain_until_idle();
+        return id;
+    }
+
+    /// EXPOSE THE HOST'S OWN TWO SOURCES, through the one door the host uses.
+    ///
+    /// ⚠ BEFORE THE PLAN RUNS, deliberately, exactly as `workshop.cpp` does it: the
+    /// ordinary collision law then answers a provider that would supply one of these
+    /// identities, in words, rather than letting load order decide.
+    void expose_host_sources() {
+        const op::MountReport done =
+            mount_host_sources(catalog, host_sources(project_anchor, host_recipes));
+        REQUIRE_MESSAGE(done.ok, done.reason);
+    }
+
+    /// WHOEVER HOLDS `zengine.skin` -- the medium that owns the platform clipboard in
+    /// both directions. `Live` has the same seat for the same reason; a pane that can
+    /// PASTE needs somebody to answer its ask (QR-11), and the Painter above holds no
+    /// role and cannot.
+    SkinSeat* mount_skin_seat() {
+        auto seat = std::make_unique<SkinSeat>();
+        SkinSeat* raw = seat.get();
+        loom::Grant grant;
+        grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
+        grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
+        raw->zen_set_self(id);
+        return raw;
+    }
+
+    /// MOUNT THE HOST'S SAMPLE DOOR (SOURCE-1), with the production grant spelled out
+    /// -- `mount_arrangement`'s discipline for its reason: a rig that minted the grant
+    /// from the Emit set could not notice the host quietly widening it.
+    loom::WeaveId mount_sampler() {
+        auto door = std::make_unique<SampleDoor>(catalog);
+        SampleDoor* raw = door.get();
+        loom::Grant say;
+        say.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
+        const loom::WeaveId id =
+            bus.register_weave(std::move(door), std::move(say), std::string(kSampleRole));
         raw->zen_set_self(id);
         bus.drain_until_idle();
         return id;
@@ -2420,6 +2483,73 @@ inline ws::ResolvedPowers shaped_powers() {
     return said;
 }
 
+/// ---- SOURCE-1: contributions that carry the exterior contract ------------------
+///
+/// `supplied_by` above predates the `source`/`output` fields and leaves both at their
+/// defaults, which is an OPERATOR with no reported output schema -- still exactly what
+/// the arrangement cases want. These two say the other half, in the shape
+/// `describe_powers` would have read off a real definition: `source` is
+/// `op::is_source` and the output identity is the definition's own output schema.
+///
+/// THE PROVIDER, THE CONSTRUCTION AND THE CONTRACT ARE THREE SEPARATE ARGUMENTS,
+/// because the whole claim under test is that they are three independent facts.
+inline ws::PowerContribution source_from(const char* provider, bool composite = false,
+                                         const char* yields = "zengine.Fixture") {
+    ws::PowerContribution c;
+    c.provider = provider;
+    c.composite = composite;
+    c.source = true;
+    c.output.name = yields;
+    c.output.version = 1;
+    return c;
+}
+
+inline ws::PowerContribution operator_from(const char* provider, bool composite = false,
+                                           const char* yields = "zengine.Fixture") {
+    ws::PowerContribution c = source_from(provider, composite, yields);
+    c.source = false;
+    return c;
+}
+
+/// ALL FOUR `Source x Composite` CELLS, WITH DELIBERATELY MISLEADING NAMES.
+///
+/// `source.looks.like.one` takes arguments and `math.max` does not, which is the
+/// falsifier for any implementation tempted to read a view membership off an
+/// identity's spelling: a pane that classified by name would put both in the wrong
+/// list and every other case here would stay green.
+inline ws::ResolvedPowers four_cells() {
+    ws::ResolvedPowers said;
+    said.providers = {"zengine.operators.basic", "zengine.timer", "zengine.workshop.host"};
+    said.powers.push_back(power_of("logic.select_int", {operator_from("zengine.operators.basic")}));
+    said.powers.push_back(power_of("math.max", {source_from("zengine.workshop.host", false,
+                                                            "zengine.MaxSoFar")}));
+    said.powers.push_back(
+        power_of("source.looks.like.one", {operator_from("zengine.timer", /*composite=*/true)}));
+    said.powers.push_back(power_of("zengine.recipes.catalog",
+                                   {source_from("zengine.workshop.host", /*composite=*/true,
+                                                "zengine.RecipeCatalog")}));
+    return said;
+}
+
+/// A population big enough that a pane has to window it, in catalog (name) order.
+inline ws::ResolvedPowers many_sources(std::size_t n) {
+    ws::ResolvedPowers said;
+    said.providers = {"zengine.fixture"};
+    for (std::size_t i = 0; i < n; ++i) {
+        std::string id = "src." + std::string(i < 10 ? "0" : "") + std::to_string(i);
+        said.powers.push_back(power_of(id.c_str(), {source_from("zengine.fixture")}));
+    }
+    return said;
+}
+
+/// A Powers pane state holding one reading, with nothing else authored.
+inline intro::PowersUi showing(ws::ResolvedPowers said) {
+    intro::PowersUi ui;
+    ui.reading = std::move(said);
+    ui.read = true;
+    return ui;
+}
+
 inline std::vector<std::string> texts_of(const std::vector<surface::SurfaceTextRow>& rows) {
     std::vector<std::string> out;
     for (const surface::SurfaceTextRow& r : rows) {
@@ -2482,8 +2612,65 @@ inline std::int64_t open_intro_pane(PaneRig& r, const char* pane) {
     return intro_row(r, pane)->kind;
 }
 
+/// THE SAME LIVE WORKSHOP, WITH THE POWERS PANE OPEN AND BOTH HOST DOORS MOUNTED
+/// (SOURCE-1) -- and with the host's own two Sources really in the catalog, so the
+/// Sources view has the population a maker actually meets.
+///
+/// THE ORDER IS THE HOST'S: sources exposed before the plan runs, the observation
+/// door and the sample door mounted before realization can grant a pane room.
+inline std::int64_t open_powers(PaneRig& r) {
+    r.expose_host_sources();
+    r.mount_workshop();
+    const load::Executed done = r.run_plan(pane_plan());
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    r.mount_arrangement("default-load-plan.json");
+    (void)r.mount_sampler();
+    r.ready();
+    r.extent(160, 48);
+    REQUIRE(intro_row(r, intro::kPowersPane) != nullptr);
+    r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
+    return intro_row(r, intro::kPowersPane)->kind;
+}
+
 inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     return external_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+}
+
+/// PRESS A PLACE IN AN EXTERNAL PANE'S OWN ROOM -- the provider's row and column,
+/// which is exactly the pair `PanePressed` carries. Cases speak the provider's lattice
+/// so the arithmetic that turns it into a canvas cell lives in one place.
+inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column) {
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    r.press_cell(body.x + column, body.y + kExternalHeaderRows + row);
+}
+
+/// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE.
+///
+/// Workshop's focus rule is "the pane a maker last pressed into" (MSG-0) and there is
+/// no shape for asking, so a case that wants to type has to press first. This spends
+/// that press on a row whose provider-side meaning is NOTHING -- the bound sentence
+/// where there is one, and the last row otherwise -- which is only possible because
+/// every target in this pane means exactly one thing.
+inline void focus_pane(PaneRig& r, std::int64_t kind) {
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    REQUIRE_FALSE(shown.empty());
+    std::int64_t row = static_cast<std::int64_t>(shown.size()) - 1;
+    const std::int64_t bound = row_with_text(shown, intro::kHostResolution);
+    if (bound >= 0) {
+        row = bound;
+    }
+    press_pane(r, kind, row, 0);
+}
+
+/// Which column of the Powers chrome row carries a given word, or -1 -- how a case
+/// aims at the `Operators` control without knowing the composition's arithmetic.
+inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::string& word) {
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    if (shown.empty()) {
+        return -1;
+    }
+    const std::size_t at = shown[0].find(word);
+    return at == std::string::npos ? -1 : static_cast<std::int64_t>(at);
 }
 
 /// MAKE ONE PANE TALLER, the way WIND-2 lets a maker: an authored height in canvas

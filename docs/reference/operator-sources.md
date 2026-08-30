@@ -192,6 +192,18 @@ exposing two facts about itself. The clipboard's contents, an editor's unsaved b
 maker's keymap and preferences, the session file and the substrate's grant ledger are all
 real facts this process can reach, and none of them is a door.
 
+## Sampling one, as a maker
+
+The `Powers` pane ([introspection.md](introspection.md)) separates this host's catalog into
+**Sources** and **Operators** — derived from the classification above, never declared a second
+time — and lets a maker browse either. Browsing runs nothing: enumeration, search, filtering and
+the selected power's `yields <schema>` line are all reads.
+
+Sampling is one explicit gesture on one selected Source. It sends that identity to a single host
+office, which resolves it at the spend, runs it once and renders the returned value as text. Two
+gestures are two evaluations, and the answer a maker keeps looking at is **historical** — what
+that Source said when they asked, never a value that stays current.
+
 ## What this is not
 
 No subscriptions, no watchers, no reactive propagation, no auto-sampling and no background

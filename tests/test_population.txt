@@ -766,6 +766,25 @@
 # one helper, deliberately: a case compiled out on one family is a floor that cannot protect
 # it there, which is the same downward slack the paragraph above is about.
 #
+# SOURCE-1 raised the panes floor 182 -> 220, and the thirty-eight new cases are the shape
+# of a pane that stopped being a projection and became a browser. They are in the `always`
+# row for the reason every phase since TYPE-0 has given: the metric is an ARGUMENT. A case
+# asks `project_powers_ui` for eight rows by forty-eight columns and gets the terminal
+# default; it asks for four by seventy-one and gets the graphical one; neither needs a font
+# engine, an SDL, or a medium of any kind, and both measured budgets are asserted rather
+# than assumed.
+#
+# TWO OF THEM ARE A DIFFERENT KIND OF EVIDENCE, and the floor cannot say so -- which is why
+# it is said here. `browsing the catalog runs no evaluator at all` and `a cross-image Source
+# proves the sample is an evaluation, not a lookup` are ARRANGED COUNTERS, not assertions
+# about text: the first brackets every browsing gesture between two deliberate samples of a
+# body that counts its own spends and requires the difference to be exactly one; the second
+# requires three consecutive samples to answer three consecutive numbers. A constant-
+# returning fixture would have made an accidental evaluation invisible, and a memoised one
+# would have made a cached answer indistinguishable from a fresh evaluation -- so
+# `zengine-provider-source` joins this suite's fixture list, and `op::invocations()` alone
+# is deliberately not trusted to answer a question about another image.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -782,7 +801,7 @@ builder                           doctest           always  53
 workshop_document                 doctest           always  140
 workshop_screen                   doctest           always  172
 workshop_panels                   doctest           always  155
-workshop_panes                    doctest           always  182
+workshop_panes                    doctest           always  220
 workshop_persistence              doctest           always  127
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66

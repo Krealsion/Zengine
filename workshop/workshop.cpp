@@ -34,6 +34,7 @@
 
 #include "arrangement.hpp"
 #include "host_sources.hpp"
+#include "sample_door.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "marks_persist.hpp"
@@ -1457,6 +1458,34 @@ int main(int argc, char** argv) {
     say_resolved.allow_to_any(ResolvedPowers::zen_name, ResolvedPowers::zen_version);
     mount_in_office<ArrangementDoor>(bus, std::move(say_resolved), kArrangementRole, executor,
                                      operators, plan_path);
+
+    // ---- AND THE ONE OFFICE THAT MAY RUN A SOURCE (SOURCE-1) ------------------
+    //
+    // A SECOND DOOR RATHER THAN A THIRD SENTENCE ON THE FIRST, and the subtraction is
+    // the point. `ArrangementDoor`'s own header says it *cannot mount, unmount,
+    // overlay, evaluate, load, unload, reload or replace anything*, and that sentence
+    // is worth more than the file this one costs: after this line, *which office can
+    // cause evaluation* still has a one-word answer, and it is not the office that
+    // describes the project.
+    //
+    // WHAT IT CAN DO IS EXACTLY ONE THING. `op::sample(catalog, identity)` at the
+    // spend -- current catalog truth, both gates, the three sentences those layers
+    // already own -- and the admitted value rendered to prose HERE, where the schema
+    // still is, because the asker is a woven weave whose accept-set could not name
+    // the answer's shape. It holds the catalog as a `const` reference (evaluate is
+    // `const`), caches no provider, definition, callable or answer, and is not a
+    // generic host-RPC door: one shape in, one shape out.
+    //
+    // THE CATALOG OUTLIVES IT BY DECLARATION ORDER, the same claim `host_sources.hpp`
+    // makes one layer in about the Sources' own owners: `operators` is declared far
+    // above this line, so reverse-order destruction drops this door first.
+    //
+    // ITS GRANT IS THE ONE ANSWER. `to_any` for `PaneRoom`'s reason -- Loom picks the
+    // recipient of an answer, it is the weave that asked, and no rule written here at
+    // boot could name it.
+    loom::Grant say_sampled;
+    say_sampled.allow_to_any(SourceSampled::zen_name, SourceSampled::zen_version);
+    mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
     // ---- BEGIN THE PROJECT, THEN GO AND BE A HOST (BOOT-0) --------------------
     //

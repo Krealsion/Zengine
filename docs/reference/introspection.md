@@ -27,6 +27,12 @@ pane header  Powers @zengine.introspection
 reader and the Timer, so a maker opens any of the three from the panel picker (`p`) and can keep
 them in a saved setup like any other pane.
 
+`Loaded` and `Project` are read-only projections. **`Powers` is a browser**: it shows the
+computational vocabulary this host currently resolves, separated into
+[Sources and Operators](operator-sources.md), and it is searchable, navigable and — for a Source —
+samplable on an explicit gesture. Everything below about snapshots, authorities and disagreement
+applies to all three; the interaction is `Powers` alone.
+
 ## Three questions, three owners, and they disagree on purpose
 
 The panes are separate because their **populations, their authorities and their currencies** are
@@ -151,53 +157,112 @@ provider is a row here and absent from `Loaded`.
 
 ## What the `Powers` pane shows
 
-> **What logical operator powers exist in this host, and who currently satisfies each?**
+> **Two questions over one catalog.**
+>
+> ```text
+> Sources      what can answer with nothing supplied by me?
+> Operators    what can transform information I supply?
+> ```
 
 ```text
-5 powers resolve here -- from 3 providers
-  logic.select_int
-      active    zengine.operators.basic
-  math.max
-      active    zengine.operators.test.min
-      shadowed  zengine.operators.basic
-  timer.normalize_delay
-      active    zengine.timer (composite)
-  zengine.project.anchor
-      active    zengine.workshop.host
+[Sources] Operators  2/3  [ ] Composite  find:_
+  prov.source.spends
+> zengine.project.anchor
   zengine.recipes.catalog
-      active    zengine.workshop.host
-
+  yields zengine.ProjectAnchor v1
+  [ Sample ]
+  active    zengine.workshop.host
+sampled when asked  zengine.project.anchor
+  zengine.ProjectAnchor v1
+    anchor  "/home/maker/projects/zen"
 this pane describes this host's operator resolution only
+3 powers resolve here -- from 2 providers
 snapshot from zengine.arrangement, on room grant
 ```
 
-One block per logical [operator](operator-providers.md) identity, **active first**, with every
-contribution it is shadowing listed under it. The word is the statement and the ink is the second
-signal, so a monochrome terminal reads the same fact a coloured one does.
+**It is one pane, not two.** There is no Sources pane and no Operators pane; there is one
+projection over one catalog, showing one of two derived views. Switching views is `Tab` or a press
+on either word in the chrome row.
 
-- **`active` is what an evaluation actually spends.** The pane reads the same layered store
-  `Catalog::find` resolves through, so `math.max` reading `active zengine.operators.test.min` and a
-  running Timer computing the substituted answer are one fact, not two that agree.
-- **`shadowed` appears only where an overlay exists**, and unmounting the overlay reveals the same
-  contribution object underneath rather than rebuilding it — so the pane goes back to exactly what
-  it said before.
-- **`(composite)`** is the definition's own answer (`OperatorDef::is_composite`), not a classifier.
-  It is worth reading because it says what a replacement will do: a composite holds its leaves as
-  *identities* and resolves them at every spend, so covering `math.max` changes what a composite
-  over it computes.
-- **The last two rows are [Sources](operator-sources.md)** — catalog entries with no maker inputs,
-  which this host exposes over state it already owns (where it was launched, and which recipe
-  catalog is in force). A host may describe itself; it may not invent provider power, and its one
-  door into its own catalog refuses anything that would take an argument. The pane does not label
-  them, and that is deliberate: the projection carries the fact for a surface that will present
-  Sources as Sources, and this pane answers *who satisfies each power* rather than *what could I
-  ask for*.
+- **Membership is derived and is never authored twice.** A power with **zero** maker inputs is a
+  Source; a power with **one or more** is an Operator, and that is read off the very definition the
+  host resolves through ([Sources](operator-sources.md)). No contributor declares a kind, no
+  registration flag exists, and nothing classifies by name — an identity spelled `source.anything`
+  that takes an argument is an Operator here.
+- **`Composite` is an independent fact**, so all four combinations are legal and all four appear.
+  It is the definition's own answer (`OperatorDef::is_composite`) about the power's **active**
+  contribution, and it promises exactly one thing: *this power's current implementation has known
+  compositional structure*. It does not mean openable, editable or deconstructable — there is no
+  graph surface in this build and no row that offers one.
+- **`active` is what an evaluation actually spends**, and the selected power's block lists its whole
+  contribution stack active-first, with `shadowed` under it where an overlay exists. The pane reads
+  the same layered store `Catalog::find` resolves through, so `math.max` reading
+  `active zengine.operators.test.min` and a running Timer computing the substituted answer are one
+  fact, not two that agree.
+- **`yields` says what a sample would produce, without producing one.** The output schema's name and
+  version ride in the projection because an `OperatorDef` has held them since it was authored — so
+  the question *what would I get?* is answered by a read, never by running anything.
 - **`(this host)`** would name a contribution the host published with no provider identity at all.
   `zengine-workshop` mounts even its own two Sources under a named provider, so it never appears
   there.
 - **The pane names no power and no provider.** There is no `math.max` in the projection's source and
   no branch that treats one identity differently from another: a provider mounted later appears
   with nothing edited. That is the feature.
+
+### Finding your way
+
+| gesture | what it does |
+|---|---|
+| `Tab`, or a press on `Sources` / `Operators` | switch which view the one projection shows |
+| `Up` / `Down` | move to the previous or next **visible** entry |
+| a press on a list row | select that power — and nothing else |
+| typing | the search query; there is one editable field, so no gesture activates it |
+| a press on `[ ] Composite` | show only powers whose active contribution is composite |
+| `Return`, or a press on `[ Sample ]` | sample the selected **Source** |
+
+- **Search is a case-insensitive ASCII substring over the power identity.** An empty query matches
+  everything, bytes at or above `0x80` compare exactly, and it **filters without reordering** — the
+  catalog's order is the catalog's. There is no fuzzy matching, no provider or schema search, and no
+  ranking. It combines with `Composite` as logical AND.
+- **`2/3` is where you are in the list you are navigating** — the cursor's position within the
+  current filtered view, over that view's population. `-` means nothing is selected. The count at
+  the foot (`3 powers resolve here — from 2 providers`) is the *whole reading*, which is a different
+  question, and it appears only when there is room nothing else wanted.
+- **Your place is held by IDENTITY, one per view.** Leave `Sources` for `Operators` and come back
+  and your Source is still selected; the same is true the other way, independently. A query, the
+  `Composite` filter or a short pane can HIDE the marked row — the selection survives all three and
+  the mark returns with the row. Only a **fresh reading in which the power is genuinely absent**
+  clears it.
+- **Text you type or paste must be printable ASCII**, because a provider's rows are (one canvas cell
+  per byte). A chunk carrying anything else is refused **whole** rather than filtered — you get none
+  of it rather than a mangled half. The query's own selection works for cut and copy but cannot be
+  drawn: the pane protocol carries rows and no spans, and it was not widened to fix that.
+- **A press has one meaning each.** A row selects and does not sample; `[ Sample ]` samples and does
+  not select. The first press into a cold pane is the press that also points the keyboard at it, so
+  nothing here may mean two things at once.
+
+### Sampling a Source
+
+**Browsing never evaluates.** Describing the catalog, taking a fresh reading, deriving the two
+views, filtering, searching, moving the cursor, drawing the selected detail and repainting run
+**zero** evaluator bodies. That is structural rather than careful: the pane's image links no
+operator code at all, so there is nothing in it to call.
+
+Evaluation happens on exactly one gesture. `Return` on a selected Source — or a press on
+`[ Sample ]` — sends the power's identity to the host, which resolves it **at that moment**, runs
+it once, renders the returned value, and answers with lines of text. Two gestures are two
+evaluations; there is no memoisation anywhere on the path.
+
+**A sample is history, and the pane says so.** `sampled when asked` is the whole claim: *this is
+what this Source returned when you explicitly asked*. It does not stay current, nothing refreshes
+it, and no timer, subscription or watcher exists. The retained answer survives switching views,
+changing the search, moving the selection and the provider unloading — because none of those is
+evidence about what was said. Sample again and you get whatever is true now, including a refusal if
+the power has gone.
+
+In the `Operators` view `Return` does nothing at all. There is no control, no gesture and no
+invocation path: sampling supplies no arguments, and manufacturing one a maker never wrote would be
+an answer nobody authored.
 
 ## Where each fact comes from
 
@@ -210,6 +275,7 @@ signal, so a monochrome terminal reads the same fact a coloured one does.
 | what resolved from it | the host's **realization owner** (its cursor and its resolved rows) | same message | same snapshot | realization has not reached that row |
 | which powers resolve | the host's **`op::Catalog`** (the same store `find` resolves through) | `PowersRequested` → `zengine.arrangement` → `ResolvedPowers` | a **snapshot**, re-read on each room grant | nothing supplies that identity here |
 | that a power is *not* listed | nobody — **not observed** | — | — | this host's catalog does not resolve it, and the pane says nothing about any other |
+| what a Source answers | the **Source's own body**, run once at the spend | `SampleRequested` → `zengine.sources` → `op::sample` → `SourceSampled` | **historical** — what it said when the maker asked, and never re-read | it refused, and the refusal is the catalog's own words |
 
 The third row is why the pane always carries `in-process weaves are not in the kernel's map`.
 Workshop's own weave, the boot weave, the control door, the Weave Manager, the Builder tool, the
@@ -292,6 +358,57 @@ answer shapes and nothing else. *Knowledge of a power is not authority to replac
 two panes read `(waiting for the provider)`. That is a correct arrangement rather than a hole:
 `zengine-snake` has no authored project to describe and owes no answer about one.
 
+### The second door: the one office that may run a Source
+
+Sampling needed a different kind of door, so it got one. `zengine-workshop` mounts a second small
+participant in the office **`zengine.sources`**, beside the first:
+
+```text
+SampleRequested{identity}  ->  zengine.sources  ->  SourceSampled{identity, ok, reason, lines}
+```
+
+**The split is the point.** *Which office can cause evaluation?* deserves a one-word answer, and
+after this it still has one — `ArrangementDoor` describes and cannot run anything, and the sample
+door runs exactly one Source per ask and describes nothing. Widening the first would have saved a
+file and cost that sentence forever.
+
+- **It holds the catalog as a `const` reference and remembers nothing** — no provider, no
+  definition, no callable, no schema and no previous answer. Two samples of one identity resolve
+  current catalog truth twice and run the body twice, so if the state the Source reads moved
+  between them, the two answers differ.
+- **It resolves at the spend.** A power that disappeared between a maker reading a row and pressing
+  it produces the catalog's own *nothing supplies that identity* sentence; an identity that now
+  resolves as a parameterized Operator produces the Source seam's own refusal, naming the ports
+  sampling supplies none of. Neither is re-worded anywhere.
+- **The value never crosses.** A sampled `loom::Value` claims whatever schema its Source authored,
+  and the tool's image cannot name that shape in advance — its accepted set is fixed when it is
+  compiled. So the host renders the value to text **where the schema still is** and the LINES cross
+  as ordinary wire data. What the tool receives is a picture; what it receives no way to do is
+  evaluate anything.
+- **An office may ask; anonymous speech may not** — the arrangement door's exact rule, for its exact
+  reason. It names nobody, so a second tool asks with no edit; and it is not containment, because
+  the loader binds `allow_any()` to every library it opens. What it buys is that every body this
+  office ever ran was run for a named office.
+- **A host that mounts no sample door** holds no `zengine.sources` office, so the gesture reaches
+  nobody and produces nothing — the same correct arrangement as a host with no observation door.
+
+**What a sample is rendered as.** The host projects the admitted value to lines: the schema's
+identity, then one line per field, indented per level of nesting, with integers as digits, text
+quoted, bytes as an honest `(bytes, N octets)` summary, absent fields said, and depth, list length
+and total lines all bounded — every bound marking itself rather than cutting quietly.
+
+```text
+zengine.RecipeCatalog v1
+  catalog
+    source   "/home/maker/projects/zen/workshop-recipes.json"
+    recipes  6
+```
+
+This is a presenter for this consumer, not a universal inspector: there is no registry, no
+per-schema renderer and no extension point, and a second independent consumer is what would earn
+one. The debug compatibility codec was deliberately not used — it renders an integer as a quoted
+string, and a maker reading `"6"` cannot tell a count from a caption.
+
 ## Currency: a snapshot, and the pane says so
 
 Loom gives a participant no arrival or departure event — `zen.Activated` is directed at the
@@ -309,19 +426,27 @@ is nothing to subscribe to for any of the three, and nothing here polls. The `Po
 one whose subject genuinely changes mid-run; an overlay mounted since the last grant is in the next
 reading, with nobody having been told.
 
-There is no refresh button. A pane can be pressed (below), but a press is a gesture *about a row*
-and this tool does not read one as "go and look again" — that would be a second beat with no
-sentence saying so. Closing and reopening the pane, or resizing it enough to move its prose
-capacity, re-reads.
+There is no refresh button. A press is a gesture *about a place in the pane* and this tool does not
+read one as "go and look again" — that would be a second beat with no sentence saying so. Closing
+and reopening the pane, or resizing it enough to move its prose capacity, re-reads.
+
+**`Powers` keeps its last reading between grants, and that is what its search and its cursor work
+over.** It is still a snapshot: it is replaced *whole* by the next reading, never compared against
+the one before it, and dropped at every grant — so between the grant and the answer the pane shows
+`(waiting for the provider)` and holds no map a press could be read against. What survives a fresh
+reading is everything the *maker* authored — the view, the query, the filter, both selected
+identities and any retained sample — because none of those is a fact about the host.
 
 ## Selecting a row
 
-**Only the `Loaded` pane has a gesture.** `Project` and `Powers` are read-only projections: they
-carry no selection, publish nothing, and hold no row map a press could be resolved against.
-Pressing one is consumed by the pane, as a press in any pane's room is, and produces no sentence.
-**No row of any of the three carries a control** — there is no unmount, replace, reload, disable or
-activate anywhere, and no pane message mutates load or provider state. The maker gets the knowledge
-first.
+**`Project` has no gesture.** It is a read-only projection: it carries no selection, publishes
+nothing, and holds no row map a press could be resolved against. Pressing it is consumed by the
+pane, as a press in any pane's room is, and produces no sentence.
+
+**No row of any of the three carries a control over the system.** There is no unmount, replace,
+reload, disable or activate anywhere, and no pane message mutates load or provider state. `Powers`
+has controls, and every one of them is a decision about *presentation* except `[ Sample ]`, which
+runs one Source and changes nothing. *Knowledge of a power is still not authority to replace it.*
 
 A maker can press one of the `Loaded` pane's entry rows. The pressed row is marked, and the pane
 publishes an ordinary Loom message saying which entry was selected:
@@ -391,13 +516,22 @@ CAN
   offer Workshop its three panes              PaneOffered, as its own office
   publish rows inside the grants it was given PaneContent, as its own office
   state which row a maker selected            LoadedSelected, as its own office
+  ask the host to sample ONE Source           SampleRequested, as its own office --
+                                              an identity, and nothing else
+  say and hear a copied line of text          ClipboardCopy, ClipboardTextRequested,
+                                              the same conversation every text field
+                                              in this application already has
 
 CANNOT (never sent, and not in its declared Emit set)
   send the SELECTED weave anything            naming a thing is not reaching it
   load, reload, swap or unload anything       zen.LoadWeave / SwapWeave / ReloadWeave /
                                               UnloadLibrary / UnloadRole
-  mount, unmount, overlay or evaluate a power there is no shape for any of it, in
+  mount, unmount, overlay or replace a power  there is no shape for any of it, in
                                               either direction
+  EVALUATE anything itself                    it asks an office and hears prose; its
+                                              image links no operator code at all
+  invoke a parameterized Operator             sampling supplies no arguments, and there
+                                              is no gesture, control or shape for one
   reach the kernel's control door directly
   publish a canvas, a text slot or any screen
   read or write the document, the setup, or any file
@@ -430,10 +564,21 @@ material is shown until the budget runs out and the remainder is counted on its 
 (`... 17 more`), so nothing is ever hidden without being counted. Text too long for the granted
 columns is cut with `...`.
 
+The **graphical** default is smaller still: at the shipped 18-pixel face an overlay slot resolves
+to **4 prose rows by 71 columns**, against the terminal's 8 by 48. Both are the budgets `Powers`
+was composed against, and both are asserted rather than assumed.
+
+`Powers` is one line per power, so it navigates at either default: the chrome row says which view,
+where the cursor is and what is being searched for, and the list windows around the cursor with
+every omission counted. What waits for room is the lower-priority material, in this order — the
+selected detail, the retained sample, the bounding sentence, the catalog census, the provenance
+line — each dropped whole and none of them silently. At the four-row graphical default with a long
+list the pane is a chrome row and a list, which is the honest answer for four rows; a maker who
+wants the detail authors a taller pane and gets it with nothing re-read but the room.
+
 That default suits `Loaded` exactly — a heading, four weaves, a blank row and two notes. It suits
-the other two **less well, and that is a real limitation rather than an oversight**. `Project`
-spends three or four rows per artifact and `Powers` two or more per power, so a six-artifact
-project reads, at the default size:
+`Project` **less well, and that is a real limitation rather than an oversight**. It spends three or
+four rows per artifact, so a six-artifact project reads, at the default size:
 
 ```text
 6 of 6 artifacts resolved -- 2 providers, 5 w...
@@ -458,11 +603,17 @@ than to invent a second, denser layout that says less.
 introspection/vocabulary.hpp   the three durable PaneRef halves, the picker lines, LoadedSelected
 introspection/loaded.hpp       the Loaded pane's pure core: parse the Manager's answer, spend the
                                budget, map each row back to the entry it names, move the mark
-introspection/resolved.hpp     the other two panes' pure cores, and the ONE budget rule they share
+introspection/resolved.hpp     the Project pane's pure core, and the ONE budget rule it shares
+introspection/powers.hpp       the Powers browser's pure core: the two derived views, the search,
+                               the filter, the identity-held cursor, the row/control map, the
+                               chrome, the detail and the retained sample
 introspection/introspection.cpp the weave: when to observe, whom to believe, what a press means
 
 workshop/arrangement_vocabulary.hpp  the two questions and the two answers, as ordinary shapes
 workshop/arrangement.hpp             the two derivations, and the host's read-only door
+workshop/sample_vocabulary.hpp       the ask and the answer of one explicit sample
+workshop/sample_door.hpp             the one office that may run a Source
+workshop/sample_presentation.hpp     an admitted value, as bounded prose
 ```
 
 `loaded.hpp` and `resolved.hpp` link nothing and know no bus, so what a reading *means* is provable

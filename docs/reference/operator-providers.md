@@ -172,10 +172,11 @@ reveals what was there — not a rebuild of it, and with no re-run of anybody's
 authoring. That reversibility is the whole point of the layering.
 
 **And a maker can see all three states.** The `Powers` pane
-([reference/introspection.md](introspection.md)) projects this same store: one block
-per logical identity, active first, with every shadowed contribution under it. It
-derives at every reading rather than keeping a copy, so an overlay mounted or
-unmounted at run time is in the next reading with nobody having been notified.
+([reference/introspection.md](introspection.md)) projects this same store: one row per
+logical identity, and the selected one's whole contribution stack active-first with every
+shadowed contribution under it. It derives at every reading rather than keeping a copy, so
+an overlay mounted or unmounted at run time is in the next reading with nobody having been
+notified.
 
 If nothing remains underneath, the logical operator becomes **unresolved**, and
 the next evaluation says so by name. Nothing is manufactured to fill the gap.
