@@ -48,6 +48,13 @@
 // `admit_path` rather than calling a narrowing accessor of its own. A second `generic_string()`
 // somewhere else is a second way for this process to die, and it will be found by the same
 // hostile directory that found the first two.
+//
+// ...AND THE TRIGGER HAS A SECOND ARM SINCE LOCATIONS BECAME DURABLE. Turning a stored
+// narrow spelling back INTO a path is a conversion in the other direction, and it refuses
+// on the same platform for the same reason -- so a spelling read out of a file asks
+// `admit_location` rather than constructing a `std::filesystem::path` of its own. The
+// three doors are the whole vocabulary: a path from the OS, one entry's name from the OS,
+// and a spelling from a file.
 
 #include <exception>
 #include <filesystem>
@@ -93,6 +100,59 @@ inline AdmittedPath admit_path(const std::filesystem::path& p) noexcept {
         out.carried = false;
     }
     return out;
+}
+
+/// A PATH SPELLING THIS APPLICATION WROTE DOWN EARLIER, COMING BACK IN.
+///
+/// THE OTHER DIRECTION OF THE SAME MEASURED THROW, and it needed an owner the moment a
+/// durable file began carrying locations. `admit_path` above answers "can the platform
+/// SPELL this path"; this answers "can this build still MAKE a path out of a spelling it
+/// is handed" -- and on MSVC that conversion refuses too, because the narrow spelling is
+/// read back through the active code page and a byte sequence that is not valid in it has
+/// no path to become. A durable file is the one place such bytes can arrive from: every
+/// spelling this application writes round-trips by construction, and a hand-edited one
+/// need not.
+///
+/// A LOCATION IS ABSOLUTE, BY DEFINITION HERE. Every place this application remembers --
+/// where a maker was standing, where they asked to be able to come back to -- is an
+/// absolute one, because a relative spelling means whatever the process's own footing
+/// happens to be at the moment somebody spends it, which is the defect
+/// `persist::resolved_against` exists to end. So a relative spelling is not a location
+/// this application could not carry; it is not a location at all, and both answers are
+/// the same empty.
+///
+/// IT NORMALIZES, and that is the one thing it does beyond converting: a remembered place
+/// is compared to other remembered places by its bytes, so two spellings of one directory
+/// must not be able to become two marks. `lexically_normal` is the same fold
+/// `resolved_against` applies, over text, touching no disk -- and nothing here
+/// canonicalizes, so a location reached through a link stays the location the maker
+/// walked to.
+inline std::string admit_location(const std::string& spelling) noexcept {
+    if (spelling.empty()) {
+        return std::string();
+    }
+    try {
+        std::filesystem::path p = std::filesystem::path(spelling).lexically_normal();
+        if (!p.is_absolute()) {
+            return std::string();
+        }
+        // ⚠ AND ONE LOCATION MUST HAVE ONE SPELLING, WHICH `lexically_normal` ALONE DOES NOT
+        // GIVE. MEASURED on both families: a path whose last element is `..` normalizes WITH a
+        // trailing separator (`/a/b/sub/..` -> `/a/b/`), so the same directory could arrive
+        // here as `/a/b` from one caller and `/a/b/` from another. Everything downstream
+        // compares locations by BYTES -- a mark is the maker's own place exactly when its
+        // spelling matches, and the browser's badge appears exactly when origin's does -- so a
+        // second spelling is a place that silently stops being the place it is. A root keeps
+        // its separator, because there it is the whole path rather than a trailing one.
+        if (p.filename().empty() && p != p.root_path()) {
+            p = p.parent_path();
+        }
+        const AdmittedPath carried = admit_path(p);
+        return carried.carried ? carried.spelling : std::string();
+    } catch (...) {
+        // The platform will not make a path out of these bytes. That is the answer.
+        return std::string();
+    }
 }
 
 /// ONE DIRECTORY ENTRY'S NAME, AND WHETHER THE BYTES ARE THE FILESYSTEM'S OWN.

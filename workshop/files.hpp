@@ -4,10 +4,10 @@
 #ifndef ZENGINE_WORKSHOP_FILES_HPP
 #define ZENGINE_WORKSHOP_FILES_HPP
 
-// BROWSING THE PROJECT A MAKER LAUNCHED INTO.
+// BROWSING A FILESYSTEM, FROM WHEREVER THIS WORKSHOP BEGAN.
 //
-// WHAT THIS IS: one directory's worth of names, at a place inside the project root, held
-// as a snapshot until something asks for a new one. That is the whole subject. It is the
+// WHAT THIS IS: one directory's worth of names, at one absolute location, held as a
+// snapshot until something asks for a new one. That is the whole subject. It is the
 // `editor.hpp` split applied to a list instead of to a document -- the machinery and the
 // state live here, and the pane that shows them is presentation only.
 //
@@ -30,18 +30,38 @@
 //                              moment it is activated, from root + the names walked into
 //                              + this row's name.
 //
-// THE ROOT BOUNDARY IS THE REPRESENTATION, NOT A CHECK. The current directory is a STACK
-// OF NAMES entered below the root; parent means pop, and there is no `..` row to press. A
-// maker therefore cannot navigate above the root because there is nothing to say that
-// with -- which is a stronger promise than a comparison somebody has to remember to make,
-// and it needs no canonicalization, no containment resolver and no secure-path machinery.
+// WHERE THE MAKER IS LOOKING IS ONE ABSOLUTE STRING, AND IT IS NOT THE PROJECT. The
+// browser used to spell its location as a stack of names below the project root, and that
+// spelling WAS the old containment promise: a maker could not go above the root because
+// nothing could say a place above it. The promise is gone deliberately -- looking somewhere
+// was never the same act as making it your project -- and what replaces it is smaller than
+// what it replaced. One `current_dir`: absolute, lexically normal, forward separators, and
+// independent of `HostContext::project_dir` from the moment it is seeded.
 //
-// THE ONE HOLE IN THAT PROMISE IS NAMED AND CLOSED: entering a LINKED DIRECTORY would
-// leave the project's tree while every name on the stack still says otherwise. Such a row
-// is shown -- this browser does not hide real entries -- and refuses to be entered, in
-// words. That is a boundary this file imposes and can therefore describe honestly; it is
-// not a claim that the project root is a security perimeter, and nothing here should be
-// read as one.
+// THE THREE FACTS THAT USED TO COINCIDE, AND STAY APART NOW:
+//
+//   PROJECT ANCHOR        `HostContext::project_dir`. What a project-relative source
+//                         spelling MEANS. Browsing cannot write it; neither can marking,
+//                         jumping, or choosing a recipe catalog somewhere else.
+//   FILES LOCATION        `current_dir`, below. Where somebody is looking, right now, this
+//                         session. Free to be anywhere the host can carry.
+//   FILESYSTEM AUTHORITY  the operating system's, and it always was. This application
+//                         models no sandbox, claims no perimeter and asks for no permission
+//                         it does not have: a directory this process may not read is an
+//                         ordinary refusal in the system's own words.
+//
+// PARENT IS THE LEXICAL PARENT, AND STOPS WHERE A PATH STOPS. `p.parent_path()` until
+// `p.parent_path() == p` -- MEASURED as the fixed point at POSIX `/`, at a Windows drive
+// root and at `//server/` (WARNING: `has_parent_path()` is TRUE at all three and is not a
+// root test). Nothing is canonicalized, ever: a maker who walked into a linked directory
+// gets back out to where they walked in FROM rather than to wherever the link pointed, and
+// `lexically_normal` already makes an escape below a root unsayable.
+//
+// A LINKED DIRECTORY IS MARKED AND ENTERABLE. The refusal that used to live here existed to
+// keep the stack honest -- entering a link would have left the project while every name on
+// the stack still claimed otherwise -- and there is no stack to be dishonest any more. The
+// MARK stays, because it is what explains lexical parent to a maker, and because a row that
+// leaves the tree is worth seeing as one.
 //
 // FILENAMES ARE BYTES THIS APPLICATION CAN CARRY, OR THEY ARE MARKED. Every path in
 // Workshop is a `std::string`, and on Windows a narrow `path::string()` cannot faithfully
@@ -82,6 +102,11 @@
 // to end the process by asking.
 #include "path_admission.hpp"
 
+// ...AND WHERE A LOCATION MAY BE SEEDED FROM, AND WHAT ITS PARENT IS. The browser is the
+// first consumer of the marks, not their owner -- `parent_location` is a lexical fact about
+// a path and lives beside the places that path may be one of.
+#include "marks.hpp"
+
 namespace zengine::workshop {
 
 /// HOW MANY ENTRIES ONE LISTING WILL HOLD.
@@ -108,7 +133,9 @@ struct FileRow {
     bool directory = false;
     /// A DIRECTORY THAT LEAVES THE TREE. True only for a directory row whose own
     /// (unfollowed) status is not a directory -- a symbolic link, or the platform's
-    /// equivalent where the standard library reports one. Shown, never entered.
+    /// equivalent where the standard library reports one. Shown, marked, and enterable:
+    /// what the mark buys a maker is the explanation for why going back up returns them
+    /// here rather than to wherever the link led.
     bool linked = false;
     /// Can this name be carried through Workshop's narrow path custody at all? False makes
     /// the row a marked projection that refuses activation, and there are TWO ways to earn
@@ -193,7 +220,7 @@ struct Listing {
 inline Listing enumerate_directory(const std::string& dir) {
     Listing out;
     if (dir.empty()) {
-        out.refusal = "no project directory to browse";
+        out.refusal = "there is no location to browse";
         return out;
     }
     std::error_code ec;
@@ -252,46 +279,27 @@ inline Listing enumerate_directory(const std::string& dir) {
 /// WHAT THE MAKER IS CURRENTLY BROWSING -- session state, and work in progress rather than
 /// desk: nothing here is written to a file, restored at launch, or carried between runs.
 /// Where the pane IS lives in the setup like every pane's does; where a maker had walked to
-/// inside it does not, for WUX-0's reason (the desk, never the work in progress).
+/// inside it does not, for WUX-0's reason (the desk, never the work in progress). The
+/// places they said they want BACK are a different fact with a different lifetime, and they
+/// have an owner of their own (`marks.hpp`).
 struct FilesPane {
-    /// The names walked into, below the root, outermost first. Empty = at the root. This
-    /// IS the current directory, and it is why there is no path to validate: every element
-    /// is a name this browser itself listed.
-    std::vector<std::string> entered;
+    /// THE ONE ABSOLUTE LOCATION THIS BROWSER IS SHOWING. Lexically normal, forward
+    /// separators, and empty exactly while this run has nowhere to begin.
+    ///
+    /// IT IS SEEDED FROM THE ORIGIN MARK AND THEN OWNED HERE. After the seed nothing reads
+    /// `HostContext::project_dir` to derive it, which is what makes "browsing cannot move
+    /// the project" structural rather than a rule somebody remembers: there is no
+    /// expression left in this application that spells the location in terms of the anchor.
+    ///
+    /// EVERY WRITE GOES THROUGH ONE ADMISSION (`admit_location`), so the three invariants --
+    /// absolute, lexically normal, carriable -- hold after the seed, after an enter, after a
+    /// parent and after a mark jump, rather than at four call sites that each have to
+    /// remember.
+    std::string current_dir;
     Listing listing;
     std::size_t cursor = 0;    ///< which row the maker is on; bounded at use, never at write
     double wheel_accum = 0.0;  ///< fractional wheel notches not yet worth a row
 };
-
-/// The directory the pane is currently showing, spelled from the root and the stack. It is
-/// derived at every spend and stored nowhere -- the same discipline a pane's rectangle is
-/// under -- so a stack that changes cannot leave a stale path behind it.
-inline std::string current_dir(const std::string& root, const std::vector<std::string>& entered) {
-    if (root.empty()) {
-        return std::string();
-    }
-    std::filesystem::path p(root);
-    for (const std::string& name : entered) {
-        p /= name;
-    }
-    return p.lexically_normal().generic_string();
-}
-
-/// THE PROJECT-RELATIVE PROJECTION OF WHERE THE MAKER IS -- for a header to show, and for
-/// nothing else. The root is usually the longest and least interesting part of an absolute
-/// path, and a pane header is the one place in this application where the maker already
-/// knows what it would say. Identity stays absolute (`current_dir`); this is what that
-/// looks like from the project's own doorstep.
-inline std::string relative_dir(const std::vector<std::string>& entered) {
-    std::string out;
-    for (const std::string& name : entered) {
-        if (!out.empty()) {
-            out += "/";
-        }
-        out += shown_name(name);
-    }
-    return out;
-}
 
 /// The row the cursor is on, or null when the listing is empty or the cursor outlived it.
 /// Bounded AT USE, never at write: rows are replaced wholesale by every refresh, and a

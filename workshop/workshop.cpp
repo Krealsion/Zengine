@@ -35,6 +35,7 @@
 #include "arrangement.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
+#include "marks_persist.hpp"
 #include "path_admission.hpp"
 #include "recipe_persist.hpp"
 #include "recipes.hpp"
@@ -182,6 +183,14 @@ std::string exe_dir() {
 /// roaming/local split between them: a preference is meaningful on any machine, a session
 /// is not.
 ///
+/// `--marks <path>` is the maker's PLACES (PROJ-2): the directories they said they want to
+/// be able to come back to, once the Files browser stopped being confined to the directory
+/// Workshop was launched in. It defaults to the per-user MACHINE-LOCAL state root, beside
+/// the session and not beside the keymap, by the very criterion that separates the two
+/// roots — a mark is an absolute path, so it describes THIS machine's disks exactly as a
+/// viewport describes this machine's window. A mark is a destination and nothing else: it
+/// confers no authority, states no trust, and cannot move the project.
+///
 /// `--isolated` is the whole-application refusal of all three defaults (WUX-3): this run
 /// reads and writes NONE of the maker's ordinary per-user configuration or session state.
 /// It exists because moving the defaults off the launch directory inverts an accident —
@@ -263,6 +272,9 @@ struct Arguments {
     /// The maker's presentation preferences (WUX-3), written when they state one (the
     /// pane-title toggle). Empty means "not explicitly chosen", for `session`'s reason.
     std::string prefs;
+    /// The maker's location marks (PROJ-2), written when they mark or unmark a place.
+    /// Empty means "not explicitly chosen", for `session`'s reason.
+    std::string marks;
     /// This run touches none of the maker's ordinary per-user configuration or session
     /// state (WUX-3). Explicit paths above still win over it.
     bool isolated = false;
@@ -298,8 +310,9 @@ Arguments parse_arguments(int argc, char** argv) {
             continue;
         }
         if (arg == "--document" || arg == "--setup" || arg == "--session" ||
-            arg == "--keymap" || arg == "--prefs" || arg == "--load-plan" ||
-            arg == "--recipes" || arg == "--log" || arg == "--dump") {
+            arg == "--keymap" || arg == "--prefs" || arg == "--marks" ||
+            arg == "--load-plan" || arg == "--recipes" || arg == "--log" ||
+            arg == "--dump") {
             if (i + 1 >= argc) {
                 args.ok = false;
                 args.complaint = arg + " needs a path";
@@ -326,7 +339,8 @@ Arguments parse_arguments(int argc, char** argv) {
                     return args;
                 }
                 args.recipes = value;
-            } else if (arg == "--session" || arg == "--keymap" || arg == "--prefs") {
+            } else if (arg == "--session" || arg == "--keymap" || arg == "--prefs" ||
+                       arg == "--marks") {
                 // REFUSED HERE since WUX-3, for the same reason at a different default:
                 // empty is now these fields' way of saying "the per-user root decides",
                 // and a maker who typed an empty path would silently get that policy
@@ -340,6 +354,8 @@ Arguments parse_arguments(int argc, char** argv) {
                     args.session = value;
                 } else if (arg == "--keymap") {
                     args.keymap = value;
+                } else if (arg == "--marks") {
+                    args.marks = value;
                 } else {
                     args.prefs = value;
                 }
@@ -374,7 +390,8 @@ int main(int argc, char** argv) {
         std::printf("zengine-workshop - %s\n"
                     "usage: zengine-workshop [--document <path>] [--setup <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
-                    "                        [--prefs <path>] [--isolated]\n"
+                    "                        [--prefs <path>] [--marks <path>]\n"
+                    "                        [--isolated]\n"
                     "                        [--load-plan <path>]\n"
                     "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--dump <path>]\n"
@@ -438,6 +455,13 @@ int main(int argc, char** argv) {
     host.session_path = user_paths::resolve_durable_path(
         args.session, args.isolated, state_root,
         session_persist::kDefaultSessionFileName);
+    // THE MARKS RIDE THE MACHINE-LOCAL ROOT, and that is a correctness choice rather than a
+    // convenience one (PROJ-2). Every other maker-configuration file is meaningful on any
+    // machine this person sits at; a mark is an ABSOLUTE PATH, so it describes these disks
+    // and nothing else -- the same argument the viewport and the desktop placement already
+    // make for riding the session's root instead of the keymap's.
+    host.marks_path = user_paths::resolve_durable_path(
+        args.marks, args.isolated, state_root, marks_persist::kDefaultMarksFileName);
 
     // ---- ...AND THE ONE-TIME LEGACY TRANSITION, FOR EXACTLY THE DEFAULTED ONES ----
     //
@@ -521,6 +545,9 @@ int main(int argc, char** argv) {
                 path_or_absence(host.session_path).c_str());
     std::printf("zengine-workshop - keymap: %s\n", path_or_absence(host.keymap_path).c_str());
     std::printf("zengine-workshop - prefs: %s\n", path_or_absence(host.prefs_path).c_str());
+    // THE PLACES, SAID ON THE SAME TERMS AS THE OTHER FIVE. A maker who wonders why `n`
+    // takes them nowhere reads here that this run keeps no marks, rather than deducing it.
+    std::printf("zengine-workshop - marks: %s\n", path_or_absence(host.marks_path).c_str());
     if (!transition.empty()) {
         std::printf("zengine-workshop - %s\n", transition.c_str());
     }

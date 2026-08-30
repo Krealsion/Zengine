@@ -41,6 +41,10 @@
 // they now share is asserted here directly rather than only through its consumers.
 #include "workshop/path_admission.hpp"
 
+// `std::system`, for the one Windows arrangement the standard library cannot make: a
+// directory JUNCTION. `mklink /J` is how a person makes one and needs no privilege.
+#include <cstdlib>
+
 // ...AND THE ONE PLATFORM CALL THIS SUITE MAKES. A filename holding ill-formed UTF-16 is
 // the measured condition the admission boundary exists for, and only `CreateFileW` will
 // create one; every case that arranges it still runs on both families, because what each
@@ -92,6 +96,52 @@ inline bool put_unsayable_entry(const std::filesystem::path& dir) {
     put_file(dir / std::filesystem::path(std::string("lone\xff.txt")), "x");
     return true;
 #endif
+}
+
+/// AN ABSOLUTE SPELLING THIS PLATFORM AGREES IS ONE.
+///
+/// ⚠ `/p/root` IS ABSOLUTE ON POSIX AND IS NOT ON WINDOWS -- it carries a root DIRECTORY and
+/// no root NAME there, which is `std::filesystem`'s own answer and exactly the distinction
+/// `admit_location` refuses on. A case that wrote the POSIX spelling on both families would
+/// assert one law on one and a typo on the other, so the ARRANGEMENT is per-platform and the
+/// LAW asserted over it is identical.
+inline std::string abs_spelling(const std::string& tail) {
+#if defined(_WIN32)
+    return "C:" + tail;
+#else
+    return tail;
+#endif
+}
+
+/// This platform's own filesystem root, spelled the way every path here is spelled.
+inline std::string root_spelling() { return abs_spelling("/"); }
+
+/// A DIRECTORY THAT LEAVES THE TREE, made the strongest way this platform allows.
+///
+/// POSIX gets an ordinary directory symlink. Windows tries one first and falls back to a
+/// JUNCTION -- which is the case that actually matters there, because a junction needs no
+/// privilege (a symbolic link does, and this session does not hold it), and because a junction
+/// is the entry whose `is_symlink()` answers FALSE while it is still a directory that leaves
+/// the tree. Returns false when the platform made neither, so a case can say so rather than
+/// passing quietly on a boundary nobody arranged.
+inline bool make_linked_directory(const std::filesystem::path& link,
+                                  const std::filesystem::path& target) {
+    std::error_code ec;
+    std::filesystem::create_directory_symlink(target, link, ec);
+    if (!ec) {
+        return true;
+    }
+#if defined(_WIN32)
+    // `mklink /J` is the ordinary way a person makes one, and it is the reparse point this
+    // application's `linked` predicate was written against (EDIT-1 measured it).
+    const std::string command = "cmd /c mklink /J \"" + link.string() + "\" \"" +
+                                target.string() + "\" >nul 2>&1";
+    if (std::system(command.c_str()) == 0) {
+        std::error_code exists_ec;
+        return std::filesystem::exists(link, exists_ec) && !exists_ec;
+    }
+#endif
+    return false;
 }
 
 /// A DIRECTORY NAME OF THE SAME KIND, for the launch-capture case. On Windows it is spelled
@@ -399,7 +449,7 @@ TEST_CASE("EDIT-1: a bound claims what it read, and never a total it never reach
     CHECK(l.rows.size() == kMaxListedEntries);
     FilesPane pane;
     pane.listing = l;
-    const std::string head = files_header(pane, false);
+    const std::string head = files_header(pane, std::string(), false, 200);
     // QR-4: "stopped counting" is the honest sentence. A fraction would be a claim about a
     // total this walk never reached.
     CHECK(head.find("stopped counting") != std::string::npos);
@@ -417,14 +467,49 @@ TEST_CASE("EDIT-1: a directory that cannot be listed is a refusal, not an empty 
     CHECK(none.rows.empty());
 }
 
-TEST_CASE("EDIT-1: the current directory is the root plus the names entered, and nothing else") {
-    const std::vector<std::string> stack{"src", "deep"};
-    CHECK(current_dir("/p/root", stack) == "/p/root/src/deep");
-    CHECK(relative_dir(stack) == "src/deep");
-    CHECK(relative_dir({}).empty());
-    // NO ROOT, NO PATH. The stack alone denotes nothing, which is why an absent project
-    // refuses rather than browsing something relative to wherever the process stands.
-    CHECK(current_dir("", stack).empty());
+TEST_CASE("PROJ-2: a location is one absolute spelling, admitted the same way every time") {
+    // THE INVARIANT THE WHOLE REPRESENTATION RESTS ON: absolute, lexically normal, forward
+    // separators -- and one function enforces it, so a seed, an enter, a parent and a mark
+    // jump cannot each remember it differently.
+    CHECK(admit_location(abs_spelling("/p/root/src/deep")) == abs_spelling("/p/root/src/deep"));
+    CHECK(admit_location(abs_spelling("/p/root/src/../src/./deep")) ==
+          abs_spelling("/p/root/src/deep"));
+    // ⚠ ONE LOCATION, ONE SPELLING -- and `lexically_normal` alone does not give it. MEASURED
+    // on both families: a path ending in `..` normalizes WITH a trailing separator, so the
+    // same directory would arrive as two different byte strings and a mark would silently
+    // stop being the place it is. A root keeps its separator, because there it IS the path.
+    CHECK(admit_location(abs_spelling("/p/root/sub/..")) == abs_spelling("/p/root"));
+    CHECK(admit_location(abs_spelling("/p/root/")) == abs_spelling("/p/root"));
+    CHECK(admit_location(root_spelling()) == root_spelling());
+    // A RELATIVE SPELLING IS NOT A LOCATION AT ALL, and is emphatically not re-based
+    // against wherever this process happens to be standing.
+    CHECK(admit_location("src/deep").empty());
+    CHECK(admit_location("").empty());
+#if defined(_WIN32)
+    CHECK(admit_location("C:\\work\\game") == "C:/work/game");
+    CHECK(admit_location("C:/work/../work/game") == "C:/work/game");
+#endif
+}
+
+TEST_CASE("PROJ-2: parent is lexical and stops where a path stops, not where a project does") {
+    // ⭐ THE MEASURED FIXED POINT, and the reason `has_parent_path()` is never the test:
+    // it answers TRUE at every root below, so a boundary built on it would never fire.
+    CHECK(parent_location(abs_spelling("/p/root/src/deep")) == abs_spelling("/p/root/src"));
+    CHECK(parent_location(abs_spelling("/p/root")) == abs_spelling("/p"));
+    CHECK(parent_location(abs_spelling("/p")) == root_spelling());
+    CHECK(parent_location(root_spelling()).empty()); // the top -- and it HAS a parent_path by
+    CHECK(std::filesystem::path(root_spelling()).has_parent_path()); // the standard's answer
+    CHECK(parent_location("").empty());
+#if defined(_WIN32)
+    CHECK(parent_location("C:/work/game") == "C:/work");
+    CHECK(parent_location("C:/work") == "C:/");
+    CHECK(parent_location("C:/").empty());
+    CHECK(std::filesystem::path("C:/").has_parent_path());
+#endif
+    // AND AN ESCAPE BELOW A ROOT IS UNSAYABLE, by `lexically_normal` alone -- no
+    // containment resolver, no comparison anybody has to remember to make.
+    CHECK(admit_location(abs_spelling("/..")) == root_spelling());
+    CHECK(admit_location(abs_spelling("/home/../..")) == root_spelling());
 }
 
 // ============================================================================
@@ -443,7 +528,7 @@ TEST_CASE("EDIT-1: the pane lists the project it was launched into") {
     CHECK(r.shown().find("main.cpp") != std::string::npos);
 }
 
-TEST_CASE("EDIT-1: with no project the pane refuses in words and guesses nothing") {
+TEST_CASE("EDIT-1: with no origin the pane refuses in words and guesses nothing") {
     FilesRig r("noroot", /*with_project=*/false);
     r.open();
     CHECK_FALSE(r.listing().known);
@@ -454,7 +539,7 @@ TEST_CASE("EDIT-1: with no project the pane refuses in words and guesses nothing
     // means what it means everywhere else instead of vanishing.
     r.press_body(0);
     CHECK(keyboard_context(r.session()) == KeyContext::kCommand);
-    CHECK(r.shown().find("no project directory") != std::string::npos);
+    CHECK(r.shown().find("this run began nowhere") != std::string::npos);
 }
 
 TEST_CASE("EDIT-1: entering a directory walks in, and parent walks back to where you were") {
@@ -469,28 +554,51 @@ TEST_CASE("EDIT-1: entering a directory walks in, and parent walks back to where
     r.t.key(input::scan::kDown);
     CHECK(r.at_cursor() == "src");
     r.t.key(input::scan::kReturn);
-    const std::vector<std::string> in_src{"src"};
-    CHECK(r.pane().entered == in_src);
+    CHECK(r.pane().current_dir == (r.root / "src").generic_string());
     const std::vector<std::string> only_a{"a.cpp"};
     CHECK(r.names() == only_a);
-    CHECK(r.notice() == "in src");
+    CHECK(r.notice() == "in " + (r.root / "src").generic_string());
     // GOING UP PUTS THE MAKER BACK ON THE ROW THEY CAME FROM, which is the one refresh
     // that does not send the cursor home: the answer to "where was I" exists here.
     r.t.key(input::scan::kBackspace);
-    CHECK(r.pane().entered.empty());
+    CHECK(r.pane().current_dir == r.root.generic_string());
     CHECK(r.at_cursor() == "src");
-    CHECK(r.notice() == "in the project root");
+    // ...AND THE PLACE THIS RUN BEGAN SAYS SO. Origin is a MARK, not a wall.
+    CHECK(r.notice() == "in " + r.root.generic_string() + " (origin)");
 }
 
-TEST_CASE("EDIT-1: the root boundary is the empty stack -- there is nothing to go up to") {
+TEST_CASE("PROJ-2: parent walks straight past the project and stops at the filesystem") {
+    // ⭐⭐ THE PHASE'S FIRST CENTRAL CLAIM, THROUGH THE REAL GESTURE. A maker standing in
+    // their project presses Backspace until a path has no parent left -- and what they walk
+    // past on the way is the project anchor, which does not move, notice, or refuse.
     FilesRig r("root");
-    put_file(r.root / "a.cpp", "int a;\n");
+    std::filesystem::create_directories(r.root / "deep" / "deeper");
+    r.t.host.project_dir = (r.root / "deep").generic_string();
+    const std::string anchor = r.t.host.project_dir;
     r.open();
+    REQUIRE(r.pane().current_dir == anchor);
+
     r.press_body(0);
     REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
     r.t.key(input::scan::kBackspace);
-    CHECK(r.pane().entered.empty());
-    CHECK(r.notice().find("does not go above it") != std::string::npos);
+    // ABOVE THE PROJECT, and the anchor is exactly where it was.
+    CHECK(r.pane().current_dir == r.root.generic_string());
+    CHECK(r.t.host.project_dir == anchor);
+    CHECK(r.listing().known);
+
+    // ...ALL THE WAY UP, and the top refuses in the FILESYSTEM's words rather than the
+    // project's, and does not move.
+    for (int i = 0; i < 64; ++i) {
+        r.t.key(input::scan::kBackspace);
+    }
+    CHECK(r.pane().current_dir == std::filesystem::path(r.root).root_path().generic_string());
+    CHECK(r.notice().find("is the top of this filesystem") != std::string::npos);
+    CHECK(r.notice().find("project") == std::string::npos);
+    const std::string at_top = r.pane().current_dir;
+    r.t.key(input::scan::kBackspace);
+    CHECK(r.pane().current_dir == at_top);
+    // ...AND THE ANCHOR NEVER MOVED, through any of it.
+    CHECK(r.t.host.project_dir == anchor);
     // AND NO ROW SAYS `..`, so there is nothing to press that would construct one.
     for (const std::string& name : r.names()) {
         CHECK(name != "..");
@@ -498,33 +606,63 @@ TEST_CASE("EDIT-1: the root boundary is the empty stack -- there is nothing to g
     }
 }
 
-TEST_CASE("EDIT-1: a linked directory is shown and refuses to be entered") {
+TEST_CASE("PROJ-2: a linked directory is marked, entered, and left again LEXICALLY") {
+    // ⭐ THE REFUSAL THAT IS NOT INHERITED. EDIT-1 refused entry to keep the entered-name
+    // stack honest; there is no stack, so there is no property left to protect -- and the
+    // measured cost of keeping the refusal anyway was six of the twenty-three directories
+    // at POSIX `/`.
     FilesRig r("link");
     const std::filesystem::path outside = r.root / "outside";
     std::filesystem::create_directory(outside);
     put_file(outside / "secret.cpp", "int s;\n");
     std::filesystem::create_directory(r.root / "project");
-    std::error_code ec;
-    std::filesystem::create_directory_symlink(outside, r.root / "project" / "away", ec);
-    if (ec) {
-        // A PLATFORM THAT WILL NOT MAKE ONE FOR THIS PROCESS (Windows without the
-        // privilege) cannot answer this question, and a case that quietly passed there
-        // would be claiming a boundary nobody imposed.
-        MESSAGE("this platform refused to create a directory symlink: ", ec.message());
+    if (!make_linked_directory(r.root / "project" / "away", outside)) {
+        // A PLATFORM THAT WILL MAKE NEITHER KIND FOR THIS PROCESS cannot answer this
+        // question, and a case that quietly passed there would be claiming behaviour nobody
+        // exercised. On Windows this is now the junction arm, which needs no privilege --
+        // and a junction is the entry that matters there, because `is_symlink()` answers
+        // FALSE for one while it is still a directory that leaves the tree.
+        MESSAGE("this platform made no linked directory for this process");
         return;
     }
-    r.t.host.project_dir = (r.root / "project").generic_string();
+    const std::filesystem::path project = r.root / "project";
+    r.t.host.project_dir = project.generic_string();
     r.open();
     REQUIRE(r.listing().rows.size() == 1);
     const FileRow& row = r.listing().rows.front();
     CHECK(row.name == "away");
     CHECK(row.directory);
-    CHECK(row.linked); // the row is SHOWN -- hiding a real entry is the other way to be wrong
+    CHECK(row.linked); // the row is still MARKED -- that mark is what explains parent
+#if defined(_WIN32)
+    // ⚠⚠ AND ON WINDOWS THE MARK IS EARNED BY THE DISAGREEMENT TEST, not by `is_symlink()`.
+    // MEASURED: a junction answers `is_symlink() == false` while being exactly the kind of
+    // entry this row is marking, so an `is_symlink` predicate would have shown it as an
+    // ordinary directory and the maker would have no idea why parent behaves as it does.
+    const std::filesystem::path made = project / "away";
+    std::error_code sym_ec;
+    if (!std::filesystem::is_symlink(made, sym_ec) && !sym_ec) {
+        MESSAGE("witnessed a Windows reparse point that is not a symbolic link (a junction)");
+    }
+#endif
     r.press_body(0);
     REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
     r.t.key(input::scan::kReturn);
-    CHECK(r.pane().entered.empty()); // it did not travel
-    CHECK(r.notice().find("does not follow links out of it") != std::string::npos);
+
+    // IT TRAVELLED, AND THE LOCATION IS THE ONE THE MAKER WALKED TO -- not the one the
+    // link points at. Nothing canonicalized.
+    CHECK(r.pane().current_dir == (project / "away").generic_string());
+    CHECK(r.pane().current_dir.find("outside") == std::string::npos);
+    const std::vector<std::string> through{"secret.cpp"};
+    CHECK(r.names() == through); // the target's contents, through the link's own spelling
+
+    // ...AND PARENT UNDOES EXACTLY THE ENTER. A canonicalizing browser would come back out
+    // into the link's TARGET's parent (the temp root) instead of where the maker came from.
+    r.t.key(input::scan::kBackspace);
+    CHECK(r.pane().current_dir == project.generic_string());
+    CHECK(r.at_cursor() == "away");
+    // The row still says what it is, and no longer says it is refused.
+    CHECK(files_row_text(r.listing().rows.front()).find("(link)") != std::string::npos);
+    CHECK(files_row_text(r.listing().rows.front()).find("not entered") == std::string::npos);
 }
 
 TEST_CASE("EDIT-1: opening a row hands the path to the ONE editor door") {
@@ -690,7 +828,7 @@ TEST_CASE("EDIT-1: the browser's keys do not reach command mode, and command mod
     // unbound here, so it does nothing rather than creating an object behind the pane.
     r.t.key(input::scan::kR);
     r.t.text("r");
-    CHECK(r.notice().find("listed the project root again") != std::string::npos);
+    CHECK(r.notice() == "listed " + r.root.generic_string() + " again");
     r.t.key(input::scan::kN);
     r.t.text("n");
     CHECK(r.session().rows.size() == objects_before);
@@ -740,8 +878,7 @@ TEST_CASE("EDIT-1: nothing about the browser is written to a maker's files") {
     r.open();
     r.press_body(0);
     r.t.key(input::scan::kReturn);
-    const std::vector<std::string> in_src{"src"};
-    REQUIRE(r.pane().entered == in_src);
+    REQUIRE(r.pane().current_dir == (r.root / "src").generic_string());
     // THE PANE RIDES THE SETUP LIKE EVERY PANE. What a setup names is the pane's presence
     // and geometry -- and the browser's own place inside it is work in progress, which
     // WUX-0 keeps out of every durable file.
@@ -1764,11 +1901,17 @@ TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves w
     CHECK(r.notice().find("b-recipes.json") != std::string::npos);
     CHECK(r.notice().find("2 recipes") != std::string::npos);
     // ...AND THE PANEL CAN STILL ANSWER IT LATER, because the banner has stopped being
-    // true and this is the row that says so. It is the project-relative spelling, which is
-    // what fits this panel's measured column; the absolute path is the notice's and the
-    // owner's.
+    // true and this is the row that says so.
+    //
+    // ⭐ IT IS THE ABSOLUTE PATH, FITTED BY THE MEASURER THAT KEEPS ITS TAIL (PROJ-2). The
+    // project-relative spelling PROJ-1 shipped here was unambiguous only while the browser
+    // could not leave the project, and the file's own NAME is the half a maker needs. This
+    // temp path is longer than the panel's measured column, so what is asserted is exactly
+    // the property: the leaf survives, the cut marks itself, and the row still fits.
     const std::string panel = r.shown();
-    CHECK(panel.find("catalog  b-recipes.json") != std::string::npos);
+    CHECK(panel.find("catalog  ") != std::string::npos);
+    CHECK(panel.find("b-recipes.json") != std::string::npos);
+    CHECK(panel.find(detail::kElided) != std::string::npos);
     // ...AND IT COST ONE `said` ROW AND NOTHING ELSE. Every fact a maker acts on is still
     // on the panel, in the same order: this row yields first under any smaller budget, and
     // a session that never moves its catalog pays nothing at all.
@@ -1857,7 +2000,7 @@ TEST_CASE("PROJ-1: a refused catalog leaves the maker exactly where they were") 
 
     // AND WORKSHOP IS STILL WORKSHOP: the browser answers the next gesture.
     r.t.key(input::scan::kR);
-    CHECK(r.notice().find("listed the project root again") != std::string::npos);
+    CHECK(r.notice() == "listed " + r.root.generic_string() + " again");
 }
 
 TEST_CASE("PROJ-1: recipes come from the saved file, never from an unsaved editor buffer") {
@@ -1996,7 +2139,10 @@ TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowher
     r.open();
     point_at(r, "b.json");
     use_as_recipes(r);
-    REQUIRE(r.session().recipes_moved_to == "b.json");
+    // THE PROJECTION IS THE OWNER'S OWN ANSWER, read back after the attempt rather than
+    // recomposed from the browser's location -- so the screen and the owner cannot come to
+    // name two different files (PROJ-2).
+    REQUIRE(r.session().recipes_moved_to == (r.root / "b.json").generic_string());
     REQUIRE(owner.source() == (r.root / "b.json").generic_string());
 
     // WHAT A SAVE ACTUALLY CARRIES, read off the file this Workshop writes on its way
@@ -2009,4 +2155,674 @@ TEST_CASE("PROJ-1: a live catalog choice is this session's and is written nowher
     CHECK(text.find("a.json") == std::string::npos);
     CHECK(text.find("b.json") == std::string::npos);
     CHECK(text.find("recipe") == std::string::npos);
+}
+
+// ============================================================================
+// Tier 4 — LOCATION MARKS, AND A BROWSER THAT MAY LEAVE (PROJ-2)
+// ============================================================================
+//
+// THE SUBJECT IS FOUR FACTS STAYING APART. The project anchor says what a relative source
+// spelling MEANS; the Files location says where somebody is looking; a mark says a place is
+// worth coming back to; and the operating system says what may be read at all. They
+// coincide at launch and are separate everywhere else, and almost every case below is a
+// falsifier for one of them quietly becoming another.
+//
+// NOTHING HERE REACHES INSIDE THE PANE. Every location this tier arranges is walked to
+// through the browser's own gestures, because the whole subject IS the navigation: a helper
+// that assigned `current_dir` would arrange a case the product cannot reach and prove
+// nothing about the verbs a maker actually has.
+
+namespace {
+
+/// The three new gestures, as a maker makes them: a bare letter arrives as a key transition
+/// AND the character it produced, and the browser's swallow rule expects both.
+inline void mark_here(FilesRig& r) {
+    r.t.key(input::scan::kM);
+    r.t.text("m");
+}
+inline void next_mark(FilesRig& r) {
+    r.t.key(input::scan::kN);
+    r.t.text("n");
+}
+inline void previous_mark(FilesRig& r) {
+    r.t.key(input::scan::kN, input::mod::kShift);
+    r.t.text("N");
+}
+
+/// Point the keys at the browser without activating anything -- the two-press promise, so a
+/// case that only wants the pane focused does not open a row by accident.
+inline void aim_at_files(FilesRig& r) {
+    if (keyboard_context(r.session()) != KeyContext::kFiles) {
+        r.press_body(0);
+    }
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+}
+
+/// Is `dir` an ancestor of (or equal to) `of`, over the one spelling both are in?
+inline bool contains_location(const std::string& dir, const std::string& of) {
+    if (dir.empty() || of.rfind(dir, 0) != 0) {
+        return false;
+    }
+    return of.size() == dir.size() || dir.back() == '/' || of[dir.size()] == '/';
+}
+
+/// WALK THE BROWSER TO AN ABSOLUTE LOCATION THE WAY A MAKER WOULD: Backspace up to a common
+/// ancestor, then Return down through the rows. Fails loudly rather than arriving somewhere
+/// else, and never touches the pane's own state.
+inline void walk_to(FilesRig& r, const std::filesystem::path& to) {
+    const std::string want = to.generic_string();
+    aim_at_files(r);
+    for (int guard = 0; guard < 64 && !contains_location(r.pane().current_dir, want);
+         ++guard) {
+        const std::string was = r.pane().current_dir;
+        r.t.key(input::scan::kBackspace);
+        REQUIRE_MESSAGE(r.pane().current_dir != was, "cannot go up out of ", was);
+    }
+    REQUIRE(contains_location(r.pane().current_dir, want));
+    while (r.pane().current_dir != want) {
+        const std::string rest = want.substr(r.pane().current_dir.size());
+        const std::size_t at = rest.find('/', 1);
+        const std::string step =
+            rest.substr(1, at == std::string::npos ? std::string::npos : at - 1);
+        point_at(r, step);
+        r.t.key(input::scan::kReturn);
+    }
+    REQUIRE(r.pane().current_dir == want);
+}
+
+} // namespace
+
+TEST_CASE("PROJ-2: the marks owner is session truth, and Files is only its first reader") {
+    // SC-4, AS A VALUE. The owner is `LocationMarks` on the `Session`, beside `panels` --
+    // not inside `FilesPane` -- so a later consumer can ask about remembered places without
+    // reaching into a presentation, and `close_panel` cannot destroy one.
+    LocationMarks marks;
+    marks.origin = "/work/game";
+    CHECK(marks.provenance("/work/game") == mark_from::kOrigin);
+    CHECK(marks.provenance("/work") == 0);
+
+    // A DUPLICATE COLLAPSES TO ONE MAKER FACT.
+    CHECK(marks.remember("/elsewhere/lib"));
+    CHECK_FALSE(marks.remember("/elsewhere/lib"));
+    CHECK(marks.maker.size() == 1);
+    CHECK(marks.marked("/elsewhere/lib"));
+
+    // ONE PLACE, TWO PROVENANCES, AND THEY STAY DISTINCT: a maker may durably mark the very
+    // directory this run began in, and forgetting the maker fact leaves origin alone.
+    CHECK(marks.remember("/work/game"));
+    CHECK(marks.provenance("/work/game") == (mark_from::kOrigin | mark_from::kMaker));
+    CHECK(marks.forget("/work/game"));
+    CHECK(marks.provenance("/work/game") == mark_from::kOrigin);
+    CHECK_FALSE(marks.forget("/work/game")); // forgetting twice is a no-op, not an error
+
+    // THE MARKS ARE SORTED, so the traversal order and the written bytes are the same on
+    // every run rather than following the order somebody happened to press `m` in.
+    CHECK(marks.remember("/a"));
+    CHECK(marks.remember("/z"));
+    CHECK(marks.remember("/m"));
+    const std::vector<std::string> want{"/a", "/elsewhere/lib", "/m", "/z"};
+    CHECK(marks.maker == want);
+
+    // A MARK CARRIES NO OTHER MEANING. The owner's whole surface is places and provenance:
+    // there is nowhere here to put a recipe, a project, a grant or a build intent.
+    CHECK(marks.provenance("/nowhere/anybody/mentioned") == 0);
+}
+
+TEST_CASE("PROJ-2: one address is one traversal stop, however many ways it is known") {
+    // FALSIFIER 9. Origin, a maker mark and a filesystem root can all name one directory; a
+    // cycle that stopped there three times would stutter, and it is the PROVENANCE that must
+    // survive the dedup rather than the duplicate.
+    LocationMarks marks;
+    marks.origin = "/";
+    marks.remember("/");
+    marks.remember("/work");
+    const std::vector<MarkedPlace> stops = marks.destinations({"/"});
+    REQUIRE(stops.size() == 2);
+    CHECK(stops[0].path == "/");
+    CHECK(stops[0].from == (mark_from::kOrigin | mark_from::kMaker | mark_from::kRoot));
+    CHECK(stops[1].path == "/work");
+    CHECK(stops[1].from == mark_from::kMaker);
+    // THE ORDER IS ORIGIN, THEN THE MAKER'S OWN, THEN THE HOST'S ROOTS -- deterministic, and
+    // it does not shuffle when the host reports something different.
+    const std::vector<MarkedPlace> more = marks.destinations({"/", "/mnt/x"});
+    REQUIRE(more.size() == 3);
+    CHECK(more[2].path == "/mnt/x");
+    CHECK(more[2].from == mark_from::kRoot);
+    // FALSIFIER 10: the roots are an ARGUMENT and are held nowhere. The same owner, asked
+    // again with a different answer from the host, gives the different answer.
+    CHECK(marks.destinations({}).size() == 2);
+    CHECK(provenance_words(more[0].from) == "origin, marked, filesystem root");
+    CHECK(provenance_words(0).empty());
+}
+
+TEST_CASE("PROJ-2: the host's filesystem roots are asked for, never invented") {
+    // SC-7. What this asserts on each family is what that family actually has, and the claim
+    // deliberately stops short of "every reachable path".
+    const std::vector<std::string> roots = host_filesystem_roots();
+    REQUIRE_FALSE(roots.empty());
+    for (const std::string& root : roots) {
+        // Every reported root is a spelling this application can carry AND is its own
+        // lexical parent -- which is what makes it a place `files.parent` stops at.
+        CHECK(admit_location(root) == root);
+        CHECK(at_filesystem_root(root));
+        CHECK(parent_location(root).empty());
+    }
+#if defined(_WIN32)
+    // The mechanism is the logical-drive mask, so every entry is `X:/` -- ASCII by
+    // construction, which is why no new narrow conversion becomes load-bearing here -- and
+    // the drive this suite is running from is one of them.
+    for (const std::string& root : roots) {
+        REQUIRE(root.size() == 3);
+        CHECK(root[1] == ':');
+        CHECK(root[2] == '/');
+    }
+    const std::string here = std::filesystem::current_path().root_path().generic_string();
+    CHECK(std::find(roots.begin(), roots.end(), here) != roots.end());
+#else
+    const std::vector<std::string> only_slash{"/"};
+    CHECK(roots == only_slash);
+#endif
+}
+
+TEST_CASE("PROJ-2: a maker marks a place, leaves, and comes back to it") {
+    // ⭐⭐ THE PHASE'S OTHER CENTRAL CLAIM, THROUGH THE REAL GESTURES. Mark, walk away,
+    // traverse back -- and the project anchor is untouched at every step.
+    FilesRig r("marklive");
+    const std::filesystem::path away = r.root / "away";
+    std::filesystem::create_directories(away / "inner");
+    put_file(away / "there.cpp", "int t;\n");
+    r.t.host.marks_path = (r.root / "marks.json").generic_string();
+    const std::string anchor = r.t.host.project_dir;
+    r.open();
+    REQUIRE(r.pane().current_dir == r.root.generic_string());
+
+    walk_to(r, away);
+    mark_here(r);
+    CHECK(r.notice() == "marked: " + away.generic_string());
+    CHECK(r.session().marks.marked(away.generic_string()));
+    // ...AND IT REACHED THE DURABLE FILE IMMEDIATELY, because a mark a maker made and a
+    // crash lost would be a promise this application did not keep.
+    REQUIRE(std::filesystem::exists(r.t.host.marks_path));
+    CHECK(bytes_of(r.t.host.marks_path).find(away.generic_string()) != std::string::npos);
+
+    // WALK SOMEWHERE ELSE ENTIRELY -- above the project, which is now allowed.
+    r.t.key(input::scan::kBackspace);
+    r.t.key(input::scan::kBackspace);
+    REQUIRE(r.pane().current_dir != away.generic_string());
+    REQUIRE(r.pane().current_dir != anchor);
+
+    // ...AND TRAVERSE BACK. The destinations are origin, the mark, and this system's roots;
+    // whichever the cycle reaches first, `away` is reachable and says why it is known.
+    bool reached = false;
+    for (int i = 0; i < 8 && !reached; ++i) {
+        next_mark(r);
+        reached = r.pane().current_dir == away.generic_string();
+    }
+    CHECK(reached);
+    CHECK(r.notice() == "at " + away.generic_string() + " (marked)");
+    const std::vector<std::string> there{"inner", "there.cpp"};
+    CHECK(r.names() == there);
+
+    // ⭐ A JUMP CHANGED WHERE THE MAKER IS LOOKING AND NOTHING ELSE (falsifier 4).
+    CHECK(r.t.host.project_dir == anchor);
+    CHECK(r.session().recipes_moved_to.empty());
+    CHECK_FALSE(r.session().editor.open_document());
+    CHECK(r.session().marks.origin == anchor);
+
+    // AND THE TOGGLE IS A TOGGLE.
+    mark_here(r);
+    CHECK(r.notice() == "no longer marked: " + away.generic_string());
+    CHECK_FALSE(r.session().marks.marked(away.generic_string()));
+    CHECK(bytes_of(r.t.host.marks_path).find("away") == std::string::npos);
+}
+
+TEST_CASE("PROJ-2: traversal is cyclic, has no standing selection, and both directions work") {
+    // SC-6, end to end. The cycle is found from where the browser IS at the gesture, so
+    // there is no remembered index to drift out of agreement with the screen.
+    FilesRig r("traverse");
+    std::filesystem::create_directories(r.root / "one");
+    std::filesystem::create_directories(r.root / "two");
+    r.t.host.marks_path = (r.root / "marks.json").generic_string();
+    r.open();
+    walk_to(r, r.root / "one");
+    mark_here(r);
+    walk_to(r, r.root / "two");
+    mark_here(r);
+    walk_to(r, r.root);
+
+    const std::vector<MarkedPlace> stops =
+        r.session().marks.destinations(host_filesystem_roots());
+    REQUIRE(stops.size() >= 3);
+    const std::size_t total = stops.size();
+    std::size_t at = total;
+    for (std::size_t i = 0; i < total; ++i) {
+        if (stops[i].path == r.pane().current_dir) {
+            at = i;
+        }
+    }
+    REQUIRE(at < total);
+
+    // FORWARD FROM WHERE THE MAKER IS, WRAPPING AT THE END -- a full cycle is the identity.
+    for (std::size_t step = 1; step <= total; ++step) {
+        next_mark(r);
+        CHECK(r.pane().current_dir == stops[(at + step) % total].path);
+    }
+    CHECK(r.pane().current_dir == stops[at].path);
+
+    // ...AND BACKWARD IS ITS INVERSE.
+    previous_mark(r);
+    CHECK(r.pane().current_dir == stops[(at + total - 1) % total].path);
+    next_mark(r);
+    CHECK(r.pane().current_dir == stops[at].path);
+
+    // THERE IS NO STANDING "SELECTED MARK": walking somewhere by hand re-anchors the cycle
+    // on where the maker actually IS, and the next jump lands on a known place rather than
+    // on the neighbour of a stale index.
+    r.t.key(input::scan::kBackspace);
+    const std::string walked = r.pane().current_dir;
+    REQUIRE(r.session().marks.provenance(walked) == 0);
+    next_mark(r);
+    CHECK(r.pane().current_dir != walked);
+    CHECK(r.pane().current_dir == stops.front().path);
+}
+
+TEST_CASE("PROJ-2: origin is generated for the run, is a mark, and is not the project") {
+    // SC-3. It coincides with the anchor today and is a DIFFERENT FACT: it is not written
+    // down, it does not move when the browser does, and it is not renamed "project".
+    FilesRig r("seedmark");
+    std::filesystem::create_directory(r.root / "sub");
+    r.t.host.marks_path = (r.root / "marks.json").generic_string();
+    r.open();
+    REQUIRE(r.session().marks.settled);
+    CHECK(r.session().marks.origin == r.root.generic_string());
+    CHECK(r.session().marks.origin == r.t.host.project_dir);
+    // ...AND IT IS VISIBLY A MARK, on the pane's own header.
+    CHECK(r.shown().find("origin") != std::string::npos);
+
+    // BROWSING DOES NOT MOVE IT, and the badge follows the LOCATION rather than the pane.
+    walk_to(r, r.root / "sub");
+    CHECK(r.session().marks.origin == r.root.generic_string());
+    CHECK(r.shown().find("origin") == std::string::npos);
+
+    // FALSIFIER 5: ORIGIN IS NOT PERSISTED. Marking somewhere writes the maker's own places
+    // and nothing else -- a generated fact in a durable file would come back as a maker's
+    // fact on the next run and could never be unmarked.
+    mark_here(r);
+    REQUIRE(std::filesystem::exists(r.t.host.marks_path));
+    const std::string written = bytes_of(r.t.host.marks_path);
+    CHECK(written.find((r.root / "sub").generic_string()) != std::string::npos);
+    CHECK(written.find("origin") == std::string::npos);
+    CHECK(written.find(r.root.generic_string() + "\"") == std::string::npos);
+}
+
+TEST_CASE("PROJ-2: origin is the ADMITTED spelling of the launch location, not the raw one") {
+    // ⭐ THE ONE ADMISSION WHOSE ABSENCE NOTHING ELSE CATCHES. `HostContext::project_dir` is a
+    // plain field a host fills in, and origin is compared to the browser's location BY BYTES
+    // -- so an origin taken raw would be an origin the maker can never get back to: walking
+    // away and back produces the NORMALIZED spelling, and the two would never match again.
+    FilesRig r("seedadmit");
+    std::filesystem::create_directory(r.root / "sub");
+    r.t.host.project_dir = (r.root / "sub" / "..").generic_string(); // ".../sub/.."
+    REQUIRE(r.t.host.project_dir != r.root.generic_string());
+    r.open();
+    CHECK(r.session().marks.origin == r.root.generic_string());
+    CHECK(r.pane().current_dir == r.root.generic_string());
+    CHECK(r.shown().find("origin") != std::string::npos);
+    // AND THE BADGE COMES BACK, which is the whole value of one spelling: walk down, walk up,
+    // and this run still knows where it began.
+    walk_to(r, r.root / "sub");
+    CHECK(r.shown().find("origin") == std::string::npos);
+    r.t.key(input::scan::kBackspace);
+    CHECK(r.pane().current_dir == r.root.generic_string());
+    CHECK(r.shown().find("origin") != std::string::npos);
+}
+
+TEST_CASE("PROJ-2: a run with no origin can still reach a place it remembers") {
+    // SC-3's absence arm, and §1.3's "seeded later by jumping". No launch location this
+    // build can carry means no origin -- and nothing is invented in its place. What a maker
+    // gets instead is the durable places they already kept.
+    TempDir dir("noorigin");
+    const std::filesystem::path root = dir.path();
+    const std::filesystem::path kept = root / "kept";
+    std::filesystem::create_directories(kept);
+    const std::string marks_file = (root / "marks.json").generic_string();
+    put_file(marks_file, marks_persist::to_text({kept.generic_string()}));
+
+    FilesRig r("noorigin", /*with_project=*/false);
+    r.t.host.marks_path = marks_file;
+    r.open();
+    REQUIRE(r.session().marks.settled);
+    CHECK(r.session().marks.origin.empty());
+    CHECK(r.pane().current_dir.empty());
+    CHECK_FALSE(r.listing().known);
+    // THE PANE TAKES THE KEYS, because there is now something to do in it: this run knows a
+    // place. (With no origin AND no marks it still declines, which is the one residual
+    // `docs/workshop/limitations.md` names.)
+    r.press_body(0);
+    REQUIRE(keyboard_context(r.session()) == KeyContext::kFiles);
+    next_mark(r);
+    CHECK(r.pane().current_dir == kept.generic_string());
+    CHECK(r.listing().known);
+    CHECK(r.notice() == "at " + kept.generic_string() + " (marked)");
+    // ...AND STILL NO ORIGIN WAS INVENTED FOR IT.
+    CHECK(r.session().marks.origin.empty());
+    CHECK(r.t.host.project_dir.empty());
+}
+
+TEST_CASE("PROJ-2: marks survive a restart, and the browsing location deliberately does not") {
+    // ⭐ SC-14, THE PERSISTENCE BOUNDARY, PROVED IN BOTH DIRECTIONS AT ONCE. Falsifiers 6
+    // and 7 are its two halves: a mark that did not come back, and a browsing location that
+    // did.
+    TempDir dir("restart");
+    const std::filesystem::path root = dir.path();
+    std::filesystem::create_directories(root / "keep");
+    std::filesystem::create_directories(root / "elsewhere");
+    const std::string marks_file = (root / "marks.json").generic_string();
+
+    {
+        FilesRig r("restart-a");
+        r.root = root; // the SAME project across both runs, which is what a restart is
+        r.t.host.project_dir = root.generic_string();
+        r.t.host.marks_path = marks_file;
+        r.open();
+        walk_to(r, root / "keep");
+        mark_here(r);
+        REQUIRE(r.session().marks.marked((root / "keep").generic_string()));
+        // ...and then wander off somewhere that is NOT a mark, and leave.
+        walk_to(r, root / "elsewhere");
+        REQUIRE_FALSE(r.session().marks.marked((root / "elsewhere").generic_string()));
+    }
+
+    REQUIRE(std::filesystem::exists(marks_file));
+    {
+        FilesRig r("restart-b");
+        r.root = root;
+        r.t.host.project_dir = root.generic_string();
+        r.t.host.marks_path = marks_file;
+        r.open();
+        // THE MARK CAME BACK.
+        CHECK(r.session().marks.marked((root / "keep").generic_string()));
+        // THE BROWSING LOCATION DID NOT: a new run begins at a freshly generated origin,
+        // which is WUX-0's split -- a remembered reference is not unfinished work.
+        CHECK(r.pane().current_dir == root.generic_string());
+        CHECK(r.session().marks.origin == root.generic_string());
+        CHECK_FALSE(r.session().marks.marked((root / "elsewhere").generic_string()));
+        // ...AND NO TRAVERSAL POSITION CAME BACK EITHER: the first jump is found from where
+        // the browser IS, so there was never an index for a run to have written down.
+        CHECK(bytes_of(marks_file).find("elsewhere") == std::string::npos);
+    }
+}
+
+TEST_CASE("PROJ-2: a persisted mark is admitted, never re-based, and never quietly dropped") {
+    // SC-5's refusal law, and falsifiers 8 and 22 in one arrangement.
+    TempDir dir("markfile");
+    const std::filesystem::path root = dir.path();
+    const std::string good = (root / "kept").generic_string();
+
+    // A HAND-EDITED FILE with three kinds of row: one usable, one RELATIVE, one empty.
+    put_file(root / "marks.json", marks_persist::to_text({good, "relative/place", ""}));
+    const marks_persist::LoadedMarks loaded =
+        marks_persist::load_file((root / "marks.json").generic_string());
+    REQUIRE(loaded.outcome.accepted);
+    // ⭐ THE RELATIVE ROW IS REFUSED AND IS NOT RESOLVED AGAINST ANYTHING. A mark re-based
+    // against the process's own footing would mean a different directory on every launch,
+    // which is the two-bases defect `persist::resolved_against` exists to end.
+    const std::vector<std::string> only_good{good};
+    CHECK(loaded.maker == only_good);
+    CHECK(loaded.skipped.find("relative/place") != std::string::npos);
+    CHECK(loaded.skipped.find("absolute") != std::string::npos);
+
+    // ...AND A PLACE THAT IS SIMPLY NOT THERE IS KEPT. Existence is never tested: an
+    // unplugged drive or a tree not checked out yet is a temporary answer, and deleting a
+    // maker's durable fact on the strength of one is the silent loss this law forbids.
+    CHECK_FALSE(std::filesystem::exists(good));
+    const std::string gone = abs_spelling("/definitely/not/here/at/all");
+    put_file(root / "absent.json", marks_persist::to_text({gone}));
+    const marks_persist::LoadedMarks kept =
+        marks_persist::load_file((root / "absent.json").generic_string());
+    REQUIRE(kept.outcome.accepted);
+    const std::vector<std::string> want{gone};
+    CHECK(kept.maker == want);
+    CHECK(kept.skipped.empty());
+
+    // A MISSING FILE IS NO MARKS -- deleting it is how a maker forgets everywhere at once.
+    CHECK_FALSE(
+        marks_persist::load_file((root / "nope.json").generic_string()).outcome.accepted);
+
+    // A FILE THAT SAYS IT IS SOMETHING ELSE IS REFUSED WHOLE, by its own claim, before its
+    // rows are judged -- the family's law, and a different answer from a bad row.
+    put_file(root / "wrong.json", prefs_persist::to_text(true));
+    CHECK_FALSE(
+        marks_persist::load_file((root / "wrong.json").generic_string()).outcome.accepted);
+
+    // ...AND WRITING IS OBSERVATION: a saved list read back is the same list, in the same
+    // order, so a second save of a loaded file is the same bytes.
+    CHECK(marks_persist::from_text(marks_persist::to_text(kept.maker)).maker == want);
+}
+
+TEST_CASE("PROJ-2: a marks file this run could not read is never overwritten") {
+    // ⭐ THE PREFS FILE'S LAW, ONE FILE OVER. A refusal a maker can act on must not become a
+    // file a maker has lost: the run says it could not read their places, holds none, and
+    // the next `m` writes nothing.
+    FilesRig r("markrefused");
+    const std::string marks_file = (r.root / "marks.json").generic_string();
+    put_file(marks_file, "these are notes, not marks\n");
+    r.t.host.marks_path = marks_file;
+    r.open();
+    CHECK(r.session().marks.maker.empty());
+    // ⚠ IT IS A STANDING CONDITION AND NOT A NOTICE (WUX-4): an unreadable file is still
+    // unreadable an hour later and has a maker action, and the gesture that opens the pane
+    // says "opened Files" immediately after this load -- so a sentence on the notice row
+    // would be replaced in the same turn, every time.
+    const Condition* wall = r.session().conditions.find(kMarksWallKey);
+    REQUIRE(wall != nullptr);
+    CHECK(wall->role == surface::role::kAlert);
+    CHECK(wall->detail.find("left exactly as it is") != std::string::npos);
+
+    aim_at_files(r);
+    mark_here(r);
+    CHECK(bytes_of(marks_file) == "these are notes, not marks\n");
+    // The LIVE set still moved, which is what makes this a refusal rather than a lockout.
+    CHECK(r.session().marks.marked(r.root.generic_string()));
+}
+
+TEST_CASE("PROJ-2: a location that cannot be listed is a refusal, not a substitution") {
+    // SC-2 and §2.2: the maker is told the truth about where they are, keeps the lexical
+    // location, and can navigate back out -- nothing falls back to the project or to origin.
+    FilesRig r("unlistable");
+    const std::filesystem::path vanishes = r.root / "vanishes";
+    std::filesystem::create_directory(vanishes);
+    r.open();
+    walk_to(r, vanishes);
+    REQUIRE(r.listing().known);
+
+    std::filesystem::remove(vanishes);
+    r.t.key(input::scan::kR); // look again
+    r.t.text("r");
+    CHECK(r.pane().current_dir == vanishes.generic_string()); // it did NOT move
+    CHECK_FALSE(r.listing().known);
+    CHECK_FALSE(r.listing().refusal.empty());
+    CHECK(r.listing().rows.empty());
+    CHECK(r.listing().refusal.find(vanishes.generic_string()) != std::string::npos);
+    // ...AND PARENT STILL WORKS, because the location is lexical truth rather than a
+    // successful enumeration. A browser that had bounced back to origin would have taken
+    // the maker's own place away to hide a refusal.
+    r.t.key(input::scan::kBackspace);
+    CHECK(r.pane().current_dir == r.root.generic_string());
+    CHECK(r.listing().known);
+}
+
+TEST_CASE("PROJ-2: an external file opens and saves through the ONE editor door") {
+    // ⭐ SC-10 AND FALSIFIER 17. The maker walks out of the project entirely and edits a file
+    // there; the document identity is that file's own absolute path, the save reaches that
+    // file, and the anchor is exactly where it was.
+    TempDir outside("external");
+    const std::filesystem::path foreign = outside.path();
+    put_file(foreign / "foo.cpp", "one\ntwo\n");
+
+    FilesRig r("extopen");
+    const std::string anchor = r.t.host.project_dir;
+    r.open();
+    walk_to(r, foreign);
+    point_at(r, "foo.cpp");
+    r.t.key(input::scan::kReturn);
+
+    const EditorState& e = r.session().editor;
+    REQUIRE(e.open_document());
+    // THE IDENTITY IS THE EXTERNAL FILE'S OWN ABSOLUTE PATH -- the project was NOT applied
+    // to it, and could not have been: `resolved_against` returns early for an absolute
+    // spelling, which is what makes the door referrer-blind.
+    CHECK(e.path == (foreign / "foo.cpp").generic_string());
+    CHECK(e.path.find(anchor) == std::string::npos);
+    CHECK(e.buffer.line(0) == "one");
+
+    // EDIT AND SAVE: the bytes reach THAT file, and nothing is created under the project.
+    r.t.key(input::scan::kEnd);
+    r.t.text("!");
+    r.t.key(input::scan::kS, input::mod::kCtrl);
+    CHECK(bytes_of((foreign / "foo.cpp").generic_string()) == "one!\ntwo\n");
+    CHECK_FALSE(std::filesystem::exists(std::filesystem::path(anchor) / "foo.cpp"));
+    // ...AND OPENING FOREIGN SOURCE MADE NOTHING ABOUT IT PART OF THE PROJECT.
+    CHECK(r.t.host.project_dir == anchor);
+    CHECK(r.session().marks.origin == anchor);
+    CHECK_FALSE(r.session().marks.marked(foreign.generic_string()));
+}
+
+TEST_CASE("PROJ-2: an external catalog is chosen live, and the project still owns relative sources") {
+    // ⭐⭐ FALSIFIERS 18 AND 19, THROUGH THE MAKER'S ACTUAL DOOR. PROJ-1 pinned the two-base
+    // decoy at `install_recipes`; this repeats it at the live gesture from OUTSIDE the
+    // project, which is the arrangement that only became reachable now.
+    TempDir outside("foreign-catalog");
+    const std::filesystem::path foreign = outside.path();
+    std::filesystem::create_directories(foreign / "src");
+    put_file(foreign / "src" / "thing.cpp", "the decoy\n");
+    put_catalog(foreign / "recipes.json", {authored_recipe("thing", "src/thing.cpp")});
+
+    CurrentRecipes owner;
+    FilesRig r("extcatalog");
+    const std::string anchor = r.t.host.project_dir;
+    std::filesystem::create_directories(r.root / "src");
+    put_file(r.root / "src" / "thing.cpp", "the project\n");
+    r.t.host.use_recipes = host_use_recipes(owner, r.root.generic_string(), anchor);
+    r.open();
+    walk_to(r, foreign);
+    point_at(r, "recipes.json");
+    use_as_recipes(r);
+
+    REQUIRE(owner.source() == (foreign / "recipes.json").generic_string());
+    REQUIRE(owner.all().size() == 1);
+    // ⭐ THE PROJECT'S FILE WINS, NOT THE CATALOG'S NEIGHBOUR -- in the completed recipe AND
+    // in the generated project, which is where the two would actually have diverged.
+    CHECK(owner.all()[0].single_source->source ==
+          (r.root / "src" / "thing.cpp").generic_string());
+    CHECK(owner.all()[0].single_source->source.find(foreign.generic_string()) ==
+          std::string::npos);
+    CHECK(zengine::builder::generated_project(owner.all()[0])
+              .find((r.root / "src" / "thing.cpp").generic_string()) != std::string::npos);
+    // ...AND CHOOSING A CATALOG SOMEWHERE ELSE DID NOT MOVE THE PROJECT, or the origin.
+    CHECK(r.t.host.project_dir == anchor);
+    CHECK(r.session().marks.origin == anchor);
+    // THE STANDING PROJECTION NAMES THE CHOSEN FILE UNAMBIGUOUSLY (SC-12): the owner's own
+    // absolute path, not a based spelling with no stated base.
+    CHECK(r.session().recipes_moved_to == (foreign / "recipes.json").generic_string());
+}
+
+TEST_CASE("PROJ-2: fitting a path keeps the end that says which file it is") {
+    // SC-13 AND FALSIFIER 21, as a value. The property, stated once: enough root to say
+    // WHICH filesystem, a mark where something was removed, and the useful tail.
+    const std::string p = "/home/me/code/very/long/project/src/foo.cpp";
+    CHECK(detail::fit_path(p, 200) == p); // it fits: nothing changes, not even a mark
+    const std::string cut = detail::fit_path(p, 26);
+    CHECK(cut.size() <= 26);
+    CHECK(cut.rfind("/", 0) == 0);                         // the root cue survives
+    CHECK(cut.find(detail::kElided) != std::string::npos); // the cut marks itself
+    CHECK(cut.find("foo.cpp") != std::string::npos);       // the leaf survives
+    // ...AND THE ORDINARY MEASURER IS THE FALSIFIER: it removes exactly the half a path
+    // carries its meaning in.
+    CHECK(detail::fit(p, 26).find("foo.cpp") == std::string::npos);
+
+    // A WINDOWS DRIVE IS A CUE TOO, and a UNC name is the whole `//server/`.
+    const std::string w = "C:/Users/me/code/very/long/project/src/foo.cpp";
+    CHECK(detail::fit_path(w, 26).rfind("C:/", 0) == 0);
+    CHECK(detail::fit_path(w, 26).find("foo.cpp") != std::string::npos);
+    const std::string unc = "//server/share/deep/deeper/deepest/foo.cpp";
+    CHECK(detail::fit_path(unc, 28).rfind("//server/", 0) == 0);
+    CHECK(detail::fit_path(unc, 28).find("foo.cpp") != std::string::npos);
+
+    // TOTAL AT EVERY WIDTH, including ones no pane has: below the shape's own cost it falls
+    // back to the mark-only answer rather than underflowing.
+    for (std::int64_t width = -2; width < 12; ++width) {
+        const std::string got = detail::fit_path(p, width);
+        CHECK(got.size() <= static_cast<std::size_t>(width < 0 ? 0 : width));
+    }
+    // AND IT CHANGES NO IDENTITY: this is a projection of a string, and the string is the
+    // caller's own.
+    CHECK(p == "/home/me/code/very/long/project/src/foo.cpp");
+}
+
+TEST_CASE("PROJ-2: the browser's header says where you are and why that place is known") {
+    // SC-2's presentation half: the LOCATION is absolute and takes the tail, the provenance
+    // is a word rather than a badge that costs the path, and neither displaces the position.
+    FilesRig r("header");
+    put_file(r.root / "a.cpp", "int a;\n");
+    r.open();
+    const std::string head = files_header(
+        r.pane(), provenance_words(r.session().marks.provenance(r.pane().current_dir)),
+        false, 200);
+    CHECK(head.rfind("Files 1/1", 0) == 0);
+    CHECK(head.find("origin") != std::string::npos);
+    CHECK(head.find(r.root.generic_string()) != std::string::npos);
+    // UNDER A REAL BUDGET the location is fitted by the PATH measurer, and the row fits.
+    const std::string tight = files_header(r.pane(), std::string("origin"), false, 30);
+    CHECK(tight.size() <= 30);
+    CHECK(tight.rfind("Files 1/1", 0) == 0);
+    // AND A LOCATION NOBODY MARKED SAYS NOTHING EXTRA -- absence is the ordinary case.
+    FilesPane plain;
+    plain.current_dir = "/somewhere/plain";
+    plain.listing.known = true;
+    CHECK(files_header(plain, std::string(), false, 200) == "Files empty  /somewhere/plain");
+}
+
+TEST_CASE("PROJ-2: the browser's location is never written to a maker's durable files") {
+    // SC-14's negative, widened: the setup, the session and the marks file each say nothing
+    // about where somebody was standing.
+    FilesRig r("noleak");
+    std::filesystem::create_directory(r.root / "wandered");
+    const std::string session_file = (r.root / "last-session.json").generic_string();
+    r.t.host.session_path = session_file;
+    r.t.host.marks_path = (r.root / "marks.json").generic_string();
+    r.open();
+    walk_to(r, r.root / "wandered");
+
+    CHECK(setup_persist::to_text(r.session().setup.active).find("wandered") ==
+          std::string::npos);
+    r.to_command();
+    r.t.key(input::scan::kQ);
+    REQUIRE(std::filesystem::exists(session_file));
+    CHECK(bytes_of(session_file).find("wandered") == std::string::npos);
+    CHECK(bytes_of(session_file).find("marks") == std::string::npos);
+    // ...AND NO MARKS FILE WAS EVEN CREATED, because nobody marked anything.
+    CHECK_FALSE(std::filesystem::exists(r.t.host.marks_path));
+}
+
+TEST_CASE("PROJ-2: the three mark gestures are ordinary rows on the one binding truth") {
+    // SC-5's "through ordinary action/keymap truth", and KEY-0's law: no private shortcut
+    // system, no gesture a keymap file cannot move, and none shipped inside a POSIX gap.
+    for (const char* id : {"files.mark", "files.next-mark", "files.previous-mark"}) {
+        const ActionRow* row = row_of_id(id);
+        REQUIRE_MESSAGE(row != nullptr, "no action row declares `", id, "`");
+        CHECK(row->context == KeyContext::kFiles);
+        CHECK(posix_gap(row->gesture) == nullptr);
+    }
+    // THE DEFAULTS COLLIDE WITH NOTHING, which is the admission law's own check run over the
+    // whole effective map rather than asserted by hand.
+    Keymap fresh;
+    CHECK(apply_overrides({}, legend_mode::kDefault, fresh).accepted);
+    // ...AND A MAKER WHO MOVES ONE GETS THEIR OWN BINDING, here and on every help surface.
+    Keymap moved;
+    REQUIRE(apply_overrides({{"files.mark", "k"}}, legend_mode::kDefault, moved).accepted);
+    CHECK(moved.action_for(KeyContext::kFiles, input::scan::kK, input::mod::kNone) ==
+          Act::kFilesMark);
+    CHECK(moved.action_for(KeyContext::kFiles, input::scan::kM, input::mod::kNone) ==
+          Act::kNone);
 }

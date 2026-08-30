@@ -9,8 +9,8 @@ continue through the existing build-and-realize loop without leaving the applica
 Two things can ask the editor to open a file, and both ask the **same door**, so both get
 the same behaviour, the same refusals and the same words:
 
-- the **Files** pane — browse the project you launched Workshop in and open any file in it
-  (see [Files](files.md));
+- the **Files** pane — browse from where you launched Workshop, anywhere your system lets
+  this process read, and open any file you find (see [Files](files.md));
 - the **Builder** — choose a recipe (`c` steps through them) and press **`e`**, which opens
   that recipe's source.
 
@@ -135,6 +135,7 @@ open a file (Files pane, or the Builder's e) → edit → save (Ctrl+s)
 
 Everything after **save** is the Builder's and the project's, unchanged — the editor adds no
 second build path, no auto-save and no auto-build; every compile still starts from your own
-gesture, over the bytes you explicitly saved. Opening a file you have no recipe for is fine:
-you can read and edit anything in the project, and what can be *built* is still whatever the
-recipes say.
+gesture, over the bytes you explicitly saved. Opening a file you have no recipe for is fine,
+and so is opening one outside your project: you can read and edit anything this process can
+read, what can be *built* is still whatever the recipes say, and the file you opened does not
+become part of your project by having been opened.

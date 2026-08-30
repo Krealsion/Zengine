@@ -543,7 +543,7 @@ the weave       every refusal sentence and every file door: `open_source(path, m
   each medium answers in its voice. The body resolution IS `external_body_place` with
   `kEditorHeaderRows`; a second arithmetic for the same shape is the two-measurers defect.
 
-## Where source comes from: the project, and the browser over it (EDIT-1)
+## Where source comes from: the project, and the browser over the machine (EDIT-1, PROJ-2)
 
 `HostContext::project_dir` is the launch directory, captured ONCE by the host
 (`launch_project_dir()`; empty = the designed absence, said on the banner — and there are TWO
@@ -597,6 +597,11 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
   input. It needs no Builder panel; a successful swap republishes through the `StatusRequested`
   an opening panel already sends, and Workshop's own catalog handler is what ignores it when
   there is no panel.
+  ⚠ **SINCE PROJ-2 THE CATALOG MAY LIVE ANYWHERE THE BROWSER CAN REACH, and completion did
+  not move with it.** A foreign catalog's RELATIVE `single_source` still names a file under the
+  ACTIVE PROJECT, because the host's closure passes `host.project_dir` regardless of where the
+  bytes came from. Surprising the first time, correct, and pinned twice: at `install_recipes`,
+  and at the live gesture from outside the project.
 - **STANDING BUILDER INTENT SURVIVES BY RECIPE IDENTITY, NEVER BY ROW POSITION (PROJ-1).**
   `on(RecipeCatalog)` remembers the chosen recipe's NAME across the arrival: same identity →
   follow it to its new row with `picked` intact; identity gone → home, and `picked` released.
@@ -608,29 +613,111 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
   operation already running. The runner's `Held` was already owned facts. Nothing cancels or
   restarts a build because standing recipe truth changed; the NEXT ask reads the new catalog.
 - **`Session::recipes_moved_to` IS A PROJECTION AND NOT AN OWNER.** Empty until a maker
-  replaces a catalog; it holds the project-RELATIVE spelling (measured: a fitted absolute path
-  loses its tail, which is the file's own name) and the Builder panel spends it on a row that
-  exists exactly while the fact has moved — the `project` row's rule, because that panel seats
-  nine facts in nine rows of a character medium and an unconditional tenth would spend the third
-  `said` row of every session. It is on the `Session` and not on `BuilderPane` because
-  `close_panel` forgets that pane whole.
+  replaces a catalog; the Builder panel spends it on a row that exists exactly while the fact
+  has moved — the `project` row's rule, because that panel seats nine facts in nine rows of a
+  character medium and an unconditional tenth would spend the third `said` row of every session.
+  It is on the `Session` and not on `BuilderPane` because `close_panel` forgets that pane whole.
+  ⚠ **IT HOLDS THE OWNER'S OWN ABSOLUTE PATH, READ BACK RATHER THAN RECOMPOSED (PROJ-2).** It
+  used to be the project-RELATIVE spelling, which was unambiguous only while the browser could
+  not leave the project — and PROJ-2 removed exactly that premise, so a based spelling with no
+  stated base became a wrong-looking name for the right file. The value is `RecipeSwap::path`,
+  which is what the catalog owner is holding AFTER the attempt, so the screen and the owner
+  cannot come to name two different files.
+- **⚠ A PATH IS NOT A SENTENCE, AND `detail::fit` IS WRONG FOR ONE (PROJ-2).** A sentence
+  front-loads its meaning, so cutting the tail and marking the cut keeps the useful half; a path
+  BACK-loads it, so the same cut removes the filename. `detail::fit_path` is the measurer for
+  the two consumers that meet this — the browser's location header and the Builder's catalog
+  row — and its property is: enough ROOT CUE to say which filesystem, a mark where the middle
+  was removed, and the tail cut at a component boundary. `path_root_cue` is purely lexical
+  (`/`, `C:/`, `//server/`) because this runs at every repaint and the "proper" way to ask would
+  involve exactly the accessors measured to throw. It changes no stored identity, and no pane
+  widens to avoid a cut.
 - **`workshop/files.hpp` is the browser's machinery; `Panels::files` is its state.** Rows are
   `{name, kind, linked, openable}` and NOTHING else — no resolved path, no recipe, no artifact,
   no build or editor state — so the browser cannot become a second owner of source truth. What
-  a row denotes is derived at ACTIVATION from root + the entered-name stack + the row's name,
-  and `files.use-recipes` (PROJ-1) derives it the same way for the same reason.
-- **THE ROOT BOUNDARY IS THE REPRESENTATION.** The current directory is a stack of names walked
-  into; parent is a pop; there is no `..` row to press. So a maker cannot navigate above the
-  root because there is nothing that says it — no canonicalization, no containment resolver.
-  ⚠ The one hole is a LINKED directory, and it is closed at entry: a directory row is `linked`
-  when following it says directory and NOT following it does not (`entry.symlink_status()`),
-  which is standard C++ and catches whatever this platform reports a reparse point as. The row
-  is shown; entering refuses. Never claim more containment than that test imposes.
+  a row denotes is derived at ACTIVATION from the current LOCATION plus the row's name, and
+  `files.use-recipes` (PROJ-1) derives it the same way for the same reason.
+- **⚠⚠ FOUR FACTS THAT COINCIDE AT LAUNCH AND ARE NOT THE SAME FACT (PROJ-2).** The single
+  hardest thing to keep straight in this area, and the phase that separated them exists because
+  the browser's location used to be *spelled in terms of* the project:
+
+  ```text
+  HostContext::project_dir   what a project-relative source spelling MEANS. One writer, in
+                             `main`. Browsing, marking, jumping and choosing a foreign recipe
+                             catalog all leave it exactly where it was — structurally, because
+                             no expression in this application derives it from any of them.
+  Session::marks.origin      where THIS RUN's navigation began. Generated once, never
+                             persisted, never moved by browsing, and deliberately NOT renamed
+                             "the project" merely because the two coincide today.
+  FilesPane::current_dir     where somebody is looking. ONE absolute, lexically-normal,
+                             generic-slash string; seeded from origin and owned here after.
+  the operating system       what may actually be read. Never modelled, never claimed; a
+                             directory this process may not read is an ordinary refusal.
+  ```
+
+- **PARENT IS LEXICAL AND STOPS AT THE FILESYSTEM, NOT AT THE PROJECT (PROJ-2).**
+  `parent_path()` until the MEASURED fixed point `p.parent_path() == p`, which is what POSIX
+  `/`, a Windows drive root and `//server/` all answer. ⚠ **`has_parent_path()` is TRUE at all
+  three and is not a root test** — a boundary built on it never fires. Nothing canonicalizes,
+  ever: going up from a linked directory returns the maker to where they walked IN from, and
+  `weakly_canonical` would silently relocate them to a place they never navigated to.
+- **A LINKED DIRECTORY IS MARKED AND ENTERABLE (PROJ-2 retired EDIT-1's refusal).** That refusal
+  existed to keep the entered-name stack honest; there is no stack, so no property survived it,
+  and the measured cost of keeping it anyway was six of the twenty-three directories at POSIX
+  `/`. The MARK stays: a directory row is `linked` when following it says directory and NOT
+  following it does not (`entry.symlink_status()`), which is standard C++ and catches whatever
+  this platform reports a reparse point as.
   ⚠⚠ **Do not "simplify" that to `is_symlink()`.** MEASURED on Windows/MSVC (EDIT-1): a
   directory JUNCTION answers `is_symlink() == false` while `symlink_status().type()` is a
-  platform extension that is not `directory` — so the disagreement test refuses it and an
-  `is_symlink` test would have walked straight into it. Probe and table:
+  platform extension that is not `directory` — so the disagreement test catches it and an
+  `is_symlink` test would have walked straight past it. Probe and table:
   `Zen/reportbacks/EDIT-1-evidence.md`.
+- **A LOCATION MARK IS A DESTINATION AND NOTHING ELSE (PROJ-2, `workshop/marks.hpp`).**
+  `Session::marks` is the one owner, beside `panels` and deliberately OUTSIDE `FilesPane` —
+  Files is the first CONSUMER, not the semantic owner, and a fact inside a pane is a fact
+  `close_panel` can destroy. Three provenances as FLAGS rather than a kind, because one place is
+  often known two ways at once: generated `origin`, durable `maker` marks, and host-reported
+  `root`s. A mark confers no authority, no membership, no trust and no recipe base — nothing
+  in the owner's surface could carry one if somebody tried.
+- **THE TRAVERSAL SET IS BUILT AT THE GESTURE AND HELD NOWHERE.** Origin, then the maker's own
+  marks (sorted bytewise — the browser's own order rule), then `host_filesystem_roots()` asked
+  FRESH. One address is one stop however many provenances it wears. There is deliberately no
+  standing "selected mark": the cycle is found from where the browser IS, so nothing can drift
+  out of agreement with the location on screen.
+- **`workshop/filesystem_roots.hpp` IS THE ONLY PLACE THIS REPOSITORY ASKS AN OS FOR ROOTS**, and
+  it is `surface/terminal_size.hpp`'s shape one package over. Windows uses `GetLogicalDrives()`
+  — one call, no string conversion, so no new narrow custody becomes load-bearing — and the
+  drive TYPE is deliberately not asked: a drive with no media is reported, is not listable, and
+  refuses in the filesystem's own words. ⚠ They are HOST-REPORTED roots and never "every
+  reachable path": a UNC share is reachable by spelling and is in no drive list.
+  ⚠⚠ **`files_has_keyboard` MAY NOT ASK FOR THEM.** It answers at every keystroke and every
+  paint, so its "is there anything to do here" test is `listing.known || !current_dir.empty() ||
+  marks.somewhere_to_go()` — all in memory. Asking an OS which drives exist at that rate is
+  this file's own per-paint-population mistake in a smaller place. The residual (a run with no
+  origin AND no marks declines the keyboard) is NAMED in `docs/workshop/limitations.md` rather
+  than solved.
+- **MAKER MARKS ARE DURABLE AND RIDE THE MACHINE-LOCAL ROOT (`workshop/marks_persist.hpp`).** An
+  eighth durable artifact and its own file, for three reasons worth not re-deriving: the prefs
+  header says in its own words that non-presentation facts belong somewhere with their own name;
+  the prefs format has ONE version and no migration, so growing a field there would refuse every
+  existing prefs file BY NUMBER and cost makers a preference they had stated; and a mark is an
+  ABSOLUTE PATH, so it describes THIS machine's disks — the same criterion that already puts
+  the viewport and the desktop placement under the state root rather than the config root.
+  ⚠ **The FILE's claims refuse it whole; a ROW is refused alone and SAID.** Format word, version
+  and shape are the family's law. A row that is not an absolute location this build can carry is
+  skipped, and the skip is a standing CONDITION rather than a notice — because the next mark a
+  maker makes writes the list without it. "Unusable" is a SPELLING test and never an existence
+  one: a marked directory that is not there today is KEPT, and nothing here asks the filesystem
+  anything at all.
+  ⚠⚠ **`marks_refused_` is the prefs file's own load-bearing flag, not decoration.** This is a
+  file Workshop WRITES, so restraint is not enough: without it, the first `m` a maker pressed
+  would replace bytes this run could not read with an empty list.
+- **⚠ A DURABLE SPELLING COMING BACK IN IS A CONVERSION TOO (`admit_location`, PROJ-2).** QR-12
+  measured `path -> string` throwing on MSVC; `string -> path` refuses on the same platform for
+  the same reason, and a hand-edited durable file is the one place bytes this build cannot widen
+  can arrive from. Every write to `current_dir` and every persisted mark goes through that one
+  door, so "absolute, lexically normal, carriable" holds after the seed, after an enter, after a
+  parent and after a jump rather than at four sites that each have to remember.
 - **⚠ FILENAMES ARE `std::string` EVERYWHERE, so admission is a PATH law and not a content law.**
   Names are taken as `u8string()` bytes; printable-ASCII names are exact and openable, and any
   other keeps its row, shows a `?`-marked projection (never an identity), and refuses
@@ -650,7 +737,9 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
   openable and hand a door a path naming a different file or no file. `openable`, never the
   bytes, is what `files_open` and `files_use_recipes` ask. Anything that later names a
   filesystem location a maker did not type asks this header rather than growing a
-  `generic_string()` of its own — a second one is a second way for the process to die.
+  `generic_string()` of its own — a second one is a second way for the process to die. Since
+  PROJ-2 the header owns the OTHER DIRECTION too (`admit_location`), because a spelling read
+  back out of a durable file is the same conversion aimed the other way.
 - **A LISTING IS NOT A PER-PAINT POPULATION.** Every other population Workshop paints is in
   memory; this one is an OS walk. It is recomputed at open (the `Reconciled::opened` arm the
   Builder's `StatusRequested` already uses), enter, parent, `files.refresh`, and on a FINISHED
@@ -1279,7 +1368,7 @@ and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, besid
 ## The desk comes back on its own, and the window with it (WUX-0, roots WUX-3)
 
 Workshop writes the desk it was arranged into, the room it was in, and where its window sat
-when it closes, and reads them back when it starts. Five maker-facing files, five promises —
+when it closes, and reads them back when it starts. Six maker-facing files, six promises —
 and since WUX-3 they live in three OWNERSHIP DOMAINS with three different default homes:
 
 ```text
@@ -1297,7 +1386,18 @@ USER CONFIGURATION -- follows the maker: %APPDATA%\zengine-workshop | $XDG_CONFI
 USER STATE -- follows the maker's MACHINE: %LOCALAPPDATA%\zengine-workshop | $XDG_STATE_HOME/...
 --session    workshop-session.json   the desk they were USING, the room it was in, and
                                      where the window sat on the desktop
+--marks      workshop-marks.json     the maker's PLACES — filesystem locations they asked
+                                     to be able to come back to (PROJ-2), written by
+                                     Workshop the moment one is marked; a refused file is
+                                     never overwritten
 ```
+
+⚠ **THE MARKS FILE IS STATE AND NOT CONFIGURATION, and the criterion is this block's own.**
+A keymap and a presentation preference are meaningful on any machine a maker sits at; a mark is
+an ABSOLUTE PATH, so it describes THIS machine's disks exactly as a viewport describes this
+machine's window. It is also its own file rather than a field on the prefs, because the prefs
+format has one version and no migration — a new field there refuses every existing prefs file
+BY NUMBER (`marks_persist.hpp` states all three reasons).
 
 (The load plan and build recipes stay a fourth kind — shipped defaults beside the
 executable, authored per project when named.)
@@ -1306,7 +1406,7 @@ executable, authored per project when named.)
   `resolve_durable_path`): an explicit path the maker typed, then `--isolated`, then the
   per-user default. `--isolated` is the whole-application promise *this run reads and
   writes none of my ordinary per-user configuration or session state* — it resolves the
-  three per-user defaults to the weave's designed empty-path absence, exists because the
+  four per-user defaults to the weave's designed empty-path absence, exists because the
   root flip inverted accidental scratch-directory isolation into accidental danger, and is
   the flag every witness harness and executor live run must carry. Explicit paths outrank
   it, so an isolated witness that needs scratch persistence names its scratch files. An
@@ -1400,9 +1500,9 @@ executable, authored per project when named.)
   medium judges it against live displays); and a terminal run still claims no placement
   at all — it retains the remembered one unchanged.
 - Workshop's per-user files follow the launch directory — since WUX-3 they follow the
-  MAKER (`--keymap`/`--prefs` under the configuration root, `--session` under the
-  machine-local state root), and only the document, the setup and the shipped
-  plan/recipes stay where they always were. A scratch-directory launch is therefore NOT
+  MAKER (`--keymap`/`--prefs` under the configuration root, `--session` and, since PROJ-2,
+  `--marks` under the machine-local state root), and only the document, the setup and the
+  shipped plan/recipes stay where they always were. A scratch-directory launch is therefore NOT
   isolated by accident any more: witness harnesses and executor runs must say
   `--isolated`.
 - A session save can be trusted after a crash — it is written on an orderly close and nowhere
@@ -1413,3 +1513,10 @@ executable, authored per project when named.)
 - Hiding pane titles can hide where typing goes — it cannot: the pane holding the keyboard
   keeps its title and its `> ` mark whatever the preference says (WUX-1).
 - Docking exists — it is still absent and still refused.
+- The Files pane cannot leave the project, or a linked directory is refused, or the browser's
+  location is project-relative — all three were EDIT-1's law and all three are retired
+  (PROJ-2). Files owns one absolute location, parent stops at the FILESYSTEM's fixed point, and
+  a link is marked and entered. What did NOT move is the project anchor: browsing, marking and
+  choosing a foreign recipe catalog all leave `HostContext::project_dir` exactly where it was.
+- A marked place is part of the project, or is trusted, or is buildable — a mark is a
+  DESTINATION. It says one thing: somebody may want to come back here.

@@ -563,7 +563,14 @@ project files keep following the project:
 --session    workshop-session.json   the desk you were USING, the     (per-user state root)
                                      room it was in, and where the
                                      window sat
+--marks      workshop-marks.json     the filesystem PLACES you asked  (per-user state root)
+                                     to be able to come back to
 ```
+
+The marks file rides the machine-local root beside the session, and for the same reason the
+viewport does: a mark is an absolute path, so it describes *this* machine's disks. It is not
+a desk and holds nothing about one — the places a maker kept are not an arrangement, and the
+directory they happened to be browsing when they quit is deliberately not remembered at all.
 
 - **One representation of a desk, two files.** `session_persist::WorkshopSession` nests
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
