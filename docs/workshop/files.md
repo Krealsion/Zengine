@@ -17,7 +17,10 @@ file, no project setting and no `--project` flag; if you want a different projec
 Workshop there.
 
 If the system cannot report a working directory the banner says so, and the Files pane refuses
-to browse rather than guessing somewhere for you.
+to browse rather than guessing somewhere for you. The same is true if it reports one Workshop
+cannot write down — a directory named with characters this build cannot carry in a path. You
+get the run without a project rather than a crash on the way in, and nothing nearby is
+substituted for the directory you were actually standing in.
 
 ## Opening the pane
 
@@ -65,6 +68,12 @@ only a symbolic link.
 bytes, so a filename outside printable ASCII cannot be opened truthfully on both supported
 platforms. The row stays visible — with the bytes it cannot carry shown as `?` — and refuses to
 be opened, rather than quietly opening something else.
+
+This holds for names the system itself will not spell. Some filenames — a Windows filename
+holding an invalid character sequence, for instance — cannot be turned into text at all, and
+another program can leave one in any directory you walk into. **Such an entry is still a row.**
+You are shown that something is there, marked the same way, and it cannot be opened; the rest of
+the directory lists normally, and browsing is never interrupted by a name.
 
 **It does not judge file contents.** Any file can be sent to the editor; the editor decides
 whether it can edit it and says so in its own words (see [the editor's byte rules](editor.md)).

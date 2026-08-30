@@ -161,6 +161,23 @@ Workshop asks whether an entry is a directory when followed but not when unfollo
 junction answers exactly that way. (Asking whether it is a *symbolic link* would have missed
 it, which is why Workshop does not ask that.)
 
+### Some filesystem names cannot be written down, and that is said rather than survived
+
+Workshop holds every path as plain text. A filesystem will accept names that cannot be turned
+into that text at all — on Windows, a filename holding an invalid character sequence, or a
+directory named outside the system's active code page. These are not names you would type; they
+are names another program can leave where you are about to look.
+
+| where you meet one | today |
+|---|---|
+| A file or directory with such a name, in a listing | **shown, marked, and not openable** — the row says something is there, the rest of the directory lists normally, and browsing carries on |
+| The directory you launched Workshop in | **the run simply has no project** — the banner says so, exactly as when the system cannot report a directory at all |
+
+**Neither case ends the program, and neither substitutes a different path.** A name Workshop
+cannot write down is refused where it is met; nothing nearby is opened, browsed, or reported in
+its place. What Workshop *can* carry is unchanged: a path is still plain bytes, and a filename
+outside printable ASCII is still visible and still not openable.
+
 ### Lifecycle
 
 | operation | today |

@@ -546,7 +546,9 @@ the weave       every refusal sentence and every file door: `open_source(path, m
 ## Where source comes from: the project, and the browser over it (EDIT-1)
 
 `HostContext::project_dir` is the launch directory, captured ONCE by the host
-(`current_path`, error_code form; empty = the designed absence, said on the banner). It is
+(`launch_project_dir()`; empty = the designed absence, said on the banner — and there are TWO
+ways to reach it, a platform that will not report a working directory and one that reports a
+directory this application cannot carry, joined deliberately because a maker meets one fact). It is
 not `dir` — that is where the BINARY is, installation truth — and nothing derives one from
 the other or from `--document`, `--recipes`, a workspace or a prefix. There is no
 `--project`: one install serves two projects by being launched in two places, which is the
@@ -635,6 +637,20 @@ law `user_paths.hpp` already wrote down and which had, until now, no value behin
   ACTIVATION. What may be INSIDE a file stays the editor's question, answered at the door in
   the editor's words — no file-type registry, no extension list, and a `.png` is allowed to
   walk into the refusal that actually knows why.
+- **⚠⚠ ASKING FOR A PATH'S BYTES IS ITSELF A CONVERSION THAT CAN THROW, AND `workshop/path_admission.hpp`
+  IS THE ONLY PLACE ALLOWED TO ASK.** MEASURED on MSVC (ACP 1252): `string()`, `generic_string()`
+  AND `u8string()` raise `filesystem_error` — `u8string()` for an ill-formed-UTF-16 filename
+  (`CreateFileW` accepts an unpaired surrogate, so any program can leave one in a directory),
+  `generic_string()` for a working directory outside the code page. Both took the process down,
+  one out of the enumeration walk and one out of `main`. `admit_path` answers with a VALUE
+  (`carried` + the spelling), `admit_filename` always answers with a name and an `exact` flag,
+  and `launch_project_dir()` is the capture `main` runs so what a case proves is what ships.
+  ⚠⚠ **`exact` is not redundant beside the byte test**: a refused name's `name` is a `?`
+  PROJECTION, which is entirely printable ASCII, so `printable_ascii_name` alone would call it
+  openable and hand a door a path naming a different file or no file. `openable`, never the
+  bytes, is what `files_open` and `files_use_recipes` ask. Anything that later names a
+  filesystem location a maker did not type asks this header rather than growing a
+  `generic_string()` of its own — a second one is a second way for the process to die.
 - **A LISTING IS NOT A PER-PAINT POPULATION.** Every other population Workshop paints is in
   memory; this one is an OS walk. It is recomputed at open (the `Reconciled::opened` arm the
   Builder's `StatusRequested` already uses), enter, parent, `files.refresh`, and on a FINISHED
