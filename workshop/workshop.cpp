@@ -33,6 +33,7 @@
 // specialness ledger).
 
 #include "arrangement.hpp"
+#include "host_sources.hpp"
 #include "load_execute.hpp"
 #include "load_persist.hpp"
 #include "marks_persist.hpp"
@@ -784,11 +785,17 @@ int main(int argc, char** argv) {
     //
     // POWERS COME FROM PROVIDERS. THIS HOST OWNS ONLY WHICH ONE IS IN FORCE.
     //
-    // The catalog below starts EMPTY and this file publishes nothing into it. What
-    // fills it is mounting artifacts that say, across a C seam, "I supply these
-    // definitions" -- and what this host then owns is the live resolution: which
-    // contribution currently satisfies each logical power, which are shadowed
-    // beneath it, and what happens to both when a provider goes away.
+    // The catalog below starts EMPTY and this file authors no operator. What fills it
+    // is mounting artifacts that say, across a C seam, "I supply these definitions" --
+    // and what this host then owns is the live resolution: which contribution
+    // currently satisfies each logical power, which are shadowed beneath it, and what
+    // happens to both when a provider goes away.
+    //
+    // THE ONE EXCEPTION IS NOT AN EXCEPTION TO THAT (SOURCE-0), and it is mounted a few
+    // lines below: two zero-input SOURCES over facts this process already owns.
+    // Describing yourself is not authoring power -- the door that installs them refuses
+    // anything that would take an argument -- and no semantic header, no rule and no
+    // identity of any of it appears in this file.
     //
     // WHAT THIS REPLACED, TWICE. CAT-0 left one line here that CALLED a package's
     // authoring function to manufacture the process's vocabulary; PROV-0 replaced it
@@ -837,6 +844,37 @@ int main(int argc, char** argv) {
     host.request_stop = [&bus] { bus.stop(); };
 
     op::Catalog operators;
+
+    // ---- ...AND THE ONE THING A HOST MAY PUT IN ITS OWN CATALOG (SOURCE-0) ---
+    //
+    // THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER. Two facts this
+    // process already owns -- the project anchor it was launched into and which recipe
+    // catalog is in force -- become routable here, as zero-input SOURCES, through one
+    // door that judges every definition `is_source` before installing any of them. So
+    // the paragraph above still holds where it matters: this file names no operator
+    // semantics, authors no rule, and cannot reach a parameterized definition into the
+    // catalog even by trying. `workshop/host_sources.hpp` holds the boundary, the two
+    // identities and the schemas; what is decided HERE is only that the exposure
+    // happens and that it happens once.
+    //
+    // ⚠ IT IS MOUNTED BEFORE THE PLAN RUNS, deliberately: the ordinary collision law
+    // then answers a provider that would supply one of these identities, in words,
+    // rather than letting load order decide which of two answers a maker gets.
+    //
+    // THE OWNERS OUTLIVE IT BY DECLARATION ORDER. Each Source's body reads
+    // `current_recipes` and `host.project_dir` at the moment of the sample -- that is
+    // what makes a live catalog swap show up without re-registration -- and both are
+    // declared far above this line, so reverse-order destruction drops the catalog
+    // holding those closures first.
+    const op::MountReport exposed =
+        mount_host_sources(operators, host_sources(host.project_dir, current_recipes));
+    if (!exposed) {
+        std::printf("zengine-workshop - host sources refused: %s\n"
+                    "zengine-workshop - nothing was mounted and nothing was loaded.\n",
+                    exposed.reason.c_str());
+        return 6;
+    }
+
     op::OperatorHostSurface operator_host(operators);
 
     loom::Kernel kernel(bus);

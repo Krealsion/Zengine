@@ -156,6 +156,15 @@ endforeach()
 zengine_provider(zengine-provider-min weavelib/provider_min.cpp)
 target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
 
+# SOURCE-0's artifact: one zero-input SOURCE and one ordinary operator, from one
+# provider. It is a separate file rather than a flag on `provider_chain.cpp` because
+# what it demonstrates is not a variation of the chain -- it is that a contribution with
+# NO input ports crosses the existing codec, mounts, and can be sampled, out of an image
+# the host opened for itself. Its Source counts its own spends, because the host's
+# `op::invocations()` is a vague-linkage static and cannot see a body over there.
+zengine_provider(zengine-provider-source weavelib/provider_source.cpp)
+target_link_libraries(zengine-provider-source PRIVATE zengine-operator)
+
 zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
 target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
@@ -561,8 +570,12 @@ target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOUR
 # an operator is, `test_operator_host.cpp` whether a loaded stranger can spend a
 # host's, `test_operator_canonical.cpp` whether the Timer and that stranger spend ONE,
 # and `test_operator_provider.cpp` where the host's own powers came from.
+# SOURCE-0 adds a FIFTH on the same terms again, asking the next question in that line:
+# which entries can be spent with nothing supplied (`test_operator_source.cpp`), what
+# sampling one costs, and what it costs to enumerate one WITHOUT sampling it.
 add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp
                                      test_operator_canonical.cpp test_operator_provider.cpp
+                                     test_operator_source.cpp
                                      doctest_main.cpp)
 target_link_libraries(zengine-operator-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-operator
@@ -614,6 +627,18 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROVIDER_WRONG_SO=\"$<TARGET_FILE:zengine-provider-b-wrong>\""
     "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
     "PROVIDER_MIN_SO=\"$<TARGET_FILE:zengine-provider-min>\""
+    # ---- SOURCE-0's artifact ---------------------------------------------------
+    #
+    # A provider whose batch is one zero-input SOURCE and one ordinary operator. It
+    # is the only way to ask whether a definition with NO input ports survives the
+    # real encode/decode across a real module boundary -- everything else about that
+    # claim can be, and is, asked in one process by the codec case beside it.
+    "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\""
+    # ...and the Source seam's own SOURCE, for the Sense/message fence. `operator/source.hpp`
+    # must stay a projection over the catalog and nothing else: no bus, no Sense, no kernel,
+    # no loader. This suite links `loom::switchboard` for the OPH-0 tier, so no link line can
+    # say that -- only reading the file can, exactly as the stranger fence next door does.
+    "OPERATOR_SOURCE_HPP=\"${CMAKE_SOURCE_DIR}/operator/source.hpp\""
     # OPH-0's loaded stranger, under a name of this tier's own: the real Timer
     # override witness needs a consumer in a THIRD image to agree with the Timer,
     # and a stranger that shares no line of code with it is the only thing that can.

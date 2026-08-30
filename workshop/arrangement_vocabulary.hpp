@@ -34,8 +34,8 @@
 //
 // ---- WHAT CROSSES, AND WHAT CANNOT --------------------------------------------
 //
-// VALUES. Every field below is Text, Int, Bool or a List of those -- the ordinary
-// Loom wire, admitted at the reader's own schema. No `op::Catalog`, no
+// VALUES. Every field below is Text, Int, Bool, a nested shape of those, or a List of
+// either -- the ordinary Loom wire, admitted at the reader's own schema. No `op::Catalog`, no
 // `load::PlanExecutor`, no `ResolvedArtifact`, no `Contribution`, no
 // `std::shared_ptr`, no `OperatorDef`, no index into anybody's store, and no host
 // address of any kind. The C++ objects that own these facts stay where they are; a
@@ -69,10 +69,21 @@
 // departure event, no timestamp and no clock: the answer is what is true when it is
 // asked, and a reader that wants to know whether it changed asks again.
 //
-// No schema, content id, port list or ABI number rides along either. `OperatorDef`
-// has all of them; a browser for them is a different tool, and putting them here
-// would make every reader of "who supplies this" carry an operator documentation
-// surface.
+// ONE SCHEMA IDENTITY RIDES ALONG, AND NO SCHEMA DOES (SOURCE-0). This used to carry
+// neither, on the argument that a browser for operator shapes is a different tool.
+// That argument survives for STRUCTURES and fails for IDENTITY, and the case that
+// separated them is the Source: "what would sampling this yield?" has to be answerable
+// without sampling, and the only two other ways to answer it are to describe every
+// identity one at a time across the operator-host seam, or to run one and look -- which
+// is a side effect in a view. So `PowerContribution::output` carries the output
+// schema's name, version and content id, which the definition already holds and which
+// registration already established.
+//
+// The rest still does not ride. No port list, no field types, no nested structure, no
+// input schema and no ABI number: enough to say WHICH shape an answer would claim, and
+// deliberately not enough to decode one. A reader that needs the structure asks the
+// thing that owns it, and every reader of "who supplies this" still pays for three
+// strings rather than for an operator documentation surface.
 
 #include <zen/weave/shape.hpp>
 
@@ -257,6 +268,30 @@ struct ResolvedArrangement {
 
 // ---- The powers ---------------------------------------------------------------
 
+/// WHICH SHAPE, said the way the gate says it: name, version and content id TOGETHER.
+///
+/// THE THREE TRAVEL AS ONE BECAUSE THEY ARE COMPARED AS ONE. `loom::same_identity` is
+/// all three, and the reason is the failure a name alone permits: two shapes may share
+/// a name and a version and be different structures, and one that shares only a
+/// structure is a different meaning wearing a familiar shape. Splitting them into three
+/// loose fields beside each other would invite a consumer to compare the cheap one.
+///
+/// IT IS AN IDENTITY AND NOT A STRUCTURE. There are no fields in here, no types and no
+/// nesting: enough to say WHICH shape an answer would claim, and deliberately not
+/// enough to decode one. The full descriptor already has a codec
+/// (`loom::encode_schema`), and exporting structures into an observation would be
+/// answering a question no consumer has yet asked.
+struct SchemaIdentity {
+    std::string name;
+    std::int64_t version = 0;
+    /// `loom::ContentId` is unsigned and Loom's Int is not, so it crosses as the same
+    /// reinterpreted 64 bits `zengine.OperatorNode` already carries content ids as. It
+    /// is an identity to compare, never a number to order.
+    std::int64_t content_id = 0;
+
+    ZEN_SHAPE(SchemaIdentity, 1, ZEN_FIELD(name), ZEN_FIELD(version), ZEN_FIELD(content_id));
+};
+
 /// ONE CONTRIBUTION ELIGIBLE TO SATISFY A LOGICAL POWER.
 ///
 /// `provider` EMPTY MEANS THE HOST ITSELF PUBLISHED IT -- `op::Contribution`'s own
@@ -269,11 +304,28 @@ struct ResolvedArrangement {
 /// composite holds its leaves as IDENTITIES and resolves them at every spend, so
 /// covering `math.max` changes what a composite over it computes, while covering a
 /// native leaf changes only that leaf.
+///
+/// ---- v2 (SOURCE-0): WHAT WOULD I GET, ASKED WITHOUT SAMPLING -------------------
+///
+/// `source` is `op::is_source()` -- zero unbound maker inputs -- and it is a projection
+/// of the SAME definition `composite` is read off, not a second classification kept
+/// beside it. The two are independent questions: a zero-input native getter and a
+/// fully-bound composite are both Sources, and one of them is composite.
+///
+/// `output` is that definition's output schema identity, and it is the field that makes
+/// an enumeration answerable. A surface that wanted to say what sampling yields had
+/// otherwise exactly two options -- describe every identity one at a time across the
+/// operator-host seam, or run one to find out -- and the second is a side effect in a
+/// view. NOTHING IS EVALUATED TO PRODUCE IT: an `OperatorDef` holds both schemas from
+/// the moment it is authored, so this is a read of what registration already carried.
 struct PowerContribution {
     std::string provider;
     bool composite = false;
+    bool source = false;
+    SchemaIdentity output;
 
-    ZEN_SHAPE(PowerContribution, 1, ZEN_FIELD(provider), ZEN_FIELD(composite));
+    ZEN_SHAPE(PowerContribution, 2, ZEN_FIELD(provider), ZEN_FIELD(composite), ZEN_FIELD(source),
+              ZEN_FIELD(output));
 };
 
 /// ONE LOGICAL POWER AND EVERY CONTRIBUTION ELIGIBLE TO SATISFY IT, ACTIVE LAST.

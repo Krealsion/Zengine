@@ -154,7 +154,7 @@ provider is a row here and absent from `Loaded`.
 > **What logical operator powers exist in this host, and who currently satisfies each?**
 
 ```text
-3 powers resolve here -- from 2 providers
+5 powers resolve here -- from 3 providers
   logic.select_int
       active    zengine.operators.basic
   math.max
@@ -162,6 +162,10 @@ provider is a row here and absent from `Loaded`.
       shadowed  zengine.operators.basic
   timer.normalize_delay
       active    zengine.timer (composite)
+  zengine.project.anchor
+      active    zengine.workshop.host
+  zengine.recipes.catalog
+      active    zengine.workshop.host
 
 this pane describes this host's operator resolution only
 snapshot from zengine.arrangement, on room grant
@@ -181,8 +185,16 @@ signal, so a monochrome terminal reads the same fact a coloured one does.
   It is worth reading because it says what a replacement will do: a composite holds its leaves as
   *identities* and resolves them at every spend, so covering `math.max` changes what a composite
   over it computes.
-- **`(this host)`** would name a contribution the host published itself. `zengine-workshop` authors
-  no operator and cannot, so it never appears there.
+- **The last two rows are [Sources](operator-sources.md)** — catalog entries with no maker inputs,
+  which this host exposes over state it already owns (where it was launched, and which recipe
+  catalog is in force). A host may describe itself; it may not invent provider power, and its one
+  door into its own catalog refuses anything that would take an argument. The pane does not label
+  them, and that is deliberate: the projection carries the fact for a surface that will present
+  Sources as Sources, and this pane answers *who satisfies each power* rather than *what could I
+  ask for*.
+- **`(this host)`** would name a contribution the host published with no provider identity at all.
+  `zengine-workshop` mounts even its own two Sources under a named provider, so it never appears
+  there.
 - **The pane names no power and no provider.** There is no `math.max` in the projection's source and
   no branch that treats one identity differently from another: a provider mounted later appears
   with nothing edited. That is the feature.

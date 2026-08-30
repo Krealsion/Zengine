@@ -2,8 +2,9 @@
 
 Routed detail behind [`AGENTS.md`](../AGENTS.md), for tasks touching `operator/` — named
 semantic rules, the catalog, the host/consumer seam, and providers. Public reference:
-[`../docs/reference/operator-host.md`](../docs/reference/operator-host.md) and
-[`../docs/reference/operator-providers.md`](../docs/reference/operator-providers.md). How a
+[`../docs/reference/operator-host.md`](../docs/reference/operator-host.md),
+[`../docs/reference/operator-providers.md`](../docs/reference/operator-providers.md) and
+[`../docs/reference/operator-sources.md`](../docs/reference/operator-sources.md). How a
 host's load plan mounts providers is [`realization.md`](realization.md). Phase tags like
 (SEM-0) are provenance markers into this repository's history; the law here is current.
 
@@ -216,6 +217,9 @@ host resolution            all three, layered, replaceable
   Workshop's `main()` claims a terminal. **A host knows HOW to host operators; it does not
   know WHAT any of them means.** Do not reintroduce a semantic include there to save a mount.
   Which artifacts it mounts is the load plan's law ([`realization.md`](realization.md)).
+  ⚠ SOURCE-0 refined this and did not weaken it: **the host may describe itself; it may not
+  invent provider power** — see the Sources section below, which owns the boundary and the
+  mechanism that keeps it.
 - **A PROVIDER IS NOT A WEAVE.** `zengine-operators-basic` exports
   `zengine_operator_provider` and no `zen_weave_abi` at all: no Kernel loads it, it has no
   WeaveId, role, grant, manifest or bus, and the host opens it directly. Build one with
@@ -260,6 +264,102 @@ host resolution            all three, layered, replaceable
   "the provider could not answer" is an evaluation's own refusal rather than an exception
   leaving a call whose contract is a value or a reason.
 
+## A Source is the zero-input READING of the one catalog (SOURCE-0)
+
+There is no Source registry, no Source ABI, no Source contribution format, no Source runtime
+and no Source definition species. `operator/source.hpp` is one predicate and one helper, and
+the predicate is the whole definition:
+
+```text
+is_source(def)  <=>  def.inputs()->fields().empty()
+
+Operator   one or more unbound maker inputs   evaluated on YOUR arguments
+Source     zero unbound maker inputs          evaluated on its own subject
+```
+
+- **It classifies by SHAPE, never by name and never by technique.** An identity spelled
+  `source.*` that takes an argument is an Operator, and a zero-input native getter and a
+  fully-bound composite are both Sources — their difference stays exactly where it already
+  was, behind `is_composite()`, and a case asserts a definition answering YES to both. Do not
+  add ConstantSource/ComputedSource/CompositeSource, and do not add a second store: binding a
+  composite's LAST input turns it into a Source with nothing re-registered, which is only
+  expressible because one store holds both readings.
+- **`sample(catalog, identity)` adds ceremony-removal and nothing else.** By hand, sampling
+  costs a `find` FIRST purely to obtain the empty input schema the pack must claim. The
+  helper resolves at the spend, refuses an absent identity **by resolving through
+  `Catalog::evaluate` rather than re-wording its sentence**, refuses a parameterized Operator
+  in a sentence of its own (the one failure this seam owns), and spends the one evaluator with
+  both gates. It caches no provider, no definition, no callable and no answer — a mutation
+  that memoises the result reddens the fresh-per-sample cases immediately.
+- **AN EMPTY SCHEMA IS STILL AN IDENTITY, and that is what enforces "the Source's own pack".**
+  `make_operator` names an input schema `<identity>.in` and `Schema::content_id()` hashes the
+  name, so two Sources have two different empty schemas and a generic empty pack is refused by
+  the door it was aimed at. A `sample` that hard-coded one is not a style defect; it does not
+  work, and the suite measures that.
+- **Routing is not evaluation, and it is a fact about the call graph.** `invoke_native` has
+  one caller — `Catalog::run`, past admission — so registration, mount, `find`, enumeration,
+  description, schema and provenance inspection and `is_source` cannot reach a body. The suite
+  proves it on a COUNTING body and on a provider artifact whose Source answers its own spend
+  count; a constant-returning body would have made an accidental evaluation invisible, which
+  is the one way this proof degrades.
+- **`ResolvedPowers` carries `source` and the output schema IDENTITY** (name, version, content
+  id), because *what would sampling this yield* must be answerable without sampling and the
+  only alternatives are N describes across the OPH-0 seam or a side effect in a view. The
+  three identity facts travel as one nested shape because `loom::same_identity` compares all
+  three; splitting them invites a consumer to compare the cheap one. **No structure rides** —
+  no port list, no field types, no input schema. The Powers pane does not show any of it: the
+  projection is deliberately ahead of its first consumer, and inventing a Sources pane to
+  justify the field would have been the larger mistake.
+- **Senses are not Sources and no bridge exists.** A Source sample runs the evaluator NOW; a
+  Sense read returns the owner's already-stored claim and runs no owner code. A
+  Switchboard-reading operator is technically synchronous and would hand the catalog a bus
+  dependency and an authorization question — flagged, deliberately unbuilt. Do not add one to
+  make a surface symmetrical.
+- **No participation crosses a sample.** A body may compute and may read state this process
+  already holds. If another participant must act for the answer to exist, it is a message from
+  that consumer's seat — and the rule is not weakened to make a candidate fit.
+
+### The host may describe itself; it may not invent provider power
+
+`workshop/host_sources.hpp` is PROV-0's boundary refined, and the refinement is a MECHANISM
+rather than a sentence: `mount_host_sources` judges every definition in the batch with
+`is_source` before installing any of them, so a host cannot reach a parameterized definition
+into its own catalog through its own door even by trying. Underneath it is `Catalog::mount`
+with a null custody — the parameter that already exists for a provider that is not an image —
+under the ordinary provider identity `zengine.workshop.host`. There is no `register_source`
+and no host-only registration path.
+
+```text
+zengine.project.anchor    -> zengine.ProjectAnchor { anchor : Text }
+zengine.recipes.catalog   -> zengine.RecipeCatalog { catalog : RecipeCatalogFacts }
+```
+
+- **The bodies read their OWNERS, and the host's declaration order is the lifetime proof.**
+  `CurrentRecipes` and the `HostContext` are declared far above `op::Catalog operators;`, so
+  reverse-order destruction drops the closures first; the rvalue overloads are `= delete`d so
+  a temporary owner cannot be handed over at all. A startup COPY would report the launch
+  catalog forever, and the live-swap witness is what catches it.
+- **A refused catalog replacement moves nothing, because it moves no owner.** The Source has
+  no opinion about a failed swap and needs none — which is exactly the difference between a
+  registered route and a cached answer, and is why the recipe Source is the load-bearing
+  witness rather than the project one.
+- **`workshop.cpp` still authors nothing.** It builds no schema, mints no definition, names
+  neither Source identity and spells neither `operators.publish(` nor `operators.mount(`. Two
+  tripwires keep that: `test_operator_provider.cpp` reads the host for semantic authorship and
+  for a second way into its own catalog; `test_workshop_files.cpp` reads it for the one door
+  and the declaration order, and drives the real owners through the real seams.
+- **Exposure is deliberate and the list is written by hand.** Nothing is auto-wrapped and the
+  host does not become reflectable. The clipboard, an editor's buffer, the keymap and prefs,
+  the session file and Loom's grant ledger are all true and all deliberately unregistered —
+  `DelayAuthority::host_backed()`'s own precedent, one package over. Adding a third host
+  Source is a decision with a case, not a convenience.
+- **Two namespaces stay apart.** The catalog identity answers *which source do I mean*; the
+  schema identity answers *what meaning does a sample yield*. Sources route by identity only —
+  there is no type-directed lookup anywhere in the package, so schema-only substitution is
+  UNREPRESENTABLE rather than merely refused. Keep it that way; a path-shaped answer and a
+  different path-shaped answer must carry different schema NAMES, and `content_id` then
+  separates them at the gate everywhere.
+
 ## Do not assume
 
 - The delay a maker authors is the delay that is scheduled — it is normalized, and the rule is
@@ -272,3 +372,6 @@ host resolution            all three, layered, replaceable
   primitive there changes what the Timer schedules.
 - An offer covers an artifact — it covers **one load** of one image, and every `create()` the
   Kernel performs needs its own, `reload_from` included.
+- Enumerating a Source tells you nothing about *when* — a sample is the only thing that
+  produces an answer, and the answer it produces claims nothing past the moment it was asked.
+  There is no cached current value anywhere in this package to go stale.
