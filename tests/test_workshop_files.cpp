@@ -41,6 +41,12 @@
 // they now share is asserted here directly rather than only through its consumers.
 #include "workshop/path_admission.hpp"
 
+// ...AND WHICH OF THOSE TWO OWNED FACTS THIS HOST MAKES ROUTABLE (SOURCE-0). The project
+// anchor and the current recipe catalog are this suite's two subjects already; the Sources
+// over them are asked here, against the real owners, through the real door.
+#include "workshop/host_sources.hpp"
+#include "operator/source.hpp"
+
 // `std::system`, for the one Windows arrangement the standard library cannot make: a
 // directory JUNCTION. `mklink /J` is how a person makes one and needs no privilege.
 #include <cstdlib>
@@ -2825,4 +2831,444 @@ TEST_CASE("PROJ-2: the three mark gestures are ordinary rows on the one binding 
           Act::kFilesMark);
     CHECK(moved.action_for(KeyContext::kFiles, input::scan::kM, input::mod::kNone) ==
           Act::kNone);
+}
+
+
+// ============================================================================
+// Tier 7 — SOURCE-0: the two facts this host makes routable
+// ============================================================================
+//
+// THE HOST MAY DESCRIBE ITSELF; IT MAY NOT INVENT PROVIDER POWER. PROV-0's law -- a host
+// authors no operator -- was written against a host manufacturing SEMANTICS for itself,
+// and as written it also forbade a host exposing state it already owns. SOURCE-0 refines
+// exactly that: zero-input SOURCES over owned facts are allowed, parameterized power is
+// not, and `mount_host_sources` is where the second half is enforced rather than promised.
+//
+// THIS SUITE OWNS THE OWNERS. `HostContext::project_dir` is what a project-relative source
+// is relative to, and `CurrentRecipes` is who holds the completed catalog -- the two
+// subjects the tiers above are already about. So the Sources over them are asked here,
+// against the real owners, through the real seam, rather than against a rig's copy.
+
+namespace {
+
+/// The host's own exposure, arranged the way `workshop.cpp` arranges it: the owners
+/// first, then the catalog, then the one door.
+struct HostSourceRig {
+    std::string project_dir;
+    CurrentRecipes recipes;
+    op::Catalog catalog;
+
+    explicit HostSourceRig(std::string anchor = std::string()) : project_dir(std::move(anchor)) {}
+
+    op::MountReport expose() {
+        return mount_host_sources(catalog, host_sources(project_dir, recipes));
+    }
+
+    /// What `zengine.project.anchor` says right now.
+    std::string anchor() {
+        const op::Evaluation said = op::sample(catalog, kProjectAnchorSource);
+        REQUIRE_MESSAGE(said.ok(), said.reason());
+        return said.value().at(0)->as_text();
+    }
+
+    /// What `zengine.recipes.catalog` says right now, both halves in one read -- because
+    /// the owner holds them as one fact and a case that read them separately could not
+    /// see a half-replacement at all.
+    std::pair<std::string, std::int64_t> catalog_said() {
+        const op::Evaluation said = op::sample(catalog, kRecipeCatalogSource);
+        REQUIRE_MESSAGE(said.ok(), said.reason());
+        const loom::Value& facts = *said.value().at(0)->as_message();
+        return {facts.get("source")->as_text(), facts.get("recipes")->as_int()};
+    }
+};
+
+/// AN ORDINARY PARAMETERIZED OPERATOR, hand-built, because this suite deliberately names
+/// no semantic vocabulary: what makes a definition an Operator rather than a Source is its
+/// SHAPE, so any definition that asks for something is the case.
+op::OperatorDef parameterized_def(const std::string& identity) {
+    auto in = loom::make_schema(
+        identity + ".in", 1,
+        std::vector<loom::Field>{loom::Field{"n", loom::type_of(loom::Kind::Int), true}});
+    auto out = loom::make_schema(
+        identity + ".out", 1,
+        std::vector<loom::Field>{loom::Field{"value", loom::type_of(loom::Kind::Int), true}});
+    return op::OperatorDef(identity, std::move(in), std::move(out),
+                           [](const loom::Value& args) {
+                               return loom::Cell::integer(args.get("n")->as_int());
+                           });
+}
+
+/// The ACTIVE contribution to one power in a projection, or nothing.
+const ws::PowerContribution* contribution_of(const ws::ResolvedPowers& said,
+                                             const std::string& power) {
+    for (const ws::PowerStack& p : said.powers) {
+        if (p.power == power && !p.contributions.empty()) {
+            return &p.contributions.back(); // active last, the catalog's own order
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE("SOURCE-0: the host exposes exactly two Sources, under its own honest provenance") {
+    HostSourceRig r;
+    REQUIRE(r.expose());
+
+    // TWO IDENTITIES AND NOT A THIRD. No field, getter, pane, preference or schema became
+    // routable because it exists; the list is written out by hand and this is what it says.
+    CHECK(r.catalog.identities() ==
+          std::vector<std::string>{kProjectAnchorSource, kRecipeCatalogSource});
+
+    // BOTH ARE SOURCES, by the one predicate, because they take nothing.
+    CHECK(op::is_source(*r.catalog.find(kProjectAnchorSource)));
+    CHECK(op::is_source(*r.catalog.find(kRecipeCatalogSource)));
+
+    // ...AND THE PROVENANCE IS THE HOST'S OWN NAME, not an erased one and not a borrowed
+    // artifact's. `Catalog::mount` takes a null custody for a provider that is not an
+    // image at all, which is exactly what an in-process host is.
+    CHECK(r.catalog.providers() == std::vector<std::string>{kHostProvider});
+    CHECK(r.catalog.contributions(kProjectAnchorSource).front().provider == kHostProvider);
+    CHECK(r.catalog.contributions(kRecipeCatalogSource).front().provider == kHostProvider);
+
+    SUBCASE("and the batch is unmountable like any other provider's") {
+        REQUIRE(r.catalog.unmount(kHostProvider));
+        CHECK(r.catalog.identities().empty());
+    }
+}
+
+TEST_CASE("SOURCE-0: the host's own door refuses anything that would take an argument") {
+    // ⭐ THE REFINED PROV-0 BOUNDARY, AS A MECHANISM. "The host may describe itself" is
+    // not a licence to author application power, and the difference between the two is
+    // exactly whether a definition would ask a maker for anything. A prose rule here
+    // would be a rule nothing enforces; this one cannot be walked past.
+    HostSourceRig r("/project");
+
+    SUBCASE("on its own") {
+        std::vector<op::OperatorDef> batch;
+        batch.push_back(parameterized_def("zengine.host.parameterized"));
+        const op::MountReport refused = mount_host_sources(r.catalog, std::move(batch));
+        CHECK_FALSE(refused.ok);
+        CHECK(refused.reason.find("zengine.host.parameterized") != std::string::npos);
+        CHECK(refused.reason.find("never parameterized power") != std::string::npos);
+        CHECK(r.catalog.identities().empty());
+    }
+
+    SUBCASE("and smuggled in beside two legitimate Sources") {
+        // THE JUDGEMENT IS OVER THE WHOLE BATCH, before any of it is installed -- the
+        // same all-or-nothing shape `Catalog::mount` already keeps. A door that judged
+        // as it installed would leave the two Sources behind and refuse the third.
+        std::vector<op::OperatorDef> batch = host_sources(r.project_dir, r.recipes);
+        batch.push_back(parameterized_def("zengine.host.parameterized"));
+        const op::MountReport refused = mount_host_sources(r.catalog, std::move(batch));
+        CHECK_FALSE(refused.ok);
+        CHECK_MESSAGE(r.catalog.identities().empty(),
+                      "a refused host batch left something behind");
+        CHECK_FALSE(r.catalog.mounted(kHostProvider));
+    }
+}
+
+TEST_CASE("SOURCE-0: zengine.project.anchor answers the owner's anchor, absence included") {
+    SUBCASE("a project the host was launched into") {
+        HostSourceRig r("/somewhere/project");
+        REQUIRE(r.expose());
+        CHECK(r.anchor() == "/somewhere/project");
+    }
+
+    SUBCASE("...and the designed ABSENCE is preserved, never a manufactured path") {
+        // EMPTY IS WHAT THE OWNER SAYS when the platform will not report a working
+        // directory, and it is what every consumer already refuses in words. A Source
+        // that substituted the install directory, the Files location or `.` here would
+        // be inventing a project.
+        HostSourceRig r;
+        REQUIRE(r.expose());
+        CHECK(r.anchor().empty());
+    }
+
+    SUBCASE("it reads the OWNER, not a copy taken at registration") {
+        HostSourceRig r("/first");
+        REQUIRE(r.expose());
+        CHECK(r.anchor() == "/first");
+        r.project_dir = "/second"; // the owner changed; nobody re-registered anything
+        CHECK(r.anchor() == "/second");
+        CHECK(r.catalog.contributions(kProjectAnchorSource).size() == 1);
+    }
+
+    SUBCASE("its output schema says PROJECT ANCHOR, not `a path-shaped thing`") {
+        // TWO NAMESPACES, KEPT APART. The identity answers which source is meant; the
+        // schema answers what the answer MEANS -- and `content_id` hashes the NAME, so a
+        // structurally identical `zengine.FilesLocation v1` would be a different door
+        // rather than an interchangeable one.
+        HostSourceRig r("/p");
+        REQUIRE(r.expose());
+        const loom::Schema& out = *r.catalog.find(kProjectAnchorSource)->outputs();
+        CHECK(out.name() == "zengine.ProjectAnchor");
+        CHECK(out.version() == 1);
+
+        const auto look_alike = loom::make_schema(
+            "zengine.FilesLocation", 1,
+            std::vector<loom::Field>{loom::Field{"anchor", loom::type_of(loom::Kind::Text), true}});
+        CHECK(look_alike->fields().size() == out.fields().size());
+        CHECK_FALSE(loom::same_identity(*look_alike, out));
+        CHECK(look_alike->content_id() != out.content_id());
+    }
+}
+
+TEST_CASE("SOURCE-0: zengine.recipes.catalog answers which catalog is in force, and how much") {
+    HostSourceRig r("/project");
+    REQUIRE(r.expose());
+
+    SUBCASE("with nothing held, the owner's own absence is what is said") {
+        // A PROJECT WITH NOTHING TO BUILD IS A PROJECT -- `CurrentRecipes`' own rule,
+        // carried rather than translated into an error.
+        const std::pair<std::string, std::int64_t> said = r.catalog_said();
+        CHECK(said.first.empty());
+        CHECK(said.second == 0);
+    }
+
+    SUBCASE("with a catalog held, both halves come from the one owner") {
+        TempDir dir("srccat");
+        const std::filesystem::path root = dir.path();
+        put_catalog(root / "two.json",
+                    {authored_recipe("one", "src/a.cpp"), authored_recipe("two", "src/b.cpp")});
+        REQUIRE(install_recipes(r.recipes, (root / "two.json").generic_string(), "/install",
+                                r.project_dir, &HostContext::so_in)
+                    .accepted);
+
+        const std::pair<std::string, std::int64_t> said = r.catalog_said();
+        CHECK(said.first == (root / "two.json").generic_string());
+        CHECK(said.second == 2);
+        // ...AND IT IS THE OWNER'S ANSWER, not a second join of the same bytes.
+        CHECK(said.first == r.recipes.source());
+        CHECK(said.second == static_cast<std::int64_t>(r.recipes.all().size()));
+    }
+
+    SUBCASE("the catalog itself is NOT exposed, only the standing description") {
+        TempDir dir("srcnarrow");
+        const std::filesystem::path root = dir.path();
+        put_catalog(root / "one.json", {authored_recipe("secret", "src/secret.cpp")});
+        REQUIRE(install_recipes(r.recipes, (root / "one.json").generic_string(), "/install",
+                                r.project_dir, &HostContext::so_in)
+                    .accepted);
+        // BEING IN MEMORY IS NOT A REASON TO BE ROUTABLE. The rows, their ids, their
+        // sources, their build procedures and their artifacts are all right there in the
+        // owner and none of them crosses.
+        const loom::Schema& facts =
+            *r.catalog.find(kRecipeCatalogSource)->outputs()->fields()[0].type.message;
+        CHECK(facts.fields().size() == 2);
+        CHECK(facts.find("source") != nullptr);
+        CHECK(facts.find("recipes") != nullptr);
+        const op::Evaluation said = op::sample(r.catalog, kRecipeCatalogSource);
+        REQUIRE(said.ok());
+        CHECK(said.value().at(0)->as_message()->get("source")->as_text().find("secret") ==
+              std::string::npos);
+    }
+}
+
+TEST_CASE("SOURCE-0: the recipe Source follows a live swap, and a REFUSED one moves nothing") {
+    // ⭐ THE LOAD-BEARING WITNESS for the difference between a registered ROUTE and a
+    // sampled ANSWER. PROJ-1 made catalog selection live; if this Source had captured the
+    // startup catalog, every case above would still pass and this one could not.
+    TempDir dir("srcswap");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "first.json", {authored_recipe("one", "src/a.cpp")});
+    put_catalog(root / "second.json",
+                {authored_recipe("two", "src/b.cpp"), authored_recipe("three", "src/c.cpp")});
+    put_file(root / "notes.txt", "this is not a recipe catalog\n");
+
+    HostSourceRig r(root.generic_string());
+    const auto use = host_use_recipes(r.recipes, "/install", r.project_dir);
+    REQUIRE(use((root / "first.json").generic_string()).accepted);
+    REQUIRE(r.expose());
+
+    const std::pair<std::string, std::int64_t> started{(root / "first.json").generic_string(), 1};
+    CHECK(r.catalog_said() == started);
+
+    SUBCASE("a successful replacement is reported by the NEXT sample, with no re-registration") {
+        REQUIRE(use((root / "second.json").generic_string()).accepted);
+        CHECK(r.catalog_said() ==
+              std::pair<std::string, std::int64_t>{(root / "second.json").generic_string(), 2});
+        // NOTHING WAS RE-REGISTERED. One contribution, from one mount, made before the swap.
+        CHECK(r.catalog.contributions(kRecipeCatalogSource).size() == 1);
+        CHECK(r.catalog.providers() == std::vector<std::string>{kHostProvider});
+    }
+
+    SUBCASE("a REFUSED replacement leaves the sampled answer exactly where it was") {
+        // ...because it leaves the OWNER exactly where it was. The Source has no opinion
+        // about a failed swap and needs none: it reports whoever the owner currently is.
+        const HostContext::RecipeSwap no = use((root / "notes.txt").generic_string());
+        CHECK_FALSE(no.accepted);
+        CHECK(r.catalog_said() == started);
+    }
+
+    SUBCASE("a file that is not there is the same story") {
+        CHECK_FALSE(use((root / "absent.json").generic_string()).accepted);
+        CHECK(r.catalog_said() == started);
+    }
+}
+
+TEST_CASE("SOURCE-0: enumeration says what a sample would yield, and samples nothing") {
+    HostSourceRig r("/project");
+    REQUIRE(r.expose());
+
+    const std::uint64_t before = op::invocations();
+    const ws::ResolvedPowers said = describe_powers(r.catalog);
+    const std::uint64_t after = op::invocations();
+
+    // ⭐ NOT ONE BODY RAN. Running one to find out what it yields would be a side effect
+    // in a view, and it is also unnecessary: a definition has carried both its schemas
+    // since it was authored.
+    CHECK(after == before);
+
+    const ws::PowerContribution* anchor = contribution_of(said, kProjectAnchorSource);
+    const ws::PowerContribution* recipes = contribution_of(said, kRecipeCatalogSource);
+    REQUIRE(anchor != nullptr);
+    REQUIRE(recipes != nullptr);
+
+    // IDENTITY, PROVENANCE, COMPOSITE, SOURCE, AND WHAT A SAMPLE WOULD RETURN -- the five
+    // facts a Sources surface needs, in ONE projection, with no per-identity describe.
+    CHECK(anchor->provider == kHostProvider);
+    CHECK(anchor->source);
+    CHECK_FALSE(anchor->composite);
+    CHECK(anchor->output.name == "zengine.ProjectAnchor");
+    CHECK(anchor->output.version == 1);
+    CHECK(recipes->source);
+    CHECK(recipes->output.name == "zengine.RecipeCatalog");
+
+    // ...AND THE IDENTITY IS THE DEFINITION'S OWN, not a number this view computed from a
+    // structure it happened to walk.
+    CHECK(anchor->output.content_id ==
+          static_cast<std::int64_t>(
+              r.catalog.find(kProjectAnchorSource)->outputs()->content_id()));
+    CHECK(recipes->output.content_id ==
+          static_cast<std::int64_t>(
+              r.catalog.find(kRecipeCatalogSource)->outputs()->content_id()));
+
+    SUBCASE("an ordinary Operator in the same projection is NOT a Source") {
+        // The projection reads shape off the store and branches on no identity: a power
+        // this file never heard of would classify the same way.
+        r.catalog.publish(parameterized_def("test.needs.an.argument"));
+        const ws::ResolvedPowers again = describe_powers(r.catalog);
+        const ws::PowerContribution* asks = contribution_of(again, "test.needs.an.argument");
+        REQUIRE(asks != nullptr);
+        CHECK_FALSE(asks->source);
+        CHECK(asks->output.name == "test.needs.an.argument.out");
+        CHECK(asks->provider.empty()); // published by this rig itself, exactly as the wire says
+    }
+}
+
+TEST_CASE("SOURCE-0: the flow -- expose, enumerate without evaluating, sample, swap, sample") {
+    // THE INTEGRATION WITNESS, THROUGH THE PRODUCTION OWNERS AND THE PRODUCTION SEAMS.
+    // Every step below is the thing `workshop.cpp` actually calls: `mount_host_sources`,
+    // `describe_powers`, `op::sample`, `install_recipes`. There is no test-only Source
+    // store anywhere in it.
+    TempDir dir("srcflow");
+    const std::filesystem::path root = dir.path();
+    put_catalog(root / "start.json", {authored_recipe("one", "src/a.cpp")});
+    put_catalog(root / "later.json",
+                {authored_recipe("two", "src/b.cpp"), authored_recipe("three", "src/c.cpp")});
+
+    HostSourceRig r(root.generic_string());
+    const auto use = host_use_recipes(r.recipes, "/install", r.project_dir);
+    REQUIRE(use((root / "start.json").generic_string()).accepted);
+
+    //  1  the host publishes two Sources
+    REQUIRE(r.expose());
+
+    //  2  enumerate without evaluating
+    const std::uint64_t quiet = op::invocations();
+    const ws::ResolvedPowers seen = describe_powers(r.catalog);
+    CHECK(op::invocations() == quiet);
+    CHECK(seen.powers.size() == 2);
+    CHECK(contribution_of(seen, kProjectAnchorSource)->source);
+    CHECK(contribution_of(seen, kRecipeCatalogSource)->source);
+
+    //  3  sample the project anchor
+    CHECK(r.anchor() == root.generic_string());
+
+    //  4  sample the recipe catalog
+    CHECK(r.catalog_said() ==
+          std::pair<std::string, std::int64_t>{(root / "start.json").generic_string(), 1});
+
+    //  5  replace the recipe catalog through the existing live seam
+    REQUIRE(use((root / "later.json").generic_string()).accepted);
+
+    //  6  sample again -- the NEW catalog, from the SAME registration
+    CHECK(r.catalog_said() ==
+          std::pair<std::string, std::int64_t>{(root / "later.json").generic_string(), 2});
+    CHECK(r.anchor() == root.generic_string()); // and the anchor did not move with it
+    CHECK(r.catalog.contributions(kRecipeCatalogSource).size() == 1);
+}
+
+TEST_CASE("SOURCE-0: exposure stays deliberate -- the host did not become reflectable") {
+    // SC-14. A fact being true is not a reason to publish it, and the catalog describes
+    // what this composition CHOSE to make addressable. The list below is the one SOURCE-0
+    // explicitly declines: each is a real fact this process could reach and none is a
+    // door.
+    TempDir dir("srcsecret");
+    HostSourceRig r(dir.path().generic_string());
+    r.recipes.hold((dir.path() / "r.json").generic_string(), {}, &HostContext::so_in);
+    REQUIRE(r.expose());
+
+    for (const char* absent : {"zengine.clipboard", "zengine.editor.document",
+                               "zengine.editor.buffer", "zengine.prefs", "zengine.keymap",
+                               "zengine.session", "zengine.grants", "zengine.marks",
+                               "zengine.files.location", "zengine.navigation.origin",
+                               "time.now"}) {
+        CHECK_MESSAGE(r.catalog.find(absent) == nullptr, "'", absent,
+                      "' became routable without anybody deciding it should");
+    }
+    // ...and asking for one is an ordinary refusal rather than a hole.
+    const op::Evaluation said = op::sample(r.catalog, "zengine.clipboard");
+    CHECK_FALSE(said.ok());
+    CHECK(said.reason() == "unresolved operator reference 'zengine.clipboard'");
+}
+
+TEST_CASE("SOURCE-0: the host reaches its own facts through one door, and the owners outlive it") {
+    // DEFENCE IN DEPTH, and the same shape the PROJ-0/PROJ-1 read above has: no rig can
+    // run `main()`, so what a source read adds is that this arrangement cannot quietly
+    // stop being written this way while every case here stays green.
+    const auto code_of = [](const char* path) {
+        std::string out;
+        std::ifstream in(path);
+        REQUIRE_MESSAGE(in.good(), "cannot read ", path);
+        std::string line;
+        while (std::getline(in, line)) {
+            const std::size_t comment = line.find("//");
+            out += comment == std::string::npos ? line : line.substr(0, comment);
+            out += '\n';
+        }
+        return out;
+    };
+    const std::string host = code_of(WORKSHOP_HOST_CPP);
+
+    // ONE DOOR, SPELLED ONCE, over the two owners BY NAME.
+    const std::size_t door =
+        host.find("mount_host_sources(operators, host_sources(host.project_dir, current_recipes))");
+    CHECK_MESSAGE(door != std::string::npos,
+                  "workshop.cpp no longer exposes its facts through the one host-sources door");
+
+    // THE OWNERS ARE DECLARED BEFORE THE CATALOG THAT HOLDS THE CLOSURES READING THEM,
+    // so reverse-order destruction drops the readers first. This is the lifetime claim and
+    // there is nothing else that could make it.
+    const std::size_t recipes = host.find("CurrentRecipes current_recipes;");
+    const std::size_t context = host.find("HostContext host;");
+    const std::size_t catalog = host.find("op::Catalog operators;");
+    REQUIRE(recipes != std::string::npos);
+    REQUIRE(context != std::string::npos);
+    REQUIRE(catalog != std::string::npos);
+    CHECK(recipes < catalog);
+    CHECK(context < catalog);
+    CHECK(catalog < door);
+
+    // ...AND THE HOST STILL AUTHORS NOTHING. It builds no schema, mints no definition and
+    // names neither Source identity: what it decides is THAT the exposure happens, and
+    // `workshop/host_sources.hpp` decides everything else.
+    for (const char* forbidden :
+         {"zengine.project.anchor", "zengine.recipes.catalog", "loom::make_schema",
+          "loom::SchemaBuilder", "op::OperatorDef", "op::is_source", "project_anchor_source",
+          "recipe_catalog_source"}) {
+        CHECK_MESSAGE(host.find(forbidden) == std::string::npos, "workshop.cpp names '", forbidden,
+                      "', which is authorship the one door owns");
+    }
 }

@@ -1022,6 +1022,27 @@ TEST_CASE("the production host AUTHORS no operator, and cannot: it names none of
         CHECK_MESSAGE(host.find(forbidden) == std::string::npos,
                       "workshop.cpp names '", forbidden, "', which is semantic authorship");
     }
+
+    // ---- SOURCE-0 REFINED THIS LAW AND DID NOT WEAKEN IT -----------------------
+    //
+    // PROV-0's sentence was "a host authors NO operator and cannot", and as written it
+    // also forbade a host exposing state it ALREADY OWNS -- which is not authoring
+    // meaning at all. The refined boundary is: THE HOST MAY DESCRIBE ITSELF; IT MAY NOT
+    // INVENT PROVIDER POWER. What that changes about this case is nothing: the list
+    // above is untouched and still passes, because describing yourself needs no
+    // primitive, no rule, no composition builder and no semantic header.
+    //
+    // WHAT IT ADDS is that the host has exactly ONE way into its own catalog. The two
+    // raw doors are spelled here rather than next door because THIS suite is where "a
+    // host does not put meaning in its own catalog" lives; the door's own law -- that it
+    // carries Sources and refuses anything that would take an argument -- is enforced by
+    // `mount_host_sources` and measured against the real owners in the Workshop suite.
+    for (const char* forbidden : {"operators.publish(", "operators.mount("}) {
+        CHECK_MESSAGE(host.find(forbidden) == std::string::npos, "workshop.cpp names '",
+                      forbidden,
+                      "', which is a second way into this host's own catalog beside the one "
+                      "door that judges what a host may expose");
+    }
 }
 
 TEST_CASE("the production host mounts providers, and does it before it offers or loads") {

@@ -65,6 +65,7 @@
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
+#include "operator/source.hpp" // `is_source` -- the ONE spelling of "no maker inputs"
 
 #include <zen/weave.hpp>
 
@@ -204,6 +205,13 @@ inline ResolvedArrangement describe_arrangement(const load::PlanExecutor& realiz
 /// and no operator is run -- the question is who currently satisfies each identity,
 /// and running one to find out would be a side effect in a view.
 ///
+/// ...WHICH IS THE WHOLE CLAIM SINCE SOURCE-0, because this now also answers *what
+/// would sampling yield*. That question has an obvious wrong implementation -- sample
+/// one and look at the answer -- and the right one costs nothing: a definition holds
+/// its output schema from the moment it was authored, so the identity is READ off the
+/// store beside the provider and the composite flag, in the same one pass, with no
+/// evaluator reached and no per-identity describe across any seam.
+///
 /// THE ORDER IS THE CATALOG'S, TWICE OVER: identities are name-ordered because the
 /// store is a map, and each stack is oldest-first because that is how contributions
 /// were pushed. Neither is sorted here; a view that reordered a stack would be
@@ -224,6 +232,19 @@ inline ResolvedPowers describe_powers(const op::Catalog& catalog) {
             // anyway, because a view that dereferenced on a promise would be a view
             // whose correctness lives in another file.
             said.composite = c.definition != nullptr && c.definition->is_composite();
+            // WHAT A SAMPLE WOULD YIELD, AND WHETHER IT COULD BE SAMPLED AT ALL --
+            // both read off the same definition, both by asking it a question it can
+            // already answer. `is_source` is its input schema's field count and the
+            // identity is its output schema's own name, version and content id: no
+            // evaluator is reached, nothing is described across a seam, and nothing is
+            // derived from the identity's spelling.
+            said.source = c.definition != nullptr && op::is_source(*c.definition);
+            if (c.definition != nullptr) {
+                const loom::Schema& yields = *c.definition->outputs();
+                said.output.name = yields.name();
+                said.output.version = static_cast<std::int64_t>(yields.version());
+                said.output.content_id = static_cast<std::int64_t>(yields.content_id());
+            }
             stack.contributions.push_back(std::move(said));
         }
         out.powers.push_back(std::move(stack));
