@@ -125,14 +125,15 @@ Detail in [Builder](builder.md).
 
 ### The source editor holds one file at a time, in plain ASCII
 
-**Workshop can open, edit and save any file in the project** — from the [Files](files.md)
-pane, or from the Builder for a recipe's own source; see [the source editor](editor.md) — and
+**Workshop can open, edit and save any file this process can read** — from the
+[Files](files.md) pane, or from the Builder for a recipe's own source; see [the source
+editor](editor.md) — and
 the loop `edit → save → build → realize → inspect` closes without leaving the application. The
 honest bounds on that capability today:
 
 | question | answer |
 |---|---|
-| Can it open a file outside the project? | **no** — the browser stays inside the directory you launched in, and a linked directory is shown but not entered |
+| Can it open a file outside the project? | **yes** — [Files](files.md) can browse anywhere your operating system lets this process read, and the file it opens keeps its own absolute path. Opening a file somewhere else does not move your project |
 | More than one file at a time? | **no** — one document; opening another (with the first saved or deliberately discarded) replaces it |
 | Non-ASCII source? | **no** — the shipped media place columns by byte and glyphs by sequence, so a caret over multi-byte text would lie; such a file is refused whole and never rewritten |
 | Mixed line endings? | **no** — one file, one convention (LF or CRLF, preserved exactly); a mixed file is refused rather than normalized |
@@ -153,13 +154,38 @@ Two things this release deliberately does not decide:
 
 | question | today |
 |---|---|
-| Are `Src.cpp` and `src.cpp` the same file on Windows? | **Workshop treats them as two documents** — paths are compared as text, and asking the filesystem about identity on every open is a cost nothing yet needs |
+| Are `Src.cpp` and `src.cpp` the same file on Windows? | **Workshop treats them as two documents** — paths are compared as text, and asking the filesystem about identity on every open is a cost nothing yet needs |
 | Are two hard links to one file the same document? | **no** — same answer, same reason |
 
-A **Windows directory junction** *is* refused like a symbolic link — measured, not assumed:
-Workshop asks whether an entry is a directory when followed but not when unfollowed, and a
-junction answers exactly that way. (Asking whether it is a *symbolic link* would have missed
-it, which is why Workshop does not ask that.)
+**Links are traversed as text, not resolved.** A linked directory is marked `(link)` and can
+be entered, and going back up returns you to where you walked in from. Workshop never rewrites
+the path into the link's target — that would move you somewhere you never navigated to — which
+means the same directory reached through a link and reached directly is two spellings, the
+same identity limit as the two rows above. A **Windows directory junction** is marked exactly
+like a symbolic link: measured, not assumed — Workshop asks whether an entry is a directory
+when followed but not when unfollowed, and a junction answers exactly that way. (Asking
+whether it is a *symbolic link* would have missed it, which is why Workshop does not ask
+that.)
+
+### Where you may browse is your system's answer, and marks are places only
+
+Workshop models no filesystem boundary of its own. It has exactly the access the process it
+runs as has; a directory you may not read refuses in the system's own words, where you are
+standing, and nothing is substituted for it.
+
+| question | today |
+|---|---|
+| Can Files reach outside the project? | **yes** — up to `/` or a drive root, into links, and onto any drive the system reports |
+| Does browsing somewhere change what my project means? | **no** — a relative source in a build recipe is always resolved against the directory Workshop was launched in, wherever you happen to be looking |
+| Are the Windows drives listed every path I can reach? | **no** — they are the *logical drives this system reports*. A network share you can spell the path of is reachable and is not in that list |
+| Can I mark a file? | **no** — directories only |
+| Can I name a mark? | **no** — a mark is its path. Names can be earned when something needs a stable human name for one |
+| Does the browsing location come back next launch? | **no**, deliberately — marks come back, half-finished browsing does not |
+
+One narrow case is worth knowing: if a run has **no origin** (the system could not report a
+working directory Workshop can write down) **and no marks yet**, the Files pane will not take
+the keyboard, because there is nowhere it could offer to take you without asking the system on
+every keystroke. Mark a place once from an ordinary launch and that run can jump to it.
 
 ### Some filesystem names cannot be written down, and that is said rather than survived
 

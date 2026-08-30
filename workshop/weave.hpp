@@ -97,7 +97,9 @@
 //                   the quit policy `q` already had.
 
 #include "persist.hpp"
+#include "filesystem_roots.hpp" // which roots this system reports, asked at the gesture
 #include "keymap_persist.hpp"
+#include "marks_persist.hpp"    // the places a maker said they want back
 #include "prefs_persist.hpp"
 #include "screen.hpp"
 #include "session_persist.hpp"
@@ -309,6 +311,23 @@ struct HostContext {
     /// continuity is not a host with a problem. That is also what every suite fixture gets
     /// by default, so a case has to opt IN to touching a file.
     std::string session_path;
+
+    /// The one file this Workshop's LOCATION MARKS live in (PROJ-2).
+    ///
+    /// A SIXTH PATH, AND AN EIGHTH DURABLE FACT: the maker's PLACES -- the directories they
+    /// said they want to be able to come back to. It is the host's to choose
+    /// (`--marks <path>`, defaulted to the per-user MACHINE-LOCAL state root, because a
+    /// mark is an absolute path and therefore describes this machine's disks exactly as a
+    /// viewport describes this machine's window). A separate file from the prefs for
+    /// `marks_persist.hpp`'s three reasons, the sharpest of which is that the prefs format
+    /// has one version and no migration, so growing a field there would refuse every
+    /// existing prefs file by number.
+    ///
+    /// Empty means no marks file was chosen: this run holds no maker marks, marking changes
+    /// the live set only, and nothing is read or written -- which is also what `--isolated`
+    /// resolves it to. Generated marks (this run's origin, the filesystem roots) are
+    /// unaffected, because neither was ever going to be written down.
+    std::string marks_path;
 
     /// The one file this Workshop's KEYMAP is read from (KEY-0).
     ///
@@ -633,6 +652,11 @@ public:
         // The prefs beside it (WUX-3), BEFORE the first paint: the first band and the
         // first pane headers a maker reads are already wearing their own preference.
         load_prefs();
+        // ...and the maker's own places (PROJ-2), so a marks file this run cannot read is a
+        // condition the FIRST picture already carries rather than one discovered whenever
+        // the browser happens to open. It has its own once-guard, so a run that reaches the
+        // browser before any surface exists reads them there instead, exactly once.
+        load_marks();
         // ...and whatever the host already knew was standing, so the first picture
         // of the run already carries every condition this launch is going to have.
         take_host_conditions();
@@ -4980,17 +5004,113 @@ private:
     /// argument, two dimensions instead of one, on the same once-per-repaint path.
     void refresh_editor() { reconcile_editor_view(session_); }
 
-    // ---- The project browser (EDIT-1) ----------------------------------------
+    // ---- The filesystem browser (EDIT-1, freed by PROJ-2) --------------------
     //
-    // FIVE VERBS AND ONE SNAPSHOT. Everything the browser does is: look at a directory,
-    // move a cursor, go in, go up, and hand a path to the editor's door. What it never
-    // does is hold a second copy of anything somebody else owns -- a row is a name and a
-    // kind, and the path it denotes is derived at the instant it is activated.
+    // THE VERBS AND ONE SNAPSHOT. Everything the browser does is: look at a directory,
+    // move a cursor, go in, go up, jump to a place worth returning to, and hand a path to
+    // the editor's door. What it never does is hold a second copy of anything somebody else
+    // owns -- a row is a name and a kind, the path it denotes is derived at the instant it
+    // is activated, and where the maker is standing says nothing about what their project
+    // means.
 
-    /// The directory the browser is showing, spelled from the host's project root and the
-    /// names walked into. Empty when this run has no project.
-    std::string files_dir() const {
-        return current_dir(host_->project_dir, session_.panels.files.entered);
+    /// The directory the browser is showing. A FIELD READ: after the seed below, nothing
+    /// here derives a location from the project anchor, which is what makes browsing
+    /// structurally unable to move it.
+    std::string files_dir() const { return session_.panels.files.current_dir; }
+
+    /// GENERATE THIS RUN'S ORIGIN AND READ ITS DURABLE MARKS -- once, at the moment
+    /// navigation first needs either.
+    ///
+    /// ORIGIN IS "WHERE THIS WORKSHOP'S FILES NAVIGATION BEGAN", so the first moment
+    /// anything asks is exactly when it is decided, and the guard is what makes it
+    /// immutable afterwards. It is the admitted launch location today, because that is
+    /// where the maker was standing -- and it is deliberately NOT renamed "the project": the
+    /// anchor is a different fact with a different owner, and the two coinciding at launch
+    /// is a coincidence this application is now able to state rather than one it relies on.
+    ///
+    /// AN ABSENT LAUNCH LOCATION INVENTS NOTHING. No parent, no executable directory, no
+    /// temporary directory -- the run simply has no origin, Files says so, and a maker can
+    /// still reach a durable mark or a filesystem root, which is the honest way back onto
+    /// the machine.
+    void ensure_marks() {
+        if (session_.marks.settled) {
+            return;
+        }
+        session_.marks.settled = true;
+        session_.marks.origin = admit_location(host_->project_dir);
+        load_marks(); // has its own once-guard: startup may have run it already
+        if (session_.panels.files.current_dir.empty()) {
+            session_.panels.files.current_dir = session_.marks.origin;
+        }
+    }
+
+    /// READ THE MAKER'S OWN PLACES, OR STAND ON NONE (PROJ-2).
+    ///
+    /// The prefs file's startup story, one file over: no path chosen and no file present are
+    /// both simply no marks (deleting the file IS forgetting every place, so an absent file
+    /// must never be a complaint); an admitted file is applied; a file that exists and
+    /// cannot be admitted is refused and this run holds none.
+    ///
+    /// ⚠ BOTH REFUSALS ARE STANDING CONDITIONS AND NOT NOTICES, and that is measured rather
+    /// than stylistic (WUX-4). This load runs wherever the browser first needs it -- which is
+    /// usually inside the very gesture that OPENS the pane, and that gesture says "opened
+    /// Files" immediately afterwards. A sentence on the notice row would be replaced by the
+    /// next thing said, in the same turn, every time. And it should not be a notice anyway:
+    /// an unreadable marks file is still unreadable an hour later and has a maker action
+    /// ("fix or delete it"), which is exactly what makes a thing a condition rather than an
+    /// event.
+    ///
+    /// `marks_refused_` IS THE LOAD-BEARING HALF, the prefs file's own rule: this is a file
+    /// Workshop WRITES, so restraint alone is not enough -- without the flag, the first `m`
+    /// a maker pressed would replace bytes this run could not read with an empty list.
+    void load_marks() {
+        if (marks_loaded_) {
+            return;
+        }
+        marks_loaded_ = true;
+        if (host_->marks_path.empty() || !std::filesystem::exists(host_->marks_path)) {
+            return;
+        }
+        const marks_persist::LoadedMarks loaded = marks_persist::load_file(host_->marks_path);
+        if (!loaded.outcome.accepted) {
+            marks_refused_ = true;
+            session_.conditions.establish(Condition{
+                kMarksWallKey, "marks refused -- this run remembers no places",
+                loaded.outcome.refusal + " (the file is left exactly as it is; fix or "
+                                         "delete it)",
+                surface::role::kAlert, std::string()});
+            return;
+        }
+        session_.marks.maker = loaded.maker;
+        if (!loaded.skipped.empty()) {
+            // A SECOND STANDING CONDITION, AND A QUIETER ONE. The file was read and most of
+            // it is in force; what is standing is that part of it is not, and that the next
+            // mark this maker makes will write the list WITHOUT those rows. Saying it once
+            // as an event would be saying it exactly where nobody could act on it.
+            session_.conditions.establish(
+                Condition{kMarksSkippedKey, "some marks could not be used",
+                          loaded.skipped + " (fix the file before marking anything else, or "
+                                           "those rows are dropped by the next save)",
+                          surface::role::kAccent, std::string()});
+        }
+    }
+
+    /// WRITE THE MAKER'S PLACES BACK. Empty path = no persistence, silently, exactly as it
+    /// is for every other durable fact this weave holds.
+    ///
+    /// ⚠ A FILE THIS RUN COULD NOT READ IS NEVER OVERWRITTEN. The refusal already told the
+    /// maker their places were not loaded; writing this run's (empty) list over them would
+    /// turn a readable complaint into a lost file, which is the prefs file's own law and is
+    /// taken here for the same reason.
+    void save_marks() {
+        if (host_->marks_path.empty() || marks_refused_) {
+            return;
+        }
+        const Written done =
+            marks_persist::save_file(host_->marks_path, session_.marks.maker);
+        if (!done.accepted) {
+            say("could not write your marks: " + done.refusal, true);
+        }
     }
 
     /// TAKE A FRESH LISTING OF WHERE THE MAKER IS STANDING.
@@ -5007,13 +5127,14 @@ private:
     /// across a re-enumeration would point at whatever now happens to be in that position,
     /// which is a cursor that appears to move on its own.
     void files_refresh() {
+        ensure_marks();
         FilesPane& pane = session_.panels.files;
         const std::string dir = files_dir();
         if (dir.empty()) {
             pane.listing = Listing{};
             pane.listing.refusal =
-                "this run has no project directory -- Workshop could not tell where it was "
-                "launched from, so there is nothing to browse";
+                "this run began nowhere -- Workshop could not tell where it was launched "
+                "from, so there is no origin to browse from";
             pane.cursor = 0;
             return;
         }
@@ -5075,41 +5196,72 @@ private:
         pane.cursor = static_cast<std::size_t>(at);
     }
 
-    /// GO UP ONE ENTERED NAME.
+    /// GO UP ONE LEXICAL DIRECTORY.
     ///
-    /// THE ROOT BOUNDARY IS HERE AND IT IS AN EMPTY STACK, not a comparison: at the root
-    /// there is no name to pop, so there is nothing this can do and it says so. No `..` is
-    /// ever constructed, no path is ever compared against the root, and no canonical
-    /// resolution is required for the promise to hold.
+    /// THE BOUNDARY IS THE FILESYSTEM'S AND NOT THE PROJECT'S. Parent is `parent_path()`
+    /// and stops where a path stops -- the MEASURED fixed point `p.parent_path() == p`,
+    /// which is what POSIX `/`, a Windows drive root and `//server/` all answer. It walks
+    /// straight past `HostContext::project_dir` without noticing it, which is the whole of
+    /// what this phase changed: the anchor is where relative source MEANS something, not a
+    /// wall.
+    ///
+    /// AND IT IS LEXICAL. Going up from a linked directory returns the maker to where they
+    /// walked in from, not to wherever the link pointed -- nothing canonicalizes, so
+    /// `parent` always undoes exactly the `enter` that preceded it.
     void files_parent() {
+        ensure_marks();
         FilesPane& pane = session_.panels.files;
-        if (pane.entered.empty()) {
-            say("this is the project root -- Project Files does not go above it", false);
+        if (pane.current_dir.empty()) {
+            say("there is nowhere to go up from -- this run began nowhere", true);
             return;
         }
-        const std::string came_from = pane.entered.back();
-        pane.entered.pop_back();
+        const std::string up = parent_location(pane.current_dir);
+        if (up.empty()) {
+            say(pane.current_dir + " is the top of this filesystem -- there is nothing "
+                                   "above it to go to",
+                false);
+            return;
+        }
+        const std::filesystem::path was(pane.current_dir);
+        const AdmittedName leaf = admit_filename(was.filename());
+        pane.current_dir = up;
         files_refresh();
-        files_point_at(came_from);
-        say("in " + files_where(), false);
+        if (leaf.exact) {
+            files_point_at(leaf.name);
+        }
+        files_say_where();
     }
 
-    /// What to call where the maker is, in a notice: the project-relative projection, or
-    /// the project itself at the root.
+    /// Where the maker is, for a notice: the absolute location, which since PROJ-2 is the
+    /// only unambiguous answer -- a relative spelling would need a base, and the base a
+    /// browser used to have (the project) is exactly the thing it may now be nowhere near.
     std::string files_where() const {
-        const std::string rel = relative_dir(session_.panels.files.entered);
-        return rel.empty() ? std::string("the project root") : rel;
+        const std::string& dir = session_.panels.files.current_dir;
+        return dir.empty() ? std::string("nowhere") : dir;
+    }
+
+    /// SAY WHERE THE MAKER NOW IS, and why this place is one they might have meant.
+    ///
+    /// The provenance is a projection over the marks this run holds plus one lexical test,
+    /// so a header and a notice can both state it without anybody walking a filesystem to
+    /// find out (`LocationMarks::provenance`).
+    void files_say_where() {
+        const std::string where = files_where();
+        const std::string why =
+            provenance_words(session_.marks.provenance(session_.panels.files.current_dir));
+        say(why.empty() ? "in " + where : "in " + where + " (" + why + ")", false);
     }
 
     /// ACT ON THE ROW THE CURSOR IS ON -- enter a directory, or hand a file to the one
     /// editor door.
     ///
-    /// THE TWO REFUSALS ARE THIS BROWSER'S OWN, and both are about the PATH rather than
-    /// about the file's contents. A name this application's narrow path custody cannot
+    /// THE ONE REFUSAL LEFT HERE IS THIS BROWSER'S OWN, and it is about the PATH rather
+    /// than about the file's contents: a name this application's narrow path custody cannot
     /// carry would reach the editor as a different path or as none, so it is refused here,
-    /// where the loss is known. A LINKED directory would leave the project while every
-    /// name on the stack still claimed otherwise, so entering it is refused here too --
-    /// the row stays visible, because hiding a real entry is the other way to be wrong.
+    /// where the loss is known. The LINKED-directory refusal that used to stand beside it
+    /// is gone -- it existed to keep the entered-name stack honest and there is no stack
+    /// any more; the row keeps its mark, and entering it is ordinary navigation the OS
+    /// either permits or refuses in its own words.
     ///
     /// EVERYTHING ELSE IS THE EDITOR'S. A `.png`, a binary, a file with mixed line endings
     /// or bytes outside plain ASCII all travel to the door and are refused THERE, in the
@@ -5117,6 +5269,7 @@ private:
     /// no opinion about contents -- an opinion here would be a second, quietly different
     /// copy of a law that already has an owner.
     void files_open(loom::Mail& mail) {
+        ensure_marks();
         FilesPane& pane = session_.panels.files;
         const FileRow* row = row_at(pane.listing, pane.cursor);
         if (row == nullptr) {
@@ -5130,35 +5283,118 @@ private:
                 true);
             return;
         }
+        const std::string dir = files_dir();
+        if (dir.empty()) {
+            say("this run began nowhere -- there is no location to act in", true);
+            return;
+        }
         if (row->directory) {
-            if (row->linked) {
+            // THE SAME NORMALIZATION EVERY OTHER SPELLING IN THIS APPLICATION GOES
+            // THROUGH (`persist::resolved_against`), so entering a directory at a
+            // filesystem root cannot produce the doubled separator that would name a
+            // different root on POSIX.
+            const std::string into =
+                admit_location(persist::resolved_against(dir, row->name));
+            if (into.empty()) {
                 say("`" + shown_name(row->name) +
-                        "` is a linked directory -- Project Files stays inside the project "
-                        "and does not follow links out of it",
+                        "` cannot be reached from here in a path this Workshop can carry",
                     true);
                 return;
             }
-            pane.entered.push_back(row->name);
+            pane.current_dir = into;
             files_refresh();
-            say("in " + files_where(), false);
+            files_say_where();
             return;
         }
-        const std::string dir = files_dir();
-        if (dir.empty()) {
-            say("this run has no project directory -- nothing was opened", true);
+        open_source(persist::resolved_against(dir, row->name), mail);
+    }
+
+    /// MARK, OR UNMARK, THE LOCATION THE BROWSER IS SHOWING (PROJ-2).
+    ///
+    /// IT TOGGLES THE MAKER'S OWN FACT AND ONLY THAT. A place may already be known as this
+    /// run's origin or as a filesystem root; neither is the maker's to grant or revoke, and
+    /// marking a location that is also the origin is a perfectly ordinary thing to want --
+    /// origin dies with the run and a mark does not. The two provenances stay distinct and
+    /// the traversal still stops there exactly once.
+    ///
+    /// ⚠ IT MARKS A PLACE AND NOTHING ELSE. Nothing about the project anchor, the recipe
+    /// catalog, the open document, trust, build intent or load arrangement is touched or
+    /// consulted -- a mark is a destination, and a browser that could confer meaning by
+    /// remembering a directory would be a second, quieter way to choose a project.
+    void files_mark() {
+        ensure_marks();
+        const std::string where = session_.panels.files.current_dir;
+        if (where.empty()) {
+            say("there is nowhere to mark -- this run began nowhere", true);
             return;
         }
-        open_source(dir + "/" + row->name, mail);
+        const bool removed = session_.marks.forget(where);
+        if (!removed) {
+            session_.marks.remember(where);
+        }
+        save_marks();
+        say((removed ? "no longer marked: " : "marked: ") + where, false);
+    }
+
+    /// GO TO THE NEXT (or previous) PLACE WORTH RETURNING TO.
+    ///
+    /// THE DESTINATIONS ARE BUILT AT THE GESTURE AND HELD NOWHERE: this run's origin, the
+    /// maker's durable marks, and the filesystem roots THIS SYSTEM REPORTS RIGHT NOW. The
+    /// roots in particular are asked for here rather than remembered, because a drive is a
+    /// fact about a machine at a moment and a cached list of them is a list that goes wrong
+    /// silently.
+    ///
+    /// THERE IS NO STANDING "SELECTED MARK". The cycle is found from where the browser
+    /// actually is, so nothing can drift out of agreement with the location on screen, and
+    /// a maker who walked somewhere between two jumps gets the neighbour of where they are
+    /// rather than the neighbour of where a remembered index last pointed. A location that
+    /// is not itself a destination starts the cycle at its first (or last) stop.
+    ///
+    /// ⚠ A JUMP CHANGES WHERE THE MAKER IS LOOKING AND NOTHING ELSE. It does not move the
+    /// project anchor, recomplete a recipe, install a catalog, open a document, change the
+    /// load arrangement or touch the setup -- the browser's whole write set is its own four
+    /// fields and a notice, exactly as it was before it could leave the project.
+    void files_jump_mark(std::int64_t by) {
+        ensure_marks();
+        const std::vector<MarkedPlace> stops =
+            session_.marks.destinations(host_filesystem_roots());
+        if (stops.empty()) {
+            say("there is nowhere to jump to -- no origin, no marks, and this system "
+                "reports no filesystem roots",
+                true);
+            return;
+        }
+        const std::int64_t total = static_cast<std::int64_t>(stops.size());
+        std::int64_t at = by > 0 ? -1 : 0;
+        for (std::int64_t i = 0; i < total; ++i) {
+            if (stops[static_cast<std::size_t>(i)].path == session_.panels.files.current_dir) {
+                at = i;
+                break;
+            }
+        }
+        const std::int64_t to = ((at + by) % total + total) % total;
+        const MarkedPlace& went = stops[static_cast<std::size_t>(to)];
+        session_.panels.files.current_dir = went.path;
+        files_refresh();
+        const std::string why = provenance_words(went.from);
+        say("at " + went.path + (why.empty() ? std::string() : " (" + why + ")"), false);
     }
 
     /// USE THE FILE THE CURSOR IS ON AS THIS SESSION'S RECIPE CATALOG (PROJ-1).
     ///
     /// THE BROWSER'S SECOND VERB, AND ITS FIRST THAT IS NOT ABOUT LOOKING. It is the same
-    /// shape as `files_open` one door over: this pane resolves a ROW to a path -- root,
-    /// the entered-name stack, the row's own name, exactly as activation does -- refuses
-    /// what its own path custody cannot carry, and hands the path to the one owner that
-    /// can act on it. Everything after the path is the HOST's: reading, parsing,
+    /// shape as `files_open` one door over: this pane resolves a ROW to a path -- the
+    /// location it is showing plus the row's own name, exactly as activation does --
+    /// refuses what its own path custody cannot carry, and hands the path to the one owner
+    /// that can act on it. Everything after the path is the HOST's: reading, parsing,
     /// completing against the current project, and installing atomically.
+    ///
+    /// ⚠ AND THE CATALOG MAY NOW LIVE ANYWHERE THE BROWSER CAN REACH, which since PROJ-2 is
+    /// anywhere the host can. That widens the CHOOSER and nothing else: completion is still
+    /// anchored to `HostContext::project_dir` by the host's own closure, so a foreign
+    /// catalog's RELATIVE source still names a file under the active project rather than
+    /// beside the catalog. Surprising the first time, correct, documented, and emphatically
+    /// not something a mark or a browsing location may quietly change.
     ///
     /// ⚠ THE REFUSALS HERE ARE ABOUT THE PATH AND NEVER ABOUT THE CONTENTS. A directory
     /// is refused because a catalog is a file; a name this application cannot carry is
@@ -5179,6 +5415,7 @@ private:
     /// regardless, and Workshop's own catalog handler is the party that ignores it when
     /// there is no panel to put it on.
     void files_use_recipes(loom::Mail& mail) {
+        ensure_marks();
         FilesPane& pane = session_.panels.files;
         const FileRow* row = row_at(pane.listing, pane.cursor);
         if (row == nullptr) {
@@ -5206,11 +5443,11 @@ private:
         }
         const std::string dir = files_dir();
         if (dir.empty()) {
-            say("this run has no project directory -- the recipes in force are unchanged",
-                true);
+            say("this run began nowhere -- the recipes in force are unchanged", true);
             return;
         }
-        const HostContext::RecipeSwap done = host_->use_recipes(dir + "/" + row->name);
+        const HostContext::RecipeSwap done =
+            host_->use_recipes(persist::resolved_against(dir, row->name));
         if (!done.accepted) {
             // BOTH HALVES, IN ONE SENTENCE, AND IN THE ORDER THAT SURVIVES THE CUT. What
             // went wrong and what is still running are both owed here -- a refusal that
@@ -5230,17 +5467,15 @@ private:
         // for the screen and never a second owner: no recipe is copied here, and every
         // consumer goes on reading the one owner exactly as before.
         //
-        // ⚠ IT IS THE PROJECT-RELATIVE SPELLING, and that is a presentation choice with a
-        // measured reason. The Builder panel's row is `kStackW` cells wide and a fitted
-        // absolute path loses its TAIL -- which is the file's own name, the half that
-        // says which catalog this is. This browser cannot reach outside the project, so
-        // every file this door can name has a short relative spelling built from the
-        // stack of names the maker walked into; the absolute path is what the notice
-        // below says, and what the owner holds. The two cannot disagree about WHICH file
-        // because the owner accepted the very path this row composed.
-        const std::string where = relative_dir(pane.entered);
-        session_.recipes_moved_to =
-            where.empty() ? shown_name(row->name) : where + "/" + shown_name(row->name);
+        // ⚠ IT IS THE OWNER'S OWN ABSOLUTE PATH, AND IT IS READ BACK RATHER THAN
+        // RECOMPOSED. It used to be a spelling relative to the Files root, which was
+        // unambiguous only while that root WAS the project -- and a browser that can stand
+        // anywhere makes a based spelling with no stated base a wrong-looking name for the
+        // right file. `done.path` is what the catalog owner is holding after the attempt,
+        // so the projection cannot name a different file from the one in force, and the
+        // panel's column fits it with the tail intact (`detail::fit_path`) rather than
+        // losing the half that says which catalog this is.
+        session_.recipes_moved_to = done.path;
         // ...AND THE BUILDER IS ASKED TO SAY WHAT IT IS, through the same message an
         // opening panel has always sent. The tool reads the owner's views, so it already
         // holds the new catalog; what it has not done is SAY so, and this is the existing
@@ -5253,7 +5488,7 @@ private:
         repaint(mail);
     }
 
-    /// THE BROWSER'S KEYS -- six verbs, every one of them a keymap row, so a maker who
+    /// THE BROWSER'S KEYS -- nine verbs, every one of them a keymap row, so a maker who
     /// remapped them gets their own bindings here and on every help surface.
     void files_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         switch (session_.keymap.action_for(KeyContext::kFiles, k.scancode, k.modifiers)) {
@@ -5266,6 +5501,9 @@ private:
             say("listed " + files_where() + " again", false);
             break;
         case Act::kFilesUseRecipes: files_use_recipes(mail); break;
+        case Act::kFilesMark: files_mark(); break;
+        case Act::kFilesNextMark: files_jump_mark(1); break;
+        case Act::kFilesPreviousMark: files_jump_mark(-1); break;
         default: break; // an unbound key in this pane means nothing, and says nothing
         }
     }
@@ -6285,6 +6523,13 @@ private:
     /// difference. A file that could not be admitted says nothing HERE -- that
     /// is a standing wall and it is a condition (`kKeymapWallKey`).
     bool keymap_loaded_ = false;
+    bool marks_loaded_ = false;
+    /// A MARKS FILE THIS RUN COULD NOT UNDERSTAND, remembered so a later toggle cannot
+    /// write over it. The prefs file's own law (a file that exists and cannot be admitted
+    /// is refused out loud and never rewritten), and the flag is what makes the second half
+    /// of that sentence true here: without it, the first `m` a maker pressed would replace
+    /// their unreadable file with this run's empty list.
+    bool marks_refused_ = false;
     std::string keymap_word_;
     bool keymap_bad_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said

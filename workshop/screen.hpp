@@ -44,6 +44,7 @@
 #include "document.hpp"
 #include "editor.hpp" // the source editor's buffer, byte law and tab geometry
 #include "keymap.hpp"
+#include "marks.hpp" // the places a maker may want to come back to (PROJ-2)
 #include "panel.hpp"
 #include "property.hpp"
 #include "setup.hpp"
@@ -1634,6 +1635,20 @@ struct Session {
     /// Session, never document, never setup, and never written to a file: the next launch
     /// chooses its catalog exactly as this one did (PROJ-1 persists no catalog choice).
     std::string recipes_moved_to;
+
+    /// THE PLACES THIS RUN KNOWS ARE WORTH RETURNING TO (PROJ-2, `marks.hpp`).
+    ///
+    /// SESSION-LEVEL AND OUTSIDE EVERY PANE, deliberately. The Files browser is the first
+    /// consumer of these and is not their owner: a later consumer -- a surface that says
+    /// what this session is made of, a path shown relative to a place a maker named --
+    /// must be able to ask about remembered places without reaching inside a presentation,
+    /// and a fact that lived in `panels.files` would be a fact `close_panel` could destroy.
+    ///
+    /// TWO LIFETIMES IN ONE OWNER, AND THEY DO NOT MIX. `origin` is generated once for this
+    /// run and dies with it; `maker` is durable and is the only half any file holds. What
+    /// they share is that neither is a project: a mark is a destination, and nothing here
+    /// can move `HostContext::project_dir`, complete a recipe, or make a path trusted.
+    LocationMarks marks;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
@@ -1670,22 +1685,43 @@ inline bool editor_has_keyboard(const Session& s) {
 }
 
 /// DOES THE PROJECT BROWSER HAVE THE KEYBOARD RIGHT NOW? -- the same four live conditions,
-/// one pane over: the candidate names Project Files, it has a listing to navigate, the
-/// pane is presented, and some cell of it is on this screen.
+/// one pane over: the candidate names Project Files, there is something in it to act on,
+/// the pane is presented, and some cell of it is on this screen.
 ///
 /// THE CANDIDACY IS DECLARED AND THE READINESS IS RESOLVED, and this is the readiness half
 /// (`PanelKind::takes_keyboard` is the other). It is a separate function from the Editor's
 /// rather than one generalized predicate because the middle condition is genuinely
-/// different -- an open DOCUMENT there, a known LISTING here -- and folding two different
+/// different -- an open DOCUMENT there, somewhere to BE here -- and folding two different
 /// questions behind one name would make the shared half look like the whole rule.
 ///
-/// A LISTING IT COULD NOT MAKE RESOLVES TO NOTHING, exactly as an Editor with no document
-/// does: a press into a Project Files pane that has no project to browse sets the
-/// candidate and leaves the keys in command mode, so the maker's next gesture means what
-/// it means everywhere else instead of vanishing into a pane with nothing to navigate.
+/// A PANE WITH NOTHING TO ACT ON RESOLVES TO NOTHING, exactly as an Editor with no document
+/// does: a press into it sets the candidate and leaves the keys in command mode, so the
+/// maker's next gesture means what it means everywhere else instead of vanishing into a
+/// pane that could not answer it.
+///
+/// ⚠ AND "NOTHING TO ACT ON" GOT NARROWER WHEN THE BROWSER STOPPED BEING THE PROJECT
+/// (PROJ-2). It used to mean "no listing", which was right while a listing was the only
+/// thing this pane could do; there are two more now. A location whose enumeration FAILED is
+/// still a location -- parent and refresh are exactly what a maker wants there, and
+/// declining the keys would strand them at the refusal. And a run with no origin at all can
+/// still JUMP, if it knows a place worth jumping to, which is the honest way back onto a
+/// machine whose launch directory this build could not carry.
+///
+/// ⚠⚠ THE JUMP HALF ASKS ONLY WHAT THIS RUN ALREADY HOLDS -- the generated origin and the
+/// maker's own durable marks -- and deliberately NOT the host's filesystem roots. This
+/// predicate answers on every keystroke and at every paint, and `files.hpp`'s standing law
+/// is that a listing is not a per-paint population: asking an operating system which drives
+/// exist, sixty times a second, to decide whether a pane may hold the keyboard would be
+/// that same mistake in a smaller place. The residual it leaves is one sentence long and is
+/// named in `docs/workshop/limitations.md`: a run with no origin AND no remembered places
+/// declines the keyboard here, because this application cannot say there is anywhere for it
+/// to go without asking.
 inline bool files_has_keyboard(const Session& s) {
-    if (s.panels.keyboard != panel::kProjectFiles || !s.panels.files.listing.known ||
-        !s.panels.has(panel::kProjectFiles)) {
+    if (s.panels.keyboard != panel::kProjectFiles || !s.panels.has(panel::kProjectFiles)) {
+        return false;
+    }
+    const FilesPane& pane = s.panels.files;
+    if (!pane.listing.known && pane.current_dir.empty() && !s.marks.somewhere_to_go()) {
         return false;
     }
     const FineRect where =
@@ -2169,6 +2205,68 @@ inline std::string fit(std::string text, std::int64_t width) {
     text.resize(room - mark);
     text += kElided;
     return text;
+}
+
+/// HOW MUCH OF A PATH IS THE CUE THAT SAYS WHICH FILESYSTEM IT IS ON -- `/`, `C:/`,
+/// `//server/`, or nothing at all for a spelling that has no root.
+///
+/// PURELY LEXICAL, over the one spelling every path in this application already has
+/// (absolute, forward separators). It asks no platform and constructs no
+/// `std::filesystem::path`, which is what lets a painter spend it: this runs at every
+/// repaint, and the narrowing accessors that would be involved in doing it "properly" are
+/// the ones measured to throw.
+inline std::size_t path_root_cue(const std::string& p) {
+    if (p.size() >= 2 && p[0] == '/' && p[1] == '/') {
+        const std::size_t at = p.find('/', 2); // `//server/` -- the name AND its separator
+        return at == std::string::npos ? p.size() : at + 1;
+    }
+    if (!p.empty() && p[0] == '/') {
+        return 1;
+    }
+    if (p.size() >= 3 && p[1] == ':' && p[2] == '/') {
+        return 3;
+    }
+    return 0;
+}
+
+/// FIT A PATH, KEEPING THE END THAT SAYS WHICH FILE OR DIRECTORY IT IS.
+///
+/// `fit` ABOVE IS RIGHT FOR A SENTENCE AND WRONG FOR A PATH, and this is the measured
+/// difference. A sentence front-loads its meaning, so cutting the tail and marking the cut
+/// keeps the useful half; a path back-loads it, so the same cut removes the filename and
+/// leaves the reader with the part they already knew. Two real consumers meet this at once
+/// -- the browser's location header, which under free navigation is now an unbounded
+/// absolute path, and the Builder's catalog row, whose value stopped being short the moment
+/// a catalog could be chosen from outside the project.
+///
+/// THE PROPERTY, STATED ONCE: enough root to say WHICH filesystem, a mark where something
+/// was removed, and as much of the tail as the room allows -- cut at a component boundary
+/// when one fits, so what remains is a run of real directory names rather than the back
+/// half of one.
+///
+/// IT IS PRESENTATION AND NOTHING ELSE. Stored identity is untouched, no path is
+/// reformatted, shortened to a basename or resolved, and nothing widens to avoid the cut.
+/// At a width too small to hold even the shape it falls back to `fit`, whose mark-only
+/// answer is the only honest thing such a width can say.
+inline std::string fit_path(const std::string& path, std::int64_t width) {
+    if (width <= 0) {
+        return {};
+    }
+    const std::size_t room = static_cast<std::size_t>(width);
+    if (path.size() <= room) {
+        return path; // it fits, so nothing about it changes
+    }
+    const std::size_t mark = std::char_traits<char>::length(kElided);
+    const std::size_t root = path_root_cue(path);
+    if (root + mark + 1 > room) {
+        return fit(path, width); // no room for root + mark + one cell of tail
+    }
+    std::string tail = path.substr(path.size() - (room - root - mark));
+    const std::size_t boundary = tail.find('/');
+    if (boundary != std::string::npos && boundary + 1 < tail.size()) {
+        tail = tail.substr(boundary); // start the tail at a whole component
+    }
+    return path.substr(0, root) + kElided + tail;
 }
 
 /// How far a wrapped continuation row is indented, so a reader can tell one sentence
@@ -4026,14 +4124,19 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     // and its priority puts it last, so a face whose budget seats five keeps the same five
     // rows it seated before this phase.
     //
-    // THE PATH IS SHOWN WHOLE AND CUT BY THE ONE MEASURER. `detail::fit` marks what it
-    // removed, so a catalog too long for this column is a marked truncation of the right
-    // answer rather than an unmarked prefix of it; nothing here reformats a path, shortens
-    // it to a basename, or widens the panel to hold one.
+    // THE PATH IS ABSOLUTE, AND IT IS CUT BY THE MEASURER THAT KEEPS ITS TAIL. PROJ-1 put
+    // a project-relative spelling here because the browser could not reach outside the
+    // project and an ordinary fit removes a path's filename -- the half that says which
+    // catalog this is. PROJ-2 removed the first half of that premise, so a based spelling
+    // with no stated base became a wrong-looking name for the right file, and the answer is
+    // the absolute path plus `detail::fit_path`: root cue, a mark where the middle was
+    // removed, and the tail intact. Nothing here reformats a path, shortens it to a
+    // basename, or widens the panel to hold one.
     const bool moved_catalog = !catalog_moved_to.empty();
     if (moved_catalog) {
-        facts.push_back(
-            Fact{panel_field("catalog", catalog_moved_to), surface::role::kMuted, 10});
+        facts.push_back(Fact{panel_field("catalog",
+                                         detail::fit_path(catalog_moved_to, columns - 9)),
+                             surface::role::kMuted, 10});
     }
     // ---- WHAT THE PROJECT IS WAITING ON, WHILE IT IS (BLD-2) --------------------------
     //
@@ -4766,6 +4869,8 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
 /// panes refusing content are two conditions.
 inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
+inline constexpr const char* kMarksWallKey = "workshop.marks-refused";
+inline constexpr const char* kMarksSkippedKey = "workshop.marks-skipped";
 inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
 inline std::string pane_content_key(const PaneRef& ref) {
     return "pane.content-refused." + ref_text(ref);
@@ -6947,26 +7052,32 @@ inline ExternalBodyPlace files_body(const Session& s, const Screen& sc) {
     return external_body_place(where.rect, sc, kFilesHeaderRows);
 }
 
-/// THE HEADER: where the maker is, and how far into the listing -- in the order the facts
-/// must survive `detail::fit`'s TAIL cut, which is the editor header's rule and its reason.
-/// The POSITION is short and fixed-width, so it comes first and cannot be the thing that
-/// elides; the LOCATION is the fact of arbitrary length and goes last, where a cut still
-/// leaves its leading directories readable.
+/// THE HEADER: where the maker is, whether this place is one they might have meant, and
+/// how far into the listing -- in the order the facts must survive the cut, which is the
+/// editor header's rule and its reason. The POSITION and the PROVENANCE are short and come
+/// first; the LOCATION is the fact of arbitrary length and goes last.
 ///
-/// THE LOCATION IS A PROJECTION AND THE ROOT IS NOT IN IT. What identifies a file here is
-/// the absolute path derived at activation; what a header has room for is where the maker
-/// is standing INSIDE their project, which is the half they do not already know. `.` is the
-/// root itself -- a name for the place, rather than an empty space where a fact should be.
-inline std::string files_header(const FilesPane& pane, bool typing) {
+/// THE LOCATION IS THE ABSOLUTE PATH, AND IT IS FITTED BY THE PATH MEASURER. It used to be
+/// a project-relative projection with the root left out, which was the right answer while
+/// this browser could not leave the project and is a wrong one now: a maker standing
+/// somewhere else needs to know WHERE, and a relative spelling with no base is a name for a
+/// place nobody can find. `detail::fit_path` is what keeps that affordable -- the root cue
+/// and the tail survive, and the middle marks itself.
+///
+/// AND THE PROVENANCE IS A WORD, NOT A BADGE THAT COSTS THE PATH. Origin, marked and root
+/// are the three things this run can say about a location without walking anything
+/// (`LocationMarks::provenance`), and they are spelled before the location so that the
+/// location keeps the room it needs rather than the room a badge left over.
+inline std::string files_header(const FilesPane& pane, const std::string& why, bool typing,
+                                std::int64_t columns) {
     const std::size_t total = pane.listing.rows.size();
     std::string out = "Files";
     if (typing) {
         out += " *"; // the keys are here -- the Editor header's own mark, same voice
     }
     if (!pane.listing.known) {
-        return out + " --";
-    }
-    if (total == 0) {
+        out += " --";
+    } else if (total == 0) {
         out += " empty";
     } else {
         const std::size_t at = pane.cursor < total ? pane.cursor + 1 : total;
@@ -6978,19 +7089,26 @@ inline std::string files_header(const FilesPane& pane, bool typing) {
             out += "+ (stopped counting)";
         }
     }
-    const std::string where = relative_dir(pane.entered);
-    return out + "  " + (where.empty() ? "." : where);
+    if (!why.empty()) {
+        out += "  " + why;
+    }
+    out += "  ";
+    const std::string where = pane.current_dir.empty() ? std::string("nowhere")
+                                                       : pane.current_dir;
+    return out + detail::fit_path(where, columns - static_cast<std::int64_t>(out.size()));
 }
 
 /// ONE ROW'S TEXT: the name, a directory marked as one, and a name this application cannot
 /// carry marked as that. The two marks are deliberately different words, because they are
-/// different facts and only one of them is a refusal.
+/// different facts and only one of them is a refusal -- `(link)` says this directory leaves
+/// the tree, which is why going back up from inside it returns here rather than to wherever
+/// it led; `(name this Workshop cannot open)` says a door will refuse.
 inline std::string files_row_text(const FileRow& row) {
     std::string out = shown_name(row.name);
     if (row.directory) {
         out += "/";
         if (row.linked) {
-            out += "  (link -- not entered)";
+            out += "  (link)";
         }
     }
     if (!row.openable) {
@@ -7086,7 +7204,9 @@ inline void paint_files(surface::SurfaceLayer& layer, const Session& s, const Fi
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, body.columns), role});
     };
     if (body.header_rows > 0) {
-        say(files_header(pane, files_has_keyboard(s)), surface::role::kAccent);
+        say(files_header(pane, provenance_words(s.marks.provenance(pane.current_dir)),
+                         files_has_keyboard(s), body.columns),
+            surface::role::kAccent);
     }
     if (!body.present) {
         if (!region.rows.empty()) {

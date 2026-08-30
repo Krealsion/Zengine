@@ -220,6 +220,9 @@ enum class Act : std::uint8_t {
     kFilesParent,
     kFilesRefresh,
     kFilesUseRecipes,
+    kFilesMark,
+    kFilesNextMark,
+    kFilesPreviousMark,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -440,7 +443,7 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kD, mod::kCtrl}},
     // -- the project browser's controls ------------------------------------------------
     //
-    // FIVE VERBS, ALL SAYABLE ON EVERY BACKEND THIS APPLICATION SHIPS. Up, Down, Return
+    // NINE VERBS, ALL SAYABLE ON EVERY BACKEND THIS APPLICATION SHIPS. Up, Down, Return
     // and Backspace are plain named keys the POSIX terminal wire carries as themselves,
     // and `r` is a bare letter, which is legal here for the arrangement scopes' reason:
     // nothing in this context takes text, so a letter cannot be swallowed by a buffer.
@@ -448,10 +451,10 @@ inline constexpr ActionRow kActionCatalog[] = {
     // one at all (EDIT-0 measured it), so binding one would ship a door a terminal maker
     // could not open.
     //
-    // BACKSPACE MEANS PARENT, AND THERE IS NO `..` ROW FOR IT TO PRESS. Going up is
-    // popping the last name entered; at the root there is nothing to pop and the gesture
-    // says so. That is the root boundary, and it is the representation rather than a
-    // check somebody has to remember.
+    // BACKSPACE MEANS PARENT, AND THERE IS NO `..` ROW FOR IT TO PRESS. Going up is the
+    // lexical parent of where the browser is standing; at a filesystem root a path has no
+    // parent and the gesture says so. That is the only boundary left here, and it is the
+    // filesystem's rather than the project's.
     //
     // SIX SINCE PROJ-1, AND THE SIXTH IS THE FIRST THING THIS BROWSER DOES THAT IS NOT
     // ABOUT LOOKING. `u` is a bare letter for `r`'s reason exactly -- nothing in this
@@ -471,6 +474,27 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kR, mod::kNone}},
     {Act::kFilesUseRecipes, "files.use-recipes", "use as recipes", KeyContext::kFiles,
      {scan::kU, mod::kNone}},
+    // ...AND THREE MORE SINCE PROJ-2, WHICH ARE ABOUT PLACES RATHER THAN ABOUT ROWS. Once
+    // the browser can leave the directory Workshop was launched in, "get me back there" and
+    // "get me back to the other one" are gestures a maker needs and had no way to ask for.
+    //
+    // `m` / `n` / `shift+n` ARE BARE LETTERS FOR `r`'s REASON EXACTLY: nothing in this
+    // context takes text, so a letter cannot be swallowed by a buffer, and all three are
+    // free in every context that intersects `kFiles` (the globals are chords, `kNoText`
+    // holds `^c`/`^a`, `kNoEditor` holds `^s`, and no other `kFiles` row spends them).
+    // The next/previous PAIR is `builder.recipe`/`builder.recipe-back`'s shape one context
+    // over -- a letter and its shifted self -- and shift on a LETTER is the one shifted form
+    // the POSIX wire carries (`posix_gap`), so neither ships inside a gap.
+    //
+    // THEY COME LAST because the band packs these in declaration order: the four navigation
+    // verbs are what a maker reaches for constantly, and a gesture used a few times a
+    // session must not displace one used a few times a minute.
+    {Act::kFilesMark, "files.mark", "mark this place", KeyContext::kFiles,
+     {scan::kM, mod::kNone}},
+    {Act::kFilesNextMark, "files.next-mark", "next mark", KeyContext::kFiles,
+     {scan::kN, mod::kNone}},
+    {Act::kFilesPreviousMark, "files.previous-mark", "previous mark", KeyContext::kFiles,
+     {scan::kN, mod::kShift}},
     // -- the Terminal line's controls --------------------------------------------------
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},
