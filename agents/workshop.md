@@ -1784,8 +1784,8 @@ SetupState
 ## The tab run is the left of the band's existing status row (WUX-9)
 
 ```text
-> "Code"  "Build"  "Inspect" | UNSAVED | workshop-setup.json | s name/save  r restore
-^ the layout tabs                      ^ the existing non-tab status, composing from the right
+ Code >Build< Inspect | UNSAVED | workshop-setup.json | s name/save  r restore
+ ^ the layout tabs                ^ the existing non-tab status, composing from the right
 ```
 
 - **NO BAND ROW WAS ADDED AND THE BODY'S EXTENT NEVER MOVED.** WUX-9 put the run on the
@@ -1805,15 +1805,29 @@ SetupState
   painter publishes. A press answered from the bottom band's origin would be the stale
   one-row geometry QR-14 exists to make unsayable, and the suite sweeps EVERY cell of the
   screen against the inverse to say so.
-- **THE MARK IS `> ` AND EVERY OTHER TAB WEARS `  `** — the two bytes every list in this
-  application already spends on "the one you are on", said in CHARACTERS because a band row
+- **THE MARKER BRACKETS THE LIVE NAME (`>name<`) AND EVERY OTHER TAB WEARS ` name `** — one
+  presentation cell on each side, whichever tab it is, said in CHARACTERS because a band row
   carries ONE role for all of its bytes. Same width either way, deliberately: brackets around
   the live tab alone would slide the whole right side of the row two cells on every switch,
-  which is HD-8's moving-target defect. `kLayoutLive`/`kLayoutShelved` are spelled beside the
-  run rather than shared with `kTypingHere` — two decisions that land on one value are not one
-  decision (HD-9).
-- **EVERY NAME IS QUOTED**, by `quoted_setup_name`. A layout name may hold spaces, so an
-  unquoted run is genuinely ambiguous about where one layout ends and the next begins.
+  which is HD-8's moving-target defect. Since QR-15 that width equality is the TYPE's rather
+  than an agreement between two literals — `kLayoutLiveOpen`/`kLayoutLiveClose`/`kLayoutTabPad`
+  are `char`, and `layout_tab_text` pushes exactly one, the name, and exactly one more, so a
+  two-cell marker is unsayable without changing the type. They are spelled beside the run
+  rather than shared with `kTypingHere` — two decisions that land on one value are not one
+  decision (HD-9). WUX-9 spent both cells on the left (`> ` / `  `); a maker read the marker as
+  attached to nothing in particular, which is the whole of what QR-15 repaired.
+- **EVERY NAME IS PAINTED BARE** — the authored bytes, no quoting and no escaping. WUX-9 spent
+  `quoted_setup_name` here because a layout name may hold spaces and `> my desk  other` leaves
+  a reader guessing; the marker cells are that delimiter now, so the gap BETWEEN two tabs is
+  two cells and a space INSIDE a name is one, and `Home >My Layout< Art` reads correctly.
+  ⚠ **WHAT THAT COST, SAID PLAINLY (QR-15).** `quoted_setup_name` also made the identity one
+  TOKEN a reader recovers the maker's bytes from, which is why WS-0a exists: a name honestly
+  spelled `Ops" UNSAVED | decoy` can otherwise manufacture the delimiter this row uses between
+  the run and the status, and to the NAKED EYE it now does. What survives is the half the
+  machine spends — a tab's extent is `LayoutTab::column`/`columns`, recorded as the row is
+  written, so where the identity ends is still known exactly and the press inverse is
+  untouched. The notices still spend `quoted_setup_name`; only this run stopped, and the
+  persistence suite pins both halves.
 - **THE VISIBLE WINDOW IS DERIVED AND STORED NOWHERE** — `list_window`'s three rules over
   COLUMNS: a run that fits is painted whole with no marker; the live layout is always painted
   (cut with `detail::fit`'s mark rather than dropped, where even it alone will not fit); and

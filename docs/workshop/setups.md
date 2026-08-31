@@ -61,10 +61,19 @@ keeps several of them and you move between them from inside it, without opening 
 Workshop, a second window, a second project or a second copy of any pane.
 
 **The first row of Workshop is the layout selector** — a run of tabs on the left, with the one
-you are on marked, and the setup's own status to their right:
+you are on between `>` and `<`, and the setup's own status to their right:
 
 ```text
-> "Code"  "Build"  "Inspect" | UNSAVED | workshop-setup.json | s name/save  r restore
+ Code >Build< Inspect | UNSAVED | workshop-setup.json | s name/save  r restore
+```
+
+Names are shown exactly as you typed them. Every tab keeps one cell on each side of its name,
+so the marker is the same width as the blank it replaces — switching layouts never shifts the
+tabs beside it or the status to their right — and a name with a space in it is still one tab,
+because the gap *between* two tabs is two cells and a space *inside* a name is one:
+
+```text
+ Home >My Layout< Art
 ```
 
 | key | does |

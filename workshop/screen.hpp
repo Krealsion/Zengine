@@ -8548,17 +8548,39 @@ inline std::string workspace_text(const Session& s) {
 // WUX-1's own measurement -- and a sixth band row would resize the workspace every share
 // resolves against).
 //
-// THE MARK IS `> ` AND EVERY OTHER TAB WEARS `  `, which is the two bytes every list in this
-// application already spends on "the one you are on" (the picker, the attention view, the
-// contextual surface, an external pane's header). It is the same width either way ON PURPOSE
-// -- brackets around the live tab alone would move the whole right side of the row two cells
-// sideways on every switch, which is the moving-target defect HD-8 refused for the Info
-// panel's controls -- and it is said in CHARACTERS because a band row carries ONE role for
-// all of its bytes, so no ink is available to say it with.
+// THE MARKER IS `>name<` AND EVERY OTHER TAB WEARS ` name `. ONE presentation cell on each
+// side of the name, whichever tab it is, so a run reads as what it is -- a run of names:
 //
-// AND EVERY NAME IS QUOTED, by the same `quoted_setup_name` the notices spend. A layout name
-// may contain spaces, so an unquoted run is genuinely ambiguous about where one layout ends
-// and the next begins -- `> my desk  other` is one layout or two, and a maker cannot tell.
+//     Home >Code< Art
+//
+// The marker BRACKETS the live layout rather than standing to its left, which is the whole of
+// QR-15. WUX-9 spent both its cells on one side (`> ` / `  `) and quoted every name, so the
+// same run read `> "Home"  "Code"  "Art"` -- a maker saw the marker attached to nothing in
+// particular and three names in quotes they had not typed.
+//
+// SAME WIDTH EITHER WAY, AND NOW BY CONSTRUCTION. The reason is WUX-9's and unchanged --
+// brackets around the live tab ALONE would move the whole right side of the row two cells
+// sideways on every switch, which is the moving-target defect HD-8 refused for the Info
+// panel's controls -- but the guarantee is no longer an agreement between two string
+// literals: a tab is one `char`, the name, one `char`, so `>Code<` and ` Code ` are six
+// cells with no arithmetic in between to get wrong. It is said in CHARACTERS because a band
+// row carries ONE role for all of its bytes, so no ink is available to say it with.
+//
+// AND THE NAME IS PAINTED BARE. The quotes were PRESENTATION, never a byte of `Setup::name`,
+// and what they were doing was standing in for a delimiter: a layout name may hold spaces, so
+// `> my desk  other` leaves a reader guessing where one layout ends. The marker cells supply
+// that delimiter now -- every name has a reserved cell on both sides, so the gap between two
+// tabs is TWO cells and a space inside a name is one, and `Home >My Layout< Art` reads
+// correctly without a quotation mark in it.
+//
+// WHAT THAT COSTS, SAID PLAINLY. `quoted_setup_name` also made the identity ONE TOKEN a
+// reader could recover the maker's own bytes from, and WS-0a existed because a name honestly
+// spelled `Ops" UNSAVED | decoy` can otherwise manufacture the delimiter this row uses
+// between the run and the status. A bare run gives that back: to the NAKED EYE such a name
+// still reads as status text. What survives is the half the machine spends -- a tab's extent
+// is `LayoutTab::column`/`columns`, recorded as the row is written, so where the identity
+// ends is still known exactly and the press inverse is unaffected. The notices still spend
+// `quoted_setup_name`; only this run stopped.
 
 /// One painted tab: which layout it is, and exactly which bytes of the row are its own.
 ///
@@ -8592,20 +8614,32 @@ inline std::string layouts_omitted_text(std::size_t how_many, bool ahead) {
     return ahead ? " " + std::to_string(how_many) + ">" : "<" + std::to_string(how_many);
 }
 
-/// The live layout's mark, and every other layout's -- the same two bytes, so the run's
-/// width does not move when the live layout does.
+/// The cell a tab opens with and the cell it closes with -- the live layout's pair and every
+/// other layout's, ONE CELL EACH SIDE either way (QR-15).
 ///
-/// SPELLED HERE RATHER THAN SHARED WITH `kTypingHere`. The two land on the same characters
-/// and they are not the same decision: one says where typing goes and the other says which
-/// layout is live, and a change to either must not silently move the other (HD-9's rule
-/// about the one ground two consumers happen to agree on).
-inline constexpr const char* kLayoutLive = "> ";
-inline constexpr const char* kLayoutShelved = "  ";
+/// A `char` RATHER THAN A STRING, AND THAT IS THE WIDTH LAW ITSELF. `layout_tab_text` pushes
+/// exactly one of these, the name, and exactly one more, so equal width between an active and
+/// an inactive tab is a property of the TYPE and not of two literals somebody has to keep the
+/// same length. A two-cell marker cannot be written here without changing that type, which is
+/// the only edit that could make the right-hand status slide on a switch.
+///
+/// SPELLED HERE RATHER THAN SHARED WITH `kTypingHere`. `>` lands on the same character and
+/// they are not the same decision: one says where typing goes and the other says which layout
+/// is live, and a change to either must not silently move the other (HD-9's rule about the one
+/// ground two consumers happen to agree on).
+inline constexpr char kLayoutLiveOpen = '>';
+inline constexpr char kLayoutLiveClose = '<';
+inline constexpr char kLayoutTabPad = ' ';
 
-/// What ONE layout contributes to the run -- the mark and the quoted name, together.
+/// What ONE layout contributes to the run: its two marker cells and the AUTHORED name between
+/// them, bare. No quoting, no escaping and no substitution -- the bytes a maker typed.
 inline std::string layout_tab_text(const SetupState& setup, std::size_t at) {
-    return std::string(at == setup.active_at ? kLayoutLive : kLayoutShelved) +
-           quoted_setup_name(layout_at(setup, at).name);
+    const bool live = at == setup.active_at;
+    std::string tab;
+    tab += live ? kLayoutLiveOpen : kLayoutTabPad;
+    tab += layout_at(setup, at).name;
+    tab += live ? kLayoutLiveClose : kLayoutTabPad;
+    return tab;
 }
 
 /// The room the saved marker must keep whatever the tab run wants.
