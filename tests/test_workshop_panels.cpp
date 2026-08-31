@@ -749,7 +749,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(sc.room_w == 70);
     // The workspace fact lives in the band's own row since WUX-1, and it moved with the
     // extent: what a share resolves against is said where the tool speaks.
-    CHECK(inspector_row(c, 0, sc.notice_y + 1) == "workspace 70x27 cells");
+    CHECK(workspace_row(c, sc) == "workspace 70x27 cells");
     // The panel came with the right edge rather than staying at column 50.
     CHECK(inspector_row(c, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
     CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
@@ -822,8 +822,8 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(c.height == 22);
     CHECK(has_rect(c, kWorkspaceX, kWorkspaceY, 48, 16, surface::role::kMuted));
     CHECK(inspector_row(c, 50 + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
-    CHECK(label_at(c, 0, 20).rfind("n new | d delete", 0) == 0);
-    CHECK(label_at(c, 0, 21).rfind("enter edit | up/down row", 0) == 0);
+    CHECK(label_at(c, 0, 19).rfind("n new | d delete", 0) == 0);
+    CHECK(label_at(c, 0, 20).rfind("enter edit | up/down row", 0) == 0);
     const std::vector<std::string> rows = rasterized(c);
     REQUIRE(rows.size() == 22);
     for (const std::string& row : rows) {
@@ -2021,8 +2021,8 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     // the workspace itself.
     const ui::Rect side = placement_bounds(placement::kSideRegion, 0, kMinScreen);
     const ui::Rect stack = placement_bounds(placement::kOverlayStack, 0, kMinScreen);
-    CHECK(side == ui::Rect{50, 0, 28, 17});
-    CHECK(stack == ui::Rect{0, 1, 48, 9});
+    CHECK(side == ui::Rect{50, 2, 28, 16});
+    CHECK(stack == ui::Rect{0, 2, 48, 9});
 
     // AND THEY DO NOT OVERLAP -- one comparison of two rectangles, which is what
     // the model bought: it was a hand-checked relation between four separate
@@ -2104,7 +2104,7 @@ TEST_CASE("a closed panel is not anywhere") {
     CHECK(absent.placed_in == placement::kOverlayStack);
     // The place it would have had is perfectly well defined -- what is absent is
     // the PANEL, not the place.
-    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).contains(0, 1));
+    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).contains(0, kStackY));
 }
 
 TEST_CASE("a slot is earned by being in the stack, not by being early in the list") {
@@ -2308,8 +2308,8 @@ TEST_CASE("WIND-1: the minimum composition is byte-identical, and a width buys n
     // THE PRICE OF THE HALF-SHARE AT THE BOTTOM OF THE RANGE IS ZERO. At 78x22 the room IS
     // kStackW, the surplus is nothing, and every number the composition was written with is
     // exactly what it was -- which is why nothing else in this suite moved.
-    CHECK(kMinStack == ui::Rect{0, 1, 48, 9});
-    CHECK(placement_bounds(placement::kOverlayStack, 0, kMinScreen) == ui::Rect{0, 1, 48, 9});
+    CHECK(kMinStack == ui::Rect{0, 2, 48, 9});
+    CHECK(placement_bounds(placement::kOverlayStack, 0, kMinScreen) == ui::Rect{0, 2, 48, 9});
     CHECK(kMinStack.x + kMinStack.w == kMinScreen.room_w);
     CHECK(kMinStack.x + kMinStack.w <= kMinSide.x - kPanelGap);
     CHECK(kMinStack.y + kMinStack.h <= kMinScreen.notice_y);
@@ -2435,12 +2435,17 @@ TEST_CASE("Info can be removed, and takes its whole column with it") {
     const surface::SurfaceCanvas& gone = t.canvases.back();
     CHECK(info_text(gone, sc).empty());
     CHECK(inspector_row(gone, sc.panel_x, kSideY).empty());
-    CHECK(properties_heading(gone, t.doc(), t.session()).empty());
+    // THE HEADING IS NOWHERE ON THE CANVAS, asked of the whole picture rather than of the
+    // row the panel would have put it on: since QR-14 that row is inside the workspace, so
+    // a row-addressed question would be asking the document what the panel says.
+    for (const std::string& row : rasterized(gone)) {
+        CHECK(row.find("PROPERTIES") == std::string::npos);
+    }
 
     // AND NOTHING ELSE MOVED. The screen around the hole is the screen it was:
     // the band's workspace fact and the help lines are exactly where they were, because
     // removing a panel is not a re-layout.
-    CHECK(inspector_row(gone, 0, sc.notice_y + 1) == "workspace 48x16 cells");
+    CHECK(workspace_row(gone, sc) == "workspace 48x16 cells");
     CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
 }
 
@@ -2543,7 +2548,7 @@ TEST_CASE("Builder and Info are present independently -- all four states") {
     open_builder(t);
     CHECK_FALSE(shows_info());
     CHECK_FALSE(shows_builder());
-    CHECK(inspector_row(t.canvases.back(), 0, screen_of(t.session()).notice_y + 1) ==
+    CHECK(workspace_row(t.canvases.back(), screen_of(t.session())) ==
           "workspace 48x16 cells");
 
     // And back to both, in the other order.
@@ -2612,7 +2617,7 @@ TEST_CASE("the document is still a document with Info removed") {
     CHECK(t.w->document().elements.size() == born);
 
     // ...and the picture kept up the whole time, in the workspace where it lives.
-    CHECK(inspector_row(t.canvases.back(), 0, screen_of(t.session()).notice_y + 1) ==
+    CHECK(workspace_row(t.canvases.back(), screen_of(t.session())) ==
           "workspace 48x16 cells");
 
     // Reopening finds the document that was authored while nobody was showing it.
@@ -2867,20 +2872,23 @@ TEST_CASE("HD-6: one body, two media, different row counts and the same property
     const InfoBodyPlace cs = body_of(d, sdl);
     // WUX-5 took two more rows: the panel's visible boundary is one cell on every side, so
     // both media resolve their budget inside a rectangle two cells shorter.
-    REQUIRE(ct.capacity == 14); // fourteen cell rows of body at the minimum screen
+    // QR-14 took one more: the side region begins under the top band now, so it is exactly
+    // as tall as the workspace rather than one row taller.
+    REQUIRE(ct.capacity == 13); // thirteen cell rows of body at the minimum screen
     REQUIRE(cs.capacity == 8);  // (15 * 12 - 4) / 18, less the heading
     // HD-8's footer comes off both budgets, so both shares are two rows smaller than HD-6
     // measured them and the CELL body no longer seats all eight properties either. What the
     // case is about is unmoved: two media, two capacities, one set of semantic rows.
-    REQUIRE(ct.properties_rows == 6);
+    REQUIRE(ct.properties_rows == 5);
     REQUIRE(cs.properties_rows == 3);
     REQUIRE(tui.rows.size() == 8);
 
-    // THE TERMINAL SHOWS SIX AND SAYS SO. Before HD-8 it showed all eight and said nothing;
-    // the two rows it lost are the two the maker can now press.
-    CHECK(ct.properties.count == 5);
+    // THE TERMINAL SHOWS FIVE AND SAYS SO. Before HD-8 it showed all eight and said nothing;
+    // the rows it lost are HD-8's two pressable ones and QR-14's one cell of column, and
+    // `share_body_rows` decides which list pays -- the larger claim does.
+    CHECK(ct.properties.count == 4);
     CHECK(ct.properties.before == 0);
-    CHECK(ct.properties.after == 3);
+    CHECK(ct.properties.after == 4);
 
     // THE WINDOW SHOWS THREE AND SAYS SO -- the marker spends one of the four rows, which is
     // `list_window`'s rule and not a second one.
@@ -3357,7 +3365,8 @@ cells_covered(bounds_of(s.panels, s.setup.active, panel::kInfo, screen_of(s)).re
         plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000}).size();
     const std::size_t celled = projected_of(without_workspace(c), metric).size();
     CHECK(typed == 0);
-    CHECK(celled == static_cast<std::size_t>(squeezed.region_h + kBottomRows));
+    // ...and BOTH bands are in the cell list beside it since QR-14.
+    CHECK(celled == static_cast<std::size_t>(squeezed.region_h + kBottomRows + kTopRows));
 }
 
 TEST_CASE("HD-6: a panel with no room for a body publishes no body at all") {
@@ -3867,15 +3876,19 @@ TEST_CASE("HD-7: the OBJECTS list spends the room the medium reports, not a cons
     std::size_t previous = 0;
     // WUX-5 TOOK TWO MORE OFF EVERY ONE, for the panel's own visible boundary -- and again
     // the budgets with room to spare did not move.
-    for (const Want& want : {Want{78, 22, 0, 0, 5, 6},   // the minimum TUI screen
-                             Want{120, 37, 0, 0, 18, 8}, // a 120x40 terminal: eighteen
+    // ...AND QR-14 TOOK ONE MORE CELL ROW OFF THE COLUMN, because the side region begins
+    // under the top band now. It lands where `share_body_rows` already decides such things
+    // land -- on whichever list has the larger claim -- and the budgets with room to spare
+    // did not move at all.
+    for (const Want& want : {Want{78, 22, 0, 0, 5, 5},   // the minimum TUI screen
+                             Want{120, 37, 0, 0, 17, 8}, // a 120x40 terminal: seventeen
                              Want{240, 77, 0, 0, 20, 8}, // and a 240x80 one, with room over
                              Want{78, 22, 8, 18, 2, 3},  // the minimum graphical screen
                              // The ordinary window: the `OBJECTS` heading is a row of the
                              // face since WUX-1, and at this height that row genuinely
                              // costs the object list one (the extra cell row the region
                              // gained does not reach another 18-pixel line here).
-                             Want{80, 38, 8, 18, 8, 8},
+                             Want{80, 38, 8, 18, 7, 8},
                              Want{80, 70, 8, 18, 20, 8}}) {
         CAPTURE(want.h);
         CAPTURE(want.line);
@@ -4307,12 +4320,13 @@ TEST_CASE("HD-7: on a graphical medium the object names are set in the SAME type
     const surface::SurfaceExtent metric{80 * surface::kCanvasCellPx, 38 * surface::kCanvasCellPx,
                                         8, 18};
     // THE BODY IS IN THE TYPE LIST AND NOT IN THE CELL LIST -- one region, one partition, and
-    // the object rows are inside it. TWO regions in the type list since WUX-1: the panel's,
-    // and the band's (the screen's own chrome is real type now too); the case reads the
-    // panel's by its place, and the claim about the object rows is unchanged.
+    // the object rows are inside it. THREE regions in the type list: the panel's and the two
+    // BANDS' (the screen's own chrome is real type now too, and since QR-14 there are two of
+    // them); the case reads the panel's by its place, and the claim about the object rows is
+    // unchanged.
     const std::vector<surface::PlanTextRegion> typed =
         plan_regions_of(without_workspace(c), metric, surface::PlanSize{4000, 4000});
-    REQUIRE(typed.size() == 2);
+    REQUIRE(typed.size() == 3);
     const surface::PlanTextRegion* panel_region = nullptr;
     for (const surface::PlanTextRegion& r : typed) {
         if (r.view.y == body.region_y * surface::kCanvasCellPx) {
@@ -6237,7 +6251,7 @@ std::int64_t tab_cell(const Live& t, std::size_t at) {
     const BandStatus row = band_status(t.session(), t.host.setup_path, sc);
     for (const LayoutTab& tab : row.tabs) {
         if (tab.at == at) {
-            return band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
+            return top_band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
         }
     }
     return -1;
@@ -6391,7 +6405,8 @@ TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row 
     REQUIRE(t.session().setup.active_at == 2);
 
     // A PRESS ON A TAB IS THE SAME SWITCH THE KEYBOARD PERFORMS.
-    const std::int64_t band_row = band_bounds(screen_of(t.session())).y;
+    // THE ROW THE TABS ARE PAINTED ON, which since QR-14 is the FIRST row of Workshop.
+    const std::int64_t band_row = top_band_bounds(screen_of(t.session())).y;
     t.press_canvas(tab_cell(t, 0), band_row);
     CHECK(t.session().setup.active_at == 0);
     CHECK(t.session().setup.active.name == "Default");
@@ -6403,12 +6418,17 @@ TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row 
     // THE STATUS TO THE RIGHT OF THE RUN IS NOT A TAB, and pressing it selects no layout.
     const BandStatus row = band_status(t.session(), t.host.setup_path, screen_of(t.session()));
     const std::int64_t past =
-        band_bounds(screen_of(t.session())).x + row.tabs.back().column +
+        top_band_bounds(screen_of(t.session())).x + row.tabs.back().column +
         row.tabs.back().columns;
     t.press_canvas(past + 2, band_row);
     CHECK(t.session().setup.active_at == 1);
-    // ...and neither does the notice row beneath it.
+    // ...and neither does the workspace-fact row beneath it.
     t.press_canvas(tab_cell(t, 0), band_row + 1);
+    CHECK(t.session().setup.active_at == 1);
+    // ⚠ NOR THE ROW THE RUN USED TO BE PAINTED ON. A press at the old footer coordinate is
+    // a press on the bottom band, which owns no tab and never did answer one -- the stale
+    // vertical hit map QR-14 must not leave behind.
+    t.press_canvas(tab_cell(t, 0), band_bounds(screen_of(t.session())).y);
     CHECK(t.session().setup.active_at == 1);
 }
 
@@ -6426,7 +6446,8 @@ TEST_CASE("WUX-9/SC-5+SC-9: a tab press is not a press on a pane") {
 
     press_gesture(t, k.make);
     live(t).setup.active.name = "Other";
-    const std::int64_t band_row = band_bounds(screen_of(t.session())).y;
+    // THE ROW THE TABS ARE PAINTED ON, which since QR-14 is the FIRST row of Workshop.
+    const std::int64_t band_row = top_band_bounds(screen_of(t.session())).y;
     t.press_canvas(tab_cell(t, 0), band_row);
 
     // THE SELECTION SURVIVES THE PRESS. A press on the band is not a press on the

@@ -217,20 +217,22 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
 
     const std::vector<std::string> rows = rasterized(paint(d, s));
     REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
-    // The workspace fact is the band's own row since WUX-1 -- the shared top row is retired.
-    CHECK(rows[static_cast<std::size_t>(kMinScreen.notice_y + 1)].rfind("workspace 48x16 cells",
-                                                                        0) == 0);
-    // The ring's top edge, above the selected rectangle.
-    CHECK(rows[2].rfind("..**", 0) == 0);
+    // THE TOP BAND IS ROW 0 SINCE QR-14: the layout selector and the setup's status, with
+    // the workspace fact on the band's second row where a character medium has one.
+    CHECK(rows[0].rfind("> \"Default\"", 0) == 0);
+    CHECK(rows[1].rfind("workspace 48x16 cells", 0) == 0);
+    // The ring's top edge, above the selected rectangle -- one row lower than before the
+    // band moved, because the workspace begins under it.
+    CHECK(rows[3].rfind("..**", 0) == 0);
     // The rectangle itself, with its name written on it and the ring beside it.
-    CHECK(rows[3].rfind("..*panel", 0) == 0);
+    CHECK(rows[4].rfind("..*panel", 0) == 0);
     // The object list and the inspector, on the same surface, to the right: since WUX-5
-    // the panel's rows begin one row inside its own visible boundary, so the heading is on
-    // canvas row 1 and the two objects follow it.
-    CHECK(rows[0].find("OBJECTS") == std::string::npos); // the boundary, not a row
-    CHECK(rows[1].find("OBJECTS") != std::string::npos);
-    CHECK(rows[2].find("> #1 panel") != std::string::npos);
-    CHECK(rows[3].find("  #2 panel") != std::string::npos);
+    // the panel's rows begin one row inside its own visible boundary, and since QR-14 the
+    // panel itself begins under the top band, so the heading is on canvas row 3.
+    CHECK(rows[2].find("OBJECTS") == std::string::npos); // the boundary, not a row
+    CHECK(rows[3].find("OBJECTS") != std::string::npos);
+    CHECK(rows[4].find("> #1 panel") != std::string::npos);
+    CHECK(rows[5].find("  #2 panel") != std::string::npos);
     // The inspector begins under `PROPERTIES`, which begins under the object list -- two
     // objects here, so it is four rows down rather than the eight `kRowsY` used to name.
     const InfoBodyPlace shown_at = body_of(d, s);
@@ -238,7 +240,7 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
         return static_cast<std::size_t>(shown_at.region_y + kInfoHeadingRows +
                                         prose_row_of_property(shown_at, property));
     };
-    CHECK(at(0) == 5); // one row further down than before WUX-5: the panel's own boundary
+    CHECK(at(0) == 7); // WUX-5's own boundary row, under QR-14's top band
     CHECK(rows[at(0)].find("Identity #1") != std::string::npos);
     CHECK(rows[at(5)].find("Width    60%") != std::string::npos);
     CHECK(rows[at(7)].find("Resolved 28 x 6 cells") != std::string::npos);
@@ -1874,12 +1876,12 @@ TEST_CASE("the pane is published as ONE bounded region, placed in cells") {
     t.key(input::scan::kEscape);
     const surface::SurfaceCanvas& c = t.canvases.back();
 
-    // TWO REGIONS, AND THE SECOND IS THE INSPECTOR'S PROPERTY BODY (HD-6). No other panel
-    // migrated: the object list, the picker and the help band are all still labels, and the
-    // completion list is not on this canvas (Escape dismissed it above). Asked WITHOUT the
+    // THREE REGIONS: the pane, the inspector's property body (HD-6), and -- since QR-14 --
+    // the top band, which the Terminal does not cover and therefore does not silence. The
+    // BOTTOM band is the overlay's while it is open, exactly as before. Asked WITHOUT the
     // workspace plane since TYPE-1, where an authored object's name became a region of its
     // own -- this case is about the pane, and the document's own text is not a panel.
-    REQUIRE(all_texts(without_workspace(c)).size() == 2);
+    REQUIRE(all_texts(without_workspace(c)).size() == 3);
     CHECK(list_of(c, kMinScreen) == nullptr);
     const surface::SurfaceTextRegion& pane = *pane_of(c, kMinScreen);
     CHECK(pane.x == kMinScreen.terminal_x);
@@ -2205,7 +2207,7 @@ TEST_CASE("the overlay a maker actually sees: a solid pane, through the real ras
     CHECK(rows[static_cast<std::size_t>(kMinScreen.h) - 1].find("> send @_") != std::string::npos);
 
     // The workspace ABOVE the pane is untouched -- an overlay covers, it does not rearrange.
-    CHECK(rows[3].rfind("..*panel", 0) == 0);
+    CHECK(rows[4].rfind("..*panel", 0) == 0);
     // ...and the notice underneath it was not painted at all, in either half of its row.
     CHECK(rows[static_cast<std::size_t>(kMinScreen.notice_y)].find("this notice is under") ==
           std::string::npos);
@@ -2238,10 +2240,12 @@ TEST_CASE("a bigger surface is a bigger workspace, not a bigger picture of a sma
     CHECK(big.w - big.panel_x == kMinScreen.w - kMinScreen.panel_x);
     CHECK(big.panel_x == 72);
 
-    // The bottom band keeps its shape against the bottom edge.
+    // The bottom band keeps its shape against the bottom edge, and the top band keeps its
+    // rows against the top one -- both are fixed reservations, not shares (QR-14).
     CHECK(big.h - big.notice_y == kMinScreen.h - kMinScreen.notice_y);
     CHECK(big.h - big.help_y == kMinScreen.h - kMinScreen.help_y);
-    CHECK(big.help_y + 1 == big.h - 1); // the second help line is the last row
+    CHECK(big.notice_y == big.h - kBottomRows);   // the band's own first row
+    CHECK(big.help_y + 2 == big.h - 1);           // ...and two legend rows under it
 
     // Nothing overlaps: the workspace ends, then a gap, then the panel.
     CHECK(big.room_w + kPanelGap == big.panel_x);
@@ -2578,7 +2582,7 @@ TEST_CASE("WIND-1: the columns the panel took are its own, and the band is the m
     REQUIRE(sc.room_w == 170);
     const ui::Rect panel =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect);
-    REQUIRE(panel == ui::Rect{0, 1, 109, 9});
+    REQUIRE(panel == ui::Rect{0, 2, 109, 9});
 
     // ---- INSIDE THE NEWLY OWNED AREA. Workspace column 60 was free before this phase (the
     // slot was 48 wide) and is the panel's now. #1 is underneath it, so there is genuinely
@@ -2721,7 +2725,7 @@ TEST_CASE("Info's column occupies pointer space, and an object can walk under it
     const Screen sc = screen_of(t.session());
     const ui::Rect side =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-    REQUIRE(side == ui::Rect{50, 0, 28, 17});
+    REQUIRE(side == ui::Rect{50, 2, 28, 16});
 
     // Walk #1 under the column with the pointer -- the press begins on the
     // workspace, so the gesture is not occluded, and the release lands INSIDE the
@@ -2739,8 +2743,10 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kIn
     const std::int64_t oy = under->rect.y;
     REQUIRE(side.contains(ox + kWorkspaceX, oy + kWorkspaceY));
 
-    // IT IS THERE, AND IT IS OUT OF REACH.
-    t.press(ox + 2, oy + 1);
+    // IT IS THERE, AND IT IS OUT OF REACH. The press is a WORKSPACE cell, and the panel's
+    // rectangle is a CANVAS one -- so the row asked for is the row the panel covers, which
+    // moved down with the workspace when the top band took row 0 (QR-14).
+    t.press(ox + 2, oy + 2);
     CHECK(t.notice() == "Info is here -- nothing under it can be taken hold of");
     CHECK_FALSE(t.session().drag.active);
 
@@ -2748,7 +2754,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kIn
     // was always there, and now a hand can reach it.
     pick(t, panel::kInfo);
     REQUIRE_FALSE(t.session().panels.has(panel::kInfo));
-    t.press(ox + 2, oy + 1);
+    t.press(ox + 2, oy + 2);
     CHECK(t.notice() == "holding #1 -- drag to move it");
     CHECK(t.session().drag.active);
     t.release(ox + 2, oy + 1);
@@ -2777,7 +2783,7 @@ TEST_CASE("Info's backdrop is the rectangle the pointer meets, on whatever scree
     const Screen sc = screen_of(t.session());
     const ui::Rect side =
 cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
-    REQUIRE(side == ui::Rect{50, 0, 28, 17});
+    REQUIRE(side == ui::Rect{50, 2, 28, 16});
 
     // ONE backdrop, and it IS the bounds. An equality, so a panel that painted
     // most of its region -- which is the defect, one degree weaker -- cannot pass.
@@ -2881,7 +2887,8 @@ cells_covered(bounds_of(s.panels, s.setup.active, panel::kInfo, sc).rect);
     CHECK(first_bad_y == -1);
     CHECK(differed == 0);
     // The heading is on the panel's first INTERIOR row since WUX-5 -- row 0 is its boundary.
-    CHECK(screen[static_cast<std::size_t>(kChromeCells)].find("OBJECTS") != std::string::npos);
+    CHECK(screen[static_cast<std::size_t>(kSideY + kChromeCells)].find("OBJECTS") !=
+          std::string::npos);
 }
 
 TEST_CASE("removing Info takes its backdrop with it, and reopening brings both back") {
@@ -3031,7 +3038,8 @@ TEST_CASE("what a panel is painted at and what it occupies are one resolved trut
     CHECK(swept.first_bad_y == -1);
     CHECK(swept.disagreed == 0);
     // Both places, exactly: 48x9 of stack and 28x17 of side region.
-    CHECK(swept.occupied == static_cast<std::size_t>(48 * 9 + 28 * 17));
+    CHECK(swept.occupied ==
+          static_cast<std::size_t>(48 * 9 + 28 * kMinScreen.room_h));
     CHECK(swept.painted == swept.occupied);
 
     // AND WHAT THE PAINTERS ACTUALLY WROTE IS INSIDE THE SPACE THAT IS OCCUPIED --
@@ -4596,28 +4604,32 @@ TEST_CASE("HD-10: what the pane DOES cover is unchanged, and is on purpose") {
     CHECK(shared_cells(pane_rect, side) == 0);
 }
 
-TEST_CASE("HD-10: the pane and the overlay stack meet on one row, at one height, and only there") {
+TEST_CASE("HD-10/QR-14: the pane and the overlay stack meet only at the shortest screens") {
     // THE ONE OVERLAP HD-10 LEAVES BETWEEN TWO INDEPENDENT PRESENTATIONS, measured exactly so
     // that it is a known fact rather than a later discovery. Both are OVERLAYS in the room the
     // workspace has: the stack grows down from the top-left, the pane up from the bottom-right,
-    // and at the shortest screen this composition lays out their edges touch for one row.
+    // and at the shortest screens this composition lays out their edges meet.
     //
-    // IT IS NOT REPAIRED HERE, and the reason is that repairing it means reserving the stack's
-    // rows from the pane -- a SECOND reservation, which `screen_of` does not make and which
-    // would tie the pane's height to `kStackRows`. The reserved side column is a subtraction
-    // the screen already performs; the overlay stack is not. HD-10's report says the rest.
+    // ⚠ QR-14 MOVED THE BODY DOWN ONE ROW AND THIS IS WHERE THAT IS PAID. The stack is
+    // anchored to the workspace's top and the pane to the screen's foot, so a body that begins
+    // one row lower brings them one row closer: the overlap is TWO rows at the minimum screen
+    // where it was one, and one row at the two heights above it where it was none. It stays
+    // bounded, it stays measured, and it stays unrepaired for HD-10's own reason -- repairing
+    // it means reserving the stack's rows from the pane, a SECOND reservation `screen_of` does
+    // not make and which would tie the pane's height to `kStackRows`.
     for (std::int64_t h = kScreenMinH; h <= 40; ++h) {
         CAPTURE(h);
         const Places p = places_of(kScreenMinW, h);
         const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, p.sc);
-        CHECK(shared_cells(p.pane, slot) == (h == kScreenMinH ? slot.w : 0));
+        const std::int64_t rows = h == kScreenMinH ? 2 : (h <= kScreenMinH + 2 ? 1 : 0);
+        CHECK(shared_cells(p.pane, slot) == rows * slot.w);
     }
-    // And the row they share is the stack slot's LAST row, which the Builder spends on
-    // `[ Build ]` -- a label naming the key `b` rather than a control, since `[ Build ]` has
-    // never been pressable (PNL-2 says so in its own words).
+    // And the rows they share are the stack slot's LAST rows, which the Builder spends on its
+    // lowest-priority facts -- never on the header, which is what its composition protects.
     const Places min = places_of(kScreenMinW, kScreenMinH);
     const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, min.sc);
-    CHECK(min.pane.y == slot.y + slot.h - 1);
+    CHECK(min.pane.y == slot.y + slot.h - 2);
+    CHECK(min.pane.y > slot.y); // the header row is still the maker's
 }
 
 TEST_CASE("WIND-1: the stack/pane overlap grew by a bounded amount, and stayed in the room") {
@@ -4712,7 +4724,7 @@ TEST_CASE("WIND-1: the stack/pane overlap grew by a bounded amount, and stayed i
     // the domain (94x25) because the bound is a constant, which is the finding itself.
     const Places big = places_of(640, 26);
     const ui::Rect second = placement_bounds(placement::kOverlayStack, 1, big.sc);
-    CHECK(second == ui::Rect{0, 11, 329, 9});
+    CHECK(second == ui::Rect{0, 12, 329, 9});
     CHECK(shared_cells(big.pane, second) == 504);
     CHECK(shared_cells(big.pane, second) == worst);
     CHECK(shared_cells(big.pane, big.side) == 0);
@@ -5257,7 +5269,8 @@ TEST_CASE("WIND-2a/WUX-1: the opening gestures are claimed by the band's own tru
     CHECK(top.find("terminal") == std::string::npos);
     CHECK(top.find("WORKSPACE") == std::string::npos);
     // Info's heading is one row inside its own boundary since WUX-5.
-    CHECK(raster[static_cast<std::size_t>(kChromeCells)].find("OBJECTS") != std::string::npos);
+    CHECK(raster[static_cast<std::size_t>(kSideY + kChromeCells)].find("OBJECTS") !=
+          std::string::npos);
 }
 
 // ---- INTR-0: the Introspection tool, and what its rows are allowed to mean ---------
@@ -6035,41 +6048,45 @@ TEST_CASE("TYPE-0/WUX-1: the notice is a band row, and the SENTENCE is never sho
     refocus(d, s);
     const Screen sc = screen_of(s);
 
-    // THE BAND IS ONE REGION SINCE WUX-1 -- the whole five reserved cells, published
-    // whether or not there is a notice; an empty notice is a blank ROW of it, not a
-    // missing region, because the band owns its rectangle in every state.
+    // THE BOTTOM BAND IS ONE REGION SINCE WUX-1 -- the whole of its reserved cells,
+    // published whether or not there is a notice; an empty notice is a blank ROW of it, not a
+    // missing region, because the band owns its rectangle in every state. Since QR-14 the
+    // notice is that band's FIRST row: the identity that used to lead it has a band of its
+    // own at the top of the screen.
     const std::vector<surface::SurfaceTextRegion> quiet =
-        regions_at(paint(d, s), 0, sc.notice_y - 1);
+        regions_at(paint(d, s), 0, sc.notice_y);
     REQUIRE(quiet.size() == 1);
-    CHECK(quiet.front().rows.size() >= 2);
-    CHECK(quiet.front().rows[1].text.empty());
+    CHECK(quiet.front().rows.size() >= 1);
+    CHECK(quiet.front().rows[0].text.empty());
 
     // A SENTENCE THAT FITS: one prose row of the band, whole.
     s.notice = "created #1 -- a new identity, not a new name";
     const surface::SurfaceCanvas said = paint(d, s);
     const std::vector<surface::SurfaceTextRegion> at_band =
-        regions_at(said, 0, sc.notice_y - 1);
+        regions_at(said, 0, sc.notice_y);
     REQUIRE(at_band.size() == 1);
     const surface::SurfaceTextRegion& band = at_band.front();
     CHECK(band.w == sc.w);
     CHECK(band.h == kBottomRows);
     CHECK(band.y + band.h == sc.h); // the band ends at the screen's own foot
-    REQUIRE(band.rows.size() >= 2);
-    CHECK(band.rows[1].text == s.notice);
-    CHECK(band.rows[1].role == surface::role::kFill);
-    // THE BAND'S FIVE CELLS HOLD THREE ROWS OF THIS FACE -- the budget the composition
-    // spends: the status row, the notice, one legend row.
+    REQUIRE(band.rows.size() >= 1);
+    CHECK(band.rows[0].text == s.notice);
+    CHECK(band.rows[0].role == surface::role::kFill);
+    // THE BAND'S FOUR CELLS HOLD TWO ROWS OF THIS FACE -- the budget the composition
+    // spends: the notice, then one legend row. The third face row this band used to hold is
+    // the identity's, and it is at the top of the screen now (QR-14).
     const surface::RegionFit fit = band_fit(sc);
     CHECK(fit.graphical());
-    CHECK(fit.rows == 3);
+    CHECK(fit.rows == 2);
+    CHECK(top_band_fit(sc).rows == 1); // ...and the identity's own row, up there
 
     // A BAD ONE WEARS THE ALERT ROLE, which is the second signal and not a second sentence.
     s.notice_is_bad = true;
     const surface::SurfaceCanvas bad = paint(d, s);
     const std::vector<surface::SurfaceTextRegion> at_bad =
-        regions_at(bad, 0, sc.notice_y - 1);
+        regions_at(bad, 0, sc.notice_y);
     REQUIRE(at_bad.size() == 1);
-    CHECK(at_bad.front().rows[1].role == surface::role::kAlert);
+    CHECK(at_bad.front().rows[0].role == surface::role::kAlert);
 
     // A SENTENCE TOO LONG FOR THE ROOM IS MARKED, AND `Session::notice` STILL HOLDS ALL OF
     // IT. What a maker sees is bounded; what Workshop knows is not.
@@ -6077,9 +6094,9 @@ TEST_CASE("TYPE-0/WUX-1: the notice is a band row, and the SENTENCE is never sho
     s.notice_is_bad = false;
     const surface::SurfaceCanvas cut = paint(d, s);
     const std::vector<surface::SurfaceTextRegion> at_cut =
-        regions_at(cut, 0, sc.notice_y - 1);
+        regions_at(cut, 0, sc.notice_y);
     REQUIRE(at_cut.size() == 1);
-    const surface::SurfaceTextRow& row = at_cut.front().rows[1];
+    const surface::SurfaceTextRow& row = at_cut.front().rows[0];
     CHECK(static_cast<std::int64_t>(row.text.size()) == fit.columns);
     CHECK(row.text.find(detail::kElided) != std::string::npos);
     CHECK(row.text.find("-END") == std::string::npos);
@@ -6093,9 +6110,9 @@ TEST_CASE("TYPE-0/WUX-1: the notice is a band row, and the SENTENCE is never sho
     const Screen cell_sc = screen_of(cell);
     const surface::SurfaceCanvas in_cells = paint(d, cell);
     const std::vector<surface::SurfaceTextRegion> at_cells =
-        regions_at(in_cells, 0, cell_sc.notice_y - 1);
+        regions_at(in_cells, 0, cell_sc.notice_y);
     REQUIRE(at_cells.size() == 1);
-    const surface::SurfaceTextRow& cell_row = at_cells.front().rows[1];
+    const surface::SurfaceTextRow& cell_row = at_cells.front().rows[0];
     CHECK(static_cast<std::int64_t>(cell_row.text.size()) == cell_sc.w);
     CHECK(cell_row.text.find(detail::kElided) != std::string::npos);
     CHECK(cell_row.text.size() < row.text.size()); // fewer cells than the face has columns
@@ -7712,7 +7729,7 @@ TEST_CASE("ARR-0: the popup shifts to stay usable inside the room, at every boun
     t.right_press_canvas(0, 1);
     const FineRect origin = context_bounds(t.session(), screen_of(t.session()));
     CHECK(surface::cell_of_subs(origin.x) == 0);
-    CHECK(surface::cell_of_subs(origin.y) == 1);
+    CHECK(surface::cell_of_subs(origin.y) == kStackY);
 }
 
 TEST_CASE("ARR-0: the keyboard entrance has no pointer and invents none") {
@@ -9392,7 +9409,10 @@ TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the ban
     s.setup = shelf_of({"Code", "Build", "Inspect"}, 0);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, "workshop-setup.json", sc);
-    const ui::Rect b = band_bounds(sc);
+    // ⚠ THE TOP BAND, because that is where QR-14 paints the run. A press resolved against
+    // the bottom band's origin would be the stale-geometry lie this case exists to refuse.
+    const ui::Rect b = top_band_bounds(sc);
+    REQUIRE(b.y == 0);
     REQUIRE(band_tab_row(s, sc) == 0);
     REQUIRE(row.tabs.size() == 3);
 
@@ -9417,8 +9437,10 @@ TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the ban
     CHECK_FALSE(press(past, 0).hit);
     CHECK_FALSE(press(past + 1, 0).hit);
     CHECK_FALSE(press(kScreenMinW - 1, 0).hit);
-    // ...NOR DOES ANY OTHER ROW OF THE BAND, above or below the one the tabs are on.
-    for (std::int64_t r = 1; r < kBottomRows; ++r) {
+    // ...NOR DOES ANY OTHER ROW OF THE SCREEN, above or below the one the tabs are on --
+    // including every row the run used to be painted on before QR-14 moved it (the whole of
+    // the bottom band), which is the stale vertical hit map this sweep exists to kill.
+    for (std::int64_t r = 1; r < sc.h; ++r) {
         CAPTURE(r);
         CHECK_FALSE(press(row.tabs[1].column, r).hit);
     }
@@ -9456,7 +9478,7 @@ TEST_CASE("WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed") {
     for (const LayoutTab& tab : row.tabs) {
         CHECK(tab.at < layout_count(s.setup) - row.after);
     }
-    const ui::Rect b = band_bounds(sc);
+    const ui::Rect b = top_band_bounds(sc);
     for (std::int64_t c = 0; c < sc.w; ++c) {
         const LayoutTabPress hit =
             band_tab_at(s, "workshop-setup.json", sc, input::space::kCells, b.x + c,
@@ -9488,7 +9510,7 @@ TEST_CASE("WUX-9/SC-7: the tab run is one composition on both media") {
     CHECK(band_tab_row(cells, screen_of(cells)) == 0);
     CHECK(band_tab_row(face, screen_of(face)) == 0);
     // A window pixel inside the second tab answers the second layout.
-    const ui::Rect fb = band_bounds(screen_of(face));
+    const ui::Rect fb = top_band_bounds(screen_of(face));
     const LayoutTabPress hit =
         band_tab_at(face, "s.json", screen_of(face), input::space::kPixels,
                     fb.x * surface::kCanvasCellPx + face_row.tabs[1].column * 8 + 4,
@@ -9535,4 +9557,144 @@ TEST_CASE("WUX-9/SC-8: the run never spends more columns than it was given") {
             }
         }
     }
+}
+
+// ============================================================================
+// ---- QR-14: the layout selector is the first row of Workshop ---------------
+//
+// WUX-9 composed the run correctly and left it in the footer. This is the move, and what
+// the move must not have disturbed: the reserved total, the body's own extent, and the
+// agreement between every owner of where the body begins.
+
+TEST_CASE("QR-14/SC-2: the layout selector is the first Workshop row, on both media") {
+    for (const std::int64_t line : {std::int64_t{0}, std::int64_t{18}}) {
+        CAPTURE(line);
+        Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
+        s.setup = shelf_of({"Code", "Build"}, 0);
+        const Screen sc = screen_of(s);
+
+        // THE BAND IS AT THE CANVAS'S OWN ORIGIN, and the run is inside it.
+        CHECK(top_band_bounds(sc).y == 0);
+        CHECK(top_band_bounds(sc).x == 0);
+        CHECK(top_band_bounds(sc).w == sc.w);
+        CHECK(band_tab_row(s, sc) == 0);
+        CHECK(band_status(s, "s.json", sc).text.rfind("> \"Code\"", 0) == 0);
+
+        // ...AND NOT IN THE FOOTER. The bottom band still exists and still speaks; what it
+        // does not carry any more is the identity, and no tab is painted anywhere in it.
+        CHECK(band_bounds(sc).y == sc.h - kBottomRows);
+        CHECK(band_bounds(sc).y > top_band_bounds(sc).y + top_band_bounds(sc).h);
+        const surface::SurfaceCanvas c = paint(WorkshopDoc{}, s, "s.json");
+        for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+            if (r.y == band_bounds(sc).y) {
+                for (const surface::SurfaceTextRow& row : r.rows) {
+                    CAPTURE(row.text);
+                    CHECK(row.text.find("\"Code\"") == std::string::npos);
+                    CHECK(row.text.find("\"Build\"") == std::string::npos);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("QR-14/SC-2: the move re-homed reserved rows and did not add one") {
+    // THE PROPERTY THAT MATTERS MOST, because the workspace's extent is what a share
+    // resolves against: a chrome change that resized the body would resize every `%` object
+    // a maker authored. Two reserved bands and no blank row between them, at every extent.
+    CHECK(kTopRows + kBottomRows == 6);
+    for (std::int64_t h = kScreenMinH; h <= 120; ++h) {
+        CAPTURE(h);
+        const Screen sc = screen_of(kScreenMinW, h);
+        // The three regions tile the screen exactly: no cell reserved twice, none left over.
+        CHECK(top_band_bounds(sc).y + top_band_bounds(sc).h == kWorkspaceY);
+        CHECK(kWorkspaceY + sc.room_h == band_bounds(sc).y);
+        CHECK(band_bounds(sc).y + band_bounds(sc).h == sc.h);
+        // ...and the body is exactly the body it was before the move.
+        CHECK(sc.room_h == h - 6);
+    }
+    // The minimum composition's own numbers are the ones every golden was written against.
+    CHECK(kMinScreen.room_w == 48);
+    CHECK(kMinScreen.room_h == 16);
+}
+
+TEST_CASE("QR-14/SC-6: every owner of the body agrees about where it begins") {
+    // THE ONE-ROW DISAGREEMENT THIS REPAIR MUST NOT LEAVE BEHIND. Paint, occupancy, the
+    // placement path, the overlay column, the contextual popup and the hotkey view all
+    // resolve the body from the same constants -- so the question is asked of each of them
+    // rather than of the constant they share.
+    Live t;
+    (void)mount_tool(t, "zengine-snake");
+    open_builder(t);
+    const Screen sc = screen_of(t.session());
+
+    const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    CHECK(slot.y == kWorkspaceY); // the stack begins at the body's own top
+    const ui::Rect side = placement_bounds(placement::kSideRegion, 0, sc);
+    CHECK(side.y == kWorkspaceY);
+    CHECK(side.y + side.h == kWorkspaceY + sc.room_h);
+    CHECK(surface::cell_of_subs(overlay_column(sc).y) == kWorkspaceY);
+
+    // THE PANEL IS PAINTED WHERE IT IS HIT. Its top-left cell answers the pointer with the
+    // Builder, and the cell directly above it -- the body's own first row minus one, which
+    // is the top band's last -- does not.
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect);
+    CHECK(builder.y == kWorkspaceY);
+    CHECK(occupied_at(t.session().panels, t.session().setup.active, sc, builder.x, builder.y)
+              .kind == panel::kBuilder);
+    CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, sc, builder.x,
+                            builder.y - 1)
+                    .occupied);
+
+    // AND A REAL PRESS AGREES WITH BOTH. A press on the panel's own first row selects it;
+    // one row higher is the band, which selects nothing.
+    t.press_canvas(builder.x + 2, builder.y);
+    CHECK(t.session().panels.selected == panel::kBuilder);
+    t.press_canvas(builder.x + 2, builder.y - 1);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+
+    // THE WORKSPACE'S OWN PROJECTION IS THE SAME ONE THE POINTER INVERTS. Authored cell
+    // (0,0) is canvas row `kWorkspaceY`, and the inverse of that canvas row is 0.
+    CHECK(workspace_cell_y(kWorkspaceY) == 0);
+    CHECK(workspace_cell_y(kWorkspaceY - 1) == -1);
+}
+
+TEST_CASE("QR-14/SC-5: no press outside the painted run reaches a layout") {
+    // THE STALE HIT MAP, SWEPT. Every cell of the screen is offered to the tab inverse, and
+    // the only ones that answer are cells of a tab the composition actually painted -- which
+    // after the move are on row 0 and nowhere else.
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.setup = shelf_of({"Code", "Build", "Inspect"}, 1);
+    const Screen sc = screen_of(s);
+    const BandStatus row = band_status(s, "s.json", sc);
+    REQUIRE(row.tabs.size() == 3);
+
+    std::size_t answered = 0;
+    for (std::int64_t y = 0; y < sc.h; ++y) {
+        for (std::int64_t x = 0; x < sc.w; ++x) {
+            const LayoutTabPress hit =
+                band_tab_at(s, "s.json", sc, input::space::kCells, x,
+                            y + surface::kTuiCanvasTopRow);
+            if (!hit.hit) {
+                continue;
+            }
+            CAPTURE(x);
+            CAPTURE(y);
+            CHECK(y == 0); // the first Workshop row, and no other
+            bool inside = false;
+            for (const LayoutTab& tab : row.tabs) {
+                inside = inside || (x >= tab.column && x < tab.column + tab.columns &&
+                                    hit.at == tab.at);
+            }
+            CHECK(inside);
+            ++answered;
+        }
+    }
+    // ...and every painted cell DID answer, so the sweep is a bijection rather than an
+    // absence: what is painted is pressable, and what is pressable is painted.
+    std::size_t painted = 0;
+    for (const LayoutTab& tab : row.tabs) {
+        painted += static_cast<std::size_t>(tab.columns);
+    }
+    CHECK(answered == painted);
 }

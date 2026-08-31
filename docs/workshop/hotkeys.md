@@ -55,9 +55,10 @@ told a provider's bindings and will not guess them.
 
 ## The band legend
 
-The bottom band carries the same projection on its legend rows — two rows in a terminal, one
+The bottom band carries the same projection on its legend rows — three rows in a terminal, one
 row of real type in a graphical window, however many the band's room genuinely holds of the
-medium's own text — in three persisted modes, the `legend` word in the keymap file:
+medium's own text after the notice has taken its row — in three persisted modes, the `legend`
+word in the keymap file:
 
 | word | the legend rows show |
 |---|---|
@@ -65,9 +66,9 @@ medium's own text — in three persisted modes, the `legend` word in the keymap 
 | `compact` | only how to open the hotkey view, e.g. `^k hotkeys` |
 | `hidden` | nothing |
 
-`hidden` blanks the legend rows and does nothing else. The band's other rows — the status
-row with its layout tabs, the notice, the workspace size — never move with the preference,
-the screen keeps its shape, and no binding — the hotkey view's included — is unbound by choosing not to look at
+`hidden` blanks the legend rows and does nothing else. Every other row — the notice beside
+them, and the layout selector and workspace size on Workshop's own first row, a whole band
+away — never moves with the preference, the screen keeps its shape, and no binding — the hotkey view's included — is unbound by choosing not to look at
 the legend. Where the packed rows cannot carry every pair, the cut is marked and the full
 hotkey view remains the complete list, one keystroke away in every mode.
 

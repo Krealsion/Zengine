@@ -1096,12 +1096,14 @@ TEST_CASE("the pointer lands where the Skin actually drew the workspace") {
                                      ui::Extent{ui::kExtentCells, 4});
     Session s;
     s.selected = id;
-    // The object's authored top-left (3,2) is terminal (3, 2+1+2) = (3, 5).
-    CHECK(begin_drag(d, s, term(3, 5).first, term(3, 5).second) == id);
+    // The object's authored top-left (3,2) is terminal (3, 2 + kWorkspaceY + the terminal's
+    // own two rows) -- 6 since QR-14 put a band above the workspace, 5 before it.
+    const std::int64_t top = 2 + kWorkspaceY + surface::kTuiCanvasTopRow;
+    CHECK(begin_drag(d, s, term(3, top).first, term(3, top).second) == id);
     CHECK(s.drag.grab_dx == 0);
     CHECK(s.drag.grab_dy == 0);
     end_drag(s);
-    CHECK(begin_drag(d, s, term(3, 4).first, term(3, 4).second) == 0); // one row above
+    CHECK(begin_drag(d, s, term(3, top - 1).first, term(3, top - 1).second) == 0); // above
 }
 
 TEST_CASE("the SAME object is under the pointer whichever medium reported it") {
@@ -3661,16 +3663,15 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     REQUIRE(t.session().setup.naming.open);
     REQUIRE(t.session().setup.naming.line.text() == "Default");
 
-    // Ctrl+A selects the name, and the editor row -- the band's status row since WUX-1 --
-    // says so the way every other selection on this screen is said: the REGION's selection
-    // (a band under the glyphs where the row is real type, reverse video in a cell
-    // medium), with a real region caret at its active end. The old one-cell label had to
-    // bracket the span in characters; the band region carries both properly.
+    // Ctrl+A selects the name, and the editor row -- the identity row, which is the TOP
+    // band's first since QR-14 -- says so the way every other selection on this screen is
+    // said: the REGION's selection (a band under the glyphs where the row is real type,
+    // reverse video in a cell medium), with a real region caret at its active end. The old
+    // one-cell label had to bracket the span in characters; the region carries both.
     t.key(input::scan::kA, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.selected_text() == "Default");
-    const Screen nsc = screen_of(t.session());
     const std::vector<surface::SurfaceTextRegion> at_bands =
-        regions_at(t.canvases.back(), 0, nsc.notice_y - 1);
+        regions_at(t.canvases.back(), 0, 0);
     REQUIRE(at_bands.size() == 1);
     const surface::SurfaceTextRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
@@ -3687,7 +3688,7 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     CHECK(editor.sel_end_col == prompt + 7);
     // ...and the cell projection still inserts the caret as a character, so a character
     // medium's row reads exactly as it always did.
-    CHECK(label_at(t.canvases.back(), 0, nsc.notice_y - 1).find("setup name> Default") == 0);
+    CHECK(label_at(t.canvases.back(), 0, 0).find("setup name> Default") == 0);
 
     // Paste replaces the selection: the name a maker copied in the Terminal arrives here.
     t.key(input::scan::kV, input::mod::kCtrl);
@@ -4623,6 +4624,20 @@ const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const
     return nullptr;
 }
 
+/// The TOP band region a canvas published, or nullptr -- by its place (QR-14).
+const surface::SurfaceTextRegion* top_band_on(const surface::SurfaceCanvas& c,
+                                              const Screen& sc) {
+    const ui::Rect b = top_band_bounds(sc);
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceTextRegion& r : layer.texts) {
+            if (r.x == b.x && r.y == b.y && r.h == b.h) {
+                return &r;
+            }
+        }
+    }
+    return nullptr;
+}
+
 /// A region row's text -- "" for a row the composition left unsaid.
 std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
     if (band == nullptr || i >= band->rows.size()) {
@@ -4662,83 +4677,99 @@ TEST_CASE("WUX-1/SC-1: the shipped face reads every Workshop-owned sentence as r
     CHECK(band_on(c, sc) != nullptr);
 }
 
-TEST_CASE("WUX-1/SC-2+SC-3: the band composes its budget, and the workspace fact moved in") {
+TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is row 0") {
     WorkshopDoc d;
     doc::add_default(d);
 
-    // A CHARACTER MEDIUM'S FIVE ROWS: the setup line, the notice, the workspace fact on
-    // the old spare row, and the two legend rows -- the composition every golden above
-    // already reads.
+    // A CHARACTER MEDIUM: two rows at the top (the layout selector with the setup's status,
+    // then the workspace fact) and four at the foot (the notice, then the legend takes what
+    // the notice leaves). Five facts in six reserved rows, which is what the screen has
+    // always reserved -- WUX-1 left one of them blank at row 0 and QR-14 spends it.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     cells.notice = "created #1";
     refocus(d, cells);
     const Screen csc = screen_of(cells);
     const surface::SurfaceCanvas cell_canvas = paint(d, cells);
+
+    const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, csc);
+    REQUIRE(ctop != nullptr);
+    CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
+    CHECK(top_band_fit(csc).rows == kTopRows);
+    REQUIRE(ctop->rows.size() == 2);
+    CHECK(band_row(ctop, 0).rfind("> \"Default\"", 0) == 0); // the live layout tab (WUX-9)
+    CHECK(band_row(ctop, 0).find("| UNSAVED") != std::string::npos);
+    CHECK(band_row(ctop, 1) == "workspace 48x16 cells");
+
     const surface::SurfaceTextRegion* cband = band_on(cell_canvas, csc);
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
-    REQUIRE(cband->rows.size() == 5);
-    CHECK(band_row(cband, 0).rfind("> \"Default\"", 0) == 0); // the live layout tab (WUX-9)
-    CHECK(band_row(cband, 1) == "created #1");
-    CHECK(band_row(cband, 2) == "workspace 48x16 cells");
-    CHECK(band_row(cband, 3).rfind("n new | d delete", 0) == 0);
-    CHECK_FALSE(band_row(cband, 4).empty());
+    REQUIRE(cband->rows.size() == 4);
+    CHECK(band_row(cband, 0) == "created #1");
+    CHECK(band_row(cband, 1).rfind("n new | d delete", 0) == 0);
+    CHECK_FALSE(band_row(cband, 2).empty());
+    CHECK_FALSE(band_row(cband, 3).empty()); // no reserved row is left spare
+    // ...AND NO ROW SAYS ANYTHING TWICE. The identity is the top band's and the notice is
+    // the bottom band's, and neither writes in the other's rectangle.
+    CHECK(band_row(cband, 0).find("\"Default\"") == std::string::npos);
+    CHECK(band_row(ctop, 0).find("created #1") == std::string::npos);
+    CHECK(ctop->y + ctop->h == cells_covered(fine_of_cells(ui::Rect{0, kWorkspaceY, 1, 1})).y);
+    CHECK(cband->y == kWorkspaceY + csc.room_h); // the body ends where the band begins
 
-    // THE SHIPPED FACE'S THREE: status with the workspace fact folded in, the notice,
-    // one packed legend row -- more columns per row, so the fold is legible, and the
-    // pack still leads with the same pairs.
+    // THE SHIPPED FACE: one row at the top (the identity with the workspace fact folded in,
+    // WUX-1's own fold) and two at the foot (the notice and one packed legend row). THREE
+    // face rows of chrome, exactly as many as the single five-cell band held.
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     sdl.notice = "created #1";
     refocus(d, sdl);
     const Screen ssc = screen_of(sdl);
     const surface::SurfaceCanvas sdl_canvas = paint(d, sdl);
+    const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, ssc);
     const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
+    REQUIRE(stop != nullptr);
     REQUIRE(sband != nullptr);
-    CHECK(band_fit(ssc).rows == 3);
-    REQUIRE(sband->rows.size() == 3);
-    CHECK(band_row(sband, 0).rfind("> \"Default\"", 0) == 0);
-    CHECK(band_row(sband, 0).find("| workspace 48x16 cells") != std::string::npos);
-    CHECK(band_row(sband, 1) == "created #1");
-    CHECK(band_row(sband, 2).rfind("n new | d delete", 0) == 0);
+    CHECK(top_band_fit(ssc).rows == 1);
+    CHECK(band_fit(ssc).rows == 2);
+    REQUIRE(stop->rows.size() == 1);
+    REQUIRE(sband->rows.size() == 2);
+    CHECK(band_row(stop, 0).rfind("> \"Default\"", 0) == 0);
+    CHECK(band_row(stop, 0).find("| workspace 48x16 cells") != std::string::npos);
+    CHECK(band_row(sband, 0) == "created #1");
+    CHECK(band_row(sband, 1).rfind("n new | d delete", 0) == 0);
 
-    // DEGRADE HONESTLY BELOW THAT: four rows keep both legend rows; two keep status and
-    // notice; one row keeps the notice while there is one and the identity line when
-    // there is not.
-    Session four = screen_session(kScreenMinW, kScreenMinH, 8, 14); // (60-4)/14 = 4 rows
-    four.notice = "created #1";
-    refocus(d, four);
-    const surface::SurfaceCanvas four_canvas = paint(d, four);
-    const surface::SurfaceTextRegion* fband = band_on(four_canvas, screen_of(four));
-    REQUIRE(fband != nullptr);
-    REQUIRE(fband->rows.size() == 4);
-    CHECK(band_row(fband, 0).find("| workspace 48x16 cells") != std::string::npos);
-    CHECK(band_row(fband, 1) == "created #1");
-    CHECK(band_row(fband, 2).rfind("n new | d delete", 0) == 0);
-
-    Session two = screen_session(kScreenMinW, kScreenMinH, 8, 28); // (60-4)/28 = 2 rows
-    two.notice = "created #1";
-    refocus(d, two);
-    const surface::SurfaceCanvas two_canvas = paint(d, two);
-    const surface::SurfaceTextRegion* tband = band_on(two_canvas, screen_of(two));
+    // DEGRADE HONESTLY BELOW THAT, and each band degrades in its own rectangle: the legend
+    // gives way first at the foot, and the workspace fact folds into the identity at the top.
+    Session three = screen_session(kScreenMinW, kScreenMinH, 8, 14); // 44/14 = 3 band rows
+    three.notice = "created #1";
+    refocus(d, three);
+    const surface::SurfaceCanvas three_canvas = paint(d, three);
+    const surface::SurfaceTextRegion* tband = band_on(three_canvas, screen_of(three));
     REQUIRE(tband != nullptr);
-    REQUIRE(tband->rows.size() == 2);
-    CHECK(band_row(tband, 0).rfind("> \"Default\"", 0) == 0);
-    CHECK(band_row(tband, 1) == "created #1");
+    REQUIRE(tband->rows.size() == 3);
+    CHECK(band_row(tband, 0) == "created #1");
+    CHECK(band_row(tband, 1).rfind("n new | d delete", 0) == 0);
 
-    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 56); // (60-4)/56 = 1 row
+    Session one = screen_session(kScreenMinW, kScreenMinH, 8, 30); // 44/30 = 1 band row
     one.notice = "created #1";
     refocus(d, one);
     const surface::SurfaceCanvas one_canvas = paint(d, one);
     const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));
+    const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, screen_of(one));
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "created #1"); // the tool's voice wins the one row
+    // ⚠ AND THE IDENTITY IS NOT A CANDIDATE FOR THAT ROW ANY MORE. It has a band of its own
+    // that no budget down here can take, which is the whole point of the move: a maker never
+    // loses sight of which desk they are in because the tool had something to say.
+    REQUIRE(otop != nullptr);
+    REQUIRE_FALSE(otop->rows.empty());
+    CHECK(band_row(otop, 0).rfind("> \"Default\"", 0) == 0);
+
     one.notice.clear();
     const surface::SurfaceCanvas quiet_canvas = paint(d, one);
     const surface::SurfaceTextRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
     REQUIRE(qband->rows.size() == 1);
-    CHECK(band_row(qband, 0).rfind("> \"Default\"", 0) == 0); // the identity line otherwise
+    CHECK(qband->rows[0].text.rfind("n new | d delete", 0) == 0); // the legend, with nothing said
 }
 
 TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budgets") {
@@ -4750,7 +4781,9 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
         s.notice = "a notice";
         refocus(d, s);
         const Screen sc = screen_of(s);
-        const std::size_t legend_at = line == 0 ? 3 : 2;
+        // THE LEGEND IS THE BOTTOM BAND'S SECOND ROW ON EVERY MEDIUM SINCE QR-14: the
+        // notice leads that band and the legend takes what it leaves.
+        const std::size_t legend_at = 1;
 
         s.keymap.legend = legend_mode::kFull;
         const surface::SurfaceCanvas full_c = paint(d, s);
@@ -4771,12 +4804,15 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
         CHECK(band_row(hidden_b, legend_at).empty());
 
         // THE OTHER ROWS NEVER MOVE WITH THE PREFERENCE: a maker toggling the legend
-        // watches the legend, not a reflowing band.
+        // watches the legend, not a reflowing band -- and since QR-14 that includes the
+        // identity row, which is a whole band away and cannot be reached from here.
         for (std::size_t i = 0; i < legend_at; ++i) {
             CAPTURE(i);
             CHECK(band_row(full_b, i) == band_row(compact_b, i));
             CHECK(band_row(full_b, i) == band_row(hidden_b, i));
         }
+        CHECK(band_row(top_band_on(full_c, sc), 0) ==
+              band_row(top_band_on(hidden_c, sc), 0));
     }
 }
 

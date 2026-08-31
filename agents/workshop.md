@@ -476,23 +476,43 @@ the affordances     over the panes' own content, so no handle is hidden (ARR-0: 
                     rings ARE the arrangement state's visible statement)
 picker / overlays   over the panes they cover -- a provider's text cannot bury the row that
                     recovers it
-the screen's chrome the bottom band, one budget-composed region (WUX-1)
+the screen's chrome the TWO bands, each one budget-composed region (WUX-1, split QR-14)
 the Terminal        the final modal plane
 ```
 
-- **The screen's chrome is in FRONT of the panes, and that is a decision with a reason.** The
-  bottom band is where the tool SPEAKS: a panel backdrop drawn over it would erase the notice
-  that just told a maker what happened, and since WUX-1 the band OWNS its whole rectangle (one
-  region, `kGroundOwn`), so a pane a maker authors over it is covered by it — the rule the
-  notice region alone used to carry. Panes are in front of the DOCUMENT, which is what
-  `occupied_at` has answered since PNL-2; they are not in front of the tool's own voice.
-- **The shared top row is RETIRED (WUX-1).** Canvas row 0 carried four one-cell voices — the
-  workspace extent, the picker/window hints, the terminal hint — each structurally unable to
-  hold a row of a real face. The facts moved rather than died: the extent is the band's
-  `workspace_text` row, and the gestures are ordinary keymap rows said by the band's legend
-  and the full hotkey view. The workspace did NOT grow (its extent is what a share resolves
-  against; a chrome retirement must not resize a maker's document), so row 0 is empty canvas
-  now, the side region's reservation and every other constant unmoved.
+- **The screen's chrome is in FRONT of the panes, and that is a decision with a reason.** A
+  band is where the tool SPEAKS: a panel backdrop drawn over one would erase the notice that
+  just told a maker what happened, and since WUX-1 a band OWNS its whole rectangle (one region,
+  `kGroundOwn`), so a pane a maker authors over it is covered by it. Panes are in front of the
+  DOCUMENT, which is what `occupied_at` has answered since PNL-2; they are not in front of the
+  tool's own voice.
+- **THE VERTICAL ORDER IS THREE REGIONS AND IT TILES THE SCREEN EXACTLY (QR-14):**
+
+```text
+rows 0 .. kTopRows-1               the TOP band -- the layout selector and the setup's status,
+                                   with the workspace fact under it where the medium fits one
+rows kWorkspaceY .. +room_h-1      the body: the workspace, the overlay stack, the side region
+the last kBottomRows               the BOTTOM band -- the notice, then the legend
+```
+
+- **`kTopRows + kBottomRows == 6`, ASSERTED, AND THAT IS THE WHOLE OF WHAT QR-14 MAY SPEND.**
+  It was 1 + 5 (a blank row 0, five band rows at the foot) and is 2 + 4. `room_h` is therefore
+  byte-identical, which is the property that matters: the workspace's extent is what a share
+  resolves against, so chrome that moves must not resize a maker's document — PNL-0's rule, and
+  the same one WUX-1 obeyed by leaving row 0 empty rather than giving the room away.
+- **THE OLD SHARED TOP ROW IS STILL RETIRED, AND ITS CELL IS SPENT NOW.** Canvas row 0 carried
+  four one-cell voices — the workspace extent, the picker/window hints, the terminal hint —
+  each structurally unable to hold a row of a real face. WUX-1 moved those facts into the band
+  and left the cell empty; QR-14 spends it, plus one taken from the foot, on a band TWO cells
+  tall, which is what a face needs for one row of type. ⚠ One cell would be zero face rows and
+  bitmap glyphs — the exact defect WUX-1 retired that row over, and the reason `kTopRows` is
+  not 1.
+- ⚠ **TWO MEASURED FACTS MOVED WITH THE BODY, and neither is a spelling change.** The side
+  region begins under the full-width top band, so the Info column is `room_h` cells rather than
+  one more (`share_body_rows` spends the smaller budget by its own policy). And the overlay
+  stack, anchored to the workspace's top, is one row closer to the Terminal pane, which is
+  anchored to the screen's foot: their bounded overlap is TWO rows at the minimum screen where
+  it was one, and one row at the two heights above it where it was none.
 - `effective_pane_order` is the one FOREGROUND order helper (WUX-5); paint walks it ascending
   and `occupied_at` its exact reverse. Nothing derives hit order from canvas layers, and
   nothing that means "in front right now" reads `presentation_order` -- that is the authored
@@ -1768,16 +1788,23 @@ SetupState
 ^ the layout tabs                      ^ the existing non-tab status, composing from the right
 ```
 
-- **NO BAND ROW WAS ADDED AND NO GEOMETRY MOVED.** Canvas row 0 is one cell tall — zero rows of
-  a real face, WUX-1's own measurement — and a sixth band row would resize the workspace every
-  share resolves against (PNL-0's refusal class). The status row is the only honest home, and it
-  is the row that already named the arrangement.
+- **NO BAND ROW WAS ADDED AND THE BODY'S EXTENT NEVER MOVED.** WUX-9 put the run on the
+  bottom band's status row, which was the row that already named the arrangement; QR-14 moved
+  that row to the top of the screen, where a selector belongs, by re-homing reserved cells
+  rather than reserving another (the plane-sequence section above holds the arithmetic). A
+  sixth reserved row would resize the workspace every share resolves against (PNL-0's refusal
+  class), which is what neither phase was allowed to spend.
 - **`band_status(session, path, screen)` IS THE ONE COMPOSITION** and it is what both consumers
   spend (HD-3): `band_region` publishes its `text`, and `band_tab_at` answers a press out of its
   `tabs`. A tab's span is recorded as the row is written, so there is no second measurement to
   drift. `band_tab_row` says which prose row the run is on, or `kNoBandRow` — the name editor
-  takes the status row whole, and at a one-row budget the notice outranks the identity line, so
-  in both states there are no tabs on screen and none to press.
+  takes the identity row whole, and that is the ONLY thing that can displace the run since
+  QR-14: the notice used to share this band and outrank it at a one-row budget, and it lives at
+  the foot now, so no budget can take the selector off the screen.
+  ⚠ **`band_tab_at` RESOLVES AGAINST `top_band_bounds`/`top_band_fit`**, which is where the
+  painter publishes. A press answered from the bottom band's origin would be the stale
+  one-row geometry QR-14 exists to make unsayable, and the suite sweeps EVERY cell of the
+  screen against the inverse to say so.
 - **THE MARK IS `> ` AND EVERY OTHER TAB WEARS `  `** — the two bytes every list in this
   application already spends on "the one you are on", said in CHARACTERS because a band row
   carries ONE role for all of its bytes. Same width either way, deliberately: brackets around
@@ -1972,6 +1999,10 @@ executable, authored per project when named.)
   choosing a foreign recipe catalog all leave `HostContext::project_dir` exactly where it was.
 - A marked place is part of the project, or is trusted, or is buildable — a mark is a
   DESTINATION. It says one thing: somebody may want to come back here.
+- The band is at the bottom, or canvas row 0 is empty — neither since QR-14. The layout
+  selector and the setup's status are the screen's FIRST row; the notice and the legend
+  are the last. Both are `fit_region`-composed regions, and `kTopRows + kBottomRows`
+  is asserted equal to what the two reservations always summed to.
 - A layout is a new kind of thing, or `setup.active` is now an index into one — neither. A
   layout IS a `Setup`, `active` is still THE live desk every consumer reads, and the shelf
   beside it holds values with no presentation, no provider and no room of their own.

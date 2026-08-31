@@ -417,8 +417,8 @@ inline const surface::SurfaceTextRegion* pane_of(const surface::SurfaceCanvas& c
 inline const surface::SurfaceTextRegion* list_of(const surface::SurfaceCanvas& c, const Screen& sc) {
     for (const surface::SurfaceLayer& layer : c.layers) {
         for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == sc.terminal_x && r.y != sc.terminal_y) {
-                return &r;
+            if (r.x == sc.terminal_x && r.y != sc.terminal_y && r.w < sc.w) {
+                return &r; // a band spans the canvas; the pane's own regions do not
             }
         }
     }
@@ -1456,11 +1456,19 @@ inline void name_setup(Live& t, const std::string& name) {
     t.key(input::scan::kReturn);
 }
 
-/// The setup line as a maker reads it, off the canvas at the place the painter
+/// The identity row as a maker reads it, off the canvas at the place the painter
 /// put it -- never rebuilt here, so a case cannot pass while the screen says
-/// something else.
+/// something else. Since QR-14 that place is the TOP band's first row, which is the
+/// first row of Workshop.
 inline std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return label_at(c, 0, sc.notice_y - 1);
+    (void)sc;
+    return label_at(c, 0, 0);
+}
+
+/// The workspace-extent fact as a maker reads it -- the top band's SECOND row where the
+/// medium fits one, folded into the identity row where it does not.
+inline std::string workspace_row(const surface::SurfaceCanvas& c, const Screen& sc) {
+    return top_band_fit(sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
 }
 
 /// Make this Workshop paint once, the way a Skin claiming the surface makes it:
