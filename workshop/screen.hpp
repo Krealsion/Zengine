@@ -1561,6 +1561,119 @@ struct TextDrag {
     std::int64_t place = text_drag_place::kNone;
 };
 
+/// HOW LONG A DOUBLE-CLICK MAY TAKE (WUX-7). A product constant chosen from this
+/// application's own constraints and from nothing else: it is not read from a preference, not
+/// persisted, not asked of a platform, and deliberately not the desktop's own setting --
+/// `input::PointerButton` cannot say a click count on either backend, so a per-platform
+/// answer here would make one gesture mean two things depending on which medium a maker
+/// opened. 400ms is comfortably above a deliberate double tap and comfortably below two
+/// separate aims at the same word.
+inline constexpr std::int64_t kDoubleClickMs = 400;
+
+/// WHAT THE LAST PRESS ON AN EDITABLE LINE NAMED, so the next one can be a double (WUX-7).
+///
+/// `TextDrag`'S OWN SHAPE AND ITS OPPOSITE LIFETIME. A drag record says what the pointer is
+/// holding RIGHT NOW and is cleared by the release; this says what it let go of, and is spent
+/// by a press that has not happened yet. Both are session, both are one record for all of
+/// Workshop's boxes, and neither holds a rectangle.
+///
+/// IT HOLDS AN IDENTITY AND AN INSTANT, NEVER A PLACE. Which line (`text_drag_place`), which
+/// draft of it (`TextBox::draft_epoch` -- so closing a draft and opening another cannot
+/// inherit an arming), which WORD the press named, and when. There is no column, no row and
+/// no rectangle: a second press is compared against the word the first one landed in, which
+/// is the fact the gesture is actually about, and which survives the pane moving underneath
+/// it between the two.
+///
+/// A FIRST PRESS ARMS AND IS NEVER RETROACTIVELY A SECOND. `armed` is written by a press
+/// AFTER that press has been answered as an ordinary one, and the qualification below only
+/// ever reads a record an EARLIER press wrote -- so the press that merely pointed the
+/// keyboard at a pane, or opened the draft, is an ordinary press with an arming beside it and
+/// can never be counted as the second half of a gesture it began.
+struct ClickMemory {
+    bool armed = false;
+    std::int64_t place = text_drag_place::kNone;
+    std::uint64_t epoch = 0;        ///< the draft the press landed in (`draft_epoch`)
+    std::size_t word_begin = 0;     ///< the word it named, in bytes of the whole text...
+    std::size_t word_end = 0;       ///< ...end exclusive; equal ends mean no word
+    std::int64_t at_ms = 0;         ///< `interaction_now_ms()` when it landed
+};
+
+/// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK (WUX-7)? Pure, total, and the ONE place
+/// the question is decided -- both editable lines call it and neither owns a second opinion.
+///
+/// FIVE CONDITIONS AND THEY ARE ALL IDENTITY OR TIME. Something was armed; the same line; the
+/// same draft of it; the same word; and closely enough. A word that is not a word (an empty
+/// span, which is what a press between two words names) can never double, because there is
+/// nothing to select and repeating the gesture must not invent something.
+///
+/// TIME IS AN ARGUMENT AND NEVER A READING. Nothing in this header knows what time it is; the
+/// caller passes the instant it already spent, which is what makes every one of these
+/// conditions falsifiable by a case rather than by a stopwatch.
+inline bool doubles_a_click(const ClickMemory& prior, std::int64_t place, std::uint64_t epoch,
+                            const component::WordSpan& word, std::int64_t now_ms) noexcept {
+    if (!prior.armed || !word.present()) {
+        return false;
+    }
+    if (prior.place != place || prior.epoch != epoch) {
+        return false;
+    }
+    if (prior.word_begin != word.begin || prior.word_end != word.end) {
+        return false;
+    }
+    const std::int64_t since = now_ms - prior.at_ms;
+    return since >= 0 && since <= kDoubleClickMs;
+}
+
+/// The arming a press leaves behind -- written from the same three facts the test above
+/// reads, so an arming that could not qualify cannot be written.
+inline ClickMemory click_landed(std::int64_t place, std::uint64_t epoch,
+                                const component::WordSpan& word, std::int64_t now_ms) noexcept {
+    return ClickMemory{true, place, epoch, word.begin, word.end, now_ms};
+}
+
+/// WHICH FITTED ROW A POINTER MAY INSPECT (WUX-7) -- the surfaces whose painter still holds
+/// the whole of what it cut.
+///
+/// A KIND AND AN ITEM INDEX, NEVER A PROSE ROW. The row a list SHOWS an item on moves with
+/// the window, the cursor and the pane's height; the item does not. So a reveal that survives
+/// a scroll is one bound to the item, and a reveal bound to a prose row would follow the row
+/// onto whatever moved into it -- which is exactly the neighbouring-row defect this is
+/// arranged against.
+namespace reveal_place {
+inline constexpr std::int64_t kNone = 0;
+inline constexpr std::int64_t kFilesLocation = 1; ///< the project browser's header row
+inline constexpr std::int64_t kFilesRow = 2;      ///< one listed name in it
+inline constexpr std::int64_t kInfoObject = 3;    ///< one row of the Info panel's OBJECTS
+inline constexpr std::int64_t kInfoProperty = 4;  ///< ...and one of its PROPERTIES
+} // namespace reveal_place
+
+/// WHAT THE POINTER IS CURRENTLY REVEALING, or nothing (WUX-7).
+///
+/// PRESENTATION, AND THE MOST TRANSIENT KIND THIS APPLICATION HAS. It reaches no file, no
+/// setup, no document, no provider and no value: the string below is a COPY of what the
+/// painter was already going to draw, held for exactly one comparison, and `offset` is a
+/// number of bytes to start that same string at. Nothing here can change what a row says --
+/// only which part of what it already said is on screen.
+///
+/// THE TEXT IS HELD SO THAT A CHANGED ROW STOPS REVEALING. A reveal is about the value a
+/// maker pointed at; if that value moves, is replaced, or its row is given to something else,
+/// the painter's own string no longer matches this one and the ordinary fitted projection
+/// comes back with nobody clearing anything -- `AttentionView::dismissed`'s stamp rule, and
+/// the same reason.
+struct Revealed {
+    std::int64_t place = reveal_place::kNone;
+    std::size_t item = 0;    ///< which object, property or listed name
+    std::string text;        ///< the WHOLE row as the painter held it when this began
+    std::int64_t offset = 0; ///< how many bytes of its head are currently scrolled away
+    bool present() const noexcept { return place != reveal_place::kNone; }
+    /// Is this the same reading? Asked by the one writer, so a motion that changed nothing
+    /// about the picture does not republish one.
+    bool same_as(const Revealed& other) const noexcept {
+        return place == other.place && item == other.item && offset == other.offset &&
+               text == other.text;
+    }
+};
+
 /// The session: what a maker is currently doing, as opposed to what they have
 /// authored. Kept out of WorkshopDoc deliberately (see vocabulary.hpp) so the
 /// two kinds of fact cannot be mistaken for each other -- selection is not
@@ -1709,6 +1822,12 @@ struct Session {
     /// ...and the text selection their pointer is sweeping, if any (TEXT-0). The third
     /// gesture record, for the two records' own reason; see `TextDrag`.
     TextDrag text_drag;
+    /// ...and what their LAST press on an editable line named, so the next one can be a
+    /// double-click (WUX-7). See `ClickMemory`: an identity and an instant, no place.
+    ClickMemory click;
+    /// ...and which clipped row their pointer is currently reading past the ellipsis
+    /// (WUX-7). See `Revealed`: presentation only, and the most transient state here.
+    Revealed reveal;
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON (TEXT-0) — session in the
     /// plainest sense: what a maker copied is part of what they are DOING, dies with the
     /// process like every draft (WUX-0 keeps the desk, never the work-in-progress), and is
@@ -2473,6 +2592,106 @@ inline std::string fit_path(const std::string& path, std::int64_t width) {
         tail = tail.substr(boundary); // start the tail at a whole component
     }
     return path.substr(0, root) + kElided + tail;
+}
+
+// ---- Reading past the ellipsis (WUX-7) ---------------------------------------------------
+//
+// A FITTED ROW SAYS IT CUT SOMETHING AND THEN CANNOT SHOW IT. `fit` and `fit_path` above are
+// the whole of this canvas's honesty about width: the mark is there, the tail is gone, and
+// until now the only way to read what was behind the mark was to make the pane wider. These
+// four functions are the other way -- the maker POINTS at the row, and the same row shows a
+// different part of the same string for as long as they do.
+//
+// IT IS A WINDOW OVER A STRING SOMEBODY ELSE IS ALREADY HOLDING, and that is the whole of the
+// mechanism. Nothing here reads a file, samples a Source, asks a provider, re-lists a
+// directory or touches a value: the argument is the string the painter had in its hand a line
+// earlier, and what comes back is a slice of it that is never wider than the room the fitted
+// answer was going to occupy.
+//
+// THE HEAD IS MARKED THE SAME WAY THE TAIL IS. `fit` puts `...` where it cut the end;
+// scrolled text puts `...` where the beginning went, and then fits what is left -- so a row
+// showing the middle of a long value is marked at BOTH ends and a row showing its end is
+// marked only at the start. A still photograph of a revealed row therefore never reads as a
+// complete value, which is the property a bare horizontal offset would have lost.
+//
+// ONE COLUMN PER BYTE, AND THE CUT IS A BYTE CUT -- `fit`'s own law, unchanged and
+// deliberately not improved here (`detail::fit` cuts at a byte; the cell projection is one
+// cell per byte, as ever). A phase that teaches this canvas character-whole cutting teaches
+// it in ONE place, and that place is `fit`.
+
+/// THE FURTHEST A ROW MAY BE SCROLLED: exactly enough to bring the last byte into view, and
+/// never one further. It is what makes the right edge of the row mean "the end", rather than
+/// meaning "somewhere past the end" with blank cells after it.
+inline std::size_t reveal_max_offset(const std::string& full, std::int64_t columns) {
+    const std::size_t mark = std::char_traits<char>::length(kElided);
+    if (columns <= 0 || static_cast<std::size_t>(columns) <= mark) {
+        return 0;
+    }
+    const std::size_t room = static_cast<std::size_t>(columns) - mark;
+    return full.size() > room ? full.size() - room : 0;
+}
+
+/// WHICH OFFSET THE POINTER IS ASKING FOR, from the column it is on.
+///
+/// THE ROW IS ITS OWN SCRUB TRACK, and that is the honest answer to a frame loop that draws
+/// only when something happened. A timed marquee would need a repaint with no event behind it
+/// and this application publishes a canvas only when it has been told something; the maker's
+/// own hand is the one clock that is always running. So the left edge is the value's start --
+/// byte for byte the row a maker was already looking at -- the right edge is its end, and
+/// everything between is proportional, total and reversible by moving back.
+inline std::int64_t reveal_offset_at_column(const std::string& full, std::int64_t columns,
+                                            std::int64_t column) {
+    const std::int64_t furthest = static_cast<std::int64_t>(reveal_max_offset(full, columns));
+    if (furthest <= 0 || columns <= 1 || column <= 0) {
+        return 0;
+    }
+    const std::int64_t last = columns - 1;
+    return column >= last ? furthest : (furthest * column) / last;
+}
+
+/// ONE ROW, SHOWN FROM `offset` BYTES IN. Total at every width and every offset, and never
+/// wider than `columns`: the mark is spent first and `fit` bounds whatever is left, so the
+/// widest answer this can give is exactly the width the fitted answer would have taken.
+///
+/// THE OFFSET IS CLAMPED HERE RATHER THAN TRUSTED, so "a value that fits never moves" is a
+/// property of the PROJECTION and not merely of whoever computed the offset -- a row with
+/// nothing behind it answers its fitted self at every offset there is, and a row scrolled
+/// past its own end answers its tail.
+inline std::string revealed_row(const std::string& full, std::int64_t columns,
+                                std::int64_t offset) {
+    if (columns <= 0) {
+        return {};
+    }
+    const std::size_t furthest = reveal_max_offset(full, columns);
+    if (offset <= 0 || furthest == 0) {
+        return fit(full, columns);
+    }
+    const std::size_t want = static_cast<std::size_t>(offset);
+    return std::string(kElided) +
+           fit(full.substr(want < furthest ? want : furthest),
+               columns - static_cast<std::int64_t>(std::char_traits<char>::length(kElided)));
+}
+
+/// WHAT A PAINTER PUTS ON A REVEALABLE ROW -- its ordinary answer, unless the pointer is on
+/// THIS row of THIS surface showing THIS string.
+///
+/// THE GUARD IS THE RESET, AND THERE IS NO CLEARING PATH ANYWHERE. Four things have to agree
+/// before a row is scrolled: the surface, the item, a non-zero offset, and the string itself.
+/// A pane that closed, a listing that was replaced, an object that was renamed, a row the
+/// window no longer shows and a maker whose pointer went back to the left edge each fail one
+/// of them, and each falls back to the row's own resting presentation with nobody having
+/// retracted anything -- `bounds_of`'s discipline, spent on a presentation.
+///
+/// `rest` IS PASSED IN RATHER THAN COMPUTED, because a caller may fit its row by the PATH
+/// measurer (`fit_path`) or the sentence one (`fit`), and re-deciding that here would be a
+/// second answer to a question the painter has already answered correctly.
+inline std::string reveal_shown(const Revealed& rev, std::int64_t place, std::size_t item,
+                                const std::string& full, std::string rest,
+                                std::int64_t columns) {
+    if (rev.place != place || rev.item != item || rev.offset <= 0 || rev.text != full) {
+        return rest;
+    }
+    return revealed_row(full, columns, rev.offset);
 }
 
 /// How far a wrapped continuation row is indented, so a reader can tell one sentence
@@ -6442,10 +6661,12 @@ inline std::size_t action_press_at(const InfoBodyPlace& p, std::int64_t column,
 /// know WHICH row they are looking at -- intact by construction. The cut says so with the
 /// `...` this canvas has used since W-6, and the authored name is untouched: `detail::fit`
 /// takes a copy, the document is `const` here, and a wider surface shows more of it.
+inline std::string object_row_full(const ui::Element& e, bool chosen) {
+    return std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " + e.label;
+}
+
 inline std::string object_row_text(const ui::Element& e, bool chosen, std::int64_t columns) {
-    return detail::fit(std::string(chosen ? "> " : "  ") + "#" + std::to_string(e.id) + " " +
-                           e.label,
-                       columns);
+    return detail::fit(object_row_full(e, chosen), columns);
 }
 
 /// ONE SEMANTIC PROPERTY ROW AS PROSE — the mark, the name, and as much of the value as the
@@ -6459,9 +6680,21 @@ inline std::string object_row_text(const ui::Element& e, bool chosen, std::int64
 /// and a maker is moving it: the caret staying put is what tells them the value moved, and a
 /// `...` on a row that is being typed into would be a second thing to keep true whose width
 /// would come out of this same one capacity (HD-4's rule, unchanged).
+inline std::string property_row_prefix(const Row& row, bool here) {
+    return std::string(here ? ">" : " ") +
+           detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
+}
+
+/// THE WHOLE OF WHAT A RESTING ROW WOULD SAY WITH UNLIMITED ROOM (WUX-7) -- the mark, the
+/// name and the value entire. A LIVE DRAFT HAS NO SUCH ROW, deliberately: a draft is
+/// windowed by its own component against its own caret, and there is nothing here to reveal
+/// that moving the caret does not already show.
+inline std::string property_row_full(const Row& row, bool here) {
+    return property_row_prefix(row, here) + row.value();
+}
+
 inline std::string property_row_text(const Row& row, bool here, std::int64_t value_columns) {
-    std::string text = std::string(here ? ">" : " ") +
-                       detail::pad(row.label(), static_cast<std::size_t>(kPropertyLabelCols));
+    std::string text = property_row_prefix(row, here);
     if (row.editing()) {
         return text + row.editor().visible(value_columns);
     }
@@ -6710,9 +6943,16 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
     } else {
         say_omission(body.objects.before, "earlier");
         for (std::size_t n = 0; n < body.objects.count; ++n) {
-            const ui::Element& e = d.elements[body.objects.first + n];
+            const std::size_t index = body.objects.first + n;
+            const ui::Element& e = d.elements[index];
             const bool chosen = e.id == s.selected;
-            say_row(object_row_text(e, chosen, body.columns),
+            // A NAME LONGER THAN THE COLUMN MAY BE READ PAST (WUX-7). The identity keeps the
+            // row; what the pointer scrolls is the same string this row was already cutting,
+            // and the document is as `const` here as it ever was.
+            say_row(detail::reveal_shown(s.reveal, reveal_place::kInfoObject, index,
+                                         object_row_full(e, chosen),
+                                         object_row_text(e, chosen, body.columns),
+                                         body.columns),
                     chosen ? surface::role::kAccent : surface::role::kFill);
         }
         say_omission(body.objects.after, "more");
@@ -6758,7 +6998,17 @@ inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const
         } else if (!row.editable()) {
             role = surface::role::kMuted; // not the maker's to author
         }
-        say_row(property_row_text(row, here, body.value_columns), role);
+        // A RESTING VALUE LONGER THAN ITS COLUMN MAY BE READ PAST (WUX-7); a LIVE DRAFT
+        // may not, and that exclusion is the feature rather than a gap -- a draft is
+        // already windowed against its own caret, and a pointer scrolling it would be a
+        // second window over one line, fighting the one `keep_caret_visible` reconciles.
+        say_row(row.editing() ? property_row_text(row, here, body.value_columns)
+                              : detail::reveal_shown(
+                                    s.reveal, reveal_place::kInfoProperty, i,
+                                    property_row_full(row, here),
+                                    property_row_text(row, here, body.value_columns),
+                                    body.columns),
+                role);
         if (row.editing()) {
             // ONE MEASURER, TWICE OVER. The prose ROW is `prose_row_of_property` -- the same
             // function `property_at_prose_row` inverts for a press -- and the COLUMN is
@@ -7430,8 +7680,8 @@ inline ExternalBodyPlace files_body(const Session& s, const Screen& sc) {
 /// are the three things this run can say about a location without walking anything
 /// (`LocationMarks::provenance`), and they are spelled before the location so that the
 /// location keeps the room it needs rather than the room a badge left over.
-inline std::string files_header(const FilesPane& pane, const std::string& why, bool typing,
-                                std::int64_t columns) {
+inline std::string files_header_prefix(const FilesPane& pane, const std::string& why,
+                                       bool typing) {
     const std::size_t total = pane.listing.rows.size();
     std::string out = "Files";
     if (typing) {
@@ -7455,9 +7705,25 @@ inline std::string files_header(const FilesPane& pane, const std::string& why, b
         out += "  " + why;
     }
     out += "  ";
-    const std::string where = pane.current_dir.empty() ? std::string("nowhere")
-                                                       : pane.current_dir;
-    return out + detail::fit_path(where, columns - static_cast<std::int64_t>(out.size()));
+    return out;
+}
+
+/// WHERE THE BROWSER IS, AS A LOCATION -- absolute, or the one word for the absence.
+inline std::string files_location(const FilesPane& pane) {
+    return pane.current_dir.empty() ? std::string("nowhere") : pane.current_dir;
+}
+
+/// THE HEADER WITH NOTHING TAKEN OFF (WUX-7): everything the painter is holding for this row.
+inline std::string files_header_full(const FilesPane& pane, const std::string& why,
+                                     bool typing) {
+    return files_header_prefix(pane, why, typing) + files_location(pane);
+}
+
+inline std::string files_header(const FilesPane& pane, const std::string& why, bool typing,
+                                std::int64_t columns) {
+    const std::string out = files_header_prefix(pane, why, typing);
+    return out +
+           detail::fit_path(files_location(pane), columns - static_cast<std::int64_t>(out.size()));
 }
 
 /// ONE ROW'S TEXT: the name, a directory marked as one, and a name this application cannot
@@ -7477,6 +7743,12 @@ inline std::string files_row_text(const FileRow& row) {
         out += "  (name this Workshop cannot open)";
     }
     return out;
+}
+
+/// THE WHOLE ROW, CURSOR MARK INCLUDED (WUX-7) -- what the browser is holding for one listed
+/// name before the body's width has any say in it.
+inline std::string files_row_full(const FileRow& row, bool here) {
+    return std::string(here ? "> " : "  ") + files_row_text(row);
 }
 
 /// WHERE A PRESS LANDED IN THE BROWSER'S BODY -- `editor_press_at`'s shape, answering a
@@ -7541,6 +7813,148 @@ inline bool files_row_of_body_row(const FilesPane& pane, std::int64_t body_rows,
     return out < total;
 }
 
+// ---- Which revealable row the pointer is on (WUX-7) --------------------------------------
+//
+// THE POINTER'S ANSWER IS INVERTED FROM THE PAINTER'S GEOMETRY, NEVER RE-DERIVED. Every step
+// below is a function the painter itself spends: `occupied_at` for which pane owns this cell,
+// `files_body` / `info_body_place` for where that pane's prose begins and how wide it is,
+// `prose_at` for which row and column of it the hand landed on, `files_row_of_body_row` /
+// `object_at_prose_row` / `property_at_prose_row` for which ITEM that row is showing, and the
+// row builders themselves for what the item's whole text is. There is no second row
+// arithmetic here, which is HD-3's law arriving at a hover: one geometry draws a thing and
+// points at it.
+//
+// THE TOPMOST PANE DECIDES, exactly as it does for a press and a wheel. A pane behind another
+// owns none of the cells the one in front is covering, so a pointer over the overlap reveals
+// what is VISIBLE there and never what is underneath it -- the imaginary reach `occupied_at`
+// has refused since PNL-2.
+//
+// AND A ROW THAT WAS NOT CUT IS NOT A TARGET. The eligibility test is the honest one and the
+// only one this can afford to make: what the painter WOULD show at rest against what it is
+// holding. A value that fits is a value with nothing behind it, and it stays perfectly still.
+
+/// WHAT THE POINTER IS OVER, if it is over a revealable row at all.
+struct RevealAt {
+    bool present = false;
+    std::int64_t place = reveal_place::kNone;
+    std::size_t item = 0;
+    std::string text;        ///< the WHOLE row -- what the painter holds before its width
+    std::string rest;        ///< ...and what it shows when nobody is pointing
+    std::int64_t columns = 0;
+    std::int64_t column = 0; ///< where along the row's own prose the hand is
+    /// IS ANYTHING ACTUALLY HIDDEN HERE? Presentation differing from what it presents is the
+    /// whole of the question, so a fitted row, a path-fitted row and a row cut by some later
+    /// measurer all answer it the same way without this having to know which cut it.
+    bool clipped() const noexcept { return present && rest != text; }
+};
+
+inline RevealAt files_reveal_at(const Session& s, const Screen& sc, std::int64_t space,
+                                std::int64_t x, std::int64_t y) {
+    const ExternalBodyPlace body = files_body(s, sc);
+    if (!body.present) {
+        return RevealAt{};
+    }
+    const ProseAt at = prose_at(space, x, y, body.region_x, body.region_y, body.fit);
+    if (!at.understood || at.column < 0 || at.column >= body.columns) {
+        return RevealAt{};
+    }
+    const FilesPane& pane = s.panels.files;
+    if (body.header_rows > 0 && at.row >= 0 && at.row < body.header_rows) {
+        const std::string why = provenance_words(s.marks.provenance(pane.current_dir));
+        const bool typing = files_has_keyboard(s);
+        return RevealAt{true,
+                        reveal_place::kFilesLocation,
+                        0,
+                        files_header_full(pane, why, typing),
+                        detail::fit(files_header(pane, why, typing, body.columns), body.columns),
+                        body.columns,
+                        at.column};
+    }
+    if (!pane.listing.known || pane.listing.rows.empty()) {
+        return RevealAt{}; // a refusal or an emptiness is the browser's own sentence
+    }
+    std::size_t index = 0;
+    if (!files_row_of_body_row(pane, body.rows, at.row - body.header_rows, index)) {
+        return RevealAt{}; // a marker row, the padding, or no row at all
+    }
+    const std::string full = files_row_full(pane.listing.rows[index], index == pane.cursor);
+    return RevealAt{true,          reveal_place::kFilesRow, index, full,
+                    detail::fit(full, body.columns), body.columns, at.column};
+}
+
+inline RevealAt info_reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
+                               std::int64_t x, std::int64_t y) {
+    const InfoBodyAt where = info_body_at(d, s, space, x, y);
+    if (!where.present || where.at.column < 0 || where.at.column >= where.body.columns) {
+        return RevealAt{};
+    }
+    const std::size_t object = object_at_prose_row(where.body, where.at.row);
+    if (object != kNoObject && object < d.elements.size()) {
+        const ui::Element& e = d.elements[object];
+        const std::string full = object_row_full(e, e.id == s.selected);
+        return RevealAt{true,
+                        reveal_place::kInfoObject,
+                        object,
+                        full,
+                        detail::fit(full, where.body.columns),
+                        where.body.columns,
+                        where.at.column};
+    }
+    const std::size_t property = property_at_prose_row(where.body, where.at.row);
+    if (property == kNoProperty || property >= s.rows.size()) {
+        return RevealAt{};
+    }
+    const Row& row = s.rows[property];
+    if (row.editing()) {
+        return RevealAt{}; // a draft owns its own window; see `paint_info`
+    }
+    const bool here = property == s.cursor;
+    return RevealAt{true,
+                    reveal_place::kInfoProperty,
+                    property,
+                    property_row_full(row, here),
+                    property_row_text(row, here, where.body.value_columns),
+                    where.body.columns,
+                    where.at.column};
+}
+
+/// THE ONE ANSWER A MOTION SPENDS: which revealable row -- of any surface -- this position is
+/// on. The occupancy walk is asked FIRST and once, so a surface can only answer for cells it
+/// actually owns on this screen.
+inline RevealAt reveal_at(const WorkshopDoc& d, const Session& s, std::int64_t space,
+                          std::int64_t x, std::int64_t y) {
+    const Screen sc = screen_of(s);
+    const PointedAt at = canvas_point_of(space, x, y);
+    if (!at.understood) {
+        return RevealAt{};
+    }
+    const Occupancy here = occupied_at(s.panels, s.setup.active, sc, at);
+    if (!here.occupied) {
+        return RevealAt{};
+    }
+    if (here.kind == panel::kProjectFiles) {
+        return files_reveal_at(s, sc, space, x, y);
+    }
+    if (here.kind == panel::kInfo) {
+        return info_reveal_at(d, s, space, x, y);
+    }
+    return RevealAt{};
+}
+
+/// WHAT THE SESSION SHOULD HOLD FOR THIS POSITION -- the record `Revealed` keeps, or an empty
+/// one where there is nothing to read past. Pure: the weave compares it with what it already
+/// had and repaints only on a difference, so a hand moving along one row costs one repaint per
+/// column it actually changes and a hand moving over furniture costs none.
+inline Revealed reveal_for(const WorkshopDoc& d, const Session& s, std::int64_t space,
+                           std::int64_t x, std::int64_t y) {
+    const RevealAt at = reveal_at(d, s, space, x, y);
+    if (!at.clipped()) {
+        return Revealed{};
+    }
+    return Revealed{at.place, at.item, at.text,
+                    detail::reveal_offset_at_column(at.text, at.columns, at.column)};
+}
+
 /// THE PROJECT BROWSER, PAINTED: the frame, the header, and one directory's rows through
 /// the shared list window. Every branch here says something -- an absent project, a
 /// directory that would not open, and an empty directory are three different facts and a
@@ -7567,8 +7981,14 @@ inline void paint_files(surface::SurfaceLayer& layer, const Session& s, const Fi
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, body.columns), role});
     };
     if (body.header_rows > 0) {
-        say(files_header(pane, provenance_words(s.marks.provenance(pane.current_dir)),
-                         files_has_keyboard(s), body.columns),
+        // THE LOCATION IS THE ROW A POINTER MAY READ PAST (WUX-7). The full spelling is what
+        // this painter is already holding; the fitted one is the same answer it has always
+        // given; `reveal_shown` chooses between them and the choice is the pointer's.
+        const std::string why = provenance_words(s.marks.provenance(pane.current_dir));
+        const bool typing = files_has_keyboard(s);
+        say(detail::reveal_shown(s.reveal, reveal_place::kFilesLocation, 0,
+                                 files_header_full(pane, why, typing),
+                                 files_header(pane, why, typing, body.columns), body.columns),
             surface::role::kAccent);
     }
     if (!body.present) {
@@ -7597,7 +8017,9 @@ inline void paint_files(surface::SurfaceLayer& layer, const Session& s, const Fi
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == pane.cursor;
         const FileRow& row = pane.listing.rows[i];
-        say(std::string(here ? "> " : "  ") + files_row_text(row),
+        const std::string full = files_row_full(row, here);
+        say(detail::reveal_shown(s.reveal, reveal_place::kFilesRow, i, full, full,
+                                 body.columns),
             here ? surface::role::kAccent
                  : (row.openable ? surface::role::kFill : surface::role::kMuted));
     }

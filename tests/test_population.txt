@@ -836,6 +836,63 @@
 #                       Beside it: the medium's device unit reaches no durable file, and a
 #                       restore hands this run's unit back rather than resetting it.
 #
+# WUX-7 moved five floors -- component 35 -> 39, workshop_screen 190 -> 198,
+# workshop_panels 155 -> 157, workshop_files 82 -> 85, workshop_panes 226 -> 227 -- and the
+# spread is the shape of a phase that made three ordinary interactions ordinary:
+#
+#   component (4)       what a WORD is, and that there is one definition of it. The two run
+#                       scanners are swept against the two keyboard walks at every position
+#                       of a line with runs, single and double separators; the span answer is
+#                       pinned at both edges of a word, on the separator that ends one, at the
+#                       end of the text and between two separators; `select_word_at` is shown
+#                       to produce the component's ORDINARY selection (copy, replace, drag);
+#                       and `ctrl+shift+Left` and a double-click are shown to select the same
+#                       bytes because both spend the same scan.
+#   workshop_screen (7) the two temporal and geometric laws, and Arrange. Double-click
+#                       qualification stated as a pure predicate with every one of its five
+#                       conditions falsified; the Terminal line's gesture end to end, with
+#                       the interval boundary itself pinned in both directions; the revealed
+#                       row's width, marks and clamp swept over every width and offset; the
+#                       pointer column -> offset map's monotonicity and totality; the four
+#                       agreements a scrolled row needs; and the OVERLAP falsifier for
+#                       contextual Arrange -- the addressed pane rather than the topmost one
+#                       becomes selected, lifts, receives the pointer and is what the
+#                       arrangement keys move, with the authored bytes unchanged.
+#   workshop_panels (2) the second instance of one component, and the first hover consumer.
+#                       A property draft's double-click, its cross-box and cross-word
+#                       falsifiers and its modifier exemption; and an object row read past
+#                       its ellipsis -- at rest, at the far edge, on every neighbouring row,
+#                       under a pane drawn over it, and with nothing underneath it moved.
+#   workshop_files (2)  the long PATH, which is the value this canvas has cut longest. The
+#                       location row revealed inside its own rectangle and restored on
+#                       leaving; a re-measured pane; one listed name against a neighbour
+#                       that fits; the chrome and the rows past the listing; and the proof
+#                       that pointing re-enumerates nothing -- a file appearing on disk
+#                       under a resting pointer stays absent until a maker asks.
+#
+# THREE OF THEM ARE MASK-CLOSERS RATHER THAN NEW CAPABILITY, and they are worth naming
+# because each was found by a mutation the suite did NOT catch, and each turned out to pin
+# a claim an EARLIER phase had made and only three-quarters proven:
+#
+#   workshop_screen  the arrangement desk's pointer walk really does spend the effective
+#                    order (WUX-5's fourth consumer). Making it read the authored order was
+#                    green until a LIFTED pane was put under the arrangement pointer in an
+#                    overlap it does not authoredly own.
+#   workshop_files   the hover row inverse really is `files_row_of_body_row`. Replacing it
+#                    with `row N is entry N` was green until a listing was SCROLLED, which
+#                    is the only arrangement where the two numbers differ.
+#   workshop_panes   an arrow really does step the AUTHORED sub-unit value. Flooring the
+#                    proposal to the medium's own lattice was green until an off-lattice
+#                    place was nudged on a medium that cannot say it (WUX-2a/WUX-6).
+#
+# THESE ARE ALSO ALL `always`, for WUX-6's reason: a pointer position is an ARGUMENT
+# here, and what an SDL cannot be asked in a headless lane -- whether a real window reports
+# hover at all -- is a live witness rather than a case (`Zen/reportbacks/WUX-7-RB.md`).
+# NOTE: the rig now owns the monotonic reading every press is stamped with
+# (`InteractionClock`, tests/workshop_support.hpp), and its default step is past
+# `kDoubleClickMs`: a case that publishes two presses means two deliberate aims unless it
+# says otherwise, which is what every pre-WUX-7 case already meant by them.
+#
 # ALL THIRTEEN ARE IN THE `always` ROW, and the `sdl` rows did not move. Not one of them
 # needs a font engine or a window: the medium's device unit is an ARGUMENT here exactly as
 # the text metric has been since TYPE-0 -- a case says what the medium reported and reads
@@ -852,18 +909,18 @@ input                             doctest           sdl     3
 surface                           doctest           always  98
 surface                           doctest           sdl     7
 ui                                doctest           always  22
-component                         doctest           always  35
+component                         doctest           always  39
 operator                          doctest           always  103
 composer                          doctest           always  35
 builder                           doctest           always  53
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  190
-workshop_panels                   doctest           always  155
-workshop_panes                    doctest           always  226
+workshop_screen                   doctest           always  198
+workshop_panels                   doctest           always  157
+workshop_panes                    doctest           always  227
 workshop_persistence              doctest           always  129
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
-workshop_files                    doctest           always  82
+workshop_files                    doctest           always  85
 audit_probes                      doctest           always  4
 timer_raw_activation_refused      compile-negative  always  on_timed_activation
 timer_activation_hook_compiles    compile-positive  always

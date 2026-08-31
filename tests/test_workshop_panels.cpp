@@ -5992,3 +5992,205 @@ TEST_CASE("ARR-0/SC-6: every arrangement level claims the press; the menu keeps 
         }
     }
 }
+
+// ---- WUX-7: the Inspector's draft, and reading past its ellipsis ---------------------------
+
+TEST_CASE("WUX-7: a double-click in a property draft selects the word under it") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 38, 8, 18}));
+    t.begin_editing("Name");
+    while (!t.row("Name")->draft().empty()) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text("alpha beta gamma");
+    REQUIRE(t.row("Name")->draft() == "alpha beta gamma");
+    const InfoBodyPlace body = body_place(t);
+    const std::int64_t row = editing_prose_row(t, body);
+    const auto press_col = [&](std::int64_t column, std::int64_t mods = input::mod::kNone) {
+        t.press_at(value_pixel_x(body, column), value_pixel_y(body, row),
+                   input::space::kPixels, mods);
+    };
+
+    SUBCASE("the second press selects it; the first still places the caret") {
+        t.clock.together();
+        press_col(7); // inside `beta`, which begins at byte 6
+        CHECK(t.row("Name")->editor().caret() == 7);
+        CHECK_FALSE(t.row("Name")->editor().has_selection());
+        press_col(8);
+        CHECK(t.row("Name")->editor().selected_text() == "beta");
+        // ...and it is the draft's ordinary selection: typing replaces it.
+        t.text("B");
+        CHECK(t.row("Name")->draft() == "alpha B gamma");
+    }
+    SUBCASE("too slow is two presses, and a different word is two presses") {
+        t.clock.apart();
+        press_col(7);
+        press_col(8);
+        CHECK_FALSE(t.row("Name")->editor().has_selection());
+        t.clock.together();
+        press_col(7);
+        press_col(2); // inside `alpha`
+        CHECK_FALSE(t.row("Name")->editor().has_selection());
+    }
+    SUBCASE("a press in one box and a press in another are never one gesture") {
+        // ⚔ MUTATION: an arming that carries no place. The Terminal's line and this draft
+        // hold the same bytes at the same offsets, so only the identity tells them apart.
+        (void)t.mount_terminal();
+        t.clock.together();
+        t.toggle_terminal();
+        const Screen sc = screen_of(t.session());
+        const TerminalInputPlace p = terminal_input_place(sc);
+        for (const char c : std::string("alpha beta gamma")) {
+            t.text(std::string(1, c));
+        }
+        // The inverse of `terminal_input_place`'s own resolution, spelled here because the
+        // pane's press helper belongs to the suite that owns the pane.
+        t.press_at(p.region_x * surface::kCanvasCellPx + p.fit.origin_x +
+                       (kTerminalPromptCols + 7) * p.fit.advance_px + p.fit.advance_px / 2,
+                   p.region_y * surface::kCanvasCellPx + p.fit.origin_y +
+                       p.prose_row * p.fit.line_px + p.fit.line_px / 2,
+                   input::space::kPixels);
+        REQUIRE(t.session().click.place == text_drag_place::kTerminalLine);
+        t.toggle_terminal();
+        press_col(7);
+        CHECK_FALSE(t.row("Name")->editor().has_selection());
+        CHECK(t.pane().input.has_selection() == false);
+    }
+    SUBCASE("a modifier-bearing press keeps its ordinary meaning") {
+        t.clock.together();
+        press_col(7, input::mod::kCtrl);
+        press_col(8, input::mod::kCtrl);
+        CHECK_FALSE(t.row("Name")->editor().has_selection());
+        CHECK(t.row("Name")->editor().caret() == 8);
+    }
+}
+
+TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and nothing else") {
+    // A LONG NON-PATH IDENTITY -- a document object's own name, which is exactly the kind of
+    // value the OBJECTS column has always cut and never been able to show.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    const std::string name = "a-considerably-longer-object-name-than-this-column-can-hold";
+    t.begin_editing("Name");
+    while (!t.row("Name")->draft().empty()) {
+        t.key(input::scan::kBackspace);
+    }
+    t.text(name);
+    t.key(input::scan::kReturn);
+    REQUIRE(t.doc().elements.front().label == name);
+
+    const InfoBodyPlace body = body_place(t);
+    REQUIRE(body.present);
+    const std::int64_t first_row = prose_row_of_object(body, 0);
+    REQUIRE(first_row != kNoProseRow);
+    const std::string full = object_row_full(t.doc().elements.front(),
+                                             t.doc().elements.front().id == t.session().selected);
+    REQUIRE(full.size() > static_cast<std::size_t>(body.columns)); // it really is cut
+    const auto row_text = [&](std::int64_t n) {
+        return object_row(t.canvases.back(), t.doc(), t.session(), n);
+    };
+    const auto hover = [&](std::int64_t prose_row, std::int64_t column) {
+        t.motion_canvas(body.region_x + column,
+                        body.region_y + kInfoHeadingRows + prose_row);
+    };
+    const std::string at_rest = row_text(first_row);
+    REQUIRE(at_rest.find(detail::kElided) != std::string::npos);
+
+    SUBCASE("the left edge is the row a maker was already looking at") {
+        // ⚔ MUTATION: an offset that does not start at zero -- the row would jump the
+        // instant a pointer touched it.
+        hover(first_row, 0);
+        CHECK(row_text(first_row) == at_rest);
+        CHECK(t.session().reveal.present());
+        CHECK(t.session().reveal.offset == 0);
+    }
+    SUBCASE("the right edge shows the end of the name, inside the same row") {
+        hover(first_row, body.columns - 1);
+        const std::string revealed = row_text(first_row);
+        CHECK(revealed != at_rest);
+        CHECK(revealed.rfind(detail::kElided, 0) == 0); // marked where the head went
+        CHECK(revealed.find("column-can-hold") != std::string::npos);
+        CHECK(static_cast<std::int64_t>(revealed.size()) <= body.columns);
+        // ...AND NOTHING UNDERNEATH IT MOVED: not the value, not the geometry, not the desk.
+        CHECK(t.doc().elements.front().label == name);
+        CHECK(body_place(t).region_x == body.region_x);
+        CHECK(body_place(t).columns == body.columns);
+    }
+    SUBCASE("leaving the row puts the ordinary presentation back") {
+        hover(first_row, body.columns - 1);
+        REQUIRE(row_text(first_row) != at_rest);
+        t.motion_canvas(kWorkspaceX + 2, kWorkspaceY + 2);
+        CHECK_FALSE(t.session().reveal.present());
+        CHECK(row_text(first_row) == at_rest);
+    }
+    SUBCASE("a row that fits does not move, however long the pointer rests on it") {
+        // ⚔ MUTATION: revealing on length rather than on what the projection omitted.
+        t.key(input::scan::kN); // a second object, called `panel` -- comfortably short
+        const InfoBodyPlace now = body_place(t);
+        const std::int64_t second = prose_row_of_object(now, 1);
+        REQUIRE(second != kNoProseRow);
+        const std::string short_row = object_row(t.canvases.back(), t.doc(), t.session(), second);
+        REQUIRE(short_row.find(detail::kElided) == std::string::npos);
+        for (std::int64_t column = 0; column < now.columns; ++column) {
+            t.motion_canvas(now.region_x + column,
+                            now.region_y + kInfoHeadingRows + second);
+            CAPTURE(column);
+            CHECK(object_row(t.canvases.back(), t.doc(), t.session(), second) == short_row);
+            CHECK_FALSE(t.session().reveal.present());
+        }
+    }
+    SUBCASE("the neighbouring rows, the heading and the blank body are not this row") {
+        // ⚔ MUTATION: approximate row arithmetic. Every prose row of the body except the
+        // one showing this object is swept, and none of them may reveal it.
+        const InfoBodyPlace now = body_place(t);
+        for (std::int64_t row = -kInfoHeadingRows; row < static_cast<std::int64_t>(now.capacity);
+             ++row) {
+            if (row == first_row) {
+                continue;
+            }
+            CAPTURE(row);
+            hover(row, now.columns - 1);
+            CHECK(row_text(first_row) == at_rest);
+            CHECK(t.session().reveal.place != reveal_place::kInfoObject);
+        }
+    }
+    SUBCASE("a pane drawn OVER the panel owns those cells, and the row underneath is still") {
+        // ⚔ MUTATION: resolving the hover from the panel's own bounds without asking the
+        // occupancy walk first -- a maker pointing at the Builder would scroll a row
+        // underneath it that they cannot even see.
+        open_pane(t, ref_of(panel::kBuilder));
+        const Screen sc = screen_of(t.session());
+        const ui::Rect side = cells_covered(
+            bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
+        REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                                  surface::subs_of_cells(side.x),
+                                  surface::subs_of_cells(side.y))
+                    .accepted);
+        t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+        const InfoBodyPlace covered = body_place(t);
+        const std::int64_t row = prose_row_of_object(covered, 0);
+        REQUIRE(row != kNoProseRow);
+        const std::int64_t cx = covered.region_x + covered.columns - 1;
+        const std::int64_t cy = covered.region_y + kInfoHeadingRows + row;
+        REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
+                            cx, cy)
+                    .kind == panel::kBuilder);
+        t.motion_canvas(cx, cy);
+        CHECK(t.session().reveal.place != reveal_place::kInfoObject);
+    }
+    SUBCASE("hover is never authorship: no press, no draft, no rebuild, no notice") {
+        const std::string said = t.notice();
+        const std::string desk = setup_persist::to_text(t.session().setup.active);
+        const std::size_t cursor = t.session().cursor;
+        const std::int64_t chosen = t.session().selected;
+        for (std::int64_t column = 0; column < body.columns; ++column) {
+            hover(first_row, column);
+        }
+        CHECK(t.notice() == said);
+        CHECK(setup_persist::to_text(t.session().setup.active) == desk);
+        CHECK(t.session().cursor == cursor);
+        CHECK(t.session().selected == chosen);
+        CHECK(t.doc().elements.front().label == name);
+        CHECK_FALSE(t.row("Name")->editing());
+    }
+}

@@ -455,6 +455,11 @@ public:
         }
     }
 
+    /// SELECT THE WORD A POINTER LANDED IN — `place`'s other answer to one press (WUX-7),
+    /// forwarded under the same guard: a row nobody opened has no word to select. The bool
+    /// is the component's own — false where the position was in no word at all.
+    bool select_word_at(std::size_t at) { return editing_ && draft_.select_word_at(at); }
+
     /// EXTEND THE SELECTION TO THE COLUMN A DRAG REACHED — `place`'s other half, forwarded
     /// under the same guard (TEXT-0). The column is of the VALUE's visible slice, resolved
     /// by whoever knows where this row's editable region is.

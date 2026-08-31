@@ -98,6 +98,7 @@
 
 #include "persist.hpp"
 #include "filesystem_roots.hpp" // which roots this system reports, asked at the gesture
+#include "interaction_time.hpp" // what monotonic time it is, and nothing else (WUX-7)
 #include "keymap_persist.hpp"
 #include "marks_persist.hpp"    // the places a maker said they want back
 #include "prefs_persist.hpp"
@@ -202,6 +203,22 @@ struct HostContext {
     /// holder of this function can do starts a build, performs a row, or moves the
     /// frontier by so much as an ask.
     std::function<ProjectFrontier()> frontier;
+
+    /// WHAT MONOTONIC TIME IT IS, ANSWERED BY THE HOST (WUX-7) -- `frontier`'s seam exactly:
+    /// a READING wired by whoever owns the process, spent at the gesture, stored nowhere, and
+    /// carrying no power at all. Nothing a holder of this function can do schedules anything,
+    /// wakes anything, or makes this application repaint.
+    ///
+    /// EMPTY IS ORDINARY and means `interaction_now_ms()` -- the steady-clock reading in
+    /// `workshop/interaction_time.hpp`. The host wires nothing; a SUITE wires a stepped
+    /// counter, which is what turns "two clicks too far apart" from a thing a case must
+    /// outrun into a thing a case can simply state.
+    ///
+    /// ONE QUESTION AND ONE CONSUMER. Double-click qualification is the only interaction in
+    /// this application that is temporal, and hover reveal deliberately is not (WUX-7): its
+    /// offset comes from where the pointer is, because a timed presentation would need a
+    /// repaint nothing here would ever publish.
+    std::function<std::int64_t()> interaction_now;
 
     /// WHAT THE AUTHORED RECIPE CATALOG SAYS ABOUT ONE RECIPE'S SOURCE, answered by the
     /// HOST -- the party that read the recipes file and holds the completed catalog the
@@ -1703,7 +1720,7 @@ public:
             // of. That argument never depended on the caret MOVING -- a maker who presses
             // where the caret already is has aimed at the draft and hit it, and the caret is
             // still the answer (QR-2).
-            if (info_press(where)) {
+            if (info_press(where, b.modifiers)) {
                 repaint(mail);
                 return;
             }
@@ -1839,6 +1856,33 @@ public:
     /// same rule that keeps the vacated Info column empty (screen.hpp). The
     /// object goes where the hand puts it, and the panel goes on covering it.
     void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+        // ---- READING PAST AN ELLIPSIS (WUX-7), BEFORE ANYTHING ELSE THIS MOTION MEANS ----
+        //
+        // IT IS A POINTING AND NOT A GESTURE, which is why it is resolved here rather than in
+        // one of the branches below: nothing is held, nothing is claimed, and the answer is a
+        // pure function of where the pointer is right now (`reveal_for`) compared with what
+        // the session was already showing. A motion that changes neither costs no repaint,
+        // which is what keeps a hand crossing the screen from republishing the canvas.
+        //
+        // A MODE THAT OWNS THE POINTER OWNS THIS TOO. While the Terminal, an arrangement
+        // scope or the contextual surface is open, a motion is theirs -- and so is the
+        // absence of a reveal, because a row a maker cannot point at is not a row they are
+        // pointing at.
+        //
+        // AND A HELD GESTURE IS NOT A HOVER. A hand sweeping a selection, moving an object or
+        // sizing a pane is doing something with the pointer; scrolling a row underneath it
+        // would be a second meaning for one motion.
+        const bool pointer_is_spent = session_.terminal.open || session_.arrange.open ||
+                                      session_.context.open || session_.hotkeys.open ||
+                                      session_.attention.open || session_.text_drag.active ||
+                                      session_.drag.active || session_.pane_drag.active;
+        const Revealed want =
+            pointer_is_spent ? Revealed{}
+                             : reveal_for(state_, session_, m.space, m.x, m.y);
+        if (!want.same_as(session_.reveal)) {
+            session_.reveal = want;
+            repaint(mail);
+        }
         if (session_.terminal.open) {
             // THE OVERLAY HAS THE INPUT, and since TEXT-0 one motion matters inside it: a
             // selection drag the mode's own press began on its editable line. The geometry
@@ -2669,7 +2713,66 @@ private:
     /// by the panel with `Info is here -- nothing under it can be taken hold of`, over a
     /// notice the maker was still reading. A press that reached the layer that owns what it
     /// means is that layer's, whether or not anything moved.
-    bool info_press(const InfoBodyAt& where) {
+    /// IS THIS PRESS THE SECOND HALF OF A DOUBLE-CLICK, AND IF SO SELECT THE WORD (WUX-7).
+    ///
+    /// ONE SEAM FOR BOTH EDITABLE LINES, and that is the whole reason it is a function: the
+    /// Terminal's command line and the Inspector's live draft are two instances of one
+    /// component, so a maker's hand must mean the same thing in both. Nothing platform-
+    /// specific reaches here -- neither backend can say a click count on `PointerButton`, and
+    /// inventing one per medium would make a TUI and an SDL Workshop disagree about a
+    /// component's own grammar.
+    ///
+    /// IT ARMS ON THE WAY OUT, ALWAYS, AND THAT IS WHAT MAKES A FIRST PRESS A FIRST PRESS.
+    /// The record it writes is read only by a LATER press, so the click that merely pointed
+    /// the keyboard at a pane, opened the draft, or landed in a word for the first time is an
+    /// ordinary click with an arming beside it, and can never be counted as its own second
+    /// half.
+    ///
+    /// A MODIFIER-BEARING PRESS IS NOT AN ORDINARY CLICK. It neither doubles nor arms, and
+    /// its ordinary behaviour is left exactly where it was -- this path consumes nothing it
+    /// did not already own, which is what keeps a future shift-click free to mean something
+    /// without first having to be rescued from here.
+    bool press_selects_word(std::int64_t modifiers, std::int64_t place,
+                            component::TextBox& box, std::size_t at) {
+        if (modifiers != zengine::input::mod::kNone) {
+            session_.click = ClickMemory{};
+            return false;
+        }
+        const component::WordSpan word = box.word_at(at);
+        const std::uint64_t epoch = box.draft_epoch();
+        const std::int64_t now = interaction_now();
+        if (doubles_a_click(session_.click, place, epoch, word, now)) {
+            // AND THE ARMING IS SPENT. A third press in the same place is an ordinary press
+            // again: there is no triple-click in this application, and an arming that
+            // survived its own gesture would make every press after a double-click select
+            // the word once more.
+            session_.click = ClickMemory{};
+            return box.select_word_at(at);
+        }
+        session_.click = click_landed(place, epoch, word, now);
+        return false;
+    }
+
+    /// The same question for a property row, which keeps its draft behind its own invariant
+    /// -- so the mutation goes through `Row`'s door and the reading through `editor()`.
+    bool press_selects_word(std::int64_t modifiers, Row& row, std::size_t at) {
+        if (modifiers != zengine::input::mod::kNone) {
+            session_.click = ClickMemory{};
+            return false;
+        }
+        const component::WordSpan word = row.editor().word_at(at);
+        const std::uint64_t epoch = row.editor().draft_epoch();
+        const std::int64_t now = interaction_now();
+        if (doubles_a_click(session_.click, text_drag_place::kPropertyDraft, epoch, word,
+                            now)) {
+            session_.click = ClickMemory{};
+            return row.select_word_at(at);
+        }
+        session_.click = click_landed(text_drag_place::kPropertyDraft, epoch, word, now);
+        return false;
+    }
+
+    bool info_press(const InfoBodyAt& where, std::int64_t modifiers) {
         if (!where.present) {
             return false;
         }
@@ -2694,7 +2797,14 @@ private:
             // the value's column is that minus what the name spent. `property_value_column`
             // is the one subtraction and it is the inverse of the one
             // `property_caret_column` added.
-            row.place(row.editor().position_at_column(property_value_column(where.at.column)));
+            const std::size_t target =
+                row.editor().position_at_column(property_value_column(where.at.column));
+            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT (WUX-7). The first press is
+            // still an ordinary press and still places the caret; only the second one means
+            // something else, and it means it in the component's own word vocabulary.
+            if (!press_selects_word(modifiers, row, target)) {
+                row.place(target);
+            }
             // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0). The press placed the caret,
             // which is the anchor; every motion until release extends from it. The record
             // holds WHICH line and nothing else — the geometry is re-resolved per motion by
@@ -3006,16 +3116,27 @@ private:
             // leaving it out is right for exactly as long as no line is long enough to
             // scroll. The offset read here is the one the last repaint resolved, which is
             // the one the maker is looking at.
-            pane.input.place(terminal_caret_of_column(place, pane.input, at.column));
+            const std::size_t target = terminal_caret_of_column(place, pane.input, at.column);
+            // ...AND A SECOND PRESS IN THE SAME WORD SELECTS IT (WUX-7), `info_press`'s twin
+            // over the other instance of one component: the first press still places the
+            // caret and still means exactly what it always did.
+            const bool word = press_selects_word(b.modifiers, text_drag_place::kTerminalLine,
+                                                 pane.input, target);
+            if (!word) {
+                pane.input.place(target);
+            }
             // ...AND THE PRESS OPENS A SELECTION DRAG (TEXT-0), `info_press`'s twin: the
-            // caret just placed is the anchor, and motion until release extends from it.
+            // caret just placed is the anchor, and motion until release extends from it. A
+            // press that selected a WORD opens one too -- the anchor is the word's start, so
+            // dragging from it extends the selection rather than replacing it, which is what
+            // the component's own anchor/caret split already meant.
             session_.text_drag.active = true;
             session_.text_drag.place = text_drag_place::kTerminalLine;
             // The caret moving is what changes whether completion may be asked, so a press
             // that moved it has to reach `refresh_terminal` exactly as a caret key does. A
             // press that COLLAPSED a selection changed the picture too, even where the
             // caret stood still — the highlight has to leave the screen (TEXT-0).
-            if (pane.input.caret() != was || had_selection) {
+            if (word || pane.input.caret() != was || had_selection) {
                 refresh_terminal();
                 return true;
             }
@@ -4078,6 +4199,35 @@ private:
         if (!ready.accepted) {
             say(ready.refusal, true);
             return;
+        }
+        // ARRANGING A PANE IS CHOOSING IT (WUX-7), AND IT SPENDS THE SELECTION THAT ALREADY
+        // EXISTS. A maker who says "arrange this one" has identified the thing they are
+        // working with as surely as a press into it does, so the same `Panels::selected`
+        // truth an ordinary press writes is written here -- and everything WUX-5 derives
+        // from that truth follows with nothing added: the selected chrome, the temporary
+        // foreground lift in `effective_pane_order`, the paint order, the hit order. There
+        // is no arrangement-specific z-order, no second foreground fact and no `front` rank
+        // touched; `manage.front` is still the only way to say "and I mean this
+        // permanently", and a save straight after this writes the desk it always would.
+        //
+        // AFTER ADMISSION, NEVER BEFORE. A pane that cannot be arranged leaves the maker
+        // exactly where they were (CTX-0's rule for this door), and that has to include the
+        // selection: a refusal that had silently re-selected something would have moved the
+        // desk while saying it changed nothing.
+        //
+        // THE KEYBOARD CANDIDATE IS NOT TOUCHED, and the two are deliberately not collapsed
+        // merely because they happen together. Arrangement is a keyboard CONTEXT of its own
+        // (`KeyContext::kArrangePane`), sitting above any pane's claim on the keys; where
+        // those keys go when the maker LEAVES is a separate fact with a separate owner, and
+        // an entrance that quietly re-pointed it would hand the keyboard somewhere new for
+        // reasons the maker never stated.
+        //
+        // ...AND THE RESOLUTION IS FRESH, `bounds_of`'s discipline: admission proved this
+        // reference names a pane a moment ago, and asking again is cheaper than carrying an
+        // answer that could have been a different pane's.
+        const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
+        if (kind.has_value()) {
+            session_.panels.selected = *kind;
         }
         PaneArrange& a = session_.arrange;
         a.open = true;
@@ -6451,6 +6601,13 @@ private:
     /// Builder panel exactly as every pre-BLD-2 case knew it.
     ProjectFrontier frontier_now() const {
         return host_->frontier ? host_->frontier() : ProjectFrontier{};
+    }
+
+    /// WHAT MONOTONIC TIME IT IS -- `frontier_now`'s shape, for the one temporal gesture this
+    /// application has (WUX-7). The host's reading if it wired one, the steady clock if not,
+    /// and the answer is spent immediately by the caller that asked; nothing stores it.
+    std::int64_t interaction_now() const {
+        return host_->interaction_now ? host_->interaction_now() : interaction_now_ms();
     }
 
     void repaint(loom::Mail& mail) {

@@ -1382,3 +1382,137 @@ TEST_CASE("KEY-0: the editing vocabulary's declaration rows and consume() agree,
         }
     }
 }
+
+TEST_CASE("WUX-7: one run definition, and the keyboard's two answers are composed from it") {
+    // ⚔ MUTATION: giving `word_at` a definition of its own -- an identifier class, a
+    // punctuation class, a "select to the next boundary" rule. The sweep below is what
+    // makes that visible: every position of a line with runs, single spaces, a double
+    // space and a leading space is asked all three questions, and each keyboard answer is
+    // re-derived from the run scanners the pointer's answer uses. A second definition
+    // makes one of these disagree at some position, and the CAPTURE names which.
+    const std::string line = " ab  cde f";
+    for (std::size_t at = 0; at <= line.size(); ++at) {
+        CAPTURE(at);
+        // `word_before` IS "skip separators back, then take the run".
+        std::size_t back = at;
+        while (back > 0 && line[back - 1] == ' ') {
+            --back;
+        }
+        CHECK(word_before(line, at) == word_run_begin(line, back));
+        // ...and `word_after` IS "take the run forward, then skip separators".
+        std::size_t fore = word_run_end(line, at);
+        while (fore < line.size() && line[fore] == ' ') {
+            ++fore;
+        }
+        CHECK(word_after(line, at) == fore);
+        // ...and the SPAN is the two scans meeting at the position, so it never crosses a
+        // separator and its ends are always run edges.
+        const WordSpan span = word_at(line, at);
+        CHECK(span.begin == word_run_begin(line, at));
+        CHECK(span.end == word_run_end(line, at));
+        CHECK(span.begin <= span.end);
+        for (std::size_t b = span.begin; b < span.end; ++b) {
+            CHECK(line[b] != ' ');
+        }
+    }
+}
+
+TEST_CASE("WUX-7: the word at a position, including at both of its edges") {
+    const std::string line = "hello world";
+    const auto word = [&line](std::size_t at) {
+        const WordSpan s = word_at(line, at);
+        return line.substr(s.begin, s.end - s.begin);
+    };
+    CHECK(word(0) == "hello");  // the first byte of a word
+    CHECK(word(2) == "hello");  // inside it
+    CHECK(word(4) == "hello");  // its last byte
+    CHECK(word(5) == "hello");  // the separator that ENDS it -- where a press past it lands
+    CHECK(word(6) == "world");  // the first byte of the next
+    CHECK(word(11) == "world"); // the end of the whole text
+    CHECK(word(99) == "world"); // ...clamped, and still the same word
+
+    // A POSITION WITH A SEPARATOR ON BOTH SIDES IS IN NO WORD, and says so rather than
+    // inventing the nearest one. ⚔ MUTATION: falling back to `word_before` here, which
+    // would make a double-click in blank space select whatever preceded it.
+    const std::string gapped = "a  b";
+    CHECK_FALSE(word_at(gapped, 2).present());
+    CHECK(word_at(gapped, 1).present()); // the separator ending `a` still belongs to `a`
+    CHECK(word_at(gapped, 3).present()); // ...and the one before `b` belongs to `b`
+    CHECK_FALSE(word_at("", 0).present());
+    CHECK_FALSE(word_at("   ", 1).present());
+
+    // PUNCTUATION IS A WORD BYTE, because the one separator is the space -- the shell's
+    // word this component has always had, not an editor's.
+    const std::string punctuated = "a/b.c-d one";
+    const WordSpan first = word_at(punctuated, 3);
+    CHECK(punctuated.substr(first.begin, first.end - first.begin) == "a/b.c-d");
+}
+
+TEST_CASE("WUX-7: select_word_at opens the selection across the word a press landed in") {
+    TextBox box;
+    box.set("hello world again", 40);
+    box.place(0);
+
+    CHECK(box.select_word_at(8));
+    CHECK(box.selected_text() == "world");
+    // THE ANCHOR IS THE START AND THE CARET THE END -- so the next keystroke replaces the
+    // word and a shift-gesture extends from the far side, which is `select_all`'s choice.
+    CHECK(box.anchor() == 6);
+    CHECK(box.caret() == 11);
+    CHECK(box.has_selection());
+
+    // ...AND IT IS AN ORDINARY SELECTION, which is the claim that matters: the component's
+    // own operations act on it with nothing taught about where it came from.
+    Clipboard clip;
+    REQUIRE(box.consume(key::kC, mod::kCtrl, clip));
+    CHECK(clip.text == "world");
+    box.type("W");
+    CHECK(box.text() == "hello W again");
+
+    // A PRESS IN NO WORD PLACES THE CARET AND SELECTS NOTHING -- `place`, exactly.
+    TextBox gap;
+    gap.set("a  b", 40);
+    gap.select_word_at(0);
+    REQUIRE(gap.has_selection());
+    CHECK_FALSE(gap.select_word_at(2));
+    CHECK_FALSE(gap.has_selection());
+    CHECK(gap.caret() == 2);
+
+    // EVERY INVARIANT THIS CLASS KEEPS SURVIVES IT, including on a windowed line: the word
+    // selected is at the end of a line far longer than the row, so the window has to move.
+    TextBox windowed;
+    windowed.set(std::string(60, 'x') + " tail", 10);
+    REQUIRE(windowed.select_word_at(63));
+    CHECK(windowed.selected_text() == "tail");
+    windowed.keep_caret_visible(10);
+    CHECK(windowed.first_visible() <= windowed.caret());
+    CHECK(windowed.caret() <= windowed.size());
+}
+
+TEST_CASE("WUX-7: pointer and keyboard agree about which bytes are one word") {
+    // THE PROPERTY THE EXTRACTION EXISTS FOR. `ctrl+shift+Left` from the end of a word
+    // selects exactly what a double-click on that word selects -- not because the two
+    // paths were written to match, but because both are the same two run scanners.
+    // ⚔ MUTATION: re-spelling either walk inline.
+    TextBox keys;
+    TextBox pointer;
+    const std::string line = "alpha beta gamma";
+    keys.set(line, 40);
+    pointer.set(line, 40);
+    Clipboard clip;
+
+    keys.place(10); // the end of `beta`
+    REQUIRE(keys.consume(key::kLeft, mod::kCtrl | mod::kShift, clip));
+    REQUIRE(pointer.select_word_at(8));
+    CHECK(keys.selected_text() == "beta");
+    CHECK(keys.selected_text() == pointer.selected_text());
+    CHECK(keys.selection_begin() == pointer.selection_begin());
+    CHECK(keys.selection_end() == pointer.selection_end());
+
+    // ...and word DELETION removes the same bytes a double-click would have selected.
+    TextBox erasing;
+    erasing.set(line, 40);
+    erasing.place(10);
+    REQUIRE(erasing.consume(key::kBackspace, mod::kCtrl, clip));
+    CHECK(erasing.text() == "alpha  gamma");
+}

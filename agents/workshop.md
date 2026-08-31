@@ -404,6 +404,16 @@ authored/persisted pane order  +  the current selected-pane lift
   in the document, not persisted, not restored, and `kNoPaneKind` is where every session
   starts. The Builder's edit-source door is its second writer, for the keyboard candidate's
   own reason.
+- **ARRANGING A PANE IS CHOOSING IT, AND IT IS THE THIRD WRITER (WUX-7).**
+  `enter_arrange_pane` sets `Panels::selected` from the ADDRESSED reference — after admission,
+  never before, so a refusal still leaves the maker exactly where they were — and everything
+  else follows from the fact that already existed: selected chrome, the lift in
+  `effective_pane_order`, paint order, hit order. No `front` rank is touched, no
+  arrangement-specific z-order exists, and there is no second foreground fact to keep true. It
+  writes `Panels::selected` ALONE: where the keys go when the scope closes is a separate fact
+  with a separate owner, and the two are not collapsed merely because they happen together.
+  The contextual door spends the CAPTURED subject (`spend_context_choice`), so the pane that
+  lifts is the pane the maker pointed at rather than whichever was topmost when they chose.
 - **`effective_pane_order` (setup.hpp) IS THE ONE ANSWER**, and every consumer whose meaning
   is literally foreground order spends it: `paint_panels` ascending, `occupied_at` descending,
   `pane_is_covered`, and the arrangement desk's pointer walk. They cannot disagree because
@@ -597,6 +607,17 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   suite, so a consumer's contextual help can SHOW the vocabulary without re-spelling it. The
   rows carry no context, no command id and no remappability — the component still knows
   nothing of Workshop, and these gestures' executable truth remains `consume` alone.
+- **A WORD HAS ONE DEFINITION AND THREE COMPOSITIONS (WUX-7).** `word_run_begin` /
+  `word_run_end` are the maximal non-space run read backwards and forwards from a position;
+  `word_before`/`word_after` add the separator walk a KEYBOARD gesture means, and
+  `word_at(line, at)` is the two scans meeting at one position, which is what a POINTER means.
+  A position with a separator on both sides is in no word (`WordSpan::present()` is false) and
+  nothing invents the nearest one; a position on either EDGE of a run belongs to that run,
+  which falls out of the two scans rather than being a case. `TextBox::select_word_at` is
+  `place`'s other answer to one press — anchor at the start, caret at the end, `select_all`'s
+  choice — and a position in no word places the caret and selects nothing. **The component
+  still knows nothing about clicks:** whether two presses are one gesture is the consumer's,
+  and this class gained a span and an operation and no timing at all.
 - **The character helpers live with it**, and since TEXT-0 the word helpers too
   (`word_before`/`word_after` — space-delimited runs, deliberately a shell's word and not an
   editor's) and `pasteable_line` (what foreign clipboard bytes become in a one-line box: CRLF
@@ -612,6 +633,91 @@ what a consumer owns         the capacity (an ARGUMENT), where its prose begins,
   its caret. Selection, clipboard and undo arrived in TEXT-0 because with four consumers the
   ordinary expectations had stopped being per-consumer projects; a fifth absence a competent
   user would trip on gets the same test, not a reflex extraction.
+
+## Two presses are one gesture, and time is an argument (WUX-7)
+
+`input::PointerButton` carries no click count and no timestamp on either backend, so a
+double-click is Workshop's own interpretation and not a platform's — which is what keeps a TUI
+and an SDL Workshop agreeing about a component's grammar.
+
+```text
+HostContext::interaction_now   a READING the host may wire (`frontier`'s seam). Empty means
+                               `interaction_now_ms()` -- steady_clock, monotonic, no calendar,
+                               never persisted, never on a wire. It owns "what time is it now"
+                               and no policy at all (workshop/interaction_time.hpp).
+Session::click                 what the LAST press on an editable line named: which line
+                               (`text_drag_place`), which draft of it (`draft_epoch`), which
+                               WORD, and when. No column, no row, no rectangle.
+doubles_a_click(...)           pure, total, one place: armed + same line + same draft + same
+                               word + within kDoubleClickMs (400).
+```
+
+- **ONE SEAM, BOTH EDITABLE LINES.** `press_selects_word` is spent by `terminal_press` and by
+  `info_press`, because the Terminal's command line and the Inspector's live draft are two
+  instances of one component and a maker's hand must mean the same thing in both. The Editor
+  keeps its own multiline machinery (EDIT-0) and is deliberately not taught this; the
+  Composer's fields are a provider's, and the pane protocol was not widened.
+- **IT ARMS ON THE WAY OUT, ALWAYS.** The record is read only by a LATER press, so the click
+  that pointed the keyboard at a pane, opened the draft, or landed in a word for the first time
+  is an ordinary press with an arming beside it and can never be counted as its own second half.
+  The completing press SPENDS the arming, which is why there is no triple-click.
+- **A MODIFIER-BEARING PRESS NEITHER DOUBLES NOR ARMS**, and its ordinary behaviour is
+  untouched — this path consumes nothing it did not already own.
+- **THE INTERVAL IS A PRODUCT CONSTANT, NOT A PREFERENCE.** `kDoubleClickMs` is not read from
+  a file, not asked of a desktop and not persisted. A per-platform answer would make one
+  gesture mean two things depending on which medium a maker opened.
+- **TIME IS AN ARGUMENT TO THE PREDICATE**, which is what makes every condition falsifiable by
+  a case rather than by a stopwatch. `tests/workshop_support.hpp`'s `InteractionClock` is what
+  the rigs wire, and its default step is past the interval — so a case's two presses are two
+  deliberate aims unless it says `clock.together()`.
+
+## A fitted row may be read past, and only under the pointer (WUX-7)
+
+`fit`/`fit_path` bound a line and mark the cut; this is the other half — the maker POINTS at
+the row and the same row shows a different part of the same string for as long as they do.
+
+```text
+Revealed (Session::reveal)   place + item + the WHOLE row as the painter held it + a byte
+                             offset. Presentation only: no file, no setup, no document, no
+                             provider, no value, and nothing durable anywhere.
+detail::reveal_shown(...)    the painter's one call. Four things must agree -- surface, item,
+                             a non-zero offset, and the STRING -- or the row's own resting
+                             answer comes back. The guard IS the reset; there is no clearing
+                             path anywhere (`bounds_of`'s discipline, spent on presentation).
+reveal_at / reveal_for       the pointer's inverse: `occupied_at` first, then the SAME body
+                             resolution, `prose_at`, and the same row->item inverses the
+                             press path spends (`files_row_of_body_row`,
+                             `object_at_prose_row`, `property_at_prose_row`).
+```
+
+- **THE ITEM IS THE IDENTITY, NEVER THE PROSE ROW.** A row moves with the window, the cursor
+  and the pane's height; the item does not. A reveal bound to a row would follow the row onto
+  whatever scrolled into it, which is exactly the neighbouring-row defect.
+- **ELIGIBILITY IS `rest != full`** — what the painter WOULD show against what it is holding.
+  A value that fits is perfectly still, and a provider's already-shortened text cannot be
+  recovered: the external pane protocol was not widened to ask for a longer one.
+- **THE POINTER'S COLUMN IS THE OFFSET, and that is the frame loop's honest answer.** A timed
+  marquee needs a repaint with no event behind it, and this application publishes a canvas only
+  when it has been told something — no beat reaches Workshop, and asking the Timer service for
+  one would be Loom participation for a presentation. So the ROW is its own scrub track: the
+  left edge is the value's start byte-for-byte, the right edge is its end, everything between
+  is proportional, and moving back reverses it.
+- **THE HEAD IS MARKED THE WAY THE TAIL IS**, so a still photograph of a revealed row never
+  reads as a complete value, and `revealed_row` clamps the offset itself — "a value that fits
+  never moves" is a property of the projection rather than of whoever computed the offset.
+- **A MODE OR A HELD GESTURE OWNS THE POINTER AND THIS DOES NOT.** The Terminal, an arrangement
+  scope, the contextual surface, a text drag, a document drag and a pane drag each mean the
+  motion is theirs; the reveal is empty for all of them.
+- **THE FIRST CONSUMER SET IS FOUR ROWS**: the Files pane's location header and its listed
+  names, and the Info panel's object rows and RESTING property rows (a live draft is windowed
+  against its own caret and is excluded — a pointer scrolling it would be a second window over
+  one line). Adding a fifth is one `reveal_shown` call at the painter and one arm in the
+  resolver; it is not a registry and must not become one.
+- **⚠ THE TERMINAL CANNOT REPORT A HOVER.** `kTuiPointerOn` asks for `1002` — button-event
+  tracking, which is press, release and drag — so an idle pointer reaches nobody there. That
+  is a medium fact and it is documented as one
+  ([`docs/workshop/limitations.md`](../docs/workshop/limitations.md)); do not repair it by
+  moving the terminal to `1003` without pricing every idle motion in every session.
 
 ## The source editor: one document, session-owned, presented by a pane (EDIT-0)
 
@@ -1314,10 +1420,11 @@ bound the whole surface:
 ```text
 POINTING NAMES A SUBJECT FOR ONE REQUEST.    Opening captures a temporary subject and
 SELECTION IS A STATE A MAKER ENTERED.        changes no selection, no keyboard candidate,
-                                             no focus. Arrange is the one exception and
-                                             binds only AFTER its explicit target passes
-                                             admission (`enter_arrange_pane` -> the target-
-                                             taking `arrange_geometry_ready`).
+                                             no focus. Arrange is the one exception -- it
+                                             binds the scope AND selects the subject
+                                             (WUX-7) -- and only AFTER its explicit target
+                                             passes admission (`enter_arrange_pane` -> the
+                                             target-taking `arrange_geometry_ready`).
 OPEN REMEMBERS AN IDENTITY.                  `ContextMenu` holds a `PaneRef`, an object id,
 SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, row or handle.
                                              The owner answers absence in its own words; a

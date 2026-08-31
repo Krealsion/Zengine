@@ -57,6 +57,13 @@ moves it, dragging a handle resizes it, and the arrow keys do the same one cell 
 Clicking anywhere else changes nothing and reminds you which pane you are arranging.
 `Esc` or a right-click leaves.
 
+Choosing `arrange` also **selects** that pane, which is the same selection a press into it
+makes — so a pane you arrange comes forward while you work on it, wears the selected border,
+and is what your pointer reaches in an overlap. That works even when the pane you chose was
+behind another one: the menu acts on the pane you pointed at, not on whatever happens to be
+on top when you choose. Nothing is written down by any of it; see
+[what "front" means](#what-front-means).
+
 **Arrange the desk**: press **`w`** — the band's legend advertises it as `w arrange desk`,
 and the full hotkey view lists it. Every arrangeable pane wears its handles; drag any
 pane's body or edges directly. No pane is "selected" when the scope opens and none has to
@@ -122,14 +129,33 @@ position to open beside, it opens at the panel column's corner.
 **Pointing is not selecting.** Opening the menu on a pane or an object changes no
 selection and moves no keyboard focus — the menu holds the pointed thing only for the one
 action you choose. `arrange` is the deliberate exception: choosing it begins arranging
-**that pane**, because arranging is an ongoing state, and only after the pane passes the
-same checks every arranging road applies.
+**that pane** *and* selects it, because arranging is an ongoing state and the pane you are
+arranging is the one you are working with — and only after the pane passes the same checks
+every arranging road applies. A refusal changes nothing at all, selection included.
 
 The menu offers what is *meaningful* for that kind of thing, not a prediction of success —
 choose `arrange` on the Info panel and the owner answers in its own words (`the screen owns
 its place`). On a terminal, whether a right-click reaches Workshop at all is the terminal
 emulator's decision first (the Windows console and Windows Terminal both hand it through);
 the `a` key works everywhere.
+
+### Reading a value the pane had to cut
+
+Where a single line does not fit the room it has, Workshop cuts it and says so with `...`.
+**Point at that line and the text scrolls under your pointer**: the left edge of the row is
+what you were already reading, the right edge is the end of the value, and everything in
+between is a window onto the middle, marked at whichever end has more behind it. Move away
+and the ordinary cut comes straight back.
+
+It is presentation and nothing else. Nothing is saved, nothing is re-read from disk or asked
+of a pane's provider, the pane does not grow, and the value itself is untouched — you are
+reading bytes Workshop already had in its hand. A line that fits does not move at all, and a
+line whose provider had already shortened it cannot be recovered: Workshop can only show what
+it was given.
+
+Today this works on the Info panel's object and property rows and on the Files pane's location
+and names, and only in the graphical window — a terminal is not asked to report a pointer that
+is not pressing anything ([limitations](limitations.md#pointing-without-pressing-is-a-window-only-gesture)).
 
 ### What "front" means
 
@@ -138,9 +164,10 @@ over them, then bounded text regions over those. Between planes: the complete ea
 then the complete later one over it. There is no numeric z, no sorting, no layer identity —
 front is *painted later*, and `f` `b` `r` `l` author a position in an order.
 
-**Selecting a pane lifts it, and does not write anything down.** Pressing into a pane brings
-it to the front of the desk for as long as it is the selected one; selecting another pane
-hands the lift over and the first falls back to exactly where you put it. The order you
+**Selecting a pane lifts it, and does not write anything down.** Pressing into a pane — or
+choosing `arrange` on it — brings it to the front of the desk for as long as it is the
+selected one; selecting another pane hands the lift over and the first falls back to exactly
+where you put it. The order you
 authored is untouched by any of it — save the setup after a session of clicking around and
 the file holds the desk you arranged, not the last pane you happened to press. `f` `b` `r`
 `l` are still how you say *and I mean this permanently*.

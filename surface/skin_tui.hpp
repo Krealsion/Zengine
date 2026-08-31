@@ -666,9 +666,17 @@ private:
 ///
 /// `1002` is button-event tracking — press, release, and motion WHILE A BUTTON
 /// IS HELD. That is exactly a drag and nothing else; `1003` would report every
-/// idle motion and pay for a gesture nobody makes. `1006` asks for SGR
-/// coordinates, which are the only encoding that survives past column 223 and
-/// the only one that spells press and release distinctly.
+/// idle motion and pay for it on every keystroke of every session. `1006` asks
+/// for SGR coordinates, which are the only encoding that survives past column
+/// 223 and the only one that spells press and release distinctly.
+///
+/// ⚠ THIS CHOICE IS NOW LOAD-BEARING FOR A WORKSHOP GESTURE. Reading a clipped
+/// row past its ellipsis is driven by an idle pointer (WUX-7), so it exists in
+/// the graphical window and NOT here — a difference documented as a medium fact
+/// (`docs/workshop/limitations.md`) rather than papered over. Moving to `1003`
+/// would buy that one gesture and pay for every idle motion in every terminal
+/// session; that trade has not been made, and making it is a decision with its
+/// own measurement, not a one-character edit.
 ///
 /// LEAVE UNDOES ENTER, in reverse order, and that is asserted rather than
 /// eyeballed. What it cannot promise is survival of an uncatchable death: a

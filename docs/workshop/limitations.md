@@ -122,6 +122,25 @@ comes back; the default itself is unchanged.
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.
 
+### Pointing without pressing is a window-only gesture
+
+Hovering a clipped line to [read what it cut](panes.md#reading-a-value-the-pane-had-to-cut)
+needs your pointer's position while no button is down, and that is a real difference between
+the two media rather than an omission in one of them. **In the graphical window it works.** In
+a terminal Workshop asks for button-event mouse reporting only — presses, releases and drags —
+so an idle pointer is reported to nobody and there is nothing to hover with. Asking terminals
+for every idle motion would pay for that gesture on every keystroke of every session, which is
+not a trade this application has chosen to make.
+
+Two smaller edges, in both media:
+
+| | today |
+|---|---|
+| Which surfaces can be read past? | the Info panel's object and property rows, and the Files pane's location and its listed names — the places Workshop itself cut a value it still holds |
+| A pane that shortened its own text before sending it | **not recoverable** — Workshop can only show what it was given, and it does not ask a provider for a longer version |
+| Does the reveal follow the pointer out of the window? | the reveal follows the last position the pointer reported; nothing tells Workshop the pointer left the window, so a reveal can stay on screen until the pointer comes back or something else repaints |
+| Is there a timed marquee? | **no** — the reveal is driven by where your pointer is along the row, because Workshop draws when something happens and nothing here happens on its own |
+
 ### Builder builds what an authored file says, and no more
 
 What can be built is a **recipe catalog a maker wrote**, edited in a text editor: there is no
