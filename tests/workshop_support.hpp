@@ -1261,11 +1261,21 @@ inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b
 /// A case asking about the pane's PLACE -- occupancy, a press on its edge, coverage --
 /// still wants the OUTER rectangle `bounds_of` answers, which is unchanged: the boundary
 /// is inside the pane and the pane did not move.
+///
+/// IT ASKS THE CHARACTER MEDIUM'S QUESTION, AND SAYS SO (WUX-8). The answer is in canvas
+/// CELLS, which is the unit a canvas read back with `panel_text`/`regions_at` is written
+/// in, so the chrome it subtracts is the one a cell-projected interior actually leaves:
+/// `kChromeSubs`. A case about a FACE's own boundary takes the overload below and hands it
+/// that face's screen -- which is the only way to ask about a device unit the cell grain
+/// cannot express.
 inline ui::Rect pane_body_cells(const FineRect& outer) {
-    return cells_covered(pane_interior(outer));
+    return cells_covered(pane_interior(outer, kChromeSubs));
 }
 inline ui::Rect pane_body_cells(const ui::Rect& outer) {
     return pane_body_cells(fine_of_cells(outer));
+}
+inline ui::Rect pane_body_cells(const FineRect& outer, const Screen& sc) {
+    return cells_covered(pane_interior(outer, sc));
 }
 
 /// What the overlay stack's first slot is showing, whatever is in it. The stack is
@@ -2233,8 +2243,9 @@ inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
 /// the popup's origin, and the contextual surface paints over all of them.
 inline std::vector<std::string> context_rows_on(const surface::SurfaceCanvas& c,
                                                 const Session& s) {
-    const surface::SurfaceTextRegion want =
-        panel_prose_region(context_bounds(s, screen_of(s)));
+    const Screen sc = screen_of(s);
+    const FineRect popup = context_bounds(s, sc);
+    const surface::SurfaceTextRegion want = panel_prose_region(panel_prose_place(popup, sc));
     for (std::size_t li = c.layers.size(); li > 0; --li) {
         const surface::SurfaceLayer& layer = c.layers[li - 1];
         for (std::size_t ri = layer.texts.size(); ri > 0; --ri) {
@@ -2370,12 +2381,13 @@ inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::Surface
 
 /// A session with a screen extent and a text metric, and a workspace that fills the room.
 inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advance,
-                              std::int64_t line) {
+                              std::int64_t line, std::int64_t cell_px = 0) {
     Session s;
     s.screen_w = w;
     s.screen_h = h;
     s.text_advance_px = advance;
     s.text_line_px = line;
+    s.cell_px = cell_px;
     const Screen sc = screen_of(s);
     s.workspace_w = sc.room_w;
     s.workspace_h = sc.room_h;

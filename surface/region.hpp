@@ -249,6 +249,46 @@ inline constexpr bool subs_exact_in_device(std::int64_t subs, std::int64_t cell_
     return (subs * cell_px) % kCellSubs == 0;
 }
 
+/// THE SMALLEST SPAN A MEDIUM CAN SHOW, in sub-units (WUX-8) -- one of its own
+/// device units, said on the lattice everything is authored on.
+///
+/// `device_of_subs` READS a fine span in a medium's units; this is the question a
+/// publisher asks in the other direction: *what is the thinnest thing I can draw
+/// here that this face will actually present?* It is the one number a boundary
+/// needs, and it is a fact about the MEDIUM rather than about whoever is drawing --
+/// which is why it lives beside the arithmetic it inverts rather than in an
+/// application. `cell_px <= 0` is the vocabulary's "my device unit IS the cell", so
+/// the answer there is a whole cell, which is a terminal's permanent answer and the
+/// answer of every run no medium has spoken to.
+///
+/// IT IS A CEILING, NOT A DIVISION, and that is the honest half: a medium whose cell
+/// does not divide the lattice evenly still has a device unit, and the smallest fine
+/// span that covers one of them is what this answers -- `device_of_subs` of it is
+/// therefore never zero, which is the property that makes it usable as a boundary. A
+/// medium finer than the lattice itself (`cell_px >= kCellSubs`) gets one sub-unit,
+/// the finest thing that can be said at all, and its own floor decides the rest.
+inline constexpr std::int64_t subs_of_one_device(std::int64_t cell_px) noexcept {
+    if (cell_px <= 0) {
+        return kCellSubs;
+    }
+    if (cell_px >= kCellSubs) {
+        return 1;
+    }
+    return (kCellSubs + cell_px - 1) / cell_px;
+}
+
+static_assert(subs_of_one_device(0) == kCellSubs,
+              "a medium whose device unit is the cell can show nothing thinner than one");
+static_assert(subs_of_one_device(kCanvasCellPx) == kCellSubs / kCanvasCellPx,
+              "the shipped graphical medium's device unit is the pixel grain "
+              "`kPixelGrainSubs` names, reached from its REPORT rather than its constant");
+static_assert(device_of_subs(subs_of_one_device(kCanvasCellPx), kCanvasCellPx) == 1,
+              "one device unit reads back as exactly one device unit");
+static_assert(device_of_subs(subs_of_one_device(7), 7) == 1 &&
+                  device_of_subs(subs_of_one_device(7) - 1, 7) == 0,
+              "and it is the SMALLEST span that does, on a cell size the lattice does "
+              "not divide evenly");
+
 /// A decomposed wire coordinate (whole cells + remainder), as one sub-unit
 /// number — the composition every consumer of a fine shape performs first.
 inline constexpr std::int64_t subs_of_wire(std::int64_t cells, std::int64_t rem) noexcept {

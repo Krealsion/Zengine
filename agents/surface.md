@@ -291,6 +291,16 @@ that earned it) says it on the same lattice everything else is drawn on.
     the text metric, verbatim: it belongs to whichever medium opens the face and would be a
     stale claim about somebody else's monitor), and no authored geometry is expressed in it.
     A device unit that entered the lattice would be the thing `kCellSubs`' own header refuses.
+  - **AND THE OTHER DIRECTION IS `subs_of_one_device(cell_px)` (WUX-8)**: the smallest span
+    this medium can SHOW, said on the lattice — what a publisher drawing a BOUNDARY asks.
+    `kCellSubs` when the device unit is the cell, `kPixelGrainSubs` for the shipped window,
+    and a CEILING rather than a division so a cell size the lattice does not divide evenly
+    still answers a span `device_of_subs` reads back as one whole unit. Its one consumer is
+    Workshop's pane chrome —
+    [`workshop.md`](workshop.md#a-pane-has-an-edge-and-the-edge-is-inside-the-pane-wux-5-thinned-by-wux-8) —
+    and the thing it is NOT is a licence to spell a boundary in cells on one face and pixels
+    on another *for the same drawing*: a consumer must still ask whether the presentation it
+    is about to get is the medium's own type or the cell projection (HD-5).
 
 ## A region too small for the face is a CELL region (HD-5)
 
