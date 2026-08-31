@@ -219,7 +219,7 @@ TEST_CASE("the screen a maker actually sees: one canvas, through the real raster
     REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
     // THE TOP BAND IS ROW 0 SINCE QR-14: the layout selector and the setup's status, with
     // the workspace fact on the band's second row where a character medium has one.
-    CHECK(rows[0].rfind("> \"Default\"", 0) == 0);
+    CHECK(rows[0].rfind(">Default<", 0) == 0);
     CHECK(rows[1].rfind("workspace 48x16 cells", 0) == 0);
     // The ring's top edge, above the selected rectangle -- one row lower than before the
     // band moved, because the workspace begins under it.
@@ -9243,11 +9243,26 @@ TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move
     const LayoutTabRun a = layout_tab_run(first, 80);
     const LayoutTabRun b = layout_tab_run(second, 80);
 
-    CHECK(a.text == "> \"Code\"  \"Build\"");
-    CHECK(b.text == "  \"Code\"> \"Build\"");
-    // THE SAME WIDTH EITHER WAY, which is why the status to the right of it does not
-    // slide two cells sideways every time a maker switches.
+    // THE MARKER BRACKETS THE LIVE NAME AND IS TIGHT TO IT (QR-15/SC-3), and every other
+    // tab wears the same two cells as blanks -- so the run reads as a run of names.
+    CHECK(a.text == ">Code< Build ");
+    CHECK(b.text == " Code >Build<");
+    // NO QUOTATION MARK ANYWHERE IN IT (QR-15/SC-2): the authored bytes, and nothing a
+    // maker did not type.
+    CHECK(a.text.find('"') == std::string::npos);
+    CHECK(b.text.find('"') == std::string::npos);
+    // ...AND NO SPACE BETWEEN A MARKER AND THE NAME IT IS ABOUT (QR-15/SC-3). The cell
+    // before the live name is `>` and the cell after it is `<`, with nothing in between.
+    CHECK(a.text.find("> ") == std::string::npos);
+    CHECK(a.text.find(" <") == std::string::npos);
+    CHECK(b.text.find("> ") == std::string::npos);
+    CHECK(b.text.find(" <") == std::string::npos);
+    // THE SAME WIDTH EITHER WAY (QR-15/SC-4), which is why the status to the right of it
+    // does not slide sideways every time a maker switches. It is one cell, the name, one
+    // cell, on both -- so the equality is the TYPE's rather than two literals' agreement
+    // (`kLayoutLiveOpen` and its neighbours are `char`).
     CHECK(a.text.size() == b.text.size());
+    CHECK(a.text.size() == std::string("Code").size() + std::string("Build").size() + 4);
     REQUIRE(a.tabs.size() == 2);
     REQUIRE(b.tabs.size() == 2);
     for (std::size_t i = 0; i < 2; ++i) {
@@ -9264,15 +9279,28 @@ TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move
     CHECK(a.after == 0);
 }
 
-TEST_CASE("WUX-9/SC-3: a name that could impersonate the run is one quoted token") {
-    // A layout name may hold spaces, so the run quotes every one of them -- the same
-    // owner the notices spend. Unquoted, this name would read as two layouts.
+TEST_CASE("QR-15/SC-5: a multi-word name is delimited by its own cells, not by quotes") {
+    // A layout name may hold spaces, and WUX-9 quoted every name because of it. QR-15 pays
+    // for that delimiter in GEOMETRY instead: every tab reserves one cell on each side of
+    // its name, so the gap BETWEEN two tabs is two cells and a space INSIDE a name is one.
     const SetupState s = shelf_of({"my desk", "other"}, 0);
     const LayoutTabRun run = layout_tab_run(s, 80);
-    CHECK(run.text == "> \"my desk\"  \"other\"");
+    CHECK(run.text == ">my desk< other ");
+    CHECK(run.text.find('"') == std::string::npos);
     REQUIRE(run.tabs.size() == 2);
+    // THE SPAN IS THE DELIMITER, and it holds the whole tab: both marker cells and the
+    // authored bytes between them, for the live tab and the shelved one alike.
+    CHECK(run.text.substr(static_cast<std::size_t>(run.tabs[0].column),
+                          static_cast<std::size_t>(run.tabs[0].columns)) == ">my desk<");
     CHECK(run.text.substr(static_cast<std::size_t>(run.tabs[1].column),
-                          static_cast<std::size_t>(run.tabs[1].columns)) == "  \"other\"");
+                          static_cast<std::size_t>(run.tabs[1].columns)) == " other ");
+    // ...AND THE AUTHORED NAME SITS ONE CELL INSIDE ITS OWN SPAN, which is what keeps a
+    // bare run recoverable at all: the row's bytes alone cannot say where a name with a
+    // space in it ends, and the composition's own arithmetic can.
+    CHECK(run.text.find("my desk") == static_cast<std::size_t>(run.tabs[0].column) + 1);
+    // THE MAKER'S OWN EXAMPLE, whole: an active multi-word name between two ordinary ones.
+    const SetupState three = shelf_of({"Home", "My Layout", "Art"}, 1);
+    CHECK(layout_tab_run(three, 80).text == " Home >My Layout< Art ");
     // ...AND DUPLICATE NAMES ARE LEGAL AND DISAMBIGUATED BY POSITION, never by the text.
     const SetupState twins = shelf_of({"same", "same"}, 1);
     const LayoutTabRun two = layout_tab_run(twins, 80);
@@ -9294,7 +9322,10 @@ TEST_CASE("WUX-9/SC-8: the visible window is derived, keeps the live tab, and ma
     CHECK(narrow.before == 0);
     CHECK(narrow.after == 8 - narrow.tabs.size());
     CHECK(narrow.after > 0);
-    CHECK(narrow.text.find(">") != std::string::npos); // the honest right-hand count
+    // THE HONEST RIGHT-HAND COUNT, asked for by its own wording rather than by the glyph:
+    // since QR-15 the live tab carries a `>` of its own, so a bare search for one would
+    // pass with no omission marker on the row at all.
+    CHECK(narrow.text.find(layouts_omitted_text(narrow.after, true)) != std::string::npos);
     CHECK(static_cast<std::int64_t>(narrow.text.size()) <= 20);
     for (std::size_t i = 0; i < narrow.tabs.size(); ++i) {
         CHECK(narrow.tabs[i].at == i);
@@ -9312,8 +9343,13 @@ TEST_CASE("WUX-9/SC-8: the visible window is derived, keeps the live tab, and ma
     CHECK(moved.text.find("<") == 0); // the honest left-hand count leads the run
 
     // ...AND IN THE MIDDLE BOTH ENDS ARE MARKED.
+    // ⚠ THE WIDTH IS RE-DERIVED FOR QR-15's NARROWER TAB, not inherited. A one-letter
+    // layout costs three cells now (` A `) where it cost five (`  "A"`), so eighteen
+    // columns -- which used to leave four of the eight out -- now holds the whole run and
+    // marks neither end. Twelve is where both markers are owed again.
     REQUIRE(activate_layout(s, 4));
-    const LayoutTabRun middle = layout_tab_run(s, 18);
+    CHECK(layout_tab_run(s, 18).after == 0); // the width this case used to be written at
+    const LayoutTabRun middle = layout_tab_run(s, 12);
     CHECK(middle.before > 0);
     CHECK(middle.after > 0);
     bool live_painted = false;
@@ -9347,11 +9383,15 @@ TEST_CASE("WUX-9/SC-7: the status row is tabs on the left and the existing statu
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, "workshop-setup.json", sc);
 
-    CHECK(row.text.rfind("> \"Code\"  \"Build\" | UNSAVED", 0) == 0);
+    CHECK(row.text.rfind(">Code< Build  | UNSAVED", 0) == 0);
     CHECK(row.text.find("workshop-setup.json") != std::string::npos);
     CHECK(static_cast<std::int64_t>(row.text.size()) <= sc.w);
     // THE NAME IS SAID ONCE. The tabs carry it; the status half does not repeat it.
-    CHECK(row.text.find("setup \"Code\"") == std::string::npos);
+    CHECK(row.text.find("setup ") == std::string::npos);
+    REQUIRE(row.tabs.size() == 2);
+    CHECK(row.text.find("Code", static_cast<std::size_t>(row.tabs[0].column +
+                                                         row.tabs[0].columns)) ==
+          std::string::npos);
     // AND THE GEOMETRY DID NOT MOVE TO SEAT THEM: the band is the rows it always was.
     CHECK(band_bounds(sc).h == kBottomRows);
     CHECK(sc.room_w == kMinScreen.room_w);
@@ -9466,12 +9506,14 @@ TEST_CASE("WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed") {
     const BandStatus row = band_status(s, "workshop-setup.json", sc);
     REQUIRE(row.after > 0);
     CHECK(row.tabs.size() + row.before + row.after == layout_count(s.setup));
-    // MEASURED AT THE MINIMUM, and pinned so the number a report quotes is the suite's: a
-    // 5-column live tab and three 16-column neighbours are what 78 columns less the saved
-    // marker's reservation will hold, and the other four are counted rather than dropped.
-    CHECK(row.tabs.size() == 4);
+    // MEASURED AT THE MINIMUM, and pinned so the number a report quotes is the suite's.
+    // ⚠ RE-DERIVED FOR QR-15, which took two cells off every tab: a 3-column live tab
+    // (`>A<`) and four 14-column neighbours and a 3-column ` 3>` come to 62 of the 65
+    // columns 78 leaves after the saved marker's 13, where a sixth tab would want 76. It
+    // was four painted and four omitted while a tab cost its name plus four.
+    CHECK(row.tabs.size() == 5);
     CHECK(row.before == 0);
-    CHECK(row.after == 4);
+    CHECK(row.after == 3);
     CHECK(row.text.find("| UNSAVED") != std::string::npos);
     // Nothing painted claims a layout the window left out, and no press anywhere on the
     // row can reach one: the spans are exactly the painted population.
@@ -9578,7 +9620,7 @@ TEST_CASE("QR-14/SC-2: the layout selector is the first Workshop row, on both me
         CHECK(top_band_bounds(sc).x == 0);
         CHECK(top_band_bounds(sc).w == sc.w);
         CHECK(band_tab_row(s, sc) == 0);
-        CHECK(band_status(s, "s.json", sc).text.rfind("> \"Code\"", 0) == 0);
+        CHECK(band_status(s, "s.json", sc).text.rfind(">Code<", 0) == 0);
 
         // ...AND NOT IN THE FOOTER. The bottom band still exists and still speaks; what it
         // does not carry any more is the identity, and no tab is painted anywhere in it.
@@ -9589,8 +9631,11 @@ TEST_CASE("QR-14/SC-2: the layout selector is the first Workshop row, on both me
             if (r.y == band_bounds(sc).y) {
                 for (const surface::SurfaceTextRow& row : r.rows) {
                     CAPTURE(row.text);
-                    CHECK(row.text.find("\"Code\"") == std::string::npos);
-                    CHECK(row.text.find("\"Build\"") == std::string::npos);
+                    // ⚠ ASKED BY THE TAB'S OWN SPELLING since QR-15, because a bare name
+                    // is an ordinary word: the foot's legend may honestly say `build`,
+                    // and only `>Code<` / ` Code ` is a layout TAB.
+                    CHECK(row.text.find(layout_tab_text(s.setup, 0)) == std::string::npos);
+                    CHECK(row.text.find(layout_tab_text(s.setup, 1)) == std::string::npos);
                 }
             }
         }
@@ -9657,6 +9702,154 @@ TEST_CASE("QR-14/SC-6: every owner of the body agrees about where it begins") {
     // (0,0) is canvas row `kWorkspaceY`, and the inverse of that canvas row is 0.
     CHECK(workspace_cell_y(kWorkspaceY) == 0);
     CHECK(workspace_cell_y(kWorkspaceY - 1) == -1);
+}
+
+// ============================================================================
+// ---- QR-15: the selection hugs the name ------------------------------------
+//
+// WUX-9 spelled a tab `> "Code"` / `  "Build"` -- both marker cells on the left, and every
+// authored name in quotation marks a maker never typed. QR-15 keeps the WIDTH law that
+// spelling existed to protect and spends the two cells symmetrically instead, bare:
+//
+//     Home >Code< Art
+//
+// What must not have moved: the derived window, the omission counts, the reservation, the
+// band's own geometry, and the agreement between what is painted and what a press answers.
+
+TEST_CASE("QR-15/SC-2+SC-3+SC-4: every tab is one cell, the name, one cell") {
+    // THE WHOLE PRESENTATION LAW AS A PROPERTY, over every population this run can hold,
+    // every live position in it, and names of every length -- because each falsifier the
+    // phase named is a different way for ONE of these spans to come out wrong: a quote
+    // retained, only the left marker kept, a space between a marker and its name, or an
+    // active tab that costs more than an inactive one.
+    for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
+        for (std::size_t len = 1; len <= 12; ++len) {
+            std::vector<std::string> names;
+            for (std::size_t i = 0; i < count; ++i) {
+                names.push_back(std::string(len, static_cast<char>('a' + i)));
+            }
+            for (std::size_t live = 0; live < count; ++live) {
+                CAPTURE(count);
+                CAPTURE(len);
+                CAPTURE(live);
+                const SetupState s = shelf_of(names, live);
+                // WIDE ENOUGH THAT NOTHING IS WINDOWED OR CUT, so what is asserted is the
+                // spelling and not the degradation (that is WUX-9's own sweep, below).
+                const LayoutTabRun run =
+                    layout_tab_run(s, static_cast<std::int64_t>(count * (len + 2)));
+                REQUIRE(run.before == 0);
+                REQUIRE(run.after == 0);
+                REQUIRE(run.tabs.size() == count);
+                for (const LayoutTab& tab : run.tabs) {
+                    const std::string span =
+                        run.text.substr(static_cast<std::size_t>(tab.column),
+                                        static_cast<std::size_t>(tab.columns));
+                    // ONE ASSERTION, FOUR FALSIFIERS. `>a<` is not `> "a"`, not `> a`, not
+                    // `>a `, and not two cells longer than ` a `.
+                    REQUIRE(span == (tab.active ? ">" + names[tab.at] + "<"
+                                                : " " + names[tab.at] + " "));
+                    REQUIRE(tab.columns == static_cast<std::int64_t>(len) + 2);
+                }
+                // ...AND NOT ONE QUOTATION MARK IN THE WHOLE RUN (SC-2).
+                REQUIRE(run.text.find('"') == std::string::npos);
+            }
+        }
+    }
+}
+
+TEST_CASE("QR-15/SC-4: switching the live layout moves nothing to the right of it") {
+    // THE DEFECT THE EQUAL WIDTH EXISTS TO REFUSE, asked of the composed ROW rather than
+    // of the run: a maker stepping through their layouts must not watch `UNSAVED`, the
+    // file name or the gestures slide sideways under the marker.
+    const std::vector<std::string> names{"Home", "Code", "Art"};
+    std::vector<std::int64_t> status_at;
+    std::vector<std::string> spans;
+    for (std::size_t live = 0; live < names.size(); ++live) {
+        CAPTURE(live);
+        Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+        s.setup = shelf_of(names, live);
+        const BandStatus row = band_status(s, "workshop-setup.json", screen_of(s));
+        REQUIRE(row.tabs.size() == names.size());
+        REQUIRE(row.before == 0);
+        REQUIRE(row.after == 0);
+        status_at.push_back(static_cast<std::int64_t>(row.text.find(" | UNSAVED")));
+        // EVERY TAB'S SPAN IS THE SAME SPAN whichever one is live -- the geometry does not
+        // know which layout the marker is on, which is the point.
+        std::string shape;
+        for (const LayoutTab& tab : row.tabs) {
+            shape += std::to_string(tab.column) + ":" + std::to_string(tab.columns) + " ";
+        }
+        spans.push_back(shape);
+        // AND THE RUN READS AS THE MAKER'S OWN SENTENCE.
+        CHECK(row.text.rfind(live == 0   ? ">Home< Code  Art "
+                             : live == 1 ? " Home >Code< Art "
+                                         : " Home  Code >Art<",
+                             0) == 0);
+    }
+    CHECK(status_at[0] == status_at[1]);
+    CHECK(status_at[1] == status_at[2]);
+    CHECK(status_at[0] > 0);
+    CHECK(spans[0] == spans[1]);
+    CHECK(spans[1] == spans[2]);
+}
+
+TEST_CASE("QR-15/SC-7: the closing marker belongs to the layout it closes") {
+    // THE POINTER FALSIFIER THE PHASE NAMED. `<` is the last cell of the ACTIVE tab and
+    // the cell after it is the first of its neighbour; an inverse that handed either one
+    // to the wrong layout would be a press that disagrees with the paint (HD-3).
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.setup = shelf_of({"Home", "Code", "Art"}, 1);
+    const Screen sc = screen_of(s);
+    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    REQUIRE(row.tabs.size() == 3);
+    REQUIRE(row.tabs[1].active);
+    CHECK(row.text.substr(static_cast<std::size_t>(row.tabs[1].column),
+                          static_cast<std::size_t>(row.tabs[1].columns)) == ">Code<");
+
+    const ui::Rect b = top_band_bounds(sc);
+    const auto press = [&](std::int64_t column) {
+        return band_tab_at(s, "workshop-setup.json", sc, input::space::kCells, b.x + column,
+                           b.y + surface::kTuiCanvasTopRow);
+    };
+    const std::int64_t opens = row.tabs[1].column;
+    const std::int64_t closes = row.tabs[1].column + row.tabs[1].columns - 1;
+    CHECK(row.text[static_cast<std::size_t>(opens)] == '>');
+    CHECK(row.text[static_cast<std::size_t>(closes)] == '<');
+    // BOTH MARKERS ARE THE ACTIVE LAYOUT'S...
+    REQUIRE(press(opens).hit);
+    CHECK(press(opens).at == 1);
+    REQUIRE(press(closes).hit);
+    CHECK(press(closes).at == 1);
+    // ...AND NEITHER NEIGHBOUR OVERLAPS THEM. The cell before the `>` is the previous
+    // tab's own reserved cell and the cell after the `<` is the next tab's.
+    REQUIRE(press(opens - 1).hit);
+    CHECK(press(opens - 1).at == 0);
+    REQUIRE(press(closes + 1).hit);
+    CHECK(press(closes + 1).at == 2);
+    // AND THE OLD QUOTE POSITIONS MEAN NOTHING: there are none, anywhere on the row.
+    CHECK(row.text.find('"') == std::string::npos);
+}
+
+TEST_CASE("QR-15: the maker reads `Home >Code< Art` on Workshop's first row") {
+    // THE COMPLETION SENTENCE, through the real rasterizer rather than the composition --
+    // the bytes a maker's terminal actually receives, on the row QR-14 put the selector on.
+    for (const std::size_t live : {std::size_t{0}, std::size_t{1}, std::size_t{2}}) {
+        CAPTURE(live);
+        Session s;
+        s.setup = shelf_of({"Home", "Code", "Art"}, live);
+        const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, s, "s.json"));
+        REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
+        CHECK(rows[0].rfind(live == 0   ? ">Home< Code  Art "
+                            : live == 1 ? " Home >Code< Art "
+                                        : " Home  Code >Art<",
+                            0) == 0);
+        CHECK(rows[0].find('"') == std::string::npos);
+    }
+    // A MULTI-WORD NAME IS STILL ONE TAB, and reads as one without a quotation mark.
+    Session wordy;
+    wordy.setup = shelf_of({"Home", "My Layout", "Art"}, 1);
+    const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, wordy, "s.json"));
+    CHECK(rows[0].rfind(" Home >My Layout< Art ", 0) == 0);
 }
 
 TEST_CASE("QR-14/SC-5: no press outside the painted run reaches a layout") {

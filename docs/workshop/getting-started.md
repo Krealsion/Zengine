@@ -131,8 +131,8 @@ reserved row of a terminal), and `Ctrl`+`a` opens the full list. Those disappear
 stop being true and at no other moment. See [what needs your attention](attention.md).
 
 Workshop's chrome is two bands. The **first row** is the layout selector: your layouts as
-tabs on the left, and the setup's status — saved or `UNSAVED`, the file, `s name/save  r
-restore` — to their right. The **bottom band** is what Workshop just said and what your keys
+tabs on the left with the one you are on between `>` and `<`, and the setup's status — saved
+or `UNSAVED`, the file, `s name/save  r restore` — to their right. The **bottom band** is what Workshop just said and what your keys
 mean right now: the notice, then the legend rows advertising the current context's gestures —
 the picker, the desk arrangement and the terminal toggle among them. Every one of those hints
 is a projection of the effective keymap —
@@ -149,7 +149,7 @@ so the very first screen already shows an authored intent (`60%`) beside its res
 (`28 x 6 cells`).
 
 Those two are seeded by Workshop's own weave, not read from a file. So on a first run the title
-row says `UNSAVED` and Workshop's first row says `> "Default" | UNSAVED` — the one layout you
+row says `UNSAVED` and Workshop's first row says `>Default< | UNSAVED` — the one layout you
 have, marked as the one you are on — and both are accurate.
 
 1. **`n`** — create an object. It gets a fresh identity that is neither its label nor its

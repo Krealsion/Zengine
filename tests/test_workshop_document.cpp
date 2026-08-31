@@ -4696,7 +4696,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
     CHECK(top_band_fit(csc).rows == kTopRows);
     REQUIRE(ctop->rows.size() == 2);
-    CHECK(band_row(ctop, 0).rfind("> \"Default\"", 0) == 0); // the live layout tab (WUX-9)
+    CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab (WUX-9)
     CHECK(band_row(ctop, 0).find("| UNSAVED") != std::string::npos);
     CHECK(band_row(ctop, 1) == "workspace 48x16 cells");
 
@@ -4731,7 +4731,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(band_fit(ssc).rows == 2);
     REQUIRE(stop->rows.size() == 1);
     REQUIRE(sband->rows.size() == 2);
-    CHECK(band_row(stop, 0).rfind("> \"Default\"", 0) == 0);
+    CHECK(band_row(stop, 0).rfind(">Default<", 0) == 0);
     CHECK(band_row(stop, 0).find("| workspace 48x16 cells") != std::string::npos);
     CHECK(band_row(sband, 0) == "created #1");
     CHECK(band_row(sband, 1).rfind("n new | d delete", 0) == 0);
@@ -4762,7 +4762,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     // loses sight of which desk they are in because the tool had something to say.
     REQUIRE(otop != nullptr);
     REQUIRE_FALSE(otop->rows.empty());
-    CHECK(band_row(otop, 0).rfind("> \"Default\"", 0) == 0);
+    CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
 
     one.notice.clear();
     const surface::SurfaceCanvas quiet_canvas = paint(d, one);

@@ -2238,12 +2238,12 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     const Screen sc = screen_of(t.session());
     const std::string fresh = setup_row(first_frame(t), sc);
     INFO(fresh);
-    CHECK(fresh.find("> \"Default\"") == 0); // the live layout tab leads the row (WUX-9)
+    CHECK(fresh.find(">Default<") == 0); // the live layout tab leads the row (WUX-9, QR-15)
     CHECK(fresh.find("UNSAVED") != std::string::npos);
 
     name_setup(t, "Named");
     const std::string saved = setup_row(t.canvases.back(), sc);
-    CHECK(saved.find("> \"Named\" | saved") == 0);
+    CHECK(saved.find(">Named< | saved") == 0);
 
     // AT THE MINIMUM COMPOSITION WITH THE DEFAULT FILE NAME THE WHOLE LINE FITS,
     // and that is the measurement the ORDER of that line was chosen against: the
@@ -2252,7 +2252,7 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     plain.host.setup_path = kDefaultSetupFileName;
     const std::string minimal = setup_row(first_frame(plain), screen_of(plain.session()));
     INFO(minimal);
-    CHECK(minimal.find("> \"Default\" | UNSAVED") == 0);
+    CHECK(minimal.find(">Default< | UNSAVED") == 0);
     CHECK(minimal.find(kDefaultSetupFileName) != std::string::npos);
     CHECK(minimal.find("s name/save") != std::string::npos);
     CHECK(minimal.find("r restore") != std::string::npos);
@@ -2267,7 +2267,7 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     const std::string cut = setup_row(first_frame(wordy), screen_of(wordy.session()));
     CHECK(static_cast<std::int64_t>(cut.size()) == kMinScreen.w);
     CHECK(cut.substr(cut.size() - 3) == "...");
-    CHECK(cut.find("> \"Default\" | UNSAVED") == 0);
+    CHECK(cut.find(">Default< | UNSAVED") == 0);
 
     // A wider surface spends the room it gained on the rest of the sentence,
     // which needs nothing from anybody but room.
@@ -2489,7 +2489,7 @@ TEST_CASE("WS-0a: a setup name is spelled into prose as one unambiguous quoted t
     }
 }
 
-TEST_CASE("WS-0a: a name that could impersonate the setup line is one token on it") {
+TEST_CASE("QR-15: a name that could impersonate the setup line is one SPAN on it") {
     TempDir dir("ws0a-status");
     Live t;
     t.host.setup_path = dir.file("s.json");
@@ -2506,24 +2506,48 @@ TEST_CASE("WS-0a: a name that could impersonate the setup line is one token on i
     const std::string row = setup_row(t.canvases.back(), sc);
     INFO(row);
 
-    // THE IDENTITY IS ONE TOKEN, and a reader applying the escape rule gets the maker's
-    // own bytes back out of it.
-    REQUIRE(row.compare(0, 2, "> ") == 0); // the live layout's mark (WUX-9)
-    const QuotedToken read = read_quoted(row, 2);
-    REQUIRE(read.well_formed);
-    CHECK(read.name == authored);
+    // WS-0a ANSWERED THIS WITH A QUOTED TOKEN AND QR-15 SPENT THAT ANSWER. The layout
+    // tabs paint the authored bytes bare, so the identity's boundary is no longer a
+    // delimiter IN the text -- it is the tab's own recorded extent, written as the row
+    // was composed (`LayoutTab::column`/`columns`, HD-3's one geometry).
+    const BandStatus band = band_status(t.session(), t.host.setup_path, sc);
+    REQUIRE(band.tabs.size() == 1);
+    const LayoutTab live = band.tabs.front();
+    const std::int64_t ends = live.column + live.columns;
 
-    // ...AND EXACTLY ONE SAVED MARKER, the real one, OUTSIDE the token. The decoy word
-    // inside the name is not it, and the proof is positional rather than a search: the
-    // status begins where the token ends.
-    CHECK(row.compare(read.end, 9, " | saved ") == 0);
-    CHECK(row.find("UNSAVED", read.end) == std::string::npos);
+    // THE IDENTITY IS ONE SPAN, and the maker's own bytes are exactly what is inside it,
+    // one cell in from each marker. Nothing was escaped and nothing was substituted.
+    CHECK(live.column == 0);
+    CHECK(band.text.substr(static_cast<std::size_t>(live.column),
+                           static_cast<std::size_t>(live.columns)) == ">" + authored + "<");
+    CHECK(band.text.substr(static_cast<std::size_t>(live.column) + 1,
+                           static_cast<std::size_t>(live.columns) - 2) == authored);
+    // NO ESCAPE REACHED THE TAB. Asked of the SPAN and not of the row: the row also
+    // carries the setup file's path, and on Windows its separators are backslashes.
+    CHECK(band.text.substr(static_cast<std::size_t>(live.column),
+                           static_cast<std::size_t>(live.columns))
+              .find('\\') == std::string::npos);
+
+    // ...AND EXACTLY ONE SAVED MARKER, the real one, OUTSIDE the span. The decoy word
+    // inside the name is not it, and the proof is positional exactly as it was before --
+    // the status begins where the identity's extent ends.
+    CHECK(band.text.compare(static_cast<std::size_t>(ends), 9, " | saved ") == 0);
+    CHECK(band.text.find("UNSAVED", static_cast<std::size_t>(ends)) == std::string::npos);
+
+    // ⚠ AND THE HALF QR-15 GAVE BACK, PINNED RATHER THAN LEFT TO BE DISCOVERED. To a
+    // reader scanning the BYTES alone the decoy is now indistinguishable from a status
+    // word: it is on the row, ahead of the real one, and only the span says it is part of
+    // a name. That is the price of a bare run and it is the maker's decision, not a
+    // defect -- what may never become true again is the MACHINE losing the boundary.
+    CHECK(band.text.find("UNSAVED") < static_cast<std::size_t>(ends));
+    CHECK(band.text.find(" | ") < static_cast<std::size_t>(ends));
 
     // The row is still one bounded row of the band, and the file is still named on it.
     CHECK(static_cast<std::int64_t>(row.size()) <= sc.w);
+    CHECK(row.compare(0, band.text.size(), band.text) == 0);
 
-    // AND THE AUTHORED BYTES NEVER MOVED. The escaped spelling is prose and reaches
-    // neither the live setup nor the copy `saved()` compares against.
+    // AND THE AUTHORED BYTES NEVER MOVED. The presentation is prose and reaches neither
+    // the live setup nor the copy `saved()` compares against; the FILE still escapes.
     CHECK(t.session().setup.active.name == authored);
     CHECK(t.session().setup.on_file.name == authored);
     CHECK(slurp(t.host.setup_path).find("\\\" UNSAVED") != std::string::npos);
@@ -2561,13 +2585,20 @@ TEST_CASE("WS-0a: the save notice and the restore notice spell the name the same
     CHECK(restored.compare(after_restore.end, 6, " from ") == 0);
     CHECK(t.session().setup.active.name == authored);
 
-    // ONE OWNER, PROVEN BY AGREEMENT: both notices and the status line carry the
-    // identical token, so a caller that resumed improvising its own would be named here
-    // rather than only in whichever case happened to cover it.
+    // ONE OWNER, PROVEN BY AGREEMENT: both notices carry the identical token, so a caller
+    // that resumed improvising its own would be named here rather than only in whichever
+    // case happened to cover it.
     const std::string token = quoted_setup_name(authored);
     CHECK(saved.find(token) == 12);
     CHECK(restored.find(token) == 15);
-    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find(token) == 2);
+
+    // ⚠ AND THE TAB RUN IS NOT ONE OF THEM SINCE QR-15. It paints the AUTHORED bytes, so
+    // the escaped spelling is nowhere on the row -- which is a second consumer LEAVING
+    // this owner, deliberately, and not a caller improvising a second spelling of it.
+    const std::string row = setup_row(t.canvases.back(), screen_of(t.session()));
+    INFO(row);
+    CHECK(row.find(token) == std::string::npos);
+    CHECK(row.compare(0, authored.size() + 2, ">" + authored + "<") == 0);
 }
 
 TEST_CASE("WS-0a: the name editor edits the authored bytes, never the escaped spelling") {
@@ -2627,11 +2658,11 @@ TEST_CASE("WS-0a: an ordinary setup name presents exactly as it did before") {
 
     const Screen sc = screen_of(t.session());
     const std::string fresh = setup_row(first_frame(t), sc);
-    CHECK(fresh.find("> \"Default\" | UNSAVED") == 0);
+    CHECK(fresh.find(">Default< | UNSAVED") == 0);
 
     name_setup(t, "Morning build");
     CHECK(t.notice().find("saved setup \"Morning build\" to ") == 0);
-    CHECK(setup_row(t.canvases.back(), sc).find("> \"Morning build\" | saved") == 0);
+    CHECK(setup_row(t.canvases.back(), sc).find(">Morning build< | saved") == 0);
 
     t.key(input::scan::kR);
     CHECK(t.notice().find("restored setup \"Morning build\" from ") == 0);
@@ -2640,22 +2671,25 @@ TEST_CASE("WS-0a: an ordinary setup name presents exactly as it did before") {
     CHECK(quoted_setup_name(kDefaultSetupName) == "\"Default\"");
 }
 
-TEST_CASE("WS-0a: an escaped name that outgrows the row is cut with the mark") {
+TEST_CASE("QR-15: a bare name at the bound is its own length, and the row is still cut") {
     TempDir dir("ws0a-fit");
 
-    // EXPANSION ALONE IS NOT A PROBLEM. Twelve quotes double to twenty-four and the
-    // whole sentence still fits, which is the control that keeps the case below about
-    // the BOUND rather than about escaping.
+    // WHAT QR-15 CHANGED HERE. WS-0a's escaping doubled every quote on the way to the
+    // row; the bare run spends the authored bytes and nothing else, so twelve quotes are
+    // twelve cells rather than twenty-four -- the control that keeps the case below about
+    // the BOUND rather than about escaping, now for the opposite reason.
     Live modest;
     modest.host.setup_path = dir.file("m.json");
     name_setup(modest, repeated(12, '"'));
     const std::string easy = setup_row(modest.canvases.back(), screen_of(modest.session()));
     INFO(easy);
-    CHECK(read_quoted(easy, 2).name == repeated(12, '"'));
+    CHECK(easy.compare(0, 14, ">" + repeated(12, '"') + "<") == 0);
+    CHECK(easy.find("\\\"") == std::string::npos); // not one escape on the row
     CHECK(easy.find(" saved") != std::string::npos);
 
     // THE PATHOLOGICAL LEGAL NAME: thirty-two bytes at the bound, every one of them a
-    // quote, so the token is sixty-six cells of a seventy-eight cell row.
+    // quote -- thirty-four cells of a seventy-eight cell row now, where the escaped
+    // token was sixty-six. It is the file path that carries the row past its extent.
     Live t;
     t.host.setup_path = dir.file("p.json");
     const std::string authored = repeated(kMaxSetupNameLen, '"');
@@ -2686,7 +2720,7 @@ TEST_CASE("WS-0a: an escaped name that outgrows the row is cut with the mark") {
     const std::string roomy = setup_row(t.canvases.back(), screen_of(t.session()));
     INFO(roomy);
     CHECK(roomy.find("...") == std::string::npos);
-    CHECK(read_quoted(roomy, 2).name == authored);
+    CHECK(roomy.compare(0, authored.size() + 2, ">" + authored + "<") == 0);
     CHECK(roomy.find("s name/save") != std::string::npos);
     // ...and the extent changed what fits, never the setup or its saved status.
     CHECK(t.session().setup.active.name == authored);
