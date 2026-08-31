@@ -8764,3 +8764,40 @@ TEST_CASE("ARR-0: participation stays the picker's; arrangement does not add or 
     open_pane(t, ref_of(panel::kBuilder));
     CHECK(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
 }
+
+TEST_CASE("WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's floor") {
+    // ⚔ THE MASK THIS CASE EXISTS TO CLOSE. Deleting `managed_window_base`'s sub-cell
+    // restoration -- so a nudge proposes from `managed_bounds().resolved`, which is what
+    // the ACTIVE MEDIUM could show -- left the whole lane green. Every arrangement case
+    // either authors on the lattice, where the two are the same number, or runs on a medium
+    // fine enough to say the authored value back. The one arrangement that tells them apart
+    // is a value the medium CANNOT say, moved by one step: an off-lattice place on a
+    // character medium, which floors at the cell.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0})); // no metric: cells
+    open_pane(t, ref_of(panel::kBuilder));
+    const std::int64_t x = surface::subs_of_cells(12) + 7; // deliberately off the lattice
+    const std::int64_t y = surface::subs_of_cells(6) + 5;
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder), x, y).accepted);
+
+    const Screen sc = screen_of(t.session());
+    REQUIRE(t.session().cell_px == 0); // this medium's own grain IS the cell
+    const FineRect shown =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect;
+    REQUIRE(shown.x == x); // the RECTANGLE is the authored value; only the SPELLING floors
+    REQUIRE(geometry_spelling(x, t.session().cell_px).exact == false);
+
+    // ...AND ONE ARROW MOVES WHAT WAS AUTHORED, not the number this medium can say back.
+    // Through the contextual door, which is the one WUX-7 made select its subject.
+    const ui::Rect slot = cells_covered(shown);
+    t.right_press_canvas(slot.x + 1, slot.y + 1);
+    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    t.key(input::scan::kReturn);
+    REQUIRE(t.session().arrange.open);
+    t.key(input::scan::kLeft);
+
+    const SetupPane* row = pane_of(t.session().setup.active, ref_of(panel::kBuilder));
+    REQUIRE(row != nullptr);
+    CHECK(row->place.x == x - surface::kCellSubs);
+    CHECK(row->place.y == y); // the axis nobody named keeps every sub-unit it had
+}

@@ -154,6 +154,9 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
    `Shift` with them resizes it.
 3. **`↑` `↓`** — move the inspector cursor down the selected object's properties.
    **`Enter`** — edit the one under it. Type, then `Enter` to commit or `Esc` to abandon.
+   - Click to put the caret where you aim, drag to sweep a selection, and **double-click a
+     word to select it** — the same word `Ctrl`+`←` and `Ctrl`+`Backspace` already mean.
+     The command line in the terminal overlay does all three too.
    - `Width` and `Height` are **one** property each — a mode plus an amount, `12` cells or
      `70%` — presented as one row even though two fields are stored.
    - `Resolved` is a separate, read-only row. Narrowing the workspace with `[` moves
@@ -162,11 +165,14 @@ row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both a
    - Try an illegal value. The refusal names what is wrong and the property does not move.
 4. **`p`** — open the pane picker and look at what this build has. `↑` `↓` choose, `Enter`
    opens or removes, `Esc` cancels. See [panes](panes.md).
-5. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
+5. **Hover a row that ends in `...`** — a name or a path too long for its column scrolls
+   under your pointer so you can read the rest of it, and goes back to normal when you move
+   away. Nothing is changed by looking ([panes](panes.md#reading-a-value-the-pane-had-to-cut)).
+6. **Right-click** an object, a pane, or the empty room — Workshop lists what can be done
    with the thing you pointed at, without selecting it. `Enter` chooses, `Esc` closes, and
    **`a`** opens the same menu from the keyboard. See
    [the context menu](panes.md#the-context-menu--what-can-i-do-with-this).
-6. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
+7. **`Ctrl`+`s`** — save the document. **`q`** or **`Ctrl`+`c`** — quit. **`Ctrl`+`o`** —
    open it again.
 
 > **Your desk comes back; your document does not.** The panes you had open, where you put them,

@@ -687,11 +687,37 @@ inline const Condition* condition_by_key(const std::vector<Condition>& all, cons
     return nullptr;
 }
 
+/// THE MONOTONIC READING A CASE OWNS (WUX-7) -- what a rig wires into
+/// `HostContext::interaction_now` so that "how long ago was the last press" is a thing a
+/// case STATES rather than a thing it has to outrun.
+///
+/// IT ADVANCES ON EVERY READING, and the default step is past `kDoubleClickMs`, which is
+/// what makes every press a rig publishes an ordinary press by default: two presses in a
+/// case are two deliberate aims, which is what every pre-WUX-7 case meant by them and what
+/// they go on meaning with no edit. A case that wants a DOUBLE-click says so
+/// (`clicks_together`), and the pace is the only thing it has to say.
+struct InteractionClock {
+    std::int64_t now = 0;
+    std::int64_t step = kDoubleClickMs + 1;
+    std::int64_t read() {
+        const std::int64_t at = now;
+        now += step;
+        return at;
+    }
+    /// PRESSES FROM HERE ON ARE CLOSE ENOUGH TO BE ONE GESTURE...
+    void together() { step = 1; }
+    /// ...and far enough apart to be two again.
+    void apart() { step = kDoubleClickMs + 1; }
+    /// ...or exactly this far apart, for the two cases that pin the boundary itself.
+    void spaced(std::int64_t ms) { step = ms; }
+};
+
 /// A live Workshop: the real weave on a real bus, driven only by published
 /// input messages. Nothing here reaches past the message boundary except to
 /// READ the result.
 struct Live {
     loom::Switchboard bus;
+    InteractionClock clock;
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
@@ -700,6 +726,7 @@ struct Live {
     loom::WeaveId terminal_id{};
 
     Live() {
+        host.interaction_now = [this] { return clock.read(); };
         auto weave = std::make_unique<WorkshopWeave>(host);
         w = weave.get();
         loom::Grant grant = loom::emit_default_grant(*w);
@@ -825,8 +852,13 @@ struct Live {
     /// terminal cell, untranslated. Every other helper here speaks WORKSPACE cells because
     /// that is what a maker thinks in for the document; the Terminal's interior is finer
     /// than a cell (HD-1), so its cases have to be able to say a pixel.
-    void press_at(std::int64_t x, std::int64_t y, std::int64_t space) {
-        publish(loom::to_value(input::PointerButton{1, true, x, y, space, input::mod::kNone}));
+    void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
+                  std::int64_t mods = input::mod::kNone) {
+        publish(loom::to_value(input::PointerButton{1, true, x, y, space, mods}));
+    }
+    /// A MOTION at a raw position -- the one gesture hover reveal is about (WUX-7).
+    void motion_at(std::int64_t x, std::int64_t y, std::int64_t space) {
+        publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone}));
     }
 
     void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
@@ -1686,6 +1718,7 @@ struct PaneRig {
     loom::Kernel kernel{bus};
     loom::WeaveId control = loom::mount_control(kernel, bus);
     loom::WeaveId manager = loom::mount_manager(control, bus);
+    InteractionClock clock;
     HostContext host;
     std::vector<surface::SurfaceCanvas> canvases;
     std::vector<surface::SurfaceText> notes;
@@ -1694,7 +1727,11 @@ struct PaneRig {
     std::vector<std::string> loaded;
     std::vector<std::string> load_refusals;
 
-    PaneRig() { (void)loom::mount<Painter>(bus, canvases, notes); }
+    PaneRig() {
+        host.interaction_now = [this] { return clock.read(); };
+        (void)loom::mount<Painter>(bus, canvases, notes);
+    }
+
 
     /// MOUNT WORKSHOP THE WAY THE HOST DOES: in the `zengine.workshop` office, with
     /// the exact production grant.

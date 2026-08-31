@@ -157,16 +157,44 @@ inline std::size_t character_boundary_at_or_after(const std::string& line,
     return i;
 }
 
-// ---- What a word is, in this application (TEXT-0) ---------------------------------------
+// ---- What a word is, in this application (TEXT-0; one run, three answers, WUX-7) ---------
 //
 // THE SMALLEST RULE THAT IS A RULE: a word is a maximal run of non-space bytes, and the one
 // separator is the space (0x20). It is a shell's word, not an editor's — there is no
 // identifier class, no punctuation class, no locale and no Unicode category table, because a
 // single-line command, name, or property value is the material this component holds and a
 // lexical framework would be machinery for text this class is deliberately unable to contain.
-// Both functions land on character boundaries by construction: a space is a single-byte
+// All of them land on character boundaries by construction: a space is a single-byte
 // character, so the position after one — and 0, and `line.size()` — are boundaries already,
 // and a multi-byte character is all non-space bytes and is never split.
+//
+// THE RUN IS THE PRIMITIVE AND EVERY ANSWER IS COMPOSED FROM IT (WUX-7). A keyboard walk
+// spends the SEPARATORS as well as the run — `^Left` steps to the previous word's start, so
+// it crosses the spaces in between — while a pointer asking "which word is this" must not
+// cross one at all. Those are two compositions of one scan, and writing the scan once is
+// what keeps them one vocabulary: there is no second definition of a word in this
+// application for a double-click to disagree with `^Left` about.
+
+/// THE START OF THE RUN OF WORD BYTES REACHING BACK FROM `at`, or `at` itself when the byte
+/// behind it is a separator. A position is BETWEEN bytes, so a leftward scan reads what is
+/// behind it and never `at` itself.
+inline std::size_t word_run_begin(const std::string& line, std::size_t at) noexcept {
+    std::size_t i = at < line.size() ? at : line.size();
+    while (i > 0 && line[i - 1] != ' ') {
+        --i;
+    }
+    return i;
+}
+
+/// THE END OF THE RUN OF WORD BYTES REACHING FORWARD FROM `at`, or `at` itself when the byte
+/// at it is a separator — the same between-the-bytes rule read the other way.
+inline std::size_t word_run_end(const std::string& line, std::size_t at) noexcept {
+    std::size_t i = at < line.size() ? at : line.size();
+    while (i < line.size() && line[i] != ' ') {
+        ++i;
+    }
+    return i;
+}
 
 /// THE START OF THE WORD BEFORE `at`: back over spaces, then back over the word.
 inline std::size_t word_before(const std::string& line, std::size_t at) noexcept {
@@ -174,24 +202,38 @@ inline std::size_t word_before(const std::string& line, std::size_t at) noexcept
     while (i > 0 && line[i - 1] == ' ') {
         --i;
     }
-    while (i > 0 && line[i - 1] != ' ') {
-        --i;
-    }
-    return i;
+    return word_run_begin(line, i);
 }
 
 /// THE START OF THE WORD AFTER `at`: forward over the word, then over the spaces — so
 /// repeated presses walk word starts, which is the gesture's conventional meaning, and the
 /// last press lands at the end of the line.
 inline std::size_t word_after(const std::string& line, std::size_t at) noexcept {
-    std::size_t i = at < line.size() ? at : line.size();
-    while (i < line.size() && line[i] != ' ') {
-        ++i;
-    }
+    std::size_t i = word_run_end(line, at);
     while (i < line.size() && line[i] == ' ') {
         ++i;
     }
     return i;
+}
+
+/// WHICH BYTES A POSITION'S WORD OCCUPIES — begin inclusive, end exclusive (WUX-7).
+///
+/// EMPTY IS AN ANSWER AND NOT A FAILURE: a position with a separator on both sides is not in
+/// a word, and `present()` is false there. Nothing invents a nearest word for it, because a
+/// maker pointing at the space between two words has pointed at neither.
+///
+/// A POSITION ON EITHER EDGE OF A RUN BELONGS TO THAT RUN, and that falls out of the two
+/// scans rather than being a case: the position before a word's first byte scans forward
+/// into it, and the position after its last byte — which is where a press on the separator
+/// that ends the word lands, and where the end of the whole text sits — scans back into it.
+struct WordSpan {
+    std::size_t begin = 0;
+    std::size_t end = 0; ///< exclusive
+    bool present() const noexcept { return end > begin; }
+};
+
+inline WordSpan word_at(const std::string& line, std::size_t at) noexcept {
+    return WordSpan{word_run_begin(line, at), word_run_end(line, at)};
 }
 
 // ---- What foreign text becomes in a one-line box (TEXT-0) -------------------------------
@@ -800,6 +842,44 @@ public:
         anchor_ = caret_;
         last_edit_ = EditKind::kNone;
         settle();
+    }
+
+    /// WHICH WORD A POSITION IS IN, in bytes of the whole text (WUX-7) — the free
+    /// `word_at`'s answer about the text this box is holding.
+    ///
+    /// IT IS ASKED BY A CONSUMER, AND THAT IS WHY IT IS PUBLIC. A pointer gesture that may
+    /// become a double-click has to compare the word the FIRST press named with the word
+    /// the second one names, and the comparison belongs to whoever is holding the two
+    /// presses — this class knows nothing of clicks, intervals or gestures and gains
+    /// nothing here that could learn one. The span it hands back is the same span
+    /// `select_word_at` would act on, so the two cannot disagree.
+    WordSpan word_at(std::size_t at) const noexcept {
+        return zengine::component::word_at(text_, at);
+    }
+
+    /// SELECT THE WORD A POSITION IS IN, and say whether there was one (WUX-7).
+    ///
+    /// `place`'S OTHER ANSWER TO A PRESS, and its exact shape one question wider: `place`
+    /// collapses the selection onto the position, this one opens it across the word the
+    /// position is inside. The ANCHOR goes to the word's start and the CARET to its end, so
+    /// the active end is where the next keystroke belongs and a following shift-gesture
+    /// extends from the start — the same end `select_all` chooses, for the same reason.
+    ///
+    /// A POSITION IN NO WORD PLACES THE CARET AND SELECTS NOTHING, which is `place`'s
+    /// behaviour exactly: a maker who double-clicked the space between two words has aimed
+    /// at neither, and inventing a nearest word would select bytes they did not point at.
+    /// The bool is what lets a consumer tell the two apart without re-deriving the span.
+    bool select_word_at(std::size_t at) noexcept {
+        const WordSpan word = zengine::component::word_at(text_, at);
+        if (!word.present()) {
+            place(at);
+            return false;
+        }
+        anchor_ = word.begin;
+        caret_ = word.end;
+        last_edit_ = EditKind::kNone;
+        settle();
+        return true;
     }
 
     /// EXTEND THE SELECTION TO A COLUMN A DRAG REACHED — `place`'s other half: the press

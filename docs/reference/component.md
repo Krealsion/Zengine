@@ -41,10 +41,27 @@ component/text_box.hpp   is_continuation_byte / character_before / character_aft
                            position_at_column(column) / keep_caret_visible(columns)
                            type/backspace/erase_forward/left/right/home/end/place/clear/set
                            select_left/right/home/end / select_all / word + select_word moves
+                           word_at(at) -> WordSpan / select_word_at(at) -> bool
                            erase_word_before/after / drag_to_column(column)
                            copy/cut/paste(Clipboard) / undo/redo/can_undo/can_redo
                            consume(scancode, modifiers, Clipboard) -> bool
 ```
+
+**A word has one definition here, and every gesture composes it from the same scan.** A word
+is a maximal run of non-space bytes -- a shell's word, not an editor's: no identifier class, no
+punctuation class, no locale, no Unicode category table. `word_run_begin` / `word_run_end` are
+that run, read backwards and forwards from a position; `word_before` / `word_after` add the
+separator walk a keyboard gesture means, and `word_at` is the two scans meeting at one position,
+which is what a pointer means. So `Ctrl`+`Shift`+`Left`, `Ctrl`+`Backspace` and a consumer's
+double-click select and delete exactly the same bytes -- not because three implementations were
+kept in agreement, but because there is only one. A position with a separator on both sides is
+in **no** word and `WordSpan::present()` says so; nothing invents the nearest one.
+
+`select_word_at` is `place`'s other answer to one press: the anchor goes to the word's start and
+the caret to its end (`select_all`'s choice of active end), and a position in no word places the
+caret and selects nothing. **The component knows nothing about clicks.** Whether two presses are
+one gesture -- the interval, the control's identity, the modifiers -- belongs to the consumer
+holding the presses; this class supplies the span and the operation and no timing at all.
 
 **Since TEXT-0 the ordinary expectations are mechanics, not omissions.** A selection is the
 anchor and the caret (`anchor == caret` *is* "no selection"); typing replaces it, Shift-movement

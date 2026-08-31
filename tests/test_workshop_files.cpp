@@ -3271,3 +3271,231 @@ TEST_CASE("SOURCE-0: the host reaches its own facts through one door, and the ow
                       "', which is authorship the one door owns");
     }
 }
+
+// ---- WUX-7: reading past the browser's ellipsis --------------------------------------------
+
+/// A MOTION over one row of the browser's body, and over its header row. The same offset
+/// `press_body` reserves, so what a case points at is what the painter drew.
+inline void hover_body(FilesRig& r, std::int64_t row, std::int64_t column) {
+    const ui::Rect c = r.files_cells();
+    r.t.motion_canvas(c.x + column, c.y + kFilesHeaderRows + row);
+}
+inline void hover_header(FilesRig& r, std::int64_t column) {
+    const ui::Rect c = r.files_cells();
+    r.t.motion_canvas(c.x + column, c.y);
+}
+inline std::string header_shown(FilesRig& r) {
+    const ui::Rect c = r.files_cells();
+    return inspector_row(r.t.canvases.back(), c.x, c.y);
+}
+inline std::string row_shown(FilesRig& r, std::int64_t row) {
+    const ui::Rect c = r.files_cells();
+    return inspector_row(r.t.canvases.back(), c.x, c.y + kFilesHeaderRows + row);
+}
+
+TEST_CASE("WUX-7: hovering the browser's location reads the path it could not show") {
+    // THE LONG PATH CASE. A browser standing in a temporary directory has a location far
+    // wider than the pane, and `fit_path` has always said so and never been able to show it.
+    FilesRig r("wux7-location");
+    put_file(r.root / "main.cpp", "int main() { return 0; }\n");
+    r.open();
+    const ExternalBodyPlace body = files_body(r.session(), screen_of(r.session()));
+    REQUIRE(body.present);
+    const std::string full = files_header_full(
+        r.pane(), provenance_words(r.session().marks.provenance(r.pane().current_dir)),
+        files_has_keyboard(r.session()));
+    REQUIRE(full.size() > static_cast<std::size_t>(body.columns)); // it really is cut
+    const std::string at_rest = header_shown(r);
+    REQUIRE(at_rest.find(detail::kElided) != std::string::npos);
+
+    SUBCASE("the left edge is the row as it always was; the right edge is its end") {
+        hover_header(r, 0);
+        CHECK(header_shown(r) == at_rest);
+        hover_header(r, body.columns - 1);
+        const std::string revealed = header_shown(r);
+        CHECK(revealed != at_rest);
+        CHECK(revealed.rfind(detail::kElided, 0) == 0);
+        CHECK(static_cast<std::int64_t>(revealed.size()) <= body.columns);
+        // THE END OF THE LOCATION IS WHAT WAS HIDDEN, and it is what is now readable.
+        const std::string tail = r.root.generic_string().substr(
+            r.root.generic_string().size() >= 12 ? r.root.generic_string().size() - 12 : 0);
+        CHECK(revealed.find(tail) != std::string::npos);
+    }
+    SUBCASE("the pane's rectangle does not change, and neither does the location") {
+        const ui::Rect before = r.files_cells();
+        const std::string where = r.pane().current_dir;
+        hover_header(r, body.columns - 1);
+        CHECK(r.files_cells() == before);
+        CHECK(r.pane().current_dir == where);
+        CHECK(files_body(r.session(), screen_of(r.session())).columns == body.columns);
+    }
+    SUBCASE("leaving the row restores the ordinary fitted presentation") {
+        hover_header(r, body.columns - 1);
+        REQUIRE(header_shown(r) != at_rest);
+        hover_body(r, 0, 1);
+        CHECK(header_shown(r) == at_rest);
+        CHECK_FALSE(r.session().reveal.present()); // `main.cpp` fits; nothing to read past
+        r.t.motion_canvas(kWorkspaceX + 1,
+                          kWorkspaceY + r.session().workspace_h - 1); // the bare workspace
+        CHECK_FALSE(r.session().reveal.present());
+        CHECK(header_shown(r) == at_rest);
+    }
+    SUBCASE("a narrower pane reveals a narrower window, resolved fresh") {
+        // ⚔ MUTATION: a remembered span. The pane's own width changes under the resting
+        // pointer, and both the row's width and the offset the pointer's column names have
+        // to be recomputed against the room that exists now.
+        hover_header(r, body.columns - 1);
+        const std::string wide = header_shown(r);
+        REQUIRE(author_pane_size(live(r.t).setup.active, ref_of(panel::kProjectFiles),
+                                 PaneSize{pane_unit::kSubcells,
+                                          surface::subs_of_cells(body.columns - 8)},
+                                 pane_of(r.session().setup.active,
+                                         ref_of(panel::kProjectFiles))
+                                     ->height)
+                    .accepted);
+        r.resize_screen(40); // one repaint, so the new width is what the painter used
+        const ExternalBodyPlace now = files_body(r.session(), screen_of(r.session()));
+        REQUIRE(now.present);
+        REQUIRE(now.columns < body.columns);
+        hover_header(r, now.columns - 1);
+        const std::string narrow = header_shown(r);
+        CHECK(static_cast<std::int64_t>(narrow.size()) <= now.columns);
+        CHECK(narrow != wide);
+    }
+}
+
+TEST_CASE("WUX-7: hovering a listed name reads the rest of it, and only that row") {
+    FilesRig r("wux7-rows");
+    const std::string long_name =
+        "a-file-with-a-name-far-longer-than-this-browser-column-can-show.cpp";
+    put_file(r.root / long_name, "x");
+    put_file(r.root / "b.cpp", "x");
+    r.open();
+    const ExternalBodyPlace body = files_body(r.session(), screen_of(r.session()));
+    REQUIRE(body.present);
+    REQUIRE(r.names().size() == 2);
+    REQUIRE(r.names()[0] == long_name);
+    const std::string at_rest = row_shown(r, 0);
+    const std::string neighbour = row_shown(r, 1);
+    REQUIRE(at_rest.find(detail::kElided) != std::string::npos);
+    REQUIRE(neighbour.find(detail::kElided) == std::string::npos);
+
+    SUBCASE("the clipped row reveals; the row that fits does not move") {
+        hover_body(r, 0, body.columns - 1);
+        const std::string revealed = row_shown(r, 0);
+        CHECK(revealed != at_rest);
+        CHECK(revealed.find("column-can-show.cpp") != std::string::npos);
+        CHECK(row_shown(r, 1) == neighbour);
+        // ⚔ MUTATION: revealing a row that was not clipped.
+        for (std::int64_t column = 0; column < body.columns; ++column) {
+            hover_body(r, 1, column);
+            CAPTURE(column);
+            CHECK(row_shown(r, 1) == neighbour);
+            CHECK_FALSE(r.session().reveal.present());
+        }
+    }
+    SUBCASE("the header, the rows past the listing and the chrome are not this row") {
+        // ⚔ MUTATION: approximate row arithmetic. Everything the body can hold is swept,
+        // and only row 0 may reveal row 0.
+        hover_body(r, 0, body.columns - 1);
+        REQUIRE(row_shown(r, 0) != at_rest);
+        hover_header(r, 1);
+        CHECK(row_shown(r, 0) == at_rest);
+        for (std::int64_t row = 1; row < body.rows; ++row) {
+            hover_body(r, row, body.columns - 1);
+            CAPTURE(row);
+            CHECK(row_shown(r, 0) == at_rest);
+            const bool other_row =
+                !r.session().reveal.present() || r.session().reveal.item != 0;
+            CHECK(other_row);
+        }
+        // ...AND THE CHROME IS NOT THE BODY: the pane's own border ring is one cell outside
+        // the interior every row is drawn in.
+        const ui::Rect interior = r.files_cells();
+        r.t.motion_canvas(interior.x - 1, interior.y);
+        CHECK_FALSE(r.session().reveal.present());
+        CHECK(row_shown(r, 0) == at_rest);
+    }
+    SUBCASE("hover reads nothing off the disk -- the listing it shows is the one it had") {
+        // ⚔ MUTATION: a reveal path that re-enumerated the directory. A file appearing on
+        // disk under a resting pointer must not appear in the pane: only a maker's own
+        // gesture re-lists, which is what keeps hover a presentation.
+        const std::size_t before = r.names().size();
+        const std::string said = r.notice();
+        put_file(r.root / "c-appeared-while-hovering.cpp", "x");
+        for (std::int64_t column = 0; column < body.columns; ++column) {
+            hover_body(r, 0, column);
+        }
+        CHECK(r.names().size() == before);
+        CHECK(r.shown().find("c-appeared-while-hovering") == std::string::npos);
+        CHECK(r.notice() == said);
+        // ...and the pane's cursor, keyboard candidate and location are all where they were.
+        CHECK(r.pane().cursor == 0);
+        CHECK(r.pane().current_dir == r.root.generic_string());
+    }
+    SUBCASE("a press still selects the row the pointer is revealing") {
+        hover_body(r, 0, body.columns - 1);
+        REQUIRE(row_shown(r, 0) != at_rest);
+        r.press_body(1);
+        CHECK(r.at_cursor() == "b.cpp");
+        // The row it was revealing has a different mark now, so its own guard put the
+        // ordinary presentation back with nobody clearing anything.
+        CHECK(row_shown(r, 0) == "  " + detail::fit(files_row_text(r.listing().rows[0]),
+                                                    body.columns - 2));
+    }
+}
+
+TEST_CASE("WUX-7: a SCROLLED listing reveals the row it is showing, not the row it is at") {
+    // ⚔ THE MASK THIS CASE EXISTS TO CLOSE. Replacing `files_row_of_body_row` with plain
+    // arithmetic -- body row N is entry N -- left the whole lane green, because every
+    // hover case so far listed a directory small enough to fit: with no `... n earlier`
+    // marker and no window offset, the approximation and the inverse agree at every row.
+    // So the condition is arranged here: a listing far taller than the body, scrolled, with
+    // the marker owning the first row -- the exact arrangement in which "which row am I on"
+    // and "which entry is that" are different numbers.
+    FilesRig r("wux7-scrolled");
+    for (int i = 0; i < 40; ++i) {
+        char name[64];
+        std::snprintf(name, sizeof(name), "f%02d.txt", i);
+        put_file(r.root / name, "x");
+    }
+    const std::string tail =
+        "zz-the-entry-under-the-pointer-with-a-name-far-wider-than-this-column.txt";
+    put_file(r.root / tail, "x");
+    r.open();
+    REQUIRE(r.names().size() == 41);
+    REQUIRE(r.names().back() == tail);
+
+    // THE CURSOR AT THE END is what scrolls the window, and the browser derives its window
+    // from the cursor (`list_window`) exactly as the painter does.
+    live(r.t).panels.files.cursor = r.names().size() - 1;
+    r.resize_screen(41); // a DIFFERENT extent, so the repaint really happens
+
+    const ExternalBodyPlace body = files_body(r.session(), screen_of(r.session()));
+    REQUIRE(body.present);
+    const ListWindow win = list_window(r.names().size(), r.pane().cursor,
+                                       static_cast<std::size_t>(body.rows));
+    REQUIRE(win.before > 0);   // the marker owns body row 0: the two numbers differ
+    REQUIRE(win.first > 1);
+
+    const std::size_t last = r.names().size() - 1;
+    const std::int64_t at = static_cast<std::int64_t>(last - win.first) + 1; // past the marker
+    REQUIRE(at >= 0);
+    REQUIRE(at < body.rows);
+    const std::string at_rest = row_shown(r, at);
+    REQUIRE(at_rest.find(detail::kElided) != std::string::npos);
+
+    hover_body(r, at, body.columns - 1);
+    CHECK(r.session().reveal.place == reveal_place::kFilesRow);
+    CHECK(r.session().reveal.item == last);          // the ENTRY, not the row
+    const std::string revealed = row_shown(r, at);
+    CHECK(revealed != at_rest);
+    CHECK(revealed.find("this-column.txt") != std::string::npos);
+    CHECK(static_cast<std::int64_t>(revealed.size()) <= body.columns);
+
+    // ...AND THE MARKER ROW NAMES NO ENTRY AT ALL, which is the same inverse answering the
+    // other way: a press on it opens nothing, and a pointer on it reveals nothing.
+    hover_body(r, 0, body.columns - 1);
+    CHECK_FALSE(r.session().reveal.present());
+    CHECK(row_shown(r, at) == at_rest);
+}

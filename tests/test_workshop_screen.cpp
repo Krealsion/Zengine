@@ -8302,3 +8302,466 @@ TEST_CASE("WUX-5: no ordinary pane spends a row teaching a key the keymap alread
         CHECK_MESSAGE(view.find(label) != std::string::npos, "the help lost '", label, "'");
     }
 }
+
+// ---- WUX-7: two presses, one gesture ------------------------------------------------------
+
+TEST_CASE("WUX-7: what makes two presses one double-click, and what does not") {
+    // THE QUALIFICATION IS PURE AND TOTAL, so every one of its conditions is stated here as
+    // an ordinary comparison rather than raced against a stopwatch. ⚔ MUTATION: dropping any
+    // one of the five reddens exactly the subcase that names it.
+    const component::WordSpan word{4, 9};
+    const component::WordSpan elsewhere{12, 16};
+    const ClickMemory armed = click_landed(text_drag_place::kTerminalLine, 3, word, 1000);
+    REQUIRE(armed.armed);
+
+    SUBCASE("the ordinary case: same line, same draft, same word, soon enough") {
+        CHECK(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word, 1000));
+        CHECK(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word, 1399));
+        CHECK(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word,
+                              1000 + kDoubleClickMs)); // the boundary itself doubles
+    }
+    SUBCASE("too long apart is two presses") {
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word,
+                                    1001 + kDoubleClickMs));
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word, 99999));
+    }
+    SUBCASE("a different editable line is a different place") {
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kPropertyDraft, 3, word, 1000));
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kEditorBody, 3, word, 1000));
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kNone, 3, word, 1000));
+    }
+    SUBCASE("a different DRAFT of the same line is a different box") {
+        // Closing a property draft and opening another bumps the epoch, so an arming from
+        // the one a maker just left cannot be spent on the one they just opened.
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 4, word, 1000));
+    }
+    SUBCASE("a different word target is an ordinary click") {
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, elsewhere, 1000));
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3,
+                                    component::WordSpan{4, 8}, 1000));
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3,
+                                    component::WordSpan{5, 9}, 1000));
+    }
+    SUBCASE("a position in NO word never doubles, however fast the hand") {
+        const ClickMemory nothing =
+            click_landed(text_drag_place::kTerminalLine, 3, component::WordSpan{7, 7}, 1000);
+        CHECK_FALSE(doubles_a_click(nothing, text_drag_place::kTerminalLine, 3,
+                                    component::WordSpan{7, 7}, 1000));
+    }
+    SUBCASE("nothing armed is nothing to double") {
+        CHECK_FALSE(doubles_a_click(ClickMemory{}, text_drag_place::kTerminalLine, 0,
+                                    component::WordSpan{0, 0}, 0));
+        ClickMemory disarmed = armed;
+        disarmed.armed = false;
+        CHECK_FALSE(doubles_a_click(disarmed, text_drag_place::kTerminalLine, 3, word, 1000));
+    }
+    SUBCASE("a reading that went backwards is not a fast hand") {
+        CHECK_FALSE(doubles_a_click(armed, text_drag_place::kTerminalLine, 3, word, 999));
+    }
+    SUBCASE("a fresh session has armed nothing") {
+        Session fresh;
+        CHECK_FALSE(fresh.click.armed);
+        CHECK(fresh.click.place == text_drag_place::kNone);
+    }
+}
+
+TEST_CASE("WUX-7: a double-click on the Terminal's line selects the word under it") {
+    Live t;
+    (void)t.mount_terminal();
+    t.publish(loom::to_value(surface::SurfaceExtent{78, 22, 8, 18}));
+    t.toggle_terminal();
+    for (const char c : std::string("send @builder BuildRequested")) {
+        t.text(std::string(1, c));
+    }
+    const Screen sc = screen_of(t.session());
+    const TerminalInputPlace p = terminal_input_place(sc);
+    const auto press_col = [&](std::int64_t column, std::int64_t mods = input::mod::kNone) {
+        t.press_at(pane_pixel_x(p, kTerminalPromptCols + column),
+                   pane_pixel_y(p, p.prose_row), input::space::kPixels, mods);
+    };
+
+    SUBCASE("the second press selects it, and the first is an ordinary press") {
+        t.clock.together();
+        press_col(16); // inside `BuildRequested`, which begins at byte 14
+        CHECK(t.pane().input.caret() == 16);
+        CHECK_FALSE(t.pane().input.has_selection()); // ⚔ MUTATION: selecting on press one
+        press_col(18);
+        CHECK(t.pane().input.selected_text() == "BuildRequested");
+        // ...AND IT IS AN ORDINARY SELECTION: typing replaces it, which is the proof that
+        // nothing here is a second, decorative highlight.
+        t.text("q");
+        CHECK(t.pane().input.text() == "send @builder q");
+    }
+    SUBCASE("two presses too far apart are two presses") {
+        t.clock.apart(); // the rig's default -- said out loud because it is the subject
+        press_col(16);
+        press_col(18);
+        CHECK_FALSE(t.pane().input.has_selection());
+        CHECK(t.pane().input.caret() == 18);
+    }
+    SUBCASE("exactly at the interval doubles; one millisecond past it does not") {
+        t.clock.spaced(kDoubleClickMs);
+        press_col(16);
+        press_col(18);
+        CHECK(t.pane().input.selected_text() == "BuildRequested");
+        t.clock.spaced(kDoubleClickMs + 1);
+        press_col(3);
+        press_col(2);
+        CHECK_FALSE(t.pane().input.has_selection());
+    }
+    SUBCASE("two presses on different words are two presses") {
+        t.clock.together();
+        press_col(16); // in `BuildRequested`
+        press_col(2);  // in `send`
+        CHECK_FALSE(t.pane().input.has_selection());
+        CHECK(t.pane().input.caret() == 2);
+    }
+    SUBCASE("a third press is an ordinary press again -- there is no triple-click") {
+        t.clock.together();
+        press_col(16);
+        press_col(18);
+        REQUIRE(t.pane().input.has_selection());
+        press_col(17);
+        CHECK_FALSE(t.pane().input.has_selection());
+        CHECK(t.pane().input.caret() == 17);
+    }
+    SUBCASE("a modifier-bearing press neither doubles nor arms") {
+        t.clock.together();
+        press_col(16, input::mod::kShift);
+        press_col(18, input::mod::kShift);
+        CHECK_FALSE(t.pane().input.has_selection());
+        CHECK(t.pane().input.caret() == 18); // the ordinary caret placement, unchanged
+        // ...and it did not arm, so an ordinary press straight after it is a FIRST press.
+        press_col(17);
+        CHECK_FALSE(t.pane().input.has_selection());
+    }
+    SUBCASE("a press on the separator that ends a word selects that word") {
+        t.clock.together();
+        press_col(4); // the space after `send`
+        press_col(4);
+        CHECK(t.pane().input.selected_text() == "send");
+    }
+    SUBCASE("the arming is spent by the gesture it completed") {
+        t.clock.together();
+        press_col(16);
+        REQUIRE(t.session().click.armed);
+        press_col(16);
+        CHECK_FALSE(t.session().click.armed);
+    }
+    SUBCASE("an ordinary press still collapses a selection the way it always did") {
+        t.clock.together();
+        press_col(16);
+        press_col(18);
+        REQUIRE(t.pane().input.has_selection());
+        t.clock.apart();
+        press_col(2);
+        CHECK_FALSE(t.pane().input.has_selection());
+    }
+    SUBCASE("a drag still sweeps, and a word selection is an anchor it extends from") {
+        t.clock.together();
+        press_col(16);
+        press_col(18);
+        REQUIRE(t.pane().input.selected_text() == "BuildRequested");
+        t.publish(loom::to_value(input::PointerMoved{
+            pane_pixel_x(p, kTerminalPromptCols + 28), pane_pixel_y(p, p.prose_row), 0, 0,
+            input::space::kPixels, input::mod::kNone}));
+        CHECK(t.pane().input.anchor() == 14); // the word's start held the anchor
+        CHECK(t.pane().input.caret() == 28);
+    }
+}
+
+// ---- WUX-7: reading past the ellipsis ------------------------------------------------------
+
+TEST_CASE("WUX-7: a revealed row is a window over the same string, never a wider row") {
+    const std::string full = "/home/maker/projects/zengine/workshop/screen.hpp";
+    REQUIRE(full.size() == 48);
+
+    SUBCASE("at rest it is byte-for-byte the fitted answer") {
+        // ⚔ MUTATION: revealing at offset zero -- the row a maker was already looking at
+        // would change the moment their pointer crossed its left edge.
+        for (const std::int64_t columns : {1, 2, 3, 4, 12, 47, 48, 80}) {
+            CAPTURE(columns);
+            CHECK(detail::revealed_row(full, columns, 0) == detail::fit(full, columns));
+        }
+    }
+    SUBCASE("it never exceeds the room the fitted answer had") {
+        // ⚔ MUTATION: `kElided + full.substr(offset)` with no bound -- the row would run
+        // over its neighbours, which is the one thing a bounded presentation may not do.
+        for (std::int64_t columns = 0; columns <= 60; ++columns) {
+            for (std::int64_t offset = 0; offset <= 60; ++offset) {
+                CAPTURE(columns);
+                CAPTURE(offset);
+                const std::int64_t width =
+                    static_cast<std::int64_t>(detail::revealed_row(full, columns, offset).size());
+                CHECK(width <= (columns > 0 ? columns : 0));
+            }
+        }
+    }
+    SUBCASE("the head is marked, and the furthest offset shows the true tail") {
+        const std::int64_t columns = 20;
+        const std::int64_t furthest =
+            static_cast<std::int64_t>(detail::reveal_max_offset(full, columns));
+        REQUIRE(furthest > 0);
+        const std::string end = detail::revealed_row(full, columns, furthest);
+        CHECK(end.rfind(detail::kElided, 0) == 0);       // ...marked at the head
+        CHECK(end == std::string(detail::kElided) +
+                     full.substr(static_cast<std::size_t>(furthest)));
+        CHECK(end.size() == static_cast<std::size_t>(columns));
+        CHECK(full.size() - static_cast<std::size_t>(furthest) ==
+              end.size() - std::char_traits<char>::length(detail::kElided));
+        // A MIDDLE OFFSET IS MARKED AT BOTH ENDS -- so a photograph of a revealed row can
+        // never read as a complete value.
+        const std::string middle = detail::revealed_row(full, columns, 10);
+        CHECK(middle.rfind(detail::kElided, 0) == 0);
+        CHECK(middle.size() >= std::char_traits<char>::length(detail::kElided));
+        CHECK(middle.substr(middle.size() - 3) == detail::kElided);
+    }
+    SUBCASE("a value that fits has nowhere to go") {
+        // ⚔ MUTATION: a max offset derived from the string alone -- a short row would
+        // scroll under the pointer for no reason, which §2.1 forbids outright.
+        CHECK(detail::reveal_max_offset("short", 40) == 0);
+        CHECK(detail::reveal_offset_at_column("short", 40, 39) == 0);
+        CHECK(detail::revealed_row("short", 40, 7) == "short");
+    }
+    SUBCASE("no width at all is answered, not crashed") {
+        CHECK(detail::revealed_row(full, 0, 4).empty());
+        CHECK(detail::revealed_row(full, -3, 4).empty());
+        CHECK(detail::revealed_row(full, 2, 4) == "..");
+        CHECK(detail::reveal_max_offset(full, 3) == 0);
+    }
+}
+
+TEST_CASE("WUX-7: the pointer's column is the offset, monotonically and totally") {
+    const std::string full(120, 'x');
+    const std::int64_t columns = 24;
+    const std::int64_t furthest =
+        static_cast<std::int64_t>(detail::reveal_max_offset(full, columns));
+    REQUIRE(furthest > 0);
+
+    CHECK(detail::reveal_offset_at_column(full, columns, 0) == 0);
+    CHECK(detail::reveal_offset_at_column(full, columns, -5) == 0);
+    CHECK(detail::reveal_offset_at_column(full, columns, columns - 1) == furthest);
+    CHECK(detail::reveal_offset_at_column(full, columns, columns + 40) == furthest);
+
+    std::int64_t previous = -1;
+    for (std::int64_t column = 0; column < columns; ++column) {
+        const std::int64_t at = detail::reveal_offset_at_column(full, columns, column);
+        CAPTURE(column);
+        CHECK(at >= previous); // the hand moving right never scrolls the text back
+        CHECK(at <= furthest);
+        previous = at;
+    }
+    // ONE COLUMN OF ROOM IS A SCRUB TRACK WITH NO LENGTH, and it answers rather than dividing
+    // by zero.
+    CHECK(detail::reveal_offset_at_column(full, 1, 0) == 0);
+}
+
+TEST_CASE("WUX-7: four things must agree before a row is scrolled at all") {
+    // ⚔ MUTATION: dropping the text comparison -- a listing replaced under a resting
+    // pointer would scroll whatever moved into the row, at the offset the maker chose for
+    // something else. Each CHECK below removes exactly one of the four.
+    const std::string full = "a rather long value that will not fit in this row at all";
+    const std::string rest = detail::fit(full, 20);
+    const Revealed on{reveal_place::kInfoObject, 4, full, 9};
+
+    CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 4, full, rest, 20) ==
+          detail::revealed_row(full, 20, 9));
+    CHECK(detail::reveal_shown(on, reveal_place::kFilesRow, 4, full, rest, 20) == rest);
+    CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 5, full, rest, 20) == rest);
+    CHECK(detail::reveal_shown(on, reveal_place::kInfoObject, 4, full + "!",
+                               detail::fit(full + "!", 20), 20) == detail::fit(full + "!", 20));
+    Revealed at_rest = on;
+    at_rest.offset = 0;
+    CHECK(detail::reveal_shown(at_rest, reveal_place::kInfoObject, 4, full, rest, 20) == rest);
+    CHECK(detail::reveal_shown(Revealed{}, reveal_place::kInfoObject, 4, full, rest, 20) == rest);
+
+    // `rest` IS THE CALLER'S, not a second decision: a path-fitted row keeps its root cue
+    // while nobody is pointing at it, which `fit` alone would have thrown away.
+    const std::string path = "/home/maker/projects/zengine/workshop/screen.hpp";
+    CHECK(detail::reveal_shown(Revealed{}, reveal_place::kFilesLocation, 0, path,
+                               detail::fit_path(path, 20), 20) == detail::fit_path(path, 20));
+    CHECK(detail::fit_path(path, 20) != detail::fit(path, 20));
+
+    // A FRESH SESSION REVEALS NOTHING, and the record is of no durable shape.
+    Session fresh;
+    CHECK_FALSE(fresh.reveal.present());
+    CHECK(fresh.reveal.offset == 0);
+    CHECK(fresh.reveal.text.empty());
+}
+
+// ---- WUX-7: arranging a pane is choosing it -----------------------------------------------
+
+TEST_CASE("WUX-7: contextual Arrange lifts the pane it addressed, not the one in front") {
+    // THE OVERLAP FALSIFIER, and a non-overlapping desk would not be evidence for it: the
+    // Builder is authored UNDER the Info panel and the two share cells, so "which pane did
+    // this select" and "which pane was on top" are two different answers before the gesture
+    // and have to be one answer after it.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    const Screen sc = screen_of(t.session());
+    const ui::Rect side = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc).rect);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                              surface::subs_of_cells(side.x - 4),
+                              surface::subs_of_cells(side.y + 2))
+                .accepted);
+    REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kBuilder)));
+
+    // BEFORE: Info owns the overlap, and it is Info a press there would reach.
+    const std::int64_t over_x = side.x + 1;
+    const std::int64_t over_y = side.y + 3;
+    const std::vector<std::int64_t> authored = authored_order(t.session());
+    const std::string desk = setup_persist::to_text(t.session().setup.active);
+    const std::vector<std::int64_t> ranks = ranks_of(t.session().setup.active);
+    t.press_canvas(over_x, over_y);
+    REQUIRE(t.session().panels.selected == panel::kInfo);
+    REQUIRE(occupied_at(t.session().panels, t.session().setup.active, sc, over_x, over_y).kind ==
+            panel::kInfo);
+    const std::int64_t keyboard_before = t.session().panels.keyboard;
+
+    // THE GESTURE: right-press where only the Builder is, and choose the first row.
+    // ⚔ MUTATION: `spend_context_choice` re-hit-testing after the action instead of
+    // spending the CAPTURED subject -- the topmost pane would be arranged.
+    t.right_press_canvas(side.x - 3, side.y + 3);
+    REQUIRE(t.menu().open);
+    REQUIRE(t.menu().subject == context_subject::kPane);
+    REQUIRE(t.menu().pane == ref_of(panel::kBuilder));
+    REQUIRE(context_population(context_subject::kPane, "")[0].row->act == Act::kArrange);
+    t.key(input::scan::kReturn);
+
+    // AFTER: the addressed pane is the selected one, it is in front, and the hand reaches
+    // what the eye sees. ⚔ MUTATION: `enter_arrange_pane` binding the scope without
+    // writing `Panels::selected`.
+    CHECK(t.session().arrange.open);
+    CHECK_FALSE(t.session().arrange.desk);
+    CHECK(t.session().arrange.pane == ref_of(panel::kBuilder));
+    CHECK(t.session().panels.selected == panel::kBuilder);
+    CHECK(selected_pane(t.session().panels) == panel::kBuilder);
+    CHECK(painted_order(t.session()).back() == panel::kBuilder);
+    CHECK(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
+                      over_x, over_y)
+              .kind == panel::kBuilder);
+
+    // ...AND THE LIFT IS STILL A ROTATION. No rank moved, no authored byte changed, and a
+    // save right now writes the desk it would have written before the gesture.
+    CHECK(authored_order(t.session()) == authored);
+    CHECK(ranks_of(t.session().setup.active) == ranks);
+    CHECK(setup_persist::to_text(t.session().setup.active) == desk);
+
+    // ...AND THE KEYBOARD CANDIDATE IS A SEPARATE FACT, untouched by an entrance that
+    // happens to change the selection. ⚔ MUTATION: writing `panels.keyboard` here too.
+    CHECK(t.session().panels.keyboard == keyboard_before);
+
+    // THE ARRANGEMENT OPERATION ADDRESSES THE SAME PANE the selection names.
+    const ui::Rect before = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    const ui::Rect info_before = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
+                  screen_of(t.session()))
+            .rect);
+    t.key(input::scan::kLeft);
+    const ui::Rect after = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    CHECK(after.x < before.x);
+    CHECK(cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
+                                  screen_of(t.session()))
+                            .rect)
+              .x == info_before.x);
+    CHECK(t.session().panels.selected == panel::kBuilder); // moving it did not lose it
+
+    // LEAVING KEEPS THE SELECTION, because a selection is not a mode: it lives and dies by
+    // the same rules an ordinary press's does.
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.session().arrange.open);
+    CHECK(t.session().panels.selected == panel::kBuilder);
+    CHECK(painted_order(t.session()).back() == panel::kBuilder);
+    CHECK(ranks_of(t.session().setup.active) == ranks);
+}
+
+TEST_CASE("WUX-7: a refused Arrange leaves the selection exactly where it was") {
+    // ADMISSION PRECEDES BINDING, and after WUX-7 that has to include the selection: a
+    // refusal that had quietly re-selected something would have moved the desk while saying
+    // it changed nothing. ⚔ MUTATION: selecting before `arrange_geometry_ready`.
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect slot = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(slot.x, slot.y);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+
+    // The Info panel's place is the SCREEN's, so Arrange on it refuses in its own words.
+    const ui::Rect side = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kInfo,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(side.x + 1, side.y + 1);
+    REQUIRE(t.menu().pane == ref_of(panel::kInfo));
+    t.key(input::scan::kReturn);
+
+    CHECK_FALSE(t.session().arrange.open);
+    CHECK(t.session().panels.selected == panel::kBuilder); // not the refused subject
+    CHECK(t.notice().find("reserved side column") != std::string::npos);
+}
+
+TEST_CASE("WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in front") {
+    // ⚔ THE MASK THIS CASE EXISTS TO CLOSE. Making the desk's pointer walk spend the
+    // AUTHORED order instead of the effective one left the whole lane green: every
+    // arrangement case reached its pane either with no selection at all or with no pane
+    // over it, so the one arrangement of facts that can tell the two orders apart -- a
+    // LIFTED pane under the arrangement pointer, in an overlap it does not authoredly own
+    // -- was never arranged. WUX-5's claim that all four consumers share one order was
+    // therefore three-quarters proven.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 44, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    open_pane(t, ref_of(panel::kProjectFiles));
+    // THE BUILDER LEAVES THE STACK FIRST, and only then is the browser's rectangle read:
+    // a pane taken out of the composition lets the ones under it move up, so a rectangle
+    // read before that is a rectangle about a desk that no longer exists.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                              surface::subs_of_cells(1), surface::subs_of_cells(30))
+                .accepted);
+    const PanelBounds files_at = bounds_of(t.session().panels, t.session().setup.active,
+                                           panel::kProjectFiles, screen_of(t.session()));
+    REQUIRE(files_at.open);
+    const ui::Rect files = cells_covered(files_at.rect);
+    REQUIRE(files.w > 4);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                              surface::subs_of_cells(files.x + 2),
+                              surface::subs_of_cells(files.y + 2))
+                .accepted);
+    REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kBuilder)));
+
+    // AUTHORED: the browser owns the overlap.
+    const std::int64_t ox = files.x + 3;
+    const std::int64_t oy = files.y + 3;
+    REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
+                        ox, oy)
+                .kind == panel::kProjectFiles);
+
+    // SELECTED: a press on a strip only the Builder covers lifts it, and the lift reaches
+    // the overlap -- which is the state every other arrangement case is missing.
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(builder.x + builder.w - 1, builder.y + builder.h - 1);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    REQUIRE(occupied_at(t.session().panels, t.session().setup.active, screen_of(t.session()),
+                        ox, oy)
+                .kind == panel::kBuilder);
+
+    // ...AND THE ARRANGEMENT DESK'S OWN WALK AGREES WITH THE PICTURE.
+    enter_arrange_desk(t);
+    t.press_canvas(ox, oy);
+    CHECK(t.session().arrange.pane == ref_of(panel::kBuilder));
+    CHECK(t.session().pane_drag.active);
+    CHECK(t.session().pane_drag.pane == ref_of(panel::kBuilder));
+}
