@@ -112,12 +112,14 @@ a coarse four-cell step on both axes, or `Shift`+arrows for one cell at a time. 
 correctly once authored. There is still no "fill the room" and no auto-fit. Detail in [pane
 geometry](panes.md#pane-geometry).
 
-One cell on each side of that rectangle is the pane's visible edge, so the default pane
-shows 46 columns by 7 rows. Two panes feel this most: the Builder drops its lowest-priority
-row at the default height, and the Compose pane's **form** does not fit one — it needs eight
-rows of body and the default grants six, so a form opened in a default-sized Compose pane
-shows its Submit control and none of its fields. **One `=` fixes it** and the whole form
-comes back; the default itself is unchanged.
+The outermost part of that rectangle is the pane's visible edge. On a terminal that is one
+cell on each side, so the default pane shows 46 columns by 7 rows; in a window it is one
+device pixel, so the same pane keeps nearly all of its interior. The tightest case is
+therefore the terminal's, and two panes feel it most there: the Builder drops its
+lowest-priority row at the default height, and the Compose pane's **form** does not fit one —
+it needs eight rows of body and the default grants six, so a form opened in a default-sized
+Compose pane shows its Submit control and none of its fields. **One `=` fixes it** and the
+whole form comes back; the default itself is unchanged.
 
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.

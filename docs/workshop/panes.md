@@ -35,10 +35,13 @@ saying two unrelated things.
 
 ## Every pane has an edge, and one of them is yours
 
-Each pane draws a **visible boundary** inside its own rectangle: one cell on every side, in
-both a terminal and a window. The pane does not grow to make room for it — the rectangle you
-author is the rectangle the pane occupies, and its contents are laid out inside the edge. So
-a pane you drag to 40×12 still occupies exactly 40×12, and what it can show you is 38×10.
+Each pane draws a **visible boundary** inside its own rectangle, and each surface spends the
+thinnest thing it can actually draw: a terminal spends **one cell** on every side, because a
+character surface has nothing finer; a window spends **one device pixel**. Either way the pane
+does not grow to make room for it — the rectangle you author is the rectangle the pane
+occupies, and its contents are laid out inside the edge. So a pane you drag to 40×12 still
+occupies exactly 40×12; on a terminal it can show you 38×10, and in a window it can show you
+very nearly the whole of it.
 
 The pane you **last pressed into is the selected one**, and its edge is drawn differently
 from every other pane's. Nothing else changes: selecting a pane does not open it, close it,
@@ -234,10 +237,12 @@ the pane and the material under it, so at 200 columns a pane's granted width goe
 109 without any threshold. Height does not work that way: the stack slot is a fixed number of
 rows.
 
-Of any pane's rectangle, one cell on each side is its **visible edge**, so a 48×9 default
-pane shows you 46×7. That is the cost of being able to see where a pane ends, and it is paid
-by the pane rather than by the desk — the rectangle does not grow. If a pane's content is
-tight, the answer is the same one below: make the pane bigger.
+Of any pane's rectangle, the outermost part is its **visible edge**, and what that costs
+depends on the surface. On a terminal it is one cell on each side, so a 48×9 default pane
+shows you 46×7. In a window it is one device pixel on each side, so the same pane keeps
+almost all of its interior and typically fits one more row of text than the terminal does.
+Either way the cost is paid by the pane rather than by the desk — the rectangle does not
+grow. If a pane's content is tight, the answer is the same one below: make the pane bigger.
 
 ### How to actually get a bigger pane
 
