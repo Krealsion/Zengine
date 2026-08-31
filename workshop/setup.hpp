@@ -1673,8 +1673,14 @@ inline Seating seat_panes(const Setup& setup, const RuntimeCatalog& runtime,
     return out;
 }
 
-/// THE PRESENTED PANES, BACK TO FRONT -- the one presentation-order helper, and
-/// the ONLY thing in this application that reads `front` (WIND-2).
+/// THE AUTHORED PANE ORDER, BACK TO FRONT -- the one place `front` is read (WIND-2),
+/// and since WUX-5 the BASE that `effective_pane_order` lifts the selected pane out of.
+///
+/// ⚠ THIS IS NOT WHAT A MAKER SEES. Nothing that means "which pane is in front right
+/// now" may call this: paint, hit testing, coverage and the arrangement desk's pointer
+/// walk all spend `effective_pane_order` below. What this answers is the order the SETUP
+/// authors -- which is exactly what persistence, `reset order` and a report about the
+/// authored desk want, and exactly what a temporary selection must never rewrite.
 ///
 /// Paint walks the answer ASCENDING (later is drawn over) and the pointer walks it
 /// DESCENDING (topmost answers first), which is `ui::Scene`'s stated law --
@@ -1734,6 +1740,51 @@ inline std::vector<std::int64_t> presentation_order(const Setup& setup, const Pa
         out.push_back(kind);
     }
     return out;
+}
+
+/// WHAT PANE IS EFFECTIVELY IN FRONT RIGHT NOW -- the authored order with the selected
+/// pane lifted to the end of it (WUX-5).
+///
+///     authored/persisted pane order  +  the current selected-pane lift
+///         =  effective ordinary-pane presentation order
+///
+/// ONE ANSWER, AND EVERY CONSUMER WHOSE MEANING IS LITERALLY FOREGROUND ORDER SPENDS IT:
+/// `paint_panels` walks it ascending, `occupied_at` walks it descending, `pane_is_covered`
+/// asks what is after a pane in it, and the arrangement desk's pointer walk takes the
+/// topmost of it. Those four cannot disagree because there is nothing for them to
+/// disagree about -- what a maker sees in front is what their hand reaches, as an
+/// identity rather than an intention (HD-3's law, spent on depth).
+///
+/// IT IS A PRESENTATION LIFT AND NOT AN ARRANGEMENT. No `front` rank is read differently,
+/// none is written, `panels.open` is not touched, and nothing here reaches a file: the
+/// lift is recomputed from `Panels::selected` at every call and disappears with the
+/// session. Selecting another pane transfers it and the previous pane falls back into its
+/// authored place with nothing restored, because nothing was moved. `manage.front` remains
+/// the way to say "and I mean this permanently" -- that one writes the rank.
+///
+/// A SELECTION THAT IS NOT SEATED LIFTS NOTHING. The selected kind is looked for in the
+/// base order and the answer is the base order unchanged when it is not there, so a pane
+/// that was closed, removed or left unresolved leaves no ghost foreground identity behind
+/// -- `bounds_of`'s discipline, and the reason this needs no clearing path anywhere.
+inline std::vector<std::int64_t> effective_pane_order(const Setup& setup,
+                                                      const Panels& panels) {
+    std::vector<std::int64_t> order = presentation_order(setup, panels);
+    const std::int64_t lifted = selected_pane(panels);
+    if (lifted == kNoPaneKind) {
+        return order;
+    }
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        if (order[i] != lifted) {
+            continue;
+        }
+        // ROTATE, DO NOT SWAP. Everything behind the lifted pane keeps its authored
+        // order relative to everything else -- a swap would exchange two panes' depths
+        // and leave the desk describing an arrangement nobody authored.
+        order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
+        order.push_back(lifted);
+        break;
+    }
+    return order;
 }
 
 inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity room) {

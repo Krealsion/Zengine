@@ -1222,12 +1222,28 @@ inline std::string panel_text(const surface::SurfaceCanvas& c, const ui::Rect& b
     return out;
 }
 
+/// THE CELLS INSIDE A SURFACE'S OWN CHROME (WUX-5) -- where every row a pane, panel or
+/// overlay draws actually lands. It is `pane_interior` read at the cell grain, so a case
+/// asking "what does this pane SAY" and the painter that said it are one rectangle.
+///
+/// A case asking about the pane's PLACE -- occupancy, a press on its edge, coverage --
+/// still wants the OUTER rectangle `bounds_of` answers, which is unchanged: the boundary
+/// is inside the pane and the pane did not move.
+inline ui::Rect pane_body_cells(const FineRect& outer) {
+    return cells_covered(pane_interior(outer));
+}
+inline ui::Rect pane_body_cells(const ui::Rect& outer) {
+    return pane_body_cells(fine_of_cells(outer));
+}
+
 /// What the overlay stack's first slot is showing, whatever is in it. The stack is
 /// anchored to the canvas's top-left and its ROWS are the same on every screen -- only
 /// its width follows the room (WIND-1) -- and `panel_text` reads one column and a run of
 /// rows, so the minimum screen's rectangle still names the right rows on any of them.
+/// Since WUX-5 it reads the slot's INTERIOR, because that is where the rows are.
 inline std::string stack_text(const surface::SurfaceCanvas& c) {
-    return panel_text(c, placement_bounds(placement::kOverlayStack, 0, kMinScreen));
+    return panel_text(c, pane_body_cells(placement_bounds(placement::kOverlayStack, 0,
+                                                          kMinScreen)));
 }
 
 /// Where a kind sits in the catalog, so a case names a KIND rather than a row
@@ -1265,7 +1281,7 @@ inline void open_builder(Live& t) { pick(t, panel::kBuilder); }
 inline bool first_slot_shows_builder(Live& t) {
     const Screen sc = screen_of(t.session());
     const PanelBounds at = bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
-    const ui::Rect cells = cells_covered(at.rect);
+    const ui::Rect cells = pane_body_cells(at.rect);
     return at.open && at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)) &&
            label_at(t.canvases.back(), cells.x, cells.y).find("BUILDER") == 0;
 }
@@ -1273,7 +1289,16 @@ inline bool first_slot_shows_builder(Live& t) {
 /// Everything the Info panel is showing, top to bottom -- through the same path,
 /// asked about the other place.
 inline std::string info_text(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return panel_text(c, placement_bounds(placement::kSideRegion, 0, sc));
+    return panel_text(c, pane_body_cells(placement_bounds(placement::kSideRegion, 0, sc)));
+}
+
+/// WHAT THE TERMINAL OVERLAY IS SAYING, at its own rectangle. It is a MODE and not a pane,
+/// so it wears no pane chrome and its rows begin at its own corner (WUX-5 changed nothing
+/// about it) -- and at the minimum composition that corner is column 0, which is also the
+/// overlay stack's, so a case reading it through `stack_text` would be reading the stack's
+/// INTERIOR and missing the terminal's first column.
+inline std::string terminal_text(const surface::SurfaceCanvas& c, const Screen& sc) {
+    return panel_text(c, ui::Rect{sc.terminal_x, sc.terminal_y, sc.terminal_w, sc.terminal_h});
 }
 
 /// The cell a terminal medium would report for a prose position of the pane's own region.
@@ -2101,9 +2126,17 @@ inline Setup two_overlays() {
 /// that has to arrange a setup DIRECTLY (rather than through the keys it is measuring) can.
 inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 
-/// The kinds a setup resolves to, in the order they would be PAINTED.
-inline std::vector<std::int64_t> painted_order(const Session& s) {
+/// The kinds a setup AUTHORS, in the order the file holds them. Since WUX-5 this is the
+/// BASE and not what a maker sees: `painted_order` below is the effective one.
+inline std::vector<std::int64_t> authored_order(const Session& s) {
     return presentation_order(s.setup.active, s.panels);
+}
+
+/// The kinds a setup resolves to, in the order they would be PAINTED -- the authored order
+/// with the selected pane lifted (WUX-5). The same call paint, hit testing and coverage
+/// spend, so a case reading it is reading the picture.
+inline std::vector<std::int64_t> painted_order(const Session& s) {
+    return effective_pane_order(s.setup.active, s.panels);
 }
 
 /// The front ranks of a setup, in list order -- what every ordering case reads.
@@ -2133,16 +2166,17 @@ inline bool is_permutation(const Setup& s) {
 }
 
 /// THE CONTEXTUAL SURFACE'S GEOMETRY IN CANVAS CELLS on a CELL medium (CTX-0; local
-/// bounds since ARR-0) -- through the same `context_bounds` the painter and the press
-/// resolver spend, never a second arithmetic. `context_entry_cell_y` is population row
-/// `index`'s canvas row WHILE the window shows the population from its top with no
-/// `earlier` marker, which every case using it arranges (the pane and object populations
-/// always fit the room).
+/// bounds since ARR-0; inside its own chrome since WUX-5) -- through the same
+/// `context_bounds` the painter and the press resolver spend, never a second arithmetic.
+/// `context_entry_cell_y` is population row `index`'s canvas row WHILE the window shows the
+/// population from its top with no `earlier` marker, which every case using it arranges
+/// (the pane and object populations always fit the room). The surface reserves NO heading
+/// rows now, so row `index` is the `index`'th row of the interior.
 inline std::int64_t context_cell_x(const Session& s) {
-    return surface::cell_of_subs(context_bounds(s, screen_of(s)).x) + 1;
+    return surface::cell_of_subs(context_bounds(s, screen_of(s)).x) + kChromeCells + 1;
 }
 inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return surface::cell_of_subs(context_bounds(s, screen_of(s)).y) + kContextHeadingRows +
+    return surface::cell_of_subs(context_bounds(s, screen_of(s)).y) + kChromeCells +
            static_cast<std::int64_t>(index);
 }
 

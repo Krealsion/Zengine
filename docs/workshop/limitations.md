@@ -99,6 +99,12 @@ drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), o
 keyboard at **one cell per press** with no coarse step and no "fill the room". It persists
 correctly once authored. Detail in [pane geometry](panes.md#pane-geometry).
 
+One cell on each side of that rectangle is the pane's visible edge, so the default pane
+shows 46 columns by 7 rows. Two panes feel this most: the Builder drops its lowest-priority
+row at the default height, and the Compose pane's **form** does not fit one — it needs eight
+rows of body and the default grants six, so a form opened in a default-sized Compose pane
+shows its fields or its Submit control but not both. Make the pane taller and both return.
+
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.
 

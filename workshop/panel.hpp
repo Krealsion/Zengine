@@ -768,6 +768,33 @@ struct Panels {
     /// not persisted and not restored. `kNoPaneKind` is where every session starts.
     std::int64_t keyboard = kNoPaneKind;
 
+    /// WHICH PANE THE MAKER LAST PRESSED INTO -- the SELECTED pane (WUX-5), and the
+    /// identity the desk's effective foreground order is lifted by.
+    ///
+    /// IT IS `keyboard`'S OWN SHAPE, ONE QUESTION WIDER, AND WRITTEN BY THE SAME LINE.
+    /// `keyboard` asks "which KEYBOARD-TAKING pane did the maker point at"; this asks
+    /// "which pane did the maker point at", of every kind. Two facts read off one press
+    /// rather than two decisions about one press: `on(PointerButton)` sets this from the
+    /// occupancy walk it already performs, and derives the keyboard candidate from it
+    /// through the declared candidacy (`PanelKind::takes_keyboard`, MSG-0's line, which
+    /// now reads this instead of re-testing the occupancy). A press on the workspace, on
+    /// the picker, on the screen's own furniture or on nothing clears it by that same line.
+    ///
+    /// SELECTION IS A STATE A MAKER ENTERED, WHICH IS WHY A PRESS AND NOT A POINT WRITES
+    /// IT (CTX-0's law). Opening the contextual surface captures a subject and changes
+    /// this not at all; the modes that own the pointer whole (the Terminal, the
+    /// arrangement scopes) never reach the line, so entering one leaves the selection
+    /// exactly where it was and leaving hands it back.
+    ///
+    /// IT IS AN IDENTITY AND NEVER AN ORDER. What it does to the desk is derived fresh at
+    /// every paint and every press (`effective_pane_order`, setup.hpp); no rank is
+    /// rewritten, no `front` moves, and a pane that closes, stops resolving or loses its
+    /// room stops being lifted with nothing to clear -- `keyboard`'s discipline exactly.
+    ///
+    /// SESSION, and not even that: not in the setup, not in the document, not persisted
+    /// and not restored. `kNoPaneKind` is where every session starts.
+    std::int64_t selected = kNoPaneKind;
+
     bool has(std::int64_t kind) const {
         for (const Panel& p : open) {
             if (p.kind == kind) {
@@ -823,6 +850,22 @@ struct Panels {
 /// marks it and the bottom band names it. A second copy of this resolution would be a
 /// screen that says a maker is typing into one pane while the keys go to another,
 /// which is the worst shape this defect could take.
+/// WHICH PANE IS SELECTED RIGHT NOW, or `kNoPaneKind` (WUX-5) -- `keyboard_pane`'s twin,
+/// and resolved by the same rule for the same reason.
+///
+/// `Panels::selected` is a press's MEMORY and this is the ANSWER: a pane that has been
+/// closed, removed from the setup or left unresolved is not selected, with nothing to
+/// clear and nobody to notify, and if the same kind comes back so does the selection. What
+/// is deliberately NOT asked here is whether the pane is currently VISIBLE: a pane pushed
+/// off the room or covered is still the pane a maker chose, and the two consumers each
+/// answer that for themselves -- the effective order lifts only what is seated, and the
+/// help anchor falls back when the rectangle is empty. A visibility test here would make
+/// selection blink with the geometry.
+inline std::int64_t selected_pane(const Panels& panels) noexcept {
+    const std::int64_t kind = panels.selected;
+    return kind != kNoPaneKind && panels.has(kind) ? kind : kNoPaneKind;
+}
+
 inline std::int64_t keyboard_pane(const Panels& panels) noexcept {
     const std::int64_t kind = panels.keyboard;
     if (!is_runtime_kind(kind) || !panels.has(kind)) {

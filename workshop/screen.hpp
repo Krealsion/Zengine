@@ -566,6 +566,85 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
     return FineRect{x0, y0, x1 - x0, y1 - y0};
 }
 
+// ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES (WUX-5) ------------------------
+//
+// A PANE HAS AN EDGE A MAKER CAN SEE, AND THE EDGE IS INSIDE THE PANE. The rectangle a
+// setup authors and `bounds_of` resolves is the pane's OUTER rectangle and stays exactly
+// what it always was -- what a maker drags, what `occupied_at` answers with, what the
+// affordance rings sit on -- and the chrome is subtracted from it. Nothing grows outward
+// to make room for a boundary: a pane that added an invisible cell of its own would be a
+// pane whose authored width is not its width.
+//
+//     pane_outer          the authored/resolved rectangle -- unchanged by this
+//        +-- chrome       kChromeCells on every side
+//        +-- pane_interior  everything a painter, a press or a room grant may spend
+//
+// ONE SUBTRACTION, AND EVERY CONSUMER INHERITS IT. `pane_interior` is called inside the
+// three body resolutions (`external_body_place`, `info_body_place`, `panel_prose_place`)
+// rather than at their call sites, so the painter, the press inverse and the provider's
+// granted room are one geometry by construction -- there is no call site that could spend
+// the outer rectangle for prose and no second inset to keep in step (HD-3).
+//
+// THE THICKNESS IS ONE CANVAS CELL, on the lattice everything else here is drawn on, and
+// deliberately not a device pixel. A character medium cannot draw less than a cell, and a
+// medium-independent sub-cell inset would floor to nothing there -- so one number serves
+// both media and the pane's boundary is in the same place in each. The shipped face's cell
+// is 12 device pixels (`surface::kCanvasCellPx`) and that is the pixel authoring model
+// answering, not a second coordinate system.
+//
+// A PANE TOO SMALL FOR ITS OWN CHROME HAS NO INTERIOR, and says so by answering an empty
+// rectangle -- which every consumer already reads as "nowhere" (`bounds_of`'s discipline).
+// Nothing underflows and nothing is drawn where nothing was painted.
+inline constexpr std::int64_t kChromeCells = 1;
+inline constexpr std::int64_t kChromeSubs = surface::subs_of_cells(kChromeCells);
+
+/// The rectangle inside a pane's chrome: `outer` less `kChromeCells` on every side, empty
+/// when the outer rectangle cannot hold both edges.
+inline constexpr FineRect pane_interior(const FineRect& outer) noexcept {
+    const std::int64_t w = outer.w - 2 * kChromeSubs;
+    const std::int64_t h = outer.h - 2 * kChromeSubs;
+    if (w <= 0 || h <= 0) {
+        return FineRect{};
+    }
+    return FineRect{surface::add_cells(outer.x, kChromeSubs),
+                    surface::add_cells(outer.y, kChromeSubs), w, h};
+}
+
+/// The same subtraction read BACKWARDS, in whole cells: the outer extent a surface sized by
+/// its own content needs in order to hold that content INSIDE its chrome. One consumer (the
+/// contextual popup, which measures its rows and then asks for a rectangle), and it lives
+/// beside the forward direction so the two cannot drift by a cell.
+inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
+                                          std::int64_t h) noexcept {
+    return ui::Rect{x, y, w + 2 * kChromeCells, h + 2 * kChromeCells};
+}
+
+// ---- THE CHROME'S VOICE: three roles, and the vocabulary is the one that exists ---------
+//
+// `surface/vocabulary.hpp`'s four roles are deliberately closed, so pane chrome speaks in
+// words this screen already spends -- and it speaks the SAME words the document one layer
+// down speaks, which is the argument for this assignment rather than any other:
+//
+//     the workspace backdrop   kMuted    quiet material somebody is working on top of
+//     an authored object       kFill     ordinary material
+//     the selected object      kAccent   the one thing being pointed at
+//
+// So an ordinary pane's edge is ordinary material (`kFill`), the selected pane's edge is
+// the one being pointed at (`kAccent`) -- the desk and the document say selection in one
+// word -- and a transient surface's edge is deliberately quiet (`kMuted`), because it is
+// in front of everything already and its own cleared interior is what draws it.
+//
+// ⚠ WHAT A CHARACTER MEDIUM CANNOT SAY, said here rather than claimed. `glyph_for_role`
+// gives `#`/`*`/`.`/`!`, and the workspace backdrop is `kMuted` -- so a transient surface's
+// quiet edge is the same glyph as the workspace it may be floating over. Over a pane it
+// reads; over bare workspace the popup is drawn by the hole its interior clears, exactly as
+// it was before this phase. The shipped face has three distinct inks for the three roles
+// and no such collision. Do not repair this with a fifth role or a per-medium palette:
+// the vocabulary is closed and the palette is the medium's.
+inline constexpr std::int64_t kPaneChrome = surface::role::kFill;
+inline constexpr std::int64_t kPaneChromeSelected = surface::role::kAccent;
+inline constexpr std::int64_t kTransientChrome = surface::role::kMuted;
+
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN (WIND-2) ----------------------------
 //
 // ONE OVERRIDE-AWARE RESOLVER, AND EVERYTHING CONSUMES ITS ANSWER: the painter, the
@@ -838,7 +917,11 @@ static_assert(kMinSide.y + kMinSide.h == kWorkspaceY + kMinScreen.room_h,
 // that had no owner and no reason.
 static_assert(kMinScreen.terminal_x + kMinScreen.terminal_w <= kMinSide.x - kPanelGap,
               "the two places do not overlap: the terminal pane never reaches the side region");
-static_assert(kPickerRows <= kStackRows, "the picker is never taller than a panel");
+static_assert(kPickerRows + 2 * kChromeCells <= kStackRows,
+              "the picker still fits a panel's slot INSIDE its own chrome (WUX-5): the "
+              "declared floor is the compile-time catalog, and the slot must seat it plus "
+              "the boundary. A runtime-widened population outgrowing the slot is a "
+              "different and already-answered question -- `list_window` counts what it hid");
 
 /// WHERE THE PICKER OPENS: the stack's first slot, and it is a function rather than a repeated
 /// expression so that the mode that PAINTS there and the pointer that must not see THROUGH it
@@ -851,17 +934,21 @@ inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
     return fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc));
 }
 
-/// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0): the stack's column, from its first slot's
-/// top to the workspace's bottom -- the floor `stack_capacity` itself respects, one row
-/// above the setup line, so the view can never erase the line naming the arrangement.
+/// THE OVERLAY COLUMN: the stack's first slot's corner and width, from its top to the
+/// workspace's bottom -- the floor `stack_capacity` itself respects, one row above the
+/// setup line, so nothing placed here can erase the line naming the arrangement.
 ///
-/// A single slot was measured too small for this list at the minimum composition
+/// A single slot was measured too small for a context list at the minimum composition
 /// (INTR-1's own 8-rows-showing-one-entry arithmetic): a command context alone declares
 /// more rows than a slot holds, and a view whose default state is `... 20 more` would be
 /// a list a maker cannot actually read. The column is the room the screen already
-/// reserves beside the workspace, and the view is a MODE with a rectangle -- the
-/// picker's own kind of place, one slot taller.
-inline constexpr FineRect hotkeys_bounds(const Screen& sc) noexcept {
+/// reserves beside the workspace, and a view placed here is a MODE with a rectangle --
+/// the picker's own kind of place, one slot taller.
+///
+/// It is the attention view's rectangle outright, and the hotkey view's when nothing is
+/// selected (WUX-5) -- so the two are one arithmetic and the no-selection fallback is
+/// byte-for-byte the place this view has always opened at.
+inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
     const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
     return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
 }
@@ -1030,12 +1117,14 @@ struct Occupancy {
 /// pane that answered here as well would be the same rule written twice, and the second copy is
 /// the one that would go stale.
 ///
-/// IT WALKS THE PRESENTATION ORDER SINCE WIND-2, NOT THE OPEN LIST. `presentation_order`
-/// is the setup's canonical `front` ranks restricted to what is seated, and this walks it
-/// BACKWARD -- so the topmost pane answers first, which is the same law `ui::hit` states
-/// for the document one layer down. Before overlap was reachable the two orders were the
-/// same list and the choice changed no answer; a maker who raises a pane makes it the
-/// answer, which is what raising one means.
+/// IT WALKS THE PRESENTATION ORDER SINCE WIND-2, NOT THE OPEN LIST, AND THE EFFECTIVE ONE
+/// SINCE WUX-5. `effective_pane_order` is the setup's canonical `front` ranks restricted to
+/// what is seated, with the selected pane lifted, and this walks it BACKWARD -- so the
+/// topmost pane answers first, which is the same law `ui::hit` states for the document one
+/// layer down. It is the SAME call `paint_panels` walks forward, which is what makes "the
+/// thing I see in front is the thing my pointer reaches" an identity rather than an
+/// intention: a maker who selects a pane makes it the answer, which is what selecting one
+/// means.
 inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Screen& sc,
                              const PointedAt& at) {
     // EVERY TEST BELOW IS THE POINTER'S OWN GRAIN AGAINST FINE GEOMETRY (WUX-2) — the
@@ -1045,7 +1134,7 @@ inline Occupancy occupied_at(const Panels& panels, const Setup& setup, const Scr
     if (panels.picker.open && picker_bounds(sc).contains_at(at.sub.x, at.sub.y, at.grain)) {
         return Occupancy{true, kPickerName, kNoKind};
     }
-    const std::vector<std::int64_t> order = presentation_order(setup, panels);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
     for (std::size_t i = order.size(); i > 0; --i) {
         const std::int64_t kind = order[i - 1];
         if (bounds_of(panels, setup, kind, sc).rect.contains_at(at.sub.x, at.sub.y, at.grain)) {
@@ -1659,6 +1748,69 @@ struct Session {
 /// pane's capacity from `terminal_w` and be quietly wrong on a graphical medium.
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px);
+}
+
+/// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0, anchored to the selection by WUX-5): at the
+/// SELECTED PANE'S own top-left, not at the corner of the screen.
+///
+/// Contextual help belongs beside the tool a maker is using. The anchor is the selected
+/// pane's VISIBLE OUTER rectangle -- the boundary the eye and the hand already meet -- and
+/// the view follows it with nothing stored: this is derived at every paint and every press
+/// from the selection and the live screen, exactly as the contextual popup's bounds are,
+/// so moving or resizing the pane moves the help on the next projection and no position is
+/// ever written to a file.
+///
+/// THE SIZE IS THE ROOM UNDER THE ANCHOR, floored so the view stays a view. A pane near
+/// the bottom of the workspace would otherwise anchor a two-row help list; the floor is
+/// `kPickerRows` -- this screen's own existing answer to "the smallest useful overlay
+/// list", not a number minted here -- and a view that cannot start at the anchor is
+/// SHIFTED UP whole rather than drawn outside the room, which is `context_bounds`'s clamp
+/// spelled for the same band. The list already says what it could not show, so a shorter
+/// view is honest rather than silent.
+///
+/// AND WITH NO SELECTION IT IS THE OVERLAY COLUMN, byte-for-byte where this view has
+/// always opened: a maker who has pointed at nothing gets the global help at the global
+/// place. Nothing invents a selection to anchor to (WUX-5's own rule), and a selected pane
+/// with no rectangle on this screen -- off-room, refused, waiting -- takes the same
+/// fallback, because an anchor nobody can see is not an anchor.
+inline FineRect hotkeys_bounds(const Session& s, const Screen& sc) {
+    const FineRect column = overlay_column(sc);
+    const std::int64_t chosen = selected_pane(s.panels);
+    if (chosen == kNoPaneKind) {
+        return column;
+    }
+    const FineRect anchor = bounds_of(s.panels, s.setup.active, chosen, sc).rect;
+    if (anchor.w <= 0 || anchor.h <= 0) {
+        return column;
+    }
+    // THE ANCHOR IS A CELL CORNER. The view is screen furniture and never moves by less
+    // than a cell -- `picker_bounds`'s own rule -- so the pane's fine top-left is read at
+    // the cell grain it is drawn on, which is also where its visible boundary is.
+    const ui::Rect at = cells_covered(anchor);
+    const ui::Rect room = cells_covered(column);
+    const std::int64_t floor_y = room.y + room.h;
+    std::int64_t y = at.y;
+    std::int64_t h = floor_y - y;
+    if (h < kPickerRows) {
+        h = kPickerRows;
+    }
+    if (h > room.h) {
+        h = room.h;
+    }
+    if (y + h > floor_y) {
+        y = floor_y - h;
+    }
+    if (y < room.y) {
+        y = room.y;
+    }
+    std::int64_t x = at.x;
+    if (x + room.w > sc.w) {
+        x = sc.w - room.w;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    return fine_of_cells(ui::Rect{x, y, room.w, h});
 }
 
 /// DOES THE SOURCE EDITOR HAVE THE KEYBOARD RIGHT NOW? -- `keyboard_pane`'s discipline for
@@ -3870,8 +4022,22 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
 /// its last consumer was the Builder, whose rows are a budget-composed region now. The
 /// cell projection of a region writes byte-for-byte the padded rows it used to write, so a
 /// character medium cannot tell the spelling ever changed.)
-inline void paint_panel_frame(surface::SurfaceLayer& layer, const FineRect& b) {
-    layer.rects.push_back(wire_rect_of(b, surface::role::kMuted));
+///
+/// ...AND SINCE WUX-5 THE BACKDROP IS ALSO THE BORDER, which is one rectangle rather than
+/// five. The body drawn over it is `pane_interior`'s rectangle and it OWNS its ground
+/// (`kGroundOwn` -- spaces in a character medium, its own fill in a graphical one, over the
+/// whole of its bounds and not merely under its rows), so what remains visible of this rect
+/// is exactly the ring the interior did not cover. There is no border arithmetic here and
+/// none anywhere else: the ring IS `b` minus `pane_interior(b)`, so a boundary that moved
+/// and an interior that did not is not a state this screen can reach.
+///
+/// THE ROLE IS THE CALLER'S because the caller is the one that knows what kind of surface
+/// this is (`kPaneChrome`, `kPaneChromeSelected`, `kTransientChrome`). It is a REQUIRED
+/// argument: a default would be the forgotten call site that paints a selected pane as an
+/// ordinary one, which is exactly the distinction this rectangle now carries.
+inline void paint_panel_frame(surface::SurfaceLayer& layer, const FineRect& b,
+                              std::int64_t role) {
+    layer.rects.push_back(wire_rect_of(b, role));
 }
 
 /// A PANEL WHOSE WHOLE BODY IS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE (TYPE-0).
@@ -3900,30 +4066,41 @@ struct PanelProsePlace {
     bool present = false;
     std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the panel
     std::int64_t columns = 0; ///< ...and how many characters fit across one of them
+    /// THE RESOLUTION ITSELF, carried so a press inverse over this surface spends the fit
+    /// the painter was handed rather than resolving the same rectangle a second time --
+    /// `ExternalBodyPlace`'s own field, for `ExternalBodyPlace`'s own reason (HD-3).
+    surface::RegionFit fit{};
 };
 
 /// The one call. TOTAL over the rectangle, because a closed panel answers with an empty one
 /// (`bounds_of`) and a screen may be small enough to hold no row at all. Fine bounds fit at
 /// their fine place (WUX-2) — the same sub-unit entry the medium resolves the same
 /// rectangle with.
+///
+/// IT IS HANDED THE OUTER RECTANGLE AND RESOLVES THE INTERIOR (WUX-5). Every caller holds
+/// the rectangle the pane occupies; the chrome comes off HERE so no call site can spend the
+/// outer one for prose, and the press inverse that asks the same question gets the same
+/// answer for free.
 inline PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
     PanelProsePlace p;
-    if (b.w <= 0 || b.h <= 0) {
+    const FineRect inner = pane_interior(b);
+    if (inner.w <= 0 || inner.h <= 0) {
         return p;
     }
-    const surface::RegionFit fit =
-        surface::fit_region_subs(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
-    p.rows = fit.rows;
-    p.columns = fit.columns;
+    p.fit = surface::fit_region_subs(inner.x, inner.y, inner.w, inner.h, sc.text_advance_px,
+                                     sc.text_line_px);
+    p.rows = p.fit.rows;
+    p.columns = p.fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
     return p;
 }
 
 /// The region a `PanelProsePlace` was resolved for, empty and ready for its rows — the fine
-/// bounds decomposed onto the wire's cells-plus-remainder spelling.
+/// bounds decomposed onto the wire's cells-plus-remainder spelling. It takes the same OUTER
+/// rectangle its place does and applies the same one subtraction (WUX-5).
 inline surface::SurfaceTextRegion panel_prose_region(const FineRect& b) {
     surface::SurfaceTextRegion region;
-    const surface::SurfaceRect wire = wire_rect_of(b, surface::role::kFill);
+    const surface::SurfaceRect wire = wire_rect_of(pane_interior(b), surface::role::kFill);
     region.x = wire.x;
     region.y = wire.y;
     region.w = wire.w;
@@ -3989,11 +4166,17 @@ inline std::vector<std::string> panel_block(const char* label, const std::string
 /// above -- and the shipped face's five-row budget keeps the facts a maker acts on, by the
 /// explicit priority written on each row below. The `Screen` argument is the metric's
 /// carrier, exactly as it is for every other bounded region here.
+/// ...AND SINCE WUX-5 IT CANNOT SEE THE KEYMAP AT ALL. The `Keymap&` this took existed for
+/// exactly one expression -- the four shortcuts its header used to advertise -- so removing
+/// the parameter with them is a structural guard rather than a tidy-up: a painter with no
+/// keymap in scope cannot grow a gesture claim back, and the compiler enforces it. Project
+/// Files still carries its (void)-cast one for a different reason: its own note.
 inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
-                          const FineRect& b, const Screen& sc, const Keymap& keymap,
+                          const FineRect& b, const Screen& sc,
                           const ProjectFrontier& frontier = {},
-                          const std::string& catalog_moved_to = std::string()) {
-    paint_panel_frame(layer, b);
+                          const std::string& catalog_moved_to = std::string(),
+                          std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
     // THE PANEL IS ONE REGION AND ITS ROWS ARE COMPOSED AGAINST THE BUDGET (WUX-1). The
     // Builder was the last consumer of the cell-lattice row spelling, and the recorded
     // reason was never typography: nine facts do not fit five rows, and until the panel
@@ -4023,20 +4206,19 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
     };
     std::vector<Fact> facts; // display order, priorities deciding survival
 
-    // THE HEADER NAMES THE OFFICE IT IS PRESENTING. The same discipline the terminal pane's
-    // header follows: a presentation that shows somebody else's facts without saying whose
-    // is a presentation that will eventually be read as its own.
-    // The removal hint follows the PICKER's binding and not an `x closes` of its own:
-    // PNL-0 gave panel presence one owner, and it is the picker. A panel's own header
-    // advertising its own removal key is exactly the per-panel binding the second kind
-    // made untenable. Every gesture here is the keymap's effective spelling (KEY-0) --
-    // this header was one of the independently-authored claim sites KEY-R0 measured.
-    facts.push_back(Fact{std::string("BUILDER @") + builder::kBuilderRole + " -- " +
-                             hotkey_text(keymap, Act::kBuild) + "/" +
-                             hotkey_text(keymap, Act::kBuildRealize) + " build, " +
-                             hotkey_text(keymap, Act::kRecipeNext) + " pick, " +
-                             hotkey_text(keymap, Act::kBuildFrontier) + " frontier, " +
-                             hotkey_text(keymap, Act::kPicker) + " removes",
+    // THE HEADER NAMES THE OFFICE IT IS PRESENTING, AND NOTHING ELSE (WUX-5). The same
+    // discipline the terminal pane's header follows: a presentation that shows somebody
+    // else's facts without saying whose is a presentation that will eventually be read as
+    // its own.
+    //
+    // ITS FOUR SHORTCUTS ARE GONE. `b`/`B`, `c`, `f` and the picker's removal key are
+    // ordinary `kActionCatalog` rows in command mode, so the band's legend and the full
+    // hotkey view already say every one of them -- in the maker's own bindings -- and this
+    // pane was spending a third of its widest row restating them. KEY-0 made the claims
+    // truthful; this makes them singular. Project Files reached the same answer first
+    // ("THE GESTURES ARE NOT PAINTED HERE") and the argument is the same one: the pane
+    // spends its rows on the project rather than on instructions.
+    facts.push_back(Fact{std::string("BUILDER @") + builder::kBuilderRole,
                          surface::role::kAccent, 0});
 
     const auto publish = [&](std::vector<Fact> chosen, const std::string& said_detail) {
@@ -4404,15 +4586,18 @@ inline constexpr std::size_t kPickerNameCols = 10;
 /// PARTIAL COVERAGE IS NOT COVERAGE. One visible cell is enough to be `open`: a maker can
 /// see the pane, so the word for it is not the word for a pane they cannot.
 ///
-/// IT ASKS ONLY WHAT IS IN FRONT. `presentation_order` is back-to-front, so the panes that
-/// can cover this one are exactly the ones after it -- which is the same sentence
-/// `occupied_at` spends when it walks that order backward.
+/// IT ASKS ONLY WHAT IS IN FRONT, AND IT ASKS THE ORDER A MAKER IS LOOKING AT (WUX-5).
+/// `effective_pane_order` is back-to-front, so the panes that can cover this one are
+/// exactly the ones after it -- which is the same sentence `occupied_at` spends when it
+/// walks that order backward. A selected pane is lifted, so it is not called `covered`
+/// while a maker can plainly see it: the word this classifier answers with is a word
+/// about the picture, and it has to move with the picture.
 inline bool pane_is_covered(const Panels& panels, const Setup& setup, const Screen& sc,
                             std::int64_t kind, const FineRect& mine) {
     if (mine.w <= 0 || mine.h <= 0) {
         return false; // nothing visible is OFF-ROOM, which is a different word
     }
-    const std::vector<std::int64_t> order = presentation_order(setup, panels);
+    const std::vector<std::int64_t> order = effective_pane_order(setup, panels);
     std::size_t me = order.size();
     for (std::size_t i = 0; i < order.size(); ++i) {
         if (order[i] == kind) {
@@ -4544,7 +4729,7 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
         return;
     }
     const FineRect b = picker_bounds(sc);
-    paint_panel_frame(layer, b);
+    paint_panel_frame(layer, b, kTransientChrome);
     // THE PICKER IS ONE BOUNDED REGION OF PROSE (TYPE-0), and the budget it spends is the
     // ACTIVE medium's row count rather than the slot's cell count. The two are the same
     // number in a character medium and they are not in one that sets real type -- nine cells
@@ -4728,8 +4913,8 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
     if (!s.hotkeys.open) {
         return;
     }
-    const FineRect b = hotkeys_bounds(sc);
-    paint_panel_frame(layer, b);
+    const FineRect b = hotkeys_bounds(s, sc);
+    paint_panel_frame(layer, b, kTransientChrome);
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
         return; // a slot with no room for a row says nothing rather than lying about the room
@@ -4976,13 +5161,18 @@ inline std::string attention_compact(const std::vector<Condition>& shown) {
     return line;
 }
 
-/// WHERE THE CURRENT-CONDITION VIEW OPENS: the hotkey view's rectangle, for the hotkey
-/// view's reason. Each condition spends a row for its statement and a row for its owner's
+/// WHERE THE CURRENT-CONDITION VIEW OPENS: the overlay column, for the hotkey view's old
+/// reason. Each condition spends a row for its statement and a row for its owner's
 /// explanation, so a single overlay slot would show two of them; the column is the room the
-/// screen already reserves beside the workspace, and it stops one row above the setup line
-/// exactly as `hotkeys_bounds` does.
+/// screen already reserves beside the workspace, and it stops one row above the setup line.
+///
+/// ⚠ IT DID NOT FOLLOW THE HOTKEY VIEW TO THE SELECTED PANE (WUX-5), and the split is the
+/// judgement. Contextual help is ABOUT the tool a maker is using, so it belongs beside it;
+/// a condition is about the application -- a refused file, a waiting frontier, a pane with
+/// no room -- and anchoring that list to whichever pane was last pressed would assert a
+/// relationship between the two that does not exist. This view's rectangle has not moved.
 inline constexpr FineRect attention_bounds(const Screen& sc) noexcept {
-    return hotkeys_bounds(sc);
+    return overlay_column(sc);
 }
 
 /// THE VIEW: every currently-true, non-dismissed condition, in the owner's own words.
@@ -5005,7 +5195,7 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
         return;
     }
     const FineRect b = attention_bounds(sc);
-    paint_panel_frame(layer, b);
+    paint_panel_frame(layer, b, kTransientChrome);
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
         return; // a slot with no room for a row says nothing rather than lying about the room
@@ -5118,22 +5308,34 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
 // rows and the live screen (`ContextMenu`'s anchor comment owns the reasoning), so the
 // painter and the hit test cannot disagree and a screen resize re-clamps by itself.
 
-/// The two fixed rows the surface spends before its list: the title naming the subject,
-/// and the interaction hint. Shared by the painter and the press resolver -- one of the
-/// numbers that keep them the same geometry.
-inline constexpr std::int64_t kContextHeadingRows = 2;
+// THE SURFACE SPENDS NO ROW ON CHROME (WUX-5). It used to open with two: a title reading
+// `ACTIONS -- ` and the captured subject's reference, and an interaction hint reading
+// `enter chooses, esc closes`. Both are gone, and with them the row offset the painter
+// and the press resolver had to keep in step -- painted row i IS population row i now, so
+// the two cannot drift.
+//
+// THE HINT WAS A SECOND CHEAT SHEET. `context.choose` and `context.back` are ordinary
+// keymap rows, so the band's generated legend already says them -- in the maker's own
+// bindings -- for exactly as long as this surface is open (`KeyContext::kContext`). A row
+// restating them was the duplication KEY-0 spent a phase removing everywhere else.
+//
+// THE TITLE ANNOUNCED THAT A MENU CONTAINS ACTIONS, AND PAID FOR IT IN WIDTH. It was the
+// widest thing on most levels, so a four-row pane menu was as wide as a pane reference --
+// the removed rows were the width FLOOR, and the popup shrinks to its content now.
+// What the title also carried, the subject's identity, is not lost: a pointer-opened
+// surface is AT the subject, and the keyboard entrance's subject is the selected object,
+// which the status line and the object list both already mark.
+//
+// A GROUP LEVEL LOSES NO MEANING EITHER, which was checked rather than assumed: the
+// `Reset` group's rows are labelled `reset place` / `reset width` / `reset height` and the
+// `Order` group's are `front` / `back` / `raise` / `lower` -- every one of them says what
+// it does without a breadcrumb over it (`kActionCatalog`).
 
-/// THE SUBJECT, AS THE HEADING NAMES IT. An IDENTITY and never an existence claim:
-/// `ref_text` is string arithmetic over the two admitted halves and `#n` over a number,
-/// so both stay truthful about a subject that has since disappeared -- what they say is
-/// "this is what you pointed at", and the owner says the rest at spend.
-inline std::string context_subject_text(const ContextMenu& menu) {
-    switch (menu.subject) {
-    case context_subject::kPane: return ref_text(menu.pane);
-    case context_subject::kObject: return "#" + std::to_string(menu.object);
-    default: return "Workshop";
-    }
-}
+// `context_subject_text` WENT WITH THE HEADING and is not kept for a later reader: it had
+// exactly two callers, both of them the removed chrome, and every other place that names a
+// subject already spells it for itself (`ref_text` for a pane, `#n` for an object -- the
+// notice line's own arithmetic at each spend). A retained projection with no projection to
+// make is the drift KEY-R0 measured in six places.
 
 /// One entry as its row reads: a group descends and says so, an action is its declared
 /// label -- `row_of_id`'s answer, never a second spelling.
@@ -5213,14 +5415,20 @@ inline std::string context_row_text(const Session& s, const ContextEntry& entry,
 /// WHERE THE CONTEXTUAL SURFACE OPENS (ARR-0): beside the press that asked, sized by what
 /// it has to say.
 ///
-/// The extent is the level's own composition -- the heading naming the subject, the hint
-/// row, and each row's composed text -- read backwards into whole cells through the one
-/// text measurer (`surface::region_cells_for`; a second inversion here would drift from
-/// `fit_region` by an inset). The room is the band the overlay stack itself respects:
-/// under the retired top row, above the setup line, inside the canvas -- and the popup
-/// SHIFTS to stay whole inside it, so a click near the screen's far corner reads its menu
-/// just inside that corner. A level taller than the room keeps the room's height and lets
-/// `list_window` say what was cut, the same sentence every bounded list here speaks.
+/// The extent is the level's own composition -- ONLY its rows since WUX-5 -- read backwards
+/// into whole cells through the one text measurer (`surface::region_cells_for`; a second
+/// inversion here would drift from `fit_region` by an inset), then grown by the chrome the
+/// surface wears (`chrome_outer_of`, the one inset read backwards) so the content lands
+/// INSIDE its own boundary. The room is the band the overlay stack itself respects: under
+/// the retired top row, above the setup line, inside the canvas -- and the popup SHIFTS to
+/// stay whole inside it, so a click near the screen's far corner reads its menu just inside
+/// that corner. A level taller than the room keeps the room's height and lets `list_window`
+/// say what was cut, the same sentence every bounded list here speaks.
+///
+/// THE WIDTH IS THE CONTENT'S NOW, AND THAT IS THE WHOLE OF THE SHRINK. The removed
+/// heading and hint were the widest strings on most levels, so they were the width floor;
+/// nothing narrower was ever reachable. There is no hard-coded narrower number here --
+/// the same `want_cols` loop over the same rows answers a smaller question.
 ///
 /// A keyboard-opened surface (`anchored == false`) has no pointer place and invents none:
 /// it opens at the overlay stack's own corner, the deterministic home of every keyboard
@@ -5229,30 +5437,21 @@ inline FineRect context_bounds(const Session& s, const Screen& sc) {
     const ContextMenu& menu = s.context;
     const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
     const std::int64_t label_cols = context_label_columns(rows);
-    std::int64_t want_cols =
-        static_cast<std::int64_t>(("ACTIONS -- " + context_subject_text(menu)).size());
-    const std::string ways_out =
-        hotkey_text(s.keymap, Act::kContextChoose) + " chooses, " +
-        hotkey_text(s.keymap, Act::kContextBack) +
-        (menu.group.empty() ? " closes" : " backs out");
-    const std::string hint =
-        menu.group.empty() ? ways_out : menu.group + " -- " + ways_out;
-    const std::int64_t hint_len = static_cast<std::int64_t>(hint.size());
-    want_cols = hint_len > want_cols ? hint_len : want_cols;
+    std::int64_t want_cols = 0;
     for (const ContextEntry& entry : rows) {
         const std::int64_t len =
             2 + static_cast<std::int64_t>(context_row_text(s, entry, label_cols).size());
         want_cols = len > want_cols ? len : want_cols;
     }
     want_cols = want_cols > kContextMaxCols ? kContextMaxCols : want_cols;
-    const std::int64_t want_rows =
-        kContextHeadingRows + static_cast<std::int64_t>(rows.size());
+    const std::int64_t want_rows = static_cast<std::int64_t>(rows.size());
     const surface::RegionCells cells =
         surface::region_cells_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
+    const ui::Rect outer = chrome_outer_of(0, 0, cells.w, cells.h);
     const std::int64_t floor_y = kWorkspaceY + sc.room_h;
-    const std::int64_t w = cells.w > sc.w ? sc.w : cells.w;
+    const std::int64_t w = outer.w > sc.w ? sc.w : outer.w;
     const std::int64_t room_rows = floor_y - kStackY;
-    const std::int64_t h = cells.h > room_rows ? room_rows : cells.h;
+    const std::int64_t h = outer.h > room_rows ? room_rows : outer.h;
     std::int64_t x = menu.anchor_x;
     std::int64_t y = menu.anchor_y;
     if (!menu.anchored) {
@@ -5275,13 +5474,11 @@ inline FineRect context_bounds(const Session& s, const Screen& sc) {
     return fine_of_cells(ui::Rect{x, y, w, h});
 }
 
-/// The rows left for the list under a prose budget. `prose_rows` is `fit_region`'s answer
-/// for `context_bounds`, however the caller obtained it.
-inline constexpr std::size_t context_row_budget(std::int64_t prose_rows) noexcept {
-    return prose_rows > kContextHeadingRows
-               ? static_cast<std::size_t>(prose_rows - kContextHeadingRows)
-               : 0;
-}
+// `context_row_budget` IS GONE WITH THE HEADING ROWS (WUX-5). It subtracted them from the
+// prose budget, and with none to subtract it was the identity function -- a name for
+// nothing, standing between the painter and the press resolver, which is exactly where a
+// re-added constant would go unnoticed. Both spend `fit.rows` directly and painted row i
+// IS population row i, so there is no offset left for the two to disagree about.
 
 /// The cursor, bounded through the population's own size -- the attention view's rule,
 /// resolved once and spent by every question (the population is derived, so it can move
@@ -5299,7 +5496,7 @@ inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const 
         return;
     }
     const FineRect b = context_bounds(s, sc);
-    paint_panel_frame(layer, b);
+    paint_panel_frame(layer, b, kTransientChrome);
     const PanelProsePlace place = panel_prose_place(b, sc);
     if (!place.present) {
         return; // a popup with no room for a row says nothing rather than lying about the room
@@ -5308,17 +5505,13 @@ inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const 
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
+    // THE FIRST ROW IS AN ACTION (WUX-5). Nothing announces that a menu of actions
+    // contains actions, and nothing restates the two gestures the band's legend is
+    // already saying in the maker's own bindings for as long as this surface is open.
     const ContextMenu& menu = s.context;
-    say("ACTIONS -- " + context_subject_text(menu), surface::role::kAccent);
-    const std::string ways_out =
-        hotkey_text(s.keymap, Act::kContextChoose) + " chooses, " +
-        hotkey_text(s.keymap, Act::kContextBack) +
-        (menu.group.empty() ? " closes" : " backs out");
-    say(menu.group.empty() ? ways_out : menu.group + " -- " + ways_out,
-        surface::role::kMuted);
     const std::vector<ContextEntry> rows = context_population(menu.subject, menu.group);
     const std::int64_t label_cols = context_label_columns(rows);
-    const std::size_t budget = context_row_budget(place.rows);
+    const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
     if (win.before > 0) {
@@ -5360,31 +5553,30 @@ inline ContextPressAt context_press_at(const Session& s, const Screen& sc, std::
         return out;
     }
     out.inside = true;
-    // The same fit the painter's `panel_prose_place` resolves for the same rectangle --
-    // one geometry draws this surface and hits it. `prose_at` takes the region's CELL
-    // origin (the number on the published `SurfaceTextRegion`), so the wire spelling of
-    // the same bounds is what it is handed.
-    const surface::RegionFit fit =
-        surface::fit_region_subs(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
-    if (fit.rows <= 0 || fit.columns <= 0) {
+    // THE SAME CALL THE PAINTER MAKES, and not a re-derivation beside it (WUX-5): the
+    // painter asks `panel_prose_place` for this rectangle and so does this, so the chrome
+    // inset, the metric and the row budget are one answer rather than two that agree
+    // today. `prose_at` takes the region's CELL origin (the number on the published
+    // `SurfaceTextRegion`), so the wire spelling of the same interior is what it is handed.
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
         return out;
     }
     const surface::SurfaceTextRegion wire = panel_prose_region(b);
-    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, fit);
-    if (!where.understood || where.column < 0 || where.column >= fit.columns ||
-        where.row < 0 || where.row >= fit.rows) {
+    const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
+    if (!where.understood || where.column < 0 || where.column >= place.columns ||
+        where.row < 0 || where.row >= place.rows) {
         return out;
     }
-    const std::int64_t row = where.row - kContextHeadingRows;
-    if (row < 0) {
-        return out; // the heading rows
-    }
+    // PAINTED ROW i IS POPULATION ROW i. No heading is reserved any more, so there is no
+    // offset here and none in the painter -- the one arithmetic that could have made a
+    // press choose a different row from the one under it is simply gone.
     const std::vector<ContextEntry> rows =
         context_population(s.context.subject, s.context.group);
-    const std::size_t budget = context_row_budget(fit.rows);
+    const std::size_t budget = static_cast<std::size_t>(place.rows);
     const std::size_t cursor = context_cursor_bound(s.context.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
-    std::int64_t offset = row;
+    std::int64_t offset = where.row;
     if (win.before > 0) {
         if (offset == 0) {
             return out; // the `... n earlier` marker
@@ -5805,12 +5997,17 @@ inline constexpr std::size_t list_demand(std::size_t members) noexcept {
 /// populations and the two members that must stay on screen. They are arguments rather than a
 /// document and a session so this is pure over the four numbers the composition depends on --
 /// the overload below is the one a painter calls.
-inline InfoBodyPlace info_body_place(const FineRect& panel, const Screen& sc,
+///
+/// `panel` IS THE PANEL'S OUTER RECTANGLE AND THE BODY IS ITS INTERIOR (WUX-5), the one
+/// subtraction `external_body_place` makes for the same three consumers -- the painter,
+/// `info_body_at`'s press inverse, and the composition that decides what fits.
+inline InfoBodyPlace info_body_place(const FineRect& outer, const Screen& sc,
                                      std::size_t total_objects, std::size_t selected_at,
                                      std::size_t total_properties, std::size_t focus) {
     InfoBodyPlace p;
+    const FineRect panel = pane_interior(outer);
     if (panel.w <= 0 || panel.h <= 0) {
-        return p; // no panel at all
+        return p; // no panel at all, or none left inside its own chrome
     }
     // THE REGION IS THE WHOLE PANEL AND THE `OBJECTS` HEADING IS ITS FIRST PROSE ROW
     // (WUX-1) -- `external_body_place`'s ordering exactly, and for its reason: the heading
@@ -6227,11 +6424,13 @@ inline constexpr std::int64_t property_value_column(std::int64_t row_column) noe
 /// `sc.panel_x`, the same number `screen_of` gives the workspace to measure against" is now
 /// "the painter is told where it is".
 inline void paint_info(surface::SurfaceLayer& layer, const WorkshopDoc& d, const Session& s,
-                       const FineRect& b, const Screen& sc) {
+                       const FineRect& b, const Screen& sc,
+                       std::int64_t chrome = kPaneChrome) {
     // THE BACKDROP FIRST, so everything below is written over it and nothing authored
     // survives underneath it. One rect, the whole of `b`, and the same call the other two
-    // presentations make.
-    paint_panel_frame(layer, b);
+    // presentations make -- and since WUX-5 the part of it the body does not cover is this
+    // panel's visible boundary.
+    paint_panel_frame(layer, b, chrome);
 
     // THE BODY IS ONE BOUNDED REGION AND IT HOLDS BOTH LISTS (HD-7, widening HD-6).
     //
@@ -6557,13 +6756,20 @@ struct ExternalBodyPlace {
 /// presentation preference now, so how many rows the header keeps is `external_title_rows`'s
 /// answer, and every caller must ask it rather than assume the constant -- a defaulted
 /// parameter here would be exactly the forgotten fourth caller that ships a one-row offset.
+///
+/// `panel` IS THE PANE'S OUTER RECTANGLE AND THE BODY IS ITS INTERIOR (WUX-5). The chrome
+/// is subtracted here, once, so the painter, the press inverse (`external_press_at`) and
+/// the room a provider is granted (`refresh_external_rooms`) all describe the rectangle
+/// inside the boundary a maker can see -- three consumers, one subtraction, no call site
+/// able to disagree with the picture.
 inline ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
                                              std::int64_t header_rows) {
     ExternalBodyPlace p;
-    if (panel.w <= 0 || panel.h <= 0) {
+    const FineRect inner = pane_interior(panel);
+    if (inner.w <= 0 || inner.h <= 0) {
         return p;
     }
-    const surface::SurfaceRect wire = wire_rect_of(panel, surface::role::kFill);
+    const surface::SurfaceRect wire = wire_rect_of(inner, surface::role::kFill);
     p.region_x = wire.x;
     p.region_y = wire.y;
     p.region_w = wire.w;
@@ -6572,7 +6778,7 @@ inline ExternalBodyPlace external_body_place(const FineRect& panel, const Screen
     p.region_sub_y = wire.sub_y;
     p.region_sub_w = wire.sub_w;
     p.region_sub_h = wire.sub_h;
-    p.fit = surface::fit_region_subs(panel.x, panel.y, panel.w, panel.h, sc.text_advance_px,
+    p.fit = surface::fit_region_subs(inner.x, inner.y, inner.w, inner.h, sc.text_advance_px,
                                      sc.text_line_px);
     p.header_rows = header_rows;
     p.rows = p.fit.rows > header_rows ? p.fit.rows - header_rows : 0;
@@ -6692,8 +6898,9 @@ inline std::string external_header(const RuntimePane& row, bool typing) {
 /// row -- the same column `kTerminalCaretCols` costs the Terminal's line, for the same reason.
 /// What Workshop adds is the HEADER's mark, which says which pane the keys are going to.
 inline void paint_external(surface::SurfaceLayer& layer, const Panels& panels, std::int64_t kind,
-                           const FineRect& b, const Screen& sc, bool titles) {
-    paint_panel_frame(layer, b);
+                           const FineRect& b, const Screen& sc, bool titles,
+                           std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
     const RuntimePane* row = panels.runtime.of_kind(kind);
     if (row == nullptr) {
         return; // an open kind with no catalog row cannot happen; drawing a lie could
@@ -6923,8 +7130,8 @@ inline bool over_editor_body(const Session& s, const Screen& sc, std::int64_t sp
 /// in cells). Every row is `expanded_slice`'s answer, which is the same tab arithmetic
 /// the press resolves through -- what you see is what you can press (HD-3).
 inline void paint_editor(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
-                         const Screen& sc) {
-    paint_panel_frame(layer, b);
+                         const Screen& sc, std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
     const ExternalBodyPlace body = external_body_place(b, sc, kEditorHeaderRows);
     if (body.fit.rows <= 0 || body.fit.columns <= 0) {
         return; // no room for one row of this medium's type: say nothing at all
@@ -6951,11 +7158,12 @@ inline void paint_editor(surface::SurfaceLayer& layer, const Session& s, const F
         return; // room for the heading and nothing else: the heading, honestly
     }
     if (!e.open_document()) {
-        region.rows.push_back(surface::SurfaceTextRow{
-            detail::fit("no source open -- " + hotkey_text(s.keymap, Act::kEditSource) +
-                            " opens the Builder's chosen recipe",
-                        body.columns),
-            surface::role::kMuted});
+        // THE ABSENCE IS THE HEADER'S SENTENCE AND IS NOT SAID TWICE (WUX-5). This row
+        // used to read `no source open -- e opens the Builder's chosen recipe`: half of it
+        // repeated `editor_header`'s own `Editor -- no source open`, and the other half
+        // taught a key `document.open`'s catalog row already owns. The header still states
+        // the absence, the hotkey view still teaches the gesture, and the pane gives the
+        // row back to the document it is waiting for.
         layer.texts.push_back(std::move(region));
         return;
     }
@@ -7184,8 +7392,9 @@ inline bool files_row_of_body_row(const FilesPane& pane, std::int64_t body_rows,
 /// directory that would not open, and an empty directory are three different facts and a
 /// pane that showed blankness for all three would be hiding two of them.
 inline void paint_files(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
-                        const Screen& sc, const Keymap& k) {
-    paint_panel_frame(layer, b);
+                        const Screen& sc, const Keymap& k,
+                        std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
     const ExternalBodyPlace body = external_body_place(b, sc, kFilesHeaderRows);
     if (body.fit.rows <= 0 || body.fit.columns <= 0) {
         return; // no room for one row of this medium's type: say nothing at all
@@ -7338,9 +7547,15 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 
 /// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
 ///
-/// IT WALKS THE PRESENTATION ORDER (WIND-2), ASCENDING, so a later-ranked pane is drawn
-/// OVER an earlier one -- the exact reverse of the order `occupied_at` walks, from the one
-/// helper, so what a maker sees on top is what their hand meets.
+/// IT WALKS THE EFFECTIVE ORDER (WIND-2, lifted by WUX-5), ASCENDING, so a later-ranked
+/// pane is drawn OVER an earlier one -- the exact reverse of the order `occupied_at`
+/// walks, from the one helper, so what a maker sees on top is what their hand meets. The
+/// selected pane is last in that order, so it is painted last and answered first.
+///
+/// AND EACH PANE WEARS ITS OWN CHROME (WUX-5): `kPaneChromeSelected` for the selected one,
+/// `kPaneChrome` for every other. The role is resolved HERE, once, from the same
+/// `selected_pane` the order was lifted by -- a painter deciding it for itself would be a
+/// second reading of one fact, and the two would eventually name different panes.
 ///
 /// AND SINCE WIND-2a THAT SENTENCE IS TRUE OF THE PICTURE AND NOT ONLY OF THIS LOOP. The
 /// canvas used to hold three root lists, so appending a pane's rects, labels and regions
@@ -7365,22 +7580,24 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
                          const Screen& sc, const ProjectFrontier& frontier = {}) {
     const Panels& panels = s.panels;
-    for (const std::int64_t kind : presentation_order(s.setup.active, panels)) {
+    const std::int64_t lifted = selected_pane(panels);
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
         const Panel p{kind};
         const FineRect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
         if (b.w <= 0 || b.h <= 0) {
             continue;
         }
+        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
         detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, sc, s.keymap, frontier,
-                              s.recipes_moved_to);
+                paint_builder(layer, panels.builder, b, sc, frontier, s.recipes_moved_to,
+                              chrome);
             } else if (p.kind == panel::kInfo) {
-                paint_info(layer, d, s, b, sc);
+                paint_info(layer, d, s, b, sc, chrome);
             } else if (p.kind == panel::kEditor) {
-                paint_editor(layer, s, b, sc);
+                paint_editor(layer, s, b, sc, chrome);
             } else if (p.kind == panel::kProjectFiles) {
-                paint_files(layer, s, b, sc, s.keymap);
+                paint_files(layer, s, b, sc, s.keymap, chrome);
             } else if (is_runtime_kind(p.kind)) {
                 // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
                 // add. The branch above chooses a PAINTER, which PNL-1 named as the one
@@ -7388,7 +7605,7 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
                 // is the case where it can be, because every external pane is presented
                 // identically: a header Workshop writes and a region the provider fills. A
                 // second provider costs this function nothing at all.
-                paint_external(layer, panels, p.kind, b, sc, s.pane_titles);
+                paint_external(layer, panels, p.kind, b, sc, s.pane_titles, chrome);
             }
         });
     }

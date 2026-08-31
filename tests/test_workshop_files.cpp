@@ -190,9 +190,10 @@ struct FilesRig {
     std::string notice() const { return session().notice; }
     std::string shown() const { return stack_text(t.canvases.back()); }
 
+    /// THE PANE'S BODY, INSIDE ITS OWN CHROME (WUX-5).
     ui::Rect files_cells() const {
         const Session& s = session();
-        return cells_covered(
+        return pane_body_cells(
             bounds_of(s.panels, s.setup.active, panel::kProjectFiles, screen_of(s)).rect);
     }
     /// A press on one BODY row of the pane -- the same header offset the resolution
@@ -1906,21 +1907,19 @@ TEST_CASE("PROJ-1: a maker chooses a catalog in Files and every consumer moves w
     // THE MAKER IS TOLD WHAT HAPPENED AND WHAT IS NOW CURRENT.
     CHECK(r.notice().find("b-recipes.json") != std::string::npos);
     CHECK(r.notice().find("2 recipes") != std::string::npos);
-    // ...AND THE PANEL CAN STILL ANSWER IT LATER, because the banner has stopped being
-    // true and this is the row that says so.
-    //
-    // ⭐ IT IS THE ABSOLUTE PATH, FITTED BY THE MEASURER THAT KEEPS ITS TAIL (PROJ-2). The
-    // project-relative spelling PROJ-1 shipped here was unambiguous only while the browser
-    // could not leave the project, and the file's own NAME is the half a maker needs. This
-    // temp path is longer than the panel's measured column, so what is asserted is exactly
-    // the property: the leaf survives, the cut marks itself, and the row still fits.
+    // ⚠ AND THE PANEL'S OWN `catalog` ROW YIELDS AT THIS SIZE (WUX-5).
+    // The Builder's composition priority puts the catalog row LAST on purpose, so a budget that cannot seat every
+    // fact drops this one first -- which the shipped face already did at five rows and
+    // the character medium now does too, its interior being two rows shorter than the
+    // slot. What the panel still carries at this size, and what it carries when it has
+    // the room, are both pinned: the composition itself is the document suite's
+    // "PROJ-1: the catalog row costs one 'said' row" case, at explicit budgets.
     const std::string panel = r.shown();
-    CHECK(panel.find("catalog  ") != std::string::npos);
-    CHECK(panel.find("b-recipes.json") != std::string::npos);
-    CHECK(panel.find(detail::kElided) != std::string::npos);
-    // ...AND IT COST ONE `said` ROW AND NOTHING ELSE. Every fact a maker acts on is still
-    // on the panel, in the same order: this row yields first under any smaller budget, and
-    // a session that never moves its catalog pays nothing at all.
+    CHECK(panel.find("catalog  ") == std::string::npos);
+    // WHAT A MAKER READS INSTEAD IS THE NOTICE, which said it above and is the sentence
+    // this gesture actually produced.
+    CHECK(r.notice().find("b-recipes.json") != std::string::npos);
+    // ...AND EVERY FACT A MAKER ACTS ON IS STILL ON THE PANEL, in the same order.
     for (const char* kept : {"BUILDER @", "recipe   ", "last     ", "realize  ", "exit     ",
                              "ran      ", "said     "}) {
         CHECK_MESSAGE(panel.find(kept) != std::string::npos, "the catalog row displaced `",
