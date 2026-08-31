@@ -619,6 +619,32 @@ inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::i
     return ui::Rect{x, y, w + 2 * kChromeCells, h + 2 * kChromeCells};
 }
 
+/// HOW MUCH ROOM ONE COARSE GROW GIVES A PANE, in canvas cells on both axes (WUX-6).
+///
+/// The arrangement vocabulary already had a FINE step -- one cell per shifted arrow, the
+/// honest grain of a discrete key -- and nothing else, so reaching a comfortable pane from
+/// the 9-row default was a dozen-odd presses. This is the coarse step beside it, and it is
+/// four for two measured reasons rather than by taste:
+///
+///   - it is unmistakably coarser than the one-cell step it sits next to. A step of two
+///     would be a fine step a maker had to press twice as hard to notice.
+///   - one of them clears the tightest MEASURED pane on the shipped desk with room to
+///     spare rather than exactly. A default stack pane is `kStackW` x `kStackRows`; its
+///     interior is that less `kChromeCells` on every side, and an external pane's body is
+///     the interior less its title row -- 46 x 6 at the default. The Compose form needs
+///     EIGHT body rows (WUX-5 measured it), so a step of two would land on exactly eight
+///     and leave the next row of anybody's form over the edge; four lands on ten.
+///
+/// IT IS NOT A LAYOUT POLICY. It is a delta handed to the same anchored proposal a shifted
+/// arrow spends, through the same authoring door, on the pane the maker addressed -- no
+/// content is measured, no other pane moves, and the desk's own clamping is untouched.
+inline constexpr std::int64_t kCoarseStepCells = 4;
+
+static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
+              "one coarse grow must give a default stack pane's BODY the eight rows the "
+              "tightest shipped form needs: the slot's rows, plus the step, less the chrome "
+              "on both sides, less the pane's own title row");
+
 // ---- THE CHROME'S VOICE: three roles, and the vocabulary is the one that exists ---------
 //
 // `surface/vocabulary.hpp`'s four roles are deliberately closed, so pane chrome speaks in
@@ -1568,6 +1594,24 @@ struct Session {
     /// precisely the run Workshop had before.
     std::int64_t text_advance_px = 0;
     std::int64_t text_line_px = 0;
+    /// AND HOW BIG ONE CANVAS CELL OF THAT SURFACE IS, in its own device pixels (WUX-6) --
+    /// the medium's answer about GEOMETRY, beside its answer about type.
+    ///
+    /// ZERO MEANS "THIS MEDIUM'S DEVICE UNIT IS THE CELL" (`surface::SurfaceExtent`), which
+    /// is a terminal's permanent answer and the honest starting value for a run no medium
+    /// has spoken to yet. It is the ONE fact that lets Workshop spell a maker's authored
+    /// geometry in the unit the face they are looking at can actually distinguish, and it
+    /// is held here rather than derived because deriving it is forbidden: an application
+    /// holding one Skin's layout number is correct only for as long as it has one medium
+    /// (`surface/pointing.hpp`), so this number is only ever the one a medium REPORTED.
+    ///
+    /// SESSION, AND EMPHATICALLY NOT PERSISTED -- the text metric's own rule, for the text
+    /// metric's own reason. How big a cell is belongs to whichever medium opens the face,
+    /// is republished on every run, and would be a stale claim about somebody else's
+    /// monitor the moment it was written down. It reaches no file, and no authored pane
+    /// geometry is expressed in it: what a maker authored stays on the medium-independent
+    /// fine lattice, and this only decides how that value is SPELLED.
+    std::int64_t cell_px = 0;
     /// THE NORMAL WINDOW'S ROOM (WUX-3) -- what a session save remembers as the viewport.
     /// It tracks `screen_w`/`screen_h` exactly while the window is normal and STOPS while
     /// the medium says the window is maximized (the weave's extent handler owns that gate),
@@ -2144,18 +2188,28 @@ inline std::vector<std::string> help_pairs(const Keymap& k, KeyContext ctx) {
 /// changes only the metric, and a guard that compared extents alone would have swallowed the
 /// one message that says the pane may now hold real type.
 inline bool adopt_screen(Session& s, std::int64_t want_w, std::int64_t want_h,
-                         std::int64_t want_advance_px = 0, std::int64_t want_line_px = 0) {
+                         std::int64_t want_advance_px = 0, std::int64_t want_line_px = 0,
+                         std::int64_t want_cell_px = 0) {
     const std::int64_t advance = want_advance_px > 0 ? want_advance_px : 0;
     const std::int64_t line = want_line_px > 0 ? want_line_px : 0;
+    // THE CANVAS'S DEVICE UNIT NEEDS NO CEILING OF ITS OWN (WUX-6). It arrives on the bus
+    // like every other field of the shape, so a negative number is data rather than an
+    // error — and non-positive is already the vocabulary's "my device unit IS the cell",
+    // which is the reading that changes nothing. Above zero there is no number to refuse:
+    // `surface::device_of_subs` and `subs_exact_in_device` are total over every positive
+    // multiplier by their own saturation, and inventing a plausibility bound here would be
+    // this application deciding how big somebody else's pixel is allowed to be.
+    const std::int64_t cell = want_cell_px > 0 ? want_cell_px : 0;
     const Screen fresh = screen_of(want_w, want_h, advance, line);
     if (fresh.w == s.screen_w && fresh.h == s.screen_h && advance == s.text_advance_px &&
-        line == s.text_line_px) {
+        line == s.text_line_px && cell == s.cell_px) {
         return false;
     }
     s.screen_w = fresh.w;
     s.screen_h = fresh.h;
     s.text_advance_px = advance;
     s.text_line_px = line;
+    s.cell_px = cell;
     s.workspace_w = fresh.room_w;
     s.workspace_h = fresh.room_h;
     return true;
@@ -4811,41 +4865,116 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
 /// as "this row has nothing to say" and the whole point of the column is that a reactive pane
 /// and an arranged one are different things a maker should be able to tell apart at a glance.
 /// A pane the setup does not name has no row of authored intent at all, and says so.
-/// AN AUTHORED SUB-UNIT VALUE, IN CELLS A MAKER CAN READ — EXACTLY (WUX-2, SC-9).
-///
-/// A whole-cell value prints as the bare cell count it always did. A finer one
-/// prints as a mixed number, `10+1/2`, with the fraction REDUCED — exact, never
-/// a rounded decimal wearing precision it does not have: 1/48 of a cell has no
-/// finite decimal, and a display that said `10.02` would be presenting a rounded
-/// value as though it were the stored one, which is the lie introspection exists
-/// to refuse. The unit stays cells because cells are the lattice the number
-/// refines; nothing here prints a device pixel.
-inline std::string subcell_text(std::int64_t subs) {
-    const std::int64_t cells = surface::cell_of_subs(subs);
-    const std::int64_t rem = subs - surface::subs_of_cells(cells);
-    if (rem == 0) {
-        return std::to_string(cells);
-    }
-    std::int64_t n = rem;
-    std::int64_t d = surface::kCellSubs;
-    while (n % 2 == 0 && d % 2 == 0) {
-        n /= 2;
-        d /= 2;
-    }
-    while (n % 3 == 0 && d % 3 == 0) {
-        n /= 3;
-        d /= 3;
-    }
-    return std::to_string(cells) + "+" + std::to_string(n) + "/" + std::to_string(d);
+// ---- SAYING A PANE'S GEOMETRY IN THE FACE'S OWN LANGUAGE (WUX-6) ----------------------
+//
+// A PANE'S AUTHORED GEOMETRY IS ONE VALUE ON ONE MEDIUM-INDEPENDENT LATTICE, and a
+// maker reads it through whichever face they happen to be sitting at. Those are
+// different facts, and this is where they are kept apart:
+//
+//     authored     what the maker chose, in sub-units of a canvas cell (WUX-2)
+//     projected    the nearest thing the ACTIVE medium can say, in the device unit
+//                  that medium itself reported (`Session::cell_px`, WUX-6)
+//
+// A PROJECTION IS NOT EVIDENCE OF AUTHORSHIP, so a spelling carries whether it is
+// EXACT -- whether this medium's own unit can say the authored number at all -- and
+// the readout marks the ones it cannot. Nothing here writes anything, on any path:
+// a maker who reads their geometry on one face and saves has authored nothing by
+// looking.
+//
+// ONE DERIVATION, AND IT IS NOT A UNIT SYSTEM. Two pure functions and one word for
+// the unit, over the Surface package's own conversion (`surface::device_of_subs` --
+// the same arithmetic the shipped face draws and hit-tests by). There is no unit
+// type, no registry, no per-medium table, and no second conversion constant
+// anywhere in Workshop: the number that turns a cell into a pixel is the medium's,
+// arrives on the bus, and is spent here.
+
+/// WHAT ONE FINE VALUE IS IN THE ACTIVE MEDIUM'S UNIT, AND WHETHER THAT IS THE
+/// AUTHORED NUMBER ITSELF. `exact` false means the amount shown is this medium's
+/// floor of a value it cannot say -- a projection, which the readout marks.
+struct GeometrySpelling {
+    std::string amount;
+    bool exact = true;
+};
+
+/// THE UNIT WORD FOR A MEDIUM THAT REPORTED `cell_px` -- `px` where the medium named
+/// a device pixel, `cells` where it said its device unit IS the cell (every terminal,
+/// and a run no medium has spoken to yet). A WORD rather than a symbol, because it is
+/// the noun a maker would use about the thing they are looking at.
+inline const char* geometry_unit(std::int64_t cell_px) {
+    return cell_px > 0 ? "px" : "cells";
 }
 
-inline std::string pane_window_text(const SetupPane* row) {
+/// ONE FINE COORDINATE OR EXTENT, SPELLED FOR THIS MEDIUM.
+///
+/// The number is `surface::device_of_subs` -- the identical flooring this medium
+/// paints and hit-tests by -- so what a maker reads and what their hand can grab are
+/// one arithmetic rather than two that happen to agree. `exact` is the other half of
+/// the same law: a whole-cell value is exact on every medium, a value authored at a
+/// window's pixel grain is exact in pixels and in general is not exact in cells, and
+/// only the authored value and the medium's own reported unit decide which.
+inline GeometrySpelling geometry_spelling(std::int64_t subs, std::int64_t cell_px) {
+    return GeometrySpelling{std::to_string(surface::device_of_subs(subs, cell_px)),
+                            surface::subs_exact_in_device(subs, cell_px)};
+}
+
+/// THE MARK AN INEXACT SPELLING WEARS. ASCII, because the shipped graphical face's
+/// letterform covers printable ASCII and nothing else -- an `almost equal` sign would
+/// render there as the unknown-glyph box, which is a worse lie than the one it was
+/// added to prevent.
+inline constexpr const char* kProjectedMark = "~";
+
+/// The clause a line carries when any number on it is a projection. It appears ONLY
+/// when something on that line actually is one, so a maker working in the unit their
+/// own gestures author never reads it: the distinction is inspectable rather than
+/// permanently lectured.
+inline constexpr const char* kProjectedNote = " (~ projected)";
+
+/// ONE FINE VALUE, WITH ITS MARK. `any_projected` accumulates, so a caller decides
+/// once whether the line it is building owes the clause above.
+inline std::string geometry_amount_text(std::int64_t subs, std::int64_t cell_px,
+                                        bool& any_projected) {
+    const GeometrySpelling spelled = geometry_spelling(subs, cell_px);
+    if (spelled.exact) {
+        return spelled.amount;
+    }
+    any_projected = true;
+    return std::string(kProjectedMark) + spelled.amount;
+}
+
+/// A WHOLE FINE RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
+inline std::string fine_rect_text(const FineRect& r, std::int64_t cell_px) {
+    bool projected = false;
+    std::string text = "@" + geometry_amount_text(r.x, cell_px, projected) + "," +
+                       geometry_amount_text(r.y, cell_px, projected) + " " +
+                       geometry_amount_text(r.w, cell_px, projected) + "x" +
+                       geometry_amount_text(r.h, cell_px, projected) + " " +
+                       geometry_unit(cell_px);
+    if (projected) {
+        text += kProjectedNote;
+    }
+    return text;
+}
+
+/// WHAT A MAKER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
+///
+/// A DEFAULT IS SAID IN CHARACTERS rather than left blank, because a blank reads as
+/// "this row has nothing to say" and the whole point of the answer is that a reactive
+/// pane and an arranged one are different things a maker should be able to tell apart
+/// at a glance. A pane the setup does not name has no row of authored intent at all,
+/// and says so.
+///
+/// AN AXIS AUTHORED IN `pixels` IS SAID IN PIXELS WHATEVER THE MEDIUM IS, because that
+/// is what the maker's own file says and this line is about what they authored. It is
+/// the unit no medium here presents (`setup.hpp`), so a pane wearing it is refused at
+/// projection and the state word beside this text is what says so.
+inline std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (row == nullptr) {
         return "--";
     }
-    const auto axis = [](const PaneSize& s) -> std::string {
+    bool projected = false;
+    const auto axis = [cell_px, &projected](const PaneSize& s) -> std::string {
         if (s.mode == pane_unit::kSubcells) {
-            return subcell_text(s.amount);
+            return geometry_amount_text(s.amount, cell_px, projected);
         }
         if (s.mode == pane_unit::kPixels) {
             return std::to_string(s.amount) + "px";
@@ -4854,11 +4983,36 @@ inline std::string pane_window_text(const SetupPane* row) {
     };
     std::string text;
     if (row->place.mode == pane_unit::kSubcells) {
-        text += "@" + subcell_text(row->place.x) + "," + subcell_text(row->place.y) + " ";
+        text += "@" + geometry_amount_text(row->place.x, cell_px, projected) + "," +
+                geometry_amount_text(row->place.y, cell_px, projected) + " ";
     }
     text += axis(row->width) + "x" + axis(row->height);
+    // THE UNIT IS SAID ONCE, AND ONLY WHERE A NUMBER IN IT WAS PRINTED. A row default
+    // on every axis has said nothing measurable, and appending `cells` to `-x-` would
+    // be naming the unit of a number that is not there.
+    if (row->place.mode == pane_unit::kSubcells || row->width.mode == pane_unit::kSubcells ||
+        row->height.mode == pane_unit::kSubcells) {
+        text += " " + std::string(geometry_unit(cell_px));
+    }
     text += " f" + std::to_string(row->front);
+    if (projected) {
+        text += kProjectedNote;
+    }
     return text;
+}
+
+/// IS ANY PART OF THIS PANE'S WINDOW STILL THE CODE'S ANSWER RATHER THAN THE MAKER'S?
+///
+/// The question a readout asks before it bothers to add where the pane actually IS: a
+/// fully authored window is its own rectangle, and saying it twice would be noise. A
+/// partly reactive one is the case a maker cannot otherwise measure -- and it is the
+/// case a fresh desk is entirely made of.
+inline bool pane_window_partly_default(const SetupPane* row) {
+    if (row == nullptr) {
+        return false;
+    }
+    return row->place.mode == pane_unit::kDefault || row->width.mode == pane_unit::kDefault ||
+           row->height.mode == pane_unit::kDefault;
 }
 
 // THE MANAGEMENT PANEL IS RETIRED (ARR-0). The old `+ WINDOW` surface -- the shared

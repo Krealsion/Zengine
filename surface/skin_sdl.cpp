@@ -444,6 +444,10 @@ public:
     /// which is exactly what the bitmap letterform draws -- so a publisher
     /// wrapping against this metric is always wrapping against the thing that will
     /// actually be painted.
+    ///
+    /// AND HOW BIG ONE CANVAS CELL IS, since WUX-6 -- the third half, and the one
+    /// that is true of this medium whether or not a face ever opened. See the
+    /// assignment below for why it is consulted from the plan's own constant.
     SurfaceExtent extent() const {
         if (!ok_ || window_ == nullptr) {
             return SurfaceExtent{};
@@ -451,6 +455,14 @@ public:
         SurfaceExtent e = extent_of_drawable(drawable());
         e.text_advance_px = text_.advance_px();
         e.text_line_px = text_.line_px();
+        // AND THE CANVAS'S OWN DEVICE UNIT (WUX-6) -- the third answer, and the only
+        // one of the three this medium can give with no face at all. It is
+        // `kCanvasCellPx` because that is what `plan_canvas` and `extent_of_drawable`
+        // above LAY THIS CANVAS OUT AT, consulted here rather than restated: one
+        // owner, so a maker's geometry spelled in pixels and a quad drawn in pixels
+        // are the same number by construction. It is reported whether or not a font
+        // opened, which is the half of this that the text metric cannot say.
+        e.cell_px = kCanvasCellPx;
         return e;
     }
 

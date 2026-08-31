@@ -289,11 +289,18 @@ private:
     /// change and swallowed the second, so a Workshop that started before the
     /// font was ready would keep wrapping against cells until somebody happened
     /// to resize the window.
+    ///
+    /// AND SO DOES THE CANVAS'S DEVICE UNIT (WUX-6), for the same reason one step
+    /// further: it is a third fact that can move on its own -- a medium that opens
+    /// its window late reports it late -- and a guard that did not watch it would
+    /// leave a consumer spelling a maker's geometry in the wrong unit until some
+    /// unrelated fact happened to change. The whole value is compared now, which is
+    /// what stops the next field from having to remember to be added here.
     void report_extent(loom::Mail& mail) {
         const SurfaceExtent now = medium_.extent();
         if (now.width == reported_.width && now.height == reported_.height &&
             now.text_advance_px == reported_.text_advance_px &&
-            now.text_line_px == reported_.text_line_px) {
+            now.text_line_px == reported_.text_line_px && now.cell_px == reported_.cell_px) {
             return;
         }
         reported_ = now;

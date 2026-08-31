@@ -533,13 +533,40 @@ static_assert(kCellSubs % kCanvasCellPx == 0,
 /// measurement in order to decide how much prose fits; it needs none of the
 /// mechanism that produced the result, and every one of those fields would be a
 /// fact about one backend that a second backend would have to fake.
+///
+/// V3 ADDS THE MEDIUM'S OWN DEVICE UNIT FOR THE CANVAS ITSELF (WUX-6), and it is
+/// the text metric's sentence said about GEOMETRY rather than about type.
+/// `cell_px` is how many of this medium's device pixels one canvas cell is laid
+/// out at; ZERO means "this medium's device unit IS the canvas cell", which is a
+/// terminal's honest and permanent answer.
+///
+/// IT EXISTS BECAUSE ONLY A MEDIUM MAY SAY IT, and until now no medium said it.
+/// A canvas cell is `kCanvasCellPx` window pixels in the shipped graphical Skin --
+/// a fact `skin_sdl_plan.hpp` authors and `surface/pointing.hpp` forbids an
+/// application to hold, because an application holding one Skin's layout number is
+/// correct only for as long as it has one medium. A consumer could spend it on a
+/// POINTER, because `input::space::kPixels` stamps that moment; nothing stamped any
+/// other moment, so a maker's authored geometry could only ever be spelled in
+/// cells. The medium now measures its own layout once and publishes the RESULT,
+/// exactly as it already does for its face, and the application does the
+/// arithmetic -- G-2's one-measurer rule, spent a second time.
+///
+/// IT IS NOT THE TEXT METRIC AND MUST NOT BE DERIVED FROM ONE. A window whose font
+/// failed to open publishes `{w, h, 0, 0, kCanvasCellPx}`: it sets no type and
+/// still lays its canvas out in pixels. `RegionFit::graphical()` answers a question
+/// about TYPE and is unchanged; this answers a question about GEOMETRY. Reading
+/// either one as "am I on a graphical medium" is the near-miss
+/// [`agents/surface.md`](agents/surface.md) names, and `cell_px` narrows it rather
+/// than closing it: it says what this medium's device unit IS, not what kind of thing
+/// the medium is.
 struct SurfaceExtent {
     std::int64_t width = 0;
     std::int64_t height = 0;
     std::int64_t text_advance_px = 0;
     std::int64_t text_line_px = 0;
-    ZEN_SHAPE(SurfaceExtent, 2, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_advance_px),
-              ZEN_FIELD(text_line_px));
+    std::int64_t cell_px = 0;
+    ZEN_SHAPE(SurfaceExtent, 3, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(text_advance_px),
+              ZEN_FIELD(text_line_px), ZEN_FIELD(cell_px));
 };
 
 /// The active Skin's hello: published exactly once per incarnation, on the

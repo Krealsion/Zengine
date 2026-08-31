@@ -1853,9 +1853,20 @@ struct PaneRig {
     /// has panes.
     void ready() { publish(loom::to_value(surface::SurfaceReady{})); }
 
+    /// A MEDIUM REPORTS ITS ROOM, ITS FACE AND -- SINCE WUX-6 -- ITS CANVAS'S OWN DEVICE
+    /// UNIT. `cell` defaults to zero, which the vocabulary spells "my device unit IS the
+    /// cell": every case written before WUX-6 therefore keeps describing a character
+    /// medium, which is what it always described.
     void extent(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
-                std::int64_t line = 0) {
-        publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line}));
+                std::int64_t line = 0, std::int64_t cell = 0) {
+        publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line, cell}));
+    }
+
+    /// THE SHIPPED GRAPHICAL FACE'S OWN REPORT, at whatever room a case wants -- the
+    /// window's real face metric and the canvas cell it really lays out at. Named, so a
+    /// case reads as "the maker is on the window" rather than as four numbers.
+    void extent_on_window(std::int64_t width, std::int64_t height) {
+        extent(width, height, 8, 18, surface::kCanvasCellPx);
     }
 
     void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {

@@ -265,6 +265,8 @@ enum class Act : std::uint8_t {
     kManagePullRight,
     kManagePullUp,
     kManagePullDown,
+    kManageGrow,
+    kManageShrink,
     kManageResetPlace,
     kManageResetWidth,
     kManageResetHeight,
@@ -566,6 +568,21 @@ inline constexpr ActionRow kActionCatalog[] = {
     // key merely so a menu has something to print; this one has a job in this scope).
     {Act::kArrange, "manage.arrange", "arrange", KeyContext::kArrangeDesk,
      {scan::kReturn, mod::kNone}},
+    // THE COARSE STEP COMES FIRST IN BOTH SCOPES (WUX-6), and that is this file's own
+    // priority rule spent deliberately: order inside a context group is what the band's
+    // legend packs left to right and cuts from the right. `=` is the gesture a maker on a
+    // shipped desk reaches for before any other -- it is the one that turns a pane they
+    // can see into a pane they can work in -- so a legend that had room for the four fine
+    // place keys and not for this one would be advertising the wrong half. `=` and `-` are
+    // the two keys a hand already reads as bigger and smaller, plain printable ASCII (so a
+    // POSIX terminal can say them, which `ctrl+shift+<letter>` cannot), and neither was
+    // bound in either arranging scope. Both spend `kCoarseStepCells` on BOTH axes through
+    // the same bottom-right-anchored proposal the shifted arrows take -- one owner, one
+    // clamping law, and a pane that never moves under a key that resizes it.
+    {Act::kManageGrow, "manage.grow", "grow", KeyContext::kArrangePane,
+     {scan::kEquals, mod::kNone}},
+    {Act::kManageShrink, "manage.shrink", "shrink", KeyContext::kArrangePane,
+     {scan::kMinus, mod::kNone}},
     {Act::kManagePlaceLeft, "manage.place-left", "place left", KeyContext::kArrangePane,
      {scan::kLeft, mod::kNone}},
     {Act::kManagePlaceRight, "manage.place-right", "place right", KeyContext::kArrangePane,
@@ -596,6 +613,10 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::k0, mod::kNone}},
     {Act::kManageClose, "manage.close", "leave", KeyContext::kArrangePane,
      {scan::kEscape, mod::kNone}},
+    {Act::kManageGrow, "manage.grow", "grow", KeyContext::kArrangeDesk,
+     {scan::kEquals, mod::kNone}},
+    {Act::kManageShrink, "manage.shrink", "shrink", KeyContext::kArrangeDesk,
+     {scan::kMinus, mod::kNone}},
     {Act::kManagePlaceLeft, "manage.place-left", "place left", KeyContext::kArrangeDesk,
      {scan::kLeft, mod::kNone}},
     {Act::kManagePlaceRight, "manage.place-right", "place right", KeyContext::kArrangeDesk,

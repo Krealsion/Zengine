@@ -67,6 +67,7 @@ be: a press is its own targeting. The keyboard steps between panes instead:
 | `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane |
 | `← → ↑ ↓` | move that pane one cell |
 | `Shift`+arrows | resize it one cell — wider / narrower / taller / shorter, its top-left corner staying put |
+| `=` / `-` | **grow / shrink** it four cells on both axes at once — the coarse step, same anchor |
 | `Enter` | narrow to arranging exactly that pane |
 | `f` `b` `r` `l` | send to front / back, raise / lower one step |
 | `d` | remove that pane — the picker brings it back |
@@ -78,6 +79,12 @@ the desk, which is the only place there is a next pane to step to. The pointer's
 reach all eight edges and corners, each keeping its opposite edge anchored; the keyboard's
 resize always grows from the top-left corner, and a move plus a resize composes any
 rectangle the handles can make.
+
+`=` and `-` are the same resize, four cells at a time on both axes — one press is the
+difference between a pane that is technically open and a pane you can work in. They move no
+other pane, avoid no collisions and fit nothing to your content; they are the shifted arrows
+with a bigger step, so everything the arrows refuse they refuse the same way (an axis that
+cannot legally shrink keeps what it had while the other axis still moves).
 
 A right-click while arranging **leaves the interaction and does nothing else** — it never
 also opens the context menu. The next right-click, in ordinary Workshop, does.
@@ -146,8 +153,49 @@ a selected pane is never lifted over a menu you just opened on it.
 
 A pane whose geometry cannot be projected in the current medium refuses the gesture rather
 than silently doing something else. An authored size in **pixels** is legal to hold and cannot
-be presented on a terminal — a setup legal on a window stays legal on a terminal, and what
-changes with the medium is which authored intent can be *shown*, never which can be *held*.
+be presented on *any* medium here — a setup legal on a window stays legal on a terminal, and
+what changes with the medium is which authored intent can be *shown*, never which can be
+*held*. That is a different thing from the pixel *readout* above: reading `417 px` is a face
+saying your canvas geometry in its own unit, and it changes nothing about what is stored.
+
+## Reading a pane's geometry — and whose number it is
+
+While you are arranging, the notice line names the pane, its state, and its window — in the
+units of the face you are actually looking at. On a graphical Workshop that is **pixels**; in
+a terminal it is **cells**:
+
+```text
+arrange @zengine.composer/compose (open) -- @77,53 417x233 px f0
+arrange @zengine.composer/compose (open) -- @~6,~4 ~34x~19 cells f0 (~ projected)
+```
+
+Those two lines are **the same pane**, unchanged, read on two faces. Your pane's geometry is
+stored once, on a medium-independent grid, and each face says it in the unit that face can
+actually distinguish. Where a face cannot say your number exactly, it shows its nearest
+answer with a `~` in front and says `(~ projected)` once at the end of the line.
+
+> **A geometry shown in another medium may be a projection. Workshop does not treat seeing
+> that projection as authoring it.**
+
+Nothing about looking changes what you made. Open your desk in a terminal, read it in cells,
+open it again in a window, read it in pixels, save it — the file holds exactly the numbers
+you authored, byte for byte. Only a real gesture — a drag, a resize key, `=`, `-`, a reset —
+changes them.
+
+If part of a pane's window is still Workshop's answer rather than yours, that part reads `-`
+and the line adds where the pane currently **is**:
+
+```text
+arrange @zengine.workshop/info (open) -- -x- f1 -- now @1668,36 576x108 px
+```
+
+Once you have authored the place and both extents, the `now` clause goes away: what you
+authored *is* the rectangle.
+
+**Which unit a face uses is that face's own report, not an assumption.** A terminal has no
+unit finer than its cell and says so; the graphical Workshop reports the size of one canvas
+cell in its own pixels. Neither number is written into your setup file, and neither is Zen's
+"real" unit — your geometry belongs to the canvas, not to anybody's monitor.
 
 ## Pane geometry
 
@@ -166,12 +214,18 @@ tight, the answer is the same one below: make the pane bigger.
 
 ### How to actually get a bigger pane
 
-Right-click the pane → `arrange` → drag its bottom edge (or any handle) to the size you
-want, then `s` `Enter` to persist the setup. In a window the drag is pixel-fine; on a
-terminal it moves cell by cell, which is the honest grain a terminal has. By keyboard,
-`Shift`+arrows grow one cell per press — reaching a comfortable height from the 9-row
-default that way is a dozen-odd presses, and there is still no coarse step and no "fill
-the room". An authored size in cells is accepted up to the document's cell maximum.
+Fastest: `w` → `Tab` to the pane → **`=`**. One press grows it four cells on both axes,
+which is enough to turn every pane the shipped desk opens into one you can work in. `-`
+takes it back. Then `s` `Enter` to persist the setup.
+
+By pointer: right-click the pane → `arrange` → drag its bottom edge (or any handle) to the
+size you want. In a window the drag is pixel-fine; on a terminal it moves cell by cell,
+which is the honest grain a terminal has. By keyboard, `Shift`+arrows still move one cell
+per press when you want to land exactly. An authored size is accepted up to the document's
+cell maximum.
+
+There is still no "fill the room", no auto-fit to a pane's contents, and no snapping — `=`
+resizes the pane you addressed and touches nothing else.
 
 Judged plainly, and repeated in [limitations](limitations.md):
 
@@ -179,12 +233,11 @@ Judged plainly, and repeated in [limitations](limitations.md):
 |---|---|
 | feature absent? | **no** — authored per-pane size exists, persists, is honoured, and a hand can drag it |
 | feature undiscoverable? | **mostly not.** The band's legend advertises `w arrange desk`, the pane's context menu offers `arrange`, and entering either scope puts visible handles on the panes — the affordance is on the thing itself |
-| feature tedious? | **by keyboard** — one cell per press, no larger step; by pointer, no |
+| feature tedious? | **no longer** — `=` and `-` are the coarse step; `Shift`+arrows remain the fine one |
 | product-hostile? | **no**, but the default is: a 9-row pane over the material you are building is the arrangement a maker meets first |
 
-The smallest things that would change the felt experience: a coarse keyboard step on a
-modifier, and a pane-height default that reads the surface. Neither is built, and neither
-is designed here.
+The smallest thing left that would change the felt experience: a pane-height default that
+reads the surface. That is not built, and it is not designed here.
 
 ## Pane titles
 

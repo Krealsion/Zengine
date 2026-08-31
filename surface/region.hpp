@@ -199,6 +199,56 @@ inline constexpr std::int64_t px_of_subs(std::int64_t subs) noexcept {
     return floor_div_px(s * kCanvasCellPx, kCellSubs);
 }
 
+/// A SUB-UNIT COORDINATE IN THE DEVICE UNITS OF A MEDIUM THAT REPORTED ITS OWN
+/// (WUX-6) -- `px_of_subs` with the layout number taken from the medium's
+/// `SurfaceExtent::cell_px` instead of from the shipped Skin's own constant.
+///
+/// It is the SAME arithmetic and deliberately not a second one: the shipped face's
+/// answer is `device_of_subs(subs, kCanvasCellPx)`, asserted below, so a caller that
+/// spells a maker's geometry in pixels and a plan that draws it in pixels cannot
+/// come to disagree about where a fractional edge lands. `cell_px <= 0` is the
+/// vocabulary's "this medium's device unit IS the cell", and the honest answer to
+/// "how many device units is this" is then the CELL count -- `cell_of_subs`, which
+/// is what a character medium already floors by.
+///
+/// Total over every std::int64_t on both arguments. The multiply is bounded by
+/// saturating the sub-unit coordinate into the range that survives it, and
+/// `floor_div_px` answers zero for a non-positive divisor, so no argument off the
+/// bus can produce a trap.
+inline constexpr std::int64_t device_of_subs(std::int64_t subs, std::int64_t cell_px) noexcept {
+    if (cell_px <= 0) {
+        return cell_of_subs(subs);
+    }
+    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / cell_px;
+    const std::int64_t s = subs > bound ? bound : (subs < -bound ? -bound : subs);
+    return floor_div_px(s * cell_px, kCellSubs);
+}
+
+static_assert(device_of_subs(kCellSubs, kCanvasCellPx) == px_of_subs(kCellSubs),
+              "the shipped graphical medium's own device unit and a medium that REPORTS "
+              "kCanvasCellPx are one arithmetic, not two");
+static_assert(device_of_subs(kCellSubs * 3, 0) == 3,
+              "a medium whose device unit is the cell answers in cells");
+
+/// IS THIS SUB-UNIT COORDINATE EXACTLY SAYABLE IN THAT MEDIUM'S DEVICE UNIT?
+///
+/// The other half of one quantization law, and the half a maker-facing READOUT
+/// needs: `device_of_subs` always answers, and this says whether the answer is the
+/// authored value itself or the medium's best floor of it. A whole-cell value is
+/// exact everywhere; a value authored at a window's pixel grain is exact in pixels
+/// and, in general, is not exact in cells -- which is precisely the difference
+/// between what a maker chose and what another medium can show of it.
+inline constexpr bool subs_exact_in_device(std::int64_t subs, std::int64_t cell_px) noexcept {
+    if (cell_px <= 0) {
+        return subs % kCellSubs == 0;
+    }
+    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / cell_px;
+    if (subs > bound || subs < -bound) {
+        return false;
+    }
+    return (subs * cell_px) % kCellSubs == 0;
+}
+
 /// A decomposed wire coordinate (whole cells + remainder), as one sub-unit
 /// number — the composition every consumer of a fine shape performs first.
 inline constexpr std::int64_t subs_of_wire(std::int64_t cells, std::int64_t rem) noexcept {

@@ -7364,35 +7364,208 @@ TEST_CASE("WUX-2: fine geometry survives the setup file without losing a sub-uni
     }
 }
 
-TEST_CASE("WUX-2: the management row says a fine value exactly, as a reduced fraction") {
-    // SC-9: introspection must not present a rounded whole-cell value as the stored one.
-    // A whole-cell value reads as the bare count it always did; a finer one reads as an
-    // EXACT mixed number — never a decimal wearing precision 1/48 does not have.
-    CHECK(subcell_text(subs(40)) == "40");
-    CHECK(subcell_text(0) == "0");
-    CHECK(subcell_text(subs(10) + 24) == "10+1/2");
-    CHECK(subcell_text(subs(10) + 12) == "10+1/4");
-    CHECK(subcell_text(subs(10) + 36) == "10+3/4");
-    CHECK(subcell_text(subs(10) + 16) == "10+1/3");
-    CHECK(subcell_text(subs(10) + 8) == "10+1/6");
-    CHECK(subcell_text(subs(10) + 1) == "10+1/48");
-    CHECK(subcell_text(subs(10) + 47) == "10+47/48");
+TEST_CASE("WUX-6: one authored value, spelled in whatever unit the active face reported") {
+    // WUX-2's SC-9 said the row must not present a ROUNDED value as the stored one, and
+    // spent an exact mixed number (`10+1/2`) to keep that true. WUX-6 keeps the law and
+    // changes the spelling: a maker reads the unit the face in front of them can actually
+    // distinguish, and a value that face cannot say exactly is MARKED as the projection it
+    // is. `10+1/2` was exact and unreadable on a window; `126` is exact there, and `~10` is
+    // honest in a terminal.
+    const std::int64_t px = surface::kCanvasCellPx; // what the shipped face REPORTS, not a
+    const std::int64_t cells = 0;                   // constant Workshop is allowed to hold
+
+    // THE UNIT WORD IS THE MEDIUM'S OWN ANSWER, and zero is a character medium's.
+    CHECK(std::string(geometry_unit(px)) == "px");
+    CHECK(std::string(geometry_unit(cells)) == "cells");
+    CHECK(std::string(geometry_unit(0)) == "cells");
+
+    // A WHOLE-CELL VALUE IS EXACT ON EVERY MEDIUM — it is the authored number in both
+    // units, so neither spelling is a projection.
+    CHECK(geometry_spelling(subs(40), cells).amount == "40");
+    CHECK(geometry_spelling(subs(40), cells).exact);
+    CHECK(geometry_spelling(subs(40), px).amount == "480");
+    CHECK(geometry_spelling(subs(40), px).exact);
+    CHECK(geometry_spelling(0, px).amount == "0");
+    CHECK(geometry_spelling(0, px).exact);
+
+    // A VALUE A HAND AUTHORED AT THE WINDOW'S PIXEL GRAIN IS EXACT IN PIXELS AND IS NOT
+    // EXACT IN CELLS. This is the whole of the phase's distinction, in four lines: half a
+    // cell is 126 window pixels exactly, and no number of cells at all.
+    CHECK(geometry_spelling(subs(10) + 24, px).amount == "126");
+    CHECK(geometry_spelling(subs(10) + 24, px).exact);
+    CHECK(geometry_spelling(subs(10) + 24, cells).amount == "10");
+    CHECK_FALSE(geometry_spelling(subs(10) + 24, cells).exact);
+
+    // AND A VALUE FINER THAN THE SHIPPED FACE'S OWN PIXEL IS A PROJECTION THERE TOO. One
+    // sub-unit is a quarter of a window pixel (48 = 4 x 12), so the lattice can hold three
+    // values per pixel that no medium in this build can say.
+    CHECK(geometry_spelling(subs(10) + 1, px).amount == "120");
+    CHECK_FALSE(geometry_spelling(subs(10) + 1, px).exact);
+    CHECK(geometry_spelling(subs(10) + 4, px).exact); // a whole pixel: exactly 121
+    CHECK(geometry_spelling(subs(10) + 4, px).amount == "121");
+
+    // THE MARK IS ASCII, because the shipped face's letterform is.
+    CHECK(std::string(kProjectedMark) == "~");
+    CHECK(std::string(kProjectedMark).size() == 1);
 
     SetupPane row;
     row.place = PanePlace{pane_unit::kSubcells, subs(6) + 24, subs(5)};
     row.width = PaneSize{pane_unit::kSubcells, subs(40) + 12};
     row.height = PaneSize{pane_unit::kPixels, 220};
     row.front = 2;
-    CHECK(pane_window_text(&row) == "@6+1/2,5 40+1/4x220px f2");
+    // ON THE SHIPPED FACE every lattice number lands on a whole window pixel, so nothing
+    // is marked and no clause is owed. The `220px` is the maker's own authored
+    // device-pixel claim, said in the unit they wrote it in whatever the medium is.
+    CHECK(pane_window_text(&row, px) == "@78,60 483x220px px f2");
+    // IN A TERMINAL the same authored value is a projection on two axes, and says so.
+    CHECK(pane_window_text(&row, cells) == "@~6,5 ~40x220px cells f2 (~ projected)");
 
-    // AND THE WHOLE-CELL SPELLING IS BYTE-IDENTICAL TO WIND-2's, so nothing a maker
-    // learned to read has moved.
+    // AND THE WHOLE-CELL CASE READS AS THE PLAIN COUNT IT ALWAYS DID, in either face.
     SetupPane plain;
     plain.place = PanePlace{pane_unit::kSubcells, subs(6), subs(5)};
     plain.width = PaneSize{pane_unit::kSubcells, subs(40)};
     plain.height = PaneSize{pane_unit::kDefault, 0};
     plain.front = 0;
-    CHECK(pane_window_text(&plain) == "@6,5 40x- f0");
+    CHECK(pane_window_text(&plain, cells) == "@6,5 40x- cells f0");
+    CHECK(pane_window_text(&plain, px) == "@72,60 480x- px f0");
+
+    // A ROW THAT AUTHORED NOTHING MEASURABLE NAMES NO UNIT — there is no number for a unit
+    // word to be about, and `-x- cells` would be one.
+    SetupPane reactive;
+    reactive.front = 0;
+    CHECK(pane_window_text(&reactive, px) == "-x- f0");
+    CHECK(pane_window_text(&reactive, cells) == "-x- f0");
+    CHECK(pane_window_text(nullptr, px) == "--");
+
+    // A WHOLE RECTANGLE, THE SAME WAY — and the clause appears exactly once however many
+    // numbers on the line are projections.
+    CHECK(fine_rect_text(FineRect{subs(3), subs(4), subs(20), subs(6)}, cells) ==
+          "@3,4 20x6 cells");
+    CHECK(fine_rect_text(FineRect{subs(3), subs(4), subs(20), subs(6)}, px) ==
+          "@36,48 240x72 px");
+    CHECK(fine_rect_text(FineRect{subs(3) + 24, subs(4) + 24, subs(20), subs(6)}, cells) ==
+          "@~3,~4 20x6 cells (~ projected)");
+}
+
+TEST_CASE("WUX-6: the canvas's device unit is the medium's answer, never Workshop's") {
+    // `surface/pointing.hpp` forbids an application to HOLD one Skin's layout number: it
+    // is correct only for as long as there is one medium. So this number is only ever the
+    // one a medium reported, it arrives on the same message the room and the face metric
+    // do, and a run nobody has spoken to reads as the character medium it has always been.
+    Session s;
+    CHECK(s.cell_px == 0); // a fresh Workshop claims no device pixel
+
+    REQUIRE(adopt_screen(s, 100, 33));
+    CHECK(s.cell_px == 0); // ...and a medium that named no unit still claims none
+
+    // A MEDIUM THAT NAMES ONE IS BELIEVED. It is the only party that can know.
+    REQUIRE(adopt_screen(s, 100, 33, 8, 18, surface::kCanvasCellPx));
+    CHECK(s.cell_px == surface::kCanvasCellPx);
+    CHECK(std::string(geometry_unit(s.cell_px)) == "px");
+
+    // A CHANGE OF UNIT ALONE IS A CHANGE -- a window that opens its canvas after its
+    // first frame must not leave a maker reading the wrong unit until something else
+    // happens to move. (`report_extent` guards the same fact on the medium's side.)
+    CHECK_FALSE(adopt_screen(s, 100, 33, 8, 18, surface::kCanvasCellPx));
+    CHECK(adopt_screen(s, 100, 33, 8, 18, 0));
+    CHECK(s.cell_px == 0);
+
+    // NON-POSITIVE IS THE VOCABULARY'S "MY DEVICE UNIT IS THE CELL", and a number nobody
+    // could mean resolves to the reading that changes nothing rather than to a guess.
+    REQUIRE(adopt_screen(s, 100, 33, 8, 18, surface::kCanvasCellPx));
+    REQUIRE(s.cell_px == surface::kCanvasCellPx);
+    CHECK(adopt_screen(s, 100, 33, 8, 18, -12));
+    CHECK(s.cell_px == 0);
+
+    // THE FACE METRIC AND THE CANVAS UNIT ARE DIFFERENT FACTS. A window whose font failed
+    // to open sets no type and still lays its canvas out in pixels; reading the metric as
+    // "am I graphical" is the near-miss agents/surface.md names.
+    REQUIRE(adopt_screen(s, 100, 33, 0, 0, surface::kCanvasCellPx));
+    CHECK(s.text_advance_px == 0);
+    CHECK(s.cell_px == surface::kCanvasCellPx);
+    CHECK(std::string(geometry_unit(s.cell_px)) == "px");
+}
+
+TEST_CASE("WUX-6: the medium's unit reaches the READOUT and no geometry at all") {
+    // THE FALSIFIER FOR "a device unit leaked into the lattice". Two sessions, identical
+    // in every way except which medium spoke to them, holding the same authored desk:
+    // every rectangle, every hit test and the whole composition must be indistinguishable.
+    // Only the SENTENCE differs.
+    Session cells;
+    Session window;
+    cells.setup.active = two_overlays();
+    window.setup.active = two_overlays();
+
+    // THE DESK IS AUTHORED FIRST, and then each medium speaks -- deliberately that order.
+    // A medium that rewrote a maker's geometry on its way in would do it to a desk that
+    // already existed, which is exactly the shape a restore or a second face has.
+    const PaneRef builder = ref_of(panel::kBuilder);
+    REQUIRE(author_pane_place(cells.setup.active, builder, subs(3) + 12, subs(4) + 12)
+                .accepted);
+    REQUIRE(author_pane_place(window.setup.active, builder, subs(3) + 12, subs(4) + 12)
+                .accepted);
+    REQUIRE(author_pane_size(cells.setup.active, builder,
+                             PaneSize{pane_unit::kSubcells, subs(30) + 12},
+                             PaneSize{pane_unit::kSubcells, subs(7) + 12})
+                .accepted);
+    REQUIRE(author_pane_size(window.setup.active, builder,
+                             PaneSize{pane_unit::kSubcells, subs(30) + 12},
+                             PaneSize{pane_unit::kSubcells, subs(7) + 12})
+                .accepted);
+
+    REQUIRE(adopt_screen(cells, 140, 40, 0, 0, 0));
+    REQUIRE(adopt_screen(window, 140, 40, 0, 0, surface::kCanvasCellPx));
+
+    // NOT ONE AUTHORED NUMBER MOVED BECAUSE A MEDIUM SPOKE.
+    CHECK(*pane_of(cells.setup.active, builder) == *pane_of(window.setup.active, builder));
+    CHECK(pane_of(window.setup.active, builder)->width.amount == subs(30) + 12);
+
+    const Screen sc_cells = screen_of(cells);
+    const Screen sc_window = screen_of(window);
+    CHECK(sc_cells.w == sc_window.w);
+    CHECK(sc_cells.room_w == sc_window.room_w);
+
+    const PanelBounds a = bounds_of(cells.panels, cells.setup.active, panel::kBuilder, sc_cells);
+    const PanelBounds b =
+        bounds_of(window.panels, window.setup.active, panel::kBuilder, sc_window);
+    CHECK(a.rect == b.rect);
+    CHECK(a.resolved == b.resolved);
+
+    // AND THE HAND MEETS THE SAME CELLS. `occupied_at`'s answer is the pane's own
+    // geometry; a device unit that had entered it would move the boundary here.
+    for (std::int64_t y = 0; y < 12; ++y) {
+        for (std::int64_t x = 0; x < 40; ++x) {
+            CAPTURE(x);
+            CAPTURE(y);
+            REQUIRE(occupied_at(cells.panels, cells.setup.active, sc_cells, x, y).occupied ==
+                    occupied_at(window.panels, window.setup.active, sc_window, x, y).occupied);
+        }
+    }
+
+    // WHAT DIFFERS IS THE SENTENCE, AND ONLY THE SENTENCE.
+    const SetupPane* row = pane_of(cells.setup.active, builder);
+    REQUIRE(row != nullptr);
+    CHECK(pane_window_text(row, cells.cell_px) != pane_window_text(row, window.cell_px));
+    CHECK(pane_window_text(row, window.cell_px).find(" px ") != std::string::npos);
+    CHECK(pane_window_text(row, cells.cell_px).find(" cells ") != std::string::npos);
+}
+
+TEST_CASE("WUX-6: which parts of a pane's window the maker has not authored") {
+    // The question the arrangement readout asks before it adds where the pane actually is.
+    SetupPane none;
+    CHECK(pane_window_partly_default(&none));
+
+    SetupPane placed;
+    placed.place = PanePlace{pane_unit::kSubcells, subs(2), subs(2)};
+    CHECK(pane_window_partly_default(&placed)); // both extents still the code's
+
+    SetupPane whole;
+    whole.place = PanePlace{pane_unit::kSubcells, subs(2), subs(2)};
+    whole.width = PaneSize{pane_unit::kSubcells, subs(20)};
+    whole.height = PaneSize{pane_unit::kSubcells, subs(6)};
+    CHECK_FALSE(pane_window_partly_default(&whole));
+
+    CHECK_FALSE(pane_window_partly_default(nullptr));
 }
 
 // ============================================================================

@@ -209,6 +209,10 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   a left edge moving the place is two writes for one gesture — is answered by making each
   axis one door-judged transaction rather than by refusing the geometry a hand plainly
   means.
+- **A PANE'S GEOMETRY IS SAID IN THE ACTIVE FACE'S UNIT (WUX-6).** `pane_window_text` takes
+  `Session::cell_px` and `subcell_text`'s exact mixed number (`10+1/2`) is retired — see
+  [the WUX-6 section](#a-maker-reads-their-pane-in-the-unit-their-face-reported-wux-6). The
+  authored bytes and the refusal of `pixels` at projection are unchanged by any of it.
 - **Escape is BACK, not cancel.** Every immediate-commit gesture in this application is
   reversible only by performing the inverse, and there is no undo. The help says `esc back`.
 - **ARRANGEMENT IS TWO SCOPES AND ONE VOCABULARY (ARR-0).** `PaneArrange{open, desk, pane,
@@ -224,7 +228,8 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   directly, topmost first: a press takes hold AND makes that pane the keyboard's target.
   Keys in both scopes: arrows place one cell, shift+arrows pull the extent one cell
   anchored at the place (`pane_edge::kBottomRight` through the same proposal door — the
-  other six anchors are the pointer's, on the handles), `f`/`b`/`r`/`l` order, `d` remove,
+  other six anchors are the pointer's, on the handles), `=`/`-` the COARSE step through that
+  same door (WUX-6), `f`/`b`/`r`/`l` order, `d` remove,
   `0` the reset prompt (`resetting`; `p`/`w`/`h`/`o`, `esc` back), `esc` leave; the desk
   adds `tab`/`shift+tab` stepping (over `arrangeable()` — every setup row, the recovery
   invariant) and Return. The ROSTER PANEL IS RETIRED: the state's visible statement is the
@@ -258,6 +263,87 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   quantizes at ITS projection (`canvas_body`, the cell projection) and never writes back:
   exact-cell values stay exact, sub-cell values resolve deterministically, and any number of
   frames rewrites nothing.
+
+## A maker reads their pane in the unit their FACE reported (WUX-6)
+
+One authored value, on one medium-independent lattice, read through whichever face the maker
+is sitting at:
+
+```text
+authored     what the maker chose -- sub-units of a canvas cell (WUX-2), the setup's own
+             number, unchanged by any of this
+projected    the nearest thing the ACTIVE medium can say, in the device unit that medium
+             itself reported -- `Session::cell_px`
+```
+
+- **THE UNIT IS THE MEDIUM'S ANSWER, NEVER WORKSHOP'S.** `SurfaceExtent::cell_px`
+  ([`surface.md`](surface.md#the-lattice-is-fine-and-each-medium-floors-at-its-own-grain))
+  arrives on the same message the room and the face metric do; `adopt_screen` takes it beside
+  them, `Session::cell_px` holds it, and **zero is "my device unit IS the cell"** — every
+  terminal, and any run no medium has spoken to. Workshop may not derive it: an application
+  holding one Skin's layout number is correct only for as long as it has one medium
+  (`surface/pointing.hpp`), which is the whole reason WUX-2 declared `pixels` and refused it
+  at projection. A change of unit ALONE is a change, so a window that opens its canvas late
+  does not leave a maker reading cells until something unrelated moves.
+- **ONE DERIVATION, AND IT IS NOT A UNIT SYSTEM.** `geometry_unit` (the word),
+  `geometry_spelling` (the number and whether it is EXACT), `geometry_amount_text`,
+  `fine_rect_text`, `pane_window_text` — five small pure functions in `screen.hpp` over
+  `surface::device_of_subs`, which is the same arithmetic the shipped face paints and
+  hit-tests by. No unit type, no registry, no per-medium table, and **no second conversion
+  constant anywhere in Workshop**.
+- **A PROJECTION WEARS `~`, AND THE LINE NAMES THE REASON ONCE.** A whole-cell value is exact
+  on every medium; a value authored at a window's pixel grain is exact in pixels and in
+  general is not exact in cells. `~34x~19 cells (~ projected)` and `417x233 px` are the same
+  authored value. The mark is ASCII because the shipped face's letterform is 0x20–0x7E, and
+  the clause appears only when something on that line actually is a projection — the
+  distinction is inspectable, never permanently lectured. This is WUX-2's SC-9 (never present
+  a rounded value as the stored one) kept, with the exact mixed number `10+1/2` retired: it
+  was exact and unreadable on a window, and `126` is exact there.
+- **LOOKING IS NOT AUTHORING.** No readout path writes: not the spelling, not the notice, not
+  a repaint, not a save. Proven by byte identity — a session that crosses both media reading
+  a geometry no terminal can say writes the same session file, byte for byte, as one that
+  never crossed. The unit itself reaches no durable file (`session_persist`'s own rule about
+  the text metric), and a session RESTORE hands this run's unit straight back rather than
+  resetting it to the character reading.
+- **`arrange_status` ALSO SAYS WHERE A PANE THE MAKER DID NOT PLACE ACTUALLY IS.** A reactive
+  axis's authored text is `-`, which is true and is not a rectangle, so a window still partly
+  the code's answer is followed by ` -- now @x,y WxH <unit>` from `managed_bounds().resolved`
+  (the unclipped ask — the same rectangle a gesture measures from). A fully authored window
+  gets no such clause: there the authored text already IS the rectangle.
+- **AN AXIS AUTHORED IN `pixels` KEEPS ITS OWN INLINE `px`** whatever the medium is, because
+  that is the unit the maker's file says. On the shipped face that reads `483x220px px`, which
+  is redundant and true; the state word beside it is `refused`, because `pixels` is still the
+  unit no medium here presents.
+
+## The coarse step is the fine step with a bigger delta (WUX-6)
+
+`=` grows the addressed pane and `-` shrinks it, by `kCoarseStepCells` (4) on **both** axes,
+in both arranging scopes.
+
+- **IT IS `arrange_grow`, THE SAME FUNCTION A SHIFTED ARROW SPENDS** — through
+  `pane_window_proposal` anchored at `kBottomRight`, through `author_pane_window`. So it
+  cannot move the pane it resizes, cannot author a reactive place as a side effect, moves no
+  other pane, performs no collision avoidance, measures no content, and meets the identical
+  per-axis settlement: a shrink that would take the width below one cell keeps the width and
+  still shortens the height (refuse-never-clamp, per axis, WUX-2a). There is **no second
+  geometry owner** and no second proposal.
+- **FOUR IS MEASURED, NOT CHOSEN.** It must be unmistakably coarser than the one-cell step
+  beside it, and one press must clear the tightest measured pane on the shipped desk with
+  room to spare: a default stack pane's external body is `kStackRows - 2*kChromeCells - 1` =
+  6 rows, the Compose form needs 8, and a step of two would land on exactly eight. A
+  `static_assert` beside the constant is what keeps that true when `kStackRows` or
+  `kChromeCells` moves.
+- **IT CLOSES WUX-5's COMPOSE FINDING AT THE DESK.** `composer/view.hpp` is byte-identical:
+  the Composer's composition priorities were not touched, and what changed is that a maker
+  can give the pane the room in one ordinary key. Witnessed off the published canvas — Submit
+  and no fields at the developer's default, the whole form and its Submit after one grow, and
+  a real `StartTimer` submitted from the grown pane.
+- **IT IS ORDINARY ACTION VOCABULARY.** `manage.grow` / `manage.shrink` are durable ids a
+  maker's keymap file rebinds, declared in both scopes so one override moves both, said by
+  the band's legend and the full hotkey view — and painted into **no** pane's chrome, which
+  is WUX-5's rule and still holds. `=` and `-` are the two keys a hand already reads as
+  bigger and smaller, and both are plain printable ASCII, which `ctrl+shift+<letter>` is not
+  from a POSIX terminal.
 
 ## A pane has an edge, and the edge is inside the pane (WUX-5)
 
@@ -299,7 +385,10 @@ pane_outer          bounds_of's answer -- authored, dragged, hit-tested, ringed.
   the Builder drops its lowest-priority row at the default height, the picker windows two
   entries sooner, and the Info panel's lists each lose a row. Every one of those is
   `list_window`'s or the Builder's own composition priority doing its declared job. The
-  Compose pane's FORM does not fit the default at all — see [`panes.md`](panes.md).
+  Compose pane's FORM does not fit the default at all — see [`panes.md`](panes.md). WUX-6
+  closed that at the DESK rather than in the Composer: one coarse grow (`=`) gives the pane
+  the eight body rows the form needs, and `kCoarseStepCells`' `static_assert` is what keeps
+  the two numbers tied together.
 
 ## The desk's front is the authored order plus one lift (WUX-5)
 
