@@ -9064,3 +9064,475 @@ TEST_CASE("WUX-5/WUX-7: the arrangement desk's pointer takes what is visibly in 
     CHECK(t.session().pane_drag.active);
     CHECK(t.session().pane_drag.pane == ref_of(panel::kBuilder));
 }
+
+// ============================================================================
+// ---- WUX-9: the layout tabs ------------------------------------------------
+//
+// The run of desk arrangements this Workshop is holding, on the left of the band's
+// existing status row. Everything here is composition: what the run says, what it does
+// when it does not fit, and that the press inverse spends the painter's own spans.
+
+namespace {
+
+/// A `SetupState` holding `names.size()` layouts in that order, with `live` active.
+SetupState shelf_of(const std::vector<std::string>& names, std::size_t live) {
+    REQUIRE(!names.empty());
+    REQUIRE(live < names.size());
+    SetupState s;
+    s.active = setup_of(names[live], {panel::kInfo});
+    s.active_at = live;
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        if (i != live) {
+            s.shelved.push_back(setup_of(names[i], {panel::kInfo}));
+        }
+    }
+    return s;
+}
+
+/// The maker's order, read back out of the run -- the one thing switching may never move.
+std::vector<std::string> order_of(const SetupState& s) {
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < layout_count(s); ++i) {
+        out.push_back(layout_at(s, i).name);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("WUX-9/SC-2: a layout is a Setup and the run is the shelf plus the live value") {
+    SetupState s = shelf_of({"Code", "Build", "Inspect"}, 0);
+    CHECK(layout_count(s) == 3);
+    CHECK(order_of(s) == std::vector<std::string>{"Code", "Build", "Inspect"});
+    // THE LIVE ONE IS `active` AND IS NOT ALSO ON THE SHELF -- one value, one owner.
+    CHECK(s.shelved.size() == 2);
+    CHECK(&layout_at(s, 0) == &s.active);
+    for (const Setup& shelved : s.shelved) {
+        CHECK(shelved.name != s.active.name);
+    }
+}
+
+TEST_CASE("WUX-9/SC-3: switching never reorders the run, and the live value never doubles") {
+    SetupState s = shelf_of({"Code", "Build", "Inspect"}, 0);
+    const std::vector<std::string> authored = order_of(s);
+
+    // EVERY DESTINATION, IN EVERY ORDER, AND THE ORDER IS THE SAME AFTERWARDS. A swap of
+    // `active` with the shelf entry would pass the first hop and reorder on the second,
+    // which is exactly the mutation this sweep exists to kill.
+    for (const std::size_t to : std::vector<std::size_t>{2, 1, 0, 1, 2, 0}) {
+        CAPTURE(to);
+        REQUIRE(activate_layout(s, to));
+        CHECK(s.active_at == to);
+        CHECK(s.active.name == authored[to]);
+        CHECK(order_of(s) == authored);
+        CHECK(s.shelved.size() == 2);
+    }
+    // AND A DESTINATION THAT IS ALREADY LIVE, OR IS NOT A LAYOUT, MOVES NOTHING.
+    CHECK_FALSE(activate_layout(s, s.active_at));
+    CHECK_FALSE(activate_layout(s, 3));
+    CHECK(order_of(s) == authored);
+}
+
+TEST_CASE("WUX-9/SC-11: new copies and appends, and the copy is a value of its own") {
+    SetupState s = shelf_of({"Code"}, 0);
+    REQUIRE(add_pane(s.active, ref_of(panel::kBuilder)));
+
+    REQUIRE(add_layout(s));
+    // A COPY OF THE ONE YOU WERE ON, APPENDED, AND LIVE.
+    CHECK(layout_count(s) == 2);
+    CHECK(s.active_at == 1);
+    CHECK(s.active == layout_at(s, 0));
+    CHECK(order_of(s) == std::vector<std::string>{"Code", "Code"});
+
+    // ...and editing it leaves the original exactly as it was.
+    REQUIRE(remove_pane(s.active, ref_of(panel::kBuilder)));
+    CHECK(has_pane(layout_at(s, 0), ref_of(panel::kBuilder)));
+    CHECK_FALSE(has_pane(s.active, ref_of(panel::kBuilder)));
+
+    // THE CEILING IS A BOUND ON WORK AND IT REFUSES RATHER THAN DROPPING ANYTHING.
+    while (layout_count(s) < kMaxLayouts) {
+        REQUIRE(add_layout(s));
+    }
+    CHECK(layout_count(s) == kMaxLayouts);
+    CHECK_FALSE(add_layout(s));
+    CHECK(layout_count(s) == kMaxLayouts);
+}
+
+TEST_CASE("WUX-9/SC-3+SC-11: a new layout appends however far into the run you stand") {
+    // FOUND BY A MUTATION THE FIRST SUITE DID NOT CATCH. `add_layout` puts the ORIGINAL back
+    // at `active_at` and takes the appended position; a `push_back` of the original is
+    // identical while the live layout is LAST -- which is where every other case in this file
+    // stands, because that is where `new` leaves you -- and swaps two layouts the moment a
+    // maker adds one from the middle of their own run.
+    SetupState s = shelf_of({"A", "B", "C"}, 1);
+    REQUIRE(s.active.name == "B");
+    REQUIRE(add_layout(s));
+    CHECK(order_of(s) == std::vector<std::string>{"A", "B", "C", "B"});
+    CHECK(s.active_at == 3);
+    CHECK(s.active.name == "B");
+
+    // ...from the FIRST position too, which is the other end of the same mistake.
+    SetupState first = shelf_of({"A", "B", "C"}, 0);
+    REQUIRE(add_layout(first));
+    CHECK(order_of(first) == std::vector<std::string>{"A", "B", "C", "A"});
+    CHECK(first.active_at == 3);
+
+    // ...and the copy is still a copy of the one you were STANDING on, not of the last one.
+    SetupState middle = shelf_of({"A", "B", "C"}, 1);
+    REQUIRE(add_pane(middle.active, ref_of(panel::kBuilder)));
+    const Setup standing = middle.active;
+    REQUIRE(add_layout(middle));
+    CHECK(middle.active == standing);
+    CHECK(layout_at(middle, 1) == standing);
+    CHECK_FALSE(has_pane(layout_at(middle, 0), ref_of(panel::kBuilder)));
+}
+
+TEST_CASE("WUX-9/SC-11: removing takes the next neighbour, the previous only at the end") {
+    SetupState s = shelf_of({"A", "B", "C"}, 0);
+    REQUIRE(remove_layout(s)); // the first: the NEXT one becomes live
+    CHECK(s.active.name == "B");
+    CHECK(s.active_at == 0);
+    CHECK(order_of(s) == std::vector<std::string>{"B", "C"});
+
+    SetupState last = shelf_of({"A", "B", "C"}, 2);
+    REQUIRE(remove_layout(last)); // the last: there is no next, so the PREVIOUS one
+    CHECK(last.active.name == "B");
+    CHECK(last.active_at == 1);
+    CHECK(order_of(last) == std::vector<std::string>{"A", "B"});
+
+    // THE FLOOR: the only layout cannot be removed, and nothing about it moves.
+    SetupState one = shelf_of({"A"}, 0);
+    CHECK_FALSE(remove_layout(one));
+    CHECK(layout_count(one) == 1);
+    CHECK(one.active.name == "A");
+}
+
+TEST_CASE("WUX-9/SC-10: stepping wraps over the whole population, painted or not") {
+    SetupState s = shelf_of({"A", "B", "C"}, 0);
+    CHECK(layout_step(s, +1) == 1);
+    CHECK(layout_step(s, -1) == 2); // wraps
+    REQUIRE(activate_layout(s, 2));
+    CHECK(layout_step(s, +1) == 0); // wraps
+    CHECK(layout_step(s, -1) == 1);
+    // One layout steps to itself rather than off the end.
+    SetupState one = shelf_of({"A"}, 0);
+    CHECK(layout_step(one, +1) == 0);
+    CHECK(layout_step(one, -1) == 0);
+}
+
+TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move") {
+    const SetupState first = shelf_of({"Code", "Build"}, 0);
+    const SetupState second = shelf_of({"Code", "Build"}, 1);
+    const LayoutTabRun a = layout_tab_run(first, 80);
+    const LayoutTabRun b = layout_tab_run(second, 80);
+
+    CHECK(a.text == "> \"Code\"  \"Build\"");
+    CHECK(b.text == "  \"Code\"> \"Build\"");
+    // THE SAME WIDTH EITHER WAY, which is why the status to the right of it does not
+    // slide two cells sideways every time a maker switches.
+    CHECK(a.text.size() == b.text.size());
+    REQUIRE(a.tabs.size() == 2);
+    REQUIRE(b.tabs.size() == 2);
+    for (std::size_t i = 0; i < 2; ++i) {
+        CHECK(a.tabs[i].at == i);
+        CHECK(a.tabs[i].column == b.tabs[i].column);
+        CHECK(a.tabs[i].columns == b.tabs[i].columns);
+    }
+    CHECK(a.tabs[0].active);
+    CHECK_FALSE(a.tabs[1].active);
+    CHECK_FALSE(b.tabs[0].active);
+    CHECK(b.tabs[1].active);
+    // A RUN THAT FITS IS PAINTED WHOLE, with no marker at all.
+    CHECK(a.before == 0);
+    CHECK(a.after == 0);
+}
+
+TEST_CASE("WUX-9/SC-3: a name that could impersonate the run is one quoted token") {
+    // A layout name may hold spaces, so the run quotes every one of them -- the same
+    // owner the notices spend. Unquoted, this name would read as two layouts.
+    const SetupState s = shelf_of({"my desk", "other"}, 0);
+    const LayoutTabRun run = layout_tab_run(s, 80);
+    CHECK(run.text == "> \"my desk\"  \"other\"");
+    REQUIRE(run.tabs.size() == 2);
+    CHECK(run.text.substr(static_cast<std::size_t>(run.tabs[1].column),
+                          static_cast<std::size_t>(run.tabs[1].columns)) == "  \"other\"");
+    // ...AND DUPLICATE NAMES ARE LEGAL AND DISAMBIGUATED BY POSITION, never by the text.
+    const SetupState twins = shelf_of({"same", "same"}, 1);
+    const LayoutTabRun two = layout_tab_run(twins, 80);
+    REQUIRE(two.tabs.size() == 2);
+    CHECK(two.tabs[0].at == 0);
+    CHECK(two.tabs[1].at == 1);
+    CHECK(two.tabs[0].column != two.tabs[1].column);
+}
+
+TEST_CASE("WUX-9/SC-8: the visible window is derived, keeps the live tab, and marks its ends") {
+    SetupState s = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
+    const std::vector<std::string> authored = order_of(s);
+
+    // TOO MANY FOR THE ROOM: the omissions are counted on the side they were left out on,
+    // the live tab is painted, and the order inside the window is the authored order.
+    const LayoutTabRun narrow = layout_tab_run(s, 20);
+    REQUIRE(!narrow.tabs.empty());
+    CHECK(narrow.tabs.front().active);
+    CHECK(narrow.before == 0);
+    CHECK(narrow.after == 8 - narrow.tabs.size());
+    CHECK(narrow.after > 0);
+    CHECK(narrow.text.find(">") != std::string::npos); // the honest right-hand count
+    CHECK(static_cast<std::int64_t>(narrow.text.size()) <= 20);
+    for (std::size_t i = 0; i < narrow.tabs.size(); ++i) {
+        CHECK(narrow.tabs[i].at == i);
+    }
+
+    // THE WINDOW FOLLOWS THE LIVE LAYOUT, and nothing is stored: the same state, asked
+    // again after a switch, answers a different window over the SAME order.
+    REQUIRE(activate_layout(s, 7));
+    const LayoutTabRun moved = layout_tab_run(s, 20);
+    CHECK(order_of(s) == authored);
+    CHECK(moved.tabs.back().active);
+    CHECK(moved.tabs.back().at == 7);
+    CHECK(moved.before > 0);
+    CHECK(moved.after == 0);
+    CHECK(moved.text.find("<") == 0); // the honest left-hand count leads the run
+
+    // ...AND IN THE MIDDLE BOTH ENDS ARE MARKED.
+    REQUIRE(activate_layout(s, 4));
+    const LayoutTabRun middle = layout_tab_run(s, 18);
+    CHECK(middle.before > 0);
+    CHECK(middle.after > 0);
+    bool live_painted = false;
+    for (const LayoutTab& tab : middle.tabs) {
+        live_painted = live_painted || tab.active;
+    }
+    CHECK(live_painted);
+    // EVERY PAINTED SPAN IS INSIDE THE TEXT AND THEY DO NOT OVERLAP.
+    std::int64_t reach = 0;
+    for (const LayoutTab& tab : middle.tabs) {
+        CHECK(tab.column >= reach);
+        reach = tab.column + tab.columns;
+        CHECK(reach <= static_cast<std::int64_t>(middle.text.size()));
+    }
+}
+
+TEST_CASE("WUX-9/SC-8: the live tab is cut rather than dropped when even it will not fit") {
+    const SetupState s = shelf_of({"short", std::string(kMaxSetupNameLen, 'z')}, 1);
+    const LayoutTabRun run = layout_tab_run(s, 12);
+    REQUIRE(run.tabs.size() == 1);
+    CHECK(run.tabs[0].active);
+    CHECK(run.tabs[0].at == 1);
+    CHECK(run.before == 1);
+    CHECK(static_cast<std::int64_t>(run.text.size()) <= 12);
+    CHECK(run.text.find("...") != std::string::npos); // the cut is marked, never silent
+}
+
+TEST_CASE("WUX-9/SC-7: the status row is tabs on the left and the existing status right") {
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.setup = shelf_of({"Code", "Build"}, 0);
+    const Screen sc = screen_of(s);
+    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+
+    CHECK(row.text.rfind("> \"Code\"  \"Build\" | UNSAVED", 0) == 0);
+    CHECK(row.text.find("workshop-setup.json") != std::string::npos);
+    CHECK(static_cast<std::int64_t>(row.text.size()) <= sc.w);
+    // THE NAME IS SAID ONCE. The tabs carry it; the status half does not repeat it.
+    CHECK(row.text.find("setup \"Code\"") == std::string::npos);
+    // AND THE GEOMETRY DID NOT MOVE TO SEAT THEM: the band is the rows it always was.
+    CHECK(band_bounds(sc).h == kBottomRows);
+    CHECK(sc.room_w == kMinScreen.room_w);
+    CHECK(sc.room_h == kMinScreen.room_h);
+
+    // `UNSAVED` IS STILL ABOUT THE LIVE LAYOUT AGAINST THE FILE, and it survives a run of
+    // names long enough to want the whole row.
+    Session crowded = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    crowded.setup = shelf_of({std::string(20, 'a'), std::string(20, 'b'),
+                              std::string(20, 'c'), std::string(20, 'd')},
+                             0);
+    const BandStatus tight = band_status(crowded, "workshop-setup.json", screen_of(crowded));
+    CHECK(tight.text.find("UNSAVED") != std::string::npos);
+    CHECK(static_cast<std::int64_t>(tight.text.size()) <= kMinScreen.w);
+}
+
+TEST_CASE("WUX-9/SC-7: the saved marker survives the row's own cut, at every run width") {
+    // FOUND BY THE LIVE TUI WITNESS, NOT BY A CASE. The reservation is against the tabs, and
+    // the price it has to cover includes the mark `detail::fit` spends on saying it cut the
+    // row -- a reservation of the marker's own width alone leaves it three cells short, and
+    // a maker at the minimum extent with a full-budget run reads `| UNSA...`.
+    //
+    // SWEPT over every name length, because the defect lives at exactly one of them: the run
+    // has to be wide enough to reach its budget and no wider, which the suite's other crowded
+    // case missed by three tabs.
+    for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
+        for (std::size_t len = 1; len <= 24; ++len) {
+            std::vector<std::string> names;
+            for (std::size_t i = 0; i < count; ++i) {
+                names.push_back(std::string(len, static_cast<char>('a' + i)));
+            }
+            for (std::size_t live = 0; live < count; ++live) {
+                CAPTURE(count);
+                CAPTURE(len);
+                CAPTURE(live);
+                Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+                s.setup = shelf_of(names, live);
+                const BandStatus row = band_status(s, "workshop-setup.json", screen_of(s));
+                REQUIRE(row.text.find("UNSAVED") != std::string::npos);
+                REQUIRE(static_cast<std::int64_t>(row.text.size()) <= kMinScreen.w);
+            }
+        }
+    }
+    // ...and the same for a desk that IS saved, whose word is shorter and must also be whole.
+    Session saved = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    saved.setup = shelf_of({std::string(20, 'a'), std::string(20, 'b'), std::string(20, 'c')}, 1);
+    saved.setup.on_file = saved.setup.active;
+    REQUIRE(saved.setup.saved());
+    CHECK(band_status(saved, "workshop-setup.json", screen_of(saved)).text.find("| saved") !=
+          std::string::npos);
+}
+
+TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the band") {
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.setup = shelf_of({"Code", "Build", "Inspect"}, 0);
+    const Screen sc = screen_of(s);
+    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    const ui::Rect b = band_bounds(sc);
+    REQUIRE(band_tab_row(s, sc) == 0);
+    REQUIRE(row.tabs.size() == 3);
+
+    const auto press = [&](std::int64_t column, std::int64_t band_row) {
+        return band_tab_at(s, "workshop-setup.json", sc, input::space::kCells,
+                           b.x + column, b.y + band_row + surface::kTuiCanvasTopRow);
+    };
+
+    // EVERY CELL OF EVERY PAINTED TAB ANSWERS THAT TAB -- the span the composition wrote,
+    // never a second measure of the same text.
+    for (const LayoutTab& tab : row.tabs) {
+        for (std::int64_t c = tab.column; c < tab.column + tab.columns; ++c) {
+            CAPTURE(c);
+            const LayoutTabPress hit = press(c, 0);
+            REQUIRE(hit.hit);
+            CHECK(hit.at == tab.at);
+        }
+    }
+    // THE STATUS TO THE RIGHT OF THE RUN SELECTS NOTHING, and neither does the blank
+    // beyond the end of the row.
+    const std::int64_t past = row.tabs.back().column + row.tabs.back().columns;
+    CHECK_FALSE(press(past, 0).hit);
+    CHECK_FALSE(press(past + 1, 0).hit);
+    CHECK_FALSE(press(kScreenMinW - 1, 0).hit);
+    // ...NOR DOES ANY OTHER ROW OF THE BAND, above or below the one the tabs are on.
+    for (std::int64_t r = 1; r < kBottomRows; ++r) {
+        CAPTURE(r);
+        CHECK_FALSE(press(row.tabs[1].column, r).hit);
+    }
+    CHECK_FALSE(press(row.tabs[1].column, -1).hit);
+
+    // AND WHILE A MAKER IS NAMING THE SETUP THERE ARE NO TABS ON SCREEN TO PRESS.
+    Session naming = s;
+    naming.setup.naming.open = true;
+    CHECK(band_tab_row(naming, sc) == kNoBandRow);
+    CHECK_FALSE(band_tab_at(naming, "workshop-setup.json", sc, input::space::kCells,
+                            b.x + row.tabs[1].column, b.y + surface::kTuiCanvasTopRow)
+                    .hit);
+}
+
+TEST_CASE("WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed") {
+    Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    s.setup = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
+    // Names long enough that the reserved row cannot hold all eight.
+    for (std::size_t i = 0; i < s.setup.shelved.size(); ++i) {
+        s.setup.shelved[i].name = std::string(12, static_cast<char>('a' + i));
+    }
+    const Screen sc = screen_of(s);
+    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    REQUIRE(row.after > 0);
+    CHECK(row.tabs.size() + row.before + row.after == layout_count(s.setup));
+    // MEASURED AT THE MINIMUM, and pinned so the number a report quotes is the suite's: a
+    // 5-column live tab and three 16-column neighbours are what 78 columns less the saved
+    // marker's reservation will hold, and the other four are counted rather than dropped.
+    CHECK(row.tabs.size() == 4);
+    CHECK(row.before == 0);
+    CHECK(row.after == 4);
+    CHECK(row.text.find("| UNSAVED") != std::string::npos);
+    // Nothing painted claims a layout the window left out, and no press anywhere on the
+    // row can reach one: the spans are exactly the painted population.
+    for (const LayoutTab& tab : row.tabs) {
+        CHECK(tab.at < layout_count(s.setup) - row.after);
+    }
+    const ui::Rect b = band_bounds(sc);
+    for (std::int64_t c = 0; c < sc.w; ++c) {
+        const LayoutTabPress hit =
+            band_tab_at(s, "workshop-setup.json", sc, input::space::kCells, b.x + c,
+                        b.y + surface::kTuiCanvasTopRow);
+        if (hit.hit) {
+            CAPTURE(c);
+            CHECK(hit.at < layout_count(s.setup) - row.after);
+        }
+    }
+}
+
+TEST_CASE("WUX-9/SC-7: the tab run is one composition on both media") {
+    // The band is a REGION, so a face's row holds however many characters the face fits;
+    // the run is composed against that number rather than against canvas cells, and the
+    // press inverse resolves through the same `prose_at` every other region press does.
+    Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+    cells.setup = shelf_of({"Code", "Build"}, 1);
+    Session face = screen_session(kScreenMinW, kScreenMinH, 8, 18);
+    face.setup = shelf_of({"Code", "Build"}, 1);
+
+    const BandStatus cell_row = band_status(cells, "s.json", screen_of(cells));
+    const BandStatus face_row = band_status(face, "s.json", screen_of(face));
+    // ONE ANSWER ABOUT WHICH LAYOUT IS LIVE, whatever the medium can fit beside it.
+    REQUIRE(cell_row.tabs.size() == 2);
+    REQUIRE(face_row.tabs.size() == 2);
+    CHECK(cell_row.tabs[1].active);
+    CHECK(face_row.tabs[1].active);
+    CHECK(cell_row.tabs[1].column == face_row.tabs[1].column);
+    CHECK(band_tab_row(cells, screen_of(cells)) == 0);
+    CHECK(band_tab_row(face, screen_of(face)) == 0);
+    // A window pixel inside the second tab answers the second layout.
+    const ui::Rect fb = band_bounds(screen_of(face));
+    const LayoutTabPress hit =
+        band_tab_at(face, "s.json", screen_of(face), input::space::kPixels,
+                    fb.x * surface::kCanvasCellPx + face_row.tabs[1].column * 8 + 4,
+                    fb.y * surface::kCanvasCellPx + 4);
+    CHECK(hit.hit);
+    CHECK(hit.at == 1);
+}
+
+TEST_CASE("WUX-9/SC-8: the run never spends more columns than it was given") {
+    // THE BOUND, AS A PROPERTY over every population this run can hold and every width a
+    // band row can offer -- including the degenerate ones, where a name too wide for the
+    // room sits between two omitted populations and both markers must still be paid for out
+    // of the SAME budget. A marker appended after the budget was spent is a bound that grows
+    // when it is exceeded, which is what rule 3 exists to refuse.
+    for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
+        std::vector<std::string> names;
+        for (std::size_t i = 0; i < count; ++i) {
+            // Long enough that the run cannot fit, at every width this sweep asks about.
+            names.push_back(std::string(kMaxSetupNameLen, static_cast<char>('a' + i)));
+        }
+        for (std::size_t live = 0; live < count; ++live) {
+            const SetupState s = shelf_of(names, live);
+            for (std::int64_t columns = 0; columns <= 120; ++columns) {
+                CAPTURE(count);
+                CAPTURE(live);
+                CAPTURE(columns);
+                const LayoutTabRun run = layout_tab_run(s, columns);
+                REQUIRE(static_cast<std::int64_t>(run.text.size()) <= columns);
+                // ...and whatever it did paint is inside what it wrote, in the maker's
+                // order, with the omitted counted on the side they were left out on.
+                std::int64_t reach = 0;
+                for (const LayoutTab& tab : run.tabs) {
+                    REQUIRE(tab.column >= reach);
+                    reach = tab.column + tab.columns;
+                    REQUIRE(reach <= static_cast<std::int64_t>(run.text.size()));
+                }
+                REQUIRE(run.tabs.size() + run.before + run.after == count);
+                for (std::size_t i = 0; i + 1 < run.tabs.size(); ++i) {
+                    REQUIRE(run.tabs[i].at + 1 == run.tabs[i + 1].at);
+                }
+                if (!run.tabs.empty()) {
+                    REQUIRE(run.tabs.front().at == run.before);
+                }
+            }
+        }
+    }
+}

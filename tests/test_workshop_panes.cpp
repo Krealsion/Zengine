@@ -9059,3 +9059,163 @@ TEST_CASE("WUX-8: the thinner boundary rewrites no authored value and no foregro
     CHECK(presentation_order(r.session().setup.active, r.session().panels) == order);
     (void)seat;
 }
+
+// ============================================================================
+// ---- WUX-9: one provider, several layouts ----------------------------------
+//
+// The floor the phase rests on: switching layouts changes Workshop's PRESENTATION and
+// the rooms it grants, and reaches provider identity, provider realization and
+// provider-owned state not at all.
+
+namespace {
+
+void layout_key(PaneRig& r, Act act) {
+    const Gesture g = r.session().keymap.gesture_of(act);
+    r.key(g.scancode, g.modifiers);
+}
+
+/// The prose a pane is currently SHOWING, as text -- `SurfaceTextRow` is a wire shape
+/// with no equality of its own, and what a case wants to compare is the words.
+std::vector<std::string> shown_text(const ExternalPane& pane) {
+    std::vector<std::string> out;
+    for (const surface::SurfaceTextRow& row : pane.shown) {
+        out.push_back(row.text);
+    }
+    return out;
+}
+
+PaneContent hello_rows(const std::vector<std::string>& lines) {
+    PaneContent said;
+    said.pane = kHelloPane;
+    for (const std::string& line : lines) {
+        said.rows.push_back(surface::SurfaceTextRow{line, surface::role::kFill});
+    }
+    return said;
+}
+
+} // namespace
+
+TEST_CASE("WUX-9/SC-6: a pane in two layouts is one pane, one provider, one room") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    REQUIRE(r.session().panels.has(kind));
+
+    const PaneContent said = hello_rows({"one", "two"});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    const ExternalPane* before = r.session().panels.external_pane(kind);
+    REQUIRE(before != nullptr);
+    const std::vector<std::string> shown = shown_text(*before);
+    const std::int64_t granted_rows = before->rows;
+    const std::int64_t granted_columns = before->columns;
+    REQUIRE(!shown.empty());
+
+    const std::int64_t said_before = seat->said;
+    const std::size_t catalog_before = r.session().panels.runtime.entries.size();
+
+    // A SECOND LAYOUT NAMING THE SAME PANE -- `new` copies the live one, so both do.
+    layout_key(r, Act::kLayoutNew);
+    REQUIRE(layout_count(r.session().setup) == 2);
+    REQUIRE(has_pane(r.session().setup.active, hello_ref()));
+
+    // SWITCHING BETWEEN TWO LAYOUTS THAT BOTH NAME IT, four times.
+    for (int i = 0; i < 4; ++i) {
+        layout_key(r, Act::kLayoutNext);
+    }
+
+    // ONE RUNTIME ROW, ONE PRESENTATION, THE SAME ROOM AND THE SAME ROWS -- and the
+    // provider was told NOTHING, because its prose capacity never changed. A grant per
+    // switch would be the room churn this case exists to refuse.
+    CHECK(r.session().panels.runtime.entries.size() == catalog_before);
+    CHECK(r.session().panels.external.size() == 1);
+    const ExternalPane* after = r.session().panels.external_pane(kind);
+    REQUIRE(after != nullptr);
+    CHECK(shown_text(*after) == shown);
+    CHECK(after->rows == granted_rows);
+    CHECK(after->columns == granted_columns);
+    CHECK(seat->said == said_before);
+}
+
+TEST_CASE("WUX-9/SC-6: leaving a layout withdraws a presentation and unloads nothing") {
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    const PaneContent said = hello_rows({"one", "two"});
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    REQUIRE(r.session().panels.external_pane(kind)->heard);
+    const std::int64_t said_before = seat->said;
+
+    // A LAYOUT THAT DOES NOT NAME IT -- removed through the picker, the one door.
+    layout_key(r, Act::kLayoutNew);
+    r.pick(hello_ref());
+    REQUIRE_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    REQUIRE_FALSE(r.session().panels.has(kind));
+
+    // THE PROVIDER HEARD NOTHING ABOUT IT. Workshop has no unload path, retracts no
+    // offer, and the catalog row is a fact about the RUN rather than about this desk.
+    CHECK(seat->said == said_before);
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+    CHECK(resolve_pane(hello_ref(), r.session().panels.runtime).has_value());
+    // ...and the layout that still names it is untouched by any of it.
+    CHECK(has_pane(layout_at(r.session().setup, 0), hello_ref()));
+
+    // COMING BACK RE-SEATS THE PRESENTATION AND RE-EARNS ITS ROOM -- one grant, because
+    // this is a pane ENTERING, which is the dragged-window-edge path and not a new one.
+    layout_key(r, Act::kLayoutNext);
+    REQUIRE(r.session().panels.has(kind));
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+    CHECK(r.session().panels.external.size() == 1);
+    CHECK(seat->said == said_before + 1);
+    CHECK(seat->rooms.back().pane == std::string(kHelloPane));
+    // ...and the provider's own state answers it, unchanged, as ordinary content.
+    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
+    CHECK(r.session().panels.external_pane(kind)->shown.size() == said.rows.size());
+}
+
+TEST_CASE("WUX-9/SC-15: an inactive layout's rows are dormant, not maintained") {
+    PaneRig r;
+    r.mount_workshop();
+
+    // TWO LAYOUTS: the first names nothing external; the second names a pane nothing has
+    // offered yet -- authored, unresolved, and legal (WS-0's own shape).
+    layout_key(r, Act::kLayoutNew);
+    REQUIRE(add_pane(r.session().setup.active, hello_ref()));
+    r.session().setup.active.name = "Waiting";
+    const Setup waiting = r.session().setup.active;
+    layout_key(r, Act::kLayoutPrevious);
+    REQUIRE_FALSE(has_pane(r.session().setup.active, hello_ref()));
+    REQUIRE(layout_at(r.session().setup, 1) == waiting);
+
+    // THE PROVIDER ARRIVES while its layout is on the shelf. Only the LIVE layout
+    // reconciles; the shelved value is a value, and nothing walks it.
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    CHECK(r.session().panels.runtime.entries.size() == 1);
+    CHECK(layout_at(r.session().setup, 1) == waiting);
+    CHECK(r.session().panels.open.size() == r.session().setup.active.panes.size());
+
+    // A SECOND OFFER ENTERS THE RUN'S CATALOG AND NO LAYOUT'S PANE LIST. A maker authors
+    // participation; an offer never authors itself into a desk it was not named in.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"second", "Second", "another"});
+    });
+    CHECK(r.session().panels.runtime.entries.size() == 2);
+    for (std::size_t i = 0; i < layout_count(r.session().setup); ++i) {
+        CAPTURE(i);
+        CHECK_FALSE(has_pane(layout_at(r.session().setup, i), PaneRef{kHelloOffice, "second"}));
+    }
+    CHECK(layout_at(r.session().setup, 1) == waiting);
+
+    // AND ACTIVATING THE DORMANT LAYOUT RESOLVES ITS ROW THROUGH ORDINARY RECONCILIATION,
+    // with not one byte of the value having changed while it waited.
+    layout_key(r, Act::kLayoutNext);
+    CHECK(r.session().setup.active == waiting);
+    CHECK(r.session().panels.has(r.session().panels.runtime.entries[0].kind));
+    CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
+}

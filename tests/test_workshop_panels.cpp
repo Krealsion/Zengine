@@ -6194,3 +6194,298 @@ TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and not
         CHECK_FALSE(t.row("Name")->editing());
     }
 }
+
+// ============================================================================
+// ---- WUX-9: several layouts in one running Workshop ------------------------
+//
+// The live half: the four gestures, the switch transaction through `apply_setup`, the
+// pointer's own door on the band, and the Workshop-global facts a switch may not touch.
+
+namespace {
+
+/// The keys the shipped catalog binds to the four layout gestures, read from the keymap
+/// rather than spelled here -- a case that hard-coded `.` would keep passing after a
+/// remap and would be measuring its own literal.
+struct LayoutKeys {
+    Gesture next;
+    Gesture previous;
+    Gesture make;
+    Gesture drop;
+};
+
+LayoutKeys layout_keys(const Live& t) {
+    return LayoutKeys{t.session().keymap.gesture_of(Act::kLayoutNext),
+                      t.session().keymap.gesture_of(Act::kLayoutPrevious),
+                      t.session().keymap.gesture_of(Act::kLayoutNew),
+                      t.session().keymap.gesture_of(Act::kLayoutRemove)};
+}
+
+void press_gesture(Live& t, const Gesture& g) { t.key(g.scancode, g.modifiers); }
+
+/// The names of the layouts this Workshop is holding, in the maker's order.
+std::vector<std::string> layout_names(const Live& t) {
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
+        out.push_back(layout_at(t.session().setup, i).name);
+    }
+    return out;
+}
+
+/// The canvas cell a painted tab's first byte sits on, for a press.
+std::int64_t tab_cell(const Live& t, std::size_t at) {
+    const Screen sc = screen_of(t.session());
+    const BandStatus row = band_status(t.session(), t.host.setup_path, sc);
+    for (const LayoutTab& tab : row.tabs) {
+        if (tab.at == at) {
+            return band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
+TEST_CASE("WUX-9/SC-10: four ordinary command-mode actions reach the layout shelf") {
+    Live t;
+    const LayoutKeys k = layout_keys(t);
+    // THE DEFAULTS THE PHASE CHOSE, and every one of them is a gesture BOTH backends can
+    // deliver: three unshifted printables and one plain ctrl chord.
+    CHECK(k.next == Gesture{input::scan::kPeriod, input::mod::kNone});
+    CHECK(k.previous == Gesture{input::scan::kComma, input::mod::kNone});
+    CHECK(k.make == Gesture{input::scan::kEquals, input::mod::kNone});
+    CHECK(k.drop == Gesture{input::scan::kW, input::mod::kCtrl});
+    for (const Gesture& g : {k.next, k.previous, k.make, k.drop}) {
+        CHECK(posix_gap(g) == nullptr);
+    }
+
+    // ONE LAYOUT: stepping says so and makes nothing.
+    REQUIRE(layout_count(t.session().setup) == 1);
+    press_gesture(t, k.next);
+    CHECK(t.notice().find("only layout") != std::string::npos);
+    CHECK(layout_count(t.session().setup) == 1);
+
+    // ...AND THE ONLY LAYOUT CANNOT BE REMOVED.
+    press_gesture(t, k.drop);
+    CHECK(t.notice().find("only layout") != std::string::npos);
+    CHECK(t.session().notice_is_bad);
+    CHECK(layout_count(t.session().setup) == 1);
+
+    // A NEW ONE IS A COPY OF THE ONE YOU WERE ON, appended and live.
+    press_gesture(t, k.make);
+    CHECK(layout_count(t.session().setup) == 2);
+    CHECK(t.session().setup.active_at == 1);
+    CHECK(t.notice().find("2 of 2") != std::string::npos);
+
+    // STEPPING WRAPS, IN BOTH DIRECTIONS.
+    press_gesture(t, k.next);
+    CHECK(t.session().setup.active_at == 0);
+    press_gesture(t, k.previous);
+    CHECK(t.session().setup.active_at == 1);
+    press_gesture(t, k.previous);
+    CHECK(t.session().setup.active_at == 0);
+
+    // AND REMOVING STANDS ON THE NEIGHBOUR RATHER THAN ON NOTHING.
+    press_gesture(t, k.drop);
+    CHECK(layout_count(t.session().setup) == 1);
+    CHECK(t.session().setup.active_at == 0);
+    CHECK(t.notice().find("removed layout") == 0);
+}
+
+TEST_CASE("WUX-9/SC-4: a switch returns membership, geometry and front order as authored") {
+    Live t;
+    const LayoutKeys k = layout_keys(t);
+    // LAYOUT ONE: Info alone, moved somewhere a maker chose.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+                              surface::subs_of_cells(3), surface::subs_of_cells(4))
+                .accepted);
+    const Setup first = t.session().setup.active;
+
+    press_gesture(t, k.make);
+    // LAYOUT TWO: a different membership, a different place, a different front order.
+    open_builder(t);
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kBuilder),
+                              surface::subs_of_cells(9), surface::subs_of_cells(2))
+                .accepted);
+    REQUIRE(send_to_back(live(t).setup.active, ref_of(panel::kBuilder)));
+    const Setup second = t.session().setup.active;
+    REQUIRE(first != second);
+
+    // BACK AND FORTH, AND EACH ONE COMES BACK BYTE FOR BYTE.
+    for (int round = 0; round < 3; ++round) {
+        CAPTURE(round);
+        press_gesture(t, k.previous);
+        CHECK(t.session().setup.active == first);
+        CHECK(t.session().panels.has(panel::kInfo));
+        CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+        press_gesture(t, k.next);
+        CHECK(t.session().setup.active == second);
+        CHECK(t.session().panels.has(panel::kBuilder));
+        // ...AND THE AUTHORED FRONT ORDER WITH IT: the Builder was put BEHIND Info in
+        // this layout, so it is the first thing painted and the last thing pressed.
+        CHECK(painted_order(t.session()).front() == panel::kBuilder);
+    }
+
+    // THE PRESENTATIONS ARE RECONCILED THROUGH THE ONE DOOR, so the panels a switch left
+    // open are exactly the ones the destination names -- in its own list order.
+    CHECK(authored_order(t.session()) == presentation_order(second, t.session().panels));
+}
+
+TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
+    Live t;
+    const LayoutKeys k = layout_keys(t);
+    open_builder(t);
+    // A SELECTION AND A KEYBOARD CANDIDATE, made by a press exactly as a maker makes them.
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(builder.x + 1, builder.y + 1);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    const std::int64_t selected = t.session().panels.selected;
+    const std::int64_t keyboard = t.session().panels.keyboard;
+    const WorkshopDoc document = t.doc();
+    const std::string location = t.session().panels.files.current_dir;
+    const std::uint64_t doc_epoch = t.session().editor.doc_epoch;
+    const std::string source = t.session().editor.path;
+
+    // A LAYOUT WITHOUT THE BUILDER IN IT -- removed through the picker, which is the
+    // one door membership changes through.
+    press_gesture(t, k.make);
+    live(t).setup.active.name = "Inspect";
+    pick(t, panel::kBuilder);
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
+
+    // THE SELECTION IS NOT DESTROYED BY THE SWITCH -- it simply resolves to nothing while
+    // its pane is absent, which is `selected_pane`'s own discipline (WUX-5).
+    CHECK(t.session().panels.selected == selected);
+    CHECK(t.session().panels.keyboard == keyboard);
+    CHECK(selected_pane(t.session().panels) == kNoPaneKind);
+    CHECK(keyboard_pane(t.session().panels) == kNoPaneKind);
+    // ...AND IT LIFTS NOTHING: no ghost foreground for a pane that is not on this desk.
+    for (const std::int64_t kind : painted_order(t.session())) {
+        CHECK(kind != panel::kBuilder);
+    }
+    // THE DOCUMENT, THE SOURCE EDITOR AND THE BROWSER'S PLACE ARE ONE TRUTH EACH, AND
+    // A SWITCH IS NOT A DOOR TO ANY OF THEM.
+    CHECK(t.doc() == document);
+    CHECK(t.session().panels.files.current_dir == location);
+    CHECK(t.session().editor.doc_epoch == doc_epoch);
+    CHECK(t.session().editor.path == source);
+
+    // AND COMING BACK MAKES THE RETAINED SELECTION MEAN SOMETHING AGAIN.
+    press_gesture(t, k.previous);
+    CHECK(t.session().panels.selected == selected);
+    CHECK(selected_pane(t.session().panels) == panel::kBuilder);
+    CHECK(painted_order(t.session()).back() == panel::kBuilder);
+}
+
+TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row does not") {
+    Live t;
+    t.host.setup_path = "workshop-setup.json";
+    const LayoutKeys k = layout_keys(t);
+    press_gesture(t, k.make);
+    live(t).setup.active.name = "Second";
+    press_gesture(t, k.make);
+    live(t).setup.active.name = "Third";
+    REQUIRE(layout_names(t) == std::vector<std::string>{"Default", "Second", "Third"});
+    REQUIRE(t.session().setup.active_at == 2);
+
+    // A PRESS ON A TAB IS THE SAME SWITCH THE KEYBOARD PERFORMS.
+    const std::int64_t band_row = band_bounds(screen_of(t.session())).y;
+    t.press_canvas(tab_cell(t, 0), band_row);
+    CHECK(t.session().setup.active_at == 0);
+    CHECK(t.session().setup.active.name == "Default");
+    CHECK(layout_names(t) == std::vector<std::string>{"Default", "Second", "Third"});
+
+    t.press_canvas(tab_cell(t, 1), band_row);
+    CHECK(t.session().setup.active_at == 1);
+
+    // THE STATUS TO THE RIGHT OF THE RUN IS NOT A TAB, and pressing it selects no layout.
+    const BandStatus row = band_status(t.session(), t.host.setup_path, screen_of(t.session()));
+    const std::int64_t past =
+        band_bounds(screen_of(t.session())).x + row.tabs.back().column +
+        row.tabs.back().columns;
+    t.press_canvas(past + 2, band_row);
+    CHECK(t.session().setup.active_at == 1);
+    // ...and neither does the notice row beneath it.
+    t.press_canvas(tab_cell(t, 0), band_row + 1);
+    CHECK(t.session().setup.active_at == 1);
+}
+
+TEST_CASE("WUX-9/SC-5+SC-9: a tab press is not a press on a pane") {
+    Live t;
+    t.host.setup_path = "workshop-setup.json";
+    const LayoutKeys k = layout_keys(t);
+    open_builder(t);
+    const ui::Rect builder = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.press_canvas(builder.x + 1, builder.y + 1);
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+
+    press_gesture(t, k.make);
+    live(t).setup.active.name = "Other";
+    const std::int64_t band_row = band_bounds(screen_of(t.session())).y;
+    t.press_canvas(tab_cell(t, 0), band_row);
+
+    // THE SELECTION SURVIVES THE PRESS. A press on the band is not a press on the
+    // workspace and not a press on a pane, so the one line that clears both facts must
+    // not run for it.
+    CHECK(t.session().setup.active_at == 0);
+    CHECK(t.session().panels.selected == panel::kBuilder);
+}
+
+TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
+    Live t;
+    const LayoutKeys k = layout_keys(t);
+    press_gesture(t, k.make); // two layouts to switch between
+    REQUIRE(layout_count(t.session().setup) == 2);
+    const std::size_t at = t.session().setup.active_at;
+
+    // THE PICKER SWALLOWS BARE KEYS, so a layout gesture inside it is the picker's.
+    t.key(input::scan::kP);
+    REQUIRE(t.session().panels.picker.open);
+    press_gesture(t, k.next);
+    CHECK(t.session().setup.active_at == at);
+    t.key(input::scan::kEscape);
+
+    // SO DOES THE NAME EDITOR, where the same key is a character in a name.
+    t.host.setup_path = "workshop-setup.json";
+    t.key(input::scan::kS);
+    REQUIRE(t.session().setup.naming.open);
+    press_gesture(t, k.next);
+    t.text(".");
+    CHECK(t.session().setup.active_at == at);
+    CHECK(t.session().setup.naming.line.text().find(".") != std::string::npos);
+    t.key(input::scan::kEscape);
+
+    // AND SO DOES THE ARRANGEMENT DESK, whose own vocabulary owns every bare key it binds.
+    t.key(input::scan::kW);
+    t.text("w");
+    REQUIRE(t.session().arrange.open);
+    press_gesture(t, k.next);
+    CHECK(t.session().setup.active_at == at);
+    t.key(input::scan::kEscape);
+    CHECK(t.session().setup.active_at == at);
+}
+
+TEST_CASE("WUX-9/SC-11: a new layout duplicates no Workshop-global state") {
+    Live t;
+    const LayoutKeys k = layout_keys(t);
+    open_builder(t);
+    const std::size_t panels_before = t.session().panels.open.size();
+    const std::size_t runtime_before = t.session().panels.runtime.entries.size();
+    const std::size_t external_before = t.session().panels.external.size();
+    const WorkshopDoc document = t.doc();
+
+    press_gesture(t, k.make);
+    // THE SAME PRESENTATIONS, THE SAME CATALOG, THE SAME DOCUMENT -- a copy of an
+    // authored value is not a copy of anything live.
+    CHECK(t.session().panels.open.size() == panels_before);
+    CHECK(t.session().panels.runtime.entries.size() == runtime_before);
+    CHECK(t.session().panels.external.size() == external_before);
+    CHECK(t.doc() == document);
+    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(t.session().setup.active == layout_at(t.session().setup, 0));
+}

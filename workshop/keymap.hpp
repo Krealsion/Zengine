@@ -205,6 +205,10 @@ enum class Act : std::uint8_t {
     kBuildFrontier,
     kSetupName,
     kSetupRestore,
+    kLayoutNext,
+    kLayoutPrevious,
+    kLayoutNew,
+    kLayoutRemove,
     kArrangeDesk,
     kPaneTitles,
     kEditSource,
@@ -390,6 +394,48 @@ inline constexpr ActionRow kActionCatalog[] = {
      {scan::kS, mod::kNone}},
     {Act::kSetupRestore, "setup.restore", "restore setup", KeyContext::kCommand,
      {scan::kR, mod::kNone}},
+    // THE LAYOUT SHELF (WUX-9): step along the run of desk arrangements this Workshop is
+    // holding, add one, drop one. Beside the two setup rows because they are the same
+    // family -- a layout IS a setup, and these four are what makes the plural reachable.
+    //
+    // FOUR BARE PRINTABLES, WHICH IS LEGAL HERE FOR THE ARRANGEMENT SCOPES' OWN REASON:
+    // nothing in command mode takes text, so a letter cannot be swallowed by a buffer, and
+    // every one of them arrives from BOTH backends as itself. That last clause is the whole
+    // selection criterion and it is narrow: the POSIX wire carries an unshifted printable
+    // and a SHIFTED LETTER, and nothing else in this family -- `<`, `>` and `+` reach
+    // `terminal_byte_scancode` as bytes it cannot name (a shifted punctuation key is not a
+    // scancode plus Shift there), and ctrl+shift+letter cannot be said at all. So the
+    // conventional spellings for these four gestures are exactly the ones a terminal maker
+    // could not press, and these are their unshifted neighbours.
+    //
+    // `,` AND `.` ARE THE RUN'S TWO DIRECTIONS -- adjacent keys wearing `<` and `>`, walking
+    // a run that is itself horizontal, and free in every context that intersects kCommand
+    // (the globals are chords, kNoText holds `^c`/`^a`, and no other kCommand row spends
+    // either).
+    //
+    // `=` IS THE KEY WEARING `+`. It means grow inside the two arrangement scopes, which do
+    // not intersect this one -- reusing a gesture across mutually exclusive contexts is the
+    // working norm here (`w`) -- and adding a layout is not destructive, so a bare key is
+    // the right price for it.
+    //
+    // REMOVAL IS THE ONE CHORD, AND THE ASYMMETRY IS THE POINT. `^w` is what every
+    // application with tabs means by "close this one", it is free in every context that
+    // intersects kCommand, it is not a chord the TextBox owns (`kEditingVocabulary`), and
+    // `posix_gap` passes it. What it is NOT is a bare letter: discarding a layout cannot be
+    // undone -- this application has no undo, and the arrangement is gone with the value --
+    // so it may not be one slipped keystroke away in the mode where every other bare letter
+    // does something harmless. `x` was the obvious mnemonic and is deliberately refused:
+    // BLD-0 bound it to "close the Builder" and a later phase took that back on purpose, so
+    // a maker's hand may still mean the panel by it, and the worst outcome for a key with a
+    // half-remembered meaning is a new destructive one.
+    {Act::kLayoutNext, "layout.next", "next layout", KeyContext::kCommand,
+     {scan::kPeriod, mod::kNone}},
+    {Act::kLayoutPrevious, "layout.previous", "previous layout", KeyContext::kCommand,
+     {scan::kComma, mod::kNone}},
+    {Act::kLayoutNew, "layout.new", "new layout", KeyContext::kCommand,
+     {scan::kEquals, mod::kNone}},
+    {Act::kLayoutRemove, "layout.remove", "remove layout", KeyContext::kCommand,
+     {scan::kW, mod::kCtrl}},
     // ARRANGE THE DESK (ARR-0): the global arrangement scope. The IDENTITY is the old
     // `workshop.manage` -- a maker's authored override for it keeps working -- and what
     // changed is the meaning's scope: it opens the desk-wide arrangement state, never a

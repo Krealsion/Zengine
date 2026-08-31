@@ -1631,6 +1631,28 @@ public:
             return;
         }
         if (b.pressed) {
+            // A LAYOUT TAB IS THE ONE THING ON THE BAND A PRESS CAN REACH (WUX-9), and it
+            // is asked FIRST, above every layer below -- because the band is painted in
+            // FRONT of the panes (the plane sequence, WIND-2a), so the tabs are what a
+            // maker's eye and hand both find in those cells. HD-3's rule end to end: the
+            // span comes from `band_status`'s own composition, so a press cannot be
+            // answered against a tab this budget did not paint, against the blank between
+            // the run and the status, against the status itself, or against a run the name
+            // editor has replaced.
+            //
+            // AND IT IS ASKED BEFORE THE SELECTION LINE BELOW, deliberately: pressing a tab
+            // is not pointing at a pane, so it must not clear the pane a maker had chosen.
+            // What the switch then does to that selection is the ordinary law -- it stays,
+            // it lifts nothing while its pane is absent, and it means something again when
+            // the pane participates again.
+            const LayoutTabPress tab =
+                band_tab_at(session_, host_->setup_path, screen_of(session_), b.space, b.x,
+                            b.y);
+            if (tab.hit) {
+                switch_layout(tab.at, mail);
+                repaint(mail);
+                return;
+            }
             // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON (QR-2).
             // That is the whole meaning of the three bools below, and it is the only meaning
             // any of them has -- not "something changed", not "the act succeeded", not "the
@@ -3523,6 +3545,14 @@ private:
         // deliberately not another `^`-pair beside the document's.
         case Act::kSetupName: open_setup_name(); break;
         case Act::kSetupRestore: restore_setup(mail); break;
+        // THE LAYOUT SHELF (WUX-9): four ordinary command-mode gestures over the run of
+        // desk arrangements this Workshop is holding. Stepping is over the WHOLE
+        // population, painted or not, which is what keeps the band's derived tab window a
+        // presentation rather than a bound on what a maker can reach.
+        case Act::kLayoutNext: step_layout(+1, mail); break;
+        case Act::kLayoutPrevious: step_layout(-1, mail); break;
+        case Act::kLayoutNew: new_layout(mail); break;
+        case Act::kLayoutRemove: drop_layout(mail); break;
         // ARRANGE THE DESK (WIND-2's mode, rescoped by ARR-0): a printable trigger pays
         // the swallow rule -- armed centrally from the binding since KEY-0 -- and buys a
         // mode whose own keys need no modifier at all (P48).
@@ -3946,6 +3976,94 @@ private:
         say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " +
                 host_->setup_path + unresolved_note(loaded.setup),
             false);
+    }
+
+    // ---- THE LAYOUT SHELF: several desks, one of them live (WUX-9) ------------
+    //
+    // A LAYOUT IS A SETUP AND A SWITCH IS `restore_setup` MINUS THE FILE READ. The four
+    // doors below all end the same way -- the active `Setup` value is exchanged, and
+    // `apply_setup` reconciles the presentations through the one membership path every
+    // other whole-desk replacement in this file already goes through. There is no
+    // tab-switch reconcile, no teardown path for a removal, and nothing here knows what a
+    // panel, a provider or a room is.
+    //
+    // WHAT A SWITCH MAY CHANGE is what the destination Setup says: which panes
+    // participate, where they are, how big, and in what order. Everything else in this
+    // Workshop is one truth and stays one -- the catalog, every provider instance and its
+    // state, the Editor's document, the browser's location, the marks, the recipes, the
+    // project anchor, the clipboard, the keymap, the selection and the keyboard candidate.
+    // None of them is copied per layout and none of them is cleared by a switch: a
+    // selection whose pane is absent lifts nothing and anchors nothing by
+    // `selected_pane`'s own resolution, and it means something again when its pane
+    // participates again (WUX-5's discipline, spent one lattice out).
+
+    /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
+    std::string layout_note() const {
+        return "layout " + quoted_setup_name(session_.setup.active.name) + " -- " +
+               std::to_string(session_.setup.active_at + 1) + " of " +
+               std::to_string(layout_count(session_.setup));
+    }
+
+    /// MAKE THE LAYOUT AT `to` LIVE -- the one operation every switching gesture spends,
+    /// keyboard and pointer alike, so a tab press and a stepping key cannot come to mean
+    /// two different transactions.
+    void switch_layout(std::size_t to, loom::Mail& mail) {
+        if (!activate_layout(session_.setup, to)) {
+            // NOTHING MOVED: the position is the live layout's own, or is not a layout.
+            // Said rather than silent, because a maker who pressed the tab they are
+            // already on has aimed at something and is owed the row's own answer.
+            say(layout_note(), false);
+            return;
+        }
+        apply_setup(mail);
+        say(layout_note() + unresolved_note(session_.setup.active), false);
+    }
+
+    /// STEP ONE ALONG THE RUN, wrapping -- over the WHOLE population, including the
+    /// layouts the band's tab window had no room to paint. `by` is +1 or -1.
+    void step_layout(std::int64_t by, loom::Mail& mail) {
+        if (layout_count(session_.setup) <= 1) {
+            say("this is the only layout -- " + hotkey(Act::kLayoutNew) + " makes another",
+                false);
+            return;
+        }
+        switch_layout(layout_step(session_.setup, by), mail);
+    }
+
+    /// ONE MORE LAYOUT: A COPY OF THIS ONE, APPENDED, AND LIVE.
+    ///
+    /// IT CHANGES NO WORKSHOP-GLOBAL STATE, and the reason is that there is nothing for it
+    /// to change: the copy names exactly the panes the original named, so `apply_setup`
+    /// reconciles to the identical membership and opens, closes and asks nothing. It is
+    /// called anyway, because "the setup moved" and "the presentations were reconciled"
+    /// are one transaction here and the day a copy stops being identical is the day a
+    /// second door would be wrong.
+    void new_layout(loom::Mail& mail) {
+        if (!add_layout(session_.setup)) {
+            say("that is the most layouts one Workshop keeps (" +
+                    std::to_string(kMaxLayouts) + ") -- " + hotkey(Act::kLayoutRemove) +
+                    " drops this one",
+                true);
+            return;
+        }
+        apply_setup(mail);
+        say("new " + layout_note() + " -- a copy of the one you were on", false);
+    }
+
+    /// DROP THE LIVE LAYOUT AND STAND ON A NEIGHBOUR.
+    ///
+    /// THE FLOOR IS SAID PLAINLY: Workshop always has a desk, so the last layout cannot be
+    /// removed and the refusal names the fact rather than the mechanism. Where there are
+    /// others the neighbour becomes live through the ordinary switch -- the same value
+    /// exchange and the same `apply_setup` -- so a removal has no teardown of its own.
+    void drop_layout(loom::Mail& mail) {
+        const std::string gone = quoted_setup_name(session_.setup.active.name);
+        if (!remove_layout(session_.setup)) {
+            say("this is the only layout -- Workshop always has one desk", true);
+            return;
+        }
+        apply_setup(mail);
+        say("removed layout " + gone + " -- now on " + layout_note(), false);
     }
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
