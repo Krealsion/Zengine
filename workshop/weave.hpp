@@ -107,6 +107,7 @@
 #include "setup_persist.hpp"
 
 #include "input/vocabulary.hpp"
+#include "operator/catalog.hpp" // the conversions this run has, looked up at a load (MIG-0)
 #include "surface/vocabulary.hpp"
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
@@ -370,6 +371,28 @@ struct HostContext {
     /// chosen: the defaults stand, a toggle changes the live preference only, and nothing
     /// is read or written -- which is also what `--isolated` resolves it to.
     std::string prefs_path;
+
+    /// WHICH CONVERSIONS THIS RUN ACTUALLY HAS, or nothing (MIG-0).
+    ///
+    /// The host's own operator catalog, held as a `const` reference it does not own --
+    /// `frontier`'s seam in the shape `SampleDoor` and `ArrangementDoor` already use, and
+    /// for their reason: what the weave needs is a LOOKUP, and a lookup is a reading. There
+    /// is nothing a holder of this pointer can do that mounts an artifact, realizes a plan
+    /// row, or makes any code become authorized; the persistence law that spends it
+    /// (`session_persist::from_text`) performs exactly one `find` and one `evaluate`.
+    ///
+    /// WHAT IT IS FOR is a durable file written by an older Workshop. Its version claim
+    /// selects among conversions this host ALREADY MOUNTED from its authored load plan, and
+    /// it can do nothing else -- which is why a pointer to the catalog is a safe thing for
+    /// a file to be able to influence at all.
+    ///
+    /// EMPTY IS ORDINARY and means this run has no conversions: a current session loads
+    /// exactly as it always did, and an older one is refused in words. Every suite fixture
+    /// gets that by default, so a case has to opt IN to having a conversion available.
+    ///
+    /// THE CATALOG OUTLIVES THIS WEAVE BY THE HOST'S DECLARATION ORDER, the same claim
+    /// `host_sources.hpp` and `SampleDoor` already make about the same object.
+    const op::Catalog* conversions = nullptr;
 
     /// ONE HUMAN-READABLE SENTENCE ABOUT THE LEGACY-FILE TRANSITION (WUX-3), or empty.
     ///
@@ -4123,15 +4146,42 @@ private:
         if (host_->session_path.empty()) {
             return; // no session file was chosen: restore nothing, and say nothing about it
         }
+        // ...AND WHATEVER CONVERSIONS THIS RUN HAPPENS TO HAVE (MIG-0), which is a reading
+        // taken at this instant and not a capability this weave holds: an older session file
+        // is brought forward exactly when a live conversion says so, by the same catalog
+        // that answers every other operator question in this process, and is refused in
+        // words when nothing does.
         const session_persist::LoadedSession last =
-            session_persist::load_file(host_->session_path);
+            session_persist::load_file(host_->session_path, host_->conversions);
         if (!last.present) {
             // A FIRST LAUNCH IS NOT AN ERROR and must never be reported as one. It is also
             // the most common way this function ends, so it ends quietly.
             return;
         }
         if (!last.outcome.accepted) {
+            // ⚠ AND THIS RUN WILL NOT WRITE OVER IT (MIG-0), which is the marks file's own
+            // law taken for a sharper reason. Restraint on the READ path was always here --
+            // Workshop does not rewrite a file it could not understand -- but the session is
+            // a file Workshop WRITES on its way out, so without this flag an orderly close
+            // would replace bytes this run could not read with this run's default desk.
+            //
+            // IT COSTS ALMOST NOTHING AND IT BUYS BACK A WHOLE VINTAGE. Since MIG-0 the most
+            // likely reason a session is refused is that the conversion for it is not mounted
+            // in THIS arrangement -- a condition a maker fixes by adding a row to a plan, in
+            // a minute, on a file that has to still be there when they do.
+            session_refused_ = true;
             say(last.outcome.refusal + " -- opening with the default setup", true);
+            // THE NOTICE IS THE EVENT; THE CONDITION IS WHAT IS STILL TRUE. The sentence
+            // above is about this launch and the next thing said replaces it; that this
+            // Workshop is keeping no session, over a file that is still on disk, is true all
+            // run and has a maker action -- which is what makes it a condition
+            // (`kSessionWallKey`, the keymap/prefs/marks walls' own shape).
+            session_.conditions.establish(
+                Condition{kSessionWallKey, "session refused -- this run keeps no session",
+                          last.outcome.refusal +
+                              " (the file is left exactly as it is, and this run will not "
+                              "write over it)",
+                          surface::role::kAlert, std::string()});
             return;
         }
         // ---- THE VIEWPORT FIRST, AND THE ORDER IS THE WHOLE OF IT ------------
@@ -4220,8 +4270,13 @@ private:
     /// artifact, no bus state, no selection, no half-finished drag and no pane's private
     /// contents. "The last session" is not a snapshot of a running universe; it is the two
     /// facts a maker would otherwise have to reconstruct by hand.
+    /// ⚠ ...AND A FILE THIS RUN COULD NOT READ IS NEVER OVERWRITTEN (MIG-0). The refusal
+    /// already told the maker their desk did not come back; replacing their bytes with this
+    /// run's default desk would turn a readable complaint into a lost session -- and since
+    /// MIG-0 a refused session is often one a mounted conversion WOULD read, which makes the
+    /// bytes worth strictly more than they used to be. `marks_refused_`'s law, verbatim.
     void save_last_session() {
-        if (host_->session_path.empty()) {
+        if (host_->session_path.empty() || session_refused_) {
             return;
         }
         // THE VIEWPORT WRITTEN IS THE NORMAL WINDOW'S (WUX-3): `normal_w/h` tracks the
@@ -6849,6 +6904,13 @@ private:
     /// is doing and nothing paints it: it is this run's own bookkeeping about a thing that
     /// happens once.
     bool restored_ = false;
+
+    /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ (MIG-0). False when there was no
+    /// file, when there was none to look for, and when one was read -- including one whose
+    /// VIEWPORT was declined, which is a file that was understood and whose desk did come
+    /// back. It is set exactly where the refusal is said, and read exactly where the file
+    /// would be written; `marks_refused_`'s shape, one durable fact over.
+    bool session_refused_ = false;
 
     /// What loading the keymap DID, held until the first surface can show it, and this
     /// run's own bookkeeping for the same reason `restored_` is. Empty means there is

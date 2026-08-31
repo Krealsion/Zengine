@@ -375,8 +375,62 @@ zengine.recipes.catalog   -> zengine.RecipeCatalog { catalog : RecipeCatalogFact
   different path-shaped answer must carry different schema NAMES, and `content_id` then
   separates them at the gate everywhere.
 
+## A conversion is an operator whose SIGNATURE is the edge (MIG-0)
+
+There is no `MigrationCatalog`, no migration registry, no edge database, no route solver, no
+migration ABI and no migration definition species. `operator/migration.hpp` is a naming
+convention, a shape predicate and one lookup, and the predicate is the whole definition:
+
+```text
+input schema      IS the historical message schema  -- WorkshopSession v1, whole
+output schema     ONE port carrying the target      -- <identity>.out { value : WorkshopSession v3 }
+
+declares_migration(def)  <=>  one message port, same schema NAME both sides, different identity
+identity                 <=>  zengine.migrate.<family>.v<from>-to-v<to>
+```
+
+- **Both halves of the shape are FORCED, not chosen.** `loom::admit(Unverified, door)` asks the
+  claim to name the door, so a durable file's own bytes can only be admitted at a door whose
+  identity they already claim — the input port list must therefore BE yesterday's shape, which
+  is what lets `Catalog::evaluate(identity, loom::Unverified)` take the file's bytes with
+  nobody having decoded them. And `Catalog::run` writes an answer into
+  `outputs()->fields()[0]`, so the output is a one-port list like every other operator's and
+  the TARGET is the port's message identity, not the answer schema's own. ⚠ Do not read
+  MIG-R0's `input.name == output.name` literally against source: the output schema's own name
+  is `<identity>.out`, and the comparison that holds is against the port's message.
+- **The identity is DERIVED from the edge, and that is what buys the collision.** Two providers
+  describing one edge meet at `Catalog::mount`, in the catalog's own words, where a maker can
+  see it — rather than becoming an ambiguity somebody's session file meets months later. It
+  also makes the lookup one `find`, so there is nowhere for "closest", "newest" or "shortest"
+  to grow. `make_migration` derives the name from the schemas so an honest provider cannot get
+  the pair out of step; `migrate` verifies the signature anyway, because the name is
+  diagnostic and the signature is the proof.
+- **ONE SPEND IS ONE AUTHORED EDGE.** `v1→v2` and `v2→v3` both mounted do not satisfy a request
+  for `v1→v3`: a searched multi-hop is a result no participant authored, which is the standing
+  ADR's argument applied at this layer. A chain that is wanted is a chain somebody WRITES —
+  and it may be a `Composite`, which crosses the provider seam as structure like any other.
+  ⚠ `op::Builder` cannot author one: it mints its own `<identity>.in` port list, and a
+  conversion's input must be the historical shape. A composite edge is hand-built today.
+- **DEMAND IS NOT AUTHORITY, and it is enforced by there being no door.** Nothing in
+  `migration.hpp` opens an image, mounts a provider, realizes a plan row or touches a
+  filesystem — a version claim selects among conversions the host ALREADY mounted from its
+  authored plan, and that is the entirety of what a durable file can influence. A source
+  tripwire reads the file for a loader; the honest posture for a missing edge is REPORT, and
+  the sentence names the unresolved identity and claims nothing about disks or installers.
+- **Resolve at spend, like everything else here.** No cached callable, no contribution index,
+  no migration handle. Unmount and the edge is gone; cover it lawfully and the next spend
+  follows the catalog's current truth; the converted `loom::Value` owns its own schema and
+  outlives the image that made it.
+- **The OWNER keeps custody.** The seam takes an `Unverified` somebody else parsed under
+  somebody else's size law and hands back a candidate. Which owner asks, for which target, at
+  which moment, and what happens to the answer afterwards are all the owner's —
+  `workshop/session_persist.hpp` is the first one, and [workshop.md](workshop.md) has its law.
+
 ## Do not assume
 
+- A migration is a weave — it is a PROVIDER contribution: `zengine_provider()`, no
+  switchboard, no role, no grant, no manifest, no bus. `zengine-workshop-session-history` is
+  the shipped one.
 - The delay a maker authors is the delay that is scheduled — it is normalized, and the rule is
   `timer.normalize_delay`. An `EnsureTimer` comparison runs the same rule, so `-500` repeating
   really is the standing 1 ms beat.

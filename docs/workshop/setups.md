@@ -173,7 +173,8 @@ Four different things can happen, and they are four different sentences:
 | situation | what Workshop does |
 |---|---|
 | there is no session file yet | opens with the defaults, and says **nothing** — a first launch is not an error |
-| the file exists and cannot be read or understood | says why, names the reason, opens with the default setup, and **leaves your file exactly as it is** |
+| the file exists and cannot be read or understood | says why, names the reason, opens with the default setup, and **leaves your file exactly as it is — including on the way out** |
+| the file was written by an **older** Workshop | reads it through a conversion, if this arrangement has one — see below |
 | the file is fine but the saved size is not one this Workshop opens at | restores the **desk**, opens at the default size, and names the value it declined |
 | a pane in it is a reference this build cannot present | restores everything else, keeps the reference, and names the first unresolved one |
 
@@ -183,6 +184,40 @@ the band would still open a window nobody chose, on a display Workshop cannot se
 
 **Crash recovery is not claimed.** The session is written on an orderly close. A Workshop that
 is killed loses the session it was in, and the previous file is still there.
+
+### A session written by an older Workshop
+
+Workshop's session reader understands exactly one shape: the one this build writes. It does not
+carry a copy of every shape it has ever written, and that is deliberate — a reader that grows a
+road per vintage grows forever.
+
+What reads an older file is a **conversion**, supplied by an ordinary artifact your arrangement
+loads (`zengine-workshop-session-history`, named in the shipped load plans beside every other
+artifact). Workshop's session reader looks for one, spends it, and then puts the result through
+its own ordinary checks — the same ones a file written five minutes ago goes through. So an old
+file is never admitted on easier terms than a new one.
+
+Three consequences worth knowing:
+
+- **An old file cannot make anything load.** Its version is a *lookup key*: it can pick among the
+  conversions your arrangement already has, and it can do nothing else. If the conversion is not
+  there, Workshop says so — it does not go looking for one, and nothing on your disk is opened
+  because a file asked for it.
+- **Reading never rewrites.** A converted session opens in memory and your file is untouched.
+  The next ordinary close writes the current shape, on the same rule that has always written it —
+  and from then on that session needs no conversion at all.
+- **Removing the conversion artifact is a real decision.** Delete its row from your load plan and
+  a current session still opens exactly as before; a session from an older Workshop is refused,
+  by number, naming the conversion that is missing:
+
+```text
+session version 1 cannot be read: no live conversion from `WorkshopSession` v1 to v3
+(`zengine.migrate.WorkshopSession.v1-to-v3`) -- opening with the default setup
+```
+
+  **and that run keeps no session at all** — closing it writes nothing, so your file is still
+  there, unchanged, when you put the row back. Workshop says so while it is standing:
+  *session refused — this run keeps no session*.
 
 ## Last session versus named setup
 

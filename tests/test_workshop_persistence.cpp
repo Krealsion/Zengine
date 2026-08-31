@@ -24,6 +24,11 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+// The historical session shapes and their conversions (MIG-0) -- the conversion artifact's
+// material, named here because this suite owns what a durable session file means.
+#include "workshop/session_history.hpp"
+#include "operator/migration.hpp"
+
 // ============================================================================
 // Tier 5 — PERSISTENCE: what survives a process, and what deliberately does not
 // ============================================================================
@@ -3059,7 +3064,7 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
     }
 }
 
-TEST_CASE("WUX-0 D: an unreadable session names its version by NUMBER") {
+TEST_CASE("WUX-0 D/MIG-0: an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
                                                 session_persist::Placement{});
@@ -3069,8 +3074,43 @@ TEST_CASE("WUX-0 D: an unreadable session names its version by NUMBER") {
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
+    // ⭐ THE NUMBER IS STILL THE FIRST THING SAID, and what follows it is now the honest
+    // reason rather than a list this file would have to keep in step with history: no
+    // conversion from that version to this one is live. The identity of the missing power is
+    // named, because it is a fact this host knows and a maker can look for.
     CHECK(refused.outcome.refusal ==
-          "session version 7 -- this Workshop reads versions 1, 2 and 3");
+          "session version 7 cannot be read: no live conversion from `WorkshopSession` v7 to "
+          "v3 (`zengine.migrate.WorkshopSession.v7-to-v3`)");
+    // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
+    // one should be installed. There is no unloaded discovery in this system to be honest
+    // about, so the sentence does not pretend there is.
+    CHECK(refused.outcome.refusal.find("install") == std::string::npos);
+    CHECK(refused.outcome.refusal.find("disk") == std::string::npos);
+}
+
+TEST_CASE("MIG-0: a version-3 file whose own field says otherwise is a forgery, not history") {
+    // TWO DIFFERENT FACTS, TWO DIFFERENT SENTENCES. A file whose ENVELOPE claims another
+    // version is old and is answered by the conversion seam; a file whose envelope claims
+    // THIS version over a body that says another is inconsistent with itself, and only a
+    // forgery produces one. Before MIG-0 both said the same thing.
+    std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                session_persist::Placement{});
+    const std::size_t at = text.find("\"format_version\":\"7\"");
+    REQUIRE(at == std::string::npos);
+    const std::size_t field = text.find("\"format_version\":\"3\"");
+    REQUIRE(field != std::string::npos);
+    text.replace(field, std::string("\"format_version\":\"3\"").size(),
+                 "\"format_version\":\"7\"");
+
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+    const session_persist::LoadedSession refused =
+        session_persist::from_text(text, &conversions);
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal ==
+          "this session claims version 3 and its own format_version field says 7");
+    // ...and it did not become a conversion request on the way past.
+    CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
 
 // ---- Witness E: a viewport this Workshop will not open at --------------------
@@ -3719,15 +3759,18 @@ TEST_CASE("WUX-3: the placement's words are judged; its coordinates are not") {
     CHECK(read.placement.y == -1000000);
 }
 
-TEST_CASE("WUX-3: a version-2 session still loads, its placement reading as absence") {
-    session_persist::v2::WorkshopSession old;
+TEST_CASE("WUX-3/MIG-0: a version-2 session still loads, its placement reading as absence") {
+    session_history::v2::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 2;
     old.viewport = session_persist::WorkshopViewport{110, 38};
     old.desk = setup_persist::to_setup(arranged_desk("Yesterday"));
     const std::string bytes = loom::compat::serialize(loom::to_value(old));
 
-    const session_persist::LoadedSession read = session_persist::from_text(bytes);
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+    const session_persist::LoadedSession read =
+        session_persist::from_text(bytes, &conversions);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.present);
     CHECK(read.honoured);
@@ -4240,4 +4283,525 @@ TEST_CASE("WUX-9/SC-14: crossing media never writes a device value into any layo
     // No projected spelling reached the bytes: a device unit has no word in this format.
     CHECK(setup_persist::to_text(fine).find("px") == std::string::npos);
     CHECK(setup_persist::to_text(fine).find("pixels") == std::string::npos);
+}
+
+// =============================================================================
+// MIG-0 — YESTERDAY'S SESSION, THROUGH A CONVERSION THIS RUN HAPPENS TO HAVE
+// =============================================================================
+//
+// ONE PRODUCT SENTENCE, PINNED FROM BOTH ENDS: a Workshop whose session reader knows only
+// the shape it admits still opens a session file written months ago -- because an artifact
+// the arrangement mounted contributes the conversion, and the reader spends it through the
+// same operator catalog every other power in this process comes from.
+//
+// ...AND THE SENTENCE THAT MAKES IT SAFE: if that conversion is not already live, old bytes
+// can ask for nothing more powerful than an honest refusal. No load, no mount, no plan row,
+// no rewrite.
+//
+// WHAT THESE CASES DO NOT RE-PROVE. How an edge is spelled, how one is found, what a
+// hostile contribution is refused for, and what a chain is refused for are the operator
+// suite's (`test_operator_migration.cpp`), asked over an invented history so the real
+// session converters never have to be dishonest. What is asked HERE is what a durable
+// OWNER does with all of that.
+
+namespace {
+
+/// A version-1 session file, exactly as WUX-0's Workshop wrote one: whole-cell geometry, a
+/// nested version-2 desk, and no placement because nothing could say one.
+session_history::v1::WorkshopSession old_v1_session(const char* name, std::int64_t w,
+                                                    std::int64_t h) {
+    session_history::v1::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = 1;
+    old.viewport = session_persist::WorkshopViewport{w, h};
+    old.desk.format = setup_persist::kFormat;
+    old.desk.format_version = 2;
+    old.desk.name = name;
+    setup_persist::v2::WorkshopSetupPane info;
+    info.provider = "zengine.workshop";
+    info.pane = "info";
+    info.place = setup_persist::v2::WorkshopPanePlace{"cells", 3, 2};
+    info.width = setup_persist::v2::WorkshopPaneSize{"cells", 28};
+    info.height = setup_persist::v2::WorkshopPaneSize{"default", 0};
+    info.front = 0;
+    old.desk.panes.push_back(info);
+    setup_persist::v2::WorkshopSetupPane builder;
+    builder.provider = "zengine.workshop";
+    builder.pane = "builder";
+    builder.place = setup_persist::v2::WorkshopPanePlace{"default", 0, 0};
+    builder.width = setup_persist::v2::WorkshopPaneSize{"cells", 40};
+    builder.height = setup_persist::v2::WorkshopPaneSize{"pixels", 220};
+    builder.front = 1;
+    old.desk.panes.push_back(builder);
+    return old;
+}
+
+/// The same vintage's WUX-2 successor: the current desk shape, still no placement.
+session_history::v2::WorkshopSession old_v2_session(const char* name, std::int64_t w,
+                                                    std::int64_t h) {
+    session_history::v2::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = 2;
+    old.viewport = session_persist::WorkshopViewport{w, h};
+    old.desk = setup_persist::to_setup(arranged_desk(name));
+    return old;
+}
+
+std::string as_text(const session_history::v1::WorkshopSession& old) {
+    return loom::compat::serialize(loom::to_value(old));
+}
+std::string as_text(const session_history::v2::WorkshopSession& old) {
+    return loom::compat::serialize(loom::to_value(old));
+}
+
+/// A catalog holding the real shipped conversion artifact -- the file a maker's Workshop
+/// mounts, not a stand-in for it.
+struct MountedHistory {
+    op::Catalog catalog;
+    op::MountResult mounted;
+
+    MountedHistory() { mounted = op::mount_provider(catalog, SESSION_HISTORY_SO); }
+};
+
+} // namespace
+
+TEST_CASE("MIG-0/SC-7: the shipped artifact supplies exactly the two conventional edges") {
+    MountedHistory history;
+    REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
+    CHECK(history.mounted.provider == "zengine.workshop.session_history");
+    // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
+    // convention rather than a list somebody typed twice.
+    const std::vector<std::string> supplied = history.catalog.identities();
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v3",
+                                               "zengine.migrate.WorkshopSession.v2-to-v3"});
+    // ...and each of them declares the edge its name claims.
+    for (const std::string& identity : supplied) {
+        CAPTURE(identity);
+        const op::OperatorDef* edge = history.catalog.find(identity);
+        REQUIRE(edge != nullptr);
+        CHECK(op::declares_migration(*edge));
+        CHECK(loom::same_identity(*op::migration_target(*edge),
+                                  *loom::schema_of<session_persist::WorkshopSession>()));
+    }
+}
+
+TEST_CASE("MIG-0/SC-7: a version-1 session means EXACTLY what its own reader meant") {
+    // ⭐ THE EQUIVALENCE PIN, AND IT IS NOT A COPIED NUMBER. The desk the predecessor's road
+    // produced is still computable -- `setup_persist::setup_in_v2` is the standalone setup
+    // file's own legacy reader and is untouched by this phase -- so the two answers are
+    // compared as VALUES rather than against a transcription of what one of them once said.
+    const session_history::v1::WorkshopSession old = old_v1_session("Yesterday", 120, 44);
+    Setup predecessor;
+    REQUIRE(setup_persist::setup_in_v2(old.desk, predecessor).accepted);
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    const session_persist::LoadedSession read =
+        session_persist::from_text(as_text(old), &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+
+    CHECK(read.desk == predecessor);
+    // ...and every session fact of that vintage, by hand, so the comparison above cannot
+    // pass by both sides being empty.
+    CHECK(read.present);
+    CHECK(read.honoured);
+    CHECK(read.viewport_w == 120);
+    CHECK(read.viewport_h == 44);
+    CHECK(read.desk.name == "Yesterday");
+    REQUIRE(read.desk.panes.size() == 2);
+    CHECK(read.desk.panes[0].ref == PaneRef{"zengine.workshop", "info"});
+    CHECK(read.desk.panes[0].place.mode == pane_unit::kSubcells);
+    CHECK(read.desk.panes[0].place.x == subs(3));
+    CHECK(read.desk.panes[0].place.y == subs(2));
+    CHECK(read.desk.panes[0].width.amount == subs(28));
+    CHECK(read.desk.panes[0].width.mode == pane_unit::kSubcells);
+    CHECK(read.desk.panes[0].height.mode == pane_unit::kDefault);
+    CHECK(read.desk.panes[1].ref == PaneRef{"zengine.workshop", "builder"});
+    CHECK(read.desk.panes[1].place.mode == pane_unit::kDefault);
+    CHECK(read.desk.panes[1].width.amount == subs(40));
+    // A PIXEL AXIS IS DEVICE PIXELS IN BOTH VERSIONS AND CROSSES UNSCALED.
+    CHECK(read.desk.panes[1].height.mode == pane_unit::kPixels);
+    CHECK(read.desk.panes[1].height.amount == 220);
+    CHECK(read.desk.panes[1].front == 1);
+    // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one, and the
+    // absence has exactly one spelling.
+    CHECK_FALSE(read.placement.known);
+    CHECK(read.placement.x == 0);
+    CHECK(read.placement.y == 0);
+    CHECK_FALSE(read.placement.maximized);
+}
+
+TEST_CASE("MIG-0/SC-7: a version-2 session means exactly what its own reader meant") {
+    const session_history::v2::WorkshopSession old = old_v2_session("Yesterday", 110, 38);
+    Setup predecessor;
+    REQUIRE(setup_persist::setup_in(old.desk, predecessor).accepted);
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    const session_persist::LoadedSession read =
+        session_persist::from_text(as_text(old), &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.desk == predecessor);
+    CHECK(read.desk == arranged_desk("Yesterday"));
+    CHECK(read.viewport_w == 110);
+    CHECK(read.viewport_h == 38);
+    CHECK(read.honoured);
+    CHECK_FALSE(read.placement.known);
+}
+
+TEST_CASE("MIG-0: an old session's OWN law still runs -- the conversion skips no check") {
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+
+    SUBCASE("a desk that is not a legal setup is refused in the setup owner's own words") {
+        session_history::v1::WorkshopSession old = old_v1_session("Bad", 100, 30);
+        old.desk.panes[1].pane = "two words";
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal ==
+              "a pane reference's pane key cannot contain spaces or control characters");
+    }
+    SUBCASE("a unit word version 2 never had is refused in VERSION 2's vocabulary") {
+        session_history::v1::WorkshopSession old = old_v1_session("Bad", 100, 30);
+        old.desk.panes[0].place.mode = "barns";
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal.find("`barns`") != std::string::npos);
+        CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
+        // The conversion that refused is named, because a maker who has one converter
+        // mounted and another missing needs to know which spoke.
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v3") !=
+              std::string::npos);
+    }
+    SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
+        const session_history::v1::WorkshopSession old = old_v1_session("Huge", 100000, 44);
+        const session_persist::LoadedSession read =
+            session_persist::from_text(as_text(old), &history.catalog);
+        REQUIRE(read.outcome.accepted);
+        CHECK_FALSE(read.honoured);
+        CHECK_FALSE(read.declined.empty());
+        CHECK(read.desk.name == "Huge");
+    }
+    SUBCASE("a converted file that is not a Workshop session at all is still refused") {
+        session_history::v1::WorkshopSession old = old_v1_session("Wrong", 100, 30);
+        old.format = "zengine-workshop";
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        // The CURRENT reader's own sentence, because the word crossed untouched and this is
+        // the party that has always judged it.
+        CHECK(no.outcome.refusal == "not a Workshop session: it says it is `zengine-workshop`");
+    }
+}
+
+TEST_CASE("MIG-0/SC-5: an old session with no conversion live refuses and changes nothing") {
+    TempDir dir("mig0-absent");
+    const std::string path = dir.file("session.json");
+    const std::string bytes = as_text(old_v1_session("Yesterday", 120, 44));
+    spillout(path, bytes);
+
+    // THE AUTHORITY MEASUREMENT. The artifact that would supply the conversion is on disk,
+    // named by this very build -- and a run that did not mount it does not open it.
+    const op::ImageCounts before = op::image_counts();
+    Live t;
+    t.host.session_path = path;
+    REQUIRE(t.host.conversions == nullptr);
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("session version 1 cannot be read") != std::string::npos);
+    CHECK(t.notice().find("no live conversion") != std::string::npos);
+    CHECK(t.notice().find("opening with the default setup") != std::string::npos);
+    // NOTHING WAS INSTALLED and nothing was written.
+    CHECK(t.session().setup.active == default_setup());
+    CHECK(t.session().screen_w == kScreenMinW);
+    CHECK(slurp(path) == bytes);
+    // NO IMAGE WAS OPENED. A version claim is a lookup key; it reaches no load door.
+    const op::ImageCounts after = op::image_counts();
+    CHECK(after.opens == before.opens);
+    CHECK(after.closes == before.closes);
+    CHECK_FALSE(slurp(SESSION_HISTORY_SO).empty()); // ...and it was sitting right there
+}
+
+TEST_CASE("MIG-0/SC-6: with the conversion mounted, the desk comes back through the weave") {
+    TempDir dir("mig0-live");
+    const std::string path = dir.file("session.json");
+    spillout(path, as_text(old_v1_session("Yesterday", 120, 44)));
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    Live t;
+    t.host.session_path = path;
+    t.host.conversions = &history.catalog;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+
+    // ...and it is an ORDINARY restore: the same notice, the same room, the same desk.
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice().find("reopened your last desk") == 0);
+    CHECK(t.notice().find("\"Yesterday\"") != std::string::npos);
+    CHECK(t.session().screen_w == 120);
+    CHECK(t.session().screen_h == 44);
+    CHECK(t.session().setup.active.name == "Yesterday");
+    CHECK(t.session().panels.has(panel::kInfo));
+    CHECK(t.session().panels.has(panel::kBuilder));
+}
+
+TEST_CASE("MIG-0/SC-13: reading an old session does not rewrite it; the next close does") {
+    // THE PAYOFF, IN FIVE STEPS. A converter is needed only while yesterday's bytes still
+    // exist -- and the moment a maker closes normally, they do not.
+    TempDir dir("mig0-rewrite");
+    const std::string path = dir.file("session.json");
+    const std::string original = as_text(old_v1_session("Yesterday", 120, 44));
+    spillout(path, original);
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    {
+        Live t;
+        t.host.session_path = path;
+        t.host.conversions = &history.catalog;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        REQUIRE(t.session().setup.active.name == "Yesterday");
+        // 1-3. THE MIGRATION SUCCEEDED IN MEMORY AND THE FILE IS BYTE-IDENTICAL. Reading is
+        // reading; there is no "migration complete, rewrite now" path and there must not be.
+        CHECK(slurp(path) == original);
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+    // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
+    const std::string now = slurp(path);
+    CHECK(now != original);
+    CHECK(now.find("\"version\":3") != std::string::npos);
+    CHECK(now.find("\"format_version\":\"3\"") != std::string::npos);
+
+    // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
+    Live back;
+    back.host.session_path = path;
+    REQUIRE(back.host.conversions == nullptr);
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK_FALSE(back.session().notice_is_bad);
+    CHECK(back.session().setup.active.name == "Yesterday");
+    CHECK(back.session().screen_w == 120);
+}
+
+TEST_CASE("MIG-0/SC-11: unmounting the artifact takes the conversion with it") {
+    const std::string bytes = as_text(old_v1_session("Yesterday", 120, 44));
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    REQUIRE(session_persist::from_text(bytes, &history.catalog).outcome.accepted);
+
+    REQUIRE(history.catalog.unmount(history.mounted.provider));
+    const session_persist::LoadedSession no =
+        session_persist::from_text(bytes, &history.catalog);
+    CHECK_FALSE(no.outcome.accepted);
+    CHECK(no.outcome.refusal.find("no live conversion") != std::string::npos);
+    // A current-shape session is unaffected: it never needed the artifact.
+    const std::string current = session_persist::to_text(arranged_desk("Now"), 100, 30,
+                                                         session_persist::Placement{});
+    CHECK(session_persist::from_text(current, &history.catalog).outcome.accepted);
+}
+
+TEST_CASE("MIG-0/SC-14: a current session bypasses conversion entirely") {
+    // Measured on the invocation counter rather than asserted: the conversions are mounted
+    // IN PROCESS here (`op::invocations()` cannot see a body in another image), so a spend
+    // would move the number.
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+    const std::string current = session_persist::to_text(arranged_desk("Now"), 132, 48,
+                                                         session_persist::Placement{});
+
+    const std::uint64_t before = op::invocations();
+    const session_persist::LoadedSession read =
+        session_persist::from_text(current, &conversions);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.desk == arranged_desk("Now"));
+    CHECK(op::invocations() == before);
+}
+
+TEST_CASE("MIG-0/SC-5: nothing but a historical claim of THIS shape asks for a conversion") {
+    // THE NARROWNESS THAT KEEPS THIS FROM BEING A FALLBACK. A seam that answered "try a
+    // conversion" to any admission failure would turn every corrupt file, every wrong file
+    // and every hostile file into a search for something willing to eat it.
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+
+    const std::vector<std::pair<const char*, std::string>> never = {
+        {"not a Zen value at all", "{"},
+        {"a DOCUMENT handed to the session reader", persist::to_text(WorkshopDoc{})},
+        {"a SETUP file handed to the session reader",
+         setup_persist::to_text(arranged_desk("Debugging"))},
+        {"a current-version session with a malformed desk",
+         [] {
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                         session_persist::Placement{});
+             const std::size_t at = text.find("\"pane\":\"builder\"");
+             REQUIRE(at != std::string::npos);
+             text.replace(at, std::string("\"pane\":\"builder\"").size(),
+                          "\"pane\":\"two words\"");
+             return text;
+         }()},
+        {"a current-version session with a hostile placement word",
+         [] {
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                         session_persist::Placement{});
+             const std::size_t at = text.find("\"window\":\"normal\"");
+             REQUIRE(at != std::string::npos);
+             text.replace(at, std::string("\"window\":\"normal\"").size(),
+                          "\"window\":\"iconified\"");
+             return text;
+         }()},
+    };
+    for (const auto& [what, bytes] : never) {
+        CAPTURE(what);
+        const std::uint64_t before = op::invocations();
+        const session_persist::LoadedSession no =
+            session_persist::from_text(bytes, &conversions);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal.find("conversion") == std::string::npos);
+        CHECK(op::invocations() == before);
+    }
+}
+
+TEST_CASE("MIG-0/SC-8: the session reader owns no historical shape and no conversion") {
+    // Defence in depth, the shape this repository's other source tripwires use: what a
+    // translation unit can NAME is a fact only reading the file can carry, and the whole
+    // value of the move is that the current owner stops growing a rung per vintage.
+    const std::string source = slurp(WORKSHOP_SESSION_PERSIST_HPP);
+    REQUIRE_FALSE(source.empty());
+    for (const char* forbidden : {"namespace v1", "namespace v2", "setup_in_v2",
+                                  "kV1FormatVersion", "kV2FormatVersion",
+                                  "session_history::", "WorkshopSession, 1", "WorkshopSession, 2"}) {
+        CAPTURE(forbidden);
+        CHECK(source.find(forbidden) == std::string::npos);
+    }
+    // ...and the one number it does carry is the one it writes.
+    CHECK(session_persist::kFormatVersion == 3);
+    CHECK(session_persist::WorkshopSession::zen_version == 3u);
+}
+
+TEST_CASE("MIG-0/SC-13: a session this run could not read is never written over") {
+    // ⭐ THE FILE IS WORTH MORE THAN IT USED TO BE. Before MIG-0 a refused session was one
+    // this build would never read; now the likeliest reason is that the conversion for it is
+    // not mounted in THIS arrangement -- which a maker fixes by adding a row to a plan, on a
+    // file that has to still be there when they do. So an orderly close writes nothing.
+    struct Case {
+        const char* what;
+        std::string bytes;
+        bool refused;
+    };
+    const std::vector<Case> cases = {
+        {"an older session with no conversion live", as_text(old_v1_session("Old", 120, 44)),
+         true},
+        {"a version this build has never written", [] {
+             std::string text = session_persist::to_text(arranged_desk("D"), 100, 30,
+                                                         session_persist::Placement{});
+             const std::size_t at = text.find("\"version\":3");
+             REQUIRE(at != std::string::npos);
+             text.replace(at, std::string("\"version\":3").size(), "\"version\":9");
+             return text;
+         }(), true},
+        {"bytes that are not a session at all", std::string("{"), true},
+        // ...AND THE CONTROL, WHICH IS THE HALF THAT MAKES THE FLAG A JUDGEMENT RATHER THAN A
+        // BLANKET. A file whose VIEWPORT was declined was READ -- its desk came back -- so
+        // the run keeps its session exactly as it always did.
+        {"a session whose viewport this build declines",
+         session_persist::to_text(arranged_desk("Wide"), 100000, 44,
+                                  session_persist::Placement{}),
+         false},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        TempDir dir("mig0-refused");
+        const std::string path = dir.file("session.json");
+        spillout(path, c.bytes);
+        {
+            Live t;
+            t.host.session_path = path;
+            t.publish(loom::to_value(surface::SurfaceReady{}));
+            // Every case here says SOMETHING bad -- a declined viewport is a complaint too --
+            // so the notice cannot be the discriminator, and the condition is.
+            CHECK(t.session().notice_is_bad);
+            // THE STANDING CONSEQUENCE IS A CONDITION, not the notice: that this run keeps no
+            // session is still true an hour later and has a maker action, which is exactly
+            // the shape the keymap, prefs and marks walls already have.
+            CHECK((t.session().conditions.find(kSessionWallKey) != nullptr) == c.refused);
+            t.key(input::scan::kQ);
+            REQUIRE(t.host.quit);
+        }
+        if (c.refused) {
+            CHECK(slurp(path) == c.bytes);
+        } else {
+            CHECK(slurp(path) != c.bytes); // read, so kept: the close wrote this run's own
+        }
+    }
+}
+
+TEST_CASE("MIG-0/SC-13: the file survives the run that could not read it, and opens later") {
+    // ⭐ THE WHOLE POINT OF THE PREVIOUS CASE, IN ONE STORY. A maker launches an arrangement
+    // whose plan does not carry the conversion, is told so, works, closes -- and then adds
+    // the row and gets their desk back. Nothing about the second run is special.
+    TempDir dir("mig0-recovered");
+    const std::string path = dir.file("session.json");
+    const std::string original = as_text(old_v1_session("Yesterday", 120, 44));
+    spillout(path, original);
+    {
+        Live without;
+        without.host.session_path = path;
+        without.publish(loom::to_value(surface::SurfaceReady{}));
+        REQUIRE(without.session().notice_is_bad);
+        without.key(input::scan::kQ);
+        REQUIRE(without.host.quit);
+    }
+    CHECK(slurp(path) == original);
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    Live with;
+    with.host.session_path = path;
+    with.host.conversions = &history.catalog;
+    with.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK_FALSE(with.session().notice_is_bad);
+    CHECK(with.session().setup.active.name == "Yesterday");
+    CHECK(with.session().conditions.find(kSessionWallKey) == nullptr);
+}
+
+TEST_CASE("MIG-0/SC-7: a conversion owns yesterday's semantics and does not rewrite history") {
+    // THE VINTAGE A CONVERSION CONVERTS IS THE ONE IT CHECKS. An envelope claiming version 1
+    // is what SELECTED this edge; a body that then says it is a different vintage is a file
+    // asking to be translated by a road it does not belong to, and stamping the current
+    // number onto it would admit a file the predecessor refused.
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+
+    SUBCASE("the session's own format_version must be the vintage the edge converts") {
+        session_history::v1::WorkshopSession old = old_v1_session("Forged", 100, 30);
+        old.format_version = 7; // the envelope still claims v1
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal.find("this session claims version 1 and its own "
+                                      "format_version field says 7") != std::string::npos);
+    }
+    SUBCASE("...and so must the nested desk's") {
+        session_history::v1::WorkshopSession old = old_v1_session("Forged", 100, 30);
+        old.desk.format_version = 9;
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal.find("this desk claims version 2 and its own "
+                                      "format_version field says 9") != std::string::npos);
+    }
+    SUBCASE("a version-2 session's desk is judged by the CURRENT setup reader, unchanged") {
+        // The v2 edge passes the desk through whole, because a version-2 session already
+        // nests the shape `setup_in` reads -- so a wrong number there is that reader's
+        // sentence, in that reader's own words, exactly as it was before this phase.
+        session_history::v2::WorkshopSession old = old_v2_session("Forged", 100, 30);
+        old.desk.format_version = 2;
+        const session_persist::LoadedSession no =
+            session_persist::from_text(as_text(old), &history.catalog);
+        CHECK_FALSE(no.outcome.accepted);
+        CHECK(no.outcome.refusal == setup_persist::wrong_version(2));
+    }
 }

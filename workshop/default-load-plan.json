@@ -12,6 +12,11 @@
         "weave": []
       },
       {
+        "artifact": "zengine-workshop-session-history",
+        "provider": [ { "mode": "normal" } ],
+        "weave": []
+      },
+      {
         "artifact": "zengine-skin-tui-classic",
         "provider": [],
         "weave": [ { "role": "zengine.skin" } ]

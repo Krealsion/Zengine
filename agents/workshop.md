@@ -1919,6 +1919,47 @@ executable, authored per project when named.)
   `setup_persist::setup_in` is the one function that turns a written setup into a live one. A
   desk cannot be legal in one file and illegal in the other. Do NOT add a second desk format
   because one save is automatic.
+- **⚠ THE SESSION READER KNOWS ONE SHAPE, AND YESTERDAY BELONGS TO A CONVERSION (MIG-0).**
+  `session_persist` carries `kFormatVersion` and no second number: the retained `v1`/`v2`
+  shapes and their two roads are GONE, and `workshop/session_history.hpp` owns them — an
+  artifact's material, shipped as `zengine-workshop-session-history`
+  (`workshop/session_migration_provider.cpp`), an ordinary operator provider and not a weave.
+  The reader's whole knowledge of history is one arm: *this shape's name at another version*
+  is a historical claim, and it asks `op::migrate` for one live direct edge to
+  `schema_of<WorkshopSession>()` ([operators.md](operators.md#a-conversion-is-an-operator-whose-signature-is-the-edge-mig-0)
+  owns the convention). Adding a rung to THIS file the next time the format moves is the thing
+  this move exists to prevent — change `kFormatVersion`, and author the edges in the provider.
+  - **A conversion cannot skip a check.** `current_in` is this format's whole law and has
+    exactly two callers: straight off the gate, and out of a conversion's answer. `format`
+    crosses conversions UNTOUCHED so the reader's own sentence about a wrong format word is
+    the one a maker reads either way; `format_version` cannot, so the converter judges the
+    vintage it converts and this file judges its own (`forged_version`, which only a forgery
+    produces — an envelope claiming THIS version over a body that says another).
+  - **The catalog reaches the reader as a READING, never a power.** `HostContext::conversions`
+    is a `const op::Catalog*` the host wires beside `frontier` and `interaction_now`;
+    `nullptr` is ordinary and is what every fixture gets. Nothing a holder of it can do
+    mounts, loads or realizes anything — and an old file's version claim is a lookup key that
+    reaches no load door.
+  - **⚠ THE ORDERING IS AUTHORED PLAN ORDER, and nothing else.** A provider-only row is
+    performed synchronously inside `LoadExecutor::begin()`; the first WEAVE row opens a
+    conversation and returns to the host. The session is read from `on(SurfaceReady)`, which
+    cannot arrive until a Skin has loaded — a weave row. So a conversion row placed above the
+    first weave row is live before one delivery has been made, which is why both shipped plans
+    name it second. Do NOT add a retry, a pending posture or a demand-load to buy what row
+    order already buys; a suite case pins the shipped plans' order for exactly this reason.
+  - **Reading never rewrites.** A converted session is in-memory; the file first changes at the
+    owner's ordinary close-time save, which writes the current shape — so a converter is
+    needed only while yesterday's bytes still exist, and never twice for one file.
+  - **⚠ AND A SESSION THIS RUN COULD NOT READ IS NEVER WRITTEN OVER** (`session_refused_`,
+    checked in `save_last_session`; `marks_refused_`'s law, one durable fact over). Restraint
+    on the READ path was always here; the session is a file Workshop WRITES on its way out, so
+    without the flag an orderly close replaced bytes this run could not read with this run's
+    default desk. MIG-0 makes that strictly worse than it was — the likeliest refusal now is a
+    conversion this ARRANGEMENT does not carry, which a maker fixes by editing a plan, on a
+    file that has to still be there. A DECLINED VIEWPORT is not a refusal: that file was read
+    and its desk came back, so the run keeps its session. The standing consequence is a
+    condition (`kSessionWallKey`), because the notice is about the launch and this is true all
+    run and has a maker action.
 - **THE VIEWPORT IS ONE LEVEL ABOVE THE DESK.** `{width, height}` in canvas cells, a sibling
   of `desk` and not a field of it: the same desk is worth having in a big window and in a small
   one, so how much room the surface had describes the APPLICATION rather than the arrangement.
@@ -2013,6 +2054,13 @@ executable, authored per project when named.)
 - The last session and a named setup are the same thing saved twice — they are two promises in
   two files, and an automatic save that could land on `--setup` would rewrite a maker's named
   desk every time they closed the window.
+- `session_persist` still reads old sessions, or an old file gets what it asks for — neither
+  since MIG-0. The reader admits ONE version; an older file opens exactly when a conversion is
+  already mounted and is refused, by number, when one is not. The standalone SETUP file is the
+  other way round and deliberately so: `setup_persist` keeps its own `v2` reader, because a
+  setup file is a maker's named artifact with no session to ride, and the session history is
+  its only other consumer. It is the next historical reader a phase could move, not a
+  violation of this one's scope.
 - Hiding pane titles can hide where typing goes — it cannot: the pane holding the keyboard
   keeps its title and its `> ` mark whatever the preference says (WUX-1).
 - Docking exists — it is still absent and still refused.

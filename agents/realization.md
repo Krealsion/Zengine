@@ -109,6 +109,14 @@ begin(plan)                    the ordinary host loop        answered()
   source for plan-specific control flow in a host loop. The BEHAVIOURAL half is separate:
   ordinary traffic already queued when realization begins must NOT be delivered by the time
   `begin()` returns.
+- **A PROVIDER-ONLY ROW SETTLES INSIDE `begin()`, AND SOMETHING NOW DEPENDS ON THAT (MIG-0).**
+  `perform_row` mounts, sees no weave intent, and settles with the host having turned nothing
+  — so every row ABOVE the first weave row is live before one delivery has been made. Workshop
+  reads its session file from `on(SurfaceReady)`, which cannot arrive until a Skin has loaded,
+  so a conversion provider authored above the Skin row is mounted in time by authored order
+  alone (`workshop/session_history.hpp`; [workshop.md](workshop.md)). That is a REASON TO KEEP
+  the barrier honest, not a new rule: reordering a plan's rows, or letting a waiting row be
+  stepped over, would move a mount that a durable owner is now depending on.
 - **AN UNANSWERED LOAD STAYS UNANSWERED.** No timeout, no deadline, no retry, no cancellation
   and no unanswerability vocabulary. The row is `loading`, the plan has not advanced, and
   nothing has been refused, for as many turns as a host cares to spend. Do not reintroduce a

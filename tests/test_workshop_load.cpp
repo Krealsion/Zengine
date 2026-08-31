@@ -1092,23 +1092,39 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 6);
+    REQUIRE(p.artifacts.size() == 7);
 
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
-    CHECK(p.artifacts[1].stem == "zengine-skin-tui-classic");
-    CHECK(p.artifacts[2].stem == "zengine-input");
-    CHECK(p.artifacts[3].stem == "zengine-timer");
-    CHECK(p.artifacts[4].stem == "zengine-introspection");
-    CHECK(p.artifacts[5].stem == "zengine-composer");
+    CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
+    CHECK(p.artifacts[2].stem == "zengine-skin-tui-classic");
+    CHECK(p.artifacts[3].stem == "zengine-input");
+    CHECK(p.artifacts[4].stem == "zengine-timer");
+    CHECK(p.artifacts[5].stem == "zengine-introspection");
+    CHECK(p.artifacts[6].stem == "zengine-composer");
 
     // THE BASIC PROVIDER PRECEDES THE TIMER, and that is authored list order rather
     // than anything inferred: the Timer's composition names powers the first row
     // supplies, and nothing in this system works that out for itself.
     CHECK(p.artifacts[0].provider.has_value());
     CHECK_FALSE(p.artifacts[0].weave.has_value());
-    CHECK(p.artifacts[3].provider.has_value());
-    CHECK(p.artifacts[3].weave.has_value());
-    CHECK(p.artifacts[3].weave->role == tmr::kTimerRole);
+    CHECK(p.artifacts[4].provider.has_value());
+    CHECK(p.artifacts[4].weave.has_value());
+    CHECK(p.artifacts[4].weave->role == tmr::kTimerRole);
+
+    // ⭐ AND THE SESSION CONVERSIONS PRECEDE EVERY WEAVE ROW (MIG-0), which is the whole of
+    // this arrangement's answer to startup ordering. A provider-only row is performed
+    // synchronously inside `begin()`; the first weave row opens a conversation and returns
+    // to the host. So every row above the first weave is live before ONE delivery has been
+    // made -- and the session is read from `SurfaceReady`, which cannot arrive until a Skin
+    // has loaded, which is a weave row. Authored order is the mechanism, and it is the same
+    // mechanism that puts the basic provider in front of the Timer.
+    CHECK(p.artifacts[1].provider.has_value());
+    CHECK_FALSE(p.artifacts[1].weave.has_value());
+    for (std::size_t i = 0; i < 2; ++i) {
+        CAPTURE(i);
+        CHECK_FALSE(p.artifacts[i].weave.has_value());
+    }
+    CHECK(p.artifacts[2].weave.has_value()); // the first weave row, and it is after both
 }
 
 TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in two ways") {
