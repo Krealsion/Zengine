@@ -8801,3 +8801,261 @@ TEST_CASE("WUX-2a/WUX-6: an arrow steps the AUTHORED value, not the medium's flo
     CHECK(row->place.x == x - surface::kCellSubs);
     CHECK(row->place.y == y); // the axis nobody named keeps every sub-unit it had
 }
+
+// ============================================================================
+// WUX-8 — one graphical boundary, spent by the paint, the room and the hand
+// ============================================================================
+
+TEST_CASE("WUX-8: on the shipped face the border is chrome and the first body pixel is row 0") {
+    // THE PHASE'S SHARPEST FALSIFIER. On the window a pane's boundary is ONE DEVICE PIXEL,
+    // so the press inverse has one pixel of margin to get wrong -- and getting it wrong is
+    // invisible in cells. Every position below is an exact window pixel.
+    //
+    // ⚔ MUTATION: a body/hit inversion that keeps the old cell inset while the paint went
+    // thin. The border press would then land on the provider's row 0 (check 1), or the
+    // first real body pixel would be refused as border (check 2).
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent_on_window(1000, 700);
+    REQUIRE(r.session().cell_px == surface::kCanvasCellPx);
+
+    const FineRect outer = external_panel_rect(r.session(), kind);
+    const ExternalBodyPlace body = external_body_of(r.session(), kind);
+    REQUIRE(body.present);
+    REQUIRE(body.fit.graphical());
+
+    // THE PRECONDITION, ASSERTED: this face draws the boundary as ONE pixel, so the body's
+    // viewport begins exactly one pixel inside the pane on both axes.
+    const std::int64_t left = surface::px_of_subs(outer.x);
+    const std::int64_t top = surface::px_of_subs(outer.y);
+    REQUIRE(body.fit.view.x == left + 1);
+    REQUIRE(body.fit.view.y == top + 1);
+
+    const auto body_y = [&](std::int64_t row) {
+        return body.fit.view.y + body.fit.origin_y +
+               (row + body.header_rows) * body.fit.line_px + body.fit.line_px / 2;
+    };
+    const auto body_x = [&](std::int64_t col) {
+        return body.fit.view.x + body.fit.origin_x + col * body.fit.advance_px +
+               body.fit.advance_px / 2;
+    };
+
+    // 1. THE BORDER PIXEL IS CHROME. Both edges, at a height that is squarely a body row --
+    // so what refuses the press is the boundary and not the row.
+    for (const std::int64_t x : {left, surface::px_of_subs(surface::add_cells(outer.x, outer.w)) - 1}) {
+        seat->presses.clear();
+        r.press_pixel(x, body_y(0));
+        CHECK(seat->presses.empty());
+    }
+    // ...and the top border pixel, at a column that is squarely a body column.
+    seat->presses.clear();
+    r.press_pixel(body_x(0), top);
+    CHECK(seat->presses.empty());
+
+    // 2. ONE PIXEL FURTHER IN IS THE BODY. ⚔ MUTATION: a chrome band still a cell thick --
+    // this press is 11 pixels inside a 12-pixel cell's border and would be swallowed.
+    seat->presses.clear();
+    r.press_pixel(body_x(0), body_y(0));
+    REQUIRE(seat->presses.size() == 1);
+    CHECK(seat->presses[0].row == 0);
+    CHECK(seat->presses[0].column == 0);
+
+    // 3. EVERY ROW OF THE ROOM, SWEPT -- including the LAST, which is the row a thinner
+    // boundary newly made reachable and the one an unchanged budget would drop.
+    for (std::int64_t row = 0; row < body.rows; ++row) {
+        for (const std::int64_t col : {std::int64_t{0}, body.columns / 2, body.columns - 1}) {
+            seat->presses.clear();
+            r.press_pixel(body_x(col), body_y(row));
+            REQUIRE(seat->presses.size() == 1);
+            CHECK(seat->presses[0].row == row);
+            CHECK(seat->presses[0].column == col);
+        }
+    }
+
+    // 4. AND THE BOUND IS THE MATERIAL'S: one row past the room names nothing, and neither
+    // does one column past it. The strip below the last prose line is not a row.
+    seat->presses.clear();
+    r.press_pixel(body_x(0), body_y(body.rows));
+    CHECK(seat->presses.empty());
+    r.press_pixel(body_x(body.columns), body_y(0));
+    CHECK(seat->presses.empty());
+
+    // 5. THE HAND STILL MEETS THE WHOLE PANE. The boundary is INSIDE the pane, so the
+    // border pixel is the pane's even though it is not the provider's.
+    const Screen sc = screen_of(r.session());
+    const PointedAt on_border{true,
+                              surface::canvas_of_window_pixels(left, body_y(0)),
+                              surface::canvas_subs_of_window_pixels(left, body_y(0)),
+                              surface::kPixelGrainSubs};
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, on_border).kind == kind);
+}
+
+TEST_CASE("WUX-8: the graphical room is the post-chrome pixels, and selection cannot move it") {
+    // TWO CLAIMS AT ONCE, because they are the same number seen twice: the room a provider
+    // is granted on the window is derived from the body it actually has, and NOTHING about
+    // choosing a pane changes it.
+    //
+    // ⚔ MUTATION: selected chrome drawn thicker than ordinary chrome -- the pane's content
+    // would jump under the maker's hand the moment they pointed at it.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+    r.extent_on_window(1000, 700);
+
+    const FineRect outer = external_panel_rect(r.session(), kind);
+    const ExternalBodyPlace on_window = external_body_of(r.session(), kind);
+    REQUIRE(on_window.present);
+
+    // THE ROOM IS THE PIXELS, DIVIDED BY THE FACE -- not a cell count wearing a new name.
+    // ⚔ MUTATION: room kept at the WUX-5 capacity "so the tests do not move".
+    const FineRect cell_inset = pane_interior(outer, kChromeSubs);
+    const surface::RegionFit was = surface::fit_region_subs(
+        cell_inset.x, cell_inset.y, cell_inset.w, cell_inset.h, 8, 18);
+    CHECK(on_window.fit.rows > was.rows);
+    CHECK(on_window.fit.columns > was.columns);
+    REQUIRE_FALSE(seat->rooms.empty());
+    CHECK(seat->rooms.back().rows == on_window.rows);
+    CHECK(seat->rooms.back().columns == on_window.columns);
+
+    // SELECTING IT CHANGES THE INK AND NOTHING ELSE. The press is on the pane's own border
+    // pixel, which is the strongest form of the question: even a press ON the chrome
+    // leaves the chrome exactly as thick as it was.
+    const std::size_t rooms_before = seat->rooms.size();
+    r.press_pixel(surface::px_of_subs(outer.x),
+                  surface::px_of_subs(outer.y) + on_window.fit.view.h / 2);
+    REQUIRE(r.session().panels.selected == kind);
+
+    const ExternalBodyPlace selected = external_body_of(r.session(), kind);
+    CHECK(external_panel_rect(r.session(), kind) == outer);
+    CHECK(selected.rows == on_window.rows);
+    CHECK(selected.columns == on_window.columns);
+    CHECK(selected.region_x == on_window.region_x);
+    CHECK(selected.region_y == on_window.region_y);
+    CHECK(selected.region_sub_x == on_window.region_sub_x);
+    CHECK(selected.region_sub_y == on_window.region_sub_y);
+    CHECK(selected.fit == on_window.fit);
+    CHECK(pane_inside(outer, screen_of(r.session())).chrome_subs ==
+          chrome_grain(screen_of(r.session())));
+    // ...and no new room was granted, because nothing about the room changed.
+    CHECK(seat->rooms.size() == rooms_before);
+
+    // AND THE PICTURE ITSELF, not only the resolution. ⚔ MUTATION: a PAINTER that insets a
+    // selected pane further -- no body place, room or press inverse would notice, and the
+    // pane's contents would still jump under the maker's hand. So the region this pane
+    // publishes is compared where it actually is, sub-cell remainders included.
+    // Searched BACK TO FRONT, the way `context_rows_on` searches: this pane's own plane is
+    // published after the material it covers, and what is wanted is the topmost region
+    // standing inside the pane's rectangle -- which is the pane's body.
+    const auto published = [&](const surface::SurfaceCanvas& c) {
+        const ui::Rect box = cells_covered(outer);
+        for (std::size_t li = c.layers.size(); li > 0; --li) {
+            const surface::SurfaceLayer& l = c.layers[li - 1];
+            for (std::size_t ri = l.texts.size(); ri > 0; --ri) {
+                const surface::SurfaceTextRegion& reg = l.texts[ri - 1];
+                if (reg.x >= box.x && reg.x < box.x + box.w && reg.y >= box.y &&
+                    reg.y < box.y + box.h) {
+                    return reg;
+                }
+            }
+        }
+        return surface::SurfaceTextRegion{};
+    };
+    const surface::SurfaceTextRegion chosen_picture = published(r.last_canvas());
+    REQUIRE(chosen_picture.w > 0);
+    CHECK(chosen_picture.x == on_window.region_x);
+    CHECK(chosen_picture.y == on_window.region_y);
+    CHECK(chosen_picture.w == on_window.region_w);
+    CHECK(chosen_picture.h == on_window.region_h);
+    CHECK(chosen_picture.sub_x == on_window.region_sub_x);
+    CHECK(chosen_picture.sub_y == on_window.region_sub_y);
+
+    // AND BACK: choosing something else restores the identical geometry.
+    r.press_cell(0, 0); // bare workspace -- nothing is selected there
+    const ExternalBodyPlace after = external_body_of(r.session(), kind);
+    CHECK(after.rows == on_window.rows);
+    CHECK(after.columns == on_window.columns);
+    CHECK(after.fit == on_window.fit);
+    const surface::SurfaceTextRegion plain_picture = published(r.last_canvas());
+    REQUIRE(plain_picture.w > 0);
+    CHECK(plain_picture.x == chosen_picture.x);
+    CHECK(plain_picture.y == chosen_picture.y);
+    CHECK(plain_picture.w == chosen_picture.w);
+    CHECK(plain_picture.h == chosen_picture.h);
+    CHECK(plain_picture.sub_x == chosen_picture.sub_x);
+    CHECK(plain_picture.sub_y == chosen_picture.sub_y);
+}
+
+TEST_CASE("WUX-8: the thinner boundary rewrites no authored value and no foreground law") {
+    // ⚔ MUTATIONS: arrangement reading a stale body rectangle; a medium writing its own
+    // projection back over what a maker authored; a selection reaching the authored order.
+    PaneRig r;
+    r.mount_workshop();
+    ProviderSeat* seat = r.mount_provider(kHelloOffice);
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
+    r.pick(hello_ref());
+    const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
+
+    // THE SAME ROOM, TWICE, SO THE ONLY THING THAT CHANGES IS THE FACE. A terminal reports
+    // this room in cells and then a window reports the identical room in its own unit --
+    // which is the switch this case is about. Comparing a default terminal against a
+    // 1000x700 window would move the pane because the ROOM moved, and would prove nothing.
+    r.extent(1000, 700, 0, 0, 0);
+
+    // AN EXPLICIT SIZE FIRST, because a DEFAULT amount is zero and zero survives every
+    // projection there is -- a case resting on it would pass over a medium that writes its
+    // own answer back, which is the one thing this claim is about.
+    REQUIRE(author_pane_size(const_cast<Setup&>(r.session().setup.active), hello_ref(),
+                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(37) + 17},
+                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(11) + 5})
+                .accepted);
+
+    // WHAT THE MAKER AUTHORED, on the terminal, before any window ever spoke.
+    const SetupPane* row = pane_of(r.session().setup.active, hello_ref());
+    REQUIRE(row != nullptr);
+    const SetupPane authored = *row;
+    const std::vector<std::int64_t> order = presentation_order(r.session().setup.active, r.session().panels);
+    const FineRect on_cells = external_panel_rect(r.session(), kind);
+
+    // THE WINDOW OPENS. The boundary thins; the authored rectangle does not move.
+    r.extent_on_window(1000, 700);
+    const SetupPane* after_window = pane_of(r.session().setup.active, hello_ref());
+    REQUIRE(after_window != nullptr);
+    CHECK(after_window->place.x == authored.place.x);
+    CHECK(after_window->place.y == authored.place.y);
+    CHECK(after_window->width.amount == authored.width.amount);
+    CHECK(after_window->height.amount == authored.height.amount);
+    CHECK(after_window->front == authored.front);
+    CHECK(external_panel_rect(r.session(), kind) == on_cells); // the PANE is where it was
+
+    // SELECTING, ARRANGING AND LEAVING leaves the authored order byte-stable, and the
+    // foreground answer is still the one `effective_pane_order` gives.
+    r.press_pixel(surface::px_of_subs(on_cells.x) + 4, surface::px_of_subs(on_cells.y) + 4);
+    REQUIRE(r.session().panels.selected == kind);
+    CHECK(presentation_order(r.session().setup.active, r.session().panels) == order);
+    const std::vector<std::int64_t> lifted =
+        effective_pane_order(r.session().setup.active, r.session().panels);
+    CHECK(lifted.back() == kind);
+    const Screen sc = screen_of(r.session());
+    const ui::Rect box = cells_covered(external_panel_rect(r.session(), kind));
+    CHECK(occupied_at(r.session().panels, r.session().setup.active, sc, box.x, box.y).kind ==
+          kind);
+
+    // AND GOING BACK TO A TERMINAL restores the cell boundary without touching the value.
+    r.extent(1000, 700, 0, 0, 0);
+    CHECK(chrome_grain(screen_of(r.session())) == kChromeSubs);
+    const SetupPane* home = pane_of(r.session().setup.active, hello_ref());
+    REQUIRE(home != nullptr);
+    CHECK(home->place.x == authored.place.x);
+    CHECK(home->place.y == authored.place.y);
+    CHECK(home->width.amount == authored.width.amount);
+    CHECK(home->height.amount == authored.height.amount);
+    CHECK(presentation_order(r.session().setup.active, r.session().panels) == order);
+    (void)seat;
+}

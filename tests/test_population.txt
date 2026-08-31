@@ -900,13 +900,34 @@
 # window reports it, and that is a live witness rather than a case
 # (`Zen/reportbacks/WUX-6-RB.md`).
 #
+# WUX-8 raised the surface floor 98 -> 100 (`always`) -- one for this phase's own case, and one
+# that re-baselines a case an earlier phase left above its floor -- the workshop_screen floor
+# 198 -> 205 and the workshop_panes floor 227 -> 230, and moved no other floor, which is the
+# phase's own claim about where a boundary's THICKNESS lives. One case is Surface's
+# (`subs_of_one_device`: the smallest span a medium can show, the other direction of WUX-6's
+# `device_of_subs`), seven are the screen's pure geometry (which unit each face pays, that the
+# graphical ring is one device pixel INSIDE the pane, that the interior it no longer reserves
+# comes back as capacity, that a face which describes an interior in CELLS pays the cell, that
+# the ring is still the backdrop the body did not cover, that a content-sized surface still
+# reserves the coarsest boundary, and that the picture across a selection change differs in INK
+# alone), and three are the panes suite's: the border/body press inverse swept at exact WINDOW
+# PIXELS, the granted room across a selection change, and a medium switch that must rewrite
+# nothing authored.
+#
+# ALL ARE IN THE `always` POPULATION, for TYPE-0's reason unchanged and one more of WUX-8's own:
+# a face is described to this code by what a medium REPORTS -- a room, a text metric, and a cell
+# size in device pixels -- so a case asks for the shipped window by handing `Session` those three
+# numbers. No font is opened, no renderer exists, and the no-SDL lane and the Windows stranger
+# lane therefore prove the pixel-thin boundary in full. What they cannot prove is that a real
+# window PAINTS it, which is what the phase's live SDL witness is for.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
 input                             doctest           sdl     3
-surface                           doctest           always  98
+surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  39
@@ -914,9 +935,9 @@ operator                          doctest           always  103
 composer                          doctest           always  35
 builder                           doctest           always  53
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  198
+workshop_screen                   doctest           always  205
 workshop_panels                   doctest           always  157
-workshop_panes                    doctest           always  227
+workshop_panes                    doctest           always  230
 workshop_persistence              doctest           always  129
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66

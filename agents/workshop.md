@@ -345,33 +345,63 @@ in both arranging scopes.
   bigger and smaller, and both are plain printable ASCII, which `ctrl+shift+<letter>` is not
   from a POSIX terminal.
 
-## A pane has an edge, and the edge is inside the pane (WUX-5)
+## A pane has an edge, and the edge is inside the pane (WUX-5, thinned by WUX-8)
 
 Every ordinary pane and every framed transient surface draws a visible boundary, and the
 boundary is subtracted from the rectangle it already had:
 
 ```text
 pane_outer          bounds_of's answer -- authored, dragged, hit-tested, ringed. UNCHANGED.
-   +-- chrome       kChromeCells (1) on every side, on the canvas cell lattice
-   +-- pane_inner   pane_interior(outer) -- everything a painter, a press or a room may spend
+   +-- chrome       ONE UNIT OF THE ACTIVE FACE on every side
+   +-- pane_inner   pane_inside(outer, sc).rect -- what a painter, a press or a room may spend
 ```
 
+- **THE PANE OWNS THAT IT HAS CHROME; THE FACE OWNS HOW FINELY IT CAN BE DRAWN (WUX-8).** A
+  terminal spends one canvas cell, because that is the smallest boundary a character medium
+  can show. The shipped window spends **one device pixel**. Both are presentations of the
+  same authored rectangle: `chrome_grain(sc)` is `surface::subs_of_one_device(sc.cell_px)`,
+  and `cell_px` is the number the MEDIUM reported (`SurfaceExtent`, WUX-6) carried onto
+  `Screen` beside the text metric. Workshop may not derive it — an application holding one
+  Skin's layout number is correct only for as long as it has one medium
+  ([`surface.md`](surface.md#the-lattice-is-fine-and-each-medium-floors-at-its-own-grain)).
+  Chrome thickness is **presentation**: it is on no shape, in no file, and nothing about it
+  is authored.
+- **...AND THE FACE'S UNIT IS THE UNIT IT PRESENTS *THIS INTERIOR* IN**, which is the half
+  that keeps the thin boundary honest. A boundary nobody can see is not a boundary. Where a
+  face sets a pane's interior in its own type, that interior is a PIXEL viewport and a pixel
+  of chrome is visible ink. Where it describes the same interior in CELLS — every terminal, a
+  window whose font never opened, a window whose face is too tall for this pane (HD-5) — the
+  interior is projected onto covered cells, a sub-cell inset is projected away, and the body
+  would spill back over its own left and top edge leaving a ring on two sides. `pane_inside`
+  therefore resolves the interior **and its presentation together** and pays the cell wherever
+  the cell is what will be drawn. Two candidates at most, and it cannot oscillate: the cell
+  inset is the smaller interior, so a rectangle that held no row of the face at the finer
+  inset holds none at the coarser one either.
 - **THE BACKDROP IS THE BORDER**, which is one rectangle rather than five: `paint_panel_frame`
   pushes the outer rect and the body region drawn over it OWNS its ground (`kGroundOwn` clears
   the whole of its bounds in both media), so what remains visible is exactly the ring. The
-  ring IS `b` minus `pane_interior(b)` — there is no border arithmetic anywhere, so a boundary
-  that moved and an interior that did not is not a state this screen can reach.
+  ring IS `b` minus `pane_inside(b, sc).rect` — there is no border arithmetic anywhere and no
+  thickness on the paint call to get wrong, which is why the thin boundary needed **no
+  painter**: a face that draws the interior in pixels leaves a one-pixel ring of that same
+  rect, and a face that draws it in cells leaves a one-cell ring of it.
 - **ONE SUBTRACTION, INSIDE THE THREE BODY RESOLUTIONS.** `external_body_place`,
-  `info_body_place` and `panel_prose_place` each call `pane_interior` on the rectangle they
-  are handed, so the painter, the press inverse and the room a provider is granted are one
+  `info_body_place` and `panel_prose_place` each call `pane_inside` on the rectangle they are
+  handed, so the painter, the press inverse and the room a provider is granted are one
   geometry BY CONSTRUCTION — there is no call site that could spend the outer rectangle for
-  prose. `chrome_outer_of` is the same subtraction read backwards, for the one surface sized
-  by its own content (the contextual popup).
-- **ONE CANVAS CELL, ON THE MEDIUM-INDEPENDENT LATTICE.** A character medium cannot draw less
-  than a cell and a sub-cell inset would floor to nothing there, so one number serves both
-  media and the boundary is in the same place in each. Do NOT grow a pane to pay for it: the
-  authored rectangle is the outer rectangle, and a pane too small for its own chrome answers
-  an EMPTY interior — which every `w <= 0` consumer already reads as "nowhere".
+  prose, and none that could re-fit the interior a second time (`PaneInside` carries the
+  `RegionFit` beside the rectangle for exactly that reason). `pane_interior(outer, chrome_subs)`
+  is the raw subtraction underneath, and its thickness is a REQUIRED argument: a default there
+  would be the forgotten call site that pays a cell on a face that can draw a pixel.
+- **`chrome_outer_of` RESERVES THE CELL ON EVERY FACE, and that is not an oversight.** It is
+  the subtraction read backwards for the one surface sized by its own content (the contextual
+  popup), and what it answers is ONE whole-cell `ui::Rect` shown on whichever face draws it —
+  so the boundary it must make room for is the coarsest any face can spend, `kChromeCells`. A
+  graphical face draws a thinner ring inside that reservation and hands the difference to the
+  popup's own interior; a popup sized for pixels would cut a row off itself the moment a
+  terminal drew it, and its PLACEMENT would depend on the face.
+- **SELECTION CHANGES THE INK AND NOT ONE NUMBER.** Ordinary and selected chrome have
+  identical geometry — same outer rect, same body rect, same row/column capacity, same press
+  inverse — so a maker pointing at a pane never makes its contents jump.
 - **THREE CHROME ROLES, FROM THE CLOSED VOCABULARY** (`surface/vocabulary.hpp` refuses a
   fifth): `kPaneChrome` = `kFill` (ordinary material, the word an authored object's body
   already speaks), `kPaneChromeSelected` = `kAccent` (the one being pointed at — the same word
@@ -381,14 +411,19 @@ pane_outer          bounds_of's answer -- authored, dragged, hit-tested, ringed.
   surface's edge over bare workspace is drawn by the hole its interior clears rather than by
   its ring; the shipped face has three distinct inks. Do not repair that with a fifth role or
   a per-medium palette.
-- **WHAT IT COST, measured**: every stack pane's interior is 46x7 where the slot is 48x9, so
-  the Builder drops its lowest-priority row at the default height, the picker windows two
-  entries sooner, and the Info panel's lists each lose a row. Every one of those is
-  `list_window`'s or the Builder's own composition priority doing its declared job. The
-  Compose pane's FORM does not fit the default at all — see [`panes.md`](panes.md). WUX-6
-  closed that at the DESK rather than in the Composer: one coarse grow (`=`) gives the pane
-  the eight body rows the form needs, and `kCoarseStepCells`' `static_assert` is what keeps
-  the two numbers tied together.
+- **WHAT IT COSTS, measured, and it is now TWO answers.** On a terminal every stack pane's
+  interior is 46x7 where the slot is 48x9, so the Builder drops its lowest-priority row at the
+  default height, the picker windows two entries sooner, and the Info panel's lists each lose a
+  row — each of those is `list_window`'s or the Builder's own composition priority doing its
+  declared job, and the Compose pane's FORM does not fit the default at all (see
+  [`panes.md`](panes.md); WUX-6 closed that at the DESK with one coarse grow, and
+  `kCoarseStepCells`' `static_assert` keeps the two numbers tied together — it is written
+  against `kChromeCells`, the coarsest case, which is the honest floor for a claim about
+  *every* face). On the shipped window the same authored 48x9 slot is 576x108 device pixels
+  and its interior is **574x106**, one pixel a side instead of twelve — which at an 18-pixel
+  line is **five** body rows where the cell inset gave four. That extra room is an honest
+  consequence and nothing pads it back: no provider, no priority and no form was touched to
+  spend it.
 
 ## The desk's front is the authored order plus one lift (WUX-5)
 

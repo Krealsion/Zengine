@@ -7889,13 +7889,13 @@ TEST_CASE("WUX-5: a pane's interior is its outer rectangle less one cell of chro
     // ⚔ MUTATION: delete the border -- `pane_interior` answering its own argument. Every
     // number below moves, in both directions, so the picture and the room move together.
     const FineRect outer = fine_of_cells(ui::Rect{4, 3, 20, 9});
-    CHECK(cells_covered(pane_interior(outer)) == ui::Rect{5, 4, 18, 7});
+    CHECK(cells_covered(pane_interior(outer, kChromeSubs)) == ui::Rect{5, 4, 18, 7});
 
     // ...AND THE INVERSE IS EXACT, which is what a content-sized surface asks for.
     const ui::Rect grown = chrome_outer_of(0, 0, 18, 7);
     CHECK(grown.w == 20);
     CHECK(grown.h == 9);
-    CHECK(cells_covered(pane_interior(fine_of_cells(grown))) == ui::Rect{1, 1, 18, 7});
+    CHECK(cells_covered(pane_interior(fine_of_cells(grown), kChromeSubs)) == ui::Rect{1, 1, 18, 7});
 
     // A PANE TOO SMALL FOR ITS OWN CHROME HAS NO INTERIOR, and says so with an empty
     // rectangle rather than a negative one -- ⚔ MUTATION: dropping the guard, which would
@@ -7904,7 +7904,7 @@ TEST_CASE("WUX-5: a pane's interior is its outer rectangle less one cell of chro
                                 ui::Rect{0, 0, 1, 1}, ui::Rect{0, 0, 0, 0}}) {
         CAPTURE(tiny.w);
         CAPTURE(tiny.h);
-        const FineRect none = pane_interior(fine_of_cells(tiny));
+        const FineRect none = pane_interior(fine_of_cells(tiny), kChromeSubs);
         CHECK(none.empty());
         CHECK(none.w <= 0);
         CHECK(none.h <= 0);
@@ -8301,6 +8301,305 @@ TEST_CASE("WUX-5: no ordinary pane spends a row teaching a key the keymap alread
     for (const char* label : {"build", "recipe", "frontier", "edit source"}) {
         CHECK_MESSAGE(view.find(label) != std::string::npos, "the help lost '", label, "'");
     }
+}
+
+// ============================================================================
+// WUX-8 — the graphical desk's chrome is graphical
+// ============================================================================
+//
+// WUX-5 gave every pane a visible boundary and paid the smallest thing a TERMINAL can
+// draw for it -- one whole canvas cell -- on both faces, because one number was the only
+// way to put the boundary in the same place in each. WUX-6 then established that a face
+// may spend the unit it can actually distinguish while ONE authored rectangle stays
+// authoritative. These cases are the falsifiers for spending that on the boundary: the
+// terminal still frames a pane with a cell, the shipped window frames the same authored
+// pane with a device PIXEL, and the interior the window no longer has to reserve goes
+// back to the pane rather than staying behind as an invisible tax.
+
+/// The two faces these cases compare, built from what a medium REPORTS: a terminal says
+/// nothing about pixels, and the shipped window says a cell is `kCanvasCellPx` of them and
+/// hands over the face it opened.
+inline Screen tui_screen() {
+    return screen_of(screen_session(kScreenMinW, kScreenMinH, 0, 0, 0));
+}
+inline Screen sdl_screen() {
+    return screen_of(screen_session(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx));
+}
+
+TEST_CASE("WUX-8: the chrome a pane wears is one unit of the face in front of the maker") {
+    // ⚔ MUTATION: `chrome_grain` answering `kChromeSubs` whatever the medium said -- which
+    // is WUX-5 exactly, and is what "SDL still subtracts one full text cell" looks like
+    // from inside. ⚔ MUTATION (the other direction): a terminal adopting the pixel answer,
+    // which floors to nothing there and leaves a pane with no edge at all.
+    const Screen tui = tui_screen();
+    const Screen sdl = sdl_screen();
+
+    CHECK(tui.cell_px == 0); // "my device unit IS the cell" -- every terminal's answer
+    CHECK(sdl.cell_px == surface::kCanvasCellPx);
+    CHECK(chrome_grain(tui) == kChromeSubs);
+    CHECK(chrome_grain(sdl) == surface::kCellSubs / surface::kCanvasCellPx);
+    CHECK(chrome_grain(sdl) < chrome_grain(tui));
+
+    // AND IT IS EXACTLY ONE DEVICE UNIT ON EACH, said in the medium's own arithmetic
+    // rather than by comparing constants: one grain reads back as one unit, and one less
+    // than a grain reads back as none.
+    CHECK(surface::device_of_subs(chrome_grain(sdl), sdl.cell_px) == 1);
+    CHECK(surface::device_of_subs(chrome_grain(sdl) - 1, sdl.cell_px) == 0);
+    CHECK(surface::device_of_subs(chrome_grain(tui), tui.cell_px) == 1); // ...one CELL
+
+    // THE PANE ITSELF: one authored rectangle, two boundaries, and the outer rectangle is
+    // the same object on both faces.
+    const FineRect outer = fine_of_cells(ui::Rect{4, 3, 20, 9});
+    const PaneInside on_tui = pane_inside(outer, tui);
+    const PaneInside on_sdl = pane_inside(outer, sdl);
+    CHECK(on_tui.chrome_subs == kChromeSubs);
+    CHECK(on_sdl.chrome_subs == surface::kCellSubs / surface::kCanvasCellPx);
+    CHECK(cells_covered(on_tui.rect) == ui::Rect{5, 4, 18, 7}); // WUX-5's picture, unmoved
+    CHECK(on_sdl.rect.w > on_tui.rect.w);
+    CHECK(on_sdl.rect.h > on_tui.rect.h);
+}
+
+TEST_CASE("WUX-8: the graphical boundary is one device pixel, drawn INSIDE the pane") {
+    // ⚔ MUTATION: growing the pane outward to pay for its boundary, or drawing the ring on
+    // the pixel outside it. The authored rectangle is the outer rectangle; the ring is
+    // subtracted from it, and every number below is a pixel of the shipped face.
+    const Screen sdl = sdl_screen();
+    const FineRect outer = fine_of_cells(ui::Rect{4, 3, 20, 9});
+    const FineRect inside = pane_inside(outer, sdl).rect;
+
+    const std::int64_t left = surface::px_of_subs(outer.x);
+    const std::int64_t top = surface::px_of_subs(outer.y);
+    const std::int64_t right = surface::px_of_subs(surface::add_cells(outer.x, outer.w));
+    const std::int64_t bottom = surface::px_of_subs(surface::add_cells(outer.y, outer.h));
+
+    CHECK(surface::px_of_subs(inside.x) == left + 1);
+    CHECK(surface::px_of_subs(inside.y) == top + 1);
+    CHECK(surface::px_of_subs(surface::add_cells(inside.x, inside.w)) == right - 1);
+    CHECK(surface::px_of_subs(surface::add_cells(inside.y, inside.h)) == bottom - 1);
+
+    // ...WHICH IS FOUR VISIBLE SIDES AND NOT AN OUTLINE AROUND NOTHING: the interior is
+    // strictly inside the pane on both axes and still holds almost all of it.
+    CHECK(inside.x > outer.x);
+    CHECK(surface::add_cells(inside.x, inside.w) < surface::add_cells(outer.x, outer.w));
+    CHECK(right - left == 20 * surface::kCanvasCellPx);
+    CHECK(surface::px_of_subs(surface::add_cells(inside.x, inside.w)) -
+              surface::px_of_subs(inside.x) ==
+          20 * surface::kCanvasCellPx - 2);
+}
+
+TEST_CASE("WUX-8: the interior a window no longer reserves goes back to the pane") {
+    // ⚔ MUTATION: painting a one-pixel line while the body, the room and the press inverse
+    // keep spending the old cell -- the "looks thin, acts thick" pane. The capacity below is
+    // derived from the ACTUAL post-chrome pixels, so a body that kept the cell inset shows
+    // up as fewer rows than the arithmetic says.
+    const Screen sdl = sdl_screen();
+    const FineRect outer = fine_of_cells(ui::Rect{4, 3, 20, 9});
+
+    const PanelProsePlace thin = panel_prose_place(outer, sdl);
+    REQUIRE(thin.present);
+    const std::int64_t px_h = 9 * surface::kCanvasCellPx - 2; // the pane, less one px a side
+    const std::int64_t px_w = 20 * surface::kCanvasCellPx - 2;
+    CHECK(thin.rows == (px_h - 2 * surface::kTextInsetPx) / 18);
+    CHECK(thin.columns == (px_w - 2 * surface::kTextInsetPx) / 8);
+
+    // ...AND IT IS STRICTLY MORE THAN THE SAME FACE HAD WHEN IT PAID A CELL. This is the
+    // comparison the phase is FOR: same authored pane, same face, one honest boundary
+    // instead of a borrowed one.
+    const FineRect cell_inset = pane_interior(outer, kChromeSubs);
+    const surface::RegionFit was =
+        surface::fit_region_subs(cell_inset.x, cell_inset.y, cell_inset.w, cell_inset.h,
+                                 sdl.text_advance_px, sdl.text_line_px);
+    CHECK(thin.rows > was.rows);
+    CHECK(thin.columns > was.columns);
+
+    // AND NOTHING WAS PADDED BACK. ⚔ MUTATION: an invisible cell-sized reservation kept "so
+    // the row counts do not move" -- the body would then be a whole cell narrower than the
+    // pixels it was granted.
+    CHECK(thin.inside.w == outer.w - 2 * chrome_grain(sdl));
+    CHECK(thin.inside.h == outer.h - 2 * chrome_grain(sdl));
+}
+
+TEST_CASE("WUX-8: a face that describes an interior in CELLS pays the cell") {
+    // THE HALF THAT MAKES THE THIN BOUNDARY HONEST. A boundary nobody can see is not a
+    // boundary: where a face projects a pane's interior onto covered CELLS -- a terminal
+    // always, a window whose font never opened, a window whose face is too tall for this
+    // pane -- an inset finer than a cell is projected away, and the interior spills back
+    // over its own left and top edge leaving a ring on two sides.
+    //
+    // ⚔ MUTATION: `pane_inside` returning the thin candidate unconditionally. Every
+    // symmetric-ring check below fails, on exactly the faces that cannot draw the pixel.
+    const FineRect outer = fine_of_cells(ui::Rect{4, 3, 20, 9});
+    const ui::Rect box = cells_covered(outer);
+
+    struct Face {
+        const char* what;
+        Screen sc;
+    };
+    const std::vector<Face> cell_faces{
+        {"a terminal", tui_screen()},
+        {"a window whose font never opened",
+         screen_of(screen_session(kScreenMinW, kScreenMinH, 0, 0, surface::kCanvasCellPx))},
+    };
+    for (const Face& face : cell_faces) {
+        INFO(face.what);
+        const PaneInside in = pane_inside(outer, face.sc);
+        CHECK(in.chrome_subs == kChromeSubs);
+        const ui::Rect body = cells_covered(in.rect);
+        CHECK(body.x == box.x + 1);
+        CHECK(body.y == box.y + 1);
+        CHECK(body.w == box.w - 2); // ...a ring on all FOUR sides, in the unit that face
+        CHECK(body.h == box.h - 2); //    actually draws
+    }
+
+    // A WINDOW WITH A FACE TOO TALL FOR THIS PANE IS THE SAME SENTENCE, one pane at a time.
+    // A three-cell pane is 36 device pixels; a 40-pixel line fits no row of type in it, so
+    // this face describes THIS interior in cells and pays the cell for it -- while the same
+    // window pays a pixel for a pane it can set in type.
+    const Screen tall =
+        screen_of(screen_session(kScreenMinW, kScreenMinH, 8, 40, surface::kCanvasCellPx));
+    const FineRect small = fine_of_cells(ui::Rect{4, 3, 20, 3});
+    const PaneInside cramped = pane_inside(small, tall);
+    CHECK_FALSE(cramped.fit.graphical());
+    CHECK(cramped.chrome_subs == kChromeSubs);
+    const PaneInside roomy = pane_inside(fine_of_cells(ui::Rect{4, 3, 20, 12}), tall);
+    REQUIRE(roomy.fit.graphical());
+    CHECK(roomy.chrome_subs == chrome_grain(tall));
+    CHECK(roomy.chrome_subs < kChromeSubs);
+}
+
+TEST_CASE("WUX-8: the ring IS the backdrop the interior did not cover, on both faces") {
+    // ⚔ MUTATION: a painter that strokes a border of its own. There is no thickness on
+    // `paint_panel_frame` to get wrong -- it pushes the OUTER rect and the body's own
+    // ground clears what it occupies -- so what a maker sees is a subtraction rather than
+    // a drawing, and it is the same subtraction the room and the press inverse spend.
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const Screen tui = screen_of(t.session());
+    const FineRect outer =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, tui).rect;
+    REQUIRE_FALSE(outer.empty());
+
+    const surface::SurfaceCanvas& c = t.canvases.back();
+    const ui::Rect box = cells_covered(outer);
+    CHECK(has_rect(c, box.x, box.y, box.w, box.h, kPaneChrome)); // the whole pane, once
+
+    // ON A TERMINAL the interior it publishes leaves a one-CELL ring...
+    const ui::Rect body = pane_body_cells(outer);
+    CHECK(body == ui::Rect{box.x + 1, box.y + 1, box.w - 2, box.h - 2});
+    const std::vector<surface::SurfaceTextRegion> at = regions_at(c, body.x, body.y);
+    REQUIRE(at.size() == 1);
+    CHECK(at.front().w == body.w);
+    CHECK(at.front().h == body.h);
+
+    // ...AND ON THE SHIPPED WINDOW the same authored pane leaves a one-PIXEL one, from the
+    // same rect and the same subtraction. The region's fine origin is what a graphical
+    // medium clips and fills to (`fit_region`), so this is the ring a maker sees.
+    const Screen sdl = sdl_screen();
+    const PaneInside on_sdl = pane_inside(outer, sdl);
+    const surface::SurfaceRect wire = wire_rect_of(on_sdl.rect, surface::role::kFill);
+    CHECK(surface::px_of_subs(surface::subs_of_wire(wire.x, wire.sub_x)) ==
+          surface::px_of_subs(outer.x) + 1);
+    CHECK(on_sdl.fit.view.x == surface::px_of_subs(outer.x) + 1);
+    CHECK(on_sdl.fit.view.y == surface::px_of_subs(outer.y) + 1);
+    CHECK(on_sdl.fit.view.w == surface::px_of_subs(surface::add_cells(outer.x, outer.w)) -
+                                   surface::px_of_subs(outer.x) - 2);
+    CHECK(on_sdl.fit.view.h == surface::px_of_subs(surface::add_cells(outer.y, outer.h)) -
+                                   surface::px_of_subs(outer.y) - 2);
+}
+
+TEST_CASE("WUX-8: selected and ordinary differ in INK, and in nothing else") {
+    // ⚔ MUTATION: a painter that insets a SELECTED pane further, so its boundary reads
+    // heavier. The pane's contents would then jump the moment a maker pointed at it, which
+    // is the one thing a selection must never do. The picture is compared field by field:
+    // same backdrop rectangle, same published region, different ROLE.
+    Live t;
+    t.publish(loom::to_value(
+        surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    open_pane(t, ref_of(panel::kBuilder));
+    const Screen sc = screen_of(t.session());
+    REQUIRE(sc.cell_px == surface::kCanvasCellPx);
+    const FineRect outer =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc).rect;
+    REQUIRE_FALSE(outer.empty());
+    const ui::Rect box = cells_covered(outer);
+    const ui::Rect body = pane_body_cells(outer, sc);
+
+    const auto picture = [&](const surface::SurfaceCanvas& c) {
+        // `regions_at` keys on the region's own published corner, which on this face is the
+        // pane's cell with a sub-cell remainder -- the cell the thin boundary shares with the
+        // body it no longer displaces.
+        const std::vector<surface::SurfaceTextRegion> at = regions_at(c, body.x, body.y);
+        REQUIRE_FALSE(at.empty());
+        return at.front();
+    };
+
+    REQUIRE(t.session().panels.selected == kNoPaneKind);
+    const surface::SurfaceTextRegion ordinary = picture(t.canvases.back());
+    CHECK(has_rect(t.canvases.back(), box.x, box.y, box.w, box.h, kPaneChrome));
+
+    t.press_canvas(box.x, box.y); // the pane's own border cell: choosing it, nothing else
+    REQUIRE(t.session().panels.selected == panel::kBuilder);
+    const surface::SurfaceTextRegion chosen = picture(t.canvases.back());
+
+    // THE INK CHANGED...
+    CHECK(has_rect(t.canvases.back(), box.x, box.y, box.w, box.h, kPaneChromeSelected));
+    CHECK_FALSE(has_rect(t.canvases.back(), box.x, box.y, box.w, box.h, kPaneChrome));
+
+    // ...AND NOT ONE NUMBER OF THE GEOMETRY DID, sub-cell remainders included -- which is
+    // where a one-pixel change would hide.
+    CHECK(chosen.x == ordinary.x);
+    CHECK(chosen.y == ordinary.y);
+    CHECK(chosen.w == ordinary.w);
+    CHECK(chosen.h == ordinary.h);
+    CHECK(chosen.sub_x == ordinary.sub_x);
+    CHECK(chosen.sub_y == ordinary.sub_y);
+    CHECK(chosen.sub_w == ordinary.sub_w);
+    CHECK(chosen.sub_h == ordinary.sub_h);
+    CHECK(chosen.rows.size() == ordinary.rows.size());
+
+    // AND THE BOUNDARY IS STILL ONE PIXEL: the region begins one device pixel inside the
+    // pane on both axes, selected or not.
+    CHECK(surface::px_of_subs(surface::subs_of_wire(chosen.x, chosen.sub_x)) ==
+          surface::px_of_subs(outer.x) + 1);
+    CHECK(surface::px_of_subs(surface::subs_of_wire(chosen.y, chosen.sub_y)) ==
+          surface::px_of_subs(outer.y) + 1);
+}
+
+TEST_CASE("WUX-8: a content-sized surface reserves the coarsest boundary, once") {
+    // THE CONTEXTUAL POPUP measures its rows and asks for a rectangle to hold them INSIDE
+    // its chrome, and that rectangle is ONE whole-cell `ui::Rect` shown on whichever face
+    // draws it -- so what it reserves is the boundary the COARSEST face spends. A graphical
+    // face draws a thinner ring inside that reservation and hands the difference to the
+    // popup's own interior; a popup sized for pixels would cut a row off itself the moment
+    // a terminal drew it.
+    //
+    // ⚔ MUTATION: making `chrome_outer_of` medium-specific. The popup's rectangle -- and
+    // therefore its placement -- would then depend on the face, which is exactly what this
+    // phase promised not to touch.
+    const ui::Rect grown = chrome_outer_of(0, 0, 18, 7);
+    CHECK(grown.w == 18 + 2 * kChromeCells);
+    CHECK(grown.h == 7 + 2 * kChromeCells);
+    CHECK(cells_covered(pane_interior(fine_of_cells(grown), kChromeSubs)) ==
+          ui::Rect{1, 1, 18, 7}); // exact on the face that reserved it
+
+    // AND THE POPUP'S RECTANGLE IS THE SAME RECTANGLE ON BOTH FACES. ⚔ MUTATION: anchoring
+    // the contextual surface to a pane's BODY rather than to the pane.
+    Live t;
+    open_pane(t, ref_of(panel::kBuilder));
+    const ui::Rect pane = cells_covered(
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .rect);
+    t.right_press_canvas(pane.x + 1, pane.y + 1);
+    REQUIRE(t.session().context.open);
+    const FineRect on_cells = context_bounds(t.session(), screen_of(t.session()));
+    Session graphical = t.session();
+    graphical.cell_px = surface::kCanvasCellPx;
+    graphical.text_advance_px = 8;
+    graphical.text_line_px = 18;
+    const FineRect on_window = context_bounds(graphical, screen_of(graphical));
+    CHECK(on_window.x == on_cells.x);
+    CHECK(on_window.y == on_cells.y);
 }
 
 // ---- WUX-7: two presses, one gesture ------------------------------------------------------

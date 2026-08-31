@@ -325,6 +325,13 @@ struct Screen {
     /// resolves the pane's geometry already holds a `Screen`.
     std::int64_t text_advance_px = 0;
     std::int64_t text_line_px = 0;
+    /// ...AND HOW BIG ONE CANVAS CELL OF THAT MEDIUM IS, in its own device pixels
+    /// (WUX-6's `Session::cell_px`, carried here by WUX-8 for the same reason the metric
+    /// beside it is carried: a pane's chrome is one device unit of the face in front of
+    /// the maker, and every resolution that needs to know that already holds a `Screen`).
+    /// ZERO is the vocabulary's "my device unit IS the cell" -- every terminal, and any
+    /// run no medium has spoken to.
+    std::int64_t cell_px = 0;
 };
 
 /// The furniture for a surface of this extent -- TOTAL over every std::int64_t, because the
@@ -339,8 +346,14 @@ struct Screen {
 /// separation has to happen in one place or the pane starts lying about what it left out.
 inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_advance_px = 0,
-                                  std::int64_t text_line_px = 0) noexcept {
+                                  std::int64_t text_line_px = 0,
+                                  std::int64_t cell_px = 0) noexcept {
     Screen s;
+    // THE MEDIUM'S DEVICE UNIT IS TAKEN AS REPORTED (WUX-6/WUX-8) and clamped at nothing:
+    // non-positive is already the vocabulary's "my device unit IS the cell", which is the
+    // reading that changes nothing, and above zero there is no number to refuse -- the
+    // arithmetic that spends it saturates by its own contract.
+    s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
     s.panel_x = s.w - kPanelCols;
@@ -566,7 +579,7 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
     return FineRect{x0, y0, x1 - x0, y1 - y0};
 }
 
-// ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES (WUX-5) ------------------------
+// ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES (WUX-5, thinned by WUX-8) ------
 //
 // A PANE HAS AN EDGE A MAKER CAN SEE, AND THE EDGE IS INSIDE THE PANE. The rectangle a
 // setup authors and `bounds_of` resolves is the pane's OUTER rectangle and stays exactly
@@ -576,44 +589,151 @@ inline constexpr FineRect clip_to_canvas_fine(const FineRect& r, const Screen& s
 // pane whose authored width is not its width.
 //
 //     pane_outer          the authored/resolved rectangle -- unchanged by this
-//        +-- chrome       kChromeCells on every side
-//        +-- pane_interior  everything a painter, a press or a room grant may spend
+//        +-- chrome       ONE UNIT OF THE ACTIVE FACE on every side
+//        +-- pane_inside  everything a painter, a press or a room grant may spend
 //
-// ONE SUBTRACTION, AND EVERY CONSUMER INHERITS IT. `pane_interior` is called inside the
+// THE PANE OWNS THAT IT HAS CHROME; THE FACE OWNS HOW FINELY THAT CHROME CAN BE DRAWN
+// (WUX-8). WUX-5 paid one whole canvas cell on every medium, because a character medium
+// cannot draw less than a cell and one number was the only way to put the boundary in the
+// same place in both. WUX-6 then established that each face may truthfully spend the unit
+// it can actually distinguish while ONE medium-independent authored rectangle stays
+// authoritative -- and a boundary is exactly the kind of fact that earned it. So:
+//
+//     a terminal       one canvas cell        the smallest boundary it can show
+//     the shipped face one device pixel       ...and the smallest IT can show
+//
+// and both are presentations of the same authored pane rectangle. Nothing about the
+// authored value changes, nothing is persisted, and viewing the desk through the other
+// medium rewrites none of it: `surface::subs_of_one_device` reads the number the MEDIUM
+// reported (`SurfaceExtent::cell_px`, carried on `Screen`), which is the only honest
+// source there is -- an application holding one Skin's layout number is correct only for
+// as long as it has one medium (`surface/pointing.hpp`).
+//
+// ...AND THE FACE'S UNIT IS THE UNIT IT PRESENTS *THIS INTERIOR* IN, which is the second
+// half and the load-bearing one. A boundary nobody can see is not a boundary. A face that
+// sets this pane's interior in its own type draws that interior as a PIXEL viewport, so a
+// pixel of chrome is visible ink. A face that describes the same interior in CELLS --
+// every terminal, a window whose font never opened, a window whose face is too tall for
+// this pane -- projects it onto covered cells, and an inset finer than a cell would be
+// projected away: the interior would spill back over its own left and top edge and leave a
+// boundary on two sides. `pane_inside` therefore resolves the interior and its
+// presentation TOGETHER and pays the cell wherever the cell is what will be drawn. It is
+// one rule with one answer, not a per-medium switch.
+//
+// ONE SUBTRACTION, AND EVERY CONSUMER INHERITS IT. `pane_inside` is called inside the
 // three body resolutions (`external_body_place`, `info_body_place`, `panel_prose_place`)
 // rather than at their call sites, so the painter, the press inverse and the provider's
 // granted room are one geometry by construction -- there is no call site that could spend
-// the outer rectangle for prose and no second inset to keep in step (HD-3).
-//
-// THE THICKNESS IS ONE CANVAS CELL, on the lattice everything else here is drawn on, and
-// deliberately not a device pixel. A character medium cannot draw less than a cell, and a
-// medium-independent sub-cell inset would floor to nothing there -- so one number serves
-// both media and the pane's boundary is in the same place in each. The shipped face's cell
-// is 12 device pixels (`surface::kCanvasCellPx`) and that is the pixel authoring model
-// answering, not a second coordinate system.
+// the outer rectangle for prose and no second inset to keep in step (HD-3). The ring a
+// maker sees is `b` minus that answer (`paint_panel_frame`), so a chrome that looks thin
+// and a body that acts thick is not a state this screen can reach.
 //
 // A PANE TOO SMALL FOR ITS OWN CHROME HAS NO INTERIOR, and says so by answering an empty
 // rectangle -- which every consumer already reads as "nowhere" (`bounds_of`'s discipline).
 // Nothing underflows and nothing is drawn where nothing was painted.
+
+/// THE COARSEST HONEST BOUNDARY, and the one every medium can show: one canvas cell. It is
+/// what a character medium spends, what a cell-projected interior spends in any medium, and
+/// the ceiling `chrome_outer_of` reserves for a surface sized by its own content.
 inline constexpr std::int64_t kChromeCells = 1;
 inline constexpr std::int64_t kChromeSubs = surface::subs_of_cells(kChromeCells);
 
-/// The rectangle inside a pane's chrome: `outer` less `kChromeCells` on every side, empty
+/// ONE UNIT OF THE ACTIVE FACE, in sub-units -- what this screen's chrome costs before the
+/// interior's own presentation gets a say (`pane_inside` below is where it gets one).
+inline constexpr std::int64_t chrome_grain(const Screen& sc) noexcept {
+    return surface::subs_of_one_device(sc.cell_px);
+}
+
+/// The rectangle inside a pane's chrome: `outer` less `chrome_subs` on every side, empty
 /// when the outer rectangle cannot hold both edges.
-inline constexpr FineRect pane_interior(const FineRect& outer) noexcept {
-    const std::int64_t w = outer.w - 2 * kChromeSubs;
-    const std::int64_t h = outer.h - 2 * kChromeSubs;
+///
+/// THE THICKNESS IS AN ARGUMENT AND IS NOT DEFAULTED. Which unit a face can show is
+/// exactly the question this phase exists to make somebody answer, and a default here
+/// would be the forgotten call site that quietly pays a cell on a face that can draw a
+/// pixel -- or the reverse, which is the same picture with the border missing.
+inline constexpr FineRect pane_interior(const FineRect& outer,
+                                        std::int64_t chrome_subs) noexcept {
+    const std::int64_t w = outer.w - 2 * chrome_subs;
+    const std::int64_t h = outer.h - 2 * chrome_subs;
     if (w <= 0 || h <= 0) {
         return FineRect{};
     }
-    return FineRect{surface::add_cells(outer.x, kChromeSubs),
-                    surface::add_cells(outer.y, kChromeSubs), w, h};
+    return FineRect{surface::add_cells(outer.x, chrome_subs),
+                    surface::add_cells(outer.y, chrome_subs), w, h};
+}
+
+/// THE INTERIOR OF A PANE AND THE PRESENTATION IT GETS, RESOLVED TOGETHER (WUX-8).
+///
+/// `fit` is carried out with the rectangle because it is the same resolution: what decides
+/// how much prose the interior holds is what decided how thick its boundary could be, and
+/// a consumer that re-fitted the same rectangle afterwards would be the second measurer
+/// this file spends its whole length refusing. `chrome_subs` is carried because it is the
+/// only honest way for a case -- or a maker-facing readout that ever wants one -- to say
+/// what the boundary actually cost on the face that drew it.
+struct PaneInside {
+    FineRect rect{};              ///< the interior: `outer` less the chrome on every side
+    surface::RegionFit fit{};     ///< ...resolved with the ACTIVE medium's own text metric
+    std::int64_t chrome_subs = 0; ///< what one side of that boundary cost, in sub-units
+};
+
+namespace detail {
+
+/// One candidate: inset by this much, and fit what is left. Total over every rectangle.
+inline PaneInside pane_inside_at(const FineRect& outer, const Screen& sc,
+                                 std::int64_t chrome_subs) {
+    PaneInside p;
+    p.chrome_subs = chrome_subs;
+    p.rect = pane_interior(outer, chrome_subs);
+    if (p.rect.w <= 0 || p.rect.h <= 0) {
+        return p;
+    }
+    p.fit = surface::fit_region_subs(p.rect.x, p.rect.y, p.rect.w, p.rect.h,
+                                     sc.text_advance_px, sc.text_line_px);
+    return p;
+}
+
+} // namespace detail
+
+/// THE ONE CALL. A pane's outer rectangle in, its interior and that interior's resolution
+/// out -- and the boundary between them is the finest one the face in front of the maker
+/// will actually present.
+///
+/// TWO CANDIDATES AT MOST, AND THE SECOND IS ALWAYS THE CELL. The face's own unit is tried
+/// first; if the interior it leaves is one this face describes in CELLS rather than in
+/// type, the cell is paid instead, because that is the finest boundary a cell-projected
+/// interior can leave behind. It cannot oscillate: the cell inset is the SMALLER interior,
+/// so a rectangle that held no row of the face at the finer inset holds none at the coarser
+/// one either. On a terminal the two are the same number and the retry is skipped outright.
+inline PaneInside pane_inside(const FineRect& outer, const Screen& sc) {
+    const std::int64_t fine = chrome_grain(sc);
+    if (fine >= kChromeSubs) {
+        return detail::pane_inside_at(outer, sc, kChromeSubs);
+    }
+    const PaneInside thin = detail::pane_inside_at(outer, sc, fine);
+    if (thin.fit.graphical()) {
+        return thin;
+    }
+    return detail::pane_inside_at(outer, sc, kChromeSubs);
+}
+
+/// The rectangle inside a pane's chrome, for a consumer that wants only the geometry.
+inline FineRect pane_interior(const FineRect& outer, const Screen& sc) {
+    return pane_inside(outer, sc).rect;
 }
 
 /// The same subtraction read BACKWARDS, in whole cells: the outer extent a surface sized by
 /// its own content needs in order to hold that content INSIDE its chrome. One consumer (the
 /// contextual popup, which measures its rows and then asks for a rectangle), and it lives
 /// beside the forward direction so the two cannot drift by a cell.
+///
+/// IT RESERVES THE CELL, ON EVERY FACE, AND THAT IS NOT AN OVERSIGHT (WUX-8). The rectangle
+/// it answers is a `ui::Rect` -- ONE medium-independent whole-cell extent, computed once and
+/// honest on whichever face draws it -- so the boundary it has to make room for is the
+/// COARSEST any face can spend, which is `kChromeCells`. A graphical face draws a thinner
+/// ring inside that reservation and hands the difference to the popup's own interior, which
+/// is room a content-sized surface can only have spare; the alternative is a popup sized for
+/// pixels that cuts a row off itself the moment a terminal draws it. Nothing about the
+/// popup's placement changes with the face, which is the property it was given for.
 inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::int64_t w,
                                           std::int64_t h) noexcept {
     return ui::Rect{x, y, w + 2 * kChromeCells, h + 2 * kChromeCells};
@@ -634,6 +754,10 @@ inline constexpr ui::Rect chrome_outer_of(std::int64_t x, std::int64_t y, std::i
 ///     the interior less its title row -- 46 x 6 at the default. The Compose form needs
 ///     EIGHT body rows (WUX-5 measured it), so a step of two would land on exactly eight
 ///     and leave the next row of anybody's form over the edge; four lands on ten.
+///     ⚠ IT IS MEASURED AGAINST `kChromeCells`, WHICH IS THE COARSEST FACE, and that is
+///     deliberate after WUX-8: a face that pays a device pixel for its boundary leaves the
+///     body MORE room than this arithmetic assumes, so the assertion below stays the honest
+///     floor for a claim about every face rather than becoming false on one of them.
 ///
 /// IT IS NOT A LAYOUT POLICY. It is a delta handed to the same anchored proposal a shifted
 /// arrow spends, through the same authoring door, on the pane the maker addressed -- no
@@ -1910,7 +2034,7 @@ struct Session {
 /// reaches it through here, so there is no second path by which a caller could compute the
 /// pane's capacity from `terminal_w` and be quietly wrong on a graphical medium.
 inline constexpr Screen screen_of(const Session& s) noexcept {
-    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px);
+    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px);
 }
 
 /// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0, anchored to the selection by WUX-5): at the
@@ -4297,12 +4421,17 @@ inline void paint_terminal(surface::SurfaceLayer& layer, const TerminalPane& t,
 /// character medium cannot tell the spelling ever changed.)
 ///
 /// ...AND SINCE WUX-5 THE BACKDROP IS ALSO THE BORDER, which is one rectangle rather than
-/// five. The body drawn over it is `pane_interior`'s rectangle and it OWNS its ground
+/// five. The body drawn over it is `pane_inside`'s rectangle and it OWNS its ground
 /// (`kGroundOwn` -- spaces in a character medium, its own fill in a graphical one, over the
 /// whole of its bounds and not merely under its rows), so what remains visible of this rect
 /// is exactly the ring the interior did not cover. There is no border arithmetic here and
-/// none anywhere else: the ring IS `b` minus `pane_interior(b)`, so a boundary that moved
-/// and an interior that did not is not a state this screen can reach.
+/// none anywhere else: the ring IS `b` minus `pane_inside(b, sc).rect`, so a boundary that
+/// moved and an interior that did not is not a state this screen can reach.
+///
+/// THIS IS ALSO WHY THE THIN BORDER NEEDED NO PAINTER (WUX-8). A face that draws the
+/// interior in its own pixels leaves a one-pixel ring of this same rect; a face that draws
+/// it in cells leaves a one-cell ring of it. Neither is stroked, neither is measured here,
+/// and there is no thickness on this call to get wrong.
 ///
 /// THE ROLE IS THE CALLER'S because the caller is the one that knows what kind of surface
 /// this is (`kPaneChrome`, `kPaneChromeSelected`, `kTransientChrome`). It is a REQUIRED
@@ -4343,6 +4472,11 @@ struct PanelProsePlace {
     /// the painter was handed rather than resolving the same rectangle a second time --
     /// `ExternalBodyPlace`'s own field, for `ExternalBodyPlace`'s own reason (HD-3).
     surface::RegionFit fit{};
+    /// THE INTERIOR THE FIT WAS RESOLVED FOR (WUX-8), so the region a painter publishes is
+    /// built from the rectangle that was actually measured rather than from a second
+    /// subtraction beside it. How thick this surface's chrome was is `chrome_subs`.
+    FineRect inside{};
+    std::int64_t chrome_subs = 0;
 };
 
 /// The one call. TOTAL over the rectangle, because a closed panel answers with an empty one
@@ -4356,12 +4490,13 @@ struct PanelProsePlace {
 /// answer for free.
 inline PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
     PanelProsePlace p;
-    const FineRect inner = pane_interior(b);
-    if (inner.w <= 0 || inner.h <= 0) {
+    const PaneInside inside = pane_inside(b, sc);
+    p.inside = inside.rect;
+    p.chrome_subs = inside.chrome_subs;
+    if (inside.rect.w <= 0 || inside.rect.h <= 0) {
         return p;
     }
-    p.fit = surface::fit_region_subs(inner.x, inner.y, inner.w, inner.h, sc.text_advance_px,
-                                     sc.text_line_px);
+    p.fit = inside.fit;
     p.rows = p.fit.rows;
     p.columns = p.fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
@@ -4369,11 +4504,14 @@ inline PanelProsePlace panel_prose_place(const FineRect& b, const Screen& sc) {
 }
 
 /// The region a `PanelProsePlace` was resolved for, empty and ready for its rows — the fine
-/// bounds decomposed onto the wire's cells-plus-remainder spelling. It takes the same OUTER
-/// rectangle its place does and applies the same one subtraction (WUX-5).
-inline surface::SurfaceTextRegion panel_prose_region(const FineRect& b) {
+/// bounds decomposed onto the wire's cells-plus-remainder spelling.
+///
+/// IT TAKES THE PLACE, NOT THE RECTANGLE (WUX-8). The interior is on the place already,
+/// because the place is what measured it, so the region a painter publishes and the fit
+/// that painter spends are one resolution rather than two subtractions that agree today.
+inline surface::SurfaceTextRegion panel_prose_region(const PanelProsePlace& place) {
     surface::SurfaceTextRegion region;
-    const surface::SurfaceRect wire = wire_rect_of(pane_interior(b), surface::role::kFill);
+    const surface::SurfaceRect wire = wire_rect_of(place.inside, surface::role::kFill);
     region.x = wire.x;
     region.y = wire.y;
     region.w = wire.w;
@@ -4520,7 +4658,7 @@ inline void paint_builder(surface::SurfaceLayer& layer, const BuilderPane& pane,
             said = panel_block("said", said_detail.empty() ? std::string("--") : said_detail,
                                said_kept, columns);
         }
-        surface::SurfaceTextRegion region = panel_prose_region(b);
+        surface::SurfaceTextRegion region = panel_prose_region(place);
         std::size_t said_at = 0;
         for (Fact& f : chosen) {
             if (f.priority >= cut) {
@@ -5012,7 +5150,7 @@ inline void paint_picker(surface::SurfaceLayer& layer, const Panels& panels, con
     if (!place.present) {
         return; // a slot with no room for a row says nothing rather than lying about the room
     }
-    surface::SurfaceTextRegion region = panel_prose_region(b);
+    surface::SurfaceTextRegion region = panel_prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(
             surface::SurfaceTextRow{detail::fit(text, place.columns), role});
@@ -5365,7 +5503,7 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
         }
     }
 
-    surface::SurfaceTextRegion region = panel_prose_region(b);
+    surface::SurfaceTextRegion region = panel_prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
@@ -5573,7 +5711,7 @@ inline void paint_attention(surface::SurfaceLayer& layer, const Session& s, cons
     if (!place.present) {
         return; // a slot with no room for a row says nothing rather than lying about the room
     }
-    surface::SurfaceTextRegion region = panel_prose_region(b);
+    surface::SurfaceTextRegion region = panel_prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
@@ -5874,7 +6012,7 @@ inline void paint_context(surface::SurfaceLayer& layer, const Session& s, const 
     if (!place.present) {
         return; // a popup with no room for a row says nothing rather than lying about the room
     }
-    surface::SurfaceTextRegion region = panel_prose_region(b);
+    surface::SurfaceTextRegion region = panel_prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
@@ -5935,7 +6073,7 @@ inline ContextPressAt context_press_at(const Session& s, const Screen& sc, std::
     if (!place.present) {
         return out;
     }
-    const surface::SurfaceTextRegion wire = panel_prose_region(b);
+    const surface::SurfaceTextRegion wire = panel_prose_region(place);
     const ProseAt where = prose_at(space, x, y, wire.x, wire.y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
@@ -6378,7 +6516,8 @@ inline InfoBodyPlace info_body_place(const FineRect& outer, const Screen& sc,
                                      std::size_t total_objects, std::size_t selected_at,
                                      std::size_t total_properties, std::size_t focus) {
     InfoBodyPlace p;
-    const FineRect panel = pane_interior(outer);
+    const PaneInside inside = pane_inside(outer, sc);
+    const FineRect panel = inside.rect;
     if (panel.w <= 0 || panel.h <= 0) {
         return p; // no panel at all, or none left inside its own chrome
     }
@@ -6401,8 +6540,7 @@ inline InfoBodyPlace info_body_place(const FineRect& outer, const Screen& sc,
     p.region_sub_y = wire.sub_y;
     p.region_sub_w = wire.sub_w;
     p.region_sub_h = wire.sub_h;
-    p.fit = surface::fit_region_subs(panel.x, panel.y, panel.w, panel.h, sc.text_advance_px,
-                                     sc.text_line_px);
+    p.fit = inside.fit;
     p.columns = p.fit.columns;
     const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
     if (surface::cell_of_subs(surface::add_cells(panel.x, panel.w)) -
@@ -7169,7 +7307,8 @@ struct ExternalBodyPlace {
 inline ExternalBodyPlace external_body_place(const FineRect& panel, const Screen& sc,
                                              std::int64_t header_rows) {
     ExternalBodyPlace p;
-    const FineRect inner = pane_interior(panel);
+    const PaneInside inside = pane_inside(panel, sc);
+    const FineRect inner = inside.rect;
     if (inner.w <= 0 || inner.h <= 0) {
         return p;
     }
@@ -7182,8 +7321,7 @@ inline ExternalBodyPlace external_body_place(const FineRect& panel, const Screen
     p.region_sub_y = wire.sub_y;
     p.region_sub_w = wire.sub_w;
     p.region_sub_h = wire.sub_h;
-    p.fit = surface::fit_region_subs(inner.x, inner.y, inner.w, inner.h, sc.text_advance_px,
-                                     sc.text_line_px);
+    p.fit = inside.fit;
     p.header_rows = header_rows;
     p.rows = p.fit.rows > header_rows ? p.fit.rows - header_rows : 0;
     p.columns = p.fit.columns;

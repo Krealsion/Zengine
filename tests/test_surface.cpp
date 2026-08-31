@@ -4447,6 +4447,40 @@ TEST_CASE("WUX-6: a medium's own device unit, and whether it can say a value exa
     CHECK_FALSE(subs_exact_in_device(kMax, kMax));
 }
 
+TEST_CASE("WUX-8: the smallest span a medium can SHOW is one of its own device units") {
+    // THE OTHER DIRECTION OF THE SAME LAW. `device_of_subs` reads a fine span in a
+    // medium's units; this answers the question a publisher drawing a BOUNDARY asks --
+    // what is the thinnest thing this face will actually present?
+    //
+    // ⚔ MUTATION: answering `kCellSubs` for every medium (WUX-5's one number, which makes
+    // a graphical boundary a whole text cell), or answering 1 for every medium (which
+    // floors to nothing in a character medium and leaves a pane with no edge at all).
+    CHECK(subs_of_one_device(0) == kCellSubs);          // a terminal: the cell IS the unit
+    CHECK(subs_of_one_device(-4) == kCellSubs);         // ...and nonsense reads the same way
+    CHECK(subs_of_one_device(kCanvasCellPx) == kCellSubs / kCanvasCellPx); // one pixel
+    CHECK(subs_of_one_device(kCanvasCellPx) == kPixelGrainSubs);
+    CHECK(subs_of_one_device(kCanvasCellPx) < subs_of_one_device(0));
+
+    // IT IS THE SMALLEST SPAN THAT READS BACK AS ONE UNIT, on every cell size a medium
+    // could report -- including the ones the lattice does not divide evenly, where a
+    // division would answer zero and a boundary would disappear.
+    for (std::int64_t cell = 1; cell <= 3 * kCellSubs; ++cell) {
+        CAPTURE(cell);
+        const std::int64_t one = subs_of_one_device(cell);
+        REQUIRE(one >= 1);
+        REQUIRE(device_of_subs(one, cell) >= 1);
+        if (one > 1) {
+            REQUIRE(device_of_subs(one - 1, cell) == 0);
+        }
+    }
+
+    // A MEDIUM FINER THAN THE LATTICE GETS THE FINEST THING THAT CAN BE SAID AT ALL, and
+    // says so rather than answering zero: one sub-unit, and its own floor decides the rest.
+    CHECK(subs_of_one_device(kCellSubs) == 1);
+    CHECK(subs_of_one_device(kCellSubs * 100) == 1);
+    CHECK(subs_of_one_device((std::numeric_limits<std::int64_t>::max)()) == 1);
+}
+
 TEST_CASE("WUX-6: each medium reports the device unit its own canvas is laid out at") {
     // ONLY A MEDIUM MAY SAY THIS. `surface/pointing.hpp` forbids an application to hold one
     // Skin's layout number, so the number has to arrive from the Skin -- on the same
