@@ -35,6 +35,16 @@ current.
   (`tests/test_timer.cpp`), 2 of 6 runs on current main and 4 of 6 on the commit before the
   compile-test repair — an open defect in weave loading under concurrent processes, measured
   as untouched by that repair rather than caused by it. Serial is green there.
+- **That same defect reaches Linux too, and what decides it is the BUILD TREE'S FILESYSTEM,
+  not the platform (QR-13).** The identical assertion at `tests/test_timer.cpp:1721` fails
+  4 of 4 parallel runs of the sanitizer lane at `-j24` when the tree is on `/mnt/g`, and
+  0 of 3 on an ext4 tree built from the same source — and it still fails 3 of 3 with the
+  `workshop_panes` entry excluded, so it is the defect and not whatever suite is nearby. It
+  is load-sensitive rather than absolute (`-j8`: one fail, one pass), and **serial is green
+  on both**. So "Linux/GCC parallel is safe" is a claim about a FAST tree; quote the
+  filesystem with the parallel number, and fall back to serial before suspecting your own
+  change. A `/mnt/g` tree is also ~2x slower to build than ext4 (measured 3m20s vs 1m29s,
+  same source, same `-j24`), which is reason enough to keep the working tree off it.
 - **A parallel lane's floor is its LONGEST ENTRY, not its total.** What the parallel number
   buys is bounded by whichever single entry runs longest, so the thing worth watching is a
   suite growing past its neighbours — and the thing worth knowing before optimizing is which
@@ -63,6 +73,14 @@ workshop_files         where source comes from: the project browser, what a
 
 - **Pick the one your change can falsify** and build that target alone: a Workshop test edit
   costs one suite's compile now, not the whole file's.
+- **A SUITE IS NOT A FILE (QR-13).** One CTest entry runs one binary; how many translation
+  units that binary is built from is a compiler question, not a population one. `panes` is
+  five sources — `_seam`, `_window`, `_input`, `_introspection`, `_sampling` — under the one
+  `workshop_panes` entry and the one floor, because one MinGW Debug object could no longer
+  name all of its instantiations (see the platform traps below). Sources go in the suite's
+  `SOURCES` list, which is fail-closed: they share the target's definitions, includes and
+  link line by construction, and a source left out of it is not compiled — its cases then go
+  missing from the population, which the floor catches and the build does not.
 - **`tests/workshop_support.hpp` holds what more than one of them needs** — fixtures, canvas
   readers, the `Live` and `PaneRig` rigs. A helper one suite uses stays in that suite's file.
   It is not free: measured, the header adds ~0.4 s of parse to a translation unit that only
@@ -242,3 +260,19 @@ activation cursor and the header-only vocabularies).
   `relocation truncated to fit: IMAGE_REL_AMD64_SECREL against .debug_frame$...`, which reads
   like a broken repository and is not one. `zengine-warnings` carries the flag under
   `if(MINGW)`. Do not remove it because a build happens to link without it today.
+- **COFF has a SECOND, lower ceiling and `-mbig-obj` does not lift it (QR-13).** A section
+  name over eight bytes lives in the string table, and the eight-byte name field holds `/`
+  plus at most seven decimal digits — so the section-name string table stops at 9,999,999
+  bytes, whatever the section count is. `-mbig-obj` widens the section NUMBER, not the name
+  spelling. The two say different things, and the diagnostic tells you which one you met:
+  `string table overflow at offset 10000097` / `file too big` is this one;
+  `too many sections (N)` is the count. **Read the sentence before reaching for a flag** —
+  the flag was already present when panes met this.
+- **What spends that table is instantiations per object, four names each.** Every
+  vague-linkage function gets a COMDAT, and `-g` mirrors it into `.text$`, `.pdata$`,
+  `.xdata$` and `.debug_frame$` — the same mangled suffix stored four times. Measured, a TU
+  that includes `tests/workshop_support.hpp` and only constructs `PaneRig` and `Live` spends
+  **69%** of the table before it asserts anything, and the Workshop objects run 63–86%. So
+  the remedy is fewer instantiations per object — **another source under the same suite**,
+  not a flag and not fewer cases. Splitting has a floor it cannot go below; do not expect a
+  finer cut to buy proportionally more room.
