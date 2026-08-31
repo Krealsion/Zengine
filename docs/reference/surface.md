@@ -269,6 +269,15 @@ display truth at all nothing moves, because an uninformed move is a blind replay
 is applied after the position, so unmaximizing lands where the offer put the frame — and what
 the publisher then hears is the truth through the ordinary report, never an echo.
 
+The maximize also waits for the window's **room**, and a medium of your own has to do the same.
+An offer carries a position and a state, deliberately not a size: sizing the window is the
+canvas conversation's job and no other message may do it. So the normal rectangle a maximize is
+laid over is only half-known when the offer arrives, and a medium that maximizes right then
+freezes the other half at whatever size the window was created at — platforms do not let a
+maximized window be resized, so the picture that follows can no longer correct it, and the
+person unmaximizes onto a window they never chose. Hold the offered maximize, let the next
+picture size the window, let that picture be reported, and maximize after it.
+
 The Workshop package is the live consumer that pulled the canvas in. `SnakeVisual`
 remains the V1 payload the skins also accept directly — that named coupling is **not** dissolved:
 re-expressing snake's proven frames through the canvas is its own evidence-carrying move, and a
