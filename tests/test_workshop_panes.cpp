@@ -3140,6 +3140,254 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
 }
 
+// ============================================================================
+// WUX-6 -- the maker reads their pane in the language of the face in front of them
+// ============================================================================
+
+namespace {
+
+/// STEP THE ARRANGEMENT DESK TO ONE PANE, by the maker's own key. Bounded, so a
+/// reference the desk cannot reach fails with a sentence rather than spinning.
+inline void step_to(Live& t, const PaneRef& ref) {
+    for (int i = 0; i < 32; ++i) {
+        if (t.session().arrange.addressed() && t.session().arrange.pane == ref) {
+            return;
+        }
+        t.key(input::scan::kTab);
+    }
+    FAIL("the arrangement desk never stepped to ", ref_text(ref));
+}
+
+/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole
+/// number of the shipped window's pixels (four sub-units) and none of them is a
+/// whole number of cells -- the hostile value the phase's falsifier needs, chosen so
+/// that a green produced by values which happen to divide evenly is impossible.
+inline constexpr std::int64_t kOddPlaceX = 4 * 77;   //  77 px, 6 cells + 20/48
+inline constexpr std::int64_t kOddPlaceY = 4 * 53;   //  53 px, 4 cells + 20/48
+inline constexpr std::int64_t kOddWidth = 4 * 417;   // 417 px, 34 cells + 36/48
+inline constexpr std::int64_t kOddHeight = 4 * 233;  // 233 px, 19 cells + 20/48
+
+static_assert(kOddWidth % surface::kCellSubs != 0, "the falsifier must not divide evenly");
+static_assert(kOddPlaceX % surface::kCellSubs != 0, "the falsifier must not divide evenly");
+
+} // namespace
+
+TEST_CASE("WUX-6/SC-2: the arrangement notice speaks the unit the FACE reported") {
+    // The same authored value, read through two media, in two languages -- and the
+    // language is the medium's own answer about its canvas, never a constant Workshop
+    // holds. Nothing here authors anything: the two readings are of one desk.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    Setup& desk = live(t).setup.active;
+    const PaneRef builder = ref_of(panel::kBuilder);
+    REQUIRE(author_pane_place(desk, builder, kOddPlaceX, kOddPlaceY).accepted);
+    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kSubcells, kOddWidth},
+                             PaneSize{pane_unit::kSubcells, kOddHeight})
+                .accepted);
+    enter_arrange_desk(t);
+    step_to(t, builder);
+
+    // IN A TERMINAL, CELLS -- and every one of these four numbers is a projection this
+    // medium cannot say exactly, so every one of them wears the mark and the line names
+    // the reason ONCE.
+    const std::string in_cells = t.notice();
+    INFO(in_cells);
+    CHECK(in_cells.find("@~6,~4 ~34x~19 cells") != std::string::npos);
+    CHECK(in_cells.find("(~ projected)") != std::string::npos);
+    CHECK(in_cells.find(" px ") == std::string::npos);
+
+    // THE SAME DESK ON THE SHIPPED WINDOW: pixels, exactly, with nothing marked -- these
+    // are the numbers a hand at that face's own grain would have authored.
+    t.publish(loom::to_value(
+        surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
+    t.key(input::scan::kTab);
+    step_to(t, builder);
+    const std::string in_px = t.notice();
+    INFO(in_px);
+    CHECK(in_px.find("@77,53 417x233 px") != std::string::npos);
+    CHECK(in_px.find("(~ projected)") == std::string::npos);
+    CHECK(in_px.find("cells") == std::string::npos);
+
+    // AND THE AUTHORED VALUE IS UNTOUCHED BY EITHER READING. Looking is not authoring:
+    // the maker crossed two media, read two sentences, and the desk is the same desk.
+    const SetupPane* row = pane_of(t.session().setup.active, builder);
+    REQUIRE(row != nullptr);
+    CHECK(row->place.x == kOddPlaceX);
+    CHECK(row->place.y == kOddPlaceY);
+    CHECK(row->width.amount == kOddWidth);
+    CHECK(row->height.amount == kOddHeight);
+}
+
+TEST_CASE("WUX-6/SC-6: the notice says where a pane the maker did not place actually is") {
+    // A reactive axis's AUTHORED text is `-`, which is the truth and is not a rectangle.
+    // So a window still partly the code's answer -- which every pane on a fresh desk is --
+    // is followed by where it currently resolves, in the same unit, marked `now`.
+    Live t;
+    t.publish(loom::to_value(
+        surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
+    enter_arrange_desk(t);
+    step_to(t, ref_of(panel::kInfo));
+    const std::string reactive = t.notice();
+    INFO(reactive);
+    CHECK(reactive.find("-x-") != std::string::npos);
+    CHECK(reactive.find(" -- now @") != std::string::npos);
+    CHECK(reactive.find(" px") != std::string::npos);
+
+    // ...AND IT IS THE PANE'S OWN RECTANGLE, in that medium's unit, not a second answer.
+    const Screen sc = screen_of(t.session());
+    const PanelBounds b =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kInfo, sc);
+    CHECK(reactive.find("now " + fine_rect_text(b.resolved, t.session().cell_px)) !=
+          std::string::npos);
+
+    // ONCE THE MAKER HAS AUTHORED THE WHOLE WINDOW, the authored text IS the rectangle
+    // and saying it twice would be noise.
+    Setup& desk = live(t).setup.active;
+    REQUIRE(author_pane_place(desk, ref_of(panel::kInfo), subs(2), subs(2)).accepted);
+    t.key(input::scan::kTab);
+    step_to(t, ref_of(panel::kInfo));
+    CHECK(t.notice().find(" -- now @") != std::string::npos); // extents still reactive
+    REQUIRE(author_pane_size(desk, ref_of(panel::kInfo), PaneSize{pane_unit::kSubcells, subs(20)},
+                             PaneSize{pane_unit::kSubcells, subs(6)})
+                .accepted);
+    t.key(input::scan::kTab);
+    step_to(t, ref_of(panel::kInfo));
+    INFO(t.notice());
+    CHECK(t.notice().find(" -- now @") == std::string::npos);
+}
+
+TEST_CASE("WUX-6/SC-5+SC-7: the coarse step is the resize seam with a bigger delta") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    const PaneRef builder = ref_of(panel::kBuilder);
+    const PaneRef info = ref_of(panel::kInfo);
+    enter_arrange_desk(t);
+    step_to(t, builder);
+
+    const FineRect before =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder,
+                  screen_of(t.session()))
+            .resolved;
+    const SetupPane* other_before = pane_of(t.session().setup.active, info);
+    REQUIRE(other_before != nullptr);
+    const SetupPane other_copy = *other_before;
+
+    // ONE COARSE GROW: both axes, by `kCoarseStepCells`, anchored at the place.
+    t.key(input::scan::kEquals);
+    const SetupPane* row = pane_of(t.session().setup.active, builder);
+    REQUIRE(row != nullptr);
+    CHECK(row->width.mode == pane_unit::kSubcells);
+    CHECK(row->height.mode == pane_unit::kSubcells);
+    CHECK(row->width.amount == before.w + subs(kCoarseStepCells));
+    CHECK(row->height.amount == before.h + subs(kCoarseStepCells));
+
+    // IT GOES THROUGH THE EXISTING AUTHORING DOOR, so it cannot move the pane it is
+    // resizing: a bottom-right anchor writes no place at all, and the pane stays in the
+    // reactive stack it was seated in.
+    CHECK(row->place.mode == pane_unit::kDefault);
+
+    // AND IT MOVES NO OTHER PANE. There is no packing, no collision avoidance and no
+    // layout pass -- one row of one setup changed.
+    CHECK(*pane_of(t.session().setup.active, info) == other_copy);
+
+    // A SHRINK IS THE SAME DOOR WITH THE OPPOSITE SIGN, and returns the pane exactly.
+    t.key(input::scan::kMinus);
+    const SetupPane* back = pane_of(t.session().setup.active, builder);
+    REQUIRE(back != nullptr);
+    CHECK(back->width.amount == before.w);
+    CHECK(back->height.amount == before.h);
+    CHECK(*pane_of(t.session().setup.active, info) == other_copy);
+
+    // FOUR COARSE STEPS AND FOUR FINE ONES DIFFER ONLY IN THE DELTA -- one owner, one
+    // clamping law, and the coarse step is the fine step's own arithmetic.
+    for (int i = 0; i < kCoarseStepCells; ++i) {
+        t.key(input::scan::kRight, input::mod::kShift);
+        t.key(input::scan::kDown, input::mod::kShift);
+    }
+    const SetupPane* fine = pane_of(t.session().setup.active, builder);
+    REQUIRE(fine != nullptr);
+    CHECK(fine->width.amount == before.w + subs(kCoarseStepCells));
+    CHECK(fine->height.amount == before.h + subs(kCoarseStepCells));
+}
+
+TEST_CASE("WUX-6/SC-7: the coarse step is ordinary action vocabulary, not pane chrome") {
+    // WUX-5 took the permanent cheat sheets off the panes; a new gesture must not put one
+    // back. So the coarse step is discoverable exactly where every other gesture is -- the
+    // keymap, the band's legend, and the full hotkey view -- and nowhere else.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+
+    // IT IS AN ACTION WITH A DURABLE ID, which is what a maker's own keymap file rebinds --
+    // and the id is in the catalog for BOTH scopes, which is what the file can say.
+    REQUIRE(row_of_id("manage.grow") != nullptr);
+    REQUIRE(row_of_id("manage.shrink") != nullptr);
+    CHECK(row_of_id("manage.grow")->act == Act::kManageGrow);
+    CHECK(row_of_id("manage.shrink")->act == Act::kManageShrink);
+
+    // ...BOUND IN BOTH ARRANGING SCOPES, so one maker override moves both (ARR-0's rule
+    // for every action the two scopes share).
+    const Keymap& keys = t.session().keymap;
+    CHECK(keys.action_for(KeyContext::kArrangePane, input::scan::kEquals, input::mod::kNone) ==
+          Act::kManageGrow);
+    CHECK(keys.action_for(KeyContext::kArrangeDesk, input::scan::kEquals, input::mod::kNone) ==
+          Act::kManageGrow);
+    CHECK(keys.action_for(KeyContext::kArrangePane, input::scan::kMinus, input::mod::kNone) ==
+          Act::kManageShrink);
+    CHECK(keys.action_for(KeyContext::kArrangeDesk, input::scan::kMinus, input::mod::kNone) ==
+          Act::kManageShrink);
+
+    // AND THE SCREEN'S OWN VOICE SAYS SO, in the maker's own bindings. The band's legend
+    // packs a context's rows LEFT TO RIGHT in declaration order and cuts what does not fit
+    // (KEY-0), so a gesture's place in the catalog is what decides whether a maker ever
+    // meets it without opening the full view -- and this is the gesture a maker on a
+    // shipped desk reaches for first. Witnessed live on the graphical face, where the
+    // legend cut the coarse step off the right-hand end until it was moved forward.
+    enter_arrange_desk(t);
+    const Screen sc = screen_of(t.session());
+    std::string band;
+    for (const std::int64_t y : {sc.help_y, sc.help_y + 1}) {
+        band += inspector_row(t.canvases.back(), 0, y) + " | ";
+    }
+    INFO(band);
+    CHECK(band.find("grow") != std::string::npos);
+    CHECK(band.find("shrink") != std::string::npos);
+
+    t.key(input::scan::kK, input::mod::kCtrl);
+    REQUIRE(t.session().hotkeys.open);
+    const std::string view = panel_text(
+        t.canvases.back(), pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
+    INFO(view);
+    CHECK(view.find("grow") != std::string::npos);
+    CHECK(view.find("shrink") != std::string::npos);
+}
+
+TEST_CASE("WUX-6/SC-5: a coarse shrink meets the same per-axis refusal a fine one does") {
+    // REFUSE-NEVER-CLAMP, PER AXIS (WUX-2a), unchanged: an axis whose proposal is illegal
+    // keeps its own value while the independent axis still settles. The coarse step
+    // inherits this because it IS the same proposal, not because it repeats the rule.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 0, 0, 0}));
+    open_pane(t, ref_of(panel::kBuilder));
+    const PaneRef builder = ref_of(panel::kBuilder);
+    Setup& desk = live(t).setup.active;
+    REQUIRE(author_pane_size(desk, builder, PaneSize{pane_unit::kSubcells, subs(2)},
+                             PaneSize{pane_unit::kSubcells, subs(20)})
+                .accepted);
+    enter_arrange_desk(t);
+    step_to(t, builder);
+
+    t.key(input::scan::kMinus);
+    const SetupPane* row = pane_of(t.session().setup.active, builder);
+    REQUIRE(row != nullptr);
+    CHECK(row->width.amount == subs(2));                           // refused, and KEPT
+    CHECK(row->height.amount == subs(20) - subs(kCoarseStepCells)); // still settled
+
+    // NOTHING IS CLAMPED TO A WALL THE MAKER NEVER REACHED.
+    CHECK(row->width.amount != subs(1));
+}
+
 TEST_CASE("ARR-0: stepping names the pane, its state and its authored window in words") {
     // THE ROSTER PANEL IS RETIRED; the statement moved to where a keyboard maker already
     // reads -- the notice line -- and it carries the pane's STATE word, which is what
@@ -5053,7 +5301,11 @@ struct ComposeRig {
     std::vector<std::string> refused_;
     std::int64_t asks = 0;
 
-    ComposeRig() {
+    /// `default_size` LEAVES THE PANE EXACTLY AS THE SHIPPED DESK OPENS IT -- the
+    /// developer's answer, untouched -- which is what WUX-6's desk-level witness has to
+    /// start from. Every other case wants the room its form was composed for and says so
+    /// below.
+    explicit ComposeRig(bool default_size = false) {
         r.mount_workshop();
         r.ready();
         // A PANE BIG ENOUGH TO READ WHOLE. The windowing is the pure suite's claim;
@@ -5071,17 +5323,22 @@ struct ComposeRig {
         // its form was composed for, through the same authoring door a maker's own resize
         // goes through.
         //
-        // ⚠ THAT THE DEFAULT SLOT NO LONGER HOLDS THE FORM IS A PRODUCT FINDING and is
-        // recorded as one rather than papered over here: at six body rows the footer's
+        // ⚠ THAT THE DEFAULT SLOT DOES NOT HOLD THE FORM IS A PRODUCT FINDING (WUX-5) and
+        // is recorded as one rather than papered over here: at six body rows the footer's
         // fixed two-row demand leaves the field list one row, which `window_of` can spend
-        // only on its own marker -- a Submit above a form with no fields in it. The repair
-        // belongs to the Composer's own composition priority, not to this phase.
-        REQUIRE(author_pane_size(
-                    r.session().setup.active, composer_ref(), PaneSize{pane_unit::kDefault, 0},
-                    PaneSize{pane_unit::kSubcells,
-                             surface::subs_of_cells(kStackRows + 2 * kChromeCells)})
-                    .accepted);
-        r.extent(240, 81); // one more row, so the authored height is reconciled and granted
+        // only on its own marker -- a Submit above a form with no fields in it. WUX-6
+        // closed it at the DESK: one coarse grow gives the pane the room, through the
+        // maker's own key, and `composer/view.hpp` is untouched. The staged size here is
+        // still the shorter road for a case whose subject is the conversation.
+        if (!default_size) {
+            REQUIRE(author_pane_size(
+                        r.session().setup.active, composer_ref(),
+                        PaneSize{pane_unit::kDefault, 0},
+                        PaneSize{pane_unit::kSubcells,
+                                 surface::subs_of_cells(kStackRows + 2 * kChromeCells)})
+                        .accepted);
+            r.extent(240, 81); // one more row, so the authored height is reconciled
+        }
         for (const RuntimePane& row : r.session().panels.runtime.entries) {
             if (row.provider == std::string(kComposerOffice)) {
                 kind = row.kind;
@@ -5196,6 +5453,24 @@ struct ComposeRig {
     /// Point the keyboard at this pane without meaning anything by it: row 0 of the
     /// body is the target line, which names no item.
     void focus() { press_row(0); }
+
+    /// HAND THE KEYBOARD BACK TO THE ROOM. A press into a pane points the keys at it
+    /// (MSG-0), and a focused pane outranks the command context -- so a maker who has
+    /// been working in this pane and now wants the DESK presses the room first. The cell
+    /// is found by asking the same occupancy walk the pointer asks, never spelled here.
+    void press_room() {
+        const Screen sc = screen_of(r.session());
+        for (std::int64_t y = sc.room_h - 1; y >= 0; --y) {
+            for (std::int64_t x = sc.room_w - 1; x >= 0; --x) {
+                if (!occupied_at(r.session().panels, r.session().setup.active, sc, x, y)
+                         .occupied) {
+                    r.press_cell(x, y);
+                    return;
+                }
+            }
+        }
+        FAIL("this screen has no empty room to press");
+    }
 
     /// SCROLL UNTIL THIS ROW IS ON SCREEN -- and it is the maker's own gesture rather
     /// than a test's shortcut.
@@ -5355,6 +5630,74 @@ TEST_CASE("MSG-0: a maker fills a generated form and SUBMITS a real StartTimer")
     CHECK_FALSE(r.shows("Delivered"));
     CHECK_FALSE(r.shows("Accepted"));
     CHECK_FALSE(r.shows("Timer created"));
+}
+
+TEST_CASE("WUX-6/SC-7: one coarse grow gives the DEFAULT Compose pane a usable form") {
+    // THE PRESSURE WUX-5 MEASURED AND REPORTED RATHER THAN REPAIRED, closed at the desk.
+    // The pane is exactly the size the shipped desk opens it at; nothing here reaches into
+    // the Composer, nothing changes its composition priorities, and the repair is the
+    // maker's own ordinary key on the maker's own pane.
+    ComposeRig r(/*default_size=*/true);
+    r.with_timer();
+    r.select(kTimerOffice, "zengine-timer");
+    r.focus();
+    r.choose("StartTimer v1");
+
+    // AT THE DEVELOPER'S DEFAULT: the footer is there and the form is not. This is the
+    // regression, measured off the published canvas rather than asserted.
+    const std::vector<std::string> tight = r.rows();
+    INFO("default rows: " << tight.size());
+    for (const std::string& row : tight) {
+        INFO(row);
+    }
+    CHECK(r.shows("[ Submit ]"));
+    CHECK_FALSE(r.shows("id:Text"));
+    CHECK_FALSE(r.shows("delay_ms:Int"));
+    CHECK_FALSE(r.shows("repeat:Bool"));
+
+    // ONE COARSE GROW, THROUGH THE ARRANGEMENT DESK, on the pane the maker addressed.
+    // The room is pressed first because working in a pane points the keys at it (MSG-0),
+    // and a focused pane outranks the command context that owns `w`.
+    r.press_room();
+    r.key(input::scan::kW);
+    r.type("w");
+    REQUIRE(r.r.session().arrange.open);
+    for (int i = 0; i < 32 && !(r.r.session().arrange.addressed() &&
+                                r.r.session().arrange.pane == composer_ref());
+         ++i) {
+        r.key(input::scan::kTab);
+    }
+    REQUIRE(r.r.session().arrange.pane == composer_ref());
+    r.key(input::scan::kEquals);
+    r.key(input::scan::kEscape);
+
+    // ...AND THE WHOLE FORM IS THERE, WITH ITS SUBMIT. Both, which is exactly what the
+    // default could not do.
+    const std::vector<std::string> roomy = r.rows();
+    INFO("grown rows: " << roomy.size());
+    for (const std::string& row : roomy) {
+        INFO(row);
+    }
+    CHECK(r.shows("StartTimer v1 -> @zengine.timer"));
+    CHECK(r.shows("id:Text"));
+    CHECK(r.shows("delay_ms:Int"));
+    CHECK(r.shows("repeat:Bool"));
+    CHECK(r.shows("[ Submit ]"));
+
+    // AND THE ROOM CAME FROM THE PANE, not from the provider changing its mind: the body
+    // the Composer was granted is `kCoarseStepCells` rows taller and nothing else moved.
+    CHECK(roomy.size() >= tight.size() + static_cast<std::size_t>(kCoarseStepCells));
+
+    // THE MAKER CAN STILL FINISH THE JOB -- the grown pane is a working pane, not a
+    // bigger picture of a broken one.
+    r.watch();
+    r.fill("id", "tick");
+    r.fill("delay_ms", "1000");
+    r.go_to("repeat");
+    r.key(input::scan::kTab);
+    r.act("[ Submit ]");
+    CHECK(r.shows("SUBMITTED"));
+    CHECK(r.delivered("StartTimer"));
 }
 
 TEST_CASE("MSG-0: `1O00` never leaves the pane, and the refusal is the ladder's own") {

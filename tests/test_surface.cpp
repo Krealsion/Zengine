@@ -450,16 +450,18 @@ TEST_CASE("contract: the surface shapes derive their locked spellings exactly") 
     CHECK(schema_of<PumpSurface>()->content_id() ==
           SchemaBuilder("PumpSurface", 1).build()->content_id());
 
-    // THE ONE SHAPE THAT TRAVELS MEDIUM -> PUBLISHER, at version 2: the room, and
-    // since HD-1 the size of one character of the medium's own type. Pinned in the
-    // order they are declared, because this is a wire: a medium and an application
-    // in two separately-loaded libraries agree about these four numbers or they
-    // agree about nothing.
-    CHECK(schema_of<SurfaceExtent>()->content_id() == SchemaBuilder("SurfaceExtent", 2)
+    // THE ONE SHAPE THAT TRAVELS MEDIUM -> PUBLISHER, at version 3: the room, since
+    // HD-1 the size of one character of the medium's own type, and since WUX-6 the
+    // size of one CANVAS CELL in that medium's device pixels. Pinned in the order
+    // they are declared, because this is a wire: a medium and an application in two
+    // separately-loaded libraries agree about these five numbers or they agree about
+    // nothing.
+    CHECK(schema_of<SurfaceExtent>()->content_id() == SchemaBuilder("SurfaceExtent", 3)
                                                           .field("width", Kind::Int)
                                                           .field("height", Kind::Int)
                                                           .field("text_advance_px", Kind::Int)
                                                           .field("text_line_px", Kind::Int)
+                                                          .field("cell_px", Kind::Int)
                                                           .build()
                                                           ->content_id());
 
@@ -4358,6 +4360,122 @@ TEST_CASE("WUX-2: the sub-cell conversions are exact, floored, and total") {
     CHECK(subs_of_cells(kMax) == kMaxCellsInSubs * kCellSubs);
     CHECK(subs_of_cells(-kMax) == -kMaxCellsInSubs * kCellSubs);
     CHECK(px_of_subs(kMax) == floor_div_px(kMaxCellsInPixels * kCanvasCellPx, kCellSubs));
+}
+
+TEST_CASE("WUX-6: a medium's own device unit, and whether it can say a value exactly") {
+    // `px_of_subs` is the SHIPPED face's half of the one quantization law. This is the
+    // same arithmetic with the layout number taken from whatever the medium REPORTED, so
+    // an application spelling a maker's geometry and a plan drawing it cannot come to
+    // disagree about where a fractional edge lands.
+    CHECK(device_of_subs(0, kCanvasCellPx) == 0);
+    for (std::int64_t v = -4 * kCellSubs; v <= 4 * kCellSubs; ++v) {
+        CAPTURE(v);
+        REQUIRE(device_of_subs(v, kCanvasCellPx) == px_of_subs(v));
+    }
+
+    // A MEDIUM WHOSE DEVICE UNIT IS THE CELL ANSWERS IN CELLS -- the vocabulary's zero,
+    // and `cell_of_subs` is already that medium's half of the same law.
+    for (std::int64_t v = -3 * kCellSubs; v <= 3 * kCellSubs; ++v) {
+        CAPTURE(v);
+        REQUIRE(device_of_subs(v, 0) == cell_of_subs(v));
+        REQUIRE(device_of_subs(v, -1) == cell_of_subs(v));
+    }
+
+    // THE BOUNDARIES ARE EVENLY SPACED ACROSS ZERO, both signs, exactly as every other
+    // conversion in this header floors: one sub-unit below a boundary is the unit below.
+    CHECK(device_of_subs(kCellSubs, kCanvasCellPx) == kCanvasCellPx);
+    CHECK(device_of_subs(kCellSubs - 1, kCanvasCellPx) == kCanvasCellPx - 1);
+    CHECK(device_of_subs(-1, kCanvasCellPx) == -1);
+    CHECK(device_of_subs(-kCellSubs, kCanvasCellPx) == -kCanvasCellPx);
+    CHECK(device_of_subs(-kCellSubs - 1, kCanvasCellPx) == -kCanvasCellPx - 1);
+
+    // AND IT IS TOTAL. Every argument arrives on the bus, so a hostile multiplier must
+    // produce an answer rather than a trap.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(device_of_subs(kMax, kMax) <= kMax);
+    CHECK(device_of_subs(-kMax, kMax) >= -kMax);
+    CHECK(device_of_subs(kMax, 1) >= 0);
+
+    // ---- CAN THIS MEDIUM SAY THIS VALUE AT ALL? --------------------------------------
+    //
+    // The half a maker-facing readout needs: `device_of_subs` always answers, and this
+    // says whether the answer IS the authored number or this medium's floor of it.
+    CHECK(subs_exact_in_device(0, kCanvasCellPx));
+    CHECK(subs_exact_in_device(0, 0));
+
+    // A WHOLE-CELL VALUE IS EXACT EVERYWHERE.
+    CHECK(subs_exact_in_device(subs_of_cells(40), 0));
+    CHECK(subs_exact_in_device(subs_of_cells(40), kCanvasCellPx));
+    CHECK(subs_exact_in_device(subs_of_cells(-3), 0));
+    CHECK(subs_exact_in_device(subs_of_cells(-3), kCanvasCellPx));
+
+    // A VALUE AT THE SHIPPED WINDOW'S PIXEL GRAIN IS EXACT IN PIXELS AND, IN GENERAL, IS
+    // NOT EXACT IN CELLS. That difference is the whole of authored-versus-projected.
+    CHECK(subs_exact_in_device(kCellSubs / kCanvasCellPx, kCanvasCellPx)); // one pixel
+    CHECK_FALSE(subs_exact_in_device(kCellSubs / kCanvasCellPx, 0));
+    CHECK(subs_exact_in_device(subs_of_cells(10) + 24, kCanvasCellPx));
+    CHECK_FALSE(subs_exact_in_device(subs_of_cells(10) + 24, 0));
+
+    // ...AND A VALUE FINER THAN THAT PIXEL IS A PROJECTION ON BOTH. The lattice is
+    // deliberately finer than any medium here, so it can hold values neither can say.
+    CHECK_FALSE(subs_exact_in_device(1, kCanvasCellPx));
+    CHECK_FALSE(subs_exact_in_device(1, 0));
+    CHECK_FALSE(subs_exact_in_device(subs_of_cells(10) + 1, kCanvasCellPx));
+
+    // EXACTLY THE MULTIPLES OF THE PIXEL GRAIN, swept rather than sampled.
+    for (std::int64_t v = 0; v < 2 * kCellSubs; ++v) {
+        CAPTURE(v);
+        REQUIRE(subs_exact_in_device(v, kCanvasCellPx) ==
+                (v % (kCellSubs / kCanvasCellPx) == 0));
+        REQUIRE(subs_exact_in_device(v, 0) == (v % kCellSubs == 0));
+    }
+
+    // AN EXACT VALUE ROUND-TRIPS THROUGH ITS OWN MEDIUM. That is what "exact" claims,
+    // and it is the property a readout is spending.
+    for (std::int64_t v = -2 * kCellSubs; v <= 2 * kCellSubs; ++v) {
+        CAPTURE(v);
+        if (subs_exact_in_device(v, kCanvasCellPx)) {
+            REQUIRE(device_of_subs(v, kCanvasCellPx) * kCellSubs / kCanvasCellPx == v);
+        }
+        if (subs_exact_in_device(v, 0)) {
+            REQUIRE(subs_of_cells(device_of_subs(v, 0)) == v);
+        }
+    }
+
+    // TOTAL AT THE EDGES HERE TOO: a multiplier that could overflow answers "not exact"
+    // rather than wrapping into a false claim of exactness.
+    CHECK_FALSE(subs_exact_in_device(kMax, kMax));
+}
+
+TEST_CASE("WUX-6: each medium reports the device unit its own canvas is laid out at") {
+    // ONLY A MEDIUM MAY SAY THIS. `surface/pointing.hpp` forbids an application to hold one
+    // Skin's layout number, so the number has to arrive from the Skin -- on the same
+    // message that already carries the room and the face metric.
+
+    // A TERMINAL'S ANSWER IS ZERO, and it is permanent rather than provisional: a terminal
+    // has no finer unit than its cell, ever.
+    const SurfaceExtent tui = tui_canvas_extent(TerminalSize{100, 40});
+    REQUIRE(tui.width == 100);
+    CHECK(tui.cell_px == 0);
+    CHECK(tui.text_advance_px == 0);
+
+    // AN UNMEASURED TERMINAL STILL SAYS NOTHING AT ALL -- one spelling of absence, and
+    // the new field is part of it rather than an exception to it.
+    const SurfaceExtent silent = tui_canvas_extent(TerminalSize{});
+    CHECK(silent.width == 0);
+    CHECK(silent.height == 0);
+    CHECK(silent.cell_px == 0);
+
+    // AND THE DEFAULT IS THE SAME ZERO: a value nobody has spoken reads as the answer that
+    // changes nothing.
+    const SurfaceExtent fresh_extent;
+    CHECK(fresh_extent.cell_px == 0);
+
+    // THE SHIPPED GRAPHICAL FACE LAYS ITS CANVAS OUT AT `kCanvasCellPx`, which is what
+    // `plan_canvas` draws by and what `extent_of_drawable` floors by -- so the number a
+    // medium reports and the number it draws with are one constant, consulted twice.
+    CHECK(extent_of_drawable(PlanSize{1200, 480}).width == 1200 / kCanvasCellPx);
+    CHECK(px_of_cells(1) == kCanvasCellPx);
 }
 
 TEST_CASE("WUX-2: one quantization law -- a span lands on device units by flooring both edges") {

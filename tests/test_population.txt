@@ -803,13 +803,53 @@
 # oversight: WUX-5 changed presentation, so what it cost those suites was re-pinning what a
 # pane's rows and a pane's granted room now measure -- not new cases.
 #
+# WUX-6 moved four floors -- surface 96 -> 98 (always), workshop_screen 187 -> 190,
+# workshop_panes 220 -> 226, workshop_persistence 127 -> 129 -- and the spread is the shape
+# of a phase whose subject is ONE authored value read through two faces:
+#
+#   surface (2)         the conversion itself. `device_of_subs` is `px_of_subs` with the
+#                       layout number taken from whatever the medium REPORTED, swept against
+#                       the shipped face's own answer over every value in four cells;
+#                       `subs_exact_in_device` is the other half -- whether that medium can
+#                       say the authored number at all -- swept rather than sampled, with
+#                       the round trip an exact answer claims required in both directions.
+#                       Beside them, the two media's own reports: a terminal's permanent
+#                       zero, and the shipped face's canvas laid out at `kCanvasCellPx`.
+#   workshop_screen (3) the spelling and the custody. The unit word, the mark, the whole
+#                       rectangle and the authored row in both faces; that Workshop holds
+#                       only what a medium said and invents nothing when nobody spoke; and
+#                       the falsifier for the whole phase -- two sessions identical but for
+#                       which medium spoke to them agree on every rectangle and every cell
+#                       of `occupied_at`, and differ only in the SENTENCE.
+#   workshop_panes (6)  the maker's side. The arrangement notice in each face and the
+#                       authored value surviving the crossing; where a pane the maker did
+#                       not place actually is; the coarse step through the existing resize
+#                       door, moving no other pane and meeting the same per-axis refusal;
+#                       its discoverability in the keymap and the help rather than in pane
+#                       chrome; and the DESK-LEVEL Compose witness -- six body rows and no
+#                       fields at the developer's default, the whole form and its Submit
+#                       after one grow, `composer/view.hpp` byte-identical.
+#   workshop_persist(2) that looking is not authoring. A geometry that cannot round-trip
+#                       through a terminal is authored, a whole session is spent LOOKING at
+#                       it through both media, and the file that closing writes is compared
+#                       BYTE FOR BYTE against one written by a session that never crossed.
+#                       Beside it: the medium's device unit reaches no durable file, and a
+#                       restore hands this run's unit back rather than resetting it.
+#
+# ALL THIRTEEN ARE IN THE `always` ROW, and the `sdl` rows did not move. Not one of them
+# needs a font engine or a window: the medium's device unit is an ARGUMENT here exactly as
+# the text metric has been since TYPE-0 -- a case says what the medium reported and reads
+# what Workshop then says. What an SDL cannot be asked in a headless lane is whether a real
+# window reports it, and that is a live witness rather than a case
+# (`Zen/reportbacks/WUX-6-RB.md`).
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
 timer                             doctest           always  82
 input                             doctest           always  42
 input                             doctest           sdl     3
-surface                           doctest           always  96
+surface                           doctest           always  98
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  35
@@ -817,10 +857,10 @@ operator                          doctest           always  103
 composer                          doctest           always  35
 builder                           doctest           always  53
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  187
+workshop_screen                   doctest           always  190
 workshop_panels                   doctest           always  155
-workshop_panes                    doctest           always  220
-workshop_persistence              doctest           always  127
+workshop_panes                    doctest           always  226
+workshop_persistence              doctest           always  129
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
 workshop_files                    doctest           always  82

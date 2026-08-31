@@ -264,10 +264,33 @@ that earned it) says it on the same lattice everything else is drawn on.
   reporting medium's grain travelling beside the position — a terminal says a cell's corner
   at grain 48, a window says a pixel at grain 4, and a consumer that spends cells and one
   that spends subs are reading ONE measurement.
-- **What stayed coarse, deliberately**: `SurfaceExtent` (the medium's room is whole cells —
-  the honest coarse fact), the canvas's own `width`/`height`, and the prose lattice (rows,
-  columns, carets, selections — a region's interior is the metric's business, not the
-  lattice's).
+- **What stayed coarse, deliberately**: the medium's ROOM is whole cells (`SurfaceExtent`'s
+  `width`/`height` — the honest coarse fact), the canvas's own `width`/`height`, and the
+  prose lattice (rows, columns, carets, selections — a region's interior is the metric's
+  business, not the lattice's).
+- **A MEDIUM SAYS HOW BIG ITS OWN CANVAS CELL IS, AND ONLY A MEDIUM MAY (WUX-6).**
+  `SurfaceExtent::cell_px` (v3) is that medium's device pixels per canvas cell; **ZERO means
+  "my device unit IS the cell"**, a terminal's permanent answer and the value of a run no
+  medium has spoken to. `device_of_subs(subs, cell_px)` is `px_of_subs` with the layout
+  number taken from that report rather than from the shipped Skin's constant — the SAME
+  arithmetic, asserted equal at `kCanvasCellPx` — and `subs_exact_in_device` is the other
+  half: whether that medium can say the authored number at all, which is the only honest
+  way to tell what a maker CHOSE from what a face can SHOW of it.
+  - **It exists because nothing else could say it.** `surface/pointing.hpp` forbids an
+    application to hold one Skin's layout number, and the only stamped moment was a
+    pointer's `input::space` — so a consumer that wanted to spell a maker's geometry in
+    device units had no honest source. The medium measures once and publishes the RESULT;
+    the application does the arithmetic. G-2's one-measurer rule, spent a second time, and
+    the text metric's precedent exactly.
+  - **⚠ It is NOT the text metric and must not be derived from one.** A window whose font
+    failed to open publishes `{w, h, 0, 0, kCanvasCellPx}`: it sets no type and still lays
+    its canvas out in pixels. `RegionFit::graphical()` answers a question about TYPE; this
+    answers a question about GEOMETRY. `report_extent` guards the whole value, because the
+    three facts move independently — a window opened late reports its unit late.
+  - **It is a REPORT, never durable.** Nothing persists it (`session_persist` says why about
+    the text metric, verbatim: it belongs to whichever medium opens the face and would be a
+    stale claim about somebody else's monitor), and no authored geometry is expressed in it.
+    A device unit that entered the lattice would be the thing `kCellSubs`' own header refuses.
 
 ## A region too small for the face is a CELL region (HD-5)
 
@@ -388,8 +411,10 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
 ## Do not assume
 
 - A metric identifies a graphical medium — `RegionFit::graphical()` is the partition, and a
-  window whose font failed to open publishes `{w,h,0,0}` and still lays its canvas out at
-  `kCanvasCellPx`.
+  window whose font failed to open publishes `{w,h,0,0,kCanvasCellPx}` and still lays its
+  canvas out at `kCanvasCellPx`. Since WUX-6 the last field is the honest question to ask
+  about GEOMETRY, and it still does not answer "what kind of medium is this": it says what
+  this medium's device unit IS, which is the only part a consumer ever needed.
 - A sub-cell remainder is device pixels — it is 1/`kCellSubs` of a CANVAS cell, a
   medium-independent fraction; the shipped skin's pixel happens to be four of them (12
   divides 48), which is an alignment worth having, not a contract a future medium must meet.
@@ -398,6 +423,8 @@ terminal backend drops their CSI sequences and the Win32 console backend maps th
   fine region fits at its fine place.
 - `kCanvasCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
   pointer may spend it only because the event carries `input::space::kPixels`, a stamp on that
-  moment. `SurfaceExtent` carries no such stamp.
+  moment. What a consumer may hold is the number the MEDIUM reported
+  (`SurfaceExtent::cell_px`, WUX-6): the same value on the shipped face, and a fact the medium
+  said about itself rather than one the application assumed about the medium.
 - A fifth semantic role can be added when a consumer wants one — `surface/vocabulary.hpp`
   refuses it; the vocabulary is deliberately closed.

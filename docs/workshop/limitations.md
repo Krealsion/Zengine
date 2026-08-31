@@ -70,6 +70,18 @@ What makes that cost more than one keypress: a fresh Workshop seeds two example 
 forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
 empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 
+### A pane's geometry is stored once and read in whatever unit your face uses
+
+Your pane geometry lives on one medium-independent grid. A graphical Workshop reads it back
+to you in **pixels** and a terminal reads it in **cells**, and where a face cannot say your
+number exactly it shows its nearest answer marked `~` and says `(~ projected)`.
+
+**Looking never authors.** Opening the same desk on the other medium, reading its geometry
+there, and saving writes back exactly the numbers you authored. Only a real gesture changes
+them. What is *not* here: you cannot author a different size for each medium, there is no
+per-medium override, and neither unit is Zen's "true" one. Detail in [reading a pane's
+geometry](panes.md#reading-a-panes-geometry--and-whose-number-it-is).
+
 ### The window comes back where you left it, into the desktop that exists now
 
 The last session restores the **size** of the Workshop window (in canvas cells, to the nearest
@@ -95,15 +107,17 @@ and none of those is claimed anywhere else either.
 ### Panes are 9 rows tall by default and a bigger terminal does not change that
 
 Width scales with the surface; height does not. A larger pane is authored by arranging it —
-drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), or grow it by
-keyboard at **one cell per press** with no coarse step and no "fill the room". It persists
-correctly once authored. Detail in [pane geometry](panes.md#pane-geometry).
+drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), press **`=`** for
+a coarse four-cell step on both axes, or `Shift`+arrows for one cell at a time. It persists
+correctly once authored. There is still no "fill the room" and no auto-fit. Detail in [pane
+geometry](panes.md#pane-geometry).
 
 One cell on each side of that rectangle is the pane's visible edge, so the default pane
 shows 46 columns by 7 rows. Two panes feel this most: the Builder drops its lowest-priority
 row at the default height, and the Compose pane's **form** does not fit one — it needs eight
 rows of body and the default grants six, so a form opened in a default-sized Compose pane
-shows its fields or its Submit control but not both. Make the pane taller and both return.
+shows its Submit control and none of its fields. **One `=` fixes it** and the whole form
+comes back; the default itself is unchanged.
 
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.

@@ -686,7 +686,8 @@ public:
     /// The rows are rebuilt because the `Resolved` row closes over the workspace extent, and
     /// the workspace extent is exactly what just changed.
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
-        if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px)) {
+        if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
+                          e.cell_px)) {
             return;
         }
         // THE NORMAL WINDOW'S ROOM FOLLOWS THE SCREEN, EXCEPT WHILE THIS RUN'S MEDIUM SAYS
@@ -3901,8 +3902,13 @@ private:
         // has. Reconciling first and resizing afterwards would seat the desk against a
         // viewport nobody asked for and leave whatever did not fit waiting for room that had
         // in fact been there the whole time.
+        // THE MEDIUM'S OWN FACTS ARE HANDED BACK UNCHANGED -- the face metric since HD-1 and
+        // the canvas's device unit since WUX-6. A restore replaces the ROOM, which is the
+        // only thing the file remembers; what the medium said about its own units is this
+        // run's and must survive the call rather than be reset to the character reading.
         if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
-                                          session_.text_advance_px, session_.text_line_px)) {
+                                          session_.text_advance_px, session_.text_line_px,
+                                          session_.cell_px)) {
             // The restored viewport IS the normal window's room -- the save wrote it from
             // exactly that (WUX-3) -- so the remembered pair starts equal to it rather
             // than waiting for the first extent to arrive.
@@ -4125,6 +4131,19 @@ private:
     /// moved -- and since the roster panel retired (ARR-0) it carries the pane's STATE
     /// word too, which is how an off-room or unresolved pane stays recoverable by ear:
     /// step to it, read what it is, reset it.
+    ///
+    /// IT SPEAKS THE ACTIVE FACE'S OWN UNIT (WUX-6). `session_.cell_px` is what the medium
+    /// itself reported about its canvas, so a maker on the shipped window reads pixels and
+    /// a maker in a terminal reads cells -- the same authored value, said in the language of
+    /// the thing in front of them. A number this face cannot say exactly wears `~` and the
+    /// line names the reason once; nothing about reading this sentence writes anything.
+    ///
+    /// AND IT SAYS WHERE THE PANE ACTUALLY IS WHEN THE MAKER DID NOT (SC-6). A window still
+    /// partly the code's answer -- which every pane on a fresh desk is -- cannot be measured
+    /// from the authored text, because the authored text of a reactive axis is `-`. So the
+    /// RESOLVED window is added, from `managed_bounds` (the unclipped ask, the same rectangle
+    /// a gesture measures from), and it is deliberately absent for a fully authored pane:
+    /// there the authored text already IS the rectangle.
     std::string arrange_status() const {
         const PaneArrange& a = session_.arrange;
         if (!a.addressed()) {
@@ -4139,7 +4158,15 @@ private:
             }
         }
         const SetupPane* row = pane_of(session_.setup.active, a.pane);
-        return "arrange " + ref_text(a.pane) + " (" + state + ") -- " + pane_window_text(row);
+        std::string text = "arrange " + ref_text(a.pane) + " (" + state + ") -- " +
+                           pane_window_text(row, session_.cell_px);
+        if (pane_window_partly_default(row)) {
+            const FineRect now = managed_bounds().resolved;
+            if (now.w > 0 && now.h > 0) {
+                text += " -- now " + fine_rect_text(now, session_.cell_px);
+            }
+        }
+        return text;
     }
 
     /// MOVE THE KEYBOARD'S TARGET BY ONE ROW, wrapping. Over `arrangeable()`, so an
@@ -4473,7 +4500,8 @@ private:
                 say(ref_text(ref) + " is already where that would put it", true);
                 return;
             }
-            say(ref_text(ref) + " " + what + " -- " + pane_window_text(pane_of(s, ref)),
+            say(ref_text(ref) + " " + what + " -- " +
+                    pane_window_text(pane_of(s, ref), session_.cell_px),
                 false);
             return;
         }
@@ -4503,7 +4531,7 @@ private:
             // to be reconciled for the same reason authoring one does.
             apply_setup(mail);
             say(ref_text(ref) + " " + what + " reset -- " +
-                    pane_window_text(pane_of(s, ref)),
+                    pane_window_text(pane_of(s, ref), session_.cell_px),
                 false);
             return;
         }
@@ -4562,6 +4590,20 @@ private:
         case Act::kManagePullRight: arrange_grow(+1, 0, mail); break;
         case Act::kManagePullUp: arrange_grow(0, -1, mail); break;
         case Act::kManagePullDown: arrange_grow(0, +1, mail); break;
+        // -- and the coarse step, on both axes at once (WUX-6) ---------------------------
+        //
+        // THE SAME FUNCTION, A BIGGER DELTA. There is no second geometry owner here and
+        // deliberately no second proposal: `arrange_grow` is the door a shifted arrow
+        // already goes through, anchored bottom-right, so a coarse step cannot move the
+        // pane, cannot move any other pane, and meets the identical per-axis settlement --
+        // a shrink that would take the width below one cell keeps the width and still
+        // shortens the height, refuse-never-clamp, per axis (WUX-2a).
+        case Act::kManageGrow:
+            arrange_grow(+kCoarseStepCells, +kCoarseStepCells, mail);
+            break;
+        case Act::kManageShrink:
+            arrange_grow(-kCoarseStepCells, -kCoarseStepCells, mail);
+            break;
         // -- ordering and removal, on the addressed pane --------------------------------
         case Act::kManageFront: spend_pane_action(Act::kManageFront, a.pane, mail); break;
         case Act::kManageBack: spend_pane_action(Act::kManageBack, a.pane, mail); break;

@@ -436,6 +436,13 @@ inline constexpr std::int64_t kTuiReservedRows = kTuiCanvasTopRow + kTuiScrollGu
 /// consumer of the metric already knows how to read. A TUI answering in pixels would be
 /// claiming a face it does not own.
 ///
+/// AND SO IS THE CANVAS ITSELF (WUX-6): `cell_px` is zero, which the vocabulary spells
+/// "this medium's device unit IS the canvas cell". That is a terminal's permanent
+/// answer rather than a starting one -- a terminal has no finer unit to report, ever --
+/// which is why it is the same zero the metric already carries and not a second kind of
+/// absence. A maker arranging a pane here reads CELLS because cells are what this
+/// medium can distinguish.
+///
 /// AN UNMEASURED TERMINAL AND A TERMINAL WITH NO ROOM LEFT BOTH ANSWER `{}`, and they
 /// are two different sentences — "nobody could tell me" and "there is not one row over"
 /// — that this medium has no way to say apart to its shell. `SkinT::report_extent`
@@ -447,7 +454,7 @@ inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept
     if (!t.measured() || t.rows <= kTuiReservedRows) {
         return SurfaceExtent{};
     }
-    return SurfaceExtent{t.cols, t.rows - kTuiReservedRows, 0, 0};
+    return SurfaceExtent{t.cols, t.rows - kTuiReservedRows, 0, 0, 0};
 }
 
 /// STANDARD BASE64, because OSC 52 speaks nothing else. Pure and total; no padding

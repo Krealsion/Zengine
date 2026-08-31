@@ -3831,6 +3831,156 @@ TEST_CASE("WUX-3: a run whose medium reports no placement RETAINS the remembered
     CHECK(read.placement.y == 220);
 }
 
+// ============================================================================
+// WUX-6 -- looking at a projection is not authoring one
+// ============================================================================
+
+namespace {
+
+/// A GEOMETRY NO MEDIUM HERE CAN SAY THE SAME WAY TWICE. Each number is a whole
+/// number of the shipped window's pixels (four sub-units) and none of them is a
+/// whole number of cells, so a green produced by values that happen to divide
+/// evenly is impossible here -- the phase's own requirement about this falsifier.
+inline constexpr std::int64_t kHostilePlaceX = 4 * 77;  //  77 px,  6 cells + 20/48
+inline constexpr std::int64_t kHostilePlaceY = 4 * 53;  //  53 px,  4 cells + 20/48
+inline constexpr std::int64_t kHostileWidth = 4 * 417;  // 417 px, 34 cells + 36/48
+inline constexpr std::int64_t kHostileHeight = 4 * 233; // 233 px, 19 cells + 20/48
+
+static_assert(kHostilePlaceX % surface::kCellSubs != 0, "must not divide evenly");
+static_assert(kHostilePlaceY % surface::kCellSubs != 0, "must not divide evenly");
+static_assert(kHostileWidth % surface::kCellSubs != 0, "must not divide evenly");
+static_assert(kHostileHeight % surface::kCellSubs != 0, "must not divide evenly");
+
+/// A desk holding exactly that, authored through the ordinary value doors.
+inline Setup hostile_desk() {
+    Setup s;
+    s.name = "Hostile";
+    REQUIRE(add_pane(s, ref_of(panel::kBuilder)));
+    REQUIRE(
+        author_pane_place(s, ref_of(panel::kBuilder), kHostilePlaceX, kHostilePlaceY).accepted);
+    REQUIRE(author_pane_size(s, ref_of(panel::kBuilder),
+                             PaneSize{pane_unit::kSubcells, kHostileWidth},
+                             PaneSize{pane_unit::kSubcells, kHostileHeight})
+                .accepted);
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("WUX-6/SC-4: a read-only visit through the other medium writes the SAME BYTES") {
+    // THE PHASE'S FALSIFIER. A geometry that cannot round-trip through a terminal without
+    // information loss is authored; a whole session is then spent LOOKING at it through
+    // both media -- opening the arrangement, stepping to the pane, reading its geometry in
+    // one unit and then the other -- and the file that closing writes is compared BYTE FOR
+    // BYTE against the file the same session writes having never crossed a medium at all.
+    //
+    // The two runs differ in exactly one thing: what the medium said about its own device
+    // unit. Same room, same desk, same gestures. If a projection could author, these bytes
+    // would differ, and the difference would be the projected answer.
+    TempDir dir("wux6-project");
+    const std::string never = dir.file("never-crossed.json");
+    const std::string crossed = dir.file("crossed.json");
+
+    {
+        Live t;
+        t.host.session_path = never;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
+        live(t).setup.active = hostile_desk();
+        t.key(input::scan::kQ);
+    }
+    {
+        Live t;
+        t.host.session_path = crossed;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
+        live(t).setup.active = hostile_desk();
+
+        // LOOK AT IT IN CELLS. Every number is a projection this medium cannot say.
+        enter_arrange_desk(t);
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kBuilder); ++i) {
+            t.key(input::scan::kTab);
+        }
+        REQUIRE(t.session().arrange.pane == ref_of(panel::kBuilder));
+        INFO(t.notice());
+        CHECK(t.notice().find("~34x~19 cells") != std::string::npos);
+        CHECK(t.notice().find("(~ projected)") != std::string::npos);
+
+        // NOW THE SAME DESK ON THE SHIPPED WINDOW, at the same room -- so the ONLY thing
+        // that changed about this run is which unit the maker is reading in.
+        t.publish(loom::to_value(
+            surface::SurfaceExtent{140, 44, 8, 18, surface::kCanvasCellPx}));
+        t.key(input::scan::kTab);
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kBuilder); ++i) {
+            t.key(input::scan::kTab);
+        }
+        INFO(t.notice());
+        CHECK(t.notice().find("@77,53 417x233 px") != std::string::npos);
+        CHECK(t.notice().find("(~ projected)") == std::string::npos);
+
+        // ...AND BACK, which is the direction that would show a write having happened.
+        t.publish(loom::to_value(surface::SurfaceExtent{140, 44, 0, 0, 0}));
+        t.key(input::scan::kTab);
+        for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(panel::kBuilder); ++i) {
+            t.key(input::scan::kTab);
+        }
+        CHECK(t.notice().find("~34x~19 cells") != std::string::npos);
+        t.key(input::scan::kEscape);
+        t.key(input::scan::kQ);
+    }
+
+    CHECK(slurp(crossed) == slurp(never));
+
+    // AND THE AUTHORED NUMBERS ARE THE ONES THAT WERE WRITTEN -- byte identity between two
+    // files that were both wrong the same way would prove nothing.
+    const session_persist::LoadedSession read = session_persist::load_file(crossed);
+    REQUIRE(read.outcome.accepted);
+    const SetupPane* row = pane_of(read.desk, ref_of(panel::kBuilder));
+    REQUIRE(row != nullptr);
+    CHECK(row->place.x == kHostilePlaceX);
+    CHECK(row->place.y == kHostilePlaceY);
+    CHECK(row->width.amount == kHostileWidth);
+    CHECK(row->height.amount == kHostileHeight);
+    // NOT the projected answers, which is what a medium writing back would have left.
+    CHECK(row->width.amount != subs(34));
+    CHECK(row->height.amount != subs(19));
+}
+
+TEST_CASE("WUX-6/SC-9: the medium's device unit reaches no durable file") {
+    // It is the text metric's own rule, for the text metric's own reason: how big a cell
+    // is belongs to whichever medium opens the face, is republished every run, and would
+    // be a stale claim about somebody else's monitor the moment it was written down.
+    TempDir dir("wux6-nofile");
+    const std::string path = dir.file("session.json");
+    {
+        Live t;
+        t.host.session_path = path;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(
+            surface::SurfaceExtent{140, 44, 8, 18, surface::kCanvasCellPx}));
+        REQUIRE(t.session().cell_px == surface::kCanvasCellPx);
+        live(t).setup.active = hostile_desk();
+        t.key(input::scan::kQ);
+    }
+    const std::string text = slurp(path);
+    INFO(text);
+    CHECK(text.find("cell_px") == std::string::npos);
+    CHECK(text.find("\"12\"") == std::string::npos);
+
+    // AND A RESTORE HANDS THIS RUN'S UNIT STRAIGHT BACK. A file remembers the ROOM; what
+    // the medium said about its own units is THIS run's, and the restore -- which adopts a
+    // remembered viewport through the same door -- must not reset it to the character
+    // reading and leave a maker on a window reading cells.
+    Live t;
+    t.host.session_path = path;
+    t.publish(loom::to_value(surface::SurfaceExtent{200, 60, 8, 18, surface::kCanvasCellPx}));
+    REQUIRE(t.session().cell_px == surface::kCanvasCellPx);
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.session().screen_w == 140);                      // the restore DID land...
+    CHECK(t.session().cell_px == surface::kCanvasCellPx);     // ...and cost nothing
+    CHECK(std::string(geometry_unit(t.session().cell_px)) == "px");
+}
+
 TEST_CASE("WUX-3: a restored maximized flag alone does not gate this run's viewport") {
     TempDir dir("wux3-stale-max");
     const std::string session = dir.file("session.json");
