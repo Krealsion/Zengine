@@ -974,6 +974,36 @@
 # cannot ask -- whether a real terminal and a real window paint and answer this run -- is the
 # phase's live witness pair (`Zen/reportbacks/WUX-9-RB.md`).
 #
+# QR-14 moved ONE floor -- workshop_screen 221 -> 225 -- and re-baselined a great many
+# assertions without adding a case to any other suite, which is the shape of a repair that
+# moves a band rather than adding a capability. The four new cases are the move's own claims:
+# the selector is canvas row 0 on both media and no tab is painted in the footer; the reserved
+# chrome was RE-HOMED and not added to (`kTopRows + kBottomRows == 6`, and `room_h` swept
+# against `h - 6` at every height from the minimum to 120); every owner of where the body
+# begins agrees -- the stack, the side region, the overlay column, `occupied_at`, a real press
+# and `workspace_cell_y`, each asked separately rather than through the constant they share;
+# and the tab inverse swept over EVERY cell of the screen, answering on row 0 and nowhere
+# else, with the painted cells and the answering cells proven to be the same set.
+#
+# WHAT ELSE MOVED WAS ARITHMETIC, and it is worth naming because it is the whole risk of this
+# repair: about fifty assertions across five suites named a canvas row, a rectangle or a band
+# row index. Each was re-derived from the constant that owns it rather than re-numbered by
+# hand where that was possible (`kSideY + kChromeCells`, `kStackY`, `kWorkspaceY`,
+# `workspace_row`), so the next band that moves moves them too.
+#
+# TWO MEASURED FACTS CHANGED RATHER THAN THEIR SPELLING, and both are consequences of the
+# body starting one row lower:
+#
+#   the Info column   is `room_h` cells tall now rather than one more than that, because the
+#                     side region begins under the full-width top band. `share_body_rows`
+#                     spends the smaller budget by its own policy: the minimum TUI panel
+#                     seats five object rows and five property rows where it seated five and
+#                     six.
+#   the stack/pane    overlap is TWO rows at the minimum screen where it was one, and one row
+#                     at the two heights above it where it was none -- the stack is anchored
+#                     to the workspace's top and the pane to the screen's foot. Still bounded,
+#                     still measured, still unrepaired for HD-10's own stated reason.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -999,7 +1029,7 @@ builder                           doctest           always  53
 # `FLOOR: workshop_panes selected 220 cases, below declared floor 233`.
 #
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  221
+workshop_screen                   doctest           always  225
 workshop_panels                   doctest           always  164
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  133

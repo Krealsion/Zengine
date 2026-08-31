@@ -1005,14 +1005,14 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
 
 // ---- Runtime spatial capacity -----------------------------------------------------
 
-TEST_CASE("the overlay floor is the setup line's row, not the notice line's") {
-    // THE BOUNDARY, STATED IN BOTH SPELLINGS AND MEASURED AGAINST THE COMPOSITION.
-    // Checking only against `notice_y` would call a second slot legal at the minimum
-    // extent and let it erase the row naming the arrangement a maker is in.
+TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's top row") {
+    // THE BOUNDARY, STATED IN BOTH SPELLINGS AND MEASURED AGAINST THE COMPOSITION. A slot
+    // allowed past it erases the row the tool speaks in -- the setup line's row before
+    // QR-14 moved the identity to the top band, and the NOTICE's row since.
     for (std::int64_t h : {22, 23, 24, 30, 40, 60}) {
         const Screen sc = screen_of(78, h);
         INFO("height ", h);
-        CHECK(kWorkspaceY + sc.room_h == sc.notice_y - 1);
+        CHECK(kWorkspaceY + sc.room_h == sc.notice_y);
         const std::size_t fits = stack_slots_that_fit(sc);
         for (std::size_t slot = 0; slot < fits; ++slot) {
             const ui::Rect b = placement_bounds(placement::kOverlayStack, slot, sc);
@@ -1051,7 +1051,7 @@ TEST_CASE("a second overlay at the minimum screen is refused before it reaches P
 cells_covered(bounds_of(r.session().panels, r.session().setup.active, p.kind, sc).rect);
         INFO("kind ", p.kind);
         CHECK(b.y + b.h <= kWorkspaceY + sc.room_h);
-        CHECK(b.y + b.h < sc.notice_y);
+        CHECK(b.y + b.h <= sc.notice_y); // the band's first row is not the panel's
     }
 }
 
@@ -1155,7 +1155,7 @@ TEST_CASE("opening an external pane grants exactly the fit_region room, authored
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     const ui::Rect panel =
 cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).rect);
-    CHECK(panel == ui::Rect{0, 1, 48, 9});
+    CHECK(panel == ui::Rect{0, 2, 48, 9});
     const ExternalBodyPlace body = external_body_place(
         fine_of_cells(panel), sc,
         external_title_rows(r.session().panels, kind, r.session().pane_titles));
@@ -1163,7 +1163,7 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     // it is unchanged, and the one cell of visible boundary on every side comes off before
     // the provider is told what it has -- the same reservation the header already was.
     const ui::Rect inside = pane_body_cells(panel);
-    CHECK(inside == ui::Rect{1, 2, 46, 7});
+    CHECK(inside == ui::Rect{1, 3, 46, 7});
     CHECK(body.region_x == inside.x);
     CHECK(body.region_y == inside.y);
     CHECK(body.region_w == inside.w);
@@ -1204,7 +1204,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     r.extent(100, 40);
     CHECK(screen_of(r.session()).w == 100);
     CHECK(bounds_of(r.session().panels, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 1, 59, 9}));
+          fine_of_cells(ui::Rect{0, 2, 59, 9}));
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
     CHECK(seat->rooms[1].columns == 57);   // moved: the columns are the room's share, inside
@@ -1221,7 +1221,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // survived: the slot's height is `kStackRows` whatever the surface does.
     r.extent(100, 52);
     CHECK(bounds_of(r.session().panels, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          fine_of_cells(ui::Rect{0, 1, 59, 9}));
+          fine_of_cells(ui::Rect{0, 2, 59, 9}));
     CHECK(seat->rooms.size() == 2);
 
     // A TEXT METRIC MOVES IT TOO: the same cells, set in a real face, hold fewer rows and

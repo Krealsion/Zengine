@@ -612,11 +612,12 @@ the last one it was told. See [workspace continuity](docs/workshop/setups.md#wor
 
 **On-screen hints** (so you need this page less): every hint is a projection of the
 effective keymap, so a remapped binding is spelled correctly everywhere it appears — the
-band's status row, its legend rows, each mode's heading, and the full hotkey view
-(`Ctrl`+`k`). The band composes its rows against the room the active medium's type actually
-fits — a terminal reads five rows (the status row with the layout tabs on it, the notice,
-the workspace size, two
-legend rows), a graphical window reads three in real type — and the legend preference
+first row, the bottom band's legend rows, each mode's heading, and the full hotkey view
+(`Ctrl`+`k`). Workshop's chrome is TWO bands, each composing its rows against the room the
+active medium's type actually fits. The **first row** is the layout selector and the setup's
+status (a terminal gives it two rows, the second carrying the workspace size; a graphical
+window gives it one, with the size folded in). The **bottom band** is the notice and the
+legend (a terminal reads four rows, a graphical window two). The legend preference
 (`full` / `compact` / `hidden`) in the keymap file governs the legend rows only; hidden
 blanks them and unbinds nothing.
 

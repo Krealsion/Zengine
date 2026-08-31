@@ -116,8 +116,29 @@ inline constexpr std::int64_t kScreenMinH = 22;
 inline constexpr std::int64_t kScreenMaxW = 640;
 inline constexpr std::int64_t kScreenMaxH = 400;
 
+/// THE BAND AT THE TOP OF THE SCREEN, and it is the first thing a maker reads (QR-14).
+///
+/// WHAT IT HOLDS is the LAYOUT SELECTOR and the standing identity beside it -- the run of
+/// layout tabs on the left and the setup's own status on the right (`top_band_region`), with
+/// the workspace's extent under them where the medium fits a second row. Which desk you are
+/// inhabiting is the outermost fact on this screen; WUX-9 composed it correctly and put it in
+/// the FOOTER, where a selector reads as an afterthought of the status area.
+///
+/// TWO CELLS, AND THE NUMBER IS THE FACE'S RATHER THAN A TASTE. One cell is `(12 - 2*inset) /
+/// 18` = ZERO rows of the shipped face, which is exactly why WUX-1 retired the old one-cell
+/// top row: a band that cannot hold a line of real type reaches a graphical maker as bitmap
+/// cells. Two cells hold one face row and two character rows, which is what this band says.
+///
+/// AND THE SCREEN RESERVES NO MORE THAN IT DID. `kWorkspaceY + kBottomRows` was 1 + 5 before
+/// this band existed -- one blank cell row at the top, five at the foot -- and is 2 + 4 now.
+/// `room_h` is therefore byte-identical, which is the property that matters: the workspace's
+/// extent is what a share resolves against, so chrome that moved must not resize a maker's
+/// document (PNL-0's rule, the same one WUX-1 obeyed by leaving row 0 empty rather than
+/// giving the room away).
+inline constexpr std::int64_t kTopRows = 2;
+
 inline constexpr std::int64_t kWorkspaceX = 0; ///< the workspace's origin ON THE CANVAS...
-inline constexpr std::int64_t kWorkspaceY = 1; ///< ...which authored coordinates are relative to
+inline constexpr std::int64_t kWorkspaceY = kTopRows; ///< ...under the top band, which owns row 0
 inline constexpr std::int64_t kWorkspaceMinW = 12; ///< narrow enough to make a share visibly shrink
 
 /// THE SIDE REGION (`placement::kSideRegion`): the column beside the workspace, FIXED, and
@@ -163,17 +184,35 @@ inline constexpr std::int64_t kPanelGap = 2; ///< cells between the workspace's 
 /// of the body's PROSE budget exactly the way an external pane's header row is
 /// (`kExternalHeaderRows`) -- one row of whatever type the active medium sets, before
 /// either list is offered anything.
-inline constexpr std::int64_t kSideY = 0; ///< the region's top edge: the canvas's own
+/// ⚠ THE REGION BEGINS UNDER THE TOP BAND (QR-14), where it used to begin at the canvas's
+/// own row 0. The top band is full width -- the layout selector is a fact about the whole
+/// Workshop and not about the workspace column -- so the side region starts where the
+/// workspace does and is exactly as tall. The measured cost is ONE cell row of panel: 17
+/// before, `room_h` now. `share_body_rows` spends whatever budget the rectangle resolves to,
+/// so the loss lands where that policy already decides it lands, and no branch was added.
+inline constexpr std::int64_t kSideY = kWorkspaceY; ///< the region's top edge: the body's own
 inline constexpr std::int64_t kInfoHeadingRows = 1; ///< prose rows the `OBJECTS` heading keeps
 
 /// The band under the workspace. FIXED for the same reason the panel is -- how many rows
 /// of chrome are worth reserving is a decision, not a share of the screen. WHAT the rows
 /// say is `band_region`'s (WUX-1): the band is one bounded region composed against the
-/// budget the ACTIVE medium fits in these five cells -- a character medium answers five
-/// rows (the setup line, the notice, the workspace fact, two legend rows), and the shipped
-/// 18-pixel face answers three, so the tool's own chrome is set in the tool's own type
-/// instead of one bitmap sentence per cell row.
-inline constexpr std::int64_t kBottomRows = 5;
+/// budget the ACTIVE medium fits in these four cells -- a character medium answers four
+/// rows (the notice, then the legend) and the shipped 18-pixel face answers two, so the
+/// tool's own chrome is set in the tool's own type instead of one bitmap sentence per cell
+/// row.
+///
+/// FOUR SINCE QR-14, AND THE FIFTH DID NOT VANISH -- IT MOVED. The setup identity and the
+/// workspace fact went to `kTopRows`, and what stays here is what genuinely belongs at the
+/// foot: what the tool just SAID, and what the keys mean right now. The reserved total is
+/// unchanged (`kTopRows + kBottomRows == 6`, the old blank row 0 plus the old five), so the
+/// body neither grew nor shrank. ⚠ Both numbers are the FACE's: four cells hold two rows of
+/// an 18-pixel line where five held three, so the shipped face reads the same notice and the
+/// same legend row it always did -- the third face row moved upstairs with the identity.
+inline constexpr std::int64_t kBottomRows = 4;
+
+static_assert(kTopRows + kBottomRows == 6,
+              "QR-14 re-homed the reserved chrome and may not add to it: the workspace's "
+              "extent is what a share resolves against");
 
 // ---- THE OVERLAY STACK (`placement::kOverlayStack`) -----------------------------------------
 //
@@ -359,8 +398,14 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.panel_x = s.w - kPanelCols;
     s.room_w = s.panel_x - kPanelGap;
     s.room_h = s.h - kWorkspaceY - kBottomRows;
-    s.notice_y = s.h - 4;
-    s.help_y = s.h - 2;
+    // THE BOTTOM BAND'S FIRST TWO ROWS, DERIVED FROM ITS HEIGHT RATHER THAN COUNTED BACK
+    // FROM THE SCREEN'S FOOT (QR-14). They used to be `h - 4` and `h - 2` against a five-row
+    // band whose first row was the setup line; the identity moved to the top band, so the
+    // notice is the band's own first row and the legend follows it. Written as the band's
+    // origin plus an offset, so a band that changes height cannot leave these two pointing
+    // at rows it no longer owns.
+    s.notice_y = s.h - kBottomRows;
+    s.help_y = s.notice_y + 1;
     // THE PANE, INSIDE THE ROOM THE SCREEN JUST RESERVED (HD-10). `room_w` is two lines up
     // and it is the whole of the fix: the pane's right edge is the workspace's right edge, so
     // the reserved side column is not the pane's to spend and does not have to know it. What
@@ -404,7 +449,15 @@ inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 static_assert(kMinScreen.panel_x == 50, "the panel column has not moved on the minimum screen");
 static_assert(kMinScreen.room_w == 48, "the workspace's documented default width");
 static_assert(kMinScreen.room_h == 16, "the workspace's documented default height");
-static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 20, "the bottom band");
+static_assert(kMinScreen.notice_y == 18 && kMinScreen.help_y == 19, "the bottom band");
+// THE MINIMUM COMPOSITION'S THREE REGIONS, WRITTEN OUT (QR-14), because the one thing this
+// repair must not do is move a row without moving everything that reads it. Rows 0-1 are the
+// top band, 2-17 the workspace, 18-21 the bottom band -- and the workspace's own 16 rows are
+// exactly what they were when the top row was blank and the bottom band was five.
+static_assert(kTopRows == 2 && kWorkspaceY == 2, "the top band owns rows 0 and 1");
+static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.h - kBottomRows,
+              "the workspace's floor IS the bottom band's top -- no cell between them, and "
+              "none reserved twice");
 // THE PANE'S CORNER AND EXTENT ON THE MINIMUM SCREEN, and both moved in HD-10 -- the only two
 // numbers in this file that did. It used to be 56x13 at (22, 9), with its right edge on the
 // screen's and 28 columns of it standing in the reserved side column; it is 48x13 at (0, 9)
@@ -1107,18 +1160,20 @@ inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
 /// answer to "may another panel be presented", asked before anything reaches
 /// `Panels::open`.
 ///
-/// THE FLOOR IS THE WORKSPACE'S BOTTOM AND NOT THE NOTICE LINE, and the
-/// difference is one row that carries a sentence:
+/// THE FLOOR IS THE WORKSPACE'S BOTTOM, which since QR-14 is the bottom band's
+/// own top edge:
 ///
-///     kWorkspaceY + sc.room_h  ==  sc.notice_y - 1
+///     kWorkspaceY + sc.room_h  ==  sc.notice_y
 ///
-/// -- the row directly under the workspace, which WS-0 spent on the SETUP LINE.
-/// A capacity checked against `notice_y` would call a second slot legal at the
-/// minimum composition and let it erase the line naming the arrangement a maker
-/// is in. The two expressions are equal by `screen_of`'s own arithmetic
-/// (`room_h = h - kWorkspaceY - kBottomRows`, `notice_y = h - 4`), asserted
-/// under this function, and the one written here is the one that says WHY: the
-/// stack lives in the workspace's room and the bottom band is somebody else's.
+/// -- the first row the band owns, which is the NOTICE's now and was the setup
+/// line's before the identity moved upstairs. A slot allowed to end below this
+/// erases the row the tool speaks in, which is what the floor exists to refuse;
+/// what changed in QR-14 is only which sentence sits on the first band row, not
+/// that the stack lives in the workspace's room and the band is somebody else's.
+/// The two expressions are equal by `screen_of`'s own arithmetic
+/// (`room_h = h - kWorkspaceY - kBottomRows`, `notice_y = h - kBottomRows`),
+/// asserted under this function, and the one written here is the one that says
+/// WHY.
 ///
 /// THE SLOTS ARE ASKED OF `placement_bounds`, NOT COMPUTED FROM `kStackRows`.
 /// There is no second arithmetic here and there must not be: whatever moves a
@@ -1145,9 +1200,9 @@ inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     return StackCapacity{stack_slots_that_fit(sc)};
 }
 
-static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y - 1,
-              "the overlay floor is the row under the workspace, which is the setup line: "
-              "a capacity measured against notice_y would let a second slot erase it");
+static_assert(kWorkspaceY + kMinScreen.room_h == kMinScreen.notice_y,
+              "the overlay floor is the workspace's bottom, which is the bottom band's own "
+              "top row: a slot allowed past it would erase the row the tool speaks in");
 static_assert(stack_slots_that_fit(kMinScreen) == 1,
               "the minimum composition has room for exactly one overlay panel");
 
@@ -8393,12 +8448,26 @@ inline constexpr const char* kNoSetupFileShown = "no setup file";
 /// narrow enough for the chrome to exceed it still shows some of what is being typed.
 inline constexpr std::int64_t kSetupNameMinCols = 8;
 
-/// THE BAND'S RECTANGLE AND ITS FIT -- the one resolution the status row, the name
-/// editor's window and the composition below all measure against (WUX-1). The band is the
-/// last `kBottomRows` cell rows, full width; what those cells hold is the ACTIVE medium's
-/// answer, through the same `fit_region` every bounded region resolves with. A character
-/// medium answers five rows of the band's own cells; an 18-pixel face answers three rows
-/// of real type.
+/// THE TWO BANDS' RECTANGLES AND THEIR FITS -- the resolutions every row of Workshop's own
+/// chrome measures against (WUX-1, split by QR-14). Each is full width and its cells hold
+/// whatever the ACTIVE medium answers, through the same `fit_region` every bounded region
+/// resolves with.
+///
+///     top      rows 0..kTopRows-1        the layout selector and the setup's standing status
+///     bottom   the last kBottomRows      what the tool just said, and what the keys mean now
+///
+/// A character medium answers two rows of the top band and four of the bottom; the shipped
+/// 18-pixel face answers one and two. Three face rows either way -- the split moved one of
+/// them to the top rather than buying or spending any.
+inline constexpr ui::Rect top_band_bounds(const Screen& sc) noexcept {
+    return ui::Rect{0, 0, sc.w, kTopRows};
+}
+
+inline constexpr surface::RegionFit top_band_fit(const Screen& sc) noexcept {
+    const ui::Rect b = top_band_bounds(sc);
+    return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+}
+
 inline constexpr ui::Rect band_bounds(const Screen& sc) noexcept {
     return ui::Rect{0, sc.h - kBottomRows, sc.w, kBottomRows};
 }
@@ -8411,14 +8480,16 @@ inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
 /// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
 /// the window the `component::TextBox` is kept against and the slice the painter cuts are the
 /// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
-/// the row it is drawn on (HD-4). The room is the BAND'S row, not the screen's cell width
-/// (WUX-1): in a character medium the two are the same number, and in a medium that sets
-/// real type the editor's row holds however many characters the face fits.
+/// the row it is drawn on (HD-4). The room is the TOP BAND'S row, not the screen's cell width
+/// (WUX-1, re-homed by QR-14): in a character medium the two are the same number, and in a
+/// medium that sets real type the editor's row holds however many characters the face fits.
+/// The editor takes the identity row wherever that row is, so this measures the band the
+/// identity is on rather than a band it used to be on.
 inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
         static_cast<std::int64_t>(setup_name_hint(keymap).size()) + 1;
-    const std::int64_t room = band_fit(sc).columns - chrome;
+    const std::int64_t room = top_band_fit(sc).columns - chrome;
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
 
@@ -8697,7 +8768,7 @@ struct BandStatus {
 
 inline BandStatus band_status(const Session& s, const std::string& setup_path,
                               const Screen& sc) {
-    const surface::RegionFit fit = band_fit(sc);
+    const surface::RegionFit fit = top_band_fit(sc);
     BandStatus out;
     if (fit.rows <= 0 || fit.columns <= 0) {
         return out;
@@ -8708,7 +8779,11 @@ inline BandStatus band_status(const Session& s, const std::string& setup_path,
     std::string line = run.text;
     line += " | ";
     line += setup_status_text(s.setup, setup_path, s.panels.runtime, s.keymap);
-    if (fit.rows < 5) {
+    // THE WORKSPACE FACT FOLDS IN WHERE THE TOP BAND HAS NO SECOND ROW FOR IT -- WUX-1's
+    // fold, unchanged in kind and re-measured against the band it is now on (QR-14). A
+    // character medium gives the fact its own row; the shipped face's single row carries
+    // both.
+    if (fit.rows < 2) {
         line += " | " + workspace_text(s);
     }
     out.text = detail::fit(std::move(line), fit.columns);
@@ -8735,14 +8810,15 @@ inline BandStatus band_status(const Session& s, const std::string& setup_path,
 inline constexpr std::int64_t kNoBandRow = -1;
 
 inline std::int64_t band_tab_row(const Session& s, const Screen& sc) noexcept {
-    const surface::RegionFit fit = band_fit(sc);
+    const surface::RegionFit fit = top_band_fit(sc);
     if (fit.rows <= 0 || fit.columns <= 0 || s.setup.naming.open) {
         return kNoBandRow;
     }
-    if (fit.rows >= 2) {
-        return 0;
-    }
-    return s.notice.empty() ? 0 : kNoBandRow;
+    // THE IDENTITY IS THE TOP BAND'S FIRST ROW WHENEVER THE BAND HAS ONE (QR-14). It used to
+    // share a band with the notice, so at a one-row budget the tool's voice outranked it and
+    // there was no tab row at all; the notice lives at the foot now, and nothing on this band
+    // can displace the selector but the name editor taking its row.
+    return 0;
 }
 
 /// WHICH LAYOUT A PRESS LANDED ON, or none -- the exact inverse of what was painted.
@@ -8763,8 +8839,13 @@ inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_pat
     if (row == kNoBandRow) {
         return {};
     }
-    const ui::Rect b = band_bounds(sc);
-    const ProseAt at = prose_at(space, x, y, b.x, b.y, band_fit(sc));
+    // ⚠ THE PRESS IS RESOLVED AGAINST THE BAND THE TABS ARE PAINTED ON, and after QR-14
+    // that is the TOP band. A stale bottom-band origin here would answer a press at the old
+    // footer row and ignore the row a maker can actually see -- the exact one-row lie this
+    // repair exists to make unsayable, and the reason the origin is taken from the same
+    // `top_band_bounds` the painter publishes at.
+    const ui::Rect b = top_band_bounds(sc);
+    const ProseAt at = prose_at(space, x, y, b.x, b.y, top_band_fit(sc));
     if (!at.understood || at.row != row) {
         return {};
     }
@@ -8776,41 +8857,56 @@ inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_pat
     return {};
 }
 
-// ---- THE BOTTOM BAND, COMPOSED AGAINST ITS BUDGET (WUX-1) --------------------------------
+// ---- THE TWO BANDS, EACH COMPOSED AGAINST ITS BUDGET (WUX-1, split by QR-14) --------------
 //
-// ONE REGION, AND THE ROWS ARE DECIDED BY HOW MANY THE ACTIVE MEDIUM FITS. Until WUX-1 the
-// band was five independent one-cell voices -- a label per sentence -- which is why every
-// one of them reached a graphical maker as bitmap cells: `fit_region` answers zero face
-// rows for one cell, and no typography fixes a room (WUX-R1's finding, HD-6's repair
-// applied to the screen's own furniture). Now the band takes its room ONCE and composes:
+// TWO REGIONS, AND EACH ONE'S ROWS ARE DECIDED BY HOW MANY THE ACTIVE MEDIUM FITS. Until
+// WUX-1 this was five independent one-cell voices -- a label per sentence -- which is why
+// every one of them reached a graphical maker as bitmap cells: `fit_region` answers zero face
+// rows for one cell, and no typography fixes a room (WUX-R1's finding, HD-6's repair applied
+// to the screen's own furniture). WUX-1 made it one region that takes its room once and
+// composes; QR-14 made it two, because the five facts were never one kind of thing:
 //
-//     budget >= 5   status | notice | workspace | two legend rows     a character medium:
-//                                                                     exactly the five rows
-//                                                                     this band always had
-//     budget == 4   status+workspace | notice | two legend rows
-//     budget == 3   status+workspace | notice | one legend row        the shipped face
-//     budget == 2   status+workspace | notice
-//     budget == 1   the one row that matters most right now
+//     TOP     budget >= 2   identity | workspace         a character medium's two rows
+//             budget == 1   identity+workspace           the shipped face's one
+//
+//     BOTTOM  budget >= 2   notice | legend, budget-1 rows
+//             budget == 1   the notice while there is one, else the legend's first row
+//
+// WHICH BAND A FACT BELONGS TO IS ITS OWN NATURE. The layout selector and the setup's status
+// say WHICH DESK YOU ARE IN, and the workspace fact says how big it resolves against -- one
+// standing identity, and the outermost thing on the screen, so it is the first row of it. The
+// notice is what the tool JUST SAID and the legend is what the keys mean right now: both are
+// about the gesture a maker is making, and both stay at the foot where a maker's eye goes
+// after acting. WUX-9 composed the selector correctly and left it in the footer, where a
+// selector reads as an afterthought of the status area; that is the whole of what QR-14
+// moved.
 //
 // THE LAYOUT IS THE BUDGET'S AND ONLY THE BUDGET'S. The legend preference changes what the
 // legend rows SAY (full | compact | hidden), never where any other fact sits -- a maker
-// toggling the legend must not watch the status row reformat. Facts degrade in a fixed
-// order: the legend first (the full hotkey view remains the authoritative list, one
-// keystroke away in every mode), the workspace fact folds into the status row, and the
-// last row standing is the notice while there is one -- the tool's own voice -- or the
-// identity line when there is not. Every fold and every cut is `detail::fit`-marked, never
-// silent.
+// toggling the legend must not watch the identity row reformat. Facts degrade in a fixed
+// order within each band: the workspace fact folds into the identity row where the top band
+// has no second one, and at the foot the legend gives way to the notice. Every fold and every
+// cut is `detail::fit`-marked, never silent.
 //
 // THE CONTENT STAYS SINGLE-SOURCED. The legend rows are `help_pairs` projections of the
-// effective keymap exactly as before; the status row is `setup_status_text`; nothing here
-// grows a second binding truth or a second status truth. What changed is the VOICE: the
-// band is a region, so a medium that owns a face sets the tool's own chrome in it.
+// effective keymap exactly as before; the identity row is `band_status` over
+// `setup_status_text`; nothing here grows a second binding truth or a second status truth.
+// What each band owns is a RECTANGLE, and neither one may write in the other's.
 
-/// The band as one published region: rows, the name editor's caret, and its selection.
-inline surface::SurfaceTextRegion band_region(const Session& s, const std::string& setup_path,
-                                              const Screen& sc) {
-    const ui::Rect b = band_bounds(sc);
-    const surface::RegionFit fit = band_fit(sc);
+/// THE TOP BAND AS ONE PUBLISHED REGION: the layout selector and the standing identity
+/// beside it, the workspace fact under them where the medium fits a second row, and the
+/// setup-name editor's caret and selection while a maker is typing a name.
+///
+/// THE NAME EDITOR TAKES THE IDENTITY ROW, which is what it always did -- it edits the name
+/// that row is naming, so it belongs on it wherever that row is. Its caret is the REGION's
+/// caret (a bar in a medium with a face, the same inserted glyph as ever in the cell
+/// projection) and its selection is the region's, said the way every other selection on this
+/// screen is said. While it holds the row, the workspace fact yields to the name being typed.
+inline surface::SurfaceTextRegion top_band_region(const Session& s,
+                                                  const std::string& setup_path,
+                                                  const Screen& sc) {
+    const ui::Rect b = top_band_bounds(sc);
+    const surface::RegionFit fit = top_band_fit(sc);
     surface::SurfaceTextRegion band;
     band.x = b.x;
     band.y = b.y;
@@ -8822,14 +8918,8 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
         return band; // a region with no room says nothing, and says nothing about it
     }
 
-    // THE STATUS ROW: the name editor while a maker is typing a name, the identity line
-    // otherwise. The editor's caret is the REGION's caret -- a bar in a medium with a
-    // face, and the same inserted glyph as ever in the cell projection -- and its
-    // selection is the region's, said the way every other selection on this screen is
-    // said. The workspace fact folds into this row wherever the budget gives it no row of
-    // its own; while the editor holds the row, the fact yields to the name being typed.
     const bool naming = s.setup.naming.open;
-    std::string status;
+    std::string identity;
     std::int64_t caret_col = surface::kNoCaret;
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
@@ -8849,26 +8939,71 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
             sel_begin = prompt + vis.begin;
             sel_end = prompt + vis.end;
         }
-        status = detail::fit(std::string(kSetupNamePrompt) + shown +
-                                 setup_name_hint(s.keymap),
-                             columns);
+        identity = detail::fit(std::string(kSetupNamePrompt) + shown +
+                                   setup_name_hint(s.keymap),
+                               columns);
     } else {
         // THE LAYOUT TABS AND THE STATUS ARE ONE COMPOSITION (WUX-9), and the painter takes
         // it whole -- the workspace fold and the row's own cut included, so the spans
         // `band_tab_at` answers a press from are the spans that were written here.
-        status = band_status(s, setup_path, sc).text;
+        identity = band_status(s, setup_path, sc).text;
+    }
+
+    band.rows.push_back(surface::SurfaceTextRow{std::move(identity), surface::role::kMuted});
+    if (caret_col != surface::kNoCaret) {
+        band.caret_row = 0;
+        band.caret_col = caret_col;
+    }
+    if (sel_end > sel_begin) {
+        band.sel_begin_row = 0;
+        band.sel_begin_col = sel_begin;
+        band.sel_end_row = 0;
+        band.sel_end_col = sel_end;
+    }
+    // THE WORKSPACE FACT GETS ITS OWN ROW WHERE THERE IS ONE, and folds into the identity
+    // row where there is not (`band_status`). It yields to a name being typed for the reason
+    // it has always yielded: a maker mid-name is reading their own words.
+    if (budget >= 2 && !naming) {
+        band.rows.push_back(
+            surface::SurfaceTextRow{detail::fit(workspace_text(s), columns),
+                                    surface::role::kMuted});
+    }
+    return band;
+}
+
+/// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean
+/// right now.
+inline surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
+    const ui::Rect b = band_bounds(sc);
+    const surface::RegionFit fit = band_fit(sc);
+    surface::SurfaceTextRegion band;
+    band.x = b.x;
+    band.y = b.y;
+    band.w = b.w;
+    band.h = b.h;
+    const std::int64_t budget = fit.rows;
+    const std::int64_t columns = fit.columns;
+    if (budget <= 0 || columns <= 0) {
+        return band;
     }
 
     const std::string notice = s.notice.empty() ? std::string() : detail::fit(s.notice, columns);
     const std::int64_t notice_role =
         s.notice_is_bad ? surface::role::kAlert : surface::role::kFill;
 
-    // THE LEGEND ROWS: two while the budget seats the full composition, one on the
-    // shipped face, none below that. While an external pane holds the keyboard and the
-    // legend is FULL, the first of them still says so (MSG-0) -- that sentence is
-    // keyboard-ownership truth, not a binding list, and where the legend has one row the
-    // sentence takes it and the chorded survivors follow in whatever room is left.
-    const std::size_t legend_rows = budget >= 4 ? 2 : (budget == 3 ? 1 : 0);
+    // THE LEGEND TAKES WHAT THE NOTICE LEAVES, which is this band's whole composition policy
+    // now that the identity has its own band (QR-14). A character medium's four rows are the
+    // notice and three of legend where the context has that many pairs; the shipped face's
+    // two are the notice and one, which is exactly the pair it read before the split. No
+    // reserved row is spare: WUX-1 spent the old blank row on the workspace fact and this
+    // keeps that discipline rather than handing one back.
+    //
+    // While an external pane holds the keyboard and the legend is FULL, the first legend row
+    // still says so (MSG-0) -- that sentence is keyboard-ownership truth, not a binding list,
+    // and where the legend has one row the sentence takes it and the chorded survivors follow
+    // in whatever room is left.
+    const std::size_t legend_rows =
+        budget >= 2 ? static_cast<std::size_t>(budget - 1) : 0;
     std::vector<std::string> legend;
     if (legend_rows > 0) {
         const KeyContext ctx = keyboard_context(s);
@@ -8902,9 +9037,10 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
                     pairs.empty() ? said : said + " | " + pairs.front(), columns));
             } else {
                 legend.push_back(detail::fit(said, columns));
-                const std::vector<std::string> pairs = help_rows(s.keymap, ctx, columns, 1);
-                if (!pairs.empty()) {
-                    legend.push_back(pairs.front());
+                const std::vector<std::string> pairs =
+                    help_rows(s.keymap, ctx, columns, legend_rows - 1);
+                for (const std::string& row : pairs) {
+                    legend.push_back(row);
                 }
             }
         } else {
@@ -8916,38 +9052,21 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
         band.rows.push_back(surface::SurfaceTextRow{std::move(text), role});
     };
     if (budget >= 2) {
-        push(std::move(status), surface::role::kMuted);
-        if (naming && caret_col != surface::kNoCaret) {
-            band.caret_row = 0;
-            band.caret_col = caret_col;
-        }
         push(notice, notice_role);
-        if (budget >= 5) {
-            push(detail::fit(workspace_text(s), columns), surface::role::kMuted);
-        }
         for (std::string& row : legend) {
             push(std::move(row), surface::role::kMuted);
         }
+    } else if (!notice.empty()) {
+        // One row: the tool's own voice while it has something to say. The identity line is
+        // not a candidate here any more -- it has a band of its own that this budget cannot
+        // take away (QR-14).
+        push(notice, notice_role);
     } else {
-        // One row: the editor while a maker is mid-name (their hand is IN it), the
-        // notice while the tool has something to say, the identity line otherwise.
-        if (naming) {
-            push(std::move(status), surface::role::kMuted);
-            if (caret_col != surface::kNoCaret) {
-                band.caret_row = 0;
-                band.caret_col = caret_col;
-            }
-        } else if (!notice.empty()) {
-            push(notice, notice_role);
-        } else {
-            push(std::move(status), surface::role::kMuted);
+        const std::vector<std::string> pairs =
+            help_rows(s.keymap, keyboard_context(s), columns, 1);
+        if (!pairs.empty()) {
+            push(pairs.front(), surface::role::kMuted);
         }
-    }
-    if (naming && sel_end > sel_begin) {
-        band.sel_begin_row = 0;
-        band.sel_begin_col = sel_begin;
-        band.sel_end_row = 0;
-        band.sel_end_col = sel_end;
     }
     return band;
 }
@@ -9161,40 +9280,42 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // owns that kind rather than by `paint`.
     paint_panels(c, d, s, sc, frontier);
 
-    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which since WUX-1 is the
-    // bottom band, whole, as ONE budget-composed region (`band_region`). See the note at
-    // the top of this function for why it is in front rather than behind: the band is
-    // where the tool SPEAKS, and a panel backdrop drawn over it would erase the notice
-    // that just told a maker what happened.
+    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which since WUX-1 is
+    // budget-composed regions rather than one label per cell row, and since QR-14 is TWO of
+    // them: the top band (the layout selector and the standing identity) and the bottom band
+    // (the notice and the legend). See the note at the top of this function for why they are
+    // in front rather than behind: a band is where the tool SPEAKS, and a panel backdrop
+    // drawn over one would erase the notice that just told a maker what happened.
     //
-    // THE SHARED TOP ROW IS RETIRED (WUX-1). Canvas row 0 carried four one-cell voices --
-    // the workspace's extent, the picker and window hints, the terminal hint -- each
-    // structurally unable to hold a row of a real face (`kWorkspaceY` is one cell). The
-    // facts moved rather than died: the extent is the band's `workspace_text` row, and
-    // the three gestures are ordinary rows of the effective keymap, said by the band's
-    // legend (`help_pairs` lists `workshop.picker`, `workshop.manage` and the global
-    // `workshop.terminal` row) and authoritatively by the full hotkey view. What remains
-    // at row 0 is nothing at all: the workspace did not grow (its extent is what a share
-    // resolves against, and a chrome retirement must not resize a maker's document), and
-    // no other furniture moved.
+    // THE OLD SHARED TOP ROW IS STILL RETIRED, AND ITS CELL IS SPENT NOW (WUX-1, QR-14).
+    // Canvas row 0 carried four one-cell voices -- the workspace's extent, the picker and
+    // window hints, the terminal hint -- each structurally unable to hold a row of a real
+    // face. WUX-1 moved those facts into the band and left the row EMPTY, because the
+    // workspace's extent is what a share resolves against and a chrome retirement must not
+    // resize a maker's document. QR-14 spends that cell, and one more from the bottom band,
+    // on a top band two cells tall -- which is what a face needs for one row of type. The
+    // reserved total is what it was, so the workspace still did not move.
     //
-    // THE BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN, which is why the region is
-    // conditional. The pane is anchored to the bottom-right corner and covers most of the
-    // screen's width at every extent, so band rows painted underneath it would survive
-    // only in the cells to its left -- a sentence beheaded mid-word with nothing to say
-    // so. Half a hint beside a pane is worse than no hint, and the pane's own header
-    // carries the one gesture that matters while it is open.
+    // ⚠ THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN AND THE TOP BAND DOES NOT.
+    // The pane is anchored to the bottom-right corner and covers most of the screen's width
+    // at every extent, so bottom-band rows painted underneath it would survive only in the
+    // cells to its left -- a sentence beheaded mid-word with nothing to say so. The top band
+    // is two rows the pane cannot reach: `terminal_y` is `h - terminal_h`, which is 9 at the
+    // minimum screen and grows with the surface, so it is never less than `kTopRows`. A maker
+    // in the Terminal therefore keeps reading which layout they are in, which is the honest
+    // answer rather than a courtesy -- the row is not covered, so hiding it would be a lie
+    // about occlusion.
     //
     // A REGION TAKES ITS RECTANGLE, and that is a deliberate widening over the labels it
-    // replaced: the old rows cleared only the cells their characters landed on, and the
-    // band clears all five rows across the canvas. A pane a maker authors over the band
-    // is covered BY it, because the panes are in front of the DOCUMENT and not in front
-    // of the tool's own voice -- the rule the notice region already followed, now true of
-    // the whole band. The band occupies no pointer space, so `occupied_at` still answers
-    // the pane for those cells.
+    // replaced: the old rows cleared only the cells their characters landed on, and a band
+    // clears all of its rows across the canvas. A pane a maker authors over one is covered
+    // BY it, because the panes are in front of the DOCUMENT and not in front of the tool's
+    // own voice. The bands occupy no pointer space except the layout tabs themselves
+    // (`band_tab_at`, WUX-9), so `occupied_at` still answers the pane for those cells.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        layer.texts.push_back(top_band_region(s, setup_path, sc));
         if (!s.terminal.open) {
-            layer.texts.push_back(band_region(s, setup_path, sc));
+            layer.texts.push_back(band_region(s, sc));
         }
     });
 

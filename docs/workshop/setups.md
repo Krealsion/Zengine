@@ -60,7 +60,8 @@ the word is *unresolved*, never *unavailable*.
 keeps several of them and you move between them from inside it, without opening a second
 Workshop, a second window, a second project or a second copy of any pane.
 
-The band's status row shows them as a run of tabs on the left, with the one you are on marked:
+**The first row of Workshop is the layout selector** — a run of tabs on the left, with the one
+you are on marked, and the setup's own status to their right:
 
 ```text
 > "Code"  "Build"  "Inspect" | UNSAVED | workshop-setup.json | s name/save  r restore
@@ -204,7 +205,7 @@ Source-traced, precisely:
 |---|---|---|
 | saving a layout / setup | **yes** | `s`, writes the `--setup` file — the layout you are on |
 | loading / restoring it | **yes** | `r`, reads the `--setup` file into the layout you are on |
-| keeping several layouts at once | **yes**, within the run | tabs on the band's status row; `.` `,` `=` `Ctrl`+`w` |
+| keeping several layouts at once | **yes**, within the run | tabs on Workshop's first row; `.` `,` `=` `Ctrl`+`w` |
 | selecting among setup **files** | **no in-application selection** | one file per run, chosen by `--setup` |
 | persisting pane position | **yes** | authored place, in the setup and in the session |
 | persisting pane size | **yes** | authored size in cells or pixels, in both |
