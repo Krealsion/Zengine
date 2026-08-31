@@ -193,6 +193,7 @@ public:
             SDL_RenderFillRect(renderer_, &fr);
         }
         SDL_RenderPresent(renderer_);
+        note_room_given();
     }
 
     /// The general canvas, in a window — the same three lines `frame` uses, and
@@ -259,6 +260,7 @@ public:
         // last condition resolves.
         execute(plan_attention_chip(score_, c, metric, drawable()));
         SDL_RenderPresent(renderer_);
+        note_room_given();
     }
 
     void note(std::string_view slot, std::string_view text) {
@@ -310,6 +312,7 @@ public:
             return; // nothing has an OS conversation yet
         }
         SDL_PumpEvents();
+        apply_offered_maximize();
         notice_unread_queue();
     }
 
@@ -395,6 +398,18 @@ public:
     /// move is the blind replay the law refuses — and the maximize is applied AFTER the
     /// position, so the platform's own unmaximize returns the frame to the place this
     /// call put it.
+    ///
+    /// ⚠ AND AFTER THE ROOM, WHICH IS NOT THIS CALL'S TO GIVE (QR-16). A maximize is
+    /// presentation laid over a latent NORMAL rectangle, and an offer carries only half of
+    /// that rectangle: the position is here, the size arrives through the canvas
+    /// conversation, which is the only channel that ever sizes this window (WUX-0's floor
+    /// law included). Maximizing here would freeze the OTHER half at whatever the window
+    /// happened to be created at — the first picture's minimum — because the platform
+    /// refuses to resize a maximized window at all (`WIN_SetWindowSize`: "Can't resize the
+    /// window"), so the restored picture that follows would find a drawable already larger
+    /// than itself and grow nothing. The maker then unmaximizes onto Workshop's floor
+    /// instead of onto the room they chose. So the want is RECORDED and applied once a
+    /// picture has given the normal window its room; `pump` is where it lands.
     void place(const SurfacePlacementRemembered& want) {
         if (!ok_ || window_ == nullptr) {
             return;
@@ -422,8 +437,8 @@ public:
                                    static_cast<int>(at->y))) {
             complain("SDL_SetWindowPosition");
         }
-        if (want.maximized && !SDL_MaximizeWindow(window_)) {
-            complain("SDL_MaximizeWindow");
+        if (want.maximized) {
+            offered_max_ = OfferedMaximize::kWaitingForRoom;
         }
     }
 
@@ -515,6 +530,49 @@ private:
     /// coincidence. A reader empties the queue on each of its own 10ms beats, so a thousand
     /// standing events cannot be a drained queue caught mid-beat.
     static constexpr int kUnreadQueue = 1000;
+
+    /// AN OFFERED MAXIMIZE IS A TWO-PART RESTORE, AND THIS IS THE WAIT BETWEEN THE PARTS
+    /// (QR-16). `place` supplies the normal window's POSITION; only a picture supplies its
+    /// ROOM; and the maximize belongs after both, because the platform hands a maker back
+    /// exactly the rectangle the window had when it was maximized and refuses to let that
+    /// rectangle be changed afterwards.
+    enum class OfferedMaximize {
+        kNone,           ///< nothing offered, or the offer has already landed
+        kWaitingForRoom, ///< offered; no picture has sized the normal window since
+        kRoomGiven,      ///< a picture has sized it AND been reported: land on the next beat
+    };
+
+    /// A PICTURE HAS BEEN DRAWN AND IS ABOUT TO BE REPORTED, so a waiting maximize may land.
+    ///
+    /// ⚠ THE STEP IS TAKEN AT THE END OF THE PICTURE, AFTER ITS OWN `pump`, AND THAT ONE
+    /// TURN OF DELAY IS THE POINT. The shell reports the placement and the extent once this
+    /// returns (`skin.hpp`), so a maximize landing inside the same call would replace the
+    /// restored room with the maximized one before anybody was ever told the restored room
+    /// existed — and a publisher keeping "the normal window's room" would have nothing but
+    /// the floor to keep. Letting the picture be reported first is what makes the restore
+    /// self-correcting, exactly as it already is for a window that comes back unmaximized.
+    void note_room_given() {
+        if (offered_max_ == OfferedMaximize::kWaitingForRoom) {
+            offered_max_ = OfferedMaximize::kRoomGiven;
+        }
+    }
+
+    /// ...AND HERE IT LANDS, on the beat, once and never again.
+    ///
+    /// The beat rather than the picture, for the reason above; `pump` rather than a site of
+    /// its own, because the beat IS `pump` and a second clock would be a second answer to
+    /// when this window changes state. A refusal is complained about in SDL's own words and
+    /// clears the want either way — a maximize that the platform will not perform is not one
+    /// to keep retrying on every beat for the rest of the run.
+    void apply_offered_maximize() {
+        if (offered_max_ != OfferedMaximize::kRoomGiven) {
+            return;
+        }
+        offered_max_ = OfferedMaximize::kNone;
+        if (!SDL_MaximizeWindow(window_)) {
+            complain("SDL_MaximizeWindow");
+        }
+    }
 
     bool ensure_window(const zengine::snake::SnakeVisual& v) {
         return ensure_sized_window(window_size_of(v));
@@ -632,6 +690,7 @@ private:
     std::int64_t normal_x_ = 0; ///< the NORMAL window's last observed position (WUX-3)...
     std::int64_t normal_y_ = 0;
     bool have_normal_ = false;  ///< ...and whether it has ever been observed at all
+    OfferedMaximize offered_max_ = OfferedMaximize::kNone; ///< a maximize owed a room (QR-16)
     SdlTypeface text_; ///< the real face, when there is one; see skin_sdl_text.hpp
     std::string status_;
     std::string score_;

@@ -142,9 +142,25 @@ desktop truth never enters it.
   test is a hand's width, `kPlacementGraspPx`, of the window's top strip on some single
   display's usable area), clamps a stranded one into the nearest display's usable bounds
   top-left-first, and answers NOTHING with no display truth — an uninformed move is a
-  blind replay, refused. The maximize is applied after the position, so unmaximize lands
-  where the offer put the frame. What comes back to the publisher is the truth through
+  blind replay, refused. What comes back to the publisher is the truth through
   the ordinary report, never an echo.
+- **⚠⚠ THE MAXIMIZE IS APPLIED AFTER THE POSITION *AND AFTER THE ROOM* (QR-16), AND THE
+  SECOND HALF IS THE ONE THAT IS EASY TO LOSE.** A maximize is presentation laid over a
+  latent NORMAL rectangle, and the offer carries only half of that rectangle: the position
+  is in the message, the size is not and must not be — sizing this window is the canvas
+  conversation's alone (WUX-0's floor law included). So the SDL medium RECORDS an offered
+  maximize and lands it on a later beat (`offered_max_`, `note_room_given` /
+  `apply_offered_maximize`, `skin_sdl.cpp`), once a picture has given the normal window its
+  room. Maximizing inside `place` instead freezes the other half at whatever the window was
+  created at — the first picture's minimum — because the platform refuses to resize a
+  maximized window at all (`WIN_SetWindowSize`: *"Can't resize the window"*), so the restored
+  picture finds a drawable already larger than itself and grows nothing. **And the landing is
+  one turn LATE on purpose**: the shell reports placement and extent after each picture
+  (below), so a maximize landing inside the picture that supplied the room would replace that
+  room before anyone was told it existed, and a publisher keeping the normal window's room
+  would keep the floor. Measured on a real Windows desktop both ways — QR-16 reproduced a
+  maker's 101x41 window unmaximizing onto Workshop's 78x22 floor, and reproduced it again
+  from a one-turn-early landing alone.
 - `placement()` and `place()` are REQUIRED Medium methods, the clipboard pair's rule for
   the clipboard pair's reason; the terminal's honest pair is one line each
   (`skin_tui.hpp`).

@@ -1945,10 +1945,20 @@ executable, authored per project when named.)
 - **THE SAVED VIEWPORT IS THE NORMAL WINDOW'S (WUX-3).** `Session::normal_w/h` tracks the
   screen except while THIS run's medium says the window is maximized (the medium reports
   placement before extent on its beat so the gate closes first, `skin.hpp`), so a
-  maximized close writes the room the maker chose with `maximized` beside it — restore
-  re-grows the normal window, repositions it, then re-maximizes, and unmaximizing lands
-  on the remembered normal bounds. A maximized flag merely restored from the file never
-  gates a placement-less run's own resize tracking.
+  maximized close writes the room the maker chose with `maximized` beside it. A maximized
+  flag merely restored from the file never gates a placement-less run's own resize tracking.
+- **⚠ AND THE RESTORE IS THE SAME SENTENCE READ BACKWARDS, WHICH IS WHY IT WAS THE HALF THAT
+  BROKE (QR-16).** Writing both facts down is not keeping them: restoring a maximized session
+  REPOSITIONS the normal window, then re-grows it through the ordinary canvas conversation,
+  and only then re-maximizes — and until QR-16 the medium re-maximized first, so the platform
+  froze the normal rectangle at the floor `on(SurfaceReady)` had just created the window at
+  and a maker unmaximized onto 78x22 instead of onto the room they chose. The ordering is the
+  medium's and is stated there ([`surface.md`](surface.md#the-medium-owns-the-desktop-placement-in-both-directions-wux-3));
+  what Workshop owes it is exactly what it already does — publish the floor picture, restore
+  the room, offer the placement, repaint — because the restored room reaching `normal_w/h`
+  depends on that second picture being REPORTED while the window is still normal. This is the
+  same self-correction an unmaximized restore has always had; the maximize was jumping ahead
+  of it. Measured live both ways, Windows/SDL.
 - **⚠ THE FIRST PICTURE OF A RUN IS WORKSHOP'S FLOOR, AND THAT IS LOAD-BEARING.** A medium
   that has been told nothing has only a run's first picture to size itself from, and the SDL
   medium makes that size the window's MINIMUM, once, at creation (`SDL_SetWindowMinimumSize`
