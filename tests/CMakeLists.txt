@@ -717,6 +717,19 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # is about boundaries, not about how many there are, and each later phase that earns a suite
 # adds a line above rather than restating the case for cutting.
 #
+# ...AND A SUITE IS NOT A FILE (QR-13). `panes` is FIVE sources under its one entry --
+# _seam, _window, _input, _introspection, _sampling -- because one MinGW Debug object could
+# no longer NAME all of that suite's instantiations: COFF spells a long section name as an
+# offset into a table capped at 9,999,999 bytes, and `-g` stores every COMDAT function's
+# mangled name four times over. The full measurement, and why `-mbig-obj` cannot help, is in
+# the top-level CMakeLists.txt beside the flag itself.
+#
+# THE TWO CUTS ARE THE SAME CUT, made for two reasons that agree. This one was made so that
+# a suite reads and compiles as the subject it is about; that one so that an object can be
+# emitted at all. Both land on the headings the material already had, which is why neither
+# needed a case rewritten -- and it is why a new case belongs in the file whose SUBJECT it
+# is, never in whichever file is shortest.
+#
 # `tests/workshop_support.hpp` holds what more than one of them needs -- the fixtures, the
 # canvas readers, the `Live` and `PaneRig` rigs -- and says in its own header what may go
 # there and what may not. `test_workshop_load.cpp` does not include it: its rigs are its
@@ -769,7 +782,7 @@ zengine_compile_test(ui_authored_element_compiles zengine-cn-ui-ok)
 # inside its own handler and `Switchboard::drain_until_idle()` does what it says, so
 # loading it into a rig whose every gesture drains never returns -- it hung, at the load.
 # The Timer's real SHAPES are still what these cases compose (see `TimerSeat` in
-# test_workshop_panes.cpp), and the real SERVICE is exercised where a real service can be:
+# test_workshop_panes_input.cpp), and the real SERVICE is exercised where a real service can
 # in `workshop_load`, whose rigs drain in bounded turns, and in the live run.
 set(ZENGINE_WORKSHOP_LIBS
     loom::kernel loom::switchboard loom::core loom::terminal
@@ -809,13 +822,33 @@ set(ZENGINE_WORKSHOP_FIXTURES
     zengine-provider-source)
 
 # One Workshop suite: the shared link line, the shared artifact paths, the shared
-# third_party include, plus whatever this one alone needs. It exists so the six agree by
+# third_party include, plus whatever this one alone needs. It exists so the eight agree by
 # construction -- a second copy of a link line is a second answer -- and so that adding a
-# seventh is one call rather than forty lines.
-function(zengine_workshop_suite entry source)
-    cmake_parse_arguments(WS "" "" "DEFINITIONS;NEEDS;LINKS" ${ARGN})
+# ninth is one call rather than forty lines.
+#
+# `SOURCES` IS A LIST BECAUSE A SUITE IS NOT A FILE (QR-13). One CTest entry runs one
+# binary, and how many translation units that binary is built from is a compiler question,
+# not a population one -- `panes` needs four. Every source named here gets the SAME target
+# definitions, includes and link line, because they are attached to the target and not to a
+# command line built per file; that is what makes several sources beneath one suite safe.
+# Both arms below are fail-closed: a mistyped keyword lands in UNPARSED_ARGUMENTS and would
+# otherwise be silently dropped as if it were nothing, which is exactly how a test family
+# goes missing while everything still reports green.
+function(zengine_workshop_suite entry)
+    cmake_parse_arguments(WS "" "" "SOURCES;DEFINITIONS;NEEDS;LINKS" ${ARGN})
+    if(NOT WS_SOURCES)
+        message(FATAL_ERROR
+            "zengine_workshop_suite(${entry}): no SOURCES. A suite with no source would "
+            "build an empty binary that selects zero cases.")
+    endif()
+    if(WS_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "zengine_workshop_suite(${entry}): unrecognized argument(s) "
+            "'${WS_UNPARSED_ARGUMENTS}'. Sources go after SOURCES; a source left outside it "
+            "would not be compiled and its cases would vanish from the population.")
+    endif()
     set(target zengine-workshop-${entry}-tests)
-    add_executable(${target} ${source} doctest_main.cpp)
+    add_executable(${target} ${WS_SOURCES} doctest_main.cpp)
     target_link_libraries(${target} PRIVATE ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     # THE SUITE'S OWN NAME, because the six now run at once and a temporary directory has
@@ -826,16 +859,16 @@ function(zengine_workshop_suite entry source)
     zengine_doctest_test(workshop_${entry} ${target})
 endfunction()
 
-zengine_workshop_suite(document test_workshop_document.cpp
+zengine_workshop_suite(document SOURCES test_workshop_document.cpp
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
     NEEDS zengine-composer)
 
-zengine_workshop_suite(screen test_workshop_screen.cpp)
+zengine_workshop_suite(screen SOURCES test_workshop_screen.cpp)
 
 # The SOURCE EDITOR: the multiline buffer, the byte law, the Builder's edit-source
 # door, save/dirty truth, the viewport and the no-silent-loss floor. Its temporary
 # directories are its own, exactly as the family rule requires.
-zengine_workshop_suite(editor test_workshop_editor.cpp)
+zengine_workshop_suite(editor SOURCES test_workshop_editor.cpp)
 
 # The PROJECT BROWSER: enumeration and its bound, the directories-first order, the
 # name admission, the root boundary, the press/wheel routing and the path from a row to
@@ -852,7 +885,7 @@ zengine_workshop_suite(editor test_workshop_editor.cpp)
 # custody the host used to spell now live in `install_recipes` -- one seam the launch and a
 # maker's live choice both go through. "There is one recipe policy" is a claim about that
 # arrangement, and the two files have to be read together to make it.
-zengine_workshop_suite(files test_workshop_files.cpp
+zengine_workshop_suite(files SOURCES test_workshop_files.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
                 "WORKSHOP_RECIPES_HPP=\"${CMAKE_SOURCE_DIR}/workshop/recipes.hpp\"")
 
@@ -862,7 +895,7 @@ zengine_workshop_suite(files test_workshop_files.cpp
 # and a Logger are ACTUALLY ATTACHED to the bus while a condition is established, read,
 # hidden and resolved. So this suite attaches both and reads their counters; the Workshop
 # package still links neither, which is where the property is actually enforced.
-zengine_workshop_suite(panels test_workshop_panels.cpp
+zengine_workshop_suite(panels SOURCES test_workshop_panels.cpp
     LINKS loom::history
     DEFINITIONS "WORKSHOP_ATTENTION_HPP=\"${CMAKE_SOURCE_DIR}/workshop/attention.hpp\"")
 
@@ -879,7 +912,12 @@ zengine_workshop_suite(panels test_workshop_panels.cpp
 # declares its own to be. Workshop's `main()` claims a terminal and no case here
 # can run it; what a source read adds is that a claim every case rests on cannot
 # quietly stop being true.
-zengine_workshop_suite(panes test_workshop_panes.cpp
+zengine_workshop_suite(panes
+    SOURCES test_workshop_panes_seam.cpp
+            test_workshop_panes_window.cpp
+            test_workshop_panes_input.cpp
+            test_workshop_panes_introspection.cpp
+            test_workshop_panes_sampling.cpp
     NEEDS zengine-composer
     DEFINITIONS "WORKSHOP_SO_COMPOSER=\"$<TARGET_FILE:zengine-composer>\""
                 "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
@@ -897,7 +935,7 @@ zengine_workshop_suite(panes test_workshop_panes.cpp
                 "WORKSHOP_SAMPLE_DOOR_HPP=\"${CMAKE_SOURCE_DIR}/workshop/sample_door.hpp\""
                 "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\"")
 
-zengine_workshop_suite(persistence test_workshop_persistence.cpp
+zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
     DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
 
 # LOAD-0's suite asks which artifacts are in the room at all, where the five above ask what
@@ -916,7 +954,7 @@ zengine_workshop_suite(persistence test_workshop_persistence.cpp
 # and `zengine-timer` are what the shipped plan actually names, so a case here
 # drives the very files a maker runs; the three fixtures stand in for the things a
 # plan can point at and get wrong.
-zengine_workshop_suite(load test_workshop_load.cpp
+zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""

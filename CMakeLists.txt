@@ -127,6 +127,33 @@ target_compile_options(zengine-warnings INTERFACE
 # THAT WORKSHOP FILE IS SIX FILES NOW, so the object nearest the ceiling is a fraction of
 # what it was -- and the flags stay exactly as they are. The ceiling is the toolchain's and
 # always was; the only thing the decomposition changed is which phase meets it next.
+#
+# AND THERE IS A SECOND, LOWER MinGW CEILING THAT `-mbig-obj` DOES NOT LIFT (QR-13). COFF
+# stores a section name longer than eight bytes in the string table and puts `/` plus the
+# DECIMAL offset in the eight-byte name field -- seven digits at most, so the section-name
+# string table cannot exceed 9,999,999 bytes. `-mbig-obj` widens the section NUMBER; it
+# does not change how a section NAME is spelled, so it cannot buy one byte here. The panes
+# suite met this in one object and the two ceilings answer in different sentences:
+#
+#   with    -mbig-obj:  section .debug_frame$_ZSt7forward...: string table overflow at
+#                       offset 10000097  /  Fatal error: ... file too big
+#   without -mbig-obj:  too many sections (78484)
+#
+# WHAT SPENDS IT IS COMDAT NAMES, FOUR TIMES EACH. Every vague-linkage function gets its own
+# COMDAT, and `-g` with `.cfi_sections .debug_frame` means gas mirrors each one into four
+# sections that all carry the same mangled suffix -- `.text$`, `.pdata$`, `.xdata$` and
+# `.debug_frame$`. The panes object held 19,479 such functions whose mangled names average
+# ~128 bytes and reach 980 (nested `std::visit` over `loom::WeaveBase`), which is 10,166,216
+# bytes of names against a 9,999,999 byte table. So the spender is INSTANTIATIONS PER
+# OBJECT, and the only repair that addresses it is fewer of them per object: QR-13 cut that
+# suite into five translation units under its one CTest entry (tests/CMakeLists.txt).
+#
+# THE PRACTICAL BUDGET, MEASURED, because it is what the next phase needs and it is not
+# obvious: a translation unit that includes `tests/workshop_support.hpp` and merely
+# constructs `PaneRig` and `Live` already spends 6,917,756 bytes -- 69% of the table --
+# before it asserts anything. Cutting a suite finer therefore has a floor it cannot go
+# below, and the Workshop objects now sit between 63% and 86% of the ceiling. A phase that
+# adds heavily-templated cases to a hot suite should expect to add a source, not a section.
 if(MINGW)
     target_compile_options(zengine-warnings INTERFACE -Wa,-mbig-obj)
 endif()

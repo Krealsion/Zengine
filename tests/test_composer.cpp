@@ -11,7 +11,7 @@
 // switchboard, so what a DRAFT means and what a PANE would show can be asked of a
 // value rather than of a running system. Where the fact comes from -- a real
 // target's real answer, through the real load path -- is the Workshop panes
-// suite's claim (test_workshop_panes.cpp, the MSG-0 tier), because that is where
+// suite's claim (test_workshop_panes_input.cpp, the MSG-0 tier), because that is where
 // the real library and the real pane protocol live.
 //
 // NOT ONE SHAPE IN THIS FILE IS ONE THE COMPOSER COMPILED AGAINST, and that is the

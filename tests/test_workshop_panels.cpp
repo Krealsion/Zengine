@@ -11,7 +11,7 @@
 // surface, whose statements have a lifetime.
 //
 // A panel authored OUTSIDE this repository arrives through the external pane seam and is
-// `test_workshop_panes.cpp`; the geometry these panels are placed with is
+// `test_workshop_panes_seam.cpp`; the geometry these panels are placed with is
 // `test_workshop_screen.cpp`.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that

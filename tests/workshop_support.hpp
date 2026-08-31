@@ -17,7 +17,9 @@
 //   test_workshop_document.cpp      the authored material and the maker's hands on it
 //   test_workshop_screen.cpp        composition and geometry
 //   test_workshop_panels.cpp        the panels Workshop ships, and attention
-//   test_workshop_panes.cpp         the external pane seam
+//   test_workshop_panes_*.cpp       the external pane seam -- FIVE sources under one
+//                                   `workshop_panes` suite (seam, window, input,
+//                                   introspection, sampling); see tests/CMakeLists.txt
 //   test_workshop_persistence.cpp   what survives a process
 //   test_workshop_editor.cpp        the built-in source editor and its document
 //

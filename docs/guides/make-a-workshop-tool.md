@@ -587,12 +587,13 @@ proves:
 | `tests/test_workshop_document.cpp` | the authored material and the maker's hands on it |
 | `tests/test_workshop_screen.cpp` | composition and geometry — what is painted where |
 | `tests/test_workshop_panels.cpp` | the panels Workshop ships, and the attention surface |
-| `tests/test_workshop_panes.cpp` | the external pane seam, from both sides |
+| `tests/test_workshop_panes_*.cpp` | the external pane seam, from both sides — five sources under one suite: the seam, the window, input, introspection, sampling |
 | `tests/test_workshop_persistence.cpp` | what survives a process |
 | `tests/test_workshop_load.cpp` | which artifacts are in the room at all |
 
 A panel of your own is `test_workshop_panels.cpp`; a pane your office authors and Workshop
-grants a room to is `test_workshop_panes.cpp`. Each is already registered, so nothing in
+grants a room to is one of the `test_workshop_panes_*.cpp` sources — the one whose subject
+yours is. Each is already registered, so nothing in
 `tests/CMakeLists.txt` or `tests/test_population.txt` changes unless you are deliberately raising
 a floor. Fixtures more than one suite needs live in `tests/workshop_support.hpp`; a helper only
 your suite uses stays in your suite's file, and moving one into the shared header makes every
