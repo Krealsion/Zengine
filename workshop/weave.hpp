@@ -1672,10 +1672,19 @@ public:
             // afterwards would make every first press look like a press in a pane the
             // maker was already working in.
             const bool files_had_keyboard = files_has_keyboard(session_);
+            // WHICH PANE THE MAKER JUST POINTED AT -- ONE READING, TWO FACTS (WUX-5).
+            // Selection is the wider of the two and the keyboard candidate is DERIVED
+            // from it through the declared candidacy, rather than the occupancy being
+            // tested twice: two reads of one press is how the desk comes to think one
+            // pane is in front while the keys go to another. A press that lands on the
+            // workspace, on the picker, on the screen's own furniture or on nothing
+            // clears both by these same two lines.
+            session_.panels.selected = here.occupied ? here.kind : kNoPaneKind;
             session_.panels.keyboard =
-                here.occupied &&
-                        (is_runtime_kind(here.kind) || panel_kind(here.kind).takes_keyboard)
-                    ? here.kind
+                session_.panels.selected != kNoPaneKind &&
+                        (is_runtime_kind(session_.panels.selected) ||
+                         panel_kind(session_.panels.selected).takes_keyboard)
+                    ? session_.panels.selected
                     : kNoPaneKind;
             // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
             // rather than a mode (HD-5). The order is the same one the pane and the
@@ -4682,9 +4691,10 @@ private:
     /// says which.
     ///
     /// THE DESK IS DIRECT: every arrangeable pane answers, topmost first through the one
-    /// presentation order the painter uses, and the pane a press takes hold of becomes
-    /// the keyboard's target by that same press -- no selection is a prerequisite of
-    /// anything. A pane whose place the screen reserves (the side column) is addressed
+    /// EFFECTIVE order the painter uses (WUX-5 -- the selection's lift included, so the
+    /// pane visibly in front is the pane a drag takes hold of here too), and the pane a
+    /// press takes hold of becomes the keyboard's target by that same press -- no
+    /// selection is a prerequisite of anything. A pane whose place the screen reserves (the side column) is addressed
     /// and answered in the admission's own words rather than dragged.
     void arrange_press(const PointedAt& at) {
         PaneArrange& a = session_.arrange;
@@ -4699,7 +4709,7 @@ private:
             return;
         }
         const std::vector<std::int64_t> order =
-            presentation_order(session_.setup.active, session_.panels);
+            effective_pane_order(session_.setup.active, session_.panels);
         for (std::size_t i = order.size(); i > 0; --i) {
             const std::int64_t kind = order[i - 1];
             if (!bounds_of(session_.panels, session_.setup.active, kind, sc)
@@ -5675,6 +5685,7 @@ private:
             if (!ensure_editor_pane(mail)) {
                 return;
             }
+            session_.panels.selected = panel::kEditor;
             session_.panels.keyboard = panel::kEditor;
             e.follow_caret = true;
             say("editing " + e.path + (e.dirty() ? " -- UNSAVED edits stand" : ""), false);
@@ -5716,6 +5727,11 @@ private:
         e.first_col = 0;
         e.wheel_accum = 0.0;
         e.follow_caret = true;
+        // AND IT SELECTS THE PANE IT JUST FILLED (WUX-5). The keyboard candidate's own
+        // argument, one question wider: an open that pointed the keys at a pane still
+        // sitting behind another would put the first keystroke somewhere the maker
+        // cannot see. The two facts are written together everywhere they are written.
+        session_.panels.selected = panel::kEditor;
         session_.panels.keyboard = panel::kEditor;
         say("editing " + e.path, false);
     }

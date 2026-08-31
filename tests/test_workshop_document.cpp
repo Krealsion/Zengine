@@ -2612,12 +2612,16 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kIn
         const InfoBodyPlace place = body_place(t);
         REQUIRE(place.present);
 
-        // THE REGION IS THE WHOLE PANEL SINCE WUX-1, the OBJECTS heading its first prose
-        // row, and the body's capacity is the fit less that reservation (HD-7, WUX-1).
-        CHECK(place.region_x == panel.x);
-        CHECK(place.region_y == panel.y);
-        CHECK(place.region_x + place.region_w == panel.x + panel.w);
-        CHECK(place.region_y + place.region_h == panel.y + panel.h);
+        // THE REGION IS THE PANEL'S INTERIOR SINCE WUX-5 -- the whole panel less the one
+        // cell of chrome its visible boundary occupies on every side -- the OBJECTS heading
+        // its first prose row, and the body's capacity the fit less that reservation.
+        const ui::Rect inside = pane_body_cells(panel);
+        CHECK(place.region_x == inside.x);
+        CHECK(place.region_y == inside.y);
+        CHECK(place.region_x + place.region_w == inside.x + inside.w);
+        CHECK(place.region_y + place.region_h == inside.y + inside.h);
+        CHECK(inside.x == panel.x + kChromeCells);
+        CHECK(inside.w == panel.w - 2 * kChromeCells);
         CHECK(place.columns == place.fit.columns);
         CHECK(place.value_columns ==
               place.fit.columns - kPropertyMarkCols - kPropertyLabelCols - kPropertyCaretCols);
@@ -3331,12 +3335,13 @@ TEST_CASE("HD-9: the ground reaches the whole row in a CELL medium, not just its
         ++runs;
     }
     CHECK(runs == 1 + kActionCount);
-    // AND NOTHING AFTER A GROUNDED ROW WEARS IT. There is no `\x1b[49m` here and that is not
-    // an omission: the ground reaches the region's last column, and the writer restarts every
-    // canvas row from no-role/no-ground, so the reset that ends the run is the row itself.
-    // (`\x1b[49m` is the branch a ground FOLLOWED by ungrounded cells on the same row takes;
-    // the Info body has none, and the Terminal's completion list is the case that does.)
-    CHECK(bytes.find("\x1b[49m") == std::string::npos);
+    // AND THE GROUND STOPS WHERE THE PANEL'S INTERIOR DOES (WUX-5). Before the panel had a
+    // visible boundary its region reached the canvas row's own end, so a grounded row was
+    // ended by the row itself and `\x1b[49m` never appeared. The boundary is an ungrounded
+    // cell ON the same row now, so the writer closes the ground explicitly -- the branch the
+    // Terminal's completion list has always taken, arriving here for the same reason: a
+    // ground FOLLOWED by cells that are not part of it.
+    CHECK(bytes.find("\x1b[49m") != std::string::npos);
 }
 
 TEST_CASE("HD-9: the ground resolves to a real ink for a graphical medium, per row") {
@@ -4236,8 +4241,9 @@ TEST_CASE("KEY-0: the view lists the context beneath it, and three contexts diff
     // composition's rectangle, which this screen has outgrown).
     t.publish(loom::to_value(surface::SurfaceExtent{120, 70, 0, 0}));
     const auto view_text = [&t]() {
-        return panel_text(t.canvases.back(),
-                          cells_covered(hotkeys_bounds(screen_of(t.session()))));
+        return panel_text(
+            t.canvases.back(),
+            pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
     };
 
     // COMMAND MODE BENEATH: the command vocabulary, its layer named.
@@ -4573,7 +4579,7 @@ TEST_CASE("KEY-0: the terminal header and hints spell the effective toggle") {
     t.mount_terminal();
     t.key(input::scan::kG, input::mod::kCtrl);
     REQUIRE(t.pane().open);
-    const std::string pane_rows = stack_text(t.canvases.back());
+    const std::string pane_rows = terminal_text(t.canvases.back(), screen_of(t.session()));
     CHECK(pane_rows.find("(^g closes)") != std::string::npos);
     CHECK(pane_rows.find("shift+space") == std::string::npos);
     t.key(input::scan::kG, input::mod::kCtrl);
@@ -4785,8 +4791,9 @@ TEST_CASE("WUX-1/SC-2: the hotkey view remains the full claim surface for the mo
     REQUIRE(t.session().hotkeys.open);
     // The view is the stack COLUMN, floor to ceiling -- taller than the first slot, so it
     // is read at its own bounds rather than through the slot accessor.
-    const std::string view = panel_text(t.canvases.back(),
-                                        cells_covered(hotkeys_bounds(screen_of(t.session()))));
+    const std::string view = panel_text(
+        t.canvases.back(),
+        pane_body_cells(hotkeys_bounds(t.session(), screen_of(t.session()))));
     CHECK(view.find("terminal") != std::string::npos);
     CHECK(view.find("arrange desk") != std::string::npos);
     CHECK(view.find("+ panel") != std::string::npos);
@@ -4804,7 +4811,11 @@ TEST_CASE("WUX-1/SC-4: the Builder keeps the facts a maker acts on, by explicit 
     pane.shown.detail = "a compiler sentence long enough to wrap across several rows of "
                         "the panel so the tail is genuinely elided at every budget";
     pane.shown.realization = zengine::builder::realization::kNotAsked;
-    const ui::Rect slot{0, 1, 48, 9};
+    // THE RECTANGLE IS SIZED SO THE INTERIOR IS THE 48x9 THIS CASE IS ABOUT (WUX-5). Every
+    // budget below is a fact about the Builder's composition PRIORITY, not about how much
+    // room a stack slot happens to leave once its visible boundary is subtracted -- so the
+    // chrome is added to the ask here and the pinned compositions are untouched.
+    const ui::Rect slot{0, 1, 48 + 2 * kChromeCells, 9 + 2 * kChromeCells};
     ProjectFrontier waiting;
     waiting.waiting = true;
     waiting.artifact = "libzengine-snake";
@@ -4813,7 +4824,7 @@ TEST_CASE("WUX-1/SC-4: the Builder keeps the facts a maker acts on, by explicit 
     const auto rows_at = [&](std::int64_t line, const ProjectFrontier& f) {
         surface::SurfaceCanvas c;
         paint_builder(plane(c), pane, fine_of_cells(slot),
-                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line), Keymap{},
+                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line),
                       f);
         std::vector<std::string> out;
         for (const surface::SurfaceTextRegion& r : all_texts(c)) {
@@ -4898,12 +4909,12 @@ TEST_CASE("PROJ-1: the catalog row costs one `said` row, and only where it is pr
     pane.shown.detail = "a compiler sentence long enough to wrap across several rows of "
                         "the panel so the tail is genuinely elided at every budget";
     pane.shown.realization = zengine::builder::realization::kNotAsked;
-    const ui::Rect slot{0, 1, 48, 9};
+    const ui::Rect slot{0, 1, 48 + 2 * kChromeCells, 9 + 2 * kChromeCells}; // interior 48x9
 
     const auto rows_at = [&](std::int64_t line, const std::string& catalog) {
         surface::SurfaceCanvas c;
         paint_builder(plane(c), pane, fine_of_cells(slot),
-                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line), Keymap{},
+                      screen_of(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line),
                       ProjectFrontier{}, catalog);
         std::vector<std::string> out;
         for (const surface::SurfaceTextRegion& r : all_texts(c)) {

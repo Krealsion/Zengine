@@ -29,9 +29,23 @@ pane this build has never heard of still appears, with a state word saying so �
 lets you tell a typo from a pane you have not installed. Without that row, a setup naming an
 unknown pane could be seen and not removed without editing the file by hand.
 
-The picker paints a whole pane's worth of rows even when it has fewer to show. In a character
-medium there is no edge between an overlay and what is under it, so a short picker over a
-9-row pane left the pane's last rows showing beneath — one box saying two unrelated things.
+The picker paints a whole pane's worth of rows even when it has fewer to show, so a short
+picker over a taller pane cannot leave that pane's last rows showing beneath it — one box
+saying two unrelated things.
+
+## Every pane has an edge, and one of them is yours
+
+Each pane draws a **visible boundary** inside its own rectangle: one cell on every side, in
+both a terminal and a window. The pane does not grow to make room for it — the rectangle you
+author is the rectangle the pane occupies, and its contents are laid out inside the edge. So
+a pane you drag to 40×12 still occupies exactly 40×12, and what it can show you is 38×10.
+
+The pane you **last pressed into is the selected one**, and its edge is drawn differently
+from every other pane's. Nothing else changes: selecting a pane does not open it, close it,
+move it, or hand it the keyboard unless it is a pane that takes keys anyway.
+
+Selecting a pane also brings it **forward** for as long as it stays selected — see
+[what "front" means](#what-front-means).
 
 ## Moving, resizing and ordering — Arrange
 
@@ -117,6 +131,17 @@ over them, then bounded text regions over those. Between planes: the complete ea
 then the complete later one over it. There is no numeric z, no sorting, no layer identity —
 front is *painted later*, and `f` `b` `r` `l` author a position in an order.
 
+**Selecting a pane lifts it, and does not write anything down.** Pressing into a pane brings
+it to the front of the desk for as long as it is the selected one; selecting another pane
+hands the lift over and the first falls back to exactly where you put it. The order you
+authored is untouched by any of it — save the setup after a session of clicking around and
+the file holds the desk you arranged, not the last pane you happened to press. `f` `b` `r`
+`l` are still how you say *and I mean this permanently*.
+
+The pane in front is also the pane your pointer reaches: what you see on top is what a click
+in the overlap lands on. Context menus and the hotkey view stay above the panes either way —
+a selected pane is never lifted over a menu you just opened on it.
+
 ### What a refusal means here
 
 A pane whose geometry cannot be projected in the current medium refuses the gesture rather
@@ -133,6 +158,11 @@ surface *does* widen a pane — the surplus over the 48-column minimum is split 
 the pane and the material under it, so at 200 columns a pane's granted width goes from 48 to
 109 without any threshold. Height does not work that way: the stack slot is a fixed number of
 rows.
+
+Of any pane's rectangle, one cell on each side is its **visible edge**, so a 48×9 default
+pane shows you 46×7. That is the cost of being able to see where a pane ends, and it is paid
+by the pane rather than by the desk — the rectangle does not grow. If a pane's content is
+tight, the answer is the same one below: make the pane bigger.
 
 ### How to actually get a bigger pane
 

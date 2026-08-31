@@ -155,8 +155,9 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
 - **`panels.open` is NEVER reordered, and that is the whole of "raising a pane cannot move
   it".** `seat_panes` walks the setup LIST, `reconcile` assigns `panels.open` from that answer,
   and `bounds_of` counts a reactive slot over `panels.open`. No ordering operation writes
-  anything any of the three reads. `presentation_order` is the one pure order helper; paint
-  walks it ascending and `occupied_at` descending.
+  anything any of the three reads. `effective_pane_order` is the one FOREGROUND order helper
+  (WUX-5); paint walks it ascending and `occupied_at` descending, and `presentation_order` is
+  the authored base it lifts the selection out of.
 - **An authored place spends no reactive slot and cannot WAIT for one.** A pane the maker put
   somewhere is not in the tiling, so `waiting` means exactly what it always meant: the reactive
   default ran out of tiles. Both `seat_panes` and `bounds_of`'s slot counter say it, and both
@@ -258,6 +259,76 @@ front  integer            a permutation of 0..n-1 over ALL rows, 0 back-most
   exact-cell values stay exact, sub-cell values resolve deterministically, and any number of
   frames rewrites nothing.
 
+## A pane has an edge, and the edge is inside the pane (WUX-5)
+
+Every ordinary pane and every framed transient surface draws a visible boundary, and the
+boundary is subtracted from the rectangle it already had:
+
+```text
+pane_outer          bounds_of's answer -- authored, dragged, hit-tested, ringed. UNCHANGED.
+   +-- chrome       kChromeCells (1) on every side, on the canvas cell lattice
+   +-- pane_inner   pane_interior(outer) -- everything a painter, a press or a room may spend
+```
+
+- **THE BACKDROP IS THE BORDER**, which is one rectangle rather than five: `paint_panel_frame`
+  pushes the outer rect and the body region drawn over it OWNS its ground (`kGroundOwn` clears
+  the whole of its bounds in both media), so what remains visible is exactly the ring. The
+  ring IS `b` minus `pane_interior(b)` — there is no border arithmetic anywhere, so a boundary
+  that moved and an interior that did not is not a state this screen can reach.
+- **ONE SUBTRACTION, INSIDE THE THREE BODY RESOLUTIONS.** `external_body_place`,
+  `info_body_place` and `panel_prose_place` each call `pane_interior` on the rectangle they
+  are handed, so the painter, the press inverse and the room a provider is granted are one
+  geometry BY CONSTRUCTION — there is no call site that could spend the outer rectangle for
+  prose. `chrome_outer_of` is the same subtraction read backwards, for the one surface sized
+  by its own content (the contextual popup).
+- **ONE CANVAS CELL, ON THE MEDIUM-INDEPENDENT LATTICE.** A character medium cannot draw less
+  than a cell and a sub-cell inset would floor to nothing there, so one number serves both
+  media and the boundary is in the same place in each. Do NOT grow a pane to pay for it: the
+  authored rectangle is the outer rectangle, and a pane too small for its own chrome answers
+  an EMPTY interior — which every `w <= 0` consumer already reads as "nowhere".
+- **THREE CHROME ROLES, FROM THE CLOSED VOCABULARY** (`surface/vocabulary.hpp` refuses a
+  fifth): `kPaneChrome` = `kFill` (ordinary material, the word an authored object's body
+  already speaks), `kPaneChromeSelected` = `kAccent` (the one being pointed at — the same word
+  the document's selection ring speaks, so the desk and the document say selection once), and
+  `kTransientChrome` = `kMuted` (quiet furniture, in front of everything already).
+  ⚠ In a character medium `kMuted` is the workspace backdrop's own glyph, so a transient
+  surface's edge over bare workspace is drawn by the hole its interior clears rather than by
+  its ring; the shipped face has three distinct inks. Do not repair that with a fifth role or
+  a per-medium palette.
+- **WHAT IT COST, measured**: every stack pane's interior is 46x7 where the slot is 48x9, so
+  the Builder drops its lowest-priority row at the default height, the picker windows two
+  entries sooner, and the Info panel's lists each lose a row. Every one of those is
+  `list_window`'s or the Builder's own composition priority doing its declared job. The
+  Compose pane's FORM does not fit the default at all — see [`panes.md`](panes.md).
+
+## The desk's front is the authored order plus one lift (WUX-5)
+
+```text
+authored/persisted pane order  +  the current selected-pane lift
+    =  effective ordinary-pane presentation order
+```
+
+- **`Panels::selected` IS A PRESS'S MEMORY AND `selected_pane` IS THE ANSWER**, exactly
+  `Panels::keyboard`/`keyboard_pane`'s shape one question wider — and written by the SAME line
+  in `on(PointerButton)`, with the keyboard candidate DERIVED from it through the declared
+  candidacy rather than the occupancy being tested twice. Session only: not in the setup, not
+  in the document, not persisted, not restored, and `kNoPaneKind` is where every session
+  starts. The Builder's edit-source door is its second writer, for the keyboard candidate's
+  own reason.
+- **`effective_pane_order` (setup.hpp) IS THE ONE ANSWER**, and every consumer whose meaning
+  is literally foreground order spends it: `paint_panels` ascending, `occupied_at` descending,
+  `pane_is_covered`, and the arrangement desk's pointer walk. They cannot disagree because
+  there is nothing to disagree about. `presentation_order` remains the AUTHORED base and is
+  what persistence and `reset order` want; nothing that means "in front right now" may call it.
+- **THE LIFT IS A ROTATION AND NEVER A WRITE.** No rank is read differently, none is written,
+  `panels.open` is untouched, and nothing reaches a file. A selection that is not seated lifts
+  nothing, so a closed or unresolved pane leaves no ghost foreground identity — `bounds_of`'s
+  discipline, and the reason this needs no clearing path anywhere. `manage.front` remains the
+  way to say *and I mean this permanently*.
+- **THE TRANSIENT PLANES ARE STILL ABOVE THE PANES.** The lift orders the ordinary pane planes
+  among themselves and reaches no further, so a selected pane is never drawn over the menu a
+  maker just opened on it.
+
 ## The plane sequence is the layout of the screen (WIND-2a)
 
 The canvas is an ordered list of planes ([`surface.md`](surface.md#the-canvas-is-an-ordered-list-of-planes-wind-2a));
@@ -265,7 +336,8 @@ Workshop's publication order is the whole depth story:
 
 ```text
 the workspace       its backdrop, the scene, the size handle
-one plane per pane  presentation_order(setup, panels), ascending by canonical `front`
+one plane per pane  effective_pane_order(setup, panels) -- the canonical `front` ranks with
+                    the selected pane lifted (WUX-5), ascending
 the affordances     over the panes' own content, so no handle is hidden (ARR-0: the
                     rings ARE the arrangement state's visible statement)
 picker / overlays   over the panes they cover -- a provider's text cannot bury the row that
@@ -287,8 +359,10 @@ the Terminal        the final modal plane
   and the full hotkey view. The workspace did NOT grow (its extent is what a share resolves
   against; a chrome retirement must not resize a maker's document), so row 0 is empty canvas
   now, the side region's reservation and every other constant unmoved.
-- `presentation_order` is the one order helper; paint walks it ascending and `occupied_at` its
-  exact reverse. Nothing derives hit order from canvas layers.
+- `effective_pane_order` is the one FOREGROUND order helper (WUX-5); paint walks it ascending
+  and `occupied_at` its exact reverse. Nothing derives hit order from canvas layers, and
+  nothing that means "in front right now" reads `presentation_order` -- that is the authored
+  base, and it is what persistence and `reset order` want.
 
 ## Gestures: press, hold, release (WIND-2, WIND-2a)
 
@@ -1109,9 +1183,20 @@ EXECUTION   the owner that performs it                             untouched -- 
   `shift+hjkl size`, `up/down row`, `[ ] workspace`) exactly while every member sits on the
   default that makes the folded word true (`help_pairs`); what a packed row cannot carry is
   marked, and the full hotkey view remains the complete list in every mode.
-- **The full hotkey view** (`Session::hotkeys`, `paint_hotkeys`, `hotkeys_bounds` — the
-  stack COLUMN, floor to ceiling, one row above the setup line; a single slot was measured
-  too small) is a projection, not an owner: it lists the context BENEATH it, grouped by
+- **The full hotkey view** (`Session::hotkeys`, `paint_hotkeys`) opens **beside the selected
+  pane** since WUX-5: `hotkeys_bounds(session, screen)` anchors it at that pane's visible
+  OUTER top-left, sizes it from the room under the anchor (floored at `kPickerRows`, this
+  screen's own smallest useful overlay list, and capped at the column's own height), and
+  shifts it whole inside the band `context_bounds` respects. It is DERIVED at every paint and
+  every press — nothing is stored, so moving or resizing the pane moves the help on the next
+  projection and no position reaches a file. With NO selection, and for a selected pane with
+  no rectangle on this screen, it answers `overlay_column(sc)` — byte-for-byte where this view
+  always opened, and nothing invents a selection to anchor to. ⚠ `attention_bounds` did NOT
+  follow it: a condition is about the application and anchoring that list to whichever pane
+  was last pressed would assert a relationship that does not exist.
+  The view (still the stack column's width, floor to ceiling at the fallback; a single slot
+  was measured too small) is a projection, not an owner: it lists the context BENEATH it,
+  grouped by
   owning layer, with the component's editing vocabulary shown from
   `component::kEditingVocabulary` and marked not remappable, and a focused pane described
   only as ownership — Workshop is never told a provider's bindings and must not guess. It is
@@ -1158,13 +1243,27 @@ SPEND RE-ASKS ITS OWNER.                     or nothing -- never a rectangle, ro
   not the subject's; the keyboard entrance is `anchored == false` and opens at the overlay
   stack's corner, a deterministic placement rather than an invented pointer).
   `context_bounds(session, screen)` re-derives the rectangle at every paint and every
-  press: extent from the LEVEL's own composition (heading, hint, each composed row) read
-  backwards into whole cells through `surface::region_cells_for` — the one text measurer's
-  inverse, living beside `fit_region` so a second inversion cannot drift by an inset —
-  width capped at `kContextMaxCols` (= `kStackW`), then shifted to stay whole inside the
-  band the overlay stack itself respects (`kStackY` to `kWorkspaceY + room_h`, inside the
-  canvas). Entering a group re-derives at the SAME anchor, so depth stays local. A level
-  taller than the room keeps the room's height and `list_window` says what was cut.
+  press: extent from the LEVEL's own composition — **its rows and nothing else since
+  WUX-5** — read backwards into whole cells through `surface::region_cells_for` (the one
+  text measurer's inverse, living beside `fit_region` so a second inversion cannot drift by
+  an inset), grown by the chrome through `chrome_outer_of` so the content lands inside the
+  surface's own boundary, width capped at `kContextMaxCols` (= `kStackW`), then shifted to
+  stay whole inside the band the overlay stack itself respects (`kStackY` to
+  `kWorkspaceY + room_h`, inside the canvas). Entering a group re-derives at the SAME
+  anchor, so depth stays local. A level taller than the room keeps the room's height and
+  `list_window` says what was cut.
+- **THE FIRST ROW IS AN ACTION (WUX-5).** The surface used to open with two chrome rows — a
+  title reading `ACTIONS -- ` and the captured subject's reference, and a hint restating the
+  choose/back gestures — and both are gone, along with `kContextHeadingRows`,
+  `context_row_budget` and `context_subject_text`. **Painted row i IS population row i now**,
+  so the painter and `context_press_at` have no offset left to disagree about. The hint was a
+  second cheat sheet: `context.choose`/`context.back` are ordinary keymap rows, so the band's
+  generated legend already says them, in the maker's own bindings, for exactly as long as this
+  surface is open. The title announced that a menu of actions contains actions and PAID FOR IT
+  IN WIDTH — it was the widest string on most levels, so the removed rows were the width
+  FLOOR and the popup shrinks to its content now, with no separately hard-coded narrower
+  number. A group level lost no meaning either, which was checked rather than assumed: every
+  label in `Order` and `Reset` says what it does on its own.
 - **`kContextCatalog` (context.hpp) declares, and owns no power**: `{action id, subject
   bits, group}` referencing `kActionCatalog` ids — no callback, no label, no gesture, no
   availability. A stale reference is a compile error (`context_actions_resolve`). Groups
@@ -1285,9 +1384,13 @@ and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, besid
   became a disjunction somebody must remember to extend, in a file with no other reason to
   know which panes take keys. The declaration moved; nothing registered, and this is still
   not a focus framework.
-- **ONE LINE DECIDES WHERE THE KEYBOARD GOES**, at the top of the pressed branch, before any
-  layer answers: `keyboard = occupied ∧ (is_runtime_kind ∨ panel_kind(kind).takes_keyboard)
-  ? kind : kNoPaneKind`. Every other built-in still clears the candidate. ⚠ The PRIOR answer
+- **ONE READING DECIDES BOTH, at the top of the pressed branch, before any layer answers**
+  — the keyboard candidate and the SELECTION (WUX-5) are two facts off one press rather than
+  two decisions about one press: `selected = occupied ? kind : kNoPaneKind`, then
+  `keyboard = selected ≠ kNoPaneKind ∧ (is_runtime_kind ∨ takes_keyboard) ? selected
+  : kNoPaneKind`. Every other built-in still clears the candidate and keeps the selection,
+  which is the whole difference between the two: selection is about every pane, the keyboard
+  candidate about the panes declared able to take keys. ⚠ The PRIOR answer
   is read one line ABOVE it (`files_has_keyboard`) because Project Files' press rule needs
   it: reading it after would make every first press look like a press in a pane the maker was
   already working in. Putting the line in

@@ -25,8 +25,14 @@ keymap holds names and gestures only; the operations stay with their owners.
 
 ## The hotkey view — `Ctrl`+`k`
 
-`Ctrl`+`k` opens a full list of what the keyboard means **right now**, grouped by the layer
-that owns each row:
+`Ctrl`+`k` opens a full list of what the keyboard means **right now**, **beside the pane you
+are working with** — it appears at the top-left of the selected pane and follows it if you
+move that pane or select another. With no pane selected it opens at the panel column, which
+is where it has always opened. Nothing about its position is remembered: it is worked out
+fresh each time from the pane you last pressed into, and near the bottom of the room it
+shifts up so the whole view stays on screen.
+
+The list is grouped by the layer that owns each row:
 
 - the current context's own keys — command mode, the terminal line, the picker, the
   current-condition view, the two arranging scopes and their reset prompt, a property

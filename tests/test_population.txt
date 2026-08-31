@@ -785,6 +785,24 @@
 # `zengine-provider-source` joins this suite's fixture list, and `op::invocations()` alone
 # is deliberately not trusted to answer a question about another image.
 #
+# WUX-5 raised the screen floor 172 -> 187, and the nine new cases are the desk that
+# stopped being a set of undifferentiated rectangles. They are together in `workshop_screen`
+# because they are one claim -- what a maker SEES and what their hand REACHES are the same
+# thing -- and each names the mutation it falsifies in its own comment: the border deleted,
+# the border painted but not spent, paint or hit walking the authored order instead of the
+# effective one, the selected style collapsing into the ordinary one, the help going back to
+# the window corner, the menu's heading or its hint returning, the removed rows still setting
+# the menu's width, the press inverse keeping an offset the painter no longer spends, a popup
+# wearing the pane's own chrome, a closed pane keeping its lift, and a pane teaching a key
+# again. ALL NINE ARE IN THE `always` ROW: not one needs a font engine or an SDL -- the
+# metric is an argument, and both media's budgets are asserted from it. The thirteen
+# mutations were RUN, one at a time, against the whole lane; the matrix is in
+# `Zen/reportbacks/WUX-5-evidence.md`.
+#
+# THE OTHER SEVEN WORKSHOP FLOORS DID NOT MOVE, and that is the honest reading rather than an
+# oversight: WUX-5 changed presentation, so what it cost those suites was re-pinning what a
+# pane's rows and a pane's granted room now measure -- not new cases.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -799,7 +817,7 @@ operator                          doctest           always  103
 composer                          doctest           always  35
 builder                           doctest           always  53
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  172
+workshop_screen                   doctest           always  187
 workshop_panels                   doctest           always  155
 workshop_panes                    doctest           always  220
 workshop_persistence              doctest           always  127

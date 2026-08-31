@@ -120,9 +120,11 @@ struct EditorRig {
         }
     }
 
+    /// THE PANE'S BODY, INSIDE ITS OWN CHROME (WUX-5) -- the rectangle the painter
+    /// resolves and the press inverse reads back, so a case aiming at row n hits row n.
     ui::Rect editor_cells() const {
         const Session& s = session();
-        return cells_covered(
+        return pane_body_cells(
             bounds_of(s.panels, s.setup.active, panel::kEditor, screen_of(s)).rect);
     }
     void press_body(std::int64_t row, std::int64_t col) {
@@ -1020,7 +1022,11 @@ TEST_CASE("EDIT-0: the hotkey view answers for the editor with its own unremappa
     EditorRig r("hotkeys");
     r.open_hello();
     r.t.key(input::scan::kK, input::mod::kCtrl);
-    const std::string view = stack_text(r.t.canvases.back());
+    // THE VIEW IS ANCHORED AT THE SELECTED PANE SINCE WUX-5, so it is read at its own
+    // derived bounds rather than at the overlay column it used to open in.
+    const std::string view = panel_text(
+        r.t.canvases.back(),
+        pane_body_cells(hotkeys_bounds(r.session(), screen_of(r.session()))));
     CHECK(view.find("the source editor") != std::string::npos);
     CHECK(view.find("save source") != std::string::npos);
     r.t.key(input::scan::kEscape); // the view closes; the editor still has the keys

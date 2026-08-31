@@ -713,7 +713,7 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     // where the old one held eight -- so the summary is FITTED and the cut is MARKED. That is
     // `detail::fit` doing exactly its job, and asserting the unfitted string here would be a
     // case measuring a row nobody paints.
-    const ui::Rect slot = cells_covered(picker_bounds(screen_of(r.session())));
+    const ui::Rect slot = pane_body_cells(picker_bounds(screen_of(r.session())));
     CHECK(closed.find(detail::fit(
               "  " + picker_entry_text("Hello", "closed", "a bounded external greeting"),
               slot.w)) != std::string::npos);
@@ -755,14 +755,15 @@ TEST_CASE("a picker population larger than its rows is windowed, not truncated")
 
     panels.picker.open = true;
     const Screen sc = kMinScreen;
-    const ui::Rect box = cells_covered(picker_bounds(sc));
+    const ui::Rect box = pane_body_cells(picker_bounds(sc));
     const std::size_t budget = static_cast<std::size_t>(box.h - 1);
-    // A CAPACITY FACT AND NOT A CATALOG ONE. The picker asks for the stack's first slot and
-    // spends its top row on the heading; eight is what this composition leaves for the list.
-    // It is asserted because everything below is derived from it, and it moves only when the
-    // composition does. Before WP-0 the picker's height was `1 + kPanelKinds` -- a catalog
-    // census standing in for a capacity, right until a catalog could outgrow the box.
-    REQUIRE(budget == 8);
+    // A CAPACITY FACT AND NOT A CATALOG ONE. The picker asks for the stack's first slot,
+    // spends one cell on every side for the boundary it draws (WUX-5) and its top row on
+    // the heading; six is what this composition leaves for the list. It is asserted because
+    // everything below is derived from it, and it moves only when the composition does.
+    // Before WP-0 the picker's height was `1 + kPanelKinds` -- a catalog census standing in
+    // for a capacity, right until a catalog could outgrow the box.
+    REQUIRE(budget == 6);
 
     // THE WINDOW RULES, STATED HERE rather than borrowed from `list_window`: an expected
     // value computed by the function under test is not an expectation. A budget of `budget`
@@ -1136,16 +1137,21 @@ cells_covered(bounds_of(r.session().panels, r.session().setup.active, kind, sc).
     const ExternalBodyPlace body = external_body_place(
         fine_of_cells(panel), sc,
         external_title_rows(r.session().panels, kind, r.session().pane_titles));
-    CHECK(body.region_x == 0);
-    CHECK(body.region_y == 1);
-    CHECK(body.region_w == 48);
-    CHECK(body.region_h == 9);
-    const surface::RegionFit fit = surface::fit_region(0, 1, 48, 9, sc.text_advance_px,
-                                                       sc.text_line_px);
+    // THE ROOM IS THE PANE'S INTERIOR SINCE WUX-5: the rectangle the placement path gives
+    // it is unchanged, and the one cell of visible boundary on every side comes off before
+    // the provider is told what it has -- the same reservation the header already was.
+    const ui::Rect inside = pane_body_cells(panel);
+    CHECK(inside == ui::Rect{1, 2, 46, 7});
+    CHECK(body.region_x == inside.x);
+    CHECK(body.region_y == inside.y);
+    CHECK(body.region_w == inside.w);
+    CHECK(body.region_h == inside.h);
+    const surface::RegionFit fit = surface::fit_region(inside.x, inside.y, inside.w, inside.h,
+                                                       sc.text_advance_px, sc.text_line_px);
     CHECK(seat->rooms[0].rows == fit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[0].columns == fit.columns);
-    CHECK(seat->rooms[0].rows == 8);
-    CHECK(seat->rooms[0].columns == 48);
+    CHECK(seat->rooms[0].rows == 6);
+    CHECK(seat->rooms[0].columns == 46);
 }
 
 TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends exactly one") {
@@ -1178,8 +1184,8 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     CHECK(bounds_of(r.session().panels, r.session().setup.active, kind, screen_of(r.session())).rect ==
           fine_of_cells(ui::Rect{0, 1, 59, 9}));
     REQUIRE(seat->rooms.size() == 2);
-    CHECK(seat->rooms[1].rows == 8);       // unchanged: the rows are the slot's
-    CHECK(seat->rooms[1].columns == 59);   // moved: the columns are the room's share
+    CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
+    CHECK(seat->rooms[1].columns == 57);   // moved: the columns are the room's share, inside
     CHECK(seat->room_authors[1] == std::string(kWorkshopProvider));
 
     // ...and saying it again is not a second answer. The same extent resolves the same
@@ -1203,7 +1209,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     const Screen typed = screen_of(r.session());
     CHECK(typed.text_advance_px == 9);
     const ui::Rect graphical = external_body_rect(r.session(), kind);
-    CHECK(graphical.w == 59); // the widened body, in cells, before the face is consulted
+    CHECK(graphical.w == 57); // the widened body's INTERIOR, before the face is consulted
     const surface::RegionFit gfit = surface::fit_region(graphical.x, graphical.y, graphical.w,
                                                         graphical.h, 9, 18);
     CHECK(gfit.graphical());
@@ -1227,7 +1233,9 @@ TEST_CASE("a new room clears the old rows before it is sent") {
 
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{std::string(48, 'w'), surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{
+        std::string(static_cast<std::size_t>(external_body_of(r.session(), kind).columns), 'w'),
+        surface::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panels.external_pane(kind)->shown.size() == 1);
 
@@ -1239,8 +1247,8 @@ TEST_CASE("a new room clears the old rows before it is sent") {
     r.extent(120, 40);
     const ExternalPane* wider = r.session().panels.external_pane(kind);
     REQUIRE(wider != nullptr);
-    CHECK(wider->columns == 69);
-    CHECK(wider->rows == 8);
+    CHECK(wider->columns == 67);
+    CHECK(wider->rows == 6);
     CHECK(wider->shown.empty());
     CHECK_FALSE(wider->heard);
     CHECK(wider->awaiting);
@@ -1276,8 +1284,8 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     REQUIRE(seat->rooms.size() == 1);
-    CHECK(seat->rooms[0].rows == 8);
-    CHECK(seat->rooms[0].columns == 48);
+    CHECK(seat->rooms[0].rows == 6);
+    CHECK(seat->rooms[0].columns == 46);
 
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     struct Grant {
@@ -1289,12 +1297,14 @@ TEST_CASE("WIND-1: an external grant follows the widened body through fit_region
         std::int64_t columns;
     };
     std::size_t said = seat->rooms.size();
-    for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 8, 69},
-                                             {200, 60, 0, 0, 8, 109},
-                                             {78, 22, 0, 0, 8, 48},
-                                             {78, 22, 8, 18, 4, 71},
-                                             {120, 40, 8, 18, 4, 103},
-                                             {200, 60, 8, 18, 4, 163}}) {
+    // WUX-5 TOOK TWO CELLS OFF EVERY ONE OF THESE, on both axes: the pane's rectangle is
+    // unchanged and its visible boundary comes out of it.
+    for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 67},
+                                             {200, 60, 0, 0, 6, 107},
+                                             {78, 22, 0, 0, 6, 46},
+                                             {78, 22, 8, 18, 3, 68},
+                                             {120, 40, 8, 18, 3, 100},
+                                             {200, 60, 8, 18, 3, 160}}) {
         CAPTURE(g.w);
         CAPTURE(g.h);
         CAPTURE(g.advance);
@@ -1431,8 +1441,14 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
     const ExternalPane* pane = r.session().panels.external_pane(kind);
-    REQUIRE(pane->rows == 8);
-    REQUIRE(pane->columns == 48);
+    REQUIRE(pane->rows == 6);
+    REQUIRE(pane->columns == 46);
+    // THE ROOM THIS PANE WAS ACTUALLY GRANTED, held once: every bound below is derived
+    // from it rather than from a number this case remembers, so the pane's interior
+    // moving -- WUX-5 took one cell on every side for its visible boundary -- moves the
+    // case with it instead of leaving it asserting about a room nobody granted.
+    const std::int64_t granted_rows = pane->rows;
+    const std::int64_t granted_cols = pane->columns;
 
     PaneContent good;
     good.pane = kHelloPane;
@@ -1443,12 +1459,13 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     // ONE ROW TOO MANY.
     PaneContent tall;
     tall.pane = kHelloPane;
-    for (int i = 0; i < 9; ++i) {
+    const std::int64_t too_tall = granted_rows + 1;
+    for (std::int64_t i = 0; i < too_tall; ++i) {
         tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
     }
     r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
     pane = r.session().panels.external_pane(kind);
-    CHECK(pane->shown.empty()); // NOT ONE of the nine rows was kept
+    CHECK(pane->shown.empty()); // NOT ONE of them was kept
     CHECK_FALSE(pane->heard);
     CHECK_FALSE(pane->refusal.empty());
     // AND IT IS A CONDITION, NOT A SENTENCE SOMEBODY SAID. The refusal names the
@@ -1461,14 +1478,15 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
         const Condition* refused = condition_by_key(now, content_key);
         REQUIRE(refused != nullptr);
         CHECK(refused->compact.find("zengine.test.workshop-hello/hello") != std::string::npos);
-        CHECK(refused->detail.find("9 rows into a pane granted 8") != std::string::npos);
+        CHECK(refused->detail.find(std::to_string(too_tall) + " rows into a pane granted " +
+                                   std::to_string(granted_rows)) != std::string::npos);
         CHECK(refused->role == surface::role::kAlert);
     }
     CHECK(r.attention_note().find("zengine.test.workshop-hello/hello") != std::string::npos);
     // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
     std::vector<std::string> after = external_rows(r.last_canvas(), body);
     REQUIRE(after.size() == 1);
-    CHECK(after[0] == detail::fit(kExternalRefused, 48)); // fitted, and it marks its cut
+    CHECK(after[0] == detail::fit(kExternalRefused, granted_cols)); // fitted, cut marked
     CHECK(after[0].find("a good row") == std::string::npos);
 
     // A LATER VALID UPDATE RECOVERS THE PANE -- it stayed open throughout.
@@ -1488,7 +1506,8 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     PaneContent wide;
     wide.pane = kHelloPane;
     wide.rows.push_back(surface::SurfaceTextRow{"fits", surface::role::kFill});
-    wide.rows.push_back(surface::SurfaceTextRow{std::string(49, 'x'), surface::role::kFill});
+    wide.rows.push_back(surface::SurfaceTextRow{
+        std::string(static_cast<std::size_t>(granted_cols) + 1, 'x'), surface::role::kFill});
     r.drive(seat, [wide](ProviderSeat& s, loom::Mail& m) { s.say(m, wide); });
     pane = r.session().panels.external_pane(kind);
     CHECK(pane->shown.empty());
@@ -1496,13 +1515,16 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
         const std::vector<Condition> now = r.conditions();
         const Condition* refused = condition_by_key(now, content_key);
         REQUIRE(refused != nullptr);
-        CHECK(refused->detail.find("49 bytes into a pane granted 48 columns") !=
+        CHECK(refused->detail.find(std::to_string(granted_cols + 1) +
+                                   " bytes into a pane granted " +
+                                   std::to_string(granted_cols) + " columns") !=
               std::string::npos);
     }
     // ...and the 48-byte row on the boundary IS accepted.
     PaneContent edge;
     edge.pane = kHelloPane;
-    edge.rows.push_back(surface::SurfaceTextRow{std::string(48, 'e'), surface::role::kFill});
+    edge.rows.push_back(surface::SurfaceTextRow{
+        std::string(static_cast<std::size_t>(granted_cols), 'e'), surface::role::kFill});
     r.drive(seat, [edge](ProviderSeat& s, loom::Mail& m) { s.say(m, edge); });
     CHECK(r.session().panels.external_pane(kind)->shown.size() == 1);
 }
@@ -3055,11 +3077,16 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active, panel::kIn
     // ...AND THE PRIORITY WAS THE MODE'S ALONE. A press inside the covered Builder is
     // answered by the VISIBLE pane on top of it, which is what stops arrangement interest
     // from becoming a click-through.
+    // The cell is inside BOTH rectangles and inside Info's own chrome (WUX-5), on a body
+    // row that carries no control -- so what answers is the panel's own occupancy sentence
+    // and not one of the three runs inside its body.
+    const std::int64_t at_x = side.x + 1 + kChromeCells;
+    const std::int64_t at_y = side.y + 3 + kChromeCells;
     const Occupancy here = occupied_at(t.session().panels, t.session().setup.active, sc,
-                                       side.x + 1, side.y + 3);
+                                       at_x, at_y);
     REQUIRE(here.occupied);
     CHECK(here.what == std::string("Info"));
-    t.press_at(side.x + 1, side.y + 3 + surface::kTuiCanvasTopRow, input::space::kCells);
+    t.press_at(at_x, at_y + surface::kTuiCanvasTopRow, input::space::kCells);
     CHECK(t.notice().find("Info is here") != std::string::npos);
     // AND NO SELECTION AUTO-RAISED ANYTHING.
     CHECK(pane_of(t.session().setup.active, ref_of(panel::kBuilder))->front == 0);
@@ -3172,7 +3199,7 @@ TEST_CASE("WIND-2: a place-only change publishes no room, and a size change publ
                 .accepted);
     r.key(input::scan::kEscape);
     REQUIRE(seat->rooms.size() == rooms_before + 1);
-    CHECK(seat->rooms.back().columns == 30);
+    CHECK(seat->rooms.back().columns == 28);
     // ...AND THE RETAINED ROWS WERE CLEARED BEFORE IT, so nothing admitted under a wider
     // room can be shown inside a narrower one.
     const ExternalPane* pane =
@@ -3260,7 +3287,7 @@ TEST_CASE("SEL-0: a press in the body names the row under the header, in both me
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
 
     SUBCASE("a character medium") {
-        const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         REQUIRE(body.rows >= 3);
@@ -3302,7 +3329,7 @@ TEST_CASE("SEL-0: a press in the body names the row under the header, in both me
 
     SUBCASE("a graphical medium, whose line height is not its cell height") {
         r.extent(1000, 700, 8, 18);
-        const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         // THE PRECONDITION THIS SUBCASE RESTS ON, ASSERTED RATHER THAN ASSUMED: a
@@ -3361,7 +3388,7 @@ TEST_CASE("SEL-0: every forwarded press is inside the room that pane was granted
         if (graphical) {
             r.extent(1000, 700, 8, 18);
         }
-        const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         seat->presses.clear();
@@ -3396,7 +3423,7 @@ TEST_CASE("SEL-0: a press is authored as Workshop and addressed to the offering 
     });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
 
     seat->presses.clear();
     other->presses.clear();
@@ -3419,7 +3446,7 @@ TEST_CASE("SEL-0: management chrome gets first refusal, and a mode takes the pre
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     const std::int64_t body_y = panel.y + kExternalHeaderRows;
 
     // THE CONTROL: with nothing over it, this exact press reaches the provider. Every
@@ -3491,7 +3518,7 @@ TEST_CASE("SEL-0: a pane with no room granted yet is told about no press") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     ExternalPane* pane = r.session().panels.external_pane(kind);
     REQUIRE(pane != nullptr);
     REQUIRE(pane->granted);
@@ -3522,7 +3549,7 @@ TEST_CASE("SEL-0: Workshop gained one sentence and no knowledge of what a pane's
     r.ready();
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     seat->presses.clear();
     for (std::int64_t row = 0; row < 3; ++row) {
         r.press_cell(panel.x + row, panel.y + kExternalHeaderRows + row);
@@ -3568,7 +3595,7 @@ TEST_CASE("SEL-0: a press names WHICH pane, when one provider offers two") {
 
     for (const RuntimePane& row : r.session().panels.runtime.entries) {
         CAPTURE(row.pane);
-        const ui::Rect panel = cells_covered(external_panel_rect(r.session(), row.kind));
+        const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), row.kind));
         REQUIRE(panel.w > 0);
         seat->presses.clear();
         r.press_cell(panel.x + 1, panel.y + kExternalHeaderRows);
@@ -4252,7 +4279,7 @@ TEST_CASE("SEL-0: the same gesture in a terminal names the same row of the same 
     const std::int64_t gkind = px.session().panels.runtime.entries[0].kind;
     px.extent(1000, 700, 8, 18);
     const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
-    const ui::Rect gpanel = cells_covered(external_panel_rect(px.session(), gkind));
+    const ui::Rect gpanel = pane_body_cells(external_panel_rect(px.session(), gkind));
     REQUIRE(gbody.fit.graphical());
     px.press_pixel(gpanel.x * surface::kCanvasCellPx + gbody.fit.origin_x + gbody.fit.advance_px +
                        gbody.fit.advance_px / 2,
@@ -4418,7 +4445,7 @@ TEST_CASE("MSG-0: a press anywhere else takes the keyboard away again") {
     // The cell is derived from the pane's OWN rectangle rather than spelled: an
     // overlay slot starts at the canvas's top-left corner, so a literal `(1, 1)` is
     // inside the pane it is meant to be outside of.
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     const std::int64_t below = panel.y + panel.h + 1;
     REQUIRE_FALSE(occupied_at(r.session().panels, r.session().setup.active,
                               screen_of(r.session()), panel.x + 1, below)
@@ -4544,7 +4571,7 @@ TEST_CASE("MSG-0: the keys that mean the same thing in every mode still outrank 
 
     // ...AND QUIT COMES BACK WITH THE KEYBOARD. A press outside the pane clears the
     // candidate, and the same chord is the application's again.
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     r.press_cell(panel.x + 1, panel.y + panel.h + 1);
     REQUIRE(r.session().panels.keyboard == kNoPaneKind);
     r.key(input::scan::kC, input::mod::kCtrl);
@@ -4680,7 +4707,7 @@ TEST_CASE("MSG-0: the same gesture in both media produces the same provider inte
         if (graphical) {
             r.extent(1000, 700, 8, 18);
             const ExternalBodyPlace body = external_body_of(r.session(), kind);
-            const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+            const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
             REQUIRE(body.fit.graphical());
             r.press_pixel(panel.x * surface::kCanvasCellPx + body.fit.origin_x +
                               body.fit.advance_px / 2,
@@ -5035,6 +5062,26 @@ struct ComposeRig {
         r.extent(240, 80);
         (void)r.load(zengine::composer::kComposerStem, WORKSHOP_SO_COMPOSER, kComposerOffice);
         r.pick(composer_ref());
+        // ...AND BIG ENOUGH IN BOTH DIRECTIONS. The extent above widens the slot; its
+        // HEIGHT is `kStackRows` at every extent (WIND-1 widened the slot and deliberately
+        // did not heighten it), and since WUX-5 one cell of it on each side is the pane's
+        // visible boundary -- so the form's own composition (a target row, a notice, a
+        // heading, its fields and a two-row footer) no longer fits the developer's
+        // default. These cases are about the CONVERSATION, so the pane is given the room
+        // its form was composed for, through the same authoring door a maker's own resize
+        // goes through.
+        //
+        // ⚠ THAT THE DEFAULT SLOT NO LONGER HOLDS THE FORM IS A PRODUCT FINDING and is
+        // recorded as one rather than papered over here: at six body rows the footer's
+        // fixed two-row demand leaves the field list one row, which `window_of` can spend
+        // only on its own marker -- a Submit above a form with no fields in it. The repair
+        // belongs to the Composer's own composition priority, not to this phase.
+        REQUIRE(author_pane_size(
+                    r.session().setup.active, composer_ref(), PaneSize{pane_unit::kDefault, 0},
+                    PaneSize{pane_unit::kSubcells,
+                             surface::subs_of_cells(kStackRows + 2 * kChromeCells)})
+                    .accepted);
+        r.extent(240, 81); // one more row, so the authored height is reconciled and granted
         for (const RuntimePane& row : r.session().panels.runtime.entries) {
             if (row.provider == std::string(kComposerOffice)) {
                 kind = row.kind;
@@ -8194,7 +8241,7 @@ TEST_CASE("CTX-0: a right press over a provider's pane crosses the seam not at a
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     const std::int64_t keyboard_before = r.session().panels.keyboard;
     const std::int64_t said_before = seat->said;
 
@@ -8221,7 +8268,7 @@ TEST_CASE("CTX-0: input spent on the open surface reaches no provider") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panels.runtime.entries[0].kind;
-    const ui::Rect panel = cells_covered(external_panel_rect(r.session(), kind));
+    const ui::Rect panel = pane_body_cells(external_panel_rect(r.session(), kind));
     r.right_press_cell(panel.x + 1, panel.y + 2);
     REQUIRE(r.session().context.open);
     const std::size_t presses_before = seat->presses.size();
