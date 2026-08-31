@@ -1014,7 +1014,7 @@ surface                           doctest           always  100
 surface                           doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  39
-operator                          doctest           always  103
+operator                          doctest           always  125
 composer                          doctest           always  35
 builder                           doctest           always  53
 # QR-13 MOVED NO FLOOR, AND THAT IS THE WHOLE POINT OF RECORDING IT HERE. `workshop_panes`
@@ -1029,10 +1029,10 @@ builder                           doctest           always  53
 # `FLOOR: workshop_panes selected 220 cases, below declared floor 233`.
 #
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  225
+workshop_screen                   doctest           always  229
 workshop_panels                   doctest           always  164
 workshop_panes                    doctest           always  233
-workshop_persistence              doctest           always  133
+workshop_persistence              doctest           always  148
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
 workshop_files                    doctest           always  85

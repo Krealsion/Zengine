@@ -29,6 +29,10 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+// The historical session shapes and their conversions -- an artifact's material since MIG-0,
+// named here because this suite owns the whole-cell-to-fine-lattice claim.
+#include "workshop/session_history.hpp"
+
 // ============================================================================
 // Tier 3 — the whole screen, as a value
 // ============================================================================
@@ -7315,8 +7319,12 @@ TEST_CASE("WUX-2: a version-2 whole-cell setup loads at exactly its old picture"
     CHECK(refused.outcome.refusal.find("default or cells") != std::string::npos);
 }
 
-TEST_CASE("WUX-2: a version-1 session restores a whole-cell desk through the legacy road") {
-    session_persist::v1::WorkshopSession old;
+TEST_CASE("WUX-2/MIG-0: a version-1 session restores a whole-cell desk through a conversion") {
+    // THE SAME CLAIM WUX-2 SHIPPED, THROUGH THE SEAM THAT NOW CARRIES IT (MIG-0). The old
+    // shape and the multiply are `session_history`'s -- an artifact's material -- and the
+    // reader has stopped compiling either; what it does is ask the catalog. So the case
+    // mounts the conversions and reads the same file.
+    session_history::v1::WorkshopSession old;
     old.format = session_persist::kFormat;
     old.format_version = 1;
     old.viewport = session_persist::WorkshopViewport{120, 44};
@@ -7333,7 +7341,15 @@ TEST_CASE("WUX-2: a version-1 session restores a whole-cell desk through the leg
     old.desk.panes.push_back(pane);
     const std::string bytes = loom::compat::serialize(loom::to_value(old));
 
-    const session_persist::LoadedSession read = session_persist::from_text(bytes);
+    // ...and with NO conversion live it is refused, by number, changing nothing.
+    const session_persist::LoadedSession without = session_persist::from_text(bytes);
+    CHECK_FALSE(without.outcome.accepted);
+    CHECK(without.outcome.refusal.find("session version 1") != std::string::npos);
+
+    op::Catalog conversions;
+    REQUIRE(conversions.mount("suite", session_history::conversions()));
+    const session_persist::LoadedSession read =
+        session_persist::from_text(bytes, &conversions);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.present);
     CHECK(read.honoured);

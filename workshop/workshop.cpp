@@ -876,6 +876,25 @@ int main(int argc, char** argv) {
         return 6;
     }
 
+    // ---- ...AND THE ONE READING A DURABLE OWNER TAKES OFF IT (MIG-0) ---------
+    //
+    // A SESSION FILE WRITTEN BY AN OLDER WORKSHOP NEEDS SOMEBODY TO TRANSLATE IT, and the
+    // somebody is whatever conversion this run's plan happened to mount. This line is the
+    // whole of the wiring: the persistence owner is handed the catalog to LOOK IN, and
+    // looking is all it can do -- `session_persist` performs one `find` and one `evaluate`
+    // and holds nothing between calls.
+    //
+    // ⚠ IT IS SET BEFORE THE PLAN RUNS AND READ LONG AFTER, which is the ordering this seam
+    // turns on. What is in the catalog at the moment a session is read is whatever authored
+    // realization has put there by then -- and an old file's version claim contributes
+    // exactly nothing to that list. A claim selects among powers this host already has; it
+    // reaches no load door, and there is nothing on this line that would give it one.
+    //
+    // THE CATALOG OUTLIVES THE WEAVE BY DECLARATION ORDER, `mount_host_sources`' own claim
+    // about the same object one screen up: `operators` is declared above the Kernel, and
+    // Workshop's weave is mounted below it.
+    host.conversions = &operators;
+
     op::OperatorHostSurface operator_host(operators);
 
     loom::Kernel kernel(bus);

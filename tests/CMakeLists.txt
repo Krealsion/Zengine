@@ -165,6 +165,33 @@ target_link_libraries(zengine-provider-min PRIVATE zengine-operator)
 zengine_provider(zengine-provider-source weavelib/provider_source.cpp)
 target_link_libraries(zengine-provider-source PRIVATE zengine-operator)
 
+# ---- MIG-0's conversion artifacts, over an invented history ------------------
+#
+# One source, four libraries, and the difference is which roads exist between three versions
+# of `mig_fixture::Rung` (`weavelib/migration_family.hpp`):
+#
+#   zengine-provider-mig-chain        `v1 -> v2` and `v2 -> v3`, and NO `v1 -> v3`
+#   zengine-provider-mig-direct       the authored `v1 -> v3`, one rung
+#   zengine-provider-mig-direct-alt   the same edge at the same signature, answering
+#                                     differently -- what a lawful overlay covers it with
+#   zengine-provider-mig-composed     the same edge as a COMPOSITION over another identity,
+#                                     crossing the seam as structure
+#
+# WHY AN INVENTED SHAPE. The arrangements a migration seam must be asked about -- two edges
+# with no direct one, a name that disagrees with its schemas -- are arrangements the REAL
+# session history deliberately does not contain, and manufacturing them there would mean
+# shipping dishonest session converters. The real history is exercised as itself, by the
+# artifact a maker runs, in the Workshop persistence suite.
+set(ZENGINE_MIG_NAMES chain direct direct-alt composed)
+set(ZENGINE_MIG_FLAGS MIG_CHAIN MIG_DIRECT MIG_DIRECT_ALT MIG_COMPOSED)
+foreach(mig_name mig_flag IN ZIP_LISTS ZENGINE_MIG_NAMES ZENGINE_MIG_FLAGS)
+    zengine_provider(zengine-provider-mig-${mig_name} weavelib/provider_migration.cpp)
+    target_link_libraries(zengine-provider-mig-${mig_name} PRIVATE zengine-operator)
+    # MIG_CHAIN is the default arm and the source never tests for it; defining it anyway
+    # keeps this loop from needing a branch, exactly as the PROV-0 loop above does.
+    target_compile_definitions(zengine-provider-mig-${mig_name} PRIVATE ${mig_flag}=1)
+endforeach()
+
 zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
 target_link_libraries(zengine-workshop-hello
     PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
@@ -573,9 +600,13 @@ target_include_directories(zengine-operator-stranger PUBLIC ${CMAKE_CURRENT_SOUR
 # SOURCE-0 adds a FIFTH on the same terms again, asking the next question in that line:
 # which entries can be spent with nothing supplied (`test_operator_source.cpp`), what
 # sampling one costs, and what it costs to enumerate one WITHOUT sampling it.
+# MIG-0 adds a SIXTH on the same terms again, and it is the next question in that same
+# line: `test_operator_migration.cpp` asks what it takes for one of those powers to be a
+# CONVERSION -- how an edge is spelled, how one is found, and what a durable owner may and
+# may not cause by holding old bytes.
 add_executable(zengine-operator-tests test_operator.cpp test_operator_host.cpp
                                      test_operator_canonical.cpp test_operator_provider.cpp
-                                     test_operator_source.cpp
+                                     test_operator_source.cpp test_operator_migration.cpp
                                      doctest_main.cpp)
 target_link_libraries(zengine-operator-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-operator
@@ -645,7 +676,25 @@ target_compile_definitions(zengine-operator-tests PRIVATE
     "PROV_STRANGER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
     # ...and a real pre-existing weave, untouched by this phase and built by another
     # package's rules, so "most artifacts are not providers" is measured on one.
-    "PROV_UNTOUCHED_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\"")
+    "PROV_UNTOUCHED_WEAVE_SO=\"$<TARGET_FILE:zengine-workshop-hello>\""
+    # ---- MIG-0's conversion artifacts ------------------------------------------
+    #
+    # Four real images over one invented history, because what has to be asked of the
+    # migration seam is which roads EXIST -- and "exist" means mounted from a file, not
+    # published by the suite into its own catalog. The in-process cases beside them ask the
+    # signature questions a hostile contribution raises, which need no image at all.
+    "PROVIDER_MIG_CHAIN_SO=\"$<TARGET_FILE:zengine-provider-mig-chain>\""
+    "PROVIDER_MIG_DIRECT_SO=\"$<TARGET_FILE:zengine-provider-mig-direct>\""
+    "PROVIDER_MIG_ALT_SO=\"$<TARGET_FILE:zengine-provider-mig-direct-alt>\""
+    "PROVIDER_MIG_COMPOSED_SO=\"$<TARGET_FILE:zengine-provider-mig-composed>\""
+    # ...and the migration seam's own SOURCE, for the no-loader fence. `operator/migration.hpp`
+    # must stay a projection over the catalog: no image, no loader, no plan, no filesystem.
+    # This suite links the kernel for the OPH-0 tier, so no link line can say that -- only
+    # reading the file can, exactly as the Source seam's fence next door does.
+    "OPERATOR_MIGRATION_HPP=\"${CMAKE_SOURCE_DIR}/operator/migration.hpp\"")
+add_dependencies(zengine-operator-tests
+    zengine-provider-mig-chain zengine-provider-mig-direct
+    zengine-provider-mig-direct-alt zengine-provider-mig-composed)
 
 zengine_doctest_test(operator zengine-operator-tests)
 
@@ -936,7 +985,19 @@ zengine_workshop_suite(panes
                 "INTROSPECTION_CMAKE=\"${CMAKE_SOURCE_DIR}/introspection/CMakeLists.txt\"")
 
 zengine_workshop_suite(persistence SOURCES test_workshop_persistence.cpp
-    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\"")
+    DEFINITIONS "WORKSHOP_HOST_CPP=\"${CMAKE_SOURCE_DIR}/workshop/workshop.cpp\""
+        # ---- MIG-0's conversion artifact, and the reader that must not own one ----
+        #
+        # THE SHIPPED ARTIFACT, not a fixture: `zengine-workshop-session-history` is the file
+        # a maker's own Workshop mounts, and these cases open the same one. A stand-in would
+        # prove the seam and not the product.
+        "SESSION_HISTORY_SO=\"$<TARGET_FILE:zengine-workshop-session-history>\""
+        # ...and the session reader's own SOURCE, for the ownership tripwire. That the
+        # current owner compiles in no historical shape is a fact about what a translation
+        # unit NAMES, and only reading the file can carry it -- the same defence in depth as
+        # the operator suite's stranger and Source fences.
+        "WORKSHOP_SESSION_PERSIST_HPP=\"${CMAKE_SOURCE_DIR}/workshop/session_persist.hpp\""
+    NEEDS zengine-workshop-session-history)
 
 # LOAD-0's suite asks which artifacts are in the room at all, where the five above ask what
 # a maker sees and does. It is the one that STAGES artifacts into a real directory, because

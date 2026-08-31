@@ -152,6 +152,7 @@ set(zengine_public_headers_component  component/text_box.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
                                       operator/source.hpp
+                                      operator/migration.hpp
                                       operator/primitives.hpp
                                       operator/host.hpp
                                       operator/host_abi.h

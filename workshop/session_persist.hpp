@@ -76,17 +76,40 @@
 // is the same kind of fact the viewport already was. It is emphatically NOT pane/canvas
 // geometry: WUX-2's fine lattice is untouched, and no desktop unit enters authored intent.
 //
-// ---- What version 3 promises (WUX-3) ---------------------------------------
+// ---- ...and what an OLDER session file is now (MIG-0) ----------------------
+//
+// THIS READER KNOWS ONE SHAPE: the one it admits. It used to carry two more -- version 1
+// and version 2, with a road each -- and it does not any more. What it knows about
+// yesterday is exactly enough to recognise it: bytes claiming THIS durable shape at a
+// version this build does not admit are a HISTORICAL CLAIM, and a historical claim is
+// handed to one bounded question (`op::migrate`, `operator/migration.hpp`):
+//
+//     is there one currently-live conversion from that version to this one?
+//
+//   YES   it is spent -- the file's own bytes admitted at the old shape's own gate, the
+//         answer gated at this shape -- and the candidate that comes back then goes
+//         through THIS reader's ordinary current-shape law, every layer of it, as if it
+//         had arrived that way. A conversion cannot skip a check; it can only produce
+//         something for the checks to be run on.
+//   NO    an ordinary refusal that names the version found and the conversion that is
+//         missing. The file is not rewritten, nothing is half-installed, and no version
+//         claim has caused anything to be loaded -- which is the whole of the authority
+//         story here: a claim is a LOOKUP KEY, and a lookup key cannot mount code.
+//
+// WHERE THE OLD SHAPES WENT: `workshop/session_history.hpp`, which is the conversion
+// artifact's material rather than this reader's. This file names none of it and must not
+// -- the point of the move is that the current owner stops compiling in yesterday.
+//
+// ---- What version 3 promises (WUX-3, amended by MIG-0) ---------------------
 //
 //   PROMISED   Workshop reads and writes session format version 3 — the desk nested at
 //              setup format 3, the viewport, and the desktop placement — and a second save
-//              of a loaded session is byte-identical to the first. It also READS versions
-//              1 and 2: v2 is this file less the placement (WUX-2's format; the placement
-//              reads as the canonical absence), v1 additionally nests WIND-2's whole-cell
-//              desk through `setup_persist`'s own legacy reader. Either is rewritten only
-//              by the ordinary close-time save (which writes v3).
-//   REFUSED    any OTHER `format_version`, with the number named; a `format` that is not
-//              this one; a field the shape does not declare; a field of the wrong kind; a
+//              of a loaded session is byte-identical to the first. An OLDER version is read
+//              exactly when a conversion to this one is currently live, and is rewritten
+//              only by the ordinary close-time save (which writes v3).
+//   REFUSED    a version this build does not admit and has no live conversion for, with the
+//              number named; a `format` that is not this one; a field the shape does not
+//              declare; a field of the wrong kind; a
 //              placement mode or window word outside its closed set, with what was found
 //              and what would have worked both named; an absent placement carrying
 //              non-zero coordinates or a maximized window (absence has ONE spelling); a
@@ -112,6 +135,8 @@
 // away a good desk over a bad number would be the corrupt-save-makes-Workshop-useless
 // failure this phase exists to avoid, committed by the code meant to avoid it.
 
+#include "operator/catalog.hpp"
+#include "operator/migration.hpp"
 #include "persist.hpp"
 #include "screen.hpp"
 #include "setup.hpp"
@@ -137,15 +162,14 @@ namespace zengine::workshop::session_persist {
 /// Workshop the wrong one of its own three files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-session";
 
-/// The session format version this build WRITES, and the newest it reads.
+/// The ONE session format version this build writes and admits.
+///
+/// SINCE MIG-0 THERE IS NO SECOND NUMBER HERE. An older file is not read by a road this
+/// file carries; it is read by a conversion this run happens to have, which names its own
+/// two versions and is the only party that has to know them. So there is no list to keep
+/// in step with anything, and adding a version to this format is changing this number --
+/// not appending a rung to a ladder.
 inline constexpr std::int64_t kFormatVersion = 3;
-
-/// The two older versions this build still reads, each translated on load and never
-/// rewritten in place: version 2 (WUX-2's format — this one less the placement, which
-/// reads as the canonical absence) and version 1 (WUX-0's — additionally nesting WIND-2's
-/// whole-cell desk, translated by `setup_persist`'s own legacy reader).
-inline constexpr std::int64_t kV2FormatVersion = 2;
-inline constexpr std::int64_t kV1FormatVersion = 1;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
@@ -367,13 +391,29 @@ struct LoadedSession {
     }
 };
 
-/// WHAT TO SAY ABOUT A SESSION VERSION THIS BUILD DOES NOT READ. One sentence, one place, so
-/// the two doors that can meet a wrong version -- the envelope's claim and the file's own
-/// `format_version` field -- cannot come to word it differently.
-inline std::string wrong_version(std::int64_t found) {
-    return "session version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(kV1FormatVersion) + ", " + std::to_string(kV2FormatVersion) +
-           " and " + std::to_string(kFormatVersion);
+/// WHAT TO SAY ABOUT A SESSION WHOSE OWN `format_version` FIELD IS NOT THE VERSION ITS
+/// ENVELOPE CLAIMED.
+///
+/// THE TWO DOORS SAY DIFFERENT THINGS NOW, AND THAT IS THE REPAIR (MIG-0). A file whose
+/// ENVELOPE claims another version is a historical claim, and what it is owed is a sentence
+/// about the conversion it needs -- said by the seam that looked for one, in
+/// `operator/migration.hpp`, because only that party knows whether one is live. A file
+/// whose envelope claims THIS version over a body that says another is not old, it is
+/// inconsistent with itself, and only a forgery produces one. Two facts, two sentences.
+inline std::string forged_version(std::int64_t found) {
+    return "this session claims version " + std::to_string(kFormatVersion) +
+           " and its own format_version field says " + std::to_string(found);
+}
+
+/// WHAT TO SAY ABOUT AN OLDER SESSION THAT COULD NOT BE BROUGHT FORWARD -- whatever the
+/// conversion seam answered, under the number this file was written at.
+///
+/// THE NUMBER IS NAMED BY THIS FILE and the reason is quoted from whoever produced it: a
+/// missing conversion, a refused gate, a converter's own complaint about yesterday's
+/// vocabulary. Re-wording any of them here would be a second answer to somebody else's
+/// question.
+inline std::string could_not_convert(std::uint32_t found, const std::string& why) {
+    return "session version " + std::to_string(found) + " cannot be read: " + why;
 }
 
 /// THE PLACEMENT'S OWN ADMISSION: the two closed word sets, and the one-spelling law for
@@ -408,43 +448,18 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
     return Written::ok();
 }
 
-// ---- VERSIONS 1 AND 2, RETAINED FOR READING (WUX-2, WUX-3) ---------------------------
+// ---- ...and NOTHING about versions 1 and 2 (MIG-0) ------------------------------------
 //
-// The same trick `setup_persist::v2` documents, twice — the C++ names are namespaced, the
-// WIRE names are the bare tokens, so each namespaced shape claims `WorkshopSession` at its
-// own old number exactly as the old build did. `v1` nests WIND-2's whole-cell desk and its
-// translation is the desk's own legacy reader; `v2` is WUX-2's format — this one less the
-// placement — and its translation is nothing at all: every shared field crosses unchanged
-// and the placement reads as the canonical absence. Neither is a migration framework: two
-// retained shapes, two exact translations, and the clean-break stance stands for every
-// other transition.
-namespace v1 {
-
-struct WorkshopSession {
-    std::string format;
-    std::int64_t format_version = 0;
-    WorkshopViewport viewport;
-    setup_persist::v2::WorkshopSetup desk;
-
-    ZEN_SHAPE(WorkshopSession, 1, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(desk));
-};
-
-} // namespace v1
-
-namespace v2 {
-
-struct WorkshopSession {
-    std::string format;
-    std::int64_t format_version = 0;
-    WorkshopViewport viewport;
-    setup_persist::WorkshopSetup desk;
-
-    ZEN_SHAPE(WorkshopSession, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(desk));
-};
-
-} // namespace v2
+// This is where two retained shapes and two retained roads used to be. They are not here
+// any more, and the absence is the phase: what an older session file LOOKED LIKE, and what
+// it MEANT, belongs to whoever converts it -- `workshop/session_history.hpp`, carried into
+// a run by a provider artifact this host may mount, replace, or simply not have.
+//
+// ⚠ A HISTORICAL SHAPE MUST NOT COME BACK TO THIS FILE, and it would be easy to add one the
+// next time this format moves. The whole value of the move is that the current reader stops
+// growing a rung per vintage: the arm in `from_text` recognises a historical CLAIM (this
+// shape's name, another version) and asks for a conversion -- one sentence that does not
+// get longer as history does.
 
 /// The shared tail of every read road: judge the desk with `setup_persist`'s own readers
 /// and the viewport with this file's own band, into a loaded session. The desk translation
@@ -466,90 +481,27 @@ inline LoadedSession loaded_from(Setup desk, std::int64_t viewport_w,
     return loaded;
 }
 
-/// Text to a session. Total: every input is either a session or a refusal with a reason, and
-/// nothing here throws.
+/// A CURRENT-SHAPE SESSION VALUE AS A LOADED ONE -- this format's own law, all of it, on a
+/// value that has already been admitted at this shape.
 ///
-/// THE LAYERS, IN ORDER, and the last two are borrowed rather than repeated: the envelope
-/// must parse; its CLAIM must be a version this build reads (the WIND-2 preflight, so an
-/// older session is refused by its number rather than by whichever field this version
-/// added — and a version-1 or version-2 claim takes its own retained road); it must admit
-/// against that version's shape; it must say it is this format at that version; and its
-/// desk must be a legal saved setup, judged by `setup_persist`'s own readers -- the same
-/// functions a setup FILE goes through, so a desk cannot be legal in one file and illegal
-/// in the other.
-inline LoadedSession from_text(std::string_view bytes) {
-    const loom::Unverified claim = loom::compat::parse(bytes);
-    if (!claim.well_formed()) {
-        const loom::Admission refused =
-            loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
-        return LoadedSession::no("not a Workshop session: " + refused.first_error().message());
-    }
-    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
-        claim.claimed_version() == v1::WorkshopSession::zen_version) {
-        const loom::Admission old = loom::admit(claim, loom::schema_of<v1::WorkshopSession>(),
-                                                loom::Report::FirstError);
-        if (!old.ok()) {
-            return LoadedSession::no(old.first_error().message());
-        }
-        const v1::WorkshopSession file = loom::from_value<v1::WorkshopSession>(old.value());
-        if (file.format != kFormat) {
-            return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
-                                     "`");
-        }
-        if (file.format_version != kV1FormatVersion) {
-            return LoadedSession::no(wrong_version(file.format_version));
-        }
-        Setup desk;
-        const Written understood = setup_persist::setup_in_v2(file.desk, desk);
-        if (!understood.accepted) {
-            return LoadedSession::no(understood.refusal);
-        }
-        return loaded_from(std::move(desk), file.viewport.width, file.viewport.height,
-                           Placement{});
-    }
-    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
-        claim.claimed_version() == v2::WorkshopSession::zen_version) {
-        const loom::Admission old = loom::admit(claim, loom::schema_of<v2::WorkshopSession>(),
-                                                loom::Report::FirstError);
-        if (!old.ok()) {
-            return LoadedSession::no(old.first_error().message());
-        }
-        const v2::WorkshopSession file = loom::from_value<v2::WorkshopSession>(old.value());
-        if (file.format != kFormat) {
-            return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
-                                     "`");
-        }
-        if (file.format_version != kV2FormatVersion) {
-            return LoadedSession::no(wrong_version(file.format_version));
-        }
-        Setup desk;
-        const Written understood = setup_persist::setup_in(file.desk, desk);
-        if (!understood.accepted) {
-            return LoadedSession::no(understood.refusal);
-        }
-        return loaded_from(std::move(desk), file.viewport.width, file.viewport.height,
-                           Placement{});
-    }
-    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
-        claim.claimed_version() != WorkshopSession::zen_version) {
-        return LoadedSession::no(
-            wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
-    }
-    const loom::Admission admitted =
-        loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
-    if (!admitted.ok()) {
-        return LoadedSession::no(admitted.first_error().message());
-    }
-
-    const WorkshopSession file = loom::from_value<WorkshopSession>(admitted.value());
+/// SEPARATE FROM `from_text` SINCE MIG-0, and the separation is what makes "a conversion
+/// cannot skip a check" structural. A session value reaches this function from exactly two
+/// places -- straight off the gate, or out of a conversion's answer -- and neither of them
+/// carries a check of its own. So a converted file cannot be admitted on easier terms than
+/// a native one, because there are no other terms: this is where the terms are.
+inline LoadedSession current_in(const loom::Value& admitted) {
+    const WorkshopSession file = loom::from_value<WorkshopSession>(admitted);
     if (file.format != kFormat) {
         return LoadedSession::no("not a Workshop session: it says it is `" + file.format +
                                  "`");
     }
+    // AND THE FIELD IS STILL CHECKED, for `setup_in`'s reason exactly: the shape's own
+    // version got the value this far, and a body that then says it is a different vintage
+    // is a forgery -- whether it was forged on disk or produced by a conversion that
+    // answered with something its declared target does not mean.
     if (file.format_version != kFormatVersion) {
-        return LoadedSession::no(wrong_version(file.format_version));
+        return LoadedSession::no(forged_version(file.format_version));
     }
-
     // THE DESK IS BUILT INTO A LOCAL and only handed over once every layer has passed, which
     // is `setup_persist`'s own structural guarantee spent here rather than restated.
     Setup desk;
@@ -570,6 +522,57 @@ inline LoadedSession from_text(std::string_view bytes) {
     // whose size this build will not open at is still a session, and the desk in it is
     // still the maker's.
     return loaded_from(std::move(desk), file.viewport.width, file.viewport.height, place);
+}
+
+/// Text to a session. Total: every input is either a session or a refusal with a reason, and
+/// nothing here throws.
+///
+/// THE LAYERS, IN ORDER: the envelope must parse; its CLAIM decides which of two roads it
+/// takes (the WIND-2 preflight, so an older session is answered by its NUMBER rather than by
+/// whichever field this version added); and whichever road it took, the value that comes out
+/// of it meets `current_in` -- this format's whole law, borrowed rather than repeated,
+/// including `setup_persist`'s own readers for the desk, so a desk cannot be legal in one
+/// file and illegal in the other.
+///
+/// `conversions` IS THE HOST'S OPERATOR CATALOG, or nothing.
+///
+/// A READING AND NOT A POWER, `frontier`'s seam one layer in: this reader may LOOK for a
+/// live conversion and spend one, and there is nothing it can do with the catalog beyond
+/// that -- `op::migrate` performs no mount, no load, no plan walk and no write, and this
+/// file holds no catalog of its own between calls. `nullptr` is ordinary and is what every
+/// fixture gets: it means this run has no conversions, which an older file is told in words.
+inline LoadedSession from_text(std::string_view bytes,
+                               const op::Catalog* conversions = nullptr) {
+    const loom::Unverified claim = loom::compat::parse(bytes);
+    if (!claim.well_formed()) {
+        const loom::Admission refused =
+            loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
+        return LoadedSession::no("not a Workshop session: " + refused.first_error().message());
+    }
+    // ---- THE HISTORICAL ARM (MIG-0) -----------------------------------------
+    //
+    // THIS SHAPE'S NAME AT ANOTHER VERSION IS THE WHOLE TEST, and it is deliberately the
+    // only door to a conversion. A file of another FORMAT falls through to the gate below
+    // and is refused there, by identity, exactly as it always was; a file of THIS format at
+    // this version never reaches here at all. So no corrupt session, no wrong file and no
+    // hostile value can turn into a search for something willing to translate it -- which is
+    // the difference between a version road and a fallback.
+    if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
+        claim.claimed_version() != WorkshopSession::zen_version) {
+        const op::Evaluation converted =
+            op::migrate(conversions, claim, loom::schema_of<WorkshopSession>());
+        if (!converted) {
+            return LoadedSession::no(
+                could_not_convert(claim.claimed_version(), converted.reason()));
+        }
+        return current_in(op::migrated(converted));
+    }
+    const loom::Admission admitted =
+        loom::admit(claim, loom::schema_of<WorkshopSession>(), loom::Report::FirstError);
+    if (!admitted.ok()) {
+        return LoadedSession::no(admitted.first_error().message());
+    }
+    return current_in(admitted.value());
 }
 
 // ---- The file itself -------------------------------------------------------------
@@ -599,7 +602,12 @@ inline Written save_file(const std::string& path, const Setup& desk, std::int64_
 /// FIRST LAUNCH reported as an error is the single most likely way this feature could become
 /// noise. So absence is asked about separately, and answered with `present == false` rather
 /// than with a refusal.
-inline LoadedSession load_file(const std::string& path) {
+/// ...AND THE BYTES ARE THIS OWNER'S, WHOEVER TRANSLATES THEM (MIG-0). Finding the file,
+/// bounding what may be read out of it, and deciding whether a conversion may be looked for
+/// at this load attempt are all decided here, before any conversion is a possibility. A
+/// conversion never opens a file, never sees a path, and never learns there was one.
+inline LoadedSession load_file(const std::string& path,
+                               const op::Catalog* conversions = nullptr) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec) || ec) {
         return LoadedSession{}; // no previous session: not an error, and nothing to say
@@ -609,7 +617,7 @@ inline LoadedSession load_file(const std::string& path) {
     if (!read.outcome.accepted) {
         return LoadedSession::no(read.outcome.refusal);
     }
-    return from_text(read.text);
+    return from_text(read.text, conversions);
 }
 
 } // namespace zengine::workshop::session_persist

@@ -5622,6 +5622,11 @@ inline constexpr const char* kKeymapWallKey = "workshop.keymap-refused";
 inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
 inline constexpr const char* kMarksWallKey = "workshop.marks-refused";
 inline constexpr const char* kMarksSkippedKey = "workshop.marks-skipped";
+/// A SESSION FILE THIS RUN COULD NOT READ, and therefore will not write over (MIG-0).
+/// The refusal itself is said once on the notice row, where it belongs -- it is about
+/// this launch. What STANDS all run, and has a maker action, is the consequence: this
+/// Workshop is not keeping your session, and your old file is still there.
+inline constexpr const char* kSessionWallKey = "workshop.session-refused";
 inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
 inline std::string pane_content_key(const PaneRef& ref) {
     return "pane.content-refused." + ref_text(ref);

@@ -273,6 +273,46 @@ that arithmetic predicts.
 **No node makes a Loom turn**, reopens an image, or rebuilds the provider stack:
 22,000 evaluations of an overlaid chain opened exactly one image, the mount's own.
 
+## One kind of contribution reads yesterday's files
+
+A durable file written by an older build claims a schema the reader that owns it no longer
+admits. Nothing new is needed to translate one: **a conversion is an ordinary contribution
+whose signature is the edge it converts.**
+
+```cpp
+#include "operator/migration.hpp"
+
+op::make_migration(loom::schema_of<v1::MySetting>(),   // what the old file claims
+                   loom::schema_of<MySetting>(),       // what the reader admits now
+                   [](const loom::Value& old) {
+                       return loom::Cell::message(loom::to_value(brought_forward(old)));
+                   });
+```
+
+That yields an ordinary `OperatorDef` you contribute like any other. Its **input schema is the
+historical shape itself**, so the file's own bytes go through the gate at the door they already
+claim; its answer is one port carrying the target. The identity is derived from the pair:
+
+```text
+zengine.migrate.MySetting.v1-to-v3
+```
+
+The owner of the file then asks one question — `op::migrate(catalog, unverified, target)` —
+and gets back a candidate it re-admits under its own law. Four properties are worth knowing
+before you rely on any of it:
+
+- **A version claim is a lookup key and never authority.** It selects among conversions the
+  host has already mounted. It cannot cause an artifact to load, and there is no discovery of
+  an unloaded one — a missing edge is a refusal naming the identity, and nothing more.
+- **One spend is one authored edge.** `v1 → v2` and `v2 → v3` both mounted do not answer a
+  request for `v1 → v3`. Write the edge you want; it may be a composition, and it is then
+  found by the same one lookup.
+- **Two providers of one edge collide at mount**, in the words above, because the identity is
+  derived rather than typed. The identity is only diagnostic: what is checked before a spend
+  is what the ports actually declare.
+- **Reading is reading.** A conversion produces a value; whether and when anything is written
+  back is the owner's law, unchanged.
+
 ## What this is not
 
 No discovery, no scanning, no directory of providers — a host still names every
@@ -281,9 +321,13 @@ answered here. No version solving, no dependency graph, no provider trust policy
 no concurrent replacement. Those are other phases and some of them are other
 questions.
 
+Nor is a conversion a migration *system*: there is no registry beside the catalog, no route
+solver, no chaining, no schema repository and no automatic rewrite of anybody's file.
+
 Read this beside [`operator/provider_abi.h`](../../operator/provider_abi.h) (the
 C table), [`operator/provider.hpp`](../../operator/provider.hpp) (the codec and
 the macro), [`operator/provider_host.hpp`](../../operator/provider_host.hpp)
-(mounting), and [`operator/catalog.hpp`](../../operator/catalog.hpp) (the layered
+(mounting), [`operator/migration.hpp`](../../operator/migration.hpp) (the conversion
+convention and its lookup), and [`operator/catalog.hpp`](../../operator/catalog.hpp) (the layered
 store). The consumer half is [operator-host.md](operator-host.md); the rule the
 Timer supplies is [timer-protocol.md](timer-protocol.md).

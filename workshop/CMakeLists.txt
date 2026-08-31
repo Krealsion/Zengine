@@ -43,12 +43,27 @@
 # code that starts a process would be a presentation with process authority in it, however
 # carefully it declined to use it. Which header a consumer names is the visible half of that
 # split; the enforcing half is the grant the HOST writes below.
+#
+# ...and zengine-operator since MIG-0, for a reason as narrow as the Builder one above.
+# `workshop/session_persist.hpp` includes `operator/catalog.hpp` and
+# `operator/migration.hpp`, because a session file written by an older Workshop is brought
+# forward by a CONVERSION the host has mounted, looked up in the one operator catalog at
+# the moment the file is read. The reader performs one `find` and one `evaluate`; it holds
+# no catalog and mounts nothing.
+#
+# ⚠ WHAT THIS EDGE IS NOT is the dynamic loader. `operator/provider_host.hpp` and
+# `operator/image.hpp` are where an image is opened, and no header in this target names
+# either — which is the same visible/enforcing split BLD-0 drew for the Builder, and it is
+# why `zengine-workshop-load` still exists as the target that DOES carry loading. On UNIX
+# the operator package's interface adds `${CMAKE_DL_LIBS}`, which is a no-op on a modern
+# glibc and is not a header any consumer here can reach.
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
                                                             zengine-ui-vocabulary
                                                             zengine-component
                                                             zengine-builder-vocabulary
+                                                            zengine-operator
                                                             loom::core
                                                             loom::terminal)
 
@@ -112,6 +127,27 @@ if(NOT TARGET loom::kernel)
     message(STATUS "zengine: workshop host skipped — this Loom cannot host .so weaves (no loom::kernel)")
     return()
 endif()
+
+# ---- THE SESSION HISTORY, AS AN ARTIFACT (MIG-0) ---------------------------------------
+#
+# `zengine_provider` RATHER THAN `zengine_weave`, exactly as `zengine-operators-basic` is:
+# no `loom::switchboard` on this line, because there is no participant in this image — no
+# WeaveId, no role, no grant, no manifest, no bus. A host opens the file and reads two
+# conversion definitions out of it.
+#
+# IT LINKS THE WORKSHOP VOCABULARY, and that is the honest dependency rather than a heavy
+# one: a conversion must NAME the shape it converts to, and the shape a current session
+# file has is `session_persist`'s. Describing one here instead would be a second definition
+# of the target, which is the drift this whole seam exists to remove. What that vocabulary
+# does NOT carry is a bus, a kernel or a loader, so `provider != weave` still holds on this
+# artifact by its link line.
+#
+# WHY IT IS NOT ONE OF THE INSTALLED ARTIFACTS. It converts Workshop's own durable files and
+# means nothing outside a Workshop run — `zengine-introspection` and `zengine-composer`'s
+# own reason, and the package says so where the list is (cmake/ZengineInstall.cmake).
+zengine_provider(zengine-workshop-session-history session_migration_provider.cpp)
+target_link_libraries(zengine-workshop-session-history
+    PRIVATE zengine-workshop-vocabulary zengine-operator)
 
 add_executable(zengine-workshop workshop.cpp)
 target_link_libraries(zengine-workshop
@@ -252,9 +288,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # for exactly the same reason every other entry does, and it is staged by the same rule,
 # because "where do I find the file" is a deployment question and does not care what the
 # file turns out to be.
+#
+# `zengine-workshop-session-history` is the seventh, and it is the second entry that is not
+# a weave. What makes it worth a line of its own is WHEN the host needs it: every other
+# artifact here is asked for something after a maker does something, and this one is asked
+# for something during startup, by the session reader, about a file the maker wrote months
+# ago. It is staged beside the binary by the same rule as the rest, because "where do I find
+# the file" is a deployment question and does not care what the file turns out to be.
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer
                                zengine-introspection zengine-composer
-                               zengine-operators-basic)
+                               zengine-operators-basic
+                               zengine-workshop-session-history)
 if(TARGET zengine-skin-sdl)
     list(APPEND zengine_workshop_artifacts zengine-skin-sdl)
 endif()
