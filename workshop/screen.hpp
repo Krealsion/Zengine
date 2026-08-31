@@ -8362,9 +8362,11 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
 // row goes through `detail::fit`, which SAYS it cut something. The choice is therefore
 // between two silences and one honest elision, and this is the honest one.
 //
-// IT OCCUPIES NO POINTER SPACE. There is no hit test here, no press, no pointer editing:
-// `occupied_at` answers about panels and the picker, and this row is furniture beside the
-// notice, exactly as the legend rows are.
+// THE ONLY POINTER SPACE THE BAND OWNS IS A PAINTED TAB (WUX-9). Every other cell of this
+// row and every other row of the band is furniture beside the notice, exactly as the legend
+// rows are: no hit test, no press, no pointer editing. What changed is that the layout tabs
+// on the left of this row are things a maker can press, so their spans -- and nothing else
+// here -- are answered, out of the same composition that painted them (`band_tab_at`).
 
 /// What the one-line name editor puts before and after the name a maker is typing. The
 /// hint is spelled from the effective keymap (KEY-0), like every other gesture claim.
@@ -8420,21 +8422,24 @@ inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
 
-/// WHICH SETUP THIS IS, IN THE ORDER A MAKER NEEDS IT.
+/// WHAT THE STATUS ROW SAYS BESIDE THE TABS, IN THE ORDER A MAKER NEEDS IT.
 ///
-/// The name first, because it is the identity and must never be the thing that elides; then
-/// the saved marker, computed by comparison and never flagged; then the unresolved count,
-/// which is the only dynamic truth on the line; then the file; then the two gestures.
+/// The saved marker first, computed by comparison and never flagged; then the unresolved
+/// count, which is the only dynamic truth on the line; then the file; then the two
+/// gestures. THE NAME IS NOT HERE ANY MORE (WUX-9): the tab run on the left of this same
+/// row already carries it, marked, and saying it twice would spend the row's scarcest
+/// resource on a fact a maker is already reading two cells to the left. What the marker is
+/// ABOUT is unchanged -- `setup.active != setup.on_file`, the live layout against the setup
+/// file's copy, and not a claim about the layout shelf, which no file holds.
 ///
-/// MEASURED AT THE MINIMUM COMPOSITION: with the default name and the default file name and
-/// nothing unresolved the whole line is 70 of 78 cells. A setup with an unresolved reference
-/// runs 15 cells longer and `detail::fit` marks the cut, which falls on the tail of the
-/// static hint rather than on any of the truths above it -- which is why they are in this
-/// order rather than in the order they were designed in.
+/// MEASURED AT THE MINIMUM COMPOSITION: with the default file name and nothing unresolved
+/// this half is 54 cells and the default tab run is 12, so the whole row is 69 of 78. A
+/// setup with an unresolved reference runs 15 cells longer and `detail::fit` marks the cut,
+/// which falls on the tail of the static hint rather than on any of the truths above it --
+/// which is why they are in this order rather than in the order they were designed in.
 inline std::string setup_status_text(const SetupState& setup, const std::string& path,
                                      const RuntimeCatalog& runtime, const Keymap& keymap) {
-    std::string line = "setup " + quoted_setup_name(setup.active.name) + " " +
-                       (setup.saved() ? "saved" : "UNSAVED");
+    std::string line = setup.saved() ? "saved" : "UNSAVED";
     // THE RUNTIME CATALOG IS ASKED, AND THIS IS THE LINE THAT MADE IT A REQUIRED ARGUMENT
     // (WP-0). A pane a maker can SEE must not be counted as unresolved on the row directly
     // beneath it, and the built-in-only resolver would have said exactly that about every
@@ -8461,6 +8466,314 @@ inline std::string setup_status_text(const SetupState& setup, const std::string&
 inline std::string workspace_text(const Session& s) {
     return "workspace " + std::to_string(s.workspace_w) + "x" +
            std::to_string(s.workspace_h) + " cells";
+}
+
+// ---- THE LAYOUT TABS: the left of the status row (WUX-9) ---------------------------------
+//
+// A RUN OF THE LAYOUTS THIS RUN IS HOLDING, in the maker's own order, with the live one
+// marked -- the left region of the band's existing status row. It is the same row the setup
+// identity has always been said on, so the workspace geometry is untouched: no band row was
+// added and none could be (row 0 is one cell tall, which is zero rows of a real face --
+// WUX-1's own measurement -- and a sixth band row would resize the workspace every share
+// resolves against).
+//
+// THE MARK IS `> ` AND EVERY OTHER TAB WEARS `  `, which is the two bytes every list in this
+// application already spends on "the one you are on" (the picker, the attention view, the
+// contextual surface, an external pane's header). It is the same width either way ON PURPOSE
+// -- brackets around the live tab alone would move the whole right side of the row two cells
+// sideways on every switch, which is the moving-target defect HD-8 refused for the Info
+// panel's controls -- and it is said in CHARACTERS because a band row carries ONE role for
+// all of its bytes, so no ink is available to say it with.
+//
+// AND EVERY NAME IS QUOTED, by the same `quoted_setup_name` the notices spend. A layout name
+// may contain spaces, so an unquoted run is genuinely ambiguous about where one layout ends
+// and the next begins -- `> my desk  other` is one layout or two, and a maker cannot tell.
+
+/// One painted tab: which layout it is, and exactly which bytes of the row are its own.
+///
+/// THE SPAN IS THE PAINTER'S OWN ARITHMETIC AND IS NOT RECOMPUTED ANYWHERE (HD-3). The
+/// composition writes the row and records where each tab landed in it as it goes, so the
+/// press inverse spends the same numbers the paint did rather than a second measure of the
+/// same text.
+struct LayoutTab {
+    std::size_t at = 0;       ///< the layout's position in the maker's order
+    std::int64_t column = 0;  ///< where its bytes begin in the composed row
+    std::int64_t columns = 0; ///< how many bytes they are
+    bool active = false;
+};
+
+/// The tab run as it will be painted: the text, the tabs inside it, and what it left out.
+struct LayoutTabRun {
+    std::string text;
+    std::vector<LayoutTab> tabs;
+    std::size_t before = 0; ///< layouts omitted ahead of the first painted one
+    std::size_t after = 0;  ///< layouts omitted after the last painted one
+};
+
+/// What one end of a fitted tab run says about the layouts it could not paint. `<2` and
+/// `3>`: a count, for `omitted_text`'s reason -- "there are more" without a number tells a
+/// maker only that they are lost -- and a direction, because which end they are at is the
+/// difference between stepping and hunting. One function, so the two markers cannot come to
+/// be worded by two different hands. It is an ARROW rather than `... 2 earlier` because this
+/// marker is spent in COLUMNS beside the tabs it is standing in for, where the vertical
+/// lists' wording would cost more room than the tab it replaced.
+inline std::string layouts_omitted_text(std::size_t how_many, bool ahead) {
+    return ahead ? " " + std::to_string(how_many) + ">" : "<" + std::to_string(how_many);
+}
+
+/// The live layout's mark, and every other layout's -- the same two bytes, so the run's
+/// width does not move when the live layout does.
+///
+/// SPELLED HERE RATHER THAN SHARED WITH `kTypingHere`. The two land on the same characters
+/// and they are not the same decision: one says where typing goes and the other says which
+/// layout is live, and a change to either must not silently move the other (HD-9's rule
+/// about the one ground two consumers happen to agree on).
+inline constexpr const char* kLayoutLive = "> ";
+inline constexpr const char* kLayoutShelved = "  ";
+
+/// What ONE layout contributes to the run -- the mark and the quoted name, together.
+inline std::string layout_tab_text(const SetupState& setup, std::size_t at) {
+    return std::string(at == setup.active_at ? kLayoutLive : kLayoutShelved) +
+           quoted_setup_name(layout_at(setup, at).name);
+}
+
+/// The room the saved marker must keep whatever the tab run wants.
+///
+/// THE ONE RESERVATION THIS ROW MAKES, and it is made against the tabs rather than by them:
+/// a run of long names must never be the reason a maker stops being told their desk is
+/// unsaved. It is the marker's own width, not the whole right half's -- everything after it
+/// degrades through `detail::fit` exactly as it always has.
+///
+/// ⚠ AND THE ROW'S OWN CUT MARK IS PART OF THE PRICE, which is the half a reservation
+/// naturally forgets. This row is longer than any real screen, so `detail::fit` cuts it and
+/// spends `kElided` on saying so; reserving only `" | UNSAVED"` therefore leaves the marker
+/// three cells short of surviving, and at the 78-column minimum with a full-budget run a
+/// maker reads `| UNSA...` instead. MEASURED on the shipped terminal by WUX-9's own live
+/// witness, not by a case -- the suite's crowded run happened to stop three tabs short of
+/// the budget, which is exactly the near-miss a witness exists to find.
+inline constexpr std::int64_t kSavedMarkCols =
+    3 +                                                          // `" | "`
+    7 +                                                          // `"UNSAVED"`, the longer word
+    static_cast<std::int64_t>(std::char_traits<char>::length(detail::kElided));
+
+/// The fewest columns the tab run keeps even where the reservation would leave it less, so a
+/// surface too narrow for both still says which layout is live. `setup_name_columns`' own
+/// floor, one region over.
+inline constexpr std::int64_t kLayoutTabMinCols = 8;
+
+inline std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept {
+    const std::int64_t room = row_columns - kSavedMarkCols;
+    return room > kLayoutTabMinCols ? room : kLayoutTabMinCols;
+}
+
+/// THE VISIBLE TAB WINDOW, DERIVED AT EVERY PAINT AND STORED NOWHERE.
+///
+/// Three rules, and they are `list_window`'s three rules over COLUMNS instead of rows:
+///
+///   1. A run that FITS is painted whole, with no marker at all.
+///   2. The LIVE layout is always painted. It is what the marker, the saved word and the
+///      notice are all already about, so a run that omitted it would contradict the rest of
+///      the row.
+///   3. Everything left out is COUNTED, on the side it was left out on, and each count
+///      spends columns of the same budget -- a bound that grows when it is exceeded is not a
+///      bound.
+///
+/// THE ORDER IS NEVER TOUCHED AND THE WINDOW IS NEVER STORED. It is a contiguous run of the
+/// maker's own order grown outward from the live layout -- right first, then left,
+/// alternating -- so switching cannot reorder anything and there is no offset to go stale
+/// after a switch or a removal. Reordering to keep the live layout first would be the same
+/// mistake `presentation_order` exists to refuse one lattice up.
+inline LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns) {
+    LayoutTabRun run;
+    const std::size_t n = layout_count(setup);
+    if (columns <= 0) {
+        run.after = n; // no room at all: everything there is, is missing
+        return run;
+    }
+    const std::size_t live = setup.active_at < n ? setup.active_at : 0;
+    std::vector<std::string> text;
+    text.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        text.push_back(layout_tab_text(setup, i));
+    }
+    // The cost of painting `[first, last]` -- the tabs plus whichever markers that window
+    // would need. Asked afresh for every candidate window, because taking one more tab can
+    // RETIRE the marker on that side and pay for itself.
+    const auto cost = [&](std::size_t first, std::size_t last) {
+        std::int64_t total = 0;
+        for (std::size_t i = first; i <= last; ++i) {
+            total += static_cast<std::int64_t>(text[i].size());
+        }
+        if (first > 0) {
+            total += static_cast<std::int64_t>(layouts_omitted_text(first, false).size());
+        }
+        if (last + 1 < n) {
+            total += static_cast<std::int64_t>(layouts_omitted_text(n - last - 1, true).size());
+        }
+        return total;
+    };
+    std::size_t first = live;
+    std::size_t last = live;
+    bool rightward = true;
+    for (bool grew = true; grew;) {
+        grew = false;
+        // Two chances a round -- the preferred side, then the other -- so a window that has
+        // run out of room on one side keeps growing on the other, and the preference
+        // alternates so the live layout ends up inside the run rather than pinned to an end.
+        for (int tries = 0; tries < 2 && !grew; ++tries) {
+            if (rightward) {
+                if (last + 1 < n && cost(first, last + 1) <= columns) {
+                    ++last;
+                    grew = true;
+                }
+            } else if (first > 0 && cost(first - 1, last) <= columns) {
+                --first;
+                grew = true;
+            }
+            rightward = !rightward;
+        }
+    }
+    run.before = first;
+    run.after = n - last - 1;
+    // BOTH MARKERS ARE PAID FOR OUT OF THE SAME BUDGET AS THE TABS, and each is RESERVED
+    // before a tab is written rather than appended after them. Rule 3 says an omission spends
+    // columns of this budget, and a marker written once the budget was already gone would be
+    // a bound that grows when it is exceeded -- the exact thing the rule refuses.
+    //
+    // AND RULE 2 OUTRANKS RULE 3 AT THE BOTTOM OF THE RANGE. Where the room will not hold a
+    // marker AND something of the live layout, the marker is not written: which layout is
+    // live is what a maker cannot do without, and a run that spent its last cells saying how
+    // many it could not show would have stopped answering the question it exists for. The
+    // COUNTS are still on the answer (`before`/`after`) whatever the text could carry.
+    const std::string head =
+        run.before > 0 ? layouts_omitted_text(run.before, false) : std::string();
+    const std::string tail =
+        run.after > 0 ? layouts_omitted_text(run.after, true) : std::string();
+    const std::int64_t head_cost =
+        static_cast<std::int64_t>(head.size()) < columns
+            ? static_cast<std::int64_t>(head.size())
+            : 0;
+    const std::int64_t tail_cost =
+        head_cost + static_cast<std::int64_t>(tail.size()) < columns
+            ? static_cast<std::int64_t>(tail.size())
+            : 0;
+    if (head_cost > 0) {
+        run.text += head;
+    }
+    for (std::size_t i = first; i <= last; ++i) {
+        LayoutTab tab;
+        tab.at = i;
+        tab.active = i == live;
+        tab.column = static_cast<std::int64_t>(run.text.size());
+        // THE LIVE TAB IS CUT RATHER THAN DROPPED where even it alone cannot fit, because
+        // "which layout am I in" is the one thing this run may not stop saying (rule 2).
+        // `detail::fit` marks the cut, and the span recorded is what was actually written.
+        std::string shown = text[i];
+        if (tab.column + static_cast<std::int64_t>(shown.size()) > columns - tail_cost) {
+            shown = detail::fit(std::move(shown), columns - tail_cost - tab.column);
+        }
+        tab.columns = static_cast<std::int64_t>(shown.size());
+        run.text += shown;
+        run.tabs.push_back(tab);
+    }
+    if (tail_cost > 0) {
+        run.text += tail;
+    }
+    return run;
+}
+
+/// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
+/// every painted tab's bytes are.
+///
+/// ONE COMPOSITION, TWO CONSUMERS (HD-3). `band_region` publishes `text`; `band_tab_at`
+/// answers a press out of `tabs`. There is no second arithmetic for a tab's position and
+/// therefore nothing for a painter and a press to disagree about.
+struct BandStatus {
+    std::string text;
+    std::vector<LayoutTab> tabs;
+    std::size_t before = 0;
+    std::size_t after = 0;
+};
+
+inline BandStatus band_status(const Session& s, const std::string& setup_path,
+                              const Screen& sc) {
+    const surface::RegionFit fit = band_fit(sc);
+    BandStatus out;
+    if (fit.rows <= 0 || fit.columns <= 0) {
+        return out;
+    }
+    const LayoutTabRun run = layout_tab_run(s.setup, layout_tab_columns(fit.columns));
+    out.before = run.before;
+    out.after = run.after;
+    std::string line = run.text;
+    line += " | ";
+    line += setup_status_text(s.setup, setup_path, s.panels.runtime, s.keymap);
+    if (fit.rows < 5) {
+        line += " | " + workspace_text(s);
+    }
+    out.text = detail::fit(std::move(line), fit.columns);
+    // A SPAN THE ROW'S OWN CUT REMOVED IS NOT A TAB ANY MORE. The reservation above makes
+    // this unreachable at every honest extent -- the tabs are composed against the row less
+    // the saved marker -- and it is written anyway, because a span that outlived the bytes
+    // it describes is exactly the stale geometry a press must never be answered from.
+    const std::int64_t painted = static_cast<std::int64_t>(out.text.size());
+    for (const LayoutTab& tab : run.tabs) {
+        if (tab.column + tab.columns <= painted) {
+            out.tabs.push_back(tab);
+        }
+    }
+    return out;
+}
+
+/// WHICH ROW OF THE BAND THE TAB RUN IS PAINTED ON, or `kNoBandRow` when it is not painted
+/// at all -- the composition's own answer, so a press can never be resolved against a run
+/// this budget did not write.
+///
+/// The name editor takes the status row whole while a maker is mid-name, and at a one-row
+/// budget the notice outranks the identity line: in both states there are no tabs on screen,
+/// so there are none to press.
+inline constexpr std::int64_t kNoBandRow = -1;
+
+inline std::int64_t band_tab_row(const Session& s, const Screen& sc) noexcept {
+    const surface::RegionFit fit = band_fit(sc);
+    if (fit.rows <= 0 || fit.columns <= 0 || s.setup.naming.open) {
+        return kNoBandRow;
+    }
+    if (fit.rows >= 2) {
+        return 0;
+    }
+    return s.notice.empty() ? 0 : kNoBandRow;
+}
+
+/// WHICH LAYOUT A PRESS LANDED ON, or none -- the exact inverse of what was painted.
+///
+/// The row must be the row the tabs are on and the column must be inside a tab's own span,
+/// so the blank between the run and the status, the status itself and every other band row
+/// answer nothing. A tab the window did not paint has no span and cannot be pressed; the
+/// keyboard reaches it, which is what makes that honest rather than a hole.
+struct LayoutTabPress {
+    bool hit = false;
+    std::size_t at = 0;
+};
+
+inline LayoutTabPress band_tab_at(const Session& s, const std::string& setup_path,
+                                  const Screen& sc, std::int64_t space, std::int64_t x,
+                                  std::int64_t y) {
+    const std::int64_t row = band_tab_row(s, sc);
+    if (row == kNoBandRow) {
+        return {};
+    }
+    const ui::Rect b = band_bounds(sc);
+    const ProseAt at = prose_at(space, x, y, b.x, b.y, band_fit(sc));
+    if (!at.understood || at.row != row) {
+        return {};
+    }
+    for (const LayoutTab& tab : band_status(s, setup_path, sc).tabs) {
+        if (at.column >= tab.column && at.column < tab.column + tab.columns) {
+            return LayoutTabPress{true, tab.at};
+        }
+    }
+    return {};
 }
 
 // ---- THE BOTTOM BAND, COMPOSED AGAINST ITS BUDGET (WUX-1) --------------------------------
@@ -8540,11 +8853,10 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const std::strin
                                  setup_name_hint(s.keymap),
                              columns);
     } else {
-        status = setup_status_text(s.setup, setup_path, s.panels.runtime, s.keymap);
-        if (budget < 5) {
-            status += " | " + workspace_text(s);
-        }
-        status = detail::fit(status, columns);
+        // THE LAYOUT TABS AND THE STATUS ARE ONE COMPOSITION (WUX-9), and the painter takes
+        // it whole -- the workspace fold and the row's own cut included, so the spans
+        // `band_tab_at` answers a press from are the spans that were written here.
+        status = band_status(s, setup_path, sc).text;
     }
 
     const std::string notice = s.notice.empty() ? std::string() : detail::fit(s.notice, columns);

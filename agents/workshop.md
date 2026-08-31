@@ -1251,7 +1251,8 @@ every other row           role as before background kNone     whatever the regio
   exactly the rows that survived, so its elision mark tells the truth about THIS budget.
   Dropped facts are dropped WHOLE — nothing substitutes, nothing reorders.
 - **The band is ONE budget-composed region since WUX-1** (`band_bounds`/`band_fit`/
-  `band_region`, screen.hpp): budget ≥5 (a character medium) reads the setup line, the
+  `band_region`, screen.hpp): budget ≥5 (a character medium) reads the status row (the
+  layout tabs and the setup's status — `band_status`, WUX-9), the
   notice, the `workspace WxH cells` fact and two legend rows — the five-cell composition
   every golden pinned, with the old spare row spent on the workspace fact; the shipped
   face's 3 reads status (workspace fact folded in after the hints), notice, one packed
@@ -1699,6 +1700,123 @@ and `files_has_keyboard` (screen.hpp) are the built-ins' twin resolutions, besid
 - What crosses the seam, and why Workshop never asks a provider whether it wants keys, is the
   pane protocol's law: [`panes.md`](panes.md).
 
+## Several desks, one of them live (WUX-9)
+
+A maker's **layout** is a `Setup`, and there is no `Layout` type. The plural cost one vector of
+the value that already existed and the gestures that exchange it — no new geometry owner, no
+new membership notion, no per-medium fork, no protocol widening, no durable format.
+
+```text
+SetupState
+    active      THE live desk. Every consumer still reads this member; none indexes a list.
+    on_file     the setup FILE's copy -- `saved()` is still that comparison and nothing else
+    shelved     the INACTIVE layouts, values only: no panel, provider, room or selection
+    active_at   where the live one sits in the maker's order
+```
+
+- **`shelved` + `active_at` IS the run with exactly one element lifted out**, and that is what
+  lets the order be STABLE while the live value stays in one member. `activate_layout` puts the
+  lifted value back at `active_at`, takes out the destination, and moves nothing else — a SWAP
+  is the shorter spelling and is wrong: it leaves the departing layout wherever the arriving one
+  happened to sit, so the run reorders itself every time a maker looks at it. Measured by the
+  suite's every-destination sweep, which is green for the swap on the first hop and red on the
+  second. `add_layout` puts a COPY back and takes the appended position; `remove_layout`
+  discards the live value and takes the survivor now standing at `active_at` (the NEXT
+  neighbour), or the one before it when the removed layout was last.
+- **A SWITCH IS `restore_setup` MINUS THE FILE READ.** `switch_layout` → `activate_layout` →
+  `apply_setup` → one sentence → the repaint the gesture already earns. There is no tab-switch
+  reconcile path and no teardown path for a removal; `apply_setup` remains the one door
+  membership changes through, so `forget_removed_selection`, the seating, the per-opened asks
+  and `refresh_external_rooms` all behave exactly as they do for a restore.
+- **PER-LAYOUT IS THE VALUE'S OWN FIELDS AND NOTHING ELSE**: participation, authored place,
+  authored extent, authored front order, the name. Everything else is one Workshop-global truth
+  and a switch does not copy, clear or revalidate any of it — the catalog, every provider
+  instance and its state, the Editor's document, the browser's location, the marks, the
+  recipes, the project anchor, the clipboard, the keymap, the window, `Panels::selected` and
+  `Panels::keyboard`. A selection whose pane is absent from the live layout lifts nothing and
+  anchors nothing, by `selected_pane`'s own resolution (WUX-5), and means something again when
+  its pane participates again. Per-layout selection or keyboard focus would be a second store
+  of a fact that is already derived correctly.
+- **ONE PANE IN TWO LAYOUTS IS ONE PANE, and one provider.** A second instance is unsayable:
+  one `PaneRef` resolves to one runtime kind in one session catalog. Leaving a layout withdraws
+  the PRESENTATION (`close_panel` — Workshop has no unload path, sends nothing and retracts no
+  offer); entering one re-seats it and re-earns its room through the dragged-window-edge path.
+  A pane in both layouts at the same prose capacity hears NOTHING — no grant, no ask — which is
+  the room churn the suite measures the absence of, as a count.
+- **AN INACTIVE LAYOUT IS AN UNREAD VALUE.** Its rows are never walked when the catalog changes:
+  a new offer enters the runtime catalog and the picker for the run, and enters no layout's pane
+  list unless a maker authors that participation. A dormant reference resolves at its layout's
+  next activation with no byte of the value having moved — the shipped unresolved-reference
+  machinery is the whole mechanism, and there is no catalog fanout and no zombie instance.
+- **THE CEILING IS A BOUND ON WORK, NOT A CLAIM ABOUT THE ROW.** `kMaxLayouts` (8) refuses a
+  ninth rather than dropping one; the tab run is composed against whatever the band's row has
+  and says what it could not paint, so raising the number is a number change.
+- **THE FILES DID NOT MOVE.** `s` writes the LIVE layout to the setup file and `r` reads that
+  file into the LIVE layout; neither touches the shelf, and a Setup file still means one named
+  desk arrangement. The session still carries ONE desk at version 3, so the live layout at an
+  orderly close returns next run exactly as the single desk always has and the shelf does not
+  return at all. ⚠ **That is an implementation boundary, not a product decision**: durable
+  restoration of the layout set (order, names, which one was live) is OWED, and it is the
+  session's third legacy rung — the MIG-R0 wake trigger — which is why WUX-9 did not spend it.
+  `docs/workshop/limitations.md` says the limitation plainly and says it is owed; do not write
+  it as an experiment waiting for adoption evidence.
+
+## The tab run is the left of the band's existing status row (WUX-9)
+
+```text
+> "Code"  "Build"  "Inspect" | UNSAVED | workshop-setup.json | s name/save  r restore
+^ the layout tabs                      ^ the existing non-tab status, composing from the right
+```
+
+- **NO BAND ROW WAS ADDED AND NO GEOMETRY MOVED.** Canvas row 0 is one cell tall — zero rows of
+  a real face, WUX-1's own measurement — and a sixth band row would resize the workspace every
+  share resolves against (PNL-0's refusal class). The status row is the only honest home, and it
+  is the row that already named the arrangement.
+- **`band_status(session, path, screen)` IS THE ONE COMPOSITION** and it is what both consumers
+  spend (HD-3): `band_region` publishes its `text`, and `band_tab_at` answers a press out of its
+  `tabs`. A tab's span is recorded as the row is written, so there is no second measurement to
+  drift. `band_tab_row` says which prose row the run is on, or `kNoBandRow` — the name editor
+  takes the status row whole, and at a one-row budget the notice outranks the identity line, so
+  in both states there are no tabs on screen and none to press.
+- **THE MARK IS `> ` AND EVERY OTHER TAB WEARS `  `** — the two bytes every list in this
+  application already spends on "the one you are on", said in CHARACTERS because a band row
+  carries ONE role for all of its bytes. Same width either way, deliberately: brackets around
+  the live tab alone would slide the whole right side of the row two cells on every switch,
+  which is HD-8's moving-target defect. `kLayoutLive`/`kLayoutShelved` are spelled beside the
+  run rather than shared with `kTypingHere` — two decisions that land on one value are not one
+  decision (HD-9).
+- **EVERY NAME IS QUOTED**, by `quoted_setup_name`. A layout name may hold spaces, so an
+  unquoted run is genuinely ambiguous about where one layout ends and the next begins.
+- **THE VISIBLE WINDOW IS DERIVED AND STORED NOWHERE** — `list_window`'s three rules over
+  COLUMNS: a run that fits is painted whole with no marker; the live layout is always painted
+  (cut with `detail::fit`'s mark rather than dropped, where even it alone will not fit); and
+  everything omitted is counted on its own side out of the same budget (`layouts_omitted_text`
+  — `<2` / `3>`, one function so the two markers cannot be worded by two hands). It grows
+  outward from the live layout, right then left, alternating, so there is no offset to go stale
+  after a switch or a removal and nothing reorders to keep the live tab first. Keyboard stepping
+  traverses the WHOLE population, painted or not, and the window follows.
+- **THE SAVED MARKER HAS THE ROW'S ONE RESERVATION.** The run is composed against the row's
+  columns less `kSavedMarkCols`, so a run of long names can never be the reason a maker stops
+  being told their desk is unsaved. Everything after the marker degrades through `detail::fit`
+  exactly as it always did, and `setup_status_text` no longer says the name at all — the tabs
+  carry it, and a row that said it twice would spend its scarcest resource on a repeat.
+- **THE TABS ARE THE ONLY POINTER SPACE THE BAND OWNS.** The arm sits at the TOP of the pressed
+  branch — above every layer, because the band is painted in front of the panes (WIND-2a) — and
+  above the line that writes `Panels::selected`/`keyboard`, because pressing a tab is not
+  pointing at a pane and must not clear the pane a maker chose. A press on the status, on the
+  blank between, on another band row, or on an omitted tab answers nothing and falls through
+  exactly as it always has.
+- **THE GESTURES ARE ORDINARY KEY-0 ROWS**: `layout.next` (`.`), `layout.previous` (`,`),
+  `layout.new` (`=`), `layout.remove` (`^w`). Three unshifted printables and one plain ctrl
+  chord, and the selection criterion is narrow: the POSIX wire carries an unshifted printable
+  and a shifted LETTER and nothing else in that family, so `<`, `>` and `+` — the conventional
+  spellings — are bytes `terminal_byte_scancode` cannot name, and ctrl+shift+letter cannot be
+  said at all. ⚠ Removal is the one CHORD and the asymmetry is deliberate: discarding a layout
+  cannot be undone, so it may not be one slipped keystroke away in the mode where every other
+  bare letter does something harmless. `x` was the obvious mnemonic and is refused — BLD-0 bound
+  it to "close the Builder" and a later phase took that back on purpose, so a maker's hand may
+  still mean the panel by it.
+
 ## The desk comes back on its own, and the window with it (WUX-0, roots WUX-3)
 
 Workshop writes the desk it was arranged into, the room it was in, and where its window sat
@@ -1854,3 +1972,11 @@ executable, authored per project when named.)
   choosing a foreign recipe catalog all leave `HostContext::project_dir` exactly where it was.
 - A marked place is part of the project, or is trusted, or is buildable — a mark is a
   DESTINATION. It says one thing: somebody may want to come back here.
+- A layout is a new kind of thing, or `setup.active` is now an index into one — neither. A
+  layout IS a `Setup`, `active` is still THE live desk every consumer reads, and the shelf
+  beside it holds values with no presentation, no provider and no room of their own.
+- Switching layouts reloads a provider, or a pane in two layouts is two panes — it does
+  neither. A switch withdraws and re-seats PRESENTATIONS; Workshop has no unload path,
+  and an unchanged prose capacity means the provider hears nothing at all.
+- The layout shelf is deliberately transient — it is not. It is session-only because
+  WUX-9 bumped no durable format, and restoring the set is owed work (MIG-R0's trigger).

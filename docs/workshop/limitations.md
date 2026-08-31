@@ -70,6 +70,19 @@ What makes that cost more than one keypress: a fresh Workshop seeds two example 
 forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
 empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 
+### Only the layout you are on comes back after a restart
+
+Workshop keeps [several layouts](setups.md#several-layouts-in-one-workshop) at once, and today
+only the one you are standing on survives a restart — it rides the last session exactly as the
+single desk always has. The others live as long as the run.
+
+**This is a boundary of the current implementation, not a decision waiting for evidence.**
+Saving and restoring the whole set — the layouts, their order, their names, and which one you
+were on — is work that is owed. Until it lands, `s` writes whichever layout you are on to the
+setup file, so an arrangement you want to keep is one keystroke from being kept.
+
+One run holds at most **eight** layouts; a ninth is refused rather than quietly replacing one.
+
 ### A pane's geometry is stored once and read in whatever unit your face uses
 
 Your pane geometry lives on one medium-independent grid. A graphical Workshop reads it back

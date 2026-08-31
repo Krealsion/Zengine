@@ -921,6 +921,59 @@
 # lane therefore prove the pixel-thin boundary in full. What they cannot prove is that a real
 # window PAINTS it, which is what the phase's live SDL witness is for.
 #
+# WUX-9 moved four floors -- workshop_screen 205 -> 218, workshop_panels 157 -> 164,
+# workshop_panes 230 -> 233, workshop_persistence 129 -> 133 -- and the spread is the shape of
+# a phase whose whole delta is one vector of an existing value plus the gestures that exchange
+# it:
+#
+#   workshop_screen (16) the shelf as a VALUE and the tab run as a COMPOSITION, which are the
+#                        two halves that own no bus and no session. The four value operations
+#                        swept over every destination in both directions (the mutation that
+#                        SWAPS rather than re-inserting passes the first hop and reorders on
+#                        the second, so the sweep is the falsifier); the derived visible
+#                        window with the live tab always painted, both omission markers, the
+#                        cut live tab, and the spans proven disjoint and inside the text; and
+#                        the press inverse over EVERY cell of every painted tab, every other
+#                        band row, the status to the right of the run, and the naming state
+#                        where no tab is painted at all. TWO of the fifteen are mutation
+#                        answers rather than plan: the run's column bound as a PROPERTY over
+#                        every population and every width from 0 to 120 (which found the
+#                        omission markers being appended AFTER the budget was spent), and
+#                        `new` pressed from the middle of a run rather than from its end
+#                        (which is where every other case stood, because that is where `new`
+#                        leaves you -- and a `push_back` of the original is correct there and
+#                        swaps two layouts anywhere else). A THIRD came from the live TUI
+#                        witness rather than from either: the saved marker's reservation has
+#                        to cover the mark `detail::fit` spends on cutting the row, or a
+#                        full-budget run at 78 columns leaves a maker reading `| UNSA...` --
+#                        swept over every population, every name length and every live
+#                        position the minimum screen can hold.
+#   workshop_panels (7)  the live half: the four command-mode gestures with their researched
+#                        defaults and their POSIX deliverability, the switch returning
+#                        membership + geometry + front order byte for byte over three round
+#                        trips, the Workshop-global facts a switch may not touch (selection
+#                        retained but resolving to nothing, no ghost lift, the document and
+#                        the browser's place unmoved), the pointer's own door, the proof that
+#                        a tab press is not a press on a pane, and the modes that already own
+#                        their bare keys.
+#   workshop_panes (3)   the provider floor: one pane in two layouts is one runtime row, one
+#                        presentation and one granted room with the provider told NOTHING
+#                        across four switches; a withdrawal reaching the provider not at all
+#                        and costing exactly one grant on the way back; and an inactive
+#                        layout's rows staying dormant while the catalog gains and loses
+#                        nothing of theirs.
+#   workshop_persistence (4) what the shelf means for the two files -- `s` writing the live
+#                        layout alone, `r` restoring into it alone (refusal included), the
+#                        session still carrying ONE desk at version 3 with the shelf absent
+#                        next run, and the cross-medium byte-identity falsifier one level
+#                        above WUX-6's: two layouts, two media, four crossings, every
+#                        authored number unchanged.
+#
+# ALL ARE `always`, for WUX-6's and WUX-8's reason unchanged: what a medium reported is an
+# ARGUMENT here, so both faces are exercised without a font or a window. What a headless lane
+# cannot ask -- whether a real terminal and a real window paint and answer this run -- is the
+# phase's live witness pair (`Zen/reportbacks/WUX-9-RB.md`).
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -935,10 +988,10 @@ operator                          doctest           always  103
 composer                          doctest           always  35
 builder                           doctest           always  53
 workshop_document                 doctest           always  140
-workshop_screen                   doctest           always  205
-workshop_panels                   doctest           always  157
-workshop_panes                    doctest           always  230
-workshop_persistence              doctest           always  129
+workshop_screen                   doctest           always  221
+workshop_panels                   doctest           always  164
+workshop_panes                    doctest           always  233
+workshop_persistence              doctest           always  133
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
 workshop_files                    doctest           always  85

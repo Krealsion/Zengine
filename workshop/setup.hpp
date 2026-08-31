@@ -1886,13 +1886,139 @@ struct SetupNaming {
 /// therefore says UNSAVED because its setup has genuinely never been written,
 /// which is the same sentence the document's own status has always said and for
 /// the same reason.
+/// SEVERAL LAYOUTS, ONE OF THEM LIVE (WUX-9).
+///
+/// A LAYOUT IS A `Setup` AND THERE IS NO `Layout` TYPE. What a maker calls a
+/// layout is exactly what this file has always called a setup -- a name, which
+/// panes participate, where each one is, how big, and the front order -- so the
+/// plural costs a vector of the value that already existed and not one new owner
+/// of geometry, membership or presentation.
+///
+/// `active` REMAINS THE ONE LIVE DESK. Every consumer that reads the arrangement
+/// still reads that member; none of them indexes through a list, and there is
+/// never a second copy of the active layout to keep in step (the N-copies law).
+/// `shelved` holds the INACTIVE layouts and nothing else -- values, not
+/// presentations: no panel, no provider, no room and no selection belongs to one.
+///
+/// THE MAKER'S ORDER IS THE RUN, AND `active_at` IS WHERE THE LIVE ONE SITS IN
+/// IT. `shelved` + `active_at` is that run with exactly one element lifted out,
+/// which is what lets the order be STABLE while the live value stays in one
+/// member: switching puts the lifted value back where it was and lifts another,
+/// so no layout ever moves because a maker looked at it. Position IS a layout's
+/// v1 identity -- nothing durable points at one, duplicate names are legal, and
+/// no id is minted.
 struct SetupState {
     Setup active = default_setup();
     Setup on_file;
     SetupNaming naming;
+    std::vector<Setup> shelved;
+    std::size_t active_at = 0;
 
     bool saved() const { return active == on_file; }
 };
+
+/// HOW MANY LAYOUTS THIS WORKSHOP IS HOLDING, the active one included.
+///
+/// NEVER ZERO, structurally: `active` is a value rather than a pointer, so the
+/// floor is the type's and not a rule somebody keeps.
+inline std::size_t layout_count(const SetupState& s) noexcept { return s.shelved.size() + 1; }
+
+/// THE LAYOUT AT POSITION `at` IN THE MAKER'S ORDER -- a read, and the one place
+/// the run's spelling is undone. Out of range answers the active layout, for
+/// `bounds_of`'s reason: every caller of this already has a position it got from
+/// this same run, and a second refusal shape would be a state to keep true.
+inline const Setup& layout_at(const SetupState& s, std::size_t at) noexcept {
+    if (at == s.active_at || at >= layout_count(s)) {
+        return s.active;
+    }
+    return s.shelved[at < s.active_at ? at : at - 1];
+}
+
+/// THE MOST LAYOUTS ONE RUN KEEPS (WUX-9).
+///
+/// A BOUND ON WORK, NOT A CLAIM THAT THEY ALL FIT ON SCREEN. The tab run is
+/// composed against whatever room the band's status row has and says what it
+/// could not paint (`layout_tab_run`, screen.hpp), so raising this number is a
+/// number change and not a redesign. Eight is WUX-R9's measured recommendation.
+inline constexpr std::size_t kMaxLayouts = 8;
+
+/// MAKE THE LAYOUT AT POSITION `to` THE LIVE ONE -- the whole of a switch's value
+/// half, and the only thing in this application that changes which layout is
+/// active.
+///
+/// PUT THE LIFTED VALUE BACK, THEN LIFT ANOTHER. `shelved` is the run with the
+/// active element removed at `active_at`, so restoring it and taking out `to` is
+/// the operation stated exactly: the surviving order is untouched, the departing
+/// layout lands back on its own position, and nothing is copied. A swap would be
+/// shorter and wrong -- it leaves the departing layout wherever the arriving one
+/// happened to sit, which is a run that reorders itself every time a maker looks
+/// at it.
+///
+/// FALSE MEANS NOTHING MOVED: an out-of-range position, or the layout that is
+/// already live. The caller reconciles presentations exactly when this says true.
+inline bool activate_layout(SetupState& s, std::size_t to) {
+    if (to >= layout_count(s) || to == s.active_at) {
+        return false;
+    }
+    s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
+                     std::move(s.active));
+    s.active = std::move(s.shelved[to]);
+    s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(to));
+    s.active_at = to;
+    return true;
+}
+
+/// ONE MORE LAYOUT: A COPY OF THE CURRENT ONE, APPENDED, AND LIVE (WUX-9).
+///
+/// A COPY RATHER THAN A BLANK, because the pressure this answers is variants of a
+/// desk that already works. There is deliberately no blank-layout gesture; the
+/// value for one exists (`default_setup()`) and nothing has asked for it.
+///
+/// THE ORIGINAL GOES BACK ON THE SHELF AND THE COPY TAKES THE LAST POSITION, so
+/// the run a maker had reads exactly as it did with one more layout after it.
+/// False means the ceiling refused; nothing moved.
+inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
+    if (layout_count(s) >= ceiling) {
+        return false;
+    }
+    s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at), s.active);
+    s.active_at = s.shelved.size();
+    return true;
+}
+
+/// DISCARD THE LIVE LAYOUT AND MAKE A NEIGHBOUR LIVE (WUX-9).
+///
+/// THE NEIGHBOUR IS THE NEXT ONE IN MAKER ORDER WHERE THERE IS ONE, otherwise the
+/// previous -- deterministic, and stated as one expression: once the active value
+/// is discarded `shelved` IS the surviving run, so the survivor now standing at
+/// `active_at` is the next neighbour, and `active_at` past the end means the
+/// removed layout was last and the one before it is the previous.
+///
+/// FALSE IS THE FLOOR: removing the only layout would leave Workshop with none,
+/// and the refusal is the caller's to say.
+inline bool remove_layout(SetupState& s) {
+    if (s.shelved.empty()) {
+        return false;
+    }
+    const std::size_t take =
+        s.active_at < s.shelved.size() ? s.active_at : s.shelved.size() - 1;
+    s.active = std::move(s.shelved[take]);
+    s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
+    s.active_at = take;
+    return true;
+}
+
+/// THE POSITION ONE STEP ALONG THE RUN, WRAPPING -- the keyboard's whole
+/// traversal law, over the ENTIRE population rather than over whatever the band
+/// had room to paint. `by` is +1 or -1.
+inline std::size_t layout_step(const SetupState& s, std::int64_t by) noexcept {
+    const std::size_t n = layout_count(s);
+    const std::size_t at = s.active_at < n ? s.active_at : 0;
+    if (n <= 1) {
+        return at;
+    }
+    return by < 0 ? (at == 0 ? n - 1 : at - 1) : (at + 1 == n ? 0 : at + 1);
+}
 
 } // namespace zengine::workshop
 

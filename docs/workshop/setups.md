@@ -54,18 +54,66 @@ there: it has no catalog row for that reference. It does not know whether the pr
 is loading, was unloaded, or was never installed — and silence is not evidence of absence. So
 the word is *unresolved*, never *unavailable*.
 
-## Selecting among setups
+## Several layouts in one Workshop
 
-**There is one setup file per run, chosen by `--setup` on the command line.** There is no
-in-application list of setups, no recent-setups menu, and no profile manager. To keep more than
-one arrangement, keep more than one file and pass the one you want:
+**A layout is a desk arrangement — the same thing a setup file holds.** One running Workshop
+keeps several of them and you move between them from inside it, without opening a second
+Workshop, a second window, a second project or a second copy of any pane.
+
+The band's status row shows them as a run of tabs on the left, with the one you are on marked:
+
+```text
+> "Code"  "Build"  "Inspect" | UNSAVED | workshop-setup.json | s name/save  r restore
+```
+
+| key | does |
+|---|---|
+| `.` | the next layout |
+| `,` | the previous one |
+| `=` | a new layout — a **copy** of the one you are on, added at the end |
+| `Ctrl`+`w` | remove the layout you are on |
+| press a tab | go to that layout |
+
+Switching changes **which arrangement you are looking at** and nothing underneath it. The same
+panes, the same tools, the same open source file, the same place in the file browser, the same
+marks, the same recipes, the same window. A pane that is in two layouts is **one pane** — one
+provider, one tool, one lot of state — shown in both.
+
+Each layout keeps what you authored in it: which panes participate, where each one is, how big,
+and which is in front. Switch away and back and it is exactly as you left it.
+
+Three plain bounds:
+
+- **A layout is always there.** Removing the last one is refused; removing the one you are on
+  puts you on its neighbour and keeps the order of the rest.
+- **One run holds at most eight.** Adding a ninth is refused rather than dropping one.
+- **Names may repeat**, and a name is not a selector: position is what a tab is.
+
+When there are more layouts than the row can show, the run shows a contiguous window around the
+one you are on and counts the rest — `<2` on the left, `3>` on the right. `.` and `,` walk
+**every** layout, including the ones the row could not paint, and the painted run follows you.
+
+### ...and the setup file still holds exactly one
+
+The two gestures act on the layout you are on and on nothing else:
+
+- **`s`** names and writes **the current layout** to the `--setup` file.
+- **`r`** reads that file back into **the current layout**.
+
+Neither one touches your other layouts. `UNSAVED` means what it always meant: the layout you are
+on differs from what is in the setup file.
+
+**Additional layouts are available within the current run; only the active desk is restored
+after a restart today.** Saving and restoring the whole set of layouts is planned work, not an
+experiment — see [what does not come back yet](limitations.md#only-the-layout-you-are-on-comes-back-after-a-restart).
+
+To keep an arrangement past a restart today, stand on it and press `s`. To have several on disk,
+keep several files and pass the one you want:
 
 ```sh
 zengine-workshop --setup layouts/wide.json
 zengine-workshop --setup layouts/inspect.json
 ```
-
-The `name` inside a setup is a label a maker reads, not a selector.
 
 ## The last session
 
@@ -154,9 +202,10 @@ Source-traced, precisely:
 
 | | exists? | how |
 |---|---|---|
-| saving a layout / setup | **yes** | `s`, writes the `--setup` file |
-| loading / restoring it | **yes** | `r`, reads the `--setup` file |
-| selecting among setups | **no in-application selection** | one file per run, chosen by `--setup` |
+| saving a layout / setup | **yes** | `s`, writes the `--setup` file — the layout you are on |
+| loading / restoring it | **yes** | `r`, reads the `--setup` file into the layout you are on |
+| keeping several layouts at once | **yes**, within the run | tabs on the band's status row; `.` `,` `=` `Ctrl`+`w` |
+| selecting among setup **files** | **no in-application selection** | one file per run, chosen by `--setup` |
 | persisting pane position | **yes** | authored place, in the setup and in the session |
 | persisting pane size | **yes** | authored size in cells or pixels, in both |
 | persisting which panes are open | **yes** | the pane list, in both |

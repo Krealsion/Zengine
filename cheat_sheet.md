@@ -513,8 +513,11 @@ bottom band projects the same effective bindings. A binding matches its modifier
 | `p` | open the pane picker |
 | `w` | arrange the desk |
 | `t` | show / hide pane titles (a pane holding the keyboard keeps its own) |
-| `s` | name and save the current setup |
-| `r` | restore the setup from its file |
+| `s` | name and save the current layout to the setup file |
+| `r` | restore the setup file into the current layout |
+| `.` / `,` | the next / previous layout |
+| `=` | a new layout — a copy of the one you are on |
+| `Ctrl`+`w` | remove the layout you are on |
 | `a` | context menu — what can I do with the selected object, or the room |
 | `b` / `Shift`+`b` | build the chosen recipe / build **and realize** it |
 | `c` / `Shift`+`c` | choose the next / previous recipe |
@@ -609,9 +612,10 @@ the last one it was told. See [workspace continuity](docs/workshop/setups.md#wor
 
 **On-screen hints** (so you need this page less): every hint is a projection of the
 effective keymap, so a remapped binding is spelled correctly everywhere it appears — the
-setup line, the bottom band's legend rows, each mode's heading, and the full hotkey view
+band's status row, its legend rows, each mode's heading, and the full hotkey view
 (`Ctrl`+`k`). The band composes its rows against the room the active medium's type actually
-fits — a terminal reads five rows (the setup line, the notice, the workspace size, two
+fits — a terminal reads five rows (the status row with the layout tabs on it, the notice,
+the workspace size, two
 legend rows), a graphical window reads three in real type — and the legend preference
 (`full` / `compact` / `hidden`) in the keymap file governs the legend rows only; hidden
 blanks them and unbinds nothing.

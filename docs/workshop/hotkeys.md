@@ -65,9 +65,9 @@ medium's own text — in three persisted modes, the `legend` word in the keymap 
 | `compact` | only how to open the hotkey view, e.g. `^k hotkeys` |
 | `hidden` | nothing |
 
-`hidden` blanks the legend rows and does nothing else. The band's other rows — the setup
-line, the notice, the workspace size — never move with the preference, the screen keeps its
-shape, and no binding — the hotkey view's included — is unbound by choosing not to look at
+`hidden` blanks the legend rows and does nothing else. The band's other rows — the status
+row with its layout tabs, the notice, the workspace size — never move with the preference,
+the screen keeps its shape, and no binding — the hotkey view's included — is unbound by choosing not to look at
 the legend. Where the packed rows cannot carry every pair, the cut is marked and the full
 hotkey view remains the complete list, one keystroke away in every mode.
 

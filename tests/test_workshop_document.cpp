@@ -4678,7 +4678,7 @@ TEST_CASE("WUX-1/SC-2+SC-3: the band composes its budget, and the workspace fact
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
     REQUIRE(cband->rows.size() == 5);
-    CHECK(band_row(cband, 0).rfind("setup ", 0) == 0);
+    CHECK(band_row(cband, 0).rfind("> \"Default\"", 0) == 0); // the live layout tab (WUX-9)
     CHECK(band_row(cband, 1) == "created #1");
     CHECK(band_row(cband, 2) == "workspace 48x16 cells");
     CHECK(band_row(cband, 3).rfind("n new | d delete", 0) == 0);
@@ -4696,7 +4696,7 @@ TEST_CASE("WUX-1/SC-2+SC-3: the band composes its budget, and the workspace fact
     REQUIRE(sband != nullptr);
     CHECK(band_fit(ssc).rows == 3);
     REQUIRE(sband->rows.size() == 3);
-    CHECK(band_row(sband, 0).rfind("setup ", 0) == 0);
+    CHECK(band_row(sband, 0).rfind("> \"Default\"", 0) == 0);
     CHECK(band_row(sband, 0).find("| workspace 48x16 cells") != std::string::npos);
     CHECK(band_row(sband, 1) == "created #1");
     CHECK(band_row(sband, 2).rfind("n new | d delete", 0) == 0);
@@ -4722,7 +4722,7 @@ TEST_CASE("WUX-1/SC-2+SC-3: the band composes its budget, and the workspace fact
     const surface::SurfaceTextRegion* tband = band_on(two_canvas, screen_of(two));
     REQUIRE(tband != nullptr);
     REQUIRE(tband->rows.size() == 2);
-    CHECK(band_row(tband, 0).rfind("setup ", 0) == 0);
+    CHECK(band_row(tband, 0).rfind("> \"Default\"", 0) == 0);
     CHECK(band_row(tband, 1) == "created #1");
 
     Session one = screen_session(kScreenMinW, kScreenMinH, 8, 56); // (60-4)/56 = 1 row
@@ -4738,7 +4738,7 @@ TEST_CASE("WUX-1/SC-2+SC-3: the band composes its budget, and the workspace fact
     const surface::SurfaceTextRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
     REQUIRE(qband->rows.size() == 1);
-    CHECK(band_row(qband, 0).rfind("setup ", 0) == 0); // the identity line otherwise
+    CHECK(band_row(qband, 0).rfind("> \"Default\"", 0) == 0); // the identity line otherwise
 }
 
 TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budgets") {
@@ -5214,7 +5214,7 @@ TEST_CASE("CTX-0: the shipped catalog stays admissible with the new rows") {
     // ...and both remap like any other action, all rows moving together.
     Keymap moved;
     const Written re = apply_overrides(
-        {{"manage.remove", "x"}, {"workshop.context", "."}}, legend_mode::kDefault, moved);
+        {{"manage.remove", "x"}, {"workshop.context", ";"}}, legend_mode::kDefault, moved);
     REQUIRE(re.accepted);
     CHECK(moved.gesture_of(Act::kManageRemove) ==
           Gesture{input::scan::kX, input::mod::kNone});

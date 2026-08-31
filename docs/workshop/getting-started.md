@@ -131,8 +131,8 @@ reserved row of a terminal), and `Ctrl`+`a` opens the full list. Those disappear
 stop being true and at no other moment. See [what needs your attention](attention.md).
 
 The bottom band advertises the current context's gestures on its legend rows — the picker,
-the desk arrangement and the terminal toggle among them — and the setup line carries
-`s name/save  r restore`. Every one of those hints is a projection of the effective keymap —
+the desk arrangement and the terminal toggle among them — and the status row above them
+carries `s name/save  r restore` beside the layout tabs. Every one of those hints is a projection of the effective keymap —
 remap a binding and the screen spells the new one — and `Ctrl`+`k` opens the full hotkey
 view, the complete list for whatever context you are in. So the keys are on screen; this
 page is the fuller version, not the only source. See [hotkeys and the keymap](hotkeys.md).
@@ -146,7 +146,8 @@ so the very first screen already shows an authored intent (`60%`) beside its res
 (`28 x 6 cells`).
 
 Those two are seeded by Workshop's own weave, not read from a file. So on a first run the title
-row says `UNSAVED` and the setup line says `setup "Default" UNSAVED`, and both are accurate.
+row says `UNSAVED` and the band's status row says `> "Default" | UNSAVED` — the one layout you
+have, marked as the one you are on — and both are accurate.
 
 1. **`n`** — create an object. It gets a fresh identity that is neither its label nor its
    index, and is never handed out twice.

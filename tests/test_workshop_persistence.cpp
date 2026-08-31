@@ -2238,12 +2238,12 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     const Screen sc = screen_of(t.session());
     const std::string fresh = setup_row(first_frame(t), sc);
     INFO(fresh);
-    CHECK(fresh.find("setup \"Default\"") == 0);
+    CHECK(fresh.find("> \"Default\"") == 0); // the live layout tab leads the row (WUX-9)
     CHECK(fresh.find("UNSAVED") != std::string::npos);
 
     name_setup(t, "Named");
     const std::string saved = setup_row(t.canvases.back(), sc);
-    CHECK(saved.find("setup \"Named\" saved") == 0);
+    CHECK(saved.find("> \"Named\" | saved") == 0);
 
     // AT THE MINIMUM COMPOSITION WITH THE DEFAULT FILE NAME THE WHOLE LINE FITS,
     // and that is the measurement the ORDER of that line was chosen against: the
@@ -2252,7 +2252,7 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     plain.host.setup_path = kDefaultSetupFileName;
     const std::string minimal = setup_row(first_frame(plain), screen_of(plain.session()));
     INFO(minimal);
-    CHECK(minimal.find("setup \"Default\" UNSAVED") == 0);
+    CHECK(minimal.find("> \"Default\" | UNSAVED") == 0);
     CHECK(minimal.find(kDefaultSetupFileName) != std::string::npos);
     CHECK(minimal.find("s name/save") != std::string::npos);
     CHECK(minimal.find("r restore") != std::string::npos);
@@ -2267,7 +2267,7 @@ TEST_CASE("the setup line names the setup, its file, whether it is saved, and it
     const std::string cut = setup_row(first_frame(wordy), screen_of(wordy.session()));
     CHECK(static_cast<std::int64_t>(cut.size()) == kMinScreen.w);
     CHECK(cut.substr(cut.size() - 3) == "...");
-    CHECK(cut.find("setup \"Default\" UNSAVED") == 0);
+    CHECK(cut.find("> \"Default\" | UNSAVED") == 0);
 
     // A wider surface spends the room it gained on the rest of the sentence,
     // which needs nothing from anybody but room.
@@ -2508,15 +2508,15 @@ TEST_CASE("WS-0a: a name that could impersonate the setup line is one token on i
 
     // THE IDENTITY IS ONE TOKEN, and a reader applying the escape rule gets the maker's
     // own bytes back out of it.
-    REQUIRE(row.compare(0, 6, "setup ") == 0);
-    const QuotedToken read = read_quoted(row, 6);
+    REQUIRE(row.compare(0, 2, "> ") == 0); // the live layout's mark (WUX-9)
+    const QuotedToken read = read_quoted(row, 2);
     REQUIRE(read.well_formed);
     CHECK(read.name == authored);
 
     // ...AND EXACTLY ONE SAVED MARKER, the real one, OUTSIDE the token. The decoy word
     // inside the name is not it, and the proof is positional rather than a search: the
     // status begins where the token ends.
-    CHECK(row.compare(read.end, 6, " saved") == 0);
+    CHECK(row.compare(read.end, 9, " | saved ") == 0);
     CHECK(row.find("UNSAVED", read.end) == std::string::npos);
 
     // The row is still one bounded row of the band, and the file is still named on it.
@@ -2567,7 +2567,7 @@ TEST_CASE("WS-0a: the save notice and the restore notice spell the name the same
     const std::string token = quoted_setup_name(authored);
     CHECK(saved.find(token) == 12);
     CHECK(restored.find(token) == 15);
-    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find(token) == 6);
+    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find(token) == 2);
 }
 
 TEST_CASE("WS-0a: the name editor edits the authored bytes, never the escaped spelling") {
@@ -2627,11 +2627,11 @@ TEST_CASE("WS-0a: an ordinary setup name presents exactly as it did before") {
 
     const Screen sc = screen_of(t.session());
     const std::string fresh = setup_row(first_frame(t), sc);
-    CHECK(fresh.find("setup \"Default\" UNSAVED") == 0);
+    CHECK(fresh.find("> \"Default\" | UNSAVED") == 0);
 
     name_setup(t, "Morning build");
     CHECK(t.notice().find("saved setup \"Morning build\" to ") == 0);
-    CHECK(setup_row(t.canvases.back(), sc).find("setup \"Morning build\" saved") == 0);
+    CHECK(setup_row(t.canvases.back(), sc).find("> \"Morning build\" | saved") == 0);
 
     t.key(input::scan::kR);
     CHECK(t.notice().find("restored setup \"Morning build\" from ") == 0);
@@ -2651,7 +2651,7 @@ TEST_CASE("WS-0a: an escaped name that outgrows the row is cut with the mark") {
     name_setup(modest, repeated(12, '"'));
     const std::string easy = setup_row(modest.canvases.back(), screen_of(modest.session()));
     INFO(easy);
-    CHECK(read_quoted(easy, 6).name == repeated(12, '"'));
+    CHECK(read_quoted(easy, 2).name == repeated(12, '"'));
     CHECK(easy.find(" saved") != std::string::npos);
 
     // THE PATHOLOGICAL LEGAL NAME: thirty-two bytes at the bound, every one of them a
@@ -2686,7 +2686,7 @@ TEST_CASE("WS-0a: an escaped name that outgrows the row is cut with the mark") {
     const std::string roomy = setup_row(t.canvases.back(), screen_of(t.session()));
     INFO(roomy);
     CHECK(roomy.find("...") == std::string::npos);
-    CHECK(read_quoted(roomy, 6).name == authored);
+    CHECK(read_quoted(roomy, 2).name == authored);
     CHECK(roomy.find("s name/save") != std::string::npos);
     // ...and the extent changed what fits, never the setup or its saved status.
     CHECK(t.session().setup.active.name == authored);
@@ -3998,4 +3998,212 @@ TEST_CASE("WUX-3: a restored maximized flag alone does not gate this run's viewp
     t.publish(loom::to_value(surface::SurfaceExtent{100, 33, 0, 0}));
     CHECK(t.session().normal_w == 100);
     CHECK(t.session().normal_h == 33);
+}
+
+
+// ============================================================================
+// ---- WUX-9: what the layout shelf means for the two files ------------------
+//
+// A Setup file is still ONE named desk arrangement, and the session still carries ONE
+// desk. The shelf is live composition and reaches neither format: what these cases pin is
+// that `s` and `r` act on the LIVE layout alone, that neither touches the shelf, and that
+// the session's promise is exactly the one it always made.
+
+namespace {
+
+/// Step the live layout one along the run, as a maker does.
+void layout_next(Live& t) {
+    const Gesture g = t.session().keymap.gesture_of(Act::kLayoutNext);
+    t.key(g.scancode, g.modifiers);
+}
+
+/// Copy the live layout and stand on the copy, as a maker does.
+void layout_new(Live& t) {
+    const Gesture g = t.session().keymap.gesture_of(Act::kLayoutNew);
+    t.key(g.scancode, g.modifiers);
+}
+
+/// Every layout this Workshop holds, in the maker's order.
+std::vector<Setup> shelf_of(const Live& t) {
+    std::vector<Setup> out;
+    for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
+        out.push_back(layout_at(t.session().setup, i));
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("WUX-9/SC-12: `s` writes the live layout and leaves the shelf alone") {
+    TempDir dir("wux9-save");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+
+    layout_new(t);
+    REQUIRE(add_pane(live(t).setup.active, ref_of(panel::kBuilder)));
+    REQUIRE(layout_count(t.session().setup) == 2);
+    const std::vector<Setup> before = shelf_of(t);
+
+    name_setup(t, "Second");
+    CHECK(t.notice().find("saved setup \"Second\"") == 0);
+
+    // THE FILE HOLDS ONE DESK -- the live one -- and its meaning is unchanged: the
+    // format's own reader gets exactly the arrangement a maker was standing in.
+    const setup_persist::LoadedSetup written = setup_persist::load_file(t.host.setup_path);
+    REQUIRE(written.outcome.accepted);
+    CHECK(written.setup == t.session().setup.active);
+    CHECK(written.setup.name == "Second");
+    CHECK(has_pane(written.setup, ref_of(panel::kBuilder)));
+    // ...AND THE SHELF IS BYTE-FOR-BYTE WHAT IT WAS, name included.
+    const std::vector<Setup> after = shelf_of(t);
+    REQUIRE(after.size() == before.size());
+    CHECK(after[0] == before[0]);
+    // The saved marker is about the live layout against the file, and says so.
+    CHECK(t.session().setup.saved());
+    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("| saved") !=
+          std::string::npos);
+}
+
+TEST_CASE("WUX-9/SC-12: `r` restores into the live layout and clears no shelf") {
+    TempDir dir("wux9-restore");
+    const Setup named = setup_of("From file", {panel::kInfo, panel::kBuilder});
+    REQUIRE(setup_persist::save_file(dir.file("s.json"), named).accepted);
+
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+    layout_new(t);
+    live(t).setup.active.name = "Scratch";
+    REQUIRE(layout_count(t.session().setup) == 2);
+    const Setup shelved = layout_at(t.session().setup, 0);
+    const std::size_t at = t.session().setup.active_at;
+
+    t.key(input::scan::kR);
+    CHECK(t.notice().find("restored setup \"From file\"") == 0);
+
+    // THE LIVE LAYOUT BECAME THE FILE'S DESK, IN ITS OWN POSITION IN THE RUN...
+    CHECK(t.session().setup.active == named);
+    CHECK(t.session().setup.active_at == at);
+    CHECK(layout_count(t.session().setup) == 2);
+    // ...AND NOTHING ELSE ON THE SHELF MOVED. A restore that replaced the run would be
+    // one file quietly deciding how many desks a maker has.
+    CHECK(layout_at(t.session().setup, 0) == shelved);
+
+    // A REFUSED RESTORE COSTS THE NOTICE AND NOTHING ELSE, shelf included.
+    REQUIRE(persist::write_file(dir.file("s.json"), "{ not a setup").accepted);
+    const std::vector<Setup> before = shelf_of(t);
+    t.key(input::scan::kR);
+    CHECK(t.session().notice_is_bad);
+    const std::vector<Setup> after = shelf_of(t);
+    REQUIRE(after.size() == before.size());
+    for (std::size_t i = 0; i < after.size(); ++i) {
+        CAPTURE(i);
+        CHECK(after[i] == before[i]);
+    }
+}
+
+TEST_CASE("WUX-9/SC-13: the live layout still rides the session, and the shelf does not") {
+    TempDir dir("wux9-session");
+    const std::string session = dir.file("session.json");
+
+    {
+        Live t;
+        t.host.session_path = session;
+        t.host.setup_path = dir.file("s.json");
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
+
+        layout_new(t);
+        live(t).setup.active.name = "Second";
+        REQUIRE(add_pane(live(t).setup.active, ref_of(panel::kBuilder)));
+        layout_new(t);
+        live(t).setup.active.name = "Third";
+        REQUIRE(layout_count(t.session().setup) == 3);
+        // Stand on the middle one, so what returns is neither the first nor the last.
+        layout_next(t);
+        layout_next(t);
+        REQUIRE(t.session().setup.active.name == "Second");
+
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+
+    // THE FORMAT DID NOT MOVE. WUX-9 bumps no schema, and the file still carries ONE
+    // desk under the field it always did.
+    const session_persist::LoadedSession read = session_persist::load_file(session);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.desk.name == "Second");
+    CHECK(has_pane(read.desk, ref_of(panel::kBuilder)));
+    CHECK(slurp(session).find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(slurp(session).find("layout") == std::string::npos);
+    CHECK(slurp(session).find("shelved") == std::string::npos);
+
+    // AND THE NEXT RUN COMES BACK ON THAT DESK, alone -- the temporary limitation this
+    // phase states plainly rather than dressing up as a decision.
+    Live back;
+    back.host.session_path = session;
+    back.host.setup_path = dir.file("elsewhere.json");
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(back.session().setup.active.name == "Second");
+    CHECK(has_pane(back.session().setup.active, ref_of(panel::kBuilder)));
+    CHECK(layout_count(back.session().setup) == 1);
+    CHECK(back.session().setup.active_at == 0);
+}
+
+TEST_CASE("WUX-9/SC-14: crossing media never writes a device value into any layout") {
+    TempDir dir("wux9-media");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
+
+    // TWO LAYOUTS WITH DISTINCT FINE-LATTICE GEOMETRY -- one of them deliberately NOT on
+    // a cell boundary, which is the value a character medium cannot say and must not
+    // round on its way through.
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+                              surface::subs_of_cells(3) + 17, surface::subs_of_cells(4) + 5)
+                .accepted);
+    REQUIRE(author_pane_size(live(t).setup.active, ref_of(panel::kInfo),
+                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(20) + 11},
+                             PaneSize{pane_unit::kSubcells, surface::subs_of_cells(9) + 23})
+                .accepted);
+    live(t).setup.active.name = "Fine";
+    const Setup fine = t.session().setup.active;
+
+    layout_new(t);
+    live(t).setup.active.name = "Whole";
+    REQUIRE(author_pane_place(live(t).setup.active, ref_of(panel::kInfo),
+                              surface::subs_of_cells(6), surface::subs_of_cells(2))
+                .accepted);
+    const Setup whole = t.session().setup.active;
+    REQUIRE(fine != whole);
+
+    // VIEW BOTH ON A WINDOW WITH A REAL FACE AND ITS OWN PIXEL, then on a terminal, then
+    // back -- switching, repainting and reading all the way.
+    for (int round = 0; round < 2; ++round) {
+        CAPTURE(round);
+        t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 8, 18, 12}));
+        layout_next(t);
+        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        layout_next(t);
+        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        t.publish(loom::to_value(surface::SurfaceExtent{120, 44, 0, 0, 0}));
+        layout_next(t);
+        (void)paint(t.doc(), t.session(), t.host.setup_path);
+        layout_next(t);
+        (void)paint(t.doc(), t.session(), t.host.setup_path);
+    }
+
+    // EVERY LAYOUT'S AUTHORED NUMBERS ARE THE ONES THAT WENT IN. Looking is not
+    // authoring, and a switch is not a geometry conversion.
+    CHECK(layout_at(t.session().setup, 0) == fine);
+    CHECK(layout_at(t.session().setup, 1) == whole);
+
+    // ...AND SAVING EACH ONE WRITES THE SAME BYTES AS A RUN THAT NEVER CROSSED.
+    CHECK(setup_persist::to_text(layout_at(t.session().setup, 0)) ==
+          setup_persist::to_text(fine));
+    CHECK(setup_persist::to_text(layout_at(t.session().setup, 1)) ==
+          setup_persist::to_text(whole));
+    // No projected spelling reached the bytes: a device unit has no word in this format.
+    CHECK(setup_persist::to_text(fine).find("px") == std::string::npos);
+    CHECK(setup_persist::to_text(fine).find("pixels") == std::string::npos);
 }

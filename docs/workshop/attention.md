@@ -96,7 +96,7 @@ looking at it.
 
 Some true things are deliberately **not** here. A pane you closed is your own choice and lives
 in the [picker](panes.md). A pane the setup names that this run cannot resolve is already
-counted on the setup line, all day. A pane that is behind another one is still on the screen,
+counted on the band's status row, all day. A pane that is behind another one is still on the screen,
 and stacking is what arranging *is*. Attention is for what you would otherwise not find out.
 
 ## What this is not
