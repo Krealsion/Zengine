@@ -458,8 +458,13 @@ inline session_persist::WorkshopSetupLink absent_link() {
     return session_persist::WorkshopSetupLink{std::string(), setup_persist::to_setup(Setup{})};
 }
 
-/// A VERSION-4 SESSION AS A CURRENT ONE (WUX-11) — every layout it had, in its own order,
+/// A VERSION-4 SESSION AS A VERSION-5 ONE (WUX-11) — every layout it had, in its own order,
 /// each with no Setup association.
+///
+/// IT ANSWERS AT VERSION 5 AND NOT AT THE READER'S VERSION, since WUX-12 — the same move
+/// `session_v1_to_v3` and `session_v3_to_v4` each made a phase after they were written. What
+/// a version-4 file MEANT did not change when the layout surface became a pane, so it is
+/// written once, here, and the materialization is applied to it by `session_v5_to_v6`.
 ///
 /// ⚠ FIELD DEFAULTING AGAIN, AND THE SAME LINE HOLDS. A version-4 session could not say
 /// whether a desk was related to a standalone Setup artifact, because a version-4 Workshop

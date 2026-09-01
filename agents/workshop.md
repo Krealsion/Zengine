@@ -1992,13 +1992,14 @@ Layout            desk + link -- the shelf's element and the RUN's element, one 
   its fit — so a maker who narrows the pane narrows the run, and the omission markers, the
   association's reservation and `+` all degrade by the rules they already had. A tab's span is recorded as the row is written, so there is no second measurement to
   drift. `band_tab_row` says which prose row the run is on, or `kNoBandRow` — the name editor
-  takes the identity row whole, and that is the ONLY thing that can displace the run since
-  QR-14: the notice used to share this band and outrank it at a one-row budget, and it lives at
-  the foot now, so no budget can take the selector off the screen.
-  ⚠ **`band_tab_at` RESOLVES AGAINST `top_band_bounds`/`top_band_fit`**, which is where the
-  painter publishes. A press answered from the bottom band's origin would be the stale
-  one-row geometry QR-14 exists to make unsayable, and the suite sweeps EVERY cell of the
-  screen against the inverse to say so.
+  takes the identity row whole; and since WUX-12 a second, ordinary absence joins it, because
+  the pane can be closed, off-room or unprojectable. What can NOT displace the run is a
+  budget: the notice used to share this surface and outrank it at a one-row budget, and it
+  lives at the foot now.
+  ⚠ **`band_tab_at` RESOLVES AGAINST `layouts_body`** — the PANE's interior and its fit, which
+  is where the painter publishes. A press answered from the rectangle the band used to own
+  would be the stale one-row geometry QR-14 exists to make unsayable, and the suite sweeps
+  EVERY cell of the screen against the inverse to say so.
 - **THE MARKER BRACKETS THE LIVE NAME (`>name<`) AND EVERY OTHER TAB WEARS ` name `** — one
   presentation cell on each side, whichever tab it is, said in CHARACTERS because a band row
   carries ONE role for all of its bytes. Same width either way, deliberately: brackets around
