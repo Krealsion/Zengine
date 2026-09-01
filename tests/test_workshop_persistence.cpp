@@ -1060,8 +1060,13 @@ TEST_CASE("a fresh Workshop's setup and its open panels are ONE decision") {
     }
     CHECK(from_setup == open_kinds(Panels{}));
 
-    // And the product default itself, named rather than merely derived: Info.
-    CHECK(from_setup == std::vector<std::int64_t>{panel::kInfo});
+    // And the product default itself, named rather than merely derived: Info, and the
+    // Layouts pane behind it -- which is the whole of what WUX-12 changed about a fresh
+    // desk. The layout run, this desk's Setup association and the workspace fact used to be
+    // shell furniture no desk could name; they are an ordinary row now, and it is LAST
+    // because `add_pane` appends the front-most rank and the surface it replaces was painted
+    // in front of every pane.
+    CHECK(from_setup == std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
 
     // A default session agrees with both.
     const Session s;
@@ -1281,14 +1286,16 @@ TEST_CASE("the unresolved panes are reported in the setup's own order") {
 
 TEST_CASE("reconciling opens what the setup names, in the setup's order") {
     Panels panels;
-    REQUIRE(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
+    REQUIRE(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
 
-    const Reconciled done = reconcile(panels, setup_of("Both", {panel::kBuilder, panel::kInfo}), min_room());
+    const Reconciled done = reconcile(
+        panels, setup_of("Both", {panel::kBuilder, panel::kInfo, panel::kLayouts}), min_room());
     CHECK(done.opened == std::vector<std::int64_t>{panel::kBuilder});
     CHECK(done.closed.empty());
     CHECK(done.unresolved == 0);
     // THE ORDER IS THE SETUP'S, not the order things happened to be opened in.
-    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kBuilder, panel::kInfo});
+    CHECK(open_kinds(panels) ==
+          std::vector<std::int64_t>{panel::kBuilder, panel::kInfo, panel::kLayouts});
 
     // The other way round, from the same starting point, produces the other order.
     Panels again;
@@ -1302,10 +1309,11 @@ TEST_CASE("reconciling closes what the setup does not name, through the existing
     panels.builder.heard = true;
     panels.builder.shown.recipe = "zengine-snake";
 
-    const Reconciled done = reconcile(panels, setup_of("Info only", {panel::kInfo}), min_room());
+    const Reconciled done = reconcile(
+        panels, setup_of("Info and its layouts", {panel::kInfo, panel::kLayouts}), min_room());
     CHECK(done.closed == std::vector<std::int64_t>{panel::kBuilder});
     CHECK(done.opened.empty());
-    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo});
+    CHECK(open_kinds(panels) == std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
 
     // THE PANEL'S COPY IS FORGOTTEN BY THE SAME ACT, because the close goes
     // through `close_panel` rather than through a loop that rebuilt the vector.
@@ -1324,7 +1332,7 @@ TEST_CASE("a panel open on both sides of a reconcile keeps what it was showing")
     panels.builder.shown.recipe = "zengine-snake";
     panels.builder.shown.builds = 3;
 
-    const Setup same = setup_of("Both", {panel::kInfo, panel::kBuilder});
+    const Setup same = setup_of("Both", {panel::kInfo, panel::kBuilder, panel::kLayouts});
     const Reconciled done = reconcile(panels, same, min_room());
     CHECK(done.opened.empty());
     CHECK(done.closed.empty());
@@ -1365,7 +1373,10 @@ TEST_CASE("an empty setup closes everything, and is a legal thing to be in") {
     nothing.name = "Nothing";
 
     const Reconciled done = reconcile(panels, nothing, min_room());
-    CHECK(done.closed.size() == 2);
+    // THREE NOW: Info and the Layouts pane a fresh Workshop opens, and the Builder this
+    // case opened over them. An empty setup is still a legal thing to be in, and it is now
+    // a Workshop with no layout surface on it either -- the picker is the way back.
+    CHECK(done.closed.size() == 3);
     CHECK(panels.open.empty());
     CHECK(done.unresolved == 0);
 
@@ -1661,7 +1672,8 @@ TEST_CASE("the document's file and the setup's file cannot be mistaken for each 
 TEST_CASE("a fresh Workshop's active setup and its open panels agree from the first frame") {
     Live t;
     CHECK(t.session().setup.active == default_setup());
-    CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+    CHECK(open_kinds(t.session().panels) ==
+          std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
     // UNSAVED, and structurally so: nothing has been written, and the copy the
     // comparison is made against has an empty name no legal setup can equal.
     CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
@@ -1677,12 +1689,13 @@ TEST_CASE("opening a panel through the picker moves the setup's intent, not only
 
     REQUIRE(t.session().panels.has(panel::kBuilder));
     CHECK(has_pane(t.session().setup.active, ref_of(panel::kBuilder)));
-    // At the END of the authored order, which is where the screen put it.
-    REQUIRE(t.session().setup.active.panes.size() == 2);
-    CHECK(t.session().setup.active.panes[1].ref == ref_of(panel::kBuilder));
+    // At the END of the authored order, which is where the screen put it -- behind the
+    // Layouts pane a fresh Workshop already had (WUX-12), because the door appends.
+    REQUIRE(t.session().setup.active.panes.size() == 3);
+    CHECK(t.session().setup.active.panes[2].ref == ref_of(panel::kBuilder));
     // ...and the resolved open order agrees with the resolved order of the refs.
     CHECK(open_kinds(t.session().panels) ==
-          std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+          std::vector<std::int64_t>{panel::kInfo, panel::kLayouts, panel::kBuilder});
 
     // Removing it takes the reference back out.
     pick(t, panel::kBuilder);
@@ -1692,6 +1705,11 @@ TEST_CASE("opening a panel through the picker moves the setup's intent, not only
     // And so does removing Info, which has no provider to make it a special case.
     pick(t, panel::kInfo);
     CHECK_FALSE(t.session().panels.has(panel::kInfo));
+    // ...AND SO DOES REMOVING LAYOUTS, which is what the conversion means (WUX-12): the
+    // layout run is a pane a maker may take off their desk through the ordinary door, and
+    // what is left is an empty desk rather than a Workshop with one surface it cannot lose.
+    pick(t, panel::kLayouts);
+    CHECK_FALSE(t.session().panels.has(panel::kLayouts));
     CHECK(t.session().setup.active.panes.empty());
 }
 
@@ -1827,11 +1845,13 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     pick(t, panel::kInfo);
     pick(t, panel::kBuilder);
     REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
-    REQUIRE(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+    REQUIRE(open_kinds(t.session().panels) ==
+            std::vector<std::int64_t>{panel::kLayouts, panel::kInfo});
 
     t.key(input::scan::kR);
     CHECK(t.session().setup.active.name == "Build only");
-    CHECK(open_kinds(t.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
+    CHECK(open_kinds(t.session().panels) ==
+          std::vector<std::int64_t>{panel::kLayouts, panel::kBuilder});
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(t.notice().find("restored setup \"Build only\"") == 0);
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
@@ -1991,6 +2011,10 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     REQUIRE(add_pane(authored, ref_of(panel::kInfo)));
     REQUIRE(add_pane(authored, stranger()));
     REQUIRE(add_pane(authored, ref_of(panel::kBuilder)));
+    // ...AND THE LAYOUTS PANE, because the row this case reads the count off lives in it
+    // now (WUX-12). A desk that does not name it has no identity row for anything to be
+    // counted onto -- which is itself the honest answer, and is the case below this one.
+    REQUIRE(add_pane(authored, ref_of(panel::kLayouts)));
     const std::string bytes = setup_persist::to_text(authored);
     spillout(t.host.setup_path, bytes);
 
@@ -2001,12 +2025,12 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     CHECK(t.session().setup.active == authored);
     // THE UNKNOWN REFERENCE IS STILL THERE, still between the two that resolved,
     // still byte-for-byte what it was.
-    REQUIRE(t.session().setup.active.panes.size() == 3);
+    REQUIRE(t.session().setup.active.panes.size() == 4);
     CHECK(t.session().setup.active.panes[1].ref == stranger());
 
-    // The two that resolve are open, in file order relative to each other.
+    // The three that resolve are open, in file order relative to each other.
     CHECK(open_kinds(t.session().panels) ==
-          std::vector<std::int64_t>{panel::kInfo, panel::kBuilder});
+          std::vector<std::int64_t>{panel::kInfo, panel::kBuilder, panel::kLayouts});
 
     // AND NOTHING WAS PAINTED ON THE UNKNOWN REFERENCE'S BEHALF. The only kind
     // available to paint an unknown pane with is the Builder, and there is
@@ -2016,7 +2040,7 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     const PanelBounds builder_at = bounds_of(t.session().panels, t.session().setup.active, panel::kBuilder, sc);
     REQUIRE(builder_at.open);
     CHECK(builder_at.rect == fine_of_cells(placement_bounds(placement::kOverlayStack, 0, sc)));
-    CHECK(t.session().panels.open.size() == 2);
+    CHECK(t.session().panels.open.size() == 3);
     // ...and the slot a placeholder would have taken is not occupied by anything:
     // a hand reaching into it meets the workspace, not a pane painted on behalf
     // of a reference nothing could resolve.
@@ -2150,14 +2174,16 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         Live a;
         a.host.setup_path = path;
         (void)mount_tool(a, "zengine-snake");
-        REQUIRE(open_kinds(a.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+        REQUIRE(open_kinds(a.session().panels) ==
+                std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
 
         open_builder(a);
         pick(a, panel::kInfo);
         name_setup(a, "Morning build");
 
         REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
-        REQUIRE(open_kinds(a.session().panels) == std::vector<std::int64_t>{panel::kBuilder});
+        REQUIRE(open_kinds(a.session().panels) ==
+                std::vector<std::int64_t>{panel::kLayouts, panel::kBuilder});
         bytes = slurp(path);
         REQUIRE_FALSE(bytes.empty());
     }
@@ -2169,7 +2195,8 @@ TEST_CASE("a maker names a setup, leaves, and gets it back in a fresh Workshop")
         b.host.setup_path = path;
         ToolSeat* tool = mount_tool(b, "zengine-snake");
         REQUIRE(b.session().setup.active == default_setup());
-        REQUIRE(open_kinds(b.session().panels) == std::vector<std::int64_t>{panel::kInfo});
+        REQUIRE(open_kinds(b.session().panels) ==
+                std::vector<std::int64_t>{panel::kInfo, panel::kLayouts});
         const WorkshopDoc opening_document = b.doc();
         const std::int64_t opening_workspace = b.session().workspace_w;
 
@@ -2856,6 +2883,19 @@ Setup arranged_desk(const char* name) {
     return s;
 }
 
+/// THE SAME DESK AS A SESSION OF THIS VINTAGE HOLDS IT (WUX-12) -- with the layout surface
+/// every pre-WUX-12 Workshop had, now written down as the ordinary pane it has become.
+///
+/// ⭐ IT GOES THROUGH `add_pane`, WHICH IS THE POINT. The migration is not asked to agree
+/// with a transcription of what it does; it is asked to agree with the ORDINARY DOOR a
+/// maker's own picker spends -- same reference, same appended position, same front-most
+/// rank. A conversion that seeded a different geometry, a different rank or a different key
+/// disagrees with this and the cases below go red naming the field.
+Setup materialized(Setup desk) {
+    REQUIRE(add_pane(desk, ref_of(panel::kLayouts)));
+    return desk;
+}
+
 /// A Workshop that has been arranged and closed the way a maker closes one: its
 /// surface says hello, the medium reports its room, the maker restores a desk
 /// from their named setup, and then they quit.
@@ -3045,9 +3085,9 @@ TEST_CASE("WUX-0 D: a malformed session costs the desk and nothing else") {
          [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":5");
+             const std::size_t at = text.find("\"version\":6");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":5").size(), "\"version\":7");
+             text.replace(at, std::string("\"version\":6").size(), "\"version\":7");
              return text;
          }()},
         {"a session whose desk is not a legal setup",
@@ -3087,9 +3127,9 @@ TEST_CASE("WUX-0 D/MIG-0: an unreadable session names its version by NUMBER") {
     TempDir dir("wux0-d-version");
     std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                 session_persist::Placement{});
-    const std::size_t at = text.find("\"version\":5");
+    const std::size_t at = text.find("\"version\":6");
     REQUIRE(at != std::string::npos);
-    text.replace(at, std::string("\"version\":5").size(), "\"version\":7");
+    text.replace(at, std::string("\"version\":6").size(), "\"version\":7");
     const session_persist::LoadedSession refused = session_persist::from_text(text);
     CHECK(refused.present);
     CHECK_FALSE(refused.outcome.accepted);
@@ -3099,7 +3139,7 @@ TEST_CASE("WUX-0 D/MIG-0: an unreadable session names its version by NUMBER") {
     // named, because it is a fact this host knows and a maker can look for.
     CHECK(refused.outcome.refusal ==
           "session version 7 cannot be read: no live conversion from `WorkshopSession` v7 to "
-          "v5 (`zengine.migrate.WorkshopSession.v7-to-v5`)");
+          "v6 (`zengine.migrate.WorkshopSession.v7-to-v6`)");
     // AND IT CLAIMS NOTHING IT CANNOT KNOW: not that a converter exists on disk, not that
     // one should be installed. There is no unloaded discovery in this system to be honest
     // about, so the sentence does not pretend there is.
@@ -3120,9 +3160,9 @@ TEST_CASE("MIG-0: a current-version file whose own field says otherwise is a for
     // TWO DIFFERENT NUMBERS -- a v5 session nests desks that still say 3. The case edits
     // the session's and asserts the session's sentence; the desk's own is a separate claim
     // with a separate owner, and the case below it proves that one.
-    const std::size_t field = text.find("\"format_version\":\"5\"");
+    const std::size_t field = text.find("\"format_version\":\"6\"");
     REQUIRE(field != std::string::npos);
-    text.replace(field, std::string("\"format_version\":\"5\"").size(),
+    text.replace(field, std::string("\"format_version\":\"6\"").size(),
                  "\"format_version\":\"7\"");
 
     op::Catalog conversions;
@@ -3131,7 +3171,7 @@ TEST_CASE("MIG-0: a current-version file whose own field says otherwise is a for
         session_persist::from_text(text, &conversions);
     CHECK_FALSE(refused.outcome.accepted);
     CHECK(refused.outcome.refusal ==
-          "this session claims version 5 and its own format_version field says 7");
+          "this session claims version 6 and its own format_version field says 7");
     // ...and it did not become a conversion request on the way past.
     CHECK(refused.outcome.refusal.find("conversion") == std::string::npos);
 }
@@ -3221,11 +3261,16 @@ TEST_CASE("WUX-0 F: a restored session never touches the file a maker named, eit
     TempDir dir("wux0-f-restore");
     const std::string session = dir.file("session.json");
     const std::string setup = dir.file("setup.json");
-    const Setup named = arranged_desk("Debugging");
+    // A DESK THIS BUILD'S MAKER WOULD HAVE SAVED, which names the Layouts pane -- the
+    // case restores it and then goes on using the tab run, and a desk that did not name it
+    // would come back with no tab run at all (which is the honest answer for such a file,
+    // and is what the picker exists to undo).
+    const Setup named = materialized(arranged_desk("Debugging"));
     REQUIRE(setup_persist::save_file(setup, named).accepted);
     const std::string setup_bytes = slurp(setup);
-    REQUIRE(session_persist::save_file(session, one_layout(setup_of("Loose", {panel::kInfo})), 0, 110, 38,
-                                       session_persist::Placement{})
+    REQUIRE(session_persist::save_file(
+                session, one_layout(setup_of("Loose", {panel::kInfo, panel::kLayouts})), 0, 110,
+                38, session_persist::Placement{})
                 .accepted);
 
     Live t;
@@ -3373,7 +3418,7 @@ TEST_CASE("WUX-0: the startup notice counts no pane nobody has had a turn to off
     // resolved a moment later. A count here is a fact about the clock.
     TempDir dir("wux0-unresolved");
     const std::string session = dir.file("session.json");
-    Setup mixed = setup_of("Mixed", {panel::kInfo});
+    Setup mixed = setup_of("Mixed", {panel::kInfo, panel::kLayouts});
     REQUIRE(add_pane(mixed, hello_ref()));
     REQUIRE(session_persist::save_file(session, one_layout(mixed), 0, 110, 40, session_persist::Placement{})
                 .accepted);
@@ -3799,7 +3844,7 @@ TEST_CASE("WUX-3/MIG-0: a version-2 session still loads, its placement reading a
     CHECK(read.honoured);
     CHECK(read.viewport_w == 110);
     CHECK(read.viewport_h == 38);
-    CHECK(live_layout(read) == arranged_desk("Yesterday"));
+    CHECK(live_layout(read) == materialized(arranged_desk("Yesterday")));
     CHECK_FALSE(read.placement.known);
 
     // The next close writes version 3, byte-stable thereafter.
@@ -4249,7 +4294,7 @@ TEST_CASE("WUX-10/SC-13: the whole layout run rides the session, and comes back"
     CHECK(live_layout(read) == second_authored);
     CHECK(has_pane(read.layouts[1].desk, ref_of(panel::kBuilder)));
     CHECK_FALSE(has_pane(read.layouts[0].desk, ref_of(panel::kBuilder)));
-    CHECK(slurp(session).find("\"version\":5") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":6") != std::string::npos);
     CHECK(slurp(session).find("\"layouts\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, standing on the one it left on.
@@ -4417,10 +4462,11 @@ TEST_CASE("MIG-0/SC-7: the shipped artifact supplies exactly the conventional ed
     // THE IDENTITIES ARE DERIVED FROM THE EDGES, so this list is a reading of the
     // convention rather than a list somebody typed twice.
     const std::vector<std::string> supplied = history.catalog.identities();
-    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v5",
-                                               "zengine.migrate.WorkshopSession.v2-to-v5",
-                                               "zengine.migrate.WorkshopSession.v3-to-v5",
-                                               "zengine.migrate.WorkshopSession.v4-to-v5"});
+    CHECK(supplied == std::vector<std::string>{"zengine.migrate.WorkshopSession.v1-to-v6",
+                                               "zengine.migrate.WorkshopSession.v2-to-v6",
+                                               "zengine.migrate.WorkshopSession.v3-to-v6",
+                                               "zengine.migrate.WorkshopSession.v4-to-v6",
+                                               "zengine.migrate.WorkshopSession.v5-to-v6"});
     // ...and each of them declares the edge its name claims.
     for (const std::string& identity : supplied) {
         CAPTURE(identity);
@@ -4437,6 +4483,13 @@ TEST_CASE("MIG-0/SC-7: a version-1 session means EXACTLY what its own reader mea
     // produced is still computable -- `setup_persist::setup_in_v2` is the standalone setup
     // file's own legacy reader and is untouched by this phase -- so the two answers are
     // compared as VALUES rather than against a transcription of what one of them once said.
+    //
+    // ⚠ AND THE PIN IS THAT DESK PLUS THE SURFACE ITS VINTAGE HAD (WUX-12). A version-1
+    // Workshop painted the layout run, the Setup association and the workspace fact from
+    // `paint` itself, out of a rectangle no desk could name -- so the equivalent desk today
+    // is the predecessor's rows AND the Layouts pane, added through the ordinary door.
+    // `materialized` is that door and nothing else; if the conversion invents a different
+    // rank, key or geometry, this comparison names the difference.
     const session_history::v1::WorkshopSession old = old_v1_session("Yesterday", 120, 44);
     Setup predecessor;
     REQUIRE(setup_persist::setup_in_v2(old.desk, predecessor).accepted);
@@ -4447,7 +4500,7 @@ TEST_CASE("MIG-0/SC-7: a version-1 session means EXACTLY what its own reader mea
         session_persist::from_text(as_text(old), &history.catalog);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
-    CHECK(live_layout(read) == predecessor);
+    CHECK(live_layout(read) == materialized(predecessor));
     // EXACTLY ONE LAYOUT, LIVE AT ZERO (WUX-10). A vintage that could not say how many
     // desks a maker had means the one it had -- never none, never two.
     CHECK(read.layouts.size() == 1);
@@ -4459,7 +4512,9 @@ TEST_CASE("MIG-0/SC-7: a version-1 session means EXACTLY what its own reader mea
     CHECK(read.viewport_w == 120);
     CHECK(read.viewport_h == 44);
     CHECK(live_layout(read).name == "Yesterday");
-    REQUIRE(live_layout(read).panes.size() == 2);
+    // THREE ROWS: the two the file authored, in their own order and untouched, and the
+    // Layouts pane the vintage had implicitly, appended behind them (WUX-12).
+    REQUIRE(live_layout(read).panes.size() == 3);
     CHECK(live_layout(read).panes[0].ref == PaneRef{"zengine.workshop", "info"});
     CHECK(live_layout(read).panes[0].place.mode == pane_unit::kSubcells);
     CHECK(live_layout(read).panes[0].place.x == subs(3));
@@ -4474,6 +4529,15 @@ TEST_CASE("MIG-0/SC-7: a version-1 session means EXACTLY what its own reader mea
     CHECK(live_layout(read).panes[1].height.mode == pane_unit::kPixels);
     CHECK(live_layout(read).panes[1].height.amount == 220);
     CHECK(live_layout(read).panes[1].front == 1);
+    // ...AND THE MATERIALIZED ROW IS UNAUTHORED AND FRONT-MOST. Unauthored, because a maker
+    // who never chose a geometry has still not chosen one and `placement_bounds` answers the
+    // historical rectangle for a defaulted row; front-most, because the surface it replaces
+    // was painted after every pane.
+    CHECK(live_layout(read).panes[2].ref == PaneRef{"zengine.workshop", "layouts"});
+    CHECK(live_layout(read).panes[2].place.mode == pane_unit::kDefault);
+    CHECK(live_layout(read).panes[2].width.mode == pane_unit::kDefault);
+    CHECK(live_layout(read).panes[2].height.mode == pane_unit::kDefault);
+    CHECK(live_layout(read).panes[2].front == 2);
     // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one, and the
     // absence has exactly one spelling.
     CHECK_FALSE(read.placement.known);
@@ -4492,8 +4556,8 @@ TEST_CASE("MIG-0/SC-7: a version-2 session means exactly what its own reader mea
     const session_persist::LoadedSession read =
         session_persist::from_text(as_text(old), &history.catalog);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
-    CHECK(live_layout(read) == predecessor);
-    CHECK(live_layout(read) == arranged_desk("Yesterday"));
+    CHECK(live_layout(read) == materialized(predecessor));
+    CHECK(live_layout(read) == materialized(arranged_desk("Yesterday")));
     CHECK(read.layouts.size() == 1);
     CHECK(read.active == 0);
     CHECK(read.viewport_w == 110);
@@ -4529,7 +4593,7 @@ TEST_CASE("MIG-0: an old session's OWN law still runs -- the conversion skips no
         CHECK(no.outcome.refusal.find("default or cells") != std::string::npos);
         // The conversion that refused is named, because a maker who has one converter
         // mounted and another missing needs to know which spoke.
-        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v5") !=
+        CHECK(no.outcome.refusal.find("zengine.migrate.WorkshopSession.v1-to-v6") !=
               std::string::npos);
     }
     SUBCASE("a viewport this build will not open at is declined, and the desk still comes") {
@@ -4630,7 +4694,7 @@ TEST_CASE("MIG-0/SC-13: reading an old session does not rewrite it; the next clo
     // 4. AND THE ORDINARY CLOSE-TIME SAVE WROTE THE CURRENT SHAPE, on its own existing law.
     const std::string now = slurp(path);
     CHECK(now != original);
-    CHECK(now.find("\"version\":5") != std::string::npos);
+    CHECK(now.find("\"version\":6") != std::string::npos);
     CHECK(now.find("\"format_version\":\"3\"") != std::string::npos);
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
@@ -4726,25 +4790,33 @@ TEST_CASE("MIG-0/SC-8: the session reader owns no historical shape and no conver
     // translation unit can NAME is a fact only reading the file can carry, and the whole
     // value of the move is that the current owner stops growing a rung per vintage.
     //
-    // ⭐ WUX-10 IS WHAT THIS CASE WAS WRITTEN FOR. The format moved 3 -> 4, so version 3 is
-    // now history -- and the list below grew the tokens that would say so IN THIS FILE. A
-    // retained `v3` shape, a `kV3FormatVersion`, or an arm reading `claimed_version() == 3`
-    // are each one line away and each reddens this case; the reader's own arm compares with
-    // `!=` and names no number at all.
+    // ⭐ WUX-10 IS WHAT THIS CASE WAS WRITTEN FOR, and every format move since has fed it.
+    // The list below carries the tokens that would say so IN THIS FILE for every retired
+    // vintage: a retained shape, a `kV*FormatVersion`, or an arm reading
+    // `claimed_version() == 5` are each one line away and each reddens this case; the
+    // reader's own arm compares with `!=` and names no number at all.
+    //
+    // ⚠ VERSION 5 IS THE ONE THIS GUARD EARNS ITS KEEP ON (WUX-12). Its FIELDS are the
+    // current shape's -- the move was about what the bytes MEAN, not about a field -- so a
+    // retained v5 branch would compile, admit and behave for every file that does not
+    // depend on the distinction. Nothing but reading this file catches that.
     const std::string source = slurp(WORKSHOP_SESSION_PERSIST_HPP);
     REQUIRE_FALSE(source.empty());
     for (const char* forbidden : {"namespace v1", "namespace v2", "namespace v3",
-                                  "setup_in_v2", "kV1FormatVersion", "kV2FormatVersion",
-                                  "kV3FormatVersion", "session_history::",
+                                  "namespace v4", "namespace v5", "setup_in_v2",
+                                  "kV1FormatVersion", "kV2FormatVersion",
+                                  "kV3FormatVersion", "kV4FormatVersion",
+                                  "kV5FormatVersion", "session_history::",
                                   "WorkshopSession, 1", "WorkshopSession, 2",
-                                  "WorkshopSession, 3", "claimed_version() ==",
+                                  "WorkshopSession, 3", "WorkshopSession, 4",
+                                  "WorkshopSession, 5", "claimed_version() ==",
                                   "claimed_version()=="}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
     }
     // ...and the one number it does carry is the one it writes.
-    CHECK(session_persist::kFormatVersion == 5);
-    CHECK(session_persist::WorkshopSession::zen_version == 5u);
+    CHECK(session_persist::kFormatVersion == 6);
+    CHECK(session_persist::WorkshopSession::zen_version == 6u);
 }
 
 TEST_CASE("MIG-0/SC-13: a session this run could not read is never written over") {
@@ -4775,9 +4847,9 @@ TEST_CASE("MIG-0/SC-13: a session this run could not read is never written over"
         {"a version this build has never written", [] {
              std::string text = session_persist::to_text(one_layout(arranged_desk("D")), 0, 100, 30,
                                                          session_persist::Placement{});
-             const std::size_t at = text.find("\"version\":5");
+             const std::size_t at = text.find("\"version\":6");
              REQUIRE(at != std::string::npos);
-             text.replace(at, std::string("\"version\":5").size(), "\"version\":9");
+             text.replace(at, std::string("\"version\":6").size(), "\"version\":9");
              return text;
          }(), true},
         {"bytes that are not a session at all", std::string("{"), true},
@@ -4917,6 +4989,12 @@ namespace {
 /// of whole cells cannot tell "the authored value came back" from "a projection happened to
 /// land on it". Every layout below carries a remainder.
 Setup layout_of(const std::string& name, std::int64_t nudge) {
+    // ⚠ VINTAGE-NEUTRAL, DELIBERATELY (WUX-12). Two kinds of case want this desk: the ones
+    // that plant a HISTORICAL session, where it must be what an older Workshop wrote (two
+    // panes, and the layout surface implicit); and the ones that put it into a LIVE
+    // session, where a maker's own desk would name the Layouts pane. The second kind says
+    // `materialized(layout_of(...))` at its own call site, so which vintage a fixture means
+    // is written where the fixture is used rather than guessed here.
     Setup s = setup_of(name, {panel::kInfo, panel::kBuilder});
     REQUIRE(author_pane_place(s, ref_of(panel::kInfo), subs(3) + nudge, subs(2) + nudge)
                 .accepted);
@@ -5022,8 +5100,8 @@ TEST_CASE("WUX-10/SC-8: a whole layout run round-trips exactly, active in the mi
     CHECK(session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                    read.viewport_h, read.placement) == text);
     // AND THE FILE SAYS WHAT IT IS: version 5, a run, and a position.
-    CHECK(text.find("\"version\":5") != std::string::npos);
-    CHECK(text.find("\"format_version\":\"5\"") != std::string::npos);
+    CHECK(text.find("\"version\":6") != std::string::npos);
+    CHECK(text.find("\"format_version\":\"6\"") != std::string::npos);
     CHECK(text.find("\"layouts\":") != std::string::npos);
     CHECK(text.find("\"active\":\"1\"") != std::string::npos);
     // ...and every layout in it is an ordinary setup, at the setup format's own version.
@@ -5160,7 +5238,8 @@ TEST_CASE("WUX-10/SC-3: a retired shape's wire identity is the identity it was w
     // provenance: v3's was measured by compiling `session_persist::WorkshopSession` against
     // Zengine 0cffe92 -- the build that WROTE version 3, immediately before this phase
     // retired it -- and reading its schema. v1's and v2's are MIG-0's, unchanged here, and
-    // are corroborated by the cases above, which read files serialised at those doors.
+    // are corroborated by the cases above, which read files serialised at those doors. v4's
+    // and v5's arrive with WUX-12, each with its own provenance beside it.
     struct Vintage {
         const char* what;
         std::shared_ptr<const loom::Schema> shape;
@@ -5174,6 +5253,19 @@ TEST_CASE("WUX-10/SC-3: a retired shape's wire identity is the identity it was w
          0x862c718a0abf08c5ull},
         {"v3 (WUX-3)", loom::schema_of<session_history::v3::WorkshopSession>(), 3u,
          0x849fe51c31dc0cfbull},
+        // v4's was measured by WUX-11 against Zengine a39795e -- the build that WROTE
+        // version 4 -- and is written down here rather than only in the surface document,
+        // which is where WUX-11 left it.
+        {"v4 (WUX-10)", loom::schema_of<session_history::v4::WorkshopSession>(), 4u,
+         0xb621c9f3616c7bb1ull},
+        // ⭐ AND v5'S IS READ OFF A FILE THE PREDECESSOR ITSELF WROTE. WUX-11's own live SDL
+        // witness left a session behind (`Zen/reportbacks/WUX-11-witness/sdl/session.json`,
+        // produced by Zengine 2dc7626, the build that wrote version 5) and its envelope says
+        // `"content_id":"0x6f5b0dfc72bfa501"`. So this number is not a transcription of what
+        // today's compiler computes for a struct somebody retyped -- it is the door those
+        // bytes claim, corroborated by bytes.
+        {"v5 (WUX-11)", loom::schema_of<session_history::v5::WorkshopSession>(), 5u,
+         0x6f5b0dfc72bfa501ull},
     };
     for (const Vintage& v : history) {
         CAPTURE(v.what);
@@ -5184,7 +5276,7 @@ TEST_CASE("WUX-10/SC-3: a retired shape's wire identity is the identity it was w
     // ...and the current shape is none of them, which is what makes them history.
     const std::shared_ptr<const loom::Schema> current =
         loom::schema_of<session_persist::WorkshopSession>();
-    CHECK(current->version() == 5u);
+    CHECK(current->version() == 6u);
     for (const Vintage& v : history) {
         CAPTURE(v.what);
         CHECK_FALSE(loom::same_identity(*current, *v.shape));
@@ -5279,8 +5371,8 @@ TEST_CASE("WUX-10/SC-5: a version-3 session becomes exactly one layout, live at 
     // EXACTLY ONE LAYOUT, AND IT IS THE DESK THAT WAS LIVE.
     REQUIRE(read.layouts.size() == 1);
     CHECK(read.active == 0);
-    CHECK(read.layouts[0].desk == predecessor);
-    CHECK(read.layouts[0].desk == arranged_desk("Yesterday"));
+    CHECK(read.layouts[0].desk == materialized(predecessor));
+    CHECK(read.layouts[0].desk == materialized(arranged_desk("Yesterday")));
     // ...AND IT IS RELATED TO NO SETUP ARTIFACT (WUX-11): a version-3 file could not say
     // that a desk came from one, so inventing an association would be this reader deciding
     // something the maker never wrote down.
@@ -5332,9 +5424,9 @@ TEST_CASE("WUX-10/SC-4: three DIRECT edges, and no chain to walk even if one wan
         CAPTURE(absent);
         CHECK(history.catalog.find(absent) == nullptr);
     }
-    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v5",
-                             "zengine.migrate.WorkshopSession.v2-to-v5",
-                             "zengine.migrate.WorkshopSession.v3-to-v5"}) {
+    for (const char* live : {"zengine.migrate.WorkshopSession.v1-to-v6",
+                             "zengine.migrate.WorkshopSession.v2-to-v6",
+                             "zengine.migrate.WorkshopSession.v3-to-v6"}) {
         CAPTURE(live);
         REQUIRE(history.catalog.find(live) != nullptr);
     }
@@ -5364,7 +5456,7 @@ TEST_CASE("WUX-10/SC-6: a version-3 file with no conversion live refuses and is 
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
-        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v5`") !=
+        CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v3-to-v6`") !=
               std::string::npos);
         CHECK(t.session().setup.active == default_setup());
         CHECK(layout_count(t.session().setup) == 1);
@@ -5408,12 +5500,12 @@ TEST_CASE("WUX-10/SC-13: three layouts, closed on the middle, come back and stay
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.publish(loom::to_value(surface::SurfaceExtent{120, 44}));
 
-        live(t).setup.active = layout_of("Home", 7);
+        live(t).setup.active = materialized(layout_of("Home", 7));
         layout_new(t);
-        live(t).setup.active = layout_of("Code", 19);
+        live(t).setup.active = materialized(layout_of("Code", 19));
         REQUIRE(send_to_front(live(t).setup.active, ref_of(panel::kInfo)));
         layout_new(t);
-        live(t).setup.active = layout_of("Art", 31);
+        live(t).setup.active = materialized(layout_of("Art", 31));
         REQUIRE(remove_pane(live(t).setup.active, ref_of(panel::kBuilder)));
         REQUIRE(layout_count(t.session().setup) == 3);
         layout_next(t);
@@ -5512,11 +5604,11 @@ TEST_CASE("WUX-10/SC-10: `s` and `r` still mean the live layout, across a save a
         t.host.session_path = session;
         t.host.setup_path = setup;
         t.publish(loom::to_value(surface::SurfaceReady{}));
-        live(t).setup.active = layout_of("Home", 7);
+        live(t).setup.active = materialized(layout_of("Home", 7));
         layout_new(t);
-        live(t).setup.active = layout_of("Code", 19);
+        live(t).setup.active = materialized(layout_of("Code", 19));
         layout_new(t);
-        live(t).setup.active = layout_of("Art", 31);
+        live(t).setup.active = materialized(layout_of("Art", 31));
         layout_next(t); // wrap to Home
         REQUIRE(t.session().setup.active_at == 0);
 
@@ -5530,7 +5622,9 @@ TEST_CASE("WUX-10/SC-10: `s` and `r` still mean the live layout, across a save a
     const setup_persist::LoadedSetup file = setup_persist::load_file(setup);
     REQUIRE(file.outcome.accepted);
     CHECK(file.setup.name == "Kept");
-    CHECK(slurp(setup).find("layouts") == std::string::npos);
+    // ⚠ THE RUN'S OWN FIELD, NOT THE WORD (WUX-12): `layouts` is a pane KEY now as well
+    // as the session's field name, and a desk naming the Layouts pane says it honestly.
+    CHECK(slurp(setup).find("\"layouts\":[") == std::string::npos);
     CHECK(slurp(setup).find("active") == std::string::npos);
     // ...and the SESSION still holds all three, with `s` having moved only the live one.
     const session_persist::LoadedSession read = session_persist::load_file(session);
@@ -5788,7 +5882,7 @@ TEST_CASE("WUX-11/SC-14: the whole run and every association come back after a r
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == authored);
     CHECK(read.active == 0);
-    CHECK(slurp(session).find("\"version\":5") != std::string::npos);
+    CHECK(slurp(session).find("\"version\":6") != std::string::npos);
     CHECK(slurp(session).find("\"link\":") != std::string::npos);
 
     // AND THE NEXT RUN COMES BACK ON ALL THREE, with all three verdicts.
@@ -5819,7 +5913,10 @@ TEST_CASE("WUX-11/SC-14: the whole run and every association come back after a r
     const setup_persist::LoadedSetup file = setup_persist::load_file(artifact);
     REQUIRE(file.outcome.accepted);
     const std::string bytes = slurp(artifact);
-    CHECK(bytes.find("layouts") == std::string::npos);
+    // ⚠ THE RUN'S OWN FIELD, NOT THE WORD (WUX-12). `layouts` is a pane KEY now as well as
+    // the session's field name, and a desk that names the Layouts pane says the word
+    // legitimately; what a setup file must not contain is the session's layout ARRAY.
+    CHECK(bytes.find("\"layouts\":[") == std::string::npos);
     CHECK(bytes.find("\"link\"") == std::string::npos);
     CHECK(bytes.find("\"active\"") == std::string::npos);
     CHECK(bytes.find("\"known\"") == std::string::npos);
@@ -5924,10 +6021,14 @@ TEST_CASE("WUX-11/SC-15: a version-4 session opens with its run whole and every 
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
 
     // THE RUN IS THE OLD RUN, EXACTLY -- order, names, authored geometry and the position
-    // that was live.
+    // that was live -- each desk carrying the layout surface its vintage had (WUX-12).
     REQUIRE(read.layouts.size() == 3);
     CHECK(read.active == 2);
-    CHECK(desks_of(read.layouts) == three_desks());
+    std::vector<Setup> expected;
+    for (const Setup& desk : three_desks()) {
+        expected.push_back(materialized(desk));
+    }
+    CHECK(desks_of(read.layouts) == expected);
     // ...AND EVERY ASSOCIATION IS `none`.
     for (const Layout& layout : read.layouts) {
         CHECK(layout.link.path.empty());
@@ -5946,7 +6047,7 @@ TEST_CASE("WUX-11/SC-15: a version-4 session opens with its run whole and every 
     (void)session_persist::from_text(loom::compat::serialize(loom::to_value(old)),
                                      &history.catalog);
     CHECK(op::invocations() == before + 1);
-    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v5") != nullptr);
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v4-to-v6") != nullptr);
     // ...and no intermediate rung was added for the older vintages to be routed through.
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v1-to-v4") == nullptr);
     CHECK(history.catalog.find("zengine.migrate.WorkshopSession.v3-to-v4") == nullptr);
@@ -5994,4 +6095,298 @@ TEST_CASE("WUX-11/SC-14: a maximal legal session is still one this build can rea
     const session_persist::LoadedSession read = session_persist::load_file(path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.layouts == run);
+}
+
+// ========================================================================================
+// WUX-12 — the layout surface stops being shell furniture, and yesterday's desks say so
+//
+// Every Workshop before this phase painted the layout run, the active layout's Setup
+// association and the workspace fact into two reserved rows, from `paint` itself, out of a
+// rectangle no desk could name. Every maker had that surface and none of them could remove
+// it, move it, resize it or write it down. It is an ordinary pane now -- so the same bytes
+// mean two different things either side of the line, which is what moved the session format
+// from 5 to 6 with no field to point at.
+//
+// WHAT THESE CASES ARE ABOUT: that a real predecessor session comes back with nothing lost
+// and the surface materialized where it always was; that an explicit historical row is
+// preserved rather than duplicated; and that the authority story is exactly what it was --
+// old bytes cannot cause code to load, and a file this run cannot read is not written over.
+// ========================================================================================
+
+namespace {
+
+/// A REAL PRE-WUX-12 SESSION: three layouts of the vintage that could not name the layout
+/// surface, in a maker's own order, with the middle one standing live and the first
+/// associated with a Setup artifact whose remembered value it matches -- or, given an empty
+/// path, associated with nothing at all, in the ONE spelling that means it (an empty path
+/// beside a real remembered desk is `half_a_link` and the reader refuses it, which is the
+/// law rather than a fixture detail).
+///
+/// ⚠ ITS DESKS ARE `layout_of`'s, WHICH NAME NO LAYOUTS PANE -- which is the whole point:
+/// this is what a version-5 Workshop actually wrote, and the conversion's job is to say
+/// what those bytes meant rather than what a later fixture would have written.
+session_history::v5::WorkshopSession old_v5_session(const std::string& artifact) {
+    session_history::v5::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = session_history::kV5FormatVersion;
+    old.viewport = session_persist::WorkshopViewport{132, 41};
+    const std::vector<Setup> desks = three_desks();
+    for (std::size_t i = 0; i < desks.size(); ++i) {
+        session_persist::WorkshopLayout row;
+        row.desk = setup_persist::to_setup(desks[i]);
+        // THE FIRST LAYOUT IS ASSOCIATED AND MATCHING: its remembered value is its own desk,
+        // which is what `save_setup` leaves behind and what makes the row read `current`.
+        row.link = i == 0 && !artifact.empty()
+                       ? session_persist::WorkshopSetupLink{artifact, row.desk}
+                       : session_history::absent_link();
+        old.layouts.push_back(std::move(row));
+    }
+    old.active = 1;
+    old.placement.mode = session_persist::kPlacementDesktop;
+    old.placement.x = -640;
+    old.placement.y = 96;
+    old.placement.window = session_persist::kWindowMaximized;
+    return old;
+}
+
+std::string as_text(const session_history::v5::WorkshopSession& old) {
+    return loom::compat::serialize(loom::to_value(old));
+}
+
+} // namespace
+
+TEST_CASE("WUX-12/SC-11: a real pre-WUX-12 session comes back with nothing lost") {
+    // ⭐ THE MIGRATION WITNESS. Same layouts, same order, same names, same active position,
+    // same Setup association AND the same verdict about it, same authored pane geometry --
+    // and the layout surface every desk of that vintage had, now written down as the pane it
+    // has become, at the rectangle it always occupied.
+    //
+    // ⚔ MUTATION: converting v5 without adding the row. Every `materialized` comparison
+    // below goes red naming the missing reference, and the live Workshop underneath has no
+    // tab run in it at all.
+    const std::string artifact = "/kept/code.json";
+    const session_history::v5::WorkshopSession old = old_v5_session(artifact);
+
+    MountedHistory history;
+    REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
+    const session_persist::LoadedSession read =
+        session_persist::from_text(as_text(old), &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+
+    // THE RUN IS THE OLD RUN, EXACTLY -- with one row appended to each desk.
+    REQUIRE(read.layouts.size() == 3);
+    CHECK(read.active == 1);
+    std::vector<Setup> expected;
+    for (const Setup& desk : three_desks()) {
+        expected.push_back(materialized(desk));
+    }
+    CHECK(desks_of(read.layouts) == expected);
+    for (std::size_t i = 0; i < read.layouts.size(); ++i) {
+        CAPTURE(i);
+        CHECK(read.layouts[i].desk.name == three_desks()[i].name);
+        CHECK(has_pane(read.layouts[i].desk, ref_of(panel::kLayouts)));
+        // AT THE HISTORICAL DEFAULT AND UNAUTHORED: the pane comes back where the band was,
+        // and a maker who never chose a geometry still has not chosen one.
+        const SetupPane* row = pane_of(read.layouts[i].desk, ref_of(panel::kLayouts));
+        REQUIRE(row != nullptr);
+        CHECK(row->place.mode == pane_unit::kDefault);
+        CHECK(row->width.mode == pane_unit::kDefault);
+        CHECK(row->height.mode == pane_unit::kDefault);
+        // ...AND FRONT-MOST, because the surface it replaces was painted after every pane.
+        CHECK(row->front ==
+              static_cast<std::int64_t>(read.layouts[i].desk.panes.size()) - 1);
+    }
+
+    // ⭐ THE ASSOCIATION SURVIVES *AND SO DOES ITS VERDICT*. The remembered value is
+    // converted with the desk, so a layout that matched its artifact still matches it --
+    // a maker must not be told their desk drifted from a file by an upgrade they did not
+    // make. And a layout that named no artifact remembers nothing, still.
+    CHECK(read.layouts[0].link.path == artifact);
+    CHECK(link_status(read.layouts[0].desk, read.layouts[0].link) == setup_link::kCurrent);
+    for (std::size_t i = 1; i < read.layouts.size(); ++i) {
+        CAPTURE(i);
+        CHECK(read.layouts[i].link.path.empty());
+        CHECK(link_status(read.layouts[i].desk, read.layouts[i].link) == setup_link::kNone);
+    }
+
+    // EVERY NON-LAYOUT FACT CROSSES UNCHANGED, including a real placement.
+    CHECK(read.viewport_w == 132);
+    CHECK(read.viewport_h == 41);
+    CHECK(read.honoured);
+    CHECK(read.placement.known);
+    CHECK(read.placement.x == -640);
+    CHECK(read.placement.y == 96);
+    CHECK(read.placement.maximized);
+
+    // AND THE EDGE IS ONE AUTHORED CONVERSION, SPENT ONCE.
+    REQUIRE(history.catalog.find("zengine.migrate.WorkshopSession.v5-to-v6") != nullptr);
+    const std::uint64_t before = op::invocations();
+    REQUIRE(session_persist::from_text(as_text(old), &history.catalog).outcome.accepted);
+    CHECK(op::invocations() == before + 1);
+}
+
+TEST_CASE("WUX-12/SC-11: the maker sees no loss, and the next run spends no conversion") {
+    // ⭐ THE RESTART WITNESS, END TO END AND THROUGH THE REAL DOORS. A maker's own
+    // predecessor session file is on disk; a Workshop of THIS build opens it, and what they
+    // see is the desk they left -- tab run included, at the top of the screen, pressable.
+    // They close it in the ordinary way, and the next run reads the file with no conversion
+    // mounted at all.
+    TempDir dir("wux12-restart");
+    const std::string session = dir.file("session.json");
+    spillout(session, as_text(old_v5_session(std::string())));
+
+    std::vector<Layout> after_open;
+    {
+        MountedHistory history;
+        REQUIRE_MESSAGE(history.mounted.ok, history.mounted.reason);
+        Live t;
+        t.host.session_path = session;
+        t.host.conversions = &history.catalog;
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{132, 41}));
+        REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
+
+        // THE RUN IS BACK, standing where the maker left it.
+        CHECK(layout_count(t.session().setup) == 3);
+        CHECK(t.session().setup.active_at == 1);
+        CHECK(layout_at(t.session().setup, 1).name == three_desks()[1].name);
+
+        // ...AND THE TAB SURFACE IS THERE, at the rectangle it always occupied, saying what
+        // it always said, and answering a press. This is the sentence Vision would not ship
+        // without: no apparent loss of the maker's tab surface.
+        const Screen sc = screen_of(t.session());
+        REQUIRE(t.session().panels.has(panel::kLayouts));
+        CHECK(bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc)
+                  .rect == fine_of_cells(top_band_bounds(sc)));
+        const BandStatus row = band_status(t.session(), sc);
+        CHECK(row.text.find(">" + layout_at(t.session().setup, 1).name + "<") !=
+              std::string::npos);
+        REQUIRE(row.tabs.size() == 3);
+        press_tab(t, 0);
+        CHECK(t.session().setup.active_at == 0);
+
+        after_open = layout_run(t.session().setup);
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+
+    // THE FILE IS THE CURRENT SHAPE NOW, and only the current shape.
+    const std::string bytes = slurp(session);
+    CHECK(bytes.find("\"version\":6") != std::string::npos);
+    CHECK(bytes.find("\"format_version\":\"6\"") != std::string::npos);
+    CHECK(bytes.find("\"pane\":\"layouts\"") != std::string::npos);
+
+    // ...AND THE NEXT RUN READS IT WITH NO CONVERSION IN THE ARRANGEMENT AT ALL, which is
+    // what "migrated once" means: the conversion is spent on the bytes, not on every launch.
+    const std::uint64_t before = op::invocations();
+    const session_persist::LoadedSession again = session_persist::load_file(session);
+    REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
+    CHECK(op::invocations() == before);
+    CHECK(again.layouts == after_open);
+}
+
+TEST_CASE("WUX-12/SC-11: an explicit historical row is preserved, never duplicated") {
+    // ⭐ THE OTHER HALF OF "PRESERVE WHAT THE BYTES SAID". A pane key is an ordinary string
+    // in an ordinary row, so a version-5 file CAN already name `zengine.workshop/layouts` --
+    // hand-written, or produced by a build between these two. A conversion that appended
+    // regardless would author a duplicate reference, which `check_setup` refuses outright,
+    // and the maker's authored geometry for that row would be shadowed by a defaulted one.
+    //
+    // ⚔ MUTATION: dropping the `names_layouts` guard. The load below stops being accepted at
+    // all, and its refusal names the duplicate reference.
+    session_history::v5::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = session_history::kV5FormatVersion;
+    old.viewport = session_persist::WorkshopViewport{120, 40};
+    Setup authored = setup_of("Deliberate", {panel::kInfo, panel::kLayouts});
+    // ...AND THE MAKER PUT IT SOMEWHERE OF THEIR OWN, which is the fact a duplicate row
+    // would hide behind a default.
+    REQUIRE(author_pane_place(authored, ref_of(panel::kLayouts), subs(4), subs(9)).accepted);
+    REQUIRE(send_to_back(authored, ref_of(panel::kLayouts)));
+    old.layouts.push_back(
+        session_persist::WorkshopLayout{setup_persist::to_setup(authored),
+                                        session_history::absent_link()});
+    old.active = 0;
+    old.placement = session_history::absent_placement();
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    const session_persist::LoadedSession read =
+        session_persist::from_text(as_text(old), &history.catalog);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+
+    // ONE ROW, AND IT IS THE MAKER'S OWN -- same place, same rank, unchanged.
+    CHECK(live_layout(read) == authored);
+    std::size_t named = 0;
+    for (const SetupPane& row : live_layout(read).panes) {
+        named += row.ref == ref_of(panel::kLayouts) ? 1u : 0u;
+    }
+    CHECK(named == 1);
+    const SetupPane* row = pane_of(live_layout(read), ref_of(panel::kLayouts));
+    REQUIRE(row != nullptr);
+    CHECK(row->place.mode == pane_unit::kSubcells);
+    CHECK(row->place.x == subs(4));
+    CHECK(row->place.y == subs(9));
+    CHECK(row->front == 0);
+}
+
+TEST_CASE("WUX-12/SC-13: a version-5 file with no conversion live refuses, and is not rewritten") {
+    // ⭐ THE AUTHORITY STORY, RE-PROVEN FOR THE VINTAGE WUX-12 CREATED, and it is unchanged:
+    // a file that opened fine yesterday needs conversion power today, that power comes from
+    // a row in an arrangement rather than from the bytes asking for it, and a session this
+    // run could not read is never written over by an orderly close.
+    //
+    // ⚔ MUTATION: removing the provider's v5 edge, or letting the current reader keep a v5
+    // branch. The first leaves this case green and the restart witness above red; the second
+    // reddens this one, because the file would simply load.
+    TempDir dir("wux12-absent");
+    const std::string path = dir.file("session.json");
+    const std::string before = as_text(old_v5_session(std::string()));
+    spillout(path, before);
+
+    Live t;
+    t.host.session_path = path; // no `conversions` hook: this arrangement mounts none
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v6`") != std::string::npos);
+    // ...and it claims nothing it cannot know.
+    CHECK(t.notice().find("install") == std::string::npos);
+
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 41}));
+    t.key(input::scan::kQ);
+    REQUIRE(t.host.quit);
+    CHECK(slurp(path) == before); // byte-identical after an orderly close
+}
+
+TEST_CASE("WUX-12: a full desk refuses the conversion rather than losing either fact") {
+    // ⭐ THE ONE PLACE THE MIGRATION CANNOT BE HONEST AND SILENT. A version-5 desk already
+    // holding `kMaxSetupPanes` panes cannot also hold the pane its layout surface became,
+    // and both quiet answers are lies: dropping the surface says the maker removed it, and
+    // dropping one of their panes says they never had it. So it refuses in words -- and
+    // because nothing in the history file writes anything, the file is still there for a
+    // build that can say more.
+    Setup full;
+    full.name = "Crowded";
+    for (std::size_t i = 0; i < kMaxSetupPanes; ++i) {
+        REQUIRE(add_pane(full, PaneRef{"third.party.tools", "p" + std::to_string(i)}));
+    }
+    REQUIRE(full.panes.size() == kMaxSetupPanes);
+
+    session_history::v5::WorkshopSession old;
+    old.format = session_persist::kFormat;
+    old.format_version = session_history::kV5FormatVersion;
+    old.viewport = session_persist::WorkshopViewport{120, 40};
+    old.layouts.push_back(
+        session_persist::WorkshopLayout{setup_persist::to_setup(full),
+                                        session_history::absent_link()});
+    old.active = 0;
+    old.placement = session_history::absent_placement();
+
+    MountedHistory history;
+    REQUIRE(history.mounted.ok);
+    const session_persist::LoadedSession no =
+        session_persist::from_text(as_text(old), &history.catalog);
+    CHECK_FALSE(no.outcome.accepted);
+    CHECK(no.outcome.refusal.find(std::to_string(kMaxSetupPanes)) != std::string::npos);
+    CHECK(no.outcome.refusal.find("layout surface") != std::string::npos);
 }

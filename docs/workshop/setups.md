@@ -59,9 +59,9 @@ the word is *unresolved*, never *unavailable*.
 keeps several of them and you move between them from inside it, without opening a second
 Workshop, a second window, a second project or a second copy of any pane.
 
-**The first row of Workshop is the layout selector** — a run of tabs on the left, with the one
-you are on between `>` and `<`, a `+` at the end of the run, and the active layout's Setup
-status at the right-hand edge:
+**The layout selector is a pane called Layouts**, and by default it is the first row of
+Workshop — a run of tabs on the left, with the one you are on between `>` and `<`, a `+` at the
+end of the run, and the active layout's Setup status at the right-hand edge:
 
 ```text
  Code >Build< Inspect +          setup: workshop-setup.json | modified | s save  r restore
@@ -75,6 +75,17 @@ because the gap *between* two tabs is two cells and a space *inside* a name is o
 ```text
  Home >My Layout< Art +
 ```
+
+It is an ordinary pane. It is in the picker (`p`) under **Layouts**, you can move and resize it
+in the desk arrangement (`w`) like any other, a pane you put in front of it covers it and takes
+your clicks there, and each layout keeps its own answer about where it is and whether it is on
+the desk at all. Take it off a layout and that layout simply has no tab run in it; the keys
+below still reach every layout, and the picker puts it back where it started.
+
+**Removing it does not give the space to your document.** The two rows at the top of Workshop
+are reserved whether or not anything stands on them — exactly as the column beside your
+workspace stays reserved when you remove Info — so a `%`-sized object is the size it was
+whatever you do with the selector. Moving it away leaves those rows empty on purpose.
 
 | gesture | does |
 |---|---|

@@ -114,9 +114,19 @@ inline constexpr std::int64_t kBuilder = 0;
 inline constexpr std::int64_t kInfo = 1;
 inline constexpr std::int64_t kEditor = 2;
 inline constexpr std::int64_t kProjectFiles = 3;
+/// WORKSHOP'S OWN STANDING IDENTITY, AS A PANE (WUX-12): the run of layout tabs, this
+/// desk's relationship to a Setup artifact, and the workspace's extent -- the three facts
+/// that used to be painted into the top band by `paint` itself, with no catalog row, no
+/// setup row and no rectangle anybody could author.
+///
+/// ONE KIND FOR ALL THREE, because they are one composition and always were (`band_status`,
+/// HD-3): the tabs are the row's left, the association is its right, and the extent folds
+/// into that row where the medium fits no second one. Splitting them would be three panes
+/// arguing over one row's budget.
+inline constexpr std::int64_t kLayouts = 4;
 } // namespace panel
 
-/// WHERE a panel kind is presented. Two, because Workshop has two places and no
+/// WHERE a panel kind is presented. Three, because Workshop has three places and no
 /// more, and each is a NAME for a place this screen already had rather than a
 /// coordinate somebody chose.
 ///
@@ -129,9 +139,9 @@ inline constexpr std::int64_t kProjectFiles = 3;
 /// is an observation that is recomputed on demand and cached nowhere.
 ///
 /// A place is NOT a docking side, an anchor, a constraint or a layout, and there
-/// is no policy here that could put a third kind somewhere neither of these two
-/// is. What a third kind gets is the ability to SAY which of the two it wants,
-/// instead of a painter quietly knowing a column number.
+/// is no policy here that could put a kind somewhere none of these three is. What
+/// a kind gets is the ability to SAY which of the three it wants, instead of a
+/// painter quietly knowing a column number.
 namespace placement {
 /// The reserved column beside the workspace: fixed width, against the right
 /// edge, and reserved whether or not anything is in it (screen.hpp says why it
@@ -143,7 +153,36 @@ inline constexpr std::int64_t kSideRegion = 0;
 /// material a maker is building, which is BLD-0's awkwardness and still the
 /// evidence a layout phase should be built on.
 inline constexpr std::int64_t kOverlayStack = 1;
+/// The rows at the top of the canvas: full width, against the top edge, and reserved
+/// whether or not anything is in them -- the side region's rule at the other edge,
+/// and for the identical reason. `kTopRows` (screen.hpp) is part of what the
+/// workspace measures itself against, so what STANDS on those rows must not be able
+/// to resize a maker's document. It has room for ONE pane, and the static_assert
+/// under the catalog is what keeps that true rather than hoped.
+///
+/// IT IS A DEVELOPER DEFAULT AND NOT A DOCK (WUX-12). Before this place existed the
+/// same rectangle was painted by `paint` directly and could not be moved, resized or
+/// removed; a pane placed here takes it as its default and a maker's authored place,
+/// width and height lay over that default exactly as they do in the overlay stack.
+/// What the RESERVATION does is unchanged by any of it: move the pane away and those
+/// rows stay reserved and empty, which is the only answer that leaves the document's
+/// share basis alone (PNL-0, screen.hpp).
+inline constexpr std::int64_t kTopBand = 2;
 } // namespace placement
+
+/// IS THIS PLACE THE MAKER'S TO AUTHOR? Two consumers phrased this as
+/// `== kOverlayStack` while the stack was the only movable place, which is a list
+/// somebody has to extend by hand every time a place is added -- and the one that is
+/// forgotten is a pane a maker can drag and cannot save, or the reverse.
+///
+/// SAID AS THE EXCLUSION IT ACTUALLY IS: the side region is the SCREEN's, because
+/// that column is reserved by the screen and shared with nothing; every other place
+/// resolves a developer default that an authored row may lay over. The arrangement
+/// admission already spoke the sentence this way (`arrange_admits`, weave.hpp), so
+/// this is the stragglers joining it rather than a new rule.
+inline constexpr bool place_is_authorable(std::int64_t where) noexcept {
+    return where != placement::kSideRegion;
+}
 
 /// WHOSE PANES THE BUILT-INS ARE — the provider/service key every catalog row
 /// below carries, and the first half of a durable `PaneRef` (setup.hpp).
@@ -209,6 +248,7 @@ inline constexpr const char* kBuilder = "builder";
 inline constexpr const char* kInfo = "info";
 inline constexpr const char* kEditor = "editor";
 inline constexpr const char* kProjectFiles = "project-files";
+inline constexpr const char* kLayouts = "layouts";
 } // namespace pane_key
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
@@ -253,6 +293,26 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // PANE is on the desk, which is the setup's business and arrives for free.
     {panel::kProjectFiles, placement::kOverlayStack, kWorkshopProvider, pane_key::kProjectFiles,
      "Files", "browse and open files", true},
+    // WORKSHOP'S OWN STANDING IDENTITY, AS AN ORDINARY ROW (WUX-12). Until this row existed
+    // the layout run, the Setup association and the workspace fact were painted by `paint`
+    // into a rectangle nothing could name: not in the picker, not in a setup file, not in
+    // `occupied_at`, not coverable, and not movable. Nothing about the three facts asked for
+    // that -- they were hard-coded by implementation date. What they get here is what every
+    // other pane already had, and they spend no authority a pane lacks: pressing a tab calls
+    // the same door the key calls.
+    //
+    // ITS STATE IS THE SETUP'S OWN (`SetupState`), which is why this row carries none: the
+    // run, the live position and the association are Workshop-global facts with one owner,
+    // and this pane is a PRESENTATION of them exactly as the Editor is a presentation of a
+    // document the session holds. Removing it destroys a presentation and no layout.
+    //
+    // IT DOES NOT TAKE THE KEYBOARD. Its gestures are the pointer's (press a tab, press
+    // `+`, press twice to rename, drag to reorder) and the keymap's, and the keymap's reach
+    // it wherever the maker is standing -- so a press here is a maker POINTING at their
+    // desk's identity, not moving where their typing goes. The name editor is a mode that
+    // takes the row while it is open, which is where a typed layout name goes.
+    {panel::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
+     "layout tabs and setup"},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
@@ -351,6 +411,14 @@ inline constexpr std::size_t kinds_placed_in(std::int64_t where) noexcept {
 /// instead is a measured limit on how many slots fit, in screen.hpp.
 static_assert(kinds_placed_in(placement::kSideRegion) == 1,
               "the side region has room for one panel: a second kind placed there would "
+              "resolve to the same bounds and paint over the first");
+
+/// THE TOP BAND HOLDS EXACTLY ONE PANE, for the side region's reason word for word: two
+/// kinds declaring it resolve to the SAME rectangle, so they would paint over each other in
+/// two rows a maker reads as one thing. A second band-anchored kind needs the sharing
+/// question answered first, and finds that out from a compiler rather than from a screen.
+static_assert(kinds_placed_in(placement::kTopBand) == 1,
+              "the top band has room for one pane: a second kind placed there would "
               "resolve to the same bounds and paint over the first");
 
 namespace detail {
@@ -687,7 +755,12 @@ struct Panel {
 /// open presentations, and `default_setup()` (setup.hpp) turns the SAME array
 /// into the authored references a fresh setup carries. Neither is free to say
 /// something else, because neither of them holds the answer -- this line does.
-inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo};
+/// ⚠ AND THE ORDER OF THIS ARRAY IS THE FRESH DESK'S FRONT ORDER (WUX-12). `add_pane`
+/// appends the identity permutation, so the LAST entry is front-most -- which is why
+/// Layouts is last: the top band it replaces was painted in front of every pane, and a
+/// conversion that quietly sent it behind them would be a visible change dressed as a
+/// refactor. A maker may of course send it back; that is the point of the conversion.
+inline constexpr std::int64_t kDefaultPanels[] = {panel::kInfo, panel::kLayouts};
 
 inline constexpr std::size_t kDefaultPanelCount =
     sizeof(kDefaultPanels) / sizeof(kDefaultPanels[0]);

@@ -116,13 +116,22 @@ inline constexpr std::int64_t kScreenMinH = 22;
 inline constexpr std::int64_t kScreenMaxW = 640;
 inline constexpr std::int64_t kScreenMaxH = 400;
 
-/// THE BAND AT THE TOP OF THE SCREEN, and it is the first thing a maker reads (QR-14).
+/// THE ROWS RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a maker reads
+/// (QR-14).
 ///
-/// WHAT IT HOLDS is the LAYOUT SELECTOR and the standing identity beside it -- the run of
-/// layout tabs on the left and the setup's own status on the right (`top_band_region`), with
-/// the workspace's extent under them where the medium fits a second row. Which desk you are
-/// inhabiting is the outermost fact on this screen; WUX-9 composed it correctly and put it in
-/// the FOOTER, where a selector reads as an afterthought of the status area.
+/// WHAT STANDS ON THEM IS A PANE SINCE WUX-12 -- the built-in `Layouts`, whose developer
+/// default is exactly this rectangle (`placement::kTopBand`) and whose content is the
+/// LAYOUT SELECTOR and the standing identity beside it: the run of layout tabs on the left
+/// and the setup's own status on the right, with the workspace's extent under them where
+/// the medium fits a second row. Which desk you are inhabiting is the outermost fact on this
+/// screen; WUX-9 composed it correctly and put it in the FOOTER, where a selector reads as
+/// an afterthought of the status area.
+///
+/// ⚠ THE RESERVATION IS NOT THE PANE, AND THAT SEPARATION IS THE POINT. These rows stay out
+/// of `room_h` whether or not any pane stands on them -- exactly as the side column stays
+/// reserved when Info is removed, and for the identical reason (PNL-0, below). A maker who
+/// moves, resizes or removes the Layouts pane leaves those rows empty and leaves every
+/// `%`-sized object in their document exactly the size it was.
 ///
 /// TWO CELLS, AND THE NUMBER IS THE FACE'S RATHER THAN A TASTE. One cell is `(12 - 2*inset) /
 /// 18` = ZERO rows of the shipped face, which is exactly why WUX-1 retired the old one-cell
@@ -490,10 +499,16 @@ static_assert(kMinScreen.terminal_lines == static_cast<std::size_t>(kMinScreen.t
 //                                                              painter is HANDED that rect
 //
 // WHAT THIS IS NOT: a docking framework, an anchor system, a constraint solver, or a way for
-// a kind to ask for somewhere neither place is. `placement_bounds` has two branches because
-// Workshop has two places, and a third would be a phase with evidence for a third place.
-// What a third KIND costs, meanwhile, is a catalog row -- it declares one of these two and
-// is handed a rectangle, and nothing in this section changes.
+// a kind to ask for somewhere none of the places is. `placement_bounds` has three branches
+// because Workshop has three places, and a fourth would be a phase with evidence for a
+// fourth place. What a new KIND costs, meanwhile, is a catalog row -- it declares one of
+// these three and is handed a rectangle, and nothing in this section changes.
+//
+// THE THIRD ARRIVED AT WUX-12 WITH ITS OWN EVIDENCE, and it is the one this comment
+// predicted: the top band's rectangle already existed, was already resolved from this
+// screen's own numbers, and was already painted -- by `paint`, from a rectangle no catalog
+// row could name. Naming it here is what let the Layouts pane take it as an ORDINARY
+// developer default, which is the whole of what a place is.
 //
 // THE RECTANGLES ARE CANVAS CELLS, not workspace cells. The document's own scene is resolved
 // against the workspace and offset by `kWorkspaceX/kWorkspaceY` at paint time; a panel's
@@ -521,6 +536,15 @@ static_assert(kMinScreen.terminal_lines == static_cast<std::size_t>(kMinScreen.t
 /// grant, and none of them can be told a different number.
 inline constexpr ui::Rect placement_bounds(std::int64_t where, std::size_t slot,
                                            const Screen& sc) noexcept {
+    if (where == placement::kTopBand) {
+        // THE TWO ROWS THE SCREEN RESERVES AT THE TOP, WHOLE, AND THE SLOT IS NOTHING TO IT
+        // -- the side region's rule at the other edge (the band has room for one pane, and
+        // panel.hpp asserts it). It is the rectangle `paint` used to write the layout
+        // selector and the standing identity into directly, said once, here, so that the
+        // pane which now stands on it takes exactly the predecessor's rectangle as the
+        // answer it gets when its maker has said nothing (WUX-12).
+        return ui::Rect{0, 0, sc.w, kTopRows};
+    }
     if (where == placement::kSideRegion) {
         // From the top of the canvas to the bottom of the workspace: the column beside the
         // material, ending where the bottom band begins.
@@ -751,22 +775,46 @@ inline PaneInside pane_inside_at(const FineRect& outer, const Screen& sc,
 /// out -- and the boundary between them is the finest one the face in front of the maker
 /// will actually present.
 ///
-/// TWO CANDIDATES AT MOST, AND THE SECOND IS ALWAYS THE CELL. The face's own unit is tried
-/// first; if the interior it leaves is one this face describes in CELLS rather than in
-/// type, the cell is paid instead, because that is the finest boundary a cell-projected
-/// interior can leave behind. It cannot oscillate: the cell inset is the SMALLER interior,
-/// so a rectangle that held no row of the face at the finer inset holds none at the coarser
-/// one either. On a terminal the two are the same number and the retry is skipped outright.
+/// THREE CANDIDATES AT MOST, AND EACH IS A THINNER BOUNDARY THAN THE ONE BEFORE IT. The
+/// face's own unit is tried first; if the interior it leaves is one this face describes in
+/// CELLS rather than in type, the cell is paid instead, because that is the finest boundary
+/// a cell-projected interior can leave behind. It cannot oscillate: each candidate is a
+/// LARGER interior than the last, so a rectangle that held no row of the face at a finer
+/// inset holds none at a coarser one either. On a terminal the first two are the same
+/// number and that retry is skipped outright.
+///
+/// ...AND THE LAST CANDIDATE IS NO BOUNDARY AT ALL (WUX-12). A rectangle too small to hold
+/// both edges leaves `pane_interior` empty, and an empty interior is a pane that draws its
+/// boundary and NOTHING ELSE -- a solid bar in a character medium, with the thing it was
+/// supposed to be showing erased to make room for the line around it. That is not a pane
+/// with a thin edge; it is a pane that has stopped being a presentation. So where the
+/// finest boundary this face can draw would consume the whole rectangle, none is drawn and
+/// the interior is the rectangle: `chrome_subs == 0` says exactly that to anyone who asks.
+///
+/// IT IS THE SAME SENTENCE THE LADDER ABOVE ALREADY SPEAKS, at its limit -- *the boundary
+/// is the finest one this rectangle can actually leave something behind* -- and it is what
+/// lets a two-cell pane exist at all. The Layouts pane's developer default IS two cells
+/// tall on every face, because that is the rectangle the top band occupied; on the shipped
+/// window a one-pixel edge still fits inside it and is still drawn, and on a terminal one
+/// cell a side would leave zero rows of the two the band always had.
+///
+/// WHAT IT COSTS is that a pane that small wears no selected-chrome ink, because there is
+/// no ring to ink. That is the honest half: at that size there is no boundary to colour,
+/// and the maker's other answers -- the arrangement handles, the desk's own stepping, the
+/// notice, the picker -- are untouched.
 inline PaneInside pane_inside(const FineRect& outer, const Screen& sc) {
     const std::int64_t fine = chrome_grain(sc);
-    if (fine >= kChromeSubs) {
-        return detail::pane_inside_at(outer, sc, kChromeSubs);
+    if (fine < kChromeSubs) {
+        const PaneInside thin = detail::pane_inside_at(outer, sc, fine);
+        if (thin.fit.graphical()) {
+            return thin;
+        }
     }
-    const PaneInside thin = detail::pane_inside_at(outer, sc, fine);
-    if (thin.fit.graphical()) {
-        return thin;
+    const PaneInside cell = detail::pane_inside_at(outer, sc, kChromeSubs);
+    if (cell.rect.w > 0 && cell.rect.h > 0) {
+        return cell;
     }
-    return detail::pane_inside_at(outer, sc, kChromeSubs);
+    return detail::pane_inside_at(outer, sc, 0);
 }
 
 /// The rectangle inside a pane's chrome, for a consumer that wants only the geometry.
@@ -984,7 +1032,13 @@ inline PaneProjection project_pane(std::int64_t where, std::size_t slot,
     if (!pane_unit_projectable(authored)) {
         return PaneProjection{false, FineRect{}, FineRect{}};
     }
-    if (where == placement::kOverlayStack && authored != nullptr) {
+    // THE MAKER'S ANSWER IS SPENT WHEREVER THE PLACE IS THEIRS TO AUTHOR (WUX-12). This
+    // used to name the overlay stack, which was the same set said as a list while the stack
+    // was the only movable place -- and a list is what a fourth place would be added to by
+    // somebody who remembered. `place_is_authorable` (panel.hpp) is the exclusion itself:
+    // the side region is the SCREEN's and everything else takes an override. Nothing about
+    // the overlay stack changed; the top band joined it.
+    if (place_is_authorable(where) && authored != nullptr) {
         if (authored->place.mode == pane_unit::kSubcells) {
             out.resolved.x = authored->place.x;
             out.resolved.y = authored->place.y;
@@ -8336,7 +8390,13 @@ inline void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& 
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels.runtime);
-        if (!kind.has_value() || placement_of(*kind) != placement::kOverlayStack) {
+        // EVERY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR WEARS HANDLES (WUX-12). This
+        // named the overlay stack while the stack was the only such place, which made the
+        // ring a list rather than the rule it is; `place_is_authorable` is the same
+        // exclusion the arrangement admission already spoke -- the side column is the
+        // screen's, and a pane whose geometry no gesture can change must not advertise
+        // eight grips that all refuse.
+        if (!kind.has_value() || !place_is_authorable(placement_of(*kind))) {
             return;
         }
         const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, sc);
@@ -8397,92 +8457,6 @@ inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
 
 } // namespace detail
 
-/// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
-///
-/// IT WALKS THE EFFECTIVE ORDER (WIND-2, lifted by WUX-5), ASCENDING, so a later-ranked
-/// pane is drawn OVER an earlier one -- the exact reverse of the order `occupied_at`
-/// walks, from the one helper, so what a maker sees on top is what their hand meets. The
-/// selected pane is last in that order, so it is painted last and answered first.
-///
-/// AND EACH PANE WEARS ITS OWN CHROME (WUX-5): `kPaneChromeSelected` for the selected one,
-/// `kPaneChrome` for every other. The role is resolved HERE, once, from the same
-/// `selected_pane` the order was lifted by -- a painter deciding it for itself would be a
-/// second reading of one fact, and the two would eventually name different panes.
-///
-/// AND SINCE WIND-2a THAT SENTENCE IS TRUE OF THE PICTURE AND NOT ONLY OF THIS LOOP. The
-/// canvas used to hold three root lists, so appending a pane's rects, labels and regions
-/// here put each KIND into a global band: every rect, then every label, then every region.
-/// A pane the maker had sent to the BACK still covered a pane in FRONT of it whenever the
-/// two drew different kinds -- measured, with the Builder placed over the Info column: the
-/// pointer answered `Builder` and the terminal drew Info's prose in the same cell. A layer
-/// per pane is the whole repair; no primitive gained a field and this loop still reads the
-/// same order it always did.
-///
-/// A PANE WITH NOTHING ON SCREEN PAINTS NOTHING AT ALL, and the guard is one comparison
-/// rather than three: `bounds_of` answers with an empty rectangle for a pane that is
-/// off-room and for one whose authored unit this medium cannot project, so a pane with no
-/// cells here never reaches a painter that would push a degenerate `SurfaceRect`.
-///
-/// THE THREE PRESENTATIONS AFTER THE PANES ARE LATER LAYERS, in the order a maker's
-/// attention is in: the selected pane's affordances go over its own content so that every
-/// handle is visible, and the picker or the management surface goes over the pane it is
-/// covering -- which is what makes the recovery surface readable above an external pane's
-/// text rather than underneath it. The Terminal is later still and is `paint`'s to add,
-/// because it is a MODE that also decides what the rest of the screen does.
-inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
-                         const Screen& sc, const ProjectFrontier& frontier = {}) {
-    const Panels& panels = s.panels;
-    const std::int64_t lifted = selected_pane(panels);
-    for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
-        const Panel p{kind};
-        const FineRect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
-        if (b.w <= 0 || b.h <= 0) {
-            continue;
-        }
-        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
-        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-            if (p.kind == panel::kBuilder) {
-                paint_builder(layer, panels.builder, b, sc, frontier, s.recipes_moved_to,
-                              chrome);
-            } else if (p.kind == panel::kInfo) {
-                paint_info(layer, d, s, b, sc, chrome);
-            } else if (p.kind == panel::kEditor) {
-                paint_editor(layer, s, b, sc, chrome);
-            } else if (p.kind == panel::kProjectFiles) {
-                paint_files(layer, s, b, sc, s.keymap, chrome);
-            } else if (is_runtime_kind(p.kind)) {
-                // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
-                // add. The branch above chooses a PAINTER, which PNL-1 named as the one
-                // thing about a panel kind that genuinely cannot be shared -- and this arm
-                // is the case where it can be, because every external pane is presented
-                // identically: a header Workshop writes and a region the provider fills. A
-                // second provider costs this function nothing at all.
-                paint_external(layer, panels, p.kind, b, sc, s.pane_titles, chrome);
-            }
-        });
-    }
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_pane_affordances(layer, s, sc);
-    });
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_picker(layer, panels, s.setup.active, sc, s.keymap);
-    });
-    // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
-    // covers, under the screen's own chrome. The band keeps speaking while it is open --
-    // what a maker is READING is what is currently true, and what the band SAYS is what
-    // just happened, and those are two different sentences that must not cover each other.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_attention(layer, s, sc, frontier);
-    });
-    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND (CTX-0): over the picker and the
-    // attention view, because it is the band's later, more deliberate gesture -- and it
-    // takes the band's keys first for the same reason (`keyboard_context`), so what is
-    // frontmost and what answers agree.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        paint_context(layer, s, sc);
-    });
-}
-
 // ---- THE SETUP LINE: which arrangement this is, and whether it is written down (WS-0) ----
 //
 // THE STATUS ROW OF THE BOTTOM BAND, directly under the workspace: the one fact WS-0 adds
@@ -8532,26 +8506,53 @@ inline std::string setup_hints(const Keymap& k) {
 /// narrow enough for the chrome to exceed it still shows some of what is being typed.
 inline constexpr std::int64_t kSetupNameMinCols = 8;
 
-/// THE TWO BANDS' RECTANGLES AND THEIR FITS -- the resolutions every row of Workshop's own
-/// chrome measures against (WUX-1, split by QR-14). Each is full width and its cells hold
-/// whatever the ACTIVE medium answers, through the same `fit_region` every bounded region
-/// resolves with.
+/// THE ROWS THE SCREEN RESERVES AT THE TOP, AS A RECTANGLE -- and since WUX-12 that is the
+/// LAYOUTS PANE'S DEVELOPER DEFAULT rather than a band's private geometry.
 ///
-///     top      rows 0..kTopRows-1        the layout selector and the setup's standing status
-///     bottom   the last kBottomRows      what the tool just said, and what the keys mean now
+/// IT IS ASKED OF `placement_bounds`, NOT COMPUTED HERE. Before the conversion this
+/// function owned the numbers and `paint` spent them directly; now the rectangle a pane
+/// takes when its maker has said nothing is the one place-resolver's answer, and this name
+/// survives because the RESERVATION survives -- the two rows stay out of `room_h` whether
+/// or not anything stands on them, which is what keeps a maker's document the same size
+/// when they move the pane away (PNL-0).
 ///
-/// A character medium answers two rows of the top band and four of the bottom; the shipped
-/// 18-pixel face answers one and two. Three face rows either way -- the split moved one of
-/// them to the top rather than buying or spending any.
+/// ⚠ IT IS THE DEFAULT AND NOT THE PANE'S RECTANGLE. What the Layouts pane actually
+/// occupies is `bounds_of` -- this default with the maker's own place, width and height
+/// laid over it -- and every consumer that means "where is that pane" asks that, never
+/// this. `layouts_body` below is the one resolution of the interior.
 inline constexpr ui::Rect top_band_bounds(const Screen& sc) noexcept {
-    return ui::Rect{0, 0, sc.w, kTopRows};
+    return placement_bounds(placement::kTopBand, 0, sc);
 }
 
-inline constexpr surface::RegionFit top_band_fit(const Screen& sc) noexcept {
-    const ui::Rect b = top_band_bounds(sc);
-    return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+/// WHERE THE LAYOUTS PANE'S CONTENT GOES AND WHAT FITS IN IT (WUX-12) -- one resolution,
+/// spent by the painter, by the tab press inverse and by the name editor's own window.
+///
+/// `files_body`'s SHAPE EXACTLY, and deliberately: the pane's outer rectangle from
+/// `bounds_of`, its interior and that interior's fit from `external_body_place`, and NO
+/// header row -- this pane's first row IS the tab run. The band it replaces carried no
+/// title, and a title row would cost the only row a character medium has here.
+///
+/// ABSENT WHEN THE PANE IS NOT PRESENTED, which is the ordinary answer for a pane a maker
+/// removed, sent off-room, or sized in a unit this medium cannot project. A Workshop with
+/// no Layouts pane has no tab run in it and the keyboard's layout gestures still work --
+/// exactly what removing any other pane does, with the picker as the way back.
+inline ExternalBodyPlace layouts_body(const Session& s, const Screen& sc) {
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kLayouts, sc);
+    if (!where.open) {
+        return ExternalBodyPlace{};
+    }
+    return external_body_place(where.rect, sc, 0);
 }
 
+/// THE BOTTOM BAND'S RECTANGLE AND ITS FIT -- what the tool just said, and what the keys
+/// mean right now, composed against whatever the ACTIVE medium answers for these cells
+/// through the same `fit_region` every bounded region resolves with (WUX-1, split by
+/// QR-14). A character medium answers four rows and the shipped 18-pixel face answers two.
+///
+/// IT IS THE ONE BAND LEFT. The top band's rows are still reserved, and what stands on them
+/// is a pane now (`layouts_body`) -- so this is the only rectangle in Workshop that is
+/// painted by the screen itself, and the utterance channel's reachability is exactly why it
+/// is still here rather than converted beside the other one.
 inline constexpr ui::Rect band_bounds(const Screen& sc) noexcept {
     return ui::Rect{0, sc.h - kBottomRows, sc.w, kBottomRows};
 }
@@ -8564,16 +8565,18 @@ inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
 /// HOW MUCH OF THE NAME THE ONE-LINE EDITOR CAN SHOW at this extent -- the one measurer, so
 /// the window the `component::TextBox` is kept against and the slice the painter cuts are the
 /// same number. A second copy of this arithmetic is how a caret comes to sit off the end of
-/// the row it is drawn on (HD-4). The room is the TOP BAND'S row, not the screen's cell width
-/// (WUX-1, re-homed by QR-14): in a character medium the two are the same number, and in a
-/// medium that sets real type the editor's row holds however many characters the face fits.
-/// The editor takes the identity row wherever that row is, so this measures the band the
-/// identity is on rather than a band it used to be on.
-inline std::int64_t setup_name_columns(const Screen& sc, const Keymap& keymap) {
+/// the row it is drawn on (HD-4).
+///
+/// THE ROOM IS THE LAYOUTS PANE'S ROW (WUX-12), which is what "the identity row" has become:
+/// the editor edits the name that row is naming, so it takes that row wherever the row is --
+/// and after the conversion the row is a maker-authored pane's interior rather than a
+/// rectangle the screen owned. So this takes the SESSION rather than a keymap: the pane's
+/// width is a fact about the desk, and a screen alone can no longer answer it.
+inline std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
     const std::int64_t chrome =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt)) +
-        static_cast<std::int64_t>(setup_name_hint(keymap).size()) + 1;
-    const std::int64_t room = top_band_fit(sc).columns - chrome;
+        static_cast<std::int64_t>(setup_name_hint(s.keymap).size()) + 1;
+    const std::int64_t room = layouts_body(s, sc).columns - chrome;
     return room > kSetupNameMinCols ? room : kSetupNameMinCols;
 }
 
@@ -8968,9 +8971,15 @@ inline LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns
 /// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
 /// every painted tab's bytes are.
 ///
-/// ONE COMPOSITION, TWO CONSUMERS (HD-3). `band_region` publishes `text`; `band_tab_at`
+/// ONE COMPOSITION, TWO CONSUMERS (HD-3). `paint_layouts` publishes `text`; `band_tab_at`
 /// answers a press out of `tabs`. There is no second arithmetic for a tab's position and
 /// therefore nothing for a painter and a press to disagree about.
+///
+/// ⚠ AND SINCE WUX-12 THE BUDGET IT IS COMPOSED AGAINST IS A PANE'S INTERIOR, not a band's
+/// rectangle -- so a maker who narrows the Layouts pane narrows the run, and the omission
+/// markers, the association's reservation and the `+` affordance all degrade by the rules
+/// they already had. Nothing here learned a new rule; the number it spends comes from
+/// somewhere a maker can change.
 struct BandStatus {
     std::string text;
     std::vector<LayoutTab> tabs;
@@ -8980,13 +8989,12 @@ struct BandStatus {
     std::int64_t create_columns = 0;
 };
 
-inline BandStatus band_status(const Session& s, const Screen& sc) {
-    const surface::RegionFit fit = top_band_fit(sc);
+inline BandStatus band_status(const Session& s, const ExternalBodyPlace& place) {
     BandStatus out;
-    if (fit.rows <= 0 || fit.columns <= 0) {
+    if (!place.present) {
         return out;
     }
-    const LayoutTabRun run = layout_tab_run(s.setup, layout_tab_columns(fit.columns));
+    const LayoutTabRun run = layout_tab_run(s.setup, layout_tab_columns(place.columns));
     out.before = run.before;
     out.after = run.after;
     const std::int64_t left = static_cast<std::int64_t>(run.text.size());
@@ -8996,7 +9004,7 @@ inline BandStatus band_status(const Session& s, const Screen& sc) {
     // character medium gives the fact its own row; the shipped face's single row carries
     // both. It folds into the CUTTABLE half, because a room's size is the one fact here a
     // maker can also read by looking at their window.
-    if (fit.rows < 2) {
+    if (place.rows < 2) {
         rest += kStatusJoin + workspace_text(s);
     }
     // WHAT IS LEFT FOR THE ARTIFACT'S NAME: what the tabs did not take, less the words of
@@ -9009,7 +9017,7 @@ inline BandStatus band_status(const Session& s, const Screen& sc) {
     // suite, not reasoned about. So the path yields to the unresolved count and to the two
     // gestures as well, and only what THEN does not fit is cut from the right, which is the
     // ordering §9 asks for: the verdict is reserved, the tail degrades, the path absorbs.
-    const std::int64_t path_columns = fit.columns - left - kSetupStatusCols + kElidedCols -
+    const std::int64_t path_columns = place.columns - left - kSetupStatusCols + kElidedCols -
                                       static_cast<std::int64_t>(rest.size());
     std::string standing = setup_link_text(
         s.setup, path_columns > kElidedCols ? path_columns : kElidedCols);
@@ -9022,14 +9030,14 @@ inline BandStatus band_status(const Session& s, const Screen& sc) {
     std::string line = run.text;
     const std::int64_t joined =
         left + kStatusJoinCols + static_cast<std::int64_t>(standing.size() + rest.size());
-    if (joined < fit.columns) {
-        line.append(static_cast<std::size_t>(fit.columns - joined + kStatusJoinCols), ' ');
+    if (joined < place.columns) {
+        line.append(static_cast<std::size_t>(place.columns - joined + kStatusJoinCols), ' ');
     } else {
         line += kStatusJoin;
     }
     line += standing;
     line += rest;
-    out.text = detail::fit(std::move(line), fit.columns);
+    out.text = detail::fit(std::move(line), place.columns);
     // A SPAN THE ROW'S OWN CUT REMOVED IS NOT A TAB ANY MORE. The reservation above makes
     // this unreachable at every honest extent -- the tabs are composed against the row less
     // the association's own room -- and it is written anyway, because a span that outlived
@@ -9048,24 +9056,32 @@ inline BandStatus band_status(const Session& s, const Screen& sc) {
     return out;
 }
 
-/// WHICH ROW OF THE BAND THE TAB RUN IS PAINTED ON, or `kNoBandRow` when it is not painted
-/// at all -- the composition's own answer, so a press can never be resolved against a run
-/// this budget did not write.
+/// THE SAME COMPOSITION, RESOLVED FROM THE SESSION -- for every consumer that holds a
+/// screen rather than the interior the painter was handed. Two spellings of one answer,
+/// because the painter already has the rectangle it is drawing into and re-deriving it
+/// there would be the second resolution HD-3 forbids; everyone else asks for it here.
+inline BandStatus band_status(const Session& s, const Screen& sc) {
+    return band_status(s, layouts_body(s, sc));
+}
+
+/// WHICH ROW OF THE LAYOUTS PANE THE TAB RUN IS PAINTED ON, or `kNoBandRow` when it is not
+/// painted at all -- the composition's own answer, so a press can never be resolved against
+/// a run this budget did not write.
 ///
-/// The name editor takes the status row whole while a maker is mid-name, and at a one-row
-/// budget the notice outranks the identity line: in both states there are no tabs on screen,
-/// so there are none to press.
+/// The name editor takes the identity row whole while a maker is mid-name, and a pane with
+/// no interior has no row at all: in both states there are no tabs on screen, so there are
+/// none to press. Since WUX-12 a THIRD state joins them and it is an ordinary one -- the
+/// pane is closed, off-room or unprojectable -- and it is answered by the same absence.
 inline constexpr std::int64_t kNoBandRow = -1;
 
-inline std::int64_t band_tab_row(const Session& s, const Screen& sc) noexcept {
-    const surface::RegionFit fit = top_band_fit(sc);
-    if (fit.rows <= 0 || fit.columns <= 0 || s.setup.naming.open) {
+inline std::int64_t band_tab_row(const Session& s, const Screen& sc) {
+    if (!layouts_body(s, sc).present || s.setup.naming.open) {
         return kNoBandRow;
     }
-    // THE IDENTITY IS THE TOP BAND'S FIRST ROW WHENEVER THE BAND HAS ONE (QR-14). It used to
-    // share a band with the notice, so at a one-row budget the tool's voice outranked it and
-    // there was no tab row at all; the notice lives at the foot now, and nothing on this band
-    // can displace the selector but the name editor taking its row.
+    // THE IDENTITY IS THE PANE'S FIRST ROW WHENEVER THE PANE HAS ONE (QR-14, re-homed by
+    // WUX-12). It used to share a band with the notice, so at a one-row budget the tool's
+    // voice outranked it and there was no tab row at all; the notice lives at the foot now,
+    // and nothing in this pane can displace the selector but the name editor taking its row.
     return 0;
 }
 
@@ -9087,17 +9103,22 @@ inline LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64
     if (row == kNoBandRow) {
         return {};
     }
-    // ⚠ THE PRESS IS RESOLVED AGAINST THE BAND THE TABS ARE PAINTED ON, and after QR-14
-    // that is the TOP band. A stale bottom-band origin here would answer a press at the old
-    // footer row and ignore the row a maker can actually see -- the exact one-row lie this
-    // repair exists to make unsayable, and the reason the origin is taken from the same
-    // `top_band_bounds` the painter publishes at.
-    const ui::Rect b = top_band_bounds(sc);
-    const ProseAt at = prose_at(space, x, y, b.x, b.y, top_band_fit(sc));
+    // ⚠ THE PRESS IS RESOLVED AGAINST THE RECTANGLE THE TABS ARE PAINTED IN, which since
+    // WUX-12 is the Layouts pane's INTERIOR -- the maker's authored place and size, less
+    // its chrome. A stale origin here would answer a press at the rectangle the band used
+    // to own and ignore the row a maker can actually see, which is the same one-row lie
+    // QR-14 made unsayable at the other end and the reason the origin is taken from the
+    // same `layouts_body` the painter publishes at.
+    //
+    // AND THIS IS A PANE-LOCAL INVERSE NOW, NOT A GLOBAL QUESTION. Nothing calls it until
+    // ordinary occupancy has already answered `Layouts` for the point, so a pane authored
+    // in front of this one takes the press before this arithmetic is ever spent.
+    const ExternalBodyPlace place = layouts_body(s, sc);
+    const ProseAt at = prose_at(space, x, y, place.region_x, place.region_y, place.fit);
     if (!at.understood || at.row != row) {
         return {};
     }
-    const BandStatus band = band_status(s, sc);
+    const BandStatus band = band_status(s, place);
     for (const LayoutTab& tab : band.tabs) {
         if (at.column >= tab.column && at.column < tab.column + tab.columns) {
             return LayoutTabPress{true, tab.at, false};
@@ -9110,7 +9131,7 @@ inline LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64
     return {};
 }
 
-// ---- THE TWO BANDS, EACH COMPOSED AGAINST ITS BUDGET (WUX-1, split by QR-14) --------------
+// ---- THE LAYOUTS PANE AND THE BOTTOM BAND, EACH COMPOSED AGAINST ITS BUDGET ---------------
 //
 // TWO REGIONS, AND EACH ONE'S ROWS ARE DECIDED BY HOW MANY THE ACTIVE MEDIUM FITS. Until
 // WUX-1 this was five independent one-cell voices -- a label per sentence -- which is why
@@ -9119,54 +9140,71 @@ inline LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64
 // to the screen's own furniture). WUX-1 made it one region that takes its room once and
 // composes; QR-14 made it two, because the five facts were never one kind of thing:
 //
-//     TOP     budget >= 2   identity | workspace         a character medium's two rows
+//     LAYOUTS budget >= 2   identity | workspace         a character medium's two rows
 //             budget == 1   identity+workspace           the shipped face's one
 //
 //     BOTTOM  budget >= 2   notice | legend, budget-1 rows
 //             budget == 1   the notice while there is one, else the legend's first row
 //
-// WHICH BAND A FACT BELONGS TO IS ITS OWN NATURE. The layout selector and the setup's status
-// say WHICH DESK YOU ARE IN, and the workspace fact says how big it resolves against -- one
-// standing identity, and the outermost thing on the screen, so it is the first row of it. The
-// notice is what the tool JUST SAID and the legend is what the keys mean right now: both are
-// about the gesture a maker is making, and both stay at the foot where a maker's eye goes
-// after acting. WUX-9 composed the selector correctly and left it in the footer, where a
-// selector reads as an afterthought of the status area; that is the whole of what QR-14
-// moved.
+// ⚠ AND SINCE WUX-12 ONLY ONE OF THEM IS A BAND. The layout selector, the setup's status and
+// the workspace fact are a PANE's content now -- `paint_layouts` below, reached through
+// `paint_panels` like every other pane's painter, with its budget coming from a rectangle a
+// maker authored. What did not move is the composition: the same three facts, the same fold,
+// the same degradation order, the same single source. What moved is who owns the rectangle.
+//
+// WHICH SURFACE A FACT BELONGS TO IS STILL ITS OWN NATURE. The layout selector and the
+// setup's status say WHICH DESK YOU ARE IN, and the workspace fact says how big it resolves
+// against -- one standing identity, and the outermost thing on the screen, so it is the first
+// row of it. The notice is what the tool JUST SAID and the legend is what the keys mean right
+// now: both are about the gesture a maker is making, and both stay at the foot where a
+// maker's eye goes after acting -- and the notice is the one content with a real reason to
+// stay unlosable, which is why the foot is still the screen's own and not a pane.
 //
 // THE LAYOUT IS THE BUDGET'S AND ONLY THE BUDGET'S. The legend preference changes what the
 // legend rows SAY (full | compact | hidden), never where any other fact sits -- a maker
 // toggling the legend must not watch the identity row reformat. Facts degrade in a fixed
-// order within each band: the workspace fact folds into the identity row where the top band
+// order within each surface: the workspace fact folds into the identity row where the pane
 // has no second one, and at the foot the legend gives way to the notice. Every fold and every
 // cut is `detail::fit`-marked, never silent.
 //
 // THE CONTENT STAYS SINGLE-SOURCED. The legend rows are `help_pairs` projections of the
 // effective keymap exactly as before; the identity row is `band_status` over
 // `setup_status_text`; nothing here grows a second binding truth or a second status truth.
-// What each band owns is a RECTANGLE, and neither one may write in the other's.
+// What each surface owns is a RECTANGLE, and neither one may write in the other's.
 
-/// THE TOP BAND AS ONE PUBLISHED REGION: the layout selector and the standing identity
-/// beside it, the workspace fact under them where the medium fits a second row, and the
-/// setup-name editor's caret and selection while a maker is typing a name.
+/// THE LAYOUTS PANE, PAINTED (WUX-12): the layout selector and the standing identity beside
+/// it, the workspace fact under them where the medium fits a second row, and the setup-name
+/// editor's caret and selection while a maker is typing a name.
+///
+/// IT IS AN ORDINARY PANE PAINTER, WITH `paint_files`' SHAPE EXACTLY -- the frame first,
+/// then the interior resolved from the rectangle it was HANDED, then rows into the region
+/// that resolution published. `paint_panels` reaches it in canonical front order like every
+/// other kind, so a pane authored in front of this one covers it and a pane behind it does
+/// not, which is the whole of what the conversion bought: until now these rows were painted
+/// after every pane by `paint` itself, over anything a maker had put underneath them.
 ///
 /// THE NAME EDITOR TAKES THE IDENTITY ROW, which is what it always did -- it edits the name
 /// that row is naming, so it belongs on it wherever that row is. Its caret is the REGION's
 /// caret (a bar in a medium with a face, the same inserted glyph as ever in the cell
 /// projection) and its selection is the region's, said the way every other selection on this
 /// screen is said. While it holds the row, the workspace fact yields to the name being typed.
-inline surface::SurfaceTextRegion top_band_region(const Session& s, const Screen& sc) {
-    const ui::Rect b = top_band_bounds(sc);
-    const surface::RegionFit fit = top_band_fit(sc);
+inline void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const FineRect& b,
+                          const Screen& sc, std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
+    const ExternalBodyPlace place = external_body_place(b, sc, 0);
     surface::SurfaceTextRegion band;
-    band.x = b.x;
-    band.y = b.y;
-    band.w = b.w;
-    band.h = b.h;
-    const std::int64_t budget = fit.rows;
-    const std::int64_t columns = fit.columns;
-    if (budget <= 0 || columns <= 0) {
-        return band; // a region with no room says nothing, and says nothing about it
+    band.x = place.region_x;
+    band.y = place.region_y;
+    band.w = place.region_w;
+    band.h = place.region_h;
+    band.sub_x = place.region_sub_x;
+    band.sub_y = place.region_sub_y;
+    band.sub_w = place.region_sub_w;
+    band.sub_h = place.region_sub_h;
+    const std::int64_t budget = place.rows;
+    const std::int64_t columns = place.columns;
+    if (!place.present) {
+        return; // no room for one row of this medium's type: say nothing at all
     }
 
     const bool naming = s.setup.naming.open;
@@ -9175,7 +9213,7 @@ inline surface::SurfaceTextRegion top_band_region(const Session& s, const Screen
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
     if (naming) {
-        const std::int64_t cols = setup_name_columns(sc, s.keymap);
+        const std::int64_t cols = setup_name_columns(s, sc);
         const std::string shown = s.setup.naming.line.visible(cols);
         const component::TextBox::VisibleSpan vis =
             s.setup.naming.line.visible_selection(cols);
@@ -9196,8 +9234,10 @@ inline surface::SurfaceTextRegion top_band_region(const Session& s, const Screen
     } else {
         // THE LAYOUT TABS AND THE STATUS ARE ONE COMPOSITION (WUX-9), and the painter takes
         // it whole -- the workspace fold and the row's own cut included, so the spans
-        // `band_tab_at` answers a press from are the spans that were written here.
-        identity = band_status(s, sc).text;
+        // `band_tab_at` answers a press from are the spans that were written here. It is
+        // composed against THE PLACE THIS PAINTER RESOLVED (WUX-12) rather than against a
+        // second reading of the session's own geometry: one rectangle in, one row out.
+        identity = band_status(s, place).text;
     }
 
     band.rows.push_back(surface::SurfaceTextRow{std::move(identity), surface::role::kMuted});
@@ -9219,7 +9259,107 @@ inline surface::SurfaceTextRegion top_band_region(const Session& s, const Screen
             surface::SurfaceTextRow{detail::fit(workspace_text(s), columns),
                                     surface::role::kMuted});
     }
-    return band;
+    layer.texts.push_back(std::move(band));
+}
+
+// ⚠ `paint_panels` STANDS HERE AND NOT ABOVE, and the reason is the conversion itself
+// (WUX-12). This file defines everything before it is used -- there is not one forward
+// declaration in it -- and the walk that reaches every pane's painter now reaches
+// `paint_layouts`, whose composition is the status row's and belongs beside the status
+// row's other halves. So the walk moved down to meet its last painter rather than the
+// composition moving up away from what it composes.
+
+/// EVERY PRESENTED PANE, BACK TO FRONT — ONE COMPLETE LAYER EACH.
+///
+/// IT WALKS THE EFFECTIVE ORDER (WIND-2, lifted by WUX-5), ASCENDING, so a later-ranked
+/// pane is drawn OVER an earlier one -- the exact reverse of the order `occupied_at`
+/// walks, from the one helper, so what a maker sees on top is what their hand meets. The
+/// selected pane is last in that order, so it is painted last and answered first.
+///
+/// AND EACH PANE WEARS ITS OWN CHROME (WUX-5): `kPaneChromeSelected` for the selected one,
+/// `kPaneChrome` for every other. The role is resolved HERE, once, from the same
+/// `selected_pane` the order was lifted by -- a painter deciding it for itself would be a
+/// second reading of one fact, and the two would eventually name different panes.
+///
+/// AND SINCE WIND-2a THAT SENTENCE IS TRUE OF THE PICTURE AND NOT ONLY OF THIS LOOP. The
+/// canvas used to hold three root lists, so appending a pane's rects, labels and regions
+/// here put each KIND into a global band: every rect, then every label, then every region.
+/// A pane the maker had sent to the BACK still covered a pane in FRONT of it whenever the
+/// two drew different kinds -- measured, with the Builder placed over the Info column: the
+/// pointer answered `Builder` and the terminal drew Info's prose in the same cell. A layer
+/// per pane is the whole repair; no primitive gained a field and this loop still reads the
+/// same order it always did.
+///
+/// A PANE WITH NOTHING ON SCREEN PAINTS NOTHING AT ALL, and the guard is one comparison
+/// rather than three: `bounds_of` answers with an empty rectangle for a pane that is
+/// off-room and for one whose authored unit this medium cannot project, so a pane with no
+/// cells here never reaches a painter that would push a degenerate `SurfaceRect`.
+///
+/// THE THREE PRESENTATIONS AFTER THE PANES ARE LATER LAYERS, in the order a maker's
+/// attention is in: the selected pane's affordances go over its own content so that every
+/// handle is visible, and the picker or the management surface goes over the pane it is
+/// covering -- which is what makes the recovery surface readable above an external pane's
+/// text rather than underneath it. The Terminal is later still and is `paint`'s to add,
+/// because it is a MODE that also decides what the rest of the screen does.
+inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const Session& s,
+                         const Screen& sc, const ProjectFrontier& frontier = {}) {
+    const Panels& panels = s.panels;
+    const std::int64_t lifted = selected_pane(panels);
+    for (const std::int64_t kind : effective_pane_order(s.setup.active, panels)) {
+        const Panel p{kind};
+        const FineRect b = bounds_of(panels, s.setup.active, p.kind, sc).rect;
+        if (b.w <= 0 || b.h <= 0) {
+            continue;
+        }
+        const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
+        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+            if (p.kind == panel::kBuilder) {
+                paint_builder(layer, panels.builder, b, sc, frontier, s.recipes_moved_to,
+                              chrome);
+            } else if (p.kind == panel::kInfo) {
+                paint_info(layer, d, s, b, sc, chrome);
+            } else if (p.kind == panel::kEditor) {
+                paint_editor(layer, s, b, sc, chrome);
+            } else if (p.kind == panel::kProjectFiles) {
+                paint_files(layer, s, b, sc, s.keymap, chrome);
+            } else if (p.kind == panel::kLayouts) {
+                // THE LAYOUT RUN, THE SETUP ASSOCIATION AND THE WORKSPACE FACT (WUX-12) --
+                // one more arm, in the one walk, and that is the whole of what the
+                // conversion cost this function. What it BUYS is the two lines above it:
+                // the rectangle is `bounds_of`'s, the order is `effective_pane_order`'s,
+                // and a pane a maker put in front of this one is drawn over it.
+                paint_layouts(layer, s, b, sc, chrome);
+            } else if (is_runtime_kind(p.kind)) {
+                // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
+                // add. The branch above chooses a PAINTER, which PNL-1 named as the one
+                // thing about a panel kind that genuinely cannot be shared -- and this arm
+                // is the case where it can be, because every external pane is presented
+                // identically: a header Workshop writes and a region the provider fills. A
+                // second provider costs this function nothing at all.
+                paint_external(layer, panels, p.kind, b, sc, s.pane_titles, chrome);
+            }
+        });
+    }
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_pane_affordances(layer, s, sc);
+    });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_picker(layer, panels, s.setup.active, sc, s.keymap);
+    });
+    // THE CURRENT-CONDITION VIEW, IN THE PICKER'S OWN PLANE: over the panes it
+    // covers, under the screen's own chrome. The band keeps speaking while it is open --
+    // what a maker is READING is what is currently true, and what the band SAYS is what
+    // just happened, and those are two different sentences that must not cover each other.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_attention(layer, s, sc, frontier);
+    });
+    // THE CONTEXTUAL-ACTION SURFACE, LAST IN THE BAND (CTX-0): over the picker and the
+    // attention view, because it is the band's later, more deliberate gesture -- and it
+    // takes the band's keys first for the same reason (`keyboard_context`), so what is
+    // frontmost and what answers agree.
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_context(layer, s, sc);
+    });
 }
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean
@@ -9531,12 +9671,19 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // owns that kind rather than by `paint`.
     paint_panels(c, d, s, sc, frontier);
 
-    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which since WUX-1 is
-    // budget-composed regions rather than one label per cell row, and since QR-14 is TWO of
-    // them: the top band (the layout selector and the standing identity) and the bottom band
-    // (the notice and the legend). See the note at the top of this function for why they are
-    // in front rather than behind: a band is where the tool SPEAKS, and a panel backdrop
-    // drawn over one would erase the notice that just told a maker what happened.
+    // AND THE SCREEN'S OWN CHROME OVER THEM, on its own plane -- which since WUX-1 is a
+    // budget-composed region rather than one label per cell row, and since WUX-12 is ONE of
+    // them: the bottom band, where the tool speaks and where the keys are explained. See the
+    // note at the top of this function for why it is in front rather than behind: a band is
+    // where the tool SPEAKS, and a panel backdrop drawn over one would erase the notice that
+    // just told a maker what happened.
+    //
+    // ⚠ THE TOP BAND IS NOT HERE ANY MORE (WUX-12). The layout selector, the setup
+    // association and the workspace fact were the other half of this plane and are an
+    // ordinary pane now -- painted by `paint_panels` above, in canonical front order, over
+    // and under whatever a maker arranged around them. The ROWS they defaulted to are still
+    // reserved (`kTopRows`, and `room_h` is byte-identical either way); what changed is that
+    // something authorable stands on them instead of something this function drew.
     //
     // THE OLD SHARED TOP ROW IS STILL RETIRED, AND ITS CELL IS SPENT NOW (WUX-1, QR-14).
     // Canvas row 0 carried four one-cell voices -- the workspace's extent, the picker and
@@ -9547,28 +9694,35 @@ inline surface::SurfaceCanvas paint(const WorkshopDoc& d, const Session& s,
     // on a top band two cells tall -- which is what a face needs for one row of type. The
     // reserved total is what it was, so the workspace still did not move.
     //
-    // ⚠ THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN AND THE TOP BAND DOES NOT.
-    // The pane is anchored to the bottom-right corner and covers most of the screen's width
-    // at every extent, so bottom-band rows painted underneath it would survive only in the
-    // cells to its left -- a sentence beheaded mid-word with nothing to say so. The top band
-    // is two rows the pane cannot reach: `terminal_y` is `h - terminal_h`, which is 9 at the
-    // minimum screen and grows with the surface, so it is never less than `kTopRows`. A maker
-    // in the Terminal therefore keeps reading which layout they are in, which is the honest
-    // answer rather than a courtesy -- the row is not covered, so hiding it would be a lie
-    // about occlusion.
+    // ⚠ THE BOTTOM BAND BELONGS TO THE OVERLAY WHILE THAT IS OPEN, AND THE LAYOUTS PANE
+    // DOES NOT. The Terminal is anchored to the bottom-right corner and covers most of the
+    // screen's width at every extent, so bottom-band rows painted underneath it would
+    // survive only in the cells to its left -- a sentence beheaded mid-word with nothing to
+    // say so. The Layouts pane's default rows are ones the overlay cannot reach:
+    // `terminal_y` is `h - terminal_h`, which is 9 at the minimum screen and grows with the
+    // surface, so it is never less than `kTopRows`. A maker in the Terminal therefore keeps
+    // reading which layout they are in, which is the honest answer rather than a courtesy --
+    // those rows are not covered, so hiding them would be a lie about occlusion. A maker who
+    // MOVED the pane under the overlay is covered by it and correctly so, which is a thing
+    // this screen could not say at all until the conversion.
     //
     // A REGION TAKES ITS RECTANGLE, and that is a deliberate widening over the labels it
     // replaced: the old rows cleared only the cells their characters landed on, and a band
-    // clears all of its rows across the canvas. A pane a maker authors over one is covered
-    // BY it, because the panes are in front of the DOCUMENT and not in front of the tool's
-    // own voice. The bands occupy no pointer space except the layout tabs themselves
-    // (`band_tab_at`, WUX-9), so `occupied_at` still answers the pane for those cells.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
-        layer.texts.push_back(top_band_region(s, sc));
-        if (!s.terminal.open) {
+    // clears all of its rows across the canvas. A pane a maker authors over the bottom band
+    // is covered BY it, because the panes are in front of the DOCUMENT and not in front of
+    // the tool's own voice, and the band occupies no pointer space at all.
+    //
+    // ⚠ THAT LAST EXEMPTION USED TO HAVE AN EXCEPTION AND NO LONGER DOES (WUX-12). The top
+    // band painted in front of every pane and answered presses on the layout tabs alone, so
+    // a pane dragged under it was visually erased and still met the hand -- see-here,
+    // press-there, at exactly the boundary HD-3 exists to forbid. Both halves are gone: the
+    // tabs are a pane's interior, and `occupied_at` answers that pane for those cells like
+    // any other.
+    if (!s.terminal.open) {
+        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
             layer.texts.push_back(band_region(s, sc));
-        }
-    });
+        });
+    }
 
     if (s.terminal.open) {
         // THE FINAL MODAL PLANE, and that is the whole of what "overlay" means here. A pane

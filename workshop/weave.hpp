@@ -1686,13 +1686,20 @@ public:
         // opens; a release of button 3 falls through to the gate below and is dropped, as
         // every non-primary transition always was.
         if (b.pressed && b.button == 3 && at.understood) {
-            // ...AND A TAB IS A SUBJECT IT CAN NAME (WUX-11). Asked first, out of the same
-            // composition the paint and the left press spend, so the menu's subject is the
-            // tab under the hand and not whatever pane happens to sit behind the band. A
-            // right press on the create affordance names the room, not a layout: `+` is an
-            // action rather than a thing, so there is nothing to ask about it.
+            // ...AND A TAB IS A SUBJECT IT CAN NAME (WUX-11) -- BEHIND OCCUPANCY (WUX-12).
+            // The tab inverse is asked only once the ordinary walk has answered that the
+            // Layouts pane owns this point, so the menu's subject is the tab under the hand
+            // when the tabs are what is under the hand, and is whatever pane a maker put in
+            // FRONT of them when it is not. Until this phase the question was asked first
+            // and globally, which made a covered tab nameable through the pane covering it.
+            // A right press on the create affordance names the room, not a layout: `+` is
+            // an action rather than a thing, so there is nothing to ask about it.
+            const Occupancy owner =
+                occupied_at(session_.panels, session_.setup.active, screen_of(session_), at);
             const LayoutTabPress tab =
-                band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
+                owner.occupied && owner.kind == panel::kLayouts
+                    ? band_tab_at(session_, screen_of(session_), b.space, b.x, b.y)
+                    : LayoutTabPress{};
             if (tab.hit && !tab.create) {
                 open_context_on_layout(at, tab.at);
             } else {
@@ -1705,56 +1712,6 @@ public:
             return;
         }
         if (b.pressed) {
-            // A LAYOUT TAB IS THE ONE THING ON THE BAND A PRESS CAN REACH (WUX-9), and it
-            // is asked FIRST, above every layer below -- because the band is painted in
-            // FRONT of the panes (the plane sequence, WIND-2a), so the tabs are what a
-            // maker's eye and hand both find in those cells. HD-3's rule end to end: the
-            // span comes from `band_status`'s own composition, so a press cannot be
-            // answered against a tab this budget did not paint, against the blank between
-            // the run and the status, against the status itself, or against a run the name
-            // editor has replaced.
-            //
-            // AND IT IS ASKED BEFORE THE SELECTION LINE BELOW, deliberately: pressing a tab
-            // is not pointing at a pane, so it must not clear the pane a maker had chosen.
-            // What the switch then does to that selection is the ordinary law -- it stays,
-            // it lifts nothing while its pane is absent, and it means something again when
-            // the pane participates again.
-            const LayoutTabPress tab =
-                band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
-            if (tab.hit && tab.create) {
-                // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE
-                // (WUX-11): the same door, the same ceiling, the same refusal in the same
-                // words. It arms no double-click and begins no drag -- it is not a tab.
-                session_.tab_click = TabClickMemory{};
-                new_layout(mail);
-                repaint(mail);
-                return;
-            }
-            if (tab.hit) {
-                // A SECOND PRESS ON THE SAME TAB RENAMES IT (WUX-11), and the first one
-                // has already made that tab live -- which is why the editor's subject and
-                // the switch cannot disagree. `press_selects_word`'s discipline exactly:
-                // the completing press SPENDS the arming, so there is no triple-click, and
-                // a first press is an ordinary switch with an arming left beside it.
-                const std::int64_t now = interaction_now();
-                if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
-                    session_.tab_click = TabClickMemory{};
-                    open_layout_rename(tab.at);
-                    repaint(mail);
-                    return;
-                }
-                session_.tab_click = TabClickMemory{true, tab.at, now};
-                // AND THE PRESS TAKES HOLD OF THE TAB (WUX-11). A press that becomes a
-                // drag reorders; a press that does not is exactly the switch it always
-                // was, because a drag that never moved lands the layout back where it
-                // started. The record holds no position: the switch below has just made
-                // this tab the live one, so what is being carried is always
-                // `setup.active_at`.
-                session_.tab_drag.active = true;
-                switch_layout(tab.at, mail);
-                repaint(mail);
-                return;
-            }
             // TRUE MEANS CONSUMED: STOP ROUTING. FALSE MEANS NOT CONSUMED: CARRY ON (QR-2).
             // That is the whole meaning of the three bools below, and it is the only meaning
             // any of them has -- not "something changed", not "the act succeeded", not "the
@@ -1828,47 +1785,6 @@ public:
                          panel_kind(session_.panels.selected).takes_keyboard)
                     ? session_.panels.selected
                     : kNoPaneKind;
-            // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a panel
-            // rather than a mode (HD-5). The order is the same one the pane and the
-            // completion list already have: the innermost thing that owns the pointer where
-            // it landed answers before the thing around it, and a press it declines falls
-            // through to the panel's own answer unchanged.
-            //
-            // IT SAYS NOTHING, AND IT CONSUMES WHETHER OR NOT THE CARET MOVED. Every other
-            // press on this panel writes the notice line, because a press that changed nothing
-            // and said nothing would leave the previous gesture's sentence sitting beside a
-            // maker who has just done something else. A press on the draft's own row is the
-            // one press where that argument runs the other way: the caret IS the statement, it
-            // is on screen, and a sentence repeating it would push the refusal a maker may
-            // still need to read off the line for a gesture they can already see the result
-            // of. That argument never depended on the caret MOVING -- a maker who presses
-            // where the caret already is has aimed at the draft and hit it, and the caret is
-            // still the answer (QR-2).
-            if (info_press(where, b.modifiers)) {
-                repaint(mail);
-                return;
-            }
-            // THEN THE ACTION CONTROLS (HD-8). Same order, same reason, and the three runs of
-            // the body cannot fight over a press: the footer, the object list and a live
-            // draft's own row are disjoint runs of ONE row budget, which is the property HD-7
-            // bought by making the body one region rather than two. So this ordering is
-            // written down for the same reason HD-5's four modes are -- an ordering that rests
-            // on a disjointness proof is one refactor from being silently wrong -- and not
-            // because two of these could otherwise both answer.
-            if (actions_press(where)) {
-                repaint(mail);
-                return;
-            }
-            // AND THEN THE OBJECT LIST, for the same reason and in the same order (HD-7): the
-            // innermost thing that owns the pointer where it landed answers before the thing
-            // around it, and a press it declines falls through to the panel's own answer
-            // unchanged. It is asked SECOND because a live draft's own row is the narrower
-            // claim -- and `objects_press` refuses outright while any draft is live, so the
-            // two can never both want the same press.
-            if (objects_press(where)) {
-                repaint(mail);
-                return;
-            }
             // A VISIBLE PANEL OCCUPIES POINTER SPACE (PNL-2), and this is the
             // whole of it: the press is asked what it landed on before the
             // document is asked anything, and a press that landed on a panel
@@ -1926,6 +1842,52 @@ public:
                 // over a list. A press on the header or past the last row moves nothing
                 // and is consumed exactly as the editor's is.
                 files_press(b, files_had_keyboard, mail);
+            } else if (here.occupied && here.kind == panel::kInfo &&
+                       (info_press(where, b.modifiers) || actions_press(where) ||
+                        objects_press(where))) {
+                // THE INFO PANEL'S OWN THREE INVERSES, BEHIND THE OWNERSHIP DECISION LIKE
+                // EVERY OTHER PANE'S (WUX-12). They are unchanged -- same order, same
+                // disjointness, same `true means consumed` -- and what changed is only
+                // WHERE they are asked. Until this phase all three ran BEFORE the occupancy
+                // walk and never consulted the effective order, so a pane authored over the
+                // side column and ranked in FRONT of Info still lost its presses on Info's
+                // control cells to Info: see-here, press-there, at the same boundary the
+                // top band had it. Nothing here is a new routing layer; three questions
+                // moved down into the arm that already knew which pane owns the point.
+                //
+                // THE ACTIVE PROPERTY EDITOR IS ASKED FIRST, and it is a PLACE inside a
+                // panel rather than a mode (HD-5): the innermost thing that owns the
+                // pointer where it landed answers before the thing around it, and a press
+                // it declines falls through unchanged. It says nothing and consumes whether
+                // or not the caret moved -- the caret IS the statement, and a sentence
+                // repeating it would push off the line a refusal the maker may still need
+                // (QR-2).
+                //
+                // THEN THE ACTION CONTROLS (HD-8), then the OBJECT LIST (HD-7). The three
+                // runs of the body cannot fight over a press -- the footer, the object list
+                // and a live draft's own row are disjoint runs of ONE row budget, which is
+                // what HD-7 bought by making the body one region -- so this ordering is
+                // written down because an ordering resting on a disjointness proof is one
+                // refactor from being silently wrong, not because two of them could answer.
+                //
+                // ⚠ THE SHORT CIRCUIT IS THE CHAIN, and it is exact: `||` stops at the
+                // first `true`, and each of the three changes nothing on the path where it
+                // declines -- which is the property that let QR-2 hoist the body in the
+                // first place. A press none of them owns falls to Info's own sentence
+                // below, which is what it always did.
+                repaint(mail);
+                return;
+            } else if (here.occupied && here.kind == panel::kLayouts &&
+                       layouts_press(b, mail)) {
+                // AND THE LAYOUTS PANE'S OWN INVERSE (WUX-12) -- the tabs, `+`, the rename
+                // second press and the reorder drag, asked ONLY once the ordinary walk has
+                // said this point is that pane's. It is `files_press`' position exactly.
+                // The inverse itself is still specialised to Layouts and still HD-3's rule
+                // end to end (the spans come from `band_status`' own composition); what is
+                // gone is the coordinate exception that used to ask it first, above every
+                // pane, from a rectangle nothing else could name.
+                repaint(mail);
+                return;
             } else if (here.occupied) {
                 say(std::string(here.what) + " is here -- nothing under it can be taken hold of",
                     false);
@@ -5327,7 +5289,12 @@ private:
     /// motion that follows can spend a single pixel of hand.
     bool take_pane_hold(const PaneRef& ref, const PointedAt& at, const Screen& sc) {
         const std::optional<std::int64_t> kind = resolve_pane(ref, session_.panels.runtime);
-        if (!kind.has_value() || placement_of(*kind) != placement::kOverlayStack) {
+        // A HAND MAY TAKE HOLD OF ANY PANE WHOSE PLACE IS THE MAKER'S TO AUTHOR (WUX-12).
+        // This named the overlay stack while the stack was the only such place; saying it
+        // as the exclusion (`place_is_authorable` -- the side column is the screen's) is
+        // what keeps the hand and the KEYS agreeing, since the arrangement admission has
+        // always refused by that same sentence.
+        if (!kind.has_value() || !place_is_authorable(placement_of(*kind))) {
             return false;
         }
         const PanelBounds mine = bounds_of(session_.panels, session_.setup.active, *kind, sc);
@@ -6269,6 +6236,67 @@ private:
         repaint(mail);
     }
 
+    /// A PRESS INSIDE THE LAYOUTS PANE (WUX-12) -- the tab run's own inverse, and the whole
+    /// of what the top band's two global pointer arms became.
+    ///
+    /// IT IS ASKED ONLY AFTER OCCUPANCY HAS NAMED THIS PANE, which is the entire repair.
+    /// The arithmetic below is WUX-9's and WUX-11's unchanged: the spans come from
+    /// `band_status`' own composition, so a press cannot be answered against a tab this
+    /// budget did not paint, against the blank between the run and the status, against the
+    /// status itself, or against a run the name editor has replaced. What is gone is the
+    /// coordinate exception -- the question used to be asked FIRST, above every pane, out
+    /// of a rectangle no catalog row could name, so a pane a maker had authored in front of
+    /// the tabs was drawn over them and still lost the press to them.
+    ///
+    /// TRUE MEANS CONSUMED (QR-2). A press that landed on this pane but on no tab and no
+    /// `+` -- the blank, the association, the workspace row, the pane's chrome -- is not
+    /// this inverse's, and falls to the pane's ordinary sentence exactly as a press on an
+    /// external pane's header does.
+    ///
+    /// ⚠ AND THE SELECTION LINE HAS ALREADY RUN. Pressing a tab now points at the Layouts
+    /// PANE, because that is what a maker is pointing at and the desk says so with selected
+    /// chrome like any other pane. The old arm ran above that line and deliberately left the
+    /// previous selection alone; keeping that exemption would have been the one place the
+    /// conversion stopped short -- a pane that owns the point but does not become the pane
+    /// you are pointing at. What the switch does to the selection afterwards is the ordinary
+    /// law: it stays, it lifts nothing while its pane is absent, and it means something
+    /// again when that pane participates again.
+    bool layouts_press(const zengine::input::PointerButton& b, loom::Mail& mail) {
+        const LayoutTabPress tab =
+            band_tab_at(session_, screen_of(session_), b.space, b.x, b.y);
+        if (!tab.hit) {
+            return false;
+        }
+        if (tab.create) {
+            // THE `+` IS THE POINTER'S SPELLING OF `layout.new` AND NOTHING MORE (WUX-11):
+            // the same door, the same ceiling, the same refusal in the same words. It arms
+            // no double-click and begins no drag -- it is not a tab.
+            session_.tab_click = TabClickMemory{};
+            new_layout(mail);
+            return true;
+        }
+        // A SECOND PRESS ON THE SAME TAB RENAMES IT (WUX-11), and the first one has already
+        // made that tab live -- which is why the editor's subject and the switch cannot
+        // disagree. `press_selects_word`'s discipline exactly: the completing press SPENDS
+        // the arming, so there is no triple-click, and a first press is an ordinary switch
+        // with an arming left beside it.
+        const std::int64_t now = interaction_now();
+        if (doubles_a_tab_click(session_.tab_click, tab.at, now)) {
+            session_.tab_click = TabClickMemory{};
+            open_layout_rename(tab.at);
+            return true;
+        }
+        session_.tab_click = TabClickMemory{true, tab.at, now};
+        // AND THE PRESS TAKES HOLD OF THE TAB (WUX-11). A press that becomes a drag
+        // reorders; a press that does not is exactly the switch it always was, because a
+        // drag that never moved lands the layout back where it started. The record holds no
+        // position: the switch below has just made this tab the live one, so what is being
+        // carried is always `setup.active_at`.
+        session_.tab_drag.active = true;
+        switch_layout(tab.at, mail);
+        return true;
+    }
+
     void files_press(const zengine::input::PointerButton& b, bool had_keyboard,
                      loom::Mail& mail) {
         FilesPane& pane = session_.panels.files;
@@ -6882,7 +6910,7 @@ private:
             return;
         }
         session_.setup.naming.line.keep_caret_visible(
-            setup_name_columns(screen_of(session_), session_.keymap));
+            setup_name_columns(session_, screen_of(session_)));
     }
 
     void say(std::string text, bool bad) {

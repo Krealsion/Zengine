@@ -6,7 +6,9 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor` and `Files`.
+- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`, `Files` and
+  `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
+  screen, which is a pane like the rest of them: pick it, move it, cover it, remove it).
 - **external panes** — offered by a loaded weave through a bounded protocol.
   `Loaded`, `Project` and `Powers` arrive this way, from `zengine-introspection`.
 

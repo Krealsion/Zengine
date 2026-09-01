@@ -1055,17 +1055,30 @@ TEST_CASE("WIND-2: the keyboard alone reaches every window operation") {
     enter_arrange_desk(t);
     // STEP: the desk opens on no pane; the first step lands on the first row, and cycling
     // reaches every setup-named pane, and only those.
+    //
+    // ⚠ THE RING IS AS LONG AS THE DESK, and the desk is three rows since WUX-12 (Info,
+    // the Layouts pane, and the Builder this case opened). So the case walks the ring's
+    // own length rather than a count it copied -- which is what makes it a claim about
+    // *cycling returns you where you started* instead of about the number two.
     REQUIRE_FALSE(t.session().arrange.addressed());
     t.key(input::scan::kTab);
     REQUIRE(t.session().arrange.addressed());
     const PaneRef first = t.session().arrange.pane;
-    t.key(input::scan::kTab);
-    CHECK_FALSE(t.session().arrange.pane == first);
+    const std::size_t ring = t.session().setup.active.panes.size();
+    REQUIRE(ring == 3);
+    for (std::size_t i = 1; i < ring; ++i) {
+        CAPTURE(i);
+        t.key(input::scan::kTab);
+        CHECK_FALSE(t.session().arrange.pane == first);
+    }
     t.key(input::scan::kTab);
     CHECK(t.session().arrange.pane == first);
     // ...and the reverse step is the same ring walked backwards.
-    t.key(input::scan::kTab, input::mod::kShift);
-    CHECK_FALSE(t.session().arrange.pane == first);
+    for (std::size_t i = 1; i < ring; ++i) {
+        CAPTURE(i);
+        t.key(input::scan::kTab, input::mod::kShift);
+        CHECK_FALSE(t.session().arrange.pane == first);
+    }
     t.key(input::scan::kTab, input::mod::kShift);
     CHECK(t.session().arrange.pane == first);
 
@@ -1159,7 +1172,7 @@ cells_covered(bounds_of(t.session().panels, t.session().setup.active,
           pane_unit::kDefault);
     t.key(input::scan::k0);
     t.key(input::scan::kO);
-    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1});
+    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
 
     // AND ESCAPE LEAVES, one level at a time. No pointer event has been published at all.
     t.key(input::scan::kEscape);
@@ -1180,7 +1193,10 @@ TEST_CASE("WIND-2: escape unwinds one level and rolls nothing back") {
           pane_unit::kDefault);
 
     // ORDER STILL WORKS ON IT, which is what makes the refusal narrow rather than a dead end.
-    REQUIRE(t.session().setup.active.panes.size() == 1);
+    // Info is at the BACK of a fresh desk (the Layouts pane is in front of it), so `f`
+    // moves it and says so; sending it forward twice is what reaches the no-op sentence.
+    REQUIRE(t.session().setup.active.panes.size() == 2);
+    t.key(input::scan::kF);
     t.key(input::scan::kF);
     CHECK(t.notice().find("already where") != std::string::npos);
 

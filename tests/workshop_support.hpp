@@ -1510,6 +1510,29 @@ inline std::string forged_setup(const Setup& s, const std::string& from, const s
 /// IT SENDS THE TRIGGER'S OWN TEXT EVERY TIME, deliberately. The backends report
 /// `s` as `KeyPressed{S}` AND `TextEntered{"s"}`, and a fixture that sent only
 /// the first would make the swallow untestable from every case that uses it.
+/// The keys the shipped catalog binds to the four layout gestures, read from the keymap
+/// rather than spelled here -- a case that hard-coded `.` would keep passing after a remap
+/// and would be measuring its own literal.
+///
+/// SHARED SINCE WUX-12: the layout run is a pane now, so cases about its GEOMETRY belong to
+/// the screen suite while cases about its gestures stay with the panels -- two suites, one
+/// reading of the keymap.
+struct LayoutKeys {
+    Gesture next;
+    Gesture previous;
+    Gesture make;
+    Gesture drop;
+};
+
+inline LayoutKeys layout_keys(const Live& t) {
+    return LayoutKeys{t.session().keymap.gesture_of(Act::kLayoutNext),
+                      t.session().keymap.gesture_of(Act::kLayoutPrevious),
+                      t.session().keymap.gesture_of(Act::kLayoutNew),
+                      t.session().keymap.gesture_of(Act::kLayoutRemove)};
+}
+
+inline void press_gesture(Live& t, const Gesture& g) { t.key(g.scancode, g.modifiers); }
+
 /// WHERE A PAINTED TAB'S FIRST CELL IS, out of the SAME composition the painter wrote
 /// (WUX-11) -- never a column a case computed, which is HD-3's rule spent on a rig.
 inline std::int64_t tab_column(Live& t, std::size_t at) {
@@ -1701,17 +1724,42 @@ inline void name_setup(Live& t, const std::string& name) {
 
 /// The identity row as a maker reads it, off the canvas at the place the painter
 /// put it -- never rebuilt here, so a case cannot pass while the screen says
-/// something else. Since QR-14 that place is the TOP band's first row, which is the
-/// first row of Workshop.
+/// something else. Since QR-14 that place is the first row of Workshop, and since
+/// WUX-12 it is the LAYOUTS PANE's first interior row, which at the developer
+/// default is the same cell.
 inline std::string setup_row(const surface::SurfaceCanvas& c, const Screen& sc) {
     (void)sc;
     return label_at(c, 0, 0);
 }
 
-/// The workspace-extent fact as a maker reads it -- the top band's SECOND row where the
-/// medium fits one, folded into the identity row where it does not.
-inline std::string workspace_row(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return top_band_fit(sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
+/// The workspace-extent fact as a maker reads it -- the Layouts pane's SECOND row where the
+/// medium fits one, folded into the identity row where it does not. It takes the SESSION
+/// since WUX-12, because how many rows that surface has is a fact about a pane a maker can
+/// resize rather than about the screen.
+inline std::string workspace_row(const surface::SurfaceCanvas& c, const Session& s,
+                                 const Screen& sc) {
+    return layouts_body(s, sc).rows >= 2 ? inspector_row(c, 0, 1) : inspector_row(c, 0, 0);
+}
+
+/// THE LAYOUTS PANE'S PUBLISHED REGION on a canvas, found the way the painter published it
+/// (WUX-12) -- `layouts_body`'s own answer, so a case cannot pass while reading a region
+/// the painter did not write. The old spelling matched the top band's whole rectangle,
+/// which stopped being the region's rectangle the moment the pane grew chrome: the
+/// interior is inset by one device unit on a face that can draw one.
+inline const surface::SurfaceTextRegion* layouts_region_on(const surface::SurfaceCanvas& c,
+                                                           const Session& s,
+                                                           const Screen& sc) {
+    const ExternalBodyPlace place = layouts_body(s, sc);
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceTextRegion& r : layer.texts) {
+            if (r.x == place.region_x && r.y == place.region_y &&
+                r.sub_x == place.region_sub_x && r.sub_y == place.region_sub_y &&
+                r.h == place.region_h && r.sub_h == place.region_sub_h) {
+                return &r;
+            }
+        }
+    }
+    return nullptr;
 }
 
 /// Make this Workshop paint once, the way a Skin claiming the surface makes it:
@@ -2441,6 +2489,19 @@ inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 /// BASE and not what a maker sees: `painted_order` below is the effective one.
 inline std::vector<std::int64_t> authored_order(const Session& s) {
     return presentation_order(s.setup.active, s.panels);
+}
+
+/// WHERE A KIND SITS IN AN ORDER, or -1 -- so a case can state a RELATION between two panes
+/// ("this one is ahead of that one") rather than a position ("this one is last"). A position
+/// is a claim about every other pane on the desk as well, which is how a case about two
+/// panes comes to go red when a third arrives that has nothing to do with it.
+inline std::int64_t index_of(const std::vector<std::int64_t>& order, std::int64_t kind) {
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == kind) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
 }
 
 /// The kinds a setup resolves to, in the order they would be PAINTED -- the authored order

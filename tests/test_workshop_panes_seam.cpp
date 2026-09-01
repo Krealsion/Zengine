@@ -1591,7 +1591,7 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
     said.pane = kHelloPane;
     said.rows.push_back(surface::SurfaceTextRow{"unasked for", surface::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    CHECK(r.session().panels.open.size() == 1); // Info, and only Info
+    CHECK(r.session().panels.open.size() == 2); // Info and Layouts, and nothing else
     CHECK(r.session().panels.external.empty());
     CHECK(r.session().panels.runtime.entries.size() == catalog_before);
 

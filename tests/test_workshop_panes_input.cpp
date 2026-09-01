@@ -417,7 +417,7 @@ TEST_CASE("SEL-0: a press names WHICH pane, when one provider offers two") {
     r.extent(160, 60); // room in the stack for two panes at once
     r.pick(hello_ref());
     r.pick(PaneRef{kHelloOffice, "second"});
-    REQUIRE(r.session().panels.open.size() == 3); // Info and both panes
+    REQUIRE(r.session().panels.open.size() == 4); // Info, Layouts, and both panes
 
     for (const RuntimePane& row : r.session().panels.runtime.entries) {
         CAPTURE(row.pane);
@@ -2612,7 +2612,7 @@ TEST_CASE("MSG-0: selecting a weave in the real Loaded pane retargets the real C
     // AND THE LOADED PANE IS UNTOUCHED BY ANY OF IT. The two tools do not know about
     // each other: one published a fact and stopped, the other heard it and changed
     // its own target. Nothing opened, closed, moved or was hidden.
-    CHECK(r.session().panels.open.size() == 3); // Info, Loaded, Compose
+    CHECK(r.session().panels.open.size() == 4); // Info, Layouts, Loaded, Compose
     CHECK(r.session().panels.has(panel::kInfo));
     CHECK_FALSE(r.session().panels.picker.open);
     CHECK_FALSE(r.session().arrange.open);

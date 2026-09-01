@@ -749,7 +749,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     CHECK(sc.room_w == 70);
     // The workspace fact lives in the band's own row since WUX-1, and it moved with the
     // extent: what a share resolves against is said where the tool speaks.
-    CHECK(workspace_row(c, sc) == "workspace 70x27 cells");
+    CHECK(workspace_row(c, t.session(), sc) == "workspace 70x27 cells");
     // The panel came with the right edge rather than staying at column 50.
     CHECK(inspector_row(c, sc.panel_x + kChromeCells, kSideY + kChromeCells) == "OBJECTS");
     CHECK(properties_heading(c, t.doc(), t.session()) == "PROPERTIES");
@@ -2013,7 +2013,8 @@ TEST_CASE("a panel kind declares its place, and the place resolves to bounds") {
     // stack by Workshop and asks for nothing. That branch is the WP-0 tier's claim (`an
     // unknown runtime reference never becomes the Builder`); `kinds_placed_in` walks
     // `kPanelCatalog` and could not see it.
-    CHECK(kinds_placed_in(placement::kSideRegion) + kinds_placed_in(placement::kOverlayStack) ==
+    CHECK(kinds_placed_in(placement::kSideRegion) + kinds_placed_in(placement::kOverlayStack) +
+              kinds_placed_in(placement::kTopBand) ==
           kPanelKinds);
 
     // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and they are the two places
@@ -2398,10 +2399,12 @@ TEST_CASE("Info is open at boot, and it is a panel rather than furniture") {
     Live t;
     t.key(input::scan::kEscape); // an unbound key: it repaints and changes nothing
 
-    // A FRESH SESSION HAS IT OPEN, and it is the only thing open.
+    // A FRESH SESSION HAS IT OPEN, beside the Layouts pane the layout run became (WUX-12)
+    // -- and those two are the whole of what a fresh Workshop opens.
     const Panels& panels = t.w->session().panels;
-    REQUIRE(panels.open.size() == 1);
+    REQUIRE(panels.open.size() == 2);
     CHECK(panels.open[0].kind == panel::kInfo);
+    CHECK(panels.open[1].kind == panel::kLayouts);
     CHECK(panels.has(panel::kInfo));
     CHECK_FALSE(panels.has(panel::kBuilder));
 
@@ -2445,7 +2448,7 @@ TEST_CASE("Info can be removed, and takes its whole column with it") {
     // AND NOTHING ELSE MOVED. The screen around the hole is the screen it was:
     // the band's workspace fact and the help lines are exactly where they were, because
     // removing a panel is not a re-layout.
-    CHECK(workspace_row(gone, sc) == "workspace 48x16 cells");
+    CHECK(workspace_row(gone, t.session(), sc) == "workspace 48x16 cells");
     CHECK(label_at(gone, 0, sc.help_y).find("n new | d delete") == 0);
 }
 
@@ -2548,7 +2551,7 @@ TEST_CASE("Builder and Info are present independently -- all four states") {
     open_builder(t);
     CHECK_FALSE(shows_info());
     CHECK_FALSE(shows_builder());
-    CHECK(workspace_row(t.canvases.back(), screen_of(t.session())) ==
+    CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
           "workspace 48x16 cells");
 
     // And back to both, in the other order.
@@ -2617,7 +2620,7 @@ TEST_CASE("the document is still a document with Info removed") {
     CHECK(t.w->document().elements.size() == born);
 
     // ...and the picture kept up the whole time, in the workspace where it lives.
-    CHECK(workspace_row(t.canvases.back(), screen_of(t.session())) ==
+    CHECK(workspace_row(t.canvases.back(), t.session(), screen_of(t.session())) ==
           "workspace 48x16 cells");
 
     // Reopening finds the document that was authored while nobody was showing it.
@@ -5093,8 +5096,14 @@ TEST_CASE("WUX-4: not every true pane state deserves ambient attention") {
     CHECK(attention_conditions(s).empty());
 
     // CLOSED: a state with an available action, and deliberately not a warning.
+    //
+    // ⚠ THE DESK IS NAMED RATHER THAN INHERITED. This used to append a row to whatever
+    // `Session`'s own default was, which is a fixture that quietly means "the product
+    // default plus one" -- and a product default that grows (WUX-12 added the Layouts pane)
+    // then puts an authored-but-unopened pane into a case about a CLOSED one. What the case
+    // means is one desk naming Info alone, so it says that.
     Session closed;
-    closed.setup.active.panes.push_back(s.setup.active.panes[1]);
+    closed.setup.active = setup_of("Info only", {panel::kInfo});
     closed.panels.open = {Panel{panel::kInfo}};
     REQUIRE(pane_state_of(closed.panels, closed.setup.active, screen_of(closed),
                           CatalogRow{panel::kBuilder, builder, "Builder", ""}) ==
@@ -5657,7 +5666,9 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
     Live t;
     open_pane(t, ref_of(panel::kBuilder));
     const std::int64_t doc_selected = t.session().selected;
-    REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1});
+    // Info, the Layouts pane, and the Builder this case just opened -- the identity
+    // permutation `add_pane` assigns, in list order.
+    REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
 
     // Point at the BUILDER and send it to the back through the Order group.
     const ui::Rect slot = cells_covered(
@@ -5676,7 +5687,7 @@ TEST_CASE("CTX-0: a contextual action acts on the pointed pane, not the selectio
 
     // The pointed pane moved; the maker's own selections stayed exactly where they were,
     // and no arrangement state opened -- an ordering verb is one request, not a mode.
-    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 0});
+    CHECK(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{1, 2, 0});
     CHECK_FALSE(t.session().arrange.open);
     CHECK_FALSE(t.session().arrange.addressed());
     CHECK(t.session().selected == doc_selected);
@@ -6217,25 +6228,6 @@ TEST_CASE("WUX-7: hovering a clipped object row reads past its ellipsis, and not
 
 namespace {
 
-/// The keys the shipped catalog binds to the four layout gestures, read from the keymap
-/// rather than spelled here -- a case that hard-coded `.` would keep passing after a
-/// remap and would be measuring its own literal.
-struct LayoutKeys {
-    Gesture next;
-    Gesture previous;
-    Gesture make;
-    Gesture drop;
-};
-
-LayoutKeys layout_keys(const Live& t) {
-    return LayoutKeys{t.session().keymap.gesture_of(Act::kLayoutNext),
-                      t.session().keymap.gesture_of(Act::kLayoutPrevious),
-                      t.session().keymap.gesture_of(Act::kLayoutNew),
-                      t.session().keymap.gesture_of(Act::kLayoutRemove)};
-}
-
-void press_gesture(Live& t, const Gesture& g) { t.key(g.scancode, g.modifiers); }
-
 /// The names of the layouts this Workshop is holding, in the maker's order.
 std::vector<std::string> layout_names(const Live& t) {
     std::vector<std::string> out;
@@ -6436,7 +6428,18 @@ TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row 
     CHECK(t.session().setup.active_at == 1);
 }
 
-TEST_CASE("WUX-9/SC-5+SC-9: a tab press is not a press on a pane") {
+TEST_CASE("WUX-12/SC-4+SC-8: a tab press IS a press on the Layouts pane, and still switches") {
+    // ⭐ THE LAW THIS CASE STATES WAS REVERSED BY WUX-12, DELIBERATELY, AND THE REVERSAL IS
+    // THE CONVERSION. It used to say *a press on the band is not a press on a pane, so the
+    // line that records which pane the maker is pointing at must not run for it* -- which
+    // was true only because the tab run lived in a rectangle no pane could own. It is a
+    // pane's interior now, so pointing at a tab is pointing at the Layouts pane and the desk
+    // says so with selected chrome, exactly as pointing at Files or the Editor does. An
+    // exemption here would have been the one place the conversion stopped short: a surface
+    // that owns the point but does not become the thing you are pointing at.
+    //
+    // WHAT DID NOT CHANGE is everything the press MEANS: the tab under the hand becomes the
+    // live layout, through the same door the key spends.
     Live t;
     t.host.setup_path = "workshop-setup.json";
     const LayoutKeys k = layout_keys(t);
@@ -6450,15 +6453,16 @@ TEST_CASE("WUX-9/SC-5+SC-9: a tab press is not a press on a pane") {
 
     press_gesture(t, k.make);
     live(t).setup.active.name = "Other";
-    // THE ROW THE TABS ARE PAINTED ON, which since QR-14 is the FIRST row of Workshop.
+    // THE ROW THE TABS ARE PAINTED ON, which is the Layouts pane's first interior row.
     const std::int64_t band_row = top_band_bounds(screen_of(t.session())).y;
     t.press_canvas(tab_cell(t, 0), band_row);
 
-    // THE SELECTION SURVIVES THE PRESS. A press on the band is not a press on the
-    // workspace and not a press on a pane, so the one line that clears both facts must
-    // not run for it.
+    // THE SWITCH HAPPENED...
     CHECK(t.session().setup.active_at == 0);
-    CHECK(t.session().panels.selected == panel::kBuilder);
+    // ...AND THE MAKER IS NOW POINTING AT THE PANE THEY PRESSED. One press, one reading,
+    // one pane -- `Panels::selected` is written by the same line that writes it for every
+    // other pane, off the same occupancy walk.
+    CHECK(t.session().panels.selected == panel::kLayouts);
 }
 
 TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
