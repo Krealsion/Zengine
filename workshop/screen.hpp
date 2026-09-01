@@ -1202,9 +1202,9 @@ inline constexpr FineRect picker_bounds(const Screen& sc) noexcept {
 /// reserves beside the workspace, and a view placed here is a MODE with a rectangle --
 /// the picker's own kind of place, one slot taller.
 ///
-/// It is the attention view's rectangle outright, and the hotkey view's when nothing is
-/// selected (WUX-5) -- so the two are one arithmetic and the no-selection fallback is
-/// byte-for-byte the place this view has always opened at.
+/// It is the attention view's rectangle outright, and the CORNER the hotkey view anchors to
+/// when nothing is selected (WUX-5; sized to its own rows since QR-17) -- so the two share
+/// one origin and the no-selection fallback opens at the place this view has always opened.
 inline constexpr FineRect overlay_column(const Screen& sc) noexcept {
     const ui::Rect slot = placement_bounds(placement::kOverlayStack, 0, sc);
     return fine_of_cells(ui::Rect{slot.x, slot.y, slot.w, kWorkspaceY + sc.room_h - slot.y});
@@ -2197,69 +2197,6 @@ struct Session {
 /// pane's capacity from `terminal_w` and be quietly wrong on a graphical medium.
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px);
-}
-
-/// WHERE THE FULL HOTKEY VIEW OPENS (KEY-0, anchored to the selection by WUX-5): at the
-/// SELECTED PANE'S own top-left, not at the corner of the screen.
-///
-/// Contextual help belongs beside the tool a maker is using. The anchor is the selected
-/// pane's VISIBLE OUTER rectangle -- the boundary the eye and the hand already meet -- and
-/// the view follows it with nothing stored: this is derived at every paint and every press
-/// from the selection and the live screen, exactly as the contextual popup's bounds are,
-/// so moving or resizing the pane moves the help on the next projection and no position is
-/// ever written to a file.
-///
-/// THE SIZE IS THE ROOM UNDER THE ANCHOR, floored so the view stays a view. A pane near
-/// the bottom of the workspace would otherwise anchor a two-row help list; the floor is
-/// `kPickerRows` -- this screen's own existing answer to "the smallest useful overlay
-/// list", not a number minted here -- and a view that cannot start at the anchor is
-/// SHIFTED UP whole rather than drawn outside the room, which is `context_bounds`'s clamp
-/// spelled for the same band. The list already says what it could not show, so a shorter
-/// view is honest rather than silent.
-///
-/// AND WITH NO SELECTION IT IS THE OVERLAY COLUMN, byte-for-byte where this view has
-/// always opened: a maker who has pointed at nothing gets the global help at the global
-/// place. Nothing invents a selection to anchor to (WUX-5's own rule), and a selected pane
-/// with no rectangle on this screen -- off-room, refused, waiting -- takes the same
-/// fallback, because an anchor nobody can see is not an anchor.
-inline FineRect hotkeys_bounds(const Session& s, const Screen& sc) {
-    const FineRect column = overlay_column(sc);
-    const std::int64_t chosen = selected_pane(s.panels);
-    if (chosen == kNoPaneKind) {
-        return column;
-    }
-    const FineRect anchor = bounds_of(s.panels, s.setup.active, chosen, sc).rect;
-    if (anchor.w <= 0 || anchor.h <= 0) {
-        return column;
-    }
-    // THE ANCHOR IS A CELL CORNER. The view is screen furniture and never moves by less
-    // than a cell -- `picker_bounds`'s own rule -- so the pane's fine top-left is read at
-    // the cell grain it is drawn on, which is also where its visible boundary is.
-    const ui::Rect at = cells_covered(anchor);
-    const ui::Rect room = cells_covered(column);
-    const std::int64_t floor_y = room.y + room.h;
-    std::int64_t y = at.y;
-    std::int64_t h = floor_y - y;
-    if (h < kPickerRows) {
-        h = kPickerRows;
-    }
-    if (h > room.h) {
-        h = room.h;
-    }
-    if (y + h > floor_y) {
-        y = floor_y - h;
-    }
-    if (y < room.y) {
-        y = room.y;
-    }
-    std::int64_t x = at.x;
-    if (x + room.w > sc.w) {
-        x = sc.w - room.w;
-    }
-    if (x < 0) {
-        x = 0;
-    }
-    return fine_of_cells(ui::Rect{x, y, room.w, h});
 }
 
 /// DOES THE SOURCE EDITOR HAVE THE KEYBOARD RIGHT NOW? -- `keyboard_pane`'s discipline for
@@ -5552,10 +5489,56 @@ inline bool pane_window_partly_default(const SetupPane* row) {
 // desk's keyboard reaches an invisible pane by stepping to it -- the notice names it
 // and its state, which is the recovery path said in words instead of a list.
 
+// ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED (ARR-0; one function since QR-17) -----------
+
+/// WHERE A SURFACE SIZED BY ITS OWN CONTENT OPENS, asked at an anchor: the arithmetic
+/// `context_bounds` has spent since ARR-0, quarried out at QR-17 so the full hotkey view
+/// spends the same sentence rather than a second one that agrees with it today.
+///
+/// The extent is the content's columns and rows read backwards into whole cells through
+/// the one text measurer (`surface::region_cells_for`; a second inversion here would drift
+/// from `fit_region` by an inset), then grown by the chrome the surface wears
+/// (`chrome_outer_of`, the one inset read backwards) so the content lands INSIDE its own
+/// boundary. The room is the band the overlay stack itself respects: under the reserved
+/// top rows, above the bottom band, inside the canvas -- and the surface SHIFTS to stay
+/// whole inside it, so an anchor near the screen's far corner reads its surface just inside
+/// that corner. Content taller than the band keeps the band's height and content wider than
+/// the canvas keeps the canvas's width; what was cut is then the painter's to say, in the
+/// sentence every bounded list here speaks.
+///
+/// A WHOLE-CELL RECTANGLE ON EVERY FACE, deliberately (WUX-8): the boundary it reserves is
+/// the coarsest any face spends, and a face that draws a thinner one hands the difference
+/// to the interior. So on a character medium the interior is EXACTLY the content, and on
+/// the shipped face it is the content plus the face's own slack -- never less.
+inline FineRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
+                                std::int64_t x, std::int64_t y, const Screen& sc) {
+    const surface::RegionCells cells =
+        surface::region_cells_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
+    const ui::Rect outer = chrome_outer_of(0, 0, cells.w, cells.h);
+    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
+    const std::int64_t w = outer.w > sc.w ? sc.w : outer.w;
+    const std::int64_t room_rows = floor_y - kStackY;
+    const std::int64_t h = outer.h > room_rows ? room_rows : outer.h;
+    if (x + w > sc.w) {
+        x = sc.w - w;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    if (y + h > floor_y) {
+        y = floor_y - h;
+    }
+    if (y < kStackY) {
+        y = kStackY;
+    }
+    return fine_of_cells(ui::Rect{x, y, w, h});
+}
+
 // ---- THE FULL HOTKEY VIEW (KEY-0) -----------------------------------------------------
 //
-// THE PICKER'S OWN SURFACE, WITH A THIRD PURPOSE: the same slot, the same frame, the same
-// bounded region of prose. It is a PROJECTION and not an owner -- every row is derived
+// THE PICKER'S OWN SURFACE, WITH A THIRD PURPOSE: the same frame, the same bounded region
+// of prose -- at a rectangle that is its content's own since QR-17 (`hotkeys_bounds`)
+// rather than a slot's. It is a PROJECTION and not an owner -- every row is derived
 // from the keymap and the component's declaration rows at this paint, nothing here is
 // stored, there is no cursor, no scroll state and no press vocabulary. It answers for
 // the context BENEATH it: the view is not a context of its own (`HotkeysView`), so
@@ -5590,51 +5573,53 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     }
 }
 
-inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
-    if (!s.hotkeys.open) {
-        return;
-    }
-    const FineRect b = hotkeys_bounds(s, sc);
-    paint_panel_frame(layer, b, kTransientChrome);
-    const PanelProsePlace place = panel_prose_place(b, sc);
-    if (!place.present) {
-        return; // a slot with no room for a row says nothing rather than lying about the room
-    }
+/// ONE ROW OF THE VIEW AS IT IS PRESENTED: what a maker reads, and the role it is said in.
+struct HotkeyRow {
+    std::string text;
+    std::int64_t role;
+};
+
+/// THE ROWS, COMPOSED WHOLE -- the view's one composition, spent by its extent and by its
+/// painter alike (QR-17). The heading is row 0; then the groups, labeled by the layer that
+/// owns them, because "which layer answers this key" is the question a context list exists
+/// to answer: the context's own rows, then what is answered above the chain, then the
+/// component's editing vocabulary wherever a text box has the keys -- shown from the
+/// component's OWN declaration rows and marked as not remappable, because their executable
+/// truth is `TextBox::consume` and not this keymap.
+///
+/// PAINTED ROW i IS COMPOSED ROW i. Nothing here is stored and nothing here is cut: this is
+/// the whole list, and it is what `hotkeys_bounds` measures to size the view, so a row
+/// added here widens or lengthens the rectangle on the next paint with no second number to
+/// keep true (the one-composition rule `context_row_text` keeps for the contextual
+/// surface, HD-3). The cut -- where the room is genuinely smaller than the list -- is the
+/// painter's (`paint_hotkeys`), and it is counted there.
+inline std::vector<HotkeyRow> hotkeys_rows(const Session& s) {
     const KeyContext ctx = keyboard_context(s);
     const Keymap& k = s.keymap;
-
-    // THE ROWS, COMPOSED WHOLE AND THEN CUT HONESTLY. Groups are labeled by the layer
-    // that owns them, because "which layer answers this key" is the question a context
-    // list exists to answer: the context's own rows, then what is answered above the
-    // chain, then the component's editing vocabulary wherever a text box has the keys --
-    // shown from the component's OWN declaration rows and marked as not remappable,
-    // because their executable truth is `TextBox::consume` and not this keymap.
-    struct ViewRow {
-        std::string text;
-        std::int64_t role;
-    };
-    std::vector<ViewRow> rows;
+    std::vector<HotkeyRow> rows;
     const auto entry = [&rows](const std::string& gesture, const std::string& label) {
-        rows.push_back(ViewRow{"  " + detail::pad(gesture, 14) + label,
-                               surface::role::kFill});
+        rows.push_back(HotkeyRow{"  " + detail::pad(gesture, 14) + label,
+                                 surface::role::kFill});
     };
     const auto group = [&rows](const std::string& name) {
-        if (!rows.empty()) {
-            rows.push_back(ViewRow{std::string(), surface::role::kMuted});
+        if (rows.size() > 1) { // a blank row between groups; none under the heading
+            rows.push_back(HotkeyRow{std::string(), surface::role::kMuted});
         }
-        rows.push_back(ViewRow{name, surface::role::kAccent});
+        rows.push_back(HotkeyRow{name, surface::role::kAccent});
     };
 
+    rows.push_back(HotkeyRow{"HOTKEYS -- " + hotkey_text(k, Act::kHotkeys) + " or esc closes",
+                             surface::role::kAccent});
     group(keyboard_context_name(s, ctx));
     if (ctx == KeyContext::kPane) {
         // THE HONEST WHOLE OF A PANE'S KEY STORY. Workshop forwards every ordinary key
         // and every character uninterpreted and is deliberately never told what they
         // mean (the seam's own doctrine), so the one truthful sentence is ownership --
         // pretending to know a provider's bindings would be a claim made out of silence.
-        rows.push_back(ViewRow{"  every ordinary key and character goes to the pane;",
-                               surface::role::kFill});
-        rows.push_back(ViewRow{"  what each one means there is the provider's own.",
-                               surface::role::kFill});
+        rows.push_back(HotkeyRow{"  every ordinary key and character goes to the pane;",
+                                 surface::role::kFill});
+        rows.push_back(HotkeyRow{"  what each one means there is the provider's own.",
+                                 surface::role::kFill});
     } else {
         for (const ActionRow& row : kActionCatalog) {
             if (row.context == ctx) {
@@ -5672,26 +5657,95 @@ inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const 
             entry(gesture_text(Gesture{g.scancode, g.modifiers}), g.label);
         }
     }
+    return rows;
+}
 
+/// WHERE THE FULL HOTKEY VIEW OPENS, AND HOW BIG IT IS (KEY-0; anchored to the selection by
+/// WUX-5; sized to its content by QR-17).
+///
+/// THE ANCHOR is the selected pane's own top-left, not the corner of the screen.
+/// Contextual help belongs beside the tool a maker is using. It is the pane's VISIBLE OUTER
+/// rectangle -- the boundary the eye and the hand already meet -- and the view follows it
+/// with nothing stored: this is derived at every paint and every press from the selection
+/// and the live screen, exactly as the contextual popup's bounds are, so moving or resizing
+/// the pane moves the help on the next projection and no position is ever written to a file.
+///
+/// THE EXTENT IS THE CONTENT'S: the rows this view will paint (`hotkeys_rows`), measured --
+/// the longest of them across, all of them down -- and read into a rectangle by
+/// `popup_bounds_at`, the one arithmetic the contextual surface has spent since ARR-0: the
+/// one measurer, the chrome read backwards, the shift that keeps it whole inside the band.
+/// A view of few rows is short and a view of long rows is wide, and there is no other
+/// number here to disagree with them. It used to be the overlay column's width and the
+/// room under the anchor, floored at `kPickerRows` -- a box sized by a slot the screen
+/// reserves for panes, not by what the view says; the floor went with the box, because
+/// the content already keeps a view a view. Where the room is genuinely smaller than the
+/// list, `popup_bounds_at` keeps the room and `paint_hotkeys` says what it cut.
+///
+/// AND WITH NO SELECTION IT OPENS AT THE OVERLAY COLUMN'S CORNER, where this view has
+/// always opened: a maker who has pointed at nothing gets the global help at the global
+/// place. Nothing invents a selection to anchor to (WUX-5's own rule), and a selected pane
+/// with no rectangle on this screen -- off-room, refused, waiting -- takes the same
+/// fallback, because an anchor nobody can see is not an anchor.
+inline FineRect hotkeys_bounds(const Session& s, const Screen& sc) {
+    const std::vector<HotkeyRow> rows = hotkeys_rows(s);
+    std::int64_t want_cols = 0;
+    for (const HotkeyRow& row : rows) {
+        const std::int64_t len = static_cast<std::int64_t>(row.text.size());
+        want_cols = len > want_cols ? len : want_cols;
+    }
+    const std::int64_t want_rows = static_cast<std::int64_t>(rows.size());
+    const ui::Rect corner = cells_covered(overlay_column(sc));
+    std::int64_t x = corner.x;
+    std::int64_t y = corner.y;
+    const std::int64_t chosen = selected_pane(s.panels);
+    if (chosen != kNoPaneKind) {
+        const FineRect anchor = bounds_of(s.panels, s.setup.active, chosen, sc).rect;
+        if (anchor.w > 0 && anchor.h > 0) {
+            // THE ANCHOR IS A CELL CORNER. The view is screen furniture and never moves by
+            // less than a cell -- `picker_bounds`'s own rule -- so the pane's fine top-left
+            // is read at the cell grain it is drawn on, which is also where its visible
+            // boundary is.
+            const ui::Rect at = cells_covered(anchor);
+            x = at.x;
+            y = at.y;
+        }
+    }
+    return popup_bounds_at(want_cols, want_rows, x, y, sc);
+}
+
+inline void paint_hotkeys(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    if (!s.hotkeys.open) {
+        return;
+    }
+    const FineRect b = hotkeys_bounds(s, sc);
+    paint_panel_frame(layer, b, kTransientChrome);
+    const PanelProsePlace place = panel_prose_place(b, sc);
+    if (!place.present) {
+        return; // a place with no room for a row says nothing rather than lying about the room
+    }
+    // THE SAME ROWS THE EXTENT WAS MEASURED FROM (QR-17), so on a character medium every one
+    // of them lands whole on its own row, and on the shipped face the same holds with the
+    // face's slack to spare.
+    const std::vector<HotkeyRow> rows = hotkeys_rows(s);
     surface::SurfaceTextRegion region = panel_prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
         region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
     };
-    say("HOTKEYS -- " + hotkey_text(k, Act::kHotkeys) + " or esc closes",
-        surface::role::kAccent);
-    const std::size_t budget =
-        place.rows > 1 ? static_cast<std::size_t>(place.rows - 1) : 0;
-    // NO CURSOR, SO NO WINDOW TO KEEP IT IN: the list is cut at the room and the cut is
-    // counted, the completion list's own wording -- this place cannot show a row AND tell
-    // a maker what it is hiding, so it tells them.
+    // NO CURSOR, SO NO WINDOW TO KEEP IT IN: where the room is smaller than the list, the
+    // list is cut at the room and the cut is counted, the completion list's own wording --
+    // this place cannot show a row AND tell a maker what it is hiding, so it tells them.
+    // The heading is row 0 of the composition and survives a one-row room; the marker
+    // takes a row only where one is spare.
+    const std::size_t budget = static_cast<std::size_t>(place.rows);
+    const bool cut = rows.size() > budget;
     std::size_t shown = rows.size();
-    if (rows.size() > budget) {
-        shown = budget > 0 ? budget - 1 : 0;
+    if (cut) {
+        shown = budget > 1 ? budget - 1 : budget;
     }
     for (std::size_t i = 0; i < shown; ++i) {
         say(rows[i].text, rows[i].role);
     }
-    if (shown < rows.size() && budget > 0) {
+    if (cut && budget > 1) {
         say("  " + omitted_text(rows.size() - shown, "more"), surface::role::kMuted);
     }
     layer.texts.push_back(std::move(region));
@@ -6118,15 +6172,14 @@ inline std::string context_row_text(const Session& s, const ContextEntry& entry,
 /// WHERE THE CONTEXTUAL SURFACE OPENS (ARR-0): beside the press that asked, sized by what
 /// it has to say.
 ///
-/// The extent is the level's own composition -- ONLY its rows since WUX-5 -- read backwards
-/// into whole cells through the one text measurer (`surface::region_cells_for`; a second
-/// inversion here would drift from `fit_region` by an inset), then grown by the chrome the
-/// surface wears (`chrome_outer_of`, the one inset read backwards) so the content lands
-/// INSIDE its own boundary. The room is the band the overlay stack itself respects: under
-/// the retired top row, above the setup line, inside the canvas -- and the popup SHIFTS to
-/// stay whole inside it, so a click near the screen's far corner reads its menu just inside
-/// that corner. A level taller than the room keeps the room's height and lets `list_window`
-/// say what was cut, the same sentence every bounded list here speaks.
+/// The extent is the level's own composition -- ONLY its rows since WUX-5 -- and the
+/// arithmetic that turns those rows into a rectangle inside the room is `popup_bounds_at`:
+/// the one measurer read backwards, the chrome, the band the overlay stack respects and the
+/// shift that keeps the popup whole inside it. This function has spent that sentence since
+/// ARR-0 and the full hotkey view spends it since QR-17, so a click near the screen's far
+/// corner and a help list beside a low pane are clamped by one law. A level taller than the
+/// room keeps the room's height and lets `list_window` say what was cut, the same sentence
+/// every bounded list here speaks.
 ///
 /// THE WIDTH IS THE CONTENT'S NOW, AND THAT IS THE WHOLE OF THE SHRINK. The removed
 /// heading and hint were the widest strings on most levels, so they were the width floor;
@@ -6148,13 +6201,6 @@ inline FineRect context_bounds(const Session& s, const Screen& sc) {
     }
     want_cols = want_cols > kContextMaxCols ? kContextMaxCols : want_cols;
     const std::int64_t want_rows = static_cast<std::int64_t>(rows.size());
-    const surface::RegionCells cells =
-        surface::region_cells_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
-    const ui::Rect outer = chrome_outer_of(0, 0, cells.w, cells.h);
-    const std::int64_t floor_y = kWorkspaceY + sc.room_h;
-    const std::int64_t w = outer.w > sc.w ? sc.w : outer.w;
-    const std::int64_t room_rows = floor_y - kStackY;
-    const std::int64_t h = outer.h > room_rows ? room_rows : outer.h;
     std::int64_t x = menu.anchor_x;
     std::int64_t y = menu.anchor_y;
     if (!menu.anchored) {
@@ -6162,19 +6208,7 @@ inline FineRect context_bounds(const Session& s, const Screen& sc) {
         x = slot.x;
         y = slot.y;
     }
-    if (x + w > sc.w) {
-        x = sc.w - w;
-    }
-    if (x < 0) {
-        x = 0;
-    }
-    if (y + h > floor_y) {
-        y = floor_y - h;
-    }
-    if (y < kStackY) {
-        y = kStackY;
-    }
-    return fine_of_cells(ui::Rect{x, y, w, h});
+    return popup_bounds_at(want_cols, want_rows, x, y, sc);
 }
 
 // `context_row_budget` IS GONE WITH THE HEADING ROWS (WUX-5). It subtracted them from the
