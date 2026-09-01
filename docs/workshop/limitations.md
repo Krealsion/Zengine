@@ -300,6 +300,19 @@ reveals what was underneath, unchanged and unrebuilt. That is a real, proven cap
 The Loom's `Kernel::reload_from` exists and has open provider-custody caveats; nothing in
 Workshop reaches it.
 
+### The Pane Editor edits the pane grammar that exists, and no more
+
+[The Pane Editor](panes.md#the-pane-editor--a-pane-as-a-subject) edits exactly what a pane's
+setup row can say today: an absolute place, a width, a height, a rank in the front order, and
+whether the pane is on the layout. It shows the resolved rectangle and state beside them. It
+does not author anchors, fill, docking, snapping, locks, sibling-relative or parent-relative
+placement, because no pane can hold those yet; it does not edit what a pane *does*, wire panes
+together, or reach a loaded weave's own state; and it has no contextual "edit this pane" row
+in the right-click menu — its own list is the door. Its default height is the stack's nine
+rows, which shows three panes and three rows at a time; `=` in the desk arrangement makes it
+usable, and that default is [the same open question](#panes-are-9-rows-tall-by-default-and-a-bigger-terminal-does-not-change-that)
+every stacked pane has.
+
 ### No cross-pane interaction
 
 You cannot drag a semantic object from one pane into another. There is no drag-and-drop between

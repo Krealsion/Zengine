@@ -706,6 +706,31 @@ TEST_CASE("a forged room grants the provider nothing") {
 
 // ---- The picker, over the combined population -------------------------------------
 
+/// STEP THE OPEN PICKER'S CURSOR ONTO A ROW, so the window shows it. Since WUX-13 the
+/// built-in half is six rows, and at the minimum composition the picker's six-row body
+/// windows a seventh (`list_window`'s own rule: the selected row is always in the window,
+/// the rest is counted) -- so a case that reads an offered pane's row reads it where the
+/// picker actually paints it, on the cursor, rather than assuming the whole list fits.
+void picker_onto(PaneRig& r, const PaneRef& ref) {
+    REQUIRE(r.session().panels.picker.open);
+    const std::vector<CatalogRow> rows =
+        inventory_rows(r.session().setup.active, r.session().panels);
+    std::size_t want = rows.size();
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].ref == ref) {
+            want = i;
+        }
+    }
+    REQUIRE(want < rows.size());
+    for (std::size_t guard = 0; guard <= rows.size(); ++guard) {
+        if (r.session().panels.picker.cursor == want) {
+            break;
+        }
+        r.key(input::scan::kDown);
+    }
+    REQUIRE(r.session().panels.picker.cursor == want);
+}
+
 TEST_CASE("with no provider the picker is byte-for-byte the picker it was") {
     // THE CONTROL FOR THE WHOLE WINDOWING CHANGE. A population that fits renders
     // exactly as it did before `list_window` was spent here.
@@ -728,6 +753,7 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
     r.key(input::scan::kP);
+    picker_onto(r, hello_ref());
     const std::string closed = stack_text(r.last_canvas());
     // THROUGH THE ROW'S OWN OWNER, so the case reads what the painter wrote rather than a
     // second spelling of it (WIND-2). At the minimum composition this row is two cells
@@ -737,13 +763,14 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     // case measuring a row nobody paints.
     const ui::Rect slot = pane_body_cells(picker_bounds(screen_of(r.session())));
     CHECK(closed.find(detail::fit(
-              "  " + picker_entry_text("Hello", "closed", "a bounded external greeting"),
+              "> " + picker_entry_text("Hello", "closed", "a bounded external greeting"),
               slot.w)) != std::string::npos);
     CHECK(closed.find(detail::kElided) != std::string::npos);
 
     r.key(input::scan::kEscape);
     r.pick(hello_ref());
     r.key(input::scan::kP);
+    picker_onto(r, hello_ref());
     const std::string open = stack_text(r.last_canvas());
     CHECK(open.find(detail::pad("Hello", kPickerNameCols) + "open") != std::string::npos);
     r.key(input::scan::kEscape);
@@ -753,6 +780,7 @@ TEST_CASE("the combined picker lists an offered pane with its name, summary and 
     r.pick(hello_ref());
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     r.key(input::scan::kP);
+    picker_onto(r, hello_ref());
     CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
 }
 
@@ -1085,11 +1113,15 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     CHECK(check_setup(r.session().setup.active).accepted);
     CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 
-    // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`.
+    // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`. Two rows, read where
+    // the six-row window shows each: the first with the cursor at the top, the seventh
+    // with the cursor on it.
     r.key(input::scan::kP);
+    CHECK(stack_text(r.last_canvas()).find(detail::pad("Builder", kPickerNameCols) + "open") !=
+          std::string::npos);
+    picker_onto(r, hello_ref());
     const std::string shown = stack_text(r.last_canvas());
     CHECK(shown.find(detail::pad("Hello", kPickerNameCols) + "waiting") != std::string::npos);
-    CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "open") != std::string::npos);
     r.key(input::scan::kEscape);
 
     // GROWTH OPENS IT, with no gesture at all.
@@ -1128,6 +1160,7 @@ TEST_CASE("selecting a waiting row removes the intent, exactly as selecting an o
     CHECK_FALSE(has_pane(r.session().setup.active, hello_ref()));
     CHECK_FALSE(r.session().panels.waiting(hello));
     r.key(input::scan::kP);
+    picker_onto(r, hello_ref());
     CHECK(stack_text(r.last_canvas()).find(detail::pad("Hello", kPickerNameCols) + "closed") != std::string::npos);
 }
 
@@ -1428,6 +1461,7 @@ TEST_CASE("WIND-2a: an external pane's own text cannot bury the surface that rec
     // not one row of it is the provider's.
     r.key(input::scan::kP);
     REQUIRE(r.session().panels.picker.open);
+    picker_onto(r, hello_ref());
     const std::string picker = stack_text(r.last_canvas());
     INFO(picker);
     CHECK(picker.find("+ PANEL") != std::string::npos);

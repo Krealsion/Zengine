@@ -64,6 +64,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -1740,6 +1742,46 @@ struct PaneArrange {
     bool addressed() const { return !pane.provider.empty(); }
 };
 
+/// THE PANE EDITOR'S OWN STATE (WUX-13): which pane it is DESCRIBING, and where a maker's
+/// hands are inside it. Session, beside `arrange`, for `arrange`'s own reason -- it is
+/// neither a presentation nor authored intent, it is the maker's hand halfway through a
+/// sentence, and it dies with the process. Nothing here is persisted: a subject is an
+/// interaction fact, and a layout file that remembered "what the editor was looking at"
+/// would be a presentation preference riding an authored artifact.
+///
+/// THE SUBJECT IS AN IDENTITY, NEVER A ROW INDEX AND NEVER `Panels::selected`. The two
+/// selections answer different questions and only sometimes coincide:
+///
+///     Panels::selected      which pane the maker is presently interacting WITH -- the
+///                           pane they last pressed into, lifted and ringed
+///     PaneEditor::subject   which pane the maker asked the editor to DESCRIBE and edit
+///
+/// Pressing into the Pane Editor selects the Pane Editor -- that is what pointing at a
+/// pane means -- and must not retarget the thing being edited, or every edit would be an
+/// edit of the editor. So the subject is written by exactly one gesture (choosing a row
+/// of the PANES list, by key or by press) and read by everything else. It survives a
+/// layout switch, a provider going away and its own pane closing, because a `PaneRef`
+/// names a pane whether or not this build can currently present it: a closed catalog pane
+/// is a valid CLOSED subject, an authored ref no office resolves is a valid UNRESOLVED
+/// subject. Only a fresh view proving the ref is in neither the pane vocabulary nor the
+/// active setup clears it (`pane_editor_subject_row`), and that view is taken at a
+/// gesture, never on paint.
+///
+/// `rows` ARE REBUILT WHEN THE SUBJECT CHANGES AND READ FRESH AT EVERY DISPLAY. Each row
+/// closes over the session and the subject's identity, so an authored value, a resolved
+/// rectangle and a state word are all recomputed at the moment they are read -- there is
+/// no cached rectangle here to become the stale-number lie the authored/resolved split
+/// exists to prevent.
+struct PaneEditor {
+    PaneRef subject;               ///< the pane described; an empty provider is "none"
+    std::size_t cursor = 0;        ///< the PANES list's cursor; bounded at use
+    std::vector<Row> rows;         ///< the subject's rows, in the order the body paints them
+    std::size_t row_cursor = 0;    ///< which of those rows the keys are on
+    bool on_rows = false;          ///< the keys are in the rows (true) or the PANES list
+
+    bool addressed() const { return !subject.provider.empty(); }
+};
+
 /// A PANE GESTURE IN FLIGHT. Session, emphatically not content.
 ///
 /// ONE PRESS CLAIMS ONE GESTURE UNTIL RELEASE, and everything below is what that costs: the
@@ -1787,6 +1829,7 @@ inline constexpr std::int64_t kNone = 0;
 inline constexpr std::int64_t kTerminalLine = 1;  ///< the Terminal pane's editable line
 inline constexpr std::int64_t kPropertyDraft = 2; ///< the Inspector's live draft row
 inline constexpr std::int64_t kEditorBody = 3;    ///< the source editor's document body
+inline constexpr std::int64_t kPaneEditorDraft = 4; ///< the Pane Editor's live draft row (WUX-13)
 } // namespace text_drag_place
 
 struct TextDrag {
@@ -2091,6 +2134,10 @@ struct Session {
     /// variable for both would make "a release ends the gesture it began" a question about
     /// which kind of thing was underneath rather than a fact about the press.
     PaneGesture pane_drag;
+    /// THE PANE EDITOR'S SUBJECT AND CURSORS (WUX-13) -- see `PaneEditor`. Session and not
+    /// pane state, so that closing the editor's own presentation forgets nothing a maker
+    /// chose, and never persisted, because a subject is a fact about a maker's attention.
+    PaneEditor pane_editor;
     /// THE SOURCE DOCUMENT THIS SESSION IS EDITING (editor.hpp) -- the path, the multiline
     /// buffer with its caret/selection/history, the saved copy the dirty answer derives
     /// from, and the viewport. Session and not pane state, emphatically: the Editor PANE
@@ -2294,6 +2341,32 @@ inline bool files_has_keyboard(const Session& s) {
 /// surface needs exactly this half as a VALUE: a shortcut annotation is truthful only if
 /// its gesture would be requestable in the state the maker returns to when the menu
 /// closes, and that state is this function's answer. One spelling, both askers.
+/// IS THE PANE EDITOR THE PANE A MAKER LAST PRESSED INTO, WITH SOMETHING TO SHOW (WUX-13)?
+/// `files_has_keyboard`'s shape exactly: the candidate is the shared last-pressed memory,
+/// the pane must participate, and it must have cells on this screen -- keys pointed at a
+/// rectangle nobody can see are keys the screen cannot account for (MSG-0).
+inline bool pane_editor_has_keyboard(const Session& s) {
+    if (s.panels.keyboard != panel::kPaneEditor || !s.panels.has(panel::kPaneEditor)) {
+        return false;
+    }
+    const FineRect where =
+        bounds_of(s.panels, s.setup.active, panel::kPaneEditor, screen_of(s)).rect;
+    return where.w > 0 && where.h > 0;
+}
+
+/// IS A DRAFT LIVE ON ONE OF THE PANE EDITOR'S ROWS? Its own question, kept apart from the
+/// Info panel's `draft_live` on purpose: the two drafts are about different subjects, and
+/// the refusals Info spends its answer on (a press on the object list rebuilds Info's rows)
+/// are not true of a draft that a change of document selection cannot touch.
+inline bool pane_editor_draft_live(const Session& s) {
+    for (const Row& r : s.pane_editor.rows) {
+        if (r.editing()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     if (s.setup.naming.open) {
         return KeyContext::kNaming;
@@ -2327,6 +2400,13 @@ inline KeyContext keyboard_context_beneath_menu(const Session& s) {
     // being silently wrong.
     if (files_has_keyboard(s)) {
         return KeyContext::kFiles;
+    }
+    // AND THE PANE EDITOR IS THE FOURTH MEMBER (WUX-13), on the same candidate field and
+    // the same terms. A draft open on one of ITS rows takes the keys as text exactly as the
+    // Info panel's draft does one branch down -- `kDraft` is one context whichever inspector
+    // the row belongs to, and `editing_key` asks which by asking this chain.
+    if (pane_editor_has_keyboard(s)) {
+        return pane_editor_draft_live(s) ? KeyContext::kDraft : KeyContext::kPaneEditor;
     }
     for (const Row& r : s.rows) {
         if (r.editing()) {
@@ -5092,7 +5172,15 @@ inline constexpr std::size_t kPaneStateCols = 11;
 /// each one's role`, whole at 71 columns and cut at 72. A provider's sentence being
 /// readable is a product fact; a built-in's display name is a choice this file makes. So
 /// the name fits the column, and the column did not move.
-inline constexpr std::size_t kPickerNameCols = 10;
+///
+/// TWELVE SINCE WUX-13, and it moved for the reason EDIT-1 said it would not: a built-in's
+/// display name is a choice this file makes, and the phase that made `Pane Editor` a
+/// human-facing concept chose to spell it as one. The cost is measured and paid: two cells
+/// off every summary at every width, which at the 78-column minimum marks Info's own
+/// `objects and properties` (22 cells into 21). The property WUX-5 left standing -- a
+/// medium that sets type fits strictly more of the same sentence than a cell medium, and
+/// what either cannot fit it marks -- is untouched by the number.
+inline constexpr std::size_t kPickerNameCols = 12;
 
 /// IS EVERY VISIBLE CELL OF THIS PANE BEHIND ANOTHER ONE?
 ///
@@ -5405,6 +5493,81 @@ inline std::string geometry_amount_text(std::int64_t subs, std::int64_t cell_px,
     return std::string(kProjectedMark) + spelled.amount;
 }
 
+/// THE SAME SPELLING READ BACKWARDS (WUX-13): a whole number a maker TYPED in the active
+/// face's unit, as a fine value. It is the inverse of `device_of_subs` on that unit's own
+/// grain -- a ceiling rather than a floor, for `subs_of_one_device`'s reason: the fine
+/// value must READ BACK as the number the maker typed, and on a cell size the lattice does
+/// not divide evenly the floor would read back one short. On a cell medium it is one
+/// multiply. Nothing about the authored lattice, the medium's report or the projection
+/// grammar is duplicated here: `kCellSubs` is the surface package's, `cell_px` is the
+/// medium's own report, and what a face cannot say exactly it still marks on the way back
+/// out (`geometry_amount_text`).
+///
+/// IT DOES NOT JUDGE. A negative or absurd amount is handed on and the setup's own doors
+/// refuse it in their own words (`check_pane_place_coord`, `check_pane_size`); the one
+/// thing bounded here is the multiply, so no amount can overflow on the way in.
+inline constexpr std::int64_t subs_of_device_amount(std::int64_t amount,
+                                                    std::int64_t cell_px) noexcept {
+    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / surface::kCellSubs;
+    const std::int64_t a = amount > bound ? bound : (amount < -bound ? -bound : amount);
+    if (cell_px <= 0) {
+        return a * surface::kCellSubs;
+    }
+    const std::int64_t num = a * surface::kCellSubs;
+    if (num < 0) {
+        return -((-num + cell_px - 1) / cell_px);
+    }
+    return (num + cell_px - 1) / cell_px;
+}
+
+static_assert(subs_of_device_amount(10, 0) == 10 * surface::kCellSubs,
+              "on a cell medium a typed cell count is that many whole cells");
+static_assert(subs_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface::kCellSubs,
+              "on the shipped window a typed pixel count is exact where the grain divides");
+
+/// WHAT A MAKER TYPED FOR ONE GEOMETRY AMOUNT: `10`, `10 cells`, `120px` -- a whole number,
+/// optionally followed by THIS face's unit word. A different face's word is refused rather
+/// than converted: a maker at a terminal who types `120 px` has named a unit this face did
+/// not report, and silently reading it as cells would be the one conversion this grammar
+/// does not own (WUX-6: the unit is the medium's report, never an assumption).
+struct FaceAmount {
+    bool accepted = false;
+    std::int64_t subs = 0;
+    std::string refusal;
+};
+
+inline FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px) {
+    FaceAmount out;
+    const auto trim = [](std::string_view v) {
+        while (!v.empty() && v.front() == ' ') {
+            v.remove_prefix(1);
+        }
+        while (!v.empty() && v.back() == ' ') {
+            v.remove_suffix(1);
+        }
+        return v;
+    };
+    std::string_view body = trim(text);
+    const std::string_view unit = geometry_unit(cell_px);
+    const std::string_view other = cell_px > 0 ? "cells" : "px";
+    if (body.size() > other.size() &&
+        body.substr(body.size() - other.size()) == other) {
+        out.refusal = "this face reads " + std::string(unit) + ", not " + std::string(other);
+        return out;
+    }
+    if (body.size() > unit.size() && body.substr(body.size() - unit.size()) == unit) {
+        body = trim(body.substr(0, body.size() - unit.size()));
+    }
+    const std::optional<std::int64_t> amount = TextForm<std::int64_t>::parse(body);
+    if (!amount) {
+        out.refusal = "not a whole number of " + std::string(unit) + " (`-` resets it)";
+        return out;
+    }
+    out.accepted = true;
+    out.subs = subs_of_device_amount(*amount, cell_px);
+    return out;
+}
+
 /// A WHOLE FINE RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
 inline std::string fine_rect_text(const FineRect& r, std::int64_t cell_px) {
     bool projected = false;
@@ -5562,6 +5725,7 @@ inline std::string keyboard_context_name(const Session& s, KeyContext ctx) {
     case KeyContext::kDraft: return "editing a property";
     case KeyContext::kEditor: return "the source editor";
     case KeyContext::kFiles: return "the project browser";
+    case KeyContext::kPaneEditor: return "the Pane Editor";
     case KeyContext::kPane: {
         const std::int64_t typing = keyboard_pane(s.panels);
         const RuntimePane* row =
@@ -9296,6 +9460,557 @@ inline void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const 
     layer.texts.push_back(std::move(band));
 }
 
+// ---- THE PANE EDITOR (WUX-13): a Workshop pane as a SUBJECT, inspected and edited --------
+//
+// THE OLD PROOF OF CONCEPT EDITED DOCUMENT OBJECTS AND CALLED THEM `panel`. Its grammar --
+// a list, then the selected thing's properties, immediate commits, a typed value refused
+// rather than clamped, and an authored row beside a resolved one -- is quarried here whole
+// (`Row`, `Property`, `share_body_rows`, `list_window`, `prose_row_in_window` and its
+// inverse, `property_row_text` and the caret arithmetic). What is NOT quarried is its
+// subject model: the thing on the left of this pane is the pane inventory the picker walks,
+// and the thing on the right is one `PaneRef`'s facts.
+//
+// THREE LAWS, EACH SPENT BY EXACTLY ONE PLACE BELOW:
+//
+//   the subject is an identity     `PaneEditor::subject`, written only by `choose_subject`
+//                                  (weave.hpp); `Panels::selected` is never read for it
+//   looking never authors          every row READS through a closure at display time;
+//                                  nothing here writes a setup, and the RESOLVED rows are
+//                                  `bounds_of` recomputed at the moment they are read
+//   the doors own every write      an editable row's write closure spends
+//                                  `author_pane_window` / `reset_pane_*` (setup.hpp) --
+//                                  the same doors the arrangement's keys and pointer spend
+//                                  -- and the reseat that follows a place write is the
+//                                  weave's `apply_setup`, from the one commit path
+//
+// ONE REGION, ONE PROSE BUDGET, TWO WINDOWED LISTS -- the Info panel's composition with the
+// footer left out: the `PANES` heading is the region's first prose row, the pane list and
+// the subject's rows share what is under it max-min fairly, and the rows carry their own
+// `AUTHORED` / `RESOLVED` section headings as rows (`Row::section`), so a scrolled body
+// keeps the split legible wherever the window lands.
+
+/// Prose rows the `PANES` heading keeps -- `kInfoHeadingRows`' twin, one pane over.
+inline constexpr std::int64_t kPaneEditorHeadingRows = 1;
+
+/// THE INVENTORY ROW THE SUBJECT NAMES RIGHT NOW, or nothing -- a fresh view over the SAME
+/// population the picker walks (`inventory_rows`: the catalog, the admitted runtime panes,
+/// and every reference the active setup names). Nothing is cached: a subject is checked
+/// against the world at the moment somebody asks.
+inline std::optional<CatalogRow> pane_editor_subject_row(const Session& s) {
+    if (!s.pane_editor.addressed()) {
+        return std::nullopt;
+    }
+    for (const CatalogRow& row : inventory_rows(s.setup.active, s.panels)) {
+        if (row.ref == s.pane_editor.subject) {
+            return row;
+        }
+    }
+    return std::nullopt;
+}
+
+/// THE WINDOW A TYPED EDIT MEASURES THE OTHER AXIS FROM: authored where authored, resolved
+/// where reactive -- `managed_window_base`'s spelling (weave.hpp), quarried out so the
+/// arrangement's gestures and the editor's typed values start from ONE reading of the
+/// pane's window rather than two that agree today. A pane this build cannot present, or
+/// one the setup does not name, has an empty base; the doors refuse the write before the
+/// base is spent.
+inline FineRect pane_window_base(const Session& s, const PaneRef& ref) {
+    FineRect out;
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels.runtime);
+    if (kind.has_value()) {
+        out = bounds_of(s.panels, s.setup.active, *kind, screen_of(s)).resolved;
+    }
+    const SetupPane* row = pane_of(s.setup.active, ref);
+    if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
+        out.x = row->place.x;
+        out.y = row->place.y;
+    }
+    if (row != nullptr && row->width.mode == pane_unit::kSubcells) {
+        out.w = row->width.amount;
+    }
+    if (row != nullptr && row->height.mode == pane_unit::kSubcells) {
+        out.h = row->height.amount;
+    }
+    return out;
+}
+
+/// MAY THIS PANE'S GEOMETRY BE TYPED RIGHT NOW, and if not, why not -- the arrangement's
+/// admission (`arrange_geometry_ready`, weave.hpp) less the one refusal a typed value does
+/// not need. A hand measures a DELTA from where the pane is, so the arrangement refuses a
+/// pane with no rectangle; a typed coordinate is ABSOLUTE, so an off-room pane -- the pane
+/// a maker most wants to type a place for -- is admitted here. What is still refused, in
+/// the same words: a pane the setup does not name (nothing to author), an unresolved one
+/// (no base for the axis not being typed), a side-region one (the screen owns its place,
+/// PNL-0), and one with no room on this screen (its reactive base is nowhere).
+inline Written pane_geometry_typeable(const Session& s, const PaneRef& ref) {
+    if (!has_pane(s.setup.active, ref)) {
+        return Written::no(ref_text(ref) + " is not in this layout -- open it first");
+    }
+    const std::optional<std::int64_t> kind = resolve_pane(ref, s.panels.runtime);
+    if (!kind.has_value()) {
+        return Written::no(ref_text(ref) +
+                           " is unresolved -- its window cannot be measured; `-` resets an "
+                           "axis and the order keys still work");
+    }
+    if (placement_of(*kind) == placement::kSideRegion) {
+        return Written::no(kind_name(s.panels, *kind) +
+                           " is in the reserved side column -- the screen owns its place");
+    }
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, *kind, screen_of(s));
+    if (!where.open) {
+        return Written::no(kind_name(s.panels, *kind) +
+                           " has no room on this screen yet -- `-` resets an axis");
+    }
+    return Written::ok();
+}
+
+/// ONE AUTHORED AXIS AS A MAKER READS IT: the amount in the face's own unit, `-` for the
+/// developer's answer, and the pixel spelling for the unit no medium here projects --
+/// `pane_window_text`'s per-axis grammar, one axis at a time.
+inline std::string pane_axis_text(const Session& s, const PaneRef& ref, std::size_t axis) {
+    const SetupPane* row = pane_of(s.setup.active, ref);
+    if (row == nullptr) {
+        return "--";
+    }
+    bool projected = false;
+    std::string out;
+    if (axis < 2) {
+        if (row->place.mode != pane_unit::kSubcells) {
+            return "-";
+        }
+        out = geometry_amount_text(axis == 0 ? row->place.x : row->place.y, s.cell_px,
+                                   projected);
+    } else {
+        const PaneSize& size = axis == 2 ? row->width : row->height;
+        if (size.mode == pane_unit::kPixels) {
+            return std::to_string(size.amount) + "px";
+        }
+        if (size.mode != pane_unit::kSubcells) {
+            return "-";
+        }
+        out = geometry_amount_text(size.amount, s.cell_px, projected);
+    }
+    out += " " + std::string(geometry_unit(s.cell_px));
+    if (projected) {
+        out += kProjectedNote;
+    }
+    return out;
+}
+
+/// WRITE ONE AUTHORED AXIS FROM WHAT A MAKER TYPED -- through the gesture door, one axis
+/// proposed and the other left exactly as it stands (`author_pane_window`, WUX-2a), or
+/// through that axis's reset door for `-`. Axes are 0..3 = X, Y, width, height; a place is
+/// one field, so resetting either coordinate resets the place and the refusal says so.
+///
+/// THE RESEAT IS NOT HERE. A place write takes a pane out of the reactive stack and the
+/// seating owes a reconcile; that is `apply_setup`'s, spent by the weave on the commit path
+/// (`editing_key`) for every accepted pane-editor commit, so no write closure has to know.
+inline Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
+                               const std::string& text) {
+    std::string_view body = text;
+    while (!body.empty() && body.front() == ' ') {
+        body.remove_prefix(1);
+    }
+    while (!body.empty() && body.back() == ' ') {
+        body.remove_suffix(1);
+    }
+    if (body == "-") {
+        if (!has_pane(s.setup.active, ref)) {
+            return Written::no(ref_text(ref) + " is not in this layout -- open it first");
+        }
+        bool moved = false;
+        const char* what = "";
+        if (axis < 2) {
+            moved = reset_pane_place(s.setup.active, ref);
+            what = "place";
+        } else if (axis == 2) {
+            moved = reset_pane_width(s.setup.active, ref);
+            what = "width";
+        } else {
+            moved = reset_pane_height(s.setup.active, ref);
+            what = "height";
+        }
+        if (!moved) {
+            return Written::no(ref_text(ref) + " already takes the developer's " + what);
+        }
+        return Written::ok();
+    }
+    const Written ready = pane_geometry_typeable(s, ref);
+    if (!ready.accepted) {
+        return ready;
+    }
+    const FaceAmount typed = parse_face_amount(body, s.cell_px);
+    if (!typed.accepted) {
+        return Written::no(typed.refusal);
+    }
+    const FineRect from = pane_window_base(s, ref);
+    PaneAxisProposal horizontal;
+    PaneAxisProposal vertical;
+    horizontal.base = from.x;
+    vertical.base = from.y;
+    switch (axis) {
+    case 0: horizontal.position = typed.subs; break;
+    case 1: vertical.position = typed.subs; break;
+    case 2: horizontal.extent = PaneSize{pane_unit::kSubcells, typed.subs}; break;
+    default: vertical.extent = PaneSize{pane_unit::kSubcells, typed.subs}; break;
+    }
+    return author_pane_window(s.setup.active, ref, horizontal, vertical).written;
+}
+
+/// THE SUBJECT'S ROWS: its identity, then AUTHORED, then RESOLVED. Every closure reads the
+/// session at the moment the row is displayed, so nothing here can go stale and nothing
+/// here caches a rectangle; the rows are rebuilt only when the SUBJECT changes, because
+/// that is the one event that changes which closures are right.
+///
+/// The identity rows spend catalog facts and invent none: a built-in says so, an admitted
+/// runtime pane names the office that offered it, and an unresolved reference says exactly
+/// that the authored namespace is one no office here has offered.
+inline std::vector<Row> pane_editor_rows(Session& s) {
+    std::vector<Row> rows;
+    if (!s.pane_editor.addressed()) {
+        return rows;
+    }
+    Session* sp = &s;
+    const PaneRef ref = s.pane_editor.subject;
+    const auto found = [sp, ref]() -> std::optional<CatalogRow> {
+        for (const CatalogRow& row : inventory_rows(sp->setup.active, sp->panels)) {
+            if (row.ref == ref) {
+                return row;
+            }
+        }
+        return std::nullopt;
+    };
+    rows.push_back(Row::show("Name", [found, ref] {
+        const std::optional<CatalogRow> row = found();
+        return row && row->kind != kNoPaneKind ? row->name : ref.pane;
+    }));
+    rows.push_back(Row::show("Identity", [ref] { return ref_text(ref); }));
+    rows.push_back(Row::show("Provider", [found, ref] {
+        const std::optional<CatalogRow> row = found();
+        if (!row || row->kind == kNoPaneKind) {
+            return ref.provider + " (unresolved -- no office here offers it)";
+        }
+        if (is_runtime_kind(row->kind)) {
+            return ref.provider + " (offered this session)";
+        }
+        return ref.provider + " (built in)";
+    }));
+    rows.push_back(Row::show("Summary", [found, ref] {
+        const std::optional<CatalogRow> row = found();
+        return row && row->kind != kNoPaneKind ? row->summary : std::string("--");
+    }));
+    rows.push_back(Row::section("AUTHORED"));
+    static const char* const kAxisLabels[] = {"X", "Y", "Width", "Height"};
+    for (std::size_t axis = 0; axis < 4; ++axis) {
+        rows.push_back(Row::edit(
+            kAxisLabels[axis],
+            Property<std::string>([sp, ref, axis] { return pane_axis_text(*sp, ref, axis); },
+                                  [sp, ref, axis](std::string text) {
+                                      return write_pane_axis(*sp, ref, axis, text);
+                                  })));
+    }
+    rows.push_back(Row::show("Front", [sp, ref] {
+        const SetupPane* row = pane_of(sp->setup.active, ref);
+        if (row == nullptr) {
+            return std::string("--");
+        }
+        return "f" + std::to_string(row->front) + " of " +
+               std::to_string(sp->setup.active.panes.size()) + " -- f/b/r/l order it";
+    }));
+    rows.push_back(Row::show("Open", [sp, ref] {
+        return has_pane(sp->setup.active, ref) ? std::string("yes -- o removes it")
+                                               : std::string("no -- o opens it");
+    }));
+    rows.push_back(Row::section("RESOLVED"));
+    rows.push_back(Row::show("Window", [sp, ref] {
+        const std::optional<std::int64_t> kind = resolve_pane(ref, sp->panels.runtime);
+        if (!kind.has_value()) {
+            return std::string("-");
+        }
+        const PanelBounds where =
+            bounds_of(sp->panels, sp->setup.active, *kind, screen_of(*sp));
+        if (!where.open) {
+            return std::string("-");
+        }
+        if (!where.projected) {
+            return std::string("refused -- a pixel axis projects on no medium here");
+        }
+        return fine_rect_text(where.resolved, sp->cell_px);
+    }));
+    rows.push_back(Row::show("State", [sp, found] {
+        const std::optional<CatalogRow> row = found();
+        if (!row) {
+            return std::string("-- not in this build's vocabulary nor this layout");
+        }
+        const std::int64_t state =
+            pane_state_of(sp->panels, sp->setup.active, screen_of(*sp), *row);
+        std::string out = pane_state_word(state);
+        const char* remedy = pane_state_remedy(state);
+        if (remedy[0] != '\0') {
+            out += std::string(" -- ") + remedy;
+        }
+        return out;
+    }));
+    return rows;
+}
+
+/// THE ROW THAT MUST STAY ON SCREEN: the editing one, else the cursor's -- `inspector_focus`
+/// for this inspector, and for its reason.
+inline std::size_t pane_editor_focus(const Session& s) {
+    for (std::size_t i = 0; i < s.pane_editor.rows.size(); ++i) {
+        if (s.pane_editor.rows[i].editing()) {
+            return i;
+        }
+    }
+    return s.pane_editor.row_cursor;
+}
+
+/// WHERE THE PANE EDITOR'S TWO LISTS ARE, HOW MANY ROWS EACH GETS, AND WHICH MEMBERS ARE
+/// SHOWN -- `InfoBodyPlace` without the footer. The `PANES` heading is the region's first
+/// prose row; the pane list begins at body row 0; the subject's rows begin at
+/// `panes_rows`.
+struct PaneEditorBodyPlace {
+    bool present = false;
+    std::int64_t region_x = 0;
+    std::int64_t region_y = 0;
+    std::int64_t region_w = 0;
+    std::int64_t region_h = 0;
+    std::int64_t region_sub_x = 0;
+    std::int64_t region_sub_y = 0;
+    std::int64_t region_sub_w = 0;
+    std::int64_t region_sub_h = 0;
+    surface::RegionFit fit{};
+    std::int64_t columns = 0;
+    std::int64_t value_columns = 0;
+    std::size_t capacity = 0;
+    std::size_t panes_rows = 0;
+    std::size_t field_rows = 0;
+    ListWindow panes{};
+    ListWindow fields{};
+};
+
+inline PaneEditorBodyPlace pane_editor_body_place(const FineRect& outer, const Screen& sc,
+                                                  std::size_t total_panes,
+                                                  std::size_t pane_cursor,
+                                                  std::size_t total_fields,
+                                                  std::size_t field_focus) {
+    PaneEditorBodyPlace p;
+    const PaneInside inside = pane_inside(outer, sc);
+    const FineRect panel = inside.rect;
+    if (panel.w <= 0 || panel.h <= 0) {
+        return p;
+    }
+    const surface::SurfaceRect wire = wire_rect_of(panel, surface::role::kFill);
+    p.region_x = wire.x;
+    p.region_y = wire.y;
+    p.region_w = wire.w;
+    p.region_h = wire.h;
+    p.region_sub_x = wire.sub_x;
+    p.region_sub_y = wire.sub_y;
+    p.region_sub_w = wire.sub_w;
+    p.region_sub_h = wire.sub_h;
+    p.fit = inside.fit;
+    p.columns = p.fit.columns;
+    const std::int64_t used = kPropertyMarkCols + kPropertyLabelCols;
+    if (surface::cell_of_subs(surface::add_cells(panel.x, panel.w)) -
+            surface::cell_of_subs(panel.x) <=
+        used) {
+        return p;
+    }
+    p.value_columns = p.fit.columns - used - kPropertyCaretCols;
+    if (p.value_columns < 0) {
+        p.value_columns = 0;
+    }
+    p.capacity = p.fit.rows > kPaneEditorHeadingRows
+                     ? static_cast<std::size_t>(p.fit.rows - kPaneEditorHeadingRows)
+                     : 0;
+    if (p.capacity < 2) {
+        return p; // one row of each list is the smallest body that says anything
+    }
+    const BodyShare share =
+        share_body_rows(p.capacity, list_demand(total_panes), list_demand(total_fields));
+    p.panes_rows = share.objects;
+    p.field_rows = share.properties;
+    p.panes = list_window(total_panes, pane_cursor, p.panes_rows);
+    p.fields = list_window(total_fields, field_focus, p.field_rows);
+    p.present = true;
+    return p;
+}
+
+/// The same resolution for the session a painter is holding -- one call, so no press can
+/// resolve the body against a population or a focus the paint did not.
+inline PaneEditorBodyPlace pane_editor_body(const Session& s, const Screen& sc,
+                                            const FineRect& outer) {
+    return pane_editor_body_place(outer, sc,
+                                  inventory_rows(s.setup.active, s.panels).size(),
+                                  s.pane_editor.cursor, s.pane_editor.rows.size(),
+                                  pane_editor_focus(s));
+}
+
+inline std::int64_t prose_row_of_editor_pane(const PaneEditorBodyPlace& p, std::size_t index) {
+    return p.present ? prose_row_in_window(p.panes, 0, index) : kNoProseRow;
+}
+
+inline std::size_t editor_pane_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row) {
+    std::size_t at = 0;
+    if (!p.present || !item_at_prose_row(p.panes, 0, p.panes_rows, row, at)) {
+        return kNoObject;
+    }
+    return at;
+}
+
+inline std::int64_t prose_row_of_field(const PaneEditorBodyPlace& p, std::size_t index) {
+    if (!p.present) {
+        return kNoProseRow;
+    }
+    return prose_row_in_window(p.fields, static_cast<std::int64_t>(p.panes_rows), index);
+}
+
+inline std::size_t field_at_prose_row(const PaneEditorBodyPlace& p, std::int64_t row) {
+    std::size_t at = 0;
+    if (!p.present || !item_at_prose_row(p.fields, static_cast<std::int64_t>(p.panes_rows),
+                                         p.field_rows, row, at)) {
+        return kNoProperty;
+    }
+    return at;
+}
+
+/// WHERE A POINTER FACT LANDED IN THE PANE EDITOR'S BODY -- `InfoBodyAt`'s shape: the pane
+/// open, the body resolved through the same `bounds_of` the painter used, the position
+/// located by the same `prose_at`, the heading subtracted here because it was reserved
+/// there.
+struct PaneEditorAt {
+    bool present = false;
+    PaneEditorBodyPlace body{};
+    ProseAt at{};
+};
+
+inline PaneEditorAt pane_editor_at(const Session& s, std::int64_t space, std::int64_t x,
+                                   std::int64_t y) {
+    const Screen sc = screen_of(s);
+    const PanelBounds where = bounds_of(s.panels, s.setup.active, panel::kPaneEditor, sc);
+    if (!where.open) {
+        return PaneEditorAt{};
+    }
+    PaneEditorAt out;
+    out.body = pane_editor_body(s, sc, where.rect);
+    out.at = prose_at(space, x, y, out.body.region_x, out.body.region_y, out.body.fit);
+    out.at.row -= kPaneEditorHeadingRows;
+    out.present = out.body.present && out.at.understood && out.at.row >= 0;
+    return out;
+}
+
+/// THE PANE EDITOR, PAINTED: the inventory with the subject marked, then the subject's rows
+/// with a live draft's caret and selection on them. One region, in the active medium's own
+/// type; the picker's row spelling for a pane, the property row's spelling for a fact.
+inline void paint_pane_editor(surface::SurfaceLayer& layer, const Session& s,
+                              const FineRect& b, const Screen& sc,
+                              std::int64_t chrome = kPaneChrome) {
+    paint_panel_frame(layer, b, chrome);
+    const std::vector<CatalogRow> panes = inventory_rows(s.setup.active, s.panels);
+    const PaneEditor& ed = s.pane_editor;
+    const PaneEditorBodyPlace body = pane_editor_body(s, sc, b);
+    if (body.fit.rows <= 0 || body.fit.columns <= 0) {
+        return;
+    }
+    surface::SurfaceTextRegion region;
+    region.x = body.region_x;
+    region.y = body.region_y;
+    region.w = body.region_w;
+    region.h = body.region_h;
+    region.sub_x = body.region_sub_x;
+    region.sub_y = body.region_sub_y;
+    region.sub_w = body.region_sub_w;
+    region.sub_h = body.region_sub_h;
+    // THE HEADING SAYS WHAT THIS IS AND WHETHER THE KEYS ARE HERE -- the Files header's
+    // `*`, for MSG-0's reason: arrows that stopped meaning command mode's arrows are
+    // arrows a maker is entitled to read the reason for.
+    std::string heading = "PANE EDITOR";
+    if (pane_editor_has_keyboard(s)) {
+        heading += " *";
+    }
+    region.rows.push_back(
+        surface::SurfaceTextRow{detail::fit(heading, body.fit.columns), surface::role::kAccent});
+    if (!body.present) {
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    const auto say_row = [&region](std::string text, std::int64_t role,
+                                   std::int64_t ground = surface::role::kNone) {
+        region.rows.push_back(surface::SurfaceTextRow{std::move(text), role, ground});
+    };
+    const auto say_omission = [&](std::size_t how_many, const char* which) {
+        if (how_many > 0) {
+            say_row(detail::fit(omitted_text(how_many, which), body.columns),
+                    surface::role::kMuted);
+        }
+    };
+    // ---- the PANES list: the picker's population, the picker's row, plus a subject mark --
+    say_omission(body.panes.before, "earlier");
+    for (std::size_t n = 0; n < body.panes.count; ++n) {
+        const std::size_t i = body.panes.first + n;
+        const CatalogRow& row = panes[i];
+        const bool here = !ed.on_rows && i == ed.cursor;
+        const bool subject = ed.addressed() && row.ref == ed.subject;
+        say_row(std::string(here ? ">" : " ") + (subject ? "*" : " ") +
+                    detail::fit(picker_entry_text(
+                                    row.name,
+                                    pane_state_word(pane_state_of(s.panels, s.setup.active,
+                                                                  sc, row)),
+                                    row.summary),
+                                body.columns - 2),
+                here || subject ? surface::role::kAccent : surface::role::kFill);
+    }
+    say_omission(body.panes.after, "more");
+    while (region.rows.size() <
+           static_cast<std::size_t>(kPaneEditorHeadingRows) + body.panes_rows) {
+        say_row(std::string(), surface::role::kFill);
+    }
+    // ---- the subject's rows ------------------------------------------------------------
+    if (ed.rows.empty()) {
+        say_row(detail::fit(ed.addressed() ? "(the subject is gone -- choose a pane above)"
+                                           : "(no subject -- choose a pane above)",
+                            body.columns),
+                surface::role::kMuted);
+        layer.texts.push_back(std::move(region));
+        return;
+    }
+    say_omission(body.fields.before, "earlier");
+    for (std::size_t n = 0; n < body.fields.count; ++n) {
+        const std::size_t i = body.fields.first + n;
+        const Row& row = ed.rows[i];
+        if (row.section()) {
+            // A SECTION IS A BOUNDARY, said the way `PROPERTIES` is said: accent ink on
+            // the one ground every ink reads on (HD-9).
+            say_row(detail::fit(row.label(), body.columns), surface::role::kAccent,
+                    surface::role::kMuted);
+            continue;
+        }
+        const bool here = ed.on_rows && i == ed.row_cursor;
+        std::int64_t role = surface::role::kFill;
+        if (row.editing()) {
+            role = surface::role::kAlert;
+        } else if (!row.editable()) {
+            role = surface::role::kMuted;
+        }
+        say_row(property_row_text(row, here, body.value_columns), role);
+        if (row.editing()) {
+            region.caret_row = kPaneEditorHeadingRows + prose_row_of_field(body, i);
+            region.caret_col = property_caret_column(row);
+            const TerminalSelectionSpan marked =
+                property_selection_columns(row, body.value_columns);
+            if (marked.present) {
+                region.sel_begin_row = region.caret_row;
+                region.sel_begin_col = marked.begin;
+                region.sel_end_row = region.caret_row;
+                region.sel_end_col = marked.end;
+            }
+        }
+    }
+    say_omission(body.fields.after, "more");
+    layer.texts.push_back(std::move(region));
+}
+
 // ⚠ `paint_panels` STANDS HERE AND NOT ABOVE, and the reason is the conversion itself
 // (WUX-12). This file defines everything before it is used -- there is not one forward
 // declaration in it -- and the walk that reaches every pane's painter now reaches
@@ -9363,6 +10078,8 @@ inline void paint_panels(surface::SurfaceCanvas& c, const WorkshopDoc& d, const 
                 // the rectangle is `bounds_of`'s, the order is `effective_pane_order`'s,
                 // and a pane a maker put in front of this one is drawn over it.
                 paint_layouts(layer, s, b, sc, chrome);
+            } else if (p.kind == panel::kPaneEditor) {
+                paint_pane_editor(layer, s, b, sc, chrome);
             } else if (is_runtime_kind(p.kind)) {
                 // ONE GENERIC ARM FOR EVERY EXTERNAL PANE, and there is no second one to
                 // add. The branch above chooses a PAINTER, which PNL-1 named as the one
@@ -9452,6 +10169,9 @@ inline surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc
             // arrows have stopped meaning what they mean in command mode is entitled to
             // read why on the screen rather than infer it from a gesture that did nothing.
             said = "keys go to Project Files -- press elsewhere for Workshop's keys";
+        } else if (ctx == KeyContext::kPaneEditor &&
+                   s.keymap.resolved_legend() == legend_mode::kFull) {
+            said = "keys go to the Pane Editor -- press elsewhere for Workshop's keys";
         }
         if (!said.empty()) {
             if (legend_rows == 1) {

@@ -329,8 +329,26 @@ public:
         return row;
     }
 
+    /// A SECTION HEADING INSIDE A LIST OF ROWS (WUX-13): a label with no value, never
+    /// editable, painted as a boundary between the rows above it and the rows below it.
+    /// The Pane Editor spends it to keep a pane's AUTHORED facts and its RESOLVED facts
+    /// visibly apart inside one windowed list -- the document inspector has one heading
+    /// (`PROPERTIES`) and its painter draws it itself, so nothing there changes. A section
+    /// is a row rather than a painter's insertion because the row arithmetic that maps a
+    /// prose row to an item (`prose_row_in_window`, `item_at_prose_row`) is written once
+    /// and must not learn about rows a painter added on its own.
+    static Row section(std::string label) {
+        Row row;
+        row.label_ = std::move(label);
+        row.editable_ = false;
+        row.section_ = true;
+        row.read_ = [] { return std::string(); };
+        return row;
+    }
+
     const std::string& label() const { return label_; }
     bool editable() const { return editable_; }
+    bool section() const { return section_; }
     bool editing() const { return editing_; }
     const std::string& refusal() const { return refusal_; }
     const char* expected() const { return expected_; }
@@ -561,6 +579,7 @@ private:
 
     std::string label_;
     bool editable_ = false;
+    bool section_ = false;
     const char* expected_ = nullptr;
     std::function<std::string()> read_;
     std::function<std::pair<Commit, std::string>(const std::string&)> commit_;

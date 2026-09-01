@@ -914,7 +914,8 @@ public:
         case KeyContext::kPane: external_key(keyboard_pane(), k, mail); break;
         case KeyContext::kEditor: editor_key(k); break;
         case KeyContext::kFiles: files_key(k, mail); break;
-        case KeyContext::kDraft: editing_key(k); break;
+        case KeyContext::kPaneEditor: pane_editor_key(k, mail); break;
+        case KeyContext::kDraft: editing_key(k, mail); break;
         default: command(k, mail); break;
         }
         if (session_.clipboard.writes != copied_before) {
@@ -1842,6 +1843,13 @@ public:
                 // over a list. A press on the header or past the last row moves nothing
                 // and is consumed exactly as the editor's is.
                 files_press(b, files_had_keyboard, mail);
+            } else if (here.occupied && here.kind == panel::kPaneEditor) {
+                // AND A PRESS INTO THE PANE EDITOR (WUX-13) -- Files' arm, one pane over:
+                // a pane row chooses the SUBJECT, a field row moves the row cursor, the
+                // live draft's own row places the caret, and the heading or the padding
+                // is consumed as a focus statement. The selection line above has already
+                // made this pane the selected one; nothing in here reads that fact.
+                pane_editor_press(b, b.modifiers);
             } else if (here.occupied && here.kind == panel::kInfo &&
                        (info_press(where, b.modifiers) || actions_press(where) ||
                         objects_press(where))) {
@@ -2024,6 +2032,19 @@ public:
             }
             arrange_motion(here.sub.x, here.sub.y, mail);
             repaint(mail);
+            return;
+        }
+        // A SELECTION DRAG ON THE PANE EDITOR'S LIVE DRAFT (WUX-13) -- the property draft's
+        // twin below, resolved through the Pane Editor's own body.
+        if (session_.text_drag.active &&
+            session_.text_drag.place == text_drag_place::kPaneEditorDraft) {
+            Row* row = pane_editor_editing_row();
+            const PaneEditorAt where = pane_editor_at(session_, m.space, m.x, m.y);
+            if (row != nullptr && where.present) {
+                row->drag_to_column(property_value_column(where.at.column));
+                refresh_inspector();
+                repaint(mail);
+            }
             return;
         }
         // A SELECTION DRAG ON THE LIVE PROPERTY DRAFT (TEXT-0) — the Terminal branch's twin
@@ -2570,7 +2591,29 @@ private:
     /// band cannot spell one binding two ways.
     std::string hotkey(Act a) const { return hotkey_text(session_.keymap, a); }
 
+    /// THE PANE EDITOR'S LIVE DRAFT, if any (WUX-13) -- asked by its own name where the
+    /// caller already knows which inspector it is standing in.
+    Row* pane_editor_editing_row() {
+        for (Row& r : session_.pane_editor.rows) {
+            if (r.editing()) {
+                return &r;
+            }
+        }
+        return nullptr;
+    }
+
+    /// THE DRAFT UNDER THE KEYS. Two inspectors can each hold a live draft (WUX-13: the
+    /// Pane Editor's rows and the Info panel's), and `kDraft` is one context for both --
+    /// so this answers the question `keyboard_context` answers: the Pane Editor's draft
+    /// while the Pane Editor holds the keys, the Info panel's otherwise. Every consumer of
+    /// the draft (the commit keys, typed text, the clipboard) goes through here, which is
+    /// what keeps a character from landing in the draft the screen is not pointing at.
     Row* editing_row() {
+        if (pane_editor_has_keyboard(session_)) {
+            if (Row* mine = pane_editor_editing_row()) {
+                return mine;
+            }
+        }
         for (Row& r : session_.rows) {
             if (r.editing()) {
                 return &r;
@@ -2693,8 +2736,16 @@ private:
     /// that Input deliberately does not know. Everything else a key press might
     /// have meant arrives as TextEntered instead, including `q`, which types a q
     /// here and is the whole reason Ctrl+C is handled above this branch.
-    void editing_key(const zengine::input::KeyPressed& k) {
+    void editing_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         Row* row = editing_row();
+        // A PANE EDITOR ROW'S COMMIT OWES A RESEAT (WUX-13). Its write closure spent the
+        // setup door; what a place write also changes is the SEATING -- an authored place
+        // leaves the reactive stack and every reactive pane below it moves up a slot --
+        // and `apply_setup` is the one path that reconciles it, exactly as it is for the
+        // arrangement's `arrange_place`. Asked once, here, for every accepted commit, so no
+        // write closure has to know which of the four axes it was.
+        const bool pane_row = row != nullptr && pane_editor_has_keyboard(session_) &&
+                              pane_editor_editing_row() == row;
         // THE DRAFT'S OWN VOCABULARY FIRST (TEXT-0). One call owns what four switches used
         // to spell separately — the six editing keys, and now selection, clipboard, word
         // movement and history behind them — and a `true` is QR-2's bool: the gesture
@@ -2713,6 +2764,9 @@ private:
         case Act::kDraftCommit: {
             const Commit result = row->commit();
             if (result == Commit::Accepted) {
+                if (pane_row) {
+                    apply_setup(mail);
+                }
                 say("committed " + row->label() + " = " + row->value(), false);
             } else {
                 // Two different failures, and the row already words each one for
@@ -2761,6 +2815,18 @@ private:
     /// place, which is the whole of what "one resize reconciles all of it" costs here.
     void refresh_inspector() {
         const Screen sc = screen_of(session_);
+        // THE PANE EDITOR'S DRAFT FIRST (WUX-13), against ITS body's capacity -- the same
+        // one measurer, one pane over; a closed Pane Editor is skipped, not a zero.
+        const PanelBounds editor =
+            bounds_of(session_.panels, session_.setup.active, panel::kPaneEditor, sc);
+        if (editor.open) {
+            if (Row* mine = pane_editor_editing_row()) {
+                const PaneEditorBodyPlace body = pane_editor_body(session_, sc, editor.rect);
+                if (body.present) {
+                    mine->keep_caret_visible(body.value_columns);
+                }
+            }
+        }
         const PanelBounds info = bounds_of(session_.panels, session_.setup.active, panel::kInfo, sc);
         if (!info.open) {
             return;
@@ -3843,7 +3909,18 @@ private:
             // picker (a provider going away) is the one way it can be past the end.
             return;
         }
-        const CatalogRow chosen = rows[picker.cursor];
+        toggle_participation(rows[picker.cursor], hotkey(Act::kPicker), mail);
+    }
+
+    /// OPEN A CLOSED PANE, OR REMOVE AN OPEN ONE -- the picker's own two cases, as the ONE
+    /// membership door two consumers spend (WUX-13): the picker's Return, and the Pane
+    /// Editor's `open` on its subject. It edits `setup.active` and `apply_setup` is the
+    /// only thing that opens or closes anything, exactly as `choose_panel` has said since
+    /// WS-0; what moved is only that the sentence now names the gesture that reverses it
+    /// in the surface the maker is standing in (`again`), because `p removes it` is a true
+    /// sentence about the picker and a false one inside the editor.
+    void toggle_participation(const CatalogRow& chosen, const std::string& again,
+                              loom::Mail& mail) {
         const PaneRef ref = chosen.ref;
         if (remove_pane(session_.setup.active, ref)) {
             // A REMOVAL WORKS ON A WAITING ROW EXACTLY AS ON AN OPEN ONE (WP-0). The maker
@@ -3855,8 +3932,8 @@ private:
             // target, its history and its running count of asks; the document
             // keeps every object, the selection and the inspector's rows. A
             // panel is a presentation, and removing one removes a presentation.
-            say("removed " + chosen.name +
-                    " -- " + hotkey(Act::kPicker) + " brings it back; nothing behind it was touched",
+            say("removed " + chosen.name + " -- " + again +
+                    " brings it back; nothing behind it was touched",
                 false);
             return;
         }
@@ -3890,8 +3967,7 @@ private:
         // touches no role and needs no weave mounted anywhere. A Workshop
         // hosting no tools at all opens Info and it works.
         apply_setup(mail);
-        say(std::string("opened ") + chosen.name + " -- " + hotkey(Act::kPicker) +
-                " removes it",
+        say(std::string("opened ") + chosen.name + " -- " + again + " removes it",
             false);
     }
 
@@ -4722,6 +4798,12 @@ private:
     /// would erase the answer the maker just earned. The desk scope stays open: its
     /// subject is the desk, which is still there.
     void forget_removed_selection() {
+        // ⚠ THE PANE EDITOR'S SUBJECT IS DELIBERATELY NOT REPAIRED HERE (WUX-13). The
+        // arrangement's address is a claim about a pane ON THE DESK, so a removal ends it;
+        // the editor's subject is an IDENTITY a maker asked to be described, and a pane
+        // that just left the layout is exactly the pane that now reads `closed -- open it`
+        // -- clearing it would make "remove, look, reopen" impossible from the one surface
+        // built for it. Its one clearing rule is `repair_pane_editor_subject`.
         PaneArrange& a = session_.arrange;
         if (!a.addressed() || has_pane(session_.setup.active, a.pane)) {
             return;
@@ -4908,19 +4990,11 @@ private:
     /// partially-settled write falls back to (WUX-2a); three hand-kept copies of this
     /// authored-or-resolved read is how two gestures come to start from different places.
     FineRect managed_window_base() {
-        const SetupPane* row = pane_of(session_.setup.active, session_.arrange.pane);
-        FineRect out = managed_bounds().resolved;
-        if (row != nullptr && row->place.mode == pane_unit::kSubcells) {
-            out.x = row->place.x;
-            out.y = row->place.y;
-        }
-        if (row != nullptr && row->width.mode == pane_unit::kSubcells) {
-            out.w = row->width.amount;
-        }
-        if (row != nullptr && row->height.mode == pane_unit::kSubcells) {
-            out.h = row->height.amount;
-        }
-        return out;
+        // ONE READING FOR THE HAND AND FOR THE TYPED VALUE (WUX-13): `pane_window_base`
+        // (screen.hpp) is this function's old body, quarried out so the Pane Editor's
+        // per-axis writes measure the axis they did not type from the same window the
+        // arrangement's gestures measure from.
+        return pane_window_base(session_, session_.arrange.pane);
     }
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
@@ -6318,6 +6392,252 @@ private:
             return;
         }
         pane.cursor = which;
+    }
+
+    // ---- THE PANE EDITOR (WUX-13): a pane as a subject ---------------------------------------
+    //
+    // EVERY WRITE BELOW IS SOMEBODY ELSE'S DOOR. The four geometry rows spend
+    // `author_pane_window` and the three resets through their closures (screen.hpp); the
+    // order keys spend `spend_pane_action`, the arrangement's own switch; participation
+    // spends `toggle_participation`, the picker's own door; and the reseat a place write
+    // owes is `apply_setup`, from `editing_key`. Nothing here assigns into a `SetupPane`,
+    // and nothing here holds a rectangle: what this section owns is the SUBJECT and two
+    // cursors.
+
+    /// A FRESH VIEW OF THE SUBJECT, TAKEN AT A GESTURE (WUX-13). The subject stands through
+    /// a layout switch, its pane closing and its provider going away -- every one of those
+    /// leaves a `PaneRef` that still names something a maker can reason about. What it
+    /// cannot survive is being in NEITHER the pane vocabulary NOR the active setup, because
+    /// then no row of the PANES list names it and nothing on the desk can bring it back
+    /// through this surface. That is the one clearing rule, asked here rather than on paint
+    /// (paint is a pure projection and clears nothing) and rather than in `apply_setup`
+    /// (`forget_removed_selection` says why).
+    void repair_pane_editor_subject() {
+        PaneEditor& ed = session_.pane_editor;
+        if (!ed.addressed() || pane_editor_subject_row(session_).has_value()) {
+            return;
+        }
+        const std::string was = ref_text(ed.subject);
+        ed.subject = PaneRef{};
+        ed.rows.clear();
+        ed.row_cursor = 0;
+        ed.on_rows = false;
+        say("the Pane Editor's subject " + was +
+                " is in neither this build's vocabulary nor this layout -- subject cleared",
+            true);
+    }
+
+    /// MAKE THIS PANE THE PANE EDITOR'S SUBJECT -- the one writer of `PaneEditor::subject`.
+    ///
+    /// IT DOES NOT TOUCH `Panels::selected`, AND THAT ABSENCE IS THE LAW (WUX-13). Choosing
+    /// what to describe is not pointing at it: the pane a maker is interacting with is the
+    /// Pane Editor, and the desk's selection already says so. The rows are rebuilt because
+    /// the subject is the one thing they close over; the row cursor lands on the first
+    /// authored value, `first_editable`'s own rule.
+    void choose_subject(const PaneRef& ref) {
+        PaneEditor& ed = session_.pane_editor;
+        ed.subject = ref;
+        ed.rows = pane_editor_rows(session_);
+        ed.row_cursor = first_editable(ed.rows);
+        const std::optional<CatalogRow> row = pane_editor_subject_row(session_);
+        std::string name = ref_text(ref);
+        std::string state;
+        if (row) {
+            name = row->kind == kNoPaneKind ? ref_text(ref) : row->name;
+            state = pane_state_word(pane_state_of(session_.panels, session_.setup.active,
+                                                  screen_of(session_), *row));
+        }
+        say("Pane Editor: " + name + (state.empty() ? "" : " (" + state + ")") + " -- " +
+                hotkey(Act::kPaneEditorSwitch) + " reaches its rows",
+            false);
+    }
+
+    /// STEP THE CURSOR OF WHICHEVER LIST THE KEYS ARE IN, bounded, and over a section
+    /// heading without stopping on it -- a heading is a boundary, not a row a maker edits.
+    void pane_editor_move(std::int64_t by) {
+        PaneEditor& ed = session_.pane_editor;
+        if (!ed.on_rows) {
+            const std::size_t total = picker_population().size();
+            if (total == 0) {
+                return;
+            }
+            if (ed.cursor >= total) {
+                ed.cursor = total - 1;
+            }
+            if (by < 0 && ed.cursor > 0) {
+                --ed.cursor;
+            } else if (by > 0 && ed.cursor + 1 < total) {
+                ++ed.cursor;
+            }
+            return;
+        }
+        const std::size_t total = ed.rows.size();
+        if (total == 0) {
+            return;
+        }
+        std::size_t at = ed.row_cursor < total ? ed.row_cursor : total - 1;
+        while (true) {
+            if (by < 0) {
+                if (at == 0) {
+                    return;
+                }
+                --at;
+            } else {
+                if (at + 1 >= total) {
+                    return;
+                }
+                ++at;
+            }
+            if (!ed.rows[at].section()) {
+                ed.row_cursor = at;
+                return;
+            }
+        }
+    }
+
+    /// MOVE THE KEYS BETWEEN THE PANES LIST AND THE SUBJECT'S ROWS.
+    void pane_editor_switch() {
+        PaneEditor& ed = session_.pane_editor;
+        if (!ed.on_rows && ed.rows.empty()) {
+            say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+                    " on a pane in its list chooses one",
+                true);
+            return;
+        }
+        ed.on_rows = !ed.on_rows;
+    }
+
+    /// THE ONE RETURN: on the PANES list it chooses the subject; on the rows it opens a
+    /// draft, or says why the row under the cursor is not the maker's to author (the Info
+    /// panel's `begin_edit` sentence, one inspector over).
+    void pane_editor_choose() {
+        PaneEditor& ed = session_.pane_editor;
+        if (!ed.on_rows) {
+            const std::vector<CatalogRow> rows = picker_population();
+            if (ed.cursor >= rows.size()) {
+                return; // the belt: a population that shrank under the cursor
+            }
+            if (pane_editor_draft_live(session_)) {
+                say(finish_draft_first(), true); // a new subject would drop the draft
+                return;
+            }
+            choose_subject(rows[ed.cursor].ref);
+            return;
+        }
+        if (ed.row_cursor >= ed.rows.size()) {
+            return;
+        }
+        Row& row = ed.rows[ed.row_cursor];
+        if (!row.editable()) {
+            say(row.label() + " is not authored -- it is what the screen makes of the "
+                              "authored value",
+                true);
+            return;
+        }
+        row.begin();
+        say("editing " + row.label() + " -- " + hotkey(Act::kDraftCommit) + " commits, " +
+                hotkey(Act::kDraftCancel) + " cancels, `-` resets it",
+            false);
+    }
+
+    /// OPEN THE SUBJECT IF IT IS CLOSED, REMOVE IT IF IT IS OPEN -- through the picker's own
+    /// door, on the row the picker itself would act on.
+    void pane_editor_toggle(loom::Mail& mail) {
+        const std::optional<CatalogRow> row = pane_editor_subject_row(session_);
+        if (!row) {
+            say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+                    " on a pane in its list chooses one",
+                true);
+            return;
+        }
+        if (pane_editor_draft_live(session_)) {
+            say(finish_draft_first(), true);
+            return;
+        }
+        toggle_participation(*row, hotkey(Act::kPaneEditorOpen), mail);
+    }
+
+    /// THE PANE EDITOR'S KEYS: a list with a cursor and one gesture on the row it is on.
+    void pane_editor_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        repair_pane_editor_subject();
+        const PaneRef subject = session_.pane_editor.subject;
+        const auto order = [&](Act a) {
+            if (subject.provider.empty()) {
+                say("the Pane Editor has no subject -- " + hotkey(Act::kPaneEditorChoose) +
+                        " on a pane in its list chooses one",
+                    true);
+                return;
+            }
+            spend_pane_action(a, subject, mail);
+        };
+        switch (session_.keymap.action_for(KeyContext::kPaneEditor, k.scancode, k.modifiers)) {
+        case Act::kPaneEditorUp: pane_editor_move(-1); break;
+        case Act::kPaneEditorDown: pane_editor_move(+1); break;
+        case Act::kPaneEditorSwitch: pane_editor_switch(); break;
+        case Act::kPaneEditorChoose: pane_editor_choose(); break;
+        case Act::kPaneEditorOpen: pane_editor_toggle(mail); break;
+        case Act::kPaneEditorFront: order(Act::kManageFront); break;
+        case Act::kPaneEditorBack: order(Act::kManageBack); break;
+        case Act::kPaneEditorRaise: order(Act::kManageRaise); break;
+        case Act::kPaneEditorLower: order(Act::kManageLower); break;
+        default: break; // an unbound key in this pane means nothing, and says nothing
+        }
+    }
+
+    /// A PRESS INSIDE THE PANE EDITOR'S BODY. The live draft's own row is asked first
+    /// (`info_press`'s pipeline, one pane over), then a pane row -- which chooses the
+    /// SUBJECT, by identity, from the same population the paint walked -- then a field row,
+    /// which moves the row cursor and begins nothing (HD-6's rule). Every press on the pane
+    /// is consumed: it has already pointed the keys here.
+    void pane_editor_press(const zengine::input::PointerButton& b, std::int64_t modifiers) {
+        repair_pane_editor_subject();
+        PaneEditor& ed = session_.pane_editor;
+        const PaneEditorAt where = pane_editor_at(session_, b.space, b.x, b.y);
+        if (!where.present) {
+            return; // the heading, or the padding: consumed, still
+        }
+        for (std::size_t i = 0; i < ed.rows.size(); ++i) {
+            Row& row = ed.rows[i];
+            if (!row.editing()) {
+                continue;
+            }
+            if (where.at.column < 0 || where.at.column > where.body.fit.columns ||
+                field_at_prose_row(where.body, where.at.row) != i) {
+                break; // on the pane, but not on the draft's row
+            }
+            const std::size_t target =
+                row.editor().position_at_column(property_value_column(where.at.column));
+            if (!press_selects_word(modifiers, row, target)) {
+                row.place(target);
+            }
+            session_.text_drag.active = true;
+            session_.text_drag.place = text_drag_place::kPaneEditorDraft;
+            return;
+        }
+        const std::size_t pane = editor_pane_at_prose_row(where.body, where.at.row);
+        if (pane != kNoObject) {
+            const std::vector<CatalogRow> rows = picker_population();
+            if (pane >= rows.size()) {
+                return;
+            }
+            if (pane_editor_draft_live(session_)) {
+                say(finish_draft_first(), true);
+                return;
+            }
+            ed.on_rows = false;
+            ed.cursor = pane;
+            choose_subject(rows[pane].ref);
+            return;
+        }
+        const std::size_t field = field_at_prose_row(where.body, where.at.row);
+        if (field != kNoProperty && field < ed.rows.size() && !ed.rows[field].section()) {
+            if (pane_editor_draft_live(session_)) {
+                say(finish_draft_first(), true);
+                return;
+            }
+            ed.on_rows = true;
+            ed.row_cursor = field;
+        }
     }
 
     /// OPEN THE SOURCE THE BUILDER'S CHOSEN RECIPE NAMES -- Builder's half, and only its

@@ -2354,8 +2354,77 @@ executable, authored per project when named.)
   knew that artifact to hold, which is a fact about Workshop's own knowledge and therefore a
   fact a session may legitimately remember. What it must not become is a read.
 
+## The Pane Editor has a subject, and the subject is not the selection (WUX-13)
+
+`panel::kPaneEditor` (`pane-editor`, overlay stack, keyboard-taking) is the built-in whose
+subject is an ordinary Workshop pane. It replaces nothing: the Info panel still inspects
+DOCUMENT objects (`ui::Element`s named `panel`), and the two are different subjects behind
+rows that happen to share labels. What was quarried from Info is its grammar -- `Row`,
+`Property`, `share_body_rows`, `list_window`, the row-to-item inverses, the property row
+spelling and the caret arithmetic -- and what was NOT quarried is its subject model.
+
+```text
+Panels::selected       which pane the maker is interacting WITH  -- a press writes it
+PaneEditor::subject    which pane the maker asked the editor to DESCRIBE -- `choose_subject`
+                       writes it, and nothing else does
+```
+
+- **THE SUBJECT IS A `PaneRef`, HELD ON THE SESSION (`Session::pane_editor`), NEVER DERIVED
+  FROM `Panels::selected`.** Pressing into the Pane Editor selects the Pane Editor -- that is
+  what pointing at a pane means since WUX-12 -- and retargets nothing. That is what lets the
+  editor be its own subject: choose `Pane Editor` in its list, type into its own `X`, and the
+  pane the rows are painted in moves. It is not persisted: a subject is interaction state, and
+  a layout file remembering what the editor was looking at would be a presentation preference
+  riding an authored artifact.
+- **THE SUBJECT STANDS through a layout switch, its pane closing and its provider going
+  away** -- every one of those leaves a reference the editor can still describe honestly
+  (`closed -- open it`, `unresolved`). `forget_removed_selection` (the arrangement's repair in
+  `apply_setup`) deliberately does not touch it. The ONE clearing rule is
+  `repair_pane_editor_subject`, asked at a gesture and never on paint: the ref is in neither
+  `inventory_rows` nor the active setup, so no row of the `PANES` list names it.
+- **THE `PANES` LIST IS `inventory_rows`**, the picker's own population, read fresh at every
+  paint and every gesture. There is no editor-side catalog, no copied row, and an authored
+  reference no office resolves is a row here because it is one there.
+- **EVERY ROW READS FRESH AND NOTHING WRITES ON PAINT.** The rows are `Row`s closing over the
+  session and the subject's identity, rebuilt only when the subject changes; the `RESOLVED`
+  rows call `bounds_of` and `pane_state_of` at the moment they are read. `paint_pane_editor`
+  is a pure projection like every painter here; `Row::section` is the one widening of the row
+  vocabulary, so `AUTHORED` / `RESOLVED` are rows of the windowed list rather than a painter's
+  insertion the row arithmetic would have to know about.
+- **EVERY WRITE IS AN EXISTING DOOR.** `X`/`Y`/`Width`/`Height` commit through
+  `write_pane_axis` -> `author_pane_window` (the gesture door, one axis proposed, WUX-2a) or
+  `reset_pane_place/width/height` for `-`; the order keys spend `spend_pane_action`, the
+  arrangement's own switch; `o` spends `toggle_participation`, which is `choose_panel`'s body
+  quarried out so the picker and the editor are one membership door; and the reseat a place
+  write owes is `apply_setup`, spent once on the commit path (`editing_key`) for every
+  accepted Pane Editor commit. There is no `PaneEditor` setter and no rectangle held anywhere.
+  `pane_window_base` is `managed_window_base`'s body quarried out, so a typed axis measures
+  the axis it did not type from the same window the arrangement's hands measure from.
+- **A TYPED VALUE IS REFUSED, NEVER CLAMPED.** `parse_face_amount` reads a whole number in the
+  face's own unit (`geometry_unit`), refuses the OTHER face's word rather than converting it,
+  and `subs_of_device_amount` is the inverse of `device_of_subs` on that unit's grain (a
+  ceiling, so what a maker typed reads back as what they typed). The setup's own checks then
+  judge the fine value in their own words; the draft stays open with the maker's text in it.
+  Admission (`pane_geometry_typeable`) is the arrangement's less one refusal: an off-room pane
+  IS typeable, because a typed coordinate is absolute and needs no rectangle to measure from.
+- **`kDraft` IS ONE CONTEXT FOR TWO INSPECTORS.** `keyboard_context_beneath_menu` answers
+  `kPaneEditor` while the editor holds the keys and `kDraft` while one of its rows is editing;
+  `editing_row()` resolves the draft under the keys by the same chain, so typed text, the
+  commit keys and the clipboard reach the draft the screen is pointing at. `draft_live`
+  (Info's) and `pane_editor_draft_live` are deliberately two questions: a change of document
+  selection cannot touch the editor's draft, so Info's refusals do not apply to it.
+- **THE PICKER'S NAME COLUMN IS TWELVE CELLS**, widened from ten to hold `Pane Editor` whole,
+  at the measured cost of two summary cells at every width -- Info's own summary is cut and
+  marked at the 78-column minimum. The properties WUX-5 left standing are untouched.
+- **What the Pane Editor is NOT:** a document editor (Info is), a Surface control primitive, a
+  general property inspector, a wiring editor, or a safe mode. Recovery is the picker, `-`
+  here or `0` in the arrangement, the default desk and `--isolated`, exactly as before.
+
 ## Do not assume
 
+- The Pane Editor's subject is the selected pane, or that choosing a subject selects it --
+  neither, and the F1/F9 cases pin both directions. A press into the editor selects the
+  EDITOR; `choose_subject` touches no selection.
 - Nothing Workshop persists is read at launch — the DESK, the window's size, the desktop
   placement, the keymap and the prefs are, automatically. The **document** still is not.
 - Workshop restores only the window's size — since WUX-3 the SDL path round-trips the

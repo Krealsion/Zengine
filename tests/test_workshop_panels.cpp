@@ -1093,13 +1093,21 @@ TEST_CASE("every BUILT-IN catalog row reaches the picker, with its summary and i
     // are the picker's own, and reading them back here pins the COLUMN rather than merely the
     // word. `closed` rather than `picker_state_word` is right in THIS session: nothing here is
     // waiting, because nothing is authored beyond what the minimum screen seats.
+    //
+    // ⚠ FITTED TO THE PICKER'S OWN COLUMNS SINCE WUX-13. The name column widened to hold
+    // `Pane Editor` whole, and at the 78-column minimum that is two cells off every summary
+    // -- Info's `objects and properties` is now cut there and MARKED, which is `detail::fit`
+    // doing its job. What the picker owes is the row AS IT FITS IT; the case searches for
+    // exactly that rather than for a sentence the room cannot hold.
+    const std::int64_t columns =
+        panel_prose_place(picker_bounds(screen_of(s)), screen_of(s)).columns - 2;
     for (std::size_t i = 0; i < kPanelKinds; ++i) {
         const PanelKind& k = kPanelCatalog[i];
         const std::string state = s.panels.has(k.kind) ? "open" : "closed";
         INFO("catalog entry ", i, ": ", std::string(k.name));
-        CHECK(shown.find(detail::pad(k.name, kPickerNameCols) + detail::pad(state, kPaneStateCols) +
-                         k.summary) !=
-              std::string::npos);
+        CHECK(shown.find(detail::fit(detail::pad(k.name, kPickerNameCols) +
+                                         detail::pad(state, kPaneStateCols) + k.summary,
+                                     columns)) != std::string::npos);
     }
     CHECK(shown.find(detail::pad("Builder", kPickerNameCols) + "closed") != std::string::npos);
     CHECK(shown.find(detail::pad("Info", kPickerNameCols) + "open") != std::string::npos);
@@ -6827,4 +6835,768 @@ TEST_CASE("WUX-11/SC-8: at the minimum width the `+` yields to the tab and the s
     // a sentence: a run with room gets its `+`, and a run that has used the budget does not.
     CHECK(ever_painted);
     CHECK(ever_omitted);
+}
+
+// ---- WUX-13: the Pane Editor -- a Workshop pane as a SUBJECT -------------------------------
+//
+// THE OLD PROOF OF CONCEPT EDITED DOCUMENT OBJECTS NAMED `panel`; this editor's subject is an
+// ordinary Workshop pane, held by durable identity (`PaneRef`) and never derived from
+// `Panels::selected`. Every case below drives the real weave through the doors a maker has
+// (the picker, a press, the keys) and reads what came out through the placement path.
+
+namespace {
+
+/// The Pane Editor's INTERIOR, in cells, through `bounds_of` -- never a constant.
+ui::Rect editor_cells(const Live& t) {
+    const Screen sc = screen_of(t.session());
+    const PanelBounds at =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc);
+    REQUIRE(at.open);
+    return pane_body_cells(at.rect, sc);
+}
+
+/// PRESS INTO THE PANE EDITOR -- its heading row, which names nothing and is consumed as a
+/// focus statement -- so the keys are pointed at it exactly as a maker points them.
+void press_into_editor(Live& t) {
+    const ui::Rect b = editor_cells(t);
+    t.press_canvas(b.x, b.y);
+    REQUIRE(t.session().panels.selected == panel::kPaneEditor);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+}
+
+/// Open the Pane Editor from the picker and point the keys at it.
+void open_editor(Live& t) {
+    open_pane(t, ref_of(panel::kPaneEditor));
+    REQUIRE(t.session().panels.has(panel::kPaneEditor));
+    press_into_editor(t);
+}
+
+std::size_t inventory_index(const Live& t, const PaneRef& ref) {
+    const std::vector<CatalogRow> rows =
+        inventory_rows(t.session().setup.active, t.session().panels);
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].ref == ref) {
+            return i;
+        }
+    }
+    FAIL("not in the inventory: ", ref_text(ref));
+    return rows.size();
+}
+
+/// CHOOSE A SUBJECT BY KEYS: on the PANES list, step to the pane, Return.
+void choose_by_keys(Live& t, const PaneRef& ref) {
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+    if (t.session().pane_editor.on_rows) {
+        t.key(input::scan::kTab);
+    }
+    REQUIRE_FALSE(t.session().pane_editor.on_rows);
+    const std::size_t want = inventory_index(t, ref);
+    for (int guard = 0; guard < 64; ++guard) {
+        const std::size_t at = t.session().pane_editor.cursor;
+        if (at == want) {
+            break;
+        }
+        t.key(at < want ? input::scan::kDown : input::scan::kUp);
+    }
+    REQUIRE(t.session().pane_editor.cursor == want);
+    t.key(input::scan::kReturn);
+    REQUIRE(t.session().pane_editor.subject == ref);
+}
+
+const Row* editor_row(const Live& t, const std::string& label) {
+    for (const Row& r : t.session().pane_editor.rows) {
+        if (r.label() == label) {
+            return &r;
+        }
+    }
+    return nullptr;
+}
+
+std::string editor_value(const Live& t, const std::string& label) {
+    const Row* row = editor_row(t, label);
+    REQUIRE_MESSAGE(row != nullptr, "no Pane Editor row labelled ", label);
+    return row->value();
+}
+
+/// PUT THE ROW CURSOR ON A LABELLED ROW, by keys only -- Tab into the rows, then step.
+void go_to_row(Live& t, const std::string& label) {
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+    if (!t.session().pane_editor.on_rows) {
+        t.key(input::scan::kTab);
+    }
+    REQUIRE(t.session().pane_editor.on_rows);
+    for (int guard = 0; guard < 64; ++guard) {
+        const PaneEditor& ed = t.session().pane_editor;
+        REQUIRE(ed.row_cursor < ed.rows.size());
+        if (ed.rows[ed.row_cursor].label() == label) {
+            return;
+        }
+        // walk down, then wrap to the top and walk down again
+        const std::size_t was = ed.row_cursor;
+        t.key(input::scan::kDown);
+        if (t.session().pane_editor.row_cursor == was) {
+            for (int up = 0; up < 32; ++up) {
+                t.key(input::scan::kUp);
+            }
+        }
+    }
+    FAIL("no Pane Editor row labelled ", label);
+}
+
+/// TYPE A VALUE INTO A LABELLED ROW AND COMMIT IT -- the ordinary draft vocabulary.
+void type_value(Live& t, const std::string& label, const std::string& text) {
+    go_to_row(t, label);
+    t.key(input::scan::kReturn);
+    REQUIRE(keyboard_context(t.session()) == KeyContext::kDraft);
+    const Row* row = editor_row(t, label);
+    REQUIRE(row != nullptr);
+    REQUIRE(row->editing());
+    // an opened draft holds the current value; replace it whole
+    for (std::size_t i = 0; i < 64; ++i) {
+        t.key(input::scan::kBackspace);
+    }
+    for (const char c : text) {
+        t.text(std::string(1, c));
+    }
+    t.key(input::scan::kReturn);
+}
+
+/// The Pane Editor's painted rows, read back off the last frame's canvas.
+std::string editor_text(Live& t) {
+    return panel_text(t.canvases.back(), editor_cells(t));
+}
+
+} // namespace
+
+TEST_CASE("WUX-13/SC-2: the Pane Editor is a built-in, and its list is the picker's population") {
+    // A CATALOG ROW LIKE ANY OTHER: in the overlay stack, so it can be its own subject, and
+    // a keyboard-taking pane, so its list has a cursor. Not in the default setup -- a new
+    // kind never is (make-a-workshop-tool's law).
+    const PanelKind& k = panel_kind(panel::kPaneEditor);
+    CHECK(std::string(k.name) == "Pane Editor");
+    CHECK(std::string(k.pane) == "pane-editor");
+    CHECK(k.placed_in == placement::kOverlayStack);
+    CHECK(k.takes_keyboard);
+    Live t;
+    CHECK_FALSE(t.session().panels.has(panel::kPaneEditor));
+    // ...AND THE PICKER'S NAME COLUMN HOLDS ITS WHOLE NAME (WUX-13 widened it).
+    CHECK(std::string(k.name).size() < kPickerNameCols);
+
+    // THE PANES LIST IS `inventory_rows` -- catalog, admitted runtime panes, and every
+    // reference the setup names -- and NOT a copy: an authored reference no office resolves
+    // has a row here because it has one there (F6: filtering unresolved refs out is caught).
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    open_editor(t);
+    // give the editor room for the whole list, through the authored size door
+    REQUIRE(author_pane_size(live(t).setup.active, ref_of(panel::kPaneEditor), PaneSize{},
+                             PaneSize{pane_unit::kSubcells, subs(30)})
+                .accepted);
+    t.key(input::scan::kDown); // any gesture repaints
+    const std::vector<CatalogRow> rows =
+        inventory_rows(t.session().setup.active, t.session().panels);
+    const std::string shown = editor_text(t);
+    CHECK(shown.find("PANE EDITOR *") != std::string::npos);
+    for (const CatalogRow& row : rows) {
+        INFO(row.name);
+        CHECK(shown.find(detail::pad(row.name, kPickerNameCols)) != std::string::npos);
+    }
+    CHECK(shown.find(detail::pad("history", kPickerNameCols) + "unresolved") !=
+          std::string::npos);
+    CHECK(has_pane(t.session().setup.active, stranger()));
+}
+
+TEST_CASE("WUX-13/SC-1: the subject is chosen, and interacting inside the editor does not "
+          "retarget it") {
+    // ⭐ THE SUBJECT MODEL. `Panels::selected` says which pane the maker is interacting WITH
+    // -- and pressing into the Pane Editor makes that the Pane Editor -- while the subject
+    // says which pane they asked it to DESCRIBE. The two are related and not the same.
+    //
+    // ⚔ MUTATION (F1): deriving the subject from `Panels::selected`. Every press and key
+    // below lands in the Pane Editor, so a derived subject would become the Pane Editor
+    // the moment the maker touched a row; `subject == layouts` goes red.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef layouts = ref_of(panel::kLayouts);
+    choose_by_keys(t, layouts);
+    // CHOOSING DID NOT SELECT: the desk's selection is still the pane under the hand.
+    CHECK(t.session().panels.selected == panel::kPaneEditor);
+    CHECK(t.session().pane_editor.subject == layouts);
+
+    // A PRESS ON ONE OF ITS OWN ROWS...
+    REQUIRE(author_pane_size(live(t).setup.active, ref_of(panel::kPaneEditor), PaneSize{},
+                             PaneSize{pane_unit::kSubcells, subs(30)})
+                .accepted);
+    t.key(input::scan::kTab); // repaint at the new size, and step into the rows
+    REQUIRE(t.session().pane_editor.on_rows);
+    const ui::Rect b = editor_cells(t);
+    const Screen sc = screen_of(t.session());
+    const PaneEditorBodyPlace body = pane_editor_body(
+        t.session(), sc,
+        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc).rect);
+    REQUIRE(body.present);
+    const std::int64_t x_row = prose_row_of_field(body, 5); // X, after four facts and AUTHORED
+    REQUIRE(x_row != kNoProseRow);
+    t.press_canvas(b.x + 3, b.y + kPaneEditorHeadingRows + x_row);
+    CHECK(t.session().panels.selected == panel::kPaneEditor);
+    CHECK(t.session().pane_editor.subject == layouts);
+    CHECK(t.session().pane_editor.on_rows);
+    CHECK(t.session().pane_editor.rows[t.session().pane_editor.row_cursor].label() == "X");
+    // ...AND TYPING IN IT: the keys are the editor's, not command mode's, and the subject
+    // stands.
+    const std::size_t objects = t.doc().elements.size();
+    t.key(input::scan::kN); // `n` is command mode's `new object`; here it means nothing
+    CHECK(t.doc().elements.size() == objects);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kUp);
+    CHECK(t.session().pane_editor.subject == layouts);
+    CHECK(t.session().panels.selected == panel::kPaneEditor);
+
+    // AND PRESSING ELSEWHERE TAKES THE KEYS AWAY AND LEAVES THE SUBJECT: selection moved,
+    // the editor still describes Layouts.
+    t.press(90, 35); // the workspace, clear of the stack
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
+    CHECK(t.session().pane_editor.subject == layouts);
+}
+
+TEST_CASE("WUX-13/SC-4+SC-5: the subject's rows say identity, then AUTHORED, then RESOLVED") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    const std::vector<Row>& rows = t.session().pane_editor.rows;
+    const char* const expected[] = {"Name",   "Identity", "Provider", "Summary", "AUTHORED",
+                                    "X",      "Y",        "Width",    "Height",  "Front",
+                                    "Open",   "RESOLVED", "Window",   "State"};
+    REQUIRE(rows.size() == sizeof(expected) / sizeof(expected[0]));
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        INFO(i);
+        CHECK(rows[i].label() == expected[i]);
+    }
+    // IDENTITY: catalog facts, none invented.
+    CHECK(editor_value(t, "Name") == "Layouts");
+    CHECK(editor_value(t, "Identity") == "zengine.workshop/layouts");
+    CHECK(editor_value(t, "Provider") == "zengine.workshop (built in)");
+    CHECK(editor_value(t, "Summary") == "layout tabs and setup");
+    // AUTHORED: nothing yet -- a fresh desk is the developer's answer on every axis.
+    CHECK(rows[4].section());
+    CHECK(editor_value(t, "X") == "-");
+    CHECK(editor_value(t, "Y") == "-");
+    CHECK(editor_value(t, "Width") == "-");
+    CHECK(editor_value(t, "Height") == "-");
+    CHECK(editor_value(t, "Front").find("f1 of 3") == 0);
+    CHECK(editor_value(t, "Open").find("yes") == 0);
+    // RESOLVED: the rectangle the pane path answers RIGHT NOW, in the face's unit.
+    CHECK(rows[11].section());
+    const Screen sc = screen_of(t.session());
+    const PanelBounds where =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc);
+    CHECK(editor_value(t, "Window") == fine_rect_text(where.resolved, 0));
+    CHECK(editor_value(t, "Window") == "@0,0 132x2 cells");
+    CHECK(editor_value(t, "State") == "open");
+    // WHICH ROWS ARE THE MAKER'S TO TOUCH says which truth is which.
+    for (const char* authored : {"X", "Y", "Width", "Height"}) {
+        CHECK(editor_row(t, authored)->editable());
+    }
+    for (const char* derived : {"Name", "Identity", "Provider", "Summary", "Front", "Open",
+                                "Window", "State"}) {
+        INFO(derived);
+        CHECK_FALSE(editor_row(t, derived)->editable());
+    }
+    // ...AND THE SECTIONS ARE PAINTED AS BOUNDARIES, on the one ground every ink reads on.
+    REQUIRE(author_pane_size(live(t).setup.active, ref_of(panel::kPaneEditor), PaneSize{},
+                             PaneSize{pane_unit::kSubcells, subs(30)})
+                .accepted);
+    t.key(input::scan::kTab);
+    const ui::Rect b = editor_cells(t);
+    const std::vector<surface::SurfaceTextRegion> found = regions_at(t.canvases.back(), b.x, b.y);
+    REQUIRE(found.size() == 1);
+    bool authored_ground = false;
+    bool resolved_ground = false;
+    for (const surface::SurfaceTextRow& row : found.front().rows) {
+        if (row.text == "AUTHORED") {
+            authored_ground = row.background == surface::role::kMuted;
+        }
+        if (row.text == "RESOLVED") {
+            resolved_ground = row.background == surface::role::kMuted;
+        }
+    }
+    CHECK(authored_ground);
+    CHECK(resolved_ground);
+    // ...AND THE SUBJECT'S OWN ROW IN THE LIST WEARS ITS MARK.
+    CHECK(editor_text(t).find("*" + detail::pad("Layouts", kPickerNameCols)) !=
+          std::string::npos);
+}
+
+TEST_CASE("WUX-13/SC-6+SC-11: a typed place moves Layouts through the gesture door, and its "
+          "tabs follow") {
+    // ⭐ THE SELF-APPLICATION PROOF, in the suite. Layouts is Workshop's own presentation
+    // of itself; the Pane Editor changes its authored Y; the pane path -- paint, occupancy,
+    // the tab press inverse -- follows with nothing added.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef layouts = ref_of(panel::kLayouts);
+    choose_by_keys(t, layouts);
+    const Screen sc = screen_of(t.session());
+    REQUIRE(layouts_body(t.session(), sc).region_y == 0);
+    type_value(t, "Y", "20");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice() == "committed Y = 20 cells");
+    // THE AUTHORED ROW MOVED, THROUGH `author_pane_window`: the untyped axis kept what it
+    // stood at (the resolved 0), the typed axis is the maker's, and the extents were not
+    // touched.
+    const SetupPane* row = pane_of(t.session().setup.active, layouts);
+    REQUIRE(row != nullptr);
+    CHECK(row->place == PanePlace{pane_unit::kSubcells, 0, subs(20)});
+    CHECK(row->width == PaneSize{});
+    CHECK(row->height == PaneSize{});
+    CHECK(editor_value(t, "Y") == "20 cells");
+    CHECK(editor_value(t, "X") == "0 cells");
+    // THE RESOLVED ROW FOLLOWED, FRESH...
+    const PanelBounds where =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kLayouts, sc);
+    CHECK(where.rect.y == subs(20));
+    CHECK(editor_value(t, "Window") == "@0,20 132x2 cells");
+    // ...AND SO DID THE TABS: the run's body is at the new row, and the press inverse
+    // answers there and not at the old one.
+    CHECK(layouts_body(t.session(), sc).region_y == 20);
+    CHECK(band_tab_at(t.session(), sc, input::space::kCells, 2,
+                      20 + surface::kTuiCanvasTopRow)
+              .hit);
+    CHECK_FALSE(band_tab_at(t.session(), sc, input::space::kCells, 2,
+                            surface::kTuiCanvasTopRow)
+                    .hit);
+    CHECK(occupied_at(t.session().panels, t.session().setup.active, sc, 2, 20).kind ==
+          panel::kLayouts);
+    CHECK_FALSE(occupied_at(t.session().panels, t.session().setup.active, sc, 2, 0).occupied);
+    // A TYPED WIDTH IS THE SAME DOOR, ONE AXIS: the place and the height stand.
+    type_value(t, "Width", "40");
+    CHECK(pane_of(t.session().setup.active, layouts)->width ==
+          PaneSize{pane_unit::kSubcells, subs(40)});
+    CHECK(pane_of(t.session().setup.active, layouts)->place ==
+          PanePlace{pane_unit::kSubcells, 0, subs(20)});
+    CHECK(editor_value(t, "Window") == "@0,20 40x2 cells");
+    // `-` IS THE RESET DOOR, ONE AXIS AT A TIME.
+    type_value(t, "Width", "-");
+    CHECK(pane_of(t.session().setup.active, layouts)->width == PaneSize{});
+    CHECK(pane_of(t.session().setup.active, layouts)->place ==
+          PanePlace{pane_unit::kSubcells, 0, subs(20)});
+    type_value(t, "X", "-");
+    CHECK(pane_of(t.session().setup.active, layouts)->place == PanePlace{});
+    CHECK(layouts_body(t.session(), sc).region_y == 0);
+}
+
+TEST_CASE("WUX-13/SC-6: a typed place reseats the stack through `apply_setup`") {
+    // ⚔ MUTATION (F4): a write that lands in the `SetupPane` without going through the
+    // commit path's reseat. `bounds_of` reads the setup live, so a moved pane MOVES either
+    // way -- what a bypass leaves behind is a pane the picker refused for want of room,
+    // still waiting after the room appeared. The minimum screen seats one stacked pane.
+    Live t;
+    open_editor(t);
+    REQUIRE(t.session().panels.has(panel::kPaneEditor));
+    const PaneRef builder = ref_of(panel::kBuilder);
+    REQUIRE(add_pane(live(t).setup.active, builder));
+    t.publish(loom::to_value(surface::SurfaceExtent{80, 22, 0, 0})); // a reconcile
+    REQUIRE(has_pane(t.session().setup.active, builder));
+    REQUIRE_FALSE(t.session().panels.has(panel::kBuilder)); // authored, and waiting
+    press_into_editor(t);
+    choose_by_keys(t, ref_of(panel::kPaneEditor));
+    type_value(t, "X", "2");
+    CHECK_FALSE(t.session().notice_is_bad);
+    // THE EDITOR LEFT THE REACTIVE STACK, AND THE WAITING PANE WAS SEATED IN THE SLOT IT
+    // VACATED -- which only a reconcile does.
+    CHECK(t.session().panels.has(panel::kBuilder));
+    CHECK(pane_of(t.session().setup.active, ref_of(panel::kPaneEditor))->place.mode ==
+          pane_unit::kSubcells);
+}
+
+TEST_CASE("WUX-13/SC-7: a typed value that is not admissible is refused, and the authored row "
+          "is untouched") {
+    // ⚔ MUTATION (F3): clamping a typed value to the room or to the lattice. Every
+    // comparison against `before` below is value identity over the whole desk.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef layouts = ref_of(panel::kLayouts);
+    choose_by_keys(t, layouts);
+    type_value(t, "X", "10");
+    const Setup before = t.session().setup.active;
+    REQUIRE(pane_of(before, layouts)->place.x == subs(10));
+
+    type_value(t, "X", "abc");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("X: not a whole number of cells") == 0);
+    CHECK(t.session().setup.active == before);
+    // THE DRAFT IS STILL OPEN WITH THE MAKER'S TEXT IN IT, so they fix what they typed.
+    REQUIRE(editor_row(t, "X")->editing());
+    t.key(input::scan::kEscape);
+    CHECK_FALSE(editor_row(t, "X")->editing());
+    CHECK(t.session().setup.active == before);
+
+    type_value(t, "Width", "99999");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("at most 4096 cells") != std::string::npos);
+    CHECK(t.session().setup.active == before);
+    t.key(input::scan::kEscape);
+
+    type_value(t, "Height", "0");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.session().setup.active == before);
+    t.key(input::scan::kEscape);
+
+    type_value(t, "Y", "-7");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("cannot be negative") != std::string::npos);
+    CHECK(t.session().setup.active == before);
+    t.key(input::scan::kEscape);
+
+    // AN OFF-ROOM VALUE IS NOT CLAMPED EITHER: it is legal authored intent, and the
+    // resolved row says what this screen makes of it.
+    type_value(t, "X", "500");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(pane_of(t.session().setup.active, layouts)->place.x == subs(500));
+    CHECK(editor_value(t, "State").find("off-room") == 0);
+    CHECK(editor_value(t, "Window") == "@500,0 132x2 cells");
+
+    // A RESET OF AN AXIS ALREADY AT THE DEVELOPER'S ANSWER IS REFUSED IN THE OWNER'S WORDS.
+    const Setup placed = t.session().setup.active;
+    type_value(t, "Width", "-");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("already takes the developer's width") != std::string::npos);
+    CHECK(t.session().setup.active == placed);
+    t.key(input::scan::kEscape);
+}
+
+TEST_CASE("WUX-13/SC-8: looking never authors") {
+    // ⚔ MUTATION (F2): an inspection that writes a resolved rectangle back into the setup.
+    // Every read below is followed by value identity over the whole desk.
+    Live t;
+    const Setup born = t.session().setup.active;
+    open_editor(t);
+    // opening the editor authored one thing -- its own participation -- and nothing else
+    Setup expect = born;
+    REQUIRE(add_pane(expect, ref_of(panel::kPaneEditor)));
+    REQUIRE(t.session().setup.active == expect);
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    for (const Row& r : t.session().pane_editor.rows) {
+        (void)r.value(); // every row, read
+    }
+    CHECK(t.session().setup.active == expect);
+    // THE SCREEN CHANGES; THE RESOLVED ROW CHANGES; THE AUTHORED ROWS DO NOT.
+    const std::string small = editor_value(t, "Window");
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 0, 0}));
+    CHECK(editor_value(t, "Window") != small);
+    CHECK(editor_value(t, "Window") == "@0,0 160x2 cells");
+    CHECK(editor_value(t, "X") == "-");
+    CHECK(t.session().setup.active == expect);
+    // THE FACE CHANGES: the same value, spelled in pixels, and nothing written.
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    CHECK(editor_value(t, "Window") == "@0,0 1920x24 px");
+    CHECK(editor_value(t, "X") == "-");
+    CHECK(t.session().setup.active == expect);
+    // SELECTING PANES, PRESSING AROUND: still nothing.
+    t.press(90, 35);
+    press_into_editor(t);
+    t.key(input::scan::kTab);
+    t.key(input::scan::kDown);
+    t.key(input::scan::kUp);
+    CHECK(t.session().setup.active == expect);
+}
+
+TEST_CASE("WUX-13/SC-9: a closed pane and an unresolved row are subjects with honest facts") {
+    // ⚔ MUTATION (F5): dropping the subject when its pane leaves the layout. The subject
+    // below is removed and reopened THROUGH THE EDITOR and stands throughout.
+    // ⚔ MUTATION (F6): filtering unresolved refs out of the list, or out of the setup.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef files = ref_of(panel::kProjectFiles);
+    REQUIRE_FALSE(t.session().panels.has(panel::kProjectFiles));
+    choose_by_keys(t, files);
+    CHECK(editor_value(t, "State") == "closed -- open it from the picker");
+    CHECK(editor_value(t, "Open") == "no -- o opens it");
+    CHECK(editor_value(t, "X") == "--");
+    CHECK(editor_value(t, "Window") == "-");
+    // A CLOSED PANE'S GEOMETRY IS NOT TYPEABLE, and the refusal says what to do.
+    type_value(t, "X", "3");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("is not in this layout -- open it first") != std::string::npos);
+    t.key(input::scan::kEscape);
+    // OPEN IT THROUGH THE EDITOR -- the picker's own door, the editor's own gesture word.
+    t.key(input::scan::kO);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice() == "opened Files -- o removes it");
+    CHECK(t.session().panels.has(panel::kProjectFiles));
+    CHECK(t.session().pane_editor.subject == files);
+    CHECK(editor_value(t, "State") == "open");
+    CHECK(editor_value(t, "Open") == "yes -- o removes it");
+    CHECK(editor_value(t, "X") == "-");
+    // ...AND REMOVE IT AGAIN: the subject STANDS, the row is still in the list.
+    t.key(input::scan::kO);
+    CHECK(t.notice().find("removed Files -- o brings it back") == 0);
+    CHECK_FALSE(t.session().panels.has(panel::kProjectFiles));
+    CHECK(t.session().pane_editor.subject == files);
+    CHECK(editor_value(t, "State") == "closed -- open it from the picker");
+    CHECK(inventory_index(t, files) < 99);
+
+    // AN AUTHORED REFERENCE NO OFFICE RESOLVES keeps its identity and its geometry.
+    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    REQUIRE(author_pane_place(live(t).setup.active, stranger(), subs(7), subs(9)).accepted);
+    REQUIRE(author_pane_size(live(t).setup.active, stranger(),
+                             PaneSize{pane_unit::kSubcells, subs(30)}, PaneSize{})
+                .accepted);
+    choose_by_keys(t, stranger());
+    CHECK(editor_value(t, "Name") == "history");
+    CHECK(editor_value(t, "Identity") == "third.party.tools/history");
+    CHECK(editor_value(t, "Provider") ==
+          "third.party.tools (unresolved -- no office here offers it)");
+    CHECK(editor_value(t, "State").find("unresolved") == 0);
+    CHECK(editor_value(t, "X") == "7 cells");
+    CHECK(editor_value(t, "Y") == "9 cells");
+    CHECK(editor_value(t, "Width") == "30 cells");
+    CHECK(editor_value(t, "Height") == "-");
+    CHECK(editor_value(t, "Window") == "-");
+    // ITS GEOMETRY CANNOT BE TYPED (no base to measure the other axis from)...
+    type_value(t, "Y", "1");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("is unresolved") != std::string::npos);
+    t.key(input::scan::kEscape);
+    // ...BUT ITS ORDER CAN, and the row was never touched. It was added LAST, so it is
+    // front-most already; `b` is the order gesture with somewhere to go.
+    t.key(input::scan::kB);
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice().find("third.party.tools/history back-most") == 0);
+    CHECK(has_pane(t.session().setup.active, stranger()));
+    CHECK(pane_of(t.session().setup.active, stranger())->place ==
+          PanePlace{pane_unit::kSubcells, subs(7), subs(9)});
+    CHECK(pane_of(t.session().setup.active, stranger())->front == 0);
+    // AND `-` RESETS AN UNRESOLVED PANE'S AXIS, through the reset door.
+    type_value(t, "Width", "-");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(pane_of(t.session().setup.active, stranger())->width == PaneSize{});
+    CHECK(has_pane(t.session().setup.active, stranger()));
+}
+
+TEST_CASE("WUX-13/SC-10: editing a pane in a layout related to a current Setup makes it "
+          "modified") {
+    // ⚔ MUTATION (F8): an editor-local dirty bit, or a comparison that stays `current`.
+    // The verdict below is `link_status`, derived by comparing the desk to the known value,
+    // and the editor holds no flag of its own.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    link_live_setup(live(t).setup, "somewhere.json");
+    REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    // reading is not editing
+    for (const Row& r : t.session().pane_editor.rows) {
+        (void)r.value();
+    }
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    type_value(t, "Y", "20");
+    CHECK(live_status(t.session().setup) == setup_link::kModified);
+    // ...and undoing it by hand makes it current again, because there is no flag.
+    type_value(t, "Y", "-");
+    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+}
+
+TEST_CASE("WUX-13/SC-12: moving, resizing and closing Layouts through the editor leaves the "
+          "reservation alone") {
+    // ⚔ MUTATION (F7): coupling `screen_of`'s reservation to the Layouts pane. Every
+    // comparison below moves, and so does the document's share basis.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const Screen before = screen_of(t.session());
+    const std::int64_t doc_w = t.session().workspace_w;
+    const std::int64_t doc_h = t.session().workspace_h;
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    type_value(t, "Y", "30");
+    CHECK(screen_of(t.session()).room_h == before.room_h);
+    CHECK(screen_of(t.session()).room_w == before.room_w);
+    type_value(t, "Height", "9");
+    type_value(t, "Width", "9");
+    CHECK(screen_of(t.session()).room_h == before.room_h);
+    CHECK(screen_of(t.session()).room_w == before.room_w);
+    t.key(input::scan::kO); // remove it altogether
+    REQUIRE_FALSE(t.session().panels.has(panel::kLayouts));
+    CHECK(screen_of(t.session()).room_w == before.room_w);
+    CHECK(screen_of(t.session()).room_h == before.room_h);
+    CHECK(screen_of(t.session()).notice_y == before.notice_y);
+    CHECK(t.session().workspace_w == doc_w);
+    CHECK(t.session().workspace_h == doc_h);
+    // ...and the picker still brings it back, at the developer's default.
+    t.key(input::scan::kO);
+    CHECK(t.session().panels.has(panel::kLayouts));
+}
+
+TEST_CASE("WUX-13/SC-13: a Pane Editor edit survives a restart through the session, and the "
+          "subject does not") {
+    TempDir dir("wux13-restart");
+    const std::string session = dir.file("session.json");
+    {
+        Live t;
+        t.host.session_path = session;
+        t.host.setup_path = dir.file("s.json");
+        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+        open_editor(t);
+        choose_by_keys(t, ref_of(panel::kLayouts));
+        type_value(t, "Y", "20");
+        REQUIRE_FALSE(t.session().notice_is_bad);
+        t.press(90, 35); // the workspace, clear of the stack
+        t.key(input::scan::kQ);
+        REQUIRE(t.host.quit);
+    }
+    REQUIRE(std::filesystem::exists(session));
+    Live back;
+    back.host.session_path = session;
+    back.host.setup_path = dir.file("elsewhere.json");
+    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    const SetupPane* row = pane_of(back.session().setup.active, ref_of(panel::kLayouts));
+    REQUIRE(row != nullptr);
+    CHECK(row->place == PanePlace{pane_unit::kSubcells, 0, subs(20)});
+    CHECK(back.session().panels.has(panel::kPaneEditor));
+    CHECK(layouts_body(back.session(), screen_of(back.session())).region_y == 20);
+    // THE SUBJECT IS INTERACTION STATE AND IS NOT PERSISTED.
+    CHECK_FALSE(back.session().pane_editor.addressed());
+    CHECK(back.session().pane_editor.rows.empty());
+}
+
+TEST_CASE("WUX-13/SC-15: the Pane Editor can be its own subject, and its own rows do not "
+          "retarget it") {
+    // ⚔ MUTATION (F9): a subject that follows selection. Every gesture below selects the
+    // Pane Editor; the subject is the Pane Editor because it was CHOSEN, and typing into
+    // its own X moves the pane the rows are painted in.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    const PaneRef me = ref_of(panel::kPaneEditor);
+    choose_by_keys(t, me);
+    CHECK(editor_value(t, "Name") == "Pane Editor");
+    CHECK(editor_value(t, "Identity") == "zengine.workshop/pane-editor");
+    CHECK(editor_value(t, "State") == "open");
+    // THE COINCIDENCE IS BROKEN ON PURPOSE: select something else (the workspace: nothing),
+    // and the subject is still the Pane Editor -- because it was chosen, not because it
+    // was selected. A subject derived from the selection would be nothing here.
+    t.press(90, 35);
+    CHECK(t.session().panels.selected == kNoPaneKind);
+    CHECK(t.session().pane_editor.subject == me);
+    press_into_editor(t);
+    CHECK(t.session().pane_editor.subject == me);
+    const Screen sc = screen_of(t.session());
+    const FineRect was =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc).rect;
+    // a press on one of its own rows, then a typed edit of its own place
+    REQUIRE(author_pane_size(live(t).setup.active, me, PaneSize{},
+                             PaneSize{pane_unit::kSubcells, subs(30)})
+                .accepted);
+    t.key(input::scan::kTab);
+    const ui::Rect b = editor_cells(t);
+    t.press_canvas(b.x + 2, b.y); // its own heading: consumed, and pointing nowhere new
+    CHECK(t.session().panels.selected == panel::kPaneEditor);
+    CHECK(t.session().pane_editor.subject == me);
+    type_value(t, "X", "10");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.session().pane_editor.subject == me);
+    const FineRect now =
+        bounds_of(t.session().panels, t.session().setup.active, panel::kPaneEditor, sc).rect;
+    CHECK(now.x == subs(10));
+    CHECK(now.x != was.x);
+    CHECK(editor_value(t, "X") == "10 cells");
+    CHECK(editor_value(t, "Window").find("@10,") == 0);
+    // the keys are still here, at the new rectangle
+    CHECK(keyboard_context(t.session()) == KeyContext::kPaneEditor);
+    // ...and it can take itself off the layout; the picker brings it back, subject intact.
+    t.key(input::scan::kO);
+    CHECK_FALSE(t.session().panels.has(panel::kPaneEditor));
+    CHECK(t.session().pane_editor.subject == me);
+    CHECK(keyboard_context(t.session()) == KeyContext::kCommand);
+    open_pane(t, me);
+    CHECK(t.session().panels.has(panel::kPaneEditor));
+    CHECK(t.session().pane_editor.subject == me);
+    // ...AT THE DEVELOPER'S DEFAULT: a pane taken off a layout loses the row that held its
+    // place (P-WORK-08, unchanged by this phase), and the editor says so honestly.
+    CHECK(pane_of(t.session().setup.active, me)->place == PanePlace{});
+    CHECK(editor_value(t, "X") == "-");
+}
+
+TEST_CASE("WUX-13: a typed amount is read and written in the face's own unit") {
+    // THE WUX-6 GRAMMAR, READ BACKWARDS: a graphical face spells a pane in pixels and takes
+    // pixels back; a cell face does the same in cells; a unit the face did not report is
+    // refused rather than converted.
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 8, 18, surface::kCanvasCellPx}));
+    open_editor(t);
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    type_value(t, "X", "120");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(t.notice() == "committed X = 120 px");
+    CHECK(pane_of(t.session().setup.active, ref_of(panel::kLayouts))->place.x == subs(10));
+    CHECK(editor_value(t, "X") == "120 px");
+    type_value(t, "Y", "10 cells");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice() == "Y: this face reads px, not cells");
+    t.key(input::scan::kEscape);
+    type_value(t, "Y", "24px");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(pane_of(t.session().setup.active, ref_of(panel::kLayouts))->place.y == subs(2));
+    // A PIXEL-GRAIN VALUE READ ON A CELL FACE IS MARKED AS A PROJECTION, and typing on that
+    // face authors cells.
+    type_value(t, "X", "126");
+    CHECK(editor_value(t, "X") == "126 px");
+    t.publish(loom::to_value(surface::SurfaceExtent{160, 60, 0, 0, 0}));
+    CHECK(editor_value(t, "X") == "~10 cells (~ projected)");
+    type_value(t, "X", "11 cells");
+    CHECK_FALSE(t.session().notice_is_bad);
+    CHECK(pane_of(t.session().setup.active, ref_of(panel::kLayouts))->place.x == subs(11));
+    CHECK(editor_value(t, "X") == "11 cells");
+    type_value(t, "X", "3 px");
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice() == "X: this face reads cells, not px");
+    t.key(input::scan::kEscape);
+}
+
+TEST_CASE("WUX-13: the subject stands across a layout switch, and clears only when nothing "
+          "names it") {
+    Live t;
+    t.publish(loom::to_value(surface::SurfaceExtent{132, 46, 0, 0}));
+    open_editor(t);
+    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    choose_by_keys(t, stranger());
+    // A NEW, EMPTY LAYOUT: the stranger is in no setup here and in no catalog -- the one
+    // state that clears the subject -- and it clears at the next gesture, saying so.
+    t.press(90, 35); // the workspace, clear of the stack
+    t.key(input::scan::kEquals); // `layout.new`
+    REQUIRE(layout_count(t.session().setup) == 2);
+    CHECK(t.session().pane_editor.subject == stranger()); // paint clears nothing
+    open_pane(t, ref_of(panel::kPaneEditor));
+    press_into_editor(t);
+    t.key(input::scan::kDown);
+    CHECK_FALSE(t.session().pane_editor.addressed());
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("subject cleared") != std::string::npos);
+    // A CATALOG PANE STANDS ACROSS THE SAME SWITCH, as a closed subject on the layout it
+    // was taken off and an open one on the layout it is still on.
+    choose_by_keys(t, ref_of(panel::kLayouts));
+    CHECK(editor_value(t, "State") == "open");
+    t.key(input::scan::kO); // off THIS layout only
+    CHECK(editor_value(t, "State").find("closed") == 0);
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+    t.press(90, 35);
+    t.key(input::scan::kComma); // back to the first layout
+    REQUIRE(t.session().setup.active_at == 0);
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+    press_into_editor(t);
+    CHECK(editor_value(t, "State") == "open");
+    t.press(90, 35);
+    t.key(input::scan::kPeriod); // and forward again: still closed there, still the subject
+    REQUIRE(t.session().setup.active_at == 1);
+    press_into_editor(t);
+    CHECK(t.session().pane_editor.subject == ref_of(panel::kLayouts));
+    CHECK(editor_value(t, "State").find("closed") == 0);
 }

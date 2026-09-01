@@ -20,8 +20,8 @@ picker over the catalog of panel kinds Workshop knows how to present (`panel.hpp
 that is not in the catalog cannot be opened by any gesture at all — and the catalog
 has **two halves**: a compile-time constant array of Workshop's own, and a bounded
 **session-local runtime catalog** of panes some office actually offered this run (see
-*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The two built-ins are
-chosen to be unalike:
+*[A weave may offer a pane](#a-weave-may-offer-a-pane-wp-0)* below). The first two built-ins
+were chosen to be unalike:
 
 | kind | presents | behind it |
 |---|---|---|

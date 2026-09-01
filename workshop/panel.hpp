@@ -124,6 +124,18 @@ inline constexpr std::int64_t kProjectFiles = 3;
 /// into that row where the medium fits no second one. Splitting them would be three panes
 /// arguing over one row's budget.
 inline constexpr std::int64_t kLayouts = 4;
+/// THE PANE EDITOR (WUX-13): the built-in whose SUBJECT is an ordinary Workshop pane. It
+/// lists the same inventory the picker lists, holds one chosen pane as its subject, shows
+/// that pane's identity, its AUTHORED window (place, width, height, front, participation)
+/// and its freshly RESOLVED presentation as two separate things, and edits the authored
+/// half through the doors arrangement and the picker already spend. It is placed in the
+/// overlay stack like Files and the Editor so that it can be its own subject -- moved,
+/// resized, put in front, taken off a layout -- through the same rows.
+///
+/// IT IS NOT THE INFO PANEL, AND INFO IS NOT IT. Info inspects DOCUMENT objects (the
+/// `ui::Element`s a maker draws in the workspace); this inspects Workshop's furniture.
+/// Two subjects, two kinds, and a row that reads `X` in each means a different fact.
+inline constexpr std::int64_t kPaneEditor = 5;
 } // namespace panel
 
 /// WHERE a panel kind is presented. Three, because Workshop has three places and no
@@ -249,6 +261,7 @@ inline constexpr const char* kInfo = "info";
 inline constexpr const char* kEditor = "editor";
 inline constexpr const char* kProjectFiles = "project-files";
 inline constexpr const char* kLayouts = "layouts";
+inline constexpr const char* kPaneEditor = "pane-editor";
 } // namespace pane_key
 
 /// THE CATALOG. Workshop's own, and complete: a panel that is not here cannot be
@@ -313,6 +326,8 @@ inline constexpr PanelKind kPanelCatalog[] = {
     // takes the row while it is open, which is where a typed layout name goes.
     {panel::kLayouts, placement::kTopBand, kWorkshopProvider, pane_key::kLayouts, "Layouts",
      "layout tabs and setup"},
+    {panel::kPaneEditor, placement::kOverlayStack, kWorkshopProvider, pane_key::kPaneEditor,
+     "Pane Editor", "edit a pane", true},
 };
 
 inline constexpr std::size_t kPanelKinds = sizeof(kPanelCatalog) / sizeof(kPanelCatalog[0]);
