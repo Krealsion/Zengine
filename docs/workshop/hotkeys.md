@@ -30,7 +30,10 @@ are working with** — it appears at the top-left of the selected pane and follo
 move that pane or select another. With no pane selected it opens at the panel column, which
 is where it has always opened. Nothing about its position is remembered: it is worked out
 fresh each time from the pane you last pressed into, and near the bottom of the room it
-shifts up so the whole view stays on screen.
+shifts up so the whole view stays on screen. It is exactly as big as what it lists — its
+longest line across, its rows down — so a short list is a small box; when the room is
+genuinely too small for the whole list it keeps the room's height and says how many rows
+it could not show.
 
 The list is grouped by the layer that owns each row:
 

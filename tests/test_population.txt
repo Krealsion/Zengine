@@ -1044,8 +1044,15 @@ builder                           doctest           always  53
 # and the only thing that notices is this floor. Measured, with one of the five omitted:
 # `FLOOR: workshop_panes selected 220 cases, below declared floor 233`.
 #
+# QR-17 raised ONE floor -- workshop_screen 235 -> 245 -- and moved no other. Three of the
+# ten are the repair's own: the full hotkey view's rectangle is its content's (as tall as its
+# rows and as wide as its longest, in both directions and on both faces, through the
+# contextual surface's own arithmetic), the room still bounds it and the cut is still
+# counted, and a smaller rectangle is still nobody's pointer space and moves no reservation.
+# The other seven re-baseline cases earlier phases had left above the floor.
+#
 workshop_document                 doctest           always  141
-workshop_screen                   doctest           always  235
+workshop_screen                   doctest           always  245
 workshop_panels                   doctest           always  170
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172

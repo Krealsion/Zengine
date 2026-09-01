@@ -1516,25 +1516,33 @@ EXECUTION   the owner that performs it                             untouched -- 
   default that makes the folded word true (`help_pairs`); what a packed row cannot carry is
   marked, and the full hotkey view remains the complete list in every mode.
 - **The full hotkey view** (`Session::hotkeys`, `paint_hotkeys`) opens **beside the selected
-  pane** since WUX-5: `hotkeys_bounds(session, screen)` anchors it at that pane's visible
-  OUTER top-left, sizes it from the room under the anchor (floored at `kPickerRows`, this
-  screen's own smallest useful overlay list, and capped at the column's own height), and
-  shifts it whole inside the band `context_bounds` respects. It is DERIVED at every paint and
-  every press — nothing is stored, so moving or resizing the pane moves the help on the next
-  projection and no position reaches a file. With NO selection, and for a selected pane with
-  no rectangle on this screen, it answers `overlay_column(sc)` — byte-for-byte where this view
-  always opened, and nothing invents a selection to anchor to. ⚠ `attention_bounds` did NOT
-  follow it: a condition is about the application and anchoring that list to whichever pane
-  was last pressed would assert a relationship that does not exist.
-  The view (still the stack column's width, floor to ceiling at the fallback; a single slot
-  was measured too small) is a projection, not an owner: it lists the context BENEATH it,
-  grouped by
-  owning layer, with the component's editing vocabulary shown from
-  `component::kEditingVocabulary` and marked not remappable, and a focused pane described
-  only as ownership — Workshop is never told a provider's bindings and must not guess. It is
-  keys-modal while open (its toggle and bare Escape close it; Escape is deliberately NOT a
-  keymap action — a modal surface's structural way out must not be authorable into a
-  lockout); the pointer chain is untouched, the picker's own precedent.
+  pane** since WUX-5 and **fits what it says** since QR-17: `hotkeys_bounds(session, screen)`
+  anchors it at that pane's visible OUTER top-left and sizes it from its own rows —
+  `hotkeys_rows(session)` is the one composition (the heading, then the groups; painted row
+  i IS composed row i), the longest row is the width and the row count the height, read
+  into whole cells by `popup_bounds_at`: the contextual surface's own arithmetic (ARR-0),
+  quarried out of `context_bounds` so the two surfaces share one measurer, one chrome and
+  one clamp. It shifts the rectangle whole inside the band the overlay stack respects, and a
+  list taller than the band keeps the band's height while the painter says what it cut.
+  There is no fixed width, no floor-to-ceiling column and no `kPickerRows` floor any more: a
+  small population is a small view, on both faces (a character medium's interior is exactly
+  the content; the shipped face adds only the slack `chrome_outer_of`'s whole-cell
+  reservation leaves it, WUX-8). It is DERIVED at every paint and every press — nothing is
+  stored, so moving or resizing the pane moves the help on the next projection and no
+  position reaches a file. With NO selection, and for a selected pane with no rectangle on
+  this screen, it opens at `overlay_column(sc)`'s CORNER — where this view always opened —
+  and nothing invents a selection to anchor to. ⚠ `attention_bounds` did NOT follow it: a
+  condition is about the application and anchoring that list to whichever pane was last
+  pressed would assert a relationship that does not exist; that view is still the column
+  outright.
+  The view is a projection, not an owner: it lists the context BENEATH it, grouped by owning
+  layer, with the component's editing vocabulary shown from `component::kEditingVocabulary`
+  and marked not remappable, and a focused pane described only as ownership — Workshop is
+  never told a provider's bindings and must not guess. It is keys-modal while open (its
+  toggle and bare Escape close it; Escape is deliberately NOT a keymap action — a modal
+  surface's structural way out must not be authorable into a lockout); the pointer chain is
+  untouched, the picker's own precedent — the view's rectangle, however small, is nobody's
+  pointer space (`occupied_at` never reads it), and `screen_of` cannot see it.
 - **The printable-trigger swallow is derived from the binding** (`expected_text_of`), armed
   centrally in `on(KeyPressed)` when the keymap consumed a text-faced gesture, cleared by
   the very next key or text. No site hard-codes an expected character, and nothing swallows
@@ -1583,9 +1591,10 @@ SPEND RE-ASKS ITS OWNER.                     a layout POSITION, or nothing -- ne
   an inset), grown by the chrome through `chrome_outer_of` so the content lands inside the
   surface's own boundary, width capped at `kContextMaxCols` (= `kStackW`), then shifted to
   stay whole inside the band the overlay stack itself respects (`kStackY` to
-  `kWorkspaceY + room_h`, inside the canvas). Entering a group re-derives at the SAME
-  anchor, so depth stays local. A level taller than the room keeps the room's height and
-  `list_window` says what was cut.
+  `kWorkspaceY + room_h`, inside the canvas) — the measurer, the chrome and the clamp are
+  one function, `popup_bounds_at`, since QR-17, and the full hotkey view spends it too.
+  Entering a group re-derives at the SAME anchor, so depth stays local. A level taller than
+  the room keeps the room's height and `list_window` says what was cut.
 - **THE FIRST ROW IS AN ACTION (WUX-5).** The surface used to open with two chrome rows — a
   title reading `ACTIONS -- ` and the captured subject's reference, and a hint restating the
   choose/back gestures — and both are gone, along with `kContextHeadingRows`,
