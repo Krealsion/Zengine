@@ -3658,8 +3658,9 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     t.key(input::scan::kC, input::mod::kCtrl);
     t.toggle_terminal();
 
-    t.key(input::scan::kS);
-    t.text("s");
+    // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB SINCE WUX-11: `s` saves now, and
+    // renaming is the layout operation reached from the tab a maker points at.
+    open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     REQUIRE(t.session().setup.naming.line.text() == "Default");
 
@@ -3675,7 +3676,7 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     REQUIRE(at_bands.size() == 1);
     const surface::SurfaceTextRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
-    CHECK(editor.rows[0].text.find("setup name> Default") == 0);
+    CHECK(editor.rows[0].text.find("layout name> Default") == 0);
     const std::int64_t prompt =
         static_cast<std::int64_t>(std::char_traits<char>::length(kSetupNamePrompt));
     const std::int64_t at_caret =
@@ -3688,7 +3689,7 @@ TEST_CASE("TEXT-0: the name editor selects with the same keys and says it in cha
     CHECK(editor.sel_end_col == prompt + 7);
     // ...and the cell projection still inserts the caret as a character, so a character
     // medium's row reads exactly as it always did.
-    CHECK(label_at(t.canvases.back(), 0, 0).find("setup name> Default") == 0);
+    CHECK(label_at(t.canvases.back(), 0, 0).find("layout name> Default") == 0);
 
     // Paste replaces the selection: the name a maker copied in the Terminal arrives here.
     t.key(input::scan::kV, input::mod::kCtrl);
@@ -4476,10 +4477,66 @@ TEST_CASE("KEY-0: a known backend gap is accepted and said, never silently rewri
     CHECK_FALSE(t.pane().open);
 }
 
+TEST_CASE("WUX-11: an action with no default gesture answers to no key, and says so") {
+    // ⭐ THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
+    // for a key this build has no name for, so it is the one scancode that can never be a
+    // binding -- and a row declaring `kNoGesture` wears exactly that value. Without the
+    // guard, ONE unnamed key would match every unbound row at once and the first in
+    // declaration order would run: a press with no name performing an operation.
+    Keymap k;
+    for (const KeyContext ctx : {KeyContext::kCommand, KeyContext::kGlobal, KeyContext::kNoText,
+                                 KeyContext::kNaming, KeyContext::kPicker}) {
+        CHECK(k.action_for(ctx, input::scan::kUnknown, input::mod::kNone) == Act::kNone);
+        CHECK(k.above_mode_action(ctx, input::scan::kUnknown, input::mod::kNone) == Act::kNone);
+    }
+    CHECK_FALSE(k.matches(Act::kLayoutRename, input::scan::kUnknown, input::mod::kNone));
+    CHECK_FALSE(k.matches(Act::kLayoutDuplicate, input::scan::kUnknown, input::mod::kNone));
+
+    // ...AND THE FOUR ROWS THAT DECLARE ONE REALLY DO SHIP UNBOUND, which is what makes
+    // this case about a live shape rather than about a hypothetical.
+    for (const Act unbound : {Act::kLayoutRename, Act::kLayoutDuplicate, Act::kLayoutMoveLeft,
+                              Act::kLayoutMoveRight}) {
+        CHECK_FALSE(is_bound(k.gesture_of(unbound)));
+        // A SURFACE THAT SPELLS BINDINGS MUST NOT SPELL ONE THAT DOES NOT EXIST.
+        CHECK(gesture_text(k.gesture_of(unbound)) == "unbound");
+    }
+    // The band's legend carries no pair for them: its scarcest resource is columns, and a
+    // pair whose gesture half is a non-key spends them saying nothing.
+    for (const std::string& pair : help_pairs(k, KeyContext::kCommand)) {
+        CAPTURE(pair);
+        CHECK(pair.find("unbound") == std::string::npos);
+        CHECK(pair.find("rename layout") == std::string::npos);
+    }
+
+    // ⚠ AND A PRESS OF THAT KEY THROUGH THE REAL WEAVE DOES NOTHING AT ALL.
+    Live t;
+    const std::size_t layouts = layout_count(t.session().setup);
+    const Setup desk = t.session().setup.active;
+    t.key(input::scan::kUnknown);
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(layout_count(t.session().setup) == layouts);
+    CHECK(t.session().setup.active == desk);
+
+    // ...WHILE A MAKER WHO BINDS ONE GETS IT, because unbound is a default and not a
+    // refusal. Two of them may be authored at once, which the collision check must not
+    // read as one gesture held twice.
+    Keymap bound;
+    const Written applied = apply_overrides(
+        {{"layout.duplicate", "g"}, {"layout.move-left", "y"}}, legend_mode::kDefault, bound);
+    REQUIRE_MESSAGE(applied.accepted, applied.refusal);
+    CHECK(bound.action_for(KeyContext::kCommand, input::scan::kG, input::mod::kNone) ==
+          Act::kLayoutDuplicate);
+    CHECK(bound.action_for(KeyContext::kCommand, input::scan::kY, input::mod::kNone) ==
+          Act::kLayoutMoveLeft);
+    // ...and the ones still unbound are still unreachable by an unnamed key.
+    CHECK(bound.action_for(KeyContext::kCommand, input::scan::kUnknown, input::mod::kNone) ==
+          Act::kNone);
+}
+
 TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it is authored") {
     TempDir dir("keymap-swallow");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "g"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.rename", "g"}}));
     Keyed t(path);
     t.host.setup_path = dir.file("setup.json");
 
@@ -4490,7 +4547,10 @@ TEST_CASE("KEY-0: a printable trigger's own character is swallowed, wherever it 
     // The swallow belongs to one moment: the next real character is taken.
     t.text("g");
     CHECK(t.session().setup.naming.line.text() == "Defaultg");
-    // ...and the default `s` now types an ordinary s, because the binding moved.
+    // ⭐ AND THE ACTION THIS BINDS SHIPS WITH NO GESTURE AT ALL (WUX-11), which is the
+    // second half of what this case now proves: `layout.rename` is reachable from a tab's
+    // menu and from a maker's own keymap, and the two roads are the same action. `s` is
+    // still `setup.name`'s -- it saves, and opens no editor.
     t.key(input::scan::kEscape);
     t.key(input::scan::kS);
     t.text("s");
@@ -4505,7 +4565,7 @@ TEST_CASE("KEY-0: the swallow eats only the trigger's own character, never a dif
     // arrives with a DIFFERENT character than its face: the swallow must let it through.
     TempDir dir("keymap-mismatch");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "g"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.rename", "g"}}));
     Keyed t(path);
     t.host.setup_path = dir.file("setup.json");
     t.key(input::scan::kG);
@@ -4517,7 +4577,7 @@ TEST_CASE("KEY-0: the swallow eats only the trigger's own character, never a dif
 TEST_CASE("KEY-0: a shift+letter binding swallows the capital its keystroke produced") {
     TempDir dir("keymap-capital");
     const std::string path = dir.file("keymap.json");
-    write_keymap_file(path, keymap_file_text("default", {{"setup.name", "shift+s"}}));
+    write_keymap_file(path, keymap_file_text("default", {{"layout.rename", "shift+s"}}));
     Keyed t(path);
     t.host.setup_path = dir.file("setup.json");
     t.key(input::scan::kS, input::mod::kShift);
@@ -4697,7 +4757,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     CHECK(top_band_fit(csc).rows == kTopRows);
     REQUIRE(ctop->rows.size() == 2);
     CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab (WUX-9)
-    CHECK(band_row(ctop, 0).find("| UNSAVED") != std::string::npos);
+    CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
     CHECK(band_row(ctop, 1) == "workspace 48x16 cells");
 
     const surface::SurfaceTextRegion* cband = band_on(cell_canvas, csc);

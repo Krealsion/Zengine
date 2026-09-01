@@ -233,17 +233,21 @@ Setup
   `workshop-setup.json`) is the setup's; `--document <path>` is the document's; `Ctrl+S`/`Ctrl+O`
   remain **document** commands and touch no setup byte. Each reader refuses the other's file by
   name rather than half-reading it.
-- **`s` opens a one-line name editor; `enter` validates the name and saves; `esc` cancels. `r`
-  restores.** Both were unbound before this phase. The editor opens on the name the setup already
-  has (the common gesture is *save this again*), reuses `component::TextBox` for the text, the
-  caret and the window, and **swallows the `s` its own keystroke produced** — the key transition
-  and the character are two facts that both arrive. It is a fifth mode, reachable only from
-  command mode, so it cannot coexist with the picker or with a live inspector draft.
-- **The setup line is the band's first row**, which was blank: `setup "Name" saved|UNSAVED [| N
-  unresolved] | <path> | s name/save  r restore`, fitted with `detail::fit` so a cut is *marked*.
-  The name is first because it is the identity and must never be the thing that elides. `saved` is
-  **computed by comparing** the active setup with the one last written or read — never a dirty
-  flag, which would need a hand at every place a pane is added or removed.
+- **`s` writes the layout you are on; `r` reads a Setup file into it.** Naming is a separate
+  gesture: a one-line editor opened by double-clicking a layout's tab (or from that tab's
+  contextual menu), where `enter` commits the rename and `esc` cancels, and which **writes no
+  file at all**. The editor opens on the name the layout already has, reuses
+  `component::TextBox` for the text, the caret and the window, and **swallows the character its
+  own keystroke produced** — the key transition and the character are two facts that both
+  arrive. It is a mode, reachable only from command mode, so it cannot coexist with the picker
+  or with a live inspector draft.
+- **The first row of Workshop is the layout selector**: the tabs, a `+`, and — at the row's
+  right-hand edge — the active layout's Setup status, `setup: none` or
+  `setup: <path> | current|modified [| N unresolved] | s save  r restore`, fitted with
+  `detail::fit` so a cut is *marked*. The **verdict** is what may not elide; which artifact is
+  what does. `current` is **computed by comparing** the layout's desk with the value last
+  written to or read from that file — never a dirty flag, which would need a hand at every place
+  a pane is added or removed, and never a filesystem read.
 - **The file has its own format identity and its own bounds**
   (`workshop/setup_persist.hpp`): `"format":"zengine-workshop-setup"`, one version, the Loom's own
   compat codec, deterministic output so `save -> load -> save` is byte-identical, unknown fields
@@ -625,8 +629,9 @@ directory they happened to be browsing when they quit is deliberately not rememb
   maker's file left exactly as it is); a session read whose viewport is outside the band this
   Workshop is honest at (`78x22`..`640x400` cells — the desk is restored, the size is
   **declined rather than clamped**, and the declined value is named); and everything restored.
-- **Neither direction touches the named setup file.** Closing writes a session and leaves
-  `workshop-setup.json` byte-identical; restoring a session reads no setup file at all. `s` and
-  `r` mean exactly what they meant, and `setup.on_file` — this run's copy of what is in the
-  *setup* file — is deliberately not written by a session restore, so a restored session still
-  reads `UNSAVED` and that word still means "not written to the setup file in this run".
+- **Neither direction opens a setup file.** Closing writes a session and leaves the standalone
+  artifact byte-identical; restoring a session reads no setup file at all. What a restored
+  session *does* bring back is each layout's **Setup association** — which file it is related to
+  and the last value this Workshop knew that file to hold — because that is a fact about
+  Workshop's own knowledge rather than about the disk, and remembering it is not the same as
+  going to look.

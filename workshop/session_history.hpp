@@ -158,12 +158,41 @@ struct WorkshopSession {
 
 } // namespace v3
 
+namespace v4 {
+
+/// WUX-10's session, retired by WUX-11: the room, the whole ordered layout RUN, which
+/// position was live, and the desktop placement. Every layout is a bare desk — the optional
+/// Setup ASSOCIATION arrived at version 5, and this is the shape that had no room for one.
+///
+/// ⚠ EVERY FIELD, NAME, TYPE AND ORDER IS THE RETIRED ONE, VERBATIM — v3's warning, and it
+/// is the same warning: a historical shape is not a description of what an old file meant;
+/// it IS the door those bytes claim, and its content id is computed from all of that. The
+/// nested `WorkshopViewport`, `WorkshopSetup` and `WorkshopPlacement` are named rather than
+/// copied for the reason the older shapes name them: they are unchanged, they have live
+/// owners, and two definitions of one truth is worse than either place could be alone.
+/// `layouts` is `WorkshopSetup` DIRECTLY, which is exactly what version 5 changed.
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    session_persist::WorkshopViewport viewport;
+    std::vector<setup_persist::WorkshopSetup> layouts;
+    std::int64_t active = 0;
+    session_persist::WorkshopPlacement placement;
+
+    ZEN_SHAPE(WorkshopSession, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
+              ZEN_FIELD(placement));
+};
+
+} // namespace v4
+
 /// THE VERSION NUMBERS THIS FILE CONVERTS FROM. They are the edges' own, said once so the
 /// shapes above and the definitions below cannot come to disagree about which vintage each
 /// is.
 inline constexpr std::int64_t kV1FormatVersion = 1;
 inline constexpr std::int64_t kV2FormatVersion = 2;
 inline constexpr std::int64_t kV3FormatVersion = 3;
+inline constexpr std::int64_t kV4FormatVersion = 4;
 
 static_assert(v1::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV1FormatVersion),
               "a historical session shape's envelope version and the format version it "
@@ -343,7 +372,7 @@ inline v3::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
     return out;
 }
 
-/// A VERSION-3 SESSION AS A CURRENT ONE (WUX-10) — the one desk it had, as a layout run
+/// A VERSION-3 SESSION AS A VERSION-4 ONE (WUX-10) — the one desk it had, as a layout run
 /// holding exactly that desk, live.
 ///
 /// ⚠ THIS IS FIELD DEFAULTING AND NOT INFERRED INTENT, and the distinction is the whole of
@@ -356,14 +385,19 @@ inline v3::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
 ///
 /// EVERY NON-LAYOUT FACT CROSSES UNCHANGED: the room, the desk's own bytes, and the
 /// placement — including a REAL one, because version 3 is the vintage that had it.
-inline session_persist::WorkshopSession session_v3_to_v4(const v3::WorkshopSession& old) {
+///
+/// IT ANSWERS AT VERSION 4 AND NOT AT THE READER'S VERSION, since WUX-11 — `session_v1_to_v3`
+/// stopped answering at the reader's version for exactly this reason a phase earlier. What a
+/// version-3 file MEANT did not change when layouts grew associations, so it is written once,
+/// here, and the growth is applied to it by `session_v4_to_v5`.
+inline v4::WorkshopSession session_v3_to_v4(const v3::WorkshopSession& old) {
     if (old.format_version != kV3FormatVersion) {
         throw std::invalid_argument(
             mismatched_version("session", kV3FormatVersion, old.format_version));
     }
-    session_persist::WorkshopSession out;
+    v4::WorkshopSession out;
     out.format = old.format;
-    out.format_version = session_persist::kFormatVersion;
+    out.format_version = kV4FormatVersion;
     out.viewport = old.viewport;
     out.layouts.push_back(old.desk);
     out.active = 0;
@@ -371,38 +405,91 @@ inline session_persist::WorkshopSession session_v3_to_v4(const v3::WorkshopSessi
     return out;
 }
 
-/// A VERSION-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the two
+/// THE SETUP ASSOCIATION EVERY HISTORICAL LAYOUT HAS: none, in the one spelling that means
+/// it (WUX-11).
+///
+/// `absent_placement`'s exact discipline, one field over. Loom's admission has no optional
+/// fields, so "this layout is related to no Setup artifact" has to be WRITTEN, and it has
+/// one legal spelling: an empty path, beside the canonical no-desk that
+/// `setup_persist::to_setup` makes of a default `Setup`. `session_persist::link_in` refuses
+/// every other way of saying it, so this is not a convenience — it is the only value the
+/// reader on the far side will accept for a file that never had one.
+inline session_persist::WorkshopSetupLink absent_link() {
+    return session_persist::WorkshopSetupLink{std::string(), setup_persist::to_setup(Setup{})};
+}
+
+/// A VERSION-4 SESSION AS A CURRENT ONE (WUX-11) — every layout it had, in its own order,
+/// each with no Setup association.
+///
+/// ⚠ FIELD DEFAULTING AGAIN, AND THE SAME LINE HOLDS. A version-4 session could not say
+/// whether a desk was related to a standalone Setup artifact, because a version-4 Workshop
+/// had one comparison copy for the whole application and no per-layout relationship at all.
+/// So the truthful reading of those bytes is *these desks, in this order, standing on that
+/// one, and Workshop knows of no artifact any of them came from*. Inventing an association
+/// out of the host's configured `--setup` path would be this file deciding that a maker had
+/// deliberately related a desk to a file — which is the one thing an association is, and the
+/// one thing those bytes cannot say.
+///
+/// EVERY OTHER FACT CROSSES UNCHANGED AND UNJUDGED: the room, the placement, the run's
+/// order, the active position, and every desk's own bytes — which are exactly the rows
+/// `setup_in` is about to read, so any question about them is that reader's to ask.
+inline session_persist::WorkshopSession session_v4_to_v5(const v4::WorkshopSession& old) {
+    if (old.format_version != kV4FormatVersion) {
+        throw std::invalid_argument(
+            mismatched_version("session", kV4FormatVersion, old.format_version));
+    }
+    session_persist::WorkshopSession out;
+    out.format = old.format;
+    out.format_version = session_persist::kFormatVersion;
+    out.viewport = old.viewport;
+    out.layouts.reserve(old.layouts.size());
+    for (const setup_persist::WorkshopSetup& desk : old.layouts) {
+        out.layouts.push_back(session_persist::WorkshopLayout{desk, absent_link()});
+    }
+    out.active = old.active;
+    out.placement = old.placement;
+    return out;
+}
+
+/// A VERSION-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the
 /// translations above.
 ///
 /// ⚠ NOT A ROUTE, AND THE DIFFERENCE IS WHO WROTE IT. Nothing at the catalog layer knows
 /// these functions exist or that one of them lands where the other starts; `op::migrate`
-/// resolves `zengine.migrate.WorkshopSession.v1-to-v4` and spends exactly it. What this
+/// resolves `zengine.migrate.WorkshopSession.v1-to-v5` and spends exactly it. What this
 /// composition buys is that version 1's MEANING is defined once — a second transcription of
 /// the whole-cell multiply, the placement absence and the desk's vintage check is exactly
 /// the drift this file exists to prevent.
-inline session_persist::WorkshopSession session_v1_to_v4(const v1::WorkshopSession& old) {
-    return session_v3_to_v4(session_v1_to_v3(old));
+inline session_persist::WorkshopSession session_v1_to_v5(const v1::WorkshopSession& old) {
+    return session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old)));
 }
 
 /// A VERSION-2 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v2_to_v4(const v2::WorkshopSession& old) {
-    return session_v3_to_v4(session_v2_to_v3(old));
+inline session_persist::WorkshopSession session_v2_to_v5(const v2::WorkshopSession& old) {
+    return session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old)));
+}
+
+/// A VERSION-3 SESSION AS A CURRENT ONE, the same way.
+inline session_persist::WorkshopSession session_v3_to_v5(const v3::WorkshopSession& old) {
+    return session_v4_to_v5(session_v3_to_v4(old));
 }
 
 // ---- ...and the two of them as ordinary contributions ---------------------------------
 
 /// EVERY EDGE THIS HISTORY SUPPLIES, as ordinary operator definitions.
 ///
-/// THREE DIRECT EDGES AND NOT A LADDER. `v1 -> v4` is one authored conversion, not `v1 ->
-/// v3` followed by `v3 -> v4`: it happens to reuse the same two translations, in C++,
-/// inside one body -- which is what "authored" means. Nothing at the catalog layer knows
-/// these three are related, and nothing may compose them: a run holding only `v1 -> v3` and
-/// `v3 -> v4` satisfies no `v1 -> v4` lookup, because there is no lookup that walks.
+/// FOUR DIRECT EDGES AND NOT A LADDER. `v1 -> v5` is one authored conversion, not `v1 -> v3`
+/// followed by `v3 -> v4` followed by `v4 -> v5`: it happens to reuse the same three
+/// translations, in C++, inside one body -- which is what "authored" means. Nothing at the
+/// catalog layer knows these four are related, and nothing may compose them: a run holding
+/// only `v1 -> v3` and `v3 -> v5` satisfies no `v1 -> v5` lookup, because there is no lookup
+/// that walks.
 ///
-/// ⚠ WHAT WUX-10 CHANGED HERE IS WHICH TARGET THEY NAME, and that is exactly what MIG-0
-/// predicted a format move would cost: `current` is read off the reader's own shape, so the
-/// identities re-derived themselves from v*-to-v3 to v*-to-v4 with no string edited, and the
-/// shipped load plans needed no new row -- the same provider carries one more edge.
+/// ⚠ WHAT A FORMAT MOVE CHANGES HERE IS WHICH TARGET THEY NAME, and that is exactly what
+/// MIG-0 predicted it would cost: `current` is read off the reader's own shape, so the
+/// identities re-derived themselves from v*-to-v3 to v*-to-v4 (WUX-10) and again to v*-to-v5
+/// (WUX-11) with no string edited, and the shipped load plans needed no new row either time
+/// -- the same provider carries one more edge.
 ///
 /// `op::make_migration` derives both the identity and the answer wrapper from the two
 /// schemas, so this function cannot ship a contribution whose name and signature disagree.
@@ -412,17 +499,22 @@ inline std::vector<op::OperatorDef> conversions() {
     edges.push_back(op::make_migration(
         loom::schema_of<v1::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v1_to_v4(loom::from_value<v1::WorkshopSession>(old))));
+                loom::to_value(session_v1_to_v5(loom::from_value<v1::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v2::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v2_to_v4(loom::from_value<v2::WorkshopSession>(old))));
+                loom::to_value(session_v2_to_v5(loom::from_value<v2::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v3::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v3_to_v4(loom::from_value<v3::WorkshopSession>(old))));
+                loom::to_value(session_v3_to_v5(loom::from_value<v3::WorkshopSession>(old))));
+        }));
+    edges.push_back(op::make_migration(
+        loom::schema_of<v4::WorkshopSession>(), current, [](const loom::Value& old) {
+            return loom::Cell::message(
+                loom::to_value(session_v4_to_v5(loom::from_value<v4::WorkshopSession>(old))));
         }));
     return edges;
 }

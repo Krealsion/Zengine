@@ -7371,8 +7371,8 @@ TEST_CASE("WUX-2/MIG-0: a version-1 session restores a whole-cell desk through a
     // its OWN at a different number, and a search for the bare field would find that one.
     const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"version\":4") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"4\"") !=
+    CHECK(saved.find("\"version\":5") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"5\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
@@ -9123,7 +9123,7 @@ SetupState shelf_of(const std::vector<std::string>& names, std::size_t live) {
     s.active_at = live;
     for (std::size_t i = 0; i < names.size(); ++i) {
         if (i != live) {
-            s.shelved.push_back(setup_of(names[i], {panel::kInfo}));
+            s.shelved.push_back(Layout{setup_of(names[i], {panel::kInfo}), SetupLink{}});
         }
     }
     return s;
@@ -9147,8 +9147,8 @@ TEST_CASE("WUX-9/SC-2: a layout is a Setup and the run is the shelf plus the liv
     // THE LIVE ONE IS `active` AND IS NOT ALSO ON THE SHELF -- one value, one owner.
     CHECK(s.shelved.size() == 2);
     CHECK(&layout_at(s, 0) == &s.active);
-    for (const Setup& shelved : s.shelved) {
-        CHECK(shelved.name != s.active.name);
+    for (const Layout& shelved : s.shelved) {
+        CHECK(shelved.desk.name != s.active.name);
     }
 }
 
@@ -9173,21 +9173,26 @@ TEST_CASE("WUX-9/SC-3: switching never reorders the run, and the live value neve
     CHECK(order_of(s) == authored);
 }
 
-TEST_CASE("WUX-9/SC-11: new copies and appends, and the copy is a value of its own") {
+TEST_CASE("WUX-11/SC-1: new is BLANK and appended, and it is a value of its own") {
+    // ⭐ NEW MEANS NEW. WUX-9 shipped `layout.new` as a COPY of the live desk; WUX-11 split
+    // the two meanings, because copying is what `duplicate_layout` is for and a maker asking
+    // for a new desk is asking for an empty one.
     SetupState s = shelf_of({"Code"}, 0);
     REQUIRE(add_pane(s.active, ref_of(panel::kBuilder)));
+    const Setup original = s.active;
 
     REQUIRE(add_layout(s));
-    // A COPY OF THE ONE YOU WERE ON, APPENDED, AND LIVE.
+    // A FRESH DEFAULT DESK, APPENDED, AND LIVE.
     CHECK(layout_count(s) == 2);
     CHECK(s.active_at == 1);
-    CHECK(s.active == layout_at(s, 0));
-    CHECK(order_of(s) == std::vector<std::string>{"Code", "Code"});
-
-    // ...and editing it leaves the original exactly as it was.
-    REQUIRE(remove_pane(s.active, ref_of(panel::kBuilder)));
-    CHECK(has_pane(layout_at(s, 0), ref_of(panel::kBuilder)));
+    CHECK(s.active == default_setup());
     CHECK_FALSE(has_pane(s.active, ref_of(panel::kBuilder)));
+    CHECK(order_of(s) == std::vector<std::string>{"Code", default_setup().name});
+    // ...and the layout it was made from is untouched.
+    CHECK(layout_at(s, 0) == original);
+    // SC-2: ITS ASSOCIATION IS NONE. A desk that has just been made has never been written
+    // to or read from any artifact.
+    CHECK(link_status(s.active, s.active_link) == setup_link::kNone);
 
     // THE CEILING IS A BOUND ON WORK AND IT REFUSES RATHER THAN DROPPING ANYTHING.
     while (layout_count(s) < kMaxLayouts) {
@@ -9204,47 +9209,284 @@ TEST_CASE("WUX-9/SC-3+SC-11: a new layout appends however far into the run you s
     // identical while the live layout is LAST -- which is where every other case in this file
     // stands, because that is where `new` leaves you -- and swaps two layouts the moment a
     // maker adds one from the middle of their own run.
+    const std::string blank = default_setup().name;
     SetupState s = shelf_of({"A", "B", "C"}, 1);
     REQUIRE(s.active.name == "B");
     REQUIRE(add_layout(s));
-    CHECK(order_of(s) == std::vector<std::string>{"A", "B", "C", "B"});
+    CHECK(order_of(s) == std::vector<std::string>{"A", "B", "C", blank});
     CHECK(s.active_at == 3);
-    CHECK(s.active.name == "B");
+    CHECK(s.active.name == blank);
 
     // ...from the FIRST position too, which is the other end of the same mistake.
     SetupState first = shelf_of({"A", "B", "C"}, 0);
     REQUIRE(add_layout(first));
-    CHECK(order_of(first) == std::vector<std::string>{"A", "B", "C", "A"});
+    CHECK(order_of(first) == std::vector<std::string>{"A", "B", "C", blank});
     CHECK(first.active_at == 3);
 
-    // ...and the copy is still a copy of the one you were STANDING on, not of the last one.
+    // ...and the layout a maker was STANDING on goes back on its own position with every
+    // byte of it intact -- which is the half a `push_back` of the live value gets wrong.
     SetupState middle = shelf_of({"A", "B", "C"}, 1);
     REQUIRE(add_pane(middle.active, ref_of(panel::kBuilder)));
     const Setup standing = middle.active;
     REQUIRE(add_layout(middle));
-    CHECK(middle.active == standing);
     CHECK(layout_at(middle, 1) == standing);
     CHECK_FALSE(has_pane(layout_at(middle, 0), ref_of(panel::kBuilder)));
+    CHECK_FALSE(has_pane(middle.active, ref_of(panel::kBuilder)));
 }
 
 TEST_CASE("WUX-9/SC-11: removing takes the next neighbour, the previous only at the end") {
     SetupState s = shelf_of({"A", "B", "C"}, 0);
-    REQUIRE(remove_layout(s)); // the first: the NEXT one becomes live
+    REQUIRE(remove_layout(s, s.active_at)); // the first: the NEXT one becomes live
     CHECK(s.active.name == "B");
     CHECK(s.active_at == 0);
     CHECK(order_of(s) == std::vector<std::string>{"B", "C"});
 
     SetupState last = shelf_of({"A", "B", "C"}, 2);
-    REQUIRE(remove_layout(last)); // the last: there is no next, so the PREVIOUS one
+    REQUIRE(remove_layout(last, last.active_at)); // the last: there is no next, so the PREVIOUS one
     CHECK(last.active.name == "B");
     CHECK(last.active_at == 1);
     CHECK(order_of(last) == std::vector<std::string>{"A", "B"});
 
     // THE FLOOR: the only layout cannot be removed, and nothing about it moves.
     SetupState one = shelf_of({"A"}, 0);
-    CHECK_FALSE(remove_layout(one));
+    CHECK_FALSE(remove_layout(one, one.active_at));
     CHECK(layout_count(one) == 1);
     CHECK(one.active.name == "A");
+}
+
+// ---- WUX-11: the value operations the new gestures spend --------------------------------
+
+namespace {
+
+/// A shelf whose live layout is associated with `path`, its known value being whatever the
+/// live desk is right now -- the state a successful `s` leaves behind.
+SetupState linked_shelf(const std::vector<std::string>& names, std::size_t live,
+                        const std::string& path) {
+    SetupState s = shelf_of(names, live);
+    s.active_link = SetupLink{path, s.active};
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("WUX-11/SC-2: duplicate copies the desk exactly and always clears the association") {
+    // ⭐ THE ONE MANDATORY LAW ABOUT COPYING. An inherited association would have the copy
+    // claim an artifact it has never been written to, and the first `s` would overwrite the
+    // very file the maker duplicated in order not to touch.
+    SetupState s = linked_shelf({"Home", "Code", "Art"}, 1, "/w/code.json");
+    REQUIRE(add_pane(s.active, ref_of(panel::kBuilder)));
+    s.active_link.known = s.active; // saved again after the edit: `current`
+    REQUIRE(link_status(s.active, s.active_link) == setup_link::kCurrent);
+    const Setup source = s.active;
+
+    REQUIRE(duplicate_layout(s, 1));
+
+    // THE DESK IS COPIED WHOLE -- the name included, because duplicate names are legal and
+    // position is a layout's identity. Inventing `Code (copy)` would be this file authoring
+    // a maker's word for them.
+    CHECK(layout_count(s) == 4);
+    CHECK(s.active_at == 2); // directly after the source, and live
+    CHECK(s.active == source);
+    CHECK(s.active.name == "Code");
+    CHECK(has_pane(s.active, ref_of(panel::kBuilder)));
+    CHECK(order_of(s) == std::vector<std::string>{"Home", "Code", "Code", "Art"});
+    // ...AND THE ASSOCIATION IS GONE.
+    CHECK(link_status(s.active, s.active_link) == setup_link::kNone);
+    CHECK(s.active_link.path.empty());
+    // THE SOURCE KEPT ITS OWN, untouched.
+    CHECK(link_at(s, 1).path == "/w/code.json");
+    CHECK(link_status(layout_at(s, 1), link_at(s, 1)) == setup_link::kCurrent);
+    // AND EVERY OTHER LAYOUT IS WHERE IT WAS.
+    CHECK(layout_at(s, 0).name == "Home");
+    CHECK(layout_at(s, 3).name == "Art");
+
+    // DUPLICATING AN INACTIVE TAB copies THAT tab, not the live one.
+    SetupState other = linked_shelf({"Home", "Code", "Art"}, 1, "/w/code.json");
+    REQUIRE(duplicate_layout(other, 0));
+    CHECK(other.active_at == 1);
+    CHECK(other.active.name == "Home");
+    CHECK(order_of(other) == std::vector<std::string>{"Home", "Home", "Code", "Art"});
+    CHECK(link_status(other.active, other.active_link) == setup_link::kNone);
+
+    // SC-25: THE CEILING REFUSES A DUPLICATE WITHOUT DROPPING ANYTHING.
+    SetupState full = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
+    REQUIRE(layout_count(full) == kMaxLayouts);
+    const std::vector<std::string> before = order_of(full);
+    CHECK_FALSE(duplicate_layout(full, 3));
+    CHECK_FALSE(add_layout(full));
+    CHECK(order_of(full) == before);
+    CHECK(layout_count(full) == kMaxLayouts);
+    // ...and a position that is not a layout is refused too, whatever the count.
+    SetupState room = shelf_of({"A"}, 0);
+    CHECK_FALSE(duplicate_layout(room, 1));
+    CHECK(layout_count(room) == 1);
+}
+
+TEST_CASE("WUX-11/SC-3: rename writes one layout's name and touches nothing else") {
+    SetupState s = linked_shelf({"Home", "Code", "Art"}, 1, "/w/code.json");
+    const Setup was = s.active;
+    const std::vector<std::string> shelf_before = order_of(s);
+
+    // THE LIVE ONE, BY POSITION.
+    REQUIRE(rename_layout(s, 1, "Build"));
+    CHECK(s.active.name == "Build");
+    CHECK(s.active.panes == was.panes); // only the name moved
+    CHECK(order_of(s) == std::vector<std::string>{"Home", "Build", "Art"});
+    // ⭐ AND THE ASSOCIATION IS NOT REPLACED OR DETACHED -- it is the same artifact, and the
+    // desk has simply diverged from the value that artifact holds. `link_status` DERIVES
+    // that; nothing was remembered.
+    CHECK(s.active_link.path == "/w/code.json");
+    CHECK(link_status(s.active, s.active_link) == setup_link::kModified);
+    // ...and renaming BACK reads `current` again, which is what a comparison buys and a
+    // flag could not.
+    REQUIRE(rename_layout(s, 1, "Code"));
+    CHECK(link_status(s.active, s.active_link) == setup_link::kCurrent);
+
+    // AN INACTIVE ONE, without switching to it: the live desk never moves.
+    REQUIRE(rename_layout(s, 2, "Gallery"));
+    CHECK(s.active_at == 1);
+    CHECK(s.active == was);
+    CHECK(order_of(s) == std::vector<std::string>{"Home", "Code", "Gallery"});
+    CHECK(shelf_before.size() == 3);
+
+    // AND A POSITION THAT IS NOT A LAYOUT IS REFUSED, with nothing moved.
+    const std::vector<std::string> now = order_of(s);
+    CHECK_FALSE(rename_layout(s, 3, "Nowhere"));
+    CHECK(order_of(s) == now);
+}
+
+TEST_CASE("WUX-11/SC-4: moving a layout changes order and nothing else") {
+    // ⭐ EVERY POSITION TO EVERY OTHER, SWEPT. `move_layout` goes through the inverse pair,
+    // so what this measures is that the run a maker sees is exactly the run with one
+    // element moved -- and that the layout that WAS live is still live afterwards, at
+    // wherever it now sits.
+    const std::vector<std::string> names{"A", "B", "C", "D"};
+    for (std::size_t live = 0; live < names.size(); ++live) {
+        for (std::size_t from = 0; from < names.size(); ++from) {
+            for (std::size_t to = 0; to < names.size(); ++to) {
+                if (from == to) {
+                    continue;
+                }
+                CAPTURE(live);
+                CAPTURE(from);
+                CAPTURE(to);
+                SetupState s = shelf_of(names, live);
+                // Give every layout a distinguishable association, so a move that dropped
+                // or swapped one is visible rather than silently equal.
+                s.active_link = SetupLink{"/w/" + names[live] + ".json", s.active};
+                for (std::size_t i = 0; i < s.shelved.size(); ++i) {
+                    s.shelved[i].link =
+                        SetupLink{"/w/" + s.shelved[i].desk.name + ".json", s.shelved[i].desk};
+                }
+                const std::string standing = s.active.name;
+
+                REQUIRE(move_layout(s, from, to));
+
+                // THE ORDER IS THE VECTOR MOVE, spelled independently of the operation.
+                std::vector<std::string> want = names;
+                const std::string moved = want[from];
+                want.erase(want.begin() + static_cast<std::ptrdiff_t>(from));
+                want.insert(want.begin() + static_cast<std::ptrdiff_t>(to), moved);
+                CHECK(order_of(s) == want);
+                CHECK(layout_count(s) == names.size());
+                // THE SAME DESK IS STILL LIVE, wherever it went.
+                CHECK(s.active.name == standing);
+                CHECK(layout_at(s, s.active_at).name == standing);
+                // AND EVERY ASSOCIATION TRAVELLED WITH ITS OWN DESK.
+                for (std::size_t at = 0; at < layout_count(s); ++at) {
+                    CAPTURE(at);
+                    CHECK(link_at(s, at).path == "/w/" + layout_at(s, at).name + ".json");
+                    CHECK(link_status(layout_at(s, at), link_at(s, at)) ==
+                          setup_link::kCurrent);
+                }
+            }
+        }
+    }
+
+    // NOTHING MOVED: a position that is not a layout, or a move to where it already is.
+    SetupState s = shelf_of({"A", "B"}, 0);
+    CHECK_FALSE(move_layout(s, 0, 0));
+    CHECK_FALSE(move_layout(s, 2, 0));
+    CHECK_FALSE(move_layout(s, 0, 2));
+    CHECK(order_of(s) == std::vector<std::string>{"A", "B"});
+    CHECK(s.active_at == 0);
+}
+
+TEST_CASE("WUX-11/SC-5: closing an inactive tab leaves the live desk exactly where it was") {
+    SetupState s = linked_shelf({"Home", "Code", "Art", "Notes"}, 2, "/w/art.json");
+    const Setup live = s.active;
+
+    // A TAB BEFORE THE LIVE ONE: the live desk is untouched and its position slides down.
+    REQUIRE(remove_layout(s, 0));
+    CHECK(s.active == live);
+    CHECK(s.active_at == 1);
+    CHECK(s.active_link.path == "/w/art.json");
+    CHECK(order_of(s) == std::vector<std::string>{"Code", "Art", "Notes"});
+
+    // A TAB AFTER IT: the position does not move either.
+    REQUIRE(remove_layout(s, 2));
+    CHECK(s.active == live);
+    CHECK(s.active_at == 1);
+    CHECK(order_of(s) == std::vector<std::string>{"Code", "Art"});
+
+    // SC-13: THE ASSOCIATION DIES WITH THE LAYOUT AND ONLY WITH IT.
+    SetupState two = shelf_of({"One", "Two"}, 0);
+    two.active_link = SetupLink{"/w/one.json", two.active};
+    two.shelved[0].link = SetupLink{"/w/two.json", two.shelved[0].desk};
+    REQUIRE(remove_layout(two, 1));
+    CHECK(layout_count(two) == 1);
+    CHECK(two.active.name == "One");
+    CHECK(two.active_link.path == "/w/one.json"); // the survivor kept its own
+}
+
+TEST_CASE("WUX-11/SC-6+SC-12: switching carries the association, sharing keeps it honest") {
+    // TWO LAYOUTS, ONE ARTIFACT -- which is legal and must stay honest.
+    SetupState s = shelf_of({"Wide", "Narrow"}, 0);
+    s.active_link = SetupLink{"/w/desk.json", s.active};
+    s.shelved[0].link = SetupLink{"/w/desk.json", s.active}; // both know the same value
+    REQUIRE(link_status(s.active, s.active_link) == setup_link::kCurrent);
+    REQUIRE(link_status(layout_at(s, 1), link_at(s, 1)) == setup_link::kModified);
+
+    // SWITCHING SWITCHES WHICH ASSOCIATION IS PRESENTED, and nothing else about either.
+    REQUIRE(activate_layout(s, 1));
+    CHECK(s.active.name == "Narrow");
+    CHECK(s.active_link.path == "/w/desk.json");
+    CHECK(link_status(s.active, s.active_link) == setup_link::kModified);
+    CHECK(link_status(layout_at(s, 0), link_at(s, 0)) == setup_link::kCurrent);
+
+    // ⭐ SC-12: WRITING THE ARTIFACT TEACHES EVERY ASSOCIATION TO IT. Without the sweep the
+    // first layout would go on claiming `current` against bytes this write just replaced,
+    // which is a status wrong about the only thing it is for.
+    adopt_known_setup(s, "/w/desk.json", s.active);
+    CHECK(link_status(s.active, s.active_link) == setup_link::kCurrent);
+    CHECK(link_status(layout_at(s, 0), link_at(s, 0)) == setup_link::kModified);
+
+    // ...AND IT ESTABLISHES NOTHING. A layout with no association, or one associated with
+    // another artifact, is not touched.
+    SetupState mixed = shelf_of({"Bare", "Other"}, 0);
+    mixed.shelved[0].link = SetupLink{"/w/other.json", mixed.shelved[0].desk};
+    adopt_known_setup(mixed, "/w/desk.json", mixed.active);
+    CHECK(mixed.active_link.path.empty());
+    CHECK(link_at(mixed, 1).path == "/w/other.json");
+    CHECK(link_status(layout_at(mixed, 1), link_at(mixed, 1)) == setup_link::kCurrent);
+    // An empty path is not an artifact and sweeps nothing.
+    adopt_known_setup(mixed, "", setup_of("Ghost", {}));
+    CHECK(mixed.active_link.known == Setup{});
+}
+
+TEST_CASE("WUX-11/SC-7: the three verdicts, and what makes a fresh desk `none`") {
+    // ⭐ `none` DOES NOT MEAN UNSAVED. A layout with no association is safely persisted by
+    // the session; what it has not got is an explicit standalone Setup artifact.
+    const Setup desk = setup_of("Code", {panel::kInfo});
+    CHECK(link_status(desk, SetupLink{}) == setup_link::kNone);
+    CHECK(link_status(desk, SetupLink{"/w/code.json", desk}) == setup_link::kCurrent);
+    CHECK(link_status(desk, SetupLink{"/w/code.json", setup_of("Other", {panel::kInfo})}) ==
+          setup_link::kModified);
+    // AND A DEFAULT-CONSTRUCTED KNOWN VALUE IS STRUCTURALLY UNREACHABLE AS A DESK: no
+    // legal setup equals it, because `check_setup_name` refuses an empty name -- which is
+    // what makes "there is no known value" structural rather than a rule somebody keeps.
+    CHECK_FALSE(check_setup_name(Setup{}.name).accepted);
+    CHECK(link_status(desk, SetupLink{"/w/code.json", Setup{}}) == setup_link::kModified);
 }
 
 TEST_CASE("WUX-9/SC-10: stepping wraps over the whole population, painted or not") {
@@ -9268,8 +9510,9 @@ TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move
 
     // THE MARKER BRACKETS THE LIVE NAME AND IS TIGHT TO IT (QR-15/SC-3), and every other
     // tab wears the same two cells as blanks -- so the run reads as a run of names.
-    CHECK(a.text == ">Code< Build ");
-    CHECK(b.text == " Code >Build<");
+    // ...FOLLOWED BY THE CREATE AFFORDANCE, out of what the budget had left (WUX-11).
+    CHECK(a.text == ">Code< Build  +");
+    CHECK(b.text == " Code >Build< +");
     // NO QUOTATION MARK ANYWHERE IN IT (QR-15/SC-2): the authored bytes, and nothing a
     // maker did not type.
     CHECK(a.text.find('"') == std::string::npos);
@@ -9285,7 +9528,8 @@ TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move
     // cell, on both -- so the equality is the TYPE's rather than two literals' agreement
     // (`kLayoutLiveOpen` and its neighbours are `char`).
     CHECK(a.text.size() == b.text.size());
-    CHECK(a.text.size() == std::string("Code").size() + std::string("Build").size() + 4);
+    CHECK(a.text.size() == std::string("Code").size() + std::string("Build").size() + 4 +
+                               static_cast<std::size_t>(kLayoutCreateCols));
     REQUIRE(a.tabs.size() == 2);
     REQUIRE(b.tabs.size() == 2);
     for (std::size_t i = 0; i < 2; ++i) {
@@ -9300,6 +9544,12 @@ TEST_CASE("WUX-9/SC-7: the run marks the live layout and its width does not move
     // A RUN THAT FITS IS PAINTED WHOLE, with no marker at all.
     CHECK(a.before == 0);
     CHECK(a.after == 0);
+    // AND THE CREATE AFFORDANCE IS ONE CELL WITH A SPAN OF ITS OWN (WUX-11) -- an action,
+    // never a layout: it is not in `tabs`, not counted, and not steppable.
+    CHECK(a.create_columns == 1);
+    CHECK(a.create_column == b.create_column);
+    CHECK(a.text.substr(static_cast<std::size_t>(a.create_column), 1) ==
+          std::string(1, kLayoutCreate));
 }
 
 TEST_CASE("QR-15/SC-5: a multi-word name is delimited by its own cells, not by quotes") {
@@ -9308,7 +9558,7 @@ TEST_CASE("QR-15/SC-5: a multi-word name is delimited by its own cells, not by q
     // its name, so the gap BETWEEN two tabs is two cells and a space INSIDE a name is one.
     const SetupState s = shelf_of({"my desk", "other"}, 0);
     const LayoutTabRun run = layout_tab_run(s, 80);
-    CHECK(run.text == ">my desk< other ");
+    CHECK(run.text == ">my desk< other  +");
     CHECK(run.text.find('"') == std::string::npos);
     REQUIRE(run.tabs.size() == 2);
     // THE SPAN IS THE DELIMITER, and it holds the whole tab: both marker cells and the
@@ -9323,7 +9573,7 @@ TEST_CASE("QR-15/SC-5: a multi-word name is delimited by its own cells, not by q
     CHECK(run.text.find("my desk") == static_cast<std::size_t>(run.tabs[0].column) + 1);
     // THE MAKER'S OWN EXAMPLE, whole: an active multi-word name between two ordinary ones.
     const SetupState three = shelf_of({"Home", "My Layout", "Art"}, 1);
-    CHECK(layout_tab_run(three, 80).text == " Home >My Layout< Art ");
+    CHECK(layout_tab_run(three, 80).text == " Home >My Layout< Art  +");
     // ...AND DUPLICATE NAMES ARE LEGAL AND DISAMBIGUATED BY POSITION, never by the text.
     const SetupState twins = shelf_of({"same", "same"}, 1);
     const LayoutTabRun two = layout_tab_run(twins, 80);
@@ -9404,10 +9654,17 @@ TEST_CASE("WUX-9/SC-7: the status row is tabs on the left and the existing statu
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     s.setup = shelf_of({"Code", "Build"}, 0);
     const Screen sc = screen_of(s);
-    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    const BandStatus row = band_status(s, sc);
 
-    CHECK(row.text.rfind(">Code< Build  | UNSAVED", 0) == 0);
-    CHECK(row.text.find("workshop-setup.json") != std::string::npos);
+    // ⭐ THE TABS, THE CREATE AFFORDANCE, THEN THE ACTIVE LAYOUT'S OWN ASSOCIATION
+    // (WUX-11). The row used to say `UNSAVED | workshop-setup.json` -- one comparison for a
+    // whole Workshop against one file, on a screen showing several desks.
+    CHECK(row.text.rfind(">Code< Build  +", 0) == 0);
+    CHECK(row.text.find("setup: none") != std::string::npos);
+    // ...AND THE HOST'S CONFIGURED SETUP PATH IS NOT ON THE ROW. This layout is related to
+    // no artifact, and `none` is the whole truth about it.
+    CHECK(row.text.find("workshop-setup.json") == std::string::npos);
+    CHECK(row.text.find("UNSAVED") == std::string::npos);
     CHECK(static_cast<std::int64_t>(row.text.size()) <= sc.w);
     // THE NAME IS SAID ONCE. The tabs carry it; the status half does not repeat it.
     CHECK(row.text.find("setup ") == std::string::npos);
@@ -9420,26 +9677,32 @@ TEST_CASE("WUX-9/SC-7: the status row is tabs on the left and the existing statu
     CHECK(sc.room_w == kMinScreen.room_w);
     CHECK(sc.room_h == kMinScreen.room_h);
 
-    // `UNSAVED` IS STILL ABOUT THE LIVE LAYOUT AGAINST THE FILE, and it survives a run of
-    // names long enough to want the whole row.
+    // THE ASSOCIATION IS STILL ABOUT THE LIVE LAYOUT, and it survives a run of names long
+    // enough to want the whole row.
     Session crowded = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     crowded.setup = shelf_of({std::string(20, 'a'), std::string(20, 'b'),
                               std::string(20, 'c'), std::string(20, 'd')},
                              0);
-    const BandStatus tight = band_status(crowded, "workshop-setup.json", screen_of(crowded));
-    CHECK(tight.text.find("UNSAVED") != std::string::npos);
+    const BandStatus tight = band_status(crowded, screen_of(crowded));
+    CHECK(tight.text.find("setup: none") != std::string::npos);
     CHECK(static_cast<std::int64_t>(tight.text.size()) <= kMinScreen.w);
 }
 
-TEST_CASE("WUX-9/SC-7: the saved marker survives the row's own cut, at every run width") {
-    // FOUND BY THE LIVE TUI WITNESS, NOT BY A CASE. The reservation is against the tabs, and
-    // the price it has to cover includes the mark `detail::fit` spends on saying it cut the
-    // row -- a reservation of the marker's own width alone leaves it three cells short, and
-    // a maker at the minimum extent with a full-budget run reads `| UNSA...`.
+TEST_CASE("WUX-11/SC-24: the association's verdict survives the row's cut, at every width") {
+    // FOUND BY THE LIVE TUI WITNESS, NOT BY A CASE (WUX-9's finding, re-earned by WUX-11's
+    // longer sentence). The reservation is against the tabs, and the price it has to cover
+    // includes the mark `detail::fit` spends on saying it cut the row -- a reservation that
+    // stopped at the last real character leaves the verdict three cells short, and a maker
+    // at the minimum extent with a full-budget run reads `| modifi...`.
+    //
+    // ⭐ WHAT MUST SURVIVE IS THE MEANING, NOT THE PATH. `setup:` and the verdict are what
+    // distinguish `none` from `current` from `modified`; WHICH artifact is the part a narrow
+    // row may elide (§9's ordering). So this sweep asserts the words and lets the path go.
     //
     // SWEPT over every name length, because the defect lives at exactly one of them: the run
     // has to be wide enough to reach its budget and no wider, which the suite's other crowded
     // case missed by three tabs.
+    const std::string artifact = "/home/maker/projects/zen/layouts/workshop-setup.json";
     for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
         for (std::size_t len = 1; len <= 24; ++len) {
             std::vector<std::string> names;
@@ -9450,28 +9713,37 @@ TEST_CASE("WUX-9/SC-7: the saved marker survives the row's own cut, at every run
                 CAPTURE(count);
                 CAPTURE(len);
                 CAPTURE(live);
-                Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-                s.setup = shelf_of(names, live);
-                const BandStatus row = band_status(s, "workshop-setup.json", screen_of(s));
-                REQUIRE(row.text.find("UNSAVED") != std::string::npos);
-                REQUIRE(static_cast<std::int64_t>(row.text.size()) <= kMinScreen.w);
+                Session none = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+                none.setup = shelf_of(names, live);
+                const BandStatus bare = band_status(none, screen_of(none));
+                REQUIRE(bare.text.find("setup: none") != std::string::npos);
+                REQUIRE(static_cast<std::int64_t>(bare.text.size()) <= kMinScreen.w);
+
+                // ...and the two associated verdicts, whose sentence is the longer one.
+                Session live_current = none;
+                live_current.setup.active_link =
+                    SetupLink{artifact, live_current.setup.active};
+                const BandStatus fresh = band_status(live_current, screen_of(live_current));
+                REQUIRE(fresh.text.find("setup: ") != std::string::npos);
+                REQUIRE(fresh.text.find("| current") != std::string::npos);
+                REQUIRE(static_cast<std::int64_t>(fresh.text.size()) <= kMinScreen.w);
+
+                Session diverged = none;
+                diverged.setup.active_link = SetupLink{artifact, setup_of("other", {})};
+                const BandStatus moved = band_status(diverged, screen_of(diverged));
+                REQUIRE(moved.text.find("setup: ") != std::string::npos);
+                REQUIRE(moved.text.find("| modified") != std::string::npos);
+                REQUIRE(static_cast<std::int64_t>(moved.text.size()) <= kMinScreen.w);
             }
         }
     }
-    // ...and the same for a desk that IS saved, whose word is shorter and must also be whole.
-    Session saved = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    saved.setup = shelf_of({std::string(20, 'a'), std::string(20, 'b'), std::string(20, 'c')}, 1);
-    saved.setup.on_file = saved.setup.active;
-    REQUIRE(saved.setup.saved());
-    CHECK(band_status(saved, "workshop-setup.json", screen_of(saved)).text.find("| saved") !=
-          std::string::npos);
 }
 
 TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the band") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     s.setup = shelf_of({"Code", "Build", "Inspect"}, 0);
     const Screen sc = screen_of(s);
-    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    const BandStatus row = band_status(s, sc);
     // ⚠ THE TOP BAND, because that is where QR-14 paints the run. A press resolved against
     // the bottom band's origin would be the stale-geometry lie this case exists to refuse.
     const ui::Rect b = top_band_bounds(sc);
@@ -9480,7 +9752,7 @@ TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the ban
     REQUIRE(row.tabs.size() == 3);
 
     const auto press = [&](std::int64_t column, std::int64_t band_row) {
-        return band_tab_at(s, "workshop-setup.json", sc, input::space::kCells,
+        return band_tab_at(s, sc, input::space::kCells,
                            b.x + column, b.y + band_row + surface::kTuiCanvasTopRow);
     };
 
@@ -9496,10 +9768,19 @@ TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the ban
     }
     // THE STATUS TO THE RIGHT OF THE RUN SELECTS NOTHING, and neither does the blank
     // beyond the end of the row.
-    const std::int64_t past = row.tabs.back().column + row.tabs.back().columns;
+    // ⚠ PAST THE CREATE AFFORDANCE TOO (WUX-11): `+` is the one other span the run owns,
+    // and it answers `create` rather than a layout -- which is asserted here rather than
+    // stepped over, because a case that landed on it by accident would read as a hole.
+    REQUIRE(row.create_columns == 1);
+    const LayoutTabPress plus = press(row.create_column, 0);
+    CHECK(plus.hit);
+    CHECK(plus.create);
+    const std::int64_t past = row.create_column + row.create_columns;
     CHECK_FALSE(press(past, 0).hit);
     CHECK_FALSE(press(past + 1, 0).hit);
     CHECK_FALSE(press(kScreenMinW - 1, 0).hit);
+    // ...and the gap between the last tab and the `+` is not either of them.
+    CHECK_FALSE(press(row.tabs.back().column + row.tabs.back().columns, 0).hit);
     // ...NOR DOES ANY OTHER ROW OF THE SCREEN, above or below the one the tabs are on --
     // including every row the run used to be painted on before QR-14 moved it (the whole of
     // the bottom band), which is the stale vertical hit map this sweep exists to kill.
@@ -9513,7 +9794,7 @@ TEST_CASE("WUX-9/SC-9: a press answers a painted tab and nothing else on the ban
     Session naming = s;
     naming.setup.naming.open = true;
     CHECK(band_tab_row(naming, sc) == kNoBandRow);
-    CHECK_FALSE(band_tab_at(naming, "workshop-setup.json", sc, input::space::kCells,
+    CHECK_FALSE(band_tab_at(naming, sc, input::space::kCells,
                             b.x + row.tabs[1].column, b.y + surface::kTuiCanvasTopRow)
                     .hit);
 }
@@ -9523,21 +9804,21 @@ TEST_CASE("WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed") {
     s.setup = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
     // Names long enough that the reserved row cannot hold all eight.
     for (std::size_t i = 0; i < s.setup.shelved.size(); ++i) {
-        s.setup.shelved[i].name = std::string(12, static_cast<char>('a' + i));
+        s.setup.shelved[i].desk.name = std::string(12, static_cast<char>('a' + i));
     }
     const Screen sc = screen_of(s);
-    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    const BandStatus row = band_status(s, sc);
     REQUIRE(row.after > 0);
     CHECK(row.tabs.size() + row.before + row.after == layout_count(s.setup));
     // MEASURED AT THE MINIMUM, and pinned so the number a report quotes is the suite's.
-    // ⚠ RE-DERIVED FOR QR-15, which took two cells off every tab: a 3-column live tab
-    // (`>A<`) and four 14-column neighbours and a 3-column ` 3>` come to 62 of the 65
-    // columns 78 leaves after the saved marker's 13, where a sixth tab would want 76. It
-    // was four painted and four omitted while a tab cost its name plus four.
-    CHECK(row.tabs.size() == 5);
+    // ⚠ RE-DERIVED FOR WUX-11, whose reservation is longer than the saved marker's was: the
+    // association's words and its elision marks reserve 27 columns of 78, leaving 51 for the
+    // run, where QR-15 had 65. A 3-column live tab (`>A<`), three 14-column neighbours and a
+    // 4-column ` 4>` come to 49, where a fifth tab would want 63.
+    CHECK(row.tabs.size() == 4);
     CHECK(row.before == 0);
-    CHECK(row.after == 3);
-    CHECK(row.text.find("| UNSAVED") != std::string::npos);
+    CHECK(row.after == 4);
+    CHECK(row.text.find("setup: none") != std::string::npos);
     // Nothing painted claims a layout the window left out, and no press anywhere on the
     // row can reach one: the spans are exactly the painted population.
     for (const LayoutTab& tab : row.tabs) {
@@ -9546,7 +9827,7 @@ TEST_CASE("WUX-9/SC-8+SC-9: an omitted tab has no span and cannot be pressed") {
     const ui::Rect b = top_band_bounds(sc);
     for (std::int64_t c = 0; c < sc.w; ++c) {
         const LayoutTabPress hit =
-            band_tab_at(s, "workshop-setup.json", sc, input::space::kCells, b.x + c,
+            band_tab_at(s, sc, input::space::kCells, b.x + c,
                         b.y + surface::kTuiCanvasTopRow);
         if (hit.hit) {
             CAPTURE(c);
@@ -9564,8 +9845,8 @@ TEST_CASE("WUX-9/SC-7: the tab run is one composition on both media") {
     Session face = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     face.setup = shelf_of({"Code", "Build"}, 1);
 
-    const BandStatus cell_row = band_status(cells, "s.json", screen_of(cells));
-    const BandStatus face_row = band_status(face, "s.json", screen_of(face));
+    const BandStatus cell_row = band_status(cells, screen_of(cells));
+    const BandStatus face_row = band_status(face, screen_of(face));
     // ONE ANSWER ABOUT WHICH LAYOUT IS LIVE, whatever the medium can fit beside it.
     REQUIRE(cell_row.tabs.size() == 2);
     REQUIRE(face_row.tabs.size() == 2);
@@ -9577,7 +9858,7 @@ TEST_CASE("WUX-9/SC-7: the tab run is one composition on both media") {
     // A window pixel inside the second tab answers the second layout.
     const ui::Rect fb = top_band_bounds(screen_of(face));
     const LayoutTabPress hit =
-        band_tab_at(face, "s.json", screen_of(face), input::space::kPixels,
+        band_tab_at(face, screen_of(face), input::space::kPixels,
                     fb.x * surface::kCanvasCellPx + face_row.tabs[1].column * 8 + 4,
                     fb.y * surface::kCanvasCellPx + 4);
     CHECK(hit.hit);
@@ -9643,13 +9924,13 @@ TEST_CASE("QR-14/SC-2: the layout selector is the first Workshop row, on both me
         CHECK(top_band_bounds(sc).x == 0);
         CHECK(top_band_bounds(sc).w == sc.w);
         CHECK(band_tab_row(s, sc) == 0);
-        CHECK(band_status(s, "s.json", sc).text.rfind(">Code<", 0) == 0);
+        CHECK(band_status(s, sc).text.rfind(">Code<", 0) == 0);
 
         // ...AND NOT IN THE FOOTER. The bottom band still exists and still speaks; what it
         // does not carry any more is the identity, and no tab is painted anywhere in it.
         CHECK(band_bounds(sc).y == sc.h - kBottomRows);
         CHECK(band_bounds(sc).y > top_band_bounds(sc).y + top_band_bounds(sc).h);
-        const surface::SurfaceCanvas c = paint(WorkshopDoc{}, s, "s.json");
+        const surface::SurfaceCanvas c = paint(WorkshopDoc{}, s);
         for (const surface::SurfaceTextRegion& r : all_texts(c)) {
             if (r.y == band_bounds(sc).y) {
                 for (const surface::SurfaceTextRow& row : r.rows) {
@@ -9781,9 +10062,11 @@ TEST_CASE("QR-15/SC-2+SC-3+SC-4: every tab is one cell, the name, one cell") {
 }
 
 TEST_CASE("QR-15/SC-4: switching the live layout moves nothing to the right of it") {
-    // THE DEFECT THE EQUAL WIDTH EXISTS TO REFUSE, asked of the composed ROW rather than
-    // of the run: a maker stepping through their layouts must not watch `UNSAVED`, the
-    // file name or the gestures slide sideways under the marker.
+    // THE DEFECT THE EQUAL WIDTH EXISTS TO REFUSE, asked of the composed ROW rather than of
+    // the run: a maker stepping through their layouts must not watch the `setup:` slot, its
+    // verdict or the gestures slide sideways under the marker. Since WUX-11 the right-hand
+    // block is also adjusted to the row's edge, so it is doubly still -- but the property
+    // asserted is the one QR-15 bought: EQUAL TAB WIDTH, whichever layout is live.
     const std::vector<std::string> names{"Home", "Code", "Art"};
     std::vector<std::int64_t> status_at;
     std::vector<std::string> spans;
@@ -9791,11 +10074,11 @@ TEST_CASE("QR-15/SC-4: switching the live layout moves nothing to the right of i
         CAPTURE(live);
         Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
         s.setup = shelf_of(names, live);
-        const BandStatus row = band_status(s, "workshop-setup.json", screen_of(s));
+        const BandStatus row = band_status(s, screen_of(s));
         REQUIRE(row.tabs.size() == names.size());
         REQUIRE(row.before == 0);
         REQUIRE(row.after == 0);
-        status_at.push_back(static_cast<std::int64_t>(row.text.find(" | UNSAVED")));
+        status_at.push_back(static_cast<std::int64_t>(row.text.find("setup: none")));
         // EVERY TAB'S SPAN IS THE SAME SPAN whichever one is live -- the geometry does not
         // know which layout the marker is on, which is the point.
         std::string shape;
@@ -9823,7 +10106,7 @@ TEST_CASE("QR-15/SC-7: the closing marker belongs to the layout it closes") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     s.setup = shelf_of({"Home", "Code", "Art"}, 1);
     const Screen sc = screen_of(s);
-    const BandStatus row = band_status(s, "workshop-setup.json", sc);
+    const BandStatus row = band_status(s, sc);
     REQUIRE(row.tabs.size() == 3);
     REQUIRE(row.tabs[1].active);
     CHECK(row.text.substr(static_cast<std::size_t>(row.tabs[1].column),
@@ -9831,7 +10114,7 @@ TEST_CASE("QR-15/SC-7: the closing marker belongs to the layout it closes") {
 
     const ui::Rect b = top_band_bounds(sc);
     const auto press = [&](std::int64_t column) {
-        return band_tab_at(s, "workshop-setup.json", sc, input::space::kCells, b.x + column,
+        return band_tab_at(s, sc, input::space::kCells, b.x + column,
                            b.y + surface::kTuiCanvasTopRow);
     };
     const std::int64_t opens = row.tabs[1].column;
@@ -9860,7 +10143,7 @@ TEST_CASE("QR-15: the maker reads `Home >Code< Art` on Workshop's first row") {
         CAPTURE(live);
         Session s;
         s.setup = shelf_of({"Home", "Code", "Art"}, live);
-        const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, s, "s.json"));
+        const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, s));
         REQUIRE(rows.size() == static_cast<std::size_t>(kMinScreen.h));
         CHECK(rows[0].rfind(live == 0   ? ">Home< Code  Art "
                             : live == 1 ? " Home >Code< Art "
@@ -9871,7 +10154,7 @@ TEST_CASE("QR-15: the maker reads `Home >Code< Art` on Workshop's first row") {
     // A MULTI-WORD NAME IS STILL ONE TAB, and reads as one without a quotation mark.
     Session wordy;
     wordy.setup = shelf_of({"Home", "My Layout", "Art"}, 1);
-    const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, wordy, "s.json"));
+    const std::vector<std::string> rows = rasterized(paint(WorkshopDoc{}, wordy));
     CHECK(rows[0].rfind(" Home >My Layout< Art ", 0) == 0);
 }
 
@@ -9882,14 +10165,14 @@ TEST_CASE("QR-14/SC-5: no press outside the painted run reaches a layout") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     s.setup = shelf_of({"Code", "Build", "Inspect"}, 1);
     const Screen sc = screen_of(s);
-    const BandStatus row = band_status(s, "s.json", sc);
+    const BandStatus row = band_status(s, sc);
     REQUIRE(row.tabs.size() == 3);
 
     std::size_t answered = 0;
     for (std::int64_t y = 0; y < sc.h; ++y) {
         for (std::int64_t x = 0; x < sc.w; ++x) {
             const LayoutTabPress hit =
-                band_tab_at(s, "s.json", sc, input::space::kCells, x,
+                band_tab_at(s, sc, input::space::kCells, x,
                             y + surface::kTuiCanvasTopRow);
             if (!hit.hit) {
                 continue;
@@ -9897,10 +10180,13 @@ TEST_CASE("QR-14/SC-5: no press outside the painted run reaches a layout") {
             CAPTURE(x);
             CAPTURE(y);
             CHECK(y == 0); // the first Workshop row, and no other
-            bool inside = false;
+            // ...OR THE CREATE AFFORDANCE, which is the run's one other span (WUX-11) and
+            // answers an ACTION rather than a layout.
+            bool inside = hit.create && x >= row.create_column &&
+                          x < row.create_column + row.create_columns;
             for (const LayoutTab& tab : row.tabs) {
-                inside = inside || (x >= tab.column && x < tab.column + tab.columns &&
-                                    hit.at == tab.at);
+                inside = inside || (!hit.create && x >= tab.column &&
+                                    x < tab.column + tab.columns && hit.at == tab.at);
             }
             CHECK(inside);
             ++answered;
@@ -9908,7 +10194,7 @@ TEST_CASE("QR-14/SC-5: no press outside the painted run reaches a layout") {
     }
     // ...and every painted cell DID answer, so the sweep is a bijection rather than an
     // absence: what is painted is pressable, and what is pressable is painted.
-    std::size_t painted = 0;
+    std::size_t painted = static_cast<std::size_t>(row.create_columns);
     for (const LayoutTab& tab : row.tabs) {
         painted += static_cast<std::size_t>(tab.columns);
     }

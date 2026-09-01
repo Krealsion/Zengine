@@ -1444,13 +1444,11 @@ TEST_CASE("MSG-0: every Workshop mode owns the keyboard above a focused pane") {
     }
     REQUIRE_FALSE(r.session().arrange.open);
 
-    // THE SETUP-NAME EDITOR, the same -- and reaching it needs the keyboard back
-    // again, because leaving a mode restores the pane's claim exactly as it found it.
-    // It also needs a setup file, which `open_setup_name` refuses without.
-    r.host.setup_path = "msg0-not-written.json";
+    // THE LAYOUT-NAME EDITOR, the same -- and reaching it needs the keyboard back again,
+    // because leaving a mode restores the pane's claim exactly as it found it. Since
+    // WUX-11 it needs no setup file at all: renaming a layout writes nothing.
     press_outside(r, kind);
-    r.key(input::scan::kS);
-    r.text("s");
+    open_rename_on_live_tab(r);
     REQUIRE(r.session().setup.naming.open);
     r.key(input::scan::kA);
     r.text("a");

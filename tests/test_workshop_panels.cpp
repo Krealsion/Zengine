@@ -6248,7 +6248,7 @@ std::vector<std::string> layout_names(const Live& t) {
 /// The canvas cell a painted tab's first byte sits on, for a press.
 std::int64_t tab_cell(const Live& t, std::size_t at) {
     const Screen sc = screen_of(t.session());
-    const BandStatus row = band_status(t.session(), t.host.setup_path, sc);
+    const BandStatus row = band_status(t.session(), sc);
     for (const LayoutTab& tab : row.tabs) {
         if (tab.at == at) {
             return top_band_bounds(sc).x + tab.column + 1; // inside the mark, on the name
@@ -6362,11 +6362,11 @@ TEST_CASE("WUX-9/SC-5: a switch touches no Workshop-global fact") {
     const std::uint64_t doc_epoch = t.session().editor.doc_epoch;
     const std::string source = t.session().editor.path;
 
-    // A LAYOUT WITHOUT THE BUILDER IN IT -- removed through the picker, which is the
+    // A LAYOUT WITHOUT THE BUILDER IN IT -- and since WUX-11 that is what `layout.new`
+    // MAKES: a fresh blank desk, whose membership `apply_setup` reconciles to through the
     // one door membership changes through.
     press_gesture(t, k.make);
     live(t).setup.active.name = "Inspect";
-    pick(t, panel::kBuilder);
     REQUIRE_FALSE(t.session().panels.has(panel::kBuilder));
 
     // THE SELECTION IS NOT DESTROYED BY THE SWITCH -- it simply resolves to nothing while
@@ -6416,12 +6416,16 @@ TEST_CASE("WUX-9/SC-9: pressing a painted tab switches, and the rest of the row 
     CHECK(t.session().setup.active_at == 1);
 
     // THE STATUS TO THE RIGHT OF THE RUN IS NOT A TAB, and pressing it selects no layout.
-    const BandStatus row = band_status(t.session(), t.host.setup_path, screen_of(t.session()));
+    // PAST THE CREATE AFFORDANCE TOO (WUX-11): `+` is the one other span the run owns, and
+    // a case that landed on it would be measuring a new layout rather than a dead cell.
+    const BandStatus row = band_status(t.session(), screen_of(t.session()));
     const std::int64_t past =
-        top_band_bounds(screen_of(t.session())).x + row.tabs.back().column +
-        row.tabs.back().columns;
+        top_band_bounds(screen_of(t.session())).x +
+        (row.create_columns > 0 ? row.create_column + row.create_columns
+                                : row.tabs.back().column + row.tabs.back().columns);
     t.press_canvas(past + 2, band_row);
     CHECK(t.session().setup.active_at == 1);
+    CHECK(layout_count(t.session().setup) == 3);
     // ...and neither does the workspace-fact row beneath it.
     t.press_canvas(tab_cell(t, 0), band_row + 1);
     CHECK(t.session().setup.active_at == 1);
@@ -6473,7 +6477,7 @@ TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
 
     // SO DOES THE NAME EDITOR, where the same key is a character in a name.
     t.host.setup_path = "workshop-setup.json";
-    t.key(input::scan::kS);
+    open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     press_gesture(t, k.next);
     t.text(".");
@@ -6491,22 +6495,332 @@ TEST_CASE("WUX-9/SC-10: the layout gestures stay in command mode") {
     CHECK(t.session().setup.active_at == at);
 }
 
-TEST_CASE("WUX-9/SC-11: a new layout duplicates no Workshop-global state") {
+TEST_CASE("WUX-11/SC-1: a new layout is blank and duplicates no Workshop-global state") {
     Live t;
     const LayoutKeys k = layout_keys(t);
     open_builder(t);
-    const std::size_t panels_before = t.session().panels.open.size();
     const std::size_t runtime_before = t.session().panels.runtime.entries.size();
     const std::size_t external_before = t.session().panels.external.size();
     const WorkshopDoc document = t.doc();
+    const Setup was = t.session().setup.active;
 
     press_gesture(t, k.make);
-    // THE SAME PRESENTATIONS, THE SAME CATALOG, THE SAME DOCUMENT -- a copy of an
-    // authored value is not a copy of anything live.
-    CHECK(t.session().panels.open.size() == panels_before);
+    // A FRESH DESK, NOT A COPY (WUX-11). What a blank layout changes is the PRESENTATION:
+    // it names no Builder, so `apply_setup` withdraws that presentation exactly as any
+    // other whole-desk replacement does.
+    CHECK(t.session().setup.active == default_setup());
+    CHECK_FALSE(t.session().panels.has(panel::kBuilder));
+    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    // ...AND NOTHING WORKSHOP-GLOBAL WAS COPIED, CLEARED OR REVALIDATED. The catalog, the
+    // external instances and the document are one truth each, and a desk is not a door to
+    // any of them -- which is the half a blank layout must keep as exactly as a copy did.
     CHECK(t.session().panels.runtime.entries.size() == runtime_before);
     CHECK(t.session().panels.external.size() == external_before);
     CHECK(t.doc() == document);
+    // AND THE LAYOUT IT WAS MADE FROM IS UNTOUCHED, waiting where it was.
+    CHECK(layout_at(t.session().setup, 0) == was);
+    press_gesture(t, k.previous);
     CHECK(t.session().panels.has(panel::kBuilder));
+}
+
+// ---- WUX-11: the gestures a maker actually makes on a tab ------------------------------
+
+namespace {
+
+/// Three named layouts, standing on the middle one -- the shape most of the cases below
+/// want, built through the shipped gestures rather than by reaching into the value.
+void three_named_layouts(Live& t) {
+    rename_live_layout(t, "Home");
+    press_gesture(t, layout_keys(t).make);
+    rename_live_layout(t, "Code");
+    press_gesture(t, layout_keys(t).make);
+    rename_live_layout(t, "Art");
+    press_gesture(t, layout_keys(t).previous);
+    REQUIRE(layout_names(t) == std::vector<std::string>{"Home", "Code", "Art"});
+    REQUIRE(t.session().setup.active_at == 1);
+}
+
+} // namespace
+
+TEST_CASE("WUX-11/SC-3: a double-click on a tab renames THAT layout, and writes no file") {
+    TempDir dir("wux11-dblclick");
+    Live t;
+    t.host.setup_path = dir.file("s.json");
+    three_named_layouts(t);
+
+    // ⭐ THE FIRST PRESS ACTIVATES AND THE SECOND OPENS THE EDITOR, which is why the
+    // editor's subject and the live layout cannot disagree. A single press is the ordinary
+    // switch it always was.
+    press_tab(t, 0);
+    CHECK(t.session().setup.active_at == 0);
+    CHECK_FALSE(t.session().setup.naming.open);
+
+    open_rename_on_tab(t, 2);
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.at == 2);
+    CHECK(t.session().setup.active_at == 2); // the first press stood on it
+    CHECK(t.session().setup.naming.line.text() == "Art");
+    type_name(t, "Gallery");
+
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Code", "Gallery"});
+    // ⭐ AND NO SETUP ARTIFACT WAS WRITTEN. Renaming is a layout operation.
+    CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
+    CHECK(live_status(t.session().setup) == setup_link::kNone);
+
+    // A THIRD PRESS IS AN ORDINARY PRESS AGAIN: the arming is SPENT, so there is no
+    // triple-click and no editor re-opening under a maker's hand.
+    press_tab(t, 2);
+    CHECK_FALSE(t.session().setup.naming.open);
+    // ...AND TWO PRESSES ON DIFFERENT TABS ARE TWO AIMS, never one gesture.
+    t.clock.together();
+    press_tab(t, 0);
+    press_tab(t, 1);
+    t.clock.apart();
+    CHECK_FALSE(t.session().setup.naming.open);
+    CHECK(t.session().setup.active_at == 1);
+}
+
+TEST_CASE("WUX-11/SC-2+SC-5: a tab's context menu acts on THAT tab") {
+    Live t;
+    three_named_layouts(t);
+
+    // THE SUBJECT IS THE TAB THE PRESS NAMED, and asking about it does not stand on it.
+    right_press_tab(t, 2);
+    REQUIRE(t.menu().open);
+    CHECK(t.menu().subject == context_subject::kLayout);
+    CHECK(t.menu().layout == 2);
+    CHECK(t.session().setup.active_at == 1); // NOT switched
+
+    // ...AND THE FIVE OPERATIONS A MAKER CAN DO TO A TAB ARE THE ROWS IT OFFERS.
+    std::vector<std::string> offered;
+    for (const ContextEntry& row : context_population(t.menu().subject, t.menu().group)) {
+        offered.push_back(row.is_group ? std::string("[") + row.group + "]"
+                                       : std::string(row.row->id));
+    }
+    CHECK(offered == std::vector<std::string>{"layout.rename", "layout.duplicate", "[Order]",
+                                              "layout.remove"});
+
+    // CLOSE, ON THE TAB THAT WAS POINTED AT: the live desk does not move.
+    const Setup live = t.session().setup.active;
+    REQUIRE(choose_context_action(t, "layout.remove"));
+    CHECK_FALSE(t.menu().open);
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Code"});
+    CHECK(t.session().setup.active == live);
+    CHECK(t.session().setup.active_at == 1);
+
+    // DUPLICATE, ON AN INACTIVE TAB: the copy lands directly after its source and is live.
+    right_press_tab(t, 0);
+    REQUIRE(t.menu().layout == 0);
+    REQUIRE(choose_context_action(t, "layout.duplicate"));
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Home", "Code"});
+    CHECK(t.session().setup.active_at == 1);
     CHECK(t.session().setup.active == layout_at(t.session().setup, 0));
+
+    // ⚠ AND `^w` IS NOT TAUGHT BESIDE A ROW THAT CLOSES A DIFFERENT LAYOUT. Found by the
+    // live TUI witness: `layout.remove` IS bound and IS requestable in command mode, so the
+    // annotation appeared beside a Close row acting on a tab the maker was not standing on.
+    // `object.delete`'s own refinement, one subject over.
+    right_press_tab(t, 0);
+    REQUIRE(t.menu().open);
+    REQUIRE(t.menu().layout != t.session().setup.active_at);
+    for (const ContextEntry& row : context_population(t.menu().subject, t.menu().group)) {
+        if (!row.is_group && row.row != nullptr &&
+            std::string(row.row->id) == "layout.remove") {
+            CHECK(context_annotation(t.session(), row).empty());
+        }
+    }
+    // ...and it IS taught when the captured tab is the one a maker is standing on, because
+    // then the key and the row are the same act. The surface is dismissed first: a left
+    // press while it is open is spent on the dismissal and reaches no tab.
+    t.key(input::scan::kEscape);
+    REQUIRE_FALSE(t.menu().open);
+    press_tab(t, 0);
+    REQUIRE(t.session().setup.active_at == 0);
+    right_press_tab(t, 0);
+    REQUIRE(t.menu().layout == t.session().setup.active_at);
+    for (const ContextEntry& row : context_population(t.menu().subject, t.menu().group)) {
+        if (!row.is_group && row.row != nullptr &&
+            std::string(row.row->id) == "layout.remove") {
+            CHECK(context_annotation(t.session(), row) ==
+                  hotkey_text(t.session().keymap, Act::kLayoutRemove));
+        }
+    }
+    t.key(input::scan::kEscape);
+
+    // RENAME, FROM THE MENU: the discoverable twin of the double-click.
+    right_press_tab(t, 2);
+    REQUIRE(t.menu().layout == 2);
+    REQUIRE(choose_context_action(t, "layout.rename"));
+    REQUIRE(t.session().setup.naming.open);
+    CHECK(t.session().setup.naming.at == 2);
+    type_name(t, "Renamed");
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Home", "Renamed"});
+}
+
+TEST_CASE("WUX-11/SC-4: Move Left and Move Right reorder from the tab that was pointed at") {
+    Live t;
+    three_named_layouts(t);
+
+    // AN INACTIVE TAB MOVES AND THE LIVE DESK STAYS LIVE.
+    const Setup live = t.session().setup.active;
+    right_press_tab(t, 2);
+    REQUIRE(choose_context_action(t, "layout.move-left"));
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Art", "Code"});
+    CHECK(t.session().setup.active == live);
+    CHECK(t.session().setup.active_at == 2);
+
+    // THE LIVE TAB MOVES AND TAKES ITS POSITION WITH IT.
+    right_press_tab(t, 2);
+    REQUIRE(choose_context_action(t, "layout.move-left"));
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Code", "Art"});
+    CHECK(t.session().setup.active == live);
+    CHECK(t.session().setup.active_at == 1);
+
+    // THE END OF THE RUN IS SAID RATHER THAN SILENTLY IGNORED.
+    right_press_tab(t, 0);
+    REQUIRE(choose_context_action(t, "layout.move-left"));
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Code", "Art"});
+    CHECK(t.notice().find("already at the start") != std::string::npos);
+
+    // ...AND THE PAINTED SPANS FOLLOW THE NEW ORDER IMMEDIATELY, which is what makes the
+    // next press land where a maker is looking (HD-3, spent on a run that just moved).
+    right_press_tab(t, 0);
+    REQUIRE(choose_context_action(t, "layout.move-right"));
+    REQUIRE(layout_names(t) == std::vector<std::string>{"Code", "Home", "Art"});
+    const BandStatus row = band_status(t.session(), screen_of(t.session()));
+    REQUIRE(row.tabs.size() == 3);
+    for (const LayoutTab& tab : row.tabs) {
+        CAPTURE(tab.at);
+        const std::string span = row.text.substr(static_cast<std::size_t>(tab.column),
+                                                 static_cast<std::size_t>(tab.columns));
+        CHECK(span.find(layout_at(t.session().setup, tab.at).name) != std::string::npos);
+    }
+}
+
+TEST_CASE("WUX-11/SC-4: dragging a tab along the run reorders it and nothing else") {
+    Live t;
+    three_named_layouts(t);
+    const Setup live = t.session().setup.active;
+    const std::size_t panels_before = t.session().panels.open.size();
+
+    // A PRESS TAKES HOLD OF THE TAB IT LANDS ON -- which the press has just made live, so
+    // the hand is always carrying `active_at` and there is no captured position to stale.
+    const std::int64_t from = tab_column(t, 1);
+    REQUIRE(from >= 0);
+    t.press_canvas(from, 0);
+    REQUIRE(t.session().tab_drag.active);
+    REQUIRE(t.session().setup.active_at == 1);
+
+    // A MOTION OVER ANOTHER TAB MOVES THE CARRIED LAYOUT THERE.
+    t.motion_canvas(tab_column(t, 2), 0);
+    CHECK(layout_names(t) == std::vector<std::string>{"Home", "Art", "Code"});
+    CHECK(t.session().setup.active == live);
+    CHECK(t.session().setup.active_at == 2);
+
+    // ...AND THE RUN RE-DERIVES UNDER THE HAND, so a second motion is answered against the
+    // order that is painted now rather than against the one the press began on.
+    t.motion_canvas(tab_column(t, 0), 0);
+    CHECK(layout_names(t) == std::vector<std::string>{"Code", "Home", "Art"});
+    CHECK(t.session().setup.active_at == 0);
+
+    // A RELEASE ENDS THE GESTURE, WHEREVER THE HAND IS.
+    t.release_canvas(tab_column(t, 0), 0);
+    CHECK_FALSE(t.session().tab_drag.active);
+    t.motion_canvas(tab_column(t, 2), 0);
+    CHECK(layout_names(t) == std::vector<std::string>{"Code", "Home", "Art"});
+
+    // AND NOTHING BUT ORDER MOVED: the same desk is live, the same panes are presented,
+    // and no association was created by any of it.
+    CHECK(t.session().setup.active == live);
+    CHECK(t.session().panels.open.size() == panels_before);
+    CHECK(live_status(t.session().setup) == setup_link::kNone);
+}
+
+TEST_CASE("WUX-11/SC-1: the `+` affordance is the pointer's spelling of `layout.new`") {
+    Live t;
+    three_named_layouts(t);
+    const Screen sc = screen_of(t.session());
+    const BandStatus row = band_status(t.session(), sc);
+    REQUIRE(row.create_columns == 1);
+    CHECK(row.text.substr(static_cast<std::size_t>(row.create_column), 1) == "+");
+
+    // PRESSING IT MAKES A BLANK LAYOUT, exactly as the key does -- and it is not a tab: no
+    // layout was activated, and the run's count grew by one.
+    t.press_canvas(row.create_column, 0);
+    CHECK(layout_count(t.session().setup) == 4);
+    CHECK(t.session().setup.active_at == 3);
+    CHECK(t.session().setup.active == default_setup());
+    CHECK(live_status(t.session().setup) == setup_link::kNone);
+
+    // ...AND IT REFUSES A NINTH IN THE SAME WORDS THE KEY DOES.
+    while (layout_count(t.session().setup) < kMaxLayouts) {
+        press_gesture(t, layout_keys(t).make);
+    }
+    REQUIRE(layout_count(t.session().setup) == kMaxLayouts);
+    const std::vector<std::string> before = layout_names(t);
+    const BandStatus full = band_status(t.session(), screen_of(t.session()));
+    if (full.create_columns > 0) {
+        t.press_canvas(full.create_column, 0);
+        CHECK(t.session().notice_is_bad);
+        CHECK(t.notice().find("most layouts") != std::string::npos);
+    }
+    CHECK(layout_names(t) == before);
+    CHECK(layout_count(t.session().setup) == kMaxLayouts);
+}
+
+TEST_CASE("WUX-11/SC-8: at the minimum width the `+` yields to the tab and the status") {
+    // ⭐ THE AFFORDANCE IS THE FIRST THING TO GO. A row too narrow for everything must go on
+    // saying WHICH layout is live and WHAT its association is; a create button is a
+    // convenience whose keyboard route is unaffected by not painting it.
+    //
+    // SWEPT over name lengths and counts, because the yield happens at exactly the widths
+    // where the run reaches its budget -- and the sweep also proves the two things that must
+    // hold at EVERY width, which is what makes the yield meaningful rather than incidental.
+    bool ever_omitted = false;
+    bool ever_painted = false;
+    for (std::size_t count = 1; count <= kMaxLayouts; ++count) {
+        for (std::size_t len = 1; len <= kMaxSetupNameLen; ++len) {
+            CAPTURE(count);
+            CAPTURE(len);
+            Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
+            s.setup.active = setup_of(std::string(len, 'z'), {panel::kInfo});
+            for (std::size_t more = 1; more < count; ++more) {
+                s.setup.shelved.push_back(Layout{
+                    setup_of(std::string(len, static_cast<char>('a' + more)), {panel::kInfo}),
+                    SetupLink{}});
+            }
+            s.setup.active_link =
+                SetupLink{"/a/very/long/path/to/an/artifact.json", s.setup.active};
+
+            const BandStatus row = band_status(s, screen_of(s));
+            INFO(row.text);
+            REQUIRE(static_cast<std::int64_t>(row.text.size()) <= kScreenMinW);
+            // THE ACTIVE TAB IS PAINTED...
+            bool live_painted = false;
+            for (const LayoutTab& tab : row.tabs) {
+                live_painted = live_painted || tab.active;
+            }
+            REQUIRE(live_painted);
+            // ...AND THE VERDICT SURVIVES.
+            REQUIRE(row.text.find("setup: ") != std::string::npos);
+            REQUIRE(row.text.find("| current") != std::string::npos);
+            // ...AND WHERE THE AFFORDANCE IS PAINTED IT TOOK NO CELL OF EITHER.
+            if (row.create_columns > 0) {
+                ever_painted = true;
+                for (const LayoutTab& tab : row.tabs) {
+                    REQUIRE((row.create_column >= tab.column + tab.columns ||
+                             row.create_column + row.create_columns <= tab.column));
+                }
+                REQUIRE(row.create_column + row.create_columns <=
+                        static_cast<std::int64_t>(row.text.find("setup: ")));
+            } else {
+                ever_omitted = true;
+            }
+        }
+    }
+    // ⭐ AND BOTH OUTCOMES ARE REACHABLE, which is what makes "it yields" a fact rather than
+    // a sentence: a run with room gets its `+`, and a run that has used the budget does not.
+    CHECK(ever_painted);
+    CHECK(ever_omitted);
 }

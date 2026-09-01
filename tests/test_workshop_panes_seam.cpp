@@ -910,12 +910,12 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     // The maker authored this before any provider existed -- which is exactly the
     // shape WS-0 made legal and WP-0 finally has a consumer for.
     REQUIRE(add_pane(r.session().setup.active, hello_ref()));
-    r.session().setup.on_file = r.session().setup.active;
+    link_live_setup(r.session().setup, "setup.json");
     r.key(input::scan::kP);
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
     CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).size() == 1);
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
                             r.session().keymap)
               .find("1 unresolved") != std::string::npos);
     CHECK_FALSE(r.session().panels.has(kFirstRuntimeKind));
@@ -930,11 +930,11 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     CHECK(r.session().panels.has(kind));
     CHECK(unresolved_panes(r.session().setup.active, r.session().panels.runtime).empty());
     // AND A PANE A MAKER CAN SEE IS NOT COUNTED AS UNRESOLVED BENEATH IT.
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
                             r.session().keymap)
               .find("unresolved") == std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
-    CHECK(r.session().setup.saved());
+    CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 }
 
 TEST_CASE("a fresh session with no provider leaves the same reference unresolved again") {
@@ -949,7 +949,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     PaneRig fresh;
     fresh.mount_workshop();
     fresh.session().setup.active = saved;
-    fresh.session().setup.on_file = saved;
+    fresh.session().setup.active_link = SetupLink{"setup.json", saved};
     CHECK(fresh.session().panels.runtime.entries.empty());
     const std::vector<PaneRef> waiting =
         unresolved_panes(saved, fresh.session().panels.runtime);
@@ -959,7 +959,7 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
     // row for the reference and knows nothing at all about whoever could present it.
     CHECK(fresh.session().setup.active.panes.size() == 2);
     CHECK(fresh.session().setup.active.panes[1].ref == hello_ref());
-    CHECK(setup_status_text(fresh.session().setup, "", fresh.session().panels.runtime,
+    CHECK(setup_rest_text(fresh.session().setup, fresh.session().panels.runtime,
                             fresh.session().keymap)
               .find("unavailable") == std::string::npos);
 }
@@ -1068,7 +1068,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     (void)add_pane(both, ref_of(panel::kBuilder));
     (void)add_pane(both, hello_ref());
     r.session().setup.active = both;
-    r.session().setup.on_file = both;
+    r.session().setup.active_link = SetupLink{"setup.json", both};
     ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
     (void)seat2;
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
@@ -1083,7 +1083,7 @@ TEST_CASE("an oversubscribed authored setup keeps the extra reference, waiting f
     // extent, so a setup legal on a tall screen is legal on a short one.
     CHECK(has_pane(r.session().setup.active, hello_ref()));
     CHECK(check_setup(r.session().setup.active).accepted);
-    CHECK(r.session().setup.saved());
+    CHECK((live_status(r.session().setup) == setup_link::kCurrent));
 
     // THE PICKER SAYS `waiting`, WHICH IS NEITHER `open` NOR `closed`.
     r.key(input::scan::kP);
@@ -1767,7 +1767,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         CHECK(note.text.find("unavailable") == std::string::npos);
     }
     CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
-    CHECK(setup_status_text(r.session().setup, "", r.session().panels.runtime,
+    CHECK(setup_rest_text(r.session().setup, r.session().panels.runtime,
                             r.session().keymap)
               .find("unavailable") == std::string::npos);
 }

@@ -1853,7 +1853,8 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
 
 // ---- The session's side of it -------------------------------------------------
 
-/// THE ONE-LINE SETUP-NAME EDITOR: open or not, and the line being typed.
+/// THE ONE-LINE LAYOUT-NAME EDITOR: open or not, which layout it is naming, and
+/// the line being typed.
 ///
 /// A MODE, like the picker and like the terminal overlay, and not a panel: it
 /// has no catalog row, nothing presents it, and it closes the moment it has been
@@ -1866,33 +1867,122 @@ inline Reconciled reconcile(Panels& panels, const Setup& setup, StackCapacity ro
 /// the caret in it and which part of it a one-line editor can show are one fact,
 /// and this is the third consumer of the component that fact earned. Nothing
 /// bespoke was written for it.
-struct SetupNaming {
+///
+/// IT NAMES A LAYOUT AND WRITES NO FILE (WUX-11). Until this phase the same
+/// editor was the front half of `s` -- naming a layout and writing the setup
+/// artifact were one gesture, which is the coupling P-WORK-12 recorded. They are
+/// two operations now: this one renames, `s` saves, and neither performs the
+/// other.
+///
+/// `at` IS THE SUBJECT AND NOT A SECOND SELECTION. It is the captured position
+/// this editor is about -- `ContextMenu`'s own discipline, a mode holding one
+/// identity for the length of one request -- and it is re-judged at commit,
+/// because a position is only a layout for as long as the run it indexes says so.
+struct LayoutNaming {
     bool open = false;
+    std::size_t at = 0;
     component::TextBox line;
 };
 
-/// THE SETUP A SESSION IS SHOWING, THE ONE IN ITS FILE, AND THE EDITOR OVER IT.
+/// A LAYOUT'S OPTIONAL RELATIONSHIP TO ONE STANDALONE SETUP ARTIFACT (WUX-11).
 ///
-/// SAVED IS COMPUTED, NEVER FLAGGED -- the discipline W-5 established for the
-/// document, applied to the second artifact. `on_file` is a COPY of the setup as
-/// it was last successfully written or read, so `saved()` is a comparison and
-/// cannot drift from the thing it describes. A dirty flag would need a hand at
-/// every place a pane is added or removed and would be wrong the first time one
-/// was missed -- and this phase adds three such places.
+/// WHAT IT MEANS, IN ONE SENTENCE: *this layout is related to this Setup file,
+/// and this is the last value Workshop successfully knew that file to contain*.
+/// It is not membership, not ownership, not trust, not a project identity, and
+/// not an instruction to perform I/O -- nothing here ever reads a disk, and a
+/// layout with no association is completely ordinary.
 ///
-/// AN UNSAVED FRESH SESSION IS STRUCTURAL. `on_file` starts default-constructed,
-/// with an EMPTY NAME, and `check_setup_name` refuses an empty name -- so no
-/// setup a maker or a file can produce is ever equal to it. A fresh Workshop
-/// therefore says UNSAVED because its setup has genuinely never been written,
-/// which is the same sentence the document's own status has always said and for
-/// the same reason.
+/// AN EMPTY PATH IS THE ABSENCE, AND IT IS THE ONLY SPELLING OF IT. A path is a
+/// string in which "" is not a legal value, so absence needs no mode word beside
+/// it -- unlike the placement's `mode`, which exists because 0,0 IS a legal
+/// desktop coordinate (`session_persist::WorkshopPlacement`). Two different
+/// questions, two different answers.
+///
+/// `known` IS A COPY, NEVER A FLAG -- `SetupState::on_file`'s whole discipline
+/// (W-5's, applied to the second artifact), now owned per layout instead of once
+/// per Workshop. A comparison cannot drift from the thing it describes; a dirty
+/// bit would need a hand at every place a pane is added, moved, resized or
+/// renamed. Its default-constructed value has an EMPTY NAME and `check_setup_name`
+/// refuses one, so no desk a maker or a file can produce equals it -- which is
+/// what makes "there is no known value" structural rather than a rule somebody
+/// keeps.
+///
+/// THE PATH IS COMPARED BY BYTES AND IS NOT CANONICALISED. It is the artifact as
+/// the host named it; Workshop does not resolve, normalise or stat it, so two
+/// spellings of one file would honestly be two associations. Every association in
+/// a run comes from the one host-selected path, so the question does not arise
+/// today -- and the day a maker can choose an artifact live is the day it has to
+/// be answered on purpose.
+struct SetupLink {
+    std::string path;
+    Setup known;
+
+    friend bool operator==(const SetupLink& a, const SetupLink& b) {
+        return a.path == b.path && a.known == b.known;
+    }
+    friend bool operator!=(const SetupLink& a, const SetupLink& b) { return !(a == b); }
+};
+
+/// WHAT THE ACTIVE LAYOUT'S TOP-ROW STATUS SAYS -- three answers, DERIVED at every
+/// composition and stored nowhere (WUX-4's rule: a condition is read off a live
+/// owner, never remembered).
+namespace setup_link {
+inline constexpr std::int64_t kNone = 0;     ///< no artifact is associated
+inline constexpr std::int64_t kCurrent = 1;  ///< the desk equals the last known value
+inline constexpr std::int64_t kModified = 2; ///< it is associated and differs from it
+} // namespace setup_link
+
+/// WHICH OF THE THREE THIS LAYOUT IS. Pure, total, and the ONE place the question
+/// is decided.
+///
+/// ⚠ `kCurrent` IS A CLAIM ABOUT WORKSHOP'S KNOWLEDGE, NOT ABOUT THE DISK. It
+/// means *this desk equals the last value this run successfully wrote to or read
+/// from that artifact* -- so it performs no filesystem access, and it is not
+/// invalidated by another process editing the file behind Workshop's back. There
+/// is deliberately no watcher, no stat and no reload: a status a paint path had
+/// to go to disk for would cost a syscall per frame and would still be stale
+/// between two of them.
+inline std::int64_t link_status(const Setup& desk, const SetupLink& link) noexcept {
+    if (link.path.empty()) {
+        return setup_link::kNone;
+    }
+    return desk == link.known ? setup_link::kCurrent : setup_link::kModified;
+}
+
+/// ONE LAYOUT AS THE SHELF AND THE RUN HOLD IT: the desk, and the artifact it is
+/// associated with.
+///
+/// ⚠ THIS IS NOT THE TYPE THE LIVE DESK IS. `SetupState::active` is still a plain
+/// `Setup` and every consumer that reads the arrangement still reads that member
+/// (WUX-9's one-live-desk law, unmoved) -- the lifted element is the pair
+/// `active` + `active_link`, and this is that same pair for the layouts that are
+/// not live. Making the live desk a `Layout` would have re-typed every reader in
+/// Workshop to buy nothing but symmetry.
+///
+/// AND IT IS ONE STRUCT RATHER THAN TWO PARALLEL VECTORS on purpose: a shelf of
+/// desks beside a shelf of links is two containers whose indices somebody has to
+/// keep equal, and the first `erase` that forgets one is a layout wearing another
+/// layout's association.
+struct Layout {
+    Setup desk;
+    SetupLink link;
+
+    friend bool operator==(const Layout& a, const Layout& b) {
+        return a.desk == b.desk && a.link == b.link;
+    }
+    friend bool operator!=(const Layout& a, const Layout& b) { return !(a == b); }
+};
+
+/// THE LAYOUTS THIS WORKSHOP IS HOLDING, WHICH ONE IS LIVE, AND THE EDITOR OVER
+/// ITS NAME.
+///
 /// SEVERAL LAYOUTS, ONE OF THEM LIVE (WUX-9).
 ///
-/// A LAYOUT IS A `Setup` AND THERE IS NO `Layout` TYPE. What a maker calls a
-/// layout is exactly what this file has always called a setup -- a name, which
-/// panes participate, where each one is, how big, and the front order -- so the
-/// plural costs a vector of the value that already existed and not one new owner
-/// of geometry, membership or presentation.
+/// A LAYOUT'S DESK IS A `Setup`. What a maker calls a layout's arrangement is
+/// exactly what this file has always called a setup -- a name, which panes
+/// participate, where each one is, how big, and the front order -- so the plural
+/// costs a vector of the value that already existed and not one new owner of
+/// geometry, membership or presentation.
 ///
 /// `active` REMAINS THE ONE LIVE DESK. Every consumer that reads the arrangement
 /// still reads that member; none of them indexes through a list, and there is
@@ -1905,16 +1995,22 @@ struct SetupNaming {
 /// which is what lets the order be STABLE while the live value stays in one
 /// member: switching puts the lifted value back where it was and lifts another,
 /// so no layout ever moves because a maker looked at it. Position IS a layout's
-/// v1 identity -- nothing durable points at one, duplicate names are legal, and
-/// no id is minted.
+/// identity -- nothing durable points at one, duplicate names are legal, and no
+/// id is minted.
+///
+/// EVERY LAYOUT OWNS ITS OWN SETUP ASSOCIATION (WUX-11), and `active_link` is the
+/// lifted one. Until this phase a single `on_file` was the comparison copy for a
+/// whole Workshop, which was already the wrong shape the moment there were
+/// several desks: two layouts both read `UNSAVED`, or both read `saved`, against
+/// a value only one of them had anything to do with. There is no `on_file` and no
+/// `saved()` any more -- `link_status` answers the question, per layout, from that
+/// layout's own link.
 struct SetupState {
     Setup active = default_setup();
-    Setup on_file;
-    SetupNaming naming;
-    std::vector<Setup> shelved;
+    SetupLink active_link;
+    LayoutNaming naming;
+    std::vector<Layout> shelved;
     std::size_t active_at = 0;
-
-    bool saved() const { return active == on_file; }
 };
 
 /// HOW MANY LAYOUTS THIS WORKSHOP IS HOLDING, the active one included.
@@ -1923,15 +2019,30 @@ struct SetupState {
 /// floor is the type's and not a rule somebody keeps.
 inline std::size_t layout_count(const SetupState& s) noexcept { return s.shelved.size() + 1; }
 
-/// THE LAYOUT AT POSITION `at` IN THE MAKER'S ORDER -- a read, and the one place
-/// the run's spelling is undone. Out of range answers the active layout, for
+/// WHERE POSITION `at` SITS ON THE SHELF, for the positions that are not the live
+/// one. The one place a run index becomes a shelf index, so the readers below
+/// cannot come to spell it differently.
+inline std::size_t shelf_index(const SetupState& s, std::size_t at) noexcept {
+    return at < s.active_at ? at : at - 1;
+}
+
+/// THE DESK AT POSITION `at` IN THE MAKER'S ORDER -- a read, and the one place the
+/// run's spelling is undone. Out of range answers the active layout, for
 /// `bounds_of`'s reason: every caller of this already has a position it got from
 /// this same run, and a second refusal shape would be a state to keep true.
 inline const Setup& layout_at(const SetupState& s, std::size_t at) noexcept {
     if (at == s.active_at || at >= layout_count(s)) {
         return s.active;
     }
-    return s.shelved[at < s.active_at ? at : at - 1];
+    return s.shelved[shelf_index(s, at)].desk;
+}
+
+/// ...AND ITS SETUP ASSOCIATION, by the same rule and for the same reason.
+inline const SetupLink& link_at(const SetupState& s, std::size_t at) noexcept {
+    if (at == s.active_at || at >= layout_count(s)) {
+        return s.active_link;
+    }
+    return s.shelved[shelf_index(s, at)].link;
 }
 
 /// THE MOST LAYOUTS ONE RUN KEEPS (WUX-9).
@@ -1946,13 +2057,17 @@ inline constexpr std::size_t kMaxLayouts = 8;
 /// half, and the only thing in this application that changes which layout is
 /// active.
 ///
-/// PUT THE LIFTED VALUE BACK, THEN LIFT ANOTHER. `shelved` is the run with the
+/// PUT THE LIFTED PAIR BACK, THEN LIFT ANOTHER. `shelved` is the run with the
 /// active element removed at `active_at`, so restoring it and taking out `to` is
 /// the operation stated exactly: the surviving order is untouched, the departing
 /// layout lands back on its own position, and nothing is copied. A swap would be
 /// shorter and wrong -- it leaves the departing layout wherever the arriving one
 /// happened to sit, which is a run that reorders itself every time a maker looks
 /// at it.
+///
+/// THE ASSOCIATION TRAVELS WITH ITS DESK BECAUSE THEY ARE ONE ELEMENT (WUX-11):
+/// there is no second move to forget, and no position at which a link could be
+/// left behind.
 ///
 /// FALSE MEANS NOTHING MOVED: an out-of-range position, or the layout that is
 /// already live. The caller reconciles presentations exactly when this says true.
@@ -1961,99 +2076,246 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
         return false;
     }
     s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
-                     std::move(s.active));
-    s.active = std::move(s.shelved[to]);
+                     Layout{std::move(s.active), std::move(s.active_link)});
+    s.active = std::move(s.shelved[to].desk);
+    s.active_link = std::move(s.shelved[to].link);
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(to));
     s.active_at = to;
-    return true;
-}
-
-/// ONE MORE LAYOUT: A COPY OF THE CURRENT ONE, APPENDED, AND LIVE (WUX-9).
-///
-/// A COPY RATHER THAN A BLANK, because the pressure this answers is variants of a
-/// desk that already works. There is deliberately no blank-layout gesture; the
-/// value for one exists (`default_setup()`) and nothing has asked for it.
-///
-/// THE ORIGINAL GOES BACK ON THE SHELF AND THE COPY TAKES THE LAST POSITION, so
-/// the run a maker had reads exactly as it did with one more layout after it.
-/// False means the ceiling refused; nothing moved.
-inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
-    if (layout_count(s) >= ceiling) {
-        return false;
-    }
-    s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at), s.active);
-    s.active_at = s.shelved.size();
-    return true;
-}
-
-/// DISCARD THE LIVE LAYOUT AND MAKE A NEIGHBOUR LIVE (WUX-9).
-///
-/// THE NEIGHBOUR IS THE NEXT ONE IN MAKER ORDER WHERE THERE IS ONE, otherwise the
-/// previous -- deterministic, and stated as one expression: once the active value
-/// is discarded `shelved` IS the surviving run, so the survivor now standing at
-/// `active_at` is the next neighbour, and `active_at` past the end means the
-/// removed layout was last and the one before it is the previous.
-///
-/// FALSE IS THE FLOOR: removing the only layout would leave Workshop with none,
-/// and the refusal is the caller's to say.
-inline bool remove_layout(SetupState& s) {
-    if (s.shelved.empty()) {
-        return false;
-    }
-    const std::size_t take =
-        s.active_at < s.shelved.size() ? s.active_at : s.shelved.size() - 1;
-    s.active = std::move(s.shelved[take]);
-    s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
-    s.active_at = take;
     return true;
 }
 
 /// THE MAKER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS (WUX-10).
 ///
 /// THE EXACT INVERSE OF THE LIFT, and it exists because the run is what leaves
-/// this program. `shelved` + `active_at` is the run with one element taken out,
-/// so putting that element back at `active_at` is the whole of the reading --
-/// no sort, no rotation to make the live one first, and no second copy of any
-/// value. A durable owner that reached into `shelved` itself would be spelling
-/// this inverse a second time, in a file that has no business knowing there is
-/// a lift at all.
+/// this program -- to the session file, and since WUX-11 to the three gestures
+/// that duplicate, close and reorder a layout that may not be the live one.
+/// `shelved` + `active_at` is the run with one element taken out, so putting that
+/// element back at `active_at` is the whole of the reading -- no sort, no rotation
+/// to make the live one first, and no second copy of any value. A durable owner
+/// that reached into `shelved` itself would be spelling this inverse a second
+/// time, in a file that has no business knowing there is a lift at all.
 ///
-/// IT IS A READ. The argument is const and the run is a new vector: serialising
-/// a maker's layouts must not be able to reorder the layouts it is serialising.
-inline std::vector<Setup> layout_run(const SetupState& s) {
-    std::vector<Setup> run = s.shelved;
+/// IT IS A READ. The argument is const and the run is a new vector: serialising a
+/// maker's layouts must not be able to reorder the layouts it is serialising.
+inline std::vector<Layout> layout_run(const SetupState& s) {
+    std::vector<Layout> run = s.shelved;
     // TOTAL OVER `active_at`, for `layout_at`'s reason exactly: nothing in this
     // file can produce a position past the shelf, and a second refusal shape
     // would be a state somebody has to keep true.
     const std::size_t at = s.active_at <= s.shelved.size() ? s.active_at : s.shelved.size();
-    run.insert(run.begin() + static_cast<std::ptrdiff_t>(at), s.active);
+    run.insert(run.begin() + static_cast<std::ptrdiff_t>(at), Layout{s.active, s.active_link});
     return run;
 }
 
 /// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE (WUX-10) -- the direction a
-/// restored session travels, and the only other place the run's spelling is
-/// made.
+/// restored session travels, and the only other place the run's spelling is made.
 ///
 /// THE CALLER HAS ALREADY JUDGED THE RUN. Whether a durable run was legal --
-/// non-empty, within the ceiling, every desk a legal setup, the position in
-/// range -- is the durable owner's law and is worded there
-/// (`session_persist::layouts_in`). What is checked here is the TYPE's own
-/// floor, which no caller can be trusted to keep for it: `active` is a value,
-/// so a run this could not lift from would leave Workshop with no live desk at
-/// all. False means nothing moved.
+/// non-empty, within the ceiling, every desk a legal setup, every association
+/// legal, the position in range -- is the durable owner's law and is worded there
+/// (`session_persist::layouts_in`). What is checked here is the TYPE's own floor,
+/// which no caller can be trusted to keep for it: `active` is a value, so a run
+/// this could not lift from would leave Workshop with no live desk at all. False
+/// means nothing moved.
 ///
-/// `on_file` AND THE NAME EDITOR ARE NOT TOUCHED. `on_file` is this run's copy
-/// of what is in the SETUP file, and a session restore has not read that file
-/// (WUX-0's rule, unchanged).
-inline bool install_layout_run(SetupState& s, std::vector<Setup> run, std::size_t active) {
+/// THE NAME EDITOR IS NOT TOUCHED, and neither is anything outside the run: this
+/// is the container's own operation and it knows nothing about presentations.
+inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size_t active) {
     if (run.empty() || active >= run.size()) {
         return false;
     }
-    s.active = std::move(run[active]);
+    s.active = std::move(run[active].desk);
+    s.active_link = std::move(run[active].link);
     run.erase(run.begin() + static_cast<std::ptrdiff_t>(active));
     s.shelved = std::move(run);
     s.active_at = active;
     return true;
+}
+
+/// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE (WUX-11).
+///
+/// ⚠ NEW MEANS NEW. WUX-9 shipped this as a COPY of the live layout, on the
+/// pressure "variants of a desk that already works"; WUX-11 splits the two
+/// meanings, because a copy is what `duplicate_layout` is for and a maker who
+/// asks for a new desk is asking for an empty one. The blank is `default_setup()`
+/// -- the same canonical desk a Workshop with no session opens on, so "new" and
+/// "fresh" are one value here and not two.
+///
+/// AND IT CARRIES NO ASSOCIATION. A desk that has just been made has never been
+/// written to or read from any artifact, so `setup: none` is the only truthful
+/// thing it can say.
+///
+/// THE ORIGINAL GOES BACK ON THE SHELF AND THE NEW ONE TAKES THE LAST POSITION,
+/// so the run a maker had reads exactly as it did with one more layout after it.
+/// False means the ceiling refused; nothing moved.
+inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
+    if (layout_count(s) >= ceiling) {
+        return false;
+    }
+    s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
+                     Layout{std::move(s.active), std::move(s.active_link)});
+    s.active = default_setup();
+    s.active_link = SetupLink{};
+    s.active_at = s.shelved.size();
+    return true;
+}
+
+/// COPY THE LAYOUT AT `at`, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY
+/// (WUX-11).
+///
+/// ⭐ DUPLICATION COPIES THE DESK, NEVER THE SETUP RELATIONSHIP. That is this
+/// phase's one mandatory law about copying, and it is kept here rather than asked
+/// of callers: an inherited association would have the copy claim
+/// `code.json | current` while that artifact knows nothing about it, and the first
+/// `s` would then overwrite the very file the maker duplicated in order not to
+/// touch. The NAME is copied -- duplicate names are legal, position is the
+/// identity, and inventing `Code (copy)` would be this file authoring a maker's
+/// word for them.
+///
+/// DIRECTLY AFTER THE SOURCE, because a duplicate is a variant of the thing beside
+/// it; appending it eight tabs away would make a maker hunt for what they just
+/// made. False means the ceiling refused, or `at` is not a layout; nothing moved.
+inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling = kMaxLayouts) {
+    if (at >= layout_count(s) || layout_count(s) >= ceiling) {
+        return false;
+    }
+    std::vector<Layout> run = layout_run(s);
+    const std::size_t copy_at = at + 1;
+    run.insert(run.begin() + static_cast<std::ptrdiff_t>(copy_at),
+               Layout{run[at].desk, SetupLink{}});
+    return install_layout_run(s, std::move(run), copy_at);
+}
+
+/// DISCARD THE LAYOUT AT `at` (WUX-11; WUX-9 could only discard the live one).
+///
+/// THE ACTIVE DESK SURVIVES A CLOSE THAT WAS NOT ABOUT IT. Removing an inactive
+/// tab erases one shelf element and slides `active_at` past where the erase was,
+/// when the erase was before it; the live value is never touched, so no
+/// presentation is reconciled and no provider hears anything.
+///
+/// REMOVING THE LIVE ONE TAKES THE NEXT NEIGHBOUR where there is one, otherwise
+/// the previous -- deterministic, and stated as one expression: once the active
+/// value is discarded `shelved` IS the surviving run, so the survivor now standing
+/// at `active_at` is the next neighbour, and `active_at` past the end means the
+/// removed layout was last and the one before it is the previous.
+///
+/// THE ASSOCIATION DIES WITH THE LAYOUT, which is the whole of what per-layout
+/// ownership means at this end: no other layout's link is read, written or
+/// reconsidered.
+///
+/// FALSE IS THE FLOOR: removing the only layout would leave Workshop with none,
+/// and the refusal is the caller's to say.
+inline bool remove_layout(SetupState& s, std::size_t at) {
+    if (s.shelved.empty() || at >= layout_count(s)) {
+        return false;
+    }
+    if (at != s.active_at) {
+        s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(shelf_index(s, at)));
+        if (at < s.active_at) {
+            --s.active_at;
+        }
+        return true;
+    }
+    const std::size_t take =
+        s.active_at < s.shelved.size() ? s.active_at : s.shelved.size() - 1;
+    s.active = std::move(s.shelved[take].desk);
+    s.active_link = std::move(s.shelved[take].link);
+    s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
+    s.active_at = take;
+    return true;
+}
+
+/// MOVE THE LAYOUT AT `from` TO POSITION `to` IN THE MAKER'S ORDER (WUX-11).
+///
+/// ONE VALUE CHANGES POSITION AND NOTHING ELSE HAPPENS. No desk is copied or lost,
+/// every association travels with its own desk, and the layout that was live is
+/// still live afterwards -- which is why this is spelled through the inverse pair
+/// rather than by hand: `layout_run` gives the order a maker can see, the move is
+/// one erase and one insert in it, and `install_layout_run` lifts the same live
+/// element back out at wherever it now sits. Index surgery on `shelved` +
+/// `active_at` would be a third spelling of the lift, in the one operation that
+/// crosses it.
+///
+/// FALSE MEANS NOTHING MOVED: a position that is not a layout, or a move to where
+/// the layout already is.
+inline bool move_layout(SetupState& s, std::size_t from, std::size_t to) {
+    const std::size_t n = layout_count(s);
+    if (from >= n || to >= n || from == to) {
+        return false;
+    }
+    std::vector<Layout> run = layout_run(s);
+    Layout moved = std::move(run[from]);
+    run.erase(run.begin() + static_cast<std::ptrdiff_t>(from));
+    run.insert(run.begin() + static_cast<std::ptrdiff_t>(to), std::move(moved));
+    // WHERE THE LIVE ELEMENT ENDED UP, COMPUTED FROM THE ERASE AND THE INSERT it
+    // just went through -- never searched for, because two layouts may hold equal
+    // values and a search would find whichever came first.
+    std::size_t live = s.active_at;
+    if (live == from) {
+        live = to;
+    } else {
+        if (live > from) {
+            --live;
+        }
+        if (live >= to) {
+            ++live;
+        }
+    }
+    return install_layout_run(s, std::move(run), live);
+}
+
+/// GIVE THE LAYOUT AT `at` A NEW NAME (WUX-11) -- the whole of a rename's value
+/// half, and the only thing in this application that writes a layout's name
+/// without writing a file.
+///
+/// THE NAME IS THE CALLER'S TO JUDGE. `check_setup_name` is the admission and the
+/// caller meets it, in its own words, with the editor still open over what the
+/// maker typed -- exactly as a setup file's name has always been judged. What is
+/// checked here is the position.
+///
+/// THE ASSOCIATION IS NOT TOUCHED, and that is the point: a name is an authored
+/// fact of the desk, so renaming an associated layout normally makes it
+/// `modified` -- derived, by `link_status`, with nothing here to remember. It
+/// reads `current` again if and only if the new name is the one the known value
+/// already had, which is the honest answer and needs no special case.
+inline bool rename_layout(SetupState& s, std::size_t at, std::string name) {
+    if (at >= layout_count(s)) {
+        return false;
+    }
+    if (at == s.active_at) {
+        s.active.name = std::move(name);
+        return true;
+    }
+    s.shelved[shelf_index(s, at)].desk.name = std::move(name);
+    return true;
+}
+
+/// TEACH EVERY LAYOUT ASSOCIATED WITH `path` WHAT THAT ARTIFACT NOW HOLDS
+/// (WUX-11).
+///
+/// ⭐ THE SHARED-ARTIFACT LAW, AND WHY IT IS A SWEEP RATHER THAN AN ASSIGNMENT.
+/// Two layouts may honestly refer to one Setup file. If saving from one of them
+/// advanced only its own baseline, the other would go on claiming `current`
+/// against a value that file no longer holds -- a status wrong about the only
+/// thing it is for. So a successful write or read of an artifact updates the known
+/// baseline of EVERY association to it, and each layout then answers `current` or
+/// `modified` independently by comparing its own desk.
+///
+/// IT ESTABLISHES NOTHING. A layout with no association, or one associated with a
+/// different artifact, is not touched: learning what one file contains is not a
+/// reason for an unrelated desk to acquire a relationship to it.
+inline void adopt_known_setup(SetupState& s, const std::string& path, const Setup& known) {
+    if (path.empty()) {
+        return;
+    }
+    if (s.active_link.path == path) {
+        s.active_link.known = known;
+    }
+    for (Layout& shelved : s.shelved) {
+        if (shelved.link.path == path) {
+            shelved.link.known = known;
+        }
+    }
 }
 
 /// THE POSITION ONE STEP ALONG THE RUN, WRAPPING -- the keyboard's whole

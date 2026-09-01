@@ -73,16 +73,26 @@ empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 ### One run holds at most eight layouts
 
 [Layouts](setups.md#several-layouts-in-one-workshop) all come back after a restart now — the set,
-your order, their names and the one you were standing on — so what is left here is the bound:
-a ninth layout is refused rather than quietly replacing one.
+your order, their names, the one you were standing on and which Setup file each is related to —
+so what is left here is the bound: a ninth layout is refused rather than quietly replacing one,
+and so is a duplicate that would make a ninth.
 
 What a layout still does **not** carry is anything Workshop holds once for the whole run: your
 document, the project, the file browser's location, your marks, your recipes, the keymap and the
 window are one each, and switching layouts changes none of them.
 
-**Renaming a layout still rides the setup save.** `s` names the layout you are on *and* writes
-it to the `--setup` file; there is no separate rename. That is a rough edge, not a boundary — the
-name it writes is the name that comes back.
+### One Setup file per run, chosen on the command line
+
+A layout keeps whichever Setup file it was saved to or restored from, and different layouts may
+be related to different files — but there is **no way to choose a new file from inside
+Workshop**. The one a layout can acquire is the one `--setup` names, so within a single run every
+association a maker makes fresh points at that same path. Keeping several arrangements on disk
+still means several runs:
+
+```sh
+zengine-workshop --setup layouts/wide.json
+zengine-workshop --setup layouts/inspect.json
+```
 
 ### A pane's geometry is stored once and read in whatever unit your face uses
 
@@ -196,7 +206,7 @@ honest bounds on that capability today:
 | Does unsaved source survive a crash? | **no** — like every draft here it dies with the process; an *orderly* quit refuses while source is unsaved |
 
 What text editing also exists is three single-line editors, each over the same component: an
-inspector property draft, the setup-name line, and the terminal overlay's command line.
+inspector property draft, the layout-name line, and the terminal overlay's command line.
 
 ### The Files pane is a snapshot, and two identity questions are unanswered
 
