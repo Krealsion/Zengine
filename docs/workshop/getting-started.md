@@ -130,10 +130,13 @@ line where the medium can always show it (a box in the corner of the window, the
 reserved row of a terminal), and `Ctrl`+`a` opens the full list. Those disappear when they
 stop being true and at no other moment. See [what needs your attention](attention.md).
 
-Workshop's chrome is two bands. The **first row** is the layout selector: your layouts as tabs
-on the left with the one you are on between `>` and `<`, a `+` that makes another, and — at the
-row's right-hand edge — what the layout you are on is related to: `setup: none`, or the Setup
-file it was saved to or restored from and whether it still matches it. The **bottom band** is what Workshop just said and what your keys
+Workshop's own chrome is **one** band, at the foot. The **first row** is a pane —
+[the layout selector](setups.md#several-layouts-in-one-workshop), called **Layouts**: your
+layouts as tabs on the left with the one you are on between `>` and `<`, a `+` that makes
+another, and — at the row's right-hand edge — what the layout you are on is related to:
+`setup: none`, or the Setup file it was saved to or restored from and whether it still matches
+it. Being a pane means you can move it, resize it, cover it or take it off a layout, like
+Files or the Editor. The **bottom band** is what Workshop just said and what your keys
 mean right now: the notice, then the legend rows advertising the current context's gestures —
 the picker, the desk arrangement and the terminal toggle among them. Every one of those hints
 is a projection of the effective keymap —
@@ -150,9 +153,9 @@ so the very first screen already shows an authored intent (`60%`) beside its res
 (`28 x 6 cells`).
 
 Those two are seeded by Workshop's own weave, not read from a file. So on a first run the title
-row says `UNSAVED` — the document has never been written — and Workshop's first row says
-`>Default< +` beside `setup: none`, meaning the one layout you have, marked as the one you are
-on, related to no Setup file yet. Both are accurate, and `none` is not a warning: Workshop
+row says `UNSAVED` — the document has never been written — and the Layouts pane on Workshop's
+first row says `>Default< +` beside `setup: none`, meaning the one layout you have, marked as
+the one you are on, related to no Setup file yet. Both are accurate, and `none` is not a warning: Workshop
 remembers that layout for you either way.
 
 1. **`n`** — create an object. It gets a fresh identity that is neither its label nor its

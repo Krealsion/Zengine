@@ -425,6 +425,45 @@ pane_outer          bounds_of's answer -- authored, dragged, hit-tested, ringed.
   consequence and nothing pads it back: no provider, no priority and no form was touched to
   spend it.
 
+## Three places, and only one of them is the screen's (PNL-1, third place WUX-12)
+
+```text
+kSideRegion   the reserved column beside the workspace   THE SCREEN'S: place-fixed, no override
+kOverlayStack over the workspace, stacked, reactive      the maker's
+kTopBand      the reserved rows at the top, full width   the maker's
+```
+
+- **`place_is_authorable(where)` IS THE EXCLUSION, AND IT IS ONE SENTENCE**: the side region is
+  the screen's; every other place resolves a developer default that an authored row lays over,
+  per axis. Four consumers spend it — `project_pane`'s override gate, `take_pane_hold`,
+  `paint_pane_affordances` and the arrangement admission — and three of them used to say
+  `== kOverlayStack`, which is the same set written as a list somebody has to extend.
+- **EACH PLACE HOLDS THE PANES ITS GEOMETRY CAN SHARE**, asserted at compile time:
+  `kinds_placed_in(kSideRegion) == 1` and `kinds_placed_in(kTopBand) == 1`, because two kinds
+  in either resolve to the SAME rectangle and would paint over each other silently. The overlay
+  stack carries no such assertion — stacking is what it is for.
+- **A BAND-ANCHORED PANE TAKES NO STACK SLOT** (`bounds_of`, `panes_that_fit`): slots are the
+  overlay stack's rationing and a pane that is not in the tiling must not push a reactive one
+  down a row.
+
+## A pane too small for a boundary draws none (WUX-8, third rung WUX-12)
+
+`pane_inside` walks candidates from the finest boundary the face can draw to no boundary at
+all, and stops at the first that leaves an interior: the face's own device unit, then the
+CELL, then **zero**.
+
+- **THE LAST RUNG IS WHAT LETS A TWO-CELL PANE EXIST.** The Layouts pane's developer default is
+  `kTopRows` tall on every face; on a terminal one cell a side leaves zero rows of the two the
+  band always had, and a pane that draws its boundary and nothing else has stopped being a
+  presentation. On the shipped window a one-pixel edge still fits inside the same rectangle and
+  is still drawn — measured: `chrome_subs == 0` on the cell medium, `subs_of_one_device` on the
+  face.
+- **IT CANNOT OSCILLATE**: each candidate is a LARGER interior than the last, so a rectangle
+  that held no row at a finer inset holds none at a coarser one.
+- **WHAT IT COSTS** is that a pane that small wears no selected-chrome ink, because there is no
+  ring to colour. The maker's other answers — the arrangement handles, the desk's stepping, the
+  notice, the picker — are untouched.
+
 ## The desk's front is the authored order plus one lift (WUX-5)
 
 ```text
@@ -476,7 +515,8 @@ the affordances     over the panes' own content, so no handle is hidden (ARR-0: 
                     rings ARE the arrangement state's visible statement)
 picker / overlays   over the panes they cover -- a provider's text cannot bury the row that
                     recovers it
-the screen's chrome the TWO bands, each one budget-composed region (WUX-1, split QR-14)
+the screen's chrome the ONE band at the foot, a budget-composed region (WUX-1; the top band
+                    became a pane at WUX-12 and is in the pane planes above)
 the Terminal        the final modal plane
 ```
 
@@ -486,11 +526,20 @@ the Terminal        the final modal plane
   `kGroundOwn`), so a pane a maker authors over it is covered by it. Panes are in front of the
   DOCUMENT, which is what `occupied_at` has answered since PNL-2; they are not in front of the
   tool's own voice.
+- **⚠ AND THAT SENTENCE USED TO HAVE AN EXCEPTION IT CANNOT SURVIVE (WUX-12).** The TOP band
+  was in this plane too, painted in front of every pane and answering presses on the layout
+  tabs alone — so a pane a maker dragged under it was visually erased, still met the hand, and
+  still classified `open` because coverage counts panes. See-here/press-there, at exactly the
+  boundary HD-3 forbids. Both halves are gone: the tabs are a pane's interior and
+  `occupied_at` answers that pane for those cells like any other. What is left in this plane is
+  the foot, which occupies no pointer space at all — and the utterance channel's
+  reachability is why it is still the screen's rather than converted beside the other one.
 - **THE VERTICAL ORDER IS THREE REGIONS AND IT TILES THE SCREEN EXACTLY (QR-14):**
 
 ```text
-rows 0 .. kTopRows-1               the TOP band -- the layout selector and the setup's status,
-                                   with the workspace fact under it where the medium fits one
+rows 0 .. kTopRows-1               RESERVED, and by default the Layouts PANE stands on them --
+                                   the selector, the setup's status, and the workspace fact
+                                   under it where the medium fits a second row (WUX-12)
 rows kWorkspaceY .. +room_h-1      the body: the workspace, the overlay stack, the side region
 the last kBottomRows               the BOTTOM band -- the notice, then the legend
 ```
@@ -507,6 +556,12 @@ the last kBottomRows               the BOTTOM band -- the notice, then the legen
   tall, which is what a face needs for one row of type. ⚠ One cell would be zero face rows and
   bitmap glyphs — the exact defect WUX-1 retired that row over, and the reason `kTopRows` is
   not 1.
+- **⚠ AND WHAT STANDS ON THE RESERVED ROWS IS NOT WHAT RESERVES THEM (WUX-12).** `screen_of`
+  subtracts `kTopRows` unconditionally and cannot see a pane; `placement_bounds(kTopBand, ...)`
+  turns the same rows into the rectangle the Layouts pane takes when its maker has said
+  nothing. Two steps, two questions — how much room the workspace has is a fact about the
+  SCREEN, and what is standing in it is the maker's. Move the pane away and the rows are empty
+  and `room_h` is the number it was, which is Info's own pattern at the other edge.
 - ⚠ **TWO MEASURED FACTS MOVED WITH THE BODY, and neither is a spelling change.** The side
   region begins under the full-width top band, so the Info column is `room_h` cells rather than
   one more (`share_body_rows` spends the smaller budget by its own policy). And the overlay
@@ -1334,6 +1389,13 @@ words.
   property/action/object semantics, no refusal and no consumption policy — each handler still
   asks its own inverse (`property_row_hit`, `action_press_at`, `object_press_at`) of the place
   it returns. `present` is the conjunction *panel open ∧ body resolved ∧ position understood*.
+  ⚠ It does NOT test whether the point is Info's to answer — occupancy does, one line up, and
+  since WUX-12 it is asked first.
+- **`band_tab_at` is the Layouts pane's local inverse and is asked the same way.** Its spans
+  come from `band_status`' own composition, so a press cannot be answered against a tab this
+  budget did not paint; and it is spent only once `occupied_at` has named `panel::kLayouts`,
+  so a pane authored in front of the run takes the press. The inverse may stay specialised;
+  the coordinate exception may not come back.
 - **The body is resolved ONCE PER PRESS, in the route, beside the canvas point.** Holding it
   across the chain is sound for a stated reason and not an assumed one: **every handler changes
   nothing on the paths where it declines**, so a "not mine" cannot have moved the picture the
@@ -1343,9 +1405,28 @@ words.
   (`Written`, `Handled`, `Commit`, `Availability`, `Occupancy`) and they are all on SEMANTIC
   paths; the bare bool survives only on the routing path, which is the one place it is
   adequate.
-- **Pointer order:** the terminal overlay (a MODE), then arrangement (a mode), then the
-  open contextual surface (a mode, CTX-0), then the active property editor, then the
-  action controls, then the object list, then the panel's occupancy, then the workspace.
+- **Pointer order (WUX-12):** the terminal overlay (a MODE), then arrangement (a mode), then
+  the open contextual surface (a mode, CTX-0), then **ordinary pane occupancy**, then the
+  resolved pane's OWN local inverse, then the workspace.
+
+```text
+transient/mode first refusal
+        v
+ordinary pane occupancy / front order      occupied_at, over effective_pane_order
+        v
+the resolved pane's own local inverse      external | editor | files | info's three | layouts
+        v
+workspace / background handling            take_hold
+```
+
+- **⭐ NOTHING ASKS A GEOMETRY QUESTION ABOVE OCCUPANCY ANY MORE.** WUX-12 removed the five
+  that did: the two top-band arms (the left press's tab/create, and the right press's
+  tab-as-subject) and Info's three internal arms (`info_press`, `actions_press`,
+  `objects_press`), which ran BEFORE the walk and never consulted the effective order — so a
+  pane authored over the side column and ranked in front of Info still lost presses on Info's
+  control cells to Info. The inverses themselves are unchanged, including their order and
+  their disjointness argument; what changed is WHERE they are asked. **A new pane-internal
+  gesture belongs in the resolved-owner arm, never above the walk.**
 - **A SECONDARY PRESS IS STATE-LOCAL FIRST REFUSAL (ARR-0).** The active interaction that
   can truthfully interpret a secondary press receives it; only an unclaimed one reaches
   the ordinary contextual opener. Concretely: ordinary Workshop opens/re-targets the
@@ -1818,8 +1899,8 @@ Layout            desk + link -- the shelf's element and the RUN's element, one 
   and says what it could not paint, so raising the number is a number change.
 - **THE FILES DID NOT MOVE.** `s` writes the LIVE layout to a setup file and `r` reads one into
   the LIVE layout; neither touches the shelf, and a Setup file still means one desk. **THE
-  SESSION CARRIES THE WHOLE RUN SINCE WUX-10 AND EVERY ASSOCIATION SINCE WUX-11** (version 5,
-  below), so the set, the order, the names, which one was live and what each is related to all
+  SESSION CARRIES THE WHOLE RUN SINCE WUX-10 AND EVERY ASSOCIATION SINCE WUX-11** (version 6
+  since WUX-12, below), so the set, the order, the names, which one was live and what each is related to all
   come back — and the ownership split is unchanged by the plural: the SESSION owns *these are
   the desks I was using on this machine*, the SETUP FILE owns *this is one desk I named*.
 - **⭐ RENAMING IS A LAYOUT OPERATION; SAVING IS A FILE OPERATION (WUX-11, retiring P-WORK-12).**
@@ -1851,7 +1932,7 @@ Layout            desk + link -- the shelf's element and the RUN's element, one 
   because a second spelling of the lift is a second thing to get wrong — and the pair's round
   trip is swept over every position by the persistence suite.
 
-## The tab run is the left of the band's existing status row (WUX-9)
+## The tab run is the left of the Layouts pane's first row (WUX-9, converted WUX-12)
 
 ```text
  Code >Build< Inspect +          setup: workshop-setup.json | modified | s save  r restore
@@ -1886,15 +1967,30 @@ Layout            desk + link -- the shelf's element and the RUN's element, one 
   not have one and the key is unaffected. Pressing it does exactly what `layout.new` does,
   refusal included.
 
+- **⭐ AND SINCE WUX-12 THE ROW BELONGS TO A PANE, NOT TO A BAND.** The run, the association
+  and the workspace fact are the built-in `Layouts` pane (`panel::kLayouts`,
+  `placement::kTopBand`) — a catalog row, a setup row, authored fine-lattice geometry, a
+  canonical front rank, ordinary paint through `paint_panels`, ordinary occupancy, ordinary
+  coverage, picker recovery and session persistence. Nothing about the COMPOSITION moved: the
+  same three facts, the same fold, the same degradation order, the same single source. What
+  moved is who owns the rectangle, and therefore what a maker may do to it.
 - **NO BAND ROW WAS ADDED AND THE BODY'S EXTENT NEVER MOVED.** WUX-9 put the run on the
   bottom band's status row, which was the row that already named the arrangement; QR-14 moved
   that row to the top of the screen, where a selector belongs, by re-homing reserved cells
   rather than reserving another (the plane-sequence section above holds the arithmetic). A
   sixth reserved row would resize the workspace every share resolves against (PNL-0's refusal
   class), which is what neither phase was allowed to spend.
-- **`band_status(session, path, screen)` IS THE ONE COMPOSITION** and it is what both consumers
-  spend (HD-3): `band_region` publishes its `text`, and `band_tab_at` answers a press out of its
-  `tabs`. A tab's span is recorded as the row is written, so there is no second measurement to
+- **⚠ THE RESERVATION IS NOT THE PANE, AND THAT SEPARATION IS WHAT MAKES THE CONVERSION SAFE.**
+  `kTopRows` stays out of `room_h` whether or not any pane stands on those rows —
+  `screen_of` cannot see a pane and must not learn to. Move, resize or remove `Layouts` and
+  the rows go empty and every `%`-sized document object is the size it was. That is PNL-0's
+  own rule (hiding Info leaves the column empty) applied at the other edge, and it is the one
+  coupling this conversion was forbidden to make.
+- **`band_status` IS THE ONE COMPOSITION** and it is what both consumers spend (HD-3):
+  `paint_layouts` publishes its `text`, and `band_tab_at` answers a press out of its `tabs`.
+  ⚠ Since WUX-12 the budget it is composed against is `layouts_body` — the PANE's interior and
+  its fit — so a maker who narrows the pane narrows the run, and the omission markers, the
+  association's reservation and `+` all degrade by the rules they already had. A tab's span is recorded as the row is written, so there is no second measurement to
   drift. `band_tab_row` says which prose row the run is on, or `kNoBandRow` — the name editor
   takes the identity row whole, and that is the ONLY thing that can displace the run since
   QR-14: the notice used to share this band and outrank it at a one-row budget, and it lives at
@@ -2050,7 +2146,7 @@ executable, authored per project when named.)
   desk cannot be legal in one file and illegal in the other. Do NOT add a second desk format
   because one save is automatic.
 - **...AND SINCE WUX-10 THE SESSION HOLDS A RUN OF THEM, WITH THEIR ASSOCIATIONS SINCE WUX-11
-  (version 5).** `layouts` is the maker's order WHOLE — the live one IN it rather than lifted
+  (version 6 since WUX-12, which moved the number without moving a field — see below).** `layouts` is the maker's order WHOLE — the live one IN it rather than lifted
   out of it — and `active` is which position that was. Each entry is a `WorkshopLayout`: the
   desk, and a `WorkshopSetupLink` holding the artifact's path and the last value Workshop knew
   it to contain. The wire shape is deliberately NOT the runtime container: `shelved` +
@@ -2090,18 +2186,41 @@ executable, authored per project when named.)
   shapes and their two roads are GONE, and `workshop/session_history.hpp` owns them — an
   artifact's material, shipped as `zengine-workshop-session-history`
   (`workshop/session_migration_provider.cpp`), an ordinary operator provider and not a weave.
-  **⭐ WUX-10 SPENT THAT AND WUX-11 SPENT IT AGAIN, AND THAT IS WHAT IT LOOKS LIKE WORKING**:
-  the format moved 3 → 4 and then 4 → 5, and the cost in the reader was one number and one shape
-  each time. The retired struct is copied VERBATIM into `session_history::v<n>` (its wire
+  **⭐ WUX-10 SPENT THAT AND WUX-11 AND WUX-12 SPENT IT AGAIN, AND THAT IS WHAT IT LOOKS LIKE
+  WORKING**: the format moved 3 → 4, then 4 → 5, then 5 → 6, and the cost in the reader was one
+  number and one shape each time. The retired struct is copied VERBATIM into `session_history::v<n>` (its wire
   identity — name, version and content id — is what an old file's bytes claim, so a reordered
-  field silently strands every one of them; a case pins all four historical content ids, each
-  measured against the build that wrote it — **v4's is `0xb621c9f3616c7bb1`, read off Zengine
-  a39795e**). The edges RETARGET THEMSELVES: `conversions()` reads `current` off the reader's
-  own schema, so `v*-to-v4` became `v*-to-v5` with no string edited, the shipped plans needed no
-  new row either time, and `operator/migration.hpp` did not change. Each edge is DIRECT —
-  `v1 -> v5` is one authored conversion whose body composes `session_v1_to_v3`,
-  `session_v3_to_v4` and `session_v4_to_v5` in C++, which is what authored means; the catalog
-  holds no `v1 -> v3` or `v3 -> v4` at all, so there is nothing to walk.
+  field silently strands every one of them; a case pins ALL FIVE historical content ids, each
+  with its provenance beside it — v4's `0xb621c9f3616c7bb1` measured off Zengine a39795e, and
+  v5's `0x6f5b0dfc72bfa501` read off a session file the predecessor's own live witness left
+  behind, which is a door corroborated by bytes rather than by a recompile). The edges RETARGET THEMSELVES: `conversions()` reads `current` off the reader's
+  own schema, so `v*-to-v4` became `v*-to-v5` and then `v*-to-v6` with no string edited, the
+  shipped plans needed no new row any of the three times, and `operator/migration.hpp` did not
+  change. Each edge is DIRECT — `v1 -> v6` is one authored conversion whose body composes
+  `session_v1_to_v3`, `session_v3_to_v4`, `session_v4_to_v5` and `session_v5_to_v6` in C++,
+  which is what authored means; the catalog holds no `v1 -> v3` or `v3 -> v4` at all, so there
+  is nothing to walk.
+  - **⭐ VERSION 6 MOVED THE NUMBER WITHOUT MOVING A FIELD, and that is the case this whole seam
+    was built for (WUX-12).** `v5::WorkshopSession`'s fields ARE the current shape's; what
+    changed is what the same bytes MEAN. A version-5 desk with no `zengine.workshop/layouts`
+    row is a maker who had the layout surface anyway, because nothing could remove it; a
+    version-6 desk with no such row is a maker who took it off their desk. Two readings, one
+    spelling — a version number is exactly the mechanism that tells them apart. ⚠ A retained
+    v5 branch in the current reader would compile, admit and behave for every file that does
+    not depend on the distinction, so nothing but the source tripwire catches it: the forbidden
+    token list in `test_workshop_persistence.cpp` is the guard, and it now names v4 and v5.
+  - **AND `v5 -> v6` MATERIALIZES THE FORMERLY IMPLICIT SURFACE, in BOTH copies of a desk.**
+    Every layout that does not already name the Layouts pane gains one row — unauthored place,
+    width and height (so `placement_bounds(kTopBand, ...)` answers the historical rectangle) and
+    the front-most rank (the band was painted after every pane). `desk_v5_to_v6` also runs on a
+    link's `known`, because that value is compared for EXACT equality to decide `current` or
+    `modified`: converting the live desk and not its remembered copy would tell every maker
+    their desk had drifted from a file because of an upgrade they did not make. ⚠ It does NOT
+    touch the `known` of an unassociated layout — an empty path requires the canonical no-desk
+    beside it and `link_in` refuses every other spelling. And a desk already at
+    `kMaxSetupPanes` REFUSES rather than dropping either fact: dropping the surface says the
+    maker removed it, dropping a pane says they never had it, and the file survives the
+    refusal for a build that can say more.
   - **A v1/v2/v3 SESSION IS EXACTLY ONE LAYOUT, LIVE AT POSITION ZERO.** Those vintages could
     not say how many layouts a maker had, so the plurality is DEFAULTED and not inferred —
     `absent_placement()`'s argument, one field over. Never zero, never two, and every
@@ -2273,11 +2392,17 @@ executable, authored per project when named.)
   neither. A switch withdraws and re-seats PRESENTATIONS; Workshop has no unload path,
   and an unchanged prose capacity means the provider hears nothing at all.
 - The layout shelf is transient, or only the live layout comes back — neither since WUX-10.
-  The session is version 4 and carries the whole run, the maker's order, every `Setup::name`
+  The session is version 6 and carries the whole run, the maker's order, every `Setup::name`
   and which position was live; a restart returns all of it and stands on the same one.
 - A session file's `format_version` and a desk's are the same number — they have not been since
-  WUX-10. A v4 session nests desks that still say 3, so a search for the bare field finds the
-  NESTED one; the envelope's `"version":4` is what says which session format this is.
+  WUX-10. A v6 session nests desks that still say 3, so a search for the bare field finds the
+  NESTED one; the envelope's `"version":6` is what says which session format this is. **A
+  session format move does NOT imply a desk format move** — WUX-12 moved the session to 6 and
+  left the desk at 3, because the Layouts pane is an ordinary row in the existing `panes`
+  array. ⚠ A standalone Setup file written before WUX-12 therefore does not name it, and
+  restoring one removes it from that layout — which is what restoring a desk has always meant
+  (the file's contents, exactly), and the picker is the way back. The SESSION is the automatic
+  one and is the one that migrates.
 - Restoring a session restores what a maker was DOING — it restores the desks and the room.
   Selection, keyboard focus, the document, the browser's location and every other
   Workshop-global fact are this run's (WUX-0's law, unchanged by the plural). Measured on a

@@ -205,7 +205,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 /// a fact no version-4 file could carry -- the optional Setup ASSOCIATION -- so version 4
 /// went to `workshop/session_history.hpp` beside versions 1, 2 and 3, this number became 5,
 /// and NOT ONE LINE about version 4 was added here.
-inline constexpr std::int64_t kFormatVersion = 5;
+inline constexpr std::int64_t kFormatVersion = 6;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
@@ -357,7 +357,16 @@ struct WorkshopSession {
     /// and the position that was live.
     /// Version 5 (WUX-11): each of those layouts became a desk AND its optional
     /// Setup association, so the run's element grew a shape of its own.
-    ZEN_SHAPE(WorkshopSession, 5, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    /// Version 6 (WUX-12): NO FIELD MOVED, AND THAT IS THE POINT. The layout run,
+    /// the Setup association and the workspace fact stopped being shell furniture
+    /// that every Workshop had and became one ordinary pane a desk may name --
+    /// so the identical bytes MEAN something different either side of this line.
+    /// A version-5 desk with no `zengine.workshop/layouts` row is a maker who had
+    /// the surface anyway, because nothing could remove it; a version-6 desk with
+    /// no such row is a maker who took it off their desk. Two readings, one
+    /// spelling, and a version number is exactly the mechanism that tells them
+    /// apart -- which is why this one moved with no field to point at.
+    ZEN_SHAPE(WorkshopSession, 6, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
               ZEN_FIELD(placement));
 };

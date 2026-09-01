@@ -4686,16 +4686,8 @@ const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const
 
 /// The TOP band region a canvas published, or nullptr -- by its place (QR-14).
 const surface::SurfaceTextRegion* top_band_on(const surface::SurfaceCanvas& c,
-                                              const Screen& sc) {
-    const ui::Rect b = top_band_bounds(sc);
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
-            if (r.x == b.x && r.y == b.y && r.h == b.h) {
-                return &r;
-            }
-        }
-    }
-    return nullptr;
+                                              const Session& s, const Screen& sc) {
+    return layouts_region_on(c, s, sc);
 }
 
 /// A region row's text -- "" for a row the composition left unsaid.
@@ -4751,10 +4743,10 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     const Screen csc = screen_of(cells);
     const surface::SurfaceCanvas cell_canvas = paint(d, cells);
 
-    const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, csc);
+    const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, cells, csc);
     REQUIRE(ctop != nullptr);
     CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
-    CHECK(top_band_fit(csc).rows == kTopRows);
+    CHECK(layouts_body(cells, csc).rows == kTopRows);
     REQUIRE(ctop->rows.size() == 2);
     CHECK(band_row(ctop, 0).rfind(">Default<", 0) == 0); // the live layout tab (WUX-9)
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
@@ -4783,11 +4775,11 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     refocus(d, sdl);
     const Screen ssc = screen_of(sdl);
     const surface::SurfaceCanvas sdl_canvas = paint(d, sdl);
-    const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, ssc);
+    const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
     const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
     REQUIRE(stop != nullptr);
     REQUIRE(sband != nullptr);
-    CHECK(top_band_fit(ssc).rows == 1);
+    CHECK(layouts_body(sdl, ssc).rows == 1);
     CHECK(band_fit(ssc).rows == 2);
     REQUIRE(stop->rows.size() == 1);
     REQUIRE(sband->rows.size() == 2);
@@ -4813,7 +4805,7 @@ TEST_CASE("QR-14/SC-2+SC-7: two bands compose their budgets, and the selector is
     refocus(d, one);
     const surface::SurfaceCanvas one_canvas = paint(d, one);
     const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));
-    const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, screen_of(one));
+    const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, one, screen_of(one));
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "created #1"); // the tool's voice wins the one row
@@ -4871,8 +4863,8 @@ TEST_CASE("WUX-1/SC-3: the legend modes move only the legend rows, in both budge
             CHECK(band_row(full_b, i) == band_row(compact_b, i));
             CHECK(band_row(full_b, i) == band_row(hidden_b, i));
         }
-        CHECK(band_row(top_band_on(full_c, sc), 0) ==
-              band_row(top_band_on(hidden_c, sc), 0));
+        CHECK(band_row(top_band_on(full_c, s, sc), 0) ==
+              band_row(top_band_on(hidden_c, s, sc), 0));
     }
 }
 
