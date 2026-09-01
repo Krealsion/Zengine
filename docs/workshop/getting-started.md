@@ -200,7 +200,7 @@ remembers that layout for you either way.
 | objects | `n` new · `d` delete · `Tab` select · `h j k l` move · `Shift`+`h j k l` resize |
 | inspector | `↑` `↓` cursor · `Enter` edit |
 | workspace | `[` `]` narrow / widen by 4 cells |
-| panes | `p` picker · `w` arrange desk ([panes](panes.md)) |
+| panes | `p` picker · `w` arrange desk · **Pane Editor** from the picker: `Tab` `↑` `↓` `Enter` `o` `f` `b` `r` `l` ([panes](panes.md#the-pane-editor--a-pane-as-a-subject)) |
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | setups | `s` name and save · `r` restore ([setups](setups.md)) — the **last** session needs neither |
 | document | `Ctrl`+`s` save · `Ctrl`+`o` open |
@@ -228,7 +228,8 @@ Neither is a degraded version of the other, and the same published intent produc
 ## Next
 
 - [Attention](attention.md) — what is true right now, and why hiding one is not fixing it.
-- [Panes](panes.md) — the picker, arranging, and how to get a bigger one.
+- [Panes](panes.md) — the picker, arranging, how to get a bigger one, and the Pane Editor
+  that describes and edits any pane by typing.
 - [Setups](setups.md) — saving an arrangement, and what does not come back.
 - [Load plans](load-plans.md) — choosing what a run is made of.
 - [Builder](builder.md) — what it builds today.

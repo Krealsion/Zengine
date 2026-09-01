@@ -1053,7 +1053,7 @@ builder                           doctest           always  53
 #
 workshop_document                 doctest           always  141
 workshop_screen                   doctest           always  245
-workshop_panels                   doctest           always  170
+workshop_panels                   doctest           always  184
 workshop_panes                    doctest           always  233
 workshop_persistence              doctest           always  172
 workshop_load                     doctest           always  115

@@ -531,6 +531,15 @@ bottom band projects the same effective bindings. A binding matches its modifier
 
 **Pane picker** (`p`) — `↑` `↓` choose, `Enter` opens or removes, `Esc` or `p` cancels.
 
+**Pane Editor** (open it from the picker) — a pane whose subject is another pane, itself
+included. `↑` `↓` step; `Enter` on a pane row makes it the subject; `Tab` moves the keys to
+its rows; `Enter` on `X` `Y` `Width` `Height` opens a draft (a whole number in the face's
+unit, `-` resets; `Enter` commits, `Esc` abandons; a bad value is refused, never clamped);
+`o` opens or removes the subject; `f` `b` `r` `l` order it. `AUTHORED` rows are yours;
+`RESOLVED` rows are what this screen makes of them and change nothing when read. Edits land
+in the layout at once and come back with the session. See
+[the Pane Editor](docs/workshop/panes.md#the-pane-editor--a-pane-as-a-subject).
+
 **Source editor** (`e` on a single-source recipe) — a built-in pane holding the one file the
 chosen recipe names; press into its body and your keys are in the source. Typing edits;
 `Enter` inserts a newline; `Tab` inserts a tab; arrows cross lines (with a preferred column
@@ -585,7 +594,8 @@ deliver it). See
 
 ### Panes
 
-Built-in: **Builder**, **Info**, **Editor**. Loaded through the default plan: **Loaded**,
+Built-in: **Builder**, **Info**, **Editor**, **Files**, **Layouts**, **Pane Editor**. Loaded
+through the default plan: **Loaded**,
 **Project**, **Powers** (from `zengine-introspection`), and the **Composer**.
 
 | pane | shows |

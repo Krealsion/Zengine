@@ -57,18 +57,20 @@ namespace zengine::workshop {
 
 /// WHERE THE KEYBOARD CURRENTLY GOES -- the routing chain's branches, as values.
 ///
-/// The first twelve are the resolvable contexts: exactly the branches of
+/// The first thirteen are the resolvable contexts: exactly the branches of
 /// `WorkshopWeave::on(KeyPressed)`'s chain. Arrangement is TWO SCOPES and a reset prompt
 /// (ARR-0): `kArrangePane` is one pane being arranged -- moving and resizing it are one
 /// vocabulary, not two submodes -- and `kArrangeDesk` is the same vocabulary over the
 /// whole desk, plus the keys that step between panes. `kArrangeReset` is the one
 /// remaining prompt step: `0`, then which authored dimension. `kEditor` is the built-in
-/// source editor holding the keyboard with a document open, and `kFiles` the built-in
-/// project browser holding it with a project to browse -- both are PLACES a maker pressed
-/// into, in the focused pane's family, not modes: they answer only while a press has
-/// pointed the keys there, and the same press pointed elsewhere takes the keys straight
-/// back. Neither takes TEXT, which is what keeps `^c` and `^s` meaning what they mean
-/// everywhere a maker is not typing. The last three are DECLARATION-ONLY
+/// source editor holding the keyboard with a document open, `kFiles` the built-in
+/// project browser holding it with a project to browse, and `kPaneEditor` the built-in
+/// Pane Editor holding it (WUX-13) -- all three are PLACES a maker pressed into, in the
+/// focused pane's family, not modes: they answer only while a press has pointed the keys
+/// there, and the same press pointed elsewhere takes the keys straight back. None takes
+/// TEXT, which is what keeps `^c` and `^s` meaning what they mean everywhere a maker is
+/// not typing; a draft the Pane Editor opens on one of its rows is `kDraft`'s, exactly as
+/// the Info panel's is. The last three are DECLARATION-ONLY
 /// activity classes -- `keyboard_context()` never returns them:
 ///
 ///   kGlobal    active in every context: answered above the whole chain, the `^o`
@@ -96,6 +98,7 @@ enum class KeyContext : std::uint8_t {
     kDraft,
     kEditor,
     kFiles,
+    kPaneEditor,
     kArrangePane,
     kArrangeDesk,
     kArrangeReset,
@@ -256,6 +259,16 @@ enum class Act : std::uint8_t {
     kFilesMark,
     kFilesNextMark,
     kFilesPreviousMark,
+    // -- the Pane Editor's keys (WUX-13) ----------------------------------------------
+    kPaneEditorUp,
+    kPaneEditorDown,
+    kPaneEditorChoose,
+    kPaneEditorSwitch,
+    kPaneEditorOpen,
+    kPaneEditorFront,
+    kPaneEditorBack,
+    kPaneEditorRaise,
+    kPaneEditorLower,
     // -- the Terminal line's controls --------------------------------------------------
     kTerminalSubmit,
     kTerminalBack,
@@ -599,6 +612,32 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kFilesPreviousMark, "files.previous-mark", "previous mark", KeyContext::kFiles,
      {scan::kN, mod::kShift}},
     // -- the Terminal line's controls --------------------------------------------------
+    // THE PANE EDITOR'S KEYS (WUX-13): a list with a cursor and one gesture on the row it
+    // is on, in the Files pane's own shape. `up`/`down` step whichever list the keys are
+    // in, `switch` moves them between the PANES list and the subject's rows, and `choose`
+    // is the one Return: on a pane row it makes that pane the SUBJECT, on an editable row
+    // it opens a draft. The four ORDER keys and `open` spend the arrangement's and the
+    // picker's own doors on the subject -- the letters are the arrangement scope's, so a
+    // maker who learned `f` there does not learn a second word here. None of these takes
+    // text: the draft a row opens is `kDraft`'s, exactly as the Info panel's is.
+    {Act::kPaneEditorUp, "pane-editor.up", "row up", KeyContext::kPaneEditor,
+     {scan::kUp, mod::kNone}},
+    {Act::kPaneEditorDown, "pane-editor.down", "row down", KeyContext::kPaneEditor,
+     {scan::kDown, mod::kNone}},
+    {Act::kPaneEditorChoose, "pane-editor.choose", "subject or edit", KeyContext::kPaneEditor,
+     {scan::kReturn, mod::kNone}},
+    {Act::kPaneEditorSwitch, "pane-editor.switch", "panes / rows", KeyContext::kPaneEditor,
+     {scan::kTab, mod::kNone}},
+    {Act::kPaneEditorOpen, "pane-editor.open", "open or remove", KeyContext::kPaneEditor,
+     {scan::kO, mod::kNone}},
+    {Act::kPaneEditorFront, "pane-editor.front", "front", KeyContext::kPaneEditor,
+     {scan::kF, mod::kNone}},
+    {Act::kPaneEditorBack, "pane-editor.back", "back", KeyContext::kPaneEditor,
+     {scan::kB, mod::kNone}},
+    {Act::kPaneEditorRaise, "pane-editor.raise", "raise", KeyContext::kPaneEditor,
+     {scan::kR, mod::kNone}},
+    {Act::kPaneEditorLower, "pane-editor.lower", "lower", KeyContext::kPaneEditor,
+     {scan::kL, mod::kNone}},
     {Act::kTerminalSubmit, "terminal.submit", "run the line", KeyContext::kTerminal,
      {scan::kReturn, mod::kNone}},
     {Act::kTerminalComplete, "terminal.complete", "what can this terminal say?",

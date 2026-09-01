@@ -6,9 +6,11 @@ answer to "how do I get a bigger one".
 A **pane** is one region of Workshop's screen. Two kinds exist and a maker does not need to
 tell them apart to use them:
 
-- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`, `Files` and
+- **built-in panels** — compiled into Workshop: `Builder`, `Info`, `Editor`, `Files`,
   `Layouts` (the [layout selector](setups.md#several-layouts-in-one-workshop) at the top of the
-  screen, which is a pane like the rest of them: pick it, move it, cover it, remove it).
+  screen, which is a pane like the rest of them: pick it, move it, cover it, remove it) and
+  `Pane Editor` ([below](#the-pane-editor--a-pane-as-a-subject)), which describes and edits
+  any of them, itself included.
 - **external panes** — offered by a loaded weave through a bounded protocol.
   `Loaded`, `Project` and `Powers` arrive this way, from `zengine-introspection`.
 
@@ -272,6 +274,99 @@ Judged plainly, and repeated in [limitations](limitations.md):
 
 The smallest thing left that would change the felt experience: a pane-height default that
 reads the surface. That is not built, and it is not designed here.
+
+## The Pane Editor — a pane as a subject
+
+Open **Pane Editor** from the picker. It is a pane whose subject is **another pane** — any row
+the picker lists: a built-in, a pane a loaded weave offered, or a reference your layout names
+that this build cannot resolve. It is *not* the Info panel: Info inspects the objects of your
+document; the Pane Editor inspects Workshop's own furniture.
+
+```text
+PANE EDITOR *
+  Builder      closed     build a chosen recipe
+  Info         open       objects and properties
+>*Layouts      open       layout tabs and setup
+  ...
+ Name     Layouts
+ Identity zengine.workshop/layouts
+ Provider zengine.workshop (built in)
+ Summary  layout tabs and setup
+AUTHORED
+>X        -
+ Y        -
+ Width    -
+ Height   -
+ Front    f1 of 3 -- f/b/r/l order it
+ Open     yes -- o removes it
+RESOLVED
+ Window   @0,0 96x2 cells
+ State    open
+```
+
+**Choosing a pane makes it the subject.** Press into the Pane Editor, put the cursor on a row
+of the `PANES` list and press `Enter` — or click the row. The subject wears a `*`. Choosing
+changes nothing about the desk: it does not open the pane, select it, or hand it the keys.
+
+**Selection and subject are two different facts.** The pane you last pressed into is the
+*selected* one — the one with the different edge, the one your keys go to. Pressing into the
+Pane Editor therefore selects the Pane Editor, as pressing into any pane would; the subject
+stays exactly what you chose. So you can choose `Pane Editor` itself as the subject, type into
+its own rows, and move the pane you are typing in.
+
+**Authored and resolved are two different truths**, and the rows keep them apart:
+
+- `AUTHORED` is what *you* said — a place, a width, a height, each `-` until you say
+  something; the pane's rank in the front order; whether it is on this layout at all. These
+  are the same facts the desk arrangement (`w`) and the picker (`p`) author, reached through
+  the same doors: nothing here is a second way to store a pane's geometry.
+- `RESOLVED` is what the screen you are looking at *makes* of that, right now: the rectangle
+  the pane actually occupies, in the unit your face reports (cells in a terminal, pixels in a
+  window), and its state word — `open`, `covered`, `off-room`, `waiting`, `refused`, `closed`,
+  `unresolved` — with what you can do about it.
+
+Reading the resolved rows never writes anything. Resize the window, switch to the other face,
+select other panes, look as long as you like: the authored values are byte-for-byte what they
+were.
+
+**Editing is the ordinary draft.** `Tab` moves the keys between the `PANES` list and the
+subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height` opens a draft on the
+current value. Type a whole number in the face's own unit — `10` or `10 cells` in a terminal,
+`120` or `120px` in a window — and `Enter` commits, `Esc` abandons. Typing `-` gives that axis
+back to Workshop's default (X and Y are one place, so resetting either resets both). A value
+that is not a number, a unit the face did not report, a negative place, a size below one cell
+or beyond the lattice is **refused in words and the authored value does not move** — nothing
+is clamped to fit the room. A pane authored partly or wholly off the screen is legal intent;
+`State` says `off-room`, and `-` brings it back.
+
+| key | does |
+|---|---|
+| `↑` `↓` | step the list the keys are in |
+| `Tab` | move the keys between the `PANES` list and the subject's rows |
+| `Enter` | on a pane row: make it the subject · on `X` `Y` `Width` `Height`: edit it |
+| `o` | open the subject if it is closed, remove it if it is open — the picker's own door |
+| `f` `b` `r` `l` | send the subject to front / back, raise / lower it one step |
+| `-` (as a value) | reset that axis to Workshop's default |
+| `Esc` (in a draft) | abandon the draft, changing nothing |
+
+**Edits land immediately in the layout you are on.** There is no Save button in the Pane
+Editor and no shadow copy: a committed value is the layout's value the moment it commits, the
+screen follows through the ordinary pane path, and [workspace
+continuity](setups.md#workspace-continuity) brings it back next launch exactly as it brings
+back a drag. If the layout is related to a Setup file and was `current`, the first edit makes
+it `modified` — the same verdict any other change earns — and `s` is still the only thing that
+writes that file.
+
+**A closed or unresolved pane is still a subject.** A pane the picker lists but this layout
+does not name reads `closed`; `o` opens it. A reference your layout names that no loaded
+office offers reads `unresolved`, keeps its identity and whatever place and size you authored
+for it, can still be ordered and reset, and is never removed on your behalf. The subject
+survives switching layouts and its own pane closing; it is dropped only when a fresh look
+finds it in neither the picker's list nor the layout you are on, and the notice says so.
+
+Nothing here is a safe mode. If you author a rectangle you cannot reach, the recovery is what
+it always was: the picker, `0` in the arrangement (or `-` here), the default desk, and
+`--isolated`.
 
 ## Pane titles
 
