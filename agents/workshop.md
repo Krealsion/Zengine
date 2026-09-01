@@ -1773,13 +1773,17 @@ SetupState
   and says what it could not paint, so raising the number is a number change.
 - **THE FILES DID NOT MOVE.** `s` writes the LIVE layout to the setup file and `r` reads that
   file into the LIVE layout; neither touches the shelf, and a Setup file still means one named
-  desk arrangement. The session still carries ONE desk at version 3, so the live layout at an
-  orderly close returns next run exactly as the single desk always has and the shelf does not
-  return at all. ⚠ **That is an implementation boundary, not a product decision**: durable
-  restoration of the layout set (order, names, which one was live) is OWED, and it is the
-  session's third legacy rung — the MIG-R0 wake trigger — which is why WUX-9 did not spend it.
-  `docs/workshop/limitations.md` says the limitation plainly and says it is owed; do not write
-  it as an experiment waiting for adoption evidence.
+  desk arrangement. **THE SESSION CARRIES THE WHOLE RUN SINCE WUX-10** (version 4, below), so
+  the set, the order, the names and which one was live all come back — and the ownership split
+  is unchanged by the plural: the SESSION owns *these are the desks I was using on this
+  machine*, the SETUP FILE owns *this is one desk I named*. `s` and `r` still act on the live
+  layout and on nothing else.
+- **THE RUN LEAVES THIS FILE THROUGH ONE INVERSE PAIR, AND ONLY THAT PAIR** (WUX-10):
+  `layout_run(const SetupState&)` puts the lifted value back at `active_at` and answers with a
+  NEW vector (so no save can reorder what it is saving), and `install_layout_run(SetupState&,
+  run, active)` lifts one back out. The durable owner never touches `shelved` or `active_at`,
+  because a second spelling of the lift is a second thing to get wrong — and the pair's round
+  trip is swept over every position by the persistence suite.
 
 ## The tab run is the left of the band's existing status row (WUX-9)
 
@@ -1919,11 +1923,42 @@ executable, authored per project when named.)
   `setup_persist::setup_in` is the one function that turns a written setup into a live one. A
   desk cannot be legal in one file and illegal in the other. Do NOT add a second desk format
   because one save is automatic.
+- **...AND SINCE WUX-10 THE SESSION HOLDS A RUN OF THEM (version 4).** `layouts` is the maker's
+  order WHOLE — the live one IN it rather than lifted out of it — and `active` is which position
+  that was. The wire shape is deliberately NOT the runtime container: `shelved` + `active_at` is
+  how a running Workshop holds one live desk with no second copy of it, and what a saved session
+  MEANS is *these desks, in this order, and I was standing on that one*. Position remains a
+  layout's whole identity (duplicate names are legal; **no durable layout id is minted**).
+  - **THE RUN'S OWN ADMISSION IS FOUR QUESTIONS** (`layouts_in`), and each is asked against a
+    number this build already enforces elsewhere: non-empty (runtime's floor is the TYPE's —
+    `active` is a value); within `kMaxLayouts` (the SAME number the `=` gesture refuses a ninth
+    layout with); `active` in range; and every contained desk legal by `setup_persist::setup_in`,
+    whose sentence is quoted with the layout's position in front of it. All four are refusals of
+    CURRENT-version data and none of them may become a search for a conversion.
+  - **THE READ CEILING IS DERIVED AND THAT IS LOAD-BEARING.** `kMaxSessionBytes` is
+    `kMaxLayouts * setup_persist::kMaxSetupBytes` because a maximal legal session — eight desks
+    of thirty-two rows at the key bound — is **larger than one desk's ceiling**, and a session
+    this build writes must never be one it refuses to read. A case measures exactly that
+    inequality; a mutation back to one desk's number reddens it.
 - **⚠ THE SESSION READER KNOWS ONE SHAPE, AND YESTERDAY BELONGS TO A CONVERSION (MIG-0).**
   `session_persist` carries `kFormatVersion` and no second number: the retained `v1`/`v2`
   shapes and their two roads are GONE, and `workshop/session_history.hpp` owns them — an
   artifact's material, shipped as `zengine-workshop-session-history`
   (`workshop/session_migration_provider.cpp`), an ordinary operator provider and not a weave.
+  **⭐ WUX-10 SPENT THAT AND IS WHAT IT LOOKS LIKE WORKING**: the format moved 3 → 4 and the
+  cost in the reader was one number and one shape. Version 3's struct was copied VERBATIM into
+  `session_history::v3` (its wire identity — name, version and content id — is what an old
+  file's bytes claim, so a reordered field silently strands every one of them; a case pins all
+  three historical content ids, v3's measured against the build that wrote it). The three edges
+  RETARGETED THEMSELVES: `conversions()` reads `current` off the reader's own schema, so
+  `v*-to-v3` became `v*-to-v4` with no string edited, the shipped plans needed no new row, and
+  `operator/migration.hpp` did not change. Each edge is DIRECT — `v1 -> v4` is one authored
+  conversion whose body composes `session_v1_to_v3` and `session_v3_to_v4` in C++, which is
+  what authored means; the catalog holds no `v1 -> v3` at all, so there is nothing to walk.
+  - **A HISTORICAL SESSION IS EXACTLY ONE LAYOUT, LIVE AT POSITION ZERO.** v1, v2 and v3 could
+    not say how many layouts a maker had, so the plurality is DEFAULTED and not inferred —
+    `absent_placement()`'s argument, one field over. Never zero, never two, and every
+    non-layout fact of that vintage crosses unchanged (v3's real placement included).
   The reader's whole knowledge of history is one arm: *this shape's name at another version*
   is a historical claim, and it asks `op::migrate` for one live direct edge to
   `schema_of<WorkshopSession>()` ([operators.md](operators.md#a-conversion-is-an-operator-whose-signature-is-the-edge-mig-0)
@@ -2081,5 +2116,13 @@ executable, authored per project when named.)
 - Switching layouts reloads a provider, or a pane in two layouts is two panes — it does
   neither. A switch withdraws and re-seats PRESENTATIONS; Workshop has no unload path,
   and an unchanged prose capacity means the provider hears nothing at all.
-- The layout shelf is deliberately transient — it is not. It is session-only because
-  WUX-9 bumped no durable format, and restoring the set is owed work (MIG-R0's trigger).
+- The layout shelf is transient, or only the live layout comes back — neither since WUX-10.
+  The session is version 4 and carries the whole run, the maker's order, every `Setup::name`
+  and which position was live; a restart returns all of it and stands on the same one.
+- A session file's `format_version` and a desk's are the same number — they have not been since
+  WUX-10. A v4 session nests desks that still say 3, so a search for the bare field finds the
+  NESTED one; the envelope's `"version":4` is what says which session format this is.
+- Restoring a session restores what a maker was DOING — it restores the desks and the room.
+  Selection, keyboard focus, the document, the browser's location and every other
+  Workshop-global fact are this run's (WUX-0's law, unchanged by the plural). Measured on a
+  real screen: a restored layout paints identically except for which pane wears the focus ink.

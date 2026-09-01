@@ -1004,6 +1004,22 @@
 #                     to the workspace's top and the pane to the screen's foot. Still bounded,
 #                     still measured, still unrepaired for HD-10's own stated reason.
 #
+# WUX-10 raised ONE floor -- workshop_persistence 148 -> 163 -- and the fifteen new cases
+# are the durable layout run: the v4 round trip and its byte-stable second save; every
+# position in a run being a savable position; the four ways a CURRENT v4 file can be an
+# impossible run and refuse in current-data words; a maximal legal session being readable
+# back; the three retired shapes still claiming the wire identities they were written at;
+# the lowering pair swept over every position; a version-3 session becoming exactly one
+# layout; all three vintages arriving at position zero; the three direct edges with no
+# intermediate one to walk; a version-3 file refused and preserved with no conversion live;
+# the whole run surviving a close and a restart; the active position surviving from three
+# different tabs; `s`/`r` still meaning one desk; and a run that crossed a medium writing the
+# bytes of a run that never did.
+#
+# NO OTHER FLOOR MOVED, which is the shape of the phase: `workshop_screen` gained assertions
+# in the case that reads a converted session and gained no case, and every other suite is
+# untouched by a change confined to session persistence and its history.
+#
 # entry                           kind              gate    detail
 smoke                             program           always
 snake                             doctest           always  22
@@ -1032,7 +1048,7 @@ workshop_document                 doctest           always  140
 workshop_screen                   doctest           always  229
 workshop_panels                   doctest           always  164
 workshop_panes                    doctest           always  233
-workshop_persistence              doctest           always  148
+workshop_persistence              doctest           always  163
 workshop_load                     doctest           always  115
 workshop_editor                   doctest           always  66
 workshop_files                    doctest           always  85

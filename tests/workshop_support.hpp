@@ -461,6 +461,23 @@ inline Setup setup_for(const Panels& panels) {
     return s;
 }
 
+/// ONE DESK AS A WHOLE LAYOUT RUN (WUX-10) -- what a case means when it is saying something
+/// about a session and nothing about the plural. The session format carries the maker's run
+/// and the position that was live, so a case that means "one desk" says so once, here,
+/// rather than writing `{desk}, 0` at sixty call sites.
+inline std::vector<Setup> one_layout(Setup desk) {
+    std::vector<Setup> run;
+    run.push_back(std::move(desk));
+    return run;
+}
+
+/// THE LAYOUT A LOADED SESSION WAS STANDING ON. `at()` rather than `[]` deliberately: a
+/// case that reads this off a session that was NOT admitted has asked the wrong question,
+/// and an exception says so where a default-constructed desk would quietly pass.
+inline const Setup& live_layout(const session_persist::LoadedSession& loaded) {
+    return loaded.layouts.at(loaded.active);
+}
+
 /// THE INFO PANEL'S BODY, resolved the way the painter resolves it — through `bounds_of` and
 /// `info_body_place`, never through a second arithmetic (HD-6, widened by HD-7). A case that
 /// computed the rectangle or the row of a heading for itself would pass while the picture and

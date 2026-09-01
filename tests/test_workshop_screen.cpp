@@ -7355,22 +7355,29 @@ TEST_CASE("WUX-2/MIG-0: a version-1 session restores a whole-cell desk through a
     CHECK(read.honoured);
     CHECK(read.viewport_w == 120);
     CHECK(read.viewport_h == 44);
-    CHECK(read.desk.name == "Yesterday");
-    REQUIRE(read.desk.panes.size() == 1);
-    CHECK(read.desk.panes[0].width.mode == pane_unit::kSubcells);
-    CHECK(read.desk.panes[0].width.amount == subs(28));
+    CHECK(live_layout(read).name == "Yesterday");
+    REQUIRE(live_layout(read).panes.size() == 1);
+    CHECK(live_layout(read).panes[0].width.mode == pane_unit::kSubcells);
+    CHECK(live_layout(read).panes[0].width.amount == subs(28));
 
     // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one.
     CHECK_FALSE(read.placement.known);
+    // ...AND NO LAYOUT PLURALITY EITHER (WUX-10): one layout, live at position zero.
+    CHECK(read.layouts.size() == 1);
+    CHECK(read.active == 0);
 
-    // AND THE NEXT CLOSE WRITES VERSION 3, byte-stable thereafter.
-    const std::string saved = session_persist::to_text(read.desk, read.viewport_w,
+    // AND THE NEXT CLOSE WRITES THE CURRENT VERSION, byte-stable thereafter. The ENVELOPE's
+    // number is what is asserted: since WUX-10 the nested desk carries a `format_version` of
+    // its OWN at a different number, and a search for the bare field would find that one.
+    const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"format_version\":\"3\"") != std::string::npos);
+    CHECK(saved.find("\"version\":4") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"4\"") !=
+          std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
-    CHECK(back.desk == read.desk);
-    CHECK(session_persist::to_text(back.desk, back.viewport_w, back.viewport_h,
+    CHECK(live_layout(back) == live_layout(read));
+    CHECK(session_persist::to_text(back.layouts, back.active, back.viewport_w, back.viewport_h,
                                    back.placement) == saved);
 }
 
