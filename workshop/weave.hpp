@@ -4229,8 +4229,21 @@ private:
                                   last.placement.x, last.placement.y,
                                   last.placement.maximized});
         }
-        // ---- ...AND THEN THE DESK, INTO THE ROOM IT ASKED FOR -----------------
-        session_.setup.active = last.desk;
+        // ---- ...AND THEN THE DESKS, INTO THE ROOM THEY ASKED FOR ---------------
+        //
+        // THE WHOLE RUN COMES BACK AND EXACTLY ONE OF IT IS LIFTED LIVE (WUX-10).
+        // `install_layout_run` is `layout_run`'s inverse and lives beside it in
+        // `setup.hpp`, so this weave never touches `shelved` or `active_at` by hand and
+        // there is no second spelling of the lift to drift. The layouts that are not live
+        // are VALUES: no panel is opened for one, no provider hears about one, and nothing
+        // is reconciled against one -- which is why `apply_setup` below is still the one
+        // membership door and still sees exactly one desk.
+        //
+        // IT CANNOT REFUSE HERE, and the reason is where the law is: an admitted session's
+        // run is non-empty and its position is in range, because `session_persist` proved
+        // both before this value existed. The bool is the TYPE's floor for callers that
+        // have not.
+        install_layout_run(session_.setup, last.layouts, last.active);
         apply_setup(mail);
         // AND IT SAYS NOTHING ABOUT UNRESOLVED PANES, WHICH `restore_setup` DOES SAY.
         //
@@ -4248,9 +4261,21 @@ private:
         // is therefore still named, by a surface that is still right an hour later. `r` keeps
         // its note, because a maker who presses it is asking a question at a moment when the
         // catalog has long since been answered.
-        std::string said = "reopened your last desk " + quoted_setup_name(last.desk.name) +
-                           " -- " + std::to_string(session_.screen_w) + "x" +
-                           std::to_string(session_.screen_h) + " cells";
+        // AND IT SAYS HOW MANY CAME BACK WHEN MORE THAN ONE DID (WUX-10). One layout is
+        // the sentence this has always been and every migrated session is one, so the
+        // clause appears exactly when there is more to say. It COUNTS FROM ONE because it
+        // is prose about tabs a maker is looking at; the file's own `active` is a position
+        // and is spoken from zero where a maker is reading the file (`session_persist`'s
+        // refusals).
+        std::string said =
+            "reopened your last desk " +
+            quoted_setup_name(session_.setup.active.name);
+        if (last.layouts.size() > 1) {
+            said += " (" + std::to_string(last.active + 1) + " of " +
+                    std::to_string(last.layouts.size()) + " layouts)";
+        }
+        said += " -- " + std::to_string(session_.screen_w) + "x" +
+                std::to_string(session_.screen_h) + " cells";
         if (!last.declined.empty()) {
             // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
             // window did not; a maker is told which, with the value that was declined.
@@ -4265,11 +4290,12 @@ private:
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
     ///
     /// WHAT IT SAVES IS AUTHORED WORKSPACE STATE AND NOTHING ELSE: which panes the maker
-    /// meant to have, where they put them, how big they made them, which is in front, and
-    /// how much room the surface had. No runtime pane, no WeaveId, no catalog row, no loaded
-    /// artifact, no bus state, no selection, no half-finished drag and no pane's private
-    /// contents. "The last session" is not a snapshot of a running universe; it is the two
-    /// facts a maker would otherwise have to reconstruct by hand.
+    /// meant to have IN EACH LAYOUT, where they put them, how big they made them, which is
+    /// in front, what each layout is called, the order the layouts are in, which one they
+    /// were standing on, and how much room the surface had. No runtime pane, no WeaveId, no
+    /// catalog row, no loaded artifact, no bus state, no selection, no half-finished drag
+    /// and no pane's private contents. "The last session" is not a snapshot of a running
+    /// universe; it is what a maker would otherwise have to arrange again by hand.
     /// ⚠ ...AND A FILE THIS RUN COULD NOT READ IS NEVER OVERWRITTEN (MIG-0). The refusal
     /// already told the maker their desk did not come back; replacing their bytes with this
     /// run's default desk would turn a readable complaint into a lost session -- and since
@@ -4290,9 +4316,14 @@ private:
         place.x = session_.place_x;
         place.y = session_.place_y;
         place.maximized = session_.place_maximized;
-        const Written written =
-            session_persist::save_file(host_->session_path, session_.setup.active,
-                                       session_.normal_w, session_.normal_h, place);
+        // THE WHOLE RUN, IN MAKER ORDER, WITH THE POSITION THEY ARE ACTUALLY STANDING IN
+        // (WUX-10). `layout_run` puts the lifted value back where it sits and answers with
+        // a NEW vector, so saving cannot reorder what it is saving; and the position is
+        // `active_at` rather than the end of the run, because `layout.new` leaving a maker
+        // on the last layout is a habit and not a law.
+        const Written written = session_persist::save_file(
+            host_->session_path, layout_run(session_.setup), session_.setup.active_at,
+            session_.normal_w, session_.normal_h, place);
         if (written.accepted) {
             return;
         }

@@ -9,10 +9,17 @@
 //
 // ---- What it is FOR -------------------------------------------------------
 //
-// One sentence: **close Workshop after arranging it into a useful desk, reopen it, and get
-// that desk back** -- with no gesture, no picker and no command in between. Everything
+// One sentence: **close Workshop after arranging it into useful desks, reopen it, and get
+// them back** -- with no gesture, no picker and no command in between. Everything
 // underneath already existed; what did not exist was anything that read it without being
 // asked, and anything at all that remembered how big the window was.
+//
+// SINCE WUX-10 THE PLURAL IS THE PROMISE. A maker's LAYOUTS are ordinary `Setup` values
+// (WUX-9), and this file carries the whole ordered run of them plus which position was
+// live -- so a restart returns the same desks, in the same order, under the same names,
+// standing on the same one. What it is NOT is a workspace format: a layout is still one
+// desk arrangement, the standalone setup file still holds exactly one, and `s`/`r` still
+// mean the LIVE layout and nothing else.
 //
 // ---- Why it is not the setup's file ---------------------------------------
 //
@@ -31,6 +38,17 @@
 // paraphrasing it. There is one durable representation of a desk in this program.
 //
 // ---- ...and what this file adds that a desk cannot hold -------------------
+//
+// The RUN, and which of it was live. Runtime holds the maker's order as `shelved` +
+// `active_at` -- the run with exactly one element LIFTED OUT into `SetupState::active`,
+// because there must be one live desk and never a second copy of it (WUX-9). That is a
+// fact about how a running Workshop HOLDS a value, and it is emphatically not what a saved
+// session IS: what a maker means is *these desks, in this order, and I was standing on that
+// one*. So the file says exactly that -- `layouts` whole and in order, `active` as a
+// position in it -- and `setup.hpp` owns the one inverse in each direction (`layout_run`,
+// `install_layout_run`). A durable shape that mirrored the lift would be this build's
+// container spelled onto disk, and would have to be re-explained the day the container
+// changed.
 //
 // The VIEWPORT: how much room the surface Workshop was being looked at through had, in
 // canvas cells. It is one level above a desk because it describes the APPLICATION's window
@@ -79,10 +97,12 @@
 // ---- ...and what an OLDER session file is now (MIG-0) ----------------------
 //
 // THIS READER KNOWS ONE SHAPE: the one it admits. It used to carry two more -- version 1
-// and version 2, with a road each -- and it does not any more. What it knows about
-// yesterday is exactly enough to recognise it: bytes claiming THIS durable shape at a
-// version this build does not admit are a HISTORICAL CLAIM, and a historical claim is
-// handed to one bounded question (`op::migrate`, `operator/migration.hpp`):
+// and version 2, with a road each -- and it does not any more; WUX-10 then retired version
+// 3 the same way, WITHOUT this file learning anything, which is the whole of what MIG-0 was
+// built to make possible. What it knows about yesterday is exactly enough to recognise it:
+// bytes claiming THIS durable shape at a version this build does not admit are a HISTORICAL
+// CLAIM, and a historical claim is handed to one bounded question (`op::migrate`,
+// `operator/migration.hpp`):
 //
 //     is there one currently-live conversion from that version to this one?
 //
@@ -100,31 +120,37 @@
 // artifact's material rather than this reader's. This file names none of it and must not
 // -- the point of the move is that the current owner stops compiling in yesterday.
 //
-// ---- What version 3 promises (WUX-3, amended by MIG-0) ---------------------
+// ---- What version 4 promises (WUX-10, over WUX-3 and MIG-0) ----------------
 //
-//   PROMISED   Workshop reads and writes session format version 3 — the desk nested at
-//              setup format 3, the viewport, and the desktop placement — and a second save
-//              of a loaded session is byte-identical to the first. An OLDER version is read
+//   PROMISED   Workshop reads and writes session format version 4 — the maker's whole
+//              ordered LAYOUT RUN, each layout nested at setup format 3, the position that
+//              was live, the viewport, and the desktop placement — and a second save of a
+//              loaded session is byte-identical to the first. An OLDER version is read
 //              exactly when a conversion to this one is currently live, and is rewritten
-//              only by the ordinary close-time save (which writes v3).
+//              only by the ordinary close-time save (which writes v4).
 //   REFUSED    a version this build does not admit and has no live conversion for, with the
 //              number named; a `format` that is not this one; a field the shape does not
-//              declare; a field of the wrong kind; a
-//              placement mode or window word outside its closed set, with what was found
-//              and what would have worked both named; an absent placement carrying
-//              non-zero coordinates or a maximized window (absence has ONE spelling); a
-//              nested desk that is not a legal saved setup, in `setup_persist`'s own
-//              words; a file larger than a session can be.
+//              declare; a field of the wrong kind; a run holding NO layout; a run holding
+//              more layouts than this Workshop keeps (`kMaxLayouts`); an active position
+//              that is not one of the layouts saved; a placement mode or window word
+//              outside its closed set, with what was found and what would have worked both
+//              named; an absent placement carrying non-zero coordinates or a maximized
+//              window (absence has ONE spelling); a nested desk that is not a legal saved
+//              setup, in `setup_persist`'s own words with the layout's position named; a
+//              file larger than a session can be.
 //   ACCEPTED   a desk holding references this build cannot resolve, with all of its authored
 //              window intent -- `setup_persist`'s rule, unchanged, because it is the same
-//              value. And a viewport this Workshop will not honour: see below, because that
-//              is deliberately NOT a refusal of the file. The placement's coordinates are
-//              accepted UNJUDGED -- they are another machine's desktop truth, and the only
-//              party that can judge one is the medium at restore time.
+//              value. Layouts that share a NAME: duplicates are legal and position is a
+//              layout's whole identity (WUX-9), so this file mints none. And a viewport this
+//              Workshop will not honour: see below, because that is deliberately NOT a
+//              refusal of the file. The placement's coordinates are accepted UNJUDGED --
+//              they are another machine's desktop truth, and the only party that can judge
+//              one is the medium at restore time.
 //   NOT DONE   an upgrade path framework, a dual writer, crash durability, fullscreen
-//              state, monitor identity, and any notion of WHICH document or WHICH setup
-//              file the session belonged to. Where things are is the host's business and
-//              always was.
+//              state, monitor identity, a durable layout IDENTIFIER, per-layout anything
+//              that is Workshop-global (the Editor, Files, marks, recipes, the window), and
+//              any notion of WHICH document or WHICH setup file the session belonged to.
+//              Where things are is the host's business and always was.
 //
 // ---- A viewport that cannot be honoured is not a broken file --------------
 //
@@ -148,12 +174,14 @@
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace zengine::workshop::session_persist {
 
@@ -169,18 +197,29 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 /// two versions and is the only party that has to know them. So there is no list to keep
 /// in step with anything, and adding a version to this format is changing this number --
 /// not appending a rung to a ladder.
-inline constexpr std::int64_t kFormatVersion = 3;
+///
+/// ⚠ WUX-10 IS THE FIRST PHASE TO SPEND THAT, and what it did is what a format moving is
+/// supposed to look like from here: version 3 went to `workshop/session_history.hpp` beside
+/// versions 1 and 2, this number became 4, and NOT ONE LINE about version 3 was added here.
+inline constexpr std::int64_t kFormatVersion = 4;
 
 /// Where the last session lives when the host does not say otherwise. Beside the document's
 /// default (`persist::kDefaultDocumentName`) and the setup's
 /// (`kDefaultSetupFileName`), and a third name for the third promise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
 
-/// A session is a setup plus two integers, so its ceiling is the setup's. Sixty-four
-/// kibibytes is the same order-of-magnitude headroom `setup_persist` reasons its own ceiling
-/// from, and it is the read side of the same law: a hostile file does not get to choose the
-/// cost of refusing it.
-inline constexpr std::uintmax_t kMaxSessionBytes = 1u << 16;
+/// HOW LARGE A SESSION MAY BE, DERIVED FROM WHAT ONE MAY HOLD (WUX-10).
+///
+/// A session was a setup plus two integers and its ceiling was the setup's. It is now up to
+/// `kMaxLayouts` desks plus a viewport and a placement, so its ceiling is the desk's
+/// ceiling times the ceiling on desks -- DERIVED rather than typed, because both bounds are
+/// already written down and a session this build writes must never be one it refuses to
+/// read back. Raising either number therefore cannot strand a maker's file.
+///
+/// IT IS STILL THE READ SIDE OF THE SAME LAW -- a hostile file does not get to choose the
+/// cost of refusing it -- and the bound it buys costs a read and a compare.
+inline constexpr std::uintmax_t kMaxSessionBytes =
+    static_cast<std::uintmax_t>(kMaxLayouts) * setup_persist::kMaxSetupBytes;
 
 // ---- The file's own shapes ----------------------------------------------------
 
@@ -235,25 +274,36 @@ struct WorkshopPlacement {
 };
 
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
-/// desk that was in the room, and where the room's window sat on the desktop.
+/// DESKS that were in the room and which one the maker was standing on, and where the
+/// room's window sat on the desktop.
 ///
-/// `desk` IS `setup_persist::WorkshopSetup`, not a copy of its fields. That is the one
-/// structural claim this file makes: a desk saved automatically and a desk saved under a
-/// name are the same bytes in the same shape, so they cannot drift, and the four layers that
-/// judge one judge the other (`setup_persist::setup_in`).
+/// EVERY LAYOUT IS A `setup_persist::WorkshopSetup`, not a copy of its fields. That is the
+/// one structural claim this file makes: a desk saved automatically and a desk saved under
+/// a name are the same bytes in the same shape, so they cannot drift, and the four layers
+/// that judge one judge every one of these (`setup_persist::setup_in`).
+///
+/// `layouts` IS THE MAKER'S ORDER, WHOLE (WUX-10) -- the run as they authored it, with the
+/// live one IN it rather than lifted out of it, and `active` is which position that was.
+/// Runtime lifts; the file does not, and `setup.hpp`'s `layout_run` /
+/// `install_layout_run` are the two halves of that translation. NOTHING HERE IDENTIFIES A
+/// LAYOUT except its position: duplicate names are legal, and no id is minted.
 struct WorkshopSession {
     std::string format;
     std::int64_t format_version = 0;
     WorkshopViewport viewport;
-    setup_persist::WorkshopSetup desk;
+    std::vector<setup_persist::WorkshopSetup> layouts;
+    std::int64_t active = 0;
     WorkshopPlacement placement;
 
     /// Version 2 (WUX-2): the nested desk became setup format 3 — sub-cell
     /// geometry — and this format's version moved with it, exactly as the
     /// assertion below always demanded it would.
     /// Version 3 (WUX-3): the desktop placement, carried as the words above.
-    ZEN_SHAPE(WorkshopSession, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(desk), ZEN_FIELD(placement));
+    /// Version 4 (WUX-10): the one `desk` became the whole ordered layout run
+    /// and the position that was live.
+    ZEN_SHAPE(WorkshopSession, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
+              ZEN_FIELD(placement));
 };
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER, for the
@@ -273,7 +323,9 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
 /// DECISION: move the desk's version, and somebody has to come here, move this number and
 /// this format's version together, and word the refusal. WUX-2 was the first to trip it:
 /// the desk became v3, this format became v2, and the v1 session — nesting the v2 desk —
-/// is read through the legacy road below rather than refused.
+/// was read through a conversion rather than refused. WUX-10 moved THIS format's version
+/// while the desk stood still, which is the other direction and is equally allowed: what
+/// the assertion forbids is the desk moving without anybody noticing.
 static_assert(setup_persist::WorkshopSetup::zen_version == 3,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
@@ -332,16 +384,27 @@ struct Placement {
 /// The session, as the value that gets written.
 ///
 /// NOTHING IS SORTED, NORMALISED, RESOLVED OR DROPPED ON THE WAY OUT -- `setup_persist`'s
-/// own rule, inherited by using its own function for the desk. The viewport and the
+/// own rule, inherited by using its own function for every desk. The order is the run's,
+/// `active` is where the caller says the live one stands in it, and the viewport and the
 /// placement are written exactly as the session held them, which is exactly what the last
-/// medium said, which is the only reason writing either is worth anything.
-inline WorkshopSession to_session(const Setup& desk, std::int64_t viewport_w,
-                                  std::int64_t viewport_h, const Placement& place) {
+/// medium said, which is the only reason writing any of it is worth anything.
+///
+/// ⚠ IT TAKES THE RUN AND NOT A `SetupState`, and that is the point of the signature: the
+/// argument is a const vector, so no save can reorder the layouts it is saving, and the one
+/// place that undoes runtime's lift is `layout_run` (`setup.hpp`) rather than a second
+/// reading of `shelved` written here.
+inline WorkshopSession to_session(const std::vector<Setup>& run, std::size_t active,
+                                  std::int64_t viewport_w, std::int64_t viewport_h,
+                                  const Placement& place) {
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
     out.viewport = WorkshopViewport{viewport_w, viewport_h};
-    out.desk = setup_persist::to_setup(desk);
+    out.layouts.reserve(run.size());
+    for (const Setup& desk : run) {
+        out.layouts.push_back(setup_persist::to_setup(desk));
+    }
+    out.active = static_cast<std::int64_t>(active);
     out.placement.mode = place.known ? kPlacementDesktop : kPlacementNone;
     out.placement.x = place.known ? place.x : 0;
     out.placement.y = place.known ? place.y : 0;
@@ -350,10 +413,11 @@ inline WorkshopSession to_session(const Setup& desk, std::int64_t viewport_w,
     return out;
 }
 
-inline std::string to_text(const Setup& desk, std::int64_t viewport_w,
-                           std::int64_t viewport_h, const Placement& place) {
+inline std::string to_text(const std::vector<Setup>& run, std::size_t active,
+                           std::int64_t viewport_w, std::int64_t viewport_h,
+                           const Placement& place) {
     return loom::compat::serialize(
-        loom::to_value(to_session(desk, viewport_w, viewport_h, place)));
+        loom::to_value(to_session(run, active, viewport_w, viewport_h, place)));
 }
 
 // ---- Reading -------------------------------------------------------------------
@@ -368,14 +432,16 @@ inline std::string to_text(const Setup& desk, std::int64_t viewport_w,
 ///                                      first launch must never be reported as one.
 ///   `outcome.accepted == false`        there is one and it cannot be read or understood.
 ///                                      Say why; use the defaults.
-///   `honoured == false` with a desk    it was read; its viewport is not one this Workshop
-///                                      opens at. Restore the desk, keep the default size,
-///                                      say which value was declined.
+///   `honoured == false` with a run      it was read; its viewport is not one this Workshop
+///                                      opens at. Restore the layouts, keep the default
+///                                      size, say which value was declined.
 ///   everything accepted                restore both.
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
-    Setup desk;             ///< the arrangement, when `outcome.accepted`
+    std::vector<Setup> layouts; ///< the maker's ordered run, when `outcome.accepted`; a
+                                ///< session that was admitted holds at least one
+    std::size_t active = 0; ///< which position of `layouts` was the live desk
     std::int64_t viewport_w = 0; ///< the room, when `honoured`
     std::int64_t viewport_h = 0;
     bool honoured = false;  ///< whether that room is one this Workshop will open at
@@ -416,6 +482,80 @@ inline std::string could_not_convert(std::uint32_t found, const std::string& why
     return "session version " + std::to_string(found) + " cannot be read: " + why;
 }
 
+// ---- THE LAYOUT RUN'S OWN LAW (WUX-10) -------------------------------------------
+//
+// FOUR THINGS A RUN MUST BE, and each of them is a fact this build can check against
+// something it already owns rather than a number typed here. They are refusals and not
+// repairs: a session claiming THIS version and holding an impossible run is wrong about
+// itself, and quietly turning it into a legal run would install an arrangement no maker
+// ever authored.
+
+/// A RUN WITH NO LAYOUT IN IT. Structurally impossible in runtime -- `SetupState::active`
+/// is a value, so there is always at least one desk -- which is exactly why a file that
+/// says otherwise cannot be installed.
+inline std::string no_layouts() {
+    return "this session holds no layout at all, and a Workshop always has at least one desk";
+}
+
+/// MORE LAYOUTS THAN THIS WORKSHOP KEEPS. The bound is `kMaxLayouts` -- the SAME number the
+/// `=` gesture refuses a ninth layout with -- so a file cannot install a run the maker could
+/// not have made, and raising the ceiling raises both at once.
+inline std::string too_many_layouts(std::size_t found) {
+    return "this session holds " + std::to_string(found) +
+           " layouts, and this Workshop keeps at most " + std::to_string(kMaxLayouts);
+}
+
+/// AN ACTIVE POSITION THAT IS NOT ONE OF THE LAYOUTS SAVED. Said in the file's own numbers,
+/// which are positions from zero, because the maker acting on it is reading the file.
+inline std::string active_out_of_range(std::int64_t at, std::size_t held) {
+    return "this session's active layout is position " + std::to_string(at) +
+           ", and its layouts run from 0 to " + std::to_string(held - 1);
+}
+
+/// WHICH LAYOUT REFUSED, in front of the setup owner's own sentence.
+///
+/// THE POSITION AND NEVER THE NAME. A name is authored bytes that may be duplicated, may
+/// be empty in a hostile file, and may impersonate the prose around it (WS-0a); a position
+/// is what a layout IS in this format, and it is the number the file itself carries.
+inline std::string in_layout(std::size_t at, const std::string& why) {
+    return "layout at position " + std::to_string(at) + ": " + why;
+}
+
+/// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
+///
+/// THE CANDIDATE IS BUILT INTO A LOCAL and only handed over once every layer has passed,
+/// which is `setup_persist::setup_in`'s own structural guarantee spent one level up: a
+/// malformed layout near the end of a run cannot leave the earlier ones installed.
+inline Written layouts_in(const WorkshopSession& file, std::vector<Setup>& run,
+                          std::size_t& active) {
+    if (file.layouts.empty()) {
+        return Written::no(no_layouts());
+    }
+    if (file.layouts.size() > kMaxLayouts) {
+        return Written::no(too_many_layouts(file.layouts.size()));
+    }
+    if (file.active < 0 || static_cast<std::size_t>(file.active) >= file.layouts.size()) {
+        return Written::no(active_out_of_range(file.active, file.layouts.size()));
+    }
+    std::vector<Setup> candidate;
+    candidate.reserve(file.layouts.size());
+    for (std::size_t at = 0; at < file.layouts.size(); ++at) {
+        // EVERY LAYOUT MEETS THE SETUP OWNER'S WHOLE LAW, in the setup owner's own words.
+        // There is one durable representation of a desk in this program and one function
+        // that admits one; a session holding several of them holds several desks, not a
+        // different kind of thing.
+        Setup desk;
+        const Written understood = setup_persist::setup_in(file.layouts[at], desk);
+        if (!understood.accepted) {
+            return Written::no(in_layout(at, understood.refusal));
+        }
+        candidate.push_back(std::move(desk));
+    }
+    run = std::move(candidate);
+    active = static_cast<std::size_t>(file.active);
+    return Written::ok();
+}
+
 /// THE PLACEMENT'S OWN ADMISSION: the two closed word sets, and the one-spelling law for
 /// the absence. Judged here rather than inline in `from_text`, so the v3 road reads as the
 /// v2 road plus exactly this.
@@ -448,12 +588,17 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
     return Written::ok();
 }
 
-// ---- ...and NOTHING about versions 1 and 2 (MIG-0) ------------------------------------
+// ---- ...and NOTHING about versions 1, 2 and 3 (MIG-0, spent by WUX-10) ----------------
 //
 // This is where two retained shapes and two retained roads used to be. They are not here
 // any more, and the absence is the phase: what an older session file LOOKED LIKE, and what
 // it MEANT, belongs to whoever converts it -- `workshop/session_history.hpp`, carried into
 // a run by a provider artifact this host may mount, replace, or simply not have.
+//
+// ⚠ AND THIS IS WHERE VERSION 3 WOULD HAVE GONE. WUX-10 moved the format for the first time
+// since that history was extracted, and the cost of the move in this file is one number and
+// one shape -- no `if (claimed_version == 3)`, no third namespace, no retired road. Version
+// 3's shape and its exact meaning are `session_history`'s, beside 1 and 2.
 //
 // ⚠ A HISTORICAL SHAPE MUST NOT COME BACK TO THIS FILE, and it would be easy to add one the
 // next time this format moves. The whole value of the move is that the current reader stops
@@ -461,15 +606,16 @@ inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
 // shape's name, another version) and asks for a conversion -- one sentence that does not
 // get longer as history does.
 
-/// The shared tail of every read road: judge the desk with `setup_persist`'s own readers
-/// and the viewport with this file's own band, into a loaded session. The desk translation
-/// differs per road, so it arrives already done; everything after it is one law.
-inline LoadedSession loaded_from(Setup desk, std::int64_t viewport_w,
-                                 std::int64_t viewport_h, const Placement& place) {
+/// The shared tail of every read road: an admitted layout run, and the viewport judged
+/// against this file's own band, into a loaded session.
+inline LoadedSession loaded_from(std::vector<Setup> run, std::size_t active,
+                                 std::int64_t viewport_w, std::int64_t viewport_h,
+                                 const Placement& place) {
     LoadedSession loaded;
     loaded.outcome = Written::ok();
     loaded.present = true;
-    loaded.desk = std::move(desk);
+    loaded.layouts = std::move(run);
+    loaded.active = active;
     loaded.placement = place;
     if (viewport_honoured(viewport_w, viewport_h)) {
         loaded.viewport_w = viewport_w;
@@ -502,10 +648,15 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     if (file.format_version != kFormatVersion) {
         return LoadedSession::no(forged_version(file.format_version));
     }
-    // THE DESK IS BUILT INTO A LOCAL and only handed over once every layer has passed, which
-    // is `setup_persist`'s own structural guarantee spent here rather than restated.
-    Setup desk;
-    const Written understood = setup_persist::setup_in(file.desk, desk);
+    // THE RUN IS JUDGED WHOLE AND BUILT INTO LOCALS, and only handed over once every layer
+    // has passed -- `setup_persist`'s own structural guarantee, spent over a run rather than
+    // restated. ⚠ AND THIS IS ORDINARY CURRENT-VERSION ADMISSION: a v4 file with no layout,
+    // an active position out of range or a ninth layout is WRONG, not old, and is refused
+    // here in current-data words. Nothing about an admission failure sends a file looking
+    // for a conversion; only a historical CLAIM does that, in `from_text`.
+    std::vector<Setup> run;
+    std::size_t active = 0;
+    const Written understood = layouts_in(file, run, active);
     if (!understood.accepted) {
         return LoadedSession::no(understood.refusal);
     }
@@ -519,9 +670,10 @@ inline LoadedSession current_in(const loom::Value& admitted) {
         return LoadedSession::no(placed.refusal);
     }
     // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
-    // whose size this build will not open at is still a session, and the desk in it is
+    // whose size this build will not open at is still a session, and the desks in it are
     // still the maker's.
-    return loaded_from(std::move(desk), file.viewport.width, file.viewport.height, place);
+    return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
+                       place);
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
@@ -589,9 +741,11 @@ inline LoadedSession from_text(std::string_view bytes,
 /// It writes THROUGH `persist::write_file_making_room` since WUX-3: the ordinary home of
 /// this file is the per-user state root, which is created on first write and never on a
 /// read -- a run that persists nothing leaves no trace.
-inline Written save_file(const std::string& path, const Setup& desk, std::int64_t viewport_w,
+inline Written save_file(const std::string& path, const std::vector<Setup>& run,
+                         std::size_t active, std::int64_t viewport_w,
                          std::int64_t viewport_h, const Placement& place) {
-    return persist::write_file_making_room(path, to_text(desk, viewport_w, viewport_h, place));
+    return persist::write_file_making_room(
+        path, to_text(run, active, viewport_w, viewport_h, place));
 }
 
 /// Read the last session from a file.

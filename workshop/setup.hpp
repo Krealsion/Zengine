@@ -2008,6 +2008,54 @@ inline bool remove_layout(SetupState& s) {
     return true;
 }
 
+/// THE MAKER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS (WUX-10).
+///
+/// THE EXACT INVERSE OF THE LIFT, and it exists because the run is what leaves
+/// this program. `shelved` + `active_at` is the run with one element taken out,
+/// so putting that element back at `active_at` is the whole of the reading --
+/// no sort, no rotation to make the live one first, and no second copy of any
+/// value. A durable owner that reached into `shelved` itself would be spelling
+/// this inverse a second time, in a file that has no business knowing there is
+/// a lift at all.
+///
+/// IT IS A READ. The argument is const and the run is a new vector: serialising
+/// a maker's layouts must not be able to reorder the layouts it is serialising.
+inline std::vector<Setup> layout_run(const SetupState& s) {
+    std::vector<Setup> run = s.shelved;
+    // TOTAL OVER `active_at`, for `layout_at`'s reason exactly: nothing in this
+    // file can produce a position past the shelf, and a second refusal shape
+    // would be a state somebody has to keep true.
+    const std::size_t at = s.active_at <= s.shelved.size() ? s.active_at : s.shelved.size();
+    run.insert(run.begin() + static_cast<std::ptrdiff_t>(at), s.active);
+    return run;
+}
+
+/// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE (WUX-10) -- the direction a
+/// restored session travels, and the only other place the run's spelling is
+/// made.
+///
+/// THE CALLER HAS ALREADY JUDGED THE RUN. Whether a durable run was legal --
+/// non-empty, within the ceiling, every desk a legal setup, the position in
+/// range -- is the durable owner's law and is worded there
+/// (`session_persist::layouts_in`). What is checked here is the TYPE's own
+/// floor, which no caller can be trusted to keep for it: `active` is a value,
+/// so a run this could not lift from would leave Workshop with no live desk at
+/// all. False means nothing moved.
+///
+/// `on_file` AND THE NAME EDITOR ARE NOT TOUCHED. `on_file` is this run's copy
+/// of what is in the SETUP file, and a session restore has not read that file
+/// (WUX-0's rule, unchanged).
+inline bool install_layout_run(SetupState& s, std::vector<Setup> run, std::size_t active) {
+    if (run.empty() || active >= run.size()) {
+        return false;
+    }
+    s.active = std::move(run[active]);
+    run.erase(run.begin() + static_cast<std::ptrdiff_t>(active));
+    s.shelved = std::move(run);
+    s.active_at = active;
+    return true;
+}
+
 /// THE POSITION ONE STEP ALONG THE RUN, WRAPPING -- the keyboard's whole
 /// traversal law, over the ENTIRE population rather than over whatever the band
 /// had room to paint. `by` is +1 or -1.

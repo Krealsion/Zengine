@@ -70,18 +70,19 @@ What makes that cost more than one keypress: a fresh Workshop seeds two example 
 forgetting `Ctrl`+`o` gives you a plausible document that is not yours rather than an obviously
 empty one. Detail in [workspace continuity](setups.md#workspace-continuity).
 
-### Only the layout you are on comes back after a restart
+### One run holds at most eight layouts
 
-Workshop keeps [several layouts](setups.md#several-layouts-in-one-workshop) at once, and today
-only the one you are standing on survives a restart — it rides the last session exactly as the
-single desk always has. The others live as long as the run.
+[Layouts](setups.md#several-layouts-in-one-workshop) all come back after a restart now — the set,
+your order, their names and the one you were standing on — so what is left here is the bound:
+a ninth layout is refused rather than quietly replacing one.
 
-**This is a boundary of the current implementation, not a decision waiting for evidence.**
-Saving and restoring the whole set — the layouts, their order, their names, and which one you
-were on — is work that is owed. Until it lands, `s` writes whichever layout you are on to the
-setup file, so an arrangement you want to keep is one keystroke from being kept.
+What a layout still does **not** carry is anything Workshop holds once for the whole run: your
+document, the project, the file browser's location, your marks, your recipes, the keymap and the
+window are one each, and switching layouts changes none of them.
 
-One run holds at most **eight** layouts; a ninth is refused rather than quietly replacing one.
+**Renaming a layout still rides the setup save.** `s` names the layout you are on *and* writes
+it to the `--setup` file; there is no separate rename. That is a rough edge, not a boundary — the
+name it writes is the name that comes back.
 
 ### A pane's geometry is stored once and read in whatever unit your face uses
 

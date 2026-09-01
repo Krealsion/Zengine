@@ -9,10 +9,10 @@
 //
 // ---- WHY THIS FILE EXISTS -------------------------------------------------
 //
-// `session_persist.hpp` used to carry three shapes and three roads: version 3, and version
-// 1 and version 2 kept beside it so that an older file could still be read. Every one of
-// those old shapes was compiled into every Workshop, into every suite that asks what a
-// screen looks like, and into the reader itself — where it sat next to the CURRENT shape
+// `session_persist.hpp` used to carry three shapes and three roads: the current one, and
+// version 1 and version 2 kept beside it so that an older file could still be read. Every
+// one of those old shapes was compiled into every Workshop, into every suite that asks what
+// a screen looks like, and into the reader itself — where it sat next to the CURRENT shape
 // with nothing but a namespace between them.
 //
 // It moved here because the current reader should know exactly one thing: the shape it
@@ -23,8 +23,11 @@
 //
 // ---- WHAT MOVED, AND WHAT DELIBERATELY DID NOT ----------------------------
 //
-//     MOVED HERE     the version-1 and version-2 session shapes, and the exact
-//                    translation of each into the current one
+//     MOVED HERE     the version-1, version-2 and version-3 session shapes, and the exact
+//                    translation of each into the current one. Version 3 arrived at
+//                    WUX-10, when the layout run made the current version 4 — and it
+//                    arrived by the ordinary route this file exists to be: the reader
+//                    changed one number, and its retired shape was copied here verbatim
 //     STAYED PUT     `setup_persist::v2` -- the whole-cell DESK. The standalone setup
 //                    file still reads one, in its own owner, on its own terms
 //                    (`setup_persist::setup_in_v2`), so that shape has a live consumer
@@ -53,6 +56,17 @@
 // here, against the version this edge converts, and a disagreement refuses. That is the
 // forgery an old file's reader has always had to answer: an envelope claiming one version
 // over a body that says another.
+//
+// ---- WHY THE EDGES ARE DIRECT AND STILL COMPOSE INTERNALLY ----------------
+//
+// Three edges leave this file — v1, v2 and v3, each straight to the current shape — and
+// none of them is a route anybody searched for: `op::migrate` computes ONE identity and
+// calls `find` once, so a mounted `v1 -> v3` and a mounted `v3 -> v4` would satisfy nothing
+// asking for `v1 -> v4` (MIG-0's law, deliberately). What the BODY of an edge does is the
+// author's business, and these bodies compose two named translations in C++ — yesterday's
+// meaning said at version 3, then the one field version 4 added. That is authorship, not
+// discovery: the composition is written here, by the party that supplies the edge, and it
+// is what keeps v1's and v2's meaning from being transcribed a second time and drifting.
 //
 // ---- HOW A REFUSAL TRAVELS ------------------------------------------------
 //
@@ -119,11 +133,37 @@ struct WorkshopSession {
 
 } // namespace v2
 
+namespace v3 {
+
+/// WUX-3's session, retired by WUX-10: the room, the current desk shape, and the desktop
+/// placement. ONE desk — the plural arrived at version 4, and this is the shape that had
+/// singular in it.
+///
+/// ⚠ EVERY FIELD, NAME, TYPE AND ORDER IS THE RETIRED ONE, VERBATIM. A historical shape is
+/// not a description of what an old file meant; it IS the door those bytes claim, and its
+/// content id is computed from all of that. The nested `WorkshopViewport`,
+/// `WorkshopSetup` and `WorkshopPlacement` are named rather than copied for the same
+/// reason `setup_persist::v2` was not moved here: they are unchanged, they have live
+/// owners, and two definitions of one truth is worse than either place could be alone.
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    session_persist::WorkshopViewport viewport;
+    setup_persist::WorkshopSetup desk;
+    session_persist::WorkshopPlacement placement;
+
+    ZEN_SHAPE(WorkshopSession, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(desk), ZEN_FIELD(placement));
+};
+
+} // namespace v3
+
 /// THE VERSION NUMBERS THIS FILE CONVERTS FROM. They are the edges' own, said once so the
-/// two shapes above and the two definitions below cannot come to disagree about which
-/// vintage each is.
+/// shapes above and the definitions below cannot come to disagree about which vintage each
+/// is.
 inline constexpr std::int64_t kV1FormatVersion = 1;
 inline constexpr std::int64_t kV2FormatVersion = 2;
+inline constexpr std::int64_t kV3FormatVersion = 3;
 
 static_assert(v1::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV1FormatVersion),
               "a historical session shape's envelope version and the format version it "
@@ -131,6 +171,14 @@ static_assert(v1::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV1
 static_assert(v2::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV2FormatVersion),
               "a historical session shape's envelope version and the format version it "
               "converts are one number, exactly as they are for the current one");
+static_assert(v3::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV3FormatVersion),
+              "a historical session shape's envelope version and the format version it "
+              "converts are one number, exactly as they are for the current one");
+
+/// ...AND THE VERSION THEY ALL CONVERT TO IS THE READER'S, NEVER A NUMBER TYPED HERE.
+static_assert(session_persist::kFormatVersion > kV3FormatVersion,
+              "every shape in this file is RETIRED: the current reader's version must be "
+              "ahead of all of them, or one of these is not history");
 
 // ---- Translating ---------------------------------------------------------------------
 
@@ -248,57 +296,113 @@ inline setup_persist::WorkshopSetup desk_v2_to_v3(const setup_persist::v2::Works
     return out;
 }
 
-/// A VERSION-1 SESSION AS A CURRENT ONE.
+/// A VERSION-1 SESSION AS A VERSION-3 ONE — yesterday's meaning, said in the last shape
+/// that had a single desk in it.
 ///
 /// The room crosses unchanged; the desk goes through the multiply above; and the placement
 /// reads as THE CANONICAL ABSENCE, because nothing in a version-1 file could have said one
 /// and a value nobody means must have exactly one spelling (WIND-2's law, which
 /// `session_persist::placement_in` enforces at the other end).
-inline session_persist::WorkshopSession session_v1_to_v3(const v1::WorkshopSession& old) {
+///
+/// IT ANSWERS AT VERSION 3 AND NOT AT THE READER'S VERSION, since WUX-10. This is the half
+/// of the translation that is about WHAT A VERSION-1 FILE MEANT, and that meaning did not
+/// change when the current format grew a layout run — so it is written once, here, and the
+/// growth is applied to it by `session_v3_to_v4`.
+inline v3::WorkshopSession session_v1_to_v3(const v1::WorkshopSession& old) {
     if (old.format_version != kV1FormatVersion) {
         throw std::invalid_argument(
             mismatched_version("session", kV1FormatVersion, old.format_version));
     }
-    session_persist::WorkshopSession out;
+    v3::WorkshopSession out;
     out.format = old.format;
-    out.format_version = session_persist::kFormatVersion;
+    out.format_version = kV3FormatVersion;
     out.viewport = old.viewport;
     out.desk = desk_v2_to_v3(old.desk);
     out.placement = absent_placement();
     return out;
 }
 
-/// A VERSION-2 SESSION AS A CURRENT ONE — this format's version, plus the placement it
+/// A VERSION-2 SESSION AS A VERSION-3 ONE — that format's version, plus the placement it
 /// never had.
 ///
 /// THE DESK CROSSES WHOLE AND UNJUDGED, and that is the accurate translation rather than a
 /// shortcut: a version-2 session already nests the CURRENT desk shape, so its rows are
 /// exactly the rows `setup_in` is about to read, and any question about them is that
 /// reader's to ask in its own words.
-inline session_persist::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
+inline v3::WorkshopSession session_v2_to_v3(const v2::WorkshopSession& old) {
     if (old.format_version != kV2FormatVersion) {
         throw std::invalid_argument(
             mismatched_version("session", kV2FormatVersion, old.format_version));
     }
-    session_persist::WorkshopSession out;
+    v3::WorkshopSession out;
     out.format = old.format;
-    out.format_version = session_persist::kFormatVersion;
+    out.format_version = kV3FormatVersion;
     out.viewport = old.viewport;
     out.desk = old.desk;
     out.placement = absent_placement();
     return out;
 }
 
+/// A VERSION-3 SESSION AS A CURRENT ONE (WUX-10) — the one desk it had, as a layout run
+/// holding exactly that desk, live.
+///
+/// ⚠ THIS IS FIELD DEFAULTING AND NOT INFERRED INTENT, and the distinction is the whole of
+/// what makes it honest. A version-3 session could not say how many layouts a maker had,
+/// because a version-3 Workshop restored one; so the truthful reading of those bytes is
+/// *one layout, the desk that was live, standing at position zero* — the same thing
+/// `absent_placement` does one field over. Inventing a second layout, or an empty run, or
+/// an active position other than zero would be this file deciding something the maker never
+/// wrote down.
+///
+/// EVERY NON-LAYOUT FACT CROSSES UNCHANGED: the room, the desk's own bytes, and the
+/// placement — including a REAL one, because version 3 is the vintage that had it.
+inline session_persist::WorkshopSession session_v3_to_v4(const v3::WorkshopSession& old) {
+    if (old.format_version != kV3FormatVersion) {
+        throw std::invalid_argument(
+            mismatched_version("session", kV3FormatVersion, old.format_version));
+    }
+    session_persist::WorkshopSession out;
+    out.format = old.format;
+    out.format_version = session_persist::kFormatVersion;
+    out.viewport = old.viewport;
+    out.layouts.push_back(old.desk);
+    out.active = 0;
+    out.placement = old.placement;
+    return out;
+}
+
+/// A VERSION-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the two
+/// translations above.
+///
+/// ⚠ NOT A ROUTE, AND THE DIFFERENCE IS WHO WROTE IT. Nothing at the catalog layer knows
+/// these functions exist or that one of them lands where the other starts; `op::migrate`
+/// resolves `zengine.migrate.WorkshopSession.v1-to-v4` and spends exactly it. What this
+/// composition buys is that version 1's MEANING is defined once — a second transcription of
+/// the whole-cell multiply, the placement absence and the desk's vintage check is exactly
+/// the drift this file exists to prevent.
+inline session_persist::WorkshopSession session_v1_to_v4(const v1::WorkshopSession& old) {
+    return session_v3_to_v4(session_v1_to_v3(old));
+}
+
+/// A VERSION-2 SESSION AS A CURRENT ONE, the same way.
+inline session_persist::WorkshopSession session_v2_to_v4(const v2::WorkshopSession& old) {
+    return session_v3_to_v4(session_v2_to_v3(old));
+}
+
 // ---- ...and the two of them as ordinary contributions ---------------------------------
 
 /// EVERY EDGE THIS HISTORY SUPPLIES, as ordinary operator definitions.
 ///
-/// TWO DIRECT EDGES AND NOT A LADDER. `v1 -> v3` is one authored conversion, not `v1 -> v2`
-/// followed by `v2 -> v3`: it happens to reuse the same desk translation, in C++, inside
-/// one body -- which is what "authored" means. Nothing at the catalog layer knows these two
-/// are related, and nothing may compose them; the day the current version moves again, what
-/// changes here is which target these edges name, and the seam that finds them does not
-/// change at all.
+/// THREE DIRECT EDGES AND NOT A LADDER. `v1 -> v4` is one authored conversion, not `v1 ->
+/// v3` followed by `v3 -> v4`: it happens to reuse the same two translations, in C++,
+/// inside one body -- which is what "authored" means. Nothing at the catalog layer knows
+/// these three are related, and nothing may compose them: a run holding only `v1 -> v3` and
+/// `v3 -> v4` satisfies no `v1 -> v4` lookup, because there is no lookup that walks.
+///
+/// ⚠ WHAT WUX-10 CHANGED HERE IS WHICH TARGET THEY NAME, and that is exactly what MIG-0
+/// predicted a format move would cost: `current` is read off the reader's own shape, so the
+/// identities re-derived themselves from v*-to-v3 to v*-to-v4 with no string edited, and the
+/// shipped load plans needed no new row -- the same provider carries one more edge.
 ///
 /// `op::make_migration` derives both the identity and the answer wrapper from the two
 /// schemas, so this function cannot ship a contribution whose name and signature disagree.
@@ -308,12 +412,17 @@ inline std::vector<op::OperatorDef> conversions() {
     edges.push_back(op::make_migration(
         loom::schema_of<v1::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v1_to_v3(loom::from_value<v1::WorkshopSession>(old))));
+                loom::to_value(session_v1_to_v4(loom::from_value<v1::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v2::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v2_to_v3(loom::from_value<v2::WorkshopSession>(old))));
+                loom::to_value(session_v2_to_v4(loom::from_value<v2::WorkshopSession>(old))));
+        }));
+    edges.push_back(op::make_migration(
+        loom::schema_of<v3::WorkshopSession>(), current, [](const loom::Value& old) {
+            return loom::Cell::message(
+                loom::to_value(session_v3_to_v4(loom::from_value<v3::WorkshopSession>(old))));
         }));
     return edges;
 }

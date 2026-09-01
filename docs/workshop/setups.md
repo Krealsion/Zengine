@@ -113,12 +113,13 @@ The two gestures act on the layout you are on and on nothing else:
 Neither one touches your other layouts. `UNSAVED` means what it always meant: the layout you are
 on differs from what is in the setup file.
 
-**Additional layouts are available within the current run; only the active desk is restored
-after a restart today.** Saving and restoring the whole set of layouts is planned work, not an
-experiment — see [what does not come back yet](limitations.md#only-the-layout-you-are-on-comes-back-after-a-restart).
+**All of your layouts come back.** Closing Workshop writes the whole run — every layout, in
+your order, under its own name, with the one you were standing on marked as the live one — and
+the next launch gives them all back. That is the *session's* job, not the setup file's; the two
+promises are still separate, and the table below says which is which.
 
-To keep an arrangement past a restart today, stand on it and press `s`. To have several on disk,
-keep several files and pass the one you want:
+The setup file is still exactly one desk. To keep an arrangement under a name of its own, stand
+on it and press `s`. To have several on disk, keep several files and pass the one you want:
 
 ```sh
 zengine-workshop --setup layouts/wide.json
@@ -144,7 +145,9 @@ What comes back:
 
 | | |
 |---|---|
-| which panes were open | yes |
+| your layouts | **yes** — all of them, in your order, under their own names |
+| which layout you were on | **yes** — the same one is live again |
+| which panes were open | yes — per layout |
 | where each was placed, and how big | yes — the authored values, exactly as saved |
 | which pane was in front | yes |
 | the size of the Workshop window | yes, **to the nearest whole cell** — see below |
@@ -156,6 +159,12 @@ The status line says what happened, in the notice row:
 
 ```text
 reopened your last desk "Debugging" -- 120x44 cells
+```
+
+...and when more than one layout came back, it says which one of how many you are standing on:
+
+```text
+reopened your last desk "Code" (2 of 3 layouts) -- 120x44 cells
 ```
 
 ### Why the window size is in cells
@@ -175,6 +184,7 @@ Four different things can happen, and they are four different sentences:
 | there is no session file yet | opens with the defaults, and says **nothing** — a first launch is not an error |
 | the file exists and cannot be read or understood | says why, names the reason, opens with the default setup, and **leaves your file exactly as it is — including on the way out** |
 | the file was written by an **older** Workshop | reads it through a conversion, if this arrangement has one — see below |
+| the file claims **this** version but says something impossible — no layouts, more layouts than a run holds, an active position that is not one of them, a desk that is not a legal setup | refuses it as the current-version file it claims to be, names the fact that is wrong, and **does not go looking for a conversion** |
 | the file is fine but the saved size is not one this Workshop opens at | restores the **desk**, opens at the default size, and names the value it declined |
 | a pane in it is a reference this build cannot present | restores everything else, keeps the reference, and names the first unresolved one |
 
@@ -197,6 +207,10 @@ artifact). Workshop's session reader looks for one, spends it, and then puts the
 its own ordinary checks — the same ones a file written five minutes ago goes through. So an old
 file is never admitted on easier terms than a new one.
 
+A session from before layouts came back opens as **exactly one layout** holding exactly the desk
+it always held. That is the honest reading: those files could not say how many layouts you had,
+so Workshop does not invent an answer.
+
 Three consequences worth knowing:
 
 - **An old file cannot make anything load.** Its version is a *lookup key*: it can pick among the
@@ -211,8 +225,8 @@ Three consequences worth knowing:
   by number, naming the conversion that is missing:
 
 ```text
-session version 1 cannot be read: no live conversion from `WorkshopSession` v1 to v3
-(`zengine.migrate.WorkshopSession.v1-to-v3`) -- opening with the default setup
+session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v4
+(`zengine.migrate.WorkshopSession.v3-to-v4`) -- opening with the default setup
 ```
 
   **and that run keeps no session at all** — closing it writes nothing, so your file is still
@@ -229,7 +243,8 @@ They are deliberately different promises, and keeping them apart is why there ar
 | read by | you, with `r` | Workshop, on start |
 | has a name you chose | yes | it carries whatever name the desk had |
 | holds the window size | no | yes |
-| how many | one file per run, chosen by `--setup`; keep as many files as you like | one |
+| how many desks | exactly one | all the layouts you were using, in order, with the live one marked |
+| how many files | one per run, chosen by `--setup`; keep as many files as you like | one |
 
 An automatic save never touches the file you named, in either direction. Closing Workshop
 writes a session and leaves `workshop-setup.json` byte-for-byte alone; taking a session back
@@ -248,6 +263,7 @@ Source-traced, precisely:
 | | exists? | how |
 |---|---|---|
 | saving a layout / setup | **yes** | `s`, writes the `--setup` file — the layout you are on |
+| keeping all your layouts across a restart | **yes** | automatic, in the session file |
 | loading / restoring it | **yes** | `r`, reads the `--setup` file into the layout you are on |
 | keeping several layouts at once | **yes**, within the run | tabs on Workshop's first row; `.` `,` `=` `Ctrl`+`w` |
 | selecting among setup **files** | **no in-application selection** | one file per run, chosen by `--setup` |

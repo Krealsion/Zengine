@@ -7,7 +7,7 @@
 // IT IS A PROVIDER AND IT IS NOT A WEAVE, on `zengine-operators-basic`'s own terms: it
 // exports `zengine_operator_provider` and no `zen_weave_abi` at all, so no Kernel loads it,
 // it gets no WeaveId, no role, no grant, no manifest and no line in `zen.ListLoaded`, and
-// it never sees a bus. A host opens it, reads two definitions out of it, and holds it for
+// it never sees a bus. A host opens it, reads its definitions out of it, and holds it for
 // as long as those definitions are installed.
 //
 // WHAT IT PROVES THAT THE BASIC PROVIDER CANNOT. `zengine-operators-basic` supplies powers
@@ -41,6 +41,10 @@ std::vector<zengine::op::OperatorDef> session_conversions() {
 
 /// The provider's logical identity — what a host mounts, unmounts, and reports as the
 /// active supplier of a conversion. It is NOT part of an edge's identity: a `WorkshopSession
-/// v1 -> v3` conversion is that conversion whoever supplies it, which is exactly what lets
+/// v1 -> v4` conversion is that conversion whoever supplies it, which is exactly what lets
 /// somebody else supply it later without the session reader being rewritten.
+///
+/// ⚠ AND THE ROW IN A LOAD PLAN NAMES THIS ARTIFACT AND NOT AN EDGE, which is why WUX-10
+/// added a third conversion without touching a plan: what an arrangement authorizes is this
+/// supplier, and what it supplies is the header's business.
 ZENGINE_OPERATOR_PROVIDER("zengine.workshop.session_history", session_conversions)

@@ -576,11 +576,14 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  Since WUX-3 the session format is **version 3** — WUX-2's format plus the desktop
-  placement — and both older versions still load through retained legacy roads: a version-2
-  session reads with the placement as the canonical absence, and a version-1 session (a
-  whole-cell desk) additionally crosses the setup file's own legacy scaling, its viewport
-  unchanged and its desk scaled exactly. The next close writes version 3.
+  The session format is **version 4**: the maker's whole ordered run of layouts, each one an
+  ordinary saved setup, plus which position was live, the viewport and the desktop placement.
+  Older versions do **not** load through roads this reader carries — it admits one shape and
+  nothing else. What reads them is a *conversion*, contributed by an ordinary operator provider
+  the arrangement mounts (`zengine-workshop-session-history`); with it, a version-1, version-2
+  or version-3 session opens as exactly one layout holding exactly the desk it always held, and
+  without it that file is refused by its number, naming the conversion that is missing. The next
+  close writes version 4.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
